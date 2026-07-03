@@ -631,7 +631,7 @@ describe('instant validation', () => {
           .toMatchInlineSnapshot(`
          "Error: Route "/suspense-in-root/runtime/invalid-no-suspense-around-params/[param]": Next.js could not extract a reusable shell from this route.
 
-         Accessing URL data outside of \`<Suspense>\` prevents reuse and may cause a blocking navigation.
+         Accessing URL data outside of \`<Suspense>\` prevents shell reuse and may cause a blocking navigation.
 
          Ways to fix this:
            - [stream] Wrap the \`params\`/\`searchParams\` read in \`<Suspense fallback={...}>\` so the shell stays reusable across links
@@ -722,7 +722,7 @@ describe('instant validation', () => {
             .toMatchInlineSnapshot(`
            "Error: Route "/suspense-in-root/static/missing-suspense-around-search-params": Next.js could not extract a reusable shell from this route.
 
-           Accessing URL data outside of \`<Suspense>\` prevents reuse and may cause a blocking navigation.
+           Accessing URL data outside of \`<Suspense>\` prevents shell reuse and may cause a blocking navigation.
 
            Ways to fix this:
              - [stream] Wrap the \`params\`/\`searchParams\` read in \`<Suspense fallback={...}>\` so the shell stays reusable across links
@@ -781,7 +781,7 @@ describe('instant validation', () => {
           ).toMatchInlineSnapshot(`
            "Error: Route "/suspense-in-root/runtime/invalid-no-suspense-around-search-params": Next.js could not extract a reusable shell from this route.
 
-           Accessing URL data outside of \`<Suspense>\` prevents reuse and may cause a blocking navigation.
+           Accessing URL data outside of \`<Suspense>\` prevents shell reuse and may cause a blocking navigation.
 
            Ways to fix this:
              - [stream] Wrap the \`params\`/\`searchParams\` read in \`<Suspense fallback={...}>\` so the shell stays reusable across links
@@ -845,7 +845,7 @@ describe('instant validation', () => {
           .toMatchInlineSnapshot(`
          "Error: Route "/suspense-in-root/runtime/invalid-no-suspense-around-search-params": Next.js could not extract a reusable shell from this route.
 
-         Accessing URL data outside of \`<Suspense>\` prevents reuse and may cause a blocking navigation.
+         Accessing URL data outside of \`<Suspense>\` prevents shell reuse and may cause a blocking navigation.
 
          Ways to fix this:
            - [stream] Wrap the \`params\`/\`searchParams\` read in \`<Suspense fallback={...}>\` so the shell stays reusable across links
@@ -4204,7 +4204,7 @@ describe('instant validation', () => {
               .toMatchInlineSnapshot(`
              "Error: Route "/shells/invalid-runtime-params/[slug]": Next.js could not extract a reusable shell from this route.
 
-             Accessing URL data outside of \`<Suspense>\` prevents reuse and may cause a blocking navigation.
+             Accessing URL data outside of \`<Suspense>\` prevents shell reuse and may cause a blocking navigation.
 
              Ways to fix this:
                - [stream] Wrap the \`params\`/\`searchParams\` read in \`<Suspense fallback={...}>\` so the shell stays reusable across links
@@ -4241,7 +4241,7 @@ describe('instant validation', () => {
               ).toMatchInlineSnapshot(`
                "Error: Route "/shells/invalid-runtime-searchparams": Next.js could not extract a reusable shell from this route.
 
-               Accessing URL data outside of \`<Suspense>\` prevents reuse and may cause a blocking navigation.
+               Accessing URL data outside of \`<Suspense>\` prevents shell reuse and may cause a blocking navigation.
 
                Ways to fix this:
                  - [stream] Wrap the \`params\`/\`searchParams\` read in \`<Suspense fallback={...}>\` so the shell stays reusable across links
@@ -4305,7 +4305,7 @@ describe('instant validation', () => {
               .toMatchInlineSnapshot(`
              "Error: Route "/shells/invalid-runtime-searchparams": Next.js could not extract a reusable shell from this route.
 
-             Accessing URL data outside of \`<Suspense>\` prevents reuse and may cause a blocking navigation.
+             Accessing URL data outside of \`<Suspense>\` prevents shell reuse and may cause a blocking navigation.
 
              Ways to fix this:
                - [stream] Wrap the \`params\`/\`searchParams\` read in \`<Suspense fallback={...}>\` so the shell stays reusable across links
@@ -4419,7 +4419,7 @@ describe('instant validation', () => {
               .toMatchInlineSnapshot(`
              "Error: Route "/shells/invalid-static-with-gsp/[slug]": Next.js could not extract a reusable shell from this route.
 
-             Accessing URL data outside of \`<Suspense>\` prevents reuse and may cause a blocking navigation.
+             Accessing URL data outside of \`<Suspense>\` prevents shell reuse and may cause a blocking navigation.
 
              Ways to fix this:
                - [stream] Wrap the \`params\`/\`searchParams\` read in \`<Suspense fallback={...}>\` so the shell stays reusable across links

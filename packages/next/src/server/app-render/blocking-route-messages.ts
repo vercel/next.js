@@ -39,7 +39,7 @@ export function createRuntimeBodyErrorInNavigation(route: string): Error {
 export function createLinkBodyErrorInNavigation(route: string): Error {
   return new Error(
     `Route "${route}": Next.js could not extract a reusable shell from this route.\n\n` +
-      `Accessing URL data outside of \`<Suspense>\` prevents reuse and may cause a blocking navigation.\n\n` +
+      `Accessing URL data outside of \`<Suspense>\` prevents shell reuse and may cause a blocking navigation.\n\n` +
       `Ways to fix this:\n` +
       `  - [stream] Wrap the \`params\`/\`searchParams\` read in \`<Suspense fallback={...}>\` so the shell stays reusable across links\n` +
       `    https://nextjs.org/docs/messages/instant-shell-link-data#wrap-in-or-move-into-suspense\n` +
