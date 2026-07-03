@@ -6,6 +6,7 @@ settings:
 
 overrides:
   webpack: 5.98.0
+  enhanced-resolve: 5.18.4
   browserslist: 4.28.1
   caniuse-lite: 1.0.30001746
   '@types/node': 20.17.6
@@ -9593,12 +9594,8 @@ packages:
   endent@2.1.0:
     resolution: {integrity: sha512-r8VyPX7XL8U01Xgnb1CjZ3XV+z90cXIJ9JPE/R9SEC9vpw2P6CfsRPJmp20DppC5N7ZAMCmjYkJIa744Iyg96w==}
 
-  enhanced-resolve@5.17.1:
-    resolution: {integrity: sha512-LMHl3dXhTcfv8gM4kEzIUeTQ+7fpdA0l2tUf34BddXPkz2A5xJ5L/Pchd5BL6rdccM9QGvu0sWZzK1Z1t4wwyg==}
-    engines: {node: '>=10.13.0'}
-
-  enhanced-resolve@5.18.3:
-    resolution: {integrity: sha512-d4lC8xfavMeBjzGr2vECC3fsGXziXZQyJxD868h2M/mBI3PwAuODxAkLkq5HYuvrPYcUtiLzsTo8U3PgX3Ocww==}
+  enhanced-resolve@5.18.4:
+    resolution: {integrity: sha512-LgQMM4WXU3QI+SYgEc2liRgznaD5ojbmY3sb8LxyguVkIg5FxdpTkvk72te2R38/TGKxH634oLxXRGY6d7AP+Q==}
     engines: {node: '>=10.13.0'}
 
   enquirer@2.3.6:
@@ -22843,7 +22840,7 @@ snapshots:
   '@tailwindcss/node@4.1.13':
     dependencies:
       '@jridgewell/remapping': 2.3.5
-      enhanced-resolve: 5.18.3
+      enhanced-resolve: 5.18.4
       jiti: 2.5.1
       lightningcss: 1.30.1
       magic-string: 0.30.19
@@ -26727,12 +26724,7 @@ snapshots:
       fast-json-parse: 1.0.3
       objectorarray: 1.0.5
 
-  enhanced-resolve@5.17.1:
-    dependencies:
-      graceful-fs: 4.2.11
-      tapable: 2.2.1
-
-  enhanced-resolve@5.18.3:
+  enhanced-resolve@5.18.4:
     dependencies:
       graceful-fs: 4.2.11
       tapable: 2.2.1
@@ -37347,7 +37339,7 @@ snapshots:
       acorn: 8.14.0
       browserslist: 4.28.1
       chrome-trace-event: 1.0.2
-      enhanced-resolve: 5.17.1
+      enhanced-resolve: 5.18.4
       es-module-lexer: 1.6.0
       eslint-scope: 5.1.1
       events: 3.3.0
@@ -37377,7 +37369,7 @@ snapshots:
       acorn: 8.14.0
       browserslist: 4.28.1
       chrome-trace-event: 1.0.2
-      enhanced-resolve: 5.17.1
+      enhanced-resolve: 5.18.4
       es-module-lexer: 1.6.0
       eslint-scope: 5.1.1
       events: 3.3.0

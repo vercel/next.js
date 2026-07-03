@@ -308,6 +308,7 @@
   "pnpm": {
     "overrides": {
       "webpack": "5.98.0",
+      "enhanced-resolve": "5.18.4",
       "browserslist": "4.28.1",
       "caniuse-lite": "1.0.30001746",
       "@types/node": "20.17.6",
