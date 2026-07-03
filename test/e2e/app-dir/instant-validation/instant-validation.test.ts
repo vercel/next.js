@@ -542,7 +542,7 @@ describe('instant validation', () => {
              },
            ],
            "code": "E1406",
-           "description": "Next.js encountered URL data while extracting a reusable shell.",
+           "description": "Next.js could not extract a reusable shell from this route.",
            "environmentLabel": "Server",
            "label": "Instant",
            "source": "app/suspense-in-root/static/missing-suspense-around-params/[param]/page.tsx (20:21) @ Runtime
@@ -605,7 +605,7 @@ describe('instant validation', () => {
              },
            ],
            "code": "E1406",
-           "description": "Next.js encountered URL data while extracting a reusable shell.",
+           "description": "Next.js could not extract a reusable shell from this route.",
            "environmentLabel": "Server",
            "label": "Instant",
            "source": "app/suspense-in-root/runtime/invalid-no-suspense-around-params/[param]/page.tsx (36:21) @ LinkData
@@ -629,9 +629,9 @@ describe('instant validation', () => {
 
         expect(extractBuildValidationError(result.cliOutput))
           .toMatchInlineSnapshot(`
-         "Error: Route "/suspense-in-root/runtime/invalid-no-suspense-around-params/[param]": Next.js encountered URL data while extracting a reusable shell.
+         "Error: Route "/suspense-in-root/runtime/invalid-no-suspense-around-params/[param]": Next.js could not extract a reusable shell from this route.
 
-         \`params\` or \`searchParams\` accessed outside of \`<Suspense>\` ties the shell to a single URL, which may cause a blocking navigation and slower, more expensive prefetches.
+         Accessing URL data outside of \`<Suspense>\` prevents reuse and may cause a blocking navigation.
 
          Ways to fix this:
            - [stream] Wrap the \`params\`/\`searchParams\` read in \`<Suspense fallback={...}>\` so the shell stays reusable across links
@@ -674,7 +674,7 @@ describe('instant validation', () => {
                },
              ],
              "code": "E1406",
-             "description": "Next.js encountered URL data while extracting a reusable shell.",
+             "description": "Next.js could not extract a reusable shell from this route.",
              "environmentLabel": "Server",
              "label": "Instant",
              "source": "app/suspense-in-root/static/missing-suspense-around-search-params/page.tsx (7:18) @ Page
@@ -720,9 +720,9 @@ describe('instant validation', () => {
         if (partialPrefetching) {
           expect(extractBuildValidationError(result.cliOutput))
             .toMatchInlineSnapshot(`
-           "Error: Route "/suspense-in-root/static/missing-suspense-around-search-params": Next.js encountered URL data while extracting a reusable shell.
+           "Error: Route "/suspense-in-root/static/missing-suspense-around-search-params": Next.js could not extract a reusable shell from this route.
 
-           \`params\` or \`searchParams\` accessed outside of \`<Suspense>\` ties the shell to a single URL, which may cause a blocking navigation and slower, more expensive prefetches.
+           Accessing URL data outside of \`<Suspense>\` prevents reuse and may cause a blocking navigation.
 
            Ways to fix this:
              - [stream] Wrap the \`params\`/\`searchParams\` read in \`<Suspense fallback={...}>\` so the shell stays reusable across links
@@ -779,9 +779,9 @@ describe('instant validation', () => {
               getCliOutputSinceMark
             )
           ).toMatchInlineSnapshot(`
-           "Error: Route "/suspense-in-root/runtime/invalid-no-suspense-around-search-params": Next.js encountered URL data while extracting a reusable shell.
+           "Error: Route "/suspense-in-root/runtime/invalid-no-suspense-around-search-params": Next.js could not extract a reusable shell from this route.
 
-           \`params\` or \`searchParams\` accessed outside of \`<Suspense>\` ties the shell to a single URL, which may cause a blocking navigation and slower, more expensive prefetches.
+           Accessing URL data outside of \`<Suspense>\` prevents reuse and may cause a blocking navigation.
 
            Ways to fix this:
              - [stream] Wrap the \`params\`/\`searchParams\` read in \`<Suspense fallback={...}>\` so the shell stays reusable across links
@@ -824,7 +824,7 @@ describe('instant validation', () => {
                },
              ],
              "code": "E1406",
-             "description": "Next.js encountered URL data while extracting a reusable shell.",
+             "description": "Next.js could not extract a reusable shell from this route.",
              "environmentLabel": "Server",
              "label": "Instant",
              "source": "app/suspense-in-root/runtime/invalid-no-suspense-around-search-params/page.tsx (40:18) @ LinkData
@@ -843,9 +843,9 @@ describe('instant validation', () => {
         )
         expect(extractBuildValidationError(result.cliOutput))
           .toMatchInlineSnapshot(`
-         "Error: Route "/suspense-in-root/runtime/invalid-no-suspense-around-search-params": Next.js encountered URL data while extracting a reusable shell.
+         "Error: Route "/suspense-in-root/runtime/invalid-no-suspense-around-search-params": Next.js could not extract a reusable shell from this route.
 
-         \`params\` or \`searchParams\` accessed outside of \`<Suspense>\` ties the shell to a single URL, which may cause a blocking navigation and slower, more expensive prefetches.
+         Accessing URL data outside of \`<Suspense>\` prevents reuse and may cause a blocking navigation.
 
          Ways to fix this:
            - [stream] Wrap the \`params\`/\`searchParams\` read in \`<Suspense fallback={...}>\` so the shell stays reusable across links
@@ -4178,7 +4178,7 @@ describe('instant validation', () => {
                  },
                ],
                "code": "E1406",
-               "description": "Next.js encountered URL data while extracting a reusable shell.",
+               "description": "Next.js could not extract a reusable shell from this route.",
                "environmentLabel": "Server",
                "label": "Instant",
                "source": "app/shells/(default)/invalid-runtime-params/[slug]/page.tsx (28:3) @ LinkData
@@ -4202,9 +4202,9 @@ describe('instant validation', () => {
 
             expect(extractBuildValidationError(result.cliOutput))
               .toMatchInlineSnapshot(`
-             "Error: Route "/shells/invalid-runtime-params/[slug]": Next.js encountered URL data while extracting a reusable shell.
+             "Error: Route "/shells/invalid-runtime-params/[slug]": Next.js could not extract a reusable shell from this route.
 
-             \`params\` or \`searchParams\` accessed outside of \`<Suspense>\` ties the shell to a single URL, which may cause a blocking navigation and slower, more expensive prefetches.
+             Accessing URL data outside of \`<Suspense>\` prevents reuse and may cause a blocking navigation.
 
              Ways to fix this:
                - [stream] Wrap the \`params\`/\`searchParams\` read in \`<Suspense fallback={...}>\` so the shell stays reusable across links
@@ -4239,9 +4239,9 @@ describe('instant validation', () => {
                   getCliOutputSinceMark
                 )
               ).toMatchInlineSnapshot(`
-               "Error: Route "/shells/invalid-runtime-searchparams": Next.js encountered URL data while extracting a reusable shell.
+               "Error: Route "/shells/invalid-runtime-searchparams": Next.js could not extract a reusable shell from this route.
 
-               \`params\` or \`searchParams\` accessed outside of \`<Suspense>\` ties the shell to a single URL, which may cause a blocking navigation and slower, more expensive prefetches.
+               Accessing URL data outside of \`<Suspense>\` prevents reuse and may cause a blocking navigation.
 
                Ways to fix this:
                  - [stream] Wrap the \`params\`/\`searchParams\` read in \`<Suspense fallback={...}>\` so the shell stays reusable across links
@@ -4284,7 +4284,7 @@ describe('instant validation', () => {
                    },
                  ],
                  "code": "E1406",
-                 "description": "Next.js encountered URL data while extracting a reusable shell.",
+                 "description": "Next.js could not extract a reusable shell from this route.",
                  "environmentLabel": "Server",
                  "label": "Instant",
                  "source": "app/shells/(default)/invalid-runtime-searchparams/page.tsx (27:3) @ LinkData
@@ -4303,9 +4303,9 @@ describe('instant validation', () => {
             )
             expect(extractBuildValidationError(result.cliOutput))
               .toMatchInlineSnapshot(`
-             "Error: Route "/shells/invalid-runtime-searchparams": Next.js encountered URL data while extracting a reusable shell.
+             "Error: Route "/shells/invalid-runtime-searchparams": Next.js could not extract a reusable shell from this route.
 
-             \`params\` or \`searchParams\` accessed outside of \`<Suspense>\` ties the shell to a single URL, which may cause a blocking navigation and slower, more expensive prefetches.
+             Accessing URL data outside of \`<Suspense>\` prevents reuse and may cause a blocking navigation.
 
              Ways to fix this:
                - [stream] Wrap the \`params\`/\`searchParams\` read in \`<Suspense fallback={...}>\` so the shell stays reusable across links
@@ -4399,7 +4399,7 @@ describe('instant validation', () => {
                  },
                ],
                "code": "E1406",
-               "description": "Next.js encountered URL data while extracting a reusable shell.",
+               "description": "Next.js could not extract a reusable shell from this route.",
                "environmentLabel": "Server",
                "label": "Instant",
                "source": "app/shells/(default)/invalid-static-with-gsp/[slug]/page.tsx (31:20) @ LinkData
@@ -4417,9 +4417,9 @@ describe('instant validation', () => {
             )
             expect(extractBuildValidationError(result.cliOutput))
               .toMatchInlineSnapshot(`
-             "Error: Route "/shells/invalid-static-with-gsp/[slug]": Next.js encountered URL data while extracting a reusable shell.
+             "Error: Route "/shells/invalid-static-with-gsp/[slug]": Next.js could not extract a reusable shell from this route.
 
-             \`params\` or \`searchParams\` accessed outside of \`<Suspense>\` ties the shell to a single URL, which may cause a blocking navigation and slower, more expensive prefetches.
+             Accessing URL data outside of \`<Suspense>\` prevents reuse and may cause a blocking navigation.
 
              Ways to fix this:
                - [stream] Wrap the \`params\`/\`searchParams\` read in \`<Suspense fallback={...}>\` so the shell stays reusable across links

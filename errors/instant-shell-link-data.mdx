@@ -1,5 +1,5 @@
 ---
-title: Next.js encountered URL data while extracting a reusable shell
+title: Next.js could not extract a reusable shell from this route
 kind: insight
 ---
 
@@ -25,7 +25,7 @@ kind: insight
 
 A route with [Partial Prefetching](https://preview.nextjs.org/docs/app/glossary#partial-prefetching) reads [`params`](https://preview.nextjs.org/docs/app/api-reference/file-conventions/page#params-optional) or [`searchParams`](https://preview.nextjs.org/docs/app/api-reference/file-conventions/page#searchparams-optional) outside of [`<Suspense>`](https://react.dev/reference/react/Suspense).
 
-Partial Prefetching extracts one reusable shell from the route ahead of the click, so every link to it reuses the same prefetch instead of fetching a fresh one per URL. `params` and `searchParams` are specific to a single URL, so reading them outside a boundary ties the shell to one link. Next.js can no longer reuse it across links, which may cause a blocking navigation and slower, more expensive prefetches.
+Partial Prefetching extracts one reusable shell from the route ahead of the click, so every link to it reuses the same prefetch instead of fetching a fresh one per URL. `params` and `searchParams` are [URL data](https://preview.nextjs.org/docs/app/glossary#url-data): they're specific to a single URL, so reading them outside a boundary ties the shell to one link. Next.js can no longer reuse it across links, and the navigation may block instead.
 
 This check only runs when [Partial Prefetching](https://preview.nextjs.org/docs/app/api-reference/config/next-config-js/partialPrefetching) is enabled, and it fires at navigation time rather than on every render. When this route is prerendered rather than prefetched, the same read surfaces as [runtime data during prerendering](/docs/messages/blocking-prerender-runtime) instead.
 
@@ -174,7 +174,7 @@ Don't use this to dismiss the error. Choose [Wrap in or move into Suspense](#wra
 
 ### Trade-off
 
-Links to this route prefetch per URL instead of sharing one prefetch, so prefetches are slower and more expensive. Use this only when the route can't be structured around a shared prefetch.
+Without a reusable shell, navigations to this route may block until the server responds. Use this only when the route genuinely can't provide one.
 
 ### Gotchas
 

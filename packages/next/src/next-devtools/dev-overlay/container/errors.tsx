@@ -355,8 +355,9 @@ function InstantRuntimeError({
 export function getGuidanceVariant(message: string): GuidanceVariant {
   // Discriminates between `createRuntimeBodyError` and `createDynamicBodyError`
   if (
-    message.includes('encountered URL data') &&
-    !message.includes('encountered uncached data')
+    message.includes('could not extract a reusable shell') ||
+    (message.includes('encountered URL data') &&
+      !message.includes('encountered uncached data'))
   ) {
     return 'link'
   }
@@ -414,7 +415,7 @@ export function isSyncIOClientError(message: string): boolean {
 export function isBlockingRouteInNavError(message: string): boolean {
   return (
     message.includes('or a navigation') ||
-    message.includes('while extracting a reusable shell') ||
+    message.includes('could not extract a reusable shell') ||
     message.includes('Could not validate `instant`') ||
     message.includes(
       'Could not validate that a segment in your UI has instant navigation'
@@ -439,7 +440,7 @@ export function getBlockingRouteErrorDetails(
     }
   }
 
-  if (message.includes('while extracting a reusable shell')) {
+  if (message.includes('could not extract a reusable shell')) {
     return {
       type: 'blocking-route',
       variant: 'link',
@@ -872,7 +873,7 @@ export function Errors({
           errorType={errorType}
           errorMessage={
             errorDetails.variant === 'link'
-              ? 'Next.js encountered URL data while extracting a reusable shell.'
+              ? 'Next.js could not extract a reusable shell from this route.'
               : errorDetails.variant === 'runtime'
                 ? errorDetails.inNavigation
                   ? 'Next.js encountered runtime data during a navigation.'
