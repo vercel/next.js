@@ -22,7 +22,7 @@ env:
 
 jobs:
   optimize-ci:
-    uses: ./.github/workflows/graphite_ci_optimizer.yml
+    uses: ./.github/workflows/pr_stack_optimizer.yml
     secrets: inherit
 
   changes:
@@ -230,6 +230,11 @@ jobs:
         pnpm lint-no-typescript
         pnpm check-examples
         pnpm validate-externals-doc
+        # Regenerate the browser-variant lists and fail if they changed, i.e. a
+        # `*.browser.{ts,tsx}` sibling was added/removed without running
+        # `pnpm generate-browser-variant-aliases` and committing the result.
+        pnpm generate-browser-variant-aliases
+        git diff --exit-code
       stepName: 'lint'
     secrets: inherit
 
@@ -410,7 +415,7 @@ jobs:
           -g ${{ matrix.group }}
       testTimingsArtifact: 'test-timings'
       stepName: 'test-turbopack-dev-react-${{ matrix.react }}-${{ matrix.group }}'
-      runs_on_labels: '["ubuntu-latest-16-core-oss"]'
+      runs_on_labels: '["ubuntu-latest-16-core-arm-oss"]'
     secrets: inherit
 
   test-turbopack-production:
@@ -448,7 +453,7 @@ jobs:
         node run-tests.js --timings --require-timings -g ${{ matrix.group }} --type production
       testTimingsArtifact: 'test-timings'
       stepName: 'test-turbopack-production-react-${{ matrix.react }}-${{ matrix.group }}'
-      runs_on_labels: '["ubuntu-latest-16-core-oss"]'
+      runs_on_labels: '["ubuntu-latest-16-core-arm-oss"]'
     secrets: inherit
 
   test-rspack-dev:

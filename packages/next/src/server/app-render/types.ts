@@ -111,9 +111,7 @@ export interface RenderOptsPartial {
   botType?: 'dom' | 'html' | undefined
   serveStreamingMetadata?: boolean
   incrementalCache?: import('../lib/incremental-cache').IncrementalCache
-  cacheLifeProfiles?: {
-    [profile: string]: import('../use-cache/cache-life').CacheLife
-  }
+  cacheLifeProfiles: import('../config-shared').ResolvedCacheLifeProfiles
   staticPageGenerationTimeout: number
   isOnDemandRevalidate?: boolean
   isPossibleServerAction?: boolean
@@ -178,6 +176,14 @@ export interface RenderOptsPartial {
      * requests. Used to calculate decompression limits (5x this value).
      */
     maxPostponedStateSizeBytes: number | undefined
+
+    /**
+     * Whether the Instant Navigation Testing API is exposed (dev mode or the
+     * `exposeTestingApiInProductionBuild` flag). When true, the prerendered
+     * shell and dynamic renders embed a cookie-guarded bootstrap script that
+     * drives instant navigation tests.
+     */
+    exposeTestingApi: boolean
   }
   postponed?: string
 

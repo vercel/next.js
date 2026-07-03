@@ -31,6 +31,7 @@ use turbopack_node::execution_context::ExecutionContext;
 
 use crate::{
     app_structure::CollectedRootParams,
+    browser_variant_modules::BROWSER_VARIANT_MODULES,
     embed_js::{VIRTUAL_PACKAGE_NAME, next_js_fs},
     mode::NextMode,
     next_client::context::ClientContextType,
@@ -568,27 +569,32 @@ pub async fn get_next_client_resolved_map(
     root: FileSystemPath,
     _mode: NextMode,
 ) -> Result<Vc<ResolvedMap>> {
-    // In the browser bundle, swap the default `unstable-rethrow` (which holds the full
-    // server logic) for its `.browser` sibling. The server-only checks can never occur in
-    // the browser, and bundling the default would drag server-only modules into the client
-    // bundle. This is the Turbopack analog of the webpack alias in `create-compiler-aliases.ts`
-    // and is client-only because `get_next_client_resolved_map` is used only by the client
-    // context. Matching is on the resolved file path, so it intercepts the relative import
-    // regardless of which module pulls it in. Anchored at the filesystem root so it matches
-    // wherever `next` resolves from (node_modules, pnpm store, or monorepo `packages/next`).
-    let glob_mappings = vec![(
-        root.root().owned().await?,
-        Glob::new(
-            rcstr!("**/next/dist/client/components/unstable-rethrow.js"),
-            GlobOptions::default(),
-        )
-        .to_resolved()
-        .await?,
-        request_to_import_mapping(
-            context_path,
-            rcstr!("next/dist/client/components/unstable-rethrow.browser"),
-        ),
-    )];
+    // In the browser bundle, swap every module that has a `.browser` sibling (see
+    // BROWSER_VARIANT_MODULES, generated from the filesystem) for that sibling. The default
+    // module holds the full server logic, and bundling it would drag server-only modules
+    // into the client bundle. This is the Turbopack analog of the webpack alias in
+    // `create-compiler-aliases.ts` and is client-only because `get_next_client_resolved_map`
+    // is used only by the client context. Matching is on the resolved file path, so it
+    // intercepts the relative import regardless of which module pulls it in. Anchored at the
+    // filesystem root so it matches wherever `next` resolves from (node_modules, pnpm store,
+    // or monorepo `packages/next`).
+    let fs_root = root.root().owned().await?;
+    let mut glob_mappings = Vec::with_capacity(BROWSER_VARIANT_MODULES.len());
+    for module in BROWSER_VARIANT_MODULES {
+        glob_mappings.push((
+            fs_root.clone(),
+            Glob::new(
+                format!("**/next/dist/{module}.js").into(),
+                GlobOptions::default(),
+            )
+            .to_resolved()
+            .await?,
+            request_to_import_mapping(
+                context_path.clone(),
+                format!("next/dist/{module}.browser").into(),
+            ),
+        ));
+    }
     Ok(ResolvedMap {
         by_glob: glob_mappings,
     }
