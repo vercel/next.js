@@ -705,7 +705,7 @@ export const BLOCKING_ROUTE_NAVIGATION_EXPLANATION =
   'This prevents the navigation from being instant, leading to a slower user experience.'
 
 export const BLOCKING_ROUTE_LINK_EXPLANATION =
-  'Accessing URL data outside of Suspense prevents shell reuse and may cause a blocking navigation.'
+  'This may prevent the navigation from being instant, leading to a slower user experience.'
 
 const syncCardsByCause: Record<string, FixCard[]> = {
   'Math.random()': syncMathCards,
