@@ -509,8 +509,8 @@ export async function startServer(
           })
 
           // Auto-generate AGENTS.md / CLAUDE.md when an AI coding agent
-          // is detected but the managed agent-rules block is missing or
-          // outdated. Gated on `agentRules` in next.config (default true).
+          // is detected but the managed agent-rules block is missing.
+          // Gated on `agentRules` in next.config (default true).
           if (initResult.agentRules !== false) {
             const result = ensureAgentRulesForDev(dir)
             if (result) {
@@ -526,12 +526,8 @@ export async function startServer(
               )
                 generated.push('CLAUDE.md')
               if (generated.length > 0) {
-                const verb =
-                  result.agentsMd === 'updated' || result.claudeMd === 'updated'
-                    ? 'Updated the agent-rules block in'
-                    : 'Generated'
                 Log.event(
-                  `${verb} ${generated.join(' and ')} for AI agents — commit this change. Set \`agentRules: false\` in next.config to disable.`
+                  `Generated ${generated.join(' and ')} for AI agents. Set \`agentRules: false\` in next.config to disable.`
                 )
               }
             }
