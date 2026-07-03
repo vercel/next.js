@@ -78,7 +78,11 @@ export function refreshDynamicData(
     UnknownDynamicStaleTime
   )
 
-  const navigateType = 'replace'
+  // If the previous navigation hasn't pushed its history entry yet (React
+  // hasn't committed its state), this refresh may commit in its place, so it
+  // takes over the push. If the navigation does commit first, HistoryUpdater
+  // sees that the URL already matches and replaces instead.
+  const navigateType = state.pushRef.pendingPush ? 'push' : 'replace'
   return navigateToKnownRoute(
     now,
     state,

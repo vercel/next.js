@@ -53,6 +53,7 @@ interface DefineEnv {
     | ProxyMatcher[]
     | BloomFilter
     | Partial<NextConfigComplete['images']>
+    | NextConfigComplete['cacheLife']
     | I18NDomains
     | I18NConfig
 }
