@@ -94,7 +94,7 @@ fn expand_next_js_template_inner<'a>(
     // Update the relative imports to be absolute. This will update any relative imports to be
     // relative to the root of the `next` package.
     static IMPORT_PATH_RE: LazyLock<Regex> = LazyLock::new(|| {
-        Regex::new(r"(?:from '(\..*)'|import '(\..*)'|require\('(\..*)'\))").unwrap()
+        Regex::new(r"(?:from '(\.[^']*)'|import '(\.[^']*)'|require\('(\.[^']*)'\))").unwrap()
     });
 
     let mut count = 0;
