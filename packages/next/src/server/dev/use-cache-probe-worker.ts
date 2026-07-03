@@ -217,6 +217,7 @@ function buildProbeWorkStore(msg: ProbeMessage): WorkStore {
     reactServerErrorsByDigest: new Map(),
     afterContext,
     cacheComponentsEnabled: true,
+    isStaticExport: false,
     // In the probe the validation level is irrelevant because we do not perform validation
     // in this context.
     validationLevel: 'warning',

@@ -69,6 +69,11 @@ import {
   createLinkBodyErrorInNavigation,
   createLinkMetadataError,
   createLinkViewportError,
+  createStaticExportError,
+  createStaticExportRequestDataError,
+  createStaticExportUncachedError,
+  createStaticExportMetadataError,
+  createStaticExportViewportError,
 } from './blocking-route-messages'
 import { InvariantError } from '../../shared/lib/invariant-error'
 import {
@@ -852,6 +857,117 @@ function trackOutletSuspenseAboveBody(
   }
 }
 
+// --- `output: 'export'` -----------------------------------------------------
+//
+// A static export has no server, so unlike the Cache Components trackers
+// below there is no "allowed" hole: every server-side dynamic access is an
+// error, reported at its source. The one exception is client-only dynamic
+// (client hooks like `useSearchParams()`), which the client fills after
+// hydration, leaving the server result fully static.
+
+/**
+ * Records a static-export violation for one dynamic access. `bodyError` is
+ * the wording for a plain data access: request data, uncached I/O, or a
+ * generic message when the pass can't tell the two apart.
+ */
+function recordStaticExportHole(
+  dynamicReason: unknown,
+  workStore: WorkStore,
+  componentStack: string,
+  dynamicValidation: DynamicValidationState,
+  clientDynamic: DynamicTrackingState,
+  bodyError: (route: string) => Error
+): void {
+  if (hasOutletRegex.test(componentStack)) {
+    // The outlet boundary isn't itself a source of dynamic.
+    return
+  }
+  if (hasMetadataRegex.test(componentStack)) {
+    dynamicValidation.dynamicErrors.push(
+      addErrorContext(
+        createStaticExportMetadataError(workStore.route),
+        componentStack,
+        null
+      )
+    )
+    return
+  }
+  if (hasViewportRegex.test(componentStack)) {
+    dynamicValidation.dynamicErrors.push(
+      addErrorContext(
+        createStaticExportViewportError(workStore.route),
+        componentStack,
+        null
+      )
+    )
+    return
+  }
+  if (
+    isClientHookDynamicError(dynamicReason) &&
+    hasSuspenseRegex.test(componentStack)
+  ) {
+    // Client-only dynamic under a Suspense boundary — the client fills it
+    // after hydration, leaving the server result fully static.
+    return
+  }
+  const syncDynamicError = getPendingClientSyncDynamicError(clientDynamic)
+  if (syncDynamicError) {
+    dynamicValidation.dynamicErrors.push(syncDynamicError)
+    return
+  }
+  if (isClientHookDynamicError(dynamicReason)) {
+    // A client hook outside a Suspense boundary blocks the static shell. The
+    // hook's own error explains it, and its advice (wrap in `<Suspense>`) is
+    // valid for an export — the client fills the hole after hydration.
+    dynamicValidation.dynamicErrors.push(
+      addErrorContext(dynamicReason, componentStack, null)
+    )
+    return
+  }
+  dynamicValidation.dynamicErrors.push(
+    addErrorContext(bodyError(workStore.route), componentStack, null)
+  )
+}
+
+/** Dev shell-validation consumer: every recorded hole is disallowed. */
+function getStaticExportDisallowedReasons(
+  workStore: WorkStore,
+  prelude: PreludeState,
+  dynamicValidation: DynamicValidationState
+): Array<Error> {
+  if (dynamicValidation.dynamicErrors.length > 0) {
+    return dynamicValidation.dynamicErrors
+  }
+  if (prelude === PreludeState.Empty) {
+    // No hole was recorded, yet no static shell was produced — e.g. an allowed
+    // client-hook hole under a Suspense boundary above the document body. A
+    // server would resume this at request time; an export can't.
+    return [createStaticExportError(workStore.route)]
+  }
+  return []
+}
+
+/** Build-prerender consumer: fail the build with every recorded hole. */
+function throwIfStaticExportDisallowed(
+  workStore: WorkStore,
+  prelude: PreludeState,
+  dynamicValidation: DynamicValidationState,
+  serverDynamic: DynamicTrackingState
+): void {
+  throwIfSyncIOUsed(workStore, serverDynamic)
+  const errors = getStaticExportDisallowedReasons(
+    workStore,
+    prelude,
+    dynamicValidation
+  )
+  if (errors.length > 0) {
+    for (const error of errors) {
+      logDisallowedDynamicError(workStore, error)
+    }
+    throw new StaticGenBailoutError()
+  }
+}
+
 export function trackAllowedDynamicAccess(
   dynamicReason: unknown,
   workStore: WorkStore,
@@ -859,6 +975,17 @@ export function trackAllowedDynamicAccess(
   dynamicValidation: DynamicValidationState,
   clientDynamic: DynamicTrackingState
 ) {
+  if (workStore.isStaticExport) {
+    return recordStaticExportHole(
+      dynamicReason,
+      workStore,
+      componentStack,
+      dynamicValidation,
+      clientDynamic,
+      createStaticExportError
+    )
+  }
+
   const syncDynamicError = getPendingClientSyncDynamicError(clientDynamic)
 
   if (hasOutletRegex.test(componentStack)) {
@@ -1152,6 +1279,19 @@ export function trackDynamicHoleInRuntimeShell(
   dynamicValidation: DynamicValidationState,
   clientDynamic: DynamicTrackingState
 ) {
+  if (workStore.isStaticExport) {
+    // The runtime-shell pass surfaces holes that resolve in the dynamic stage:
+    // uncached I/O or `connection()`.
+    return recordStaticExportHole(
+      dynamicReason,
+      workStore,
+      componentStack,
+      dynamicValidation,
+      clientDynamic,
+      createStaticExportUncachedError
+    )
+  }
+
   const syncDynamicError = getPendingClientSyncDynamicError(clientDynamic)
 
   if (hasOutletRegex.test(componentStack)) {
@@ -1217,6 +1357,20 @@ export function trackDynamicHoleInStaticShell(
   dynamicValidation: DynamicValidationState,
   clientDynamic: DynamicTrackingState
 ) {
+  if (workStore.isStaticExport) {
+    // The static-shell pass surfaces holes that resolve in the runtime stage:
+    // request data (`cookies()`, `headers()`, `params`, `searchParams`) and
+    // `"use cache: private"` values.
+    return recordStaticExportHole(
+      dynamicReason,
+      workStore,
+      componentStack,
+      dynamicValidation,
+      clientDynamic,
+      createStaticExportRequestDataError
+    )
+  }
+
   const syncDynamicError = getPendingClientSyncDynamicError(clientDynamic)
 
   if (hasOutletRegex.test(componentStack)) {
@@ -1336,6 +1490,15 @@ export function throwIfDisallowedDynamic(
   serverDynamic: DynamicTrackingState,
   allowEmptyStaticShell: boolean
 ): void {
+  if (workStore.isStaticExport) {
+    return throwIfStaticExportDisallowed(
+      workStore,
+      prelude,
+      dynamicValidation,
+      serverDynamic
+    )
+  }
+
   throwIfSyncIOUsed(workStore, serverDynamic)
 
   // The dynamic metadata error is a mistake-detection signal. It fires when the
@@ -1404,6 +1567,14 @@ export function getStaticShellDisallowedDynamicReasons(
   dynamicValidation: DynamicValidationState,
   allowEmptyStaticShell: boolean
 ): Array<Error> {
+  if (workStore.isStaticExport) {
+    return getStaticExportDisallowedReasons(
+      workStore,
+      prelude,
+      dynamicValidation
+    )
+  }
+
   // The dynamic metadata error is a mistake-detection signal. It fires when the
   // rest of the shell is otherwise fully static apart from metadata, suggesting
   // the dynamic data access in `generateMetadata` was probably unintentional.

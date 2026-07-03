@@ -29,7 +29,14 @@ export function io(expression: string, type: SyncIOApiType) {
         abortOnSynchronousPlatformIOAccess(
           workStore.route,
           expression,
-          applyOwnerStack(createSyncIOError(workStore.route, expression, type)),
+          applyOwnerStack(
+            createSyncIOError(
+              workStore.route,
+              expression,
+              type,
+              workStore.isStaticExport
+            )
+          ),
           workUnitStore
         )
       }
@@ -60,7 +67,12 @@ export function io(expression: string, type: SyncIOApiType) {
           stageController.currentStage === RenderStage.Static ||
           stageController.currentStage === RenderStage.EarlyStatic
         ) {
-          syncIOError = createSyncIOError(workStore.route, expression, type)
+          syncIOError = createSyncIOError(
+            workStore.route,
+            expression,
+            type,
+            workStore.isStaticExport
+          )
         } else {
           // We're in the Runtime stage.
           // We only error for Sync IO in the Runtime stage if the route has a runtime prefetch config.
@@ -69,7 +81,8 @@ export function io(expression: string, type: SyncIOApiType) {
           syncIOError = createSyncIORuntimeError(
             workStore.route,
             expression,
-            type
+            type,
+            workStore.isStaticExport
           )
         }
 
