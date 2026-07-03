@@ -226,7 +226,8 @@ export type PageInfos = Map<string, PageInfo>
 
 function getTreeViewSymbol(
   item: string,
-  pageInfo: PageInfo | undefined
+  pageInfo: PageInfo | undefined,
+  isExportMode: boolean
 ): string {
   if (item === '/_app' || item === '/_app.server') {
     return ' '
@@ -236,7 +237,10 @@ function getTreeViewSymbol(
     return 'ƒ'
   }
 
-  if (pageInfo?.isRoutePPREnabled) {
+  // The partial-prerendering symbols describe routes that a server
+  // completes. An export has no server and a successful build contains
+  // only complete static files, so classify by static output instead.
+  if (pageInfo?.isRoutePPREnabled && !isExportMode) {
     if (
       // If the page has an empty static shell, then it's equivalent to a
       // dynamic page
@@ -296,6 +300,7 @@ export async function printTreeView(
     functionsConfigManifest,
     useStaticPages404,
     hasGSPAndRevalidateZero,
+    isExportMode,
   }: {
     pagesDir?: string
     pageExtensions: PageExtensions
@@ -304,6 +309,7 @@ export async function printTreeView(
     functionsConfigManifest: FunctionsConfigManifest
     useStaticPages404: boolean
     hasGSPAndRevalidateZero: Set<string>
+    isExportMode: boolean
   }
 ) {
   // Can be overridden for test purposes to omit the build duration output.
@@ -387,7 +393,7 @@ export async function printTreeView(
         (pageInfo?.pageDuration || 0) +
         (pageInfo?.ssgPageDurations?.reduce((a, b) => a + (b || 0), 0) || 0)
 
-      const symbol = getTreeViewSymbol(item, pageInfo)
+      const symbol = getTreeViewSymbol(item, pageInfo, isExportMode)
       const hasChildRoutes = Boolean(pageInfo?.ssgPageRoutes?.length)
 
       const displayPath = getTreeViewDisplayPath(item)
@@ -481,7 +487,11 @@ export async function printTreeView(
             // Generated child paths can have more precise metadata than the
             // parent route pattern, so prefer the child entry when present.
             const routePageInfo = pageInfos.get(route) ?? pageInfo
-            const routeSymbol = getTreeViewSymbol(route, routePageInfo)
+            const routeSymbol = getTreeViewSymbol(
+              route,
+              routePageInfo,
+              isExportMode
+            )
             usedSymbols.add(routeSymbol)
 
             const initialCacheControl =

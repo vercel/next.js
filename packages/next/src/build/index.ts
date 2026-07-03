@@ -2391,17 +2391,38 @@ export default async function build(
                               originalAppPath,
                               workerResult.prerenderedRoutes
                             )
-                            ssgPageRoutes = workerResult.prerenderedRoutes.map(
-                              (route) => route.pathname
-                            )
+                            // Under Cache Components, `prerenderedRoutes` also contains the
+                            // base fallback entry. An export skips it (no server to complete
+                            // it), so don't list it as a prerendered path.
+                            ssgPageRoutes = (
+                              config.output === 'export' &&
+                              config.cacheComponents
+                                ? workerResult.prerenderedRoutes.filter(
+                                    (route) =>
+                                      !route.fallbackRouteParams ||
+                                      route.fallbackRouteParams.length === 0
+                                  )
+                                : workerResult.prerenderedRoutes
+                            ).map((route) => route.pathname)
                             isSSG = true
                           }
 
                           const appConfig = workerResult.appConfig || {}
                           if (appConfig.revalidate !== 0) {
+                            // Under Cache Components, `prerenderedRoutes`
+                            // always contains the base fallback entry, so only
+                            // concrete entries prove `generateStaticParams`
+                            // produced paths. (Without Cache Components there
+                            // are no fallback entries.)
                             const hasGenerateStaticParams =
-                              workerResult.prerenderedRoutes &&
-                              workerResult.prerenderedRoutes.length > 0
+                              config.cacheComponents
+                                ? !!workerResult.prerenderedRoutes?.some(
+                                    (route) =>
+                                      !route.fallbackRouteParams ||
+                                      route.fallbackRouteParams.length === 0
+                                  )
+                                : workerResult.prerenderedRoutes &&
+                                  workerResult.prerenderedRoutes.length > 0
 
                             if (
                               config.output === 'export' &&
@@ -2960,6 +2981,19 @@ export default async function build(
                     // does not contain any of the route params and is instead
                     // completely static.
                     !config.cacheComponents
+                  ) {
+                    return
+                  }
+
+                  // With `output: 'export'` we only emit concrete, fully resolved
+                  // routes. Skip fallback shells for unresolved params — there is no
+                  // server to complete them, so requests for non-generated params 404
+                  // on the static host, matching non-Cache-Components export.
+                  if (
+                    config.output === 'export' &&
+                    config.cacheComponents &&
+                    route.fallbackRouteParams &&
+                    route.fallbackRouteParams.length > 0
                   ) {
                     return
                   }
@@ -4266,6 +4300,7 @@ export default async function build(
           middlewareManifest,
           functionsConfigManifest,
           hasGSPAndRevalidateZero,
+          isExportMode: config.output === 'export',
         })
       )
 
