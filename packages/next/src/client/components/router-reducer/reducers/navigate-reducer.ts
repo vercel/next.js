@@ -32,6 +32,9 @@ export function navigateReducer(
     instrumentationTransition,
   } = action
 
+  // For the full-page navigation branches below, the action queue untracks
+  // the instrumentation transition: no destination tree is attached, so it
+  // can never commit.
   if (isExternalUrl) {
     return completeHardNavigation(state, url, navigateType)
   }

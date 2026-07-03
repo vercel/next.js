@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { TestControls } from './test-controls'
 
 export default function RootLayout({ children }) {
   return (
@@ -26,6 +27,10 @@ export default function RootLayout({ children }) {
             <Link href="/rewrite-source?q=from-user">Rewrite source</Link>
           </li>
         </ul>
+        {/* Rendered in the layout so the buttons are available on every page
+            (several lifecycle tests navigate first and then trigger a race
+            from the destination page). */}
+        <TestControls />
         {children}
       </body>
     </html>

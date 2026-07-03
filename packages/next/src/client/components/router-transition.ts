@@ -12,52 +12,53 @@ import type { AppRouterState } from './router-reducer/router-reducer-types'
 import type {
   ClientInstrumentationHooks,
   ClientInstrumentationModules,
+  RouterTransitionMatchedRoute,
+  RouterTransitionRoute,
   RouterTransitionType,
 } from '../router-transition-types'
 
 // The single tracking record for one tracked transition, used only by the
-// instrumentation-client router transition hooks. It is created when `start`
-// is emitted and threaded through the navigate/restore action, so the
-// navigation code that produces the destination state can write into this
-// same shared object (via `attachRouterTransitionTarget`) rather than look
-// it up by id. It carries everything the eventual `commit`/`abort` event
-// needs:
-//
-// - `id`, `type`, `url` are captured at start. `url` is kept here (rather than
-//   derived from the AppRouterState) because it is the destination exactly as
-//   the `start` hook reported it; the state's `canonicalUrl` is the
-//   post-navigation, post-redirect href and can differ from it in both form
-//   and value. Reporting the same string on start/commit/abort is what lets
-//   consumers correlate the events.
-// - `tree` is attached by the reducer once the destination state exists
-//   (`null` until then). HistoryUpdater commits whichever AppRouterState it
-//   observes, and `tree` is the unique, reference-stable identity of that
-//   state (a fresh FlightRouterState is built for every navigation), so it
-//   correlates the commit back to its start without leaking an
-//   instrumentation field into the router state itself.
-// - `cacheHit` is attached along with the tree; see
-//   NavigationRequestAccumulation.instrumentationCacheHit for exactly when it
-//   is true.
+// instrumentation-client router transition hooks. Created when `start` is
+// emitted and threaded through the navigate/restore action, so the navigation
+// code that produces the destination state writes into this same shared
+// object (via `attachRouterTransitionTarget`) rather than look it up by id.
 export type PendingRouterTransition = {
+  /** Opaque id shared by every event emitted for this transition. */
   id: string
   type: RouterTransitionType
+  /**
+   * The destination exactly as the `start` hook reported it. The state's
+   * `canonicalUrl` is the post-navigation, post-redirect href and can differ
+   * from it in both form and value; reporting the same string on
+   * start/commit/abort is what lets consumers correlate the events.
+   */
   url: string
+  /**
+   * The destination state's tree, attached by the reducer once that state
+   * exists (`null` until then). A fresh FlightRouterState is built for every
+   * navigation, so this is the reference-stable identity that lets
+   * HistoryUpdater match the state it commits back to this transition,
+   * without leaking an instrumentation field into the router state itself.
+   */
   tree: FlightRouterState | null
-  cacheHit: boolean
+  /**
+   * Backs the commit event's `instant` field: whether the navigation rendered
+   * entirely from local data, never waiting on a server response. Starts
+   * `true`; unset by markRouterTransitionAsNotInstant at the wait sites.
+   */
+  instant: boolean
 }
 
 let instrumentationModules: readonly ClientInstrumentationHooks[] = []
 let nextTransitionId = 0
 // In-flight transitions, in start order (oldest first). The entries are the
-// same objects that are threaded through the actions — this buffer exists
-// only for the cross-transition bookkeeping that a single threaded object
-// can't provide: commit needs the start *order* to know which older
-// transitions were superseded (aborted), and HistoryUpdater needs to find the
-// transition whose tree it just applied. An entry is added on `start` and
-// leaves the buffer in exactly one of two ways: its own tree is committed by
-// HistoryUpdater (`commit`), or a newer transition commits first (`abort`,
-// superseded). Only populated when the experimental flag is on, so it
-// tree-shakes away in the default build.
+// same objects threaded through the actions — the buffer exists for the
+// cross-transition bookkeeping a single threaded object can't provide:
+// commit needs the start *order* to know which older transitions were
+// superseded (aborted), and HistoryUpdater needs to find the transition
+// whose tree it just applied. Only populated when the experimental flag is
+// on. (A plain array on purpose: it rarely holds more than a couple of
+// entries, and commit needs positional slicing.)
 const pendingTransitions: PendingRouterTransition[] = []
 
 export function initializeRouterTransitionModules(
@@ -96,7 +97,7 @@ function hasLifecycleInstrumentation(): boolean {
  * `pendingTransitions` immediately, so that it is reported as aborted if a
  * newer navigation commits before this one produces a destination tree.
  *
- * The `from*` fields describe the route being left; they are read from the
+ * The `from` route describes the route being left; it is read from the
  * current AppRouterState here (rather than passed in) since this is the only
  * transition hook that needs it.
  *
@@ -136,7 +137,7 @@ export function startRouterTransition(
       type,
       url,
       tree: null,
-      cacheHit: false,
+      instant: true,
     }
     pendingTransitions.push(transition)
 
@@ -149,11 +150,7 @@ export function startRouterTransition(
       hooks.onRouterTransitionStart?.(url, type, {
         id,
         timestamp: now,
-        fromRenderedPathname: from.renderedPathname,
-        fromCanonicalUrl: from.canonicalUrl,
-        fromRouteTemplates: from.routeTemplates,
-        fromParams: from.params,
-        fromSearchParams: from.searchParams,
+        from,
       })
     )
     return transition
@@ -164,30 +161,103 @@ export function startRouterTransition(
 }
 
 /**
- * Attaches the navigation's result to the pending transition that was created
- * at `start` and threaded through the action: the destination tree (the
- * identity HistoryUpdater will commit) and whether the router navigated into
- * cached UI. Called from the navigation code once the destination state
- * exists; writes into the shared object directly, so no lookup is needed.
+ * Attaches the destination tree — the identity HistoryUpdater matches on to
+ * report the commit — to the pending transition that was created at `start`
+ * and threaded through the action. Called once the destination state exists.
  *
  * No-ops when `transition` is `null` (untracked navigation, or the lifecycle
- * is disabled). If the transition has already left the pending buffer — a
- * newer navigation committed first and this one was reported as aborted —
- * the write is harmless: events are only ever emitted for buffered entries,
- * and the action queue also discarded this navigation's state, so no commit
- * can fire for it either; the abort was final.
+ * is disabled). If the transition was already reported as aborted, the write
+ * is harmless: events are only emitted for buffered entries, and the action
+ * queue also discarded this navigation's state, so no commit can fire for it.
  */
 export function attachRouterTransitionTarget(
   transition: PendingRouterTransition | null,
-  tree: FlightRouterState,
-  cacheHit: boolean
+  tree: FlightRouterState
 ): void {
   if (process.env.__NEXT_INSTRUMENTATION_CLIENT_ROUTER_TRANSITION_EVENTS) {
     if (transition === null) {
       return
     }
     transition.tree = tree
-    transition.cacheHit = cacheHit
+  }
+}
+
+/**
+ * Re-points a pending transition's destination identity when an untracked
+ * action derives a new state from a tracked-but-not-yet-committed one.
+ *
+ * A refresh (or a retry after a tree mismatch) mints a fresh tree from
+ * whatever state is current when its reducer runs. If that base state is the
+ * still-uncommitted destination of an in-flight navigation, React may batch
+ * the two updates so that only the derived tree ever reaches HistoryUpdater —
+ * the navigation's own tree is never applied individually, and its commit
+ * would starve. Because these derivations land the user on the same
+ * destination the navigation targeted (a refresh re-fetches the current URL;
+ * a retry replaces the tree with the server's authoritative version of it),
+ * the transition's identity follows the derivation, and the eventual commit
+ * is reported against the derived tree instead. This also keeps the reported
+ * events independent of whether React happened to batch: the non-batched
+ * interleaving commits the navigation's own tree first, and the retarget
+ * no-ops.
+ *
+ * No-op in the common case where `fromTree` belongs to no pending transition
+ * (the base state was already committed, or nothing is in flight).
+ */
+export function retargetRouterTransition(
+  fromTree: FlightRouterState,
+  toTree: FlightRouterState
+): void {
+  if (process.env.__NEXT_INSTRUMENTATION_CLIENT_ROUTER_TRANSITION_EVENTS) {
+    for (const transition of pendingTransitions) {
+      if (transition.tree === fromTree) {
+        transition.tree = toTree
+        return
+      }
+    }
+  }
+}
+
+/**
+ * Marks the transition as not instant, so its commit reports
+ * `instant: false`. Instant-ness is a one-way latch: a transition starts
+ * instant, any single wait flips it to not instant, and nothing (by design)
+ * flips it back.
+ */
+export function markRouterTransitionAsNotInstant(
+  transition: PendingRouterTransition | null
+): void {
+  if (process.env.__NEXT_INSTRUMENTATION_CLIENT_ROUTER_TRANSITION_EVENTS) {
+    if (transition === null) {
+      return
+    }
+    transition.instant = false
+  }
+}
+
+/**
+ * Stops tracking a transition that can no longer commit: the action queue
+ * calls this when a navigate/restore action settles without attaching a
+ * destination tree (failed fetch, any full-page/MPA fallback) and when a
+ * reducer throws. Without it, the entry would linger in `pendingTransitions`
+ * and be misreported as "aborted, superseded by" a later, unrelated commit —
+ * an abort must only ever mean "a newer navigation committed before this one
+ * could". The consumer-visible result is a `start` with no terminal event.
+ *
+ * TODO: emit a dedicated terminal event (e.g. an abort with a reason field,
+ * or a failure hook) so consumers can distinguish failed and full-page
+ * navigations from transitions that are still in flight.
+ */
+export function untrackRouterTransition(
+  transition: PendingRouterTransition | null
+): void {
+  if (process.env.__NEXT_INSTRUMENTATION_CLIENT_ROUTER_TRANSITION_EVENTS) {
+    if (transition === null) {
+      return
+    }
+    const index = pendingTransitions.indexOf(transition)
+    if (index !== -1) {
+      pendingTransitions.splice(index, 1)
+    }
   }
 }
 
@@ -235,12 +305,12 @@ export function commitRouterTransition(state: AppRouterState): void {
       hooks.unstable_onRouterTransitionCommit?.(committed.url, committed.type, {
         id: committed.id,
         timestamp: now,
-        toRenderedPathname: to.renderedPathname,
-        toCanonicalUrl: to.canonicalUrl,
-        toRouteTemplates: to.routeTemplates,
-        toParams: to.params,
-        toSearchParams: to.searchParams,
-        cache: committed.cacheHit ? 'hit' : 'miss',
+        to,
+        // `instant` defaults to true and is only unset at the known blocking
+        // sites, so a navigation that renders entirely from local data
+        // (including one that reuses the current UI, e.g. hash-only) reports
+        // instant without any code path having to say so.
+        instant: committed.instant,
       })
     )
     for (const entry of aborted) {
@@ -258,8 +328,8 @@ export function commitRouterTransition(state: AppRouterState): void {
 /**
  * Adapter from internal router state (the FlightRouterState tree, canonical
  * URL, and rendered search) to the shape we are comfortable exposing publicly
- * on instrumentation events — the flattened `from*` (start) / `to*` (commit)
- * fields. This is the single boundary where internal route structure is
+ * on instrumentation events — the `from` (start) / `to` (commit) route
+ * objects. This is the single boundary where internal route structure is
  * translated for external consumption; it exists solely for the
  * instrumentation-client router transition hooks and must not be used for
  * anything else (in particular, nothing in the router may depend on its
@@ -269,50 +339,88 @@ function describeRouteForInstrumentation(
   tree: FlightRouterState,
   canonicalUrl: string,
   renderedSearch: string
-): {
-  renderedPathname: string
-  canonicalUrl: string
-  routeTemplates: string[]
-  params: Array<string | string[]>
-  searchParams: Record<string, string | string[]>
-} {
+): RouterTransitionRoute {
   return {
     renderedPathname:
       extractPathFromFlightRouterState(tree) ??
       new URL(canonicalUrl, location.href).pathname,
     canonicalUrl,
-    routeTemplates: getRouteTemplates(tree),
-    params: getPositionalParams(tree),
+    routes: getRoutesForInstrumentation(tree),
     searchParams: parseSearchParams(renderedSearch),
   }
 }
 
 /**
- * Returns the route template paths for the tree, deepest (leaf page) first with
- * the primary `children` route ahead of parallel slots. Dynamic segments are
- * rendered as positional holes (`:1`, `:2`, ...) rather than param names, so a
- * `[param]` folder rename does not break log continuity. These are route-path
- * templates, not filesystem paths: the `app`/`src/app` root and the
- * `page`/`layout` suffix are not knowable on the client.
+ * Returns the rendered routes for the tree — each a route template paired
+ * with the dynamic param values that fill that template's holes — the primary
+ * (leaf page) route first, then parallel slots in stable alphabetical order.
+ *
+ * Templates render dynamic segments as positional holes (`:1`, `:2`, ...)
+ * rather than param names, so a `[param]` folder rename does not break log
+ * continuity. Hole numbering is per-branch: a hole's number is its position
+ * along its own template's path. Given:
+ *
+ *   app/[locale]/blog/[slug]/page.tsx          → "/:1/blog/:2"
+ *   app/[locale]/@sidebar/tags/[tag]/page.tsx  → "/:1/@sidebar/tags/:2"
+ *
+ * each branch numbers its own holes, continuing from the shared prefix
+ * (`:1` is [locale] in both), so the two `:2`s name different params
+ * ([slug] vs [tag]) and a template never changes because a *sibling* route
+ * gained or lost a dynamic segment.
+ *
+ * The cost of per-branch numbering is exactly that `:2` collision, which is
+ * why params are scoped to each template instead of pooled per event:
+ * `params[i]` fills `:(i+1)` of that template only. A value on a shared
+ * prefix repeats in every template rendered beneath it — `/en/blog/hello`
+ * with the sidebar rendering `/en/tags/js` reports
+ * `[{ template: "/:1/blog/:2", params: ["en", "hello"] },
+ *   { template: "/:1/@sidebar/tags/:2", params: ["en", "js"] }]`, each entry
+ * joinable on its own. (Both walks are one traversal here on purpose —
+ * splitting them is how templates and params drift apart.)
+ *
+ * These are route-path templates, not filesystem paths: the `app`/`src/app`
+ * root and the `page`/`layout` suffix are not knowable on the client.
  */
-function getRouteTemplates(tree: FlightRouterState): string[] {
-  const routes: Array<{ path: string; primary: boolean }> = []
+function getRoutesForInstrumentation(
+  tree: FlightRouterState
+): RouterTransitionMatchedRoute[] {
+  const routes: Array<{
+    template: string
+    params: Array<string | string[]>
+    primary: boolean
+  }> = []
 
   function visit(
     node: FlightRouterState,
     segments: string[],
-    holeCount: number,
+    params: Array<string | string[]>,
     primary: boolean
   ): void {
     const rawSegment = node[0]
     let rendered: string | null
-    let nextHoleCount = holeCount
+    let nextParams = params
     if (Array.isArray(rawSegment)) {
-      rendered = `:${++nextHoleCount}`
+      // A dynamic segment: [paramName, value, paramType]. Render a positional
+      // hole and record its value in the same step — `nextParams.length`
+      // doubles as the hole counter, since every hole records exactly one
+      // value. Catch-all params ('c', 'oc', and the interception-marker
+      // catch-alls 'ci(.)' etc.) match multiple path segments, so their value
+      // is reported as the array of segments.
+      const value = rawSegment[1]
+      const paramType = rawSegment[2]
+      nextParams = [
+        ...params,
+        paramType === 'oc' || paramType.startsWith('c')
+          ? value.split('/')
+          : value,
+      ]
+      rendered = `:${nextParams.length}`
     } else {
       const source = segmentToSourcePagePathname(rawSegment)
       if (source === 'page') {
-        routes.push({ path: `/${segments.join('/')}`, primary })
+        // The page segment terminates a template. Its params are exactly the
+        // values collected on the path from the root, in hole order.
+        routes.push({ template: `/${segments.join('/')}`, params, primary })
         return
       }
       if (source === '' || source === '(__SLOT__)' || isGroupSegment(source)) {
@@ -331,12 +439,19 @@ function getRouteTemplates(tree: FlightRouterState): string[] {
     const keys = Object.keys(parallelRoutes)
 
     if (keys.length === 0) {
-      routes.push({ path: `/${nextSegments.join('/')}`, primary })
+      routes.push({
+        template: `/${nextSegments.join('/')}`,
+        params: nextParams,
+        primary,
+      })
       return
     }
 
+    // Sibling branches each receive the same `nextParams` (the values on the
+    // shared prefix) and extend it independently — this is what makes hole
+    // numbering per-branch and shared-prefix values repeat per template.
     if (parallelRoutes.children !== undefined) {
-      visit(parallelRoutes.children, nextSegments, nextHoleCount, primary)
+      visit(parallelRoutes.children, nextSegments, nextParams, primary)
     }
     for (const key of keys.sort()) {
       if (key === 'children') {
@@ -345,52 +460,21 @@ function getRouteTemplates(tree: FlightRouterState): string[] {
       visit(
         parallelRoutes[key],
         [...nextSegments, `@${key}`],
-        nextHoleCount,
+        nextParams,
         false
       )
     }
   }
 
-  visit(tree, [], 0, true)
+  visit(tree, [], [], true)
   return routes
     .sort((a, b) => {
       if (a.primary !== b.primary) {
         return a.primary ? -1 : 1
       }
-      return a.path.localeCompare(b.path)
+      return a.template.localeCompare(b.template)
     })
-    .map((route) => route.path)
-}
-
-/**
- * Collects dynamic param values along the primary `children` chain, positional
- * by hole order so they line up with the holes in the primary route template.
- * Catch-all values are returned as an array of path segments.
- */
-function getPositionalParams(
-  tree: FlightRouterState
-): Array<string | string[]> {
-  const params: Array<string | string[]> = []
-
-  function visit(node: FlightRouterState): void {
-    const segment = node[0]
-    if (Array.isArray(segment)) {
-      const value = segment[1]
-      const dynamicParamType = segment[2]
-      params.push(
-        dynamicParamType === 'c' || dynamicParamType === 'oc'
-          ? value.split('/')
-          : value
-      )
-    }
-    const children = node[1].children
-    if (children !== undefined) {
-      visit(children)
-    }
-  }
-
-  visit(tree)
-  return params
+    .map((route) => ({ template: route.template, params: route.params }))
 }
 
 function parseSearchParams(

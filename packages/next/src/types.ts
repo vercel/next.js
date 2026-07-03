@@ -46,6 +46,8 @@ export type { Instrumentation } from './server/instrumentation/types'
 export type {
   RouterTransitionType,
   RouterTransitionEvent,
+  RouterTransitionMatchedRoute,
+  RouterTransitionRoute,
   RouterTransitionStartEvent,
   RouterTransitionCommitEvent,
   RouterTransitionAbortEvent,
