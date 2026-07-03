@@ -31,7 +31,7 @@ Two insights drive the work, and they fire on different pages:
 
 1. **[`instant-link-prefetch-partial`](https://nextjs.org/docs/messages/instant-link-prefetch-partial)** fires on the page that _renders_ a `<Link prefetch={true}>` whose target hasn't adopted Partial Prefetching. It's the audit signal for step 1. It fires when the link actually prefetches, so the page holding the link must be visited with the link in the viewport.
 
-2. **[`instant-shell-link-data`](https://nextjs.org/docs/messages/instant-shell-link-data)** ("URL data while extracting a reusable shell") fires on the _target_ route when its shared prefetch reads `params` or `searchParams` outside `<Suspense>` — that ties the prefetch to a single URL, so links can't share it. It fires when the route is validated: on initial load and on navigation to it.
+2. **[`instant-shell-link-data`](https://nextjs.org/docs/messages/instant-shell-link-data)** ("URL data outside of Suspense while extracting a reusable shell") fires on the _target_ route when its shared prefetch reads `params` or `searchParams` outside `<Suspense>` — that ties the prefetch to a single URL, so links can't share it. It fires when the route is validated: on initial load and on navigation to it.
 
 What counts as URL data: only `params` and `searchParams`. `cookies()` and `headers()` vary per user, not per link, so they don't affect prefetch sharing. `generateStaticParams` doesn't help — a statically-known param still belongs to one URL. A read inside `generateMetadata` surfaces as its own variant ([URL data in `generateMetadata()`](https://nextjs.org/docs/messages/blocking-prerender-metadata-runtime)); a read inside `generateViewport` surfaces as the runtime-viewport prerender error instead, since viewport can't stream out of the shell.
 
@@ -68,7 +68,7 @@ Two shapes, same loop:
 Then sweep. The work queue is every route reachable by a link — build it from a concrete source (the route table from the last `next build`, or the `app/` tree) and keep it as a todo list, so the sweep is reproducible instead of improvised:
 
 - Visit each route directly (initial-load validation) **and** navigate to it through its links (navigation validation). Both paths validate; navigating is what users actually do, so don't skip it.
-- Watch the Insights tab and the dev log for `URL data while extracting a reusable shell`.
+- Watch the Insights tab and the dev log for `while extracting a reusable shell`.
 - A route that redirects never validates — mark it unswept, not clean.
 - The first visit per route pays a compile in dev (long on webpack, or with heavy pages). Warm the route before judging it, and don't mistake a cold compile for a hang.
 - Per insight, apply the fix from its docs page. The shape is always the same: keep the URL-independent part of the route outside the boundary, pass the `params`/`searchParams` promise into a `<Suspense>`-wrapped child, and await it only there. Don't await above the boundary.
