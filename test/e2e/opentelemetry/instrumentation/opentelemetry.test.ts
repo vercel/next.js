@@ -1512,72 +1512,42 @@ describe.each(
         () => {
           it('should trace middleware', async () => {
             await next.fetch('/behind-middleware', env.fetchInit)
-            if (runtime === 'edge') {
-              await expectTrace(getCollector(), [
-                {
-                  runtime: 'edge',
-                  traceId: env.span.traceId,
-                  parentId: env.span.rootParentId,
-                  name: 'middleware GET',
-                  attributes: {
-                    'http.method': 'GET',
-                    'http.target': '/behind-middleware',
-                    'next.span_name': 'middleware GET',
-                    'next.span_type': 'Middleware.execute',
-                  },
-                  status: { code: 0 },
-                  spans: [],
+            let expected = [
+              {
+                runtime: runtime,
+                traceId: env.span.traceId,
+                parentId: env.span.rootParentId,
+                name: 'middleware GET',
+                attributes: {
+                  'http.method': 'GET',
+                  'http.target': '/behind-middleware',
+                  'next.span_name': 'middleware GET',
+                  'next.span_type': 'Middleware.execute',
                 },
-
-                {
-                  runtime: 'nodejs',
-                  traceId: env.span.traceId,
-                  parentId: env.span.rootParentId,
-                  name: 'GET /behind-middleware',
-                  attributes: {
-                    'http.method': 'GET',
-                    'http.route': '/behind-middleware',
-                    'http.status_code': 200,
-                    'http.target': '/behind-middleware',
-                    'next.route': '/behind-middleware',
-                    'next.span_name': 'GET /behind-middleware',
-                    'next.span_type': 'BaseServer.handleRequest',
-                  },
+                status: { code: 0 },
+                spans: [],
+              },
+              {
+                runtime: 'nodejs',
+                traceId: env.span.traceId,
+                parentId: env.span.rootParentId,
+                name: 'GET /behind-middleware',
+                attributes: {
+                  'http.method': 'GET',
+                  'http.route': '/behind-middleware',
+                  'http.status_code': 200,
+                  'http.target': '/behind-middleware',
+                  'next.route': '/behind-middleware',
+                  'next.span_name': 'GET /behind-middleware',
+                  'next.span_type': 'BaseServer.handleRequest',
                 },
-              ])
-            } else {
-              await expectTrace(getCollector(), [
-                {
-                  runtime: 'nodejs',
-                  traceId: env.span.traceId,
-                  parentId: env.span.rootParentId,
-                  name: 'GET /behind-middleware',
-                  attributes: {
-                    'http.method': 'GET',
-                    'http.route': '/behind-middleware',
-                    'http.status_code': 200,
-                    'http.target': '/behind-middleware',
-                    'next.route': '/behind-middleware',
-                    'next.span_name': 'GET /behind-middleware',
-                    'next.span_type': 'BaseServer.handleRequest',
-                  },
-                },
-                {
-                  runtime: 'nodejs',
-                  traceId: env.span.traceId,
-                  parentId: env.span.rootParentId,
-                  name: 'middleware GET',
-                  attributes: {
-                    'http.method': 'GET',
-                    'http.target': '/behind-middleware',
-                    'next.span_name': 'middleware GET',
-                    'next.span_type': 'Middleware.execute',
-                  },
-                  status: { code: 0 },
-                  spans: [],
-                },
-              ])
+              },
+            ]
+            if (runtime === 'nodejs') {
+              // TODO unclear why this is reversed for Node.js runtime
+              expected.reverse()
             }
+            await expectTrace(getCollector(), expected)
           })
         }
       )
