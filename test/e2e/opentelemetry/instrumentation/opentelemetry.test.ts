@@ -1467,22 +1467,23 @@ describe.each(
     // },
   ].filter(Boolean)
 )('opentelemetry - middleware $name', ({ useDirectEntrypointHandler }) => {
-  describe.each(['edge', 'node'])('%s runtime', (runtime) => {
+  describe.each(['edge', 'nodejs'])('%s runtime', (runtime) => {
     const {
       next: { next, skipped },
       getCollector,
     } = setup({
       useDirectEntrypointHandler,
-      useNodeMiddleware: runtime === 'node',
+      useNodeMiddleware: runtime === 'nodejs',
     })
 
     if (skipped) {
       return
     }
 
-    // Edge runtime is currently not implemented in custom-entrypoint-server.ts
-    const itEdge =
-      useDirectEntrypointHandler && runtime === 'edge' ? it.skip : it
+    if (useDirectEntrypointHandler && runtime === 'edge') {
+      it.skip('direct entrypoint handler is not implemented for edge runtime', () => {})
+      return
+    }
 
     for (const env of [
       {
@@ -1509,7 +1510,7 @@ describe.each(
       ;(process.env.__NEXT_CACHE_COMPONENTS ? describe.skip : describe)(
         env.name,
         () => {
-          itEdge('should trace middleware', async () => {
+          it('should trace middleware', async () => {
             await next.fetch('/behind-middleware', env.fetchInit)
             if (runtime === 'edge') {
               await expectTrace(getCollector(), [
