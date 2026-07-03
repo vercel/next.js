@@ -329,4 +329,129 @@ describe('cache-components-output-export', () => {
       }
     })
   })
+
+  describe('metadata files', () => {
+    const { next, isNextStart } = nextTestSetup({
+      files: fixture('metadata-files'),
+      skipStart,
+      skipDeployment: true,
+    })
+
+    it('exports opengraph-image, sitemap, and robots', async () => {
+      if (isNextStart) {
+        expect((await next.build()).exitCode).toBe(0)
+        const outDir = join(next.testDir, 'out')
+        const image = await fs.readFile(join(outDir, 'opengraph-image'))
+        // PNG magic bytes
+        expect(image.subarray(1, 4).toString()).toBe('PNG')
+        expect(
+          await fs.readFile(join(outDir, 'sitemap.xml'), 'utf8')
+        ).toContain('https://example.com/')
+        expect(await fs.readFile(join(outDir, 'robots.txt'), 'utf8')).toContain(
+          'User-Agent: *'
+        )
+      } else {
+        expect(await next.render('/sitemap.xml')).toContain(
+          'https://example.com/'
+        )
+        expect(await next.render('/robots.txt')).toContain('User-Agent: *')
+      }
+    })
+  })
+
+  describe('route handler with cached data', () => {
+    const { next, isNextStart } = nextTestSetup({
+      files: fixture('route-handler'),
+      skipStart,
+      skipDeployment: true,
+    })
+
+    // Cache Components rejects `dynamic`/`revalidate` config, which legacy export
+    // required on route handlers — a static route handler must export without it.
+    // The handler reads its data from a `use cache` function (the `Response`
+    // itself isn't cacheable), which is the pattern the export error suggests.
+    it('exports the response', async () => {
+      if (isNextStart) {
+        expect((await next.build()).exitCode).toBe(0)
+        const body = await fs.readFile(
+          join(next.testDir, 'out', 'api', 'data'),
+          'utf8'
+        )
+        expect(body).toContain('from-route-handler')
+      } else {
+        expect(await next.render('/api/data')).toContain('from-route-handler')
+      }
+    })
+  })
+
+  describe('route handler that reads request data', () => {
+    const { next, isNextStart } = nextTestSetup({
+      files: fixture('route-handler-dynamic'),
+      skipStart,
+      skipDeployment: true,
+    })
+
+    // A route handler that reads request data can't be exported — the build must
+    // fail rather than silently degrade to a dynamic route a static host can't
+    // serve, and the dev server reports the same.
+    it('fails the build and reports it in dev', async () => {
+      if (isNextStart) {
+        const { exitCode, cliOutput } = await next.build()
+        expect(exitCode).toBe(1)
+        expect(cliOutput).toContain("couldn't be rendered statically")
+      } else {
+        await next.render('/api/data')
+        await retry(() => {
+          expect(next.cliOutput).toContain("couldn't be rendered statically")
+        })
+      }
+    })
+  })
+
+  describe('route handler with a non-static method', () => {
+    const { next, isNextStart } = nextTestSetup({
+      files: fixture('route-handler-post'),
+      skipStart,
+      skipDeployment: true,
+    })
+
+    // A `POST` handler can only run on a server; a static file can only answer
+    // `GET`. Fail eagerly instead of silently dropping the route from the
+    // export.
+    it('fails the build and reports it in dev', async () => {
+      if (isNextStart) {
+        const { exitCode, cliOutput } = await next.build()
+        expect(exitCode).toBe(1)
+        expectFailedExport(cliOutput)
+        expect(cliOutput).toContain('can only run on a server')
+      } else {
+        await next.render('/api/data')
+        await retry(() => {
+          expect(next.cliOutput).toContain('can only run on a server')
+        })
+      }
+    })
+  })
+
+  describe('route handler with uncached I/O', () => {
+    const { next, isNextStart } = nextTestSetup({
+      files: fixture('route-handler-io'),
+      skipStart,
+      skipDeployment: true,
+    })
+
+    // Uncached I/O resolves at request time, so the handler's response can't be
+    // written to a static file — the build must fail rather than silently drop
+    // the route from the export. (In dev a live request runs the handler, so it
+    // serves; the constraint surfaces at build time.)
+    it('fails the build', async () => {
+      if (isNextStart) {
+        const { exitCode, cliOutput } = await next.build()
+        expect(exitCode).toBe(1)
+        expect(cliOutput).toContain('could not be statically exported')
+      } else {
+        expect(await next.render('/api/data')).toContain('io')
+      }
+    })
+  })
 })

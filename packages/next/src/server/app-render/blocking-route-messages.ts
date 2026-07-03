@@ -144,6 +144,34 @@ export function createStaticExportViewportError(route: string): Error {
   )
 }
 
+export function createStaticExportRouteHandlerError(
+  route: string,
+  expression: string | null
+): Error {
+  return new Error(
+    `Route "${route}" could not be statically exported.\n\n` +
+      `Its handler ${
+        expression ? `used \`${expression}\`, which resolves` : `read data`
+      } at request time. This project is built with \`output: 'export'\`, which writes the response to a static file at build time.\n\n` +
+      `Ways to fix this:\n` +
+      `  - [cache] Move uncached I/O into a function cached with \`"use cache"\` and call it from the handler, so it resolves at build time\n\n` +
+      `Learn more: ${STATIC_EXPORT_DOCS}`
+  )
+}
+
+export function createStaticExportNonStaticMethodsError(
+  route: string,
+  methods: string[]
+): Error {
+  return new Error(
+    `Route "${route}" could not be statically exported.\n\n` +
+      `It exports \`${methods.join('`, `')}\`, which can only run on a server. This project is built with \`output: 'export'\`, whose static files can only answer \`GET\`.\n\n` +
+      `Ways to fix this:\n` +
+      `  - [static] Remove the \`${methods.join('`, `')}\` handler${methods.length > 1 ? 's' : ''} from this route\n\n` +
+      `Learn more: ${STATIC_EXPORT_DOCS}`
+  )
+}
+
 export function createLinkMetadataError(route: string): Error {
   return new Error(
     `Route "${route}": Next.js encountered link data in \`generateMetadata()\`.\n\n` +
