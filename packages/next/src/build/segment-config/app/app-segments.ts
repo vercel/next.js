@@ -25,6 +25,14 @@ type GenerateStaticParams = (options: { params?: Params }) => Promise<Params[]>
  * Parses the app config and attaches it to the segment.
  */
 function attach(segment: AppSegment, userland: unknown, route: string) {
+  if (userland && typeof (userland as Promise<unknown>).then === 'function') {
+    // Reading exports off a pending module would silently drop
+    // `generateStaticParams` and the segment config.
+    throw new InvariantError(
+      `The userland module for route "${route}" must be awaited before collecting segments.`
+    )
+  }
+
   // If the userland is not an object, then we can't do anything with it.
   if (typeof userland !== 'object' || userland === null) {
     return
@@ -141,9 +149,13 @@ async function collectAppPageSegments(routeModule: AppPageRouteModule) {
  * @param routeModule the app route module
  * @returns the segments for the app route module
  */
-function collectAppRouteSegments(
+async function collectAppRouteSegments(
   routeModule: AppRouteRouteModule
-): AppSegment[] {
+): Promise<AppSegment[]> {
+  // The route file may be an async module (top-level await), so the userland
+  // module must be resolved before its exports can be inspected.
+  await routeModule.ensureUserland()
+
   // Get the pathname parts, slice off the first element (which is empty).
   const parts = routeModule.definition.pathname.split('/').slice(1)
   if (parts.length === 0) {

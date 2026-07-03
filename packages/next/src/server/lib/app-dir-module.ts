@@ -1,5 +1,6 @@
 import type { AppDirModules } from '../../build/webpack/loaders/next-app-loader'
 import { DEFAULT_SEGMENT_KEY } from '../../shared/lib/segment'
+import { trackPendingImport } from '../app-render/module-loading/track-module-loading.external'
 
 /**
  * LoaderTree is generated in next-app-loader.
@@ -40,15 +41,15 @@ export async function getLayoutOrPageModule(loaderTree: LoaderTree) {
   let filePath = undefined
 
   if (isLayout) {
-    mod = await layout[0]()
+    mod = await trackPendingImport(layout[0]())
     modType = 'layout'
     filePath = layout[1]
   } else if (isPage) {
-    mod = await page[0]()
+    mod = await trackPendingImport(page[0]())
     modType = 'page'
     filePath = page[1]
   } else if (isDefaultPage) {
-    mod = await defaultPage[0]()
+    mod = await trackPendingImport(defaultPage[0]())
     modType = 'page'
     filePath = defaultPage[1]
   }
@@ -62,7 +63,7 @@ export async function getComponentTypeModule(
 ) {
   const { [moduleType]: module } = loaderTree[2]
   if (typeof module !== 'undefined') {
-    return await module[0]()
+    return await trackPendingImport(module[0]())
   }
   return undefined
 }

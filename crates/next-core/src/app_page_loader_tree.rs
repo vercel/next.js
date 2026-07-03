@@ -216,11 +216,10 @@ impl AppPageLoaderTreeBuilder {
                     .inner_assets
                     .insert(inner_module_id.into(), module);
 
+                // The module is emitted as a loader (instead of a bound call) so
+                // that its evaluation can be tracked. See `MetadataImageEntry`.
                 let s = "      ";
-                writeln!(
-                    self.loader_tree_code,
-                    "{s}async (props) => interopDefault(await {identifier}())(props),"
-                )?;
+                writeln!(self.loader_tree_code, "{s}{{ loadModule: {identifier} }},")?;
             }
         }
         Ok(())

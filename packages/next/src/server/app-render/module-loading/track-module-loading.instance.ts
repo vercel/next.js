@@ -4,9 +4,15 @@ import { isThenable } from '../../../shared/lib/is-thenable'
 /**
  * Tracks all in-flight async imports and chunk loads.
  * Initialized lazily, because we don't want this to error in case it gets pulled into an edge runtime module.
+ *
+ * Returns null in the edge runtime: `CacheSignal` can't be constructed there,
+ * and its only consumer (`trackPendingModules`) has no edge callers.
  */
 let _moduleLoadingSignal: CacheSignal | null
-function getModuleLoadingSignal() {
+function getModuleLoadingSignal(): CacheSignal | null {
+  if (process.env.NEXT_RUNTIME === 'edge') {
+    return null
+  }
   if (!_moduleLoadingSignal) {
     _moduleLoadingSignal = new CacheSignal()
   }
@@ -15,20 +21,22 @@ function getModuleLoadingSignal() {
 
 export function trackPendingChunkLoad(promise: Promise<unknown>) {
   const moduleLoadingSignal = getModuleLoadingSignal()
-  moduleLoadingSignal.trackRead(promise)
+  moduleLoadingSignal?.trackRead(promise)
 }
 
-export function trackPendingImport(exportsOrPromise: unknown) {
+export function trackPendingImport<T>(exportsOrPromise: T): T {
   const moduleLoadingSignal = getModuleLoadingSignal()
 
   // requiring an async module returns a promise.
   // if it's sync, there's nothing to track.
-  if (isThenable(exportsOrPromise)) {
+  if (moduleLoadingSignal && isThenable(exportsOrPromise)) {
     // A client reference proxy might look like a promise, but we can only call `.then()` on it, not e.g. `.finally()`.
     // Turn it into a real promise to avoid issues elsewhere.
     const promise = Promise.resolve(exportsOrPromise)
     moduleLoadingSignal.trackRead(promise)
   }
+
+  return exportsOrPromise
 }
 
 /**
@@ -41,6 +49,11 @@ export function trackPendingImport(exportsOrPromise: unknown) {
  */
 export function trackPendingModules(cacheSignal: CacheSignal): void {
   const moduleLoadingSignal = getModuleLoadingSignal()
+  if (!moduleLoadingSignal) {
+    // Unreachable in the edge runtime: the passed `CacheSignal` can't have
+    // been constructed there.
+    return
+  }
 
   // We can't just use `cacheSignal.trackRead(moduleLoadingSignal.cacheReady())`,
   // because we might start and finish multiple batches of module loads while waiting for caches,
