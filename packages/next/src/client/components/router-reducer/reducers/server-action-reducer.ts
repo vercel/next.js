@@ -520,12 +520,7 @@ export function serverActionReducer(
           // known route tree to mark the entry as having a dynamic rewrite.
           null,
           // Not an HMR refresh, so there's no request generation to cancel.
-          undefined,
-          // TODO: Add perf tracking for navigations caused by server actions
-          // (redirects). No transition `start` is emitted for them yet, so
-          // there is no pending transition to thread through, and they never
-          // report a commit.
-          null
+          undefined
         )
       }
 
@@ -541,10 +536,7 @@ export function serverActionReducer(
         nextUrl,
         freshnessPolicy,
         scrollBehavior,
-        navigateType,
-        // TODO: Add perf tracking for navigations caused by server actions
-        // (redirects). See the matching TODO on navigateToKnownRoute above.
-        null
+        navigateType
       )
     },
     (e: any) => {

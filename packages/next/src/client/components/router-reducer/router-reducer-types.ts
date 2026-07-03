@@ -96,9 +96,9 @@ export interface NavigateAction {
   navigateType: 'push' | 'replace'
   scrollBehavior: ScrollBehavior
   // The pending transition created when the dispatcher emitted `start` (null
-  // when the experimental lifecycle is disabled). Threaded through so the
-  // reducer can attach the destination tree to this shared object once
-  // it exists.
+  // when the experimental lifecycle is disabled). Carried on the action so
+  // the queue can settle it — attach the destination tree, or untrack it —
+  // when the action completes (see settleRouterTransition).
   instrumentationTransition: PendingRouterTransition | null
 }
 

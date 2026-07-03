@@ -12,7 +12,6 @@ import {
 } from '../../segment-cache/navigation'
 import { refreshReducer } from './refresh-reducer'
 import { getCurrentNavigationLock } from '../ppr-navigations'
-import { retargetRouterTransition } from '../../router-transition'
 
 export function serverPatchReducer(
   state: ReadonlyReducerState,
@@ -51,7 +50,7 @@ export function serverPatchReducer(
   const scrollBehavior = ScrollBehavior.Default
   const navigationLock = getCurrentNavigationLock()
   const now = Date.now()
-  const newState = navigateToKnownRoute(
+  return navigateToKnownRoute(
     now,
     state,
     retryUrl,
@@ -72,26 +71,6 @@ export function serverPatchReducer(
     // marked as having a dynamic rewrite when the mismatch was detected.
     null,
     // Not an HMR refresh, so there's no request generation to cancel.
-    undefined,
-    // No pending transition: a retry is an internal correction, not a user
-    // navigation. The timeline: the user's navigation optimistically committed
-    // a predicted route tree (HistoryUpdater applied it, which emitted that
-    // transition's `commit` event and removed it from the pending buffer).
-    // Later, the dynamic response revealed the server actually rendered a
-    // different tree (e.g. a dynamic rewrite/redirect), so this retry replaces
-    // the committed tree with the server's authoritative one. From the user's
-    // perspective the navigation already happened — emitting another
-    // start/commit pair would double-count it. Passing null means the retry's
-    // tree is never attached to a pending transition, so when HistoryUpdater
-    // applies it, commitRouterTransition finds no match and emits nothing.
-    null
+    undefined
   )
-  // The timeline above has one exception: if the retry lands in the same
-  // React batch as the navigation it corrects, the predicted tree never
-  // individually reaches HistoryUpdater and the transition is still pending.
-  // The retry lands the user on the server's authoritative version of that
-  // same navigation, so re-point the transition at the retry's tree rather
-  // than starve its commit. No-op in the already-committed case.
-  retargetRouterTransition(state.tree, newState.tree)
-  return newState
 }

@@ -512,10 +512,11 @@ describe('Instrumentation Client Hook', () => {
       // The click handler dispatches a navigation and a refresh in the same
       // tick. The refresh derives a fresh tree from the navigation's
       // not-yet-committed state, and React batches the two updates, so only
-      // the refresh's tree ever reaches HistoryUpdater. The refresh reducer
-      // re-points the pending transition at that derived tree
-      // (retargetRouterTransition), so the navigation still reports its
-      // commit — the refresh itself must not emit any events of its own.
+      // the refresh's tree ever reaches HistoryUpdater. Settling the refresh
+      // action re-points the pending transition at the derived tree (see the
+      // destination-preserving arm of settleRouterTransition), so the
+      // navigation still reports its commit — the refresh itself must not
+      // emit any events of its own.
       await browser.elementById('push-then-refresh').click()
       await browser.elementById('no-prefetch')
 

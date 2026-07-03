@@ -15,7 +15,6 @@ import {
   invalidateBfCache,
   UnknownDynamicStaleTime,
 } from '../../segment-cache/bfcache'
-import { retargetRouterTransition } from '../../router-transition'
 
 export function refreshReducer(
   state: ReadonlyReducerState,
@@ -86,7 +85,7 @@ export function refreshDynamicData(
   // takes over the push. If the navigation does commit first, HistoryUpdater
   // sees that the URL already matches and replaces instead.
   const navigateType = state.pushRef.pendingPush ? 'push' : 'replace'
-  const newState = navigateToKnownRoute(
+  return navigateToKnownRoute(
     now,
     state,
     currentUrl,
@@ -107,20 +106,6 @@ export function refreshDynamicData(
     // mismatch occurs, the retry handler will traverse the known route tree
     // to find and mark the entry.
     null,
-    signal,
-    // TODO: Add perf tracking for refresh actions. A refresh re-fetches the
-    // dynamic data for the current URL (modeled as a navigation to the current
-    // URL); it never emits a transition `start`, so there is no pending
-    // transition to attach a destination tree to, and it never reports
-    // a commit.
-    null
+    signal
   )
-  // If the state being refreshed is itself the not-yet-committed destination
-  // of an in-flight navigation, React may batch the two updates so only the
-  // refresh's tree ever reaches HistoryUpdater — which would starve that
-  // navigation's commit event. A refresh targets the same destination, so
-  // re-point the pending transition at the derived tree. No-op in the common
-  // case where the current state was already committed.
-  retargetRouterTransition(currentFlightRouterState, newState.tree)
-  return newState
 }

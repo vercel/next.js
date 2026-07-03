@@ -10,7 +10,16 @@ import {
   extractPathFromFlightRouterState,
   segmentToSourcePagePathname,
 } from './router-reducer/compute-changed-path'
-import type { AppRouterState } from './router-reducer/router-reducer-types'
+import {
+  ACTION_HMR_REFRESH,
+  ACTION_NAVIGATE,
+  ACTION_REFRESH,
+  ACTION_RESTORE,
+  ACTION_SERVER_ACTION,
+  ACTION_SERVER_PATCH,
+  type AppRouterState,
+  type ReducerActions,
+} from './router-reducer/router-reducer-types'
 import type {
   ClientInstrumentationHooks,
   ClientInstrumentationModules,
@@ -39,8 +48,9 @@ export type PendingRouterTransition = {
    */
   url: string
   /**
-   * The destination state's tree, attached by the reducer once that state
-   * exists (`null` until then). A fresh FlightRouterState is built for every
+   * The destination state's tree, attached when the action settles and the
+   * destination state exists (`null` until then; see
+   * `settleRouterTransition`). A fresh FlightRouterState is built for every
    * navigation, so this is the reference-stable identity that lets
    * HistoryUpdater match the state it commits back to this transition,
    * without leaking an instrumentation field into the router state itself.
@@ -121,9 +131,9 @@ function hasLifecycleInstrumentation(): boolean {
  * transition hook that needs it.
  *
  * Returns the pending transition when the lifecycle is active — the caller
- * threads the object through the reducer action so the navigation code can
- * attach the destination tree to it once it exists — or `null` for the legacy
- * two-argument hook.
+ * puts the object on the dispatched action so the queue can settle it
+ * (attach the destination tree, or untrack it) when the action completes —
+ * or `null` for the legacy two-argument hook.
  */
 export function startRouterTransition(
   url: string,
@@ -185,60 +195,119 @@ export function startRouterTransition(
 }
 
 /**
- * Attaches the destination tree — the identity HistoryUpdater matches on to
- * report the commit — to the pending transition that was created at `start`
- * and threaded through the action. Called once the destination state exists.
- *
- * No-ops when `transition` is `null` (untracked navigation, or the lifecycle
- * is disabled). If the transition was already reported as aborted, the write
- * is harmless: events are only emitted for buffered entries, and the action
- * queue also discarded this navigation's state, so no commit can fire for it.
+ * Narrows to the action types that carry a tracked transition — only
+ * navigate/restore actions emit `start` and thread the pending transition
+ * object through the queue.
  */
-export function attachRouterTransitionTarget(
-  transition: PendingRouterTransition | null,
-  tree: FlightRouterState
+export function getInstrumentationTransition(
+  payload: ReducerActions
+): PendingRouterTransition | null {
+  return payload.type === ACTION_NAVIGATE || payload.type === ACTION_RESTORE
+    ? payload.instrumentationTransition
+    : null
+}
+
+/**
+ * Settles the transition lifecycle for one action, called from the action
+ * queue's single settle point with the state the reducer derived from
+ * (`prevState`) and the state it produced (`nextState`). Every action type
+ * must be classified by what it does to the router's current destination —
+ * the `satisfies never` default makes a new action type fail to compile
+ * until it declares its semantics here, instead of silently starving or
+ * misattributing commits.
+ *
+ * The classes:
+ *
+ * - Destination-setting (navigate, traverse): the produced state IS the
+ *   action's transition destination — attach its tree, the identity
+ *   HistoryUpdater matches on to report the commit. A reducer that settled
+ *   without producing a new SPA state — it fell back to the current state
+ *   because e.g. the dynamic fetch rejected, or bailed out to a full-page
+ *   (MPA) navigation — is untracked: its transition can never commit, and
+ *   leaving it buffered would misreport it as "replaced" by a later,
+ *   unrelated commit. Every failure path returns the base state object
+ *   itself and every MPA path sets `pushRef.mpaNavigation`, so identity and
+ *   that flag are the signal.
+ *
+ * - Destination-preserving (refresh, server patch/retry, HMR refresh): the
+ *   produced state re-derives whatever destination the base state
+ *   represented, minting a fresh tree for the same place. If that base state
+ *   was the not-yet-committed destination of an in-flight navigation, React
+ *   may batch the two updates so only the derived tree ever reaches
+ *   HistoryUpdater, which would starve the navigation's commit — so the
+ *   transition's identity follows the derivation. This is safe under either
+ *   interleaving: if React does not batch, the navigation's own tree commits
+ *   first and the retarget no-ops (the base tree belongs to no pending
+ *   transition once committed).
+ *
+ * - Server actions are preserving only when they did not navigate: a
+ *   revalidation re-renders the current URL (same reasoning as refresh), but
+ *   a redirect produces a destination no tracked transition targeted.
+ *   Neither retargeting (would commit a pending transition against a URL it
+ *   never targeted) nor untracking (would lose the commit when React does
+ *   NOT batch and the pending state still renders) is correct for the
+ *   redirect case, so the pending transition is left untouched there.
+ *   TODO: give server-action navigations first-class transitions (they
+ *   currently emit no events at all); that turns the redirect case into a
+ *   normal replacement race instead of this gap.
+ */
+export function settleRouterTransition(
+  payload: ReducerActions,
+  prevState: AppRouterState,
+  nextState: AppRouterState
 ): void {
   if (process.env.__NEXT_INSTRUMENTATION_CLIENT_ROUTER_TRANSITION_EVENTS) {
-    if (transition === null) {
-      return
+    switch (payload.type) {
+      case ACTION_NAVIGATE:
+      case ACTION_RESTORE: {
+        const transition = payload.instrumentationTransition
+        if (transition === null) {
+          // Untracked: the lifecycle is disabled, or a non-navigation restore
+          // (a BFCache revival or a pushState/replaceState sync).
+          return
+        }
+        if (nextState === prevState || nextState.pushRef.mpaNavigation) {
+          untrackRouterTransition(transition)
+        } else {
+          transition.tree = nextState.tree
+        }
+        return
+      }
+      case ACTION_REFRESH:
+      case ACTION_SERVER_PATCH:
+      case ACTION_HMR_REFRESH:
+        retargetRouterTransition(prevState.tree, nextState.tree)
+        return
+      case ACTION_SERVER_ACTION:
+        if (
+          nextState !== prevState &&
+          !nextState.pushRef.mpaNavigation &&
+          nextState.canonicalUrl === prevState.canonicalUrl
+        ) {
+          retargetRouterTransition(prevState.tree, nextState.tree)
+        }
+        return
+      default:
+        payload satisfies never
     }
-    transition.tree = tree
   }
 }
 
 /**
- * Re-points a pending transition's destination identity when an untracked
- * action derives a new state from a tracked-but-not-yet-committed one.
- *
- * A refresh (or a retry after a tree mismatch) mints a fresh tree from
- * whatever state is current when its reducer runs. If that base state is the
- * still-uncommitted destination of an in-flight navigation — e.g. a click
- * handler calls `router.push('/dest')` and `router.refresh()` in the same
- * tick — React may batch the two updates so that only the derived tree ever
- * reaches HistoryUpdater: the navigation's own tree is never applied
- * individually, and its commit would starve. Because these derivations land
- * the user on the same
- * destination the navigation targeted (a refresh re-fetches the current URL;
- * a retry replaces the tree with the server's authoritative version of it),
- * the transition's identity follows the derivation, and the eventual commit
- * is reported against the derived tree instead. This also keeps the reported
- * events independent of whether React happened to batch: the non-batched
- * interleaving commits the navigation's own tree first, and the retarget
- * no-ops.
- *
- * No-op in the common case where `fromTree` belongs to no pending transition
- * (the base state was already committed, or nothing is in flight).
+ * Re-points a pending transition's destination identity when a
+ * destination-preserving action derives a new state from a
+ * tracked-but-not-yet-committed one (see `settleRouterTransition`). No-op in
+ * the common case where `fromTree` belongs to no pending transition (the
+ * base state was already committed, or nothing is in flight).
  */
-export function retargetRouterTransition(
+function retargetRouterTransition(
   fromTree: FlightRouterState,
   toTree: FlightRouterState
 ): void {
-  if (process.env.__NEXT_INSTRUMENTATION_CLIENT_ROUTER_TRANSITION_EVENTS) {
-    for (const transition of pendingTransitions) {
-      if (transition.tree === fromTree) {
-        transition.tree = toTree
-        return
-      }
+  for (const transition of pendingTransitions) {
+    if (transition.tree === fromTree) {
+      transition.tree = toTree
+      return
     }
   }
 }
@@ -263,12 +332,12 @@ export function markRouterTransitionAsReplaced(
 }
 
 /**
- * Stops tracking a transition that can no longer commit: the action queue
- * calls this when a navigate/restore action settles without attaching a
- * destination tree (e.g. a push while offline whose fetch rejects, or a
- * navigation the server answers with a redirect to another origin, which
- * falls back to a full-page/MPA navigation) and when a reducer throws.
- * Without it, the entry would linger in `pendingTransitions`
+ * Stops tracking a transition that can no longer commit: called from
+ * `settleRouterTransition` when a navigation settles without producing a
+ * committable destination (e.g. a push while offline whose fetch rejects, or
+ * a navigation the server answers with a redirect to another origin, which
+ * falls back to a full-page/MPA navigation) and from the action queue when a
+ * reducer throws. Without it, the entry would linger in `pendingTransitions`
  * and be misreported as "aborted, replaced by" a later, unrelated commit —
  * an abort must only ever mean "a newer navigation committed before this one
  * could". The consumer-visible result is a `start` with no terminal event.

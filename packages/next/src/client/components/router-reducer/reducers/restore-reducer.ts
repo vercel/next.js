@@ -18,7 +18,6 @@ import {
   convertServerPatchToFullTree,
 } from '../../segment-cache/navigation'
 import { UnknownDynamicStaleTime } from '../../segment-cache/bfcache'
-import { attachRouterTransitionTarget } from '../../router-transition'
 
 export function restoreReducer(
   state: ReadonlyReducerState,
@@ -80,9 +79,9 @@ export function restoreReducer(
   )
 
   if (task === null) {
-    // Falling back to a full-page navigation. (The action queue untracks the
-    // instrumentation transition: no destination tree was attached, so it
-    // can never commit.)
+    // Falling back to a full-page navigation. (Settling the action with an
+    // MPA state untracks the instrumentation transition: it can never
+    // commit.)
     return completeHardNavigation(state, restoredUrl, 'replace')
   }
   spawnDynamicRequests(
@@ -102,7 +101,7 @@ export function restoreReducer(
     // Not an HMR refresh, so there's no request generation to cancel.
     undefined
   )
-  const newState = completeTraverseNavigation(
+  return completeTraverseNavigation(
     state,
     restoredUrl,
     renderedSearch,
@@ -110,10 +109,4 @@ export function restoreReducer(
     task.route,
     restoredNextUrl
   )
-  // Traversals complete here rather than through navigateToKnownRoute (which
-  // handles push/replace navigations), so this reducer attaches the
-  // destination tree itself. The transition is null for the
-  // pushState/replaceState sync path, which isn't a navigation.
-  attachRouterTransitionTarget(action.instrumentationTransition, newState.tree)
-  return newState
 }

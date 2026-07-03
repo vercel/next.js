@@ -24,17 +24,10 @@ export function navigateReducer(
   state: ReadonlyReducerState,
   action: NavigateAction
 ): ReducerState {
-  const {
-    url,
-    isExternalUrl,
-    navigateType,
-    scrollBehavior,
-    instrumentationTransition,
-  } = action
+  const { url, isExternalUrl, navigateType, scrollBehavior } = action
 
-  // For the full-page navigation branches below, the action queue untracks
-  // the instrumentation transition: no destination tree is attached, so it
-  // can never commit.
+  // For the full-page navigation branches below, settling the action with an
+  // MPA state untracks the instrumentation transition: it can never commit.
   if (isExternalUrl) {
     return completeHardNavigation(state, url, navigateType)
   }
@@ -60,7 +53,6 @@ export function navigateReducer(
     state.nextUrl,
     FreshnessPolicy.Default,
     scrollBehavior,
-    navigateType,
-    instrumentationTransition
+    navigateType
   )
 }
