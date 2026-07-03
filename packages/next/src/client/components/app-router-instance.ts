@@ -38,10 +38,11 @@ import { setLinkForCurrentNavigation, type LinkInstance } from './links'
 import type { GlobalErrorComponent } from './builtin/global-error'
 import { isJavaScriptURLString } from '../lib/javascript-url'
 import {
+  getInstrumentationTransition,
   markRouterTransitionAsReplaced,
+  settleRouterTransition,
   startRouterTransition,
   untrackRouterTransition,
-  type PendingRouterTransition,
 } from './router-transition'
 
 export type DispatchStatePromise = React.Dispatch<ReducerState>
@@ -98,17 +99,6 @@ function runRemainingActions(
   }
 }
 
-// Narrows to the action types that carry a tracked transition — only
-// navigate/restore actions emit `start` and thread the pending transition
-// object through the queue.
-function getInstrumentationTransition(
-  payload: ReducerActions
-): PendingRouterTransition | null {
-  return payload.type === ACTION_NAVIGATE || payload.type === ACTION_RESTORE
-    ? payload.instrumentationTransition
-    : null
-}
-
 async function runAction({
   actionQueue,
   action,
@@ -143,23 +133,15 @@ async function runAction({
       return
     }
 
-    // A tracked transition can only ever commit through the destination tree
-    // the reducer attaches to it. If this action settled without attaching
-    // the tree of the state it produced, the transition can never commit.
-    // Concretely: the user clicks a link while the network is down, so the
-    // dynamic fetch for an unprefetched route rejects and the reducer falls
-    // back to the current state; or the router bails out to a full-page (MPA)
-    // navigation, e.g. the server redirected `/dashboard` to another origin,
-    // so the reducer returns a state that unloads the page rather than one
-    // with a new tree. Stop tracking the transition here, at the single point
-    // every navigation funnels through, so a later unrelated commit can't
-    // misreport it as "replaced". (Discarded actions, excluded above, were
-    // marked as replaced when the newer navigation discarded them, and are
-    // reported when that navigation's race settles.)
-    const transition = getInstrumentationTransition(payload)
-    if (transition !== null && transition.tree !== nextState.tree) {
-      untrackRouterTransition(transition)
-    }
+    // Settle the transition lifecycle here, at the single point every action
+    // funnels through: navigations get their destination tree attached (or
+    // are untracked when they failed / left the SPA lifecycle), and states
+    // derived from a not-yet-committed navigation carry its transition
+    // forward. The classification over action types lives in
+    // settleRouterTransition and is exhaustive by construction. (Discarded
+    // actions, excluded above, were marked as replaced when the newer
+    // navigation discarded them, and are reported when that race settles.)
+    settleRouterTransition(payload, prevState, nextState)
 
     actionQueue.state = nextState
 
@@ -432,12 +414,12 @@ function gesturePush(href: string, options?: NavigateOptions): void {
       state.nextUrl,
       freshnessPolicy,
       scrollBehavior,
-      'push',
-      // TODO: Figure out transition tracking for gesture navigations. They
-      // are optimistic forks dispatched through useOptimistic rather than the
-      // action queue, so they don't fit the start/commit/abort lifecycle yet.
-      null
+      'push'
     )
+    // TODO: Figure out transition tracking for gesture navigations. They are
+    // optimistic forks dispatched through useOptimistic rather than the
+    // action queue, so they bypass the settleRouterTransition chokepoint and
+    // don't fit the start/commit/abort lifecycle yet.
     dispatchGestureState(forkedGestureState)
   }
 }
