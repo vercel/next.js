@@ -12,7 +12,7 @@ export function TestControls() {
       <button
         id="abort-double-push"
         onClick={() => {
-          // Two navigations in one tick: the second supersedes the first, so the
+          // Two navigations in one tick: the second replaces the first, so the
           // first should be reported as aborted when the second commits.
           router.push('/some-page')
           router.push('/dashboard')
@@ -27,7 +27,7 @@ export function TestControls() {
         id="triple-push"
         onClick={() => {
           // Three navigations in one tick: only the newest one may commit; both
-          // older ones must be reported as aborted, superseded by that commit.
+          // older ones must be reported as aborted, replaced by that commit.
           router.push('/some-page')
           router.push('/blog/hello')
           router.push('/dashboard')

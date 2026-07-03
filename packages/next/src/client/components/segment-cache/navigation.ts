@@ -42,7 +42,6 @@ import { PrefetchPriority, FetchStrategy } from './types'
 import { getLinkForCurrentNavigation } from '../links'
 import {
   attachRouterTransitionTarget,
-  markRouterTransitionAsNotInstant,
   type PendingRouterTransition,
 } from '../router-transition'
 import type { PageVaryPath } from './vary-path'
@@ -52,7 +51,6 @@ import { computeChangedPath } from '../router-reducer/compute-changed-path'
 import { isJavaScriptURLString } from '../../lib/javascript-url'
 import { UnknownDynamicStaleTime, computeDynamicStaleAt } from './bfcache'
 import { createLinkPrefetchPartialError } from '../../../shared/lib/instant-messages'
-import { isThenable } from '../../../shared/lib/is-thenable'
 
 /**
  * Navigate to a new URL, using the Segment Cache to construct a response.
@@ -109,7 +107,7 @@ export function navigate(
     }
   }
 
-  const result = navigateImpl(
+  return navigateImpl(
     state,
     url,
     currentUrl,
@@ -123,16 +121,6 @@ export function navigate(
     navigationLock,
     instrumentationTransition
   )
-  // Instrumentation: if the destination state could not be produced
-  // synchronously, the navigation waited on the network before that state
-  // could even exist — today the only async path is an unprefetched route
-  // tree, which blocks on the dynamic fetch. Deriving the mark from the
-  // asynchrony itself keeps the tracking exhaustive by construction: a
-  // future async path in navigateImpl is marked automatically.
-  if (isThenable(result)) {
-    markRouterTransitionAsNotInstant(instrumentationTransition)
-  }
-  return result
 }
 
 function navigateImpl(
@@ -337,7 +325,6 @@ export function navigateToKnownRoute(
   const accumulation: NavigationRequestAccumulation = {
     separateRefreshUrls: null,
     scrollRef: null,
-    instrumentationTransition,
   }
   // We special case navigations to the exact same URL as the current location.
   // It's a common UI pattern for apps to refresh when you click a link to the
@@ -1144,7 +1131,7 @@ async function ensurePrefetchThenNavigate(
 
   // Prefetch is complete. Proceed with the normal navigation flow, which
   // will now find the route in the cache.
-  const resultOrPromise = navigateImpl(
+  const result = await navigateImpl(
     state,
     url,
     currentUrl,
@@ -1158,14 +1145,6 @@ async function ensurePrefetchThenNavigate(
     navigationLock,
     instrumentationTransition
   )
-  // Same asynchrony-derived instrumentation mark as in navigate(). The
-  // deliberate prefetch wait above is not marked: this testing path exists
-  // to simulate navigations whose prefetch completed before the
-  // user navigated.
-  if (isThenable(resultOrPromise)) {
-    markRouterTransitionAsNotInstant(instrumentationTransition)
-  }
-  const result = await resultOrPromise
 
   // Only transition to captured-SPA once the navigation is known to be an SPA.
   // If the result is an MPA navigation, leave the cookie pending and let the new

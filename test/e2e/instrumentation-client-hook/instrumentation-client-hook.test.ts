@@ -117,7 +117,7 @@ describe('Instrumentation Client Hook', () => {
   })
 
   describe('router transition lifecycle', () => {
-    const { next, isNextDev } = nextTestSetup({
+    const { next } = nextTestSetup({
       files: path.join(__dirname, 'app-router'),
       nextConfig: {
         experimental: {
@@ -130,7 +130,7 @@ describe('Instrumentation Client Hook', () => {
       return browser.eval(`window.__ROUTER_TRANSITION_EVENTS`)
     }
 
-    it('reports the from route on start (no prefetchIntent)', async () => {
+    it('reports the from route on start', async () => {
       const browser = await next.browser('/')
 
       await browser.elementByCss('a[href="/some-page"]').click()
@@ -187,29 +187,12 @@ describe('Instrumentation Client Hook', () => {
       expect(commit.event.to.renderedPathname).toBe('/some-page')
     })
 
-    it('reports an instant navigation when restoring a cached route', async () => {
+    it('completes the lifecycle for a route that was not prefetched', async () => {
       const browser = await next.browser('/')
 
-      await browser.elementByCss('a[href="/some-page"]').click()
-      await browser.elementById('some-page')
-      await browser.back()
-      await browser.elementById('home')
-      // Going forward restores /some-page from the BFCache, so there is a fully
-      // rendered shell to navigate into.
-      await browser.forward()
-      await browser.elementById('some-page')
-
-      await retry(async () => {
-        const commit = (await getTransitionEvents(browser))
-          .filter((e) => e.phase === 'commit' && e.url === '/some-page')
-          .at(-1)
-        expect(commit?.event.instant).toBe(true)
-      })
-    })
-
-    it('reports a non-instant navigation when nothing is prefetched for the route', async () => {
-      const browser = await next.browser('/')
-
+      // Without a prefetch the destination state is produced asynchronously
+      // (the router blocks on the dynamic fetch); the commit must still be
+      // reported once that state is applied.
       await browser.elementById('push-no-prefetch').click()
       await browser.elementById('no-prefetch')
 
@@ -217,11 +200,11 @@ describe('Instrumentation Client Hook', () => {
         const commit = (await getTransitionEvents(browser)).find(
           (e) => e.phase === 'commit' && e.url === '/no-prefetch'
         )
-        expect(commit?.event.instant).toBe(false)
+        expect(commit?.event.to.renderedPathname).toBe('/no-prefetch')
       })
     })
 
-    it('aborts an in-flight transition superseded before it commits', async () => {
+    it('aborts an in-flight transition replaced before it commits', async () => {
       const browser = await next.browser('/')
 
       await browser.elementById('abort-double-push').click()
@@ -236,13 +219,13 @@ describe('Instrumentation Client Hook', () => {
       const commit = events.find((e) => e.phase === 'commit')
       const abort = events.find((e) => e.phase === 'abort')
       // The later navigation (/dashboard) commits; the earlier (/some-page) is
-      // aborted, attributed to the commit that superseded it.
+      // aborted, attributed to the commit that replaced it.
       expect(commit.url).toBe('/dashboard')
       expect(abort.url).toBe('/some-page')
-      expect(abort.event.supersededByTransitionId).toBe(commit.event.id)
+      expect(abort.event.replacedBy).toBe(commit.event.id)
     })
 
-    it('emits matching trees and an instant commit for a hash-only navigation', async () => {
+    it('emits matching trees for a hash-only navigation', async () => {
       const browser = await next.browser('/')
 
       await browser.elementById('push-hash').click()
@@ -265,24 +248,14 @@ describe('Instrumentation Client Hook', () => {
       expect(commit.event.to.searchParams).toEqual(
         start.event.from.searchParams
       )
-      // The instant field reports whether the commit waited on the server,
-      // and the two modes genuinely differ here. In production the route
-      // tree is known locally, the page UI is reused as-is, and nothing
-      // waits — instant. (Reused segments never run the per-segment cache
-      // reads, which is exactly why instant must be the default and only
-      // genuine server waits are marked.) In development nothing is ever
-      // prefetched, so even a hash-only navigation first consults the server
-      // for the route tree before committing — accurately not instant.
-      expect(commit.event.instant).toBe(isNextDev ? false : true)
 
       // Traversing back across the hash boundary reuses the tree the same
-      // way, so the traverse commit is also instant.
+      // way, so the traverse commit reports the same unchanged route.
       await browser.back()
       await retry(async () => {
         const traverseCommit = (await getTransitionEvents(browser)).find(
           (e) => e.phase === 'commit' && e.navigateType === 'traverse'
         )
-        expect(traverseCommit?.event.instant).toBe(true)
         expect(traverseCommit?.event.to.routes).toEqual(start.event.from.routes)
       })
     })
@@ -493,7 +466,7 @@ describe('Instrumentation Client Hook', () => {
       // The commit belongs to the newest transition...
       expect(commit.url).toBe('/dashboard')
       expect(commit.event.id).toBe(starts[2].event.id)
-      // ...and the two older transitions abort in start order, each superseded
+      // ...and the two older transitions abort in start order, each replaced
       // by the newest transition's commit.
       expect(aborts.map((e) => e.url)).toEqual(['/some-page', '/blog/hello'])
       expect(aborts.map((e) => e.event.id)).toEqual([
@@ -501,10 +474,10 @@ describe('Instrumentation Client Hook', () => {
         starts[1].event.id,
       ])
       for (const abort of aborts) {
-        expect(abort.event.supersededByTransitionId).toBe(commit.event.id)
+        expect(abort.event.replacedBy).toBe(commit.event.id)
         expect(Object.keys(abort.event).sort()).toEqual([
           'id',
-          'supersededByTransitionId',
+          'replacedBy',
           'timestamp',
         ])
       }
@@ -573,7 +546,7 @@ describe('Instrumentation Client Hook', () => {
 
       // The transition is settled, not starved: before the fix, its entry
       // lingered in the pending buffer and the NEXT navigation's commit
-      // falsely reported it as aborted/superseded. A follow-up navigation
+      // falsely reported it as aborted/replaced. A follow-up navigation
       // must add exactly one start/commit pair and no aborts.
       await browser.elementByCss('a[href="/"]').click()
       await browser.elementById('home')
@@ -601,7 +574,7 @@ describe('Instrumentation Client Hook', () => {
 
       // The race: a push is dispatched and immediately raced by a history
       // traversal (popstate arrives asynchronously). Depending on timing
-      // either both transitions commit, or the traversal supersedes the push —
+      // either both transitions commit, or the traversal replaces the push —
       // but every start must get exactly one terminal event either way.
       await browser.elementById('push-then-back').click()
 
@@ -636,9 +609,7 @@ describe('Instrumentation Client Hook', () => {
       // actually happened.
       for (const abort of aborts) {
         expect(abort.event.id).toBe(starts[0].event.id)
-        expect(commits.map((c) => c.event.id)).toContain(
-          abort.event.supersededByTransitionId
-        )
+        expect(commits.map((c) => c.event.id)).toContain(abort.event.replacedBy)
       }
     })
 
@@ -664,7 +635,7 @@ describe('Instrumentation Client Hook', () => {
       const abort = events.find((e) => e.phase === 'abort')
       expect(commit.event.id).toBe(starts[1].event.id)
       expect(abort.event.id).toBe(starts[0].event.id)
-      expect(abort.event.supersededByTransitionId).toBe(commit.event.id)
+      expect(abort.event.replacedBy).toBe(commit.event.id)
       // Same-page navigation: the committed route is identical to the origin.
       expect(commit.event.to.routes).toEqual([{ template: '/', params: [] }])
       expect(commit.event.to.renderedPathname).toBe('/')
@@ -691,11 +662,9 @@ describe('Instrumentation Client Hook', () => {
       expect(commit.event.to.routes).toEqual([
         { template: '/some-page', params: [] },
       ])
-      expect(typeof commit.event.instant).toBe('boolean')
-      // The commit event carries exactly id/instant/timestamp/to.
+      // The commit event carries exactly id/timestamp/to.
       expect(Object.keys(commit.event).sort()).toEqual([
         'id',
-        'instant',
         'timestamp',
         'to',
       ])
@@ -734,7 +703,7 @@ describe('Instrumentation Client Hook', () => {
     // navigation instead. The `start` event fires, then the page unloads —
     // no commit or abort ever follows. (The transition is untracked at the
     // MPA fallback, so it at least can't resurface later as a bogus
-    // "superseded" abort; emitting a real terminal event for MPA/failed
+    // "replaced" abort; emitting a real terminal event for MPA/failed
     // navigations is a TODO in untrackRouterTransition.) Verified
     // empirically: after `router.push('/no-such-route')` the window state
     // (including the event log) is reset by a full reload.
@@ -769,7 +738,7 @@ describe('Instrumentation Client Hook', () => {
       await browser.elementById('triple-push').click()
       await browser.elementById('dashboard')
 
-      // The commit hook threw, but the aborts for the two superseded
+      // The commit hook threw, but the aborts for the two replaced
       // transitions must still be delivered (error isolation).
       await retry(async () => {
         const events = await getTransitionEvents(browser)
@@ -782,7 +751,7 @@ describe('Instrumentation Client Hook', () => {
       expect(events.filter((e) => e.phase === 'commit')).toHaveLength(0)
       // ...but the aborts still name the committing transition.
       for (const abort of events.filter((e) => e.phase === 'abort')) {
-        expect(abort.event.supersededByTransitionId).toBe(starts[2].event.id)
+        expect(abort.event.replacedBy).toBe(starts[2].event.id)
       }
       expect(
         (await browser.log()).filter((log) =>

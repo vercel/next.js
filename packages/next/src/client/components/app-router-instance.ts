@@ -132,12 +132,17 @@ async function runAction({
 
     // A tracked transition can only ever commit through the destination tree
     // the reducer attaches to it. If this action settled without attaching
-    // the tree of the state it produced — the fetch failed, or the router
-    // bailed out to a full-page (MPA) navigation — the transition can never
-    // commit: stop tracking it here, at the single point every navigation
-    // funnels through, so a later unrelated commit can't misreport it as
-    // "superseded". (Discarded actions, excluded above, really are
-    // superseded and are reported when the superseding navigation commits.)
+    // the tree of the state it produced, the transition can never commit.
+    // Concretely: the user clicks a link while the network is down, so the
+    // dynamic fetch for an unprefetched route rejects and the reducer falls
+    // back to the current state; or the router bails out to a full-page (MPA)
+    // navigation, e.g. the server redirected `/dashboard` to another origin,
+    // so the reducer returns a state that unloads the page rather than one
+    // with a new tree. Stop tracking the transition here, at the single point
+    // every navigation funnels through, so a later unrelated commit can't
+    // misreport it as "replaced". (Discarded actions, excluded above,
+    // really are replaced and are reported when the replacing
+    // navigation commits.)
     if (payload.type === ACTION_NAVIGATE || payload.type === ACTION_RESTORE) {
       const transition = payload.instrumentationTransition
       if (transition !== null && transition.tree !== nextState.tree) {
@@ -154,10 +159,13 @@ async function runAction({
   // if the action is a promise, set up a callback to resolve it
   if (isThenable(actionResult)) {
     actionResult.then(handleResult, (err) => {
-      // The reducer threw: this action's state will never be applied — even
-      // if a destination tree was already attached — and the tree check in
+      // The reducer threw — expected failures like a rejected fetch resolve
+      // to the current state instead, so this is an unexpected error thrown
+      // from the navigation code itself (e.g. a bug hit while diffing the
+      // route trees). This action's state will never be applied — even if a
+      // destination tree was already attached — and the tree check in
       // handleResult never runs. Stop tracking the transition here so it
-      // isn't misreported as "superseded" by a later, unrelated commit.
+      // isn't misreported as "replaced" by a later, unrelated commit.
       if (payload.type === ACTION_NAVIGATE || payload.type === ACTION_RESTORE) {
         untrackRouterTransition(payload.instrumentationTransition)
       }
@@ -291,6 +299,12 @@ function getAppRouterActionQueue(): AppRouterActionQueue {
   return globalActionQueue
 }
 
+/**
+ * Dispatches a push/replace navigation. Every user-initiated SPA navigation
+ * funnels through here: `<Link>` clicks (via `linkClicked`) and
+ * `useRouter().push()`/`.replace()` below. Back/forward traversals go through
+ * `dispatchTraverseAction` instead.
+ */
 export function dispatchNavigateAction(
   href: string,
   navigateType: NavigateAction['navigateType'],

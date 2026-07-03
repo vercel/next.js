@@ -53,7 +53,6 @@ export function restoreReducer(
   const accumulation: NavigationRequestAccumulation = {
     separateRefreshUrls: null,
     scrollRef: null,
-    instrumentationTransition: action.instrumentationTransition,
   }
   const restoreSeed = convertServerPatchToFullTree(
     now,
