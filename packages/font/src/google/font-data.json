@@ -5815,6 +5815,19 @@
       "vietnamese"
     ]
   },
+  "Geist Pixel": {
+    "weights": ["400", "variable"],
+    "styles": ["normal"],
+    "axes": [
+      {
+        "tag": "ELSH",
+        "min": 0,
+        "max": 100,
+        "defaultValue": 0
+      }
+    ],
+    "subsets": ["latin", "latin-ext"]
+  },
   "Gelasio": {
     "weights": ["400", "500", "600", "700", "variable"],
     "styles": ["normal", "italic"],

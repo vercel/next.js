@@ -8899,6 +8899,19 @@ export declare function Geist_Mono<
     | 'vietnamese'
   >
 }): T extends undefined ? NextFont : NextFontWithVariable
+export declare function Geist_Pixel<
+  T extends CssVariable | undefined = undefined,
+>(options?: {
+  weight?: '400' | 'variable' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
+  display?: Display
+  variable?: T
+  preload?: boolean
+  fallback?: string[]
+  adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
+  axes?: 'ELSH'[]
+}): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Gelasio<
   T extends CssVariable | undefined = undefined,
 >(options?: {
