@@ -174,6 +174,9 @@ async function requestHandler(
         inlineCss: Boolean(nextConfig.experimental.inlineCss),
         prefetchInlining: nextConfig.experimental.prefetchInlining ?? false,
         authInterrupts: Boolean(nextConfig.experimental.authInterrupts),
+        // Edge has no Node response-close signal, so HMR cancellation is a
+        // no-op.
+        serverComponentsHmrCancellation: false,
         useCacheTimeout: nextConfig.experimental.useCacheTimeout,
         cachedNavigations: nextConfig.experimental.cachedNavigations ?? false,
         appShells: nextConfig.experimental.appShells,

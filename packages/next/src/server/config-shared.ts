@@ -1196,6 +1196,12 @@ export interface ExperimentalConfig {
   serverComponentsHmrCache?: boolean
 
   /**
+   * Cancels the render and validation work for a Server Component HMR refresh
+   * once a newer refresh supersedes it. Development only.
+   */
+  serverComponentsHmrCancellation?: boolean
+
+  /**
    * Render <style> tags inline in the HTML for imported CSS assets.
    * Supports app-router in production mode only.
    */
@@ -2157,6 +2163,7 @@ export const defaultConfig = Object.freeze({
     reactDebugChannel: true,
     staticGenerationRetryCount: undefined,
     serverComponentsHmrCache: true,
+    serverComponentsHmrCancellation: false,
     staticGenerationMaxConcurrency: 8,
     staticGenerationMinPagesPerWorker: 25,
     transitionIndicator: false,
@@ -2270,6 +2277,7 @@ export interface NextConfigRuntime {
     | 'disableOptimizedLoading'
     | 'largePageDataBytes'
     | 'serverComponentsHmrCache'
+    | 'serverComponentsHmrCancellation'
     | 'caseSensitiveRoutes'
     | 'validateRSCRequestHeaders'
     | 'sri'
@@ -2338,6 +2346,7 @@ export function getNextConfigRuntime(
     disableOptimizedLoading: ex.disableOptimizedLoading,
     largePageDataBytes: ex.largePageDataBytes,
     serverComponentsHmrCache: ex.serverComponentsHmrCache,
+    serverComponentsHmrCancellation: ex.serverComponentsHmrCancellation,
     caseSensitiveRoutes: ex.caseSensitiveRoutes,
     validateRSCRequestHeaders: ex.validateRSCRequestHeaders,
     sri: ex.sri,
