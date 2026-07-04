@@ -414,7 +414,9 @@ export function isSyncIOClientError(message: string): boolean {
 export function isBlockingRouteInNavError(message: string): boolean {
   return (
     message.includes('or a navigation') ||
-    message.includes('while extracting a reusable shell') ||
+    message.includes(
+      'encountered URL data `params` or `searchParams` outside of'
+    ) ||
     message.includes('Could not validate `instant`') ||
     message.includes(
       'Could not validate that a segment in your UI has instant navigation'
@@ -439,7 +441,11 @@ export function getBlockingRouteErrorDetails(
     }
   }
 
-  if (message.includes('while extracting a reusable shell')) {
+  if (
+    message.includes(
+      'encountered URL data `params` or `searchParams` outside of'
+    )
+  ) {
     return {
       type: 'blocking-route',
       variant: 'link',
@@ -872,7 +878,7 @@ export function Errors({
           errorType={errorType}
           errorMessage={
             errorDetails.variant === 'link'
-              ? 'Next.js encountered URL data outside of Suspense while extracting a reusable shell.'
+              ? 'Next.js encountered URL data outside of Suspense.'
               : errorDetails.variant === 'runtime'
                 ? errorDetails.inNavigation
                   ? 'Next.js encountered runtime data during a navigation.'

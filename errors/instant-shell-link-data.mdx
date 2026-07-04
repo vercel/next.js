@@ -1,5 +1,5 @@
 ---
-title: Next.js encountered URL data outside of Suspense while extracting a reusable shell
+title: Next.js encountered URL data outside of Suspense
 kind: insight
 ---
 
@@ -23,13 +23,11 @@ kind: insight
   validates them, then come back here for the specific fix.
 </div>
 
-A route with [Partial Prefetching](https://preview.nextjs.org/docs/app/glossary#partial-prefetching) reads [`params`](https://preview.nextjs.org/docs/app/api-reference/file-conventions/page#params-optional) or [`searchParams`](https://preview.nextjs.org/docs/app/api-reference/file-conventions/page#searchparams-optional) outside of [`<Suspense>`](https://react.dev/reference/react/Suspense).
+During a [client-side navigation](https://preview.nextjs.org/docs/app/glossary#client-side-navigation), a Server Component read [`params`](https://preview.nextjs.org/docs/app/api-reference/file-conventions/page#params-optional) or [`searchParams`](https://preview.nextjs.org/docs/app/api-reference/file-conventions/page#searchparams-optional) outside of a [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary. With [Partial Prefetching](https://preview.nextjs.org/docs/app/glossary#partial-prefetching) enabled, Next.js extracts one reusable shell from the route ahead of the click, so every link to it reuses the same prefetch instead of fetching a fresh one per URL.
 
-Partial Prefetching extracts one reusable shell from the route ahead of the click, so every link to it reuses the same prefetch instead of fetching a fresh one per URL. `params` and `searchParams` are [URL data](https://preview.nextjs.org/docs/app/glossary#url-data): they're specific to a single URL, so reading them outside a boundary ties the shell to one link. Next.js can no longer reuse it across links, so navigations to this route may not be instant.
+`params` and `searchParams` are [URL data](https://preview.nextjs.org/docs/app/glossary#url-data): they're specific to a single URL, so reading them outside a boundary ties the shell to one link. Next.js can no longer reuse it across links, and navigations to this route may not be instant.
 
-This check only runs when [Partial Prefetching](https://preview.nextjs.org/docs/app/api-reference/config/next-config-js/partialPrefetching) is enabled, and it fires at navigation time rather than on every render. When this route is prerendered rather than prefetched, the same read surfaces as [runtime data during prerendering](/docs/messages/blocking-prerender-runtime) instead.
-
-> **Good to know**: [`cookies()`](https://preview.nextjs.org/docs/app/api-reference/functions/cookies) and [`headers()`](https://preview.nextjs.org/docs/app/api-reference/functions/headers) don't trigger this. They vary per user, not per link, so the prefetch is still shared. Only per-URL values are a problem, and making them static with [`generateStaticParams`](https://preview.nextjs.org/docs/app/api-reference/functions/generate-static-params) doesn't help, since a static param still belongs to one URL.
+This check only runs when [Partial Prefetching](https://preview.nextjs.org/docs/app/api-reference/config/next-config-js/partialPrefetching) is enabled. It validates the route when you load it and when you navigate to it, regardless of any link's [`prefetch`](https://preview.nextjs.org/docs/app/api-reference/components/link#prefetch) prop. When the route is [prerendered](https://preview.nextjs.org/docs/app/glossary#prerendering) rather than prefetched, the same read surfaces as [runtime data during prerendering](/docs/messages/blocking-prerender-runtime). For URL data read through client hooks like [`useSearchParams`](https://preview.nextjs.org/docs/app/api-reference/functions/use-search-params), see [URL data in a Client Component outside of Suspense](/docs/messages/blocking-prerender-client-hook).
 
 ## Ways to fix this
 
@@ -179,8 +177,8 @@ Without a reusable shell, navigations to this route may not be instant. Use this
 ### Gotchas
 
 - Setting [`instant`](https://preview.nextjs.org/docs/app/api-reference/file-conventions/route-segment-config/instant) to `false` opts out only the segment that exports it. Descendant segments remain validated by their own config or the global default.
-- `instant = false` disables all instant-navigation checks for the route, not only this one. That includes [runtime data during prerendering](/docs/messages/blocking-prerender-runtime) errors and [unrendered segment](/docs/messages/instant-unrendered-segment) warnings for the route.
 - This export does not disable [Partial Prefetching](https://preview.nextjs.org/docs/app/glossary#partial-prefetching) or prefetching. It only disables instant-navigation validation for the segment.
+- `instant = false` disables all instant-navigation checks for the route, not only this one. That includes [runtime data during prerendering](/docs/messages/blocking-prerender-runtime) errors and [unrendered segment](/docs/messages/instant-unrendered-segment) warnings for the route.
 
 ## Verifying the fix
 
@@ -190,7 +188,7 @@ Depending on your [validation level](https://preview.nextjs.org/docs/app/api-ref
 
 ## Don't want this validation?
 
-Instant-navigation validation runs by default in [Cache Components](https://preview.nextjs.org/docs/app/api-reference/config/next-config-js/cacheComponents) apps and surfaces this error.
+Instant-navigation validation runs by default in [Cache Components](https://preview.nextjs.org/docs/app/api-reference/config/next-config-js/cacheComponents) apps and is what surfaces this error.
 
 - **One segment**: add [`export const instant = false`](https://preview.nextjs.org/docs/app/api-reference/file-conventions/route-segment-config/instant) to the page or layout file. This opts out the segment itself. Child segments are still validated during client navigations.
 - **Entire app**: set [`experimental.instantInsights.validationLevel`](https://preview.nextjs.org/docs/app/api-reference/file-conventions/route-segment-config/instant#configuring-validation-defaults) to `'manual-warning'` in `next.config`. This limits validation to segments that explicitly export `instant`.

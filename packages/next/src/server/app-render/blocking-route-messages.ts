@@ -38,7 +38,7 @@ export function createRuntimeBodyErrorInNavigation(route: string): Error {
 
 export function createLinkBodyErrorInNavigation(route: string): Error {
   return new Error(
-    `Route "${route}": Next.js encountered URL data \`params\` or \`searchParams\` outside of \`<Suspense>\` while extracting a reusable shell.\n\n` +
+    `Route "${route}": Next.js encountered URL data \`params\` or \`searchParams\` outside of \`<Suspense>\`.\n\n` +
       `This may prevent the navigation from being instant, leading to a slower user experience.\n\n` +
       `Ways to fix this:\n` +
       `  - [stream] Wrap the \`params\`/\`searchParams\` read in \`<Suspense fallback={...}>\` so the value streams in after navigation\n` +
