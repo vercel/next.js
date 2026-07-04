@@ -24,6 +24,10 @@ export function trackPendingChunkLoad(promise: Promise<unknown>) {
   moduleLoadingSignal?.trackRead(promise)
 }
 
+/**
+ * Tracked globally regardless of any current render, for the same reason as
+ * `trackDynamicImport`: module promises are cached and shared across renders.
+ */
 export function trackPendingImport<T>(exportsOrPromise: T): T {
   const moduleLoadingSignal = getModuleLoadingSignal()
 
