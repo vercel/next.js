@@ -1,3 +1,7 @@
+import {
+  StaticGenBailoutError,
+  createStaticExportRequestAccessError,
+} from '../../client/components/static-generation-bailout'
 import { workAsyncStorage } from '../app-render/work-async-storage.external'
 import {
   throwForMissingRequestStore,
@@ -8,7 +12,6 @@ import {
   throwToInterruptStaticGeneration,
   trackDynamicDataInDynamicRender,
 } from '../app-render/dynamic-rendering'
-import { StaticGenBailoutError } from '../../client/components/static-generation-bailout'
 import {
   makeHangingPromise,
   makeDevtoolsIOAwarePromise,
@@ -42,6 +45,12 @@ export function connection(): Promise<void> {
     }
 
     if (workStore.dynamicShouldError) {
+      if (workStore.isStaticExport && workStore.cacheComponentsEnabled) {
+        throw createStaticExportRequestAccessError(
+          workStore.route,
+          '`connection()`'
+        )
+      }
       throw new StaticGenBailoutError(
         `Route ${workStore.route} with \`dynamic = "error"\` couldn't be rendered statically because it used \`connection()\`. See more info here: https://nextjs.org/docs/app/building-your-application/rendering/static-and-dynamic#dynamic-rendering`
       )

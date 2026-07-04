@@ -56,7 +56,10 @@ import * as sharedModules from './shared-modules'
 import { getIsPossibleServerAction } from '../../lib/server-action-request-meta'
 import { RequestCookies } from 'next/dist/compiled/@edge-runtime/cookies'
 import { cleanURL } from './helpers/clean-url'
-import { StaticGenBailoutError } from '../../../client/components/static-generation-bailout'
+import {
+  StaticGenBailoutError,
+  createStaticExportRequestAccessError,
+} from '../../../client/components/static-generation-bailout'
 import { isStaticGenEnabled } from './helpers/is-static-gen-enabled'
 import {
   abortAndThrowOnSynchronousRequestDataAccess,
@@ -606,7 +609,9 @@ export class AppRouteRouteModule extends RouteModule<
           if (prospectiveRenderIsDynamic) {
             // the route handler called an API which is always dynamic
             // there is no need to try again
-            const dynamicReason = getFirstDynamicReason(dynamicTracking)
+            const dynamicReason =
+              getFirstDynamicReason(dynamicTracking) ??
+              dynamicTracking.hangingInputs[0]?.expression
 
             // A `DynamicServerError` marks the route as dynamic, which is fine
             // when there is a server to handle it — but `output: 'export'` has
@@ -669,7 +674,9 @@ export class AppRouteRouteModule extends RouteModule<
               ? new StaticGenBailoutError(
                   createStaticExportRouteHandlerError(
                     workStore.route,
-                    getFirstDynamicReason(dynamicTracking) ?? null
+                    getFirstDynamicReason(dynamicTracking) ??
+                      dynamicTracking.hangingInputs[0]?.expression ??
+                      null
                   ).message
                 )
               : createCacheComponentsError(workStore.route)
@@ -1302,6 +1309,15 @@ const requireStaticRequestHandlers = {
       case 'text':
       case 'arrayBuffer':
       case 'formData':
+        {
+          const workStore = workAsyncStorage.getStore()
+          if (workStore?.isStaticExport && workStore.cacheComponentsEnabled) {
+            throw createStaticExportRequestAccessError(
+              workStore.route,
+              `\`request.${prop}\``
+            )
+          }
+        }
         throw new StaticGenBailoutError(
           `Route ${target.nextUrl.pathname} with \`dynamic = "error"\` couldn't be rendered statically because it used \`request.${prop}\`.`
         )
@@ -1343,6 +1359,15 @@ const requireStaticNextUrlHandlers = {
       case 'toJSON':
       case 'toString':
       case 'origin':
+        {
+          const workStore = workAsyncStorage.getStore()
+          if (workStore?.isStaticExport && workStore.cacheComponentsEnabled) {
+            throw createStaticExportRequestAccessError(
+              workStore.route,
+              `\`nextUrl.${prop}\``
+            )
+          }
+        }
         throw new StaticGenBailoutError(
           `Route ${target.pathname} with \`dynamic = "error"\` couldn't be rendered statically because it used \`nextUrl.${prop}\`.`
         )

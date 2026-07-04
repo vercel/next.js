@@ -33,7 +33,10 @@ import type {
 import React from 'react'
 
 import { DynamicServerError } from '../../client/components/hooks-server-context'
-import { StaticGenBailoutError } from '../../client/components/static-generation-bailout'
+import {
+  StaticGenBailoutError,
+  createStaticExportRequestAccessError,
+} from '../../client/components/static-generation-bailout'
 import {
   getStagedRenderingController,
   throwForMissingRequestStore,
@@ -116,6 +119,13 @@ export type DynamicTrackingState = {
    */
   readonly dynamicAccesses: Array<DynamicAccess>
 
+  /**
+   * Data accesses that can never resolve within this prerender (they would
+   * resolve at request time on a server), with the stack of the access site.
+   * Recorded by `makeHangingPromise`; consumed by `output: 'export'`.
+   */
+  readonly hangingInputs: Array<DynamicAccess>
+
   syncDynamicErrorWithStack: null | Error
   syncDynamicErrorWithStackPostMicrotask: boolean
 }
@@ -136,6 +146,7 @@ export function createDynamicTrackingState(
   return {
     isDebugDynamicAccesses,
     dynamicAccesses: [],
+    hangingInputs: [],
     syncDynamicErrorWithStack: null,
     syncDynamicErrorWithStackPostMicrotask: false,
   }
@@ -206,6 +217,12 @@ export function markCurrentScopeAsDynamic(
   if (store.forceDynamic || store.forceStatic) return
 
   if (store.dynamicShouldError) {
+    if (store.isStaticExport && store.cacheComponentsEnabled) {
+      throw createStaticExportRequestAccessError(
+        store.route,
+        `\`${expression}\``
+      )
+    }
     throw new StaticGenBailoutError(
       `Route ${store.route} with \`dynamic = "error"\` couldn't be rendered statically because it used \`${expression}\`. See more info here: https://nextjs.org/docs/app/building-your-application/rendering/static-and-dynamic#dynamic-rendering`
     )
@@ -865,6 +882,11 @@ function trackOutletSuspenseAboveBody(
 // (client hooks like `useSearchParams()`), which the client fills after
 // hydration, leaving the server result fully static.
 
+// Export errors with cause-specific guidance (metadata, viewport, client
+// hooks) must not be replaced by the hanging-input report below, which only
+// knows the accessed API.
+const staticExportBodyErrors = new WeakSet<Error>()
+
 /**
  * Records a static-export violation for one dynamic access. `bodyError` is
  * the wording for a plain data access: request data, uncached I/O, or a
@@ -924,9 +946,13 @@ function recordStaticExportHole(
     )
     return
   }
-  dynamicValidation.dynamicErrors.push(
-    addErrorContext(bodyError(workStore.route), componentStack, null)
+  const error = addErrorContext(
+    bodyError(workStore.route),
+    componentStack,
+    null
   )
+  staticExportBodyErrors.add(error)
+  dynamicValidation.dynamicErrors.push(error)
 }
 
 /** Dev shell-validation consumer: every recorded hole is disallowed. */
@@ -942,9 +968,40 @@ function getStaticExportDisallowedReasons(
     // No hole was recorded, yet no static shell was produced — e.g. an allowed
     // client-hook hole under a Suspense boundary above the document body. A
     // server would resume this at request time; an export can't.
-    return [createStaticExportError(workStore.route)]
+    const error = createStaticExportError(workStore.route)
+    staticExportBodyErrors.add(error)
+    return [error]
   }
   return []
+}
+
+/**
+ * Picks the export error for a hanging input by its expression. The
+ * expressions are the ones passed to `makeHangingPromise`.
+ */
+function createStaticExportHangingInputError(
+  route: string,
+  expression: string
+): Error {
+  switch (expression) {
+    case '`cookies()`':
+    case '`headers()`':
+    case '`params`':
+    case '`searchParams`':
+    case '`pathname`':
+    case '"use cache: private"':
+      return createStaticExportRequestDataError(route)
+    case 'fetch()':
+    case '`connection()`':
+    case '`io()`':
+    case 'dynamic `ImageResponse`':
+      return createStaticExportUncachedError(route)
+    default:
+      if (expression.startsWith("import('next/root-params')")) {
+        return createStaticExportRequestDataError(route)
+      }
+      return createStaticExportError(route)
+  }
 }
 
 /** Build-prerender consumer: fail the build with every recorded hole. */
@@ -955,17 +1012,48 @@ function throwIfStaticExportDisallowed(
   serverDynamic: DynamicTrackingState
 ): void {
   throwIfSyncIOUsed(workStore, serverDynamic)
+
   const errors = getStaticExportDisallowedReasons(
     workStore,
     prelude,
     dynamicValidation
   )
-  if (errors.length > 0) {
-    for (const error of errors) {
+  if (errors.length === 0) {
+    // The render completed statically. Hanging inputs may still have been
+    // recorded — creating e.g. the `headers()` promise without reading it —
+    // but an unread promise doesn't make the route dynamic.
+    return
+  }
+
+  // The render didn't complete statically. Hanging inputs name each access
+  // and carry its stack — more precise than the errors classified from the
+  // aborted HTML prerender — unless a classified error has cause-specific
+  // guidance (metadata, viewport, client hooks).
+  const hangingInputs = serverDynamic.hangingInputs
+  if (
+    hangingInputs.length > 0 &&
+    errors.every((error) => staticExportBodyErrors.has(error))
+  ) {
+    for (const { expression, stack } of hangingInputs) {
+      const error = createStaticExportHangingInputError(
+        workStore.route,
+        expression
+      )
+      if (stack) {
+        // Point at the access site instead of this reporting site.
+        error.stack =
+          `${error.name}: ${error.message}\n` +
+          stack.split('\n').slice(1).join('\n')
+      }
       logDisallowedDynamicError(workStore, error)
     }
     throw new StaticGenBailoutError()
   }
+
+  for (const error of errors) {
+    logDisallowedDynamicError(workStore, error)
+  }
+  throw new StaticGenBailoutError()
 }
 
 export function trackAllowedDynamicAccess(

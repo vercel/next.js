@@ -7,6 +7,7 @@ import {
 } from './app-render/staged-rendering'
 import type { RequestStore } from './app-render/work-unit-async-storage.external'
 import { workUnitAsyncStorage } from './app-render/work-unit-async-storage.external'
+import { workAsyncStorage } from './app-render/work-async-storage.external'
 import { getServerReact, getClientReact } from './runtime-reacts.external'
 
 export function isHangingPromiseRejectionError(
@@ -77,10 +78,37 @@ export function makeHangingPromise<T>(
   route: string,
   expression: string
 ): Promise<T> {
-  return makeHangingPromiseWithError(
-    signal,
-    new HangingPromiseRejectionError(route, expression)
-  )
+  const error = new HangingPromiseRejectionError(route, expression)
+
+  // A hanging input can never resolve within this prerender. Record it, with
+  // the stack captured above pointing at the access site, so renders that
+  // must complete (`output: 'export'`) can report each access precisely.
+  const workUnitStore = workUnitAsyncStorage.getStore()
+  if (workUnitStore && workAsyncStorage.getStore()?.isStaticExport) {
+    switch (workUnitStore.type) {
+      case 'prerender':
+        workUnitStore.dynamicTracking?.hangingInputs.push({
+          expression,
+          stack: error.stack,
+        })
+        break
+      case 'prerender-client':
+      case 'prerender-runtime':
+      case 'prerender-ppr':
+      case 'prerender-legacy':
+      case 'validation-client':
+      case 'request':
+      case 'cache':
+      case 'private-cache':
+      case 'unstable-cache':
+      case 'generate-static-params':
+        break
+      default:
+        workUnitStore satisfies never
+    }
+  }
+
+  return makeHangingPromiseWithError(signal, error)
 }
 
 export function makeClientHookHangingPromise<T>(

@@ -1,5 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import { retry } from 'next-test-utils'
+import { retry, waitFor } from 'next-test-utils'
 import { join } from 'path'
 import { promises as fs } from 'fs'
 
@@ -207,14 +207,79 @@ describe('cache-components-output-export', () => {
         const { exitCode, cliOutput } = await next.build()
         expect(exitCode).toBe(1)
         expectFailedExport(cliOutput)
-        // The build can't always pin the exact cause, so it uses the generic
-        // wording (dev, below, reports the specific "used request data").
-        expect(cliOutput).toContain('accessed data at request time')
+        // The hanging input recorded during the prerender names the cause and
+        // carries the stack of the access site.
+        expect(cliOutput).toContain('used request data')
       } else {
         await next.render('/')
         await retry(() => {
           expectFailedExport(next.cliOutput)
           expect(next.cliOutput).toContain('used request data')
+        })
+      }
+    })
+  })
+
+  describe('request APIs that are created but never read', () => {
+    const { next, isNextStart } = nextTestSetup({
+      files: fixture('request-data-unawaited'),
+      skipStart,
+      skipDeployment: true,
+    })
+
+    // Calling `cookies()` or `headers()` creates a promise; the access happens
+    // when it's read. A promise that is never read doesn't feed request data
+    // into the render, so the route is fully static.
+    it('exports the route', async () => {
+      if (isNextStart) {
+        const { exitCode, cliOutput } = await next.build()
+        expect(exitCode).toBe(0)
+        expect(cliOutput).not.toContain('could not be statically exported')
+        expect(await exportedHtml(next.testDir, '/')).toContain('fully static')
+      } else {
+        expect(await next.render('/')).toContain('fully static')
+        // Wait for a full background validation pass before asserting silence.
+        await retry(() => {
+          expect(next.cliOutput).toContain('GET / 200')
+        })
+        await waitFor(5000)
+        expect(next.cliOutput).not.toContain('could not be statically exported')
+      }
+    })
+  })
+
+  describe('each request API reports its own cause', () => {
+    const { next, isNextStart } = nextTestSetup({
+      files: fixture('request-apis'),
+      skipStart,
+      skipDeployment: true,
+    })
+
+    it('fails the build and reports each access in dev', async () => {
+      if (isNextStart) {
+        const { exitCode, cliOutput } = await next.build()
+        expect(exitCode).toBe(1)
+        expectFailedExport(cliOutput)
+      } else {
+        await next.render('/headers')
+        await retry(() => {
+          expect(next.cliOutput).toContain(
+            'Route "/headers" could not be statically exported.\n\nIt used request data'
+          )
+        })
+
+        await next.render('/connection')
+        await retry(() => {
+          expect(next.cliOutput).toContain(
+            'Route "/connection" could not be statically exported.\n\nIt read uncached data'
+          )
+        })
+
+        await next.render('/uncached-fetch')
+        await retry(() => {
+          expect(next.cliOutput).toContain(
+            'Route "/uncached-fetch" could not be statically exported.\n\nIt read uncached data'
+          )
         })
       }
     })
@@ -393,16 +458,18 @@ describe('cache-components-output-export', () => {
 
     // A route handler that reads request data can't be exported — the build must
     // fail rather than silently degrade to a dynamic route a static host can't
-    // serve, and the dev server reports the same.
+    // serve, and the dev server reports the same, naming the exact access.
     it('fails the build and reports it in dev', async () => {
       if (isNextStart) {
         const { exitCode, cliOutput } = await next.build()
         expect(exitCode).toBe(1)
-        expect(cliOutput).toContain("couldn't be rendered statically")
+        expectFailedExport(cliOutput)
+        expect(cliOutput).toContain('It used `cookies()`')
       } else {
         await next.render('/api/data')
         await retry(() => {
-          expect(next.cliOutput).toContain("couldn't be rendered statically")
+          expectFailedExport(next.cliOutput)
+          expect(next.cliOutput).toContain('It used `cookies()`')
         })
       }
     })

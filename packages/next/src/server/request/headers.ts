@@ -1,4 +1,8 @@
 import {
+  StaticGenBailoutError,
+  createStaticExportRequestAccessError,
+} from '../../client/components/static-generation-bailout'
+import {
   HeadersAdapter,
   type ReadonlyHeaders,
 } from '../web/spec-extension/adapters/headers'
@@ -18,7 +22,6 @@ import {
   throwToInterruptStaticGeneration,
   trackDynamicDataInDynamicRender,
 } from '../app-render/dynamic-rendering'
-import { StaticGenBailoutError } from '../../client/components/static-generation-bailout'
 import {
   makeDevtoolsIOAwarePromise,
   makeHangingPromise,
@@ -92,6 +95,12 @@ export function headers(): Promise<ReadonlyHeaders> {
     }
 
     if (workStore.dynamicShouldError) {
+      if (workStore.isStaticExport && workStore.cacheComponentsEnabled) {
+        throw createStaticExportRequestAccessError(
+          workStore.route,
+          '`headers()`'
+        )
+      }
       throw new StaticGenBailoutError(
         `Route ${workStore.route} with \`dynamic = "error"\` couldn't be rendered statically because it used \`headers()\`. See more info here: https://nextjs.org/docs/app/building-your-application/rendering/static-and-dynamic#dynamic-rendering`
       )

@@ -1,4 +1,8 @@
 import {
+  StaticGenBailoutError,
+  createStaticExportRequestAccessError,
+} from '../../client/components/static-generation-bailout'
+import {
   getDraftModeProviderForCacheScope,
   throwForMissingRequestStore,
 } from '../app-render/work-unit-async-storage.external'
@@ -16,7 +20,6 @@ import {
   trackDynamicDataInDynamicRender,
 } from '../app-render/dynamic-rendering'
 import { createDedupedByCallsiteServerErrorLoggerDev } from '../create-deduped-by-callsite-server-error-logger'
-import { StaticGenBailoutError } from '../../client/components/static-generation-bailout'
 import { DynamicServerError } from '../../client/components/hooks-server-context'
 import { InvariantError } from '../../shared/lib/invariant-error'
 import { ReflectAdapter } from '../web/spec-extension/adapters/reflect'
@@ -203,6 +206,12 @@ function trackDynamicDraftMode(expression: string, constructorOpt: Function) {
     }
 
     if (workStore.dynamicShouldError) {
+      if (workStore.isStaticExport && workStore.cacheComponentsEnabled) {
+        throw createStaticExportRequestAccessError(
+          workStore.route,
+          `\`${expression}\``
+        )
+      }
       throw new StaticGenBailoutError(
         `Route ${workStore.route} with \`dynamic = "error"\` couldn't be rendered statically because it used \`${expression}\`. See more info here: https://nextjs.org/docs/app/building-your-application/rendering/static-and-dynamic#dynamic-rendering`
       )

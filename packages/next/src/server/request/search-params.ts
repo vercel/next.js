@@ -451,7 +451,7 @@ function makeErroringSearchParams(
           '`await searchParams`, `searchParams.then`, or similar'
         if (workStore.dynamicShouldError) {
           throwWithStaticGenerationBailoutErrorWithDynamicError(
-            workStore.route,
+            workStore,
             expression
           )
         } else if (prerenderStore.type === 'prerender-ppr') {
@@ -611,7 +611,7 @@ function instrumentSearchParamsObjectWithDevWarnings(
         if (workStore.dynamicShouldError) {
           const expression = describeStringPropertyAccess('searchParams', prop)
           throwWithStaticGenerationBailoutErrorWithDynamicError(
-            workStore.route,
+            workStore,
             expression
           )
         }
@@ -626,7 +626,7 @@ function instrumentSearchParamsObjectWithDevWarnings(
             prop
           )
           throwWithStaticGenerationBailoutErrorWithDynamicError(
-            workStore.route,
+            workStore,
             expression
           )
         }
@@ -638,7 +638,7 @@ function instrumentSearchParamsObjectWithDevWarnings(
         const expression =
           '`{...searchParams}`, `Object.keys(searchParams)`, or similar'
         throwWithStaticGenerationBailoutErrorWithDynamicError(
-          workStore.route,
+          workStore,
           expression
         )
       }
@@ -669,7 +669,7 @@ function instrumentSearchParamsPromiseWithDevWarnings(
       if (prop === 'then' && workStore.dynamicShouldError) {
         const expression = '`searchParams.then`'
         throwWithStaticGenerationBailoutErrorWithDynamicError(
-          workStore.route,
+          workStore,
           expression
         )
       }
