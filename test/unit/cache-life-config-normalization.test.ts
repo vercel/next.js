@@ -1,7 +1,6 @@
 import path from 'path'
 import loadConfig from 'next/dist/server/config'
 import { PHASE_PRODUCTION_SERVER } from 'next/constants'
-import { INFINITE_CACHE } from 'next/dist/lib/constants'
 
 // `loadConfig` caches its result keyed on `dir` + a boolean "hasCustomConfig".
 // Each test uses a unique subdirectory so the cache doesn't bleed between
@@ -13,10 +12,10 @@ function uniqueDir(tag: string) {
 
 // `Infinity` is a documented value for cacheLife fields, but the resolved
 // config crosses JSON serialization boundaries (e.g. to build workers), where
-// `Infinity` turns into `null`. Config loading normalizes it to
-// `INFINITE_CACHE`, which has the same meaning and survives serialization.
+// `Infinity` turns into `null`. Config loading normalizes it to a value with
+// the same meaning that survives serialization.
 describe('cacheLife Infinity normalization', () => {
-  it('normalizes Infinity revalidate/expire to INFINITE_CACHE and keeps finite stale', async () => {
+  it('resolves Infinity revalidate/expire to values that survive JSON serialization', async () => {
     const config = await loadConfig(
       PHASE_PRODUCTION_SERVER,
       uniqueDir('custom-infinity'),
@@ -28,14 +27,17 @@ describe('cacheLife Infinity normalization', () => {
         },
       }
     )
-    expect(config.cacheLife?.frozen).toEqual({
-      stale: 300,
-      revalidate: INFINITE_CACHE,
-      expire: INFINITE_CACHE,
-    })
+    const { frozen, max } = config.cacheLife
+    expect(JSON.parse(JSON.stringify(frozen))).toEqual(frozen)
+    expect(frozen.stale).toBe(300)
+
+    // The resolved values must still mean "never": at least as long-lived as
+    // the built-in `max` profile.
+    expect(frozen.revalidate).toBeGreaterThanOrEqual(max.expire!)
+    expect(frozen.expire).toBeGreaterThanOrEqual(max.expire!)
   })
 
-  it('normalizes Infinity stale to INFINITE_CACHE', async () => {
+  it('resolves Infinity stale to a value that survives JSON serialization', async () => {
     const config = await loadConfig(
       PHASE_PRODUCTION_SERVER,
       uniqueDir('stale-infinity'),
@@ -47,11 +49,11 @@ describe('cacheLife Infinity normalization', () => {
         },
       }
     )
-    expect(config.cacheLife?.pinned).toEqual({
-      stale: INFINITE_CACHE,
-      revalidate: 60,
-      expire: 120,
-    })
+    const { pinned, max } = config.cacheLife
+    expect(JSON.parse(JSON.stringify(pinned))).toEqual(pinned)
+    expect(pinned.stale).toBeGreaterThanOrEqual(max.expire!)
+    expect(pinned.revalidate).toBe(60)
+    expect(pinned.expire).toBe(120)
   })
 
   it('does not mutate the profile objects of the provided config', async () => {
@@ -78,7 +80,7 @@ describe('cacheLife Infinity normalization', () => {
         },
       }
     )
-    expect(config.cacheLife?.brief).toEqual({
+    expect(config.cacheLife.brief).toEqual({
       stale: 10,
       revalidate: 20,
       expire: 30,
@@ -97,11 +99,11 @@ describe('cacheLife Infinity normalization', () => {
         },
       }
     )
-    expect(config.cacheLife?.default).toEqual({
-      stale: 300,
-      revalidate: INFINITE_CACHE,
-      expire: INFINITE_CACHE,
-    })
+    const defaultProfile = config.cacheLife.default
+    expect(JSON.parse(JSON.stringify(defaultProfile))).toEqual(defaultProfile)
+    expect(defaultProfile.revalidate).toBeGreaterThanOrEqual(
+      config.cacheLife.max.expire!
+    )
   })
 
   it('leaves the built-in profiles unchanged when only a custom profile is configured', async () => {
@@ -116,12 +118,12 @@ describe('cacheLife Infinity normalization', () => {
         },
       }
     )
-    expect(config.cacheLife?.seconds).toEqual({
-      stale: 30,
-      revalidate: 1,
-      expire: 60,
-    })
-    expect(config.cacheLife?.default.revalidate).toBe(900)
-    expect(config.cacheLife?.default.expire).toBe(INFINITE_CACHE)
+    const baseline = await loadConfig(
+      PHASE_PRODUCTION_SERVER,
+      uniqueDir('builtins-baseline'),
+      { customConfig: {} }
+    )
+    expect(config.cacheLife.seconds).toEqual(baseline.cacheLife.seconds)
+    expect(config.cacheLife.default).toEqual(baseline.cacheLife.default)
   })
 })

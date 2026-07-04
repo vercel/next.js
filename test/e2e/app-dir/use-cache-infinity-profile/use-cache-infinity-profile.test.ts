@@ -1,17 +1,15 @@
 import { nextTestSetup } from 'e2e-utils'
-import { retry } from 'next-test-utils'
-import { INFINITE_CACHE } from 'next/dist/lib/constants'
 
-const isoDateRegExp = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/
+const isoDateRegExp = /\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z/
 
 describe('use-cache-infinity-profile', () => {
   const { next, isNextStart } = nextTestSetup({
     files: __dirname,
-    // Skip deployment so we can check the cache handler's log output.
+    // Deployment platforms provide their own cache handlers.
     skipDeployment: true,
   })
 
-  it('caches forever with a profile using Infinity revalidate and expire', async () => {
+  it('caches forever with a configured profile using Infinity revalidate and expire', async () => {
     const $ = await next.render$('/')
     const initialValue = $('#value').text()
     expect(initialValue).toMatch(isoDateRegExp)
@@ -28,18 +26,15 @@ describe('use-cache-infinity-profile', () => {
     }
   })
 
-  it('hands serializable cache life values to cache handlers for an inline Infinity profile', async () => {
-    const $ = await next.render$('/inline')
-    expect($('#value').text()).toMatch(isoDateRegExp)
+  it('serves an inline Infinity cache life from a JSON-backed cache handler across requests', async () => {
+    const $ = await next.render$('/inline?key=a')
+    const initialValue = $('#value').text()
+    expect(initialValue).toMatch(isoDateRegExp)
 
-    // The entry metadata must contain INFINITE_CACHE, not Infinity: cache
-    // handler backing stores commonly serialize entries as JSON, where
-    // Infinity turns into null.
-    await retry(async () => {
-      expect(next.cliOutput).toContain(
-        `LoggingCacheHandler::set-resolved-entry revalidate: ${INFINITE_CACHE}, expire: ${INFINITE_CACHE}, stale: 300, tags: inline-frozen`
-      )
-    })
-    expect(next.cliOutput).not.toContain('revalidate: Infinity')
+    // The second request reads the entry back from the cache handler. If the
+    // infinite cache life doesn't survive the handler's JSON round trip, the
+    // entry is treated as immediately expired and the value regenerates.
+    const $second = await next.render$('/inline?key=a')
+    expect($second('#value').text()).toBe(initialValue)
   })
 })

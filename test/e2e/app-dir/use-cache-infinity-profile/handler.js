@@ -2,13 +2,10 @@
 
 const defaultCacheHandler =
   require('next/dist/server/lib/cache-handlers/default.external').default
-const { AsyncLocalStorage } = require('node:async_hooks')
-const snapshot = AsyncLocalStorage.snapshot()
 
 /**
- * A wrapper around the default cache handler that logs the cache life
- * metadata of stored entries. Backing stores commonly serialize entries as
- * JSON, so the metadata must consist of finite numbers.
+ * A cache handler whose backing store serializes entries as JSON, like a
+ * remote store would.
  * @type {import('next/dist/server/lib/cache-handlers/types').CacheHandler}
  */
 const cacheHandler = {
@@ -17,15 +14,13 @@ const cacheHandler = {
   },
 
   async set(cacheKey, pendingEntry) {
-    pendingEntry.then(({ revalidate, expire, stale, tags }) => {
-      snapshot(() => {
-        console.log(
-          `LoggingCacheHandler::set-resolved-entry revalidate: ${revalidate}, expire: ${expire}, stale: ${stale}, tags: ${tags}`
-        )
-      })
-    })
-
-    return defaultCacheHandler.set(cacheKey, pendingEntry)
+    return defaultCacheHandler.set(
+      cacheKey,
+      pendingEntry.then(({ value, ...metadata }) => ({
+        ...JSON.parse(JSON.stringify(metadata)),
+        value,
+      }))
+    )
   },
 
   async refreshTags() {

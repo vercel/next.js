@@ -1,12 +1,33 @@
-import { cacheLife, cacheTag } from 'next/cache'
+import { Suspense } from 'react'
+import { cacheLife } from 'next/cache'
 
-// Same cache life as the configured "frozen" profile, but passed inline. The
-// values are forwarded into the cache entry metadata that is handed to cache
-// handlers (see handler.js) and serialized into the resume data cache.
-export default async function Page() {
+// The value is keyed on a search param so that it's not part of the
+// prerender, and is instead stored and read back through the JSON-backed
+// cache handler at request time.
+async function frozenValue(key: string) {
   'use cache'
   cacheLife({ stale: 300, revalidate: Infinity, expire: Infinity })
-  cacheTag('inline-frozen')
 
-  return <p id="value">{new Date().toISOString()}</p>
+  return `${key} ${new Date().toISOString()}`
+}
+
+async function Value({
+  searchParams,
+}: {
+  searchParams: Promise<{ key?: string }>
+}) {
+  const { key = 'default' } = await searchParams
+  return <p id="value">{await frozenValue(key)}</p>
+}
+
+export default function Page({
+  searchParams,
+}: {
+  searchParams: Promise<{ key?: string }>
+}) {
+  return (
+    <Suspense fallback={<p>loading</p>}>
+      <Value searchParams={searchParams} />
+    </Suspense>
+  )
 }
