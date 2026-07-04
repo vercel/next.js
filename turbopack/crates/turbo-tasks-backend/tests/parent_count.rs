@@ -21,9 +21,10 @@ fn create_test_persistence_dir(name: &str) -> tempfile::TempDir {
         .unwrap()
 }
 
-fn create_tt(name: &str) -> (Arc<TurboTasks<TurboTasksBackend>>, tempfile::TempDir) {
-    let dir = create_test_persistence_dir(name);
-    let tt = TurboTasks::new(TurboTasksBackend::new(
+/// Opens a backend rooted at `path`. Reusing the same `path` (after the previous backend has been
+/// stopped) reopens the persisted database — used to verify `parent_count` survives a restart.
+fn open_tt_at(path: &std::path::Path) -> Arc<TurboTasks<TurboTasksBackend>> {
+    TurboTasks::new(TurboTasksBackend::new(
         BackendOptions {
             num_workers: Some(2),
             small_preallocation: true,
@@ -32,7 +33,7 @@ fn create_tt(name: &str) -> (Arc<TurboTasks<TurboTasksBackend>>, tempfile::TempD
             ..Default::default()
         },
         turbo_tasks_backend::turbo_backing_storage(
-            dir.path(),
+            path,
             &GitVersionInfo {
                 describe: "test-unversioned",
                 dirty: false,
@@ -43,7 +44,12 @@ fn create_tt(name: &str) -> (Arc<TurboTasks<TurboTasksBackend>>, tempfile::TempD
         )
         .unwrap()
         .0,
-    ));
+    ))
+}
+
+fn create_tt(name: &str) -> (Arc<TurboTasks<TurboTasksBackend>>, tempfile::TempDir) {
+    let dir = create_test_persistence_dir(name);
+    let tt = open_tt_at(dir.path());
     (tt, dir)
 }
 
@@ -158,6 +164,125 @@ async fn parent_count_tracks_connect_and_disconnect() {
             tt2.backend().parent_count_for_testing(branch_b_id),
             0,
             "branch_b lost its parent after flipping back"
+        );
+
+        anyhow::Ok(())
+    })
+    .await;
+    tt.stop_and_wait().await;
+    result.unwrap();
+}
+
+/// `parent_count` is a persisted meta field: it must survive a snapshot + DB reopen. This exercises
+/// the durability path — the count is written into the task's meta blob and restored on the next
+/// session (and any in-flight `AdjustParentCount` job replays via the durable operation queue).
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn parent_count_survives_reopen() {
+    let dir = create_test_persistence_dir("parent_count_survives_reopen");
+
+    // Session 1: build select -> branch_a -> leaf(10), then stop (persists on shutdown).
+    let (branch_a_id, leaf10_id) = {
+        let tt = open_tt_at(dir.path());
+        let tt2 = tt.clone();
+        let ids = turbo_tasks::run_once(tt.clone(), async move {
+            unmark_top_level_task_may_leak_eventually_consistent_state();
+
+            let selector_op = create_selector(false);
+            let selector_vc = selector_op.resolve().strongly_consistent().await?;
+
+            let output = select(selector_vc);
+            assert_eq!(*output.read_strongly_consistent().await?, 11);
+
+            let branch_a_id = task_id_of(branch_a().resolve().await?);
+            let leaf10_id = task_id_of(leaf(10).resolve().await?);
+            assert_eq!(tt2.backend().parent_count_for_testing(branch_a_id), 1);
+            assert_eq!(tt2.backend().parent_count_for_testing(leaf10_id), 1);
+            anyhow::Ok((branch_a_id, leaf10_id))
+        })
+        .await
+        .unwrap();
+        tt.stop_and_wait().await;
+        ids
+    };
+
+    // Session 2: reopen the same DB, re-read the graph (restoring the persisted tasks), and assert
+    // their parent_count was restored from disk (not reset to 0). Task ids are stable across the
+    // reopen because they are persisted.
+    {
+        let tt = open_tt_at(dir.path());
+        let tt2 = tt.clone();
+        let result = turbo_tasks::run_once(tt.clone(), async move {
+            unmark_top_level_task_may_leak_eventually_consistent_state();
+
+            // Re-read the same graph so the cached tasks are restored from disk.
+            let selector_op = create_selector(false);
+            let selector_vc = selector_op.resolve().strongly_consistent().await?;
+            let output = select(selector_vc);
+            assert_eq!(*output.read_strongly_consistent().await?, 11);
+
+            // Force the branch tasks resident (reading them restores their meta, incl.
+            // parent_count, from disk). These are cached, so they are not re-executed.
+            assert_eq!(*branch_a().await?, 11);
+            assert_eq!(*leaf(10).await?, 10);
+
+            assert_eq!(
+                tt2.backend().parent_count_for_testing(branch_a_id),
+                1,
+                "branch_a's parent_count must be restored from disk after reopen"
+            );
+            assert_eq!(
+                tt2.backend().parent_count_for_testing(leaf10_id),
+                1,
+                "leaf(10)'s parent_count must be restored from disk after reopen"
+            );
+            anyhow::Ok(())
+        })
+        .await;
+        tt.stop_and_wait().await;
+        result.unwrap();
+    }
+}
+
+/// A decrement (disconnect) must survive a snapshot + eviction and stay correct when the affected
+/// tasks are restored from disk — exercising the `-1` `AdjustParentCount` path through the durable
+/// queue within a single session (so task identity is stable). After the flip, branch_b has 1
+/// persistent parent and branch_a has 0; those counts must be intact after a snapshot/evict cycle
+/// pushes them to disk and a subsequent read restores them.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn parent_count_decrement_survives_snapshot_evict() {
+    let (tt, _persistence_dir) = create_tt("parent_count_decrement_survives_snapshot_evict");
+    let tt2 = tt.clone();
+
+    let result = turbo_tasks::run_once(tt.clone(), async move {
+        unmark_top_level_task_may_leak_eventually_consistent_state();
+
+        let selector_op = create_selector(false);
+        let selector_vc = selector_op.resolve().strongly_consistent().await?;
+        let selector = selector_op.read_strongly_consistent().await?;
+
+        let output = select(selector_vc);
+        assert_eq!(*output.read_strongly_consistent().await?, 11);
+
+        // Flip so select drops branch_a (-1) and connects branch_b (+1).
+        selector.set(true);
+        assert_eq!(*output.read_strongly_consistent().await?, 22);
+
+        let branch_a_id = task_id_of(branch_a().resolve().await?);
+        let branch_b_id = task_id_of(branch_b().resolve().await?);
+        assert_eq!(tt2.backend().parent_count_for_testing(branch_a_id), 0);
+        assert_eq!(tt2.backend().parent_count_for_testing(branch_b_id), 1);
+
+        // Snapshot + evict: pushes quiescent tasks (with their parent_count) to disk.
+        tt2.backend().snapshot_and_evict_for_testing(&tt2);
+
+        // Re-read the live output, restoring branch_b from disk; its parent_count must still be 1
+        // (the persisted, decrement-consistent value — not doubled, not lost).
+        assert_eq!(*output.read_strongly_consistent().await?, 22);
+        assert_eq!(*branch_b().await?, 22);
+        assert_eq!(
+            tt2.backend().parent_count_for_testing(branch_b_id),
+            1,
+            "branch_b's parent_count must round-trip through snapshot/evict as 1"
         );
 
         anyhow::Ok(())
