@@ -55,7 +55,7 @@ This check only runs when [Partial Prefetching](https://preview.nextjs.org/docs/
 
 ## Wrap in or move into Suspense
 
-Choose this fix when the route has content that doesn't depend on the URL. Keep that content outside the boundary so it stays part of the shared prefetch, and wrap the `params` or `searchParams` read in a [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary so it [streams](https://preview.nextjs.org/docs/app/glossary#streaming) in after navigation. Every link keeps reusing the same prefetch, and only the URL-specific part renders per navigation.
+Choose this fix when the page has parts that don't depend on the URL. A [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary lets the shared prefetch ship instantly while the URL-specific region [streams](https://preview.nextjs.org/docs/app/glossary#streaming) in after the navigation.
 
 ### Patterns
 
@@ -168,7 +168,7 @@ Use either pattern when:
 - The route genuinely needs the URL param high in the tree to decide what to render, so there's no shared part worth prefetching.
 - You're adopting Partial Prefetching incrementally and want to defer this route without changing how it renders today.
 
-Don't use this to dismiss the error. Choose [Wrap in or move into Suspense](#wrap-in-or-move-into-suspense) when the route has any content that doesn't depend on the URL.
+For this error, disabling validation is rarely the right answer. The route reads a small piece of URL data, and a [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary around that read keeps the rest of the route in the shared prefetch. Choose [Wrap in or move into Suspense](#wrap-in-or-move-into-suspense) when feasible.
 
 ### Trade-off
 
