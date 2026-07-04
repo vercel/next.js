@@ -1,5 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import { retry } from 'next-test-utils'
+import { retry, assertNoConsoleErrors } from 'next-test-utils'
 import type { Playwright } from 'next-webdriver'
 
 describe('hmr-rsc-cancellation', () => {
@@ -81,7 +81,7 @@ describe('hmr-rsc-cancellation', () => {
 
   it('cancels a superseded Server Component HMR request', async () => {
     await next.start()
-    const browser = await next.browser('/')
+    const browser = await next.browser('/', { pushErrorAsConsoleLog: true })
     await retry(async () => {
       expect(await browser.elementById('dynamic').text()).toBe('initial')
     })
@@ -125,12 +125,13 @@ describe('hmr-rsc-cancellation', () => {
         { aborted: false, settled: true },
       ])
     })
+    await assertNoConsoleErrors(browser)
     expectCleanCliOutput(next.cliOutput.slice(cliStart))
   })
 
   it('does not surface an error when a partially committed render is superseded', async () => {
     await next.start()
-    const browser = await next.browser('/')
+    const browser = await next.browser('/', { pushErrorAsConsoleLog: true })
     await retry(async () => {
       expect(await browser.elementById('dynamic').text()).toBe('initial')
     })
@@ -178,6 +179,7 @@ describe('hmr-rsc-cancellation', () => {
         { aborted: false, settled: true },
       ])
     })
+    await assertNoConsoleErrors(browser)
     expectCleanCliOutput(next.cliOutput.slice(cliStart))
   })
 
@@ -189,7 +191,7 @@ describe('hmr-rsc-cancellation', () => {
       )
     )
     await next.start()
-    const browser = await next.browser('/')
+    const browser = await next.browser('/', { pushErrorAsConsoleLog: true })
     await retry(async () => {
       expect(await browser.elementById('dynamic').text()).toBe('initial')
     })
