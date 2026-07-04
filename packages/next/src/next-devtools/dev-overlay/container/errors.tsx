@@ -96,6 +96,9 @@ export function getErrorTypeLabel(
   if (errorDetails.type === 'blocking-route') {
     return errorDetails.inNavigation ? `Instant` : `Blocking Route`
   }
+  if (errorDetails.type === 'static-export') {
+    return `Static Export`
+  }
   if (errorDetails.type === 'client-hook') {
     return `Blocking Route`
   }
@@ -130,6 +133,7 @@ type ErrorDetails =
   | NoErrorDetails
   | HydrationErrorDetails
   | BlockingRouteErrorDetails
+  | StaticExportErrorDetails
   | ClientHookErrorDetails
   | DynamicMetadataErrorDetails
   | DynamicViewportErrorDetails
@@ -153,6 +157,11 @@ type BlockingRouteErrorDetails = {
   type: 'blocking-route'
   variant: GuidanceVariant
   inNavigation: boolean
+}
+
+type StaticExportErrorDetails = {
+  type: 'static-export'
+  variant: GuidanceVariant
 }
 
 type ClientHookErrorDetails = {
@@ -268,11 +277,25 @@ export function deriveCauseFromCodeFrame(
   kind: GuidanceKind,
   variant: GuidanceVariant,
   codeFrame: string | null | undefined
-): 'connection' | undefined {
+): string | undefined {
+  if (!codeFrame) return undefined
+
+  if (kind === 'static-export') {
+    // Pick the fix cards by the access on the highlighted line.
+    for (const line of stripAnsi(codeFrame).split('\n')) {
+      if (!/^\s*>/.test(line)) continue
+      if (/\bconnection\s*\(/.test(line)) return 'connection'
+      if (/\bcookies\s*\(/.test(line)) return 'cookies'
+      if (/\bheaders\s*\(/.test(line)) return 'headers'
+      if (/searchParams/.test(line)) return 'searchParams'
+      if (/\bparams\b/.test(line)) return 'params'
+    }
+    return undefined
+  }
+
   if (variant !== 'dynamic') return undefined
   if (kind !== 'blocking-route' && kind !== 'metadata' && kind !== 'viewport')
     return undefined
-  if (!codeFrame) return undefined
   for (const line of stripAnsi(codeFrame).split('\n')) {
     if (/^\s*>/.test(line) && /\bconnection\s*\(/.test(line)) {
       return 'connection'
@@ -423,6 +446,13 @@ export function getBlockingRouteErrorDetails(
 ): null | ErrorDetails {
   const message = error.message
   const inNavigation = isBlockingRouteInNavError(message)
+
+  if (message.includes('could not be statically exported')) {
+    return {
+      type: 'static-export',
+      variant: message.includes('It used request data') ? 'runtime' : 'dynamic',
+    }
+  }
 
   const clientHookMatch =
     /Next\.js encountered URL data `([^`]+)` in a Client Component outside of `<Suspense>`\./.exec(
@@ -853,6 +883,50 @@ export function Errors({
         )
       }
       break
+    case 'static-export':
+      return (
+        <ErrorOverlayLayout
+          errorCode={errorCode}
+          errorType={errorType}
+          errorMessage={
+            errorDetails.variant === 'runtime'
+              ? 'Next.js encountered request data during a static export.'
+              : 'Next.js encountered uncached data during a static export.'
+          }
+          headerChildren={
+            <InstantHeaderExplanation
+              kind="static-export"
+              variant={errorDetails.variant}
+            />
+          }
+          renderTabBar={renderTabBar}
+          canGoPrevious={canGoPrevious}
+          canGoNext={canGoNext}
+          onPrevious={handlePrevious}
+          onNext={handleNext}
+          onClose={isServerError ? undefined : onClose}
+          debugInfo={debugInfo}
+          error={error}
+          runtimeErrors={activeErrors}
+          activeIdx={activeIdx}
+          setActiveIndex={setActiveIndex}
+          dialogResizerRef={dialogResizerRef}
+          generateErrorInfo={generateErrorInfo}
+          {...props}
+        >
+          <Suspense fallback={<div data-nextjs-error-suspended />}>
+            <InstantRuntimeError
+              key={activeError.id.toString()}
+              error={activeError}
+              variant={errorDetails.variant}
+              kind="static-export"
+              showExplanation={false}
+              dialogResizerRef={dialogResizerRef}
+              generateErrorInfo={generateErrorInfo}
+            />
+          </Suspense>
+        </ErrorOverlayLayout>
+      )
     case 'blocking-route':
       return (
         <ErrorOverlayLayout

@@ -289,14 +289,18 @@ export function InstantGuidance({
         </p>
       ) : null}
 
-      <div
-        data-nextjs-instant-fix-heading
-        className="nextjs__container_errors_desc nextjs__container_errors_desc_instant"
-      >
-        Ways to fix this:
-      </div>
+      {cards.length > 0 ? (
+        <>
+          <div
+            data-nextjs-instant-fix-heading
+            className="nextjs__container_errors_desc nextjs__container_errors_desc_instant"
+          >
+            Ways to fix this:
+          </div>
 
-      <CardGrid cards={cards} generateErrorInfo={generateErrorInfo} />
+          <CardGrid cards={cards} generateErrorInfo={generateErrorInfo} />
+        </>
+      ) : null}
     </div>
   )
 }

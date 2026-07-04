@@ -6,6 +6,7 @@ export type ErrorType =
   | 'Blocking Route'
   | 'Ambiguous Metadata'
   | 'Instant'
+  | 'Static Export'
 
 type ErrorTypeLabelProps = {
   errorType: ErrorType
