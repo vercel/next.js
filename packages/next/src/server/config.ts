@@ -45,6 +45,7 @@ import { dset } from '../shared/lib/dset'
 import { normalizeZodErrors } from '../shared/lib/zod'
 import { HTML_LIMITED_BOT_UA_RE_STRING } from '../shared/lib/router/utils/is-bot'
 import { findDir } from '../lib/find-pages-dir'
+import { INFINITE_CACHE } from '../lib/constants'
 import { resolveCacheHandlerPathToFilesystem } from '../lib/format-dynamic-import-path'
 import { interopDefault } from '../lib/interop-default'
 import { djb2Hash } from '../shared/lib/hash'
@@ -1408,6 +1409,34 @@ function assignDefaultsAndValidate(
       if (defaultCacheLifeProfile.expire === undefined) {
         defaultCacheLifeProfile.expire =
           result.expireTime ?? defaultDefault.expire
+      }
+    }
+
+    // `Infinity` is a documented value for `stale`/`revalidate`/`expire`, but
+    // the resolved config crosses JSON serialization boundaries (e.g. to build
+    // workers), where `Infinity` turns into `null`. Normalize it to
+    // `INFINITE_CACHE`, which has the same meaning and survives serialization.
+    const cacheLifeProfiles: NonNullable<NextConfig['cacheLife']> =
+      result.cacheLife
+    for (const [profileName, profile] of Object.entries(cacheLifeProfiles)) {
+      if (
+        profile.stale === Infinity ||
+        profile.revalidate === Infinity ||
+        profile.expire === Infinity
+      ) {
+        // Profile objects are shared (the user's config objects, or the
+        // module-global default profiles), so clone instead of mutating.
+        const normalizedProfile = { ...profile }
+        if (normalizedProfile.stale === Infinity) {
+          normalizedProfile.stale = INFINITE_CACHE
+        }
+        if (normalizedProfile.revalidate === Infinity) {
+          normalizedProfile.revalidate = INFINITE_CACHE
+        }
+        if (normalizedProfile.expire === Infinity) {
+          normalizedProfile.expire = INFINITE_CACHE
+        }
+        cacheLifeProfiles[profileName] = normalizedProfile
       }
     }
   }
