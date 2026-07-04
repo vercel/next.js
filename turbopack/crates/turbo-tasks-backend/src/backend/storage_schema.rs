@@ -142,6 +142,32 @@ struct TaskStorageSchema {
     #[field(storage = "counter_map", category = "transient")]
     aggregated_current_session_clean_containers: CounterMap<TaskId, i32, 3>,
 
+    /// Number of **persistent** parent tasks that list this task in their `children` set.
+    /// Absent = 0. Maintained incrementally at the two `children`-edge mutation sites (via the
+    /// durable `AdjustParentCount` aggregation-update job): incremented in `connect_children`,
+    /// decremented in `CleanupOldEdges`. When it reaches 0 (and no transient parent references the
+    /// task, and it is not a root/pinned/in-progress), the task is unreachable from persistent
+    /// roots and may be tombstoned instead of persisted, then dropped from memory during eviction.
+    ///
+    /// This replaces scan-based GC: a count can only drop to 0 while the parent is in memory (a
+    /// parent re-executed and dropped the child), so collectibility is detectable at that moment
+    /// with no DB scan.
+    // TODO(perf): this is a lazy field to avoid growing `TaskStorage` past its 128-byte budget
+    // (an inline `u32` pushes it to 136). `parent_count` is near-universal and mutated on every
+    // child-edge change, so it is a good candidate for inline storage; revisit once we can free 8
+    // inline bytes (which requires demoting `output_dependent` or `upper` to lazy — a hot-path
+    // tradeoff). Shrinking a collection's inline-capacity const does NOT help (AutoSet/CounterMap
+    // are 32 bytes regardless of `I`).
+    #[field(storage = "direct", category = "meta")]
+    parent_count: u32,
+
+    /// Number of **transient** parent tasks currently referencing this task as a child (this
+    /// session only; never persisted). A persistent task referenced solely by a transient parent
+    /// has `parent_count == 0` but must stay live in-session; this keeps it uncollectible.
+    /// Re-established on restart when transient parents re-execute and reconnect their children.
+    #[field(storage = "direct", category = "transient")]
+    transient_parent_count: u32,
+
     // =========================================================================
     // FLAGS (meta) - Boolean flags stored in TaskFlags bitfield
     // Persisted flags come first, then transient flags.
@@ -829,6 +855,18 @@ impl TaskStorage {
             aggregated_dirty_containers: self.aggregated_dirty_containers().map_or(0, |c| c.len()),
         }
     }
+
+    /// The number of persistent parents referencing this task (0 when the field is absent).
+    /// Read-only accessor over a bare `&TaskStorage` for GC and tests, without widening the
+    /// generated lazy getter's visibility.
+    pub fn gc_parent_count(&self) -> u32 {
+        self.get_parent_count().copied().unwrap_or(0)
+    }
+
+    /// The number of transient (session-only) parents referencing this task (0 when absent).
+    pub fn gc_transient_parent_count(&self) -> u32 {
+        self.get_transient_parent_count().copied().unwrap_or(0)
+    }
 }
 
 /// Counts for aggregation tree and collectibles fields.
@@ -1178,6 +1216,10 @@ mod tests {
         original
             .aggregated_dirty_containers_mut()
             .insert(TaskId::new(50).unwrap(), 2);
+        // Persisted parent count.
+        original.set_parent_count(3);
+        // Transient parent count (should NOT be serialized).
+        original.set_transient_parent_count(9);
 
         // Set transient flag (should NOT be serialized)
         original.flags.set_current_session_clean(true);
@@ -1223,6 +1265,10 @@ mod tests {
             decoded.aggregated_dirty_containers(),
             original.aggregated_dirty_containers()
         );
+        // Persisted parent_count survives the round-trip.
+        assert_eq!(decoded.get_parent_count(), Some(&3));
+        // Transient parent count is NOT serialized; it stays at its default (absent == 0).
+        assert_eq!(decoded.get_transient_parent_count(), None);
 
         // Note: invalidator and immutable are data category flags, not meta
         // They should NOT have changed during meta encode/decode

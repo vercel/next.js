@@ -330,6 +330,23 @@ impl TurboTasksBackend {
         (had_new_data, counts)
     }
 
+    /// The persistent `parent_count` of a resident task (0 if absent or not resident). Test-only
+    /// hook for verifying incremental refcount maintenance.
+    #[doc(hidden)]
+    pub fn parent_count_for_testing(&self, task: TaskId) -> u32 {
+        self.storage
+            .with_task(task, |t| t.gc_parent_count())
+            .unwrap_or(0)
+    }
+
+    /// The transient `transient_parent_count` of a resident task (0 if absent or not resident).
+    #[doc(hidden)]
+    pub fn transient_parent_count_for_testing(&self, task: TaskId) -> u32 {
+        self.storage
+            .with_task(task, |t| t.gc_transient_parent_count())
+            .unwrap_or(0)
+    }
+
     fn should_restore(&self) -> bool {
         self.options.storage_mode.is_some()
     }

@@ -6,10 +6,13 @@ use turbo_tasks::{
     util::{good_chunk_size, into_chunks},
 };
 
-use crate::backend::operation::{
-    AggregationUpdateJob, AggregationUpdateQueue, ChildExecuteContext, ExecuteContext, Operation,
-    TaskGuard, aggregation_update::InnerOfUppersHasNewFollowersJob, get_aggregation_number,
-    get_uppers, is_aggregating_node,
+use crate::backend::{
+    TaskDataCategory,
+    operation::{
+        AggregationUpdateJob, AggregationUpdateQueue, ChildExecuteContext, ExecuteContext,
+        Operation, TaskGuard, aggregation_update::InnerOfUppersHasNewFollowersJob,
+        get_aggregation_number, get_uppers, is_aggregating_node,
+    },
 };
 
 pub fn connect_children(
@@ -33,12 +36,45 @@ pub fn connect_children(
         len = new_children.len()
     );
 
+    // Collect the newly-connected **persistent** children now (cheap, no locks) so we can adjust
+    // their child-side parent reference count *after* the parent guard is dropped — taking a child
+    // guard while still holding the parent guard would trip the concurrent-lock detector.
+    let persistent_new_children: SmallVec<[TaskId; 4]> = new_children
+        .iter()
+        .copied()
+        .filter(|c| !c.is_transient())
+        .collect();
+
     let new_follower_ids: SmallVec<_> = new_children.into_iter().collect();
 
     let aggregating_node = is_aggregating_node(parent_aggregation);
     let upper_ids = (!aggregating_node).then(|| get_uppers(&parent_task));
 
     drop(parent_task);
+
+    // Maintain the child-side parent reference count now that the parent guard is released. Each
+    // newly-connected persistent child gains a parent: a persistent parent bumps the durable
+    // `parent_count` (rides the `AggregationUpdateQueue` so it is crash-consistent — captured
+    // mid-snapshot, replayed on restart; see `AggregationUpdateJob::AdjustParentCount`), while a
+    // transient parent bumps the session-only `transient_parent_count` (transient parents vanish on
+    // restart and re-establish their edges by re-execution, so their contribution must not
+    // persist). Transient children are never collected, so their counts are irrelevant.
+    if !persistent_new_children.is_empty() {
+        if parent_task_id.is_transient() {
+            for &child in &persistent_new_children {
+                let mut child_task = ctx.task(child, TaskDataCategory::Meta);
+                child_task.update_and_get_transient_parent_count(1);
+            }
+        } else {
+            AggregationUpdateQueue::run(
+                AggregationUpdateJob::AdjustParentCount {
+                    task_ids: persistent_new_children,
+                    delta: 1,
+                },
+                ctx,
+            );
+        }
+    }
 
     fn process_new_children(
         ctx: &mut impl ExecuteContext<'_>,

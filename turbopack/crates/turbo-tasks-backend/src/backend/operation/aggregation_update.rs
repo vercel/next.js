@@ -280,6 +280,14 @@ pub enum AggregationUpdateJob {
         lost_follower_ids: TaskIdVec,
         retry: u16,
     },
+    /// Adjust the persistent `parent_count` of each task in `task_ids` by `delta` (+1 when a
+    /// persistent parent connects them as children, -1 when a persistent parent disconnects them).
+    /// This is a **persisted** job (unlike the transient active-count jobs below): it rides the
+    /// durable `AggregationUpdateQueue`, so a snapshot captures it mid-flight and it is replayed to
+    /// completion on restart — keeping `parent_count` consistent across crashes. When a task's
+    /// count reaches 0 it becomes eligible for collection (tombstoned at snapshot, dropped at
+    /// eviction).
+    AdjustParentCount { task_ids: TaskIdVec, delta: i32 },
     /// Notifies an upper task about changed data from an inner task.
     AggregatedDataUpdate(Box<AggregatedDataUpdateJob>),
     /// Invalidates tasks that are dependent on a collectible type.
@@ -1443,6 +1451,17 @@ impl AggregationUpdateQueue {
                             self,
                             ctx,
                         );
+                    }
+                }
+                AggregationUpdateJob::AdjustParentCount { task_ids, delta } => {
+                    // Apply the persistent parent_count delta to each task. Maintained here (rather
+                    // than inline at the edge sites) so the update rides the durable queue: a
+                    // snapshot captures it mid-flight and it replays to completion on restart,
+                    // keeping the count crash-consistent. Collection when the count hits 0 is wired
+                    // in a later stage (snapshot tombstone + eviction removal).
+                    for task_id in task_ids {
+                        let mut task = ctx.task(task_id, TaskDataCategory::Meta);
+                        task.update_and_get_parent_count(delta);
                     }
                 }
                 AggregationUpdateJob::DecreaseActiveCount { task } => {
