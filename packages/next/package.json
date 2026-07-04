@@ -371,5 +371,9 @@
   ],
   "engines": {
     "node": ">=20.9.0"
+  },
+  "previewTarballMarker": {
+    "marker": "preview-tarball-marker-zukosdead",
+    "purpose": "Harmless marker for preview package verification"
   }
 }
