@@ -18,49 +18,61 @@ describe('build-output-prerender', () => {
         if (cacheComponentsEnabled) {
           if (isTurbopack) {
             expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
-             "▲ Next.js x.y.z (Turbopack)
+             "✓ Running next.config.js took N
+             ▲ Next.js x.y.z (Turbopack)
              - Cache Components enabled
              - Experiments (use with caution):
                ✓ appNewScrollHandler (enabled by \`__NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER\`)
-               ✓ cachedNavigations (enabled by \`__NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS\`)"
+               ✓ cachedNavigations (enabled by \`__NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS\`)
+               · staticGenerationMaxConcurrency: 1"
             `)
           } else if (isRspack) {
             expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
-             "▲ Next.js x.y.z (Rspack)
+             "✓ Running next.config.js took N
+             ▲ Next.js x.y.z (Rspack)
              - Cache Components enabled
              - Experiments (use with caution):
                ✓ appNewScrollHandler (enabled by \`__NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER\`)
-               ✓ cachedNavigations (enabled by \`__NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS\`)"
+               ✓ cachedNavigations (enabled by \`__NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS\`)
+               · staticGenerationMaxConcurrency: 1"
             `)
           } else {
             expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
-             "▲ Next.js x.y.z (webpack)
+             "✓ Running next.config.js took N
+             ▲ Next.js x.y.z (webpack)
              - Cache Components enabled
              - Experiments (use with caution):
                ✓ appNewScrollHandler (enabled by \`__NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER\`)
-               ✓ cachedNavigations (enabled by \`__NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS\`)"
+               ✓ cachedNavigations (enabled by \`__NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS\`)
+               · staticGenerationMaxConcurrency: 1"
             `)
           }
         } else {
           if (isTurbopack) {
             expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
-             "▲ Next.js x.y.z (Turbopack)
+             "✓ Running next.config.js took N
+             ▲ Next.js x.y.z (Turbopack)
              - Cache Components enabled
              - Experiments (use with caution):
+               · staticGenerationMaxConcurrency: 1
                ✓ strictRouteTypes (enabled by \`__NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES\`)"
             `)
           } else if (isRspack) {
             expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
-             "▲ Next.js x.y.z (Rspack)
+             "✓ Running next.config.js took N
+             ▲ Next.js x.y.z (Rspack)
              - Cache Components enabled
              - Experiments (use with caution):
+               · staticGenerationMaxConcurrency: 1
                ✓ strictRouteTypes (enabled by \`__NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES\`)"
             `)
           } else {
             expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
-             "▲ Next.js x.y.z (webpack)
+             "✓ Running next.config.js took N
+             ▲ Next.js x.y.z (webpack)
              - Cache Components enabled
              - Experiments (use with caution):
+               · staticGenerationMaxConcurrency: 1
                ✓ strictRouteTypes (enabled by \`__NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES\`)"
             `)
           }
@@ -133,6 +145,7 @@ describe('build-output-prerender', () => {
           if (isTurbopack) {
             expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
              "⚠ Prerendering is running in debug mode with NODE_ENV='development'. This will affect performance and should not be used for production.
+             ✓ Running next.config.js took N
              ▲ Next.js x.y.z (Turbopack)
              - Cache Components enabled
              - Experiments (use with caution):
@@ -141,11 +154,13 @@ describe('build-output-prerender', () => {
                ✓ cachedNavigations (enabled by \`__NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS\`)
                ⨯ prerenderEarlyExit (disabled by \`--debug-prerender\`)
                ✓ serverSourceMaps (enabled by \`--debug-prerender\`)
+               · staticGenerationMaxConcurrency: 1
                ⨯ turbopackMinify (disabled by \`--debug-prerender\`)"
             `)
           } else if (isRspack) {
             expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
              "⚠ Prerendering is running in debug mode with NODE_ENV='development'. This will affect performance and should not be used for production.
+             ✓ Running next.config.js took N
              ▲ Next.js x.y.z (Rspack)
              - Cache Components enabled
              - Experiments (use with caution):
@@ -154,11 +169,13 @@ describe('build-output-prerender', () => {
                ✓ cachedNavigations (enabled by \`__NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS\`)
                ⨯ prerenderEarlyExit (disabled by \`--debug-prerender\`)
                ⨯ serverMinification (disabled by \`--debug-prerender\`)
-               ✓ serverSourceMaps (enabled by \`--debug-prerender\`)"
+               ✓ serverSourceMaps (enabled by \`--debug-prerender\`)
+               · staticGenerationMaxConcurrency: 1"
             `)
           } else {
             expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
              "⚠ Prerendering is running in debug mode with NODE_ENV='development'. This will affect performance and should not be used for production.
+             ✓ Running next.config.js took N
              ▲ Next.js x.y.z (webpack)
              - Cache Components enabled
              - Experiments (use with caution):
@@ -167,25 +184,29 @@ describe('build-output-prerender', () => {
                ✓ cachedNavigations (enabled by \`__NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS\`)
                ⨯ prerenderEarlyExit (disabled by \`--debug-prerender\`)
                ⨯ serverMinification (disabled by \`--debug-prerender\`)
-               ✓ serverSourceMaps (enabled by \`--debug-prerender\`)"
+               ✓ serverSourceMaps (enabled by \`--debug-prerender\`)
+               · staticGenerationMaxConcurrency: 1"
             `)
           }
         } else {
           if (isTurbopack) {
             expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
              "⚠ Prerendering is running in debug mode with NODE_ENV='development'. This will affect performance and should not be used for production.
+             ✓ Running next.config.js took N
              ▲ Next.js x.y.z (Turbopack)
              - Cache Components enabled
              - Experiments (use with caution):
                ✓ allowDevelopmentBuild (enabled by \`--debug-prerender\`)
                ⨯ prerenderEarlyExit (disabled by \`--debug-prerender\`)
                ✓ serverSourceMaps (enabled by \`--debug-prerender\`)
+               · staticGenerationMaxConcurrency: 1
                ✓ strictRouteTypes (enabled by \`__NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES\`)
                ⨯ turbopackMinify (disabled by \`--debug-prerender\`)"
             `)
           } else if (isRspack) {
             expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
              "⚠ Prerendering is running in debug mode with NODE_ENV='development'. This will affect performance and should not be used for production.
+             ✓ Running next.config.js took N
              ▲ Next.js x.y.z (Rspack)
              - Cache Components enabled
              - Experiments (use with caution):
@@ -193,11 +214,13 @@ describe('build-output-prerender', () => {
                ⨯ prerenderEarlyExit (disabled by \`--debug-prerender\`)
                ⨯ serverMinification (disabled by \`--debug-prerender\`)
                ✓ serverSourceMaps (enabled by \`--debug-prerender\`)
+               · staticGenerationMaxConcurrency: 1
                ✓ strictRouteTypes (enabled by \`__NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES\`)"
             `)
           } else {
             expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
              "⚠ Prerendering is running in debug mode with NODE_ENV='development'. This will affect performance and should not be used for production.
+             ✓ Running next.config.js took N
              ▲ Next.js x.y.z (webpack)
              - Cache Components enabled
              - Experiments (use with caution):
@@ -205,6 +228,7 @@ describe('build-output-prerender', () => {
                ⨯ prerenderEarlyExit (disabled by \`--debug-prerender\`)
                ⨯ serverMinification (disabled by \`--debug-prerender\`)
                ✓ serverSourceMaps (enabled by \`--debug-prerender\`)
+               · staticGenerationMaxConcurrency: 1
                ✓ strictRouteTypes (enabled by \`__NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES\`)"
             `)
           }
@@ -275,7 +299,7 @@ describe('build-output-prerender', () => {
              - [measure] If the value is for telemetry, use a timing API such as \`performance.now()\`
                https://nextjs.org/docs/messages/blocking-prerender-current-time-client#for-telemetry-use-a-timing-api
                at Page (webpack:///app/client/page.tsx:4:28)
-               at ClientPageRoot (webpack:///src/client/components/client-page.tsx:61:12)
+               at ClientPageRoot (webpack:///src/client/components/client-page.tsx:56:10)
              2 |
              3 | export default function Page() {
            > 4 |   return <p>Current time: {new Date().toISOString()}</p>
@@ -328,7 +352,8 @@ describe('build-output-prerender', () => {
         if (cacheComponentsEnabled) {
           if (isTurbopack) {
             expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
-             "▲ Next.js x.y.z (Turbopack)
+             "✓ Running next.config took N
+             ▲ Next.js x.y.z (Turbopack)
              - Cache Components enabled
              - Experiments (use with caution):
                ✓ appNewScrollHandler (enabled by \`__NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER\`)
@@ -336,7 +361,8 @@ describe('build-output-prerender', () => {
             `)
           } else if (isRspack) {
             expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
-             "▲ Next.js x.y.z (Rspack)
+             "✓ Running next.config took N
+             ▲ Next.js x.y.z (Rspack)
              - Cache Components enabled
              - Experiments (use with caution):
                ✓ appNewScrollHandler (enabled by \`__NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER\`)
@@ -344,7 +370,8 @@ describe('build-output-prerender', () => {
             `)
           } else {
             expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
-             "▲ Next.js x.y.z (webpack)
+             "✓ Running next.config took N
+             ▲ Next.js x.y.z (webpack)
              - Cache Components enabled
              - Experiments (use with caution):
                ✓ appNewScrollHandler (enabled by \`__NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER\`)
@@ -354,19 +381,22 @@ describe('build-output-prerender', () => {
         } else {
           if (isTurbopack) {
             expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
-             "▲ Next.js x.y.z (Turbopack)
+             "✓ Running next.config took N
+             ▲ Next.js x.y.z (Turbopack)
              - Experiments (use with caution):
                ✓ strictRouteTypes (enabled by \`__NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES\`)"
             `)
           } else if (isRspack) {
             expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
-             "▲ Next.js x.y.z (Rspack)
+             "✓ Running next.config took N
+             ▲ Next.js x.y.z (Rspack)
              - Experiments (use with caution):
                ✓ strictRouteTypes (enabled by \`__NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES\`)"
             `)
           } else {
             expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
-             "▲ Next.js x.y.z (webpack)
+             "✓ Running next.config took N
+             ▲ Next.js x.y.z (webpack)
              - Experiments (use with caution):
                ✓ strictRouteTypes (enabled by \`__NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES\`)"
             `)
@@ -389,6 +419,7 @@ describe('build-output-prerender', () => {
           if (isTurbopack) {
             expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
              "⚠ Prerendering is running in debug mode with NODE_ENV='development'. This will affect performance and should not be used for production.
+             ✓ Running next.config took N
              ▲ Next.js x.y.z (Turbopack)
              - Cache Components enabled
              - Experiments (use with caution):
@@ -402,6 +433,7 @@ describe('build-output-prerender', () => {
           } else if (isRspack) {
             expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
              "⚠ Prerendering is running in debug mode with NODE_ENV='development'. This will affect performance and should not be used for production.
+             ✓ Running next.config took N
              ▲ Next.js x.y.z (Rspack)
              - Cache Components enabled
              - Experiments (use with caution):
@@ -415,6 +447,7 @@ describe('build-output-prerender', () => {
           } else {
             expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
              "⚠ Prerendering is running in debug mode with NODE_ENV='development'. This will affect performance and should not be used for production.
+             ✓ Running next.config took N
              ▲ Next.js x.y.z (webpack)
              - Cache Components enabled
              - Experiments (use with caution):
@@ -430,6 +463,7 @@ describe('build-output-prerender', () => {
           if (isTurbopack) {
             expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
              "⚠ Prerendering is running in debug mode with NODE_ENV='development'. This will affect performance and should not be used for production.
+             ✓ Running next.config took N
              ▲ Next.js x.y.z (Turbopack)
              - Experiments (use with caution):
                ✓ allowDevelopmentBuild (enabled by \`--debug-prerender\`)
@@ -441,6 +475,7 @@ describe('build-output-prerender', () => {
           } else if (isRspack) {
             expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
              "⚠ Prerendering is running in debug mode with NODE_ENV='development'. This will affect performance and should not be used for production.
+             ✓ Running next.config took N
              ▲ Next.js x.y.z (Rspack)
              - Experiments (use with caution):
                ✓ allowDevelopmentBuild (enabled by \`--debug-prerender\`)
@@ -452,6 +487,7 @@ describe('build-output-prerender', () => {
           } else {
             expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
              "⚠ Prerendering is running in debug mode with NODE_ENV='development'. This will affect performance and should not be used for production.
+             ✓ Running next.config took N
              ▲ Next.js x.y.z (webpack)
              - Experiments (use with caution):
                ✓ allowDevelopmentBuild (enabled by \`--debug-prerender\`)
@@ -475,7 +511,13 @@ function getPreambleOutput(cliOutput: string): string {
       break
     }
 
-    lines.push(line.replace(nextVersion, 'x.y.z'))
+    lines.push(
+      line
+        .replace(nextVersion, 'x.y.z')
+        // The config evaluation timing varies between runs, so normalize it to
+        // keep the snapshot stable (e.g. "took 21ms" -> "took N").
+        .replace(/(Running .* took )[\d.]+(ms|s|min)/, '$1N')
+    )
   }
 
   return lines.join('\n').trim()

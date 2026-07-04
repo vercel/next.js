@@ -175,7 +175,7 @@ async function requestHandler(
         prefetchInlining: nextConfig.experimental.prefetchInlining ?? false,
         authInterrupts: Boolean(nextConfig.experimental.authInterrupts),
         useCacheTimeout: nextConfig.experimental.useCacheTimeout,
-        cachedNavigations: Boolean(nextConfig.experimental.cachedNavigations),
+        cachedNavigations: nextConfig.experimental.cachedNavigations ?? false,
         appShells: nextConfig.experimental.appShells,
         clientTraceMetadata:
           nextConfig.experimental.clientTraceMetadata || ([] as any),
@@ -184,6 +184,9 @@ async function requestHandler(
         maxPostponedStateSizeBytes: parseMaxPostponedStateSize(
           nextConfig.experimental.maxPostponedStateSize
         ),
+        exposeTestingApi:
+          pageRouteModule.isDev === true ||
+          nextConfig.experimental.exposeTestingApiInProductionBuild === true,
       },
 
       incrementalCache: await pageRouteModule.getIncrementalCache(

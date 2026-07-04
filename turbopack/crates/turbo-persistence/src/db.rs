@@ -1,6 +1,7 @@
 use std::{
     borrow::Cow,
     collections::HashSet,
+    fmt::Display,
     fs::{self, File, OpenOptions, ReadDir},
     io::{BufWriter, Write},
     mem::take,
@@ -43,7 +44,7 @@ use crate::{
     sst_filter::SstFilter,
     static_sorted_file::{BlockCache, SstLookupResult, StaticSortedFileIter},
     static_sorted_file_builder::{StaticSortedFileBuilderMeta, StreamingSstWriter},
-    write_batch::{FinishResult, WriteBatch},
+    write_batch::{FinishResult, NewFile, WriteBatch},
 };
 
 #[cfg(feature = "stats")]
@@ -258,13 +259,45 @@ struct Inner<const FAMILIES: usize> {
 }
 
 pub struct CommitOptions {
-    new_meta_files: Vec<(u32, File)>,
-    new_sst_files: Vec<(u32, File)>,
-    new_blob_files: Vec<(u32, File)>,
-    sst_seq_numbers_to_delete: Vec<u32>,
+    new_meta_files: Vec<NewFile>,
+    new_sst_files: Vec<NewFile>,
+    new_blob_files: Vec<NewFile>,
+    sst_files_to_delete: Vec<DeletedFile>,
     blob_seq_numbers_to_delete: Vec<u32>,
     sequence_number: u32,
     keys_written: u64,
+}
+
+/// An SST file superseded by a commit, carrying its on-disk size (known when the deletion is
+/// decided) so `commit` can sum deleted bytes without scanning meta entries or stat'ing the file.
+#[derive(Clone, Copy)]
+struct DeletedFile {
+    seq: u32,
+    /// On-disk size in bytes
+    size: u64,
+}
+
+/// Physical byte volume of a single commit/compaction cycle, measured from on-disk file sizes
+/// (post-compression, including `.sst`, `.blob`, and `.meta` files).
+#[derive(Clone, Copy, Debug, Default)]
+pub struct CommitStats {
+    /// Total bytes of new files created by this commit.
+    pub bytes_written: u64,
+    /// Total bytes of files removed/superseded by this commit.
+    pub bytes_deleted: u64,
+}
+
+impl Display for CommitStats {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let CommitStats {
+            bytes_written,
+            bytes_deleted,
+        } = self;
+        write!(
+            f,
+            "bytes_written={bytes_written} bytes_deleted={bytes_deleted}"
+        )
+    }
 }
 
 struct OpenOpts<S: ParallelScheduler, const FAMILIES: usize> {
@@ -712,7 +745,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
     pub fn commit_write_batch<K: StoreKey + Send + Sync>(
         &self,
         mut write_batch: WriteBatch<'_, K, S, FAMILIES>,
-    ) -> Result<()> {
+    ) -> Result<CommitStats> {
         if self.read_only {
             unreachable!("It's not possible to create a write batch for a read-only database");
         }
@@ -748,18 +781,18 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
             });
             amqf
         })?;
-        self.commit(CommitOptions {
+        let stats = self.commit(CommitOptions {
             new_meta_files,
             new_sst_files,
             new_blob_files,
-            sst_seq_numbers_to_delete: vec![],
+            sst_files_to_delete: vec![],
             blob_seq_numbers_to_delete: vec![],
             sequence_number,
             keys_written,
         })?;
         // Mark the guard inside the write batch as succeeded so it skips the rollback on drop.
         write_batch.mark_succeeded();
-        Ok(())
+        Ok(stats)
     }
 
     /// fsyncs the new files and updates the CURRENT file. Updates the database state to include the
@@ -770,15 +803,17 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
             mut new_meta_files,
             new_sst_files,
             new_blob_files,
-            mut sst_seq_numbers_to_delete,
+            sst_files_to_delete,
             mut blob_seq_numbers_to_delete,
             sequence_number: mut seq,
             keys_written,
         }: CommitOptions,
-    ) -> Result<(), anyhow::Error> {
+    ) -> Result<CommitStats, anyhow::Error> {
         let time = Timestamp::now();
 
-        new_meta_files.sort_unstable_by_key(|(seq, _)| *seq);
+        new_meta_files.sort_unstable_by_key(|f| f.seq);
+
+        let mut stats = CommitStats::default();
 
         let sync_span = tracing::trace_span!("sync new files").entered();
 
@@ -795,13 +830,16 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
 
         let mut sync_items: Vec<SyncItem> =
             Vec::with_capacity(new_meta_files.len() + new_sst_files.len() + new_blob_files.len());
-        for (seq, file) in new_meta_files {
+        for NewFile { seq, file, size } in new_meta_files {
+            stats.bytes_written += size;
             sync_items.push(SyncItem::Meta(seq, file));
         }
-        for (_, file) in new_sst_files {
+        for NewFile { file, size, .. } in new_sst_files {
+            stats.bytes_written += size;
             sync_items.push(SyncItem::Sst(file));
         }
-        for (seq, file) in new_blob_files {
+        for NewFile { seq, file, size } in new_blob_files {
+            stats.bytes_written += size;
             sync_items.push(SyncItem::Blob(seq, file));
         }
 
@@ -878,6 +916,14 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
         let has_delete_file;
         let mut meta_seq_numbers_to_delete = Vec::new();
         let entries_to_remove;
+        // Deleted SST bytes: the caller knows each deleted SST's size when it decides to delete it,
+        // so it's carried on `DeletedFile` and summed here (no scan, no stat).
+        stats.bytes_deleted += sst_files_to_delete.iter().map(|f| f.size).sum::<u64>();
+        // The rest of the commit only needs the sequence numbers of the deleted SSTs.
+        let mut sst_seq_numbers_to_delete = sst_files_to_delete
+            .iter()
+            .map(|f| f.seq)
+            .collect::<Vec<_>>();
 
         {
             let inner = self.inner.read();
@@ -910,16 +956,33 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
             for i in (0..inner.meta_files.len()).rev() {
                 if sst_filter.apply_and_get_remove(&inner.meta_files[i]) {
                     meta_seq_numbers_to_delete.push(inner.meta_files[i].sequence_number());
+                    // Deleted meta bytes, read from the `MetaFile`'s mmap length (no stat).
+                    stats.bytes_deleted += inner.meta_files[i].byte_size();
                 }
             }
 
             // (A3) Compute the final sequence number that will be written to
             // CURRENT. A .del file is created only when there are files to
             // delete, which consumes one extra sequence number.
-            has_delete_file = !sst_seq_numbers_to_delete.is_empty()
+            has_delete_file = !sst_files_to_delete.is_empty()
                 || !blob_seq_numbers_to_delete.is_empty()
                 || !meta_seq_numbers_to_delete.is_empty();
         }
+
+        // Deleted blob bytes. Unlike SST/meta sizes (both already in memory), blob sizes aren't
+        // tracked, so we stat them by sequence number before Phase C unlinks them. Best-effort: a
+        // file already gone reports 0 rather than failing the commit (these stats are reported, not
+        // load-bearing). Left serial rather than dispatched to the scheduler: blob deletions are
+        // rare and few, so the fan-out overhead would outweigh a handful of `stat` calls.
+        stats.bytes_deleted += blob_seq_numbers_to_delete
+            .iter()
+            .map(|seq| {
+                fs::metadata(self.path.join(format!("{seq:08}.blob")))
+                    .map(|m| m.len())
+                    .unwrap_or(0)
+            })
+            .sum::<u64>();
+
         if has_delete_file {
             seq += 1;
         }
@@ -1133,7 +1196,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
             })();
         }
 
-        Ok(())
+        Ok(stats)
     }
 
     /// Runs a full compaction on the database. This will rewrite all SST files, removing all
@@ -1155,7 +1218,10 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
     /// files is above the given threshold. The coverage is the average number of SST files that
     /// need to be read to find a key. It also limits the maximum number of SST files that are
     /// merged at once, which is the main factor for the runtime of the compaction.
-    pub fn compact(&self, compact_config: &CompactConfig) -> Result<bool> {
+    ///
+    /// Returns `Some(stats)` describing the bytes written/deleted if a compaction commit happened,
+    /// or `None` if there was nothing to compact.
+    pub fn compact(&self, compact_config: &CompactConfig) -> Result<Option<CommitStats>> {
         let mut guard = self.acquire_write_operation("compaction")?;
 
         // Free block caches and SST mmaps before compaction. The block caches
@@ -1167,7 +1233,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
         let mut sequence_number;
         let mut new_meta_files = Vec::new();
         let mut new_sst_files = Vec::new();
-        let mut sst_seq_numbers_to_delete = Vec::new();
+        let mut sst_files_to_delete = Vec::new();
         let mut blob_seq_numbers_to_delete = Vec::new();
         let mut keys_written = 0;
 
@@ -1179,7 +1245,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                 &sequence_number,
                 &mut new_meta_files,
                 &mut new_sst_files,
-                &mut sst_seq_numbers_to_delete,
+                &mut sst_files_to_delete,
                 &mut blob_seq_numbers_to_delete,
                 &mut keys_written,
                 compact_config,
@@ -1188,21 +1254,25 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
         }
 
         let has_changes = !new_meta_files.is_empty();
-        if has_changes {
-            self.commit(CommitOptions {
-                new_meta_files,
-                new_sst_files,
-                new_blob_files: Vec::new(),
-                sst_seq_numbers_to_delete,
-                blob_seq_numbers_to_delete,
-                sequence_number: *sequence_number.get_mut(),
-                keys_written,
-            })
-            .context("Failed to commit the database compaction")?;
-        }
+        let stats = if has_changes {
+            let stats = self
+                .commit(CommitOptions {
+                    new_meta_files,
+                    new_sst_files,
+                    new_blob_files: Vec::new(),
+                    sst_files_to_delete,
+                    blob_seq_numbers_to_delete,
+                    sequence_number: *sequence_number.get_mut(),
+                    keys_written,
+                })
+                .context("Failed to commit the database compaction")?;
+            Some(stats)
+        } else {
+            None
+        };
 
         guard.success();
-        Ok(has_changes)
+        Ok(stats)
     }
 
     /// Internal function to perform a compaction.
@@ -1210,9 +1280,9 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
         &self,
         meta_files: &[MetaFile],
         sequence_number: &AtomicU32,
-        new_meta_files: &mut Vec<(u32, File)>,
-        new_sst_files: &mut Vec<(u32, File)>,
-        sst_seq_numbers_to_delete: &mut Vec<u32>,
+        new_meta_files: &mut Vec<NewFile>,
+        new_sst_files: &mut Vec<NewFile>,
+        sst_files_to_delete: &mut Vec<DeletedFile>,
         blob_seq_numbers_to_delete: &mut Vec<u32>,
         keys_written: &mut u64,
         compact_config: &CompactConfig,
@@ -1275,9 +1345,9 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
         let log_mutex = Mutex::new(());
 
         struct PartialResultPerFamily {
-            new_meta_file: Option<(u32, File)>,
-            new_sst_files: Vec<(u32, File)>,
-            sst_seq_numbers_to_delete: Vec<u32>,
+            new_meta_file: Option<NewFile>,
+            new_sst_files: Vec<NewFile>,
+            sst_files_to_delete: Vec<DeletedFile>,
             blob_seq_numbers_to_delete: Vec<u32>,
             keys_written: u64,
         }
@@ -1308,7 +1378,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                         return Ok(PartialResultPerFamily {
                             new_meta_file: None,
                             new_sst_files: Vec::new(),
-                            sst_seq_numbers_to_delete: Vec::new(),
+                            sst_files_to_delete: Vec::new(),
                             blob_seq_numbers_to_delete: Vec::new(),
                             keys_written: 0,
                         });
@@ -1351,12 +1421,16 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                         }
                     };
 
-                    // Later we will remove the merged files
-                    let sst_seq_numbers_to_delete = merge_jobs
+                    // Later we will remove the merged files. Capture each one's size now (we know
+                    // exactly which SST it is) so `commit` can report deleted bytes without a scan.
+                    let sst_files_to_delete = merge_jobs
                         .iter()
                         .filter(|l| l.len() > 1)
                         .flat_map(|l| l.iter().copied())
-                        .map(|index| ssts_with_ranges[index].seq)
+                        .map(|index| DeletedFile {
+                            seq: ssts_with_ranges[index].seq,
+                            size: ssts_with_ranges[index].size,
+                        })
                         .collect::<Vec<_>>();
 
                     // Merge SST files
@@ -1660,8 +1734,9 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                                             meta.flags
                                         )?;
 
+                                        let size = meta.size;
                                         meta_file_builder.add(seq, meta);
-                                        new_sst_files.push((seq, file));
+                                        new_sst_files.push(NewFile { seq, file, size });
                                     }
                                     blob_seq_numbers_to_delete
                                         .extend(merged_blob_seq_numbers_to_delete);
@@ -1686,20 +1761,26 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                         anyhow::Ok(())
                     })?;
 
-                    for &seq in sst_seq_numbers_to_delete.iter() {
-                        meta_file_builder.add_obsolete_sst_file(seq);
+                    for f in sst_files_to_delete.iter() {
+                        meta_file_builder.add_obsolete_sst_file(f.seq);
                     }
 
-                    let meta_file = {
+                    let new_meta_file = {
                         let _span = tracing::trace_span!("write meta file").entered();
-                        self.parallel_scheduler
-                            .block_in_place(|| meta_file_builder.write(&self.path, meta_seq))?
+                        let (file, size) = self
+                            .parallel_scheduler
+                            .block_in_place(|| meta_file_builder.write(&self.path, meta_seq))?;
+                        NewFile {
+                            seq: meta_seq,
+                            file,
+                            size,
+                        }
                     };
 
                     Ok(PartialResultPerFamily {
-                        new_meta_file: Some((meta_seq, meta_file)),
+                        new_meta_file: Some(new_meta_file),
                         new_sst_files,
-                        sst_seq_numbers_to_delete,
+                        sst_files_to_delete,
                         blob_seq_numbers_to_delete,
                         keys_written,
                     })
@@ -1709,14 +1790,14 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
         for PartialResultPerFamily {
             new_meta_file: inner_new_meta_file,
             new_sst_files: mut inner_new_sst_files,
-            sst_seq_numbers_to_delete: mut inner_sst_seq_numbers_to_delete,
+            sst_files_to_delete: mut inner_sst_files_to_delete,
             blob_seq_numbers_to_delete: mut inner_blob_seq_numbers_to_delete,
             keys_written: inner_keys_written,
         } in result
         {
             new_meta_files.extend(inner_new_meta_file);
             new_sst_files.append(&mut inner_new_sst_files);
-            sst_seq_numbers_to_delete.append(&mut inner_sst_seq_numbers_to_delete);
+            sst_files_to_delete.append(&mut inner_sst_files_to_delete);
             blob_seq_numbers_to_delete.append(&mut inner_blob_seq_numbers_to_delete);
             *keys_written += inner_keys_written;
         }

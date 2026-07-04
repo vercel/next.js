@@ -926,19 +926,19 @@ Additionally, a lockfile mechanism prevents multiple `next dev` or `next build` 
 The [Turbopack tracing command](/docs/app/guides/local-development#turbopack-tracing) should be:
 
 ```bash package="pnpm"
-pnpm next internal trace .next-profiles/trace-turbopack
+pnpm next internal trace .next-profiles/trace-turbopack.bin
 ```
 
 ```bash package="npm"
-npx next internal trace .next-profiles/trace-turbopack
+npx next internal trace .next-profiles/trace-turbopack.bin
 ```
 
 ```bash package="yarn"
-yarn next internal trace .next-profiles/trace-turbopack
+yarn next internal trace .next-profiles/trace-turbopack.bin
 ```
 
 ```bash package="bun"
-bunx next internal trace .next-profiles/trace-turbopack
+bunx next internal trace .next-profiles/trace-turbopack.bin
 ```
 
 ## Parallel Routes `default.js` requirement

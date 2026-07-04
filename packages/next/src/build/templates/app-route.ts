@@ -289,184 +289,123 @@ export async function handler(
     signalFromNodeResponse(res)
   )
 
-  try {
-    let parentSpan: Span | undefined
-
-    const handleResponse = async (currentSpan?: Span) => {
-      const responseGenerator: ResponseGenerator = async ({
-        previousCacheEntry,
-      }) => {
-        try {
-          if (
-            !isMinimalMode &&
-            isOnDemandRevalidate &&
-            revalidateOnlyGenerated &&
-            !previousCacheEntry
-          ) {
-            res.statusCode = 404
-            // on-demand revalidate always sets this header
-            res.setHeader('x-nextjs-cache', 'REVALIDATED')
-            res.end('This page could not be found')
-            return null
-          }
-
-          const response = await routeModule.handle(nextReq, context)
-
-          ;(req as any).fetchMetrics = (context.renderOpts as any).fetchMetrics
-          let pendingWaitUntil = context.renderOpts.pendingWaitUntil
-
-          // Attempt using provided waitUntil if available
-          // if it's not we fallback to sendResponse's handling
-          if (pendingWaitUntil) {
-            if (ctx.waitUntil) {
-              ctx.waitUntil(pendingWaitUntil)
-              pendingWaitUntil = undefined
-            }
-          }
-          const cacheTags = context.renderOpts.collectedTags
-
-          // If the request is for a static response, we can cache it so long
-          // as it's not edge.
-          if (isIsr) {
-            const blob = await response.blob()
-
-            // Copy the headers from the response.
-            const headers = toNodeOutgoingHttpHeaders(response.headers)
-
-            if (cacheTags) {
-              headers[NEXT_CACHE_TAGS_HEADER] = cacheTags
-            }
-
-            if (!headers['content-type'] && blob.type) {
-              headers['content-type'] = blob.type
-            }
-
-            const revalidate =
-              typeof context.renderOpts.collectedRevalidate === 'undefined' ||
-              context.renderOpts.collectedRevalidate >= INFINITE_CACHE
-                ? false
-                : context.renderOpts.collectedRevalidate
-
-            const expire =
-              typeof context.renderOpts.collectedExpire === 'undefined' ||
-              context.renderOpts.collectedExpire >= INFINITE_CACHE
-                ? // Fall back to the global `expireTime` config when the
-                  // route has a numeric `revalidate` but didn't declare an
-                  // explicit `expire` (e.g. via `cacheLife`). This mirrors the
-                  // build-time fallback in `build/index.ts` so cache entries
-                  // and the response Cache-Control header agree on the route's
-                  // effective expire. Routes that opt out of revalidation
-                  // (`revalidate: false`) or that are dynamic (`revalidate: 0`)
-                  // keep `expire: undefined`.
-                  revalidate !== false && revalidate > 0
-                  ? nextConfig.expireTime
-                  : undefined
-                : context.renderOpts.collectedExpire
-
-            // Create the cache entry for the response.
-            const cacheEntry: ResponseCacheEntry = {
-              value: {
-                kind: CachedRouteKind.APP_ROUTE,
-                status: response.status,
-                body: Buffer.from(await blob.arrayBuffer()),
-                headers,
-              },
-              cacheControl: { revalidate, expire },
-            }
-
-            return cacheEntry
-          } else {
-            // send response without caching if not ISR
-            await sendResponse(
-              nodeNextReq,
-              nodeNextRes,
-              response,
-              pendingWaitUntil
-            )
-            return null
-          }
-        } catch (err) {
-          // if this is a background revalidate we need to report
-          // the request error here as it won't be bubbled
-          if (previousCacheEntry?.isStale) {
-            const silenceLog = false
-            await routeModule.onRequestError(
-              req,
-              err,
-              {
-                routerKind: 'App Router',
-                routePath: srcPage,
-                routeType: 'route',
-                revalidateReason: getRevalidateReason({
-                  isStaticGeneration,
-                  isOnDemandRevalidate,
-                }),
-              },
-              silenceLog,
-              routerServerContext
-            )
-          }
-          throw err
-        } finally {
-          // An IIFE to make early returns easier.
-          ;(() => {
-            if (!currentSpan) {
-              return
-            }
-            currentSpan.setAttributes({
-              'http.status_code': res.statusCode,
-              'next.rsc': false,
-            })
-
-            if (res.statusCode && res.statusCode >= 500) {
-              // For 5xx status codes: SHOULD be set to 'Error' span status.
-              // x-ref: https://opentelemetry.io/docs/specs/semconv/http/http-spans/#status
-              currentSpan.setStatus({
-                code: SpanStatusCode.ERROR,
-              })
-              // For span status 'Error', SHOULD set 'error.type' attribute.
-              currentSpan.setAttribute('error.type', res.statusCode.toString())
-            }
-
-            const rootSpanAttributes = tracer.getRootSpanAttributes()
-            // We were unable to get attributes, probably OTEL is not enabled
-            if (!rootSpanAttributes) {
-              return
-            }
-
-            if (
-              rootSpanAttributes.get('next.span_type') !==
-              BaseServerSpan.handleRequest
-            ) {
-              console.warn(
-                `Unexpected root span type '${rootSpanAttributes.get(
-                  'next.span_type'
-                )}'. Please report this Next.js issue https://github.com/vercel/next.js`
-              )
-              return
-            }
-
-            const route =
-              rootSpanAttributes.get('next.route') || normalizedSrcPage
-            const name = `${method} ${route}`
-
-            currentSpan.setAttributes({
-              'next.route': route,
-              'http.route': route,
-              'next.span_name': name,
-            })
-            currentSpan.updateName(name)
-
-            // Propagate http.route to the parent span if one exists (e.g.
-            // a platform-created HTTP span in adapter deployments).
-            if (parentSpan && parentSpan !== currentSpan) {
-              parentSpan.setAttribute('http.route', route)
-              parentSpan.updateName(name)
-            }
-          })()
-        }
+  const responseGenerator: ResponseGenerator = async ({
+    previousCacheEntry,
+  }) => {
+    try {
+      if (
+        !isMinimalMode &&
+        isOnDemandRevalidate &&
+        revalidateOnlyGenerated &&
+        !previousCacheEntry
+      ) {
+        res.statusCode = 404
+        // on-demand revalidate always sets this header
+        res.setHeader('x-nextjs-cache', 'REVALIDATED')
+        res.end('This page could not be found')
+        return null
       }
 
+      const response = await routeModule.handle(nextReq, context)
+
+      ;(req as any).fetchMetrics = (context.renderOpts as any).fetchMetrics
+      let pendingWaitUntil = context.renderOpts.pendingWaitUntil
+
+      // Attempt using provided waitUntil if available
+      // if it's not we fallback to sendResponse's handling
+      if (pendingWaitUntil) {
+        if (ctx.waitUntil) {
+          ctx.waitUntil(pendingWaitUntil)
+          pendingWaitUntil = undefined
+        }
+      }
+      const cacheTags = context.renderOpts.collectedTags
+
+      // If the request is for a static response, we can cache it so long
+      // as it's not edge.
+      if (isIsr) {
+        const blob = await response.blob()
+
+        // Copy the headers from the response.
+        const headers = toNodeOutgoingHttpHeaders(response.headers)
+
+        if (cacheTags) {
+          headers[NEXT_CACHE_TAGS_HEADER] = cacheTags
+        }
+
+        if (!headers['content-type'] && blob.type) {
+          headers['content-type'] = blob.type
+        }
+
+        const revalidate =
+          typeof context.renderOpts.collectedRevalidate === 'undefined' ||
+          context.renderOpts.collectedRevalidate >= INFINITE_CACHE
+            ? false
+            : context.renderOpts.collectedRevalidate
+
+        const expire =
+          typeof context.renderOpts.collectedExpire === 'undefined' ||
+          context.renderOpts.collectedExpire >= INFINITE_CACHE
+            ? // Fall back to the global `expireTime` config when the
+              // route has a numeric `revalidate` but didn't declare an
+              // explicit `expire` (e.g. via `cacheLife`). This mirrors the
+              // build-time fallback in `build/index.ts` so cache entries
+              // and the response Cache-Control header agree on the route's
+              // effective expire. Routes that opt out of revalidation
+              // (`revalidate: false`) or that are dynamic (`revalidate: 0`)
+              // keep `expire: undefined`.
+              revalidate !== false && revalidate > 0
+              ? nextConfig.expireTime
+              : undefined
+            : context.renderOpts.collectedExpire
+
+        // Create the cache entry for the response.
+        const cacheEntry: ResponseCacheEntry = {
+          value: {
+            kind: CachedRouteKind.APP_ROUTE,
+            status: response.status,
+            body: Buffer.from(await blob.arrayBuffer()),
+            headers,
+          },
+          cacheControl: { revalidate, expire },
+        }
+
+        return cacheEntry
+      } else {
+        // send response without caching if not ISR
+        await sendResponse(nodeNextReq, nodeNextRes, response, pendingWaitUntil)
+        return null
+      }
+    } catch (err) {
+      // if this is a background revalidate we need to report
+      // the request error here as it won't be bubbled
+      if (previousCacheEntry?.isStale) {
+        const silenceLog = false
+        await routeModule.onRequestError(
+          req,
+          err,
+          {
+            routerKind: 'App Router',
+            routePath: srcPage,
+            routeType: 'route',
+            revalidateReason: getRevalidateReason({
+              isStaticGeneration,
+              isOnDemandRevalidate,
+            }),
+          },
+          silenceLog,
+          routerServerContext
+        )
+      }
+      throw err
+    }
+  }
+
+  const handleResponse = async (
+    currentSpan: Span | undefined,
+    parentSpan: Span | undefined
+  ) => {
+    try {
       const cacheEntry = await routeModule.handleResponse({
         req,
         nextConfig,
@@ -484,7 +423,7 @@ export async function handler(
 
       // we don't create a cacheEntry for ISR
       if (!isIsr) {
-        return null
+        return
       }
 
       if (cacheEntry?.value?.kind !== CachedRouteKind.APP_ROUTE) {
@@ -542,65 +481,123 @@ export async function handler(
           status: cacheEntry.value.status || 200,
         })
       )
-      return null
-    }
+      return
+    } catch (err) {
+      if (!(err instanceof NoFallbackError)) {
+        const silenceLog = false
+        await routeModule.onRequestError(
+          req,
+          err,
+          {
+            routerKind: 'App Router',
+            routePath: normalizedSrcPage,
+            routeType: 'route',
+            revalidateReason: getRevalidateReason({
+              isStaticGeneration,
+              isOnDemandRevalidate,
+            }),
+          },
+          silenceLog,
+          routerServerContext
+        )
+      }
 
-    // TODO: activeSpan code path is for when wrapped by
-    // next-server can be removed when this is no longer used
-    if (isWrappedByNextServer && activeSpan) {
-      await handleResponse(activeSpan)
-    } else {
-      parentSpan = tracer.getActiveScopeSpan()
-      await tracer.withPropagatedContext(
-        req.headers,
-        () =>
-          tracer.trace(
-            BaseServerSpan.handleRequest,
-            {
-              spanName: `${method} ${srcPage}`,
-              kind: SpanKind.SERVER,
-              attributes: {
-                'http.method': method,
-                'http.target': req.url,
-              },
+      // rethrow so that we can handle serving error page
+
+      // If this is during static generation, throw the error again.
+      if (isIsr) throw err
+
+      // Otherwise, send a 500 response.
+      await sendResponse(
+        nodeNextReq,
+        nodeNextRes,
+        new Response(null, { status: 500 })
+      )
+      return
+    } finally {
+      ;(() => {
+        if (!currentSpan) {
+          return
+        }
+
+        let statusCode = res.statusCode
+
+        currentSpan.setAttributes({
+          'http.status_code': statusCode,
+          'next.rsc': false,
+        })
+
+        if (statusCode && statusCode >= 500) {
+          // For 5xx status codes: SHOULD be set to 'Error' span status.
+          // x-ref: https://opentelemetry.io/docs/specs/semconv/http/http-spans/#status
+          currentSpan.setStatus({
+            code: SpanStatusCode.ERROR,
+          })
+          // For span status 'Error', SHOULD set 'error.type' attribute.
+          currentSpan.setAttribute('error.type', statusCode.toString())
+        }
+
+        const rootSpanAttributes = tracer.getRootSpanAttributes()
+        // We were unable to get attributes, probably OTEL is not enabled
+        if (!rootSpanAttributes) {
+          return
+        }
+
+        if (
+          rootSpanAttributes.get('next.span_type') !==
+          BaseServerSpan.handleRequest
+        ) {
+          console.warn(
+            `Unexpected root span type '${rootSpanAttributes.get(
+              'next.span_type'
+            )}'. Please report this Next.js issue https://github.com/vercel/next.js`
+          )
+          return
+        }
+
+        const route = rootSpanAttributes.get('next.route') || normalizedSrcPage
+        const name = `${method} ${route}`
+
+        currentSpan.setAttributes({
+          'next.route': route,
+          'http.route': route,
+          'next.span_name': name,
+        })
+        currentSpan.updateName(name)
+
+        // Propagate http.route to the parent span if one exists (e.g.
+        // a platform-created HTTP span in adapter deployments).
+        if (parentSpan && parentSpan !== currentSpan) {
+          parentSpan.setAttribute('http.route', route)
+          parentSpan.updateName(name)
+        }
+      })()
+    }
+  }
+
+  // TODO: activeSpan code path is for when wrapped by
+  // next-server can be removed when this is no longer used
+  if (isWrappedByNextServer && activeSpan) {
+    await handleResponse(activeSpan, undefined)
+  } else {
+    let parentSpan = tracer.getActiveScopeSpan()
+    await tracer.withPropagatedContext(
+      req.headers,
+      () =>
+        tracer.trace(
+          BaseServerSpan.handleRequest,
+          {
+            spanName: `${method} ${srcPage}`,
+            kind: SpanKind.SERVER,
+            attributes: {
+              'http.method': method,
+              'http.target': req.url,
             },
-            handleResponse
-          ),
-        undefined,
-        !isWrappedByNextServer
-      )
-    }
-  } catch (err) {
-    if (!(err instanceof NoFallbackError)) {
-      const silenceLog = false
-      await routeModule.onRequestError(
-        req,
-        err,
-        {
-          routerKind: 'App Router',
-          routePath: normalizedSrcPage,
-          routeType: 'route',
-          revalidateReason: getRevalidateReason({
-            isStaticGeneration,
-            isOnDemandRevalidate,
-          }),
-        },
-        silenceLog,
-        routerServerContext
-      )
-    }
-
-    // rethrow so that we can handle serving error page
-
-    // If this is during static generation, throw the error again.
-    if (isIsr) throw err
-
-    // Otherwise, send a 500 response.
-    await sendResponse(
-      nodeNextReq,
-      nodeNextRes,
-      new Response(null, { status: 500 })
+          },
+          (span) => handleResponse(span, parentSpan)
+        ),
+      undefined,
+      !isWrappedByNextServer
     )
-    return null
   }
 }

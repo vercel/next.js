@@ -810,9 +810,10 @@ function datadogSearchQuery(values) {
 
 function getTestCommand(suite) {
   const jobName = suite.job.name.toLowerCase()
-  const isTurbopack = jobName.includes('turbopack')
+  const isCacheComponents = jobName.includes('cache components')
+  const isTurbopack = jobName.includes('turbopack') || isCacheComponents
   const isRspack = jobName.includes('rspack')
-  const isExperimental = jobName.includes('experimental')
+  const isExperimental = jobName.includes('experimental') || isCacheComponents
   const isPPR = jobName.includes('ppr')
   const script = suite.mode
     ? `test-${suite.mode}${isExperimental ? '-experimental' : ''}${

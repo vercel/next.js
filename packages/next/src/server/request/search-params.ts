@@ -62,13 +62,6 @@ export function createSearchParamsFromClient(
       case 'prerender-ppr':
       case 'prerender-legacy':
         return createStaticPrerenderSearchParams(workStore, workUnitStore)
-      case 'validation-client': {
-        return createClientSearchParamsInValidation(
-          underlyingSearchParams,
-          workStore,
-          workUnitStore
-        )
-      }
       case 'prerender-runtime':
         throw new InvariantError(
           'createSearchParamsFromClient should not be called in a runtime prerender.'
@@ -83,6 +76,16 @@ export function createSearchParamsFromClient(
         throw new InvariantError(
           'createSearchParamsFromClient should not be called inside generateStaticParams.'
         )
+      case 'validation-client': {
+        if (workUnitStore.validationSamples) {
+          return createClientSearchParamsInValidation(
+            underlyingSearchParams,
+            workStore,
+            workUnitStore
+          )
+        }
+        return makeUntrackedSearchParams(underlyingSearchParams)
+      }
       case 'request':
         // Client searchParams are not runtime prefetchable
         const isRuntimePrefetchable = false

@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
     inputs:
       releaseType:
-        description: stable, canary, beta, or release candidate?
+        description: stable, canary, beta, preview, or release candidate?
         required: true
         type: choice
         options:
@@ -14,6 +14,7 @@ on:
           - stable
           - release-candidate
           - beta
+          - preview
 
       semverType:
         description: semver type?
@@ -41,9 +42,6 @@ jobs:
     runs-on: ubuntu-latest
     env:
       NEXT_TELEMETRY_DISABLED: 1
-      # we build a dev binary for use in CI so skip downloading
-      # canary next-swc binaries in the monorepo
-      NEXT_SKIP_NATIVE_POSTINSTALL: 1
 
     steps:
       - name: Setup node
@@ -96,7 +94,7 @@ jobs:
         run: echo "LATEST_COMMIT=$(git rev-parse HEAD)" >> $GITHUB_ENV
 
       - name: Check if new commits since last tag
-        if: ${{ github.event.inputs.releaseType != 'stable' && github.event.inputs.force != true }}
+        if: ${{ github.event.inputs.releaseType != 'stable' && inputs.force != true }}
         run: |
           if [ "$LATEST_TAG_COMMIT" = "$LATEST_COMMIT" ]; then
             echo "No new commits. Exiting..."

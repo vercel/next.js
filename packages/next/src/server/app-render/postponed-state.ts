@@ -122,7 +122,11 @@ export function parsePostponedState(
   try {
     const postponedStringLengthMatch = state.match(/^([0-9]*):/)?.[1]
     if (!postponedStringLengthMatch) {
-      throw new Error(`Invariant: invalid postponed state ${state}`)
+      // Do not include the raw state in the message: it can be large and may
+      // contain sensitive serialized data.
+      throw new Error(
+        'Invariant: invalid postponed state: missing length prefix'
+      )
     }
 
     const postponedStringLength = parseInt(postponedStringLengthMatch)
@@ -201,11 +205,17 @@ export function parsePostponedState(
         renderResumeDataCache,
       }
     } catch (err) {
-      console.error('Failed to parse postponed state', err)
+      console.error(
+        'Failed to parse postponed state',
+        describePostponedStateParseFailure(state, err)
+      )
       return { type: DynamicState.DATA, renderResumeDataCache }
     }
   } catch (err) {
-    console.error('Failed to parse postponed state', err)
+    console.error(
+      'Failed to parse postponed state',
+      describePostponedStateParseFailure(state, err)
+    )
     return {
       type: DynamicState.DATA,
       renderResumeDataCache: createRenderResumeDataCache(
@@ -215,7 +225,103 @@ export function parsePostponedState(
   }
 }
 
+/**
+ * Derives content-free diagnostics about a postponed state that failed to
+ * parse, so the error log is actionable without exposing the (potentially
+ * sensitive) serialized contents. Every field is a size, a structural flag, or
+ * an error code, never the state bytes themselves.
+ *
+ * The serialized layout is `<N>:<postponedString><base64-deflate cache>`, so
+ * these fields distinguish the failure shapes:
+ * - `postponedStringComplete: false`: the declared length `N` exceeds what
+ * actually arrived, i.e. the postponed string itself was truncated.
+ * - `errorCode: 'Z_BUF_ERROR'` with an empty or short tail: the
+ * resume-data-cache tail was truncated (ran out of input while inflating).
+ * - `errorCode: 'Z_DATA_ERROR'`: the tail bytes are corrupt, not merely short.
+ * - `hasLengthPrefix: false`: the body had no `<N>:` prefix at all (e.g. empty
+ * or otherwise malformed input).
+ */
+function describePostponedStateParseFailure(
+  state: string,
+  error: unknown
+): Record<string, unknown> {
+  const errnoError = error as NodeJS.ErrnoException | undefined
+  const diagnostics: Record<string, unknown> = {
+    stateLength: state.length,
+    errorName: error instanceof Error ? error.name : typeof error,
+    errorCode: errnoError?.code,
+  }
+
+  const prefixMatch = state.match(/^([0-9]+):/)
+  if (!prefixMatch) {
+    diagnostics.hasLengthPrefix = false
+    return diagnostics
+  }
+
+  const declaredPostponedLength = parseInt(prefixMatch[1], 10)
+  const tailStart = prefixMatch[0].length + declaredPostponedLength
+  const tail = state.slice(tailStart)
+
+  diagnostics.hasLengthPrefix = true
+  diagnostics.declaredPostponedLength = declaredPostponedLength
+  diagnostics.postponedStringComplete = state.length >= tailStart
+  diagnostics.resumeDataCacheTailLength = tail.length
+  diagnostics.resumeDataCacheTailIsNull = tail === 'null'
+
+  return diagnostics
+}
+
 export function getPostponedFromState(state: DynamicHTMLPostponedState) {
   const [preludeState, postponed] = state.data
   return { preludeState, postponed }
+}
+
+/**
+ * Cheaply determines whether a serialized postponed state represents an empty
+ * HTML prelude — i.e. the static shell rendered no bytes before the first
+ * dynamic hole (a blocking dynamic API at the root with no Suspense boundary
+ * above it). Returns false for dynamic-data states or unparseable input.
+ *
+ * Unlike `parsePostponedState`, this does not interpolate fallback route params
+ * or build a resume data cache: it only reads the prelude marker, which is
+ * independent of param values. The Instant Navigation Testing API uses this to
+ * detect the blank-document case in both dev (fresh render) and production
+ * (prebuilt shell), where the marker is persisted in the postponed state.
+ */
+export function isEmptyHTMLPrelude(state: string): boolean {
+  try {
+    const lengthMatch = state.match(/^([0-9]*):/)?.[1]
+    if (!lengthMatch) {
+      return false
+    }
+
+    const length = parseInt(lengthMatch)
+    let postponedString = state.slice(
+      lengthMatch.length + 1,
+      lengthMatch.length + 1 + length
+    )
+
+    // `null` is the dynamic-data case (a full shell was produced).
+    if (postponedString === 'null') {
+      return false
+    }
+
+    // An optional `<n><replacements>` prefix carries fallback route param
+    // replacements; skip it to reach the `[preludeState, postponed]` data.
+    if (/^[0-9]/.test(postponedString)) {
+      const replacementsLengthMatch = postponedString.match(/^([0-9]*)/)?.[1]
+      if (!replacementsLengthMatch) {
+        return false
+      }
+      const replacementsLength = parseInt(replacementsLengthMatch)
+      postponedString = postponedString.slice(
+        replacementsLengthMatch.length + replacementsLength
+      )
+    }
+
+    const data = JSON.parse(postponedString)
+    return Array.isArray(data) && data[0] === DynamicHTMLPreludeState.Empty
+  } catch {
+    return false
+  }
 }

@@ -5417,11 +5417,12 @@
     }
     function fatalError(request, error, errorInfo, debugTask) {
       errorInfo = request.onShellError;
-      var onFatalError = request.onFatalError;
+      var onFatalError = request.onFatalError,
+        shellComplete = 0 === request.pendingRootTasks;
       debugTask
-        ? (debugTask.run(errorInfo.bind(null, error)),
+        ? (shellComplete || debugTask.run(errorInfo.bind(null, error)),
           debugTask.run(onFatalError.bind(null, error)))
-        : (errorInfo(error), onFatalError(error));
+        : (shellComplete || errorInfo(error), onFatalError(error));
       null !== request.destination
         ? ((request.status = CLOSED),
           closeWithError(request.destination, error))
@@ -7966,7 +7967,6 @@
     function completeShell(request) {
       null === request.trackedPostpones && safelyEmitEarlyPreloads(request, !0);
       null === request.trackedPostpones && preparePreamble(request);
-      request.onShellError = noop;
       request = request.onShellReady;
       request();
     }
@@ -8303,33 +8303,35 @@
                       errorInfo$jscomp$1,
                       debugTask
                     );
-                  else if (
-                    (boundary$jscomp$0.pendingTasks--,
-                    boundary$jscomp$0.status !== CLIENT_RENDERED)
-                  ) {
-                    boundary$jscomp$0.status = CLIENT_RENDERED;
-                    encodeErrorForBoundary(
-                      boundary$jscomp$0,
-                      errorDigest$jscomp$0,
-                      x$jscomp$0,
-                      errorInfo$jscomp$1,
-                      !1
-                    );
-                    untrackBoundary(request, boundary$jscomp$0);
-                    var boundaryRow = boundary$jscomp$0.row;
-                    null !== boundaryRow &&
-                      (request.allPendingTasks++,
-                      0 === --boundaryRow.pendingTasks &&
-                        finishSuspenseListRow(request, boundaryRow),
-                      request.allPendingTasks--);
-                    boundary$jscomp$0.parentFlushed &&
-                      request.clientRenderedBoundaries.push(boundary$jscomp$0);
-                    0 === request.pendingRootTasks &&
-                      null === request.trackedPostpones &&
-                      null !== boundary$jscomp$0.preamble &&
-                      preparePreamble(request);
+                  else {
+                    boundary$jscomp$0.pendingTasks--;
+                    if (boundary$jscomp$0.status !== CLIENT_RENDERED) {
+                      boundary$jscomp$0.status = CLIENT_RENDERED;
+                      encodeErrorForBoundary(
+                        boundary$jscomp$0,
+                        errorDigest$jscomp$0,
+                        x$jscomp$0,
+                        errorInfo$jscomp$1,
+                        !1
+                      );
+                      untrackBoundary(request, boundary$jscomp$0);
+                      var boundaryRow = boundary$jscomp$0.row;
+                      null !== boundaryRow &&
+                        (request.allPendingTasks++,
+                        0 === --boundaryRow.pendingTasks &&
+                          finishSuspenseListRow(request, boundaryRow),
+                        request.allPendingTasks--);
+                      boundary$jscomp$0.parentFlushed &&
+                        request.clientRenderedBoundaries.push(
+                          boundary$jscomp$0
+                        );
+                      0 === request.pendingRootTasks &&
+                        null === request.trackedPostpones &&
+                        null !== boundary$jscomp$0.preamble &&
+                        preparePreamble(request);
+                    }
+                    0 === request.allPendingTasks && completeAll(request);
                   }
-                  0 === request.allPendingTasks && completeAll(request);
                 }
               } finally {
                 (request.currentTask = prevTask$jscomp$0),
@@ -9261,11 +9263,11 @@
     }
     function ensureCorrectIsomorphicReactVersion() {
       var isomorphicReactPackageVersion = React.version;
-      if ("19.3.0-canary-b1786c31-20260618" !== isomorphicReactPackageVersion)
+      if ("19.3.0-canary-3508aee6-20260702" !== isomorphicReactPackageVersion)
         throw Error(
           'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' +
             (isomorphicReactPackageVersion +
-              "\n  - react-dom:  19.3.0-canary-b1786c31-20260618\nLearn more: https://react.dev/warnings/version-mismatch")
+              "\n  - react-dom:  19.3.0-canary-3508aee6-20260702\nLearn more: https://react.dev/warnings/version-mismatch")
         );
     }
     var React = require("next/dist/compiled/react"),
@@ -10235,7 +10237,7 @@
                 break;
               default:
                 if (resumableState.moduleUnknownResources.hasOwnProperty(as)) {
-                  var resources = resumableState.unknownResources[as];
+                  var resources = resumableState.moduleUnknownResources[as];
                   if (resources.hasOwnProperty(href)) return;
                 } else
                   (resources = {}),
@@ -11071,5 +11073,5 @@
         startWork(request);
       });
     };
-    exports.version = "19.3.0-canary-b1786c31-20260618";
+    exports.version = "19.3.0-canary-3508aee6-20260702";
   })();

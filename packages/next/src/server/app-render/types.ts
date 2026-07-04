@@ -111,9 +111,7 @@ export interface RenderOptsPartial {
   botType?: 'dom' | 'html' | undefined
   serveStreamingMetadata?: boolean
   incrementalCache?: import('../lib/incremental-cache').IncrementalCache
-  cacheLifeProfiles?: {
-    [profile: string]: import('../use-cache/cache-life').CacheLife
-  }
+  cacheLifeProfiles: import('../config-shared').ResolvedCacheLifeProfiles
   staticPageGenerationTimeout: number
   isOnDemandRevalidate?: boolean
   isPossibleServerAction?: boolean
@@ -170,7 +168,7 @@ export interface RenderOptsPartial {
     prefetchInlining: PrefetchInliningConfig
     authInterrupts: boolean
     useCacheTimeout: number
-    cachedNavigations: boolean
+    cachedNavigations: boolean | 'allow-runtime'
     appShells: ExperimentalConfig['appShells']
 
     /**
@@ -178,6 +176,14 @@ export interface RenderOptsPartial {
      * requests. Used to calculate decompression limits (5x this value).
      */
     maxPostponedStateSizeBytes: number | undefined
+
+    /**
+     * Whether the Instant Navigation Testing API is exposed (dev mode or the
+     * `exposeTestingApiInProductionBuild` flag). When true, the prerendered
+     * shell and dynamic renders embed a cookie-guarded bootstrap script that
+     * drives instant navigation tests.
+     */
+    exposeTestingApi: boolean
   }
   postponed?: string
 
@@ -230,6 +236,15 @@ export interface RenderOptsPartial {
    * instant.unstable_samples and is independent of actual route params.
    */
   runInstantValidation?: boolean
+
+  /**
+   * When true, a fallback shell produced for this render could later be
+   * upgraded to a concrete version (at least one of its fallback params is a
+   * candidate enumerated by `generateStaticParams`). Only such shells are
+   * flagged `isUpgradeableISRFallback` so the client retries the prefetch; a route that
+   * can never upgrade (no `generateStaticParams`) is left unflagged.
+   */
+  isFallbackUpgradeable?: boolean
 }
 
 export type RenderOpts = LoadComponentsReturnType<AppPageModule> &

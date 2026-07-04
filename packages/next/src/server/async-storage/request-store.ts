@@ -31,17 +31,24 @@ import type { ImplicitTags } from '../lib/implicit-tags'
 import type { OpaqueFallbackRouteParams } from '../request/fallback-params'
 
 function getHeaders(headers: Headers | IncomingHttpHeaders): ReadonlyHeaders {
-  const cleaned = HeadersAdapter.from(headers)
+  // `HeadersAdapter.from` wraps `IncomingHttpHeaders` (and returns a `Headers`
+  // instance unchanged) without copying, so the `delete` calls below would
+  // otherwise mutate the caller's underlying request headers. We copy first so
+  // that stripping internal headers only affects the sealed userland view, not
+  // the shared `req.headers`. The latter matters because the dev server reads
+  // the request-id headers from the raw request again (e.g. when rendering a
+  // redirect target after a server action), and mutating them there would break
+  // the dev debug channel routing.
+  const cleaned = HeadersAdapter.from(
+    headers instanceof Headers ? new Headers(headers) : { ...headers }
+  )
   for (const header of FLIGHT_HEADERS) {
     cleaned.delete(header)
   }
 
   // The client sends these dev-only request IDs so the server can route debug
   // information back to the originating request. Like the flight headers, they
-  // are internal plumbing and must not be exposed to userland `headers()`. The
-  // server reads them from the raw request headers, not from here, so removing
-  // them from this copy doesn't affect the debug channel for which they are
-  // used.
+  // are internal plumbing and must not be exposed to userland `headers()`.
   cleaned.delete(NEXT_REQUEST_ID_HEADER)
   cleaned.delete(NEXT_HTML_REQUEST_ID_HEADER)
 
