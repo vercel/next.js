@@ -13,8 +13,8 @@ function parseUrlForPages(urlprefix: string, directory: string, extensions: stri
     withFileTypes: true,
   })
   const res = []
-  const extPattern = new RegExp('\.(' + extensions.join('|') + ')$')
-  const indexPattern = new RegExp('^index\.(' + extensions.join('|') + ')$')
+  const extPattern = new RegExp('\\.(' + extensions.join('|') + ')$')
+  const indexPattern = new RegExp('^index\\.(' + extensions.join('|') + ')$')
   fsReadDirSyncCache[directory].forEach((dirent) => {
     if (extPattern.test(dirent.name)) {
       if (indexPattern.test(dirent.name)) {
@@ -41,9 +41,9 @@ function parseUrlForAppDir(urlprefix: string, directory: string, extensions: str
     withFileTypes: true,
   })
   const res = []
-  const extPattern = new RegExp('\.(' + extensions.join('|') + ')$')
-  const pagePattern = new RegExp('^page\.(' + extensions.join('|') + ')$')
-  const layoutPattern = new RegExp('^layout\.(' + extensions.join('|') + ')$')
+  const extPattern = new RegExp('\\.(' + extensions.join('|') + ')$')
+  const pagePattern = new RegExp('^page\\.(' + extensions.join('|') + ')$')
+  const layoutPattern = new RegExp('^layout\\.(' + extensions.join('|') + ')$')
   fsReadDirSyncCache[directory].forEach((dirent) => {
     if (extPattern.test(dirent.name)) {
       if (pagePattern.test(dirent.name)) {
