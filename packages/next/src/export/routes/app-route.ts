@@ -40,11 +40,7 @@ export async function exportAppRoute(
   page: string,
   module: AppRouteRouteModule,
   incrementalCache: IncrementalCache | undefined,
-  cacheLifeProfiles:
-    | undefined
-    | {
-        [profile: string]: import('../../server/use-cache/cache-life').CacheLife
-      },
+  cacheLifeProfiles: import('../../server/config-shared').ResolvedCacheLifeProfiles,
   htmlFilepath: string,
   fileWriter: MultiFileWriter,
   cacheComponents: boolean,
