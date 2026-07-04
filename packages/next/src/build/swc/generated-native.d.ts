@@ -58,7 +58,7 @@ export interface NapiTaskMessage {
 export declare function recvTaskMessageInWorker(
   workerId: number
 ): Promise<NapiTaskMessage>
-export declare function sendTaskMessage(message: NapiTaskMessage): Promise<void>
+export declare function sendTaskMessage(message: NapiTaskMessage): void
 export interface NapiLocation {
   line: number
   column?: number
@@ -77,7 +77,7 @@ export interface NapiCodeFrameOptions {
   linesAbove?: number
   /** Number of lines to show below the error (default: 3) */
   linesBelow?: number
-  /** Maximum width of the output in columns (default: 100) */
+  /** Maximum width of the output in columns (default: 240) */
   maxWidth?: number
   /** Whether to use ANSI colors (default: false) */
   color?: NapiCodeFrameColorMode | boolean

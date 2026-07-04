@@ -58,6 +58,17 @@ describe('instant-nav-panel', () => {
       .click()
   }
 
+  async function disableCookieStoreSet(browser: Playwright) {
+    await browser.eval(() => {
+      if (typeof cookieStore !== 'undefined') {
+        const prototype = Object.getPrototypeOf(cookieStore) as {
+          set: typeof cookieStore.set
+        }
+        prototype.set = async () => undefined
+      }
+    })
+  }
+
   async function clickLink(browser: Playwright, href: string) {
     await browser.eval((page) => {
       document.querySelector<HTMLAnchorElement>(`[href="${page}"]`)!.click()
@@ -555,6 +566,21 @@ describe('instant-nav-panel', () => {
       await expectSpaPanel(browser)
 
       // Clean up
+      await clearInstantModeCookie(browser)
+    })
+
+    it('should capture when CookieStore writes are not reflected in document.cookie', async () => {
+      const browser = await openHomeWithTargetPageWarmup()
+      await disableCookieStoreSet(browser)
+
+      await openInstantNavPanel(browser)
+      await clickStartCapturing(browser)
+      await expectPendingPanel(browser)
+
+      await clickLink(browser, '/target-page/my-post?search=foo')
+      await expectSpaPanel(browser)
+      await expectTargetPageSpaShell(browser)
+
       await clearInstantModeCookie(browser)
     })
 

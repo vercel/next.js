@@ -138,7 +138,12 @@
           JSCompiler_temp_const$jscomp$0.call(
             JSCompiler_temp_const,
             JSCompiler_temp_const$jscomp$1,
-            { crossOrigin: JSCompiler_inline_result, nonce: nonce }
+            {
+              crossOrigin: JSCompiler_inline_result,
+              integrity: void 0,
+              fetchPriority: void 0,
+              nonce: nonce
+            }
           );
         }
     }

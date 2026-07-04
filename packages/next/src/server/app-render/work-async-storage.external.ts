@@ -4,7 +4,7 @@ import type { FetchMetrics } from '../base-http'
 import type { DeepReadonly } from '../../shared/lib/deep-readonly'
 import type { AppSegmentConfig } from '../../build/segment-config/app/app-segment-config'
 import type { AfterContext } from '../after/after-context'
-import type { CacheLife } from '../use-cache/cache-life'
+import type { ResolvedCacheLifeProfiles } from '../config-shared'
 import type { SharedCacheResult } from '../use-cache/use-cache-wrapper'
 import type { ValidationLevel } from '../config-shared'
 
@@ -29,7 +29,7 @@ export interface WorkStore {
   readonly route: string
 
   readonly incrementalCache?: IncrementalCache
-  readonly cacheLifeProfiles?: { [profile: string]: CacheLife }
+  readonly cacheLifeProfiles: ResolvedCacheLifeProfiles
   readonly useCacheTimeout: number
   readonly staticPageGenerationTimeout: number
 

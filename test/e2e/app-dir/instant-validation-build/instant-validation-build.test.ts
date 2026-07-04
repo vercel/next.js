@@ -73,7 +73,7 @@ describe('instant-validation-build', () => {
              https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
            - [cache] Cache the data access with \`"use cache"\` (does not apply to \`connection()\`)
              https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
-           - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
+           - [block] Set \`export const instant = false\` to allow a blocking route
              https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
              at main (<anonymous>)
              at body (<anonymous>)

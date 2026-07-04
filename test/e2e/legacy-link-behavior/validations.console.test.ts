@@ -1,6 +1,8 @@
 import { isNextDev, nextTestSetup } from 'e2e-utils'
 import { waitForNoRedbox } from 'next-test-utils'
 
+const partialPrefetching = !!process.env.__NEXT_PARTIAL_PREFETCHING
+
 describe('Validations for <Link legacyBehavior>', () => {
   const { next, skipped } = nextTestSetup({
     files: __dirname,
@@ -58,10 +60,20 @@ describe('Validations for <Link legacyBehavior>', () => {
            ]
           `)
         } else {
-          expect(newConsoleOutput()).toMatchInlineSnapshot(`
-           "Using a Server Component as a direct child of \`<Link legacyBehavior>\` is not supported. If you need legacyBehavior, wrap your Server Component in a Client Component that renders the Link's \`<a>\` tag.
-           "
-          `)
+          if (partialPrefetching) {
+            // In Partial Prefetching, we do a second render to produce the embedded
+            // runtime prefetch stream, which results in a second log.
+            expect(newConsoleOutput()).toMatchInlineSnapshot(`
+             "Using a Server Component as a direct child of \`<Link legacyBehavior>\` is not supported. If you need legacyBehavior, wrap your Server Component in a Client Component that renders the Link's \`<a>\` tag.
+             Using a Server Component as a direct child of \`<Link legacyBehavior>\` is not supported. If you need legacyBehavior, wrap your Server Component in a Client Component that renders the Link's \`<a>\` tag.
+             "
+            `)
+          } else {
+            expect(newConsoleOutput()).toMatchInlineSnapshot(`
+             "Using a Server Component as a direct child of \`<Link legacyBehavior>\` is not supported. If you need legacyBehavior, wrap your Server Component in a Client Component that renders the Link's \`<a>\` tag.
+             "
+            `)
+          }
         }
       })
 

@@ -1084,37 +1084,6 @@ impl<'a> Analyzer<'a, '_> {
         }
     }
 
-    fn check_member_expr_for_effects<'ast: 'r, 'r>(
-        &mut self,
-        member_expr: &'ast MemberExpr,
-        ast_path: &AstNodePath<AstParentNodeRef<'r>>,
-    ) {
-        if !self.analyze_mode.is_code_gen() {
-            return;
-        }
-
-        let obj_value = BumpBox::new_in(
-            self.eval_context.eval(self.arena, &member_expr.obj),
-            self.arena,
-        );
-        let prop_value = match &member_expr.prop {
-            // TODO avoid clone
-            MemberProp::Ident(i) => BumpBox::new_in(i.sym.clone().into(), self.arena),
-            MemberProp::PrivateName(_) => {
-                return;
-            }
-            MemberProp::Computed(ComputedPropName { expr, .. }) => {
-                BumpBox::new_in(self.eval_context.eval(self.arena, expr), self.arena)
-            }
-        };
-        self.add_effect(Effect::Member {
-            obj: obj_value,
-            prop: prop_value,
-            ast_path: as_parent_path_in(self.arena, ast_path),
-            span: member_expr.span(),
-        });
-    }
-
     fn add_esm_module_item(&mut self, ast_path: &AstNodePath<AstParentNodeRef<'_>>) {
         if self.analyze_mode.is_code_gen() {
             self.code_gens.push(
@@ -1270,8 +1239,56 @@ impl VisitAstPath for Analyzer<'_, '_> {
         member_expr: &'ast MemberExpr,
         ast_path: &mut AstNodePath<AstParentNodeRef<'r>>,
     ) {
-        self.check_member_expr_for_effects(member_expr, ast_path);
+        if self.analyze_mode.is_code_gen() {
+            let obj_value = BumpBox::new_in(
+                self.eval_context.eval(self.arena, &member_expr.obj),
+                self.arena,
+            );
+            let prop_value = match &member_expr.prop {
+                // TODO avoid clone
+                MemberProp::Ident(i) => Some(BumpBox::new_in(i.sym.clone().into(), self.arena)),
+                MemberProp::PrivateName(_) => None,
+                MemberProp::Computed(ComputedPropName { expr, .. }) => Some(BumpBox::new_in(
+                    self.eval_context.eval(self.arena, expr),
+                    self.arena,
+                )),
+            };
+            if let Some(prop_value) = prop_value {
+                self.add_effect(Effect::Member {
+                    obj: obj_value,
+                    prop: prop_value,
+                    ast_path: as_parent_path_in(self.arena, ast_path),
+                    span: member_expr.span(),
+                });
+            }
+        }
+
         member_expr.visit_children_with_ast_path(self, ast_path);
+    }
+
+    fn visit_bin_expr<'ast: 'r, 'r>(
+        &mut self,
+        bin_expr: &'ast BinExpr,
+        ast_path: &mut AstNodePath<AstParentNodeRef<'r>>,
+    ) {
+        if self.analyze_mode.is_code_gen() && bin_expr.op == BinaryOp::In {
+            let left_value = BumpBox::new_in(
+                self.eval_context.eval(self.arena, &bin_expr.left),
+                self.arena,
+            );
+            let right_value = BumpBox::new_in(
+                self.eval_context.eval(self.arena, &bin_expr.right),
+                self.arena,
+            );
+            self.add_effect(Effect::In {
+                left: left_value,
+                right: right_value,
+                ast_path: as_parent_path_in(self.arena, ast_path),
+                span: bin_expr.span(),
+            });
+        }
+
+        bin_expr.visit_children_with_ast_path(self, ast_path);
     }
 
     fn visit_expr<'ast: 'r, 'r>(
