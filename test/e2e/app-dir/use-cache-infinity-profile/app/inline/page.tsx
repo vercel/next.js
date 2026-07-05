@@ -8,7 +8,7 @@ async function frozenValue(key: string) {
   'use cache'
   cacheLife({ stale: 300, revalidate: Infinity, expire: Infinity })
 
-  return `${key} ${new Date().toISOString()}`
+  return `${key} ${crypto.randomUUID()}`
 }
 
 async function Value({

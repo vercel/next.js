@@ -6,5 +6,5 @@ export default async function Page() {
   'use cache'
   cacheLife('frozen')
 
-  return <p id="value">{new Date().toISOString()}</p>
+  return <p id="value">{crypto.randomUUID()}</p>
 }
