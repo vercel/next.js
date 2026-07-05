@@ -2163,7 +2163,7 @@ export const defaultConfig = Object.freeze({
     reactDebugChannel: true,
     staticGenerationRetryCount: undefined,
     serverComponentsHmrCache: true,
-    serverComponentsHmrCancellation: false,
+    serverComponentsHmrCancellation: true,
     staticGenerationMaxConcurrency: 8,
     staticGenerationMinPagesPerWorker: 25,
     transitionIndicator: false,
