@@ -24,7 +24,6 @@ const unsupportedTurbopackNextConfigOptions = [
   'experimental.extensionAlias',
   'experimental.fallbackNodePolyfills',
 
-  'experimental.sri.algorithm',
   'experimental.swcTraceProfiling',
 
   // Left to be implemented (Might not be needed for Turbopack)

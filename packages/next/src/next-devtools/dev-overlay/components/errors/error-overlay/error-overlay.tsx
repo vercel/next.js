@@ -4,9 +4,9 @@ import {
   type OverlayState,
 } from '../../../shared'
 
-import { Suspense } from 'react'
+import { Activity } from 'react'
 import { BuildError } from '../../../container/build-error'
-import { Errors } from '../../../container/errors'
+import { Errors, isInstantNavigationError } from '../../../container/errors'
 import { useDelayedRender } from '../../../hooks/use-delayed-render'
 import type { ReadyRuntimeError } from '../../../utils/get-error-by-type'
 import type { HydrationErrorState } from '../../../../shared/hydration-error'
@@ -62,26 +62,31 @@ export function ErrorOverlay({
 
   // No Runtime Errors.
   if (!runtimeErrors.length) {
-    // Workaround React quirk that triggers "Switch to client-side rendering" if
-    // we return no Suspense boundary here.
-    return <Suspense />
+    return null
   }
 
-  if (!mounted) {
-    // Workaround React quirk that triggers "Switch to client-side rendering" if
-    // we return no Suspense boundary here.
-    return <Suspense />
-  }
+  // Compute a key that resets tab state when the error composition changes
+  // (e.g., normal errors resolve leaving only instant errors).
+  const hasNormal = runtimeErrors.some(
+    (e) => !isInstantNavigationError(e.error)
+  )
+  const hasInstant = runtimeErrors.some((e) =>
+    isInstantNavigationError(e.error)
+  )
+  const tabKey = `${hasNormal ? 'n' : ''}${hasInstant ? 'i' : ''}`
 
   return (
-    <Errors
-      {...commonProps}
-      debugInfo={state.debugInfo}
-      getSquashedHydrationErrorDetails={getSquashedHydrationErrorDetails}
-      runtimeErrors={runtimeErrors}
-      onClose={() => {
-        dispatch({ type: ACTION_ERROR_OVERLAY_CLOSE })
-      }}
-    />
+    <Activity mode={mounted ? 'visible' : 'hidden'}>
+      <Errors
+        key={tabKey}
+        {...commonProps}
+        debugInfo={state.debugInfo}
+        getSquashedHydrationErrorDetails={getSquashedHydrationErrorDetails}
+        runtimeErrors={runtimeErrors}
+        onClose={() => {
+          dispatch({ type: ACTION_ERROR_OVERLAY_CLOSE })
+        }}
+      />
+    </Activity>
   )
 }

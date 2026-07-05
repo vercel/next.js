@@ -14,12 +14,12 @@ workspace = true
 
 [dependencies]
 turbopack = { workspace = true }
+turbopack-node = { workspace = true, default-features = false, features = ["process_pool"]}
 
 [dev-dependencies]
 anyhow = { workspace = true }
 bincode = { workspace = true }
 dunce = { workspace = true }
-once_cell = { workspace = true }
 rustc-hash = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
@@ -42,7 +42,7 @@ turbopack-ecmascript-plugins = { workspace = true, features = [
 ] }
 turbopack-ecmascript-runtime = { workspace = true }
 turbopack-env = { workspace = true }
-turbopack-node = { workspace = true }
+turbopack-node = { workspace = true, default-features = false, features = ["process_pool"]}
 turbopack-nodejs = { workspace = true, features = ["test"] }
 turbopack-resolve = { workspace = true }
 turbopack-test-utils = { workspace = true }

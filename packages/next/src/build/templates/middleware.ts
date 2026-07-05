@@ -1,8 +1,11 @@
 import type { AdapterOptions, EdgeHandler } from '../../server/web/adapter'
-
+import '../adapter/setup-node-env.external'
 import '../../server/web/globals'
 
 import { adapter } from '../../server/web/adapter'
+import { IncrementalCache } from '../../server/lib/incremental-cache'
+declare const incrementalCacheHandler: any
+// OPTIONAL_IMPORT:incrementalCacheHandler
 
 // Import the userland code.
 import * as _mod from 'VAR_USERLAND'
@@ -74,6 +77,8 @@ function errorHandledHandler(fn: AdapterOptions['handler']) {
 const internalHandler: EdgeHandler = (opts) => {
   return adapter({
     ...opts,
+    IncrementalCache,
+    incrementalCacheHandler,
     page,
     handler: errorHandledHandler(handlerUserland),
   })

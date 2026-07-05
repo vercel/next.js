@@ -100,6 +100,17 @@ pub enum TraceRow<'a> {
         /// Deallocation count
         deallocation_count: u64,
     },
+    /// A snapshot of the process memory usage at a point in time.
+    MemorySample {
+        /// Timestamp
+        ts: u64,
+        /// Memory usage in bytes (from TurboMalloc::memory_usage())
+        memory: u64,
+        /// OS memory pressure in `0..=100` (from
+        /// `TurboMalloc::memory_pressure()`). `0` is used when the current
+        /// platform does not report a pressure value.
+        memory_pressure: u8,
+    },
 }
 
 #[derive(Debug, Serialize, Deserialize)]

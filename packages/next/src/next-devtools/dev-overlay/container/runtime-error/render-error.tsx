@@ -6,6 +6,7 @@ import {
   getErrorByType,
   type ReadyRuntimeError,
 } from '../../utils/get-error-by-type'
+import { isInstantNavigationError } from '../errors'
 
 export type SupportedErrorEvent = {
   id: number
@@ -18,6 +19,8 @@ type Props = {
   children: (params: {
     runtimeErrors: ReadyRuntimeError[]
     totalErrorCount: number
+    normalErrorCount: number
+    instantErrorCount: number
   }) => React.ReactNode
   state: OverlayState
   isAppDir: boolean
@@ -68,25 +71,24 @@ const RenderRuntimeError = ({ children, state, isAppDir }: Props) => {
       return
     }
 
-    let mounted = true
-
-    getErrorByType(nextError, isAppDir).then((resolved) => {
-      if (mounted) {
-        // We don't care if the desired error changed while we were resolving,
-        // thus we're not tracking it using a ref. Once the work has been done,
-        // we'll store it.
-        setLookups((m) => ({ ...m, [resolved.id]: resolved }))
-      }
-    })
-
-    return () => {
-      mounted = false
-    }
+    const resolved = getErrorByType(nextError, isAppDir)
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- TODO: fetch-while-rendering
+    setLookups((m) => ({ ...m, [resolved.id]: resolved }))
   }, [nextError, isAppDir])
 
   const totalErrorCount = errors.length
+  const instantErrorCount = useMemo(
+    () => runtimeErrors.filter((e) => isInstantNavigationError(e.error)).length,
+    [runtimeErrors]
+  )
+  const normalErrorCount = runtimeErrors.length - instantErrorCount
 
-  return children({ runtimeErrors, totalErrorCount })
+  return children({
+    runtimeErrors,
+    totalErrorCount,
+    normalErrorCount,
+    instantErrorCount,
+  })
 }
 
 const RenderBuildError = ({ children }: Props) => {
@@ -95,5 +97,7 @@ const RenderBuildError = ({ children }: Props) => {
     // Build errors and missing root layout tags persist until fixed,
     // so we can set a fixed error count of 1
     totalErrorCount: 1,
+    normalErrorCount: 1,
+    instantErrorCount: 0,
   })
 }

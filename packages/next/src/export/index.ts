@@ -64,7 +64,7 @@ import { formatManifest } from '../build/manifests/formatter/format-manifest'
 import { TurborepoAccessTraceResult } from '../build/turborepo-access-trace'
 import { createProgress } from '../build/progress'
 import type { DeepReadonly } from '../shared/lib/deep-readonly'
-import { isInterceptionRouteRewrite } from '../lib/generate-interception-routes-rewrites'
+import { isInterceptionRouteRewrite } from '../lib/is-interception-route-rewrite'
 import type { ActionManifest } from '../build/webpack/plugins/flight-client-entry-plugin'
 import { extractInfoFromServerReferenceId } from '../shared/lib/server-reference-info'
 import { convertSegmentPathToStaticExportFilename } from '../shared/lib/segment-cache/segment-value-encoding'
@@ -73,6 +73,7 @@ import { getParams } from './helpers/get-params'
 import { isDynamicRoute } from '../shared/lib/router/utils/is-dynamic'
 import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
 import type { Params } from '../server/request/params'
+import { Bundler } from '../lib/bundler'
 
 export class ExportError extends Error {
   code = 'NEXT_EXPORT_ERROR'
@@ -220,7 +221,7 @@ async function exportAppImpl(
         isSrcDir: null,
         hasNowJson: !!(await findUp('now.json', { cwd: dir })),
         isCustomServer: null,
-        turboFlag: false,
+        turboFlag: options.bundler === Bundler.Turbopack,
         pagesDir: null,
         appDir: null,
       })
@@ -344,8 +345,10 @@ async function exportAppImpl(
     )
   }
 
-  await fs.rm(outDir, { recursive: true, force: true })
-  await fs.mkdir(join(outDir, '_next', buildId), { recursive: true })
+  if (!options.buildExport) {
+    await fs.rm(outDir, { recursive: true, force: true })
+    await fs.mkdir(join(outDir, '_next', buildId), { recursive: true })
+  }
 
   await fs.writeFile(
     join(distDir, EXPORT_DETAIL),
@@ -477,9 +480,10 @@ async function exportAppImpl(
     isBuildTimePrerendering: true,
     assetPrefix: nextConfig.assetPrefix.replace(/\/$/, ''),
     distDir,
-    dev: false,
     basePath: nextConfig.basePath,
     cacheComponents: nextConfig.cacheComponents ?? false,
+    partialPrefetching: nextConfig.partialPrefetching,
+    validationLevel: nextConfig.experimental.instantInsights.validationLevel,
     trailingSlash: nextConfig.trailingSlash,
     locales: i18n?.locales,
     locale: i18n?.defaultLocale,
@@ -496,6 +500,7 @@ async function exportAppImpl(
     serverActions: nextConfig.experimental.serverActions,
     serverComponents: enabledDirectories.app,
     cacheLifeProfiles: nextConfig.cacheLife,
+    staticPageGenerationTimeout: nextConfig.staticPageGenerationTimeout,
     nextFontManifest: require(
       join(distDir, 'server', `${NEXT_FONT_MANIFEST}.json`)
     ),
@@ -510,20 +515,18 @@ async function exportAppImpl(
       dynamicOnHover: nextConfig.experimental.dynamicOnHover ?? false,
       optimisticRouting: nextConfig.experimental.optimisticRouting ?? false,
       inlineCss: nextConfig.experimental.inlineCss ?? false,
+      prefetchInlining: nextConfig.experimental.prefetchInlining ?? false,
       authInterrupts: !!nextConfig.experimental.authInterrupts,
+      useCacheTimeout: nextConfig.experimental.useCacheTimeout,
+      cachedNavigations: nextConfig.experimental.cachedNavigations ?? false,
+      appShells: nextConfig.experimental.appShells,
       maxPostponedStateSizeBytes: parseMaxPostponedStateSize(
         nextConfig.experimental.maxPostponedStateSize
       ),
+      exposeTestingApi:
+        nextConfig.experimental.exposeTestingApiInProductionBuild === true,
     },
     reactMaxHeadersLength: nextConfig.reactMaxHeadersLength,
-    hasReadableErrorStacks:
-      nextConfig.experimental.serverSourceMaps === true &&
-      // TODO(NDX-531): Checking (and setting) the minify flags should be
-      // unnecessary once name mapping is fixed.
-      (process.env.TURBOPACK
-        ? nextConfig.experimental.turbopackMinify === false
-        : nextConfig.experimental.serverMinification === false) &&
-      nextConfig.enablePrerenderSourceMaps === true,
   }
 
   // We need this for server rendering the Link component.
@@ -656,7 +659,7 @@ async function exportAppImpl(
   }
 
   const pagesDataDir = options.buildExport
-    ? outDir
+    ? join(distDir, 'server', 'pages')
     : join(outDir, '_next/data', buildId)
 
   const publicDir = join(dir, CLIENT_PUBLIC_FILES_PATH)
@@ -713,6 +716,9 @@ async function exportAppImpl(
           worker.exportPages({
             buildId,
             deploymentId: nextConfig.deploymentId,
+            clientAssetToken: nextConfig.experimental.supportsImmutableAssets
+              ? ''
+              : nextConfig.deploymentId,
             exportPaths: batch,
             parentSpanId: span.getId(),
             pagesDataDir,
@@ -720,7 +726,9 @@ async function exportAppImpl(
             options,
             dir,
             distDir,
-            outDir,
+            outDir: options.buildExport
+              ? join(distDir, 'server', 'pages')
+              : outDir,
             nextConfig,
             cacheHandler: nextConfig.cacheHandler,
             cacheMaxMemorySize: nextConfig.cacheMaxMemorySize,
@@ -737,11 +745,24 @@ async function exportAppImpl(
   const finalPhaseExportPaths: ExportPathEntry[] = []
 
   if (renderOpts.cacheComponents) {
+    // Only run instant validation once per route, even if multiple param sets from generateStaticParams exist.
+    const routesWithInstantValidation = new Set<string>()
+
     for (const exportPath of allExportPaths) {
       if (exportPath._allowEmptyStaticShell) {
         finalPhaseExportPaths.push(exportPath)
       } else {
         initialPhaseExportPaths.push(exportPath)
+      }
+
+      // Always mark routes for potential build validation. The actual
+      // decision of whether to validate is made per-route by
+      // anySegmentNeedsInstantValidationInBuild, which checks both the
+      // default validation level and per-segment level overrides.
+      const route = exportPath.page
+      if (!routesWithInstantValidation.has(route)) {
+        exportPath._runInstantValidation = true
+        routesWithInstantValidation.add(route)
       }
     }
   } else {
@@ -836,6 +857,10 @@ async function exportAppImpl(
         info.hasPostponed = result.hasPostponed
       }
 
+      if (typeof result.hasStaticRsc !== 'undefined') {
+        info.hasStaticRsc = result.hasStaticRsc
+      }
+
       if (typeof result.fetchMetrics !== 'undefined') {
         info.fetchMetrics = result.fetchMetrics
       }
@@ -920,19 +945,25 @@ async function exportAppImpl(
         // realizing the implications.
         const route = normalizePagePath(unnormalizedRoute)
 
-        const pagePath = getPagePath(pageName, distDir, undefined, isAppPath)
-        const distPagesDir = join(
-          pagePath,
-          // strip leading / and then recurse number of nested dirs
-          // to place from base folder
-          pageName
-            .slice(1)
-            .split('/')
-            .map(() => '..')
-            .join('/')
-        )
-
-        const orig = join(distPagesDir, route)
+        let orig: string
+        if (isAppPath) {
+          const pagePath = getPagePath(pageName, distDir, undefined, isAppPath)
+          const distPagesDir = join(
+            pagePath,
+            // strip leading / and then recurse number of nested dirs
+            // to place from base folder
+            pageName
+              .slice(1)
+              .split('/')
+              .map(() => '..')
+              .join('/')
+          )
+          orig = join(distPagesDir, route)
+        } else {
+          // Pages router files are written directly to server/pages/
+          // by the export worker during build, so read from there.
+          orig = join(distDir, 'server', 'pages', route)
+        }
         const handlerSrc = `${orig}.body`
         const handlerDest = join(outDir, route)
 
@@ -1002,7 +1033,7 @@ async function exportAppImpl(
   if (failedExportAttemptsByPage.size > 0) {
     const failedPages = Array.from(failedExportAttemptsByPage.keys())
     throw new ExportError(
-      `Export encountered errors on following paths:\n\t${failedPages
+      `Export encountered errors on ${failedPages.length} ${failedPages.length === 1 ? 'path' : 'paths'}:\n\t${failedPages
         .sort()
         .join('\n\t')}`
     )

@@ -69,11 +69,7 @@ pub trait AssetContext {
 
     /// Gets the resolve options for a given path.
     #[turbo_tasks::function]
-    fn resolve_options(
-        self: Vc<Self>,
-        origin_path: FileSystemPath,
-        reference_type: ReferenceType,
-    ) -> Vc<ResolveOptions>;
+    fn resolve_options(self: Vc<Self>, origin_path: FileSystemPath) -> Vc<ResolveOptions>;
 
     /// Resolves an request to an [ModuleResolveResult].
     #[turbo_tasks::function]

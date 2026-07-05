@@ -1,17 +1,22 @@
 use std::{
     fmt::{self, Debug, Display},
     pin::Pin,
+    sync::Arc,
 };
 
 use anyhow::Result;
 use bincode::{Decode, Encode};
 use parking_lot::Mutex;
 use rustc_hash::FxHashSet;
+#[cfg(feature = "task_dirty_cause")]
+use turbo_tasks::TaskDirtyCause;
 use turbo_tasks::{
     CellId, RawVc, TaskExecutionReason, TaskId, TaskPriority, TraitTypeId,
-    backend::{TransientTaskRoot, TurboTasksExecutionError},
+    backend::TransientTaskRoot,
     event::{Event, EventDescription, EventListener},
 };
+
+use crate::error::TaskError;
 
 // this traits are needed for the transient variants of `CachedDataItem`
 // transient variants are never cloned or compared
@@ -78,8 +83,9 @@ impl CollectiblesRef {
 pub enum OutputValue {
     Cell(CellRef),
     Output(TaskId),
-    Error(TurboTasksExecutionError),
+    Error(Arc<TaskError>),
 }
+
 impl OutputValue {
     /// Returns true if this output value references a transient task.
     ///
@@ -208,9 +214,13 @@ impl Display for TransientTask {
 
 transient_traits!(TransientTask);
 
-#[derive(Debug, Clone, Copy, Encode, Decode, PartialEq, Eq)]
+#[derive(Debug, Clone, Encode, Decode, PartialEq, Eq)]
 pub enum Dirtyness {
-    Dirty(TaskPriority),
+    Dirty {
+        parent_priority: TaskPriority,
+        #[cfg(feature = "task_dirty_cause")]
+        cause: TaskDirtyCause,
+    },
     SessionDependent,
 }
 
@@ -234,7 +244,6 @@ pub struct InProgressStateInner {
     pub stale: bool,
     #[allow(dead_code)]
     pub once_task: bool,
-    pub session_dependent: bool,
     /// Early marking as completed. This is set before the output is available and will ignore full
     /// task completion of the task for strongly consistent reads.
     pub marked_as_completed: bool,

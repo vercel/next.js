@@ -8,6 +8,7 @@ import type { UrlWithParsedQuery } from 'url'
 import type { MiddlewareRoutingItem } from '../base-server'
 import type { RouteDefinition } from '../route-definitions/route-definition'
 import type { RouteMatcherManager } from '../route-matcher-managers/route-matcher-manager'
+
 import {
   addRequestMeta,
   getRequestMeta,
@@ -24,6 +25,7 @@ import type { PagesManifest } from '../../build/webpack/plugins/pages-manifest-p
 import * as React from 'react'
 import fs from 'fs'
 import { Worker } from 'next/dist/compiled/jest-worker'
+import { installUseCacheProbe } from './use-cache-probe-pool'
 import { join as pathJoin } from 'path'
 import { PUBLIC_DIR_MIDDLEWARE_CONFLICT } from '../../lib/constants'
 import { findPagesDir } from '../../lib/find-pages-dir'
@@ -39,7 +41,12 @@ import { normalizePagePath } from '../../shared/lib/page-path/normalize-page-pat
 import { pathHasPrefix } from '../../shared/lib/router/utils/path-has-prefix'
 import { removePathPrefix } from '../../shared/lib/router/utils/remove-path-prefix'
 import { Telemetry } from '../../telemetry/storage'
-import { type Span, setGlobal, trace } from '../../trace'
+import {
+  type Span,
+  hrtimeToEpochNanoseconds,
+  setGlobal,
+  trace,
+} from '../../trace'
 import { traceGlobals } from '../../trace/shared'
 import { findPageFile } from '../lib/find-page-file'
 import { getFormattedNodeOptionsWithoutInspect } from '../lib/utils'
@@ -180,13 +187,13 @@ export default class DevServer extends Server {
     this.bundlerService = options.bundlerService
     this.startServerSpan =
       options.startServerSpan ?? trace('start-next-dev-server')
-    this.renderOpts.dev = true
     this.renderOpts.ErrorDebug = ReactDevOverlay
     this.staticPathsCache = new LRUCache(
       // 5MB
       5 * 1024 * 1024,
       function length(value) {
-        return JSON.stringify(value.staticPaths)?.length ?? 0
+        // Ensure minimum size of 1 for LRU eviction to work correctly
+        return JSON.stringify(value.staticPaths)?.length || 1
       }
     )
 
@@ -208,6 +215,13 @@ export default class DevServer extends Server {
         }
       )
     }
+
+    installUseCacheProbe({
+      distDir: this.distDir,
+      buildId: this.buildId,
+      deploymentId: this.deploymentId,
+      nextConfig: this.nextConfig,
+    })
   }
 
   protected override getServerComponentsHmrCache() {
@@ -531,6 +545,20 @@ export default class DevServer extends Server {
               getRequestMeta(req, 'devRequestTimingInternalsEnd'),
               getRequestMeta(req, 'devGenerateStaticParamsDuration')
             )
+
+            // Create trace span for render phase
+            const devRequestTimingInternalsEnd = getRequestMeta(
+              req,
+              'devRequestTimingInternalsEnd'
+            )
+            if (devRequestTimingInternalsEnd) {
+              this.startServerSpan.manualTraceChild(
+                'render-path',
+                hrtimeToEpochNanoseconds(devRequestTimingInternalsEnd),
+                hrtimeToEpochNanoseconds(requestEnd),
+                { path: req.url || '' }
+              )
+            }
           })
         }
       }
@@ -796,7 +824,11 @@ export default class DevServer extends Server {
           cacheMaxMemorySize: this.nextConfig.cacheMaxMemorySize,
           nextConfigOutput: this.nextConfig.output,
           buildId: this.buildId,
+          deploymentId: this.deploymentId,
           authInterrupts: Boolean(this.nextConfig.experimental.authInterrupts),
+          useCacheTimeout: this.nextConfig.experimental.useCacheTimeout,
+          staticPageGenerationTimeout:
+            this.nextConfig.staticPageGenerationTimeout,
           sriEnabled: Boolean(this.nextConfig.experimental.sri?.algorithm),
         })
         return pathsResult
@@ -832,9 +864,9 @@ export default class DevServer extends Server {
           }
 
           // Since generateStaticParams run on the background, when accessing the
-          // devFallbackParams during the render, it is still set to the previous
+          // fallbackParams during the render, it is still set to the previous
           // result from the cache. Therefore when the result has changed, re-render
-          // the Server Component to sync the devFallbackParams with the new result.
+          // the Server Component to sync the fallbackParams with the new result.
           if (
             isAppPath &&
             this.nextConfig.cacheComponents &&
@@ -889,6 +921,14 @@ export default class DevServer extends Server {
             existingManifest.routes[staticPath] = {} as any
           }
 
+          // Find the fallback route from the prerendered routes. This is
+          // the route whose pathname matches the page pattern (e.g.
+          // /dynamic-params/[slug]) and has fallback route params describing
+          // which params are unknown at build time.
+          const fallbackPrerenderedRoute = prerenderedRoutes?.find(
+            (route) => route.pathname === pathname
+          )
+
           existingManifest.dynamicRoutes[pathname] = {
             dataRoute: null,
             dataRouteRegex: null,
@@ -897,8 +937,8 @@ export default class DevServer extends Server {
             fallbackExpire: undefined,
             fallbackHeaders: undefined,
             fallbackStatus: undefined,
-            fallbackRootParams: undefined,
-            fallbackRouteParams: undefined,
+            fallbackRootParams: fallbackPrerenderedRoute?.fallbackRootParams,
+            fallbackRouteParams: fallbackPrerenderedRoute?.fallbackRouteParams,
             fallbackSourceRoute: pathname,
             prefetchDataRoute: undefined,
             prefetchDataRouteRegex: undefined,

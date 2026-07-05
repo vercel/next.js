@@ -6,6 +6,9 @@ const originalNextConfig = fs.readFileSync(
   __dirname + '/next.config.js',
   'utf8'
 )
+const importMetaResolveNextConfig = `export default {
+  cacheHandler: import.meta.resolve('./cache-handler-esm.js'),
+}`
 
 function runTests(
   exportType: string,
@@ -75,6 +78,26 @@ describe('app-dir - custom-cache-handler - esm', () => {
     },
     env: {
       CUSTOM_CACHE_HANDLER: 'cache-handler-esm.js',
+    },
+  })
+
+  if (skipped) {
+    return
+  }
+
+  runTests('esm default export', { next, isNextDev })
+})
+
+describe('app-dir - custom-cache-handler - esm import.meta.resolve', () => {
+  const { next, isNextDev, skipped } = nextTestSetup({
+    files: {
+      app: new FileRef(__dirname + '/app'),
+      'cache-handler-esm.js': new FileRef(__dirname + '/cache-handler-esm.js'),
+      'next.config.js': importMetaResolveNextConfig,
+    },
+    skipDeployment: true,
+    packageJson: {
+      type: 'module',
     },
   })
 

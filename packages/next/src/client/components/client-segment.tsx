@@ -1,10 +1,9 @@
 'use client'
 
-import { InvariantError } from '../../shared/lib/invariant-error'
-
 import type { Params } from '../../server/request/params'
 import { LayoutRouterContext } from '../../shared/lib/app-router-context.shared-runtime'
 import { use } from 'react'
+import { createClientParams } from './client-boundary-params'
 
 /**
  * When the Page is a client component we send the params to this client wrapper
@@ -37,29 +36,7 @@ export function ClientSegmentRoot({
       layoutRouterContext !== null ? layoutRouterContext.parentParams : {}
   }
 
-  if (typeof window === 'undefined') {
-    const { workAsyncStorage } =
-      require('../../server/app-render/work-async-storage.external') as typeof import('../../server/app-render/work-async-storage.external')
+  const clientParams = createClientParams(params)
 
-    let clientParams: Promise<Params>
-    // We are going to instrument the searchParams prop with tracking for the
-    // appropriate context. We wrap differently in prerendering vs rendering
-    const store = workAsyncStorage.getStore()
-    if (!store) {
-      throw new InvariantError(
-        'Expected workStore to exist when handling params in a client segment such as a Layout or Template.'
-      )
-    }
-
-    const { createParamsFromClient } =
-      require('../../server/request/params') as typeof import('../../server/request/params')
-    clientParams = createParamsFromClient(params, store)
-
-    return <Component {...slots} params={clientParams} />
-  } else {
-    const { createRenderParamsFromClient } =
-      require('../request/params.browser') as typeof import('../request/params.browser')
-    const clientParams = createRenderParamsFromClient(params)
-    return <Component {...slots} params={clientParams} />
-  }
+  return <Component {...slots} params={clientParams} />
 }

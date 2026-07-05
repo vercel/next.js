@@ -1,15 +1,18 @@
-import { nextTestSetup } from 'e2e-utils'
+import { isNextDeploy, nextTestSetup } from 'e2e-utils'
 import { check } from 'next-test-utils'
 import path from 'path'
 
 const describeCase = (
   caseName: string,
-  callback: (context: ReturnType<typeof nextTestSetup>) => void
+  callback: (context: ReturnType<typeof nextTestSetup>) => void,
+  { skipDeployment = true }: { skipDeployment?: boolean } = {}
 ) => {
+  if (skipDeployment && isNextDeploy) return
+
   describe(caseName, () => {
     const context = nextTestSetup({
       files: path.join(__dirname, caseName),
-      skipDeployment: true,
+      skipDeployment,
     })
     if (context.skipped) return
 
@@ -73,6 +76,18 @@ describe('Instrumentation Hook', () => {
       expect(page).toContain('Edge - finished: true')
     })
   })
+
+  describeCase(
+    'with-async-node-app-route',
+    ({ next }) => {
+      it('with-async-node-app-route should run the instrumentation hook before the app-route handler', async () => {
+        const res = await next.fetch('/api/check')
+        const body = await res.json()
+        expect(body).toEqual({ finished: true })
+      })
+    },
+    { skipDeployment: false }
+  )
 
   describeCase('general', ({ next, isNextDev }) => {
     it('should not overlap with a instrumentation page', async () => {

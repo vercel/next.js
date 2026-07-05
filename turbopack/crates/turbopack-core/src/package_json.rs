@@ -1,6 +1,7 @@
 use std::ops::Deref;
 
 use anyhow::Result;
+use async_trait::async_trait;
 use serde_json::Value as JsonValue;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
@@ -11,11 +12,8 @@ use turbo_tasks_fs::{FileJsonContent, FileSystemPath};
 use super::issue::Issue;
 use crate::{
     asset::Asset,
-    issue::{
-        IssueExt, IssueSource, IssueStage, OptionIssueSource, OptionStyledString, StyledString,
-    },
+    issue::{IssueExt, IssueSource, IssueStage, StyledString},
     source::Source,
-    source_pos::SourcePos,
 };
 
 /// PackageJson wraps the parsed JSON content of a `package.json` file. The
@@ -34,7 +32,7 @@ impl Deref for PackageJson {
     }
 }
 
-#[turbo_tasks::value(transparent, serialization = "none")]
+#[turbo_tasks::value(transparent, serialization = "skip")]
 pub struct OptionPackageJson(Option<PackageJson>);
 
 /// Reads a package.json file (if it exists). If the file is unparsable, it
@@ -51,29 +49,7 @@ pub async fn read_package_json(path: ResolvedVc<Box<dyn Source>>) -> Result<Vc<O
                 e.message
             ));
 
-            let source = match (e.start_location, e.end_location) {
-                (None, None) => IssueSource::from_source_only(path),
-                (Some((line, column)), None) | (None, Some((line, column))) => {
-                    IssueSource::from_line_col(
-                        path,
-                        SourcePos { line, column },
-                        SourcePos { line, column },
-                    )
-                }
-                (Some((start_line, start_column)), Some((end_line, end_column))) => {
-                    IssueSource::from_line_col(
-                        path,
-                        SourcePos {
-                            line: start_line,
-                            column: start_column,
-                        },
-                        SourcePos {
-                            line: end_line,
-                            column: end_column,
-                        },
-                    )
-                }
-            };
+            let source = IssueSource::from_unparsable_json(path, e);
             PackageJsonIssue {
                 error_message,
                 source,
@@ -92,32 +68,28 @@ pub struct PackageJsonIssue {
     pub source: IssueSource,
 }
 
+#[async_trait]
 #[turbo_tasks::value_impl]
 impl Issue for PackageJsonIssue {
-    #[turbo_tasks::function]
-    fn title(&self) -> Vc<StyledString> {
-        StyledString::Text(rcstr!("Error parsing package.json file")).cell()
+    async fn title(&self) -> Result<StyledString> {
+        Ok(StyledString::Text(rcstr!(
+            "Error parsing package.json file"
+        )))
     }
 
-    #[turbo_tasks::function]
-    fn stage(&self) -> Vc<IssueStage> {
-        IssueStage::Parse.cell()
+    fn stage(&self) -> IssueStage {
+        IssueStage::Parse
     }
 
-    #[turbo_tasks::function]
-    fn file_path(&self) -> Vc<FileSystemPath> {
-        self.source.file_path()
+    async fn file_path(&self) -> Result<FileSystemPath> {
+        self.source.file_path().await
     }
 
-    #[turbo_tasks::function]
-    fn description(&self) -> Vc<OptionStyledString> {
-        Vc::cell(Some(
-            StyledString::Text(self.error_message.clone()).resolved_cell(),
-        ))
+    async fn description(&self) -> Result<Option<StyledString>> {
+        Ok(Some(StyledString::Text(self.error_message.clone())))
     }
 
-    #[turbo_tasks::function]
-    fn source(&self) -> Vc<OptionIssueSource> {
-        Vc::cell(Some(self.source))
+    fn source(&self) -> Option<IssueSource> {
+        Some(self.source)
     }
 }

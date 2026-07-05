@@ -14,14 +14,32 @@ enum ExecutionState {
   Abandoned = 4,
 }
 
+type FastSetImmediateOriginals = {
+  setImmediate: typeof globalThis.setImmediate
+  clearImmediate: typeof globalThis.clearImmediate
+  nextTick: typeof process.nextTick
+}
+
+const FAST_SET_IMMEDIATE_ORIGINALS_KEY = Symbol.for(
+  'next.fast-set-immediate.originals'
+)
+
+// Re-evaluations in dev should always use the same base/original functions.
+const originals = ((globalThis as any)[FAST_SET_IMMEDIATE_ORIGINALS_KEY] ??
+  ((globalThis as any)[FAST_SET_IMMEDIATE_ORIGINALS_KEY] = {
+    setImmediate: globalThis.setImmediate,
+    clearImmediate: globalThis.clearImmediate,
+    nextTick: process.nextTick,
+  })) as FastSetImmediateOriginals
+
 let wasEnabledAtLeastOnce = false
 
 let pendingNextTicks = 0
 let currentExecution: Execution | null = null
 
-const originalSetImmediate = globalThis.setImmediate
-const originalClearImmediate = globalThis.clearImmediate
-const originalNextTick = process.nextTick
+const originalSetImmediate = originals.setImmediate
+const originalClearImmediate = originals.clearImmediate
+const originalNextTick = originals.nextTick
 const originalSetImmediatePromisify: (typeof setImmediate)['__promisify__'] =
   typeof originalSetImmediate === 'function'
     ? // @ts-expect-error: the types for `promisify.custom` are strange
@@ -29,8 +47,6 @@ const originalSetImmediatePromisify: (typeof setImmediate)['__promisify__'] =
     : // if setImmediate is not defined, we must be in the edge runtime,
       // and won't ever enable the patch, so this can be a dummy value
       undefined!
-
-export { originalSetImmediate as unpatchedSetImmediate }
 
 function install() {
   if (process.env.NEXT_RUNTIME === 'edge') {
@@ -170,6 +186,8 @@ export function expectNoPendingImmediates() {
     }
   }
 }
+
+export { originalSetImmediate as unpatchedSetImmediate }
 
 /**
  * Wait until all nextTicks and microtasks spawned from the current task are done,

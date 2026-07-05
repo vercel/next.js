@@ -29,8 +29,20 @@ The Next.js Bundle Analyzer is integrated with Turbopack's module graph. You can
 
 To get started, run the following command and open up the interactive view in your browser.
 
-```bash filename="Terminal"
+```bash filename="Terminal" package="npm"
 npx next experimental-analyze
+```
+
+```bash filename="Terminal" package="yarn"
+yarn next experimental-analyze
+```
+
+```bash filename="Terminal" package="pnpm"
+pnpm next experimental-analyze
+```
+
+```bash filename="Terminal" package="bun"
+bunx next experimental-analyze
 ```
 
 ### Step 2: Filter and inspect modules
@@ -62,8 +74,20 @@ Click a module to see its size, inspect its full import chain and see exactly wh
 
 If you want to share the analysis with teammates or compare bundle sizes before/after optimizations, you can skip the interactive view and save the analysis as a static file with the `--output` flag:
 
-```bash filename="Terminal"
+```bash filename="Terminal" package="npm"
 npx next experimental-analyze --output
+```
+
+```bash filename="Terminal" package="yarn"
+yarn next experimental-analyze --output
+```
+
+```bash filename="Terminal" package="pnpm"
+pnpm next experimental-analyze --output
+```
+
+```bash filename="Terminal" package="bun"
+bunx next experimental-analyze --output
 ```
 
 This command writes the output to `.next/diagnostics/analyze`. You can copy this directory elsewhere to compare results:
@@ -82,12 +106,20 @@ The [`@next/bundle-analyzer`](https://www.npmjs.com/package/@next/bundle-analyze
 
 Install the plugin by running the following command:
 
-```bash
-npm i @next/bundle-analyzer
-# or
-yarn add @next/bundle-analyzer
-# or
+```bash package="pnpm"
 pnpm add @next/bundle-analyzer
+```
+
+```bash package="npm"
+npm install @next/bundle-analyzer
+```
+
+```bash package="yarn"
+yarn add @next/bundle-analyzer
+```
+
+```bash package="bun"
+bun add @next/bundle-analyzer
 ```
 
 Then, add the bundle analyzer's settings to your `next.config.js`.
@@ -249,7 +281,7 @@ const nextConfig = {
 module.exports = nextConfig
 ```
 
-To automatically bundle all packages, you can use the [`bundlePagesRouterDependencies`](/docs/pages/api-reference/config/next-config-js/bundlePagesRouterDependencies) option in your `next.config.js`.
+To automatically bundle all packages, you can use the [`bundlePagesRouterDependencies`](/docs/pages/api-reference/config/next-config-js/bundlePagesRouterDependencies) option in your `next.config.js`. This option defaults to `false`.
 
 ```js filename="next.config.js"
 /** @type {import('next').NextConfig} */

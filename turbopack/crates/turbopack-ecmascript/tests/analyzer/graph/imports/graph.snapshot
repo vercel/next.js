@@ -6,9 +6,7 @@
             Module(
                 ModuleValue {
                     module: "x2",
-                    annotations: ImportAnnotations {
-                        map: {},
-                    },
+                    annotations: None,
                 },
             ),
             Constant(
@@ -27,9 +25,7 @@
             Module(
                 ModuleValue {
                     module: "x1",
-                    annotations: ImportAnnotations {
-                        map: {},
-                    },
+                    annotations: None,
                 },
             ),
             Constant(
@@ -46,9 +42,7 @@
         Module(
             ModuleValue {
                 module: "x3",
-                annotations: ImportAnnotations {
-                    map: {},
-                },
+                annotations: None,
             },
         ),
     ),

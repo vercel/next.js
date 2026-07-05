@@ -1,4 +1,5 @@
 import path from 'path'
+import crypto from 'crypto'
 import fs from 'fs/promises'
 import { pathToFileURL } from 'url'
 import * as Log from '../output/log'
@@ -30,25 +31,30 @@ import type {
   ManifestRewriteRoute,
   FunctionsConfigManifest,
   DynamicPrerenderManifestRoute,
+  ManifestHeaderRoute,
 } from '..'
 
 import {
-  CACHE_ONE_YEAR,
+  CACHE_ONE_YEAR_SECONDS,
   HTML_CONTENT_TYPE_HEADER,
   JSON_CONTENT_TYPE_HEADER,
+  NEXT_QUERY_PARAM_PREFIX,
   NEXT_RESUME_HEADER,
 } from '../../lib/constants'
 
 import { normalizeLocalePath } from '../../shared/lib/i18n/normalize-locale-path'
+import { getStaticMetadataPrerenderPathname } from '../../lib/metadata/get-metadata-route'
+import { isStaticMetadataFile } from '../../lib/metadata/is-metadata-route'
 import { addPathPrefix } from '../../shared/lib/router/utils/add-path-prefix'
 import { getRedirectStatus, modifyRouteRegex } from '../../lib/redirect-status'
 import { getNamedRouteRegex } from '../../shared/lib/router/utils/route-regex'
 import { escapeStringRegexp } from '../../shared/lib/escape-regexp'
 import { sortSortableRoutes } from '../../shared/lib/router/utils/sortable-routes'
-import { nodeFileTrace } from 'next/dist/compiled/@vercel/nft'
 import { defaultOverrides } from '../../server/require-hook'
-import { makeIgnoreFn } from '../collect-build-traces'
 import { generateRoutesManifest } from '../generate-routes-manifest'
+import { Bundler } from '../../lib/bundler'
+import { resolveCacheHandlerPathToFilesystem } from '../../lib/format-dynamic-import-path'
+import { isAPIRoute } from '../../lib/is-api-route'
 
 interface SharedRouteFields {
   /**
@@ -73,20 +79,44 @@ interface SharedRouteFields {
    * runtime is which runtime the entrypoint is built for
    */
   runtime: 'nodejs' | 'edge'
+
   /**
    * assets are all necessary traced assets that could be
    * loaded by the output to handle a request e.g. traced
    * node_modules or necessary manifests for Next.js.
-   * The key is the relative path from the repo root and the value
-   * is the absolute path to the file
+   * The key is the relative path from the repo root
    */
   assets: Record<string, string>
 
   /**
-   * wasmAssets are bundled wasm files with mapping of name
-   * to filePath on disk
+   * Hashes of the contents of each `assets` entry (not including the output path!)
+   */
+  assetsHashes: Record<string, string>
+
+  /**
+   * wasmAssets are bundled wasm files. The key is the (opaque) name of asset
    */
   wasmAssets?: Record<string, string>
+
+  /**
+   * edgeRuntime contains canonical entry metadata for invoking
+   * this output in an edge runtime.
+   */
+  edgeRuntime?: {
+    /**
+     * modulePath is the canonical module path that registers this
+     * output in the edge runtime.
+     */
+    modulePath: string
+    /**
+     * entryKey is the canonical key used for the global edge entry registry.
+     */
+    entryKey: string
+    /**
+     * handlerExport is the export name to invoke on the edge entry.
+     */
+    handlerExport: string
+  }
 
   /**
    * config related to the route
@@ -233,6 +263,11 @@ export interface AdapterOutput {
        * renderingMode signals PPR or not for a prerender
        */
       renderingMode?: RenderingMode
+      /**
+       * partialFallback signals this prerender serves a partial fallback shell
+       * and should be upgraded to a full route in the background.
+       */
+      partialFallback?: boolean
 
       /**
        * bypassToken is the generated token that signals a prerender cache
@@ -248,10 +283,24 @@ export interface AdapterOutput {
    * that does not use ISR
    */
   STATIC_FILE: {
+    /**
+     * Unique identifier for this static file output
+     */
     id: string
+    /**
+     * Absolute filesystem path to the built file
+     */
     filePath: string
+    /**
+     * The routable URL pathname for this static file
+     */
     pathname: string
     type: AdapterOutputType.STATIC_FILE
+    /**
+     * If this static file is immutable (because its filename contains a content hash), then this
+     * field contains the untruncated content hash.
+     */
+    immutableHash: string | undefined
   }
 
   /**
@@ -329,11 +378,25 @@ export interface NextAdapter {
     config: NextConfigComplete,
     ctx: {
       phase: PHASE_TYPE
+      /**
+       * nextVersion is the current version of Next.js being used
+       */
+      nextVersion: string
+      /**
+       * projectDir is the absolute directory the Next.js application is in
+       */
+      projectDir: string
     }
   ) => Promise<NextConfigComplete> | NextConfigComplete
   onBuildComplete?: (ctx: {
     routing: {
       beforeMiddleware: Array<Route>
+      /**
+       * middlewareMatchers are the middleware matcher definitions emitted by
+       * Next.js for this build and can be used to decide whether middleware
+       * should be invoked for a given request.
+       */
+      middlewareMatchers: Array<Route>
       beforeFiles: Array<Route>
       afterFiles: Array<Route>
       dynamicRoutes: Array<Route>
@@ -406,7 +469,9 @@ export async function handleBuildComplete({
   configOutDir,
   distDir,
   pageKeys,
-  tracingRoot,
+  bundler,
+  repoRoot,
+  outputFileTracingRoot,
   adapterPath,
   appPageKeys,
   staticPages,
@@ -422,16 +487,22 @@ export async function handleBuildComplete({
   hasInstrumentationHook,
   functionsConfigManifest,
 }: {
+  /** The folder containing the next.config.js file */
   dir: string
   appType: 'app' | 'pages' | 'hybrid'
+  /** The .next folder */
   distDir: string
   buildId: string
   configOutDir: string
   adapterPath: string
-  tracingRoot: string
+  /** The repository root. The base for relative output paths. */
+  repoRoot: string
+  /** A normalized version of config.outputFileTracingRoot  */
+  outputFileTracingRoot: string
   nextVersion: string
   hasStatic404: boolean
   hasStatic500: boolean
+  bundler: Bundler
   staticPages: Set<string>
   hasNodeMiddleware: boolean
   config: NextConfigComplete
@@ -475,158 +546,82 @@ export async function handleBuildComplete({
           pathname,
           filePath: path.join(configOutDir, file),
           type: AdapterOutputType.STATIC_FILE,
+          immutableHash: undefined,
         } satisfies AdapterOutput['STATIC_FILE'])
       }
     } else {
       const staticFiles = await recursiveReadDir(path.join(distDir, 'static'))
 
+      const clientHashes: Record<string, string> | undefined =
+        bundler === Bundler.Turbopack &&
+        config.experimental.supportsImmutableAssets
+          ? JSON.parse(
+              await fs.readFile(
+                path.join(distDir, 'immutable-static-hashes.json'),
+                'utf8'
+              )
+            )
+          : undefined
+
       for (const file of staticFiles) {
         const pathname = path.posix.join('/_next/static', file)
         const filePath = path.join(distDir, 'static', file)
+        const id = path.join('static', file)
         outputs.staticFiles.push({
           type: AdapterOutputType.STATIC_FILE,
-          id: path.join('static', file),
+          id,
           pathname,
           filePath,
+          immutableHash: clientHashes?.[id],
         })
       }
 
-      const sharedNodeAssets: Record<string, string> = {}
-      const pagesSharedNodeAssets: Record<string, string> = {}
-      const appPagesSharedNodeAssets: Record<string, string> = {}
-
-      const sharedTraceIgnores = [
-        '**/next/dist/compiled/next-server/**/*.dev.js',
-        '**/next/dist/compiled/webpack/*',
-        '**/node_modules/webpack5/**/*',
-        '**/next/dist/server/lib/route-resolver*',
-        'next/dist/compiled/semver/semver/**/*.js',
-        '**/node_modules/react{,-dom,-dom-server-turbopack}/**/*.development.js',
-        '**/*.d.ts',
-        '**/*.map',
-        '**/next/dist/pages/**/*',
-        '**/node_modules/sharp/**/*',
-        '**/@img/sharp-libvips*/**/*',
-        '**/next/dist/compiled/edge-runtime/**/*',
-        '**/next/dist/server/web/sandbox/**/*',
-        '**/next/dist/server/post-process.js',
-      ]
-      const sharedIgnoreFn = makeIgnoreFn(tracingRoot, sharedTraceIgnores)
-
-      for (const file of requiredServerFiles) {
-        // add to shared node assets
-        const filePath = path.join(dir, file)
-        const fileOutputPath = path.relative(tracingRoot, filePath)
-        sharedNodeAssets[fileOutputPath] = filePath
-      }
-
-      const moduleTypes = ['app-page', 'pages'] as const
-
-      for (const type of moduleTypes) {
-        const currentDependencies: string[] = []
-        const modulePath = require.resolve(
-          `next/dist/server/route-modules/${type}/module.compiled`
-        )
-        const contextDir = path.join(
-          path.dirname(modulePath),
-          'vendored',
-          'contexts'
-        )
-
-        for (const item of await fs.readdir(contextDir)) {
-          if (item.match(/\.(mjs|cjs|js)$/)) {
-            currentDependencies.push(path.join(contextDir, item))
-          }
-        }
-
-        const { fileList, esmFileList } = await nodeFileTrace(
-          currentDependencies,
-          {
-            base: tracingRoot,
-            ignore: sharedIgnoreFn,
-          }
-        )
-        esmFileList.forEach((item) => fileList.add(item))
-
-        for (const rootRelativeFilePath of fileList) {
-          if (type === 'pages') {
-            pagesSharedNodeAssets[rootRelativeFilePath] = path.join(
-              tracingRoot,
-              rootRelativeFilePath
-            )
-          } else {
-            appPagesSharedNodeAssets[rootRelativeFilePath] = path.join(
-              tracingRoot,
-              rootRelativeFilePath
-            )
-          }
-        }
-      }
-
-      // These are modules that are necessary for bootstrapping node env
-      const necessaryNodeDependencies = [
-        require.resolve('next/dist/server/node-environment'),
-        require.resolve('next/dist/server/require-hook'),
-        require.resolve('next/dist/server/node-polyfill-crypto'),
-        ...Object.values(defaultOverrides).filter((item) => path.extname(item)),
-      ]
-
-      const { fileList, esmFileList } = await nodeFileTrace(
-        necessaryNodeDependencies,
-        {
-          base: tracingRoot,
-          ignore: sharedIgnoreFn,
-        }
-      )
-      esmFileList.forEach((item) => fileList.add(item))
-
-      for (const rootRelativeFilePath of fileList) {
-        sharedNodeAssets[rootRelativeFilePath] = path.join(
-          tracingRoot,
-          rootRelativeFilePath
-        )
-      }
-
-      if (hasInstrumentationHook) {
-        const assets = await handleTraceFiles(
-          path.join(distDir, 'server', 'instrumentation.js.nft.json'),
-          'neutral'
-        )
-        const fileOutputPath = path.relative(
-          tracingRoot,
-          path.join(distDir, 'server', 'instrumentation.js')
-        )
-        sharedNodeAssets[fileOutputPath] = path.join(
-          distDir,
-          'server',
-          'instrumentation.js'
-        )
-        Object.assign(sharedNodeAssets, assets)
-      }
+      const {
+        sharedNodeAssets,
+        sharedNodeAssetsHashes,
+        pagesSharedNodeAssets,
+        pagesSharedNodeAssetsHashes,
+        appPagesSharedNodeAssets,
+        appPagesSharedNodeAssetsHashes,
+      } = await getSharedNodeAssets({
+        distDir,
+        requiredServerFiles,
+        dir,
+        repoRoot,
+        outputFileTracingRoot,
+        bundler,
+        hasInstrumentationHook,
+        config,
+      })
 
       async function handleTraceFiles(
-        traceFilePath: string,
+        entryFilePath: string,
         type: 'pages' | 'app' | 'neutral'
-      ): Promise<Record<string, string>> {
-        const assets: Record<string, string> = Object.assign(
-          {},
+      ) {
+        const assets: Record<string, string> = {}
+        const assetsHashes: Record<string, string> = {}
+        const { entryHash } = await loadNFT(
+          assets,
+          assetsHashes,
+          repoRoot,
+          `${entryFilePath}.nft.json`
+        )
+        Object.assign(
+          assets,
           sharedNodeAssets,
           type === 'pages' ? pagesSharedNodeAssets : {},
           type === 'app' ? appPagesSharedNodeAssets : {}
         )
-        const traceData = JSON.parse(
-          await fs.readFile(traceFilePath, 'utf8')
-        ) as {
-          files: string[]
+        Object.assign(
+          assetsHashes,
+          sharedNodeAssetsHashes,
+          type === 'pages' ? pagesSharedNodeAssetsHashes : {},
+          type === 'app' ? appPagesSharedNodeAssetsHashes : {}
+        )
+        if (entryHash) {
+          assetsHashes[path.relative(repoRoot, entryFilePath)] = entryHash
         }
-        const traceFileDir = path.dirname(traceFilePath)
-
-        for (const relativeFile of traceData.files) {
-          const tracedFilePath = path.join(traceFileDir, relativeFile)
-          const fileOutputPath = path.relative(tracingRoot, tracedFilePath)
-          assets[fileOutputPath] = tracedFilePath
-        }
-        return assets
+        return { assets, assetsHashes, entryHash }
       }
 
       async function handleEdgeFunction(
@@ -658,6 +653,16 @@ export async function handleBuildComplete({
         }
 
         const route = page.page.replace(/^(app|pages)\//, '')
+        const pathname = isAppPrefix
+          ? normalizeAppPath(route)
+          : route === '/index'
+            ? '/'
+            : route
+        const edgeEntrypointRelativePath = page.entrypoint
+        const edgeEntrypointPath = path.join(
+          distDir,
+          edgeEntrypointRelativePath
+        )
 
         const output: Omit<AdapterOutput[typeof type], 'type'> & {
           type: any
@@ -666,45 +671,32 @@ export async function handleBuildComplete({
           id: page.name,
           runtime: 'edge',
           sourcePage: route,
-          pathname: isAppPrefix ? normalizeAppPath(route) : route,
-          filePath: path.join(
-            distDir,
-            page.files.find(
-              (item) =>
-                item.startsWith('server/app') || item.startsWith('server/pages')
-            ) ||
-              // TODO: turbopack build doesn't name the main entry chunk
-              // identifiably so we don't know which to mark here but
-              // technically edge needs all chunks to load always so
-              // should this field even be provided?
-              page.files[0] ||
-              ''
-          ),
+          pathname,
+          filePath: edgeEntrypointPath,
+          edgeRuntime: {
+            modulePath: edgeEntrypointPath,
+            entryKey: `middleware_${page.name}`,
+            handlerExport: 'handler',
+          },
           assets: {},
+          assetsHashes: {},
+          // Computing assetsHash for edge functions isn't implemented for now
           wasmAssets: {},
           config: {
             env: page.env,
+            preferredRegion: page.regions,
           },
         }
 
-        function handleFile(file: string) {
+        for (const file of page.files) {
           const originalPath = path.join(distDir, file)
           const fileOutputPath = path.relative(
             config.distDir,
-            path.join(path.relative(tracingRoot, distDir), file)
+            path.join(path.relative(repoRoot, distDir), file)
           )
-          if (!output.assets) {
-            output.assets = {}
-          }
           output.assets[fileOutputPath] = originalPath
         }
-        for (const file of page.files) {
-          handleFile(file)
-        }
         for (const item of [...(page.assets || [])]) {
-          if (!output.assets) {
-            output.assets = {}
-          }
           output.assets[item.name] = path.join(distDir, item.filePath)
         }
         for (const item of page.wasm || []) {
@@ -747,16 +739,18 @@ export async function handleBuildComplete({
             pathname: rscPathname,
             id: page.name + '.rsc',
           })
-        } else if (serverPropsPages.has(route === '/index' ? '/' : route)) {
+        } else if (
+          type !== AdapterOutputType.MIDDLEWARE &&
+          serverPropsPages.has(pathname)
+        ) {
           const nextDataPath = path.posix.join(
             '/_next/data/',
             buildId,
-            normalizePagePath(output.pathname) + '.json'
+            normalizePagePath(pathname) + '.json'
           )
-          outputs.appPages.push({
+          outputs.pages.push({
             ...output,
             pathname: nextDataPath,
-            id: page.name,
           })
         }
       }
@@ -812,6 +806,7 @@ export async function handleBuildComplete({
                   pagesDistDir,
                   `${normalizePagePath(localePage)}.html`
                 ),
+                immutableHash: undefined,
               } satisfies AdapterOutput['STATIC_FILE']
 
               outputs.staticFiles.push(localeOutput)
@@ -822,6 +817,7 @@ export async function handleBuildComplete({
                   pathname: `${localePage}.rsc`,
                   type: AdapterOutputType.STATIC_FILE,
                   filePath: rscFallbackPath,
+                  immutableHash: undefined,
                 })
               }
             }
@@ -831,6 +827,7 @@ export async function handleBuildComplete({
               pathname: route,
               type: AdapterOutputType.STATIC_FILE,
               filePath: pageFile.replace(/\.js$/, '.html'),
+              immutableHash: undefined,
             } satisfies AdapterOutput['STATIC_FILE']
 
             outputs.staticFiles.push(staticOutput)
@@ -841,6 +838,7 @@ export async function handleBuildComplete({
                 pathname: `${route}.rsc`,
                 type: AdapterOutputType.STATIC_FILE,
                 filePath: rscFallbackPath,
+                immutableHash: undefined,
               })
             }
           }
@@ -848,15 +846,15 @@ export async function handleBuildComplete({
           continue
         }
 
-        const pageTraceFile = `${pageFile}.nft.json`
-        const assets = await handleTraceFiles(pageTraceFile, 'pages').catch(
-          (err) => {
-            if (err.code !== 'ENOENT' || (page !== '/404' && page !== '/500')) {
-              Log.warn(`Failed to locate traced assets for ${pageFile}`, err)
-            }
-            return {} as Record<string, string>
+        const { assets, assetsHashes } = await handleTraceFiles(
+          pageFile,
+          'pages'
+        ).catch((err) => {
+          if (err.code !== 'ENOENT' || (page !== '/404' && page !== '/500')) {
+            Log.warn(`Failed to locate traced assets for ${pageFile}`, err)
           }
-        )
+          return { assets: {}, assetsHashes: {} }
+        })
         const functionConfig = functionsConfigManifest.functions[route] || {}
         let sourcePage = route.replace(/^\//, '')
 
@@ -867,10 +865,11 @@ export async function handleBuildComplete({
           type: page.startsWith('/api')
             ? AdapterOutputType.PAGES_API
             : AdapterOutputType.PAGES,
-          filePath: pageTraceFile.replace(/\.nft\.json$/, ''),
+          filePath: pageFile,
           pathname: route,
           sourcePage,
           assets,
+          assetsHashes,
           runtime: 'nodejs',
           config: {
             maxDuration: functionConfig.maxDuration,
@@ -903,6 +902,7 @@ export async function handleBuildComplete({
                 pathname: rscPage,
                 type: AdapterOutputType.STATIC_FILE,
                 filePath: rscFallbackPath,
+                immutableHash: undefined,
               })
             }
           }
@@ -934,6 +934,7 @@ export async function handleBuildComplete({
                   pathname: `${localePage}.rsc`,
                   type: AdapterOutputType.STATIC_FILE,
                   filePath: rscFallbackPath,
+                  immutableHash: undefined,
                 })
               }
             }
@@ -945,8 +946,10 @@ export async function handleBuildComplete({
 
       if (hasNodeMiddleware) {
         const middlewareFile = path.join(distDir, 'server', 'middleware.js')
-        const middlewareTrace = `${middlewareFile}.nft.json`
-        const assets = await handleTraceFiles(middlewareTrace, 'neutral')
+        const { assets, assetsHashes } = await handleTraceFiles(
+          middlewareFile,
+          'neutral'
+        )
         const functionConfig =
           functionsConfigManifest.functions['/_middleware'] || {}
 
@@ -955,6 +958,7 @@ export async function handleBuildComplete({
           id: '/_middleware',
           sourcePage: 'middleware',
           assets,
+          assetsHashes,
           type: AdapterOutputType.MIDDLEWARE,
           runtime: 'nodejs',
           filePath: middlewareFile,
@@ -991,23 +995,49 @@ export async function handleBuildComplete({
             continue
           }
           const normalizedPage = normalizeAppPath(page)
+
+          // Skip static metadata routes only when they are prerendered.
+          // Dynamic metadata routes (e.g. robots/sitemap using connection())
+          // should remain app routes in adapter outputs.
+          const isStaticMetadataRoute = isStaticMetadataFile(normalizedPage)
+          const staticMetadataPrerenderPathname =
+            getStaticMetadataPrerenderPathname(normalizedPage) ?? normalizedPage
+          const isPrerenderedMetadataRoute =
+            prerenderManifest.routes[staticMetadataPrerenderPathname] ||
+            config.i18n?.locales?.some((locale) => {
+              const localePathname = path.posix.join(
+                '/',
+                locale,
+                staticMetadataPrerenderPathname.slice(1)
+              )
+              return prerenderManifest.routes[localePathname]
+            })
+
+          if (isStaticMetadataRoute && isPrerenderedMetadataRoute) {
+            continue
+          }
           const pageFile = path.join(appDistDir, `${page}.js`)
-          const pageTraceFile = `${pageFile}.nft.json`
-          const assets = await handleTraceFiles(pageTraceFile, 'app').catch(
-            (err) => {
-              Log.warn(`Failed to copy traced files for ${pageFile}`, err)
-              return {} as Record<string, string>
-            }
-          )
+          let { assets, assetsHashes } = await handleTraceFiles(
+            pageFile,
+            'app'
+          ).catch((err) => {
+            Log.warn(`Failed to copy traced files for ${pageFile}`, err)
+            return { assets: {}, assetsHashes: {} }
+          })
 
           // If this is a parallel route we just need to merge
           // the assets as they share the same pathname
           const existingOutput = appOutputMap[normalizedPage]
           if (existingOutput) {
             Object.assign(existingOutput.assets, assets)
-            existingOutput.assets[path.relative(tracingRoot, pageFile)] =
-              pageFile
-
+            Object.assign(existingOutput.assetsHashes, assetsHashes)
+            await pushAsset(
+              existingOutput.assets,
+              existingOutput.assetsHashes,
+              path.relative(repoRoot, pageFile),
+              pageFile,
+              bundler
+            )
             continue
           }
 
@@ -1020,6 +1050,7 @@ export async function handleBuildComplete({
               id: normalizedPage,
               sourcePage: page,
               assets,
+              assetsHashes,
               type: page.endsWith('/route')
                 ? AdapterOutputType.APP_ROUTE
                 : AdapterOutputType.APP_PAGE,
@@ -1085,10 +1116,7 @@ export async function handleBuildComplete({
       const handleAppMeta = async (
         route: string,
         initialOutput: AdapterOutput['PRERENDER'],
-        meta: {
-          postponed?: string
-          segmentPaths?: string[]
-        },
+        meta: AppRouteMeta,
         ctx: {
           htmlAllowQuery?: string[]
           dataAllowQuery?: string[]
@@ -1127,15 +1155,17 @@ export async function handleBuildComplete({
               ) + prefetchSegmentSuffix
 
             // Only use the fallback value when the allowQuery is defined and
-            // is empty, which means that the segments do not vary based on
-            // the route parameters. This is safer than ensuring that we only
-            // use the fallback when this is not a fallback because we know in
-            // this new logic that it doesn't vary based on the route
-            // parameters and therefore can be used for all requests instead.
-            const fallbackPathname =
-              segmentAllowQuery && segmentAllowQuery.length === 0
-                ? path.join(segmentsDir, segmentPath + prefetchSegmentSuffix)
-                : undefined
+            // either: (1) it is empty, meaning segments do not vary by params,
+            // or (2) client param parsing is enabled, meaning the segment
+            // payloads are safe to reuse across params.
+            const shouldAttachSegmentFallback =
+              segmentAllowQuery &&
+              (segmentAllowQuery.length === 0 ||
+                routesManifest.rsc.clientParamParsing)
+
+            const fallbackPathname = shouldAttachSegmentFallback
+              ? path.join(segmentsDir, segmentPath + prefetchSegmentSuffix)
+              : undefined
 
             outputs.prerenders.push({
               id: outputSegmentPath,
@@ -1147,6 +1177,7 @@ export async function handleBuildComplete({
               config: {
                 ...initialOutput.config,
                 bypassFor: undefined,
+                partialFallback: initialOutput.config.partialFallback,
               },
 
               fallback: {
@@ -1156,6 +1187,7 @@ export async function handleBuildComplete({
                 initialRevalidate: initialOutput.fallback?.initialRevalidate,
 
                 initialHeaders: {
+                  ...meta.headers,
                   ...initialOutput.fallback?.initialHeaders,
                   vary: varyHeader,
                   'content-type': rscContentTypeHeader,
@@ -1233,6 +1265,7 @@ export async function handleBuildComplete({
           initialHeaders,
           initialStatus,
           dataRoute,
+          prefetchDataRoute,
           renderingMode,
           allowHeader,
           experimentalBypassFor,
@@ -1274,6 +1307,26 @@ export async function handleBuildComplete({
           isAppPage ? appDistDir : pagesDistDir,
           `${normalizePagePath(route)}.${isAppPage && !dataRoute ? 'body' : 'html'}`
         )
+
+        // Check if this is a static metadata route (e.g., /favicon.ico, /icon.png, /opengraph-image.png)
+        // These should be output as static files, not prerenders.
+        if (isStaticMetadataFile(route)) {
+          // For static metadata from app router, check if the .body file exists
+          const staticMetadataFilePath = path.join(
+            appDistDir,
+            `${normalizePagePath(route)}.body`
+          )
+          if (await cachedFilePathCheck(staticMetadataFilePath)) {
+            outputs.staticFiles.push({
+              id: route,
+              pathname: route,
+              type: AdapterOutputType.STATIC_FILE,
+              filePath: staticMetadataFilePath,
+              immutableHash: undefined,
+            })
+            continue
+          }
+        }
 
         // we use the static 404 for notFound: true if available
         // if not we do a blocking invoke on first request
@@ -1394,6 +1447,7 @@ export async function handleBuildComplete({
             pathname: rscPage,
             type: AdapterOutputType.STATIC_FILE,
             filePath: rscFallbackPath,
+            immutableHash: undefined,
           })
         }
 
@@ -1404,13 +1458,22 @@ export async function handleBuildComplete({
           )
           let postponed = meta.postponed
 
+          const dataRouteToUse =
+            renderingMode === RenderingMode.PARTIALLY_STATIC &&
+            prefetchDataRoute
+              ? prefetchDataRoute
+              : dataRoute
+
           if (isAppPage) {
             // When experimental PPR is enabled, we expect that the data
             // that should be served as a part of the prerender should
             // be from the prefetch data route. If this isn't enabled
             // for ppr, the only way to get the data is from the data
             // route.
-            dataFilePath = path.join(appDistDir, dataRoute)
+            dataFilePath = path.join(
+              appDistDir,
+              (dataRouteToUse ?? dataRoute)?.replace(/^\//, '')
+            )
           }
 
           if (
@@ -1469,6 +1532,10 @@ export async function handleBuildComplete({
       }
 
       for (const dynamicRoute in prerenderManifest.dynamicRoutes) {
+        if (isStaticMetadataFile(dynamicRoute)) {
+          continue
+        }
+
         const {
           fallback,
           fallbackExpire,
@@ -1477,6 +1544,7 @@ export async function handleBuildComplete({
           fallbackStatus,
           fallbackSourceRoute,
           fallbackRootParams,
+          remainingPrerenderableParams,
           allowHeader,
           dataRoute,
           renderingMode,
@@ -1488,11 +1556,21 @@ export async function handleBuildComplete({
         const isAppPage = Boolean(appOutputMap[srcRoute])
 
         const meta = await getAppRouteMeta(dynamicRoute, isAppPage)
-        const allowQuery = Object.values(
+        const routeKeys =
           routesManifest.dynamicRoutes.find(
             (item) => item.page === dynamicRoute
           )?.routeKeys || {}
-        )
+        const allowQuery = Object.values(routeKeys)
+        const partialFallback =
+          isAppPage &&
+          remainingPrerenderableParams !== undefined &&
+          remainingPrerenderableParams.length > 0 &&
+          renderingMode === RenderingMode.PARTIALLY_STATIC &&
+          typeof fallback === 'string' &&
+          Boolean(meta.postponed)
+
+        const canEmitPartialFallback =
+          partialFallback && fallbackRootParams?.length === 0
         let htmlAllowQuery = allowQuery
 
         // We only want to vary on the shell contents if there is a fallback
@@ -1500,14 +1578,29 @@ export async function handleBuildComplete({
         if (typeof fallback === 'string') {
           if (fallbackRootParams && fallbackRootParams.length > 0) {
             htmlAllowQuery = fallbackRootParams as string[]
-          } // We additionally vary based on if there's a postponed prerender
+          }
+
+          // We additionally vary based on if there's a postponed prerender
           // because if there isn't, then that means that we generated an
           // empty shell, and producing an empty RSC shell would be a waste.
           // If there is a postponed prerender, then the RSC shell would be
           // non-empty, and it would be valuable to also generate an empty
           // RSC shell.
           else if (meta.postponed) {
-            htmlAllowQuery = []
+            // If there's postponed fallback content, we usually collapse to a shared shell (`[]`).
+            // For partial fallbacks in cache components, keep only the
+            // params that can still complete this shell.
+            const remainingPrerenderableQueryKeys = new Set(
+              (remainingPrerenderableParams ?? []).map(
+                (param) => `${NEXT_QUERY_PARAM_PREFIX}${param.paramName}`
+              )
+            )
+            htmlAllowQuery =
+              canEmitPartialFallback && routesManifest.rsc.clientParamParsing
+                ? Object.values(routeKeys).filter((routeKey) =>
+                    remainingPrerenderableQueryKeys.has(routeKey)
+                  )
+                : []
           }
         }
 
@@ -1552,6 +1645,7 @@ export async function handleBuildComplete({
             allowQuery: htmlAllowQuery,
             allowHeader,
             renderingMode,
+            partialFallback: canEmitPartialFallback || undefined,
             bypassFor: isAppPage ? experimentalBypassFor : undefined,
             bypassToken: prerenderManifest.preview.previewModeId,
           },
@@ -1572,6 +1666,7 @@ export async function handleBuildComplete({
               pathname: rscPage,
               type: AdapterOutputType.STATIC_FILE,
               filePath: rscFallbackPath,
+              immutableHash: undefined,
             })
           }
 
@@ -1629,6 +1724,7 @@ export async function handleBuildComplete({
               config: {
                 ...initialOutput.config,
                 allowQuery: dataAllowQuery,
+                partialFallback: undefined,
               },
             })
           } else if (dataRoute) {
@@ -1637,6 +1733,10 @@ export async function handleBuildComplete({
               id: dataRoute,
               pathname: dataRoute,
               fallback: undefined,
+              config: {
+                ...initialOutput.config,
+                partialFallback: undefined,
+              },
             })
           }
           prerenderGroupId += 1
@@ -1679,6 +1779,7 @@ export async function handleBuildComplete({
                 pathname: rscPage,
                 type: AdapterOutputType.STATIC_FILE,
                 filePath: rscFallbackPath,
+                immutableHash: undefined,
               })
             }
 
@@ -1695,6 +1796,10 @@ export async function handleBuildComplete({
                 pathname: dataPathname,
                 // data route doesn't have skeleton fallback
                 fallback: undefined,
+                config: {
+                  ...initialOutput.config,
+                  partialFallback: undefined,
+                },
                 groupId: prerenderGroupId,
               })
             }
@@ -1733,6 +1838,7 @@ export async function handleBuildComplete({
                 id: currentDocPath,
                 type: AdapterOutputType.STATIC_FILE,
                 filePath: currentFilePath,
+                immutableHash: undefined,
               })
             }
           }
@@ -1766,7 +1872,7 @@ export async function handleBuildComplete({
     ]
 
     for (const route of routesManifest.dynamicRoutes) {
-      const shouldLocalize = config.i18n
+      const shouldLocalize = Boolean(config.i18n) && !isAPIRoute(route.page)
 
       const routeRegex = getNamedRouteRegex(route.page, {
         prefixRouteKeys: true,
@@ -1774,8 +1880,6 @@ export async function handleBuildComplete({
 
       const isFallbackFalse =
         prerenderManifest.dynamicRoutes[route.page]?.fallback === false
-
-      const { hasFallbackRootParams } = route
 
       const sourceRegex = routeRegex.namedRegex.replace(
         '^',
@@ -1790,23 +1894,11 @@ export async function handleBuildComplete({
         ) + getDestinationQuery(route.routeKeys)
 
       if (appPageKeys && appPageKeys.length > 0) {
-        // If we have fallback root params (implying we've already
-        // emitted a rewrite for the /_tree request), or if the route
-        // has PPR enabled and client param parsing is enabled, then
-        // we don't need to include any other suffixes.
-        const shouldSkipSuffixes = hasFallbackRootParams
-
         dynamicRoutes.push({
           source: route.page + '.rsc',
           sourceRegex: sourceRegex.replace(
             new RegExp(escapeStringRegexp('(?:/)?$')),
-            // Now than the upstream issues has been resolved, we can safely
-            // add the suffix back, this resolves a bug related to segment
-            // rewrites not capturing the correct suffix values when
-            // enabled.
-            shouldSkipSuffixes
-              ? '(?<rscSuffix>\\.rsc|\\.segments/.+\\.segment\\.rsc)(?:/)?$'
-              : '(?<rscSuffix>\\.rsc|\\.segments/.+\\.segment\\.rsc)(?:/)?$'
+            '(?<rscSuffix>\\.rsc|\\.segments/.+\\.segment\\.rsc)(?:/)?$'
           ),
           destination: destination?.replace(/($|\?)/, '$rscSuffix$1'),
           has:
@@ -1928,6 +2020,19 @@ export async function handleBuildComplete({
       } satisfies Route
     }
 
+    const buildRouteFromHeader = (route: ManifestHeaderRoute): Route => {
+      const converted = convertHeaders([route])[0]
+      const regex = converted.src || route.regex
+      return {
+        source: route.source,
+        sourceRegex: route.internal ? regex : modifyRouteRegex(regex),
+        headers: 'headers' in converted ? converted.headers || {} : {},
+        has: route.has,
+        missing: route.missing,
+        priority: route.internal || undefined,
+      } satisfies Route
+    }
+
     try {
       Log.info(`Running onBuildComplete from ${adapterMod.name}`)
 
@@ -1958,23 +2063,23 @@ export async function handleBuildComplete({
         } satisfies Route
       })
 
-      const headers = routesManifest.headers.map((route) => {
-        const converted = convertHeaders([route])[0]
-        const regex = converted.src || route.regex
-
-        return {
-          source: route.source,
-          sourceRegex: route.internal ? regex : modifyRouteRegex(regex),
-          headers: 'headers' in converted ? converted.headers || {} : {},
-          has: route.has,
-          missing: route.missing,
-          priority: route.internal || undefined,
-        } satisfies Route
-      })
+      const headers = routesManifest.headers.map((route) =>
+        buildRouteFromHeader(route)
+      )
+      const onMatchHeaders = routesManifest.onMatchHeaders.map((route) =>
+        buildRouteFromHeader(route)
+      )
 
       await adapterMod.onBuildComplete({
         routing: {
           beforeMiddleware: [...headers, ...redirects],
+          middlewareMatchers:
+            outputs.middleware?.config.matchers?.map((matcher) => ({
+              source: matcher.source,
+              sourceRegex: matcher.sourceRegex,
+              has: matcher.has,
+              missing: matcher.missing,
+            })) ?? [],
           beforeFiles: rewrites.beforeFiles,
           afterFiles: rewrites.afterFiles,
           dynamicRoutes: combinedDynamicRoutes,
@@ -1982,13 +2087,14 @@ export async function handleBuildComplete({
             {
               // This ensures we only match known emitted-by-Next.js files and not
               // user-emitted files which may be missing a hash in their filename.
-              sourceRegex: `${path.posix.join(config.basePath || '/', '_next/static', `/(?:[^/]+/pages|pages|chunks|runtime|css|image|media|${escapeStringRegexp(buildId)})/.+`)}`,
+              sourceRegex: `${path.posix.join(config.basePath || '/', '_next/static', `/(?:[^/]+/pages|pages|chunks|immutable|runtime|css|image|media|${escapeStringRegexp(buildId)})/.+`)}`,
               // Next.js assets contain a hash or entropy in their filenames, so they
               // are guaranteed to be unique and cacheable indefinitely.
               headers: {
-                'cache-control': `public,max-age=${CACHE_ONE_YEAR},immutable`,
+                'cache-control': `public,max-age=${CACHE_ONE_YEAR_SECONDS},immutable`,
               },
             },
+            ...onMatchHeaders,
           ],
           fallback: rewrites.fallback,
           shouldNormalizeNextData: !!needsMiddlewareResolveRoutes,
@@ -2001,6 +2107,7 @@ export async function handleBuildComplete({
             config,
             redirects: [],
             headers: [],
+            onMatchHeaders: [],
             rewrites,
             restrictedRedirectPaths: [],
             isAppPPREnabled: config.cacheComponents,
@@ -2013,11 +2120,297 @@ export async function handleBuildComplete({
         buildId,
         nextVersion,
         projectDir: dir,
-        repoRoot: tracingRoot,
+        repoRoot: repoRoot,
       })
     } catch (err) {
       Log.error(`Failed to run onBuildComplete from ${adapterMod.name}`)
       throw err
     }
   }
+}
+
+async function getSharedNodeAssets({
+  dir,
+  bundler,
+  distDir,
+  repoRoot,
+  outputFileTracingRoot,
+  requiredServerFiles,
+  hasInstrumentationHook,
+  config,
+}: {
+  dir: string
+  bundler: Bundler
+  distDir: string
+  repoRoot: string
+  outputFileTracingRoot: string
+  requiredServerFiles: string[]
+  hasInstrumentationHook: boolean
+  config: NextConfigComplete
+}) {
+  const sharedNodeAssets: Record<string, string> = {}
+  const sharedNodeAssetsHashes: Record<string, string> = {}
+  const pagesSharedNodeAssets: Record<string, string> = {}
+  const pagesSharedNodeAssetsHashes: Record<string, string> = {}
+  const appPagesSharedNodeAssets: Record<string, string> = {}
+  const appPagesSharedNodeAssetsHashes: Record<string, string> = {}
+
+  const moduleTypes = ['app-page', 'pages'] as const
+
+  for (const type of moduleTypes) {
+    const currentDependencies: string[] = []
+    const modulePath = require.resolve(
+      `next/dist/server/route-modules/${type}/module.compiled`
+    )
+    currentDependencies.push(modulePath)
+
+    const contextDir = path.join(
+      path.dirname(modulePath),
+      'vendored',
+      'contexts'
+    )
+
+    for (const item of await fs.readdir(contextDir)) {
+      if (item.match(/\.(mjs|cjs|js)$/)) {
+        currentDependencies.push(path.join(contextDir, item))
+      }
+    }
+
+    for (const dependencyPath of currentDependencies) {
+      const rootRelativeFilePath = path.relative(repoRoot, dependencyPath)
+
+      if (type === 'pages') {
+        await pushAsset(
+          pagesSharedNodeAssets,
+          pagesSharedNodeAssetsHashes,
+          rootRelativeFilePath,
+          path.join(repoRoot, rootRelativeFilePath),
+          bundler
+        )
+      } else {
+        await pushAsset(
+          appPagesSharedNodeAssets,
+          appPagesSharedNodeAssetsHashes,
+          rootRelativeFilePath,
+          path.join(repoRoot, rootRelativeFilePath),
+          bundler
+        )
+      }
+    }
+  }
+
+  // add "next/setup-node-env" stub so it can be required top-level
+  // TODO: should we make this always available without adapters
+  const setupNodeStubPath = path.join(
+    path.dirname(require.resolve('next/package.json')),
+    'setup-node-env.js'
+  )
+  await pushAsset(
+    sharedNodeAssets,
+    sharedNodeAssetsHashes,
+    path.relative(repoRoot, setupNodeStubPath),
+    require.resolve('next/dist/build/adapter/setup-node-env.external'),
+    bundler
+  )
+
+  // Turbopack handles this automatically and these files are listed in the nft.json files.
+  if (bundler !== Bundler.Turbopack) {
+    const { nodeFileTrace } =
+      require('next/dist/compiled/@vercel/nft') as typeof import('next/dist/compiled/@vercel/nft')
+    const { makeIgnoreFn } =
+      require('../collect-build-traces') as typeof import('../collect-build-traces')
+
+    const sharedTraceIgnores = [
+      '**/next/dist/compiled/next-server/**/*.dev.js',
+      '**/next/dist/compiled/webpack/*',
+      '**/node_modules/webpack5/**/*',
+      '**/next/dist/server/lib/route-resolver*',
+      'next/dist/compiled/semver/semver/**/*.js',
+      '**/node_modules/react{,-dom,-dom-server-turbopack}/**/*.development.js',
+      '**/*.d.ts',
+      '**/*.map',
+      '**/next/dist/pages/**/*',
+      '**/node_modules/sharp/**/*',
+      '**/@img/sharp-libvips*/**/*',
+      '**/next/dist/compiled/edge-runtime/**/*',
+      '**/next/dist/server/web/sandbox/**/*',
+      '**/next/dist/server/post-process.js',
+    ]
+    const sharedIgnoreFn = makeIgnoreFn(
+      outputFileTracingRoot,
+      sharedTraceIgnores
+    )
+
+    // These are modules that are necessary for bootstrapping node env
+    const necessaryNodeDependencies = [
+      require.resolve('next/dist/server/node-environment'),
+      require.resolve('next/dist/server/require-hook'),
+      require.resolve('next/dist/server/node-polyfill-crypto'),
+      ...Object.values(defaultOverrides).filter((item) => path.extname(item)),
+    ]
+
+    const { cacheHandler, cacheHandlers } = config
+    // ensure we trace any dependencies needed for a custom incremental cache handler
+    if (cacheHandler) {
+      const resolvedPath = resolveCacheHandlerPathToFilesystem(cacheHandler)
+      necessaryNodeDependencies.push(
+        require.resolve(
+          path.isAbsolute(resolvedPath)
+            ? resolvedPath
+            : path.join(dir, resolvedPath)
+        )
+      )
+    }
+    if (cacheHandlers) {
+      for (const handlerPath of Object.values(cacheHandlers)) {
+        if (handlerPath) {
+          const resolvedPath = resolveCacheHandlerPathToFilesystem(handlerPath)
+          necessaryNodeDependencies.push(
+            require.resolve(
+              path.isAbsolute(resolvedPath)
+                ? resolvedPath
+                : path.join(dir, resolvedPath)
+            )
+          )
+        }
+      }
+    }
+
+    const { fileList, esmFileList } = await nodeFileTrace(
+      necessaryNodeDependencies,
+      {
+        base: outputFileTracingRoot,
+        ignore: sharedIgnoreFn,
+        moduleSyncCatchall: true,
+      }
+    )
+    esmFileList.forEach((item) => fileList.add(item))
+
+    for (const tracingRootRelativeFilePath of fileList) {
+      // nodeFileTrace returns paths relative to `base` (outputFileTracingRoot),
+      // so resolve to an absolute path and re-relativize against repoRoot, which
+      // is the root all adapter output keys/source paths are based on.
+      const absoluteFilePath = path.join(
+        outputFileTracingRoot,
+        tracingRootRelativeFilePath
+      )
+      await pushAsset(
+        sharedNodeAssets,
+        sharedNodeAssetsHashes,
+        path.relative(repoRoot, absoluteFilePath),
+        absoluteFilePath,
+        bundler
+      )
+    }
+  }
+
+  if (hasInstrumentationHook) {
+    const { entryHash: instrumentationEntryHash } = await loadNFT(
+      sharedNodeAssets,
+      sharedNodeAssetsHashes,
+      repoRoot,
+      path.join(distDir, 'server', 'instrumentation.js.nft.json')
+    )
+
+    const fileOutputPath = path.relative(
+      repoRoot,
+      path.join(distDir, 'server', 'instrumentation.js')
+    )
+    await pushAsset(
+      sharedNodeAssets,
+      sharedNodeAssetsHashes,
+      fileOutputPath,
+      path.join(distDir, 'server', 'instrumentation.js'),
+      bundler,
+      instrumentationEntryHash
+    )
+  }
+
+  // Run after hasInstrumentationHook, which inserts the NFT-provided file hash for .next/server/instrumentation.js
+  for (const file of requiredServerFiles) {
+    // add to shared node assets
+    const filePath = path.join(dir, file)
+    const fileOutputPath = path.relative(repoRoot, filePath)
+    await pushAsset(
+      sharedNodeAssets,
+      sharedNodeAssetsHashes,
+      fileOutputPath,
+      filePath,
+      bundler
+    )
+  }
+
+  return {
+    sharedNodeAssets,
+    sharedNodeAssetsHashes,
+    pagesSharedNodeAssets,
+    pagesSharedNodeAssetsHashes,
+    appPagesSharedNodeAssets,
+    appPagesSharedNodeAssetsHashes,
+  }
+}
+
+async function pushAsset(
+  assets: Record<string, string>,
+  assetsHashes: Record<string, string>,
+  targetFilePath: string,
+  sourceFilePath: string,
+  bundler: Bundler,
+  hashOverride?: string
+) {
+  if (!(targetFilePath in assets)) {
+    assets[targetFilePath] = sourceFilePath
+    if (bundler === Bundler.Turbopack) {
+      assetsHashes[targetFilePath] =
+        hashOverride ?? (await hashFile(sourceFilePath))
+    }
+  }
+}
+
+async function loadNFT(
+  assets: Record<string, string>,
+  assetsHashes: Record<string, string>,
+  repoRoot: string,
+  traceFilePath: string
+): Promise<{ entryHash?: string }> {
+  const { files, fileHashes, entryHash } = (await JSON.parse(
+    await fs.readFile(traceFilePath, 'utf8')
+  )) as {
+    files: string[]
+    fileHashes?: string[]
+    entryHash?: string
+  }
+
+  const traceFileDir = path.dirname(traceFilePath)
+  for (let i = 0; i < files.length; i++) {
+    const relativeFile = files[i]
+    const contentHash = fileHashes?.[i]
+    const tracedFilePath = path.join(traceFileDir, relativeFile)
+    const fileOutputPath = path.relative(repoRoot, tracedFilePath)
+    assets[fileOutputPath] = tracedFilePath
+    if (contentHash) {
+      assetsHashes[fileOutputPath] = contentHash
+    }
+  }
+  return { entryHash }
+}
+
+async function hashFile(filePath: string): Promise<string> {
+  const hash = crypto.createHash('sha256')
+  try {
+    // Try symlink first, since readFile just transparently resolves those (or fails if it's a
+    // directory symlink).
+    const linkTarget = await fs.readlink(filePath)
+    hash.update('link')
+    hash.update(linkTarget)
+  } catch (e: any) {
+    if (e.code === 'EINVAL') {
+      // Not a symlink
+      hash.update('file:')
+      hash.update(await fs.readFile(filePath))
+    } else {
+      throw e
+    }
+  }
+  return hash.digest('hex')
 }

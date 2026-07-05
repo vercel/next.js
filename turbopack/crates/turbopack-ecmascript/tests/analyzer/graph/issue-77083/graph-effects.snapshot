@@ -83,9 +83,7 @@
                             Module(
                                 ModuleValue {
                                     module: "./assert",
-                                    annotations: ImportAnnotations {
-                                        map: {},
-                                    },
+                                    annotations: None,
                                 },
                             ),
                             Constant(
@@ -367,9 +365,7 @@
             Module(
                 ModuleValue {
                     module: "./assert",
-                    annotations: ImportAnnotations {
-                        map: {},
-                    },
+                    annotations: None,
                 },
             ),
             Constant(
@@ -512,9 +508,7 @@
             Module(
                 ModuleValue {
                     module: "./assert",
-                    annotations: ImportAnnotations {
-                        map: {},
-                    },
+                    annotations: None,
                 },
             ),
             Constant(

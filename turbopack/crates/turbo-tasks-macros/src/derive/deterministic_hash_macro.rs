@@ -13,7 +13,13 @@ pub fn derive_deterministic_hash(input: TokenStream) -> TokenStream {
     let derive_input = parse_macro_input!(input as DeriveInput);
 
     let ident = &derive_input.ident;
-    let match_hash = match_expansion(&derive_input, &hash_named, &hash_unnamed, &hash_unit);
+    let match_hash = match_expansion(
+        ident,
+        &derive_input.data,
+        &hash_named,
+        &hash_unnamed,
+        &hash_unit,
+    );
     let discriminant = match derive_input.data {
         Data::Enum(_) => {
             quote! {

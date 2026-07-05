@@ -13,14 +13,29 @@ use turbopack_core::{
     virtual_output::VirtualOutputAsset,
 };
 
+mod backend;
 pub mod debug;
 pub mod embed_js;
 pub mod evaluate;
 pub mod execution_context;
-mod heap_queue;
-mod pool;
+mod format;
+mod pool_stats;
+#[cfg(feature = "process_pool")]
+pub mod process_pool;
 pub mod source_map;
 pub mod transforms;
+#[cfg(feature = "worker_pool")]
+pub mod worker_pool;
+
+pub use backend::{CreatePoolFuture, CreatePoolOptions, NodeBackend};
+#[cfg(feature = "process_pool")]
+pub fn child_process_backend() -> Vc<Box<dyn NodeBackend>> {
+    Vc::upcast(process_pool::ChildProcessesBackend.cell())
+}
+#[cfg(feature = "worker_pool")]
+pub fn worker_threads_backend() -> Vc<Box<dyn NodeBackend>> {
+    Vc::upcast(worker_pool::WorkerThreadsBackend.cell())
+}
 
 #[turbo_tasks::function]
 async fn emit(
@@ -31,7 +46,7 @@ async fn emit(
         let _ = asset
             .content()
             .write(asset.path().owned().await?)
-            .resolve()
+            .to_resolved()
             .await?;
     }
     Ok(())

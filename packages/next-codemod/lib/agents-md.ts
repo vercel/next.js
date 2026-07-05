@@ -5,7 +5,7 @@
  * index of all doc files, and injects it into CLAUDE.md or AGENTS.md.
  */
 
-import { execSync } from 'child_process'
+import execa from 'execa'
 import fs from 'fs'
 import path from 'path'
 import os from 'os'
@@ -16,27 +16,11 @@ interface NextjsVersionResult {
 }
 
 export function getNextjsVersion(cwd: string): NextjsVersionResult {
-  const packageJsonPath = path.join(cwd, 'package.json')
-
-  if (!fs.existsSync(packageJsonPath)) {
-    return {
-      version: null,
-      error: 'No package.json found in the current directory',
-    }
-  }
-
   try {
-    const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf-8'))
-    const dependencies = packageJson.dependencies || {}
-    const devDependencies = packageJson.devDependencies || {}
-
-    const nextVersion = dependencies.next || devDependencies.next
-
-    if (nextVersion) {
-      const cleanVersion = nextVersion.replace(/^[\^~>=<]+/, '')
-      return { version: cleanVersion }
-    }
-
+    const nextPkgPath = require.resolve('next/package.json', { paths: [cwd] })
+    const pkg = JSON.parse(fs.readFileSync(nextPkgPath, 'utf-8'))
+    return { version: pkg.version }
+  } catch {
     // Not found at root - check for monorepo workspace
     const workspace = detectWorkspace(cwd)
     if (workspace.isMonorepo && workspace.packages.length > 0) {
@@ -56,12 +40,43 @@ export function getNextjsVersion(cwd: string): NextjsVersionResult {
       version: null,
       error: 'Next.js is not installed in this project.',
     }
-  } catch (err) {
-    return {
-      version: null,
-      error: `Failed to parse package.json: ${err instanceof Error ? err.message : String(err)}`,
-    }
   }
+}
+
+interface BundledDocsInfo {
+  docsPath: string
+  version: string
+}
+
+/**
+ * Next.js ships its documentation inside the published package (at
+ * `dist/docs`) since 16.2.0. When the install resolved from `cwd` has
+ * bundled docs, the index can point at them directly instead of
+ * downloading a copy into `.next-docs`.
+ */
+export function getBundledDocsInfo(cwd: string): BundledDocsInfo | null {
+  try {
+    const nextPkgPath = require.resolve('next/package.json', { paths: [cwd] })
+    const pkg = JSON.parse(fs.readFileSync(nextPkgPath, 'utf-8'))
+    const docsPath = path.join(path.dirname(nextPkgPath), 'dist', 'docs')
+    if (!pkg.version || collectDocFiles(docsPath).length === 0) {
+      return null
+    }
+    return { docsPath, version: pkg.version }
+  } catch {
+    return null
+  }
+}
+
+export function getBundledDocsLinkPath(cwd: string, docsPath: string): string {
+  // Prefer the conventional path when it resolves from the project
+  // (covers hoisted installs; pnpm exposes next via a node_modules symlink).
+  const conventional = path.join(cwd, 'node_modules', 'next', 'dist', 'docs')
+  if (fs.existsSync(conventional)) {
+    return './node_modules/next/dist/docs'
+  }
+  const relative = path.relative(cwd, docsPath).replace(/\\/g, '/')
+  return relative.startsWith('.') ? relative : `./${relative}`
 }
 
 function versionToGitHubTag(version: string): string {
@@ -133,9 +148,20 @@ async function cloneDocsFolder(tag: string, destDir: string): Promise<void> {
 
   try {
     try {
-      execSync(
-        `git clone --depth 1 --filter=blob:none --sparse --branch ${tag} https://github.com/vercel/next.js.git .`,
-        { cwd: tempDir, stdio: 'pipe' }
+      await execa(
+        'git',
+        [
+          'clone',
+          '--depth',
+          '1',
+          '--filter=blob:none',
+          '--sparse',
+          '--branch',
+          tag,
+          'https://github.com/vercel/next.js.git',
+          '.',
+        ],
+        { cwd: tempDir }
       )
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
@@ -147,7 +173,7 @@ async function cloneDocsFolder(tag: string, destDir: string): Promise<void> {
       throw error
     }
 
-    execSync('git sparse-checkout set docs', { cwd: tempDir, stdio: 'pipe' })
+    await execa('git', ['sparse-checkout', 'set', 'docs'], { cwd: tempDir })
 
     const sourceDocsDir = path.join(tempDir, 'docs')
     if (!fs.existsSync(sourceDocsDir)) {
@@ -171,12 +197,12 @@ export function collectDocFiles(dir: string): { relativePath: string }[] {
     .filter(
       (f) =>
         (f.endsWith('.mdx') || f.endsWith('.md')) &&
-        !f.endsWith('/index.mdx') &&
-        !f.endsWith('/index.md') &&
+        !/[/\\]index\.mdx$/.test(f) &&
+        !/[/\\]index\.md$/.test(f) &&
         !f.startsWith('index.')
     )
     .sort()
-    .map((f) => ({ relativePath: f }))
+    .map((f) => ({ relativePath: f.replace(/\\/g, '/') }))
 }
 
 interface DocSection {
@@ -189,7 +215,7 @@ export function buildDocTree(files: { relativePath: string }[]): DocSection[] {
   const sections: Map<string, DocSection> = new Map()
 
   for (const file of files) {
-    const parts = file.relativePath.split('/')
+    const parts = file.relativePath.split(/[/\\]/)
     if (parts.length < 2) continue
 
     const topLevelDir = parts[0]
@@ -299,7 +325,10 @@ function groupByDirectory(files: string[]): Map<string, string[]> {
   const grouped = new Map<string, string[]>()
 
   for (const filePath of files) {
-    const lastSlash = filePath.lastIndexOf('/')
+    const lastSlash = Math.max(
+      filePath.lastIndexOf('/'),
+      filePath.lastIndexOf('\\')
+    )
     const dir = lastSlash === -1 ? '.' : filePath.slice(0, lastSlash)
     const fileName = lastSlash === -1 ? filePath : filePath.slice(lastSlash + 1)
 
@@ -511,18 +540,16 @@ function findNextjsInWorkspace(cwd: string, patterns: string[]): string | null {
   const versions: string[] = []
 
   for (const pkgPath of packagePaths) {
-    const packageJsonPath = path.join(pkgPath, 'package.json')
-    if (!fs.existsSync(packageJsonPath)) continue
-
     try {
-      const content = fs.readFileSync(packageJsonPath, 'utf-8')
-      const pkg = JSON.parse(content)
-      const nextVersion = pkg.dependencies?.next || pkg.devDependencies?.next
-      if (nextVersion) {
-        versions.push(nextVersion.replace(/^[\^~>=<]+/, ''))
+      const nextPkgPath = require.resolve('next/package.json', {
+        paths: [pkgPath],
+      })
+      const pkg = JSON.parse(fs.readFileSync(nextPkgPath, 'utf-8'))
+      if (pkg.version) {
+        versions.push(pkg.version)
       }
     } catch {
-      // Skip invalid package.json
+      // Next.js not installed in this package
     }
   }
 

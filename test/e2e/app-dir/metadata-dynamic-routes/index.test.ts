@@ -22,7 +22,7 @@ describe('app dir - metadata dynamic routes', () => {
       const res = await next.fetch('/robots.txt')
       const text = await res.text()
 
-      expect(res.headers.get('content-type')).toBe('text/plain')
+      expect(res.headers.get('content-type')).toContain('text/plain')
       expect(res.headers.get('cache-control')).toBe(CACHE_HEADERS.REVALIDATE)
 
       expect(text).toMatchInlineSnapshot(`
@@ -187,7 +187,9 @@ describe('app dir - metadata dynamic routes', () => {
       const res = await next.fetch('/manifest.webmanifest')
       const json = await res.json()
 
-      expect(res.headers.get('content-type')).toBe('application/manifest+json')
+      expect(res.headers.get('content-type')).toContain(
+        'application/manifest+json'
+      )
       expect(res.headers.get('cache-control')).toBe(CACHE_HEADERS.REVALIDATE)
 
       expect(json).toMatchObject({
@@ -436,8 +438,8 @@ describe('app dir - metadata dynamic routes', () => {
     let twitterImageUrlPattern
     if (isNextDeploy) {
       // absolute urls
-      ogImageUrlPattern = /https:\/\/[\w-]+.vercel.app\/opengraph-image\?/
-      twitterImageUrlPattern = /https:\/\/[\w-]+.vercel.app\/twitter-image\?/
+      ogImageUrlPattern = /https:\/\/[^/]+\/opengraph-image\?/
+      twitterImageUrlPattern = /https:\/\/[^/]+\/twitter-image\?/
     } else if (isNextStart) {
       // configured metadataBase for next start
       ogImageUrlPattern = /https:\/\/mydomain.com\/opengraph-image\?/
@@ -463,21 +465,20 @@ describe('app dir - metadata dynamic routes', () => {
     const $ = await next.render$('/metadata-base/unset')
     const twitterImage = $('meta[name="twitter:image"]').attr('content')
     const ogImages = $('meta[property="og:image"]')
+    const hostPattern = isNextDeploy
+      ? /https?:\/\/[^/]+/
+      : /http:\/\/localhost:\d+/
 
     expect(ogImages.length).toBe(2)
     ogImages.each((_, ogImage) => {
       const ogImageUrl = $(ogImage).attr('content')
-      expect(ogImageUrl).toMatch(
-        isNextDeploy ? /https:\/\/[\w-]+.vercel.app/ : /http:\/\/localhost:\d+/
-      )
+      expect(ogImageUrl).toMatch(hostPattern)
       expect(ogImageUrl).toMatch(
         /\/metadata-base\/unset\/opengraph-image2\/10\d/
       )
     })
 
-    expect(twitterImage).toMatch(
-      isNextDeploy ? /https:\/\/[\w-]+.vercel.app/ : /http:\/\/localhost:\d+/
-    )
+    expect(twitterImage).toMatch(hostPattern)
     expect(twitterImage).toMatch(/\/metadata-base\/unset\/twitter-image\.png/)
   })
 
@@ -502,7 +503,7 @@ describe('app dir - metadata dynamic routes', () => {
 
       // @vercel/og default font should be traced
       const isTraced = fileTrace.files.some((filePath) =>
-        filePath.includes('/noto-sans-v27-latin-regular.ttf')
+        filePath.includes('/Geist-Regular.ttf')
       )
       expect(isTraced).toBe(true)
     })
@@ -543,6 +544,7 @@ describe('app dir - metadata dynamic routes', () => {
          "/opengraph-image",
          "/opengraph-image-1ow20b",
          "/robots.txt",
+         "/sitemap",
          "/sitemap-image/sitemap.xml",
          "/sitemap-video/sitemap.xml",
          "/sitemap.xml",

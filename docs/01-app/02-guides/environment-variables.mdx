@@ -86,8 +86,20 @@ This package is used internally by Next.js to load environment variables from `.
 
 To use it, install the package and use the `loadEnvConfig` function to load the environment variables:
 
-```bash
+```bash package="pnpm"
+pnpm add @next/env
+```
+
+```bash package="npm"
 npm install @next/env
+```
+
+```bash package="yarn"
+yarn add @next/env
+```
+
+```bash package="bun"
+bun add @next/env
 ```
 
 ```tsx filename="envConfig.ts" switcher
@@ -145,7 +157,7 @@ Non-`NEXT_PUBLIC_` environment variables are only available in the Node.js envir
 
 In order to make the value of an environment variable accessible in the browser, Next.js can "inline" a value, at build time, into the js bundle that is delivered to the client, replacing all references to `process.env.[variable]` with a hard-coded value. To tell it to do this, you just have to prefix the variable with `NEXT_PUBLIC_`. For example:
 
-```txt filename="Terminal"
+```txt filename=".env"
 NEXT_PUBLIC_ANALYTICS_ID=abcdefghijk
 ```
 
@@ -200,7 +212,7 @@ import { connection } from 'next/server'
 
 export default async function Component() {
   await connection()
-  // cookies, headers, and other Dynamic APIs
+  // cookies, headers, and other Request-time APIs
   // will also opt into dynamic rendering, meaning
   // this env variable is evaluated at runtime
   const value = process.env.MY_VALUE
@@ -213,7 +225,7 @@ import { connection } from 'next/server'
 
 export default async function Component() {
   await connection()
-  // cookies, headers, and other Dynamic APIs
+  // cookies, headers, and other Request-time APIs
   // will also opt into dynamic rendering, meaning
   // this env variable is evaluated at runtime
   const value = process.env.MY_VALUE

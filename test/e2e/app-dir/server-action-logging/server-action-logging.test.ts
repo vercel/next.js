@@ -187,3 +187,31 @@ describe('server-action-logging', () => {
     })
   })
 })
+
+describe('server-action-logging when logging.serverFunctions is disabled', () => {
+  const { next, isNextDev, skipped } = nextTestSetup({
+    skipDeployment: true,
+    files: __dirname,
+    env: {
+      NEXT_TEST_SERVER_FUNCTION_LOGGING: 'false',
+    },
+  })
+
+  if (skipped) return
+
+  it('should not log server actions', async () => {
+    const browser = await next.browser('/')
+    const outputIndex = next.cliOutput.length
+
+    await browser.elementByCss('#success-action').click()
+    await browser.waitForElementByCss('#result')
+
+    await retry(() => {
+      const logs = stripAnsi(next.cliOutput.slice(outputIndex))
+      if (isNextDev) {
+        expect(logs).toContain('POST /')
+      }
+      expect(logs).not.toContain('└─ ƒ successAction')
+    })
+  })
+})

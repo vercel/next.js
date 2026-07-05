@@ -1,3 +1,3 @@
-let imp = (path) => import(`unified/${path}.js`)
+let imp = (path) => import(`twilio/${path}.js`)
 
 imp('index')

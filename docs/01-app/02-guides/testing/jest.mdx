@@ -14,8 +14,20 @@ Jest and React Testing Library are frequently used together for **Unit Testing**
 
 You can use `create-next-app` with the Next.js [with-jest](https://github.com/vercel/next.js/tree/canary/examples/with-jest) example to quickly get started:
 
-```bash filename="Terminal"
+```bash package="pnpm"
+pnpm create next-app --example with-jest with-jest-app
+```
+
+```bash package="npm"
 npx create-next-app@latest --example with-jest with-jest-app
+```
+
+```bash package="yarn"
+yarn create next-app --example with-jest with-jest-app
+```
+
+```bash package="bun"
+bun create next-app --example with-jest with-jest-app
 ```
 
 ## Manual setup
@@ -24,22 +36,38 @@ Since the release of [Next.js 12](https://nextjs.org/blog/next-12), Next.js now 
 
 To set up Jest, install `jest` and the following packages as dev dependencies:
 
-```bash filename="Terminal"
+```bash package="pnpm"
+pnpm add -D jest jest-environment-jsdom @testing-library/react @testing-library/dom @testing-library/jest-dom ts-node @types/jest
+```
+
+```bash package="npm"
 npm install -D jest jest-environment-jsdom @testing-library/react @testing-library/dom @testing-library/jest-dom ts-node @types/jest
-# or
+```
+
+```bash package="yarn"
 yarn add -D jest jest-environment-jsdom @testing-library/react @testing-library/dom @testing-library/jest-dom ts-node @types/jest
-# or
-pnpm install -D jest jest-environment-jsdom @testing-library/react @testing-library/dom @testing-library/jest-dom ts-node @types/jest
+```
+
+```bash package="bun"
+bun add -D jest jest-environment-jsdom @testing-library/react @testing-library/dom @testing-library/jest-dom ts-node @types/jest
 ```
 
 Generate a basic Jest configuration file by running the following command:
 
-```bash filename="Terminal"
-npm init jest@latest
-# or
-yarn create jest@latest
-# or
+```bash package="pnpm"
 pnpm create jest@latest
+```
+
+```bash package="npm"
+npm init jest@latest
+```
+
+```bash package="yarn"
+yarn create jest@latest
+```
+
+```bash package="bun"
+bun create jest@latest
 ```
 
 This will take you through a series of prompts to setup Jest for your project, including automatically creating a `jest.config.ts|js` file.
@@ -369,12 +397,20 @@ it('renders homepage unchanged', () => {
 
 Then, run the following command to run your tests:
 
-```bash filename="Terminal"
-npm run test
-# or
-yarn test
-# or
+```bash package="pnpm"
 pnpm test
+```
+
+```bash package="npm"
+npm run test
+```
+
+```bash package="yarn"
+yarn test
+```
+
+```bash package="bun"
+bun run test
 ```
 
 ## Additional Resources

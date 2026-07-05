@@ -16,7 +16,7 @@ use crate::{
     code_gen::{CodeGen, CodeGeneration},
     create_visitor, magic_identifier,
     references::AstPath,
-    runtime_functions::TURBOPACK_RESOLVE_ABSOLUTE_PATH,
+    runtime_functions::{TURBOPACK_MODULE, TURBOPACK_RESOLVE_FILE_URL},
 };
 
 /// Responsible for initializing the `import.meta` object binding, so that it
@@ -31,11 +31,12 @@ use crate::{
 )]
 pub struct ImportMetaBinding {
     path: FileSystemPath,
+    hmr_enabled: bool,
 }
 
 impl ImportMetaBinding {
-    pub fn new(path: FileSystemPath) -> Self {
-        ImportMetaBinding { path }
+    pub fn new(path: FileSystemPath, hmr_enabled: bool) -> Self {
+        ImportMetaBinding { path, hmr_enabled }
     }
 
     pub async fn code_generation(
@@ -54,25 +55,40 @@ impl ImportMetaBinding {
                 )
             },
             |path| {
+                // `encode_path` only escapes characters that would break the JS string literal
+                // we embed `formatted` into. The runtime helper (`TURBOPACK_RESOLVE_FILE_URL`)
+                // is responsible for producing the final, properly URL-encoded `file://` URI.
                 let formatted = encode_path(path.trim_start_matches("./")).to_string();
                 quote!(
-                    "`file://${$turbopack_resolve_absolute_path($formatted)}`" as Expr,
-                    turbopack_resolve_absolute_path: Expr = TURBOPACK_RESOLVE_ABSOLUTE_PATH.into(),
+                    "$turbopack_resolve_file_url($formatted)" as Expr,
+                    turbopack_resolve_file_url: Expr = TURBOPACK_RESOLVE_FILE_URL.into(),
                     formatted: Expr = formatted.into()
                 )
             },
         );
 
-        Ok(CodeGeneration::hoisted_stmt(
-            rcstr!("import.meta"),
-            // [NOTE] url property is lazy-evaluated, as it should be computed once
-            // turbopack_runtime injects a function to calculate an absolute path.
+        let hmr_enabled = self.hmr_enabled;
+
+        // [NOTE] url property is lazy-evaluated, as it should be computed once
+        // turbopack_runtime injects a function to calculate an absolute path.
+        let stmt = if hmr_enabled {
+            // turbopackHot exposes the HMR API (equivalent to module.hot in CJS).
+            let turbopack_module: Expr = TURBOPACK_MODULE.into();
             quote!(
-                "const $name = { get url() { return $path } };" as Stmt,
+                "var $name = { get url() { return $path }, get turbopackHot() { return $m.hot } };" as Stmt,
                 name = meta_ident(),
-                path: Expr = path.clone(),
-            ),
-        ))
+                path: Expr = path,
+                m: Expr = turbopack_module,
+            )
+        } else {
+            quote!(
+                "var $name = { get url() { return $path } };" as Stmt,
+                name = meta_ident(),
+                path: Expr = path,
+            )
+        };
+
+        Ok(CodeGeneration::hoisted_stmt(rcstr!("import.meta"), stmt))
     }
 }
 

@@ -209,6 +209,24 @@ class NextTracerImpl implements NextTracer {
     return trace.getTracer('next.js', '0.0.1')
   }
 
+  private isTracingEnabled(): boolean {
+    if (this.getActiveScopeSpan()?.isRecording()) {
+      return true
+    }
+
+    const tracerProvider = trace.getTracerProvider() as {
+      getDelegate?: () => { constructor?: { name?: string } } | undefined
+    }
+
+    if (!('getDelegate' in tracerProvider)) {
+      return true
+    }
+
+    return (
+      tracerProvider.getDelegate?.()?.constructor?.name !== 'NoopTracerProvider'
+    )
+  }
+
   public getContext(): ContextAPI {
     return context
   }
@@ -227,13 +245,37 @@ class NextTracerImpl implements NextTracer {
   public withPropagatedContext<T, C>(
     carrier: C,
     fn: () => T,
-    getter?: TextMapGetter<C>
+    getter?: TextMapGetter<C>,
+    force = false
   ): T {
     const activeContext = context.active()
+
+    if (
+      !NEXT_OTEL_PERFORMANCE_PREFIX &&
+      !this.isTracingEnabled() &&
+      !trace.getSpanContext(activeContext)
+    ) {
+      return fn()
+    }
+
+    if (force) {
+      const remoteContext = propagation.extract(ROOT_CONTEXT, carrier, getter)
+
+      if (trace.getSpanContext(remoteContext)) {
+        return context.with(remoteContext, fn)
+      }
+
+      // Preserve the current active span while still merging any extracted
+      // baggage/context values from the carrier.
+      const mergedContext = propagation.extract(activeContext, carrier, getter)
+      return context.with(mergedContext, fn)
+    }
+
     if (trace.getSpanContext(activeContext)) {
       // Active span is already set, too late to propagate.
       return fn()
     }
+
     const remoteContext = propagation.extract(activeContext, carrier, getter)
     return context.with(remoteContext, fn)
   }
@@ -260,6 +302,10 @@ class NextTracerImpl implements NextTracer {
   ): T
   public trace<T>(...args: Array<any>) {
     const [type, fnOrOptions, fnOrEmpty] = args
+
+    if (!NEXT_OTEL_PERFORMANCE_PREFIX && !this.isTracingEnabled()) {
+      return typeof fnOrOptions === 'function' ? fnOrOptions() : fnOrEmpty()
+    }
 
     // coerce options form overload
     const {

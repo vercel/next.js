@@ -2,9 +2,27 @@ import type * as Playwright from 'playwright'
 import { diff } from 'jest-diff'
 import { equals } from '@jest/expect-utils'
 
+// Mirrors NEXT_ROUTER_PREFETCH_HEADER from the Next.js client. App Shell
+// prefetches carry the value '3' (FetchStrategy.RuntimeShell). The App Shell is
+// the param/searchParam-independent chrome of a route — conceptually part of the
+// route itself, not prefetch data in the way we normally think of it. By default
+// we therefore exclude App Shell requests from all `act` assertion logic
+// (`includes` matching, `no-requests`, `block: 'reject'`, and the "at least one
+// request" check). They are still intercepted, fulfilled, and awaited so that the
+// browser caches the shell and no requests are left in flight. Pass
+// `includeAppShellRequests: true` to `createRouterAct` to assert on them directly
+// (e.g. when testing App Shell behavior specifically).
+const NEXT_ROUTER_PREFETCH_HEADER = 'next-router-prefetch'
+const APP_SHELL_PREFETCH_VALUE = '3'
+
 type Batch = {
   pendingRequestChecks: Set<Promise<void>>
   pendingRequests: Set<PendingRSCRequest>
+  // The number of pending requests in `pendingRequests` that are NOT App Shell
+  // requests. App Shell requests don't count toward the "at least one request"
+  // check, so we track this separately rather than scanning the set. Maintained
+  // in lockstep with `pendingRequests` membership.
+  pendingNonAppShellRequests: number
 }
 
 type PendingRSCRequest = {
@@ -17,6 +35,10 @@ type PendingRSCRequest = {
     status: number
   }>
   didProcess: boolean
+  // True if this is an App Shell prefetch request that should be ignored for
+  // assertion purposes (see note above). Always false when the caller passes
+  // `includeAppShellRequests: true`.
+  isAppShell: boolean
 }
 
 let currentBatch: Batch | null = null
@@ -63,8 +85,19 @@ export function createRouterAct(
      * provided, all error status codes are disallowed (400+).
      */
     allowErrorStatusCodes?: number[]
+    /**
+     * By default, App Shell prefetch requests (those with a
+     * `next-router-prefetch: '3'` header) are ignored for the purposes of
+     * assertion matching, `no-requests`, `block: 'reject'`, and the "at least
+     * one request" check. They are still intercepted, fulfilled, and awaited.
+     *
+     * Set this to `true` to treat App Shell requests like any other router
+     * request. Use this when writing tests for App Shell behavior specifically.
+     */
+    includeAppShellRequests?: boolean
   }
 ): <T>(scope: () => Promise<T> | T, config?: ActConfig) => Promise<T> {
+  const includeAppShellRequests = options?.includeAppShellRequests ?? false
   /**
    * Helper function to wait for requestIdleCallback with retry logic.
    * Retries up to 3 times if "Execution context was destroyed" error occurs.
@@ -214,19 +247,37 @@ export function createRouterAct(
           headers['rsc'] !== undefined || // Matches navigations and prefetches
           headers['next-action'] !== undefined // Matches Server Actions
 
+        // App Shell prefetch requests are intercepted and fulfilled like any
+        // other router request, but (unless the caller opts in) they don't
+        // participate in any assertion logic. See the note at the top of
+        // this file.
+        const isAppShell =
+          !includeAppShellRequests &&
+          headers[NEXT_ROUTER_PREFETCH_HEADER] === APP_SHELL_PREFETCH_VALUE
+
         if (isRouterRequest) {
           // This request was initiated by the Next.js Router. Intercept it and
           // add it to the current batch.
           pendingRequests.add({
             url: request.url(),
             route,
+            isAppShell,
             // `act` controls the timing of when responses reach the client,
             // but it should not affect the timing of when requests reach the
             // server; we pass the request to the server the immediately.
             result: (async () => {
-              const originalResponse = await page.request.fetch(request, {
-                maxRedirects: 0,
-              })
+              let originalResponse: Playwright.APIResponse
+              try {
+                originalResponse = await page.request.fetch(request, {
+                  maxRedirects: 0,
+                })
+              } catch (fetchError) {
+                error.message =
+                  fetchError instanceof Error
+                    ? fetchError.message
+                    : String(fetchError)
+                throw error
+              }
 
               // WORKAROUND:
               // intercepting responses with 'Transfer-Encoding: chunked' (used for streaming)
@@ -245,9 +296,14 @@ export function createRouterAct(
             })(),
             didProcess: false,
           })
-          if (onDidIssueFirstRequest !== null) {
-            onDidIssueFirstRequest()
-            onDidIssueFirstRequest = null
+          // App Shell requests don't count toward the "at least one request"
+          // check, so only track and signal for non-App-Shell requests.
+          if (!isAppShell) {
+            batch.pendingNonAppShellRequests++
+            if (onDidIssueFirstRequest !== null) {
+              onDidIssueFirstRequest()
+              onDidIssueFirstRequest = null
+            }
           }
           return
         }
@@ -271,6 +327,7 @@ export function createRouterAct(
       const orphanedRequests = batch.pendingRequests
       batch.pendingRequests = new Set()
       batch.pendingRequestChecks = new Set()
+      batch.pendingNonAppShellRequests = 0
       await Promise.all(
         Array.from(orphanedRequests).map((item) => item.route?.continue())
       )
@@ -284,9 +341,11 @@ export function createRouterAct(
     }
 
     const prevBatch = currentBatch
+
     const batch: Batch = {
       pendingRequestChecks: new Set(),
       pendingRequests: new Set(),
+      pendingNonAppShellRequests: 0,
     }
     currentBatch = batch
     await page.route('**/*', routeHandler)
@@ -295,8 +354,12 @@ export function createRouterAct(
       // Call the user-provided scope function
       const returnValue = await scope()
 
-      // Wait until the first request is initiated, up to some timeout.
-      if (expectedResponses !== null && batch.pendingRequests.size === 0) {
+      // Wait until the first request is initiated, up to some timeout. App Shell
+      // requests don't count, so check the non-App-Shell pending request count.
+      if (
+        expectedResponses !== null &&
+        batch.pendingNonAppShellRequests === 0
+      ) {
         await new Promise<void>((resolve, reject) => {
           const timerId = setTimeout(() => {
             error.message = 'Timed out waiting for a request to be initiated.'
@@ -332,36 +395,20 @@ export function createRouterAct(
 
       let claimedExpectations = new Set<ExpectedResponseConfig>()
 
-      // Track when the queue was last empty to implement a settling period
-      let queueEmptyStartTime: number | null = null
-      const SETTLING_PERIOD_MS = 500 // Wait 500ms after queue empties
-
-      while (
-        batch.pendingRequests.size > 0 ||
-        queueEmptyStartTime === null ||
-        Date.now() - queueEmptyStartTime < SETTLING_PERIOD_MS
-      ) {
-        if (batch.pendingRequests.size > 0) {
-          // Queue has requests, reset settling timer
-          queueEmptyStartTime = null
-        } else if (queueEmptyStartTime === null) {
-          // Queue just became empty, start settling timer
-          queueEmptyStartTime = Date.now()
-        }
-
-        if (batch.pendingRequests.size === 0) {
-          // Queue is empty during settling period, wait a bit and check again
-          await new Promise((resolve) => setTimeout(resolve, 50))
-          await waitForIdleCallback()
-          await waitForPendingRequestChecks()
-          continue
-        }
-
+      while (batch.pendingRequests.size > 0) {
         const pending = batch.pendingRequests
         batch.pendingRequests = new Set()
         for (const item of pending) {
           const route = item.route
           const url = item.url
+
+          // This request is being removed from `pendingRequests` for
+          // processing. Keep the non-App-Shell counter in lockstep. (If it ends
+          // up blocked and transferred to the outer batch, that batch's counter
+          // is incremented when the transfer happens, below.)
+          if (!item.isAppShell) {
+            batch.pendingNonAppShellRequests--
+          }
 
           let shouldBlock = false
           const fulfilled = await item.result
@@ -369,7 +416,7 @@ export function createRouterAct(
             // This response was already processed by an inner `act` call.
           } else {
             item.didProcess = true
-            if (expectedResponses === null) {
+            if (!item.isAppShell && expectedResponses === null) {
               error.message = `
 Expected no network requests to be initiated.
 
@@ -382,6 +429,8 @@ ${fulfilled.body}
 
               throw error
             }
+            // The error-status check applies to all requests, including App
+            // Shell requests — a 4xx/5xx App Shell is a real failure.
             if (
               fulfilled.status >= 400 &&
               (allowStatuses === null ||
@@ -399,7 +448,7 @@ ${fulfilled.body}
 `
               throw error
             }
-            if (forbiddenResponses !== null) {
+            if (!item.isAppShell && forbiddenResponses !== null) {
               for (const forbiddenResponse of forbiddenResponses) {
                 const includes = forbiddenResponse.includes
                 if (fulfilled.body.includes(includes)) {
@@ -415,7 +464,7 @@ ${fulfilled.body}
                 }
               }
             }
-            if (expectedResponses !== null) {
+            if (!item.isAppShell && expectedResponses !== null) {
               // Check if this response matches any of the expectations.
               //
               //
@@ -553,7 +602,13 @@ ${fulfilled.body}
                         }
                       })(),
                       didProcess: false,
+                      // The target of a redirect is a navigation, not an App
+                      // Shell prefetch.
+                      isAppShell: false,
                     })
+                    // Keep the counter in lockstep with the add above (drained
+                    // and decremented on the next iteration of the while loop).
+                    batch.pendingNonAppShellRequests++
                     page.off('response', handleResponse)
                     page.off('requestfailed', handleFailure)
                     resolve()
@@ -626,6 +681,9 @@ ${fulfilled.body}
       if (remaining.size !== 0 && prevBatch !== null) {
         for (const item of remaining) {
           prevBatch.pendingRequests.add(item)
+          if (!item.isAppShell) {
+            prevBatch.pendingNonAppShellRequests++
+          }
         }
       }
 

@@ -1,5 +1,5 @@
 import React from "react";
-import ReactMarkdown from "react-markdown";
+import { Streamdown } from "streamdown";
 import Link from "next/link";
 import { PostProps } from "../pages/blog/[id]";
 
@@ -11,9 +11,9 @@ const Post: React.FC<{ post: PostProps }> = ({ post }) => {
         <small>By {post.authorName}</small>
         <br />
         <br />
-        <ReactMarkdown className={"react-markdown"}>
+        <Streamdown mode="static" className="streamdown">
           {post.content || ""}
-        </ReactMarkdown>
+        </Streamdown>
         <style jsx>{`
           div {
             color: inherit;
@@ -27,8 +27,8 @@ const Post: React.FC<{ post: PostProps }> = ({ post }) => {
           small {
             color: #888;
           }
-          .react-markdown,
-          .react-markdown > p {
+          .streamdown,
+          .streamdown > p {
             margin: 0px;
           }
         `}</style>

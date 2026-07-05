@@ -28,7 +28,6 @@ describe('Required Server Files', () => {
       let server: Awaited<ReturnType<typeof startApp>>
       let appPort: number
 
-      let buildId: string
       let requiredFilesManifest: any
 
       // This suite unfortunately requires a very bespoke setup to set NEXT_PRIVATE_TEST_HEADERS and
@@ -36,8 +35,6 @@ describe('Required Server Files', () => {
       beforeAll(async () => {
         await next.build()
         await next.deleteFile('pages')
-
-        buildId = (await next.readFile(join('.next/BUILD_ID'))).trim()
 
         requiredFilesManifest = await next.readJSON(
           join('.next/required-server-files.json')
@@ -196,7 +193,7 @@ describe('Required Server Files', () => {
         const { pageProps: data4 } = JSON.parse(
           await renderViaHTTP(
             appPort,
-            `/_next/data/${buildId}/fallback/third.json`,
+            `/_next/data/${next.buildId}/fallback/third.json`,
             undefined,
             withInvocationId()
           )
@@ -319,7 +316,7 @@ describe('Required Server Files', () => {
       it('should return data correctly with x-matched-path', async () => {
         const res = await fetchViaHTTP(
           appPort,
-          `/_next/data/${buildId}/dynamic/first.json?nxtPslug=first`,
+          `/_next/data/${next.buildId}/dynamic/first.json?nxtPslug=first`,
           undefined,
           withInvocationId({
             headers: {
@@ -335,11 +332,11 @@ describe('Required Server Files', () => {
 
         const res2 = await fetchViaHTTP(
           appPort,
-          `/_next/data/${buildId}/fallback/[slug].json`,
+          `/_next/data/${next.buildId}/fallback/[slug].json`,
           undefined,
           withInvocationId({
             headers: {
-              'x-matched-path': `/_next/data/${buildId}/fallback/[slug].json`,
+              'x-matched-path': `/_next/data/${next.buildId}/fallback/[slug].json`,
               'x-now-route-matches': 'nxtPslug=second',
             },
           })
@@ -505,7 +502,7 @@ describe('Required Server Files', () => {
       it('should return data correctly with x-matched-path for optional catch-all route', async () => {
         const res = await fetchViaHTTP(
           appPort,
-          `/_next/data/${buildId}/catch-all.json`,
+          `/_next/data/${next.buildId}/catch-all.json`,
           undefined,
           withInvocationId({
             headers: {
@@ -521,11 +518,11 @@ describe('Required Server Files', () => {
 
         const res2 = await fetchViaHTTP(
           appPort,
-          `/_next/data/${buildId}/catch-all/[[...rest]].json`,
+          `/_next/data/${next.buildId}/catch-all/[[...rest]].json`,
           undefined,
           withInvocationId({
             headers: {
-              'x-matched-path': `/_next/data/${buildId}/catch-all/[[...rest]].json`,
+              'x-matched-path': `/_next/data/${next.buildId}/catch-all/[[...rest]].json`,
               'x-now-route-matches': 'nxtPrest=hello&rest=hello',
             },
           })
@@ -538,11 +535,11 @@ describe('Required Server Files', () => {
 
         const res3 = await fetchViaHTTP(
           appPort,
-          `/_next/data/${buildId}/catch-all/[[...rest]].json`,
+          `/_next/data/${next.buildId}/catch-all/[[...rest]].json`,
           undefined,
           withInvocationId({
             headers: {
-              'x-matched-path': `/_next/data/${buildId}/catch-all/[[...rest]].json`,
+              'x-matched-path': `/_next/data/${next.buildId}/catch-all/[[...rest]].json`,
               'x-now-route-matches': 'nxtPrest=hello/world&rest=hello/world',
             },
           })

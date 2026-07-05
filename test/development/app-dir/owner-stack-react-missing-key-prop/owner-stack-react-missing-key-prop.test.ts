@@ -2,7 +2,7 @@ import { nextTestSetup } from 'e2e-utils'
 import {
   getRedboxSource,
   openRedbox,
-  getStackFramesContent,
+  getRedboxCallStack,
 } from 'next-test-utils'
 
 describe('app-dir - owner-stack-react-missing-key-prop', () => {
@@ -14,15 +14,17 @@ describe('app-dir - owner-stack-react-missing-key-prop', () => {
     const browser = await next.browser('/rsc')
     await openRedbox(browser)
 
-    const stackFramesContent = await getStackFramesContent(browser)
+    const stackFramesContent = await getRedboxCallStack(browser)
     const source = await getRedboxSource(browser)
 
     if (isTurbopack) {
       expect(stackFramesContent).toMatchInlineSnapshot(`
-       "at span ()
-       at <anonymous> (app/rsc/page.tsx (7:9))
-       at Array.map ()
-       at Page (app/rsc/page.tsx (6:13))"
+       [
+         "span <anonymous>",
+         "<anonymous> app/rsc/page.tsx (7:9)",
+         "Array.map <anonymous>",
+         "Page app/rsc/page.tsx (6:13)",
+       ]
       `)
       expect(source).toMatchInlineSnapshot(`
          "app/rsc/page.tsx (7:9) @ <anonymous>
@@ -37,10 +39,12 @@ describe('app-dir - owner-stack-react-missing-key-prop', () => {
         `)
     } else {
       expect(stackFramesContent).toMatchInlineSnapshot(`
-       "at span ()
-       at eval (app/rsc/page.tsx (7:9))
-       at Array.map ()
-       at Page (app/rsc/page.tsx (6:13))"
+       [
+         "span <anonymous>",
+         "eval app/rsc/page.tsx (7:9)",
+         "Array.map <anonymous>",
+         "Page app/rsc/page.tsx (6:13)",
+       ]
       `)
       expect(source).toMatchInlineSnapshot(`
           "app/rsc/page.tsx (7:9) @ eval
@@ -60,15 +64,17 @@ describe('app-dir - owner-stack-react-missing-key-prop', () => {
     const browser = await next.browser('/ssr')
     await openRedbox(browser)
 
-    const stackFramesContent = await getStackFramesContent(browser)
+    const stackFramesContent = await getRedboxCallStack(browser)
     const source = await getRedboxSource(browser)
     if (isTurbopack) {
       expect(stackFramesContent).toMatchInlineSnapshot(`
-         "at p ()
-         at <unknown> (app/ssr/page.tsx (9:9))
-         at Array.map ()
-         at Page (app/ssr/page.tsx (8:13))"
-        `)
+       [
+         "p <anonymous>",
+         "<unknown> app/ssr/page.tsx (9:9)",
+         "Array.map <anonymous>",
+         "Page app/ssr/page.tsx (8:13)",
+       ]
+      `)
       expect(source).toMatchInlineSnapshot(`
           "app/ssr/page.tsx (9:9) @ <unknown>
 
@@ -82,11 +88,13 @@ describe('app-dir - owner-stack-react-missing-key-prop', () => {
         `)
     } else {
       expect(stackFramesContent).toMatchInlineSnapshot(`
-         "at p ()
-         at eval (app/ssr/page.tsx (9:9))
-         at Array.map ()
-         at Page (app/ssr/page.tsx (8:13))"
-        `)
+       [
+         "p <anonymous>",
+         "eval app/ssr/page.tsx (9:9)",
+         "Array.map <anonymous>",
+         "Page app/ssr/page.tsx (8:13)",
+       ]
+      `)
       expect(source).toMatchInlineSnapshot(`
           "app/ssr/page.tsx (9:9) @ eval
 

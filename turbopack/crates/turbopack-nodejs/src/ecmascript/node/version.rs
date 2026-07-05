@@ -1,16 +1,19 @@
-use anyhow::{Result, bail};
+use anyhow::Result;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{ReadRef, Vc};
+use turbo_tasks::{FxIndexMap, TryJoinIterExt, Vc, turbobail};
 use turbo_tasks_fs::FileSystemPath;
-use turbo_tasks_hash::{Xxh3Hash64Hasher, encode_hex};
-use turbopack_core::{chunk::MinifyType, version::Version};
-use turbopack_ecmascript::chunk::{CodeAndIds, EcmascriptChunkContent};
+use turbo_tasks_hash::{Xxh3Hash64Hasher, encode_base64};
+use turbopack_core::{
+    chunk::{MinifyType, ModuleId},
+    version::Version,
+};
+use turbopack_ecmascript::chunk::{EcmascriptChunkContent, EcmascriptChunkContentEntries};
 
-#[turbo_tasks::value(serialization = "none")]
+#[turbo_tasks::value(serialization = "skip")]
 pub(super) struct EcmascriptBuildNodeChunkVersion {
-    chunk_path: String,
-    chunk_items: Vec<ReadRef<CodeAndIds>>,
-    minify_type: MinifyType,
+    pub(super) chunk_path: RcStr,
+    pub(super) minify_type: MinifyType,
+    pub(super) entries_hashes: FxIndexMap<ModuleId, u128>,
 }
 
 #[turbo_tasks::value_impl]
@@ -27,13 +30,21 @@ impl EcmascriptBuildNodeChunkVersion {
         let chunk_path = if let Some(path) = output_root.get_path_to(&chunk_path) {
             path
         } else {
-            bail!("chunk path {chunk_path} is not in client root {output_root}");
+            turbobail!("chunk path {chunk_path} is not in client root {output_root}");
         };
-        let chunk_items = content.await?.chunk_item_code_and_ids().await?;
+        let entries_hashes = EcmascriptChunkContentEntries::new(content)
+            .await?
+            .iter()
+            .map(async |(id, entry)| Ok((id.clone(), *entry.hash.await?)))
+            .try_join()
+            .await?
+            .into_iter()
+            .collect();
+
         Ok(EcmascriptBuildNodeChunkVersion {
-            chunk_path: chunk_path.to_string(),
-            chunk_items,
+            chunk_path: chunk_path.into(),
             minify_type,
+            entries_hashes,
         }
         .cell())
     }
@@ -46,14 +57,16 @@ impl Version for EcmascriptBuildNodeChunkVersion {
         let mut hasher = Xxh3Hash64Hasher::new();
         hasher.write_ref(&self.chunk_path);
         hasher.write_ref(&self.minify_type);
-        hasher.write_value(self.chunk_items.len());
-        for item in &self.chunk_items {
-            for (module_id, code) in item {
-                hasher.write_value((module_id, code.source_code()));
-            }
+        let sorted_hashes = {
+            let mut hashes: Vec<_> = self.entries_hashes.values().copied().collect();
+            hashes.sort();
+            hashes
+        };
+        for hash in sorted_hashes {
+            hasher.write_value(hash);
         }
         let hash = hasher.finish();
-        let hex_hash = encode_hex(hash);
-        Vc::cell(hex_hash.into())
+        let hash = encode_base64(hash);
+        Vc::cell(hash.into())
     }
 }

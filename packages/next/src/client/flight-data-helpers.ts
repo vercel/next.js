@@ -99,8 +99,7 @@ export function createInitialRSCPayloadFromFallbackPrerender(
   const canonicalUrl = createHrefFromUrl(new URL(location.href))
   const originalFlightDataPath = fallbackInitialRSCPayload.f[0]
   const originalFlightRouterState = originalFlightDataPath[0]
-  return {
-    b: fallbackInitialRSCPayload.b,
+  const payload: InitialRSCPayload = {
     c: canonicalUrl.split('/'),
     q: renderedSearch,
     i: fallbackInitialRSCPayload.i,
@@ -119,7 +118,12 @@ export function createInitialRSCPayloadFromFallbackPrerender(
     m: fallbackInitialRSCPayload.m,
     G: fallbackInitialRSCPayload.G,
     S: fallbackInitialRSCPayload.S,
+    h: fallbackInitialRSCPayload.h,
   }
+  if (fallbackInitialRSCPayload.b) {
+    payload.b = fallbackInitialRSCPayload.b
+  }
+  return payload
 }
 
 function fillInFallbackFlightRouterState(
@@ -247,8 +251,7 @@ function stripClientOnlyDataFromFlightRouterState(
     parallelRoutes,
     _refreshState, // Intentionally unused - URLs are client-only
     refreshMarker,
-    isRootLayout,
-    hasLoadingBoundary,
+    prefetchHints,
   ] = flightRouterState
 
   // Strip client-only data from the segment
@@ -268,11 +271,8 @@ function stripClientOnlyDataFromFlightRouterState(
   }
 
   // Append optional fields if present
-  if (isRootLayout !== undefined) {
-    result[4] = isRootLayout
-  }
-  if (hasLoadingBoundary !== undefined) {
-    result[5] = hasLoadingBoundary
+  if (prefetchHints !== undefined) {
+    result[4] = prefetchHints
   }
 
   // Everything else is used only by the client and is not needed for requests.

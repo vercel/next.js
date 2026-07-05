@@ -229,6 +229,7 @@ export default async function loader(
             filter: getFilter(options.url, this.resourcePath),
             resolver: urlResolver,
             urlHandler: (url: string) => stringifyRequest(this, url),
+            deploymentId: rawOptions.deploymentId,
           })
         )
       }

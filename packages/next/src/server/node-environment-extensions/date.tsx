@@ -9,7 +9,7 @@
  *
  * The extensions here never error nor alter the underlying Date objects, strings, and numbers created and thus should be transparent to callers.
  */
-import { io } from './utils'
+import { io } from './io-utils'
 
 function createNow(originalNow: typeof Date.now) {
   return {

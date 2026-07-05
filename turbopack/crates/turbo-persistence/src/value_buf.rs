@@ -13,7 +13,7 @@ impl ValueBuffer<'_> {
         match self {
             ValueBuffer::Borrowed(b) => b.into(),
             ValueBuffer::Vec(v) => v.into_boxed_slice(),
-            ValueBuffer::SmallVec(sv) => sv.into_vec().into_boxed_slice(),
+            ValueBuffer::SmallVec(sv) => sv.into_boxed_slice(),
         }
     }
 }
@@ -27,6 +27,12 @@ impl<'l> From<&'l [u8]> for ValueBuffer<'l> {
 impl From<Vec<u8>> for ValueBuffer<'_> {
     fn from(v: Vec<u8>) -> Self {
         ValueBuffer::Vec(v)
+    }
+}
+
+impl From<Box<[u8]>> for ValueBuffer<'_> {
+    fn from(v: Box<[u8]>) -> Self {
+        ValueBuffer::Vec(v.into_vec())
     }
 }
 

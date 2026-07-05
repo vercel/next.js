@@ -5,8 +5,6 @@ description: API Reference for the usePathname hook.
 
 `usePathname` is a **Client Component** hook that lets you read the current URL's **pathname**.
 
-> **Good to know**: When [`cacheComponents`](/docs/app/api-reference/config/next-config-js/cacheComponents) is enabled `usePathname` may require a `Suspense` boundary around it if your route has a dynamic param. If you use `generateStaticParams` the `Suspense` boundary is optional
-
 ```tsx filename="app/example-client-component.tsx" switcher
 'use client'
 
@@ -36,13 +34,13 @@ For example, a Client Component with `usePathname` will be rendered into HTML on
 > **Good to know**:
 >
 > - Reading the current URL from a [Server Component](/docs/app/getting-started/server-and-client-components) is not supported. This design is intentional to support layout state being preserved across page navigations.
-> - If your page is being statically pre-rendered and your app has [rewrites](/docs/app/api-reference/config/next-config-js/rewrites) in `next.config` or a [Proxy](/docs/app/api-reference/file-conventions/proxy) file, reading the pathname with `usePathname()` can result in hydration mismatch errors—because the initial value comes from the server and may not match the actual browser pathname after routing. See our [example](#avoid-hydration-mismatch-with-rewrites) for a way to mitigate this issue.
+> - If your page is being statically prerendered and your app has [rewrites](/docs/app/api-reference/config/next-config-js/rewrites) in `next.config` or a [Proxy](/docs/app/api-reference/file-conventions/proxy) file, reading the pathname with `usePathname()` can result in hydration mismatch errors, because the initial value comes from the server and may not match the actual browser pathname after routing. See our [example](#avoid-hydration-mismatch-with-rewrites) for a way to mitigate this issue.
 
 <details>
 
 <summary>Compatibility with Pages Router</summary>
 
-If you have components that use `usePathname` and they are imported into routes within the Pages Router, be aware that `usePathname` may return `null` if the router is not yet initialized. This can occur in cases such as [fallback routes](/docs/pages/api-reference/functions/get-static-paths#fallback-true) or during [Automatic Static Optimization](https://nextjs.org/docs/pages/building-your-application/rendering/static#automatic-static-optimization) in the Pages Router.
+If you have components that use `usePathname` and they are imported into routes within the Pages Router, be aware that `usePathname` may return `null` if the router is not yet initialized. This can occur in cases such as [fallback routes](/docs/pages/api-reference/functions/get-static-paths#fallback-true) or during [Automatic Static Optimization](/docs/pages/building-your-application/rendering/automatic-static-optimization) in the Pages Router.
 
 To enhance compatibility between routing systems, if your project contains both an `app` and a `pages` directory, Next.js will automatically adjust the return type of `usePathname`.
 
@@ -66,6 +64,19 @@ const pathname = usePathname()
 | `/dashboard`        | `'/dashboard'`        |
 | `/dashboard?v=2`    | `'/dashboard'`        |
 | `/blog/hello-world` | `'/blog/hello-world'` |
+
+## Behavior
+
+### Cache Components
+
+When [`cacheComponents`](/docs/app/api-reference/config/next-config-js/cacheComponents) is enabled, `usePathname` may require a [`Suspense`](https://react.dev/reference/react/Suspense) boundary. This depends on whether the pathname can be resolved during prerendering.
+
+- **Static routes and routes with [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params)**: every route segment, including dynamic params, is known at build time. The pathname can be resolved during prerendering, so `usePathname` resolves on the server and no `Suspense` boundary is required.
+- **Routes with dynamic params not covered by `generateStaticParams`**: the param is a [fallback param](/docs/app/api-reference/functions/generate-static-params#all-paths-at-build-time) that is not known until request time. The pathname cannot be resolved during prerendering, so `usePathname` suspends. Wrap the component (or a parent) in a `Suspense` boundary so its fallback can be rendered during prerendering; otherwise, the build fails.
+
+This applies even when the component that calls `usePathname` is itself static. For example, a sidebar with active links rendered in a layout suspends on any page below it that has an unknown dynamic param. To keep the rest of the layout prerendered, wrap the component that calls `usePathname` (or a parent) in a `Suspense` boundary with a fallback.
+
+See [Next.js encountered URL data in a Client Component outside of Suspense](/docs/messages/blocking-prerender-client-hook) for full fix options and trade-offs.
 
 ## Examples
 
@@ -103,9 +114,9 @@ function ExampleClientComponent() {
 
 ### Avoid hydration mismatch with rewrites
 
-When a page is pre-rendered, the HTML is generated for the source pathname. If the page is then reached through a rewrite using `next.config` or `Proxy`, the browser URL may differ, and `usePathname()` will read the rewritten pathname on the client.
+When a page is prerendered, the HTML is generated for the source pathname. If the page is then reached through a rewrite using `next.config` or `Proxy`, the browser URL may differ, and `usePathname()` will read the rewritten pathname on the client.
 
-To avoid hydration mismatches, design the UI so that only a small, isolated part depends on the client pathname. Render a stable fallback on the server and update that part after mount.
+To avoid hydration mismatches, design the UI so that only a small, isolated part depends on the client pathname. Render a stable fallback on the server and update that part after mount. The deferred read shows a brief moment of the fallback before the real pathname appears; see [Preventing flash before hydration](/docs/app/guides/preventing-flash-before-hydration) for techniques that eliminate the visible flicker.
 
 ```tsx filename="app/example-client-component.tsx" switcher
 'use client'

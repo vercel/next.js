@@ -144,6 +144,7 @@ where
     }
 }
 
+#[must_use]
 pub struct ReadVcFuture<T, Cast = VcValueTypeCast<T>>
 where
     T: ?Sized,
@@ -160,7 +161,7 @@ where
     Cast: VcCast,
 {
     /// Do not use this: Use [`OperationVc::read_strongly_consistent`] instead.
-    pub fn strongly_consistent(mut self) -> Self {
+    pub(crate) fn strongly_consistent(mut self) -> Self {
         self.raw = self.raw.strongly_consistent();
         self
     }

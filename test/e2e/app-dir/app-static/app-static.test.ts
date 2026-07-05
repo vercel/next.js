@@ -6,6 +6,7 @@ import { nextTestSetup } from 'e2e-utils'
 import {
   check,
   fetchViaHTTP,
+  getCacheHeader,
   normalizeRegEx,
   retry,
   waitFor,
@@ -68,10 +69,9 @@ describe('app-dir static/dynamic handling', () => {
 
     if (isNextDev) {
       expect(data).not.toBe(data2)
-    } else {
-      const pageCache = (
-        res.headers.get('x-vercel-cache') || res.headers.get('x-nextjs-cache')
-      ).toLowerCase()
+      // custom cache handler is in memory only
+    } else if (!process.env.CUSTOM_CACHE_HANDLER) {
+      const pageCache = getCacheHeader(res)
 
       expect(pageCache).toBeTruthy()
       expect(pageCache).not.toBe('MISS')
@@ -95,12 +95,10 @@ describe('app-dir static/dynamic handling', () => {
 
     if (isNextDev) {
       expect(data).not.toBe(data2)
-    } else {
+    } else if (!process.env.CUSTOM_CACHE_HANDLER) {
       // "default" cache does not impact ISR handling on a page, similar to the above test
       // case for no fetch config
-      const pageCache = (
-        res.headers.get('x-vercel-cache') || res.headers.get('x-nextjs-cache')
-      ).toLowerCase()
+      const pageCache = getCacheHeader(res)
 
       expect(pageCache).toBeTruthy()
       expect(pageCache).not.toBe('MISS')
@@ -2875,6 +2873,7 @@ describe('app-dir static/dynamic handling', () => {
              },
            ],
            "fallback": null,
+           "fallbackRootParams": [],
            "fallbackRouteParams": [],
            "prefetchDataRoute": null,
            "routeRegex": "^\\/articles\\/([^\\/]+?)(?:\\/)?$",
@@ -2902,6 +2901,7 @@ describe('app-dir static/dynamic handling', () => {
              },
            ],
            "fallback": false,
+           "fallbackRootParams": [],
            "fallbackRouteParams": [],
            "prefetchDataRoute": null,
            "routeRegex": "^\\/blog\\/([^\\/]+?)(?:\\/)?$",
@@ -2929,6 +2929,7 @@ describe('app-dir static/dynamic handling', () => {
              },
            ],
            "fallback": null,
+           "fallbackRootParams": [],
            "fallbackRouteParams": [],
            "prefetchDataRoute": null,
            "routeRegex": "^\\/blog\\/([^\\/]+?)\\/([^\\/]+?)(?:\\/)?$",
@@ -2956,6 +2957,7 @@ describe('app-dir static/dynamic handling', () => {
              },
            ],
            "fallback": null,
+           "fallbackRootParams": [],
            "fallbackRouteParams": [],
            "prefetchDataRoute": null,
            "routeRegex": "^\\/dynamic\\-error\\/([^\\/]+?)(?:\\/)?$",
@@ -2983,6 +2985,7 @@ describe('app-dir static/dynamic handling', () => {
              },
            ],
            "fallback": null,
+           "fallbackRootParams": [],
            "fallbackRouteParams": [],
            "prefetchDataRoute": null,
            "routeRegex": "^\\/force\\-static\\/([^\\/]+?)(?:\\/)?$",
@@ -3010,6 +3013,7 @@ describe('app-dir static/dynamic handling', () => {
              },
            ],
            "fallback": false,
+           "fallbackRootParams": [],
            "fallbackRouteParams": [],
            "prefetchDataRoute": null,
            "routeRegex": "^\\/gen\\-params\\-catch\\-all\\-unique\\/(.+?)(?:\\/)?$",
@@ -3037,6 +3041,7 @@ describe('app-dir static/dynamic handling', () => {
              },
            ],
            "fallback": null,
+           "fallbackRootParams": [],
            "fallbackRouteParams": [],
            "prefetchDataRoute": null,
            "routeRegex": "^\\/gen\\-params\\-dynamic\\-revalidate\\/([^\\/]+?)(?:\\/)?$",
@@ -3064,6 +3069,7 @@ describe('app-dir static/dynamic handling', () => {
              },
            ],
            "fallback": null,
+           "fallbackRootParams": [],
            "fallbackRouteParams": [],
            "prefetchDataRoute": null,
            "routeRegex": "^\\/hooks\\/use\\-pathname\\/([^\\/]+?)(?:\\/)?$",
@@ -3091,6 +3097,7 @@ describe('app-dir static/dynamic handling', () => {
              },
            ],
            "fallback": false,
+           "fallbackRootParams": [],
            "fallbackRouteParams": [],
            "prefetchDataRoute": null,
            "routeRegex": "^\\/partial\\-gen\\-params\\-no\\-additional\\-lang\\/([^\\/]+?)\\/([^\\/]+?)(?:\\/)?$",
@@ -3118,6 +3125,7 @@ describe('app-dir static/dynamic handling', () => {
              },
            ],
            "fallback": false,
+           "fallbackRootParams": [],
            "fallbackRouteParams": [],
            "prefetchDataRoute": null,
            "routeRegex": "^\\/partial\\-gen\\-params\\-no\\-additional\\-slug\\/([^\\/]+?)\\/([^\\/]+?)(?:\\/)?$",
@@ -3145,6 +3153,7 @@ describe('app-dir static/dynamic handling', () => {
              },
            ],
            "fallback": false,
+           "fallbackRootParams": [],
            "fallbackRouteParams": [],
            "prefetchDataRoute": null,
            "routeRegex": "^\\/partial\\-params\\-false\\/([^\\/]+?)\\/static(?:\\/)?$",
@@ -3172,6 +3181,7 @@ describe('app-dir static/dynamic handling', () => {
              },
            ],
            "fallback": null,
+           "fallbackRootParams": [],
            "fallbackRouteParams": [],
            "prefetchDataRoute": null,
            "routeRegex": "^\\/prerendered\\-not\\-found\\/([^\\/]+?)(?:\\/)?$",
@@ -3199,6 +3209,7 @@ describe('app-dir static/dynamic handling', () => {
              },
            ],
            "fallback": null,
+           "fallbackRootParams": [],
            "fallbackRouteParams": [],
            "prefetchDataRoute": null,
            "routeRegex": "^\\/ssg\\-draft\\-mode(?:\\/(.+?))?(?:\\/)?$",
@@ -3226,6 +3237,7 @@ describe('app-dir static/dynamic handling', () => {
              },
            ],
            "fallback": null,
+           "fallbackRootParams": [],
            "fallbackRouteParams": [],
            "prefetchDataRoute": null,
            "routeRegex": "^\\/static\\-to\\-dynamic\\-error\\-forced\\/([^\\/]+?)(?:\\/)?$",
@@ -3330,9 +3342,6 @@ describe('app-dir static/dynamic handling', () => {
     // Prime the cache.
     let res = await next.fetch(path)
     expect(res.status).toBe(200)
-
-    // Consume the cache, the revalidations are completed on the end of the
-    // stream so we need to wait for that to complete.
     await res.text()
 
     for (let i = 0; i < 6; i++) {
@@ -3362,6 +3371,7 @@ describe('app-dir static/dynamic handling', () => {
           )
         }
       }
+      const finishedAt = Date.now()
 
       const startedResponding = +data.start
       if (Number.isNaN(startedResponding)) {
@@ -3375,12 +3385,17 @@ describe('app-dir static/dynamic handling', () => {
         )
       }
 
-      // We just want to ensure the response isn't blocked on revalidating the fetch.
-      // So we use the start time when route started processing not when we
-      // send off the response because that includes cold boots of the infra.
+      // The response must not be blocked on the 3s background revalidation:
+      // neither the first byte (TTFB) nor the terminating chunk (res.end).
+      // Using the route-start time excludes cold-boot/infra latency.
       if (startedStreaming - startedResponding >= 3000) {
         throw new Error(
-          `Response #${i} took too long to complete: ${startedStreaming - startedResponding}ms`
+          `Response #${i} first byte took too long: ${startedStreaming - startedResponding}ms`
+        )
+      }
+      if (finishedAt - startedResponding >= 3000) {
+        throw new Error(
+          `Response #${i} took too long to complete: ${finishedAt - startedResponding}ms`
         )
       }
     }

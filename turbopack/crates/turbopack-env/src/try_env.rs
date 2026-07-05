@@ -1,6 +1,6 @@
 use anyhow::Result;
 use turbo_tasks::{ResolvedVc, Vc};
-use turbo_tasks_env::{DotenvProcessEnv, EnvMap, ProcessEnv};
+use turbo_tasks_env::{DotenvProcessEnv, ProcessEnv, TransientEnvMap};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::issue::{IssueExt, StyledString};
 
@@ -35,7 +35,7 @@ impl TryDotenvProcessEnv {
 #[turbo_tasks::value_impl]
 impl ProcessEnv for TryDotenvProcessEnv {
     #[turbo_tasks::function]
-    async fn read_all(&self) -> Result<Vc<EnvMap>> {
+    async fn read_all(&self) -> Result<Vc<TransientEnvMap>> {
         let dotenv = self.dotenv;
         let prior = dotenv.read_prior();
 

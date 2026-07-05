@@ -7,11 +7,18 @@ use turbopack_core::{
     code_builder::{Code, CodeBuilder},
     output::OutputAsset,
     source_map::{GenerateSourceMap, SourceMapAsset},
-    version::{Version, VersionedContent},
+    version::{Update, Version, VersionedContent},
 };
-use turbopack_ecmascript::{chunk::EcmascriptChunkContent, minify::minify, utils::StringifyJs};
+use turbopack_ecmascript::{
+    chunk::{EcmascriptChunkContent, EcmascriptChunkContentEntries},
+    minify::minify,
+    utils::StringifyJs,
+};
 
-use super::{chunk::EcmascriptBuildNodeChunk, version::EcmascriptBuildNodeChunkVersion};
+use super::{
+    chunk::EcmascriptBuildNodeChunk, update::update_node_chunk,
+    version::EcmascriptBuildNodeChunkVersion,
+};
 use crate::NodeJsChunkingContext;
 
 #[turbo_tasks::value]
@@ -39,6 +46,11 @@ impl EcmascriptBuildNodeChunkContent {
         }
         .cell()
     }
+
+    #[turbo_tasks::function]
+    pub(crate) fn entries(&self) -> Vc<EcmascriptChunkContentEntries> {
+        EcmascriptChunkContentEntries::new(*self.content)
+    }
 }
 
 #[turbo_tasks::value_impl]
@@ -56,10 +68,15 @@ impl EcmascriptBuildNodeChunkContent {
         write!(code, "module.exports = [")?;
 
         let content = self.content.await?;
-        let chunk_items = content.chunk_item_code_and_ids().await?;
-        for item in chunk_items {
-            for (id, item_code) in item {
-                write!(code, "\n{}, ", StringifyJs(&id))?;
+        let mut chunk_items = content.chunk_item_code_module_ids_and_paths().await?;
+        chunk_items.sort_by(|a, b| {
+            a.first()
+                .map(|(id, _, path)| (path, id))
+                .cmp(&b.first().map(|(id, _, path)| (path, id)))
+        });
+        for item in &chunk_items {
+            for (id, item_code, _) in &**item {
+                write!(code, "\n{}, ", StringifyJs(id))?;
                 code.push_code(item_code);
                 write!(code, ",")?;
             }
@@ -113,5 +130,13 @@ impl VersionedContent for EcmascriptBuildNodeChunkContent {
     #[turbo_tasks::function]
     fn version(self: Vc<Self>) -> Vc<Box<dyn Version>> {
         Vc::upcast(self.own_version())
+    }
+
+    #[turbo_tasks::function]
+    async fn update(
+        self: Vc<Self>,
+        from_version: ResolvedVc<Box<dyn Version>>,
+    ) -> Result<Vc<Update>> {
+        Ok(update_node_chunk(self, from_version).await?.cell())
     }
 }

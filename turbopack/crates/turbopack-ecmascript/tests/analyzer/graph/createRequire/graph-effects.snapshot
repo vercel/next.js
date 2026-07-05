@@ -95,9 +95,7 @@
         obj: Module(
             ModuleValue {
                 module: "node:module",
-                annotations: ImportAnnotations {
-                    map: {},
-                },
+                annotations: None,
             },
         ),
         prop: Constant(
@@ -305,9 +303,7 @@
         obj: Module(
             ModuleValue {
                 module: "node:module",
-                annotations: ImportAnnotations {
-                    map: {},
-                },
+                annotations: None,
             },
         ),
         prop: Constant(

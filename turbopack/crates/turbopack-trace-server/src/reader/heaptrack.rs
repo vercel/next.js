@@ -4,9 +4,15 @@ use anyhow::{Context, Result, bail};
 use indexmap::map::Entry;
 use rustc_demangle::demangle;
 use rustc_hash::{FxHashMap, FxHashSet};
+use turbo_rcstr::{RcStr, rcstr};
 
 use super::TraceFormat;
-use crate::{FxIndexMap, span::SpanIndex, store_container::StoreContainer, timestamp::Timestamp};
+use crate::{
+    FxIndexMap,
+    span::{SpanArgs, SpanIndex},
+    store_container::StoreContainer,
+    timestamp::Timestamp,
+};
 
 #[derive(Debug, Clone, Copy)]
 struct TraceNode {
@@ -183,10 +189,7 @@ impl TraceFormat for HeaptrackFormat {
         let mut bytes_read = 0;
         let mut outdated_spans = FxHashSet::default();
         let mut store = self.store.write();
-        'outer: loop {
-            let Some(line_end) = buffer.iter().position(|b| *b == b'\n') else {
-                break;
-            };
+        'outer: while let Some(line_end) = buffer.iter().position(|b| *b == b'\n') {
             let full_line = &buffer[..line_end];
             buffer = &buffer[line_end + 1..];
             bytes_read += full_line.len() + 1;
@@ -276,9 +279,9 @@ impl TraceFormat for HeaptrackFormat {
                                         let span_index = store.add_span(
                                             Some(parent.span_index),
                                             self.last_timestamp,
-                                            "".to_string(),
-                                            "recursion".to_string(),
-                                            Vec::new(),
+                                            RcStr::default(),
+                                            rcstr!("recursion"),
+                                            SpanArgs::new(),
                                             &mut outdated_spans,
                                         );
                                         store.complete_span(span_index);
@@ -323,7 +326,7 @@ impl TraceFormat for HeaptrackFormat {
                     } else {
                         "unknown".to_string()
                     };
-                    let mut args = Vec::new();
+                    let mut args = SpanArgs::new();
                     for Frame {
                         function_index,
                         file_index,
@@ -336,16 +339,16 @@ impl TraceFormat for HeaptrackFormat {
                             .get(*function_index)
                             .context("function not found")?;
                         args.push((
-                            "location".to_string(),
-                            format!("{function} @ {file}:{line}"),
+                            rcstr!("location"),
+                            RcStr::from(format!("{function} @ {file}:{line}")),
                         ));
                     }
 
                     let span_index = store.add_span(
                         parent,
                         self.last_timestamp,
-                        module.to_string(),
-                        name,
+                        RcStr::from(module.as_str()),
+                        RcStr::from(name),
                         args,
                         &mut outdated_spans,
                     );

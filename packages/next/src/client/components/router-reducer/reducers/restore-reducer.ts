@@ -6,6 +6,7 @@ import type {
 import { extractPathFromFlightRouterState } from '../compute-changed-path'
 import {
   FreshnessPolicy,
+  getCurrentNavigationLock,
   spawnDynamicRequests,
   startPPRNavigation,
   type NavigationRequestAccumulation,
@@ -16,6 +17,7 @@ import {
   completeTraverseNavigation,
   convertServerPatchToFullTree,
 } from '../../segment-cache/navigation'
+import { UnknownDynamicStaleTime } from '../../segment-cache/bfcache'
 
 export function restoreReducer(
   state: ReadonlyReducerState,
@@ -42,16 +44,21 @@ export function restoreReducer(
   const restoredUrl = action.url
   const restoredNextUrl =
     extractPathFromFlightRouterState(treeToRestore) ?? restoredUrl.pathname
+  const navigationLock = getCurrentNavigationLock()
 
   const now = Date.now()
+  // TODO: Store the dynamic stale time on the top-level state so it's known
+  // during restores and refreshes.
   const accumulation: NavigationRequestAccumulation = {
-    scrollableSegments: null,
     separateRefreshUrls: null,
+    scrollRef: null,
   }
   const restoreSeed = convertServerPatchToFullTree(
+    now,
     treeToRestore,
     null,
-    renderedSearch
+    renderedSearch,
+    UnknownDynamicStaleTime
   )
   const task = startPPRNavigation(
     now,
@@ -64,8 +71,11 @@ export function restoreReducer(
     FreshnessPolicy.HistoryTraversal,
     null,
     null,
+    restoreSeed.dynamicStaleAt,
     false,
-    accumulation
+    accumulation,
+    // A history-traversal restore never restricts to the shell.
+    false
   )
 
   if (task === null) {
@@ -76,7 +86,15 @@ export function restoreReducer(
     restoredUrl,
     restoredNextUrl,
     FreshnessPolicy.HistoryTraversal,
-    accumulation
+    accumulation,
+    // History traversal doesn't use route prediction, so there's no route
+    // cache entry to mark as having a dynamic rewrite on mismatch. If a
+    // mismatch occurs, the retry handler will traverse the known route tree
+    // to find and mark the entry.
+    null,
+    // History traversal always uses 'replace'.
+    'replace',
+    navigationLock
   )
   return completeTraverseNavigation(
     state,

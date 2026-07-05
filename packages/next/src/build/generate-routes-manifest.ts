@@ -31,10 +31,12 @@ export interface GenerateRoutesManifestOptions {
   config: NextConfigComplete
   redirects: CustomRoutes['redirects']
   headers: CustomRoutes['headers']
+  onMatchHeaders: CustomRoutes['headers']
   rewrites: CustomRoutes['rewrites']
   restrictedRedirectPaths: string[]
   isAppPPREnabled: boolean
   appType: 'pages' | 'app' | 'hybrid'
+  deploymentId?: string
 }
 
 export interface GenerateRoutesManifestResult {
@@ -56,10 +58,12 @@ export function generateRoutesManifest(
     config,
     redirects,
     headers,
+    onMatchHeaders,
     rewrites,
     restrictedRedirectPaths,
     isAppPPREnabled,
     appType,
+    deploymentId,
   } = options
 
   const sortedRoutes = sortPages([...pageKeys.pages, ...(pageKeys.app ?? [])])
@@ -100,6 +104,7 @@ export function generateRoutesManifest(
       buildCustomRoute('redirect', r, restrictedRedirectPaths)
     ),
     headers: headers.map((r) => buildCustomRoute('header', r)),
+    onMatchHeaders: onMatchHeaders.map((r) => buildCustomRoute('header', r)),
     rewrites: {
       beforeFiles: rewrites.beforeFiles.map((r) =>
         buildCustomRoute('rewrite', r)
@@ -134,6 +139,7 @@ export function generateRoutesManifest(
       queryHeader: NEXT_REWRITTEN_QUERY_HEADER,
     },
     skipProxyUrlNormalize: config.skipProxyUrlNormalize,
+    deploymentId: deploymentId || undefined,
     ppr: isAppPPREnabled
       ? {
           chain: {

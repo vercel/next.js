@@ -5,6 +5,8 @@ import treeKill from 'tree-kill'
 import type { NextConfig } from 'next'
 import { FileRef, isNextDeploy, PatchedFileRef } from '../e2e-utils'
 import { ChildProcess } from 'child_process'
+import spawn from 'cross-spawn'
+import { quote as shellQuote } from 'shell-quote'
 import { createNextInstall } from '../create-next-install'
 import { Span } from 'next/dist/trace'
 import webdriver from '../next-webdriver'
@@ -16,7 +18,7 @@ import {
 } from 'next-test-utils'
 import cheerio from 'cheerio'
 import { once } from 'events'
-import { Playwright } from 'next-webdriver'
+import type { Playwright } from '../browsers/playwright'
 import escapeStringRegexp from 'escape-string-regexp'
 import { Page, Response } from 'playwright'
 
@@ -54,6 +56,7 @@ export interface NextInstanceOpts {
   serverReadyPattern?: RegExp
   patchFileDelay?: number
   startServerTimeout?: number
+  disableAutoSkewProtection?: boolean
 }
 
 /**
@@ -68,7 +71,10 @@ type OmitFirstArgument<F> = F extends (
 
 // Do not rename or format. sync-react script relies on this line.
 // prettier-ignore
-const nextjsReactPeerVersion = "19.2.3";
+const nextjsReactPeerVersion = "19.2.7";
+
+const ROOT_PACKAGE_MANAGER: string =
+  require('../../../package.json').packageManager
 
 export class NextInstance {
   protected files: ResolvedFileConfig
@@ -84,7 +90,6 @@ export class NextInstance {
   protected events: { [eventName: string]: Set<any> } = {}
   public testDir: string
   public distDir: string
-  tmpRepoDir: string
   protected isStopping: Error | null = null
   protected isDestroyed: Error | null = null
   protected childProcess?: ChildProcess
@@ -102,6 +107,11 @@ export class NextInstance {
   constructor(opts: NextInstanceOpts) {
     this.env = {}
     Object.assign(this, opts)
+    const nextTestWasm =
+      process.env.NEXT_TEST_WASM ?? process.env.NEXT_TEST_WASM_AFTER_JEST
+    if (nextTestWasm) {
+      this.env.NEXT_TEST_WASM = nextTestWasm
+    }
 
     if (!isNextDeploy) {
       this.env = {
@@ -133,6 +143,12 @@ export class NextInstance {
         )
       }
 
+      const skippedRelativePaths = new Set([
+        'package.json',
+        '.next',
+        '.next-profiles',
+        '.DS_Store',
+      ])
       await fs.cp(files.fsPath, testDir, {
         recursive: true,
         // By default Node.js turns relative symlinks into absolute symlinks.
@@ -142,12 +158,10 @@ export class NextInstance {
         // See https://nodejs.org/api/fs.html#fscpsrc-dest-options-callback
         verbatimSymlinks: true,
         filter(source) {
-          // we don't copy a package.json as it's manually written
-          // via the createNextInstall process
-          if (path.relative(files.fsPath, source) === 'package.json') {
-            return false
-          }
-          return true
+          const topLevel = path
+            .relative(files.fsPath, source)
+            .split(path.sep)[0]
+          return !skippedRelativePaths.has(topLevel)
         },
       })
     } else {
@@ -261,12 +275,29 @@ export class NextInstance {
 
         if (skipInstall || skipIsolatedNext) {
           const pkgScripts = (this.packageJson['scripts'] as {}) || {}
+          // Pin the same pnpm version the repo uses so corepack resolves a
+          // consistent pnpm across isolated test dirs. Mirrors the logic in
+          // `create-next-install.js` so skipInstall / skipIsolatedNext test
+          // dirs behave the same as regular ones.
+          const rootPackageManager = require(
+            path.join(__dirname, '../../../package.json')
+          ).packageManager
+          const packageManagerField =
+            (this.packageJson as { packageManager?: string }).packageManager ||
+            rootPackageManager
           await fs.mkdir(this.testDir, { recursive: true })
           await fs.writeFile(
             path.join(this.testDir, 'package.json'),
             JSON.stringify(
               {
+                // Pin packageManager so corepack doesn't auto-inject a reference
+                // to the latest version (and rewrite this file mid-test).
+                // Callers can override via packageJson.packageManager.
+                packageManager: ROOT_PACKAGE_MANAGER,
                 ...this.packageJson,
+                ...(packageManagerField && {
+                  packageManager: packageManagerField,
+                }),
                 dependencies: {
                   ...finalDependencies,
                   next:
@@ -279,7 +310,7 @@ export class NextInstance {
                     ? // since we can't get the build id as a build artifact,
                       // add it in build logs
                       {
-                        'post-build': `node -e 'console.log("BUILD" + "_ID: " + require("fs").readFileSync("${this.distDir}/BUILD_ID"))'`,
+                        'post-build': `node -e 'console.log("BUILD" + "_ID: " + fs.readFileSync("${this.distDir}/BUILD_ID") + "\\nDEPLOYMENT" + "_ID: " + process.env.NEXT_DEPLOYMENT_ID + "\\nNEXT_SUPPORTS_IMMUTABLE" + "_ASSETS: " + (process.env.NEXT_SUPPORTS_IMMUTABLE_ASSETS ? 1 : 0))'`,
                       }
                     : {}),
                   ...pkgScripts,
@@ -314,14 +345,13 @@ export class NextInstance {
             )
             await this.beforeInstall(parentSpan)
           } else {
-            const { tmpRepoDir } = await createNextInstall({
+            await createNextInstall({
               parentSpan: rootSpan,
               dependencies: finalDependencies,
               resolutions: this.resolutions ?? null,
               installCommand: this.installCommand,
               packageJson: this.packageJson,
               subDir: this.subDir,
-              keepRepoDir: true,
               beforeInstall: async (span, installDir) => {
                 this.testDir = installDir
                 require('console').log(
@@ -330,7 +360,6 @@ export class NextInstance {
                 await this.beforeInstall(span)
               },
             })
-            this.tmpRepoDir = tmpRepoDir!
           }
         }
 
@@ -342,7 +371,7 @@ export class NextInstance {
 
         if (nextConfigFile && this.nextConfig) {
           throw new Error(
-            `nextConfig provided on "createNext()" and as a file "${nextConfigFile}", use one or the other to continue`
+            `nextConfig provided on "nextTestSetup()" and as a file "${nextConfigFile}", use one or the other to continue`
           )
         }
 
@@ -439,6 +468,13 @@ export class NextInstance {
           if (process.env.NEXT_PRIVATE_EXPERIMENTAL_CACHE_COMPONENTS) {
             process.env.__NEXT_CACHE_COMPONENTS = process.env.NEXT_PRIVATE_EXPERIMENTAL_CACHE_COMPONENTS
           }
+          if (process.env.NEXT_PRIVATE_EXPERIMENTAL_CACHED_NAVIGATIONS) {
+            process.env.__NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS = process.env.NEXT_PRIVATE_EXPERIMENTAL_CACHED_NAVIGATIONS
+          }
+          if (process.env.NEXT_PRIVATE_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER) {
+            process.env.__NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER = process.env.NEXT_PRIVATE_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER
+          }
+
         `
           )
 
@@ -526,6 +562,187 @@ export class NextInstance {
     throw new Error('Not implemented')
   }
 
+  /**
+   * Run an arbitrary Next.js CLI command in the isolated test directory.
+   *
+   * Unlike `build()`/`start()`, this does not start or manage the persistent
+   * server lifecycle, so it is suitable for commands like `next info`,
+   * `next telemetry`, `next --help`, `next --version`, `next export`, etc.
+   *
+   * When testing long-running commands (e.g. `next dev` for CLI-only
+   * assertions), pass `instance` to capture the `ChildProcess` and kill it
+   * externally from the test.
+   *
+   * Use in conjunction with `skipStart: true` in `nextTestSetup()` so the
+   * helper does not spawn an internal build/start first.
+   */
+  public async runCommand(
+    args: string[],
+    options: {
+      env?: Record<string, string>
+      cwd?: string
+      onStdout?: (msg: string) => void
+      onStderr?: (msg: string) => void
+      /**
+       * Receives the spawned ChildProcess while it is running, allowing the
+       * caller to kill it externally (e.g. to test signal handling or
+       * long-running commands like `next dev`).
+       */
+      instance?: (childProcess: ChildProcess) => void
+      /**
+       * If true, a non-zero exit code will not reject the promise.
+       * Defaults to true since callers typically want to assert on the exit
+       * code / stderr themselves.
+       */
+      ignoreFail?: boolean
+      /**
+       * Abort signal to terminate the child process early.
+       */
+      signal?: AbortSignal
+    } = {}
+  ): Promise<{
+    exitCode: NodeJS.Signals | number | null
+    code: number | null
+    signal: NodeJS.Signals | null
+    stdout: string
+    stderr: string
+    cliOutput: string
+  }> {
+    const {
+      env,
+      cwd,
+      onStdout,
+      onStderr,
+      instance,
+      ignoreFail = true,
+      signal,
+    } = options
+
+    // Resolve the `next` binary from within the isolated test directory so
+    // that it uses the locally installed version (matching the peer React
+    // version etc.). Spawning the binary directly (rather than via `pnpm`)
+    // also means signals sent to the child are delivered to the Next.js
+    // process without an intermediate wrapper.
+    //
+    // When running with NEXT_SKIP_ISOLATE there is no isolated install, so
+    // fall back to the workspace-level next binary instead (which also
+    // avoids a pnpm wrapper swallowing signals).
+    const localNextBin = path.join(
+      this.testDir,
+      'node_modules',
+      'next',
+      'dist',
+      'bin',
+      'next'
+    )
+    const workspaceNextBin = path.join(
+      __dirname,
+      '..',
+      '..',
+      '..',
+      'node_modules',
+      'next',
+      'dist',
+      'bin',
+      'next'
+    )
+    const nextBin = existsSync(localNextBin) ? localNextBin : workspaceNextBin
+    const spawnArgs = ['node', '--no-deprecation', nextBin, ...args]
+    const spawnOpts: import('child_process').SpawnOptions = {
+      cwd: cwd ?? this.testDir,
+      stdio: ['ignore', 'pipe', 'pipe'],
+      shell: false,
+      env: {
+        ...process.env,
+        ...this.env,
+        ...env,
+        NODE_ENV: (env?.NODE_ENV ?? this.env.NODE_ENV ?? '') as any,
+        __NEXT_TEST_MODE: 'e2e',
+      },
+    }
+
+    require('console').log('running', shellQuote(spawnArgs))
+
+    return new Promise((resolve, reject) => {
+      const child = spawn(spawnArgs[0], spawnArgs.slice(1), spawnOpts)
+
+      let stdout = ''
+      let stderr = ''
+      let cliOutput = ''
+
+      child.stdout!.on('data', (chunk) => {
+        const msg = chunk.toString()
+        stdout += msg
+        cliOutput += msg
+        onStdout?.(msg)
+      })
+      child.stderr!.on('data', (chunk) => {
+        const msg = chunk.toString()
+        stderr += msg
+        cliOutput += msg
+        onStderr?.(msg)
+      })
+
+      let aborted = false
+      const onAbort = () => {
+        aborted = true
+        try {
+          if (child.pid != null) {
+            treeKill(child.pid, 'SIGKILL', () => {})
+          }
+        } catch {}
+      }
+      if (signal) {
+        if (signal.aborted) {
+          onAbort()
+        } else {
+          signal.addEventListener('abort', onAbort, { once: true })
+        }
+      }
+
+      child.on('error', (err) => {
+        if (signal) signal.removeEventListener('abort', onAbort)
+        if (ignoreFail) {
+          resolve({
+            exitCode: 1,
+            code: 1,
+            signal: null,
+            stdout,
+            stderr: stderr + '\nSpawn error: ' + err.message,
+            cliOutput: cliOutput + '\nSpawn error: ' + err.message,
+          })
+        } else {
+          reject(err)
+        }
+      })
+
+      child.on('exit', (code, exitSignal) => {
+        if (signal) signal.removeEventListener('abort', onAbort)
+        const result = {
+          exitCode: exitSignal ?? code,
+          code,
+          signal: exitSignal,
+          stdout,
+          stderr,
+          cliOutput,
+        }
+        if (!ignoreFail && !aborted && code !== 0) {
+          const err = new Error(
+            `\`${shellQuote(spawnArgs)}\` exited with code ${code}${
+              exitSignal ? ` (signal ${exitSignal})` : ''
+            }`
+          )
+          ;(err as any).result = result
+          reject(err)
+          return
+        }
+        resolve(result)
+      })
+
+      instance?.(child)
+    })
+  }
+
   public async setup(parentSpan: Span): Promise<void> {
     if (this.forcedPort === 'random') {
       this.forcedPort = (await findPort()) + ''
@@ -533,7 +750,10 @@ export class NextInstance {
     }
   }
 
-  public async start(options?: { skipBuild?: boolean }): Promise<void> {}
+  public async start(options?: {
+    skipBuild?: boolean
+    env?: Record<string, string>
+  }): Promise<void> {}
 
   public async stop(
     signal: 'SIGINT' | 'SIGTERM' | 'SIGKILL' = 'SIGKILL'
@@ -606,9 +826,6 @@ export class NextInstance {
       if (!process.env.NEXT_TEST_SKIP_CLEANUP) {
         // Faster than `await fs.rm`. Benchmark before change.
         rmSync(this.testDir, { recursive: true, force: true })
-        if (this.tmpRepoDir) {
-          rmSync(this.tmpRepoDir, { recursive: true, force: true })
-        }
       }
       require('console').timeEnd(`destroyed next instance`)
     } catch (err) {
@@ -626,6 +843,28 @@ export class NextInstance {
 
   public get buildId(): string {
     return ''
+  }
+
+  public get deploymentId(): string | undefined {
+    return undefined
+  }
+
+  public getDeploymentIdQuery(ampersand: boolean = false): string | undefined {
+    const prefix = ampersand ? '&' : '?'
+    return this.deploymentId ? `${prefix}dpl=${this.deploymentId}` : ''
+  }
+
+  public get supportsImmutableAssets(): boolean {
+    return false
+  }
+
+  public get assetToken(): string | undefined {
+    return this.supportsImmutableAssets ? undefined : this.deploymentId
+  }
+
+  public getAssetQuery(ampersand: boolean = false): string | undefined {
+    const prefix = ampersand ? '&' : '?'
+    return this.assetToken ? `${prefix}dpl=${this.assetToken}` : ''
   }
 
   public get cliOutput(): string {
@@ -779,11 +1018,17 @@ export class NextInstance {
   public async browser(
     ...args: Parameters<OmitFirstArgument<typeof webdriver>>
   ): Promise<Playwright> {
-    try {
-      this.throwIfUnavailable()
-    } catch (error) {
-      Error.captureStackTrace(error, this.browser)
-      throw error
+    // When `baseUrl` is provided the test is driving a separate server (proxy,
+    // static-export server, etc.), so we don't require the Next.js server to
+    // be running.
+    const baseUrl = args[1]?.baseUrl
+    if (baseUrl === undefined) {
+      try {
+        this.throwIfUnavailable()
+      } catch (error) {
+        Error.captureStackTrace(error, this.browser)
+        throw error
+      }
     }
     return webdriver(this.url, ...args)
   }

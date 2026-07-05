@@ -1,12 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import {
-  findPort,
-  getFullUrl,
-  initNextServerScript,
-  killApp,
-  retry,
-} from 'next-test-utils'
-import webdriver from 'next-webdriver'
+import { findPort, initNextServerScript, killApp, retry } from 'next-test-utils'
 import path from 'node:path'
 import fs from 'fs-extra'
 import os from 'os'
@@ -67,7 +60,7 @@ describe('app-dir action body finalize with nodejs middleware and output-standal
   })
 
   it('should handle large payload through server action after nodejs middleware with delayed body finalize', async () => {
-    const browser = await webdriver(getFullUrl(appPort, '/body-finalize'), '')
+    const browser = await next.browser('/body-finalize', { baseUrl: appPort })
 
     try {
       await browser.elementById('submit-large').click()

@@ -30,22 +30,36 @@ export function loadManifest<T extends object>(
 ): DeepReadonly<T>
 export function loadManifest<T extends object>(
   path: string,
-  shouldCache?: true,
+  shouldCache?: boolean,
   cache?: Map<string, unknown>,
-  skipParse?: boolean
+  skipParse?: boolean,
+  handleMissing?: boolean
 ): DeepReadonly<T>
 export function loadManifest<T extends object>(
   path: string,
   shouldCache: boolean = true,
   cache = sharedCache,
-  skipParse = false
+  skipParse = false,
+  handleMissing?: boolean
 ): T {
   const cached = shouldCache && cache.get(path)
   if (cached) {
     return cached as T
   }
 
-  let manifest: any = readFileSync(/* turbopackIgnore: true */ path, 'utf8')
+  let manifest: any
+
+  if (handleMissing) {
+    try {
+      manifest = readFileSync(/* turbopackIgnore: true */ path, 'utf8')
+    } catch (err) {
+      let result = {} as any
+      cache.set(path, result)
+      return result
+    }
+  } else {
+    manifest = readFileSync(/* turbopackIgnore: true */ path, 'utf8')
+  }
 
   if (!skipParse) {
     manifest = JSON.parse(manifest)
@@ -70,7 +84,8 @@ export function evalManifest<T extends object>(
 export function evalManifest<T extends object>(
   path: string,
   shouldCache?: boolean,
-  cache?: Map<string, unknown>
+  cache?: Map<string, unknown>,
+  handleMissing?: boolean
 ): DeepReadonly<T>
 export function evalManifest<T extends object>(
   path: string,
@@ -80,14 +95,27 @@ export function evalManifest<T extends object>(
 export function evalManifest<T extends object>(
   path: string,
   shouldCache: boolean = true,
-  cache = sharedCache
+  cache = sharedCache,
+  handleMissing?: boolean
 ): T {
   const cached = shouldCache && cache.get(path)
   if (cached) {
     return cached as T
   }
 
-  const content = readFileSync(/* turbopackIgnore: true */ path, 'utf8')
+  let content: any
+  if (handleMissing) {
+    try {
+      content = readFileSync(/* turbopackIgnore: true */ path, 'utf8')
+    } catch (err) {
+      let result = {} as any
+      cache.set(path, result)
+      return result
+    }
+  } else {
+    content = readFileSync(/* turbopackIgnore: true */ path, 'utf8')
+  }
+
   if (content.length === 0) {
     throw new Error('Manifest file is empty')
   }
@@ -122,30 +150,28 @@ export function loadManifestFromRelativePath<T extends object>({
   projectDir: string
   distDir: string
   manifest: string
-  shouldCache?: boolean
+  shouldCache: boolean
   cache?: Map<string, unknown>
   skipParse?: boolean
   handleMissing?: boolean
   useEval?: boolean
 }): DeepReadonly<T> {
-  try {
-    const manifestPath = join(
-      /* turbopackIgnore: true */ projectDir,
-      distDir,
-      manifest
-    )
+  const manifestPath = join(
+    /* turbopackIgnore: true */ projectDir,
+    distDir,
+    manifest
+  )
 
-    if (useEval) {
-      return evalManifest<T>(manifestPath, shouldCache, cache)
-    }
-    return loadManifest<T>(manifestPath, shouldCache, cache, skipParse)
-  } catch (err) {
-    if (handleMissing) {
-      // TODO: should this be undefined
-      return {} as DeepReadonly<T>
-    }
-    throw err
+  if (useEval) {
+    return evalManifest<T>(manifestPath, shouldCache, cache, handleMissing)
   }
+  return loadManifest<T>(
+    manifestPath,
+    shouldCache,
+    cache,
+    skipParse,
+    handleMissing
+  )
 }
 
 export function clearManifestCache(path: string, cache = sharedCache): boolean {

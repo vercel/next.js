@@ -304,7 +304,7 @@ describe('app dir - css', () => {
 
         const stylesheets = [
           ...html.matchAll(
-            /<link rel="stylesheet" href="[^<]+\.css(\?v=\d+)?"/g
+            /<link rel="stylesheet" href="[^<]+\.css(\?[^"]+)?"/g
           ),
         ].length
         expect(stylesheets).toBe(3)
@@ -324,6 +324,54 @@ describe('app dir - css', () => {
             `window.getComputedStyle(document.querySelector('h2')).color`
           )
         ).toBe('rgb(255, 0, 0)')
+      })
+    })
+
+    describe('css import URLs', () => {
+      it('should not mangle external layers', async () => {
+        const browser = await next.browser('/externalLayer')
+        expect(
+          await browser.eval(
+            `window.getComputedStyle(document.querySelector('h1')).margin`
+          )
+        ).toBe('5px')
+      })
+
+      it('should not mangle relative layers', async () => {
+        const browser = await next.browser('/relativeLayer')
+        expect(
+          await browser.eval(
+            `window.getComputedStyle(document.querySelector('h2')).color`
+          )
+        ).toBe('rgb(255, 0, 0)')
+      })
+
+      // Broken in webpack, see https://github.com/vercel/next.js/issues/89602
+      if (process.env.IS_TURBOPACK_TEST) {
+        it('should allow the supports attribute', async () => {
+          const browser = await next.browser('/urlSupports')
+          expect(
+            await browser.eval(
+              `window.getComputedStyle(document.querySelector('h1')).color`
+            )
+          ).toBe('rgb(255, 0, 0)')
+        })
+      }
+
+      it('should work with the media attribute', async () => {
+        const browser = await next.browser('/urlMedia')
+        await browser.setDimensions({ width: 1000, height: 1000 })
+        expect(
+          await browser.eval(
+            `window.getComputedStyle(document.querySelector('h1')).color`
+          )
+        ).toBe('rgb(255, 255, 255)')
+        await browser.setDimensions({ width: 300, height: 300 })
+        expect(
+          await browser.eval(
+            `window.getComputedStyle(document.querySelector('h1')).color`
+          )
+        ).toBe('rgb(0, 0, 0)')
       })
     })
 

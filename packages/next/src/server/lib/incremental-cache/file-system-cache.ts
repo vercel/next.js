@@ -230,7 +230,10 @@ export default class FileSystemCache implements CacheHandler {
             }
 
             let rscData: Buffer | undefined
-            if (!ctx.isFallback && !ctx.isRoutePPREnabled) {
+            if (
+              !ctx.isFallback &&
+              (!ctx.isRoutePPREnabled || meta?.postponed == null)
+            ) {
               rscData = await this.fs.readFile(
                 this.getFilePath(
                   `${key}${RSC_SUFFIX}`,
@@ -376,6 +379,7 @@ export default class FileSystemCache implements CacheHandler {
         status: data.status,
         postponed: undefined,
         segmentPaths: undefined,
+        prefetchHints: undefined,
       }
 
       writer.append(
@@ -429,6 +433,7 @@ export default class FileSystemCache implements CacheHandler {
           status: data.status,
           postponed: data.postponed,
           segmentPaths,
+          prefetchHints: undefined,
         }
 
         writer.append(

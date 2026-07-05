@@ -1,12 +1,14 @@
 use anyhow::Result;
 use tracing::Instrument;
 use turbo_rcstr::rcstr;
-use turbo_tasks::{FxIndexMap, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Vc};
+use turbo_tasks::{
+    FxIndexMap, FxIndexSet, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, ValueToStringRef, Vc,
+};
 use turbopack_core::{
     chunk::{ChunkGroupResult, ChunkingContext, availability_info::AvailabilityInfo},
     module::Module,
     module_graph::{ModuleGraph, chunk_group_info::ChunkGroup},
-    output::OutputAssetsWithReferenced,
+    output::{OutputAsset, OutputAssets, OutputAssetsWithReferenced},
 };
 
 use crate::{
@@ -178,16 +180,14 @@ pub async fn get_app_client_references_chunks(
                 client_references_by_server_component.into_iter()
             {
                 let parent_chunk_group = *chunk_group_info
-                    .get_index_of(ChunkGroup::Shared(ResolvedVc::upcast(
-                        server_component.await?.module,
-                    )))
+                    .get_index_of(ChunkGroup::Shared(ResolvedVc::upcast(server_component)))
                     .await?;
 
-                let base_ident = server_component.ident();
+                let base_ident = server_component.ident().owned().await?;
 
                 let server_path = server_component.server_path().owned().await?;
                 let is_layout = server_path.file_stem() == Some("layout");
-                let server_component_path = server_path.value_to_string().await?;
+                let server_component_path = server_path.to_string_ref().await?;
 
                 let ssr_modules = client_reference_types
                     .iter()
@@ -219,16 +219,21 @@ pub async fn get_app_client_references_chunks(
                     )
                     .entered();
 
-                    Some(ssr_chunking_context.chunk_group(
-                        base_ident.with_modifier(rcstr!("ssr modules")),
-                        ChunkGroup::IsolatedMerged {
-                            parent: parent_chunk_group,
-                            merge_tag: ecmascript_client_reference_merge_tag_ssr(),
-                            entries: ssr_modules,
-                        },
-                        module_graph,
-                        availability_info,
-                    ))
+                    Some(
+                        ssr_chunking_context.chunk_group(
+                            base_ident
+                                .clone()
+                                .with_modifier(rcstr!("ssr modules"))
+                                .into_vc(),
+                            ChunkGroup::IsolatedMerged {
+                                parent: parent_chunk_group,
+                                merge_tag: ecmascript_client_reference_merge_tag_ssr(),
+                                entries: ssr_modules,
+                            },
+                            module_graph,
+                            availability_info,
+                        ),
+                    )
                 } else {
                     None
                 };
@@ -258,7 +263,7 @@ pub async fn get_app_client_references_chunks(
                     .entered();
 
                     Some(client_chunking_context.chunk_group(
-                        base_ident.with_modifier(rcstr!("client modules")),
+                        base_ident.with_modifier(rcstr!("client modules")).into_vc(),
                         ChunkGroup::IsolatedMerged {
                             parent: parent_chunk_group,
                             merge_tag: ecmascript_client_reference_merge_tag(),
@@ -331,4 +336,38 @@ pub async fn get_app_client_references_chunks(
     }
     .instrument(tracing::info_span!("process client references"))
     .await
+}
+
+/// Flattens all client-side output assets from `client_references_chunks` so the
+/// page's HMR chunk list can subscribe to updates for chunks built outside the
+/// entry's own module graph (each `chunk_group(IsolatedMerged)` call for a
+/// client component group generates chunks separately).
+#[turbo_tasks::function]
+pub async fn get_client_references_chunks_for_hmr(
+    client_references_chunks: Vc<ClientReferencesChunks>,
+) -> Result<Vc<OutputAssets>> {
+    let client_references_chunks_ref = client_references_chunks.await?;
+    let mut extras: FxIndexSet<ResolvedVc<Box<dyn OutputAsset>>> = client_references_chunks_ref
+        .layout_segment_client_chunks
+        .values()
+        .map(|&assets| async move {
+            let primary = assets.primary_assets().await?;
+            Ok(primary.iter().copied().collect::<Vec<_>>())
+        })
+        .try_flat_join()
+        .await?
+        .into_iter()
+        .collect();
+    for &chunk_group in client_references_chunks_ref
+        .client_component_client_chunks
+        .values()
+    {
+        // Use all_assets() (not primary_assets()) to also follow async loader references
+        // transitively. This ensures that dynamic imports within 'use client' pages are
+        // covered by the page's HMR subscription, not just the page module itself.
+        extras.extend(chunk_group.all_assets().await?.iter().copied());
+    }
+    // client_component_ssr_chunks are intentionally excluded: they run on the server
+    // (Node.js/Edge), not in the browser, so they don't belong in the client HMR chunk list.
+    Ok(Vc::cell(extras.into_iter().collect()))
 }

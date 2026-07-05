@@ -3,53 +3,36 @@ use rustc_hash::FxHashSet;
 use turbo_tasks::{OperationVc, ResolvedVc, TryFlatJoinIterExt, Vc};
 
 use crate::{
-    module::{Module, Modules},
-    module_graph::{GraphTraversalAction, ModuleGraph, ModuleGraphLayer},
+    module::Module,
+    module_graph::{GraphTraversalAction, ModuleGraph, ModuleGraphLayer, SingleModuleGraphNode},
 };
-
-#[turbo_tasks::value(transparent)]
-pub struct ModulesSet(FxHashSet<ResolvedVc<Box<dyn Module>>>);
 
 /// This lists all the modules that are async (self or transitively because they reference another
 /// module in this list).
-#[turbo_tasks::value(transparent)]
+#[turbo_tasks::value(transparent, cell = "keyed")]
 pub struct AsyncModulesInfo(FxHashSet<ResolvedVc<Box<dyn Module>>>);
 
-#[turbo_tasks::value_impl]
 impl AsyncModulesInfo {
-    #[turbo_tasks::function]
-    pub fn is_async(&self, module: ResolvedVc<Box<dyn Module>>) -> Vc<bool> {
-        Vc::cell(self.0.contains(&module))
-    }
-
-    #[turbo_tasks::function]
-    pub async fn is_async_multiple(&self, modules: ResolvedVc<Modules>) -> Result<Vc<ModulesSet>> {
-        Ok(Vc::cell(
-            modules
-                .await?
-                .iter()
-                .copied()
-                .filter(|m| self.0.contains(m))
-                .collect(),
-        ))
+    pub async fn is_async(self: Vc<Self>, module: ResolvedVc<Box<dyn Module>>) -> Result<bool> {
+        self.contains_key(&module).await
     }
 }
 
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 pub async fn compute_async_module_info(
     graphs: ResolvedVc<ModuleGraph>,
 ) -> Result<Vc<AsyncModulesInfo>> {
     // Layout segment optimization, we can individually compute the async modules for each graph.
     let mut result = None;
     for graph in graphs.iter_graphs().await? {
-        result = Some(compute_async_module_info_single(*graph, result));
+        result = Some(compute_async_module_info_single(graph, result));
     }
     Ok(result
         .context("There must be at least one single graph in the module graph")?
         .connect())
 }
 
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 async fn compute_async_module_info_single(
     graph: OperationVc<ModuleGraphLayer>,
     parent_async_modules: Option<OperationVc<AsyncModulesInfo>>,
@@ -61,13 +44,11 @@ async fn compute_async_module_info_single(
     };
     let graph = graph.read_strongly_consistent().await?;
     let self_async_modules = graph
-        .enumerate_nodes()
-        .map(async |(_, node)| {
+        .iter_reachable_nodes()?
+        .map(async |node| {
             Ok(match node {
-                super::SingleModuleGraphNode::Module(node) => {
-                    node.is_self_async().await?.then_some(*node)
-                }
-                super::SingleModuleGraphNode::VisitedModule { idx: _, module } => {
+                SingleModuleGraphNode::Module(node) => node.is_self_async().await?.then_some(*node),
+                SingleModuleGraphNode::VisitedModule { idx: _, module } => {
                     // If a module is async in the parent then we need to mark reverse dependencies
                     // async in this graph as well.
                     parent_async_modules
