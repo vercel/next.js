@@ -114,6 +114,8 @@ it('should include dotfile directories with wildcard patterns', () => {
     './.foo/hidden.js',
     './dir/bar.js',
     './dir/foo.js',
+    './nested/parent-glob.js',
+    './nested/sibling/local.js',
     './other/baz.js',
   ])
 })
@@ -124,4 +126,39 @@ const dotfileExplicit = import.meta.glob('./.foo/*.js', { eager: true })
 it('should include dotfile directories when explicitly targeted', () => {
   const keys = Object.keys(dotfileExplicit)
   expect(keys).toEqual(['./.foo/hidden.js'])
+})
+
+// Parent-directory traversal (`../`) — verifies that `import.meta.glob`
+// supports Vite-compatible parent-relative paths in Turbopack.
+import {
+  parentDir,
+  parentAndLocal,
+  parentNamed,
+  parentWithNegative,
+} from './nested/parent-glob.js'
+
+it('should resolve `../` patterns from the calling file', () => {
+  const keys = Object.keys(parentDir).sort()
+  expect(keys).toEqual(['../dir/bar.js', '../dir/foo.js'])
+  expect(parentDir['../dir/foo.js'].default).toBe('foo')
+  expect(parentDir['../dir/bar.js'].default).toBe('bar')
+})
+
+it('should mix parent-relative and local patterns in the same call', () => {
+  const keys = Object.keys(parentAndLocal).sort()
+  expect(keys).toEqual(['../other/baz.js', './sibling/local.js'])
+  expect(parentAndLocal['./sibling/local.js'].default).toBe('nested-local')
+  expect(parentAndLocal['../other/baz.js'].default).toBe('baz')
+})
+
+it('should honor the `import` option for `../` patterns', () => {
+  const keys = Object.keys(parentNamed).sort()
+  expect(keys).toEqual(['../dir/bar.js', '../dir/foo.js'])
+  expect(parentNamed['../dir/foo.js']).toBe('foo')
+  expect(parentNamed['../dir/bar.js']).toBe('bar')
+})
+
+it('should apply negative patterns to parent-relative matches', () => {
+  const keys = Object.keys(parentWithNegative)
+  expect(keys).toEqual(['../dir/foo.js'])
 })
