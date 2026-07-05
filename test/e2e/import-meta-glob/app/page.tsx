@@ -11,12 +11,20 @@ const defaultExports = import.meta.glob('./modules/*.ts', {
 })
 
 // Negative pattern
-const filteredModules = import.meta.glob(['./modules/*.ts', '!**/skip.ts'], {
-  eager: true,
-})
+const filteredModules = import.meta.glob(
+  ['./modules/*.ts', '!./modules/skip.ts'],
+  {
+    eager: true,
+  }
+)
 
 // Multiple patterns (modules + other)
 const multiModules = import.meta.glob(['./modules/*.ts', './other/*.ts'], {
+  eager: true,
+})
+
+// Parent-relative pattern
+const parentModules = import.meta.glob('../lib/modules/*.ts', {
   eager: true,
 })
 
@@ -57,6 +65,13 @@ export default async function Page() {
     multiResults[key] = (multiModules[key] as any).name
   }
 
+  // Get parent-relative module names
+  const parentKeys = Object.keys(parentModules).sort()
+  const parentResults: Record<string, string> = {}
+  for (const key of parentKeys) {
+    parentResults[key] = (parentModules[key] as any).name
+  }
+
   return (
     <div>
       <div id="lazy-keys">{JSON.stringify(lazyKeys)}</div>
@@ -68,6 +83,8 @@ export default async function Page() {
       <div id="filtered-results">{JSON.stringify(filteredResults)}</div>
       <div id="multi-keys">{JSON.stringify(multiKeys)}</div>
       <div id="multi-results">{JSON.stringify(multiResults)}</div>
+      <div id="parent-keys">{JSON.stringify(parentKeys)}</div>
+      <div id="parent-results">{JSON.stringify(parentResults)}</div>
     </div>
   )
 }

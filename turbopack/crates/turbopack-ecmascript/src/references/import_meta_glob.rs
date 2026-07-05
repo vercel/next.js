@@ -323,6 +323,74 @@ fn strip_relative_prefix(pattern: &str) -> &str {
     pattern.strip_prefix("./").unwrap_or(pattern)
 }
 
+/// Split a glob pattern into a static directory prefix and a glob suffix.
+///
+/// The directory prefix may contain `..` segments and is resolved against the
+/// importer's directory via [`FileSystemPath::join`]. The glob suffix is passed
+/// to `read_glob` relative to the resolved scan directory.
+fn split_glob_pattern(pattern: &str) -> (&str, &str) {
+    let glob_start = pattern.find(['*', '?', '[', '{']).unwrap_or(pattern.len());
+
+    if glob_start == 0 {
+        return ("", pattern);
+    }
+
+    if let Some(slash_pos) = pattern[..glob_start].rfind('/') {
+        (&pattern[..slash_pos], &pattern[slash_pos + 1..])
+    } else {
+        ("", pattern)
+    }
+}
+
+/// Resolve a Vite-style glob pattern into a scan directory and a glob pattern
+/// relative to that directory.
+fn resolve_glob_scan(pattern: &str, root_dir: &FileSystemPath) -> Result<(FileSystemPath, RcStr)> {
+    let (dir_prefix, glob_suffix) = split_glob_pattern(pattern);
+    let scan_dir = if dir_prefix.is_empty() || dir_prefix == "." {
+        root_dir.clone()
+    } else {
+        root_dir.join(dir_prefix)?
+    };
+    let glob_pattern: RcStr = strip_relative_prefix(glob_suffix).into();
+    Ok((scan_dir, glob_pattern))
+}
+
+fn join_scan_path(dir_prefix: &str, scan_relative: &str) -> RcStr {
+    if dir_prefix.is_empty() || dir_prefix == "." {
+        scan_relative.into()
+    } else {
+        format!("{}/{scan_relative}", strip_relative_prefix(dir_prefix)).into()
+    }
+}
+
+/// Scan all positive glob patterns and return matched files.
+///
+/// Each pattern is resolved independently so that patterns containing `..`
+/// segments scan the correct directory.
+async fn collect_glob_files(
+    root_dir: &FileSystemPath,
+    positive_patterns: &[&RcStr],
+) -> Result<Vec<(RcStr, FileSystemPath)>> {
+    let mut files = Vec::new();
+
+    for pattern in positive_patterns {
+        let (dir_prefix, _) = split_glob_pattern(pattern);
+        let (scan_dir, glob_pattern) = resolve_glob_scan(pattern, root_dir)?;
+        let glob_result = scan_dir
+            .read_glob(Glob::new(glob_pattern, GlobOptions::default()))
+            .await?;
+        files.extend(
+            flatten_read_glob(&glob_result)
+                .await?
+                .into_iter()
+                .map(|(scan_relative, path)| (join_scan_path(dir_prefix, &scan_relative), path)),
+        );
+    }
+
+    files.sort_by(|a: &(RcStr, _), b: &(RcStr, _)| a.0.cmp(&b.0));
+    Ok(files)
+}
+
 /// Flatten a nested `ReadGlobResult` into a sorted list of
 /// `(base_relative_path, FileSystemPath)` pairs.
 ///
@@ -398,15 +466,13 @@ pub struct ImportMetaGlobMap(
 impl ImportMetaGlobMap {
     /// Discover files matching glob patterns and resolve them as ESM imports.
     ///
-    /// `base_dir` is the directory to scan (origin dir, or origin + base).
-    /// `positive_glob` is a `Glob` matching the wanted files (relative to
-    /// base_dir). `negative_glob` optionally excludes files. Both globs
-    /// operate on paths *relative to base_dir*.
+    /// `files` contains paths relative to the glob's base directory paired with
+    /// their absolute filesystem paths. `negative_glob` optionally excludes
+    /// files by matching against those base-relative paths.
     #[turbo_tasks::function]
     pub(crate) async fn generate(
         origin: Vc<Box<dyn ResolveOrigin>>,
-        base_dir: FileSystemPath,
-        positive_glob: Vc<Glob>,
+        files: Vec<(RcStr, FileSystemPath)>,
         negative_glob: Option<Vc<Glob>>,
         query: Option<RcStr>,
         eager: bool,
@@ -414,10 +480,6 @@ impl ImportMetaGlobMap {
         error_mode: ResolveErrorMode,
     ) -> Result<Vc<Self>> {
         let origin_path = origin.into_trait_ref().await?.origin_path().parent();
-
-        // Use read_glob for efficient directory-pruning file discovery.
-        let glob_result = base_dir.read_glob(positive_glob).await?;
-        let files = flatten_read_glob(&glob_result).await?;
 
         // Pre-resolve the negative glob (if any) once, outside the loop.
         let negative = if let Some(neg) = negative_glob {
@@ -436,7 +498,6 @@ impl ImportMetaGlobMap {
         let entries: Vec<_> = files
             .iter()
             .filter(|(base_relative, _)| {
-                // Apply negative pattern filtering on the base-relative path.
                 if let Some(ref neg) = negative {
                     !neg.matches(base_relative)
                 } else {
@@ -609,19 +670,7 @@ impl ImportMetaGlobAsset {
         let (positive_raw, negative_raw): (Vec<_>, Vec<_>) =
             self.patterns.iter().partition(|p| !p.starts_with('!'));
 
-        // Build the positive Glob. Turbopack's Glob operates on paths relative
-        // to the scan directory (no leading `./`), so strip that prefix. For
-        // multiple patterns, use `Glob::alternatives` to combine them.
-        let positive_globs: Vec<Vc<Glob>> = positive_raw
-            .iter()
-            .map(|p| Glob::new(strip_relative_prefix(p).into(), GlobOptions::default()))
-            .collect();
-
-        let positive_glob = if positive_globs.len() == 1 {
-            positive_globs.into_iter().next().unwrap()
-        } else {
-            Glob::alternatives(positive_globs)
-        };
+        let files = collect_glob_files(&base_dir, &positive_raw).await?;
 
         // Build the negative Glob (if any). Negative patterns also need `./`
         // stripped and are combined into a single alternation glob.
@@ -647,8 +696,7 @@ impl ImportMetaGlobAsset {
 
         Ok(ImportMetaGlobMap::generate(
             origin,
-            base_dir,
-            positive_glob,
+            files,
             negative_glob,
             self.query.clone(),
             self.eager,
@@ -971,5 +1019,42 @@ impl ImportMetaGlobAssetReferenceCodeGen {
             }
         ));
         Ok(CodeGeneration::visitors(visitors))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn split_glob_pattern_handles_current_directory_prefix() {
+        assert_eq!(split_glob_pattern("./dir/*.js"), ("./dir", "*.js"));
+    }
+
+    #[test]
+    fn split_glob_pattern_handles_parent_directory_prefix() {
+        assert_eq!(
+            split_glob_pattern("../../../lib/modules/*.js"),
+            ("../../../lib/modules", "*.js")
+        );
+    }
+
+    #[test]
+    fn split_glob_pattern_handles_rootless_globs() {
+        assert_eq!(split_glob_pattern("**/*.js"), ("", "**/*.js"));
+        assert_eq!(split_glob_pattern("*.js"), ("", "*.js"));
+    }
+
+    #[test]
+    fn join_scan_path_reconstructs_base_relative_paths() {
+        assert_eq!(
+            join_scan_path("", "modules/foo.js").as_str(),
+            "modules/foo.js"
+        );
+        assert_eq!(join_scan_path("./dir", "foo.js").as_str(), "dir/foo.js");
+        assert_eq!(
+            join_scan_path("../lib/modules", "example.js").as_str(),
+            "../lib/modules/example.js"
+        );
     }
 }
