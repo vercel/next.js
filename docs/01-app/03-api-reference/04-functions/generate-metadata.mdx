@@ -433,6 +433,7 @@ export const metadata = {
 URL composition favors developer intent over default directory traversal semantics.
 
 - Trailing slashes between `metadataBase` and `metadata` fields are normalized.
+- Query parameters in relative fields are not altered by trailing slash normalization. Use absolute URLs if precise control over query parameters is needed.
 - An "absolute" path in a `metadata` field (that typically would replace the whole URL path) is treated as a "relative" path (starting from the end of `metadataBase`).
 
 For example, given the following `metadataBase`:
