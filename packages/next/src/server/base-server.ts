@@ -893,6 +893,8 @@ export default abstract class Server<
   ): Promise<void> {
     await this.prepare()
     const method = req.method.toUpperCase()
+    const pathname =
+      parsedUrl?.pathname ?? new URL(req.url ?? '/', 'http://n').pathname
     const tracer = getTracer()
 
     return tracer.withPropagatedContext(req.headers, () => {
@@ -906,15 +908,25 @@ export default abstract class Server<
       return tracer.trace(
         BaseServerSpan.handleRequest,
         {
-          spanName: `${method}`,
+          spanName: `${method} ${pathname}`,
           kind: SpanKind.SERVER,
           attributes: {
             'http.method': method,
             'http.target': req.url,
           },
         },
-        async (span) =>
-          this.handleRequestImpl(req, res, parsedUrl).finally(() => {
+        async (span) => {
+          // Inject the current trace context (including this span) into the
+          // request headers. This ensures that if handleRequest is called
+          // multiple times for the same request (e.g., middleware invocation
+          // followed by page rendering), subsequent calls to
+          // withPropagatedContext will extract this span's trace context from
+          // the updated headers and create child spans instead of starting
+          // disconnected traces.
+          // See: https://github.com/vercel/next.js/issues/91282
+          tracer.injectTraceContext(req.headers)
+
+          return this.handleRequestImpl(req, res, parsedUrl).finally(() => {
             if (!span) return
 
             const isRSCRequest = getRequestMeta(req, 'isRSCRequest') ?? false
@@ -970,9 +982,14 @@ export default abstract class Server<
                 parentSpan.setAttribute('http.route', route)
               }
             } else {
-              span.updateName(isRSCRequest ? `RSC ${method}` : `${method}`)
+              span.updateName(
+                isRSCRequest
+                  ? `RSC ${method} ${pathname}`
+                  : `${method} ${pathname}`
+              )
             }
           })
+        }
       )
     })
   }
