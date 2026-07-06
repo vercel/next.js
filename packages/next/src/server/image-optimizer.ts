@@ -92,7 +92,7 @@ export function getSharp(
     return _sharp
   }
   try {
-    _sharp = (require('sharp') as typeof import('sharp'))
+    _sharp = require('sharp') as SharpConstructor
     if (typeof operationCache === 'boolean') {
       _sharp.cache(operationCache)
     }
