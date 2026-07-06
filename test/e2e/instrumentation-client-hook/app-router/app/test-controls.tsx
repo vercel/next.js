@@ -11,6 +11,17 @@ export function TestControls() {
         Push hash
       </button>
       <button
+        id="push-no-prefetch"
+        onClick={() => {
+          // A programmatic push with no <Link> in the viewport: nothing was
+          // prefetched, so the router must fetch the route before it has
+          // anything to render — a cache miss by definition.
+          router.push('/no-prefetch')
+        }}
+      >
+        Push without prefetch
+      </button>
+      <button
         id="triple-push"
         onClick={() => {
           // Three navigations in one tick: only the newest one may commit; both

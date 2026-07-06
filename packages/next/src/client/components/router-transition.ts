@@ -67,6 +67,16 @@ export type PendingRouterTransition = {
    * (see `sweepReplacedRouterTransitions`).
    */
   replaced: boolean
+  /**
+   * Backs the commit event's `cacheHit` field: whether the router had
+   * something cached to render for the whole destination at dispatch — the
+   * route tree plus bytes for every fresh segment, where a shell that is
+   * entirely a dynamic hole still counts (the flag attributes cache
+   * coverage, deliberately not paint time). A one-way latch: starts `true`;
+   * unset by markRouterTransitionAsCacheMiss at the sites where the
+   * navigation needed the network first, never set back.
+   */
+  cacheHit: boolean
 }
 
 let instrumentationModules: readonly ClientInstrumentationHooks[] = []
@@ -178,6 +188,7 @@ export function startRouterTransition(
       url,
       phase: 'pending',
       replaced: false,
+      cacheHit: true,
     }
     pendingTransitions.push(transition)
 
@@ -251,9 +262,10 @@ export function getInstrumentationTransition(
  *   — the carried field is what lets the derived state commit it. This is
  *   safe under either interleaving: if React does not batch, the
  *   navigation's own state commits first and the derived state's commit
- *   no-ops (the transition's phase has already advanced). Because the
- *   carry-over lives in the reducers, these actions need nothing from the
- *   settle point.
+ *   no-ops (the transition's phase has already advanced). What's left for
+ *   the settle point is the `cacheHit` consequence: the derivation rode a
+ *   server response, so a still-pending carried transition is a miss
+ *   (see `retargetRouterTransition`).
  *
  * - Server actions are preserving only when they did not navigate: a
  *   revalidation re-renders the current URL (same reasoning as refresh, and
@@ -289,13 +301,63 @@ export function settleRouterTransition(
       case ACTION_REFRESH:
       case ACTION_SERVER_PATCH:
       case ACTION_HMR_REFRESH:
+        retargetRouterTransition(prevState, nextState)
+        return
       case ACTION_SERVER_ACTION:
-        // Destination-preserving: the reducer carried the base state's
-        // transition onto the derived state (see the class descriptions
-        // above), so there is nothing left to settle here.
+        if (
+          nextState !== prevState &&
+          !nextState.pushRef.mpaNavigation &&
+          nextState.canonicalUrl === prevState.canonicalUrl
+        ) {
+          retargetRouterTransition(prevState, nextState)
+        }
         return
       default:
         payload satisfies never
+    }
+  }
+}
+
+/**
+ * Applies the `cacheHit` consequence when a destination-preserving action
+ * derives a new state from a tracked-but-not-yet-committed one (see
+ * `settleRouterTransition`). The destination identity needs no re-pointing —
+ * the reducer copies `instrumentationTransition` onto the derived state, so
+ * HistoryUpdater finds the transition on whichever state ends up committing.
+ * No-op in the common case where the base state's transition was already
+ * committed (a plain refresh of a settled page) or nothing is in flight.
+ */
+function retargetRouterTransition(
+  prevState: AppRouterState,
+  nextState: AppRouterState
+): void {
+  const transition = nextState.instrumentationTransition
+  if (
+    transition !== null &&
+    transition === prevState.instrumentationTransition &&
+    transition.phase === 'pending'
+  ) {
+    // The commit now rides a state derived from a server response (a
+    // refresh awaited its fetch, a mismatch retry corrects the predicted
+    // tree with the dynamic response, a destination-preserving server
+    // action returned new state), so the navigation needed the network
+    // before this commit could be built.
+    transition.cacheHit = false
+  }
+}
+
+/**
+ * Marks the transition as a cache miss, so its commit reports
+ * `cacheHit: false`. The flag is a one-way latch: a transition starts as a
+ * hit, any single unserved piece flips it to a miss, and nothing (by design)
+ * flips it back.
+ */
+export function markRouterTransitionAsCacheMiss(
+  transition: PendingRouterTransition | null
+): void {
+  if (process.env.__NEXT_INSTRUMENTATION_CLIENT_ROUTER_TRANSITION_EVENTS) {
+    if (transition !== null) {
+      transition.cacheHit = false
     }
   }
 }
@@ -424,6 +486,12 @@ export function commitRouterTransition(state: AppRouterState): void {
               id: committed.id,
               timestamp: now,
               to,
+              // `cacheHit` defaults to true and is only unset at the known
+              // miss sites, so a navigation that renders entirely from local
+              // data (including one that reuses the current UI, e.g.
+              // hash-only) reports a hit without any code path having to
+              // say so.
+              cacheHit: committed.cacheHit,
             }
           )
         )

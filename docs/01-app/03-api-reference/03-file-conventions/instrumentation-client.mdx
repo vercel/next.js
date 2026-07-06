@@ -106,9 +106,9 @@ import type {
 export function unstable_onRouterTransitionCommit(
   url: string,
   navigationType: RouterTransitionType,
-  { id, timestamp, to }: RouterTransitionCommitEvent
+  { id, timestamp, to, cacheHit }: RouterTransitionCommitEvent
 ) {
-  console.log(id, timestamp, url, navigationType, to.renderedPathname)
+  console.log(id, timestamp, url, navigationType, to.renderedPathname, cacheHit)
 }
 
 export function unstable_onRouterTransitionAbort(
@@ -129,6 +129,7 @@ The hooks receive:
 - `navigationType: 'push' | 'replace' | 'traverse'` - The type of navigation
 - `event.id` - An opaque ID shared by every event for this transition
 - `event.timestamp` - A framework-captured Unix timestamp in milliseconds
+- `event.cacheHit` (commit only) - Whether the router's caches could serve the whole destination (the route tree plus every fresh segment) at dispatch. A partial shell counts, even one that is entirely a dynamic hole: this measures cache coverage, not paint time. It is `false` when the navigation had to reach the network first — the route was not prefetched, a segment's prefetch was pending or evicted, or the commit rode a refresh/retry response. Pair it with the start→commit latency: a `false` is prefetch-fixable, while a slow `cacheHit: true` is waiting on streaming content that prefetching cannot remove. (In development nothing is prefetched, so most navigations report `false`.)
 - `event.replacedBy` (abort only) - The `id` of the transition whose commit replaced this one
 
 The `start` event also carries `event.from` describing the route the navigation left, and the `commit` event carries `event.to`, describing the route that was committed. Both share the `RouterTransitionRoute` type:
@@ -138,7 +139,7 @@ The `start` event also carries `event.from` describing the route the navigation 
 - `routes` - The rendered routes, primary (page) first, then parallel slots. Each entry pairs a `template` (with dynamic segments in their source notation) with the `params` that fill it, keyed by param name: a navigation away from `/blog/hello` reports `{ template: '/blog/[slug]', params: { slug: 'hello' } }`, and a photo modal intercepted over a gallery reports `{ template: '/gallery/@modal/(.)photos/[id]', params: { id: '1' } }`. Params are scoped per template, and catch-all values are arrays of path segments
 - `searchParams` - The post-rewrite search params
 
-A hash-only navigation keeps the same route, so a commit's `to` matches its start's `from` (only the hash-bearing canonical URL differs).
+A hash-only navigation keeps the same route, so a commit's `to` matches its start's `from` (only the hash-bearing canonical URL differs). It reports `cacheHit: true` when the route is already known locally and the on-screen UI is reused, and `false` if the router had to consult the server first (as in development).
 
 Hook errors are isolated and do not affect navigation or other hooks.
 
