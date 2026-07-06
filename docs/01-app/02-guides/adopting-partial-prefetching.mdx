@@ -15,7 +15,7 @@ related:
 
 [Partial Prefetching](/docs/app/glossary#partial-prefetching) changes what `<Link>` downloads for a Cache Components route. By default, a `<Link>` loads a per-route [App Shell](/docs/app/glossary#app-shell), and the page's cached content is downloaded only when the link sets `prefetch={true}`. This is the biggest change from the pre-Cache Components behavior, where fully static pages were always prefetched by default.
 
-`<Link prefetch={true}>` also stops prefetching dynamic content. It now only prefetches the cached parts of the page, so the link no longer pulls cookies, headers, or other request-time data ahead of the navigation.
+A `<Link prefetch={true}>` also stops prefetching dynamic content. It now only prefetches the cached parts of the page, so the link no longer pulls cookies, headers, or other request-time data ahead of the navigation.
 
 > **Good to know**: Partial Prefetching only works when [`cacheComponents`](/docs/app/api-reference/config/next-config-js/cacheComponents) is enabled.
 
@@ -28,6 +28,22 @@ related:
 | `<Link href="/x" prefetch={false}>` | Disabled prefetching for this link.                            | Unchanged. Still disabled.                           |
 
 The App Shell is shared across every link to a given route, regardless of dynamic params, so rendering many `<Link>`s to the same destination doesn't multiply the work.
+
+## Use the adoption skill (recommended)
+
+The [`next-partial-prefetching-adoption`](https://github.com/vercel/next.js/tree/canary/skills/next-partial-prefetching-adoption) skill drives this adoption with a coding agent: it audits your `<Link prefetch={true}>` calls with you, enables the flag, and sweeps every route for the insights this guide covers.
+
+Install the skill:
+
+```bash filename="Terminal"
+npx skills add vercel/next.js --skill next-partial-prefetching-adoption
+```
+
+Prompt the agent:
+
+```text
+Adopt Partial Prefetching in this project using the next-partial-prefetching-adoption skill.
+```
 
 ## Adopting in a new project
 
@@ -120,11 +136,9 @@ After:
 
 ## Auditing routes for URL data
 
-The App Shell is shared across every link to a route, so it can't contain data that belongs to a single URL. [`params`](/docs/app/api-reference/file-conventions/page#params-optional) and [`searchParams`](/docs/app/api-reference/file-conventions/page#searchparams-optional) are [URL data](/docs/app/glossary#url-data), and reading them outside of a [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary ties the shell to the link's URL. Next.js can no longer share the prefetch across links, so a click arrives with nothing prefetched, and the navigation waits on the network instead of being instant.
+The App Shell is shared across every link to a route, so it can't contain data that belongs to a single URL. [`params`](/docs/app/api-reference/file-conventions/page#params-optional) and [`searchParams`](/docs/app/api-reference/file-conventions/page#searchparams-optional) are [URL data](/docs/app/glossary#url-data): reading them outside of a [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary ties the shell to the link's URL, and the navigation waits on the network instead of being instant.
 
-In [`next dev`](/docs/app/api-reference/cli/next#next-dev-options), the dev overlay surfaces an [**instant-shell-link-data** insight](/docs/messages/instant-shell-link-data) for each route that reads URL data this way, so you can work through them one at a time. The insight appears when you load or navigate to the route, regardless of any link's [`prefetch`](/docs/app/api-reference/components/link#prefetch) prop.
-
-Unlike the [`<Link prefetch={true}>` audit](#auditing-existing-link-prefetchtrue-calls), this audit runs once Partial Prefetching is enabled. Finish that audit first: enabling the flag marks every route as adopted, which stops its warning from firing and removes the per-link signal.
+In [`next dev`](/docs/app/api-reference/cli/next#next-dev-options), the dev overlay surfaces an [**instant-shell-link-data** insight](/docs/messages/instant-shell-link-data) for each route that reads URL data this way, so you can work through them one at a time.
 
 The fix is to keep the URL-independent parts of the route outside the boundary and move the `params` or `searchParams` read into a child wrapped in `<Suspense>`. Pass the promise down without awaiting it:
 
@@ -157,9 +171,7 @@ export async function ProductDetails({
 }
 ```
 
-Everything outside the boundary stays in the shared App Shell, and only the URL-specific region renders per navigation.
-
-After applying the fix, load or navigate to the route again and confirm the insight is gone and the shell renders real content. A `<Suspense>` boundary around the entire page body can pass validation with an empty shell, which defeats the point of an instant navigation.
+Everything outside the boundary stays in the shared App Shell, and only the URL-specific region renders per navigation. Load or navigate to the route again to confirm the insight is gone and the page still paints meaningful UI.
 
 > **Good to know**: [`cookies()`](/docs/app/api-reference/functions/cookies) and [`headers()`](/docs/app/api-reference/functions/headers) don't tie the prefetch to a URL. They vary per user, not per link, so the App Shell is still shared. Only `params` and `searchParams` surface this insight, and a read inside [`generateMetadata`](/docs/app/api-reference/functions/generate-metadata) surfaces as [URL data in `generateMetadata()`](/docs/messages/blocking-prerender-metadata-runtime) instead.
 
