@@ -106,7 +106,7 @@ Learn more: [Parallel Routes](/docs/app/api-reference/file-conventions/parallel-
 
 #### Move auth or guard checks into the page
 
-A common cause is a layout that conditionally returns a sign-in screen (or redirects) instead of rendering `{children}`. Layouts and pages render separately, so put the guard at the page (or slot) level rather than in the layout. The layout always renders `{children}`; each page decides whether to render its content or redirect.
+A common cause is a layout that conditionally returns a sign-in screen (or redirects) instead of rendering `{children}`. Layouts and pages render separately, so put the guard at the page (or slot) level rather than in the layout. The layout always renders `{children}`. Each page decides whether to render its content or redirect.
 
 ```jsx filename="app/dashboard/layout.js"
 export default function DashboardLayout({ children }) {

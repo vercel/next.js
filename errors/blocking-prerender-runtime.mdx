@@ -80,7 +80,7 @@ export default function Page() {
 }
 ```
 
-Learn more: [Streaming with Suspense](https://preview.nextjs.org/docs/app/guides/streaming).
+Learn more: [Streaming](https://preview.nextjs.org/docs/app/guides/streaming).
 
 #### Push the access down to the leaf
 
@@ -110,7 +110,7 @@ export async function UserHeader() {
 }
 ```
 
-Learn more: [Streaming patterns and boundary placement](https://preview.nextjs.org/docs/app/guides/streaming).
+Learn more: [Streaming](https://preview.nextjs.org/docs/app/guides/streaming).
 
 #### Pass `searchParams` without awaiting
 
@@ -140,7 +140,7 @@ export async function Results({ searchParams }) {
 }
 ```
 
-Learn more: [Using `searchParams` in the App Router](https://preview.nextjs.org/docs/app/api-reference/file-conventions/page#searchparams-optional).
+Learn more: [`searchParams`](https://preview.nextjs.org/docs/app/api-reference/file-conventions/page#searchparams-optional).
 
 #### Forward `searchParams` as a promise chain
 
@@ -156,7 +156,7 @@ export default function Page({ searchParams }) {
 }
 ```
 
-Learn more: [Using `searchParams` in the App Router](https://preview.nextjs.org/docs/app/api-reference/file-conventions/page#searchparams-optional).
+Learn more: [`searchParams`](https://preview.nextjs.org/docs/app/api-reference/file-conventions/page#searchparams-optional).
 
 #### Use `loading.js` for the whole segment
 
@@ -250,7 +250,7 @@ Navigations to this route are not instant. The user waits for the full server re
 
 After applying a fix, reload the route and confirm the page immediately paints meaningful UI, with any `<Suspense>` fallbacks covering only the regions that stream in. A [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary placed around the whole page body can pass validation with an empty shell, which defeats the point of an instant navigation.
 
-In [`next dev`](https://preview.nextjs.org/docs/app/api-reference/cli/next#next-dev-options), the error overlay points at the failing component with file paths and line numbers. When working from a build instead, the default [`next build`](https://preview.nextjs.org/docs/app/api-reference/cli/next#next-build-options) output is more abbreviated; run `next build --debug-prerender` for full user-frame stack traces and `next build --debug-build-paths /dashboard /settings` to iterate on specific routes.
+In [`next dev`](https://preview.nextjs.org/docs/app/api-reference/cli/next#next-dev-options), the error overlay points at the failing component with file paths and line numbers. When working from a build instead, the default [`next build`](https://preview.nextjs.org/docs/app/api-reference/cli/next#next-build-options) output is more abbreviated. Run `next build --debug-prerender` for full user-frame stack traces and `next build --debug-build-paths /dashboard /settings` to iterate on specific routes.
 
 ## Don't want this validation?
 

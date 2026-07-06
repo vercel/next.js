@@ -27,7 +27,7 @@ During a [client-side navigation](https://preview.nextjs.org/docs/app/glossary#c
 
 The `params` and `searchParams` props are [URL data](https://preview.nextjs.org/docs/app/glossary#url-data): they're specific to a single URL, so reading them outside a `<Suspense>` boundary ties the shell to one link. Next.js can no longer reuse it across links, and navigations to this route may not be instant.
 
-This check only runs when [Partial Prefetching](https://preview.nextjs.org/docs/app/api-reference/config/next-config-js/partialPrefetching) is enabled. It validates the route when you load it and when you navigate to it, regardless of any link's [`prefetch`](https://preview.nextjs.org/docs/app/api-reference/components/link#prefetch) prop. Next.js only uses the reusable shell for client-side navigations. The initial load has its own validation against the route's [static shell](https://preview.nextjs.org/docs/app/glossary#static-shell), where the same read surfaces as [runtime data during prerendering](/docs/messages/blocking-prerender-runtime). For URL data read through client hooks like [`useSearchParams`](https://preview.nextjs.org/docs/app/api-reference/functions/use-search-params), see [URL data in a Client Component outside of Suspense](/docs/messages/blocking-prerender-client-hook).
+The check runs when you load the route and when you navigate to it. The reusable shell itself is only used for client-side navigations: the initial load has its own validation against the route's [static shell](https://preview.nextjs.org/docs/app/glossary#static-shell), where the same read surfaces as [runtime data during prerendering](/docs/messages/blocking-prerender-runtime). For URL data read through client hooks like [`useSearchParams`](https://preview.nextjs.org/docs/app/api-reference/functions/use-search-params), see [URL data in a Client Component outside of Suspense](/docs/messages/blocking-prerender-client-hook).
 
 ## Ways to fix this
 
@@ -87,7 +87,7 @@ export async function Results({ searchParams }) {
 }
 ```
 
-Learn more: [Using `searchParams` in the App Router](https://preview.nextjs.org/docs/app/api-reference/file-conventions/page#searchparams-optional).
+Learn more: [`searchParams`](https://preview.nextjs.org/docs/app/api-reference/file-conventions/page#searchparams-optional).
 
 #### Read `params` in the leaf that needs it
 
@@ -116,7 +116,7 @@ export async function ProductDetails({ params }) {
 }
 ```
 
-Learn more: [Streaming patterns and boundary placement](https://preview.nextjs.org/docs/app/guides/streaming).
+Learn more: [Streaming](https://preview.nextjs.org/docs/app/guides/streaming).
 
 ### Trade-off
 
@@ -126,7 +126,7 @@ The shared parts of the route are prefetched, and the URL-dependent region strea
 
 - [`cookies()`](https://preview.nextjs.org/docs/app/api-reference/functions/cookies) and [`headers()`](https://preview.nextjs.org/docs/app/api-reference/functions/headers) don't trigger this error, even outside `<Suspense>`. They vary per user, not per link, so the shell stays reusable across links. The initial load's [static shell](https://preview.nextjs.org/docs/app/glossary#static-shell) may still need them behind `<Suspense>`, and that requirement surfaces separately as [runtime data during prerendering](/docs/messages/blocking-prerender-runtime).
 - Making the route static with [`generateStaticParams`](https://preview.nextjs.org/docs/app/api-reference/functions/generate-static-params) does not resolve this error. A static param is still specific to one URL, so it can't be part of a prefetch shared across links.
-- The `params` and `searchParams` props are promises. Passing the promise down without awaiting it keeps the rest of the route in the shared prefetch; awaiting it above the boundary pulls the URL data back in.
+- The `params` and `searchParams` props are promises. Passing the promise down without awaiting it keeps the rest of the route in the shared prefetch. Awaiting it above the boundary pulls the URL data back in.
 
 ## Disable validation on this route
 
@@ -184,7 +184,7 @@ Without a reusable shell, navigations to this route may not be instant. Use this
 
 After applying a fix, navigate to the route and confirm the insight no longer appears in the dev overlay and the page immediately paints meaningful UI, with any `<Suspense>` fallbacks covering only the regions that stream in. A [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary around the whole page body can pass validation with an empty shell, which defeats the point of an instant navigation. Depending on your [validation level](https://preview.nextjs.org/docs/app/api-reference/file-conventions/route-segment-config/instant#configuring-validation-defaults), the insight may only surface in development.
 
-In [`next dev`](https://preview.nextjs.org/docs/app/api-reference/cli/next#next-dev-options), the error overlay points at the failing component with file paths and line numbers. When working from a build instead, the default [`next build`](https://preview.nextjs.org/docs/app/api-reference/cli/next#next-build-options) output is more abbreviated; run `next build --debug-prerender` for full user-frame stack traces and `next build --debug-build-paths /dashboard /settings` to iterate on specific routes.
+In [`next dev`](https://preview.nextjs.org/docs/app/api-reference/cli/next#next-dev-options), the error overlay points at the failing component with file paths and line numbers. When working from a build instead, the default [`next build`](https://preview.nextjs.org/docs/app/api-reference/cli/next#next-build-options) output is more abbreviated. Run `next build --debug-prerender` for full user-frame stack traces and `next build --debug-build-paths /dashboard /settings` to iterate on specific routes.
 
 ## Don't want this validation?
 
