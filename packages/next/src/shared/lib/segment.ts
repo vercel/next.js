@@ -13,10 +13,28 @@ export function getSegmentValue(segment: Segment) {
  * dynamic segment tuples) is a catch-all, i.e. its value spans multiple URL
  * path segments (stored joined by `/`). Covers plain (`c`), optional (`oc`),
  * and interception-marked (`ci(.)`, `ci(..)`, ...) catch-alls; there is no
- * optional-intercepted variant.
+ * optional-intercepted variant. Exhaustive over the union (rather than a
+ * prefix check) so adding a new param type fails to compile until it is
+ * classified here.
  */
 export function isCatchAllParamType(type: DynamicParamTypesShort): boolean {
-  return type === 'oc' || type.startsWith('c')
+  switch (type) {
+    case 'c':
+    case 'ci(..)(..)':
+    case 'ci(.)':
+    case 'ci(..)':
+    case 'ci(...)':
+    case 'oc':
+      return true
+    case 'd':
+    case 'di(..)(..)':
+    case 'di(.)':
+    case 'di(..)':
+    case 'di(...)':
+      return false
+    default:
+      return type satisfies never
+  }
 }
 
 export function isGroupSegment(segment: string) {

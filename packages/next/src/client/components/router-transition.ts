@@ -121,6 +121,17 @@ function hasLifecycleInstrumentation(): boolean {
 }
 
 /**
+ * Event timestamps are high-resolution wall-clock time derived from the
+ * monotonic clock (`timeOrigin` is fixed at page load; `now()` only moves
+ * forward) rather than `Date.now()`, which can step backwards under NTP
+ * adjustment — and would let a commit report an earlier timestamp than its
+ * own start.
+ */
+function timestamp(): number {
+  return performance.timeOrigin + performance.now()
+}
+
+/**
  * Emits the `start` event for a navigation and, when the experimental
  * lifecycle is enabled, begins tracking it: the transition is recorded in
  * `pendingTransitions` immediately, so that it is reported as aborted if a
@@ -159,8 +170,7 @@ export function startRouterTransition(
       return null
     }
 
-    const now = Date.now()
-    const id = `${now.toString(36)}-${(++nextTransitionId).toString(36)}`
+    const id = `${Date.now().toString(36)}-${(++nextTransitionId).toString(36)}`
     const transition: PendingRouterTransition = {
       id,
       type,
@@ -183,7 +193,7 @@ export function startRouterTransition(
         hooks.onRouterTransitionStart?.(
           url,
           type,
-          from === null ? null : { id, timestamp: now, from }
+          from === null ? null : { id, timestamp: timestamp(), from }
         )
       )
     }
@@ -415,7 +425,7 @@ export function commitRouterTransition(state: AppRouterState): void {
     const aborted = pendingTransitions.slice(0, index)
     pendingTransitions.splice(0, index + 1)
 
-    const now = Date.now()
+    const now = timestamp()
     if (hasCommitHook) {
       // Skipped when no module registered a commit hook — the route
       // description has no other consumer. If describing fails, the commit
