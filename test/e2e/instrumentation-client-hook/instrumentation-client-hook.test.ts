@@ -1,6 +1,23 @@
-import { isNextDev, nextTestSetup } from 'e2e-utils'
+import { isNextDev, nextTestSetup, type NextInstance } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 import path from 'path'
+
+// The app-router fixture contains two deliberately blocking routes (/slow and
+// /query: dynamic access with no Suspense boundary above it). Cache
+// components fails the build for those unless the route opts into blocking
+// with `export const instant = false` — but that config is itself a build
+// error when cacheComponents is NOT enabled, so it can't live in the shared
+// fixture and is patched in per-mode before the server starts.
+async function patchBlockingRoutesForCacheComponents(next: NextInstance) {
+  if (process.env.__NEXT_CACHE_COMPONENTS === 'true') {
+    for (const page of ['app/slow/page.tsx', 'app/query/page.tsx']) {
+      await next.patchFile(
+        page,
+        (content) => `export const instant = false\n${content}`
+      )
+    }
+  }
+}
 
 describe('Instrumentation Client Hook', () => {
   describe.each([
@@ -23,6 +40,14 @@ describe('Instrumentation Client Hook', () => {
     describe(name, () => {
       const { next, isNextDev } = nextTestSetup({
         files: path.join(__dirname, appDir),
+        skipStart: true,
+      })
+
+      beforeAll(async () => {
+        if (appDir === 'app-router') {
+          await patchBlockingRoutesForCacheComponents(next)
+        }
+        await next.start()
       })
 
       it(`should execute instrumentation-client from ${name.toLowerCase()} before hydration`, async () => {
@@ -60,6 +85,12 @@ describe('Instrumentation Client Hook', () => {
   describe('onRouterTransitionStart', () => {
     const { next } = nextTestSetup({
       files: path.join(__dirname, 'app-router'),
+      skipStart: true,
+    })
+
+    beforeAll(async () => {
+      await patchBlockingRoutesForCacheComponents(next)
+      await next.start()
     })
 
     it('onRouterTransitionStart fires at the start of a navigation', async () => {
@@ -124,6 +155,12 @@ describe('Instrumentation Client Hook', () => {
           instrumentationClientRouterTransitionEvents: true,
         },
       },
+      skipStart: true,
+    })
+
+    beforeAll(async () => {
+      await patchBlockingRoutesForCacheComponents(next)
+      await next.start()
     })
 
     async function getTransitionEvents(browser) {
@@ -601,9 +638,15 @@ describe('Instrumentation Client Hook', () => {
     })
 
     it('reports a full lifecycle for a query-param-only navigation', async () => {
-      const browser = await next.browser('/some-page')
+      // The destination page reads searchParams, so what the server rendered
+      // matches the URL in every delivery mode. (For a static page the
+      // searchParams on the event describe the rendered payload, not the URL:
+      // a deployed static page serves one shared prerender whose
+      // renderedSearch is empty, while its canonicalUrl still carries the
+      // query.)
+      const browser = await next.browser('/query')
 
-      await browser.elementByCss('a[href="/some-page?tab=stats"]').click()
+      await browser.elementByCss('a[href="/query?tab=stats"]').click()
 
       await retry(async () => {
         const events = await getTransitionEvents(browser)
@@ -618,8 +661,8 @@ describe('Instrumentation Client Hook', () => {
       expect(start.event.from.searchParams).toEqual({})
       expect(commit.event.to.searchParams).toEqual({ tab: 'stats' })
       expect(commit.event.to.routes).toEqual(start.event.from.routes)
-      expect(commit.event.to.renderedPathname).toBe('/some-page')
-      expect(commit.event.to.canonicalUrl).toBe('/some-page?tab=stats')
+      expect(commit.event.to.renderedPathname).toBe('/query')
+      expect(commit.event.to.canonicalUrl).toBe('/query?tab=stats')
       expect(events.filter((e) => e.phase === 'abort')).toHaveLength(0)
     })
 
