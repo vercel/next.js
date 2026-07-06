@@ -3,11 +3,13 @@ import { retry } from 'next-test-utils'
 import fs from 'fs'
 import path from 'path'
 
-// The app-router fixture has three deliberately blocking routes (/slow, /query,
-// and /rewrite-target): dynamic access with no Suspense boundary above it.
-// Cache components fails the build for those unless the route opts into blocking
-// with `export const instant = false` — but that config is itself a build error
-// when cacheComponents is NOT enabled, so it can't live in the shared fixture.
+// Several routes in the app-router fixture read dynamic request data
+// (searchParams, or connection() in /slow) with no Suspense boundary above it,
+// so the transition events can report per-URL search and so a navigation to
+// /slow blocks. Cache components fails the build for dynamic access outside
+// Suspense unless the route opts into blocking with `export const instant =
+// false` — but that config is itself a build error when cacheComponents is NOT
+// enabled, so it can't live in the shared fixture.
 // When cache components is on we overlay a copy of each page with the export
 // prepended, via `overrideFiles`: it is written during setup, before the build
 // runs in every mode — including deploy, where the build runs inside setup() so
@@ -21,6 +23,8 @@ const cacheComponentsOverrideFiles =
           'app/slow/page.tsx',
           'app/query/page.tsx',
           'app/rewrite-target/page.tsx',
+          'app/blog/[slug]/page.tsx',
+          'app/docs/[...parts]/page.tsx',
         ].map((relPath) => [
           relPath,
           `export const instant = false\n${fs.readFileSync(
@@ -161,6 +165,18 @@ describe('Instrumentation Client Hook', () => {
 
     async function getTransitionEvents(browser) {
       return browser.eval(`window.__ROUTER_TRANSITION_EVENTS`)
+    }
+
+    // Reads the sessionStorage mirror of the event log (see
+    // instrumentation-client.ts). Used by the tests whose navigation ends in
+    // a full-page (MPA) load: the window log dies with the document, the
+    // mirror survives same-origin navigations.
+    async function getMirroredTransitionEvents(browser) {
+      return JSON.parse(
+        await browser.eval(
+          `sessionStorage.getItem('__ROUTER_TRANSITION_EVENTS')`
+        )
+      )
     }
 
     it('reports the from route on start', async () => {
@@ -881,6 +897,189 @@ describe('Instrumentation Client Hook', () => {
       expect(commit.event.to.canonicalUrl).toBe('/docs/a/b?x=1&x=2')
       // Repeated search params are reported as an array, verbatim.
       expect(commit.event.to.searchParams).toEqual({ x: ['1', '2'] })
+    })
+
+    it('reports only a start for a navigation whose flight response fails to parse', async () => {
+      const browser = await next.browser('/')
+
+      // /broken-nav answers the navigation fetch with an unparseable flight
+      // payload (see middleware.ts). The failed navigation falls back to a
+      // full-page (MPA) navigation — its transition is untracked when the
+      // MPA state settles and the document unloads to the 404 page. The
+      // consumer-visible result is a start with no terminal event, read back
+      // through the sessionStorage mirror.
+      await browser.elementById('push-broken-nav').click()
+      await browser.elementByCss('#not-found-page')
+
+      const mirrored = await getMirroredTransitionEvents(browser)
+      expect(mirrored.map((e) => e.phase)).toEqual(['start'])
+      expect(mirrored[0].url).toBe('/broken-nav')
+
+      // On the fresh document, a navigation reports a clean lifecycle: the
+      // failed transition cannot be claimed by a later commit.
+      await browser.elementByCss('a[href="/some-page"]').click()
+      await browser.elementById('some-page')
+      await retry(async () => {
+        const events = await getTransitionEvents(browser)
+        expect(events.filter((e) => e.phase === 'commit')).toHaveLength(1)
+      })
+      const events = await getTransitionEvents(browser)
+      expect(events.map((e) => e.phase)).toEqual(['start', 'commit'])
+      expect(events[0].url).toBe('/some-page')
+    })
+
+    it('reports no terminal events for a same-tick race whose replacer fails', async () => {
+      const browser = await next.browser('/')
+
+      // Same tick: the second navigation replaces the first, then itself
+      // fails (unparseable flight payload) and falls back to a full-page
+      // navigation. The replaced first transition's replacer can never
+      // commit, so it is dropped: neither transition may report a commit or
+      // an abort — two starts are the only events the consumer ever sees.
+      await browser.elementById('push-then-broken-nav').click()
+      await browser.elementByCss('#not-found-page')
+
+      const mirrored = await getMirroredTransitionEvents(browser)
+      expect(mirrored.map((e) => e.phase)).toEqual(['start', 'start'])
+      expect(mirrored.map((e) => e.url)).toEqual(['/some-page', '/broken-nav'])
+
+      // On the fresh document, a navigation reports a clean lifecycle: the
+      // dropped race cannot leak into a later commit's aborts.
+      await browser.elementByCss('a[href="/dashboard"]').click()
+      await browser.elementById('dashboard')
+      await retry(async () => {
+        const events = await getTransitionEvents(browser)
+        expect(events.filter((e) => e.phase === 'commit')).toHaveLength(1)
+      })
+      const events = await getTransitionEvents(browser)
+      expect(events.map((e) => e.phase)).toEqual(['start', 'commit'])
+      expect(events[0].url).toBe('/dashboard')
+    })
+
+    it('follows a same-tick server action revalidation, so the navigation still reports its commit', async () => {
+      const browser = await next.browser('/')
+
+      // router.push() and a revalidating server action dispatched in the same
+      // tick: the action is queued behind the navigation and re-derives its
+      // not-yet-committed state at the same URL. Whether React commits the
+      // navigation's own state or only the action's derived state, the
+      // navigation must report exactly one commit, attributed to its own id —
+      // the server action emits no events of its own.
+      await browser.elementById('push-then-revalidate-action').click()
+      await browser.elementById('no-prefetch')
+
+      await retry(async () => {
+        const events = await getTransitionEvents(browser)
+        expect(events.filter((e) => e.phase === 'commit')).toHaveLength(1)
+      })
+
+      const events = await getTransitionEvents(browser)
+      const starts = events.filter((e) => e.phase === 'start')
+      const commit = events.find((e) => e.phase === 'commit')
+      expect(starts).toHaveLength(1)
+      expect(starts[0].url).toBe('/no-prefetch')
+      expect(commit.event.id).toBe(starts[0].event.id)
+      expect(commit.event.to.renderedPathname).toBe('/no-prefetch')
+      expect(events.filter((e) => e.phase === 'abort')).toHaveLength(0)
+
+      // The transition settled exactly once: a follow-up navigation adds one
+      // start/commit pair and nothing else.
+      await browser.elementByCss('a[href="/"]').click()
+      await browser.elementById('home')
+      await retry(async () => {
+        const after = await getTransitionEvents(browser)
+        expect(after.filter((e) => e.phase === 'commit')).toHaveLength(2)
+      })
+      const after = await getTransitionEvents(browser)
+      expect(after.filter((e) => e.phase === 'start')).toHaveLength(2)
+      expect(after.filter((e) => e.phase === 'abort')).toHaveLength(0)
+    })
+
+    it("does not attribute a server action redirect's commit to a pending navigation", async () => {
+      const browser = await next.browser('/')
+
+      // router.push('/dashboard') and a server action that redirects to
+      // /some-page, dispatched in the same tick. The action is queued behind
+      // the navigation; its redirected state is applied silently (a server
+      // action is not a tracked transition) and the redirect target is then
+      // pushed as a real, tracked navigation of its own. Nothing about the
+      // redirect may be attributed to the pending /dashboard transition.
+      await browser.elementById('push-then-redirect-action').click()
+      await browser.elementByCss('#some-page')
+
+      // Every start settles with exactly one terminal event.
+      await retry(async () => {
+        const events = await getTransitionEvents(browser)
+        const starts = events.filter((e) => e.phase === 'start')
+        expect(starts).toHaveLength(2)
+        for (const start of starts) {
+          const terminals = events.filter(
+            (e) =>
+              (e.phase === 'commit' || e.phase === 'abort') &&
+              e.event.id === start.event.id
+          )
+          expect(terminals).toHaveLength(1)
+        }
+      })
+
+      const events = await getTransitionEvents(browser)
+      const starts = events.filter((e) => e.phase === 'start')
+      const commits = events.filter((e) => e.phase === 'commit')
+      const aborts = events.filter((e) => e.phase === 'abort')
+      expect(starts.map((e) => e.url)).toEqual(['/dashboard', '/some-page'])
+
+      // The redirect's own navigation commits, as itself — never as the
+      // /dashboard transition.
+      const redirectCommit = commits.find(
+        (e) => e.event.id === starts[1].event.id
+      )
+      expect(redirectCommit.url).toBe('/some-page')
+      expect(redirectCommit.event.to.renderedPathname).toBe('/some-page')
+
+      // The /dashboard transition either committed its own state before the
+      // redirect landed, or was aborted by the redirect navigation's commit —
+      // scheduling decides which, but a commit may only describe /dashboard,
+      // and an abort may only name the redirect's commit as its replacer.
+      const dashboardCommit = commits.find(
+        (e) => e.event.id === starts[0].event.id
+      )
+      if (dashboardCommit !== undefined) {
+        expect(dashboardCommit.event.to.renderedPathname).toBe('/dashboard')
+        expect(aborts).toHaveLength(0)
+      } else {
+        expect(aborts.map((e) => e.event.id)).toEqual([starts[0].event.id])
+        expect(aborts[0].event.replacedBy).toBe(redirectCommit.event.id)
+      }
+    })
+
+    it('reports only a start for a navigation that falls back to a full-page load', async () => {
+      const browser = await next.browser('/')
+
+      // /plain is a route handler: the navigation response is not a flight
+      // payload, so the router bails out of the SPA navigation and performs a
+      // full-page (MPA) navigation, unloading this document. The transition
+      // can never commit; it is untracked when the MPA state settles, having
+      // reported only its start.
+      await browser.elementById('push-route-handler').click()
+      await browser.elementByCss('#plain-page')
+
+      const mirrored = await getMirroredTransitionEvents(browser)
+      expect(mirrored.map((e) => e.phase)).toEqual(['start'])
+      expect(mirrored[0].url).toBe('/plain')
+
+      // Back in the app (a fresh document), a navigation reports a clean
+      // lifecycle: nothing about the abandoned transition leaks across the
+      // full-page load.
+      await browser.get(new URL('/', next.url).href)
+      await browser.elementById('home')
+      await browser.elementByCss('a[href="/some-page"]').click()
+      await browser.elementById('some-page')
+      await retry(async () => {
+        const events = await getTransitionEvents(browser)
+        expect(events.filter((e) => e.phase === 'commit')).toHaveLength(1)
+      })
+      const events = await getTransitionEvents(browser)
+      expect(events.map((e) => e.phase)).toEqual(['start', 'commit'])
     })
 
     // SKIPPED — documents a lifecycle gap rather than the expected behavior:
