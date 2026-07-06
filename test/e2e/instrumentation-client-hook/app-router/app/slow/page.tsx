@@ -1,5 +1,10 @@
 import { connection } from 'next/server'
 
+// This route is deliberately blocking: the whole point is that there is no
+// Suspense boundary above the slow render. Under cache components (which
+// fails the build for dynamic access outside <Suspense>) the test setup
+// patches in `export const instant = false` — that config is only valid when
+// cacheComponents is enabled, so it can't live here unconditionally.
 export default async function Page() {
   // Keep this page dynamic so a prefetch can never satisfy a navigation to
   // it: every click must issue a dynamic request that runs this 2s delay.

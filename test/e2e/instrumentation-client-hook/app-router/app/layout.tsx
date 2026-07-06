@@ -34,7 +34,7 @@ export default function RootLayout({ children }) {
             </Link>
           </li>
           <li>
-            <Link href="/some-page?tab=stats">Some Page with query</Link>
+            <Link href="/query?tab=stats">Query page with query</Link>
           </li>
         </ul>
         {/* Rendered in the layout so the buttons are available on every page
