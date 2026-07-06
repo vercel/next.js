@@ -4,7 +4,7 @@ import { retry } from 'next-test-utils'
 import { outdent } from 'outdent'
 
 describe('unrecognized server actions', () => {
-  const { next, isNextDeploy, isNextDev } = nextTestSetup({
+  const { next, isNextDeploy } = nextTestSetup({
     files: __dirname,
   })
 
@@ -34,6 +34,35 @@ describe('unrecognized server actions', () => {
         'Missing `origin` header from a forwarded Server Actions request'
       )
       expect(res.status).toBe(404)
+    })
+
+    it('should 404 when POSTing a multipart non-server-action request to an action route', async () => {
+      const boundary = '----next-test-boundary'
+
+      const res = await next.fetch('/nodejs/multipart-target', {
+        method: 'POST',
+        headers: {
+          'content-type': `multipart/form-data; boundary=${boundary}`,
+        },
+        body: [
+          `--${boundary}`,
+          'Content-Disposition: form-data; name="file"; filename="test.txt"',
+          'Content-Type: text/plain',
+          '',
+          'test',
+          `--${boundary}--`,
+          '',
+        ].join('\r\n'),
+      })
+
+      const cliOutput = getLogs()
+      expect(cliOutput).not.toContain('TypeError')
+      expect(cliOutput).not.toContain(
+        'Missing `origin` header from a forwarded Server Actions request'
+      )
+      expect(res.status).toBe(404)
+      expect(res.headers.get('x-nextjs-action-not-found')).toBe('1')
+      expect(await res.text()).toBe('Server action not found.')
     })
 
     it.each([
@@ -154,35 +183,15 @@ describe('unrecognized server actions', () => {
         } else {
           // An MPA action, sent without JS.
 
-          // FIXME: When deployed, the request is logged as a 500, but returns a 405.
-          // We also don't seem to display the error page correctly
           if (!isNextDeploy) {
-            // FIXME: Currently, an unrecognized id in an MPA action results in a 500.
-            // This is not ideal, and ignores all nested `error.js` files, only showing the topmost one.
-            expect(response.status()).toBe(500)
-            if (isNextDev) {
-              expect(response.headers()['content-type']).toStartWith(
-                'text/html'
-              )
-            } else {
-              const responseText = await response.text()
-              expect(responseText).toBe('Internal Server Error')
-              expect(response.headers()['content-type']).toStartWith(
-                'text/plain'
-              )
-            }
-
-            // In dev, the 500 page doesn't have any SSR'd html, so it won't show anything without JS.
-            if (!isNextDev) {
-              expect(await browser.elementByCss('body').text()).toContain(
-                'Internal Server Error'
-              )
-            }
+            expect(response.status()).toBe(404)
+            expect(response.headers()['content-type']).toStartWith('text/plain')
+            expect(await response.text()).toBe('Server action not found.')
 
             if (!isNextDeploy) {
               await retry(async () =>
                 expect(getLogs()).toInclude(
-                  `Error: Failed to find Server Action. This request might be from an older or newer deployment`
+                  `Failed to find Server Action. This request might be from an older or newer deployment`
                 )
               )
             }

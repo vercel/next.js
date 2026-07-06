@@ -568,14 +568,14 @@ export async function handleAction({
     isPossibleServerAction,
   } = getServerActionRequestMetadata(req)
 
-  const handleUnrecognizedFetchAction = (err: unknown): HandleActionResult => {
+  const handleUnrecognizedAction = (err: unknown): HandleActionResult => {
     // If the deployment doesn't have skew protection, this is expected to occasionally happen,
     // so we use a warning instead of an error.
     console.warn(err)
 
-    // Return an empty response with a header that the client router will interpret.
-    // We don't need to waste time encoding a flight response, and using a blank body + header
-    // means that unrecognized actions can also be handled at the infra level
+    // Return a plain response with a header that the client router or infra can interpret.
+    // We don't need to waste time encoding a flight response, and using this header
+    // means that unrecognized actions can be handled at the infra level
     // (i.e. without needing to invoke a lambda)
     res.setHeader(NEXT_ACTION_NOT_FOUND_HEADER, '1')
     res.setHeader('content-type', 'text/plain')
@@ -608,7 +608,7 @@ export async function handleAction({
 
   // If the app has no server actions at all, we can 404 early.
   if (!hasServerActions()) {
-    return handleUnrecognizedFetchAction(getActionNotFoundError(actionId))
+    return handleUnrecognizedAction(getActionNotFoundError(actionId))
   }
 
   if (workStore.isStaticGeneration) {
@@ -777,7 +777,7 @@ export async function handleAction({
               try {
                 actionModId = getActionModIdOrError(actionId, serverModuleMap)
               } catch (err) {
-                return handleUnrecognizedFetchAction(err)
+                return handleUnrecognizedAction(err)
               }
 
               boundActionArguments = await decodeReply<unknown[]>(
@@ -789,11 +789,7 @@ export async function handleAction({
               // Multipart POST, but not a fetch action.
               // Potentially an MPA action, we have to try decoding it to check.
               if (areAllActionIdsValid(formData, serverModuleMap) === false) {
-                // TODO: This can be from skew or manipulated input. We should handle this case
-                // more gracefully but this preserves the prior behavior where decodeAction would throw instead.
-                throw new Error(
-                  `Failed to find Server Action. This request might be from an older or newer deployment.\nRead more: https://nextjs.org/docs/messages/failed-to-find-server-action`
-                )
+                return handleUnrecognizedAction(getActionNotFoundError(null))
               }
 
               const action = await decodeAction(formData, serverModuleMap)
@@ -841,7 +837,7 @@ export async function handleAction({
             try {
               actionModId = getActionModIdOrError(actionId, serverModuleMap)
             } catch (err) {
-              return handleUnrecognizedFetchAction(err)
+              return handleUnrecognizedAction(err)
             }
 
             // A fetch action with a non-multipart body.
@@ -937,7 +933,7 @@ export async function handleAction({
               try {
                 actionModId = getActionModIdOrError(actionId, serverModuleMap)
               } catch (err) {
-                return handleUnrecognizedFetchAction(err)
+                return handleUnrecognizedAction(err)
               }
 
               const busboy = (
@@ -995,11 +991,7 @@ export async function handleAction({
               }
 
               if (areAllActionIdsValid(formData, serverModuleMap) === false) {
-                // TODO: This can be from skew or manipulated input. We should handle this case
-                // more gracefully but this preserves the prior behavior where decodeAction would throw instead.
-                throw new Error(
-                  `Failed to find Server Action. This request might be from an older or newer deployment.\nRead more: https://nextjs.org/docs/messages/failed-to-find-server-action`
-                )
+                return handleUnrecognizedAction(getActionNotFoundError(null))
               }
 
               // TODO: Refactor so it is harder to accidentally decode an action before you have validated that the
@@ -1049,7 +1041,7 @@ export async function handleAction({
             try {
               actionModId = getActionModIdOrError(actionId, serverModuleMap)
             } catch (err) {
-              return handleUnrecognizedFetchAction(err)
+              return handleUnrecognizedAction(err)
             }
 
             // A fetch action with a non-multipart body.
