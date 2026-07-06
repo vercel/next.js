@@ -423,6 +423,13 @@ function createViewportElements(
 // Metadata tag rendering
 // ---------------------------------------------------------------------------
 
+// Normalize string metadata values to prevent hydration mismatches.
+// Windows carriage returns (\r\n) are stripped during HTML serialization
+// but not in the React hydration data, causing duplicate meta tags.
+function normalizeMetadataString(value: string): string {
+  return value.replace(/\r\n/g, '\n').replace(/\r/g, '')
+}
+
 function createMetadataElements(
   metadata: ResolvedMetadata
 ): React.ReactElement[] {
@@ -437,7 +444,11 @@ function createMetadataElements(
   // --- Basic meta tags ---
   if (metadata.description) {
     tags.push(
-      <meta key={i++} name="description" content={metadata.description} />
+      <meta
+        key={i++}
+        name="description"
+        content={normalizeMetadataString(metadata.description)}
+      />
     )
   }
   if (metadata.applicationName) {
@@ -822,7 +833,7 @@ function createMetadataElements(
     }
     if (og.description) {
       tags.push(
-        <meta key={i++} property="og:description" content={og.description} />
+        <meta key={i++} property="og:description" content={normalizeMetadataString(og.description)} />
       )
     }
     if (og.url) {
@@ -1533,7 +1544,7 @@ function createMetadataElements(
     }
     if (tw.description) {
       tags.push(
-        <meta key={i++} name="twitter:description" content={tw.description} />
+        <meta key={i++} name="twitter:description" content={normalizeMetadataString(tw.description)} />
       )
     }
 
