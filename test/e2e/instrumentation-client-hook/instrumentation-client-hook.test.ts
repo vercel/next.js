@@ -1,23 +1,35 @@
-import { isNextDev, nextTestSetup, type NextInstance } from 'e2e-utils'
+import { isNextDev, nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
+import fs from 'fs'
 import path from 'path'
 
-// The app-router fixture contains two deliberately blocking routes (/slow and
-// /query: dynamic access with no Suspense boundary above it). Cache
-// components fails the build for those unless the route opts into blocking
-// with `export const instant = false` — but that config is itself a build
-// error when cacheComponents is NOT enabled, so it can't live in the shared
-// fixture and is patched in per-mode before the server starts.
-async function patchBlockingRoutesForCacheComponents(next: NextInstance) {
-  if (process.env.__NEXT_CACHE_COMPONENTS === 'true') {
-    for (const page of ['app/slow/page.tsx', 'app/query/page.tsx']) {
-      await next.patchFile(
-        page,
-        (content) => `export const instant = false\n${content}`
+// The app-router fixture has three deliberately blocking routes (/slow, /query,
+// and /rewrite-target): dynamic access with no Suspense boundary above it.
+// Cache components fails the build for those unless the route opts into blocking
+// with `export const instant = false` — but that config is itself a build error
+// when cacheComponents is NOT enabled, so it can't live in the shared fixture.
+// When cache components is on we overlay a copy of each page with the export
+// prepended, via `overrideFiles`: it is written during setup, before the build
+// runs in every mode — including deploy, where the build runs inside setup() so
+// a test-body patchFile would be too late. Evaluated here at collection time,
+// where the env var is already set.
+const appRouterDir = path.join(__dirname, 'app-router')
+const cacheComponentsOverrideFiles =
+  process.env.__NEXT_CACHE_COMPONENTS === 'true'
+    ? Object.fromEntries(
+        [
+          'app/slow/page.tsx',
+          'app/query/page.tsx',
+          'app/rewrite-target/page.tsx',
+        ].map((relPath) => [
+          relPath,
+          `export const instant = false\n${fs.readFileSync(
+            path.join(appRouterDir, relPath),
+            'utf8'
+          )}`,
+        ])
       )
-    }
-  }
-}
+    : undefined
 
 describe('Instrumentation Client Hook', () => {
   describe.each([
@@ -40,14 +52,8 @@ describe('Instrumentation Client Hook', () => {
     describe(name, () => {
       const { next, isNextDev } = nextTestSetup({
         files: path.join(__dirname, appDir),
-        skipStart: true,
-      })
-
-      beforeAll(async () => {
-        if (appDir === 'app-router') {
-          await patchBlockingRoutesForCacheComponents(next)
-        }
-        await next.start()
+        overrideFiles:
+          appDir === 'app-router' ? cacheComponentsOverrideFiles : undefined,
       })
 
       it(`should execute instrumentation-client from ${name.toLowerCase()} before hydration`, async () => {
@@ -85,12 +91,7 @@ describe('Instrumentation Client Hook', () => {
   describe('onRouterTransitionStart', () => {
     const { next } = nextTestSetup({
       files: path.join(__dirname, 'app-router'),
-      skipStart: true,
-    })
-
-    beforeAll(async () => {
-      await patchBlockingRoutesForCacheComponents(next)
-      await next.start()
+      overrideFiles: cacheComponentsOverrideFiles,
     })
 
     it('onRouterTransitionStart fires at the start of a navigation', async () => {
@@ -155,12 +156,7 @@ describe('Instrumentation Client Hook', () => {
           instrumentationClientRouterTransitionEvents: true,
         },
       },
-      skipStart: true,
-    })
-
-    beforeAll(async () => {
-      await patchBlockingRoutesForCacheComponents(next)
-      await next.start()
+      overrideFiles: cacheComponentsOverrideFiles,
     })
 
     async function getTransitionEvents(browser) {
