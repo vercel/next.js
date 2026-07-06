@@ -404,6 +404,10 @@ export default defineConfig([
     files: ['**/*.ts', '**/*.tsx'],
     ignores: [
       'bench/**/*',
+      // Eval fixtures are sandbox workspaces with their own package.json and
+      // tsconfig, not repo code — EVAL.ts files may import modules that only
+      // resolve inside the sandbox (e.g. @vercel/agent-eval/eval).
+      'evals/evals/**/*',
       'examples/**/*',
       'test/**/*',
       '**/*.d.ts',
