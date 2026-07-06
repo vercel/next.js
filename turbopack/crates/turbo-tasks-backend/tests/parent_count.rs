@@ -291,3 +291,67 @@ async fn parent_count_decrement_survives_snapshot_evict() {
     tt.stop_and_wait().await;
     result.unwrap();
 }
+
+/// A GC pass collects a disconnected subtree via the parent_count cascade: disconnecting branch_a
+/// drops its count to 0 (branch_a is collected), which decrements its child leaf(10) to 0 (leaf(10)
+/// is then collected too). The live branch (branch_b + leaf(20)) is untouched and the graph still
+/// computes; flipping back recomputes branch_a fresh, proving no dangling references.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn gc_collects_disconnected_subtree() {
+    let (tt, _persistence_dir) = create_tt("gc_collects_disconnected_subtree");
+    let tt2 = tt.clone();
+
+    let result = turbo_tasks::run_once(tt.clone(), async move {
+        unmark_top_level_task_may_leak_eventually_consistent_state();
+
+        let selector_op = create_selector(false);
+        let selector_vc = selector_op.resolve().strongly_consistent().await?;
+        let selector = selector_op.read_strongly_consistent().await?;
+
+        let output = select(selector_vc);
+        assert_eq!(*output.read_strongly_consistent().await?, 11);
+
+        // Flip: select drops branch_a; branch_a (parent_count 0) becomes a candidate.
+        selector.set(true);
+        assert_eq!(*output.read_strongly_consistent().await?, 22);
+
+        anyhow::Ok(())
+    })
+    .await;
+    result.unwrap();
+
+    // GC runs in a fresh `run_once` after the first completes: a `run_once` root keeps every task
+    // it touched active (active_counter > 0) until it returns, so a task disconnected *within*
+    // that run is not yet collectible. Once the run ends the active counts are released and the
+    // disconnected branch_a (parent_count 0) becomes collectible; the cascade then drops
+    // leaf(10) to 0 too.
+    let collected = tt2.backend().gc_for_testing(&tt2);
+    assert_eq!(
+        collected, 2,
+        "branch_a and its cascaded child leaf(10) should both be collected"
+    );
+    assert_eq!(
+        tt2.backend().gc_for_testing(&tt2),
+        0,
+        "nothing left to collect"
+    );
+
+    // The live graph still computes, and flipping back recomputes branch_a fresh (it was collected)
+    // — proving collection left no dangling references.
+    let tt3 = tt.clone();
+    let result = turbo_tasks::run_once(tt.clone(), async move {
+        let selector_op = create_selector(true);
+        let selector_vc = selector_op.resolve().strongly_consistent().await?;
+        let selector = selector_op.read_strongly_consistent().await?;
+        let output = select(selector_vc);
+        assert_eq!(*output.read_strongly_consistent().await?, 22);
+        selector.set(false);
+        assert_eq!(*output.read_strongly_consistent().await?, 11);
+        let _ = &tt3;
+        anyhow::Ok(())
+    })
+    .await;
+    result.unwrap();
+
+    tt.stop_and_wait().await;
+}

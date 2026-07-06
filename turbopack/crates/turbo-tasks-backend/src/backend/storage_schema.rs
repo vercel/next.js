@@ -867,6 +867,33 @@ impl TaskStorage {
     pub fn gc_transient_parent_count(&self) -> u32 {
         self.get_transient_parent_count().copied().unwrap_or(0)
     }
+
+    /// Whether this task is a garbage-collection root and must never be collected: it is active
+    /// (`activeness` set — a root/once task, positive active counter, or active-until-clean) or
+    /// currently in progress (about to connect children). Transient-ness is a property of the
+    /// [`TaskId`], not the storage, so it is checked separately by the caller.
+    pub fn is_gc_root(&self) -> bool {
+        self.get_activeness().is_some() || self.get_in_progress().is_some()
+    }
+
+    /// Whether a GC pass may collect this task, given it is non-transient and has no persistent or
+    /// transient parents. It must be quiescent (not active, not in progress, not currently
+    /// restoring), have `Data` resident so its dependency edges can be scrubbed, and hold no
+    /// aggregation edges (`upper`/`followers`). The aggregation-edges check is conservative: a
+    /// disconnected task is normally stripped of its aggregation edges by `CleanupOldEdges`, but a
+    /// re-executing aggregation node can transiently retain them; rather than tear down the
+    /// aggregation overlay here (a miscount corrupts activeness), we decline to collect and let a
+    /// later pass take it once the edges clear. Under-collecting is always safe.
+    pub fn is_gc_collectible(&self) -> bool {
+        self.gc_parent_count() == 0
+            && self.gc_transient_parent_count() == 0
+            && !self.is_gc_root()
+            && !self.flags.meta_restoring()
+            && !self.flags.data_restoring()
+            && self.flags.is_restored(TaskDataCategory::Data)
+            && self.upper().is_empty()
+            && self.followers().is_none_or(|f| f.is_empty())
+    }
 }
 
 /// Counts for aggregation tree and collectibles fields.

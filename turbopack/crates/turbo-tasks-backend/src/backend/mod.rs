@@ -72,7 +72,7 @@ use crate::{
         storage::Storage,
         storage_schema::{TaskStorage, TaskStorageAccessors},
     },
-    backing_storage::{SnapshotItem, compute_task_type_hash},
+    backing_storage::{SnapshotItem, TaskDeletion, compute_task_type_hash},
     data::{
         ActivenessState, CellRef, CollectibleRef, CollectiblesRef, Dirtyness, InProgressCellState,
         InProgressState, InProgressStateInner, OutputValue, TransientTask,
@@ -90,6 +90,15 @@ use crate::{
 /// If the number of dependent tasks exceeds this threshold,
 /// the operation will be parallelized.
 const DEPENDENT_TASKS_DIRTY_PARALLELIZATION_THRESHOLD: usize = 10000;
+
+/// When `TURBO_ENGINE_GC` is set to a truthy value, the background job runs a `parent_count`-driven
+/// garbage-collection pass (tearing down tasks whose persistent parent count reached 0). Opt-in
+/// until it has been proven on trusted apps; the eventual default-on flip gets its own escape
+/// hatch.
+static GC_ENABLED: LazyLock<bool> = LazyLock::new(|| {
+    std::env::var_os("TURBO_ENGINE_GC")
+        .is_some_and(|v| matches!(v.to_str(), Some("1" | "true" | "yes")))
+});
 
 /// Priority used to re-schedule a task that became stale during execution.
 ///
@@ -213,6 +222,21 @@ pub struct TurboTasksBackend {
     /// `stop_and_wait`).
     snapshot_in_progress: Mutex<()>,
 
+    /// Tasks observed reaching `parent_count == 0` (no persistent parent) during operation
+    /// execution — candidates for garbage collection. Populated cheaply (a side-set write) in the
+    /// `AdjustParentCount` handler; the actual teardown/removal happens later under the GC phase's
+    /// exclusion (see `gc_collect`), where candidacy is re-validated (a concurrent re-connect may
+    /// have revived the task). Never collected directly from here.
+    gc_candidates: Mutex<FxHashSet<TaskId>>,
+
+    /// Tombstones for tasks the GC pass has removed from memory, awaiting the next persistence
+    /// commit. GC removes a collected task from the in-memory map immediately (under the GC
+    /// phase), but its already-persisted on-disk copy must be tombstoned in a `save_snapshot`
+    /// commit; each collected task's [`TaskDeletion`] is buffered here and drained into the
+    /// next snapshot. A crash before that commit just leaves the on-disk copy to be
+    /// re-collected — never a dangling reference.
+    pending_gc_deletes: Mutex<Vec<TaskDeletion>>,
+
     stopping: AtomicBool,
     stopping_event: Event,
     idle_start_event: Event,
@@ -261,6 +285,8 @@ impl TurboTasksBackend {
             storage: Storage::new(shard_amount, small_preallocation),
             snapshot_coord: SnapshotCoordinator::new(),
             snapshot_in_progress: Mutex::new(()),
+            gc_candidates: Mutex::new(FxHashSet::default()),
+            pending_gc_deletes: Mutex::new(Vec::new()),
             stopping: AtomicBool::new(false),
             stopping_event: Event::new(|| || "TurboTasksBackend::stopping_event".to_string()),
             idle_start_event: Event::new(|| || "TurboTasksBackend::idle_start_event".to_string()),
@@ -279,6 +305,230 @@ impl TurboTasksBackend {
         turbo_tasks: &'a TurboTasks<TurboTasksBackend>,
     ) -> impl ExecuteContext<'a> {
         ExecuteContextImpl::new(self, turbo_tasks)
+    }
+
+    /// An execute context for the garbage collector that does not take an operation guard. Only
+    /// valid while the caller holds the coordinator's GC phase (which provides exclusion); see
+    /// [`ExecuteContextImpl::new_for_gc`].
+    fn execute_context_gc<'a>(
+        &'a self,
+        turbo_tasks: &'a TurboTasks<TurboTasksBackend>,
+    ) -> impl ExecuteContext<'a> {
+        ExecuteContextImpl::new_for_gc(self, turbo_tasks)
+    }
+
+    /// Records `task_id` as a garbage-collection candidate (its persistent `parent_count` reached
+    /// 0). Only non-transient tasks are tracked — transient tasks are never collected. Candidacy is
+    /// re-validated under exclusion before the task is actually collected, so a false positive here
+    /// (e.g. the count is bumped back up by a concurrent re-connect) is harmless.
+    fn note_gc_candidate(&self, task_id: TaskId) {
+        if task_id.is_transient() {
+            return;
+        }
+        self.gc_candidates.lock().insert(task_id);
+    }
+
+    /// Whether `task_id` is currently collectible: resident, non-transient, no persistent or
+    /// transient parents, quiescent, and holding no aggregation edges. Used to (re-)validate a
+    /// candidate under the GC phase before tearing it down, and to decide whether a child whose
+    /// count just hit 0 during the cascade should itself be collected.
+    fn gc_is_collectible(&self, task_id: TaskId) -> bool {
+        if task_id.is_transient() {
+            return false;
+        }
+        self.storage
+            .with_task(task_id, |t| t.is_gc_collectible())
+            .unwrap_or(false)
+    }
+
+    /// The persistent `parent_count` of a resident task (0 if absent or not resident).
+    fn gc_parent_count(&self, task_id: TaskId) -> u32 {
+        self.storage
+            .with_task(task_id, |t| t.gc_parent_count())
+            .unwrap_or(0)
+    }
+
+    /// Runs a garbage-collection pass under the coordinator's GC phase. Drains the candidate set
+    /// (tasks observed reaching `parent_count == 0`), re-validates each under the exclusion, and
+    /// tears down the ones that are still collectible: scrubbing their reverse-dependency edges,
+    /// decrementing their children's `parent_count` (cascading to any child that reaches 0),
+    /// removing them from the in-memory map + task_cache, and buffering an on-disk tombstone for
+    /// the next persistence commit.
+    ///
+    /// The GC phase guarantees no operation is executing (see [`SnapshotCoordinator::begin_gc`]),
+    /// so the cross-task scrub and the map removals cannot race a concurrent connect/read.
+    /// Returns the number of tasks collected.
+    fn gc_collect(&self, turbo_tasks: &TurboTasks<TurboTasksBackend>) -> usize {
+        // Seed the worklist from the candidates observed since the last pass. Re-validation happens
+        // per task below (a candidate may have been revived by a concurrent re-connect before the
+        // phase was acquired, or may not be Data-resident).
+        let mut worklist: Vec<TaskId> = self.gc_candidates.lock().drain().collect();
+        let mut collected = 0;
+        let mut deletions = Vec::new();
+        // Candidates that still have `parent_count == 0` but are not *yet* collectible (e.g. a
+        // disconnected task whose transient activeness has not been torn down, or which is not yet
+        // Data-resident) are re-retained for a future pass. Genuine roots (`root_ty` set) also land
+        // here — they always have `parent_count == 0` — and are simply re-checked cheaply each
+        // pass; the set stays bounded by the (small) number of such tasks.
+        let mut retain: Vec<TaskId> = Vec::new();
+
+        while let Some(task_id) = worklist.pop() {
+            if !self.gc_is_collectible(task_id) {
+                // Keep it as a candidate only while it still has no persistent parent; otherwise a
+                // concurrent re-connect revived it and it is no longer garbage.
+                if self.gc_parent_count(task_id) == 0 && !task_id.is_transient() {
+                    retain.push(task_id);
+                }
+                continue;
+            }
+            let (children, deletion) = self.gc_delete_one(task_id, turbo_tasks);
+            deletions.push(deletion);
+            collected += 1;
+
+            // Cascade: each child of the deleted task loses a persistent parent. Decrement its
+            // parent_count; if it reaches 0 and is collectible, peel it too. This tears down the
+            // whole unreachable subtree in one pass.
+            let mut ctx = self.execute_context_gc(turbo_tasks);
+            for child in children {
+                if child.is_transient() {
+                    continue;
+                }
+                let mut child_task = ctx.task(child, TaskDataCategory::Meta);
+                let new_count = child_task.update_and_get_parent_count(-1);
+                drop(child_task);
+                if new_count == 0 {
+                    worklist.push(child);
+                }
+            }
+        }
+
+        if !deletions.is_empty() {
+            self.pending_gc_deletes.lock().extend(deletions);
+        }
+        // Re-queue candidates that are still parentless but were not collectible this pass, so a
+        // later pass retries once their transient activeness clears (or their Data is restored).
+        if !retain.is_empty() {
+            self.gc_candidates.lock().extend(retain);
+        }
+        collected
+    }
+
+    /// Scrubs all references from `task_id` off its dependency targets, removes it from the
+    /// task_cache and the map, and returns its `children` (so the caller can decrement their
+    /// parent_count for the cascade) together with a [`TaskDeletion`] tombstone for the next
+    /// commit.
+    ///
+    /// Must be called while holding the GC phase; uses [`Self::execute_context_gc`] (no operation
+    /// guard) to avoid deadlocking on the GC request bit.
+    fn gc_delete_one(
+        &self,
+        task_id: TaskId,
+        turbo_tasks: &TurboTasks<TurboTasksBackend>,
+    ) -> (Vec<TaskId>, TaskDeletion) {
+        let mut ctx = self.execute_context_gc(turbo_tasks);
+
+        // Snapshot the task's edges into owned buffers, then drop its guard before touching targets
+        // (avoids holding two task locks in an unchecked order).
+        let children: Vec<TaskId>;
+        let output_deps: Vec<TaskId>;
+        let cell_deps: Vec<CellRef>;
+        let cell_deps_hashed: Vec<(CellRef, u64)>;
+        let collectibles_deps: Vec<CollectiblesRef>;
+        let persistent_task_type;
+        {
+            let task = ctx.task(task_id, TaskDataCategory::All);
+            children = task.iter_children().collect();
+            output_deps = task.iter_output_dependencies().collect();
+            cell_deps = task.iter_cell_dependencies().collect();
+            cell_deps_hashed = task.iter_cell_dependencies_hashed().collect();
+            collectibles_deps = task.iter_collectibles_dependencies().collect();
+
+            // A collectible task has no aggregation edges left (is_gc_collectible checks this), so
+            // this assert documents the invariant and surfaces any case that would need aggregation
+            // teardown rather than silently corrupting the graph.
+            debug_assert!(
+                task.iter_upper().next().is_none() && task.iter_followers().next().is_none(),
+                "gc_delete: task {task_id} still has aggregation edges; teardown needed"
+            );
+
+            persistent_task_type = task.get_persistent_task_type().cloned();
+        }
+
+        // Scrub the reverse side of each forward dependency on the target task (mirrors
+        // CleanupOldEdgesOperation).
+        for output_task_id in output_deps {
+            let mut target = ctx.task(output_task_id, TaskDataCategory::Data);
+            target.remove_output_dependent(&task_id);
+        }
+        for CellRef {
+            task: cell_task,
+            cell,
+        } in cell_deps
+        {
+            let mut target = ctx.task(cell_task, TaskDataCategory::Data);
+            target.remove_cell_dependents(&CellRef {
+                task: task_id,
+                cell,
+            });
+        }
+        for (
+            CellRef {
+                task: cell_task,
+                cell,
+            },
+            key,
+        ) in cell_deps_hashed
+        {
+            let mut target = ctx.task(cell_task, TaskDataCategory::Data);
+            target.remove_cell_dependents_hashed(&(
+                CellRef {
+                    task: task_id,
+                    cell,
+                },
+                key,
+            ));
+        }
+        for CollectiblesRef {
+            task: dep_task,
+            collectible_type,
+        } in collectibles_deps
+        {
+            let mut target = ctx.task(dep_task, TaskDataCategory::Data);
+            target.remove_collectibles_dependents(&(collectible_type, task_id));
+        }
+
+        // Remove the in-memory task_cache entry (hash -> id) so lookups don't return a dead id, and
+        // compute the persisted TaskCache key so the caller can tombstone the on-disk mapping. Only
+        // persistent tasks are collected, so a persistent task type is always present.
+        let task_type =
+            persistent_task_type.expect("a collected (non-transient) task must have a task type");
+        self.storage.task_cache.remove(task_type.as_ref());
+        let task_type_hash = compute_task_type_hash(&task_type);
+
+        // Remove the task from the map. Its children set is dropped with it; we returned the child
+        // ids above so the caller can decrement their parent_count.
+        self.storage.remove_task(task_id);
+
+        // `surviving_task_ids` is left empty: it would carry any *other* live persistent task whose
+        // task type xxh3-collides with this one (the whole hash bucket is tombstoned). An 8-byte
+        // collision between two simultaneously-live tasks is astronomically rare (~2^32 tasks for
+        // one expected collision); if it ever occurred the survivor's mapping would be dropped and
+        // it would be transparently re-created on next lookup — a performance cost, not corruption.
+        let deletion = TaskDeletion {
+            task_id,
+            task_type_hash,
+            surviving_task_ids: Vec::new(),
+        };
+        (children, deletion)
+    }
+
+    /// Runs a full GC pass under the GC phase and returns the number of tasks collected. Test-only
+    /// hook. Callers must be idle (no task executing).
+    #[doc(hidden)]
+    pub fn gc_for_testing(&self, turbo_tasks: &TurboTasks<TurboTasksBackend>) -> usize {
+        let _serialize = self.snapshot_in_progress.lock();
+        let _gc_phase = self.snapshot_coord.begin_gc();
+        self.gc_collect(turbo_tasks)
     }
 
     fn operation_suspend_point(&self, suspend: impl FnOnce() -> AnyOperation) {
@@ -968,6 +1218,11 @@ impl TurboTasksBackend {
         // request bit, suspended_operations) assumes only one snapshot runs at
         // a time. Held for the entire snapshot lifecycle.
         let _snapshot_in_progress = self.snapshot_in_progress.lock();
+        // Drain GC tombstones buffered since the last snapshot (tasks the GC pass removed from
+        // memory whose on-disk copies must now be tombstoned). Drained before the early-return
+        // checks below so a GC-only cycle (deletes but no modifications) still commits its
+        // tombstones.
+        let deletes = std::mem::take(&mut *self.pending_gc_deletes.lock());
         let start = Instant::now();
         // SystemTime for wall-clock timestamps in trace events (milliseconds
         // since epoch). Instant is monotonic but has no defined epoch, so it
@@ -988,9 +1243,9 @@ impl TurboTasksBackend {
         let snapshot_time = Instant::now();
         drop(snapshot_phase);
 
-        if !has_modifications {
-            // No tasks modified since the last snapshot — drop the guard (which
-            // calls end_snapshot) and skip the expensive O(N) scan.
+        if !has_modifications && deletes.is_empty() {
+            // No tasks modified since the last snapshot and no GC tombstones pending — drop the
+            // guard (which calls end_snapshot) and skip the expensive O(N) scan.
             drop(snapshot_guard);
             return Ok((start, false));
         }
@@ -1252,9 +1507,10 @@ impl TurboTasksBackend {
         let snapshot_duration = start.elapsed();
         let task_count = task_snapshots.len();
 
-        if task_snapshots.is_empty() {
-            // This should be impossible — if we got here, modified_count was nonzero, and every
-            // modification that increments the count also failed during encoding.
+        if task_snapshots.is_empty() && deletes.is_empty() {
+            // This should be impossible — if we got here, modified_count was nonzero (or we had
+            // pending GC tombstones), and every modification that increments the count also failed
+            // during encoding.
             std::hint::cold_path();
             return Ok((snapshot_time, false));
         }
@@ -1270,11 +1526,10 @@ impl TurboTasksBackend {
         // Tasks were already consumed by take_snapshot, so a future snapshot
         // would not re-persist them — returning an error signals to the caller
         // that further persist attempts would corrupt the task graph in storage.
-        // GC is not yet wired into the snapshot cycle (see the mark-and-sweep staging plan);
-        // pass an empty delete list for now.
+        // `deletes` carries GC tombstones drained above; they ride this same atomic commit.
         let snapshot_meta =
             self.backing_storage
-                .save_snapshot(suspended_operations, task_snapshots, Vec::new())?;
+                .save_snapshot(suspended_operations, task_snapshots, deletes)?;
         span.record("snapshot_meta", display(snapshot_meta));
 
         #[cfg(feature = "print_cache_item_size")]
@@ -1430,17 +1685,30 @@ impl TurboTasksBackend {
             self.is_idle.store(false, Ordering::Release);
             self.verify_aggregation_graph(turbo_tasks, false);
         }
-        // eagerly drop the task cache before persisting
-        self.storage.drop_task_cache();
         if self.should_persist() {
+            // Run a final GC pass before the stop snapshot so builds emit tombstones for
+            // disconnected tasks in the final commit, keeping the persisted DB tight for the next
+            // build. At shutdown the system is already quiescing, so this runs to completion; its
+            // tombstones are buffered and drained by the stop snapshot below. Must run before
+            // `drop_task_cache` so teardown's task_cache scrubbing stays consistent.
+            if *GC_ENABLED {
+                let _serialize = self.snapshot_in_progress.lock();
+                let _gc_phase = self.snapshot_coord.begin_gc();
+                let collected = self.gc_collect(turbo_tasks);
+                tracing::info!(collected, "stop GC pass");
+            }
             // The task_cache is a pure perf cache backed by the DB and isn't read during the
             // stop snapshot (no task creation runs concurrently with stop). Drop it before
             // persisting to lower peak memory during the serialization/write.
+            self.storage.drop_task_cache();
             if let Err(err) =
                 self.snapshot_and_persist(Span::current().into(), SnapshotReason::Stop, turbo_tasks)
             {
                 eprintln!("Persisting failed during shutdown: {err:?}");
             }
+        } else {
+            // eagerly drop the task cache
+            self.storage.drop_task_cache();
         }
         self.storage.drop_contents();
         if let Err(err) = self.backing_storage.shutdown() {
@@ -2987,6 +3255,28 @@ impl TurboTasksBackend {
                                         }
                                     }};
                                 }
+
+                                // Garbage-collection pass: tear down tasks whose persistent
+                                // parent_count reached 0. Runs BEFORE eviction so freshly-collected
+                                // garbage is removed from the map before it could be evicted to
+                                // disk-only. Holds the GC phase (excludes execution) via
+                                // `gc_for_testing`'s shape, and buffers on-disk tombstones for the
+                                // *next* snapshot commit. Opt-in via TURBO_ENGINE_GC.
+                                if *GC_ENABLED {
+                                    if check_idle_ended!() {
+                                        continue 'outer;
+                                    }
+                                    let _gc_span =
+                                        tracing::info_span!(parent: background_span.id(), "gc")
+                                            .entered();
+                                    let _serialize = self.snapshot_in_progress.lock();
+                                    let _gc_phase = self.snapshot_coord.begin_gc();
+                                    let collected = self.gc_collect(turbo_tasks);
+                                    if collected > 0 {
+                                        tracing::info!(collected, "gc pass collected tasks");
+                                    }
+                                }
+
                                 // Evict persisted tasks from memory to reclaim space.
                                 // Like compaction, this runs after snapshot_and_persist
                                 // as a separate concern.

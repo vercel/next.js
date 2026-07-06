@@ -94,6 +94,10 @@ pub trait ExecuteContext<'e>: Sized {
         T: Clone + Into<AnyOperation>;
     fn should_track_dependencies(&self) -> bool;
     fn should_track_activeness(&self) -> bool;
+    /// Record that `task_id`'s persistent `parent_count` reached 0, making it a garbage-collection
+    /// candidate. This only notes candidacy (a cheap side-set write); the actual teardown/removal
+    /// happens later under the GC phase's exclusion, where candidacy is re-validated.
+    fn note_gc_candidate(&self, task_id: TaskId);
     fn turbo_tasks(&self) -> Arc<dyn TurboTasksCallApi>;
     /// Look up a TaskId from the backing storage for a given task type.
     ///
@@ -179,6 +183,26 @@ impl<'e> ExecuteContextImpl<'e> {
             backend,
             turbo_tasks,
             _operation_guard: Some(backend.start_operation()),
+            task_lock_counter: TaskLockCounter::new(),
+        }
+    }
+
+    /// Constructs a context that does NOT take an operation guard, for use by the garbage
+    /// collector while it holds the coordinator's GC phase.
+    ///
+    /// The GC phase already excludes all concurrent operations and task execution, so taking an
+    /// operation guard here would be redundant — and would in fact deadlock, because
+    /// [`start_operation`](TurboTasksBackend::start_operation) blocks on the GC request bit that
+    /// the caller itself set. Only call this while a
+    /// [`GcPhase`](crate::backend::snapshot_coordinator::GcPhase) is held.
+    pub(super) fn new_for_gc(
+        backend: &'e TurboTasksBackend,
+        turbo_tasks: &'e TurboTasks<TurboTasksBackend>,
+    ) -> Self {
+        Self {
+            backend,
+            turbo_tasks,
+            _operation_guard: None,
             task_lock_counter: TaskLockCounter::new(),
         }
     }
@@ -963,6 +987,10 @@ impl<'e> ExecuteContext<'e> for ExecuteContextImpl<'e> {
 
     fn should_track_activeness(&self) -> bool {
         self.backend.should_track_activeness()
+    }
+
+    fn note_gc_candidate(&self, task_id: TaskId) {
+        self.backend.note_gc_candidate(task_id);
     }
 
     fn turbo_tasks(&self) -> Arc<dyn TurboTasksCallApi> {

@@ -526,6 +526,30 @@ impl Storage {
         Some(f(task.value()))
     }
 
+    /// Removes a task entry from the map entirely. Used by GC after a garbage task's edges have
+    /// been scrubbed. Returns the removed storage (dropped by the caller), or `None` if it was
+    /// already gone.
+    ///
+    /// If the removed task carried modified flags, its (once-per-task) contribution to
+    /// `shard_modified_counts` is decremented so the next snapshot's per-shard scan doesn't expect
+    /// a modified entry that no longer exists. GC removes tasks while holding the GC phase,
+    /// which is mutually exclusive with snapshot mode, so the plain (non-snapshot) counter
+    /// applies.
+    pub fn remove_task(&self, task_id: TaskId) -> Option<Box<TaskStorage>> {
+        debug_assert!(
+            !self.snapshot_mode(),
+            "remove_task must not run during snapshot mode"
+        );
+        let removed = self.map.remove(&task_id).map(|(_, storage)| storage);
+        if let Some(storage) = &removed
+            && storage.flags.any_modified()
+        {
+            let shard_idx = self.shard_index(&task_id);
+            self.shard_modified_counts[shard_idx].fetch_sub(1, Ordering::Relaxed);
+        }
+        removed
+    }
+
     pub fn access_pair_mut(
         &self,
         key1: TaskId,

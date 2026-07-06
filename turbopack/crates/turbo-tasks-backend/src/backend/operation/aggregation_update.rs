@@ -1457,11 +1457,20 @@ impl AggregationUpdateQueue {
                     // Apply the persistent parent_count delta to each task. Maintained here (rather
                     // than inline at the edge sites) so the update rides the durable queue: a
                     // snapshot captures it mid-flight and it replays to completion on restart,
-                    // keeping the count crash-consistent. Collection when the count hits 0 is wired
-                    // in a later stage (snapshot tombstone + eviction removal).
+                    // keeping the count crash-consistent.
+                    //
+                    // When a count reaches 0 the task has no persistent parent and becomes a GC
+                    // candidate. We only *note* candidacy here (a cheap side-set write) — the
+                    // actual teardown/removal cannot run in this concurrently-executing operation
+                    // (it would race a concurrent re-connect and cross-task edge scrub). It runs
+                    // later under the GC phase's exclusion, which re-validates candidacy.
                     for task_id in task_ids {
                         let mut task = ctx.task(task_id, TaskDataCategory::Meta);
-                        task.update_and_get_parent_count(delta);
+                        let new_count = task.update_and_get_parent_count(delta);
+                        drop(task);
+                        if new_count == 0 {
+                            ctx.note_gc_candidate(task_id);
+                        }
                     }
                 }
                 AggregationUpdateJob::DecreaseActiveCount { task } => {
