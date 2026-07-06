@@ -11,12 +11,9 @@ const defaultExports = import.meta.glob('./modules/*.ts', {
 })
 
 // Negative pattern
-const filteredModules = import.meta.glob(
-  ['./modules/*.ts', '!./modules/skip.ts'],
-  {
-    eager: true,
-  }
-)
+const filteredModules = import.meta.glob(['./modules/*.ts', '!**/skip.ts'], {
+  eager: true,
+})
 
 // Multiple patterns (modules + other)
 const multiModules = import.meta.glob(['./modules/*.ts', './other/*.ts'], {
