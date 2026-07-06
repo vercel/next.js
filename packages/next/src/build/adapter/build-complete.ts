@@ -1,6 +1,7 @@
 import path from 'path'
 import crypto from 'crypto'
 import fs from 'fs/promises'
+import { statSync } from 'fs'
 import { pathToFileURL } from 'url'
 import * as Log from '../output/log'
 import { isMiddlewareFilename } from '../utils'
@@ -1297,11 +1298,13 @@ export async function handleBuildComplete({
 
       // A missing file yields `undefined` ("no signal"), never 0 — an empty
       // shell that exists on disk is a meaningful 0.
-      const statHtmlSize = (filePath: string): Promise<number | undefined> =>
-        fs
-          .stat(filePath)
-          .then((stats) => stats.size)
-          .catch(() => undefined)
+      const statHtmlSize = (filePath: string): number | undefined => {
+        try {
+          return statSync(filePath).size
+        } catch {
+          return undefined
+        }
+      }
 
       for (const route in prerenderManifest.routes) {
         const {
@@ -1434,7 +1437,7 @@ export async function handleBuildComplete({
         // isNotFoundTrue condition mirrors the `fallback` field below
         const htmlSize =
           isAppPage && dataRoute && (!isNotFoundTrue || hasStatic404)
-            ? await statHtmlSize(filePath)
+            ? statHtmlSize(filePath)
             : undefined
 
         const initialOutput: AdapterOutput['PRERENDER'] = {
@@ -1686,7 +1689,7 @@ export async function handleBuildComplete({
 
         const htmlSize =
           isAppPage && fallbackHtmlPath !== undefined
-            ? await statHtmlSize(fallbackHtmlPath)
+            ? statHtmlSize(fallbackHtmlPath)
             : undefined
 
         const initialOutput: AdapterOutput['PRERENDER'] = {
