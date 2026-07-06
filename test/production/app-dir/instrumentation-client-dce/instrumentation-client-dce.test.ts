@@ -1,11 +1,12 @@
 import { nextTestSetup } from 'e2e-utils'
 
-// The router transition instrumentation only emits the rich transition event
-// (which carries `fromRoutes`) when the experimental flag is enabled. That code
-// path is gated behind `process.env.__NEXT_INSTRUMENTATION_CLIENT_ROUTER_TRANSITION_EVENTS`,
+// The router transition lifecycle (tracked transitions with commit/abort
+// events) only runs when the experimental flag is enabled. That code path is
+// gated behind `process.env.__NEXT_INSTRUMENTATION_CLIENT_ROUTER_TRANSITION_EVENTS`,
 // which is replaced with a literal at build time so the disabled path can be
-// dead-code-eliminated. `fromRoutes` is the marker: in client runtime code it
-// appears only inside that gated branch, and object keys survive minification.
+// dead-code-eliminated. `replacedBy` is the marker: in client runtime code it
+// appears only as the abort payload key inside that gated branch
+// (`commitRouterTransition`), and object keys survive minification.
 describe('instrumentation client router transition events - dead code elimination', () => {
   describe('when the experimental flag is enabled', () => {
     const { next, skipped } = nextTestSetup({
@@ -25,7 +26,7 @@ describe('instrumentation client router transition events - dead code eliminatio
       )
 
       expect(
-        chunkContents.some((content) => content.includes('fromRoutes'))
+        chunkContents.some((content) => content.includes('replacedBy'))
       ).toBe(true)
     })
   })
@@ -45,7 +46,7 @@ describe('instrumentation client router transition events - dead code eliminatio
       )
 
       expect(
-        chunkContents.some((content) => content.includes('fromRoutes'))
+        chunkContents.some((content) => content.includes('replacedBy'))
       ).toBe(false)
     })
   })
