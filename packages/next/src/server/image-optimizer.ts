@@ -92,7 +92,7 @@ export function getSharp(
     return _sharp
   }
   try {
-    _sharp = require('sharp') as SharpConstructor
+    _sharp = (require('sharp') as typeof import('sharp'))
     if (typeof operationCache === 'boolean') {
       _sharp.cache(operationCache)
     }
@@ -365,9 +365,10 @@ export async function detectContentType(
     case 'tga':
     case 'vips':
     case undefined:
+      return null // unsupported formats
     default:
-      format satisfies never
-      return null
+      format satisfies never // exhaustive check
+      return null // impossible to reach
   }
 }
 
