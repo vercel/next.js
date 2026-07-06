@@ -507,17 +507,26 @@ describe('Instrumentation Client Hook', () => {
       expect(after.filter((e) => e.phase === 'abort')).toHaveLength(2)
     })
 
-    it('aborts the two older transitions when the same slow link is clicked three times', async () => {
+    it('settles every transition exactly once when the same slow link is clicked three times', async () => {
       // Warm the route first so dev on-demand compilation doesn't stack on
-      // top of the middleware delay during the race below.
+      // top of the page's 2s render delay during the race below.
       await next.fetch('/slow')
       const browser = await next.browser('/')
 
-      // Unlike the same-tick triple-push above, these are three real clicks in
-      // separate event-loop turns, each landing while the previous click's
-      // dynamic fetch (delayed 2s by middleware) is still in flight. Each
-      // dispatch discards the pending navigate action, so only the last click
-      // can ever produce a committable state.
+      // Three real clicks in separate event-loop turns on a link whose page
+      // render is slow. The slow page has no Suspense boundary above it, so
+      // React keeps the current page and holds each commit until the 2s
+      // render resolves — but the RSC response's first rows (the router tree)
+      // arrive fast, so each click's navigate action settles in the queue
+      // before the next click lands and none of them is discarded. The clicks
+      // therefore race at the React level, and which older transitions
+      // genuinely commit (as real history entries) before the newest one is a
+      // scheduling detail. The lifecycle's guarantee is the accounting: every
+      // start gets exactly one terminal event, the newest transition commits,
+      // and every abort names a transition that actually committed. (The
+      // queue-level replacement race — where older dispatches are discarded
+      // and deterministically abort — is covered by the same-tick triple-push
+      // above, whose dispatches land before the first action can settle.)
       await browser.elementByCss('a[href="/slow"]').click()
       await browser.elementByCss('a[href="/slow"]').click()
       await browser.elementByCss('a[href="/slow"]').click()
@@ -525,36 +534,43 @@ describe('Instrumentation Client Hook', () => {
 
       await retry(async () => {
         const events = await getTransitionEvents(browser)
-        expect(events.filter((e) => e.phase === 'commit')).toHaveLength(1)
-        expect(events.filter((e) => e.phase === 'abort')).toHaveLength(2)
+        const starts = events.filter((e) => e.phase === 'start')
+        expect(starts).toHaveLength(3)
+        for (const start of starts) {
+          const terminals = events.filter(
+            (e) =>
+              (e.phase === 'commit' || e.phase === 'abort') &&
+              e.event.id === start.event.id
+          )
+          expect(terminals).toHaveLength(1)
+        }
       }, 5000)
 
       const events = await getTransitionEvents(browser)
       const starts = events.filter((e) => e.phase === 'start')
-      const commit = events.find((e) => e.phase === 'commit')
+      const commits = events.filter((e) => e.phase === 'commit')
       const aborts = events.filter((e) => e.phase === 'abort')
       // Three distinct transitions, all targeting the same URL.
       expect(starts.map((e) => e.url)).toEqual(['/slow', '/slow', '/slow'])
       expect(new Set(starts.map((e) => e.event.id)).size).toBe(3)
-      // The last click commits; the two older clicks abort in start order,
-      // each attributed to the commit that replaced them.
-      expect(commit.event.id).toBe(starts[2].event.id)
-      expect(commit.event.to.renderedPathname).toBe('/slow')
-      expect(aborts.map((e) => e.event.id)).toEqual([
-        starts[0].event.id,
-        starts[1].event.id,
-      ])
-      for (const abort of aborts) {
-        expect(abort.event.replacedBy).toBe(commit.event.id)
+      // The newest transition always commits — it is the final reducer state,
+      // so nothing can replace it — and its commit is the last one reported.
+      expect(commits.at(-1).event.id).toBe(starts[2].event.id)
+      for (const commit of commits) {
+        expect(commit.event.to.renderedPathname).toBe('/slow')
       }
-      expect(events.map((e) => e.phase)).toEqual([
-        'start',
-        'start',
-        'start',
-        'commit',
-        'abort',
-        'abort',
-      ])
+      // An abort must only ever mean "a newer transition committed first":
+      // every abort names a commit that actually happened.
+      for (const abort of aborts) {
+        expect(commits.map((c) => c.event.id)).toContain(abort.event.replacedBy)
+      }
+      // Commits are reported in start order (an older transition can only
+      // commit before the newer one that would otherwise abort it).
+      const startOrder = starts.map((e) => e.event.id)
+      const commitOrder = commits.map((e) => e.event.id)
+      expect(commitOrder).toEqual(
+        startOrder.filter((id) => commitOrder.includes(id))
+      )
     })
 
     it('reports a full lifecycle for a link click to the current page', async () => {
