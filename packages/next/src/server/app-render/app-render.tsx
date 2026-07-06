@@ -7821,13 +7821,30 @@ async function prerenderToStream(
   let reactServerPrerenderResultIsDynamic: null | boolean = null
   let reactServerResumeDataCache: ResumeDataCache | null = null
   let reactServerPrerenderStore: null | PrerenderStore = null
-  const setMetadataHeader = (name: string) => {
+  const setMetadataHeader = (name: string, value: string | string[]) => {
     metadata.headers ??= {}
-    metadata.headers[name] = res.getHeader(name)
+    metadata.headers[name] = value
+  }
+  const appendMetadataHeader = (name: string, value: string | string[]) => {
+    metadata.headers ??= {}
+
+    const existingValue = metadata.headers[name]
+
+    if (existingValue === undefined) {
+      metadata.headers[name] = value
+      return
+    }
+
+    const existingValues = Array.isArray(existingValue)
+      ? existingValue
+      : [String(existingValue)]
+    const newValues = Array.isArray(value) ? value : [value]
+
+    metadata.headers[name] = [...existingValues, ...newValues]
   }
   const setHeader = (name: string, value: string | string[]) => {
     res.setHeader(name, value)
-    setMetadataHeader(name)
+    setMetadataHeader(name, value)
     return res
   }
   const appendHeader = (name: string, value: string | string[]) => {
@@ -7838,7 +7855,7 @@ async function prerenderToStream(
     } else {
       res.appendHeader(name, value)
     }
-    setMetadataHeader(name)
+    appendMetadataHeader(name, value)
   }
 
   const selectStaleTime = createSelectStaleTime(experimental)
