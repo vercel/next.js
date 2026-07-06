@@ -94,7 +94,9 @@ export function restoreReducer(
     null,
     // History traversal always uses 'replace'.
     'replace',
-    navigationLock
+    navigationLock,
+    // Not an HMR refresh, so there's no request generation to cancel.
+    undefined
   )
   return completeTraverseNavigation(
     state,

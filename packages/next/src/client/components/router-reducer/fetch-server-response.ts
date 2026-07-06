@@ -66,6 +66,7 @@ export interface FetchServerResponseOptions {
   readonly flightRouterState: FlightRouterState
   readonly nextUrl: string | null
   readonly isHmrRefresh?: boolean
+  readonly signal?: AbortSignal
 }
 
 export type StaticStageData<
@@ -198,7 +199,8 @@ export async function fetchServerResponse(
       url,
       headers,
       'auto',
-      shouldImmediatelyDecode
+      shouldImmediatelyDecode,
+      options.signal
     )
 
     // If the fetch succeeds while we're in the offline state, notify the
@@ -313,6 +315,13 @@ export async function fetchServerResponse(
       revealAfter: flightResponse._revealAfter ?? null,
     }
   } catch (err) {
+    if (options.signal?.aborted) {
+      // A newer HMR refresh superseded this one and aborted its request.
+      // Rethrow so the caller treats it as canceled, rather than logging a
+      // failure or falling back to an MPA navigation.
+      throw err
+    }
+
     // If the fetch rejected due to a network error, wait for connectivity
     // to be restored and then retry. checkOfflineError returns true for
     // network errors (and starts the polling loop); returns false for
@@ -549,6 +558,123 @@ export async function decodeStageUntilBoundary<T>(
   })
 }
 
+// When an HMR refresh can be superseded, we decode its Flight response through
+// a wrapper stream we can close on abort. Closing the stream (rather than
+// letting the aborted fetch error it) makes React's Flight client mark
+// unresolved rows as halted: they suspend during render instead of rejecting,
+// so a superseded request never surfaces an error on an already-committed tree.
+// Because the stream is closed, there's also no unclosed-stream GC-root leak
+// (see #89610). The wrapper is created synchronously here so that the decode
+// starts at the same point `createFromNextFetch` would, preserving the
+// server-latency debug timing.
+function createHaltingFlightResponse<T>(
+  fetchPromise: Promise<Response>,
+  headers: RequestHeaders,
+  signal: AbortSignal
+): Promise<T> & { _debugInfo?: Array<any> } {
+  let closed = false
+  let reader: ReadableStreamDefaultReader<Uint8Array> | null = null
+  const wrapper = new ReadableStream<Uint8Array>({
+    start(controller) {
+      const onAbort = () => {
+        closed = true
+        try {
+          controller.close()
+        } catch {
+          // The controller may already be closed; nothing to do.
+        }
+        if (reader !== null) {
+          reader.cancel().catch(() => {})
+        }
+      }
+      if (signal.aborted) {
+        onAbort()
+      } else {
+        signal.addEventListener('abort', onAbort, { once: true })
+      }
+    },
+    async pull(controller) {
+      if (closed) {
+        return
+      }
+      if (reader === null) {
+        let response: Response
+        try {
+          response = await fetchPromise
+        } catch (err) {
+          // We don't inspect `err`. If the request was superseded, `onAbort`
+          // already ran synchronously (abort listeners fire during
+          // `signal.abort()`, before this rejection microtask), so `closed` is
+          // true and the controller is already closed — erroring it would
+          // throw, and a superseded request's failure is moot regardless of its
+          // cause. Only a genuine, non-superseded failure reaches here with
+          // `closed` still false; that is the case we surface.
+          if (!closed) {
+            controller.error(err)
+          }
+          return
+        }
+        if (closed) {
+          // Aborted while awaiting the response. The `fetch` abort tears down
+          // an in-flight request, but if it had already completed we still hold
+          // an unread body; release it so it isn't left dangling.
+          response.body?.cancel().catch(() => {})
+          return
+        }
+        const body = response.body
+        if (body === null) {
+          controller.close()
+          return
+        }
+        reader = body.getReader()
+      }
+      try {
+        const { done, value } = await reader.read()
+        if (closed) {
+          return
+        }
+        if (done) {
+          controller.close()
+        } else {
+          controller.enqueue(value)
+        }
+      } catch (err) {
+        // Same as the fetch catch above: once superseded (`closed`) the
+        // controller is already closed and the outcome is moot, so we swallow
+        // the rejection unconditionally; only a real, non-superseded read
+        // failure (`closed` still false) is surfaced.
+        if (!closed) {
+          controller.error(err)
+        }
+      }
+    },
+  })
+
+  // React attaches `_debugInfo` to the returned promise at runtime.
+  return createFromNextReadableStream<T>(wrapper, headers, {
+    allowPartialStream: true,
+  }) as Promise<T> & { _debugInfo?: Array<any> }
+}
+
+// Selects the Flight decode strategy: a halting wrapper for cancellable HMR
+// refreshes, otherwise the standard fetch-based decode. Gated to the dev server
+// (where HMR runs) so the wrapper is eliminated from production and
+// `--debug-prerender` bundles regardless of the flag.
+function decodeFlightResponse<T>(
+  fetchPromise: Promise<Response>,
+  headers: RequestHeaders,
+  signal: AbortSignal | undefined
+): Promise<T> & { _debugInfo?: Array<any> } {
+  if (
+    process.env.__NEXT_DEV_SERVER &&
+    process.env.__NEXT_SERVER_COMPONENTS_HMR_CANCELLATION &&
+    signal
+  ) {
+    return createHaltingFlightResponse<T>(fetchPromise, headers, signal)
+  }
+  return createFromNextFetch<T>(fetchPromise, headers)
+}
+
 export async function createFetch<T>(
   url: URL,
   headers: RequestHeaders,
@@ -606,7 +732,7 @@ export async function createFetch<T>(
   // been written into the cache by the time the navigation happens, the router
   // will go straight to a dynamic request.
   let flightResponsePromise = shouldImmediatelyDecode
-    ? createFromNextFetch<T>(fetchPromise, headers)
+    ? decodeFlightResponse<T>(fetchPromise, headers, signal)
     : null
   let browserResponse = await fetchPromise
 
@@ -667,7 +793,7 @@ export async function createFetch<T>(
       processed = fetch(fetchUrl, fetchOptions).then(processFetch)
       fetchPromise = processed.then(({ response }) => response)
       flightResponsePromise = shouldImmediatelyDecode
-        ? createFromNextFetch<T>(fetchPromise, headers)
+        ? decodeFlightResponse<T>(fetchPromise, headers, signal)
         : null
       browserResponse = await fetchPromise
       // We just performed a manual redirect, so this is now true.

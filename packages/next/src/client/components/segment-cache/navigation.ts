@@ -239,7 +239,8 @@ export function navigateToKnownRoute(
   // In these cases, if a mismatch occurs, we still mark the route as having a
   // dynamic rewrite by traversing the known route tree (see
   // dispatchRetryDueToTreeMismatch).
-  routeCacheEntry: FulfilledRouteCacheEntry | null
+  routeCacheEntry: FulfilledRouteCacheEntry | null,
+  signal: AbortSignal | undefined
 ): AppRouterState {
   // A version of navigate() that accepts the target route tree as an argument
   // rather than reading it from the prefetch cache.
@@ -352,7 +353,8 @@ export function navigateToKnownRoute(
         accumulation,
         routeCacheEntry,
         navigateType,
-        navigationLock
+        navigationLock,
+        signal
       )
     }
     return completeSoftNavigation(
@@ -415,7 +417,9 @@ function navigateUsingPrefetchedRouteTree(
     navigateType,
     navigationLock,
     null,
-    route
+    route,
+    // Not an HMR refresh, so there's no request generation to cancel.
+    undefined
   )
 }
 
@@ -631,7 +635,9 @@ async function navigateToUnknownRoute(
     // came directly from the server. If a mismatch occurs during dynamic data
     // fetch, the retry handler will traverse the known route tree to mark the
     // entry as having a dynamic rewrite.
-    null
+    null,
+    // Not an HMR refresh, so there's no request generation to cancel.
+    undefined
   )
 }
 
