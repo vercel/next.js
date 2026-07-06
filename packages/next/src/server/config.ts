@@ -505,7 +505,7 @@ function assignDefaultsAndValidate(
           `Please remove the option or run Next.js with Turbopack in ${configFileName}.`
       )
     }
-    if (cssChunkingMode === 'strict' && process.env.TURBOPACK) {
+    if (cssChunkingMode === 'strict' && isTurbopack) {
       throw new Error(
         `\`experimental.cssChunking: "strict"\` is only supported with webpack. ` +
           `Please remove the option or run Next.js with webpack in ${configFileName}.`
@@ -513,7 +513,7 @@ function assignDefaultsAndValidate(
     }
     // Only error when `false` was set explicitly. `undefined` (the default) also resolves to
     // `'off'` but that's the implicit default and must not error on Turbopack.
-    if (cssChunkingValue === false && process.env.TURBOPACK) {
+    if (cssChunkingValue === false && isTurbopack) {
       throw new Error(
         `\`experimental.cssChunking: false\` is only supported with webpack. ` +
           `Please remove the option or run Next.js with webpack in ${configFileName}.`

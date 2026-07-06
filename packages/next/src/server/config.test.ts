@@ -270,6 +270,19 @@ describe('loadConfig', () => {
       expect(result.experimental.cssChunking).toBe('graph')
     })
 
+    it('should reject `cssChunking: "strict"` when the Turbopack bundler is passed explicitly', async () => {
+      delete process.env.TURBOPACK
+
+      await expect(
+        loadConfig(PHASE_PRODUCTION_BUILD, __dirname, {
+          customConfig: {
+            experimental: { cssChunking: 'strict' },
+          },
+          bundler: Bundler.Turbopack,
+        })
+      ).rejects.toThrow(/only supported with webpack/)
+    })
+
     it('should accept `cssChunking: "graph"` during `next info` (no bundler selected)', async () => {
       delete process.env.TURBOPACK
 
