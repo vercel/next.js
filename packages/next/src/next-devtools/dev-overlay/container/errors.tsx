@@ -414,9 +414,7 @@ export function isSyncIOClientError(message: string): boolean {
 export function isBlockingRouteInNavError(message: string): boolean {
   return (
     message.includes('or a navigation') ||
-    message.includes(
-      'encountered URL data `params` or `searchParams` outside of'
-    ) ||
+    message.includes('encountered URL data during a navigation') ||
     message.includes('Could not validate `instant`') ||
     message.includes(
       'Could not validate that a segment in your UI has instant navigation'
@@ -441,11 +439,7 @@ export function getBlockingRouteErrorDetails(
     }
   }
 
-  if (
-    message.includes(
-      'encountered URL data `params` or `searchParams` outside of'
-    )
-  ) {
+  if (message.includes('encountered URL data during a navigation')) {
     return {
       type: 'blocking-route',
       variant: 'link',

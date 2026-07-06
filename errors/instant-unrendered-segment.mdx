@@ -25,7 +25,7 @@ kind: insight
 
 During [prerendering](https://preview.nextjs.org/docs/app/glossary#prerendering), a segment in the route tree was dropped from rendering. With [Cache Components](https://preview.nextjs.org/docs/app/api-reference/config/next-config-js/cacheComponents) enabled, Next.js validates that every segment can produce an [instant navigation](https://preview.nextjs.org/docs/app/guides/instant-navigation). When a segment is not rendered, that validation can't run and issues that would prevent instant navigation go undetected.
 
-This typically happens when a layout conditionally omits `{children}`, a parallel route slot is not rendered, or a Client Component opts out of rendering during SSR.
+This typically happens when a layout conditionally omits `{children}` or a parallel route slot is not rendered.
 
 ## Ways to fix this
 
@@ -172,7 +172,7 @@ The segment is exempt from instant-navigation validation. If it has issues that 
 
 ## Verifying the fix
 
-After applying a fix, navigate to the route and confirm the insight no longer appears in the dev overlay and the [static shell](https://preview.nextjs.org/docs/app/glossary#static-shell) renders real content. A [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary around the whole page body can pass validation with an empty shell, which defeats the point of an instant navigation.
+After applying a fix, navigate to the route and confirm the insight no longer appears in the dev overlay and the page immediately paints meaningful UI, with any `<Suspense>` fallbacks covering only the regions that stream in. A [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary around the whole page body can pass validation with an empty shell, which defeats the point of an instant navigation.
 
 Depending on your [validation level](https://preview.nextjs.org/docs/app/api-reference/file-conventions/route-segment-config/instant#configuring-validation-defaults), this may only surface in development.
 

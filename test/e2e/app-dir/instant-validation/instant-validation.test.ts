@@ -541,7 +541,7 @@ describe('instant validation', () => {
                ],
              },
            ],
-           "code": "E1408",
+           "code": "E1407",
            "description": "Next.js encountered URL data outside of Suspense.",
            "environmentLabel": "Server",
            "label": "Instant",
@@ -604,7 +604,7 @@ describe('instant validation', () => {
                ],
              },
            ],
-           "code": "E1408",
+           "code": "E1407",
            "description": "Next.js encountered URL data outside of Suspense.",
            "environmentLabel": "Server",
            "label": "Instant",
@@ -629,9 +629,9 @@ describe('instant validation', () => {
 
         expect(extractBuildValidationError(result.cliOutput))
           .toMatchInlineSnapshot(`
-         "Error: Route "/suspense-in-root/runtime/invalid-no-suspense-around-params/[param]": Next.js encountered URL data \`params\` or \`searchParams\` outside of \`<Suspense>\`.
+         "Error: Route "/suspense-in-root/runtime/invalid-no-suspense-around-params/[param]": Next.js encountered URL data during a navigation.
 
-         This may prevent the navigation from being instant, leading to a slower user experience.
+         \`params\` or \`searchParams\` accessed outside of \`<Suspense>\` may prevent the navigation from being instant, leading to a slower user experience.
 
          Ways to fix this:
            - [stream] Wrap the \`params\`/\`searchParams\` read in \`<Suspense fallback={...}>\` so the value streams in after navigation
@@ -673,7 +673,7 @@ describe('instant validation', () => {
                  ],
                },
              ],
-             "code": "E1408",
+             "code": "E1407",
              "description": "Next.js encountered URL data outside of Suspense.",
              "environmentLabel": "Server",
              "label": "Instant",
@@ -720,9 +720,9 @@ describe('instant validation', () => {
         if (partialPrefetching) {
           expect(extractBuildValidationError(result.cliOutput))
             .toMatchInlineSnapshot(`
-           "Error: Route "/suspense-in-root/static/missing-suspense-around-search-params": Next.js encountered URL data \`params\` or \`searchParams\` outside of \`<Suspense>\`.
+           "Error: Route "/suspense-in-root/static/missing-suspense-around-search-params": Next.js encountered URL data during a navigation.
 
-           This may prevent the navigation from being instant, leading to a slower user experience.
+           \`params\` or \`searchParams\` accessed outside of \`<Suspense>\` may prevent the navigation from being instant, leading to a slower user experience.
 
            Ways to fix this:
              - [stream] Wrap the \`params\`/\`searchParams\` read in \`<Suspense fallback={...}>\` so the value streams in after navigation
@@ -779,9 +779,9 @@ describe('instant validation', () => {
               getCliOutputSinceMark
             )
           ).toMatchInlineSnapshot(`
-           "Error: Route "/suspense-in-root/runtime/invalid-no-suspense-around-search-params": Next.js encountered URL data \`params\` or \`searchParams\` outside of \`<Suspense>\`.
+           "Error: Route "/suspense-in-root/runtime/invalid-no-suspense-around-search-params": Next.js encountered URL data during a navigation.
 
-           This may prevent the navigation from being instant, leading to a slower user experience.
+           \`params\` or \`searchParams\` accessed outside of \`<Suspense>\` may prevent the navigation from being instant, leading to a slower user experience.
 
            Ways to fix this:
              - [stream] Wrap the \`params\`/\`searchParams\` read in \`<Suspense fallback={...}>\` so the value streams in after navigation
@@ -823,7 +823,7 @@ describe('instant validation', () => {
                  ],
                },
              ],
-             "code": "E1408",
+             "code": "E1407",
              "description": "Next.js encountered URL data outside of Suspense.",
              "environmentLabel": "Server",
              "label": "Instant",
@@ -843,9 +843,9 @@ describe('instant validation', () => {
         )
         expect(extractBuildValidationError(result.cliOutput))
           .toMatchInlineSnapshot(`
-         "Error: Route "/suspense-in-root/runtime/invalid-no-suspense-around-search-params": Next.js encountered URL data \`params\` or \`searchParams\` outside of \`<Suspense>\`.
+         "Error: Route "/suspense-in-root/runtime/invalid-no-suspense-around-search-params": Next.js encountered URL data during a navigation.
 
-         This may prevent the navigation from being instant, leading to a slower user experience.
+         \`params\` or \`searchParams\` accessed outside of \`<Suspense>\` may prevent the navigation from being instant, leading to a slower user experience.
 
          Ways to fix this:
            - [stream] Wrap the \`params\`/\`searchParams\` read in \`<Suspense fallback={...}>\` so the value streams in after navigation
@@ -4177,7 +4177,7 @@ describe('instant validation', () => {
                    ],
                  },
                ],
-               "code": "E1408",
+               "code": "E1407",
                "description": "Next.js encountered URL data outside of Suspense.",
                "environmentLabel": "Server",
                "label": "Instant",
@@ -4202,9 +4202,9 @@ describe('instant validation', () => {
 
             expect(extractBuildValidationError(result.cliOutput))
               .toMatchInlineSnapshot(`
-             "Error: Route "/shells/invalid-runtime-params/[slug]": Next.js encountered URL data \`params\` or \`searchParams\` outside of \`<Suspense>\`.
+             "Error: Route "/shells/invalid-runtime-params/[slug]": Next.js encountered URL data during a navigation.
 
-             This may prevent the navigation from being instant, leading to a slower user experience.
+             \`params\` or \`searchParams\` accessed outside of \`<Suspense>\` may prevent the navigation from being instant, leading to a slower user experience.
 
              Ways to fix this:
                - [stream] Wrap the \`params\`/\`searchParams\` read in \`<Suspense fallback={...}>\` so the value streams in after navigation
@@ -4239,9 +4239,9 @@ describe('instant validation', () => {
                   getCliOutputSinceMark
                 )
               ).toMatchInlineSnapshot(`
-               "Error: Route "/shells/invalid-runtime-searchparams": Next.js encountered URL data \`params\` or \`searchParams\` outside of \`<Suspense>\`.
+               "Error: Route "/shells/invalid-runtime-searchparams": Next.js encountered URL data during a navigation.
 
-               This may prevent the navigation from being instant, leading to a slower user experience.
+               \`params\` or \`searchParams\` accessed outside of \`<Suspense>\` may prevent the navigation from being instant, leading to a slower user experience.
 
                Ways to fix this:
                  - [stream] Wrap the \`params\`/\`searchParams\` read in \`<Suspense fallback={...}>\` so the value streams in after navigation
@@ -4283,7 +4283,7 @@ describe('instant validation', () => {
                      ],
                    },
                  ],
-                 "code": "E1408",
+                 "code": "E1407",
                  "description": "Next.js encountered URL data outside of Suspense.",
                  "environmentLabel": "Server",
                  "label": "Instant",
@@ -4303,9 +4303,9 @@ describe('instant validation', () => {
             )
             expect(extractBuildValidationError(result.cliOutput))
               .toMatchInlineSnapshot(`
-             "Error: Route "/shells/invalid-runtime-searchparams": Next.js encountered URL data \`params\` or \`searchParams\` outside of \`<Suspense>\`.
+             "Error: Route "/shells/invalid-runtime-searchparams": Next.js encountered URL data during a navigation.
 
-             This may prevent the navigation from being instant, leading to a slower user experience.
+             \`params\` or \`searchParams\` accessed outside of \`<Suspense>\` may prevent the navigation from being instant, leading to a slower user experience.
 
              Ways to fix this:
                - [stream] Wrap the \`params\`/\`searchParams\` read in \`<Suspense fallback={...}>\` so the value streams in after navigation
@@ -4347,7 +4347,7 @@ describe('instant validation', () => {
                    ],
                  },
                ],
-               "code": "E1407",
+               "code": "E1408",
                "description": "Next.js encountered URL data in generateMetadata().",
                "environmentLabel": "Server",
                "label": "Blocking Route",
@@ -4398,7 +4398,7 @@ describe('instant validation', () => {
                    ],
                  },
                ],
-               "code": "E1408",
+               "code": "E1407",
                "description": "Next.js encountered URL data outside of Suspense.",
                "environmentLabel": "Server",
                "label": "Instant",
@@ -4417,9 +4417,9 @@ describe('instant validation', () => {
             )
             expect(extractBuildValidationError(result.cliOutput))
               .toMatchInlineSnapshot(`
-             "Error: Route "/shells/invalid-static-with-gsp/[slug]": Next.js encountered URL data \`params\` or \`searchParams\` outside of \`<Suspense>\`.
+             "Error: Route "/shells/invalid-static-with-gsp/[slug]": Next.js encountered URL data during a navigation.
 
-             This may prevent the navigation from being instant, leading to a slower user experience.
+             \`params\` or \`searchParams\` accessed outside of \`<Suspense>\` may prevent the navigation from being instant, leading to a slower user experience.
 
              Ways to fix this:
                - [stream] Wrap the \`params\`/\`searchParams\` read in \`<Suspense fallback={...}>\` so the value streams in after navigation

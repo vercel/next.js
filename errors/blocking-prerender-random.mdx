@@ -172,7 +172,7 @@ Every visitor in the cache window sees the same "random" value. That's the right
 
 ### Gotchas
 
-- Inside a [`use cache`](https://preview.nextjs.org/docs/app/api-reference/directives/use-cache) scope, you can't call [`cookies()`](https://preview.nextjs.org/docs/app/api-reference/functions/cookies) or [`headers()`](https://preview.nextjs.org/docs/app/api-reference/functions/headers), which means you can't easily key the random value by request identity.
+- Inside a [`use cache`](https://preview.nextjs.org/docs/app/api-reference/directives/use-cache) scope, you can't call [`cookies()`](https://preview.nextjs.org/docs/app/api-reference/functions/cookies) or [`headers()`](https://preview.nextjs.org/docs/app/api-reference/functions/headers), which means you can't key the random value by request identity.
 - If the same random value is used in many places, hoist the cached function up so all consumers share the cache entry instead of producing a different cached value at each call site.
 - If you cache a function and still see this error, the [`cacheLife`](https://preview.nextjs.org/docs/app/api-reference/functions/cacheLife) may be too short to prerender. See [Short-lived caches](#short-lived-caches).
 
@@ -227,7 +227,7 @@ The first paint shows the SSR fallback or initial state, and the random value ap
 
 ## Verifying the fix
 
-After applying a fix, reload the route to confirm the [static shell](https://preview.nextjs.org/docs/app/glossary#static-shell) renders real content. A [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary placed around the whole page body can pass validation with an empty shell, which defeats the point of an instant navigation.
+After applying a fix, reload the route and confirm the page immediately paints meaningful UI, with any `<Suspense>` fallbacks covering only the regions that stream in. A [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary placed around the whole page body can pass validation with an empty shell, which defeats the point of an instant navigation.
 
 In [`next dev`](https://preview.nextjs.org/docs/app/api-reference/cli/next#next-dev-options), the error overlay points at the failing component with file paths and line numbers. When working from a build instead, the default [`next build`](https://preview.nextjs.org/docs/app/api-reference/cli/next#next-build-options) output is more abbreviated; run `next build --debug-prerender` for full user-frame stack traces and `next build --debug-build-paths /dashboard /settings` to iterate on specific routes.
 
