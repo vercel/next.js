@@ -879,6 +879,11 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
         // Sync the directory to ensure the new directory entries (file name → inode mappings)
         // are durable before we update CURRENT. Without this, a crash could leave CURRENT pointing
         // to files whose directory entries were lost even though their data was flushed.
+        // Skipped on Windows: `sync_data` calls `FlushFileBuffers`, which needs a handle with
+        // write access and always fails with ERROR_ACCESS_DENIED on the read-only handle that
+        // `File::open` returns for a directory. Other storage engines (LevelDB, SQLite) also
+        // skip directory syncing on Windows.
+        #[cfg(not(windows))]
         File::open(&self.path)?.sync_data()?;
         drop(sync_span);
 
