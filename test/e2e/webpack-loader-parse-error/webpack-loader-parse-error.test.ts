@@ -31,9 +31,12 @@ function extractErrorBlock(output: string, errorTitle: string): string {
 
   const beforeTitle = output.substring(0, titleIdx)
 
-  // In dev mode, errors start with a `⨯` marker on the same line as the file path.
-  // In prod mode, errors start with a bare file-path line above the title.
-  const markerIdx = beforeTitle.lastIndexOf('⨯ ')
+  // In dev mode, errors start with a `⨯` marker on the same line as the file
+  // path (e.g. `⨯ ./app/file.js`). In prod mode, errors start with a bare
+  // file-path line above the title. Match `⨯ ./` specifically so we don't latch
+  // onto unrelated `⨯` markers in the startup output, such as the experimental
+  // features list (e.g. `⨯ appNewScrollHandler (disabled by ...)`).
+  const markerIdx = beforeTitle.lastIndexOf('⨯ ./')
   let startIdx: number
   if (markerIdx !== -1) {
     startIdx = markerIdx

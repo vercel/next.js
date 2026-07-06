@@ -2087,7 +2087,7 @@ export const defaultConfig = Object.freeze({
   },
   adapterPath: process.env.NEXT_ADAPTER_PATH || undefined,
   experimental: {
-    appNewScrollHandler: false,
+    appNewScrollHandler: true,
     coldCacheBadge: false,
     useSkewCookie: false,
     cssChunking: true,
