@@ -7,7 +7,7 @@ import imageSizeOf from 'next/dist/compiled/image-size'
 import { detector } from 'next/dist/compiled/image-detector/detector.js'
 import isAnimated from 'next/dist/compiled/is-animated'
 import { join } from 'path'
-
+import type { Metadata, SharpConstructor } from 'sharp'
 import { getImageBlurSvg } from '../shared/lib/image-blur-svg'
 import type { ImageConfigComplete } from '../shared/lib/image-config'
 import { hasLocalMatch } from '../shared/lib/match-local-pattern'
@@ -59,7 +59,7 @@ const BYPASS_TYPES = [SVG, ICO, ICNS, BMP, JXL, HEIC]
 const BLUR_IMG_SIZE = 8 // should match `next-image-loader`
 const BLUR_QUALITY = 70 // should match `next-image-loader`
 
-let _sharp: typeof import('sharp')
+let _sharp: SharpConstructor
 
 async function initCacheEntries(
   cacheDir: string
@@ -92,7 +92,7 @@ export function getSharp(
     return _sharp
   }
   try {
-    _sharp = require('sharp') as typeof import('sharp')
+    _sharp = (require('sharp') as typeof import('sharp'))
     if (typeof operationCache === 'boolean') {
       _sharp.cache(operationCache)
     }
@@ -308,23 +308,18 @@ export async function detectContentType(
     return JP2
   }
 
-  let format:
-    | import('sharp').Metadata['format']
-    | ReturnType<typeof detector>
-    | undefined
+  let format: Metadata['format'] | ReturnType<typeof detector> | undefined
   format = detector(buffer)
 
   if (!format && !skipMetadata) {
     const sharp = getSharp(concurrency, operationCache)
     const meta = await sharp(buffer)
       .metadata()
-      .catch((_) => null)
+      .catch(() => null)
     format = meta?.format
   }
 
   switch (format) {
-    case 'avif':
-      return AVIF
     case 'webp':
       return WEBP
     case 'png':
@@ -342,7 +337,6 @@ export async function detectContentType(
     case 'jp2':
       return JP2
     case 'tiff':
-    case 'tif':
       return TIFF
     case 'pdf':
       return PDF
@@ -357,13 +351,11 @@ export async function detectContentType(
     case 'exr':
     case 'fits':
     case 'heif':
-    case 'input':
     case 'magick':
     case 'openslide':
     case 'ppm':
     case 'rad':
     case 'raw':
-    case 'v':
     case 'cur':
     case 'dds':
     case 'j2c':
