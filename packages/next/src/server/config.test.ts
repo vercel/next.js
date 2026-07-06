@@ -1,4 +1,5 @@
-import { PHASE_PRODUCTION_BUILD } from '../api/constants'
+import { PHASE_INFO, PHASE_PRODUCTION_BUILD } from '../api/constants'
+import { Bundler } from '../lib/bundler'
 
 describe('loadConfig', () => {
   let loadConfig: typeof import('./config').default
@@ -231,6 +232,53 @@ describe('loadConfig', () => {
       expect(result.cacheHandlers?.['abc']).toBeDefined()
       expect(result.cacheHandlers?.['valid-handler']).toBeDefined()
       expect(result.cacheHandlers?.['abc-def']).toBeDefined()
+    })
+  })
+
+  describe('experimental.cssChunking bundler validation', () => {
+    const originalTurbopackEnv = process.env.TURBOPACK
+
+    afterEach(() => {
+      if (originalTurbopackEnv === undefined) {
+        delete process.env.TURBOPACK
+      } else {
+        process.env.TURBOPACK = originalTurbopackEnv
+      }
+    })
+
+    it('should reject `cssChunking: "graph"` when building without Turbopack', async () => {
+      delete process.env.TURBOPACK
+
+      await expect(
+        loadConfig(PHASE_PRODUCTION_BUILD, __dirname, {
+          customConfig: {
+            experimental: { cssChunking: 'graph' },
+          },
+        })
+      ).rejects.toThrow(/only supported with Turbopack/)
+    })
+
+    it('should accept `cssChunking: "graph"` when the Turbopack bundler is passed explicitly', async () => {
+      delete process.env.TURBOPACK
+
+      const result = await loadConfig(PHASE_PRODUCTION_BUILD, __dirname, {
+        customConfig: {
+          experimental: { cssChunking: 'graph' },
+        },
+        bundler: Bundler.Turbopack,
+      })
+      expect(result.experimental.cssChunking).toBe('graph')
+    })
+
+    it('should accept `cssChunking: "graph"` during `next info` (no bundler selected)', async () => {
+      delete process.env.TURBOPACK
+
+      const result = await loadConfig(PHASE_INFO, __dirname, {
+        customConfig: {
+          experimental: { cssChunking: 'graph' },
+        },
+      })
+      expect(result.experimental.cssChunking).toBe('graph')
     })
   })
 })

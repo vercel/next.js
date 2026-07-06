@@ -8,6 +8,7 @@ import {
   CONFIG_FILES,
   PHASE_DEVELOPMENT_SERVER,
   PHASE_EXPORT,
+  PHASE_INFO,
   PHASE_PRODUCTION_BUILD,
   PHASE_PRODUCTION_SERVER,
   type PHASE_TYPE,
@@ -296,7 +297,8 @@ function assignDefaultsAndValidate(
   dir: string,
   userConfig: NextConfig & { configFileName: string },
   silent: boolean,
-  phase: PHASE_TYPE
+  phase: PHASE_TYPE,
+  bundler?: Bundler
 ): NextConfigComplete {
   const configFileName = userConfig.configFileName
   if (typeof (userConfig as any).exportTrailingSlash !== 'undefined') {
@@ -487,12 +489,17 @@ function assignDefaultsAndValidate(
 
   // Validate experimental.cssChunking compatibility with the active bundler. Graph mode is
   // Turbopack-only; strict mode and `false` (single-chunk-per-module) are webpack-only.
-  // Only validate during build/dev — `next start` doesn't pick a bundler and would otherwise
-  // see `process.env.TURBOPACK` unset and reject a valid `cssChunking: "graph"` config.
-  if (phase !== PHASE_PRODUCTION_SERVER) {
+  // Only validate during phases that pick a bundler — `next start` and `next info` don't
+  // and would otherwise see `process.env.TURBOPACK` unset and reject a valid
+  // `cssChunking: "graph"` config.
+  if (phase !== PHASE_PRODUCTION_SERVER && phase !== PHASE_INFO) {
+    // Commands like `next experimental-analyze` always use Turbopack but don't set
+    // `process.env.TURBOPACK`; they declare the bundler via the `bundler` option instead.
+    const isTurbopack =
+      Boolean(process.env.TURBOPACK) || bundler === Bundler.Turbopack
     const cssChunkingValue = result.experimental.cssChunking
     const cssChunkingMode = resolveCssChunkingMode(cssChunkingValue)
-    if (cssChunkingMode === 'graph' && !process.env.TURBOPACK) {
+    if (cssChunkingMode === 'graph' && !isTurbopack) {
       throw new Error(
         `\`experimental.cssChunking: "graph"\` is only supported with Turbopack. ` +
           `Please remove the option or run Next.js with Turbopack in ${configFileName}.`
@@ -513,10 +520,7 @@ function assignDefaultsAndValidate(
       )
     }
 
-    if (
-      result.experimental.turbopackRustReactCompiler &&
-      !process.env.TURBOPACK
-    ) {
+    if (result.experimental.turbopackRustReactCompiler && !isTurbopack) {
       throw new Error(
         `\`experimental.turbopackRustReactCompiler\` is only supported with Turbopack. ` +
           `Please remove the option or run Next.js with Turbopack in ${configFileName}.`
@@ -1845,7 +1849,8 @@ async function loadConfigImpl(
             ...customConfig,
           },
           silent,
-          phase
+          phase,
+          bundler
         ),
         phase,
         silent,
@@ -2050,7 +2055,8 @@ async function loadConfigImpl(
         ...userConfig,
       },
       silent,
-      phase
+      phase,
+      bundler
     )
 
     const finalConfig = finalizeConfig(
@@ -2107,7 +2113,8 @@ async function loadConfigImpl(
     dir,
     { ...clonedDefaultConfig, configFileName },
     silent,
-    phase
+    phase,
+    bundler
   )
 
   setHttpClientAndAgentOptions(completeConfig)
