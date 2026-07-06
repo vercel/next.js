@@ -51,7 +51,7 @@ In both, the per-route success bar is the same: **dev loop reports no errors AND
 Three classes of blocker come up, usually in this order:
 
 1. **Request-time reads** (`cookies()`, `headers()`, `await params`, `await searchParams`). All four block when awaited at the top of a page or layout. `params` and `searchParams` often get missed because they're not framed as "request data" the way cookies and headers are. The fix is to push the read into a `<Suspense>`-wrapped child — and for `params`/`searchParams`, forward the promise into the child and await it there; don't `await` at the page top.
-2. **Sync-IO at module/render time** (`new Date()`, `Date.now()`, `Math.random()`, `crypto.randomUUID()`). These fail the build even with `instant = false` — the opt-out doesn't suppress them. If they're in a shared layout, they block every route under it. The codemod can't fix them; you have to translate each one (cache it with `"use cache"` if it's stable, or wrap it in `await connection()` + `<Suspense>` if it's per-request) before the build can pass. Grep the whole repo for these calls before running anything else.
+2. **Sync-IO at module/render time** (`new Date()`, `Date.now()`, `Math.random()`, `crypto.randomUUID()`). These fail the build even with `instant = false` — the opt-out doesn't suppress them. If they're in a shared layout, they block every route under it. The codemod can't fix them; you have to translate each one by hand before the build can pass (see the [incremental pre-step](#incremental)). Grep the whole repo for these calls before running anything else.
 3. **`"use cache"` files that read request data.** A file with a top-level `"use cache"` directive can't export `instant`; combining the two errors with `Only async functions are allowed to be exported in a "use cache" file.`, which means the directive was wrong for that route. Remove it before running the codemod.
 
 ## working surfaces
@@ -104,7 +104,13 @@ If there's no user to ask, default to **Incremental** and document the choice.
 
 Before invoking the codemod, fix the two classes of blocker it can't.
 
-1. **Sync-IO at module/render time.** Grep the whole repo for `new Date()`, `Date.now()`, `Math.random()`, and `crypto.randomUUID()` (not only `app/**/layout.{js,jsx,ts,tsx}` — the read might live in any component imported by a layout). Translate each match using the recipe from its `blocking-prerender-*` error card.
+1. **Sync-IO at module/render time.** Grep the whole repo for `new Date()`, `Date.now()`, `Math.random()`, and `crypto.randomUUID()` (not only `app/**/layout.{js,jsx,ts,tsx}` — the read might live in any component imported by a layout). Unblock each match with the `await connection()` + `<Suspense>` fix from its `blocking-prerender-*` error card: it defers the value to request time, exactly as it behaved before the migration, so it needs no product decision. Add this exact comment on the line above the `await connection()`:
+
+   ```tsx
+   // TODO: Cache Components adoption. Added to unblock the build: remove this connection() to re-trigger the error and review the fix options.
+   ```
+
+   It shares the `TODO: Cache Components adoption` prefix with the comments the codemod writes, so the check-in grep finds both. Removing the `await connection()` makes the error fire again with its fix cards — the same motion as removing an opt-out in the loop.
 
 2. **Incompatible segment configs.** Grep for `^export const (revalidate|dynamic|fetchCache)` across `app/` and translate per the `requires` note above. The codemod does not touch them; leaving them in place fails the build after the codemod.
 
@@ -196,7 +202,7 @@ Keep a todo list of the feature's routes. When every route in the feature is cle
 Checklist before checking in with the user:
 
 - `next build` completes without blocking-route errors.
-- No bare `// TODO: Cache Components adoption` opt-outs in the feature (`grep` to confirm). Any `instant = false` left behind is a deliberate, documented Block — comment rewritten to a reason (see [references/per-page-decisions.md](./references/per-page-decisions.md) → "when to leave a Block in place").
+- No bare TODOs in the feature: `grep -rn "TODO: Cache Components adoption"` finds both the codemod's opt-out comments and the sync-IO unblocks from the pre-step. Any `instant = false` left behind is a deliberate, documented Block — comment rewritten to a reason (see [references/per-page-decisions.md](./references/per-page-decisions.md) → "when to leave a Block in place"). Any `await connection()` left behind has been reviewed and kept on purpose, not left over from the pre-step.
 - Each route visited in the browser: confirm the static shell renders first and every `<Suspense>` fallback resolves to its real content. Capture both states if you can — the fallback (mid-stream) and the final paint — so you have a streaming-experience demo to show the user. Throttle the network in the browser if streaming is too fast to observe.
 
 Then check in with the user. Same rule as the pre-step: speak their language. Don't say "feature-by-feature loop" or other internal labels; talk about the feature you adopted and what the user will see.
