@@ -844,7 +844,7 @@ export async function optimizeImage({
 
   if (contentType === AVIF) {
     transformer.avif({
-      quality: Math.max(quality - 20, 1),
+      quality: Math.max(quality - 30, 1),
       effort: 3,
     })
   } else if (contentType === WEBP) {
