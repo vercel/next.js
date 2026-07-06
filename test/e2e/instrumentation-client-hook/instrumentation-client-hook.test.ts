@@ -224,10 +224,16 @@ describe('Instrumentation Client Hook', () => {
           start.event.timestamp
         )
         expect(Object.keys(commit.event).sort()).toEqual([
+          'cacheHit',
           'id',
           'timestamp',
           'to',
         ])
+        // The value is asserted in the dedicated cacheHit tests below: this
+        // first click races the link's own prefetch (clicking before it
+        // lands is a genuine cache miss), so only the payload shape is
+        // deterministic here.
+        expect(typeof commit.event.cacheHit).toBe('boolean')
         expect(commit.event.to.routes).toEqual([
           { template: '/some-page', params: {} },
         ])
@@ -275,6 +281,99 @@ describe('Instrumentation Client Hook', () => {
         'commit',
       ])
       expect(events.at(-2).event.from.canonicalUrl).toBe('/?shallow=1')
+    })
+
+    it('reports a cache hit when restoring a cached route', async () => {
+      const browser = await next.browser('/')
+
+      await browser.elementByCss('a[href="/some-page"]').click()
+      await browser.elementById('some-page')
+      await browser.back()
+      await browser.elementById('home')
+      // Going forward restores /some-page from the BFCache, so there is a fully
+      // rendered shell to navigate into.
+      await browser.forward()
+      await browser.elementById('some-page')
+
+      await retry(async () => {
+        const commit = (await getTransitionEvents(browser))
+          .filter((e) => e.phase === 'commit' && e.url === '/some-page')
+          .at(-1)
+        expect(commit?.event.cacheHit).toBe(true)
+      })
+    })
+
+    it('reports a cache hit for a fully prefetched route', async () => {
+      const browser = await next.browser('/')
+
+      // The /some-page link uses prefetch={true}, so its complete route —
+      // shell and head — is fetched up front. Once that prefetch lands the
+      // click navigates straight through the segment walk (not the BFCache
+      // path the previous test covers), so the cache serving both the
+      // segment bytes AND the head is what makes this a hit: a head the
+      // cache could not serve would mark it a miss. In development nothing is
+      // prefetched, so the same click first fetches the route — a miss.
+      await browser.waitForIdleNetwork()
+      await browser.elementByCss('a[href="/some-page"]').click()
+      await browser.elementById('some-page')
+
+      await retry(async () => {
+        const commit = (await getTransitionEvents(browser)).find(
+          (e) => e.phase === 'commit' && e.url === '/some-page'
+        )
+        expect(commit?.event.cacheHit).toBe(isNextDev ? false : true)
+      })
+    })
+
+    it('reports a cache miss when nothing is prefetched for the route', async () => {
+      const browser = await next.browser('/')
+
+      // Without a prefetch the destination state is produced asynchronously
+      // (the router blocks on the dynamic fetch), so the cache could not
+      // serve the navigation.
+      await browser.elementById('push-no-prefetch').click()
+      await browser.elementById('no-prefetch')
+
+      await retry(async () => {
+        const commit = (await getTransitionEvents(browser)).find(
+          (e) => e.phase === 'commit' && e.url === '/no-prefetch'
+        )
+        expect(commit?.event.to.renderedPathname).toBe('/no-prefetch')
+        expect(commit?.event.cacheHit).toBe(false)
+      })
+    })
+
+    it('reports a cache hit for a hash-only navigation', async () => {
+      const browser = await next.browser('/')
+
+      // A hash-only push still resolves its destination through the route
+      // cache, so it is only a hit once the current route's prefetch has
+      // landed. Wait for that before clicking; otherwise the click races the
+      // prefetch — invisible on a fast machine, but a deterministic miss in
+      // slow deploy-mode CI.
+      await browser.waitForIdleNetwork()
+
+      await browser.elementById('push-hash').click()
+      await retry(async () => {
+        const events = await getTransitionEvents(browser)
+        expect(events.some((e) => e.phase === 'commit')).toBe(true)
+      })
+      const commit = lastCommit(await getTransitionEvents(browser))
+      // In production the route tree is known locally and the page UI is
+      // reused, so the cache serves the navigation — a hit. In development
+      // nothing is prefetched, so even a hash-only navigation consults the
+      // server for the route tree before committing — an accurate miss.
+      expect(commit.event.cacheHit).toBe(isNextDev ? false : true)
+
+      // Traversing back across the hash boundary reuses the tree the same
+      // way — a hit in both modes (no fetch ever happens).
+      await browser.back()
+      await retry(async () => {
+        const traverseCommit = (await getTransitionEvents(browser)).find(
+          (e) => e.phase === 'commit' && e.navigateType === 'traverse'
+        )
+        expect(traverseCommit?.event.cacheHit).toBe(true)
+      })
     })
 
     it('describes routes across group, dynamic, catch-all, rewritten, hash, query, and intercepted URLs', async () => {
@@ -598,6 +697,11 @@ describe('Instrumentation Client Hook', () => {
       expect(commits).toHaveLength(1)
       expect(commits[0].event.id).toBe(starts[0].event.id)
       expect(commits[0].event.to.renderedPathname).toBe('/no-prefetch')
+      // A miss twice over: the route wasn't prefetched (the push blocked on
+      // the dynamic fetch), and the committed tree was derived by the
+      // refresh from a second server response (retargetRouterTransition also
+      // marks retargeted transitions as misses).
+      expect(commits[0].event.cacheHit).toBe(false)
       expect(events.filter((e) => e.phase === 'abort')).toHaveLength(0)
 
       // The transition is settled, not starved: before the fix, its entry
