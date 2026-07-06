@@ -551,6 +551,7 @@ function bindingToApi(
           originalName: string
           htmlEndpoint: NapiEndpoint
           rscHmrEndpoint: NapiEndpoint
+          rscEndpoint: NapiEndpoint
         }[]
       }
     | {
@@ -1211,6 +1212,7 @@ function bindingToApi(
               originalName: page.originalName,
               htmlEndpoint: new EndpointImpl(page.htmlEndpoint),
               rscHmrEndpoint: new EndpointImpl(page.rscHmrEndpoint),
+              rscEndpoint: new EndpointImpl(page.rscEndpoint),
             })),
           }
           break

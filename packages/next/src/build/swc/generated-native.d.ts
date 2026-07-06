@@ -365,6 +365,7 @@ export interface AppPageNapiRoute {
   originalName?: RcStr
   htmlEndpoint?: ExternalObject<ExternalEndpoint>
   rscHmrEndpoint?: ExternalObject<ExternalEndpoint>
+  rscEndpoint?: ExternalObject<ExternalEndpoint>
 }
 export interface NapiRoute {
   /** The router path */

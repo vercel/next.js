@@ -1068,6 +1068,17 @@ pub fn app_entry_point_to_route(
                                 loader_tree,
                             },
                             app_project,
+                            page: page.clone(),
+                        }
+                        .resolved_cell(),
+                    ),
+                    rsc_endpoint: ResolvedVc::upcast(
+                        AppEndpoint {
+                            ty: AppEndpointType::Page {
+                                ty: AppPageEndpointType::Rsc,
+                                loader_tree,
+                            },
+                            app_project,
                             page,
                         }
                         .resolved_cell(),
@@ -1109,7 +1120,12 @@ pub fn app_entry_point_to_route(
 #[derive(Copy, Clone, PartialEq, Eq, Debug, TraceRawVcs, NonLocalValue, Encode, Decode)]
 enum AppPageEndpointType {
     Html,
+    /// HMR-only: detects Server Component changes but emits no manifests, so it
+    /// cannot serve a request.
     RscHmr,
+    /// Like `Html` but skips Client Component SSR, while still emitting the
+    /// manifests needed to serve the Flight payload for soft navigations.
+    Rsc,
 }
 
 #[derive(Clone, PartialEq, Eq, Debug, TraceRawVcs, NonLocalValue, Encode, Decode)]
@@ -1237,12 +1253,11 @@ impl AppEndpoint {
                 AppEndpointType::Page { ty, .. } => (
                     true,
                     matches!(ty, AppPageEndpointType::Html),
-                    if matches!(ty, AppPageEndpointType::Html) {
-                        EmitManifests::Full
-                    } else {
-                        EmitManifests::None
+                    match ty {
+                        AppPageEndpointType::Html | AppPageEndpointType::Rsc => EmitManifests::Full,
+                        AppPageEndpointType::RscHmr => EmitManifests::None,
                     },
-                    matches!(ty, AppPageEndpointType::Html),
+                    matches!(ty, AppPageEndpointType::Html | AppPageEndpointType::Rsc),
                 ),
                 AppEndpointType::Route { .. } => (false, false, EmitManifests::Minimal, true),
                 AppEndpointType::Metadata { metadata } => (
@@ -1280,21 +1295,17 @@ impl AppEndpoint {
 
         let client_chunking_context = project.client_chunking_context().to_resolved().await?;
 
-        let ssr_chunking_context = if process_ssr {
-            Some(
-                match runtime {
-                    NextRuntime::NodeJs => Vc::upcast(project.server_chunking_context(true)),
-                    NextRuntime::Edge => this
-                        .app_project
-                        .project()
-                        .edge_chunking_context(process_client_assets),
-                }
-                .to_resolved()
-                .await?,
-            )
-        } else {
-            None
-        };
+        let server_chunking_context = match runtime {
+            NextRuntime::NodeJs => Vc::upcast(project.server_chunking_context(true)),
+            NextRuntime::Edge => this
+                .app_project
+                .project()
+                .edge_chunking_context(process_client_assets),
+        }
+        .to_resolved()
+        .await?;
+
+        let ssr_chunking_context = process_ssr.then_some(server_chunking_context);
 
         let per_page_module_graph = *project.per_page_module_graph().await?;
 
@@ -1548,6 +1559,9 @@ impl AppEndpoint {
                     client_references_chunks,
                     client_chunking_context,
                     ssr_chunking_context,
+                    // Only pages need `rscModuleMapping`; route handlers and
+                    // metadata routes keep emitting no module mappings.
+                    rsc_chunking_context: is_app_page.then_some(server_chunking_context),
                     async_module_info: module_graphs.full.async_module_info().to_resolved().await?,
                     next_config: project.next_config().to_resolved().await?,
                     runtime,
@@ -2080,6 +2094,12 @@ impl Endpoint for AppEndpoint {
                 ..
             } => {
                 tracing::info_span!("app endpoint RSC HMR", name = page_name)
+            }
+            AppEndpointType::Page {
+                ty: AppPageEndpointType::Rsc,
+                ..
+            } => {
+                tracing::info_span!("app endpoint RSC", name = page_name)
             }
             AppEndpointType::Route { .. } => {
                 tracing::info_span!("app endpoint route", name = page_name)
