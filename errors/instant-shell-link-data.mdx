@@ -165,7 +165,7 @@ Learn more: [Route segment `instant` config](https://preview.nextjs.org/docs/app
 
 Use either pattern when:
 
-- The route genuinely needs the URL param high in the tree to decide what to render, so there's no shared part worth prefetching.
+- The route genuinely needs the URL data high in the tree to decide what to render, so there's no shared part worth prefetching.
 - You're adopting Partial Prefetching incrementally and want to defer this route without changing how it renders today.
 
 For this error, disabling validation is rarely the right answer. The route reads a small piece of URL data, and a [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary around that read keeps the rest of the route in the shared prefetch. Choose [Wrap in or move into Suspense](#wrap-in-or-move-into-suspense) when feasible.
