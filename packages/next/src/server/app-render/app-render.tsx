@@ -849,7 +849,7 @@ async function generateDynamicFlightRenderResult(
   // response-close to abort the discarded render. This is the
   // non-Cache-Components dev RSC path; unlike the Cache Components staged path
   // it has no detached validation, so the render is the only work to cancel.
-  const abortSignal =
+  const requestAbortSignal =
     process.env.__NEXT_DEV_SERVER &&
     renderOpts.experimental.serverComponentsHmrCancellation === true &&
     requestStore.isHmrRefresh === true &&
@@ -884,7 +884,7 @@ async function generateDynamicFlightRenderResult(
         temporaryReferences: options?.temporaryReferences,
         filterStackFrame,
         debugChannel: debugChannel?.serverSide,
-        signal: abortSignal,
+        signal: requestAbortSignal,
       }
     )
 
@@ -920,7 +920,7 @@ async function generateDynamicFlightRenderResult(
         temporaryReferences: options?.temporaryReferences,
         filterStackFrame,
         debugChannel: debugChannel?.serverSide,
-        signal: abortSignal,
+        signal: requestAbortSignal,
       }
     )
 
@@ -1415,7 +1415,7 @@ async function generateDynamicFlightRenderResultWithStagesInDev(
     // cancel today. The response-close signal itself is general, so this could
     // later be relaxed to also cover a browser stop or a devtools "cancel
     // render" button.
-    const abortSignal =
+    const requestAbortSignal =
       renderOpts.experimental.serverComponentsHmrCancellation === true &&
       initialRequestStore.isHmrRefresh === true &&
       isNodeNextResponse(ctx.res)
@@ -1436,7 +1436,7 @@ async function generateDynamicFlightRenderResultWithStagesInDev(
         type: 'prefetched-client',
         prefetchStage,
       },
-      abortSignal,
+      requestAbortSignal,
     })
     stream = result.stream
     debugChannel = result.debugChannel
@@ -3520,8 +3520,8 @@ async function renderToStream(
               navigationKind: {
                 type: 'initial-load',
               },
-              // The initial load has no request-abort signal to tear it down.
-              abortSignal: undefined,
+              // We currently only abort HMR refresh requests.
+              requestAbortSignal: undefined,
             })
 
           reactServerResult = new ReactServerResult(serverStream)
@@ -4461,7 +4461,7 @@ function runDevValidationInBackground(
   createRequestStore: () => RequestStore,
   getPayload: (requestStore: RequestStore) => Promise<RSCPayload>,
   onError: (error: unknown) => void,
-  abortSignal: AbortSignal | undefined
+  requestAbortSignal: AbortSignal | undefined
 ): void {
   void consoleAsyncStorage
     .run({ dim: true }, async () => {
@@ -4472,7 +4472,7 @@ function runDevValidationInBackground(
       // re-rendering and analyzing it would only waste server work. In-flight
       // `'use cache'` fills are left running (we don't await `cacheReady`
       // below).
-      if (abortSignal?.aborted) {
+      if (requestAbortSignal?.aborted) {
         logValidationAborted(ctx)
         return
       }
@@ -4511,7 +4511,7 @@ function runDevValidationInBackground(
         createRequestStore,
         getPayload,
         onError,
-        abortSignal
+        requestAbortSignal
       )
 
       // If we need to do multiple renders, do them in parallel.
@@ -4536,7 +4536,7 @@ function runDevValidationInBackground(
       // The request may have been aborted while we prepared the validation
       // inputs above (which can itself render). Skip validation before it
       // begins rather than run it for a discarded request.
-      if (abortSignal?.aborted) {
+      if (requestAbortSignal?.aborted) {
         logValidationAborted(ctx)
         return
       }
@@ -4548,7 +4548,7 @@ function runDevValidationInBackground(
         ctx,
         fallbackRouteParams,
         devRenderDidError,
-        abortSignal
+        requestAbortSignal
       )
     })
     // The catch keeps a failed render, or anything thrown inside validation,
@@ -4557,7 +4557,7 @@ function runDevValidationInBackground(
       // If this request was aborted, its render and detached validation are
       // being torn down and their result discarded. We don't want to log these
       // errors (including the abort signal reason itself).
-      if (abortSignal?.aborted) {
+      if (requestAbortSignal?.aborted) {
         return
       }
       console.error(
@@ -4624,7 +4624,7 @@ async function prepareValidationInputs(
   createRequestStore: () => RequestStore,
   getPayload: (requestStore: RequestStore) => Promise<RSCPayload>,
   onError: (error: unknown) => void,
-  abortSignal: AbortSignal | undefined
+  requestAbortSignal: AbortSignal | undefined
 ): Promise<PrepareValidationInputsResult> {
   // Check if we can re-use the main render for validation.
   let inputsFromNavigation: DevValidationInputs | null
@@ -4654,7 +4654,7 @@ async function prepareValidationInputs(
       getPayload,
       onError,
       inputsFromNavigation,
-      abortSignal
+      requestAbortSignal
     )
   } else {
     return prepareValidationInputsInLegacyPrefetching(
@@ -4664,7 +4664,7 @@ async function prepareValidationInputs(
       getPayload,
       onError,
       inputsFromNavigation,
-      abortSignal
+      requestAbortSignal
     )
   }
 }
@@ -4678,7 +4678,7 @@ async function prepareValidationInputsInPartialPrefetching(
   getPayload: (requestStore: RequestStore) => Promise<RSCPayload>,
   onError: (error: unknown) => void,
   inputsFromNavigation: DevValidationInputs | null,
-  abortSignal: AbortSignal | undefined
+  requestAbortSignal: AbortSignal | undefined
 ): Promise<PrepareValidationInputsResult> {
   const loaderTree = ctx.componentMod.routeModule.userland.loaderTree
   const needsInstantValidation =
@@ -4701,7 +4701,7 @@ async function prepareValidationInputsInPartialPrefetching(
       onError,
       prerenderResumeDataCache,
       shouldRenderWithAppShell,
-      abortSignal
+      requestAbortSignal
     )
     if (forwardErrorsFromWarmRender(inputs, ctx)) {
       return VALIDATION_BAILOUT
@@ -4716,7 +4716,7 @@ async function prepareValidationInputsInPartialPrefetching(
       getPayload,
       onError,
       prerenderResumeDataCache,
-      abortSignal
+      requestAbortSignal
     )
     if (forwardErrorsFromWarmRender(inputs, ctx)) {
       return VALIDATION_BAILOUT
@@ -4770,7 +4770,7 @@ async function prepareValidationInputsInLegacyPrefetching(
   getPayload: (requestStore: RequestStore) => Promise<RSCPayload>,
   onError: (error: unknown) => void,
   inputsFromNavigation: DevValidationInputs | null,
-  abortSignal: AbortSignal | undefined
+  requestAbortSignal: AbortSignal | undefined
 ): Promise<PrepareValidationInputsResult> {
   const loaderTree = ctx.componentMod.routeModule.userland.loaderTree
   const needsInstantValidation =
@@ -4794,7 +4794,7 @@ async function prepareValidationInputsInLegacyPrefetching(
       onError,
       prerenderResumeDataCache,
       shouldRenderWithAppShell,
-      abortSignal
+      requestAbortSignal
     )
     if (forwardErrorsFromWarmRender(inputs, ctx)) {
       return VALIDATION_BAILOUT
@@ -4809,7 +4809,7 @@ async function prepareValidationInputsInLegacyPrefetching(
       getPayload,
       onError,
       prerenderResumeDataCache,
-      abortSignal
+      requestAbortSignal
     )
     if (forwardErrorsFromWarmRender(inputs, ctx)) {
       return VALIDATION_BAILOUT
@@ -4988,7 +4988,7 @@ interface StagedDevRenderOptions {
   // When this aborts, the staged dev render is torn down (its in-flight `'use
   // cache'` fills keep running) and the detached validation is skipped.
   // `undefined` runs both to completion.
-  abortSignal: AbortSignal | undefined
+  requestAbortSignal: AbortSignal | undefined
 }
 
 type DevNavigationKind =
@@ -5040,7 +5040,7 @@ async function streamStagedRenderInDev({
   onError,
   debugChannel,
   navigationKind,
-  abortSignal,
+  requestAbortSignal,
 }: StreamStagedRenderInDevOptions): Promise<{
   stream: Readable
   resultPromise: Promise<StagedDevRenderResult>
@@ -5149,15 +5149,6 @@ async function streamStagedRenderInDev({
     }
   }
 
-  // The render runs to completion unless `abortSignal` fires, in which case
-  // React aborts the Flight render and the accumulation tears down. The first
-  // task starts the render in the `ShellEarlyStatic` stage and creates the
-  // stream (one replay for the response, one to accumulate the chunks). The
-  // later tasks advance the stages, settle `hadCacheMiss`, and reveal the shell
-  // – as soon as a cache miss is seen, or once the render reaches
-  // `revealAfterStage` – then advance into the dynamic stage a task later. The
-  // replayable stays local: the response is the only reader outside this
-  // function.
   const stagesAdvanced = runInSequentialTasks(
     () => {
       stageController.advanceStage(RenderStage.ShellEarlyStatic)
@@ -5176,7 +5167,7 @@ async function streamStagedRenderInDev({
             startTime,
             filterStackFrame,
             debugChannel: debugChannel?.serverSide,
-            signal: abortSignal,
+            signal: requestAbortSignal,
           }
         ) as Readable
       )
@@ -5186,10 +5177,9 @@ async function streamStagedRenderInDev({
         accumulatedChunksPromise: accumulateStreamChunks(
           replayable.createReplayStream(),
           stageController,
-          // Tear down the chunk accumulation on abort too, so `resultPromise`
-          // settles promptly (instead of waiting out the aborted render) and
-          // the detached validation can see the abort and skip.
-          abortSignal ?? null
+          // Abort accumulation as soon as the signal aborts instead of waiting
+          // for the stream to close.
+          requestAbortSignal ?? null
         ),
       })
     },
@@ -5279,7 +5269,7 @@ async function renderWithWarmCachesForValidationInDev(
   onError: (error: unknown) => void,
   prerenderResumeDataCache: ReturnType<typeof createPrerenderResumeDataCache>,
   shouldRenderWithAppShell: boolean,
-  abortSignal: AbortSignal | undefined
+  requestAbortSignal: AbortSignal | undefined
 ): Promise<DevValidationInputs> {
   const { ComponentMod, setReactDebugChannel } = ctx.renderOpts
   const { clientModules } = getClientReferenceManifest()
@@ -5329,14 +5319,14 @@ async function renderWithWarmCachesForValidationInDev(
           startTime,
           filterStackFrame,
           debugChannel: debugChannel?.serverSide,
-          signal: abortSignal,
+          signal: requestAbortSignal,
         }
       ) as Readable
 
       return accumulateStreamChunks(
         sourceStream,
         stageController,
-        abortSignal ?? null
+        requestAbortSignal ?? null
       )
     },
     () => stageController.advanceStage(RenderStage.ShellStatic),
@@ -5374,7 +5364,7 @@ async function prerenderWithWarmCachesForStaticValidationInDev(
   getPayload: (requestStore: RequestStore) => Promise<RSCPayload>,
   onError: (error: unknown) => void,
   prerenderResumeDataCache: ReturnType<typeof createPrerenderResumeDataCache>,
-  abortSignal: AbortSignal | undefined
+  requestAbortSignal: AbortSignal | undefined
 ): Promise<DevValidationInputs> {
   const { ComponentMod, setReactDebugChannel } = ctx.renderOpts
   const { clientModules } = getClientReferenceManifest()
@@ -5385,10 +5375,8 @@ async function prerenderWithWarmCachesForStaticValidationInDev(
   const finalReactController = new AbortController()
   const finalDataController = new AbortController()
 
-  // Aborting `finalReactController` (the prerender's own controller) on the
-  // signal tears the render down the same way its runtime-stage abort does.
-  if (abortSignal) {
-    abortWhenSignalAborts(abortSignal, finalReactController)
+  if (requestAbortSignal) {
+    abortWhenSignalAborts(requestAbortSignal, finalReactController)
   }
 
   const stageController = new StagedRenderingController({
@@ -5551,7 +5539,7 @@ async function stagedRenderWithCachesInDev({
   fallbackRouteParams,
   getDevRenderDidError,
   navigationKind,
-  abortSignal,
+  requestAbortSignal,
 }: StagedRenderWithCachesInDevOptions): Promise<{
   stream: Readable
   debugChannel: NodeDebugChannelPair | undefined
@@ -5590,7 +5578,7 @@ async function stagedRenderWithCachesInDev({
     onError,
     debugChannel,
     navigationKind,
-    abortSignal,
+    requestAbortSignal,
   })
 
   if (shouldValidate) {
@@ -5608,7 +5596,7 @@ async function stagedRenderWithCachesInDev({
       createRequestStore,
       getPayload,
       onError,
-      abortSignal
+      requestAbortSignal
     )
   } else {
     logValidationSkipped(ctx)
@@ -6060,7 +6048,7 @@ async function runValidationInDevImpl(
   ctx: AppRenderContext,
   fallbackRouteParams: OpaqueFallbackRouteParams | null,
   devRenderDidError: boolean,
-  abortSignal: AbortSignal | undefined
+  requestAbortSignal: AbortSignal | undefined
 ): Promise<void> {
   const { componentMod: ComponentMod, getDynamicParamFromSegment } = ctx
   const loaderTree = ComponentMod.routeModule.userland.loaderTree
@@ -6121,7 +6109,7 @@ async function runValidationInDevImpl(
   //================================
   {
     // The request may have been aborted during the client module warmup above.
-    if (abortSignal?.aborted) {
+    if (requestAbortSignal?.aborted) {
       return
     }
 
@@ -6143,7 +6131,7 @@ async function runValidationInDevImpl(
     // The request was aborted while this validation render ran, so its result
     // is being discarded. Don't surface its validation errors: they're for a
     // render that won't be shown.
-    if (abortSignal?.aborted) {
+    if (requestAbortSignal?.aborted) {
       return
     }
     if (result.length > 0) {
@@ -6177,7 +6165,7 @@ async function runValidationInDevImpl(
 
     // The request was aborted while this render ran; don't surface its stale
     // validation errors: they're for a render that won't be shown.
-    if (abortSignal?.aborted) {
+    if (requestAbortSignal?.aborted) {
       return
     }
     if (result.length > 0) {

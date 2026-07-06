@@ -551,8 +551,9 @@ export function renderToNodeFlightStream(
 
   // `renderToPipeableStream` has no `signal` option (unlike the Web
   // `renderToReadableStream`), so pull `signal` out of the options and abort
-  // the returned pipeable ourselves when it fires. The listener is removed once
-  // the passthrough closes.
+  // the returned pipeable ourselves when it fires. We drop the listener when
+  // the passthrough closes so a finished render's `pipeable` isn't retained by
+  // the request signal, which can outlive it.
   const { signal, ...renderOptions } = opts ?? {}
 
   const pt = new PassThrough()
