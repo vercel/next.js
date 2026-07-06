@@ -25,6 +25,12 @@ export function onRouterTransitionStart(
   navigateType: string,
   event: unknown
 ) {
+  if ((window as any).__THROW_ON_START) {
+    // Opt-in failure mode for tests: the start hook runs synchronously
+    // inside the dispatch call stack, so a throw here must not break the
+    // navigation being dispatched.
+    throw new Error('Intentional start hook failure (test-only)')
+  }
   const pathname = new URL(href, window.location.href).pathname
   console.log(`[Router Transition Start] [${navigateType}] ${pathname}`)
   record('start', href, navigateType, event)

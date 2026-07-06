@@ -1,25 +1,12 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
+import { revalidateNoPrefetch, redirectToSomePage } from './actions'
 
 export function TestControls() {
   const router = useRouter()
   return (
     <>
-      <button id="push-no-prefetch" onClick={() => router.push('/no-prefetch')}>
-        Push no-prefetch
-      </button>
-      <button
-        id="abort-double-push"
-        onClick={() => {
-          // Two navigations in one tick: the second replaces the first, so the
-          // first should be reported as aborted when the second commits.
-          router.push('/some-page')
-          router.push('/dashboard')
-        }}
-      >
-        Abort double push
-      </button>
       <button id="push-hash" onClick={() => router.push('/#section')}>
         Push hash
       </button>
@@ -85,6 +72,50 @@ export function TestControls() {
       </button>
       <button id="push-missing" onClick={() => router.push('/no-such-route')}>
         Push missing
+      </button>
+      <button
+        id="push-then-broken-nav"
+        onClick={() => {
+          // A navigation replaced (same tick) by one that then fails: with no
+          // live navigation left in the race, the replaced one is dropped —
+          // neither transition may report a terminal event.
+          router.push('/some-page')
+          router.push('/broken-nav')
+        }}
+      >
+        Push then broken nav
+      </button>
+      <button
+        id="push-then-revalidate-action"
+        onClick={() => {
+          // A server action revalidation queued behind an in-flight
+          // navigation: the action re-derives the navigation's uncommitted
+          // state at the same URL, so the navigation must still report its
+          // commit.
+          router.push('/no-prefetch')
+          // Deliberately not .catch()'d: for un-awaited server actions the
+          // router delivers redirects (and errors) through the rejected
+          // action promise, via a window `unhandledrejection` listener in
+          // app-router.tsx — attaching a catch marks the rejection handled
+          // and silently disables that delivery.
+          revalidateNoPrefetch()
+        }}
+      >
+        Push then revalidate action
+      </button>
+      <button
+        id="push-then-redirect-action"
+        onClick={() => {
+          // A server action redirect queued behind an in-flight navigation:
+          // the redirect's destination is not what the navigation targeted,
+          // so its commit must not be attributed to the pending transition.
+          router.push('/dashboard')
+          // Deliberately not .catch()'d — the redirect is delivered through
+          // the rejected action promise (see above); a catch breaks it.
+          redirectToSomePage()
+        }}
+      >
+        Push then redirect action
       </button>
     </>
   )
