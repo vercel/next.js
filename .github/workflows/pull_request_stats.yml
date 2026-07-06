@@ -89,6 +89,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        # Keep in sync with STATS_EXPECTED_BUNDLERS
         bundler: [webpack, turbopack]
     runs-on: ubuntu-latest-16-core-arm-oss
     steps:
