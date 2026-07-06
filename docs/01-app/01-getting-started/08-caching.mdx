@@ -234,7 +234,7 @@ async function CachedContent({ sessionId }: { sessionId: string }) {
 
 At request time, `<CachedContent />` executes if no matching cache entry is found, and stores the result for future requests with the same `sessionId`.
 
-> **Good to know:** By default, `use cache` stores entries [in-memory](/docs/app/api-reference/directives/use-cache#runtime-caching-considerations). In serverless environments where memory doesn't persist across requests, `<CachedContent />` may re-evaluate on every request. Consider [`'use cache: remote'`](/docs/app/api-reference/directives/use-cache-remote) for durable, shared caching across requests.
+> **Good to know:** Because `<CachedContent />` is gated behind request data, it isn't added to the prerendered static shell. At runtime it's cached [in-memory](/docs/app/api-reference/directives/use-cache#runtime-caching-considerations) by default, which doesn't persist across serverless requests, so it may re-evaluate on each request. Reach for [`'use cache: remote'`](/docs/app/api-reference/directives/use-cache-remote) for durable, shared caching.
 
 With this pattern, [runtime prefetching](#runtime-prefetching) can prerender `<CachedContent />` with the user's actual session during a client transition and have the result ready before the click. This works even when server-side entries rarely survive between requests, because the lifetime you assign is what lets the result join the prefetch, where the client treats it as fresh for its [`cacheLife`](/docs/app/api-reference/functions/cacheLife) `stale` window.
 
@@ -573,7 +573,7 @@ A cached function's output is serialized into an **RSC payload**, at build time 
 
 > **Good to know:** An [App Shell](/docs/app/glossary#app-shell) that reads `cookies()` or `headers()` is session-specific, cached per session on the client rather than in the shared server cache.
 
-A new deploy starts cold. Prerenders are rebuilt, and `use cache` entries don't carry over, even durable [`remote`](/docs/app/api-reference/directives/use-cache-remote) ones, because the [cache key](/docs/app/api-reference/directives/use-cache#cache-keys) includes the build id. See [Runtime caching considerations](/docs/app/api-reference/directives/use-cache#runtime-caching-considerations) for per-environment behavior and [Self-hosting](/docs/app/guides/self-hosting#caching-and-isr) for configuring the server cache.
+All of these stores are scoped to a single deployment. A new deploy starts fresh, new prerenders are built, and `use cache` entries don't carry over, even durable [`remote`](/docs/app/api-reference/directives/use-cache-remote) ones, because the [cache key](/docs/app/api-reference/directives/use-cache#cache-keys) includes the build id. See [Runtime caching considerations](/docs/app/api-reference/directives/use-cache#runtime-caching-considerations) for per-environment behavior and [Self-hosting](/docs/app/guides/self-hosting#caching-and-isr) for configuring the server cache.
 
 ## Incremental Static Regeneration
 
