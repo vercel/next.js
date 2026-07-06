@@ -6,7 +6,7 @@ use std::sync::Arc;
 
 use anyhow::Result;
 use turbo_tasks::{
-    ResolvedVc, State, TaskId, TurboTasks, Vc,
+    ResolvedVc, State, TaskId, TurboTasks, Vc, prevent_gc,
     unmark_top_level_task_may_leak_eventually_consistent_state,
 };
 use turbo_tasks_backend::{BackendOptions, GitVersionInfo, TurboTasksBackend};
@@ -83,6 +83,15 @@ async fn branch_b() -> Result<Vc<u32>> {
     Ok(Vc::cell(2 + *leaf(20).await?))
 }
 
+/// A task that pins itself against GC while executing (as code handing a value across an untracked
+/// boundary — e.g. a `spawn_detached` future sending a `Vc` over a channel — would). Once pinned it
+/// must survive collection even after it is disconnected.
+#[turbo_tasks::function]
+async fn pinned_branch() -> Result<Vc<u32>> {
+    prevent_gc();
+    Ok(Vc::cell(99))
+}
+
 /// Reads exactly one branch depending on the selector; flipping it re-executes and disconnects the
 /// previously-read branch (and its subtree), which should drop that branch's `parent_count` to 0.
 #[turbo_tasks::function(operation, root)]
@@ -92,6 +101,18 @@ async fn select(selector: ResolvedVc<Selector>) -> Result<Vc<u32>> {
         *branch_b().await?
     } else {
         *branch_a().await?
+    };
+    Ok(Vc::cell(value))
+}
+
+/// Like `select`, but reads `pinned_branch` instead of `branch_a` when the selector is false.
+#[turbo_tasks::function(operation, root)]
+async fn select_pinned(selector: ResolvedVc<Selector>) -> Result<Vc<u32>> {
+    let use_b = *selector.await?.get();
+    let value = if use_b {
+        *branch_b().await?
+    } else {
+        *pinned_branch().await?
     };
     Ok(Vc::cell(value))
 }
@@ -352,6 +373,56 @@ async fn gc_collects_disconnected_subtree() {
     })
     .await;
     result.unwrap();
+
+    tt.stop_and_wait().await;
+}
+
+/// A task that pins itself via `prevent_gc()` must survive collection even after it is disconnected
+/// from the live graph — covering values that escape the tracked task graph (e.g. `spawn_detached`
+/// sending a `Vc` across a channel). Unlike `branch_a`, `pinned_branch` is not collected once
+/// disconnected, because the pin makes it a GC root.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn gc_does_not_collect_pinned_task() {
+    let (tt, _persistence_dir) = create_tt("gc_does_not_collect_pinned_task");
+    let tt2 = tt.clone();
+
+    let result = turbo_tasks::run_once(tt.clone(), async move {
+        unmark_top_level_task_may_leak_eventually_consistent_state();
+
+        let selector_op = create_selector(false);
+        let selector_vc = selector_op.resolve().strongly_consistent().await?;
+        let selector = selector_op.read_strongly_consistent().await?;
+
+        // select_pinned reads pinned_branch, which pins itself during execution.
+        let output = select_pinned(selector_vc);
+        assert_eq!(*output.read_strongly_consistent().await?, 99);
+
+        // Flip: select_pinned re-executes, reads branch_b, and disconnects pinned_branch.
+        selector.set(true);
+        assert_eq!(*output.read_strongly_consistent().await?, 22);
+
+        anyhow::Ok(())
+    })
+    .await;
+    result.unwrap();
+
+    // GC (after the run releases activeness) must NOT collect pinned_branch even though it is now
+    // disconnected (parent_count 0), because it pinned itself. Its child leaf from branch_b is
+    // live.
+    let collected = tt2.backend().gc_for_testing(&tt2);
+    assert_eq!(
+        collected, 0,
+        "a pinned task must not be collected even when disconnected"
+    );
+
+    // A snapshot + evict must not lose the (transient) pin: pinned tasks are unevictable, so the
+    // flag survives and a subsequent GC still collects nothing.
+    tt2.backend().snapshot_and_evict_for_testing(&tt2);
+    assert_eq!(
+        tt2.backend().gc_for_testing(&tt2),
+        0,
+        "pinned task must survive eviction and not be collected"
+    );
 
     tt.stop_and_wait().await;
 }

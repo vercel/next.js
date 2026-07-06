@@ -243,6 +243,15 @@ struct TaskStorageSchema {
     #[field(storage = "flag", category = "transient")]
     pub new_task: bool,
 
+    /// Whether this task is pinned against garbage collection (via
+    /// [`prevent_gc`](turbo_tasks::prevent_gc)). A pinned task is treated as a GC root, covering
+    /// references that escape the tracked task graph (e.g. a `Vc` sent out of a `spawn_detached`
+    /// future across a channel, or handed across the NAPI boundary) which no persistent parent
+    /// lists as a child. Pinned tasks are also unevictable so the (transient, session-only) flag
+    /// can never be lost by eviction.
+    #[field(storage = "flag", category = "transient")]
+    pub pinned: bool,
+
     // =========================================================================
     // CHILDREN & AGGREGATION (meta)
     // =========================================================================
@@ -512,6 +521,9 @@ pub enum UnevictableReason {
     Modified,
     /// The task is transient
     Transient,
+    /// The task is pinned against GC ([`TaskFlags::pinned`]); it must stay resident so the
+    /// transient, session-only pin flag can never be lost by eviction.
+    Pinned,
     // Keep `NothingToEvict` last: `COUNT` is derived from its discriminant.
     NothingToEvict,
 }
@@ -523,6 +535,7 @@ impl UnevictableReason {
         UnevictableReason::InProgress,
         UnevictableReason::Modified,
         UnevictableReason::Transient,
+        UnevictableReason::Pinned,
         UnevictableReason::NothingToEvict,
     ];
 
@@ -542,6 +555,7 @@ impl UnevictableReason {
             UnevictableReason::InProgress => "skipped_in_progress",
             UnevictableReason::Modified => "skipped_modified",
             UnevictableReason::Transient => "skipped_transient",
+            UnevictableReason::Pinned => "skipped_pinned",
             UnevictableReason::NothingToEvict => "skipped_nothing_to_evict",
         }
     }
@@ -589,6 +603,15 @@ impl TaskStorage {
             Some(arc) if arc.count() == 1 => KeyEvictability::AlreadyEvicted,
             Some(_) => KeyEvictability::Evictable,
         };
+        // Pinned tasks (via prevent_gc) must stay fully resident: the pin is a transient,
+        // session-only flag, so evicting the task would silently lose it and expose the pinned task
+        // to collection.
+        if flags.pinned() {
+            return (
+                key_evictability,
+                ValueEvictability::Unevictable(UnevictableReason::Pinned),
+            );
+        }
         // All these flags imply that the task is currently being used in some way
         // either literally executing, or about to
         if self.get_in_progress().is_some()
@@ -869,11 +892,12 @@ impl TaskStorage {
     }
 
     /// Whether this task is a garbage-collection root and must never be collected: it is active
-    /// (`activeness` set — a root/once task, positive active counter, or active-until-clean) or
-    /// currently in progress (about to connect children). Transient-ness is a property of the
-    /// [`TaskId`], not the storage, so it is checked separately by the caller.
+    /// (`activeness` set — a root/once task, positive active counter, or active-until-clean),
+    /// currently in progress (about to connect children), or pinned via
+    /// [`prevent_gc`](turbo_tasks::prevent_gc). Transient-ness is a property of the [`TaskId`], not
+    /// the storage, so it is checked separately by the caller.
     pub fn is_gc_root(&self) -> bool {
-        self.get_activeness().is_some() || self.get_in_progress().is_some()
+        self.get_activeness().is_some() || self.get_in_progress().is_some() || self.flags.pinned()
     }
 
     /// Whether a GC pass may collect this task, given it is non-transient and has no persistent or

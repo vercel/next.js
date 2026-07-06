@@ -4010,6 +4010,19 @@ impl Backend for TurboTasksBackend {
         self.mark_own_task_as_finished(task_id, turbo_tasks);
     }
 
+    fn pin_task_for_gc(&self, task: TaskId, _turbo_tasks: &TurboTasks<Self>) {
+        // Set the transient `pinned` flag. Pinned tasks are unevictable (see `evictability`) and
+        // are treated as GC roots (see `is_gc_root`), so `prevent_gc` keeps the task — and the
+        // escaping references it anchors — alive. `pinned` is transient and never persisted; on
+        // restart the code that escaped the value re-establishes the pin (or the value is simply
+        // recomputed).
+        self.storage.access_mut(task).flags.set_pinned(true);
+    }
+
+    fn unpin_task_for_gc(&self, task: TaskId, _turbo_tasks: &TurboTasks<Self>) {
+        self.storage.access_mut(task).flags.set_pinned(false);
+    }
+
     fn connect_task(
         &self,
         task: TaskId,

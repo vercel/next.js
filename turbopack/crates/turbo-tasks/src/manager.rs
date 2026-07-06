@@ -184,6 +184,13 @@ pub trait TurboTasksApi: TurboTasksCallApi + Sync + Send {
     );
     fn mark_own_task_as_finished(&self, task: TaskId);
 
+    /// Pin a task against garbage collection. Delegates to
+    /// [`Backend::pin_task_for_gc`](crate::backend::Backend::pin_task_for_gc).
+    fn pin_task_for_gc(&self, task: TaskId);
+
+    /// Removes a pin added by [`pin_task_for_gc`](TurboTasksApi::pin_task_for_gc).
+    fn unpin_task_for_gc(&self, task: TaskId);
+
     fn connect_task(&self, task: TaskId);
 
     /// Wraps the given future in the current task.
@@ -1567,6 +1574,14 @@ impl<B: Backend + 'static> TurboTasksApi for TurboTasks<B> {
         self.backend.mark_own_task_as_finished(task, self);
     }
 
+    fn pin_task_for_gc(&self, task: TaskId) {
+        self.backend.pin_task_for_gc(task, self);
+    }
+
+    fn unpin_task_for_gc(&self, task: TaskId) {
+        self.backend.unpin_task_for_gc(task, self);
+    }
+
     /// Creates a future that inherits the current task id and task state. The current global task
     /// will wait for this future to be dropped before exiting.
     fn spawn_detached_for_testing(&self, fut: Pin<Box<dyn Future<Output = ()> + Send + 'static>>) {
@@ -1891,8 +1906,17 @@ pub fn unmark_top_level_task_may_leak_eventually_consistent_state() {
     }
 }
 
+/// Pins the current task against garbage collection for the rest of the session, keeping it (and,
+/// via the reachability it anchors, the values it produced) alive even if it becomes disconnected
+/// from the live task graph. Use this when a value escapes the tracked graph — e.g. a `Vc` sent out
+/// of a `spawn_detached` future across a channel, or handed across the NAPI boundary — so no
+/// persistent parent lists it as a child and it would otherwise be collected.
+///
+/// No-op outside a task context, and on backends without garbage collection.
 pub fn prevent_gc() {
-    // TODO implement garbage collection
+    if let Some(task) = current_task_if_available("prevent_gc") {
+        with_turbo_tasks(|tt| tt.pin_task_for_gc(task));
+    }
 }
 
 pub fn emit<T: VcValueTrait + ?Sized>(collectible: ResolvedVc<T>) {
