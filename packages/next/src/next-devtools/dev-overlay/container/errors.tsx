@@ -353,7 +353,9 @@ function InstantRuntimeError({
 }
 
 export function getGuidanceVariant(message: string): GuidanceVariant {
-  // Discriminates between `createRuntimeBodyError` and `createDynamicBodyError`
+  // Discriminates between `createLinkBodyErrorInNavigation`,
+  // `createRuntimeBodyError`, and `createDynamicBodyError` (and their
+  // in-navigation variants).
   if (
     message.includes('encountered URL data') &&
     !message.includes('encountered uncached data')
@@ -414,7 +416,9 @@ export function isSyncIOClientError(message: string): boolean {
 export function isBlockingRouteInNavError(message: string): boolean {
   return (
     message.includes('or a navigation') ||
-    message.includes('encountered URL data during a navigation') ||
+    message.includes(
+      'encountered URL data during prerendering or a navigation'
+    ) ||
     message.includes('Could not validate `instant`') ||
     message.includes(
       'Could not validate that a segment in your UI has instant navigation'
@@ -439,7 +443,9 @@ export function getBlockingRouteErrorDetails(
     }
   }
 
-  if (message.includes('encountered URL data during a navigation')) {
+  if (
+    message.includes('encountered URL data during prerendering or a navigation')
+  ) {
     return {
       type: 'blocking-route',
       variant: 'link',
