@@ -661,6 +661,18 @@ impl<B: Backend + 'static> TurboTasks<B> {
         self.backend.dispose_root_task(task_id, self);
     }
 
+    /// Pins a task against garbage collection (a transient, session-only reference). Balanced by
+    /// [`unpin_task_for_gc`](Self::unpin_task_for_gc). Used for references that escape the tracked
+    /// task graph — e.g. a `DetachedVc` holding an `OperationVc` across the NAPI boundary.
+    pub fn pin_task_for_gc(&self, task_id: TaskId) {
+        self.backend.pin_task_for_gc(task_id, self);
+    }
+
+    /// Releases a pin added by [`pin_task_for_gc`](Self::pin_task_for_gc).
+    pub fn unpin_task_for_gc(&self, task_id: TaskId) {
+        self.backend.unpin_task_for_gc(task_id, self);
+    }
+
     // TODO make sure that all dependencies settle before reading them
     /// Creates a new root task, that is only executed once.
     /// Dependencies will not invalidate the task.

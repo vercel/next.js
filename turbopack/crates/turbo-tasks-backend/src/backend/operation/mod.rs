@@ -1152,15 +1152,15 @@ pub trait TaskGuard: Debug + TaskStorageAccessors {
 
     /// Like [`Self::update_and_get_parent_count`], but for the transient (session-only) parent
     /// reference count that keeps a persistent task alive while a transient parent references it.
-    fn update_and_get_transient_parent_count(&mut self, delta: i32) -> u32 {
-        let current = self.get_transient_parent_count().copied().unwrap_or(0);
+    fn update_and_get_transient_ref_count(&mut self, delta: i32) -> u32 {
+        let current = self.get_transient_ref_count().copied().unwrap_or(0);
         let new_value = current
             .checked_add_signed(delta)
-            .expect("transient_parent_count underflow");
+            .expect("transient_ref_count underflow");
         if new_value == 0 {
-            self.take_transient_parent_count();
+            self.take_transient_ref_count();
         } else {
-            self.set_transient_parent_count(new_value);
+            self.set_transient_ref_count(new_value);
         }
         new_value
     }

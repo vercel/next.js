@@ -56,14 +56,14 @@ pub fn connect_children(
     // newly-connected persistent child gains a parent: a persistent parent bumps the durable
     // `parent_count` (rides the `AggregationUpdateQueue` so it is crash-consistent — captured
     // mid-snapshot, replayed on restart; see `AggregationUpdateJob::AdjustParentCount`), while a
-    // transient parent bumps the session-only `transient_parent_count` (transient parents vanish on
+    // transient parent bumps the session-only `transient_ref_count` (transient parents vanish on
     // restart and re-establish their edges by re-execution, so their contribution must not
     // persist). Transient children are never collected, so their counts are irrelevant.
     if !persistent_new_children.is_empty() {
         if parent_task_id.is_transient() {
             for &child in &persistent_new_children {
                 let mut child_task = ctx.task(child, TaskDataCategory::Meta);
-                child_task.update_and_get_transient_parent_count(1);
+                child_task.update_and_get_transient_ref_count(1);
             }
         } else {
             AggregationUpdateQueue::run(

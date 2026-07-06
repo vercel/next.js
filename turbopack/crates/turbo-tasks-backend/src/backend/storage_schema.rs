@@ -161,12 +161,20 @@ struct TaskStorageSchema {
     #[field(storage = "direct", category = "meta")]
     parent_count: u32,
 
-    /// Number of **transient** parent tasks currently referencing this task as a child (this
-    /// session only; never persisted). A persistent task referenced solely by a transient parent
-    /// has `parent_count == 0` but must stay live in-session; this keeps it uncollectible.
-    /// Re-established on restart when transient parents re-execute and reconnect their children.
+    /// Number of **transient** in-session references to this task that are not persistent parent
+    /// edges (this session only; never persisted). Two sources bump it:
+    /// - a **transient parent** connecting this task as a child (transient parents are never
+    ///   persisted, so their edge can't count toward the durable `parent_count`), and
+    /// - a **detached handle** that holds this task's `OperationVc` outside the tracked graph
+    ///   (e.g. a `DetachedVc` passed to JS across the NAPI boundary), which pins it like a GC
+    ///   root.
+    ///
+    /// A persistent task with `parent_count == 0` but `transient_ref_count > 0` is kept alive
+    /// in-session (uncollectible) — it is still referenced, just not by a persistent parent. On
+    /// restart these references are re-established (transient parents re-execute; detached handles
+    /// are re-created), so the count is never persisted.
     #[field(storage = "direct", category = "transient")]
-    transient_parent_count: u32,
+    transient_ref_count: u32,
 
     // =========================================================================
     // FLAGS (meta) - Boolean flags stored in TaskFlags bitfield
@@ -242,15 +250,6 @@ struct TaskStorageSchema {
     /// Set when task is created, cleared after persisting.
     #[field(storage = "flag", category = "transient")]
     pub new_task: bool,
-
-    /// Whether this task is pinned against garbage collection (via
-    /// [`prevent_gc`](turbo_tasks::prevent_gc)). A pinned task is treated as a GC root, covering
-    /// references that escape the tracked task graph (e.g. a `Vc` sent out of a `spawn_detached`
-    /// future across a channel, or handed across the NAPI boundary) which no persistent parent
-    /// lists as a child. Pinned tasks are also unevictable so the (transient, session-only) flag
-    /// can never be lost by eviction.
-    #[field(storage = "flag", category = "transient")]
-    pub pinned: bool,
 
     // =========================================================================
     // CHILDREN & AGGREGATION (meta)
@@ -603,10 +602,11 @@ impl TaskStorage {
             Some(arc) if arc.count() == 1 => KeyEvictability::AlreadyEvicted,
             Some(_) => KeyEvictability::Evictable,
         };
-        // Pinned tasks (via prevent_gc) must stay fully resident: the pin is a transient,
-        // session-only flag, so evicting the task would silently lose it and expose the pinned task
-        // to collection.
-        if flags.pinned() {
+        // Tasks with a live transient reference (a `prevent_gc` pin, a detached handle, or a
+        // transient parent — see `transient_ref_count`) must stay fully resident: the count is a
+        // transient, session-only field, so evicting the task would silently lose it and expose the
+        // still-referenced task to collection.
+        if self.gc_transient_ref_count() > 0 {
             return (
                 key_evictability,
                 ValueEvictability::Unevictable(UnevictableReason::Pinned),
@@ -887,34 +887,68 @@ impl TaskStorage {
     }
 
     /// The number of transient (session-only) parents referencing this task (0 when absent).
-    pub fn gc_transient_parent_count(&self) -> u32 {
-        self.get_transient_parent_count().copied().unwrap_or(0)
+    pub fn gc_transient_ref_count(&self) -> u32 {
+        self.get_transient_ref_count().copied().unwrap_or(0)
+    }
+
+    /// Increments the transient reference count (a pin / detached-handle / transient-parent edge)
+    /// and returns the new value. `transient_ref_count` is a transient field, so no modification
+    /// tracking is needed.
+    pub fn gc_increment_transient_ref_count(&mut self) -> u32 {
+        let new = self.gc_transient_ref_count() + 1;
+        self.set_transient_ref_count(new);
+        new
+    }
+
+    /// Decrements the transient reference count and returns the new value. Debug-panics on
+    /// underflow (an unpin without a matching pin).
+    pub fn gc_decrement_transient_ref_count(&mut self) -> u32 {
+        let current = self.gc_transient_ref_count();
+        debug_assert!(
+            current > 0,
+            "transient_ref_count underflow (unpin without pin)"
+        );
+        let new = current.saturating_sub(1);
+        if new == 0 {
+            self.take_transient_ref_count();
+        } else {
+            self.set_transient_ref_count(new);
+        }
+        new
     }
 
     /// Whether this task is a garbage-collection root and must never be collected: it is active
-    /// (`activeness` set — a root/once task, positive active counter, or active-until-clean),
-    /// currently in progress (about to connect children), or pinned via
-    /// [`prevent_gc`](turbo_tasks::prevent_gc). Transient-ness is a property of the [`TaskId`], not
-    /// the storage, so it is checked separately by the caller.
+    /// (`activeness` set — a root/once task, positive active counter, or active-until-clean) or
+    /// currently in progress (about to connect children). Transient references (pins / detached
+    /// handles / transient parents) are tracked separately by `transient_ref_count` and checked in
+    /// [`Self::is_gc_collectible`]. Transient-ness is a property of the [`TaskId`], not the
+    /// storage, so it is checked separately by the caller.
     pub fn is_gc_root(&self) -> bool {
-        self.get_activeness().is_some() || self.get_in_progress().is_some() || self.flags.pinned()
+        self.get_activeness().is_some() || self.get_in_progress().is_some()
     }
 
     /// Whether a GC pass may collect this task, given it is non-transient and has no persistent or
     /// transient parents. It must be quiescent (not active, not in progress, not currently
-    /// restoring), have `Data` resident so its dependency edges can be scrubbed, and hold no
-    /// aggregation edges (`upper`/`followers`). The aggregation-edges check is conservative: a
-    /// disconnected task is normally stripped of its aggregation edges by `CleanupOldEdges`, but a
-    /// re-executing aggregation node can transiently retain them; rather than tear down the
-    /// aggregation overlay here (a miscount corrupts activeness), we decline to collect and let a
-    /// later pass take it once the edges clear. Under-collecting is always safe.
+    /// restoring), have `Meta` resident (so `parent_count`/`upper`/`followers`/`children` are
+    /// readable), and hold no aggregation edges (`upper`/`followers`).
+    ///
+    /// Note it does NOT require `Data` resident: the collectibility decision only reads Meta
+    /// fields, and `gc_delete_one` restores `Data` on demand (via `ctx.task(id, All)`) to scrub
+    /// the forward-dependency reverse sets, which are Data-category. This lets GC collect
+    /// garbage that has been evicted to disk-only Data, not just fully-resident garbage.
+    ///
+    /// The aggregation-edges check is conservative: a disconnected task is normally stripped of its
+    /// aggregation edges by `CleanupOldEdges`, but a re-executing aggregation node can transiently
+    /// retain them; rather than tear down the aggregation overlay here (a miscount corrupts
+    /// activeness), we decline to collect and let a later pass take it once the edges clear.
+    /// Under-collecting is always safe.
     pub fn is_gc_collectible(&self) -> bool {
         self.gc_parent_count() == 0
-            && self.gc_transient_parent_count() == 0
+            && self.gc_transient_ref_count() == 0
             && !self.is_gc_root()
             && !self.flags.meta_restoring()
             && !self.flags.data_restoring()
-            && self.flags.is_restored(TaskDataCategory::Data)
+            && self.flags.is_restored(TaskDataCategory::Meta)
             && self.upper().is_empty()
             && self.followers().is_none_or(|f| f.is_empty())
     }
@@ -1270,7 +1304,7 @@ mod tests {
         // Persisted parent count.
         original.set_parent_count(3);
         // Transient parent count (should NOT be serialized).
-        original.set_transient_parent_count(9);
+        original.set_transient_ref_count(9);
 
         // Set transient flag (should NOT be serialized)
         original.flags.set_current_session_clean(true);
@@ -1319,7 +1353,7 @@ mod tests {
         // Persisted parent_count survives the round-trip.
         assert_eq!(decoded.get_parent_count(), Some(&3));
         // Transient parent count is NOT serialized; it stays at its default (absent == 0).
-        assert_eq!(decoded.get_transient_parent_count(), None);
+        assert_eq!(decoded.get_transient_ref_count(), None);
 
         // Note: invalidator and immutable are data category flags, not meta
         // They should NOT have changed during meta encode/decode

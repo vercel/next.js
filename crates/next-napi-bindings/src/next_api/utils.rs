@@ -41,8 +41,12 @@ use crate::next_api::turbopack_ctx::NextTurbopackContext;
 /// [`turbo_tasks::OperationValue`] and should be dereferenced to an [`OperationVc`] before being
 /// passed to a [`turbo_tasks::function`].
 //
-// TODO: If we add a tracing garbage collector to turbo-tasks, this should be tracked as a GC root.
-#[derive(Clone)]
+/// A `DetachedVc` holds its operation's task alive against garbage collection for as long as the
+/// handle (or any clone) exists: it is a reference that escapes the tracked task graph, so no
+/// persistent parent lists the task as a child and GC would otherwise collect it. Each live
+/// `DetachedVc` counts as one transient reference (pin) on the task; the pin is released when the
+/// last clone is dropped. An `OperationVc` is statically a `TaskOutput`, so the pinned `TaskId` is
+/// recovered synchronously from the `RawVc`.
 pub struct DetachedVc<T> {
     turbopack_ctx: NextTurbopackContext,
     /// The Vc. Must be unresolved, otherwise you are referencing an inactive operation.
@@ -51,11 +55,36 @@ pub struct DetachedVc<T> {
 
 impl<T> DetachedVc<T> {
     pub fn new(turbopack_ctx: NextTurbopackContext, vc: OperationVc<T>) -> Self {
+        // Pin the operation's task so GC treats this out-of-graph handle as a root.
+        turbopack_ctx.turbo_tasks().pin_task_for_gc(vc.task_id());
+
         Self { turbopack_ctx, vc }
     }
 
     pub fn turbopack_ctx(&self) -> &NextTurbopackContext {
         &self.turbopack_ctx
+    }
+}
+
+impl<T> Clone for DetachedVc<T> {
+    fn clone(&self) -> Self {
+        // Each live handle holds its own pin; balanced by this clone's `Drop`.
+        self.turbopack_ctx
+            .turbo_tasks()
+            .pin_task_for_gc(self.task_id());
+
+        Self {
+            turbopack_ctx: self.turbopack_ctx.clone(),
+            vc: self.vc,
+        }
+    }
+}
+
+impl<T> Drop for DetachedVc<T> {
+    fn drop(&mut self) {
+        self.turbopack_ctx
+            .turbo_tasks()
+            .unpin_task_for_gc(self.task_id());
     }
 }
 

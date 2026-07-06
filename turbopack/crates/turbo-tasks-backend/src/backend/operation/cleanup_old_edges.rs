@@ -154,7 +154,7 @@ impl CleanupOldEdgesOperation {
                                         .into(),
                                     );
                                 }
-                                // Transient parent → drop the session-only `transient_parent_count`
+                                // Transient parent → drop the session-only `transient_ref_count`
                                 // on each removed persistent child. Done here, after the parent
                                 // guard `task` has been dropped in both branches above, so we never
                                 // hold two task guards at once. Transient counts are not persisted,
@@ -163,7 +163,7 @@ impl CleanupOldEdgesOperation {
                                     for child in removed_persistent_children {
                                         let mut child_task =
                                             ctx.task(child, TaskDataCategory::Meta);
-                                        child_task.update_and_get_transient_parent_count(-1);
+                                        child_task.update_and_get_transient_ref_count(-1);
                                     }
                                 }
                             }
