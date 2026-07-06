@@ -526,6 +526,24 @@ impl Storage {
         Some(f(task.value()))
     }
 
+    /// The number of **persistent** (non-transient) tasks resident in the map. GC only collects
+    /// persistent tasks (transient tasks are never collected), so this is the metric that must
+    /// return to a flat baseline across re-rooting; the raw `resident_task_count` also includes
+    /// transient roots (e.g. `run_once`/Once tasks) that GC never touches.
+    pub fn resident_persistent_task_count(&self) -> usize {
+        let mut persistent = 0;
+        for shard in self.map.shards() {
+            let shard = shard.read();
+            for bucket in unsafe { shard.iter() } {
+                let (task_id, _) = unsafe { bucket.as_ref() };
+                if !task_id.is_transient() {
+                    persistent += 1;
+                }
+            }
+        }
+        persistent
+    }
+
     /// Removes a task entry from the map entirely. Used by GC after a garbage task's edges have
     /// been scrubbed. Returns the removed storage (dropped by the caller), or `None` if it was
     /// already gone.

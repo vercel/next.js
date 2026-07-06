@@ -580,6 +580,13 @@ impl TurboTasksBackend {
         (had_new_data, counts)
     }
 
+    /// The number of persistent (non-transient) tasks resident in the map. Test-only hook: this is
+    /// the metric GC affects (transient roots like `run_once` tasks are never collected).
+    #[doc(hidden)]
+    pub fn resident_persistent_task_count_for_testing(&self) -> usize {
+        self.storage.resident_persistent_task_count()
+    }
+
     /// The persistent `parent_count` of a resident task (0 if absent or not resident). Test-only
     /// hook for verifying incremental refcount maintenance.
     #[doc(hidden)]
