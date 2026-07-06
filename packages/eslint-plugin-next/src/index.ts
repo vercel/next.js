@@ -125,3 +125,18 @@ Object.assign(plugin.configs, {
 
 export default plugin
 export const { rules, configs } = plugin
+
+// Override getter-based named exports with data properties
+// for proper CJS/ESM interop. Node.js ignores getter-based
+// synthetic named exports when importing CJS as ESM.
+Object.defineProperty(module.exports, 'rules', {
+  enumerable: true,
+  value: rules,
+  writable: false,
+})
+
+Object.defineProperty(module.exports, 'configs', {
+  enumerable: true,
+  value: configs,
+  writable: false,
+})
