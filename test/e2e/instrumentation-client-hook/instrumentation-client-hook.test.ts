@@ -241,6 +241,7 @@ describe('Instrumentation Client Hook', () => {
       // A hash-only navigation doesn't change the route, so the route identity
       // (everything but the hash-bearing canonicalUrl) is unchanged — that's
       // what consumers group by.
+      expect(commit.event.to.canonicalUrl).toBe('/#section')
       expect(commit.event.to.routes).toEqual(start.event.from.routes)
       expect(commit.event.to.renderedPathname).toBe(
         start.event.from.renderedPathname
@@ -504,6 +505,136 @@ describe('Instrumentation Client Hook', () => {
       const after = await getTransitionEvents(browser)
       expect(after.filter((e) => e.phase === 'start')).toHaveLength(4)
       expect(after.filter((e) => e.phase === 'abort')).toHaveLength(2)
+    })
+
+    it('aborts the two older transitions when the same slow link is clicked three times', async () => {
+      // Warm the route first so dev on-demand compilation doesn't stack on
+      // top of the middleware delay during the race below.
+      await next.fetch('/slow')
+      const browser = await next.browser('/')
+
+      // Unlike the same-tick triple-push above, these are three real clicks in
+      // separate event-loop turns, each landing while the previous click's
+      // dynamic fetch (delayed 2s by middleware) is still in flight. Each
+      // dispatch discards the pending navigate action, so only the last click
+      // can ever produce a committable state.
+      await browser.elementByCss('a[href="/slow"]').click()
+      await browser.elementByCss('a[href="/slow"]').click()
+      await browser.elementByCss('a[href="/slow"]').click()
+      await browser.elementByCss('#slow-page', { timeout: 10000 })
+
+      await retry(async () => {
+        const events = await getTransitionEvents(browser)
+        expect(events.filter((e) => e.phase === 'commit')).toHaveLength(1)
+        expect(events.filter((e) => e.phase === 'abort')).toHaveLength(2)
+      }, 5000)
+
+      const events = await getTransitionEvents(browser)
+      const starts = events.filter((e) => e.phase === 'start')
+      const commit = events.find((e) => e.phase === 'commit')
+      const aborts = events.filter((e) => e.phase === 'abort')
+      // Three distinct transitions, all targeting the same URL.
+      expect(starts.map((e) => e.url)).toEqual(['/slow', '/slow', '/slow'])
+      expect(new Set(starts.map((e) => e.event.id)).size).toBe(3)
+      // The last click commits; the two older clicks abort in start order,
+      // each attributed to the commit that replaced them.
+      expect(commit.event.id).toBe(starts[2].event.id)
+      expect(commit.event.to.renderedPathname).toBe('/slow')
+      expect(aborts.map((e) => e.event.id)).toEqual([
+        starts[0].event.id,
+        starts[1].event.id,
+      ])
+      for (const abort of aborts) {
+        expect(abort.event.replacedBy).toBe(commit.event.id)
+      }
+      expect(events.map((e) => e.phase)).toEqual([
+        'start',
+        'start',
+        'start',
+        'commit',
+        'abort',
+        'abort',
+      ])
+    })
+
+    it('reports a full lifecycle for a link click to the current page', async () => {
+      const browser = await next.browser('/some-page')
+
+      // A push to the page we are already on is still a navigation (it adds a
+      // history entry), so it reports a normal start/commit pair — the origin
+      // and destination routes are just identical.
+      await browser.elementByCss('a[href="/some-page"]').click()
+
+      await retry(async () => {
+        const events = await getTransitionEvents(browser)
+        expect(events.filter((e) => e.phase === 'commit')).toHaveLength(1)
+      })
+
+      const events = await getTransitionEvents(browser)
+      const start = events.find((e) => e.phase === 'start')
+      const commit = events.find((e) => e.phase === 'commit')
+      expect(start.url).toBe('/some-page')
+      expect(start.navigateType).toBe('push')
+      expect(commit.event.id).toBe(start.event.id)
+      expect(commit.event.to.routes).toEqual(start.event.from.routes)
+      expect(commit.event.to.routes).toEqual([
+        { template: '/some-page', params: [] },
+      ])
+      expect(commit.event.to.renderedPathname).toBe('/some-page')
+      expect(events.filter((e) => e.phase === 'abort')).toHaveLength(0)
+    })
+
+    it('reports a full lifecycle for a query-param-only navigation', async () => {
+      const browser = await next.browser('/some-page')
+
+      await browser.elementByCss('a[href="/some-page?tab=stats"]').click()
+
+      await retry(async () => {
+        const events = await getTransitionEvents(browser)
+        expect(events.filter((e) => e.phase === 'commit')).toHaveLength(1)
+      })
+
+      const events = await getTransitionEvents(browser)
+      const start = events.find((e) => e.phase === 'start')
+      const commit = events.find((e) => e.phase === 'commit')
+      expect(commit.event.id).toBe(start.event.id)
+      // The route identity is unchanged — only the search params moved.
+      expect(start.event.from.searchParams).toEqual({})
+      expect(commit.event.to.searchParams).toEqual({ tab: 'stats' })
+      expect(commit.event.to.routes).toEqual(start.event.from.routes)
+      expect(commit.event.to.renderedPathname).toBe('/some-page')
+      expect(commit.event.to.canonicalUrl).toBe('/some-page?tab=stats')
+      expect(events.filter((e) => e.phase === 'abort')).toHaveLength(0)
+    })
+
+    it('does not emit lifecycle events for a shallow history.pushState', async () => {
+      const browser = await next.browser('/')
+
+      // A direct History API call is not a router navigation: the router only
+      // re-synchronizes its state (via a restore action that is not a tracked
+      // transition), so no lifecycle events may fire.
+      await browser.eval(`window.history.pushState(null, '', '/?shallow=1')`)
+
+      // A follow-up real navigation serializes through the action queue behind
+      // the shallow restore, so once it settles we know the restore produced
+      // no events and left nothing pending to be misreported.
+      await browser.elementByCss('a[href="/some-page"]').click()
+      await browser.elementById('some-page')
+
+      await retry(async () => {
+        const events = await getTransitionEvents(browser)
+        expect(events.filter((e) => e.phase === 'commit')).toHaveLength(1)
+      })
+
+      const events = await getTransitionEvents(browser)
+      expect(events.map((e) => e.phase)).toEqual(['start', 'commit'])
+      expect(events[0].url).toBe('/some-page')
+      // The shallow update is still reflected in router state: the next
+      // transition's `from` describes the shallow-updated URL.
+      expect(events[0].event.from.canonicalUrl).toBe('/?shallow=1')
+      expect(events[0].event.from.routes).toEqual([
+        { template: '/', params: [] },
+      ])
     })
 
     it('does not let a refresh() racing an in-flight navigation emit or steal lifecycle events', async () => {
