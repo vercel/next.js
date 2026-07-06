@@ -28,7 +28,7 @@ export default function RootLayout({ children }) {
           </li>
           <li>
             {/* prefetch={false} so a click always issues the dynamic request
-                that middleware delays; see app/slow/page.tsx. */}
+                that runs the page's 2s delay; see app/slow/page.tsx. */}
             <Link href="/slow" prefetch={false}>
               Slow page
             </Link>
