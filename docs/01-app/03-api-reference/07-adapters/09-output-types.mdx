@@ -136,6 +136,10 @@ ISR-enabled routes and static prerenders:
   pathname: string     // URL pathname
   parentOutputId: string  // ID of the source page/route
   groupId: number        // Revalidation group identifier (prerenders with same groupId revalidate together)
+  hasPostponed?: boolean  // Whether the build-time prerender of a PPR app page postponed (suspended on dynamic data); false: prerendered without postponing, undefined: does not apply (pages router, route handlers, blocking templates)
+  hasFallback?: boolean   // Whether a dynamic route template has a static fallback shell generated during build; false: blocking or omitted template, undefined: does not apply (concrete prerenders)
+  htmlSize?: number       // Byte size of the prerendered HTML shell for app pages; 0 means an empty shell (everything postponed). Only set on the HTML prerender output; RSC/data/segment, pages router, and route handler outputs leave it undefined
+  isDynamicRoute?: boolean  // true: prerender originates from a dynamic route template (dynamicRoutes in the prerender manifest), false: concrete prerendered path (routes)
   pprChain?: {
     headers: Record<string, string>  // PPR chain headers (e.g., 'next-resume': '1')
   }

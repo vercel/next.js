@@ -1429,6 +1429,14 @@ export async function handleBuildComplete({
             'private, no-store, no-cache, max-age=0, must-revalidate'
         }
 
+        // only app pages (not route handlers, which have no dataRoute and
+        // write a `.body` file) have an HTML shell to measure; the
+        // isNotFoundTrue condition mirrors the `fallback` field below
+        const htmlSize =
+          isAppPage && dataRoute && (!isNotFoundTrue || hasStatic404)
+            ? await statHtmlSize(filePath)
+            : undefined
+
         const initialOutput: AdapterOutput['PRERENDER'] = {
           id: route,
           type: AdapterOutputType.PRERENDER,
@@ -1445,13 +1453,6 @@ export async function handleBuildComplete({
               : undefined,
           // fallback shells are a dynamic route template concept
           hasFallback: undefined,
-          // only app pages (not route handlers, which have no dataRoute and
-          // write a `.body` file) have an HTML shell to measure; the
-          // isNotFoundTrue condition mirrors the `fallback` field below
-          htmlSize:
-            isAppPage && dataRoute && (!isNotFoundTrue || hasStatic404)
-              ? await statHtmlSize(filePath)
-              : undefined,
           isDynamicRoute: false,
 
           pprChain:
@@ -1498,7 +1499,12 @@ export async function handleBuildComplete({
             bypassToken: prerenderManifest.preview.previewModeId,
           },
         }
-        outputs.prerenders.push(initialOutput)
+        // htmlSize describes the HTML shell only, so it's attached here
+        // rather than on initialOutput, which is spread into the RSC/data
+        // outputs below. The shallow spread shares `fallback` by reference,
+        // so handleAppMeta's postponedState mutation still reaches this
+        // pushed output.
+        outputs.prerenders.push({ ...initialOutput, htmlSize })
 
         if (!isAppPage && appPageKeys && appPageKeys.length > 0) {
           const rscPage = `${route === '/' ? '/index' : route}.rsc`
@@ -1544,8 +1550,6 @@ export async function handleBuildComplete({
               ...initialOutput,
               id: dataRoute,
               pathname: dataRoute,
-              // htmlSize describes the HTML shell only
-              htmlSize: undefined,
               fallback: {
                 ...initialOutput.fallback,
                 postponedState: postponed,
@@ -1565,8 +1569,6 @@ export async function handleBuildComplete({
               ...initialOutput,
               id: dataRoute,
               pathname: dataRoute,
-              // htmlSize describes the HTML shell only
-              htmlSize: undefined,
               fallback: isNotFoundTrue
                 ? undefined
                 : {
@@ -1668,14 +1670,23 @@ export async function handleBuildComplete({
           }
         }
 
-        const fallbackHtmlPath =
+        // app router dynamic route fallbacks don't have the extension so
+        // ensure it's added here
+        const fallbackHtmlFile =
           typeof fallback === 'string'
-            ? path.join(
-                isAppPage ? appDistDir : pagesDistDir,
-                // app router dynamic route fallbacks don't have the
-                // extension so ensure it's added here
-                fallback.endsWith('.html') ? fallback : `${fallback}.html`
-              )
+            ? fallback.endsWith('.html')
+              ? fallback
+              : `${fallback}.html`
+            : undefined
+
+        const fallbackHtmlPath =
+          fallbackHtmlFile !== undefined
+            ? path.join(isAppPage ? appDistDir : pagesDistDir, fallbackHtmlFile)
+            : undefined
+
+        const htmlSize =
+          isAppPage && fallbackHtmlPath !== undefined
+            ? await statHtmlSize(fallbackHtmlPath)
             : undefined
 
         const initialOutput: AdapterOutput['PRERENDER'] = {
@@ -1694,10 +1705,6 @@ export async function handleBuildComplete({
               ? Boolean(meta.postponed)
               : undefined,
           hasFallback: typeof fallback === 'string',
-          htmlSize:
-            isAppPage && fallbackHtmlPath !== undefined
-              ? await statHtmlSize(fallbackHtmlPath)
-              : undefined,
           isDynamicRoute: true,
 
           pprChain:
@@ -1736,7 +1743,12 @@ export async function handleBuildComplete({
         }
 
         if (!config.i18n || isAppPage) {
-          outputs.prerenders.push(initialOutput)
+          // htmlSize describes the HTML shell only, so it's attached here
+          // rather than on initialOutput, which is spread into the RSC/data
+          // outputs below. The shallow spread shares `fallback` by reference,
+          // so handleAppMeta's postponedState mutation still reaches this
+          // pushed output.
+          outputs.prerenders.push({ ...initialOutput, htmlSize })
 
           if (
             !isAppPage &&
@@ -1791,8 +1803,6 @@ export async function handleBuildComplete({
               ...initialOutput,
               id: `${dynamicRoute}.rsc`,
               pathname: `${dynamicRoute}.rsc`,
-              // htmlSize describes the HTML shell only
-              htmlSize: undefined,
               fallback: {
                 ...initialOutput.fallback,
                 filePath: undefined,
@@ -1818,8 +1828,6 @@ export async function handleBuildComplete({
               ...initialOutput,
               id: dataRoute,
               pathname: dataRoute,
-              // htmlSize describes the HTML shell only
-              htmlSize: undefined,
               fallback: undefined,
               config: {
                 ...initialOutput.config,
@@ -1834,12 +1842,8 @@ export async function handleBuildComplete({
               ...initialOutput,
               pathname: path.posix.join(`/${locale}`, initialOutput.pathname),
               id: path.posix.join(`/${locale}`, initialOutput.id),
-              // htmlSize describes the HTML shell only (the i18n branch is
-              // pages-router only, so initialOutput.htmlSize is already
-              // undefined; this keeps the invariant explicit)
-              htmlSize: undefined,
               fallback:
-                typeof fallback === 'string'
+                fallbackHtmlFile !== undefined
                   ? {
                       ...initialOutput.fallback,
                       initialStatus: undefined,
@@ -1847,11 +1851,7 @@ export async function handleBuildComplete({
                       filePath: path.join(
                         pagesDistDir,
                         locale,
-                        // app router dynamic route fallbacks don't have the
-                        // extension so ensure it's added here
-                        fallback.endsWith('.html')
-                          ? fallback
-                          : `${fallback}.html`
+                        fallbackHtmlFile
                       ),
                     }
                   : undefined,
@@ -1886,8 +1886,6 @@ export async function handleBuildComplete({
                 ...initialOutput,
                 id: dataPathname,
                 pathname: dataPathname,
-                // htmlSize describes the HTML shell only
-                htmlSize: undefined,
                 // data route doesn't have skeleton fallback
                 fallback: undefined,
                 config: {
