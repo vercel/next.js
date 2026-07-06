@@ -2568,7 +2568,7 @@ describe('Prerender', () => {
           next.url,
           '/api/manual-revalidate',
           {
-            pathname: '/catchall-explicity/test-manual-1',
+            pathname: '/catchall-explicit/test-manual-1',
           },
           { redirect: 'manual' }
         )
