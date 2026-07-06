@@ -37,7 +37,9 @@ function normalizeNFT(base: string, files: string[]): string[] {
         .map((file: string) => {
           // Normalize sharp, different architectures have different files
           if (file.includes('/node_modules/@img/sharp')) {
-            file = file.replaceAll(actualArch, placeholderArch)
+            file = file
+              .replaceAll(actualArch, placeholderArch)
+              .replace(/-\d+\.\d+\.\d+\.node$/, '-<VERSION>.node')
           }
 
           // Strip double node_modules to simplify output
@@ -131,7 +133,7 @@ async function readNormalizedNFT(next, name) {
          [
            "/node_modules/@img/colour/*",
            "/node_modules/@img/sharp-<PLATFORM>-<ARCH>/*",
-           "/node_modules/@img/sharp-<PLATFORM>-<ARCH>/lib/sharp-<PLATFORM>-<ARCH>-0.35.3.node",
+           "/node_modules/@img/sharp-<PLATFORM>-<ARCH>/lib/sharp-<PLATFORM>-<ARCH>-<VERSION>.node",
            "/node_modules/@img/sharp-libvips-<PLATFORM>-<ARCH>/*",
            "/node_modules/@next/env/*",
            "/node_modules/@swc/helpers/*",
