@@ -721,7 +721,7 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
 
   const extensions =
     typeof pageExtensions === 'string'
-      ? [pageExtensions]
+      ? [`.${pageExtensions}`]
       : pageExtensions.map((extension) => `.${extension}`)
 
   const normalizedAppPaths =
