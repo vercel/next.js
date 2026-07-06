@@ -2223,6 +2223,26 @@ function enforceExperimentalFeatures(
     }
   }
 
+  // TODO: Remove this once serverComponentsHmrCancellation is the default.
+  if (
+    process.env.__NEXT_EXPERIMENTAL_SERVER_COMPONENTS_HMR_CANCELLATION ===
+      'true' &&
+    // We do respect an explicit value in the user config.
+    (config.experimental.serverComponentsHmrCancellation === undefined ||
+      (isDefaultConfig && !config.experimental.serverComponentsHmrCancellation))
+  ) {
+    config.experimental.serverComponentsHmrCancellation = true
+
+    if (configuredExperimentalFeatures) {
+      addConfiguredExperimentalFeature(
+        configuredExperimentalFeatures,
+        'serverComponentsHmrCancellation',
+        true,
+        'enabled by `__NEXT_EXPERIMENTAL_SERVER_COMPONENTS_HMR_CANCELLATION`'
+      )
+    }
+  }
+
   // Enable cachedNavigations by default when cacheComponents is enabled.
   // cachedNavigations relies on Cache Components rendering to do anything
   // useful, so the two features are tied together: we only flip the default
