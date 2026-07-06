@@ -7,7 +7,7 @@ import imageSizeOf from 'next/dist/compiled/image-size'
 import { detector } from 'next/dist/compiled/image-detector/detector.js'
 import isAnimated from 'next/dist/compiled/is-animated'
 import { join } from 'path'
-import type { Metadata, SharpConstructor } from 'sharp'
+import type { SharpConstructor } from 'sharp'
 import { getImageBlurSvg } from '../shared/lib/image-blur-svg'
 import type { ImageConfigComplete } from '../shared/lib/image-config'
 import { hasLocalMatch } from '../shared/lib/match-local-pattern'
@@ -309,15 +309,18 @@ export async function detectContentType(
     return JP2
   }
 
-  let format: Metadata['format'] | ReturnType<typeof detector> | undefined
-  format = detector(buffer)
+  const format = detector(buffer)
 
   if (!format && !skipMetadata) {
     const sharp = getSharp(concurrency, operationCache)
     const meta = await sharp(buffer)
       .metadata()
       .catch((_) => null)
-    format = meta?.format
+
+    const t = meta?.mediaType
+    if (t && [AVIF, WEBP, JPEG, PNG, GIF, SVG, TIFF].includes(t)) {
+      return t
+    }
   }
 
   switch (format) {
@@ -325,7 +328,6 @@ export async function detectContentType(
       return WEBP
     case 'png':
       return PNG
-    case 'jpeg':
     case 'jpg':
       return JPEG
     case 'gif':
@@ -339,24 +341,13 @@ export async function detectContentType(
       return JP2
     case 'tiff':
       return TIFF
-    case 'pdf':
-      return PDF
     case 'bmp':
       return BMP
     case 'ico':
       return ICO
     case 'icns':
       return ICNS
-    case 'dcraw':
-    case 'dz':
-    case 'exr':
-    case 'fits':
     case 'heif':
-    case 'magick':
-    case 'openslide':
-    case 'ppm':
-    case 'rad':
-    case 'raw':
     case 'cur':
     case 'dds':
     case 'j2c':
@@ -364,7 +355,6 @@ export async function detectContentType(
     case 'pnm':
     case 'psd':
     case 'tga':
-    case 'vips':
     case undefined:
       return null // unsupported formats
     default:
