@@ -193,6 +193,37 @@ export interface AdapterOutput {
      */
     groupId: number
 
+    /**
+     * hasPostponed signals whether the build-time prerender of a PPR app
+     * page postponed (React suspended on dynamic data). `false` means it
+     * prerendered without postponing; `undefined` means the signal does
+     * not apply (pages router, route handlers, blocking templates).
+     */
+    hasPostponed?: boolean
+
+    /**
+     * hasFallback signals whether a dynamic route template has a static
+     * fallback shell generated during build. `false` means the template
+     * is blocking or omitted; `undefined` means the concept does not
+     * apply (concrete prerenders).
+     */
+    hasFallback?: boolean
+
+    /**
+     * htmlSize is the byte size of the prerendered HTML shell for app
+     * pages. `0` means an empty shell (everything postponed). It is only
+     * set on the HTML prerender output; RSC/data/segment outputs leave it
+     * `undefined`, as do pages router and route handler outputs.
+     */
+    htmlSize?: number
+
+    /**
+     * isDynamicRoute signals whether this prerender originates from a
+     * dynamic route template (`dynamicRoutes` in the prerender manifest)
+     * rather than a concrete prerendered path (`routes`).
+     */
+    isDynamicRoute?: boolean
+
     pprChain?: {
       headers: Record<string, string>
     }
@@ -1174,6 +1205,12 @@ export async function handleBuildComplete({
               parentOutputId: initialOutput.parentOutputId,
               groupId: initialOutput.groupId,
 
+              hasPostponed: initialOutput.hasPostponed,
+              hasFallback: initialOutput.hasFallback,
+              // htmlSize is intentionally omitted: segment outputs are RSC
+              // payloads, not HTML shells
+              isDynamicRoute: initialOutput.isDynamicRoute,
+
               config: {
                 ...initialOutput.config,
                 bypassFor: undefined,
@@ -1257,6 +1294,14 @@ export async function handleBuildComplete({
 
         return newCheck
       }
+
+      // A missing file yields `undefined` ("no signal"), never 0 — an empty
+      // shell that exists on disk is a meaningful 0.
+      const statHtmlSize = (filePath: string): Promise<number | undefined> =>
+        fs
+          .stat(filePath)
+          .then((stats) => stats.size)
+          .catch(() => undefined)
 
       for (const route in prerenderManifest.routes) {
         const {
@@ -1394,6 +1439,21 @@ export async function handleBuildComplete({
               : getParentOutput(srcRoute, route).id,
           groupId: prerenderGroupId,
 
+          hasPostponed:
+            renderingMode === RenderingMode.PARTIALLY_STATIC && isAppPage
+              ? Boolean(meta.postponed)
+              : undefined,
+          // fallback shells are a dynamic route template concept
+          hasFallback: undefined,
+          // only app pages (not route handlers, which have no dataRoute and
+          // write a `.body` file) have an HTML shell to measure; the
+          // isNotFoundTrue condition mirrors the `fallback` field below
+          htmlSize:
+            isAppPage && dataRoute && (!isNotFoundTrue || hasStatic404)
+              ? await statHtmlSize(filePath)
+              : undefined,
+          isDynamicRoute: false,
+
           pprChain:
             isAppPage && renderingMode === RenderingMode.PARTIALLY_STATIC
               ? {
@@ -1484,6 +1544,8 @@ export async function handleBuildComplete({
               ...initialOutput,
               id: dataRoute,
               pathname: dataRoute,
+              // htmlSize describes the HTML shell only
+              htmlSize: undefined,
               fallback: {
                 ...initialOutput.fallback,
                 postponedState: postponed,
@@ -1503,6 +1565,8 @@ export async function handleBuildComplete({
               ...initialOutput,
               id: dataRoute,
               pathname: dataRoute,
+              // htmlSize describes the HTML shell only
+              htmlSize: undefined,
               fallback: isNotFoundTrue
                 ? undefined
                 : {
@@ -1604,12 +1668,37 @@ export async function handleBuildComplete({
           }
         }
 
+        const fallbackHtmlPath =
+          typeof fallback === 'string'
+            ? path.join(
+                isAppPage ? appDistDir : pagesDistDir,
+                // app router dynamic route fallbacks don't have the
+                // extension so ensure it's added here
+                fallback.endsWith('.html') ? fallback : `${fallback}.html`
+              )
+            : undefined
+
         const initialOutput: AdapterOutput['PRERENDER'] = {
           id: dynamicRoute,
           type: AdapterOutputType.PRERENDER,
           pathname: dynamicRoute,
           parentOutputId: parentOutput.id,
           groupId: prerenderGroupId,
+
+          hasPostponed:
+            renderingMode === RenderingMode.PARTIALLY_STATIC &&
+            isAppPage &&
+            // blocking templates (manifest fallback `null`) don't prerender a
+            // shell, so the postponed signal doesn't apply to them
+            fallback !== null
+              ? Boolean(meta.postponed)
+              : undefined,
+          hasFallback: typeof fallback === 'string',
+          htmlSize:
+            isAppPage && fallbackHtmlPath !== undefined
+              ? await statHtmlSize(fallbackHtmlPath)
+              : undefined,
+          isDynamicRoute: true,
 
           pprChain:
             isAppPage && renderingMode === RenderingMode.PARTIALLY_STATIC
@@ -1621,14 +1710,9 @@ export async function handleBuildComplete({
               : undefined,
 
           fallback:
-            typeof fallback === 'string'
+            fallbackHtmlPath !== undefined
               ? {
-                  filePath: path.join(
-                    isAppPage ? appDistDir : pagesDistDir,
-                    // app router dynamic route fallbacks don't have the
-                    // extension so ensure it's added here
-                    fallback.endsWith('.html') ? fallback : `${fallback}.html`
-                  ),
+                  filePath: fallbackHtmlPath,
                   postponedState: undefined,
                   initialStatus: fallbackStatus ?? meta.status,
                   initialHeaders: {
@@ -1707,6 +1791,8 @@ export async function handleBuildComplete({
               ...initialOutput,
               id: `${dynamicRoute}.rsc`,
               pathname: `${dynamicRoute}.rsc`,
+              // htmlSize describes the HTML shell only
+              htmlSize: undefined,
               fallback: {
                 ...initialOutput.fallback,
                 filePath: undefined,
@@ -1732,6 +1818,8 @@ export async function handleBuildComplete({
               ...initialOutput,
               id: dataRoute,
               pathname: dataRoute,
+              // htmlSize describes the HTML shell only
+              htmlSize: undefined,
               fallback: undefined,
               config: {
                 ...initialOutput.config,
@@ -1746,6 +1834,10 @@ export async function handleBuildComplete({
               ...initialOutput,
               pathname: path.posix.join(`/${locale}`, initialOutput.pathname),
               id: path.posix.join(`/${locale}`, initialOutput.id),
+              // htmlSize describes the HTML shell only (the i18n branch is
+              // pages-router only, so initialOutput.htmlSize is already
+              // undefined; this keeps the invariant explicit)
+              htmlSize: undefined,
               fallback:
                 typeof fallback === 'string'
                   ? {
@@ -1794,6 +1886,8 @@ export async function handleBuildComplete({
                 ...initialOutput,
                 id: dataPathname,
                 pathname: dataPathname,
+                // htmlSize describes the HTML shell only
+                htmlSize: undefined,
                 // data route doesn't have skeleton fallback
                 fallback: undefined,
                 config: {
