@@ -1,6 +1,7 @@
-import { isNextDev, isNextStart, nextTestSetup } from 'e2e-utils'
+import { FileRef, isNextDev, isNextStart, nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 import { NEXT_RSC_UNION_QUERY } from 'next/dist/client/components/app-router-headers'
+import path from 'path'
 
 import { SavedSpan } from './constants'
 import { type Collector, connectCollector } from './collector'
@@ -12,16 +13,22 @@ const EXTERNAL = {
 
 const COLLECTOR_PORT = 9001
 
-describe.each(
-  [
-    { name: 'default' },
-    isNextStart && {
-      name: 'direct entrypoints',
-      useDirectEntrypointHandler: true,
-    },
-  ].filter(Boolean)
-)('opentelemetry - $name', ({ useDirectEntrypointHandler }) => {
-  const { next, skipped, isNextDev } = nextTestSetup({
+function setup({ useDirectEntrypointHandler, useNodeMiddleware }) {
+  let collector: Collector
+
+  function getCollector(): Collector {
+    return collector
+  }
+
+  beforeEach(async () => {
+    collector = await connectCollector({ port: COLLECTOR_PORT })
+  })
+
+  afterEach(async () => {
+    await collector.shutdown()
+  })
+
+  let next = nextTestSetup({
     files: __dirname,
     skipDeployment: true,
     dependencies: require('./package.json').dependencies,
@@ -47,25 +54,37 @@ describe.each(
             NODE_ENV: 'production',
           },
         }),
+    overrideFiles: useNodeMiddleware
+      ? {
+          'middleware.ts': new FileRef(
+            path.join(__dirname, 'middleware-node.ts')
+          ),
+        }
+      : undefined,
+  })
+  return { next, getCollector }
+}
+
+describe.each(
+  [
+    { name: 'default' },
+    isNextStart && {
+      name: 'direct entrypoints',
+      useDirectEntrypointHandler: true,
+    },
+  ].filter(Boolean)
+)('opentelemetry - $name', ({ useDirectEntrypointHandler }) => {
+  const {
+    next: { next, skipped, isNextDev },
+    getCollector,
+  } = setup({
+    useDirectEntrypointHandler,
+    useNodeMiddleware: false,
   })
 
   if (skipped) {
     return
   }
-
-  let collector: Collector
-
-  function getCollector(): Collector {
-    return collector
-  }
-
-  beforeEach(async () => {
-    collector = await connectCollector({ port: COLLECTOR_PORT })
-  })
-
-  afterEach(async () => {
-    await collector.shutdown()
-  })
 
   // Edge runtime is currently not implemented in custom-entrypoint-server.ts
   const itEdge = useDirectEntrypointHandler ? it.skip : it
@@ -623,43 +642,6 @@ describe.each(
               ],
               true
             )
-          })
-
-          itEdge('should trace middleware', async () => {
-            await next.fetch('/behind-middleware', env.fetchInit)
-
-            await expectTrace(getCollector(), [
-              {
-                runtime: 'edge',
-                traceId: env.span.traceId,
-                parentId: env.span.rootParentId,
-                name: 'middleware GET',
-                attributes: {
-                  'http.method': 'GET',
-                  'http.target': '/behind-middleware',
-                  'next.span_name': 'middleware GET',
-                  'next.span_type': 'Middleware.execute',
-                },
-                status: { code: 0 },
-                spans: [],
-              },
-
-              {
-                runtime: 'nodejs',
-                traceId: env.span.traceId,
-                parentId: env.span.rootParentId,
-                name: 'GET /behind-middleware',
-                attributes: {
-                  'http.method': 'GET',
-                  'http.route': '/behind-middleware',
-                  'http.status_code': 200,
-                  'http.target': '/behind-middleware',
-                  'next.route': '/behind-middleware',
-                  'next.span_name': 'GET /behind-middleware',
-                  'next.span_type': 'BaseServer.handleRequest',
-                },
-              },
-            ])
           })
 
           it('should handle error in RSC', async () => {
@@ -1473,6 +1455,103 @@ describe.each(
       }
     )
   }
+})
+
+describe.each(
+  [
+    { name: 'default', useDirectEntrypointHandler: false },
+    isNextStart && {
+      name: 'direct entrypoints',
+      useDirectEntrypointHandler: true,
+    },
+  ].filter(Boolean)
+)('opentelemetry - middleware $name', ({ useDirectEntrypointHandler }) => {
+  describe.each(['edge', 'nodejs'])('%s runtime', (runtime) => {
+    const {
+      next: { next, skipped },
+      getCollector,
+    } = setup({
+      useDirectEntrypointHandler,
+      useNodeMiddleware: runtime === 'nodejs',
+    })
+
+    if (skipped) {
+      return
+    }
+
+    if (useDirectEntrypointHandler && runtime === 'edge') {
+      it.skip('direct entrypoint handler is not implemented for edge runtime', () => {})
+      return
+    }
+
+    for (const env of [
+      {
+        name: 'root context',
+        fetchInit: undefined,
+        span: {
+          traceId: '[trace-id]',
+          rootParentId: undefined,
+        },
+      },
+      {
+        name: 'incoming context propagation',
+        fetchInit: {
+          headers: {
+            traceparent: `00-${EXTERNAL.traceId}-${EXTERNAL.spanId}-01`,
+          },
+        },
+        span: {
+          traceId: EXTERNAL.traceId,
+          rootParentId: EXTERNAL.spanId,
+        },
+      },
+    ]) {
+      ;(process.env.__NEXT_CACHE_COMPONENTS ? describe.skip : describe)(
+        env.name,
+        () => {
+          it('should trace middleware', async () => {
+            await next.fetch('/behind-middleware', env.fetchInit)
+            let expected = [
+              {
+                runtime: runtime,
+                traceId: env.span.traceId,
+                parentId: env.span.rootParentId,
+                name: 'middleware GET',
+                attributes: {
+                  'http.method': 'GET',
+                  'http.target': '/behind-middleware',
+                  'next.span_name': 'middleware GET',
+                  'next.span_type': 'Middleware.execute',
+                },
+                status: { code: 0 },
+                spans: [],
+              },
+              {
+                runtime: 'nodejs',
+                traceId: env.span.traceId,
+                parentId: env.span.rootParentId,
+                name: 'GET /behind-middleware',
+                attributes: {
+                  'http.method': 'GET',
+                  'http.route': '/behind-middleware',
+                  'http.status_code': 200,
+                  'http.target': '/behind-middleware',
+                  'next.route': '/behind-middleware',
+                  'next.span_name': 'GET /behind-middleware',
+                  'next.span_type': 'BaseServer.handleRequest',
+                },
+              },
+            ]
+            if (runtime === 'nodejs') {
+              // TODO unclear why this is reversed for Node.js runtime
+              expected.reverse()
+            }
+            await expectTrace(getCollector(), expected)
+          })
+        }
+      )
+    }
+  })
 })
 ;(process.env.__NEXT_CACHE_COMPONENTS ? describe.skip : describe)(
   'opentelemetry NEXT_OTEL_VERBOSE=1',

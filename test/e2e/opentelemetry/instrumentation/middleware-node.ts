@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server'
 
 export const config = {
   matcher: ['/behind-middleware', '/behind-middleware/:path*'],
+  runtime: 'nodejs',
 }
 
 export async function middleware(
