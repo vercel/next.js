@@ -92,6 +92,7 @@ export function getSharp(
     return _sharp
   }
   try {
+    // eslint-disable-next-line @next/internal/typechecked-require -- sharp is an optional peer dependency loaded lazily at runtime
     _sharp = require('sharp') as SharpConstructor
     if (typeof operationCache === 'boolean') {
       _sharp.cache(operationCache)
