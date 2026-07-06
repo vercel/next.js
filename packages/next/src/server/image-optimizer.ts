@@ -315,7 +315,7 @@ export async function detectContentType(
     const sharp = getSharp(concurrency, operationCache)
     const meta = await sharp(buffer)
       .metadata()
-      .catch(() => null)
+      .catch((_) => null)
     format = meta?.format
   }
 
@@ -363,8 +363,10 @@ export async function detectContentType(
     case 'pnm':
     case 'psd':
     case 'tga':
+    case 'vips':
     case undefined:
     default:
+      format satisfies never
       return null
   }
 }
