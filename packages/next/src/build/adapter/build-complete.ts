@@ -1169,6 +1169,11 @@ export async function handleBuildComplete({
               ? path.join(segmentsDir, segmentPath + prefetchSegmentSuffix)
               : undefined
 
+            // The route tree payload does not include concrete dynamic params,
+            // unlike leaf segment payloads which may still vary by them.
+            const segmentConfigAllowQuery =
+              segmentPath === '/_tree' ? [] : initialOutput.config.allowQuery
+
             outputs.prerenders.push({
               id: outputSegmentPath,
               pathname: outputSegmentPath,
@@ -1178,6 +1183,7 @@ export async function handleBuildComplete({
 
               config: {
                 ...initialOutput.config,
+                allowQuery: segmentConfigAllowQuery,
                 bypassFor: undefined,
                 partialFallback: initialOutput.config.partialFallback,
               },

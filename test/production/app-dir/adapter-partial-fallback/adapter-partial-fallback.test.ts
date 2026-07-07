@@ -10,41 +10,47 @@ describe('adapter-partial-fallback', () => {
     const { outputs }: Parameters<NextAdapter['onBuildComplete']>[0] =
       await next.readJSON('build-complete.json')
 
+    const routeTreeSegmentSuffix = '.segments/_tree.segment.rsc'
+    const getRouteTreeSegmentPathname = (pathname: string) =>
+      `${pathname}${routeTreeSegmentSuffix}`
+    const getOtherSegmentPrerenders = (pathname: string) =>
+      outputs.prerenders.filter(
+        (output) =>
+          output.pathname.startsWith(`${pathname}.segments/`) &&
+          output.pathname !== getRouteTreeSegmentPathname(pathname)
+      )
+    const routeTreeSegmentPrerenders = outputs.prerenders.filter((output) =>
+      output.pathname.endsWith(routeTreeSegmentSuffix)
+    )
+
     const withGspPrerender = outputs.prerenders.find(
       (output) => output.pathname === '/with-gsp/[slug]'
     )
     const withGspRouteTreePrerender = outputs.prerenders.find(
       (output) =>
-        output.pathname === '/with-gsp/[slug].segments/_tree.segment.rsc'
+        output.pathname === getRouteTreeSegmentPathname('/with-gsp/[slug]')
     )
-    const withGspOtherSegmentPrerenders = outputs.prerenders.filter(
-      (output) =>
-        output.pathname.startsWith('/with-gsp/[slug].segments/') &&
-        output.pathname !== '/with-gsp/[slug].segments/_tree.segment.rsc'
-    )
+    const withGspOtherSegmentPrerenders =
+      getOtherSegmentPrerenders('/with-gsp/[slug]')
     const withoutGspPrerender = outputs.prerenders.find(
       (output) => output.pathname === '/without-gsp/[slug]'
     )
     const withoutGspRouteTreePrerender = outputs.prerenders.find(
       (output) =>
-        output.pathname === '/without-gsp/[slug].segments/_tree.segment.rsc'
+        output.pathname === getRouteTreeSegmentPathname('/without-gsp/[slug]')
     )
-    const withoutGspOtherSegmentPrerenders = outputs.prerenders.filter(
-      (output) =>
-        output.pathname.startsWith('/without-gsp/[slug].segments/') &&
-        output.pathname !== '/without-gsp/[slug].segments/_tree.segment.rsc'
+    const withoutGspOtherSegmentPrerenders = getOtherSegmentPrerenders(
+      '/without-gsp/[slug]'
     )
     const genericPrefixPrerender = outputs.prerenders.find(
       (output) => output.pathname === '/prefix/[one]/[two]'
     )
     const genericPrefixRouteTreePrerender = outputs.prerenders.find(
       (output) =>
-        output.pathname === '/prefix/[one]/[two].segments/_tree.segment.rsc'
+        output.pathname === getRouteTreeSegmentPathname('/prefix/[one]/[two]')
     )
-    const genericPrefixOtherSegmentPrerenders = outputs.prerenders.filter(
-      (output) =>
-        output.pathname.startsWith('/prefix/[one]/[two].segments/') &&
-        output.pathname !== '/prefix/[one]/[two].segments/_tree.segment.rsc'
+    const genericPrefixOtherSegmentPrerenders = getOtherSegmentPrerenders(
+      '/prefix/[one]/[two]'
     )
     const generatedPrefixPrerender = outputs.prerenders.find(
       (output) => output.pathname === '/prefix/b/[two]'
@@ -52,9 +58,22 @@ describe('adapter-partial-fallback', () => {
     const genericDashedPrerender = outputs.prerenders.find(
       (output) => output.pathname === '/dashed/[my-slug]/[two]'
     )
+    const genericDashedRouteTreePrerender = outputs.prerenders.find(
+      (output) =>
+        output.pathname ===
+        getRouteTreeSegmentPathname('/dashed/[my-slug]/[two]')
+    )
+    const genericDashedOtherSegmentPrerenders = getOtherSegmentPrerenders(
+      '/dashed/[my-slug]/[two]'
+    )
     const generatedDashedPrerender = outputs.prerenders.find(
       (output) => output.pathname === '/dashed/b/[two]'
     )
+
+    expect(routeTreeSegmentPrerenders.length).toBeGreaterThan(0)
+    for (const output of routeTreeSegmentPrerenders) {
+      expect(output.config.allowQuery).toEqual([])
+    }
 
     expect(withGspPrerender).toBeDefined()
     expect(withGspRouteTreePrerender).toBeDefined()
@@ -67,12 +86,14 @@ describe('adapter-partial-fallback', () => {
     expect(genericPrefixOtherSegmentPrerenders.length).toBeGreaterThan(0)
     expect(generatedPrefixPrerender).toBeDefined()
     expect(genericDashedPrerender).toBeDefined()
+    expect(genericDashedRouteTreePrerender).toBeDefined()
+    expect(genericDashedOtherSegmentPrerenders.length).toBeGreaterThan(0)
     expect(generatedDashedPrerender).toBeDefined()
 
     expect(withGspPrerender.config.partialFallback).toBe(true)
     expect(withGspPrerender.config.allowQuery).toEqual(['nxtPslug'])
     expect(withGspRouteTreePrerender.config.partialFallback).toBe(true)
-    expect(withGspRouteTreePrerender.config.allowQuery).toEqual(['nxtPslug'])
+    expect(withGspRouteTreePrerender.config.allowQuery).toEqual([])
     for (const output of withGspOtherSegmentPrerenders) {
       expect(output.config.partialFallback).toBe(true)
       expect(output.config.allowQuery).toEqual(['nxtPslug'])
@@ -90,9 +111,7 @@ describe('adapter-partial-fallback', () => {
     expect(genericPrefixPrerender.config.partialFallback).toBe(true)
     expect(genericPrefixPrerender.config.allowQuery).toEqual(['nxtPone'])
     expect(genericPrefixRouteTreePrerender.config.partialFallback).toBe(true)
-    expect(genericPrefixRouteTreePrerender.config.allowQuery).toEqual([
-      'nxtPone',
-    ])
+    expect(genericPrefixRouteTreePrerender.config.allowQuery).toEqual([])
     for (const output of genericPrefixOtherSegmentPrerenders) {
       expect(output.config.partialFallback).toBe(true)
       expect(output.config.allowQuery).toEqual(['nxtPone'])
@@ -103,6 +122,12 @@ describe('adapter-partial-fallback', () => {
 
     expect(genericDashedPrerender.config.partialFallback).toBe(true)
     expect(genericDashedPrerender.config.allowQuery).toEqual(['nxtPmy-slug'])
+    expect(genericDashedRouteTreePrerender.config.partialFallback).toBe(true)
+    expect(genericDashedRouteTreePrerender.config.allowQuery).toEqual([])
+    for (const output of genericDashedOtherSegmentPrerenders) {
+      expect(output.config.partialFallback).toBe(true)
+      expect(output.config.allowQuery).toEqual(['nxtPmy-slug'])
+    }
 
     expect(generatedDashedPrerender.config.partialFallback).toBeUndefined()
     expect(generatedDashedPrerender.config.allowQuery).toEqual([])
