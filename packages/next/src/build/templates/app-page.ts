@@ -2057,9 +2057,9 @@ export async function handler(
       }
 
       // Perform the render again, but this time, provide the postponed state.
-      // We don't await because we want the result to start streaming now, and
-      // we've already chained the transformer's readable to the render result.
-      doRender({
+      // Await the resumed render before sending the response so errors such as
+      // notFound() can update the HTTP status before headers are committed.
+      const resumeResult = await doRender({
         span,
         postponed: cachedData.postponed,
         // This is a resume render, not a fallback render. Fallback params
@@ -2067,27 +2067,31 @@ export async function handler(
         fallbackRouteParams: null,
         forceStaticRender: false,
       })
-        .then(async (result) => {
-          if (!result) {
-            throw new Error('Invariant: expected a result to be returned')
-          }
 
-          if (result.value?.kind !== CachedRouteKind.APP_PAGE) {
-            throw new Error(
-              `Invariant: expected a page response, got ${result.value?.kind}`
-            )
-          }
+      if (!resumeResult) {
+        throw new Error('Invariant: expected a result to be returned')
+      }
 
-          // Pipe the resume result to the transformer.
-          await result.value.html.pipeTo(transformer.writable)
+      if (resumeResult.value?.kind !== CachedRouteKind.APP_PAGE) {
+        throw new Error(
+          `Invariant: expected a page response, got ${resumeResult.value?.kind}`
+        )
+      }
+
+      const resumeData = resumeResult.value
+      if (resumeData.status) {
+        res.statusCode = resumeData.status
+      }
+
+      // Pipe the resume result to the transformer after the status has been
+      // applied. The actual body can still stream to the client.
+      resumeData.html.pipeTo(transformer.writable).catch((err) => {
+        // An error occurred during piping, abort the transformer's writer so we
+        // can terminate the stream.
+        transformer.writable.abort(err).catch((e) => {
+          console.error("couldn't abort transformer", e)
         })
-        .catch((err) => {
-          // An error occurred during piping or preparing the render, abort
-          // the transformers writer so we can terminate the stream.
-          transformer.writable.abort(err).catch((e) => {
-            console.error("couldn't abort transformer", e)
-          })
-        })
+      })
 
       return sendRenderResult({
         req,
