@@ -3,37 +3,7 @@ import { fetchViaHTTP } from 'next-test-utils'
 
 describe('i18n API support', () => {
   const { next } = nextTestSetup({
-    files: {
-      'pages/api/hello.js': `
-        export default function handler(req, res) { 
-          res.end('hello world')
-        } 
-      `,
-      'pages/api/blog/[slug].js': `
-        export default function handler(req, res) {
-          res.end('blog/[slug]')
-        }
-      `,
-    },
-    nextConfig: {
-      i18n: {
-        locales: ['en', 'fr'],
-        defaultLocale: 'en',
-      },
-      async rewrites() {
-        return {
-          beforeFiles: [],
-          afterFiles: [],
-          fallback: [
-            {
-              source: '/api/:path*',
-              destination: 'https://example.vercel.sh/',
-            },
-          ],
-        }
-      },
-    },
-    dependencies: {},
+    files: __dirname,
   })
 
   it('should respond to normal API request', async () => {
