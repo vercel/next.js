@@ -11,4 +11,5 @@ export const browserVariantModules = [
   'client/components/navigation-dynamic-rendering',
   'client/components/server-async-storage',
   'client/components/unstable-rethrow',
+  'server/app-render/instant-validation/instant-samples-client',
 ] as const

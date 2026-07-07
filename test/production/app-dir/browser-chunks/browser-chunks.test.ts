@@ -76,19 +76,7 @@ describe('browser-chunks', () => {
       if (cacheComponents) {
         expect(serverSources).toMatchInlineSnapshot(`
          [
-           "src/server/app-render/async-local-storage.ts",
-           "src/server/app-render/instant-validation/instant-samples-client.ts",
-           "src/server/app-render/instant-validation/instant-samples.ts",
-           "src/server/app-render/instant-validation/instant-validation-error.ts",
-           "src/server/app-render/staged-rendering.ts",
-           "src/server/app-render/work-async-storage-instance.ts",
-           "src/server/app-render/work-async-storage.external.ts",
-           "src/server/app-render/work-unit-async-storage-instance.ts",
-           "src/server/app-render/work-unit-async-storage.external.ts",
-           "src/server/web/spec-extension/adapters/headers.ts",
-           "src/server/web/spec-extension/adapters/reflect.ts",
-           "src/server/web/spec-extension/adapters/request-cookies.ts",
-           "src/server/web/spec-extension/cookies.ts",
+           "src/server/app-render/instant-validation/instant-samples-client.browser.ts",
          ]
         `)
       } else {
