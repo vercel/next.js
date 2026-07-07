@@ -124,7 +124,12 @@ function prepareDestinationWithChunks(moduleLoading, chunks, nonce$jscomp$0) {
       JSCompiler_temp_const$jscomp$0.call(
         JSCompiler_temp_const,
         JSCompiler_temp_const$jscomp$1,
-        { crossOrigin: JSCompiler_inline_result, nonce: nonce }
+        {
+          crossOrigin: JSCompiler_inline_result,
+          integrity: void 0,
+          fetchPriority: void 0,
+          nonce: nonce
+        }
       );
     }
 }
@@ -361,7 +366,7 @@ function processReply(
         null === formData && (formData = new FormData());
         var data$31 = formData;
         key = nextPartId++;
-        var prefix = formFieldPrefix + key + "_";
+        var prefix = formFieldPrefix + "_" + key + "_";
         value.forEach(function (originalValue, originalKey) {
           data$31.append(prefix + originalKey, originalValue);
         });

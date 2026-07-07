@@ -1,4 +1,3 @@
-import webdriver from 'next-webdriver'
 import { nextTestSetup } from 'e2e-utils'
 import { check, renderViaHTTP, retry } from 'next-test-utils'
 
@@ -18,7 +17,7 @@ describe('basePath', () => {
 
   describe('client-side navigation', () => {
     it('should navigate to /404 correctly client-side', async () => {
-      const browser = await webdriver(next.url, `${basePath}/slug-1`)
+      const browser = await next.browser(`${basePath}/slug-1`)
       await check(
         () => browser.eval('document.documentElement.innerHTML'),
         /slug-1/
@@ -33,7 +32,7 @@ describe('basePath', () => {
     })
 
     it('should navigate to /_error correctly client-side', async () => {
-      const browser = await webdriver(next.url, `${basePath}/slug-1`)
+      const browser = await next.browser(`${basePath}/slug-1`)
       await check(
         () => browser.eval('document.documentElement.innerHTML'),
         /slug-1/
@@ -55,7 +54,7 @@ describe('basePath', () => {
   }
 
   it('should not update URL for a 404', async () => {
-    const browser = await webdriver(next.url, '/missing')
+    const browser = await next.browser('/missing')
 
     // the custom 404 only shows inside of the basePath so this
     // could be a platform default 404 page on deploy
@@ -69,7 +68,7 @@ describe('basePath', () => {
   })
 
   it('should handle 404 urls that start with basePath', async () => {
-    const browser = await webdriver(next.url, `${basePath}hello`)
+    const browser = await next.browser(`${basePath}hello`)
 
     // the custom 404 only shows inside of the basePath so this
     // could be a platform default 404 page on deploy
@@ -87,7 +86,7 @@ describe('basePath', () => {
   // wasn't being awaited. We need to investigate if this test is
   // correct or not.
   it.skip('should navigate back to a non-basepath 404 that starts with basepath', async () => {
-    const browser = await webdriver(next.url, `${basePath}hello`)
+    const browser = await next.browser(`${basePath}hello`)
     await browser.eval(() => ((window as any).navigationMarker = true))
     await browser.eval(() => (window as any).next.router.push('/hello'))
     await browser.waitForElementByCss('#pathname')
@@ -106,10 +105,7 @@ describe('basePath', () => {
 
   describe('manually added basePath in application logic', () => {
     it('should 404 when manually adding basePath with <Link>', async () => {
-      const browser = await webdriver(
-        next.url,
-        `${basePath}/invalid-manual-basepath`
-      )
+      const browser = await next.browser(`${basePath}/invalid-manual-basepath`)
       await browser.eval('window.beforeNav = "hi"')
       await browser.elementByCss('#other-page-link').click()
 
@@ -124,7 +120,7 @@ describe('basePath', () => {
     })
 
     it('should 404 when manually adding basePath with router.push', async () => {
-      const browser = await webdriver(next.url, `${basePath}/hello`)
+      const browser = await next.browser(`${basePath}/hello`)
       await browser.eval('window.beforeNav = "hi"')
       await browser.eval(`window.next.router.push("${basePath}/other-page")`)
 
@@ -137,7 +133,7 @@ describe('basePath', () => {
     })
 
     it('should 404 when manually adding basePath with router.replace', async () => {
-      const browser = await webdriver(next.url, `${basePath}/hello`)
+      const browser = await next.browser(`${basePath}/hello`)
       await browser.eval('window.beforeNav = "hi"')
       await browser.eval(`window.next.router.replace("${basePath}/other-page")`)
 

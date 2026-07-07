@@ -22,7 +22,7 @@ async fn ignored_indexes() {
     );
 
     run_once(&REGISTRATION, || async {
-        #[turbo_tasks::function(operation)]
+        #[turbo_tasks::function(operation, root)]
         async fn value_debug_format_operation() -> Result<Vc<RcStr>> {
             let input = IgnoredIndexes(-1, 2, -3);
             let debug = input.value_debug_format(usize::MAX).try_to_string().await?;

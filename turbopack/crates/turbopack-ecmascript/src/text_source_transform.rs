@@ -34,14 +34,13 @@ impl SourceTransform for TextSourceTransform {
         source: Vc<Box<dyn Source>>,
         _asset_context: Vc<Box<dyn AssetContext>>,
     ) -> Result<Vc<Box<dyn Source>>> {
-        let ident = source.ident();
-        let path = ident.path().await?;
+        let ident = source.ident().owned().await?;
         let content = source.content().file_content().await?;
         let text = match &*content {
             FileContent::Content(data) => data.content().to_str()?,
             FileContent::NotFound => {
                 // This shouldn't happen because the import was already resolved
-                bail!("File not found: {:?}", path);
+                bail!("File not found: {:?}", ident.path);
             }
         };
 
@@ -49,12 +48,13 @@ impl SourceTransform for TextSourceTransform {
         let code = format!(
             "\"use turbopack no side effects\";\nexport default {};\n{}",
             StringifyJs(&text),
-            inline_source_map_comment(&path.path, &text)
+            inline_source_map_comment(&ident.path.path, &text)
         );
 
         // Rename to .mjs so module rules recognize it as ESM.
         // The inline source map ensures debuggers show the original file.
-        let new_ident = ident.rename_as(format!("{}.[text].mjs", path.path).into());
+
+        let new_ident = ident.rename_as("*.[text].mjs").into_vc();
 
         Ok(Vc::upcast(VirtualSource::new_with_ident(
             new_ident,

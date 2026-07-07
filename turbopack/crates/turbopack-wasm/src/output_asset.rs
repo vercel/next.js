@@ -41,7 +41,13 @@ impl OutputAsset for WebAssemblyAsset {
     #[turbo_tasks::function]
     async fn path(self: Vc<Self>) -> Result<Vc<FileSystemPath>> {
         let this = self.await?;
-        let ident = this.source.ident().with_modifier(rcstr!("wasm"));
+        let ident = this
+            .source
+            .ident()
+            .owned()
+            .await?
+            .with_modifier(rcstr!("wasm"))
+            .into_vc();
         Ok(this
             .chunking_context
             .chunk_path(Some(Vc::upcast(self)), ident, None, rcstr!(".wasm")))

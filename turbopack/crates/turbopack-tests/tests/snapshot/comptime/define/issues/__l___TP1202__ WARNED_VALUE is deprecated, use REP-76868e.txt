@@ -9,4 +9,5 @@ warning - [analysis] /turbopack/crates/turbopack-tests/tests/snapshot/comptime/d
          +     ^----------^
       68 |   console.log('warning replacement works')
       69 | }
-      70 |
+      70 | 
+      71 | if (!('NODE_ENV' in process.env)) {

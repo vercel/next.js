@@ -111,7 +111,7 @@ async fn get_font_adjustment(
     let mut font = Font::new(scope.read::<FontData>()?.table_provider(0)?)?.with_context(|| {
         format!(
             "Unable to read font metrics from font file at {}",
-            &main_descriptor.path,
+            main_descriptor.path,
         )
     })?;
 
@@ -121,7 +121,7 @@ async fn get_font_adjustment(
         .with_context(|| {
             format!(
                 "Unable to read font scale from font file at {}",
-                &main_descriptor.path
+                main_descriptor.path
             )
         })?
         .units_per_em as f64;

@@ -123,14 +123,16 @@ pub unsafe trait VcValueType: ShrinkToFit + Sized + Send + Sync + 'static {
 /// [`TraitRef`]: crate::TraitRef
 pub trait VcValueTrait: NonLocalValue + Send + Sync + 'static {
     // The concrete type of the value_trait implementing VcValueTrait
-    type ValueTrait: ?Sized;
+    type ValueTrait: ?Sized + std::ptr::Pointee<Metadata = std::ptr::DynMetadata<Self::ValueTrait>>;
+
+    /// The per-trait vtable registry, populated by [crate::value_type::register_all_trait_methods]
+    ///
+    /// [`VTableRegistry::cast`] panics if the value type being cast doesn't implement this
+    /// trait.
+    const IMPL_VTABLES: &'static VTableRegistry<Self::ValueTrait>;
 
     /// Returns the type id of the trait object.
     fn get_trait_type_id() -> TraitTypeId;
-
-    /// Returns the vtable for an implementation of this trait.
-    /// Panics if ValueTypeId does not implement the trait.
-    fn get_impl_vtables() -> &'static VTableRegistry<Self::ValueTrait>;
 }
 
 /// Marker trait that indicates that a [`Vc<Self>`][crate::Vc] can be upcasted to a

@@ -43,6 +43,15 @@ export function getServerError(error: Error, type: ErrorSourceType): Error {
   }
 
   n.name = error.name
+  // If present, restore the error code from the original server error.
+  const errorCode = (error as any).__NEXT_ERROR_CODE
+  if (typeof errorCode === 'string') {
+    Object.defineProperty(n, '__NEXT_ERROR_CODE', {
+      value: errorCode,
+      enumerable: false,
+      configurable: true,
+    })
+  }
   try {
     n.stack = `${n.toString()}\n${parse(error.stack!)
       .map(getFilesystemFrame)
