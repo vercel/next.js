@@ -364,21 +364,24 @@ impl TurboTasksBackend {
     ) -> (usize, Vec<TaskDeletion>) {
         // Seed the worklist from the candidates observed since the last pass. Re-validation happens
         // per task below (a candidate may have been revived by a concurrent re-connect before the
-        // phase was acquired, or may not be Data-resident).
+        // GC phase was acquired).
         let mut worklist: Vec<TaskId> = self.gc_candidates.lock().drain().collect();
         let mut collected = 0;
         let mut deletions = Vec::new();
-        // Candidates that still have `parent_count == 0` but are not *yet* collectible (e.g. a
-        // disconnected task whose transient activeness has not been torn down, or which is not yet
-        // Data-resident) are re-retained for a future pass. Genuine roots (`root_ty` set) also land
-        // here — they always have `parent_count == 0` — and are simply re-checked cheaply each
-        // pass; the set stays bounded by the (small) number of such tasks.
+        // Candidates that are still parentless but not *yet* collectible (e.g. residual transient
+        // activeness) are re-retained for a later pass.
         let mut retain: Vec<TaskId> = Vec::new();
 
+        // Sequential worklist drain. This runs under the GC phase (execution is excluded) so it
+        // could in principle be parallelized, but `gc_delete_one` restores Data on demand, which
+        // uses `block_in_place`; fanning the worklist out with `scope_and_block` nests
+        // `block_in_place` inside `block_in_place` and deadlocks on a thread-limited runtime (e.g.
+        // the 2-worker-thread test runtime, or a low-core CI runner). Collection is O(garbage), not
+        // O(total), so a pass is short; if latency ever proves a problem, parallelize by running
+        // the whole pass inside `spawn_blocking` (per the `scope_and_block` guidance) rather than
+        // spawning from within this already-blocking context.
         while let Some(task_id) = worklist.pop() {
             if !self.gc_is_collectible(task_id) {
-                // Keep it as a candidate only while it still has no persistent parent; otherwise a
-                // concurrent re-connect revived it and it is no longer garbage.
                 if self.gc_parent_count(task_id) == 0 && !task_id.is_transient() {
                     retain.push(task_id);
                 }
@@ -388,9 +391,7 @@ impl TurboTasksBackend {
             deletions.push(deletion);
             collected += 1;
 
-            // Cascade: each child of the deleted task loses a persistent parent. Decrement its
-            // parent_count; if it reaches 0 and is collectible, peel it too. This tears down the
-            // whole unreachable subtree in one pass.
+            // Cascade: each child loses a persistent parent; any that reaches 0 is peeled next.
             let mut ctx = self.execute_context_gc(turbo_tasks);
             for child in children {
                 if child.is_transient() {
@@ -406,7 +407,7 @@ impl TurboTasksBackend {
         }
 
         // Re-queue candidates that are still parentless but were not collectible this pass, so a
-        // later pass retries once their transient activeness clears (or their Data is restored).
+        // later pass retries once their transient activeness clears.
         if !retain.is_empty() {
             self.gc_candidates.lock().extend(retain);
         }
