@@ -523,6 +523,8 @@ async function exportAppImpl(
       maxPostponedStateSizeBytes: parseMaxPostponedStateSize(
         nextConfig.experimental.maxPostponedStateSize
       ),
+      exposeTestingApi:
+        nextConfig.experimental.exposeTestingApiInProductionBuild === true,
     },
     reactMaxHeadersLength: nextConfig.reactMaxHeadersLength,
   }

@@ -472,7 +472,7 @@ pub async fn strongly_consistent_catch_collectables<R: VcValueType + Send>(
     Arc<Vec<ReadRef<PlainIssue>>>,
     Arc<Effects>,
 )> {
-    let result = source_op.read_strongly_consistent().final_read_hint().await;
+    let result = source_op.read_strongly_consistent().await;
     let issues = get_issues(source_op, filter).await?;
     let effects = Arc::new(take_effects(source_op).await?);
 

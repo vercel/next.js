@@ -1,5 +1,5 @@
 import { nextTestSetup, isNextDeploy } from 'e2e-utils'
-import { pathExists, readdir } from 'fs-extra'
+import { pathExists, readdir, readFile } from 'fs-extra'
 import { join } from 'path'
 
 describe('CPU Profiling - next build', () => {
@@ -21,6 +21,14 @@ describe('CPU Profiling - next build', () => {
   beforeAll(async () => {
     // Run the build with CPU profiling enabled
     await next.build()
+  })
+
+  it('should write a .gitignore into .next-profiles', async () => {
+    const gitignore = join(next.testDir, '.next-profiles', '.gitignore')
+    expect(await pathExists(gitignore)).toBe(true)
+    // `*` keeps the (potentially large) profiling output out of git and away
+    // from gitignore-respecting tools that would otherwise scan it.
+    expect(await readFile(gitignore, 'utf8')).toContain('*')
   })
 
   it('should create CPU profile files after build', async () => {
