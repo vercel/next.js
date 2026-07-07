@@ -16,7 +16,7 @@ type CacheLifeProfileContext =
   | { kind: 'inline' }
   | { kind: 'config'; profileName: string }
 
-function normalizeCacheLifeValue(
+export function normalizeCacheLifeValue(
   key: keyof CacheLife,
   value: unknown,
   context: CacheLifeProfileContext
@@ -79,21 +79,17 @@ export function validateAndNormalizeCacheLifeProfile(
     }
   }
 
-  // Config profiles are not checked for consistency: the default profile is
-  // backfilled before normalization and may exceed a short expire on purpose.
-  if (context.kind === 'inline') {
-    if (
-      normalizedProfile.revalidate !== undefined &&
-      normalizedProfile.expire !== undefined &&
-      normalizedProfile.revalidate > normalizedProfile.expire
-    ) {
-      throw new Error(
-        'If providing both the revalidate and expire options, ' +
-          'the expire option must be greater than the revalidate option. ' +
-          'The expire option indicates how many seconds from the start ' +
-          'until it can no longer be used.'
-      )
-    }
+  if (
+    normalizedProfile.revalidate !== undefined &&
+    normalizedProfile.expire !== undefined &&
+    normalizedProfile.revalidate > normalizedProfile.expire
+  ) {
+    throw new Error(
+      'If providing both the revalidate and expire options, ' +
+        'the expire option must be greater than the revalidate option. ' +
+        'The expire option indicates how many seconds from the start ' +
+        'until it can no longer be used.'
+    )
   }
 
   return normalizedProfile

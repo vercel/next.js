@@ -45,7 +45,10 @@ import { dset } from '../shared/lib/dset'
 import { normalizeZodErrors } from '../shared/lib/zod'
 import { HTML_LIMITED_BOT_UA_RE_STRING } from '../shared/lib/router/utils/is-bot'
 import { findDir } from '../lib/find-pages-dir'
-import { validateAndNormalizeCacheLifeProfile } from './use-cache/cache-life-profile'
+import {
+  normalizeCacheLifeValue,
+  validateAndNormalizeCacheLifeProfile,
+} from './use-cache/cache-life-profile'
 import { resolveCacheHandlerPathToFilesystem } from '../lib/format-dynamic-import-path'
 import { interopDefault } from '../lib/interop-default'
 import { djb2Hash } from '../shared/lib/hash'
@@ -1381,9 +1384,25 @@ function assignDefaultsAndValidate(
   }
 
   if (result.cacheLife) {
-    result.cacheLife = {
+    const userCacheLifeProfiles: NonNullable<NextConfig['cacheLife']> =
+      result.cacheLife
+    const cacheLifeProfiles: NonNullable<NextConfig['cacheLife']> = {
       ...defaultConfig.cacheLife,
-      ...result.cacheLife,
+      ...userCacheLifeProfiles,
+    }
+    result.cacheLife = cacheLifeProfiles
+
+    // Only validate values the user wrote themselves. Backfilling the
+    // default profile below can produce a revalidate that's larger than a
+    // user-provided expire (e.g. for `default: { expire: 0 }`), which is
+    // fine — the expire wins — but would fail validation.
+    for (const [profileName, profile] of Object.entries(
+      userCacheLifeProfiles
+    )) {
+      cacheLifeProfiles[profileName] = validateAndNormalizeCacheLifeProfile(
+        profile,
+        { kind: 'config', profileName }
+      )
     }
     const defaultDefault = defaultConfig.cacheLife?.['default']
     if (
@@ -1400,25 +1419,22 @@ function assignDefaultsAndValidate(
     } else {
       if (defaultCacheLifeProfile.stale === undefined) {
         const staticStaleTime = result.experimental.staleTimes?.static
-        defaultCacheLifeProfile.stale =
-          staticStaleTime ?? defaultConfig.experimental?.staleTimes?.static
+        defaultCacheLifeProfile.stale = normalizeCacheLifeValue(
+          'stale',
+          staticStaleTime ?? defaultConfig.experimental?.staleTimes?.static,
+          { kind: 'config', profileName: 'default' }
+        )
       }
       if (defaultCacheLifeProfile.revalidate === undefined) {
         defaultCacheLifeProfile.revalidate = defaultDefault.revalidate
       }
       if (defaultCacheLifeProfile.expire === undefined) {
-        defaultCacheLifeProfile.expire =
-          result.expireTime ?? defaultDefault.expire
+        defaultCacheLifeProfile.expire = normalizeCacheLifeValue(
+          'expire',
+          result.expireTime ?? defaultDefault.expire,
+          { kind: 'config', profileName: 'default' }
+        )
       }
-    }
-
-    const cacheLifeProfiles: NonNullable<NextConfig['cacheLife']> =
-      result.cacheLife
-    for (const [profileName, profile] of Object.entries(cacheLifeProfiles)) {
-      cacheLifeProfiles[profileName] = validateAndNormalizeCacheLifeProfile(
-        profile,
-        { kind: 'config', profileName }
-      )
     }
   }
 
