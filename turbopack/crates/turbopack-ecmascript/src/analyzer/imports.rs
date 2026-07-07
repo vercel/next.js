@@ -461,6 +461,20 @@ pub struct ImportAttributes {
     /// const a = require(/* turbopackChunkingType: parallel */ "a");
     /// ```
     pub chunking_type: Option<SpecifiedChunkingType>,
+    /// A user-specified name for the chunk group created by a dynamic import. The name is
+    /// included in the file names of the emitted chunks (in addition to the usual hash).
+    ///
+    /// This is set by using either a `turbopackChunkName` or `webpackChunkName` comment. When
+    /// both are present, `turbopackChunkName` wins.
+    ///
+    /// Only applied when chunk names are enabled via `EcmascriptOptions::chunk_names`.
+    ///
+    /// Example:
+    /// ```js
+    /// const a = import(/* turbopackChunkName: "my-chunk" */ "a");
+    /// const b = import(/* webpackChunkName: "legacy-chunk" */ "b");
+    /// ```
+    pub chunk_name: Option<RcStr>,
 }
 
 impl ImportAttributes {
@@ -470,6 +484,7 @@ impl ImportAttributes {
             optional: false,
             export_names: None,
             chunking_type: None,
+            chunk_name: None,
         }
     }
 
@@ -1377,6 +1392,8 @@ fn parse_directives(
     let mut optional = None;
     let mut export_names = None;
     let mut chunking_type = None;
+    let mut turbopack_chunk_name = None;
+    let mut webpack_chunk_name = None;
 
     // Process all comments, last one wins for each directive type
     for comment in leading_comments.iter() {
@@ -1399,22 +1416,59 @@ fn parse_directives(
                 "turbopackChunkingType" => {
                     chunking_type = parse_chunking_type_annotation(value.span(), val);
                 }
+                "turbopackChunkName" => {
+                    turbopack_chunk_name = parse_chunk_name(val);
+                }
+                "webpackChunkName" => {
+                    webpack_chunk_name = parse_chunk_name(val);
+                }
                 _ => {} // ignore anything else
             }
         }
     }
 
+    // `turbopackChunkName` takes precedence over the webpack fallback
+    let chunk_name = turbopack_chunk_name.or(webpack_chunk_name);
+
     // Return Some only if at least one directive was found
-    if ignore.is_some() || optional.is_some() || export_names.is_some() || chunking_type.is_some() {
+    if ignore.is_some()
+        || optional.is_some()
+        || export_names.is_some()
+        || chunking_type.is_some()
+        || chunk_name.is_some()
+    {
         Some(ImportAttributes {
             ignore: ignore.unwrap_or(false),
             optional: optional.unwrap_or(false),
             export_names,
             chunking_type,
+            chunk_name,
         })
     } else {
         None
     }
+}
+
+/// Parse a chunk name from a `turbopackChunkName` or `webpackChunkName` comment value.
+///
+/// Supports a JSON string (`"name"`) or a bare token (`name`). Returns `None` for empty values.
+fn parse_chunk_name(val: &str) -> Option<RcStr> {
+    let val = val.trim();
+
+    // Try parsing as a JSON string first (the common `/* webpackChunkName: "name" */` form)
+    if let Ok(name) = serde_json::from_str::<String>(val) {
+        if name.is_empty() {
+            return None;
+        }
+        return Some(name.into());
+    }
+
+    // Bare identifier (no quotes)
+    if !val.is_empty() {
+        return Some(val.into());
+    }
+
+    None
 }
 
 /// Parse export names from a `webpackExports` or `turbopackExports` comment value.
@@ -1559,5 +1613,92 @@ mod tests {
     fn test_parse_empty_with() {
         let annotations = ImportAnnotations::parse(None);
         assert!(annotations.is_none());
+    }
+
+    /// Helper to run `parse_directives` against a call argument that has the given leading
+    /// (block) comments, i.e. `import(/* comment */ "./module")`.
+    fn parse_directives_from_comments(comment_texts: &[&str]) -> Option<ImportAttributes> {
+        use swc_core::common::{
+            BytePos, Span,
+            comments::{Comment, CommentKind, Comments, SingleThreadedComments},
+        };
+
+        let comments = SingleThreadedComments::default();
+        let pos = BytePos(10);
+        for text in comment_texts {
+            comments.add_leading(
+                pos,
+                Comment {
+                    kind: CommentKind::Block,
+                    span: DUMMY_SP,
+                    text: Atom::from(*text).into(),
+                },
+            );
+        }
+        let value = ExprOrSpread {
+            spread: None,
+            expr: Box::new(Expr::Lit(Lit::Str(Str {
+                span: Span::new(pos, BytePos(20)),
+                value: Atom::from("./module").into(),
+                raw: None,
+            }))),
+        };
+        parse_directives(&comments, Some(&value))
+    }
+
+    #[test]
+    fn test_parse_turbopack_chunk_name() {
+        let attributes =
+            parse_directives_from_comments(&[r#" turbopackChunkName: "my-chunk" "#]).unwrap();
+        assert_eq!(attributes.chunk_name.as_deref(), Some("my-chunk"));
+    }
+
+    #[test]
+    fn test_parse_webpack_chunk_name_fallback() {
+        let attributes =
+            parse_directives_from_comments(&[r#" webpackChunkName: "legacy-chunk" "#]).unwrap();
+        assert_eq!(attributes.chunk_name.as_deref(), Some("legacy-chunk"));
+    }
+
+    #[test]
+    fn test_turbopack_chunk_name_takes_precedence() {
+        // ... regardless of comment order
+        let attributes = parse_directives_from_comments(&[
+            r#" webpackChunkName: "loses" "#,
+            r#" turbopackChunkName: "wins" "#,
+        ])
+        .unwrap();
+        assert_eq!(attributes.chunk_name.as_deref(), Some("wins"));
+
+        let attributes = parse_directives_from_comments(&[
+            r#" turbopackChunkName: "wins" "#,
+            r#" webpackChunkName: "loses" "#,
+        ])
+        .unwrap();
+        assert_eq!(attributes.chunk_name.as_deref(), Some("wins"));
+    }
+
+    #[test]
+    fn test_parse_bare_chunk_name() {
+        let attributes =
+            parse_directives_from_comments(&[" turbopackChunkName: my-chunk "]).unwrap();
+        assert_eq!(attributes.chunk_name.as_deref(), Some("my-chunk"));
+    }
+
+    #[test]
+    fn test_parse_empty_chunk_name() {
+        assert!(parse_directives_from_comments(&[" turbopackChunkName: "]).is_none());
+        assert!(parse_directives_from_comments(&[r#" turbopackChunkName: "" "#]).is_none());
+    }
+
+    #[test]
+    fn test_chunk_name_combines_with_other_directives() {
+        let attributes = parse_directives_from_comments(&[
+            r#" webpackChunkName: "my-chunk" "#,
+            " turbopackOptional: true ",
+        ])
+        .unwrap();
+        assert_eq!(attributes.chunk_name.as_deref(), Some("my-chunk"));
+        assert!(attributes.optional);
     }
 }

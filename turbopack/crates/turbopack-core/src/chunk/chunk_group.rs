@@ -298,7 +298,7 @@ async fn chunk_group_content_operation(
                             GraphTraversalAction::Exclude
                         }
                     }
-                    ChunkingType::Async => {
+                    ChunkingType::Async { .. } => {
                         if can_split_async {
                             let chunkable_module =
                                 ResolvedVc::try_downcast(edge.module.unwrap())

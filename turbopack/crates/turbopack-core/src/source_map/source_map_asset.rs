@@ -24,6 +24,9 @@ enum PathType {
     FromIdent {
         chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
         ident_for_path: ResolvedVc<AssetIdent>,
+        /// Passed through to `ChunkingContext::chunk_path`, so the source map path gets the same
+        /// prefix as the asset it belongs to (e.g. a user-specified chunk name).
+        prefix: Option<RcStr>,
     },
 }
 
@@ -41,11 +44,13 @@ impl SourceMapAsset {
         chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
         ident_for_path: ResolvedVc<AssetIdent>,
         generate_source_map: ResolvedVc<Box<dyn GenerateSourceMap>>,
+        prefix: Option<RcStr>,
     ) -> Vc<Self> {
         SourceMapAsset {
             path_ty: PathType::FromIdent {
                 chunking_context,
                 ident_for_path,
+                prefix,
             },
             generate_source_map,
         }
@@ -79,11 +84,12 @@ impl OutputAsset for SourceMapAsset {
             PathType::FromIdent {
                 chunking_context,
                 ident_for_path,
+                prefix,
             } => chunking_context
                 .chunk_path(
                     Some(Vc::upcast(self)),
                     **ident_for_path,
-                    None,
+                    prefix.clone(),
                     rcstr!(".js"),
                 )
                 .await?

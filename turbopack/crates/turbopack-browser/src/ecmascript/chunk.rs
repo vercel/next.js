@@ -22,6 +22,10 @@ use crate::{BrowserChunkingContext, ecmascript::content::EcmascriptBrowserChunkC
 pub struct EcmascriptBrowserChunk {
     chunking_context: ResolvedVc<BrowserChunkingContext>,
     chunk: ResolvedVc<EcmascriptChunk>,
+    /// A user-specified name for the chunk group this chunk belongs to, from a
+    /// `turbopackChunkName`/`webpackChunkName` magic comment. Used as a prefix in the output
+    /// file name.
+    chunk_name: Option<RcStr>,
 }
 
 #[turbo_tasks::value_impl]
@@ -31,10 +35,12 @@ impl EcmascriptBrowserChunk {
     pub fn new(
         chunking_context: ResolvedVc<BrowserChunkingContext>,
         chunk: ResolvedVc<EcmascriptChunk>,
+        chunk_name: Option<RcStr>,
     ) -> Vc<Self> {
         EcmascriptBrowserChunk {
             chunking_context,
             chunk,
+            chunk_name,
         }
         .cell()
     }
@@ -46,6 +52,7 @@ impl EcmascriptBrowserChunk {
             Vc::upcast(*this.chunking_context),
             this.ident_for_path().await?,
             Vc::upcast(self),
+            this.chunk_name.clone(),
         ))
     }
 }
@@ -128,9 +135,12 @@ impl OutputAsset for EcmascriptBrowserChunk {
     async fn path(self: Vc<Self>) -> Result<Vc<FileSystemPath>> {
         let this = self.await?;
         let ident = this.ident_for_path().await?;
-        Ok(this
-            .chunking_context
-            .chunk_path(Some(Vc::upcast(self)), ident, None, rcstr!(".js")))
+        Ok(this.chunking_context.chunk_path(
+            Some(Vc::upcast(self)),
+            ident,
+            this.chunk_name.clone(),
+            rcstr!(".js"),
+        ))
     }
 }
 

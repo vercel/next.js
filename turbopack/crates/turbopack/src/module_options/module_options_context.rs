@@ -284,6 +284,10 @@ pub struct EcmascriptOptionsContext {
     /// Whether to infer side effect free modules via local analysis. Defaults to true.
     pub infer_module_side_effects: bool,
 
+    /// Whether to apply `turbopackChunkName`/`webpackChunkName` magic comments on dynamic
+    /// imports. Defaults to false.
+    pub enable_chunk_names: bool,
+
     /// Additional SWC preset-env options (mode, coreJs, include, exclude, etc.).
     pub preset_env_config: Option<ResolvedVc<PresetEnvConfig>>,
 

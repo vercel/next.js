@@ -845,6 +845,16 @@ export interface ExperimentalConfig {
   turbopackServerSideNestedAsyncChunking?: boolean
 
   /**
+   * Apply `turbopackChunkName` (or `webpackChunkName`) magic comments on dynamic imports,
+   * e.g. `import(/* turbopackChunkName: "my-chunk" *\/ './module')`. The specified name is
+   * included in the file names of the chunks emitted for the dynamic import, in addition to
+   * the usual content hash.
+   *
+   * Defaults to `false`.
+   */
+  turbopackChunkNames?: boolean
+
+  /**
    * Enable filesystem cache for the turbopack dev server.
    *
    * Defaults to `true`.

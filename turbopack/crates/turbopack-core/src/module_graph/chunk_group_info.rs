@@ -4,20 +4,23 @@ use std::{
 };
 
 use anyhow::{Context, Result, bail};
+use async_trait::async_trait;
 use bincode::{Decode, Encode};
 use either::Either;
 use indexmap::map::Entry;
 use roaring::RoaringBitmap;
 use rustc_hash::FxHashMap;
 use tracing::Instrument;
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     FxIndexMap, FxIndexSet, NonLocalValue, ResolvedVc, TaskInput, TryJoinIterExt, ValueToString,
     Vc, debug::ValueDebugFormat, trace::TraceRawVcs, turbofmt,
 };
+use turbo_tasks_fs::FileSystemPath;
 
 use crate::{
     chunk::ChunkingType,
+    issue::{Issue, IssueExt, IssueSeverity, IssueStage, StyledString},
     module::Module,
     module_graph::{GraphTraversalAction, ModuleGraph, RefData},
 };
@@ -95,6 +98,11 @@ pub struct ChunkGroupInfo {
     #[bincode(with = "turbo_bincode::indexset")]
     pub chunk_group_keys: FxIndexSet<ChunkGroupKey>,
     pub chunking_heuristics: ChunkingHeuristicsInfo,
+    /// User-specified names for async chunk groups, keyed by the chunk group's entry module.
+    /// Names come from `turbopackChunkName`/`webpackChunkName` magic comments on `import()`
+    /// expressions. They only affect the file names of the emitted chunks, not how modules are
+    /// grouped.
+    pub async_chunk_group_names: FxHashMap<ResolvedVc<Box<dyn Module>>, RcStr>,
 }
 
 /// Chunking heuristics computed by [`compute_chunk_group_info`]. `priority_routes` is a set of
@@ -466,6 +474,13 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
         let mut module_chunk_groups: FxHashMap<ResolvedVc<Box<dyn Module>>, RoaringBitmapWrapper> =
             FxHashMap::default();
 
+        // All user-specified chunk names seen per async chunk group entry module. Reduced to a
+        // single name (plus a warning on conflicts) after the traversal.
+        let mut async_chunk_group_name_candidates: FxHashMap<
+            ResolvedVc<Box<dyn Module>>,
+            FxIndexSet<RcStr>,
+        > = FxHashMap::default();
+
         let module_count = graph
             .graphs
             .iter()
@@ -596,9 +611,17 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
                 let chunk_groups = if let Some((parent, ref_data, _)) = parent_info {
                     match &ref_data.chunking_type {
                         ChunkingType::Parallel { .. } => ChunkGroupInheritance::Inherit(parent),
-                        ChunkingType::Async => ChunkGroupInheritance::ChunkGroup(Either::Left(
-                            std::iter::once(ChunkGroupKey::Async(node)),
-                        )),
+                        ChunkingType::Async { name } => {
+                            if let Some(name) = name {
+                                async_chunk_group_name_candidates
+                                    .entry(node)
+                                    .or_default()
+                                    .insert(name.clone());
+                            }
+                            ChunkGroupInheritance::ChunkGroup(Either::Left(std::iter::once(
+                                ChunkGroupKey::Async(node),
+                            )))
+                        }
                         ChunkingType::Isolated {
                             merge_tag: None, ..
                         } => ChunkGroupInheritance::ChunkGroup(Either::Left(std::iter::once(
@@ -773,6 +796,30 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
         span.record("visit_count", visit_count);
         span.record("chunk_group_count", chunk_groups_map.len());
 
+        // Reduce the collected chunk name candidates to a single name per entry module. Multiple
+        // imports of the same module end up in the same chunk group, so only one name can apply;
+        // pick the lexicographically smallest to be deterministic (independent of traversal
+        // order) and warn so conflicting names don't go unnoticed.
+        let mut async_chunk_group_names: FxHashMap<ResolvedVc<Box<dyn Module>>, RcStr> =
+            FxHashMap::with_capacity_and_hasher(
+                async_chunk_group_name_candidates.len(),
+                Default::default(),
+            );
+        for (module, names) in async_chunk_group_name_candidates {
+            let mut names: Vec<RcStr> = names.into_iter().collect();
+            names.sort_unstable();
+            if names.len() > 1 {
+                ConflictingChunkNamesIssue {
+                    path: module.ident().await?.path.clone(),
+                    module: module.ident().to_string().owned().await?,
+                    names: names.clone(),
+                }
+                .resolved_cell()
+                .emit();
+            }
+            async_chunk_group_names.insert(module, names.swap_remove(0));
+        }
+
         #[cfg(debug_assertions)]
         {
             use std::sync::LazyLock;
@@ -865,6 +912,7 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
 
         Ok(ChunkGroupInfo {
             module_chunk_groups: ResolvedVc::cell(module_chunk_groups),
+            async_chunk_group_names,
             chunk_group_keys: chunk_groups_map.keys().cloned().collect(),
             chunking_heuristics: ChunkingHeuristicsInfo {
                 priority_routes: chunk_group_priority_routes,
@@ -896,4 +944,55 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
     }
     .instrument(span_outer)
     .await
+}
+
+/// Emitted when multiple dynamic imports of the same module specify different chunk names via
+/// `turbopackChunkName`/`webpackChunkName` magic comments. They all end up in the same chunk
+/// group, so only one name can apply.
+#[turbo_tasks::value(shared)]
+struct ConflictingChunkNamesIssue {
+    path: FileSystemPath,
+    module: RcStr,
+    names: Vec<RcStr>,
+}
+
+#[async_trait]
+#[turbo_tasks::value_impl]
+impl Issue for ConflictingChunkNamesIssue {
+    fn severity(&self) -> IssueSeverity {
+        IssueSeverity::Warning
+    }
+
+    async fn file_path(&self) -> Result<FileSystemPath> {
+        Ok(self.path.clone())
+    }
+
+    fn stage(&self) -> IssueStage {
+        IssueStage::Analysis
+    }
+
+    async fn title(&self) -> Result<StyledString> {
+        Ok(StyledString::Text(rcstr!(
+            "Conflicting chunk names for dynamically imported module"
+        )))
+    }
+
+    async fn description(&self) -> Result<Option<StyledString>> {
+        Ok(Some(StyledString::Text(
+            format!(
+                "The module {} is dynamically imported with multiple different chunk names ({}). \
+                 All imports of a module share a single chunk group, so only one name can be \
+                 used: \"{}\". Use the same `turbopackChunkName`/`webpackChunkName` comment on \
+                 all dynamic imports of this module to remove this warning.",
+                self.module,
+                self.names
+                    .iter()
+                    .map(|name| format!("\"{name}\""))
+                    .collect::<Vec<_>>()
+                    .join(", "),
+                self.names[0],
+            )
+            .into(),
+        )))
+    }
 }

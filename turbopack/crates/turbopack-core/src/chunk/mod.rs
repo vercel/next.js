@@ -356,7 +356,12 @@ pub enum ChunkingType {
     },
     /// An async loader is placed into the referencing chunk and loads the
     /// separate chunk group in which the module is placed.
-    Async,
+    Async {
+        /// A user-specified name for the chunk group, from a `turbopackChunkName` or
+        /// `webpackChunkName` magic comment. Only affects the file names of the emitted chunks,
+        /// not how modules are grouped into chunk groups.
+        name: Option<RcStr>,
+    },
     /// Create a new chunk group in a separate context, merging references with the same tag into a
     /// single chunk group. It does not inherit the available modules from the parent.
     // TODO this is currently skipped in chunking
@@ -392,7 +397,8 @@ impl Display for ChunkingType {
                     "Parallel(inherit_async: {inherit_async}, hoisted: {hoisted})",
                 )
             }
-            ChunkingType::Async => write!(f, "Async"),
+            ChunkingType::Async { name: Some(name) } => write!(f, "Async(name: {name})"),
+            ChunkingType::Async { name: None } => write!(f, "Async"),
             ChunkingType::Isolated {
                 _ty,
                 merge_tag: Some(merge_tag),
@@ -466,7 +472,7 @@ impl ChunkingType {
                 hoisted: *hoisted,
                 inherit_async: false,
             },
-            ChunkingType::Async => ChunkingType::Async,
+            ChunkingType::Async { name } => ChunkingType::Async { name: name.clone() },
             ChunkingType::Isolated { _ty, merge_tag } => ChunkingType::Isolated {
                 _ty: *_ty,
                 merge_tag: merge_tag.clone(),

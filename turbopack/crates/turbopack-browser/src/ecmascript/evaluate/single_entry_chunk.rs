@@ -74,7 +74,7 @@ impl EcmascriptBrowserSingleEntryChunk {
             *this.chunking_context.debug_ids_enabled().await?,
         );
 
-        let module_chunk = EcmascriptBrowserChunk::new(*this.chunking_context, *this.chunk);
+        let module_chunk = EcmascriptBrowserChunk::new(*this.chunking_context, *this.chunk, None);
         code.push_code(&*module_chunk.own_content().code().await?);
 
         let evaluate_chunk = EcmascriptBrowserEvaluateChunk::new(

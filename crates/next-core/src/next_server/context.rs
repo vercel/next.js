@@ -579,6 +579,7 @@ pub async fn get_server_module_options_context(
             ignore_dynamic_requests: true,
             source_maps,
             infer_module_side_effects: *next_config.turbopack_infer_module_side_effects().await?,
+            enable_chunk_names: *next_config.turbopack_chunk_names().await?,
             ..Default::default()
         },
         execution_context: Some(execution_context),

@@ -532,7 +532,7 @@ pub async fn analyze_module_graphs(module_graph: Vc<ModuleGraph>) -> Result<Vc<F
             };
 
             match reference.chunking_type {
-                ChunkingType::Async => {
+                ChunkingType::Async { .. } => {
                     all_async_edges.insert((parent_node, node));
                 }
                 _ => {

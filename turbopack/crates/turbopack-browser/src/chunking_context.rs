@@ -465,12 +465,13 @@ impl BrowserChunkingContext {
     async fn generate_chunk(
         self: Vc<Self>,
         chunk: ResolvedVc<Box<dyn Chunk>>,
+        chunk_name: Option<RcStr>,
     ) -> Result<ResolvedVc<Box<dyn OutputAsset>>> {
         Ok(
             if let Some(ecmascript_chunk) = ResolvedVc::try_downcast_type::<EcmascriptChunk>(chunk)
             {
                 ResolvedVc::upcast(
-                    EcmascriptBrowserChunk::new(self, *ecmascript_chunk)
+                    EcmascriptBrowserChunk::new(self, *ecmascript_chunk, chunk_name)
                         .to_resolved()
                         .await?,
                 )
@@ -790,6 +791,21 @@ impl ChunkingContext for BrowserChunkingContext {
         let span = tracing::info_span!("chunking", name = display(ident.to_string().await?));
         async move {
             let input_availability_info = availability_info;
+
+            // Async chunk groups can be given a user-specified name via a
+            // `turbopackChunkName`/`webpackChunkName` magic comment, which is included in the
+            // file names of the emitted chunks.
+            let chunk_name = if let ChunkGroup::Async(entry_module) = &chunk_group {
+                module_graph
+                    .chunk_group_info()
+                    .await?
+                    .async_chunk_group_names
+                    .get(entry_module)
+                    .cloned()
+            } else {
+                None
+            };
+
             let MakeChunkGroupResult {
                 chunks,
                 references,
@@ -806,7 +822,22 @@ impl ChunkingContext for BrowserChunkingContext {
 
             let assets = chunks
                 .iter()
-                .map(|chunk| self.generate_chunk(*chunk))
+                .map(|chunk| {
+                    let chunk_name = chunk_name.clone();
+                    async move {
+                        // Only chunks that are exclusive to this chunk group may carry the
+                        // user-specified name; see `chunk_is_exclusive_to_single_chunk_group`.
+                        let chunk_name = match chunk_name {
+                            Some(name) => {
+                                chunk_is_exclusive_to_single_chunk_group(*chunk, *module_graph)
+                                    .await?
+                                    .then_some(name)
+                            }
+                            None => None,
+                        };
+                        self.generate_chunk(*chunk, chunk_name).await
+                    }
+                })
                 .try_join()
                 .await?;
 
@@ -856,7 +887,7 @@ impl ChunkingContext for BrowserChunkingContext {
 
             let mut assets: Vec<ResolvedVc<Box<dyn OutputAsset>>> = chunks
                 .iter()
-                .map(|chunk| self.generate_chunk(*chunk))
+                .map(|chunk| self.generate_chunk(*chunk, None))
                 .try_join()
                 .await?;
 
@@ -1177,6 +1208,49 @@ struct ChunkPathInfo {
     root_path: FileSystemPath,
     chunk_root_path: FileSystemPath,
     chunk_content_hashing: Option<ContentHashing>,
+}
+
+/// Whether every module in the chunk belongs to exactly one chunk group.
+///
+/// Only such chunks may carry a user-specified chunk group name: a chunk containing modules
+/// shared across chunk groups is emitted byte-identically from each of those groups and
+/// deduplicated into a single output file via its group-independent name. Giving it a per-group
+/// name would fork it into duplicate output files (and duplicate downloads).
+///
+/// Synthetic modules that are not part of the module graph (e.g. async loaders) are ignored for
+/// this check.
+async fn chunk_is_exclusive_to_single_chunk_group(
+    chunk: ResolvedVc<Box<dyn Chunk>>,
+    module_graph: Vc<ModuleGraph>,
+) -> Result<bool> {
+    let module_chunk_groups = module_graph.chunk_group_info().module_chunk_groups();
+    let chunk_items = chunk.chunk_items().await?;
+    for item in chunk_items.iter() {
+        let module = item.module().to_resolved().await?;
+        let chunk_groups = match module_chunk_groups.get(&module).await? {
+            Some(chunk_groups) => chunk_groups,
+            None => {
+                // Merged modules don't have a chunk group in chunk_group_info, so look up the
+                // original module instead.
+                let Some(original_module) = module_graph
+                    .merged_modules()
+                    .await?
+                    .get_original_module(module)
+                    .await?
+                else {
+                    continue;
+                };
+                let Some(chunk_groups) = module_chunk_groups.get(&original_module).await? else {
+                    continue;
+                };
+                chunk_groups
+            }
+        };
+        if chunk_groups.len() != 1 {
+            return Ok(false);
+        }
+    }
+    Ok(true)
 }
 
 #[turbo_tasks::value(shared)]
