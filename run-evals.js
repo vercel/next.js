@@ -25,13 +25,6 @@ const { execFileSync, spawnSync } = require('child_process')
 
 const ROOT = __dirname
 
-// Sandbox + agent API keys. agent-eval looks for .env.local in its own cwd
-// (evals/), but `vc env pull` writes to the repo root. Load it here so the
-// vars are already in process.env when we spawn the child.
-try {
-  process.loadEnvFile(path.join(ROOT, '.env.local'))
-} catch {}
-
 const EVALS_DIR = path.join(ROOT, 'evals')
 const FIXTURES_DIR = path.join(EVALS_DIR, 'evals')
 const EXPERIMENTS_DIR = path.join(EVALS_DIR, 'experiments')
@@ -79,8 +72,13 @@ function writeExperiments(evalName) {
 ${v.imports}
 
 const config: ExperimentConfig = {
-  agent: 'claude-code',
-  model: 'claude-opus-4-6',${evalsField}
+  // Via the Vercel AI Gateway, so the OIDC token from \`vc env pull\` is the only
+  // credential needed (it auths the sandbox, the codegen model, and the judge).
+  agent: 'vercel-ai-gateway/claude-code',
+  model: 'claude-opus-4-8',${evalsField}
+  // Cheap fixed grader for the agentic judge clauses in EVAL.ts files — every
+  // run is graded by the same model regardless of the model under test.
+  judge: { model: 'claude-haiku-4-5' },
   scripts: ['build'],
   runs: 1,
   earlyExit: true,
@@ -143,8 +141,11 @@ function main() {
 
   /** @type {string | null} */
   const evalName = argv.all ? null : /** @type {string} */ (argv.evalName)
-  // Flags not consumed here are forwarded to agent-eval.
-  const forward = argv.dry ? ['--dry'] : []
+  // agent-eval 1.3 dropped run-all/--dry: `run` takes explicit experiment names,
+  // and `status` is the read-only preview.
+  const agentEvalArgs = argv.dry
+    ? ['status']
+    : ['run', ...VARIANTS.map((v) => v.suffix), '--force']
 
   if (!fs.existsSync(path.join(ROOT, 'packages/next/dist'))) {
     console.error(
@@ -162,6 +163,20 @@ function main() {
     console.log(`  ${TARBALL} (${mb} MB)`)
   }
 
+  // agent-eval loads .env / .env.local from its own cwd (evals/). `vc env pull`
+  // writes to the repo root, so symlink them into evals/ for agent-eval to find.
+  for (const envFile of ['.env', '.env.local']) {
+    const src = path.join(ROOT, envFile)
+    const dest = path.join(EVALS_DIR, envFile)
+    try {
+      // Remove stale symlink or file before creating a fresh one.
+      fs.rmSync(dest, { force: true })
+      if (fs.existsSync(src)) {
+        fs.symlinkSync(src, dest)
+      }
+    } catch {}
+  }
+
   writeExperiments(evalName)
   console.log(
     evalName
@@ -173,7 +188,7 @@ function main() {
   // the bin directly rather than via `pnpm exec` because pnpm resets cwd to
   // the workspace root, but agent-eval resolves experiments/ from process.cwd().
   const bin = path.join(ROOT, 'node_modules/.bin/agent-eval')
-  const result = spawnSync(bin, ['run-all', '--force', ...forward], {
+  const result = spawnSync(bin, agentEvalArgs, {
     cwd: EVALS_DIR,
     stdio: 'inherit',
     env: { ...process.env, NEXT_EVAL_TARBALL: TARBALL },

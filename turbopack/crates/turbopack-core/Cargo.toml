@@ -25,7 +25,6 @@ data-encoding = { workspace = true }
 either = { workspace = true }
 indexmap = { workspace = true }
 num-bigint = "0.4"
-once_cell = { workspace = true }
 patricia_tree = { version = "0.10.1", features = ["serde"] }
 petgraph = { workspace = true, features = ["serde-1"] }
 roaring = { workspace = true, features = ["serde"] }

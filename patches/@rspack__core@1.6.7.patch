@@ -1,0 +1,11 @@
+diff --git a/dist/Compilation.d.ts b/dist/Compilation.d.ts
+index 271fec0c74ef7fc7a12e9a917dbc5e8cd4f67302..fc02438b27889e4cbffd3561efa0619bbb13ad94 100644
+--- a/dist/Compilation.d.ts
++++ b/dist/Compilation.d.ts
+@@ -414,4 +414,6 @@ export declare class Entries implements Map<string, EntryData> {
+     delete(key: string): boolean;
+     get(key: string): EntryData | undefined;
+     keys(): ReturnType<Map<string, EntryData>["keys"]>;
++    getOrInsert(key: string, defaultValue: EntryData): EntryData;
++    getOrInsertComputed(key: string, callback: (key: string) => EntryData): EntryData;
+ }

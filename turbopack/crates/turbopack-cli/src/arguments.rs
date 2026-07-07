@@ -7,7 +7,7 @@ use std::{
 use anyhow::anyhow;
 use bincode::{Decode, Encode};
 use clap::{Args, Parser, ValueEnum};
-use turbo_tasks::{NonLocalValue, TaskInput, trace::TraceRawVcs};
+use turbo_tasks::trace::TraceRawVcs;
 use turbopack_core::issue::IssueSeverity;
 
 #[derive(Debug, Parser)]
@@ -35,20 +35,8 @@ impl Arguments {
     }
 }
 
-#[derive(
-    Copy,
-    Clone,
-    Debug,
-    ValueEnum,
-    PartialEq,
-    Eq,
-    Hash,
-    TaskInput,
-    NonLocalValue,
-    TraceRawVcs,
-    Encode,
-    Decode,
-)]
+#[turbo_tasks::task_input]
+#[derive(Copy, Clone, Debug, ValueEnum, PartialEq, Eq, Hash, TraceRawVcs, Encode, Decode)]
 pub enum Target {
     Browser,
     Node,
@@ -95,6 +83,16 @@ pub struct CommonArguments {
     /// Number of worker threads to use for parallel processing
     #[clap(long)]
     pub worker_threads: Option<usize>,
+
+    /// Enable filesystem-backed persistent caching.
+    /// Cache is stored at `<cache-dir>/<git-version>`.
+    #[clap(long)]
+    pub persistent_caching: bool,
+
+    /// Directory to store the persistent cache.
+    /// Defaults to `.turbopack/cache` relative to the project directory.
+    #[clap(long)]
+    pub cache_dir: Option<PathBuf>,
     // Enable experimental garbage collection with the provided memory limit in
     // MB.
     // #[clap(long)]

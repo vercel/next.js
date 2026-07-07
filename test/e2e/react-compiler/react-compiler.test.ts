@@ -1,5 +1,5 @@
-import { nextTestSetup, FileRef } from 'e2e-utils'
-import { waitForRedbox } from 'next-test-utils'
+import { isReact18, nextTestSetup, FileRef } from 'e2e-utils'
+import { waitForRedbox, shouldUseTurbopack } from 'next-test-utils'
 import { join } from 'path'
 import stripAnsi from 'strip-ansi'
 
@@ -16,9 +16,14 @@ function normalizeCodeLocInfo(str) {
   )
 }
 
-describe.each(['default', 'babelrc'] as const)(
+describe.each(['default', 'babelrc', 'rust'] as const)(
   'react-compiler %s',
   (variant) => {
+    if (variant === 'rust' && !shouldUseTurbopack()) {
+      it.skip('rust react-compiler requires Turbopack', () => {})
+      return
+    }
+
     const dependencies = (global as any).isNextDeploy
       ? // `link` is incompatible with the npm version used when this test is deployed
         {
@@ -33,7 +38,18 @@ describe.each(['default', 'babelrc'] as const)(
           ? __dirname
           : {
               app: new FileRef(join(__dirname, 'app')),
-              'next.config.js': new FileRef(join(__dirname, 'next.config.js')),
+              pages: new FileRef(join(__dirname, 'pages')),
+              'next.config.js':
+                variant === 'rust'
+                  ? `
+                      /** @type {import('next').NextConfig} */
+                      module.exports = {
+                        reactCompiler: true,
+                        experimental: { turbopackRustReactCompiler: true },
+                        reactProductionProfiling: true,
+                      }
+                    `
+                  : new FileRef(join(__dirname, 'next.config.js')),
               'reference-library': new FileRef(
                 join(__dirname, 'reference-library')
               ),
@@ -42,12 +58,33 @@ describe.each(['default', 'babelrc'] as const)(
       buildArgs: ['--profile'],
       dependencies: {
         'babel-plugin-react-compiler': '0.0.0-experimental-3fde738-20250918',
+        // For React versions below 19, need to install react-compiler-runtime.
+        // https://react.dev/reference/react-compiler/target#targeting-react-17-or-18
+        ...(isReact18 ? { 'react-compiler-runtime': 'latest' } : {}),
         ...dependencies,
       },
     })
 
     it('should memoize Components', async () => {
       const browser = await next.browser('/')
+
+      expect(await browser.eval('window.staticChildRenders')).toEqual(1)
+      expect(
+        await browser.elementByCss('[data-testid="parent-commits"]').text()
+      ).toEqual('Parent commits: 1')
+
+      await browser.elementByCss('button').click()
+      await browser.elementByCss('button').click()
+      await browser.elementByCss('button').click()
+
+      expect(await browser.eval('window.staticChildRenders')).toEqual(1)
+      expect(
+        await browser.elementByCss('[data-testid="parent-commits"]').text()
+      ).toEqual('Parent commits: 4')
+    })
+
+    it('should memoize Pages Router Components', async () => {
+      const browser = await next.browser('/pages-router')
 
       expect(await browser.eval('window.staticChildRenders')).toEqual(1)
       expect(
@@ -80,7 +117,14 @@ describe.each(['default', 'babelrc'] as const)(
       expect(cliOutput).not.toMatch(/error/)
     })
 
-    it('should name functions in dev', async () => {
+    // TODO: The Rust port of the React Compiler does not yet implement the
+    // `Page[useEffect()]` naming heuristic that the Babel plugin applies, so the
+    // memoized temporaries surface as `t0`, `t1`, … in stack frames.
+    //
+    // Re-enable once `nextjs_react_compiler` learns to set debug names on generated
+    // expressions.
+    const it_ = variant === 'rust' ? it.skip : it
+    it_('should name functions in dev', async () => {
       const browser = await next.browser('/function-naming')
       await browser.waitForElementByCss(
         '[data-testid="call-frame"][aria-busy="false"]',

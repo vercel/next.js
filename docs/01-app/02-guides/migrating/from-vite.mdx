@@ -533,6 +533,18 @@ aren’t supported by Next.js. You need to update their usage as follows:
 - `import.meta.env.DEV` ⇒ `process.env.NODE_ENV !== 'production'`
 - `import.meta.env.SSR` ⇒ `typeof window !== 'undefined'`
 
+**`import.meta.glob`** is supported by Turbopack (the default Next.js bundler) with no changes needed. If you were using the `as` option (deprecated in Vite 5), replace it with `query`:
+
+```js
+// Before (Vite)
+const modules = import.meta.glob('./dir/*.txt', { as: 'raw' })
+
+// After (Next.js / Turbopack)
+const modules = import.meta.glob('./dir/*.txt', { query: '?raw' })
+```
+
+See the [import.meta.glob docs](/docs/app/api-reference/turbopack#importmetaglob) for the full API.
+
 Next.js also doesn't provide a built-in `BASE_URL` environment variable. However, you can still
 configure one, if you need it:
 

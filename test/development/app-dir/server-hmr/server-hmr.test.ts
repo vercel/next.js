@@ -1,5 +1,6 @@
 import type { Response } from 'node-fetch'
-import { nextTestSetup } from 'e2e-utils'
+import { join } from 'path'
+import { nextTestSetup, FileRef } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 
 describe('server-hmr', () => {
@@ -155,6 +156,90 @@ describe('server-hmr', () => {
     )
   })
 
+  describe('metadata route hmr', () => {
+    itTurbopackDev(
+      'does not prevent page hmr when metadata route has been loaded',
+      async () => {
+        // Load the manifest route first. This causes the manifest runtime to
+        // register its __turbopack_server_hmr_apply__ on globalThis, which
+        // would overwrite the page's handler if the multi-cast registry is
+        // broken.
+        await next.fetch('/manifest.webmanifest')
+
+        const browser = await next.browser('/module-preservation')
+
+        // Patch the page to a known unique string regardless of prior test state
+        await next.patchFile('app/module-preservation/page.tsx', (content) =>
+          content.replace(/<p id="greeting">.*?<\/p>/, () => {
+            return '<p id="greeting">metadata-hmr-test-initial</p>'
+          })
+        )
+
+        await retry(async () => {
+          const text = await browser.elementByCss('#greeting').text()
+          expect(text).toBe('metadata-hmr-test-initial')
+        })
+
+        await next.patchFile('app/module-preservation/page.tsx', (content) =>
+          content.replace(
+            'metadata-hmr-test-initial',
+            'metadata-hmr-test-updated'
+          )
+        )
+
+        await retry(async () => {
+          const text = await browser.elementByCss('#greeting').text()
+          expect(text).toBe('metadata-hmr-test-updated')
+        })
+      }
+    )
+
+    it('reflects manifest dep changes on fetch/refresh', async () => {
+      const initial = await next
+        .fetch('/manifest.webmanifest')
+        .then((res) => res.json())
+      expect(initial.name).toBe('Version 0')
+
+      await next.patchFile('app/manifest-dep.ts', (content) =>
+        content.replace('Version 0', 'Version 1')
+      )
+
+      await retry(async () => {
+        const updated = await next
+          .fetch('/manifest.webmanifest')
+          .then((res) => res.json())
+        expect(updated.name).toBe('Version 1')
+      })
+    })
+
+    itTurbopackDev(
+      'does not re-evaluate an unmodified dep when manifest changes',
+      async () => {
+        const initial = await next
+          .fetch('/manifest.webmanifest')
+          .then((res) => res.json())
+        const initialDepEvaluatedAt = initial.depEvaluatedAt
+
+        // Patch manifest.ts itself, not the dep module
+        await next.patchFile('app/manifest.ts', (content) =>
+          content.replace('_hmrTrigger = 0', '_hmrTrigger = 1')
+        )
+
+        await retry(async () => {
+          const updated = await next
+            .fetch('/manifest.webmanifest')
+            .then((res) => res.json())
+          // manifest.ts should have been re-evaluated (new timestamp)
+          expect(updated.manifestEvaluatedAt).not.toBe(
+            initial.manifestEvaluatedAt
+          )
+          // manifest-dep.ts should NOT have been re-evaluated
+          expect(updated.depEvaluatedAt).toBe(initialDepEvaluatedAt)
+        })
+      }
+    )
+  })
+
   describe('route handler hmr', () => {
     function getText(res: Response) {
       return res.ok
@@ -204,6 +289,77 @@ describe('server-hmr', () => {
           expect(updated.depEvaluatedAt).toBe(initialDepEvaluatedAt)
         })
       }
+    )
+  })
+})
+
+describe('server-hmr config opt-out', () => {
+  const { next, isTurbopack, isNextDev } = nextTestSetup({
+    files: {
+      app: new FileRef(join(__dirname, 'app')),
+    },
+    nextConfig: {
+      experimental: {
+        turbopackServerFastRefresh: false,
+      },
+    },
+  })
+
+  const itTurbopackDev = isTurbopack && isNextDev ? it : it.skip
+
+  itTurbopackDev(
+    're-evaluates unmodified dependencies when serverFastRefresh is disabled via config',
+    async () => {
+      const initial = await next
+        .fetch('/api/with-dep')
+        .then((res) => res.json())
+      expect(initial.routeVersion).toBe('v1')
+      const initialDepEvaluatedAt = initial.depEvaluatedAt
+
+      // Change only the route module, not the dependency
+      await next.patchFile('app/api/with-dep/route.ts', (content) =>
+        content.replace("'v1'", "'v2'")
+      )
+
+      await retry(async () => {
+        const updated = await next
+          .fetch('/api/with-dep')
+          .then((res) => res.json())
+
+        expect(updated.routeVersion).toBe('v2')
+
+        // With server HMR disabled, the dependency SHOULD be re-evaluated
+        // (full module graph is re-evaluated on changes)
+        expect(updated.depEvaluatedAt).not.toBe(initialDepEvaluatedAt)
+      })
+    }
+  )
+})
+
+describe('server-hmr CLI/config conflict warning', () => {
+  const { next, isNextDev } = nextTestSetup({
+    files: {
+      app: new FileRef(join(__dirname, 'app')),
+    },
+    nextConfig: {
+      experimental: {
+        turbopackServerFastRefresh: true,
+      },
+    },
+    startArgs: ['--no-server-fast-refresh'],
+  })
+
+  if (!isNextDev) {
+    it('should be skipped in production', () => {})
+    return
+  }
+
+  it('should warn when CLI flag conflicts with config', async () => {
+    // Trigger a page load so the server is fully started
+    await next.render('/')
+
+    expect(next.cliOutput).toContain(
+      'The CLI flag "--no-server-fast-refresh" conflicts with "experimental.turbopackServerFastRefresh: true" in your Next.js config. The CLI flag will take precedence.'
     )
   })
 })

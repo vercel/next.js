@@ -4,12 +4,11 @@ use anyhow::{Context, Result};
 use bincode::{Decode, Encode};
 use dunce::canonicalize;
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{NonLocalValue, TaskInput, Vc, trace::TraceRawVcs};
+use turbo_tasks::{Vc, trace::TraceRawVcs};
 use turbo_tasks_fs::{DiskFileSystem, FileSystem};
 
-#[derive(
-    Clone, Debug, TaskInput, Hash, PartialEq, Eq, NonLocalValue, TraceRawVcs, Encode, Decode,
-)]
+#[turbo_tasks::task_input]
+#[derive(Clone, Debug, Hash, PartialEq, Eq, TraceRawVcs, Encode, Decode)]
 pub enum EntryRequest {
     Relative(RcStr),
     Module(RcStr, RcStr),
@@ -67,7 +66,7 @@ pub async fn project_fs(
 ) -> Result<Vc<Box<dyn FileSystem>>> {
     let disk_fs = DiskFileSystem::new_with_denied_paths(
         rcstr!("project"),
-        project_dir,
+        Vc::cell(project_dir),
         vec![denied_root_path],
     );
     if watch {
@@ -78,6 +77,6 @@ pub async fn project_fs(
 
 #[turbo_tasks::function]
 pub fn output_fs(project_dir: RcStr) -> Result<Vc<Box<dyn FileSystem>>> {
-    let disk_fs = DiskFileSystem::new(rcstr!("output"), project_dir);
+    let disk_fs = DiskFileSystem::new(rcstr!("output"), Vc::cell(project_dir));
     Ok(Vc::upcast(disk_fs))
 }

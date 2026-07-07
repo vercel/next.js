@@ -4,6 +4,9 @@ describe('next-config-ts-import-alias-paths-with-baseurl-esm', () => {
   const { next } = nextTestSetup({
     files: __dirname,
     packageJson: {
+      dependencies: {
+        typescript: '5.9.3',
+      },
       type: 'module',
     },
   })
