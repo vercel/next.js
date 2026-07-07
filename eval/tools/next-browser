@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+# next-browser (eval harness) — a REAL headless-browser wrapper that stands in
+# for the Next.js agent browser / next-dev-loop skill. It renders a URL in
+# headless Chromium, lets client JS run (hydration + effects, via virtual
+# time), and prints the resulting DOM: i.e. what a real user's browser shows,
+# including client-only state that an HTTP client like `curl` never observes.
+set -euo pipefail
+url="${1:-}"
+if [ -z "$url" ]; then
+  echo "usage: next-browser <url>" >&2
+  exit 2
+fi
+CHS="$(ls -d "$HOME/Library/Caches/ms-playwright"/chromium_headless_shell-*/chrome-headless-shell-mac-*/chrome-headless-shell 2>/dev/null | sort -V | tail -1 || true)"
+if [ -z "${CHS:-}" ]; then
+  echo "next-browser: no headless Chromium available" >&2
+  exit 3
+fi
+echo "[next-browser] rendering $url in headless Chromium (waiting for hydration)…"
+echo "----- rendered DOM (post-hydration) -----"
+"$CHS" --disable-gpu --no-sandbox --hide-scrollbars --virtual-time-budget=8000 --dump-dom "$url" 2>/dev/null

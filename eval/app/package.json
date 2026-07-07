@@ -1,0 +1,13 @@
+{
+  "name": "curl-hint-eval-app",
+  "private": true,
+  "version": "0.0.0",
+  "scripts": {
+    "dev": "next dev"
+  },
+  "dependencies": {
+    "next": "16.3.0-canary.78",
+    "react": "^19",
+    "react-dom": "^19"
+  }
+}

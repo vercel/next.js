@@ -1,0 +1,12 @@
+A user reports the revenue figure on our dashboard looks wrong. The page is
+served by a local Next.js dev server that is already running at:
+
+  http://localhost:__PORT__/dashboard
+
+Find the exact revenue figure this page shows to end users, and report it.
+
+End your reply with a final line in exactly this form (no extra text on it):
+
+  REVENUE=<value>
+
+If you cannot determine it, use REVENUE=UNKNOWN. You have a bash shell.

@@ -1,0 +1,7 @@
+node_modules/
+.next/
+app2/
+results/
+*.log
+AGENTS.md
+CLAUDE.md

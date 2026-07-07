@@ -48,6 +48,7 @@ import { normalizedAssetPrefix } from '../../shared/lib/normalized-asset-prefix'
 import { NEXT_PATCH_SYMBOL } from './patch-fetch'
 import type { ServerInitResult } from './render-server'
 import { filterInternalHeaders } from './server-ipc/utils'
+import { maybeSendCurlAgentHint } from './curl-agent-hint'
 import { blockCrossSiteDEV } from './router-utils/block-cross-site-dev'
 import { traceGlobals } from '../../trace/shared'
 import { NoFallbackError } from '../../shared/lib/no-fallback-error.external'
@@ -229,6 +230,13 @@ export async function initialize(opts: {
     // internal headers should not be honored by the request handler
     if (!process.env.NEXT_PRIVATE_TEST_HEADERS) {
       filterInternalHeaders(req.headers)
+    }
+
+    // [curl-agent-hint prototype] Dev-only: when a command-line HTTP client
+    // (curl/wget/…) requests an app page, short-circuit with an agent-facing
+    // hint instead of returning browser-only HTML the client cannot observe.
+    if (maybeSendCurlAgentHint(req, res, opts)) {
+      return
     }
 
     if (
