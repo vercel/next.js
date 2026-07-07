@@ -136,9 +136,9 @@ After:
 
 ## Auditing routes for URL data
 
-The App Shell is shared across every link to a route, so it can't contain data that belongs to a single URL. [`params`](/docs/app/api-reference/file-conventions/page#params-optional) and [`searchParams`](/docs/app/api-reference/file-conventions/page#searchparams-optional) are [URL data](/docs/app/glossary#url-data): reading them outside of a [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary ties the shell to the link's URL, and the navigation waits on the network instead of being instant.
+The App Shell is shared across every link to a route, so it can't contain data that belongs to a single URL. [`params`](/docs/app/api-reference/file-conventions/page#params-optional) and [`searchParams`](/docs/app/api-reference/file-conventions/page#searchparams-optional) are [URL data](/docs/app/glossary#url-data): reading them outside of a [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary ties the App Shell to the link's URL, and the navigation waits on the network instead of being instant.
 
-In [`next dev`](/docs/app/api-reference/cli/next#next-dev-options), the dev overlay surfaces an [**instant-shell-link-data** insight](/docs/messages/instant-shell-link-data) for each route that reads URL data this way, so you can work through them one at a time.
+In [`next dev`](/docs/app/api-reference/cli/next#next-dev-options), the dev overlay surfaces an [**instant-shell-url-data** insight](/docs/messages/instant-shell-url-data) for each route that reads URL data this way, so you can work through them one at a time.
 
 The fix is to keep the URL-independent parts of the route outside the boundary and move the `params` or `searchParams` read into a child wrapped in `<Suspense>`. Pass the promise down without awaiting it:
 
@@ -173,7 +173,7 @@ export async function ProductDetails({
 
 Everything outside the boundary stays in the shared App Shell, and only the URL-specific region renders per navigation. Load or navigate to the route again to confirm the insight is gone and the page still paints meaningful UI.
 
-> **Good to know**: [`cookies()`](/docs/app/api-reference/functions/cookies) and [`headers()`](/docs/app/api-reference/functions/headers) don't tie the prefetch to a URL. They vary per user, not per link, so the App Shell is still shared. Only `params` and `searchParams` surface this insight, and a read inside [`generateMetadata`](/docs/app/api-reference/functions/generate-metadata) surfaces as [URL data in `generateMetadata()`](/docs/messages/blocking-prerender-metadata-runtime) instead.
+> **Good to know**: [`cookies()`](/docs/app/api-reference/functions/cookies) and [`headers()`](/docs/app/api-reference/functions/headers) don't tie the prefetch to a URL. They vary per session, not per link, so the App Shell is still shared. Only `params` and `searchParams` surface this insight, and a read inside [`generateMetadata`](/docs/app/api-reference/functions/generate-metadata) surfaces as [URL data in `generateMetadata()`](/docs/messages/blocking-prerender-metadata-runtime) instead.
 
 ## Next steps
 

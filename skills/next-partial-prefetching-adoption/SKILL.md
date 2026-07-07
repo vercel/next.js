@@ -6,7 +6,7 @@ description: >
   Partial Prefetching, flip the `partialPrefetching` flag, opt routes
   in with `export const prefetch = 'partial'`, audit
   `<Link prefetch={true}>` calls, or resolve the
-  link-prefetch-partial and instant-shell-link-data insights.
+  link-prefetch-partial and instant-shell-url-data insights.
 ---
 
 # next-partial-prefetching-adoption
@@ -37,9 +37,9 @@ Two insights drive the work, and they fire on different pages:
 
 1. **[`instant-link-prefetch-partial`](https://nextjs.org/docs/messages/instant-link-prefetch-partial)** fires on the page that _renders_ a `<Link prefetch={true}>` whose target hasn't adopted Partial Prefetching. It's the audit signal for step 1. It fires when the link actually prefetches, so the page holding the link must be visited with the link in the viewport.
 
-2. **[`instant-shell-link-data`](https://nextjs.org/docs/messages/instant-shell-link-data)** ("URL data outside of Suspense") fires on the _target_ route when its shared prefetch reads `params` or `searchParams` outside `<Suspense>`: the read blocks shell extraction, so navigations to the route may not be instant. It fires when the route is validated: on initial load and on navigation to it, regardless of any link's `prefetch` prop.
+2. **[`instant-shell-url-data`](https://nextjs.org/docs/messages/instant-shell-url-data)** ("URL data outside of Suspense") fires on the _target_ route when its shared prefetch reads `params` or `searchParams` outside `<Suspense>`: the read blocks shell extraction, so navigations to the route may not be instant. It fires when the route is validated: on initial load and on navigation to it, regardless of any link's `prefetch` prop.
 
-What counts as URL data: only `params` and `searchParams`. `cookies()` and `headers()` vary per user, not per link, so they don't affect prefetch sharing. `generateStaticParams` doesn't help — a statically-known param still belongs to one URL. A read inside `generateMetadata` surfaces as its own variant ([URL data in `generateMetadata()`](https://nextjs.org/docs/messages/blocking-prerender-metadata-runtime)); a read inside `generateViewport` surfaces as the runtime-viewport prerender error instead, since viewport can't stream out of the shell.
+What counts as URL data: only `params` and `searchParams`. `cookies()` and `headers()` vary per session, not per link, so they don't affect prefetch sharing. `generateStaticParams` doesn't help — a statically-known param still belongs to one URL. A read inside `generateMetadata` surfaces as its own variant ([URL data in `generateMetadata()`](https://nextjs.org/docs/messages/blocking-prerender-metadata-runtime)); a read inside `generateViewport` surfaces as the runtime-viewport prerender error instead, since viewport can't stream out of the shell.
 
 ## working surfaces
 
@@ -79,7 +79,7 @@ Then sweep. The work queue is every route reachable by a link — build it from 
 - The first visit per route pays a compile in dev (long on webpack, or with heavy pages). Warm the route before judging it, and don't mistake a cold compile for a hang.
 - Per insight, apply the fix from its docs page. The shape is always the same: keep the URL-independent part of the route outside the boundary, pass the `params`/`searchParams` promise into a `<Suspense>`-wrapped child, and await it only there. Don't await above the boundary.
 - For the `generateMetadata` variant: switch to a static `metadata` export, or accept the metadata blocking and mark the route dynamic per its fix cards.
-- `export const instant = false` opts a route out of all instant-navigation validation. That's a deliberate, documented decision (the route genuinely can't provide a reusable shell), not a way to clear the list — same rule as the Cache Components skill.
+- `export const instant = false` opts a route out of all instant-navigation validation. That's a deliberate, documented decision (the route genuinely can't provide an App Shell), not a way to clear the list — same rule as the Cache Components skill.
 
 Re-check pages that render links to a route you changed: fixing a target route can surface the next insight on the page linking to it.
 
