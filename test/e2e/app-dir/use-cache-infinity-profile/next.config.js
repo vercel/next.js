@@ -8,7 +8,7 @@ const nextConfig = {
   },
   cacheLife: {
     // The documented way to say "never revalidate/expire".
-    frozen: { stale: 300, revalidate: Infinity, expire: Infinity },
+    frozen: { stale: Infinity, revalidate: Infinity, expire: Infinity },
   },
 }
 
