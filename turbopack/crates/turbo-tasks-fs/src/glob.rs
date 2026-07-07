@@ -10,7 +10,7 @@ use bincode::{
 };
 use regex::bytes::{Regex, RegexBuilder};
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{TaskInput, Vc, trace::TraceRawVcs};
+use turbo_tasks::{Vc, trace::TraceRawVcs};
 
 use crate::globset::parse;
 
@@ -70,10 +70,8 @@ impl<Context> Decode<Context> for Glob {
 
 impl_borrow_decode!(Glob);
 
-#[derive(
-    Copy, Clone, PartialEq, Eq, Hash, Default, TaskInput, TraceRawVcs, Debug, Encode, Decode,
-)]
-
+#[turbo_tasks::task_input]
+#[derive(Copy, Clone, PartialEq, Eq, Hash, Default, TraceRawVcs, Debug, Encode, Decode)]
 pub struct GlobOptions {
     /// Whether the glob is a partial match.
     /// Allows glob to match any part of the given string(s).

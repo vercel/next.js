@@ -564,6 +564,7 @@ async fn parse_file_content(
                 query_str: query,
                 file_path: fs_path.clone(),
                 source,
+                source_text: &fm.src,
                 node_env,
             };
             let span = tracing::trace_span!("transforms");

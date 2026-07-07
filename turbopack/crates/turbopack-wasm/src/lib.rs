@@ -16,6 +16,7 @@ use turbo_tasks_hash::HashAlgorithm;
 use turbopack_core::asset::{Asset, no_hash_salt};
 
 pub(crate) mod analysis;
+pub(crate) mod embed;
 pub(crate) mod loader;
 pub mod module_asset;
 pub(crate) mod output_asset;

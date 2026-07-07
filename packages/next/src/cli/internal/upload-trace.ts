@@ -99,7 +99,7 @@ export async function uploadTraceToBlob(
   }
 
   const uploadableFiles = entries.filter(
-    (f) => f.endsWith('.cpuprofile') || f.endsWith('trace-turbopack')
+    (f) => f.endsWith('.cpuprofile') || f.endsWith('trace-turbopack.bin')
   )
 
   if (uploadableFiles.length === 0) {
@@ -135,7 +135,7 @@ export async function uploadTraceToBlob(
 
     if (file.endsWith('.cpuprofile')) {
       validateCpuProfile(headerBuf, file)
-    } else if (file.endsWith('trace-turbopack')) {
+    } else if (file.endsWith('trace-turbopack.bin')) {
       validateTurbopackTrace(headerBuf, file)
     }
 

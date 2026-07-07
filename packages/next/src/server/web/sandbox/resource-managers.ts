@@ -23,9 +23,9 @@ abstract class ResourceManager<T, Args> {
 
 class IntervalsManager extends ResourceManager<
   number,
-  Parameters<typeof setInterval>
+  Parameters<typeof webSetIntervalPolyfill>
 > {
-  create(args: Parameters<typeof setInterval>) {
+  create(args: Parameters<typeof webSetIntervalPolyfill>) {
     // TODO: use the edge runtime provided `setInterval` instead
     return webSetIntervalPolyfill(...args)
   }
@@ -37,9 +37,9 @@ class IntervalsManager extends ResourceManager<
 
 class TimeoutsManager extends ResourceManager<
   number,
-  Parameters<typeof setTimeout>
+  Parameters<typeof webSetTimeoutPolyfill>
 > {
-  create(args: Parameters<typeof setTimeout>) {
+  create(args: Parameters<typeof webSetTimeoutPolyfill>) {
     // TODO: use the edge runtime provided `setTimeout` instead
     return webSetTimeoutPolyfill(...args)
   }
@@ -49,7 +49,10 @@ class TimeoutsManager extends ResourceManager<
   }
 }
 
+export type GlobalObject = import('edge-runtime').EdgeRuntime['context']
+
 function webSetIntervalPolyfill<TArgs extends any[]>(
+  globalObject: GlobalObject,
   callback: (...args: TArgs) => void,
   ms?: number,
   ...args: TArgs
@@ -58,11 +61,12 @@ function webSetIntervalPolyfill<TArgs extends any[]>(
     // node's `setInterval` sets `this` to the `Timeout` instance it returned,
     // but web `setInterval` always sets `this` to `window`
     // see: https://developer.mozilla.org/en-US/docs/Web/API/Window/setInterval#the_this_problem
-    return callback.apply(globalThis, args)
+    return callback.apply(globalObject, args)
   }, ms)[Symbol.toPrimitive]()
 }
 
 function webSetTimeoutPolyfill<TArgs extends any[]>(
+  globalObject: GlobalObject,
   callback: (...args: TArgs) => void,
   ms?: number,
   ...args: TArgs
@@ -72,7 +76,7 @@ function webSetTimeoutPolyfill<TArgs extends any[]>(
       // node's `setTimeout` sets `this` to the `Timeout` instance it returned,
       // but web `setTimeout` always sets `this` to `window`
       // see: https://developer.mozilla.org/en-US/docs/Web/API/Window/setTimeout#the_this_problem
-      return callback.apply(globalThis, args)
+      return callback.apply(globalObject, args)
     } finally {
       // On certain older node versions (<20.16.0, <22.4.0),
       // a `setTimeout` whose Timeout was converted to a primitive will leak.

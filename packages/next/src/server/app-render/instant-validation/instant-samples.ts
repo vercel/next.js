@@ -151,7 +151,7 @@ function createMissingCookieSampleError(
 ): InstantValidationError {
   return new InstantValidationError(
     `Route "${route}" accessed cookie "${name}" which is not defined in the \`unstable_samples\` ` +
-      `of \`unstable_instant\`. Add it to the sample's \`cookies\` array, ` +
+      `of \`instant\`. Add it to the sample's \`cookies\` array, ` +
       `or \`{ name: "${name}", value: null }\` if it should be absent.`
   )
 }
@@ -207,7 +207,7 @@ export function createHeadersFromSample(
             trackMissingSampleErrorAndThrow(
               new InstantValidationError(
                 `Route "${route}" accessed header "${name}" which is not defined in the \`unstable_samples\` ` +
-                  `of \`unstable_instant\`. Add it to the sample's \`headers\` array, ` +
+                  `of \`instant\`. Add it to the sample's \`headers\` array, ` +
                   `or \`["${name}", null]\` if it should be absent.`
               )
             )
@@ -270,7 +270,7 @@ export function createExhaustiveParamsProxy<TParams extends Params>(
         trackMissingSampleErrorAndThrow(
           new InstantValidationError(
             `Route "${route}" accessed param "${prop}" which is not defined in the \`unstable_samples\` ` +
-              `of \`unstable_instant\`. Add it to the sample's \`params\` object.`
+              `of \`instant\`. Add it to the sample's \`params\` object.`
           )
         )
       }
@@ -360,7 +360,7 @@ function createMissingSearchParamSampleError(
 ): InstantValidationError {
   return new InstantValidationError(
     `Route "${route}" accessed searchParam "${name}" which is not defined in the \`unstable_samples\` ` +
-      `of \`unstable_instant\`. Add it to the sample's \`searchParams\` object, ` +
+      `of \`instant\`. Add it to the sample's \`searchParams\` object, ` +
       `or \`{ "${name}": null }\` if it should be absent.`
   )
 }
@@ -489,7 +489,7 @@ export function assertRootParamInSamples(
     trackMissingSampleErrorAndThrow(
       new InstantValidationError(
         `Route "${route}" accessed root param "${paramName}" which is not defined in the \`unstable_samples\` ` +
-          `of \`unstable_instant\`. Add it to the sample's \`params\` object.`
+          `of \`instant\`. Add it to the sample's \`params\` object.`
       )
     )
   }

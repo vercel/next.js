@@ -267,13 +267,23 @@ export interface NextJsHotReloaderInterface {
     definition,
     isApp,
     url,
+    subscribeToChanges,
   }: {
     page: string
     clientOnly: boolean
     appPaths?: ReadonlyArray<string> | null
     isApp?: boolean
-    definition: RouteDefinition | undefined
+    definition?: RouteDefinition
     url?: string
+    /**
+     * Whether to wire HMR change subscriptions for the compiled entry.
+     * Defaults to true (the dev server uses these to push updates to
+     * connected browsers). Pass false for one-shot compilations (e.g.
+     * the `compile_route` MCP tool) where there is no client to receive
+     * HMR updates — without this, repeated calls leak subscriptions that
+     * keep firing on every file change for the life of the dev server.
+     */
+    subscribeToChanges?: boolean
   }): Promise<void>
   close(): void
 }

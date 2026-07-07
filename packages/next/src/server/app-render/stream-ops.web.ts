@@ -1,6 +1,7 @@
 /**
  * Web stream operations for the rendering pipeline.
- * Loaded by stream-ops.ts when __NEXT_USE_NODE_STREAMS is false (default).
+ * Loaded by stream-ops.ts when __NEXT_USE_NODE_STREAMS is false, such as edge
+ * bundles where Node.js streams are unavailable.
  *
  * AnyStream = AnyStreamType so the exported type surface matches stream-ops.node.ts,
  * allowing the switcher to assign either module without `as unknown as`.

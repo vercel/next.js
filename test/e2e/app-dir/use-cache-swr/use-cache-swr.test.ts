@@ -2,7 +2,7 @@ import { nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 
 describe('use-cache-swr', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next, skipped, isNextDev } = nextTestSetup({
     files: __dirname,
     skipDeployment: true,
   })
@@ -51,10 +51,16 @@ describe('use-cache-swr', () => {
     // The data should now be fresh (different from the stale data).
     expect(afterRegen).not.toBe(initialOuter)
 
-    // Verify this was served from the pre-warmed cache (get hit, no set).
-    const cliOutput = next.cliOutput.slice(outputIndex)
-    expect(cliOutput).toMatch(/PersistentCacheHandler::get.*"outer".*-> hit/)
-    expect(cliOutput).not.toMatch(/PersistentCacheHandler::set.*"outer"/)
+    // Verify this was served from the pre-warmed cache (get hit, no regen set).
+    // In production the backing `get` hit is logged synchronously during the
+    // request. In dev the warm read is served from the built-in front handler
+    // in a microtask and the backing `get` runs in the background reconcile, so
+    // we poll for it. Either way, no regeneration `set` should occur.
+    await retry(() => {
+      const cliOutput = next.cliOutput.slice(outputIndex)
+      expect(cliOutput).toMatch(/PersistentCacheHandler::get.*"outer".*-> hit/)
+      expect(cliOutput).not.toMatch(/PersistentCacheHandler::set.*"outer"/)
+    })
   })
 
   it('should serve stale data without blocking on the background regeneration', async () => {
@@ -202,6 +208,15 @@ describe('use-cache-swr', () => {
         // Ignore replayed logs that have a Cache badge.
         !line.includes(' Cache ')
     )
-    expect(generationCalls).toHaveLength(1)
+
+    // In dev, warm reads resolve in a microtask via the built-in front handler,
+    // so the cross-request dedup window (the leader's read latency) is too
+    // small for concurrent requests to reliably join one leader. That is the
+    // intended dev-fast trade, and only costs a redundant regen in single-user
+    // dev. The strict dedup guarantee is a production concern, where the
+    // backing read holds the window open.
+    if (!isNextDev) {
+      expect(generationCalls).toHaveLength(1)
+    }
   })
 })

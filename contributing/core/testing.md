@@ -105,16 +105,16 @@ we attempt to capture traces of the playwright run to make debugging the failure
 A test-trace artifact should be uploaded after the workflow completes which can be downloaded, unzipped,
 and then inspected with `pnpm playwright show-trace ./path/to/trace`
 
-To attach the chrome debugger to next the easiest approach is to modify the `createNext` call in your test to pass `--inspect` to next.
+To attach the chrome debugger to next the easiest approach is to modify the `nextTestSetup` call in your test to pass `--inspect` to next.
 
 ```js
-const next = await createNext({
+const { next } = nextTestSetup({
   ...
-  startArgs: =['--inspect'],
+  startArgs: ['--inspect'],
 })
 ```
 
-Consider also sett `NEXT_E2E_TEST_TIMEOUT=0`
+Consider also setting `NEXT_E2E_TEST_TIMEOUT=0`
 
 To debug the test process itself you need to pass the `inspect` flag to the node process running jest. e.g. `IS_TURBOPACK_TEST=1 TURBOPACK_DEV=1 NEXT_TEST_MODE=dev node --inspect node_modules/jest/bin/jest.js ...`
 
@@ -130,7 +130,7 @@ To run the test suite using Turbopack, you can use the `-turbo` version of the n
 pnpm test-dev-turbo test/e2e/app-dir/app/
 ```
 
-If you want to run a test again both Turbopack and Webpack, use Jest's `--projects` flag:
+If you want to run a test against both Turbopack and Webpack, use Jest's `--projects` flag:
 
 ```sh
 pnpm test-dev test/e2e/app-dir/app/ --projects jest.config.*
@@ -213,6 +213,15 @@ be shown information about how to use these tarballs in a project by modifying t
 On Linux, this generates stripped `@next/swc` binaries to avoid exceeding 2 GiB, [which is
 known to cause problems with `pnpm`](https://github.com/libuv/libuv/pull/1501). That behavior can be
 overridden with `--compress objcopy-zstd` on Linux (which is slower, but retains debuginfo).
+
+To create tarballs that can be deployed with a project, use:
+
+```bash
+pnpm pack-next --project ~/my-project/ --deployable-tar
+```
+
+This writes the tarballs to a `tarballs` directory next to the patched project `package.json` and
+uses relative `file:` references so the tarballs can be included with the project.
 
 These tarballs can be extracted directly into a project's `node_modules` directory (bypassing the
 package manager) by using:

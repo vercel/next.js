@@ -8,8 +8,7 @@ use bincode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    FxIndexMap, NonLocalValue, ReadRef, ResolvedVc, TaskInput, TryFlatJoinIterExt, TryJoinIterExt,
-    Vc, trace::TraceRawVcs,
+    FxIndexMap, ReadRef, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Vc, trace::TraceRawVcs,
 };
 use turbo_tasks_fs::{File, FileContent, FileSystemPath};
 use turbopack_core::{
@@ -35,6 +34,12 @@ pub struct BuildManifest {
     pub root_main_files: Vec<ResolvedVc<Box<dyn OutputAsset>>>,
     #[bincode(with = "turbo_bincode::indexmap")]
     pub pages: FxIndexMap<RcStr, ResolvedVc<OutputAssets>>,
+    /// Per-page extra files that supplement `root_main_files` for App Router
+    /// pages. Serialized as `rootMainFilesTree[page] = [...root_main_files,
+    /// ...per_page_files]` so that `required-scripts.tsx` can load the correct
+    /// page-specific scripts without polluting the shared `rootMainFiles`.
+    #[bincode(with = "turbo_bincode::indexmap")]
+    pub root_main_files_per_page: FxIndexMap<RcStr, Vec<ResolvedVc<Box<dyn OutputAsset>>>>,
 }
 
 #[turbo_tasks::value_impl]
@@ -50,12 +55,19 @@ impl OutputAssetsReference for BuildManifest {
             .try_flat_join()
             .await?;
 
+        let per_page_files = self
+            .root_main_files_per_page
+            .values()
+            .flatten()
+            .copied()
+            .collect::<Vec<_>>();
+
         let references = chunks
             .into_iter()
             .flatten()
-            .copied()
             .chain(root_main_files)
             .chain(self.polyfill_files.iter().copied())
+            .chain(per_page_files)
             .collect();
 
         Ok(OutputAssetsWithReferenced::from_assets(Vc::cell(
@@ -88,6 +100,7 @@ impl Asset for BuildManifest {
             pub root_main_files: Vec<RcStr>,
             pub pages: FxIndexMap<RcStr, Vec<RcStr>>,
             pub amp_first_pages: Vec<RcStr>,
+            pub root_main_files_tree: FxIndexMap<RcStr, Vec<RcStr>>,
         }
 
         let pages: Vec<(RcStr, Vec<RcStr>)> = self
@@ -147,10 +160,41 @@ impl Asset for BuildManifest {
             .try_flat_join()
             .await?;
 
+        let root_main_files_tree: Vec<(RcStr, Vec<RcStr>)> = self
+            .root_main_files_per_page
+            .iter()
+            .map(async |(page, per_page_chunks)| {
+                let per_page_paths: Vec<RcStr> = per_page_chunks
+                    .iter()
+                    .copied()
+                    .map(async |chunk| {
+                        let chunk_path = chunk.path().await?;
+                        Ok(client_relative_path
+                            .get_path_to(&chunk_path)
+                            .context(
+                                "failed to resolve client-relative path to per-page root file",
+                            )?
+                            .into())
+                    })
+                    .try_join()
+                    .await?;
+                // Combine the shared root_main_files with this page's extra
+                // files so that required-scripts.tsx gets the full list.
+                let combined = root_main_files
+                    .iter()
+                    .cloned()
+                    .chain(per_page_paths)
+                    .collect();
+                Ok((page.clone(), combined))
+            })
+            .try_join()
+            .await?;
+
         let manifest = SerializedBuildManifest {
             pages: FxIndexMap::from_iter(pages),
             polyfill_files,
             root_main_files,
+            root_main_files_tree: FxIndexMap::from_iter(root_main_files_tree),
             ..Default::default()
         };
 
@@ -234,6 +278,7 @@ impl Default for MiddlewaresManifest {
     }
 }
 
+#[turbo_tasks::task_input]
 #[derive(
     Debug,
     Clone,
@@ -242,11 +287,9 @@ impl Default for MiddlewaresManifest {
     PartialEq,
     Ord,
     PartialOrd,
-    TaskInput,
     TraceRawVcs,
     Serialize,
     Deserialize,
-    NonLocalValue,
     Encode,
     Decode,
 )]
@@ -405,9 +448,8 @@ pub struct ActionManifestWorkerEntry<'a> {
     pub module_id: ActionManifestModuleId<'a>,
     #[serde(rename = "async")]
     pub is_async: bool,
-    #[serde(rename = "exportedName")]
-    pub exported_name: &'a str,
-    pub filename: &'a str,
+    #[serde(rename = "codeHash")]
+    pub code_hash: Option<&'a str>,
 }
 
 #[derive(Serialize, Debug, Clone)]
@@ -417,6 +459,7 @@ pub enum ActionManifestModuleId<'a> {
     Number(u64),
 }
 
+#[turbo_tasks::task_input]
 #[derive(
     Debug,
     Copy,
@@ -426,11 +469,9 @@ pub enum ActionManifestModuleId<'a> {
     PartialEq,
     Ord,
     PartialOrd,
-    TaskInput,
     TraceRawVcs,
     Serialize,
     Deserialize,
-    NonLocalValue,
     Encode,
     Decode,
 )]

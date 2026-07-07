@@ -18,19 +18,10 @@ import {
   getSelectedLayoutSegmentPath,
 } from '../../shared/lib/segment'
 
-const useDynamicRouteParams =
-  typeof window === 'undefined'
-    ? (
-        require('../../server/app-render/dynamic-rendering') as typeof import('../../server/app-render/dynamic-rendering')
-      ).useDynamicRouteParams
-    : undefined
-
-const useDynamicSearchParams =
-  typeof window === 'undefined'
-    ? (
-        require('../../server/app-render/dynamic-rendering') as typeof import('../../server/app-render/dynamic-rendering')
-      ).useDynamicSearchParams
-    : undefined
+import {
+  useDynamicRouteParams,
+  useDynamicSearchParams,
+} from './navigation-dynamic-rendering'
 
 const {
   instrumentParamsForClientValidation,
@@ -38,7 +29,9 @@ const {
   expectCompleteParamsInClientValidation,
 } =
   typeof window === 'undefined' && process.env.__NEXT_CACHE_COMPONENTS
-    ? (require('../../server/app-render/instant-validation/instant-samples-client') as typeof import('../../server/app-render/instant-validation/instant-samples-client'))
+    ? // TODO(browser-variant): migrate to a .ts/.browser.ts split so the browser bundle drops the server branch; see scripts/generate-browser-variant-aliases.mjs
+      // ast-grep-ignore: no-typeof-window-require
+      (require('../../server/app-render/instant-validation/instant-samples-client') as typeof import('../../server/app-render/instant-validation/instant-samples-client'))
     : {}
 
 /**
@@ -179,7 +172,29 @@ export function useRouter(): AppRouterInstance {
     throw new Error('invariant expected app router to be mounted')
   }
 
-  return router
+  // Read the bfcacheId of the closest CacheNode and merge it into the
+  // returned router instance. This is contextual: callers in a shared
+  // layout get the layout's id; callers in a leaf segment get the leaf's.
+  // The id is stored on the CacheNode as a number and materialized as a
+  // string here. The format mirrors React's `useId()` (e.g. `_r_0_`) with
+  // a `b` prefix, so the id can be safely concatenated with other keys
+  // without collision.
+  const layout = useContext(LayoutRouterContext)
+  const bfcacheIdNumber = layout?.parentCacheNode.bfcacheId ?? 0
+  return useMemo<AppRouterInstance>(
+    () => ({
+      back: router.back,
+      forward: router.forward,
+      refresh: router.refresh,
+      hmrRefresh: router.hmrRefresh,
+      push: router.push,
+      replace: router.replace,
+      prefetch: router.prefetch,
+      experimental_gesturePush: router.experimental_gesturePush,
+      bfcacheId: '_b_' + bfcacheIdNumber + '_',
+    }),
+    [router, bfcacheIdNumber]
+  )
 }
 
 /**

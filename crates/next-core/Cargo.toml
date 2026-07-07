@@ -87,6 +87,10 @@ turbopack-resolve = { workspace = true }
 turbopack-static = { workspace = true }
 turbopack-trace-utils = { workspace = true }
 
+[dev-dependencies]
+tokio = { workspace = true }
+turbo-tasks-backend = { workspace = true }
+
 [features]
 default = ["process_pool"]
 process_pool = ["turbopack-node/process_pool"]

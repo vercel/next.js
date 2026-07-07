@@ -1,4 +1,4 @@
-import type { Playwright } from '../../../lib/next-webdriver'
+import type { Playwright } from 'e2e-utils'
 import { waitForDevToolsIndicator } from 'next-test-utils'
 
 export async function getDevIndicatorPosition(browser: Playwright) {

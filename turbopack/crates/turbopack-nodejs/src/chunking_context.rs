@@ -12,7 +12,7 @@ use turbopack_core::{
         AssetSuffix, Chunk, ChunkGroupResult, ChunkItem, ChunkType, ChunkableModule,
         ChunkingConfig, ChunkingConfigs, ChunkingContext, ContentHashing, EntryChunkGroupResult,
         EvaluatableAsset, MinifyType, SourceMapSourceType, SourceMapsType, UnusedReferences,
-        UrlBehavior,
+        UrlBehavior, WorkerConfigurationOptions,
         availability_info::AvailabilityInfo,
         chunk_group::{MakeChunkGroupResult, make_chunk_group},
         chunk_id_strategy::ModuleIdStrategy,
@@ -81,11 +81,6 @@ impl NodeJsChunkingContextBuilder {
 
     pub fn source_maps(mut self, source_maps: SourceMapsType) -> Self {
         self.chunking_context.source_maps_type = source_maps;
-        self
-    }
-
-    pub fn file_tracing(mut self, enable_tracing: bool) -> Self {
-        self.chunking_context.enable_file_tracing = enable_tracing;
         self
     }
 
@@ -212,8 +207,6 @@ pub struct NodeJsChunkingContext {
     environment: ResolvedVc<Environment>,
     /// The kind of runtime to include in the output.
     runtime_type: RuntimeType,
-    /// Enable tracing for this chunking
-    enable_file_tracing: bool,
     /// Enable nested async availability for this chunking
     enable_nested_async_availability: bool,
     /// Enable module merging
@@ -272,7 +265,6 @@ impl NodeJsChunkingContext {
                 asset_prefixes: Default::default(),
                 url_behaviors: Default::default(),
                 default_url_behavior: None,
-                enable_file_tracing: false,
                 enable_nested_async_availability: false,
                 enable_module_merging: false,
                 enable_dynamic_chunk_content_loading: false,
@@ -372,11 +364,6 @@ impl ChunkingContext for NodeJsChunkingContext {
     #[turbo_tasks::function]
     fn environment(&self) -> Vc<Environment> {
         *self.environment
-    }
-
-    #[turbo_tasks::function]
-    fn is_tracing_enabled(&self) -> Vc<bool> {
-        Vc::cell(self.enable_file_tracing)
     }
 
     #[turbo_tasks::function]
@@ -528,19 +515,17 @@ impl ChunkingContext for NodeJsChunkingContext {
         self: ResolvedVc<Self>,
         ident: Vc<AssetIdent>,
         chunk_group: ChunkGroup,
-        module_graph: Vc<ModuleGraph>,
+        module_graph: ResolvedVc<ModuleGraph>,
         availability_info: AvailabilityInfo,
     ) -> Result<Vc<ChunkGroupResult>> {
         let span = tracing::info_span!("chunking", name = display(ident.to_string().await?));
         async move {
-            let modules = chunk_group.entries();
             let MakeChunkGroupResult {
                 chunks,
-                referenced_output_assets,
                 references,
                 availability_info,
             } = make_chunk_group(
-                modules,
+                chunk_group,
                 module_graph,
                 ResolvedVc::upcast(self),
                 availability_info,
@@ -557,7 +542,7 @@ impl ChunkingContext for NodeJsChunkingContext {
 
             Ok(ChunkGroupResult {
                 assets: ResolvedVc::cell(assets),
-                referenced_assets: ResolvedVc::cell(referenced_output_assets),
+                referenced_assets: OutputAssets::empty_resolved(),
                 references: ResolvedVc::cell(references),
                 availability_info,
             }
@@ -572,7 +557,7 @@ impl ChunkingContext for NodeJsChunkingContext {
         self: ResolvedVc<Self>,
         path: FileSystemPath,
         chunk_group: ChunkGroup,
-        module_graph: Vc<ModuleGraph>,
+        module_graph: ResolvedVc<ModuleGraph>,
         extra_chunks: Vc<OutputAssets>,
         extra_referenced_assets: Vc<OutputAssets>,
         availability_info: AvailabilityInfo,
@@ -583,14 +568,12 @@ impl ChunkingContext for NodeJsChunkingContext {
             chunking_type = "entry",
         );
         async move {
-            let entries = chunk_group.entries();
             let MakeChunkGroupResult {
                 chunks,
-                mut referenced_output_assets,
                 references,
                 availability_info,
             } = make_chunk_group(
-                entries,
+                chunk_group.clone(),
                 module_graph,
                 ResolvedVc::upcast(self),
                 availability_info,
@@ -606,8 +589,6 @@ impl ChunkingContext for NodeJsChunkingContext {
                 .try_join()
                 .await?;
             other_chunks.extend(extra_chunks.iter().copied());
-
-            referenced_output_assets.extend(extra_referenced_assets.await?.iter().copied());
 
             let Some(module) = ResolvedVc::try_sidecast(chunk_group.entries().last().unwrap())
             else {
@@ -628,9 +609,9 @@ impl ChunkingContext for NodeJsChunkingContext {
                     Vc::cell(other_chunks),
                     Vc::cell(evaluatable_assets),
                     *module,
-                    Vc::cell(referenced_output_assets),
+                    extra_referenced_assets,
                     Vc::cell(references),
-                    module_graph,
+                    *module_graph,
                     *self,
                 )
                 .to_resolved()
@@ -653,6 +634,7 @@ impl ChunkingContext for NodeJsChunkingContext {
         _ident: Vc<AssetIdent>,
         _chunk_group: ChunkGroup,
         _module_graph: Vc<ModuleGraph>,
+        _extra_chunks: Vc<OutputAssets>,
         _availability_info: AvailabilityInfo,
     ) -> Result<Vc<ChunkGroupResult>> {
         bail!("the Node.js chunking context does not support evaluated chunk groups")
@@ -732,7 +714,11 @@ impl ChunkingContext for NodeJsChunkingContext {
     }
 
     #[turbo_tasks::function]
-    fn worker_forwarded_globals(&self) -> Vc<Vec<RcStr>> {
-        Vc::cell(self.worker_forwarded_globals.clone())
+    fn worker_configuration_options(&self) -> Vc<WorkerConfigurationOptions> {
+        WorkerConfigurationOptions {
+            asset_prefix: None,
+            forwarded_globals: self.worker_forwarded_globals.clone(),
+        }
+        .cell()
     }
 }

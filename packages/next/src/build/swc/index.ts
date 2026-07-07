@@ -22,6 +22,7 @@ import type {
 } from './generated-native'
 import type {
   Binding,
+  BuildFeatureUsage,
   CompilationEvent,
   DefineEnv,
   Endpoint,
@@ -730,9 +731,14 @@ function bindingToApi(
       } else {
         return {
           issues: napiEndpoints.issues,
-          diagnostics: napiEndpoints.diagnostics,
         }
       }
+    }
+
+    async featureUsage(): Promise<BuildFeatureUsage[]> {
+      return (await binding.projectFeatureUsage(
+        this._nativeProject
+      )) as BuildFeatureUsage[]
     }
 
     entrypointsSubscribe() {
@@ -750,7 +756,6 @@ function bindingToApi(
           } else {
             yield {
               issues: entrypoints.issues,
-              diagnostics: entrypoints.diagnostics,
             } as TurbopackResult<{}>
           }
         }
@@ -1022,6 +1027,25 @@ function bindingToApi(
       nextConfigSerializable.turbopack = turbopack
     }
 
+    // Serialize `experimental.turbopackChunkingHeuristics` route patterns: convert each RegExp to
+    // {source, flags} since RegExp objects are not JSON-serializable.
+    const chunkingHeuristics =
+      nextConfigSerializable.experimental?.turbopackChunkingHeuristics
+    if (chunkingHeuristics) {
+      const regexComponents = (regex: RegExp) => ({
+        source: regex.source,
+        flags: regex.flags,
+      })
+      nextConfigSerializable.experimental = {
+        ...nextConfigSerializable.experimental,
+        turbopackChunkingHeuristics: {
+          ...chunkingHeuristics,
+          priorityRoutes:
+            chunkingHeuristics.priorityRoutes?.map(regexComponents),
+        },
+      }
+    }
+
     return JSON.stringify(nextConfigSerializable, null, 2)
   }
 
@@ -1239,7 +1263,6 @@ function bindingToApi(
       pagesAppEndpoint: new EndpointImpl(entrypoints.pagesAppEndpoint),
       pagesErrorEndpoint: new EndpointImpl(entrypoints.pagesErrorEndpoint),
       issues: entrypoints.issues,
-      diagnostics: entrypoints.diagnostics,
     }
   }
 
@@ -1251,7 +1274,7 @@ function bindingToApi(
     return new ProjectImpl(
       await binding.projectNew(
         await rustifyProjectOptions(options),
-        turboEngineOptions || {},
+        turboEngineOptions,
         {
           throwTurbopackInternalError: (
             require('../../shared/lib/turbopack/internal-error') as typeof import('../../shared/lib/turbopack/internal-error')
@@ -1386,7 +1409,7 @@ async function loadWasm(importPath = '') {
     turbo: {
       createProject(
         _options: ProjectOptions,
-        _turboEngineOptions?: TurboEngineOptions | undefined,
+        _turboEngineOptions: TurboEngineOptions,
         _callbacks?: import('./types').TurbopackProjectCallbacks | undefined
       ): Promise<Project> {
         throw new Error(

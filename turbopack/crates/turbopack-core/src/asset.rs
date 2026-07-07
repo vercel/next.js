@@ -4,7 +4,7 @@ use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::{
     FileContent, FileJsonContent, FileLinesContent, FileSystemPath, LinkContent, LinkType,
 };
-use turbo_tasks_hash::{HashAlgorithm, Xxh3Hash64Hasher};
+use turbo_tasks_hash::{HashAlgorithm, deterministic_hash};
 
 use crate::version::{VersionedAssetContent, VersionedContent};
 
@@ -131,16 +131,13 @@ impl AssetContent {
     }
 
     #[turbo_tasks::function]
-    pub async fn hash(&self) -> Result<Vc<u64>> {
+    pub fn hash(&self, algorithm: HashAlgorithm) -> Vc<RcStr> {
         match self {
-            AssetContent::File(content) => Ok(content.hash()),
-            AssetContent::Redirect { target, link_type } => {
-                use turbo_tasks_hash::DeterministicHash;
-                let mut hasher = Xxh3Hash64Hasher::new();
-                target.deterministic_hash(&mut hasher);
-                link_type.deterministic_hash(&mut hasher);
-                Ok(Vc::cell(hasher.finish()))
-            }
+            AssetContent::File(content) => content.hash(algorithm),
+            AssetContent::Redirect { target, link_type } => Vc::cell(RcStr::from(
+                // no_hash_salt
+                deterministic_hash("", (target, link_type), algorithm),
+            )),
         }
     }
 
