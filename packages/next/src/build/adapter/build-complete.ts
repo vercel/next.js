@@ -657,7 +657,8 @@ export async function handleBuildComplete({
           ? normalizeAppPath(route)
           : route === '/index'
             ? '/'
-            : route
+            : route.replace(/\/index$/, '')
+        const functionConfig = functionsConfigManifest.functions[pathname] || {}
         const edgeEntrypointRelativePath = page.entrypoint
         const edgeEntrypointPath = path.join(
           distDir,
@@ -683,6 +684,7 @@ export async function handleBuildComplete({
           // Computing assetsHash for edge functions isn't implemented for now
           wasmAssets: {},
           config: {
+            maxDuration: functionConfig.maxDuration,
             env: page.env,
             preferredRegion: page.regions,
           },

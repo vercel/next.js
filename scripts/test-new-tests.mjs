@@ -189,7 +189,15 @@ async function main() {
           NEXT_TEST_MODE: testMode,
           NEXT_TEST_VERSION: nextTestVersion,
           NEXT_TEST_PREVIEW_BUILDS_BASE_URL: previewBuildsBaseUrl,
-          IS_WEBPACK_TEST: '1',
+          TURBOPACK_BUILD:
+            process.env.IS_TURBOPACK_TEST &&
+            (testMode === 'start' || testMode === 'deploy')
+              ? '1'
+              : undefined,
+          TURBOPACK_DEV:
+            process.env.IS_TURBOPACK_TEST && testMode === 'dev'
+              ? '1'
+              : undefined,
           NEXT_TEST_SKIP_RESULT_CACHE: '1',
         },
       })
