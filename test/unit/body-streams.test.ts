@@ -19,6 +19,36 @@ async function readAll(stream: Readable): Promise<Buffer> {
   return Buffer.concat(chunks)
 }
 
+async function readAllWeb(stream: Readable, timeoutMs = 1000): Promise<Buffer> {
+  let timeout: ReturnType<typeof setTimeout>
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timeout = setTimeout(() => {
+      reject(new Error('Timed out reading stream via Readable.toWeb()'))
+    }, timeoutMs)
+  })
+
+  try {
+    return await Promise.race([
+      (async () => {
+        const web = Readable.toWeb(stream)
+        const reader = web.getReader()
+        const out: Buffer[] = []
+
+        for (;;) {
+          const { done, value } = await reader.read()
+          if (done) break
+          out.push(Buffer.from(value))
+        }
+
+        return Buffer.concat(out)
+      })(),
+      timeoutPromise,
+    ])
+  } finally {
+    clearTimeout(timeout!)
+  }
+}
+
 describe('getCloneableBody', () => {
   // Regression test for https://github.com/vercel/next.js/issues/95335
   //
@@ -42,16 +72,8 @@ describe('getCloneableBody', () => {
 
     // The request must not masquerade as a writable stream after finalize.
     expect((req as any)._writableState).toBeUndefined()
-
-    // Reading the finalized body with the standard Node API must not hang.
-    const web = Readable.toWeb(req as unknown as Readable)
-    const reader = web.getReader()
-    const out: Buffer[] = []
-    for (;;) {
-      const { done, value } = await reader.read()
-      if (done) break
-      out.push(Buffer.from(value as Uint8Array))
-    }
-    expect(Buffer.concat(out).toString()).toBe(body)
+    expect((req as any).write).toBeUndefined()
+    expect((req as any).end).toBeUndefined()
+    expect((await readAllWeb(req as unknown as Readable)).toString()).toBe(body)
   })
 })
