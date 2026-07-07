@@ -80,6 +80,7 @@ export async function exportAppRoute(
       experimental,
       isBuildTimePrerendering: true,
       supportsDynamicResponse: false,
+      nextConfigOutput: module.nextConfigOutput,
       incrementalCache,
       waitUntil: afterRunner.context.waitUntil,
       onClose: afterRunner.context.onClose,

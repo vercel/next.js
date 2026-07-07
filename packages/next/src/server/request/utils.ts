@@ -1,15 +1,22 @@
-import { StaticGenBailoutError } from '../../client/components/static-generation-bailout'
+import {
+  StaticGenBailoutError,
+  createStaticExportRequestAccessError,
+} from '../../client/components/static-generation-bailout'
 import { actionAsyncStorage } from '../app-render/action-async-storage.external'
 import { afterTaskAsyncStorage } from '../app-render/after-task-async-storage.external'
 import type { WorkStore } from '../app-render/work-async-storage.external'
 import type { WorkUnitStore } from '../app-render/work-unit-async-storage.external'
 
 export function throwWithStaticGenerationBailoutErrorWithDynamicError(
-  route: string,
+  workStore: WorkStore,
   expression: string
 ): never {
+  if (workStore.isStaticExport && workStore.cacheComponentsEnabled) {
+    throw createStaticExportRequestAccessError(workStore.route, expression)
+  }
+
   throw new StaticGenBailoutError(
-    `Route ${route} with \`dynamic = "error"\` couldn't be rendered statically because it used ${expression}. See more info here: https://nextjs.org/docs/app/building-your-application/rendering/static-and-dynamic#dynamic-rendering`
+    `Route ${workStore.route} with \`dynamic = "error"\` couldn't be rendered statically because it used ${expression}. See more info here: https://nextjs.org/docs/app/building-your-application/rendering/static-and-dynamic#dynamic-rendering`
   )
 }
 

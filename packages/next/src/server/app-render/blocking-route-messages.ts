@@ -81,6 +81,97 @@ export function createDynamicOrRuntimeBodyError(route: string): Error {
   )
 }
 
+// Guidance shared by the `output: 'export'` errors below. Unlike the other
+// blocking-route errors, `<Suspense>` and `instant = false` are not valid
+// fixes here: they need a server, and an export builds static files without one.
+const STATIC_EXPORT_DOCS =
+  'https://nextjs.org/docs/app/building-your-application/deploying/static-exports'
+
+export function createStaticExportRequestDataError(route: string): Error {
+  return new Error(
+    `Route "${route}" could not be statically exported.\n\n` +
+      `It used request data (\`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\`) or a \`"use cache: private"\` value, which is only available while handling a request. This project is built with \`output: 'export'\`, so every route must be fully static.\n\n` +
+      `Ways to fix this:\n` +
+      `  - [static] Provide the value at build time (for example, \`generateStaticParams\` for \`params\`)\n` +
+      `  - [cache] For \`"use cache: private"\`, use \`"use cache"\` instead if the data isn't request-specific\n\n` +
+      `Learn more: ${STATIC_EXPORT_DOCS}`
+  )
+}
+
+export function createStaticExportUncachedError(route: string): Error {
+  return new Error(
+    `Route "${route}" could not be statically exported.\n\n` +
+      `It read uncached data (\`fetch(...)\`, other I/O, or \`connection()\`) at request time. This project is built with \`output: 'export'\`, so every route must be fully static.\n\n` +
+      `Ways to fix this:\n` +
+      `  - [cache] Cache uncached I/O (like \`fetch(...)\`) with \`"use cache"\` so it resolves at build time\n\n` +
+      `Learn more: ${STATIC_EXPORT_DOCS}`
+  )
+}
+
+/**
+ * NOTE: Prefer the specific errors above. This generic variant is for the
+ * single-pass build, which can't always pinpoint the access; development
+ * and `next build --debug-prerender` report the specific, located errors.
+ */
+export function createStaticExportError(route: string): Error {
+  return new Error(
+    `Route "${route}" could not be statically exported.\n\n` +
+      `It accessed data at request time. This project is built with \`output: 'export'\`, so every route must be fully static.\n\n` +
+      `Ways to fix this:\n` +
+      `  - [cache] Cache the data with \`"use cache"\` so it resolves at build time\n\n` +
+      `Learn more: ${STATIC_EXPORT_DOCS}`
+  )
+}
+
+export function createStaticExportMetadataError(route: string): Error {
+  return new Error(
+    `Route "${route}" could not be statically exported.\n\n` +
+      `\`generateMetadata()\` read data at request time. This project is built with \`output: 'export'\`, so every route must be fully static.\n\n` +
+      `Ways to fix this:\n` +
+      `  - [static] Use a static \`metadata\` export instead of \`generateMetadata()\`\n` +
+      `  - [cache] Cache uncached I/O in \`generateMetadata()\` with \`"use cache"\` so it resolves at build time\n\n` +
+      `Learn more: ${STATIC_EXPORT_DOCS}`
+  )
+}
+
+export function createStaticExportViewportError(route: string): Error {
+  return new Error(
+    `Route "${route}" could not be statically exported.\n\n` +
+      `\`generateViewport()\` read data at request time. This project is built with \`output: 'export'\`, so every route must be fully static.\n\n` +
+      `Ways to fix this:\n` +
+      `  - [static] Use a static \`viewport\` export instead of \`generateViewport()\`\n\n` +
+      `Learn more: ${STATIC_EXPORT_DOCS}`
+  )
+}
+
+export function createStaticExportRouteHandlerError(
+  route: string,
+  expression: string | null
+): Error {
+  return new Error(
+    `Route "${route}" could not be statically exported.\n\n` +
+      `Its handler ${
+        expression ? `used \`${expression}\`, which resolves` : `read data`
+      } at request time. This project is built with \`output: 'export'\`, which writes the response to a static file at build time.\n\n` +
+      `Ways to fix this:\n` +
+      `  - [cache] Move uncached I/O into a function cached with \`"use cache"\` and call it from the handler, so it resolves at build time\n\n` +
+      `Learn more: ${STATIC_EXPORT_DOCS}`
+  )
+}
+
+export function createStaticExportNonStaticMethodsError(
+  route: string,
+  methods: string[]
+): Error {
+  return new Error(
+    `Route "${route}" could not be statically exported.\n\n` +
+      `It exports \`${methods.join('`, `')}\`, which can only run on a server. This project is built with \`output: 'export'\`, whose static files can only answer \`GET\`.\n\n` +
+      `Ways to fix this:\n` +
+      `  - [static] Remove the \`${methods.join('`, `')}\` handler${methods.length > 1 ? 's' : ''} from this route\n\n` +
+      `Learn more: ${STATIC_EXPORT_DOCS}`
+  )
+}
+
 export function createLinkMetadataError(route: string): Error {
   return new Error(
     `Route "${route}": Next.js encountered link data in \`generateMetadata()\`.\n\n` +

@@ -62,6 +62,7 @@ const routeModule = new AppRouteRouteModule({
   relativeProjectDir: process.env.__NEXT_RELATIVE_PROJECT_DIR || '',
   resolvedPagePath: 'VAR_RESOLVED_PAGE_PATH',
   nextConfigOutput,
+  cacheComponents: !!process.env.__NEXT_CACHE_COMPONENTS,
   // Always use a lazy require factory so that:
   // - In dev: devRequestTimingInternalsEnd is set before userland executes,
   //   correctly attributing module load time to application-code rather than
@@ -254,6 +255,7 @@ export async function handler(
       cacheComponents: Boolean(nextConfig.cacheComponents),
       validationLevel: nextConfig.experimental.instantInsights.validationLevel,
       supportsDynamicResponse,
+      nextConfigOutput,
       incrementalCache,
       cacheLifeProfiles: nextConfig.cacheLife,
       staticPageGenerationTimeout: nextConfig.staticPageGenerationTimeout,

@@ -314,6 +314,12 @@ const isOutputExportMode =
   process.env.NODE_ENV === 'production' &&
   process.env.__NEXT_CONFIG_OUTPUT === 'export'
 
+// The exported shell and full payload files only replace runtime requests
+// under Cache Components; a legacy export keeps its original prefetch
+// behavior.
+const isCacheComponentsExportMode =
+  isOutputExportMode && !!process.env.__NEXT_CACHE_COMPONENTS
+
 export const MetadataOnlyRequestTree: FlightRouterState = [
   '',
   {},
@@ -2500,8 +2506,36 @@ export async function fetchSegmentPrefetchesUsingDynamicRequest(
   spawnedEntries: Map<SegmentRequestKey, PendingSegmentCacheEntry>
 ): Promise<PrefetchSubtaskResult<null> | null> {
   const key = task.key
-  const url = new URL(route.canonicalUrl, location.origin)
+  let url = new URL(route.canonicalUrl, location.origin)
   const nextUrl = key.nextUrl
+
+  if (isCacheComponentsExportMode) {
+    // A static export has no server to answer a dynamic request, but the
+    // shell and the full data are exported as static files. Fetch those
+    // instead — the response is consumed the same way.
+    switch (fetchStrategy) {
+      case FetchStrategy.RuntimeShell:
+        url = addSegmentPathToUrlInOutputExportMode(
+          url,
+          '/_shell' as SegmentRequestKey
+        )
+        break
+      case FetchStrategy.Full:
+        url = addSegmentPathToUrlInOutputExportMode(
+          url,
+          '/_full' as SegmentRequestKey
+        )
+        break
+      case FetchStrategy.LoadingBoundary:
+      case FetchStrategy.PPRRuntime:
+        // These strategies have no exported counterpart. The request below
+        // would be answered with an HTML document and discarded.
+        rejectSegmentEntriesIfStillPending(spawnedEntries, Date.now() + 10_000)
+        return null
+      default:
+        fetchStrategy satisfies never
+    }
+  }
 
   if (
     spawnedEntries.size === 1 &&
@@ -2629,7 +2663,17 @@ export async function fetchSegmentPrefetchesUsingDynamicRequest(
     // staleAt that corresponds to whatever payload the spawned entries get
     // filled with below.
     let staleAtForSpawnedEntries = staleAt
-    if (!process.env.__NEXT_APP_SHELLS || cacheData === null) {
+    if (
+      !process.env.__NEXT_APP_SHELLS ||
+      cacheData === null ||
+      // An exported shell file is the shell stage already extracted: it
+      // contains the chunks up to the shell boundary, while the in-band
+      // promise that tells the extractor where that boundary is (`a`)
+      // resolves in a row that is only emitted past it. Extraction would
+      // await that promise forever; use the response as-is, like a server
+      // response whose shell is the entire payload.
+      isCacheComponentsExportMode
+    ) {
       // NOTE: cacheData is always set when Cached Navigations is enabled, and
       // therefore when App Shells is enabled. This null check can be removed
       // when those flags fully land.

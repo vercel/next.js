@@ -1,4 +1,8 @@
 import {
+  StaticGenBailoutError,
+  createStaticExportRequestAccessError,
+} from '../../client/components/static-generation-bailout'
+import {
   type ReadonlyRequestCookies,
   areCookiesMutableInCurrentPhase,
   RequestCookiesAdapter,
@@ -20,7 +24,6 @@ import {
   throwToInterruptStaticGeneration,
   trackDynamicDataInDynamicRender,
 } from '../app-render/dynamic-rendering'
-import { StaticGenBailoutError } from '../../client/components/static-generation-bailout'
 import {
   makeDevtoolsIOAwarePromise,
   makeHangingPromise,
@@ -52,6 +55,12 @@ export function cookies(): Promise<ReadonlyRequestCookies> {
     }
 
     if (workStore.dynamicShouldError) {
+      if (workStore.isStaticExport && workStore.cacheComponentsEnabled) {
+        throw createStaticExportRequestAccessError(
+          workStore.route,
+          '`cookies()`'
+        )
+      }
       throw new StaticGenBailoutError(
         `Route ${workStore.route} with \`dynamic = "error"\` couldn't be rendered statically because it used \`cookies()\`. See more info here: https://nextjs.org/docs/app/building-your-application/rendering/static-and-dynamic#dynamic-rendering`
       )

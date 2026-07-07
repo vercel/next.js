@@ -133,6 +133,9 @@ export interface WorkStore {
   readonly nonce?: string
 
   cacheComponentsEnabled: boolean
+  // Whether this render is for `output: 'export'`, where every route must be
+  // fully static (there is no server to render dynamic data at request time).
+  isStaticExport: boolean
   validationLevel: ValidationLevel
 
   /**

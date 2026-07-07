@@ -603,8 +603,71 @@ const syncClientCryptoCards: FixCard[] = [
   },
 ]
 
+// ── Static-export cards ──────────────────────────
+
+const staticExportParamsCards: FixCard[] = [
+  {
+    id: 'provide-the-params-at-build-time',
+    title: 'Provide the params at build time',
+    group: 'static',
+    link: 'https://nextjs.org/docs/app/api-reference/functions/generate-static-params',
+    snippets: [
+      { text: 'export function generateStaticParams() {', highlight: true },
+      { text: "  return [{ slug: 'hello' }]" },
+      { text: '}' },
+    ],
+    copyable: true,
+  },
+]
+
+const staticExportSearchParamsCards: FixCard[] = [
+  {
+    id: 'read-search-params-on-the-client',
+    title: 'Read search params on the client',
+    group: 'client',
+    link: 'https://nextjs.org/docs/app/api-reference/functions/use-search-params',
+    snippets: [
+      { text: "'use client'", highlight: true },
+      { text: '' },
+      { text: 'const searchParams = useSearchParams()', highlight: true },
+    ],
+    copyable: true,
+  },
+]
+
+const staticExportCookiesCards: FixCard[] = [
+  {
+    id: 'read-the-cookie-on-the-client',
+    title: 'Read the cookie on the client',
+    group: 'client',
+    link: null,
+    snippets: [
+      { text: "'use client'", highlight: true },
+      { text: '' },
+      { text: 'const cookies = document.cookie', highlight: true },
+    ],
+    copyable: true,
+  },
+]
+
+const staticExportUncachedCards: FixCard[] = [
+  {
+    id: 'cache-the-component-or-data',
+    title: 'Cache the component or data',
+    group: 'cache',
+    link: 'https://nextjs.org/docs/app/api-reference/directives/use-cache',
+    snippets: [
+      { text: 'async function Posts() {' },
+      { text: '  "use cache"', highlight: true },
+      { text: '  return <List items={…} />' },
+    ],
+    copyable: true,
+  },
+]
+
 export type GuidanceKind =
   | 'blocking-route'
+  | 'static-export'
   | 'client-hook'
   | 'metadata'
   | 'viewport'
@@ -617,6 +680,8 @@ export type GuidanceVariant = 'link' | 'runtime' | 'dynamic'
 
 export const DOCS_URLS: Record<GuidanceKind, string> = {
   'blocking-route': 'https://nextjs.org/docs/messages/blocking-route',
+  'static-export':
+    'https://nextjs.org/docs/app/building-your-application/deploying/static-exports',
   'client-hook':
     'https://nextjs.org/docs/messages/blocking-prerender-client-hook',
   metadata:
@@ -690,6 +755,8 @@ export const SYNC_IO_CLIENT_DOCS: Record<string, string> = {
 export const EXPLANATIONS: Record<GuidanceKind, string> = {
   'blocking-route':
     'This prevents the route from being prerendered, blocking navigation and leading to a slower user experience.',
+  'static-export':
+    "This project is built with output: 'export', so every route must be fully static at build time.",
   'client-hook':
     'This blocks prerendering because the value is only available at runtime.',
   metadata:
@@ -740,6 +807,32 @@ const syncClientCardsByCause: Record<string, FixCard[]> = {
   "require('node:crypto').generateKeySync(...)": syncClientCryptoCards,
 }
 
+// With `output: 'export'` there is no server, so fixes that need one are not
+// offered: generating on request (`connection()`), allowing a blocking route
+// (`instant = false`), and streaming a server-side hole past the shell.
+// Client-side holes (client hooks, client sync IO) fill in the browser, so
+// their Suspense cards stay.
+function filterForStaticExport(
+  kind: GuidanceKind,
+  cards: FixCard[]
+): FixCard[] {
+  if (
+    process.env.__NEXT_CONFIG_OUTPUT !== 'export' ||
+    !process.env.__NEXT_CACHE_COMPONENTS
+  ) {
+    return cards
+  }
+  return cards.filter((card) => {
+    if (card.group === 'dynamic' || card.group === 'block') {
+      return false
+    }
+    if (card.group === 'stream') {
+      return kind === 'client-hook' || kind === 'sync-io-client'
+    }
+    return true
+  })
+}
+
 // `connection()`-triggered errors can't be cached.
 function filterCacheForConnection(
   cards: FixCard[],
@@ -755,7 +848,32 @@ export function getCards(
   variant: GuidanceVariant,
   cause?: string
 ): FixCard[] {
+  return filterForStaticExport(kind, getCardsForKind(kind, variant, cause))
+}
+
+function getCardsForKind(
+  kind: GuidanceKind,
+  variant: GuidanceVariant,
+  cause?: string
+): FixCard[] {
   switch (kind) {
+    case 'static-export':
+      if (variant === 'runtime') {
+        switch (cause) {
+          case 'params':
+            return staticExportParamsCards
+          case 'searchParams':
+            return staticExportSearchParamsCards
+          case 'cookies':
+            return staticExportCookiesCards
+          case undefined:
+          default:
+            // e.g. headers(), which has no static equivalent — the
+            // explanation carries the message.
+            return []
+        }
+      }
+      return cause === 'connection' ? [] : staticExportUncachedCards
     case 'blocking-route':
       return variant === 'link'
         ? linkCards

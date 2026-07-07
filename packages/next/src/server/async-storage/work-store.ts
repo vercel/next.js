@@ -63,6 +63,7 @@ export type WorkStoreContext = {
     | 'isBuildTimePrerendering'
     | 'isDraftMode'
     | 'isDebugDynamicAccesses'
+    | 'nextConfigOutput'
   > &
     RequestLifecycleOpts &
     Partial<Pick<RenderOpts, 'reactLoadableManifest'>>
@@ -149,6 +150,7 @@ export function createWorkStore({
 
     afterContext: createAfterContext(renderOpts),
     cacheComponentsEnabled: renderOpts.cacheComponents,
+    isStaticExport: renderOpts.nextConfigOutput === 'export',
     validationLevel: renderOpts.validationLevel,
     previouslyRevalidatedTags,
     refreshTagsByCacheKind: createRefreshTagsByCacheKind(),

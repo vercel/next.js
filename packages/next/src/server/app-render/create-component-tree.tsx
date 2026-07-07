@@ -266,13 +266,16 @@ async function createComponentTreeInternal(
   let dynamic = layoutOrPageMod?.dynamic
 
   if (nextConfigOutput === 'export') {
-    if (!dynamic || dynamic === 'auto') {
-      dynamic = 'error'
-    } else if (dynamic === 'force-dynamic') {
+    if (dynamic === 'force-dynamic') {
       // force-dynamic is always incompatible with 'export'. We must interrupt the build
       throw new StaticGenBailoutError(
         `Page with \`dynamic = "force-dynamic"\` couldn't be exported. \`output: "export"\` requires all pages be renderable statically because there is no runtime server to dynamically render routes in this output format. Learn more: https://nextjs.org/docs/app/building-your-application/deploying/static-exports`
       )
+    } else if (!cacheComponents && (!dynamic || dynamic === 'auto')) {
+      // Without Cache Components, `output: 'export'` relies on `dynamic = 'error'`
+      // to reject dynamic data access. With Cache Components the staged prerender
+      // reports a static-export error instead, so leave `dynamic` alone.
+      dynamic = 'error'
     }
   }
 

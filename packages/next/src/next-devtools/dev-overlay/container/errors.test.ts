@@ -100,15 +100,29 @@ describe('isSyncIOError', () => {
   it.each<[SyncIOApiType]>([['time'], ['random'], ['crypto']])(
     'returns true for createSyncIOError(%s)',
     (type) => {
-      const message = createSyncIOError(ROUTE, 'expr', type).message
+      const message = createSyncIOError(ROUTE, 'expr', type, false).message
       expect(isSyncIOError(message)).toBe(true)
+    }
+  )
+
+  it.each<[SyncIOApiType]>([['time'], ['random'], ['crypto']])(
+    'returns true for createSyncIOError(%s) in export mode, without the connection() fix',
+    (type) => {
+      const message = createSyncIOError(ROUTE, 'expr', type, true).message
+      expect(isSyncIOError(message)).toBe(true)
+      expect(message).not.toContain('connection()')
     }
   )
 
   it.each<[SyncIOApiType]>([['time'], ['random'], ['crypto']])(
     'returns true for createSyncIORuntimeError(%s)',
     (type) => {
-      const message = createSyncIORuntimeError(ROUTE, 'expr', type).message
+      const message = createSyncIORuntimeError(
+        ROUTE,
+        'expr',
+        type,
+        false
+      ).message
       expect(isSyncIOError(message)).toBe(true)
     }
   )
@@ -143,7 +157,7 @@ describe('isSyncIOClientError', () => {
   it.each<[SyncIOApiType]>([['time'], ['random'], ['crypto']])(
     'returns false for createSyncIOError(%s)',
     (type) => {
-      const message = createSyncIOError(ROUTE, 'expr', type).message
+      const message = createSyncIOError(ROUTE, 'expr', type, false).message
       expect(isSyncIOClientError(message)).toBe(false)
     }
   )
@@ -151,7 +165,12 @@ describe('isSyncIOClientError', () => {
   it.each<[SyncIOApiType]>([['time'], ['random'], ['crypto']])(
     'returns false for createSyncIORuntimeError(%s)',
     (type) => {
-      const message = createSyncIORuntimeError(ROUTE, 'expr', type).message
+      const message = createSyncIORuntimeError(
+        ROUTE,
+        'expr',
+        type,
+        false
+      ).message
       expect(isSyncIOClientError(message)).toBe(false)
     }
   )
@@ -268,7 +287,9 @@ describe('getBlockingRouteErrorDetails', () => {
     'classifies createSyncIOError(%s) as sync-io + cause %s',
     (type, expression, expectedCause) => {
       expect(
-        getBlockingRouteErrorDetails(createSyncIOError(ROUTE, expression, type))
+        getBlockingRouteErrorDetails(
+          createSyncIOError(ROUTE, expression, type, false)
+        )
       ).toEqual({ type: 'sync-io', cause: expectedCause })
     }
   )
@@ -299,7 +320,7 @@ describe('getBlockingRouteErrorDetails', () => {
   ])(
     'preserves cause %s against the `Date.now()` mention in the time bullet',
     (expression, expectedCause) => {
-      const error = createSyncIOError(ROUTE, expression, 'time')
+      const error = createSyncIOError(ROUTE, expression, 'time', false)
       expect(getBlockingRouteErrorDetails(error)).toEqual({
         type: 'sync-io',
         cause: expectedCause,
@@ -639,7 +660,7 @@ describe('isInstantNavigationError', () => {
     )
     expect(
       isInstantNavigationError(
-        createSyncIOError(ROUTE, 'Math.random()', 'random')
+        createSyncIOError(ROUTE, 'Math.random()', 'random', false)
       )
     ).toBe(false)
   })

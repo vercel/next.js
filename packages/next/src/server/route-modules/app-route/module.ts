@@ -56,7 +56,10 @@ import * as sharedModules from './shared-modules'
 import { getIsPossibleServerAction } from '../../lib/server-action-request-meta'
 import { RequestCookies } from 'next/dist/compiled/@edge-runtime/cookies'
 import { cleanURL } from './helpers/clean-url'
-import { StaticGenBailoutError } from '../../../client/components/static-generation-bailout'
+import {
+  StaticGenBailoutError,
+  createStaticExportRequestAccessError,
+} from '../../../client/components/static-generation-bailout'
 import { isStaticGenEnabled } from './helpers/is-static-gen-enabled'
 import {
   abortAndThrowOnSynchronousRequestDataAccess,
@@ -64,6 +67,10 @@ import {
   createDynamicTrackingState,
   getFirstDynamicReason,
 } from '../../app-render/dynamic-rendering'
+import {
+  createStaticExportRouteHandlerError,
+  createStaticExportNonStaticMethodsError,
+} from '../../app-render/blocking-route-messages'
 import { ReflectAdapter } from '../../web/spec-extension/adapters/reflect'
 import type { RenderOptsPartial } from '../../app-render/types'
 import { CacheSignal } from '../../app-render/cache-signal'
@@ -183,6 +190,7 @@ export interface AppRouteRouteModuleOptions
     | (() => AppRouteUserlandModule | Promise<AppRouteUserlandModule>)
   readonly resolvedPagePath: string
   readonly nextConfigOutput: NextConfig['output']
+  readonly cacheComponents: boolean
   /**
    * Optional synchronous getter that returns the live userland module. When
    * provided (Turbopack dev mode), it is called on every request so that
@@ -226,6 +234,7 @@ export class AppRouteRouteModule extends RouteModule<
 
   public readonly resolvedPagePath: string
   public readonly nextConfigOutput: NextConfig['output'] | undefined
+  public readonly cacheComponents: boolean
 
   // Set in the constructor when userland is provided as a factory. Cleared
   // after the first access so userland is only loaded once.
@@ -285,6 +294,7 @@ export class AppRouteRouteModule extends RouteModule<
     relativeProjectDir,
     resolvedPagePath,
     nextConfigOutput,
+    cacheComponents,
   }: AppRouteRouteModuleOptions) {
     const isLazy = typeof userland === 'function'
     super({
@@ -296,6 +306,7 @@ export class AppRouteRouteModule extends RouteModule<
 
     this.resolvedPagePath = resolvedPagePath
     this.nextConfigOutput = nextConfigOutput
+    this.cacheComponents = cacheComponents
     this._getUserland = getUserland
 
     if (!isLazy) {
@@ -340,11 +351,31 @@ export class AppRouteRouteModule extends RouteModule<
         throw new Error(
           `export const dynamic = "force-dynamic" on page "${this.definition.pathname}" cannot be used with "output: export". See more info here: https://nextjs.org/docs/advanced-features/static-html-export`
         )
-      } else if (!isStaticGenEnabled(userland) && userland['GET']) {
-        throw new Error(
-          `export const dynamic = "force-static"/export const revalidate not configured on route "${this.definition.pathname}" with "output: export". See more info here: https://nextjs.org/docs/advanced-features/static-html-export`
-        )
+      } else if (this.cacheComponents) {
+        // Cache Components rejects the `dynamic`/`revalidate` config that the
+        // legacy branch below requires, so route handlers opt into static
+        // generation implicitly. Non-static methods fail eagerly rather than
+        // silently dropping the route from the export.
+        if (this._hasNonStaticMethods) {
+          throw createStaticExportNonStaticMethodsError(
+            this.definition.pathname,
+            HTTP_METHODS.filter(
+              (method) =>
+                method !== 'GET' && method !== 'HEAD' && method in userland
+            )
+          )
+        }
+        // Force `dynamic = "error"` so request-time data access fails the
+        // export build (and errors in dev) rather than silently degrading to
+        // a dynamic route that a static host can't serve.
+        this._dynamic = 'error'
       } else {
+        // Legacy export requires an explicit opt-in to static generation.
+        if (!isStaticGenEnabled(userland) && userland['GET']) {
+          throw new Error(
+            `export const dynamic = "force-static"/export const revalidate not configured on route "${this.definition.pathname}" with "output: export". See more info here: https://nextjs.org/docs/advanced-features/static-html-export`
+          )
+        }
         this._dynamic = 'error'
       }
     }
@@ -578,7 +609,23 @@ export class AppRouteRouteModule extends RouteModule<
           if (prospectiveRenderIsDynamic) {
             // the route handler called an API which is always dynamic
             // there is no need to try again
-            const dynamicReason = getFirstDynamicReason(dynamicTracking)
+            const dynamicReason =
+              getFirstDynamicReason(dynamicTracking) ??
+              dynamicTracking.hangingInputs[0]?.expression
+
+            // A `DynamicServerError` marks the route as dynamic, which is fine
+            // when there is a server to handle it — but `output: 'export'` has
+            // none, so the route would be silently missing from the export.
+            // Fail the build instead.
+            if (this.nextConfigOutput === 'export') {
+              throw new StaticGenBailoutError(
+                createStaticExportRouteHandlerError(
+                  workStore.route,
+                  dynamicReason ?? null
+                ).message
+              )
+            }
+
             if (dynamicReason) {
               throw new DynamicServerError(
                 `Route ${workStore.route} couldn't be rendered statically because it used \`${dynamicReason}\`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error`
@@ -619,6 +666,21 @@ export class AppRouteRouteModule extends RouteModule<
             varyParamsAccumulator: null,
           })
 
+          // A blocked handler response normally just marks the route as
+          // dynamic, but `output: 'export'` has no server to run the handler
+          // later, so it must fail the build instead.
+          const createHandlerBlockedError = () =>
+            this.nextConfigOutput === 'export'
+              ? new StaticGenBailoutError(
+                  createStaticExportRouteHandlerError(
+                    workStore.route,
+                    getFirstDynamicReason(dynamicTracking) ??
+                      dynamicTracking.hangingInputs[0]?.expression ??
+                      null
+                  ).message
+                )
+              : createCacheComponentsError(workStore.route)
+
           let responseHandled = false
           res = await new Promise((resolve, reject) => {
             scheduleImmediate(async () => {
@@ -658,7 +720,7 @@ export class AppRouteRouteModule extends RouteModule<
                   if (!bodyHandled) {
                     bodyHandled = true
                     finalController.abort()
-                    reject(createCacheComponentsError(workStore.route))
+                    reject(createHandlerBlockedError())
                   }
                 })
               } catch (err) {
@@ -669,13 +731,13 @@ export class AppRouteRouteModule extends RouteModule<
               if (!responseHandled) {
                 responseHandled = true
                 finalController.abort()
-                reject(createCacheComponentsError(workStore.route))
+                reject(createHandlerBlockedError())
               }
             })
           })
           if (finalController.signal.aborted) {
             // We aborted from within the execution
-            throw createCacheComponentsError(workStore.route)
+            throw createHandlerBlockedError()
           } else {
             // We didn't abort during the execution. We can abort now as a matter of semantics
             // though at the moment nothing actually consumes this signal so it won't halt any
@@ -1247,6 +1309,15 @@ const requireStaticRequestHandlers = {
       case 'text':
       case 'arrayBuffer':
       case 'formData':
+        {
+          const workStore = workAsyncStorage.getStore()
+          if (workStore?.isStaticExport && workStore.cacheComponentsEnabled) {
+            throw createStaticExportRequestAccessError(
+              workStore.route,
+              `\`request.${prop}\``
+            )
+          }
+        }
         throw new StaticGenBailoutError(
           `Route ${target.nextUrl.pathname} with \`dynamic = "error"\` couldn't be rendered statically because it used \`request.${prop}\`.`
         )
@@ -1288,6 +1359,15 @@ const requireStaticNextUrlHandlers = {
       case 'toJSON':
       case 'toString':
       case 'origin':
+        {
+          const workStore = workAsyncStorage.getStore()
+          if (workStore?.isStaticExport && workStore.cacheComponentsEnabled) {
+            throw createStaticExportRequestAccessError(
+              workStore.route,
+              `\`nextUrl.${prop}\``
+            )
+          }
+        }
         throw new StaticGenBailoutError(
           `Route ${target.pathname} with \`dynamic = "error"\` couldn't be rendered statically because it used \`nextUrl.${prop}\`.`
         )
