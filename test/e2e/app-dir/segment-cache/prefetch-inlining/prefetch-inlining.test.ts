@@ -1,5 +1,6 @@
 import type * as Playwright from 'playwright'
 import { nextTestSetup } from 'e2e-utils'
+import { retry } from 'next-test-utils'
 import { createRouterAct } from 'router-act'
 
 // Bit values from PrefetchHint enum (const enum, so we duplicate values here)
@@ -164,6 +165,32 @@ describe('prefetch inlining', () => {
      outlined ■      └── "__PAGE__" (+metadata)
      "
     `)
+
+    // Verify client navigation works with the inlined data.
+    let page: Playwright.Page
+    const browser = await next.browser('/', {
+      beforePageLoad(p: Playwright.Page) {
+        page = p
+      },
+    })
+    const act = createRouterAct(page!)
+
+    await act(
+      async () => {
+        await browser
+          .elementByCss('input[data-link-accordion="/test-small-chain"]')
+          .click()
+      },
+      { includes: 'Small chain page' }
+    )
+
+    await act(async () => {
+      await browser.elementByCss('a[href="/test-small-chain"]').click()
+    }, 'no-requests')
+
+    expect(await browser.elementByCss('#page-small-chain').text()).toBe(
+      'Small chain page'
+    )
   })
 
   it('outlined: large segment breaks the inlining chain', async () => {
@@ -180,6 +207,77 @@ describe('prefetch inlining', () => {
      outlined ■      └── "__PAGE__" (+metadata)
      "
     `)
+
+    let page: Playwright.Page
+    const browser = await next.browser('/', {
+      beforePageLoad(p: Playwright.Page) {
+        page = p
+      },
+    })
+    const act = createRouterAct(page!)
+
+    await act(
+      async () => {
+        await browser
+          .elementByCss('input[data-link-accordion="/test-outlined"]')
+          .click()
+      },
+      { includes: 'Outlined test page' }
+    )
+
+    await act(async () => {
+      await browser.elementByCss('a[href="/test-outlined"]').click()
+    }, 'no-requests')
+
+    expect(await browser.elementByCss('#page-outlined').text()).toBe(
+      'Outlined test page'
+    )
+  })
+
+  it('preserves prefetch hints after on-demand revalidation', async () => {
+    const beforeTree = await fetchRouteTreePrefetch(
+      next,
+      '/test-on-demand-revalidate'
+    )
+    expect(renderInliningTree(beforeTree.tree)).toMatchInlineSnapshot(`
+     "
+              ⇣  root
+              ⇣  └── "test-on-demand-revalidate"
+     outlined ■      └── "__PAGE__" (+metadata)
+     "
+    `)
+
+    const before$ = await next.render$('/test-on-demand-revalidate')
+    const beforeValue = before$('#page-on-demand-revalidate-value').text()
+    expect(beforeValue).toMatch(/^0\.\d+$/)
+
+    const revalidateRes = await next.fetch(
+      '/api/revalidate-path?path=/test-on-demand-revalidate'
+    )
+    expect(revalidateRes.status).toBe(200)
+    expect(await revalidateRes.json()).toEqual({
+      revalidated: true,
+      path: '/test-on-demand-revalidate',
+    })
+
+    await retry(
+      async () => {
+        const $ = await next.render$('/test-on-demand-revalidate')
+        const afterValue = $('#page-on-demand-revalidate-value').text()
+        expect(afterValue).toMatch(/^0\.\d+$/)
+        expect(afterValue).not.toBe(beforeValue)
+      },
+      15000,
+      1000
+    )
+
+    const afterTree = await fetchRouteTreePrefetch(
+      next,
+      '/test-on-demand-revalidate'
+    )
+    expect(renderInliningTree(afterTree.tree)).toBe(
+      renderInliningTree(beforeTree.tree)
+    )
   })
 
   it('parallel routes: parent inlines into one slot only', async () => {
@@ -214,6 +312,31 @@ describe('prefetch inlining', () => {
        "
       `)
     }
+
+    let page: Playwright.Page
+    const browser = await next.browser('/', {
+      beforePageLoad(p: Playwright.Page) {
+        page = p
+      },
+    })
+    const act = createRouterAct(page!)
+
+    await act(
+      async () => {
+        await browser
+          .elementByCss('input[data-link-accordion="/test-parallel"]')
+          .click()
+      },
+      { includes: 'Main content' }
+    )
+
+    await act(async () => {
+      await browser.elementByCss('a[href="/test-parallel"]').click()
+    }, 'no-requests')
+
+    expect(await browser.elementByCss('#page-parallel').text()).toBe(
+      'Main content'
+    )
   })
 
   it('home: root inlines directly into page', async () => {
@@ -247,6 +370,35 @@ describe('prefetch inlining', () => {
      outlined ■              └── "__PAGE__" (+metadata)
      "
     `)
+
+    let page: Playwright.Page
+    const browser = await next.browser('/', {
+      beforePageLoad(p: Playwright.Page) {
+        page = p
+      },
+    })
+    const act = createRouterAct(page!)
+
+    await act(
+      async () => {
+        await browser
+          .elementByCss(
+            'input[data-link-accordion="/test-restart/large-middle/after"]'
+          )
+          .click()
+      },
+      { includes: 'After page' }
+    )
+
+    await act(async () => {
+      await browser
+        .elementByCss('a[href="/test-restart/large-middle/after"]')
+        .click()
+    }, 'no-requests')
+
+    expect(await browser.elementByCss('#page-restart').text()).toBe(
+      'After page'
+    )
   })
 
   it('deep chain: all small segments inline to the leaf', async () => {
@@ -263,6 +415,29 @@ describe('prefetch inlining', () => {
      outlined ■                  └── "__PAGE__" (+metadata)
      "
     `)
+
+    let page: Playwright.Page
+    const browser = await next.browser('/', {
+      beforePageLoad(p: Playwright.Page) {
+        page = p
+      },
+    })
+    const act = createRouterAct(page!)
+
+    await act(
+      async () => {
+        await browser
+          .elementByCss('input[data-link-accordion="/test-deep/a/b/c"]')
+          .click()
+      },
+      { includes: 'Deep page' }
+    )
+
+    await act(async () => {
+      await browser.elementByCss('a[href="/test-deep/a/b/c"]').click()
+    }, 'no-requests')
+
+    expect(await browser.elementByCss('#page-deep').text()).toBe('Deep page')
   })
 
   it('dynamic route: hints are based on concrete params, not fallback shell', async () => {
@@ -288,6 +463,31 @@ describe('prefetch inlining', () => {
     // pattern, not concrete path)
     const data2 = await fetchRouteTreePrefetch(next, '/test-dynamic/world')
     expect(renderInliningTree(data2.tree)).toBe(helloTree)
+
+    let page: Playwright.Page
+    const browser = await next.browser('/', {
+      beforePageLoad(p: Playwright.Page) {
+        page = p
+      },
+    })
+    const act = createRouterAct(page!)
+
+    await act(
+      async () => {
+        await browser
+          .elementByCss('input[data-link-accordion="/test-dynamic/hello"]')
+          .click()
+      },
+      { includes: 'Dynamic page: hello' }
+    )
+
+    await act(async () => {
+      await browser.elementByCss('a[href="/test-dynamic/hello"]').click()
+    }, 'no-requests')
+
+    expect(await browser.elementByCss('#page-dynamic').text()).toBe(
+      'Dynamic page: hello'
+    )
   })
 
   // TODO: Add a test for stale hints (InliningHintsStale). The stale hints
@@ -351,6 +551,38 @@ describe('prefetch inlining', () => {
       runtime ◻      └── "__PAGE__" (+metadata)
      "
     `)
+
+    let page: Playwright.Page
+    const browser = await next.browser('/', {
+      beforePageLoad(p: Playwright.Page) {
+        page = p
+      },
+    })
+    const act = createRouterAct(page!)
+
+    await act(
+      async () => {
+        await browser
+          .elementByCss('input[data-link-accordion="/test-runtime-bailout"]')
+          .click()
+      },
+      { includes: 'Static layout content' }
+    )
+
+    // Navigate to the route. The static layout was prefetched (and is cached),
+    // but the runtime leaf page has no static descendants and is not
+    // speculatively prefetched under App Shells — it is fetched here, on
+    // navigation.
+    await act(async () => {
+      await browser.elementByCss('a[href="/test-runtime-bailout"]').click()
+    })
+
+    expect(await browser.elementByCss('#layout-runtime-bailout').text()).toBe(
+      'Static layout content'
+    )
+    expect(await browser.elementByCss('#page-runtime-bailout').text()).toMatch(
+      /Runtime page/
+    )
   })
 
   it('runtime passthrough: static parents inline through runtime layout to static child', async () => {
@@ -371,6 +603,40 @@ describe('prefetch inlining', () => {
      outlined ■          └── "__PAGE__"
      "
     `)
+
+    let page: Playwright.Page
+    const browser = await next.browser('/', {
+      beforePageLoad(p: Playwright.Page) {
+        page = p
+      },
+    })
+    const act = createRouterAct(page!)
+
+    await act(async () => {
+      await browser
+        .elementByCss(
+          'input[data-link-accordion="/test-runtime-passthrough/inner"]'
+        )
+        .click()
+    }, [
+      { includes: 'Static page below runtime layout' },
+      // Appears twice: once in the static bundle and once in the
+      // runtime prefetch. Static segments below a runtime layout are
+      // not skipped — they participate in inlining normally because
+      // sub-navigations within the runtime layout may need them. The
+      // inlining thresholds ensure the duplication is worth the cost.
+      { includes: 'Static page below runtime layout' },
+    ])
+
+    await act(async () => {
+      await browser
+        .elementByCss('a[href="/test-runtime-passthrough/inner"]')
+        .click()
+    }, 'no-requests')
+
+    expect(await browser.elementByCss('#page-runtime-passthrough').text()).toBe(
+      'Static page below runtime layout'
+    )
   })
 
   it('instant false passthrough: static parents inline through dynamic layout to static child', async () => {
@@ -390,6 +656,31 @@ describe('prefetch inlining', () => {
      outlined ■          └── "__PAGE__" (+metadata)
      "
     `)
+
+    // Verify the dynamic layout's content is NOT included in any prefetch
+    // response. The layout has instant = false, so its data should be
+    // skipped entirely — fetched only during navigation.
+    let page: Playwright.Page
+    const browser = await next.browser('/', {
+      beforePageLoad(p: Playwright.Page) {
+        page = p
+      },
+    })
+    const act = createRouterAct(page!)
+
+    await act(async () => {
+      await browser
+        .elementByCss(
+          'input[data-link-accordion="/test-instant-false-passthrough/inner"]'
+        )
+        .click()
+    }, [
+      // The static page below the dynamic layout IS prefetched.
+      { includes: 'page-instant-false-passthrough' },
+      // The dynamic layout content must NOT appear in any prefetch
+      // response — it has instant = false, so it's skipped entirely.
+      { includes: 'Dynamic layout', block: 'reject' },
+    ])
   })
 
   it('runtime parallel: pass-through only flows into one child slot', async () => {
@@ -411,5 +702,129 @@ describe('prefetch inlining', () => {
      outlined ■      └── @sidebar/"__DEFAULT__"
      "
     `)
+
+    let page: Playwright.Page
+    const browser = await next.browser('/', {
+      beforePageLoad(p: Playwright.Page) {
+        page = p
+      },
+    })
+    const act = createRouterAct(page!)
+
+    await act(async () => {
+      await browser
+        .elementByCss(
+          'input[data-link-accordion="/test-runtime-parallel/inner"]'
+        )
+        .click()
+    }, [
+      { includes: 'Runtime parallel main content' },
+      // Appears twice: static bundle + runtime prefetch. Same as
+      // runtime passthrough — static segments below a runtime layout
+      // participate in inlining normally.
+      { includes: 'Runtime parallel main content' },
+    ])
+
+    await act(async () => {
+      await browser
+        .elementByCss('a[href="/test-runtime-parallel/inner"]')
+        .click()
+    }, 'no-requests')
+
+    expect(await browser.elementByCss('#page-runtime-parallel').text()).toBe(
+      'Runtime parallel main content'
+    )
+  })
+
+  it('independent head: param-dependent head is deferred to navigation, not speculatively prefetched', async () => {
+    // The layout at /test-independent-head/[item] uses runtime prefetching
+    // (reads cookies). The pages underneath it are static. The metadata
+    // (head) accesses both the [item] param and searchParams, making it
+    // depend on runtime data.
+    //
+    // When we prefetch route A, the runtime layout and head are fetched
+    // together (the layout is a runtime segment in the new part of the
+    // tree, so a runtime request happens and the head rides along). When
+    // we then prefetch sibling route B, the runtime layout is already
+    // shared and cached, so the new part of the tree (the [item] page) is
+    // fully static and needs no runtime request. Because the head is
+    // param-dependent it is NOT part of the reusable App Shell, and we do
+    // not spawn a standalone runtime request just to prefetch it — it is
+    // deferred to navigation. This test verifies that a speculative
+    // per-link prefetch fetches the static page but not the param-dependent
+    // head.
+    const data = await fetchRouteTreePrefetch(next, '/test-independent-head/a')
+    expect(renderInliningTree(data.tree)).toMatchInlineSnapshot(`
+     "
+              ⇣  root
+      runtime ◻  └── "test-independent-head" (+metadata)
+              ⇣      └── "item"
+     outlined ■          └── "__PAGE__"
+     "
+    `)
+
+    let page: Playwright.Page
+    const browser = await next.browser('/', {
+      beforePageLoad(p: Playwright.Page) {
+        page = p
+      },
+    })
+    const act = createRouterAct(page!)
+
+    // Prefetch and navigate to route A. This caches the runtime layout,
+    // head, and static page, and makes A the current page.
+    await act(async () => {
+      await browser
+        .elementByCss('input[data-link-accordion="/test-independent-head/a"]')
+        .click()
+    })
+    await act(async () => {
+      await browser.elementByCss('a[href="/test-independent-head/a"]').click()
+    }, 'no-requests')
+
+    // Now we're on route A. Reveal the sibling link to route B. The
+    // runtime layout is shared between A and B, so it's already cached
+    // and won't be re-fetched. The only new segment is the [item] page,
+    // which is static, so it IS prefetched. But the head depends on the
+    // [item] param (and searchParams), so it is param-dependent and is NOT
+    // part of the App Shell. Under App Shells, a speculative per-link
+    // prefetch does not request the param-dependent head — it is deferred
+    // to navigation. So the static page is prefetched here, but the title
+    // for B is not.
+    await act(async () => {
+      await browser
+        .elementByCss('input[data-link-accordion="/test-independent-head/b"]')
+        .click()
+    }, [
+      // The static page below the runtime layout is prefetched.
+      { includes: 'page-independent-head' },
+      // The param-dependent head must NOT be prefetched — it is not part
+      // of the App Shell and arrives on navigation instead.
+      { includes: 'Independent Head Title: b', block: 'reject' },
+    ])
+
+    // Navigate to route B. The param-dependent head was not prefetched, so
+    // it is fetched now, on navigation.
+    await act(
+      async () => {
+        await browser.elementByCss('a[href="/test-independent-head/b"]').click()
+      },
+      { includes: 'Independent Head Title: b' }
+    )
+
+    expect(await browser.elementByCss('#page-independent-head').text()).toBe(
+      'Independent head page'
+    )
+  })
+
+  it('notFound() during prerender does not crash build', async () => {
+    // Regression test: a page that calls notFound() during prerendering
+    // produces a flight data tree where some child seed data entries are
+    // undefined. collectPrefetchHints must handle this without crashing.
+    // The build succeeding is the primary assertion.
+    const browser = await next.browser('/test-not-found/exists')
+    expect(await browser.elementByCss('#page-not-found').text()).toBe(
+      'Found: exists'
+    )
   })
 })

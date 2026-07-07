@@ -215,10 +215,10 @@ import { useEffect } from 'react'
 
 export default function ErrorPage({
   error,
-  unstable_retry,
+  retry,
 }: {
   error: Error & { digest?: string }
-  unstable_retry: () => void
+  retry: () => void
 }) {
   useEffect(() => {
     // Log the error to an error reporting service
@@ -231,7 +231,7 @@ export default function ErrorPage({
       <button
         onClick={
           // Attempt to recover by re-fetching and re-rendering the segment
-          () => unstable_retry()
+          () => retry()
         }
       >
         Try again
@@ -246,7 +246,7 @@ export default function ErrorPage({
 
 import { useEffect } from 'react'
 
-export default function ErrorPage({ error, unstable_retry }) {
+export default function ErrorPage({ error, retry }) {
   useEffect(() => {
     // Log the error to an error reporting service
     console.error(error)
@@ -258,7 +258,7 @@ export default function ErrorPage({ error, unstable_retry }) {
       <button
         onClick={
           // Attempt to recover by re-fetching and re-rendering the segment
-          () => unstable_retry()
+          () => retry()
         }
       >
         Try again
@@ -278,22 +278,19 @@ Errors will bubble up to the nearest parent error boundary. This allows for gran
   height="687"
 />
 
-For component-level error recovery, the [`unstable_catchError`](/docs/app/api-reference/functions/catchError) function lets you create error boundaries that can wrap any part of your component tree:
+For component-level error recovery, the [`catchError`](/docs/app/api-reference/functions/catchError) function lets you create error boundaries that can wrap any part of your component tree:
 
 ```tsx filename="app/custom-error-boundary.tsx" switcher
 'use client'
 
-import { unstable_catchError as catchError, type ErrorInfo } from 'next/error'
+import { catchError, type ErrorInfo } from 'next/error'
 
-function ErrorFallback(
-  props: { title: string },
-  { error, unstable_retry }: ErrorInfo
-) {
+function ErrorFallback(props: { title: string }, { error, retry }: ErrorInfo) {
   return (
     <div>
       <h2>{props.title}</h2>
       <p>{error.message}</p>
-      <button onClick={() => unstable_retry()}>Try again</button>
+      <button onClick={() => retry()}>Try again</button>
     </div>
   )
 }
@@ -304,14 +301,14 @@ export default catchError(ErrorFallback)
 ```jsx filename="app/custom-error-boundary.js" switcher
 'use client'
 
-import { unstable_catchError as catchError } from 'next/error'
+import { catchError } from 'next/error'
 
-function ErrorFallback(props, { error, unstable_retry }) {
+function ErrorFallback(props, { error, retry }) {
   return (
     <div>
       <h2>{props.title}</h2>
       <p>{error.message}</p>
-      <button onClick={() => unstable_retry()}>Try again</button>
+      <button onClick={() => retry()}>Try again</button>
     </div>
   )
 }
@@ -404,17 +401,17 @@ While less common, you can handle errors in the root layout using the [`global-e
 
 export default function GlobalError({
   error,
-  unstable_retry,
+  retry,
 }: {
   error: Error & { digest?: string }
-  unstable_retry: () => void
+  retry: () => void
 }) {
   return (
     // global-error must include html and body tags
     <html>
       <body>
         <h2>Something went wrong!</h2>
-        <button onClick={() => unstable_retry()}>Try again</button>
+        <button onClick={() => retry()}>Try again</button>
       </body>
     </html>
   )
@@ -424,13 +421,13 @@ export default function GlobalError({
 ```jsx filename="app/global-error.js" switcher
 'use client' // Error boundaries must be Client Components
 
-export default function GlobalError({ error, unstable_retry }) {
+export default function GlobalError({ error, retry }) {
   return (
     // global-error must include html and body tags
     <html>
       <body>
         <h2>Something went wrong!</h2>
-        <button onClick={() => unstable_retry()}>Try again</button>
+        <button onClick={() => retry()}>Try again</button>
       </body>
     </html>
   )

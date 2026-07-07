@@ -55,6 +55,19 @@ export default function Page() {
             Runtime parallel
           </LinkAccordion>
         </li>
+        <li>
+          <LinkAccordion href="/test-independent-head/a">
+            Independent head A
+          </LinkAccordion>
+        </li>
+        <li>
+          <LinkAccordion href="/test-independent-head/b">
+            Independent head B
+          </LinkAccordion>
+        </li>
+        <li>
+          <LinkAccordion href="/test-not-found/exists">Not found</LinkAccordion>
+        </li>
       </ul>
     </div>
   )

@@ -35,6 +35,15 @@ export interface CurrentScenario {
 
 export type Interface = Partial<FullInterface>
 
+export interface VariantStatistic {
+  samples: number[]
+  unit: string
+  relativeTo?: string
+  mean: number
+  p50: number
+  p90: number
+}
+
 export interface FullInterface {
   filterScenarios(scenarios: Scenario[]): Promise<Scenario[]>
   filterScenarioVariants(
@@ -43,7 +52,8 @@ export interface FullInterface {
 
   start(
     scenario: string,
-    props: Record<string, string | number | boolean | null>
+    props: Record<string, string | number | boolean | null>,
+    runInfo?: { run: number; total: number; warmup: boolean }
   ): Promise<void>
   measurement(
     scenario: string,
@@ -63,6 +73,13 @@ export interface FullInterface {
     error: unknown
   ): Promise<void>
 
+  // Called once per variant after all n runs complete, with per-metric stats.
+  variantStatistics(
+    scenario: string,
+    props: Record<string, string | number | boolean | null>,
+    stats: Record<string, VariantStatistic>
+  ): Promise<void>
+
   finish(): Promise<void>
 }
 
@@ -76,6 +93,7 @@ export function intoFullInterface(iface: Interface): FullInterface {
     measurement: iface.measurement ?? (async () => {}),
     end: iface.end ?? (async () => {}),
     error: iface.error ?? (async () => {}),
+    variantStatistics: iface.variantStatistics ?? (async () => {}),
     finish: iface.finish ?? (async () => {}),
   }
 }

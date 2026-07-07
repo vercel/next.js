@@ -1,7 +1,9 @@
 ---
-title: preferredRegion
+title: preferredRegion (deprecated)
 description: API reference for the preferredRegion route segment config option.
 ---
+
+> **Deprecated:** The `preferredRegion` route segment config is deprecated. Remove the `preferredRegion` export from your route files. See the [deprecation message](/docs/messages/preferred-region-deprecated) for details.
 
 The `preferredRegion` option allows you to specify the preferred deployment region for a route segment. This value is passed to your deployment platform.
 
@@ -24,7 +26,7 @@ export const preferredRegion = // string || string[]
 
 ## Vercel
 
-If deploying Next.js on Vercel, regions are only supported if `export const runtime = 'edge'` is set. The following options can be passed:
+If deploying Next.js on Vercel, regions were previously only supported with `export const runtime = 'edge'`, which is now [deprecated](/docs/messages/edge-runtime-deprecated). The following options can be passed:
 
 - **`'auto'`** (default): Uses the default region.
 - **`'global'`**: Prefer deploying the route to all availableregions.

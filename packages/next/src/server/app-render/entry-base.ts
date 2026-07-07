@@ -46,10 +46,6 @@ export {
   LoadingBoundaryProvider,
 } from '../../client/components/layout-router'
 export { default as RenderFromTemplateContext } from '../../client/components/render-from-template-context'
-export { workAsyncStorage } from '../app-render/work-async-storage.external'
-export { workUnitAsyncStorage } from './work-unit-async-storage.external'
-export { actionAsyncStorage } from '../app-render/action-async-storage.external'
-
 export { ClientPageRoot } from '../../client/components/client-page'
 export { ClientSegmentRoot } from '../../client/components/client-segment'
 export {
@@ -66,6 +62,7 @@ export { createMetadataComponents } from '../../lib/metadata/metadata'
 export { RootLayoutBoundary } from '../../lib/framework/boundary-components'
 
 export { preloadStyle, preloadFont, preconnect } from './rsc/preloads'
+export { isEmptyHTMLPrelude } from './postponed-state'
 export { Postpone } from './rsc/postpone'
 export { taintObjectReference } from './rsc/taint'
 export {

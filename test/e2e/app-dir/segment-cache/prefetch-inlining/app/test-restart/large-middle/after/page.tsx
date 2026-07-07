@@ -1,3 +1,3 @@
 export default function Page() {
-  return <p>After page</p>
+  return <p id="page-restart">After page</p>
 }

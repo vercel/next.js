@@ -1,4 +1,4 @@
-import { promises } from 'fs'
+import { readFileSync, writeFileSync } from 'fs'
 import * as Log from '../build/output/log'
 import findUp from 'next/dist/compiled/find-up'
 // @ts-ignore no-json types
@@ -46,7 +46,7 @@ export async function patchIncorrectLockfile(dir: string) {
     // if no lockfile present there is no action to take
     return
   }
-  const content = await promises.readFile(lockfilePath, 'utf8')
+  const content = readFileSync(lockfilePath, 'utf8')
   // maintain current line ending
   const endingNewline = content.endsWith('\r\n')
     ? '\r\n'
@@ -161,7 +161,7 @@ export async function patchIncorrectLockfile(dir: string) {
       }
     }
 
-    await promises.writeFile(
+    writeFileSync(
       lockfilePath,
       JSON.stringify(lockfileParsed, null, 2) + endingNewline
     )

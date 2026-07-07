@@ -504,6 +504,8 @@ function Router({
     //  - catch runtime errors and display global-error when necessary
     if (typeof window !== 'undefined') {
       const { DevRootHTTPAccessFallbackBoundary } =
+        // TODO(browser-variant): migrate to a .ts/.browser.ts split so the browser bundle drops the server branch; see scripts/generate-browser-variant-aliases.mjs
+        // ast-grep-ignore: no-typeof-window-require-tsx
         require('./dev-root-http-access-fallback-boundary') as typeof import('./dev-root-http-access-fallback-boundary')
       content = (
         <DevRootHTTPAccessFallbackBoundary>
@@ -534,6 +536,12 @@ function Router({
         {content}
       </RootErrorBoundary>
     )
+  }
+
+  if (process.env.__NEXT_USE_OFFLINE) {
+    const { OfflineProvider } =
+      require('./use-offline') as typeof import('./use-offline')
+    content = <OfflineProvider>{content}</OfflineProvider>
   }
 
   return (
