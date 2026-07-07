@@ -229,14 +229,6 @@ pub struct TurboTasksBackend {
     /// have revived the task). Never collected directly from here.
     gc_candidates: Mutex<FxHashSet<TaskId>>,
 
-    /// Tombstones for tasks the GC pass has removed from memory, awaiting the next persistence
-    /// commit. GC removes a collected task from the in-memory map immediately (under the GC
-    /// phase), but its already-persisted on-disk copy must be tombstoned in a `save_snapshot`
-    /// commit; each collected task's [`TaskDeletion`] is buffered here and drained into the
-    /// next snapshot. A crash before that commit just leaves the on-disk copy to be
-    /// re-collected — never a dangling reference.
-    pending_gc_deletes: Mutex<Vec<TaskDeletion>>,
-
     stopping: AtomicBool,
     stopping_event: Event,
     idle_start_event: Event,
@@ -305,7 +297,6 @@ impl TurboTasksBackend {
             snapshot_coord: SnapshotCoordinator::new(),
             snapshot_in_progress: Mutex::new(()),
             gc_candidates: Mutex::new(FxHashSet::default()),
-            pending_gc_deletes: Mutex::new(Vec::new()),
             stopping: AtomicBool::new(false),
             stopping_event: Event::new(|| || "TurboTasksBackend::stopping_event".to_string()),
             idle_start_event: Event::new(|| || "TurboTasksBackend::idle_start_event".to_string()),
@@ -571,20 +562,19 @@ impl TurboTasksBackend {
         (children, deletion)
     }
 
-    /// Runs a full GC pass under the GC phase and returns the number of tasks collected. Buffers
-    /// the resulting tombstones into `pending_gc_deletes` so a subsequent
-    /// `snapshot_and_evict_for_testing` commits them (production runs GC inline in
+    /// Runs a full GC pass under the GC phase and returns the number of tasks collected together
+    /// with their on-disk tombstones. Pass the tombstones to a subsequent
+    /// `snapshot_and_evict_for_testing` to commit them (production runs GC inline in
     /// `snapshot_and_persist` instead). Test-only hook; callers must be idle (no task
     /// executing).
     #[doc(hidden)]
-    pub fn gc_for_testing(&self, turbo_tasks: &TurboTasks<TurboTasksBackend>) -> usize {
+    pub fn gc_for_testing(
+        &self,
+        turbo_tasks: &TurboTasks<TurboTasksBackend>,
+    ) -> (usize, Vec<TaskDeletion>) {
         let _serialize = self.snapshot_in_progress.lock();
         let _gc_phase = self.snapshot_coord.begin_gc();
-        let (collected, deletes) = self.gc_collect(turbo_tasks);
-        if !deletes.is_empty() {
-            self.pending_gc_deletes.lock().extend(deletes);
-        }
-        collected
+        self.gc_collect(turbo_tasks)
     }
 
     fn operation_suspend_point(&self, suspend: impl FnOnce() -> AnyOperation) {
@@ -618,11 +608,24 @@ impl TurboTasksBackend {
         &self,
         turbo_tasks: &TurboTasks<TurboTasksBackend>,
     ) -> (bool, EvictionCounts) {
+        self.snapshot_and_evict_with_deletes_for_testing(turbo_tasks, Vec::new())
+    }
+
+    /// Like [`Self::snapshot_and_evict_for_testing`], but also commits `deletes` (tombstones from a
+    /// prior [`Self::gc_for_testing`] pass) in the snapshot, so the collected tasks are removed
+    /// from disk as well as memory.
+    #[doc(hidden)]
+    pub fn snapshot_and_evict_with_deletes_for_testing(
+        &self,
+        turbo_tasks: &TurboTasks<TurboTasksBackend>,
+        deletes: Vec<TaskDeletion>,
+    ) -> (bool, EvictionCounts) {
         assert!(
             self.should_persist(),
             "snapshot_and_evict requires persistence"
         );
-        let snapshot_result = self.snapshot_and_persist(None, SnapshotReason::Test, turbo_tasks);
+        let snapshot_result =
+            self.snapshot_and_persist(None, SnapshotReason::Test, turbo_tasks, deletes);
         let had_new_data = match snapshot_result {
             Ok((_, new_data)) => new_data,
             Err(_) => {
@@ -1273,6 +1276,10 @@ impl TurboTasksBackend {
         parent_span: Option<tracing::Id>,
         reason: SnapshotReason,
         turbo_tasks: &TurboTasks<TurboTasksBackend>,
+        // Tombstones produced by an out-of-band GC pass (the test-only `gc_for_testing` hook) that
+        // this snapshot should commit. The production path leaves this empty and runs GC inline
+        // below; only tests thread deletes in here.
+        external_deletes: Vec<TaskDeletion>,
     ) -> Result<(Instant, bool), anyhow::Error> {
         let snapshot_span =
             tracing::trace_span!(parent: parent_span.clone(), "snapshot", reason = reason.as_str())
@@ -1299,28 +1306,27 @@ impl TurboTasksBackend {
         // it is persisted — so the decremented children counts and the snapshot are consistent, and
         // GC-collected tasks' tombstones ride this same commit.
         //
-        // Without GC we just begin the snapshot directly.
-        let mut snapshot_phase = if *GC_ENABLED {
+        // Without GC we just begin the snapshot directly. `deletes` are the GC tombstones for this
+        // commit: in the production (GC-enabled) path they are produced right here under the *same
+        // continuous exclusion* as the snapshot (the atomic `into_snapshot` hand-off), so nothing
+        // could have resurrected a collected task.
+        let (mut snapshot_phase, mut deletes) = if *GC_ENABLED {
             let _gc_span = tracing::info_span!(parent: parent_span.clone(), "gc").entered();
             let gc_phase = self.snapshot_coord.begin_gc();
             let (collected, deletes) = self.gc_collect(turbo_tasks);
             if collected > 0 {
                 tracing::info!(collected, "gc pass collected tasks");
             }
-            self.pending_gc_deletes.lock().extend(deletes);
             let _span = tracing::info_span!("blocking").entered();
-            gc_phase.into_snapshot()
+            (gc_phase.into_snapshot(), deletes)
         } else {
             let _span = tracing::info_span!("blocking").entered();
-            self.snapshot_coord.begin_snapshot()
+            (self.snapshot_coord.begin_snapshot(), Vec::new())
         };
-        // Drain the GC tombstones for this commit. In the production (GC-enabled) path they were
-        // just produced above under the *same continuous exclusion* as this snapshot (the atomic
-        // `into_snapshot` hand-off), so nothing could have resurrected a collected task. The
-        // test-only `gc_for_testing` hook also buffers here, and it runs GC as a separate exclusion
-        // window — so we still re-validate below (after the drain stabilizes the map) as a cheap
-        // belt-and-suspenders against a task revived between that hook and this snapshot.
-        let mut deletes = std::mem::take(&mut *self.pending_gc_deletes.lock());
+        // Also commit any tombstones from the test-only `gc_for_testing` hook, which runs GC as a
+        // *separate* exclusion window (not joined to this snapshot). Because of that gap we
+        // re-validate below (after the drain stabilizes the map) as a cheap belt-and-suspenders.
+        deletes.extend(external_deletes);
         let start = Instant::now();
         // SystemTime for wall-clock timestamps in trace events (milliseconds
         // since epoch). Instant is monotonic but has no defined epoch, so it
@@ -1793,9 +1799,12 @@ impl TurboTasksBackend {
             // The stop snapshot runs a final GC pass internally (see `snapshot_and_persist`), so
             // builds emit tombstones for disconnected tasks in the final commit — keeping the
             // persisted DB tight for the next build.
-            if let Err(err) =
-                self.snapshot_and_persist(Span::current().into(), SnapshotReason::Stop, turbo_tasks)
-            {
+            if let Err(err) = self.snapshot_and_persist(
+                Span::current().into(),
+                SnapshotReason::Stop,
+                turbo_tasks,
+                Vec::new(),
+            ) {
                 eprintln!("Persisting failed during shutdown: {err:?}");
             }
         }
@@ -3308,7 +3317,12 @@ impl TurboTasksBackend {
                         let background_span =
                             tracing::info_span!(parent: None, "background snapshot");
 
-                        match self.snapshot_and_persist(background_span.id(), reason, turbo_tasks) {
+                        match self.snapshot_and_persist(
+                            background_span.id(),
+                            reason,
+                            turbo_tasks,
+                            Vec::new(),
+                        ) {
                             Err(err) => {
                                 // save_snapshot consumed persisted_task_cache_log entries;
                                 // further snapshots would corrupt the task graph.

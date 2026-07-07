@@ -346,13 +346,13 @@ async fn gc_collects_disconnected_subtree() {
     // that run is not yet collectible. Once the run ends the active counts are released and the
     // disconnected branch_a (parent_count 0) becomes collectible; the cascade then drops
     // leaf(10) to 0 too.
-    let collected = tt2.backend().gc_for_testing(&tt2);
+    let (collected, _deletes) = tt2.backend().gc_for_testing(&tt2);
     assert_eq!(
         collected, 2,
         "branch_a and its cascaded child leaf(10) should both be collected"
     );
     assert_eq!(
-        tt2.backend().gc_for_testing(&tt2),
+        tt2.backend().gc_for_testing(&tt2).0,
         0,
         "nothing left to collect"
     );
@@ -409,7 +409,7 @@ async fn gc_does_not_collect_pinned_task() {
     // GC (after the run releases activeness) must NOT collect pinned_branch even though it is now
     // disconnected (parent_count 0), because it pinned itself. Its child leaf from branch_b is
     // live.
-    let collected = tt2.backend().gc_for_testing(&tt2);
+    let (collected, _deletes) = tt2.backend().gc_for_testing(&tt2);
     assert_eq!(
         collected, 0,
         "a pinned task must not be collected even when disconnected"
@@ -419,7 +419,7 @@ async fn gc_does_not_collect_pinned_task() {
     // flag survives and a subsequent GC still collects nothing.
     tt2.backend().snapshot_and_evict_for_testing(&tt2);
     assert_eq!(
-        tt2.backend().gc_for_testing(&tt2),
+        tt2.backend().gc_for_testing(&tt2).0,
         0,
         "pinned task must survive eviction and not be collected"
     );
