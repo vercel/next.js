@@ -518,7 +518,9 @@ export function serverActionReducer(
           // have the route tree from the server response. If a mismatch occurs
           // during dynamic data fetch, the retry handler will traverse the
           // known route tree to mark the entry as having a dynamic rewrite.
-          null
+          null,
+          // Not an HMR refresh, so there's no request generation to cancel.
+          undefined
         )
       }
 

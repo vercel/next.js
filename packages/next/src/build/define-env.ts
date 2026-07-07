@@ -53,6 +53,7 @@ interface DefineEnv {
     | ProxyMatcher[]
     | BloomFilter
     | Partial<NextConfigComplete['images']>
+    | NextConfigComplete['cacheLife']
     | I18NDomains
     | I18NConfig
 }
@@ -243,6 +244,9 @@ export function getDefineEnv({
       clientRouterFilters?.dynamicFilter ?? false,
     'process.env.__NEXT_CLIENT_VALIDATE_RSC_REQUEST_HEADERS': Boolean(
       config.experimental.validateRSCRequestHeaders
+    ),
+    'process.env.__NEXT_SERVER_COMPONENTS_HMR_CANCELLATION': Boolean(
+      config.experimental.serverComponentsHmrCancellation
     ),
     'process.env.__NEXT_DYNAMIC_ON_HOVER': Boolean(
       config.experimental.dynamicOnHover
