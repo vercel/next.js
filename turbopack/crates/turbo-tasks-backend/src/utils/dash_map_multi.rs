@@ -1,5 +1,6 @@
 use std::{
     hash::{BuildHasher, Hash},
+    marker::PhantomData,
     ops::{Deref, DerefMut},
     sync::Arc,
 };
@@ -18,18 +19,29 @@ pub enum RefMut<'a, K, V> {
     Shared {
         _guard: Arc<RwLockWriteTableGuard<'a, K, V>>,
         bucket: Bucket<(K, SharedValue<V>)>,
+        // Ensures that RefMut is !Send, preventing holding RefMut across .await points in async
+        // code, which can cause deadlocks. See safety comment on `unsafe impl Sync for RefMut`
+        // below.
+        phantom: std::marker::PhantomData<*const ()>,
     },
 }
 
-// SAFETY: `RefMut` contains a raw `Bucket` pointer into a `DashMap` shard's `RawTable`.
-// Sending/sharing is safe because:
+// `RefMut` is intentionally **not** `Send`. While sending the guard across threads would be sound
+// under the same reasoning that justifies `Sync` below, allowing `Send` makes it possible to hold
+// a `RefMut` (and therefore a `StorageWriteGuard`) across an `.await` in async code, since the
+// compiler will then accept the resulting future as `Send`. That pattern causes hard async
+// deadlocks: the guard parks together with the suspended future and pins the shard's write lock,
+// while every other tokio worker piles up trying to take the same lock — leaving no thread free
+// to poll the parked future. Marking the type `!Send` makes the borrow checker reject those call
+// sites at compile time.
+// SAFETY (Sync): `RefMut` contains a raw `Bucket` pointer into a `DashMap` shard's `RawTable`.
+// Sharing `&RefMut` is safe because:
 // - `Simple` variant: The `Bucket` is accessed under an exclusive `RwLockWriteGuard` on a single
 //   shard. The guard provides exclusive access to all data in that shard.
 // - `Shared` variant: The `Bucket` is accessed under an `Arc<RwLockWriteGuard>`. The
 //   `get_multiple_mut` function asserts that bucket pointers do not alias, so each `RefMut` has
 //   exclusive access to its bucket even when sharing a guard.
 // - `K: Sync + V: Sync` bounds ensure the key and value types are safe to share across threads.
-unsafe impl<K: Eq + Hash + Sync, V: Sync> Send for RefMut<'_, K, V> {}
 unsafe impl<K: Eq + Hash + Sync, V: Sync> Sync for RefMut<'_, K, V> {}
 
 impl<K: Eq + Hash, V> RefMut<'_, K, V> {
@@ -161,10 +173,12 @@ where
             RefMut::Shared {
                 _guard: guard.clone(),
                 bucket: bucket1,
+                phantom: PhantomData,
             },
             RefMut::Shared {
                 _guard: guard,
                 bucket: bucket2,
+                phantom: PhantomData,
             },
         )
     } else {

@@ -20,8 +20,7 @@ import {
 } from './manifests-singleton'
 import {
   getCacheSignal,
-  getPrerenderResumeDataCache,
-  getRenderResumeDataCache,
+  getResumeDataCache,
   workUnitAsyncStorage,
 } from './work-unit-async-storage.external'
 import { createHangingInputAbortSignal } from './dynamic-rendering'
@@ -153,11 +152,8 @@ export const encryptActionBoundArgs = React.cache(
       })
     }
 
-    const prerenderResumeDataCache = workUnitStore
-      ? getPrerenderResumeDataCache(workUnitStore)
-      : null
-    const renderResumeDataCache = workUnitStore
-      ? getRenderResumeDataCache(workUnitStore)
+    const resumeDataCache = workUnitStore
+      ? getResumeDataCache(workUnitStore)
       : null
 
     // Using Flight to serialize the args into a string.
@@ -176,8 +172,7 @@ export const encryptActionBoundArgs = React.cache(
           // but React ignores those as long as no debug channel is passed on the decode side, so it's fine:
           // https://github.com/facebook/react/blob/bb8a76c6cc77ea2976d690ea09f5a1b3d9b1792a/packages/react-client/src/ReactFlightClient.js#L1711-L1729
           // https://github.com/facebook/react/blob/bb8a76c6cc77ea2976d690ea09f5a1b3d9b1792a/packages/react-client/src/ReactFlightClient.js#L4005-L4025
-          process.env.NODE_ENV === 'development' &&
-          (prerenderResumeDataCache || renderResumeDataCache)
+          process.env.NODE_ENV === 'development' && resumeDataCache
             ? {
                 writable: new WritableStream(),
               }
@@ -227,9 +222,7 @@ export const encryptActionBoundArgs = React.cache(
 
     const cacheKey = actionId + serialized
 
-    const cachedEncrypted =
-      prerenderResumeDataCache?.encryptedBoundArgs.get(cacheKey) ??
-      renderResumeDataCache?.encryptedBoundArgs.get(cacheKey)
+    const cachedEncrypted = resumeDataCache?.encryptedBoundArgs.get(cacheKey)
 
     if (cachedEncrypted) {
       return cachedEncrypted
@@ -238,7 +231,9 @@ export const encryptActionBoundArgs = React.cache(
     const encrypted = await encodeActionBoundArg(actionId, serialized)
 
     endReadIfStarted()
-    prerenderResumeDataCache?.encryptedBoundArgs.set(cacheKey, encrypted)
+    if (resumeDataCache?.mutable) {
+      resumeDataCache.encryptedBoundArgs.set(cacheKey, encrypted)
+    }
 
     return encrypted
   }
@@ -256,18 +251,17 @@ export async function decryptActionBoundArgs(
 
   if (workUnitStore) {
     const cacheSignal = getCacheSignal(workUnitStore)
-    const prerenderResumeDataCache = getPrerenderResumeDataCache(workUnitStore)
-    const renderResumeDataCache = getRenderResumeDataCache(workUnitStore)
+    const resumeDataCache = getResumeDataCache(workUnitStore)
 
-    decrypted =
-      prerenderResumeDataCache?.decryptedBoundArgs.get(encrypted) ??
-      renderResumeDataCache?.decryptedBoundArgs.get(encrypted)
+    decrypted = resumeDataCache?.decryptedBoundArgs.get(encrypted)
 
     if (!decrypted) {
       cacheSignal?.beginRead()
       decrypted = await decodeActionBoundArg(actionId, encrypted)
       cacheSignal?.endRead()
-      prerenderResumeDataCache?.decryptedBoundArgs.set(encrypted, decrypted)
+      if (resumeDataCache?.mutable) {
+        resumeDataCache.decryptedBoundArgs.set(encrypted, decrypted)
+      }
     }
   } else {
     decrypted = await decodeActionBoundArg(actionId, encrypted)

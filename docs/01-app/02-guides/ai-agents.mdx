@@ -59,38 +59,43 @@ npx create-next-app@canary --no-agents-md
 
 ### Existing projects
 
-Ensure you are on Next.js `v16.2.0-canary.37` or later, then add the following files to the root of your project.
-
-`AGENTS.md` contains the instructions that agents will read:
+On Next.js 16.3 or later, just run `next dev`. When an AI coding agent is detected in the environment and no managed block is present, Next.js auto-generates `AGENTS.md` and `CLAUDE.md` at the project root. Existing `AGENTS.md` or `CLAUDE.md` files are upserted — content outside the managed block is preserved:
 
 ```md filename="AGENTS.md"
 <!-- BEGIN:nextjs-agent-rules -->
 
-# Next.js: ALWAYS read docs before coding
+# This is NOT the Next.js you know
 
-Before any Next.js work, find and read the relevant doc in `node_modules/next/dist/docs/`. Your training data is outdated — the docs are the source of truth.
+This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` before writing any code. Heed deprecation notices.
 
 <!-- END:nextjs-agent-rules -->
 ```
-
-`CLAUDE.md` uses the `@` import syntax to include `AGENTS.md`, so [Claude Code](https://docs.anthropic.com/en/docs/claude-code) users get the same instructions without duplicating content:
 
 ```md filename="CLAUDE.md"
 @AGENTS.md
 ```
 
-<details>
-<summary>For earlier versions</summary>
+### Opting out
 
-On version 16.1 and earlier, use the codemod to generate these files automatically:
+We believe leaving auto-generation on is a good default—[benchmark results on nextjs.org/evals](https://nextjs.org/evals) show agents do better when they read the bundled docs. If you really want to opt out, set `agentRules` to `false` in your config:
 
-```bash
-npx @next/codemod@latest agents-md
+```ts filename="next.config.ts"
+import type { NextConfig } from 'next'
+
+const nextConfig: NextConfig = {
+  agentRules: false,
+}
+
+export default nextConfig
 ```
 
-The codemod outputs the bundled docs to `.next-docs/` in the project root instead of `node_modules/next/dist/docs/`, and the generated agent files will point to that directory.
+### For earlier versions
 
-</details>
+On version 16.1 and earlier, use the legacy `agents-md` command, which downloads the docs to `.next-docs/` in the project root:
+
+```bash
+npx @next/codemod@canary agents-md
+```
 
 ## Understanding AGENTS.md
 

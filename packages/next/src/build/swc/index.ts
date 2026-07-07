@@ -1,5 +1,6 @@
 import path from 'path'
 import { pathToFileURL } from 'url'
+import { resolveCacheHandlerPathToFilesystem } from '../../lib/format-dynamic-import-path'
 import { arch, platform } from 'os'
 import { platformArchTriples } from 'next/dist/compiled/@napi-rs/triples'
 import * as Log from '../output/log'
@@ -21,6 +22,7 @@ import type {
 } from './generated-native'
 import type {
   Binding,
+  BuildFeatureUsage,
   CompilationEvent,
   DefineEnv,
   Endpoint,
@@ -229,16 +231,6 @@ export async function loadBindings(
   }
 
   pendingBindings = new Promise(async (resolve, reject) => {
-    if (!lockfilePatchPromise.cur) {
-      // always run lockfile check once so that it gets patched
-      // even if it doesn't fail to load locally
-      lockfilePatchPromise.cur = (
-        require('../../lib/patch-incorrect-lockfile') as typeof import('../../lib/patch-incorrect-lockfile')
-      )
-        .patchIncorrectLockfile(process.cwd())
-        .catch(console.error)
-    }
-
     let attempts: any[] = []
     const disableWasmFallback = process.env.NEXT_DISABLE_SWC_WASM
     const unsupportedPlatform = triples.some(
@@ -428,7 +420,14 @@ async function logLoadFailure(attempts: any, triedWasm = false) {
     wasm: triedWasm ? 'failed' : undefined,
     nativeBindingsErrorCode: lastNativeBindingsLoadErrorCode,
   })
-  await (lockfilePatchPromise.cur || Promise.resolve())
+  if (!lockfilePatchPromise.cur) {
+    lockfilePatchPromise.cur = (
+      require('../../lib/patch-incorrect-lockfile') as typeof import('../../lib/patch-incorrect-lockfile')
+    )
+      .patchIncorrectLockfile(process.cwd())
+      .catch(console.error)
+  }
+  await lockfilePatchPromise.cur
 
   Log.error(
     `Failed to load SWC binary for ${PlatformName}/${ArchName}, see more info here: https://nextjs.org/docs/messages/failed-loading-swc`
@@ -710,6 +709,13 @@ function bindingToApi(
       return napiResult
     }
 
+    async getAllCompilationIssues(): Promise<TurbopackResult<void>> {
+      const napiResult = (await binding.projectGetAllCompilationIssues(
+        this._nativeProject
+      )) as TurbopackResult<void>
+      return napiResult
+    }
+
     async writeAllEntrypointsToDisk(
       appDirOnly: boolean
     ): Promise<TurbopackResult<Partial<RawEntrypoints>>> {
@@ -725,9 +731,14 @@ function bindingToApi(
       } else {
         return {
           issues: napiEndpoints.issues,
-          diagnostics: napiEndpoints.diagnostics,
         }
       }
+    }
+
+    async featureUsage(): Promise<BuildFeatureUsage[]> {
+      return (await binding.projectFeatureUsage(
+        this._nativeProject
+      )) as BuildFeatureUsage[]
     }
 
     entrypointsSubscribe() {
@@ -745,7 +756,6 @@ function bindingToApi(
           } else {
             yield {
               issues: entrypoints.issues,
-              diagnostics: entrypoints.diagnostics,
             } as TurbopackResult<{}>
           }
         }
@@ -939,12 +949,15 @@ function bindingToApi(
 
     // cacheHandler can be an absolute path, we need it to be relative for turbopack.
     if (nextConfigSerializable.cacheHandler) {
+      const resolvedCacheHandler = resolveCacheHandlerPathToFilesystem(
+        nextConfigSerializable.cacheHandler
+      )
       nextConfigSerializable.cacheHandler =
         './' +
         normalizePathOnWindows(
-          path.isAbsolute(nextConfigSerializable.cacheHandler)
-            ? path.relative(projectPath, nextConfigSerializable.cacheHandler)
-            : nextConfigSerializable.cacheHandler
+          path.isAbsolute(resolvedCacheHandler)
+            ? path.relative(projectPath, resolvedCacheHandler)
+            : resolvedCacheHandler
         )
     }
     if (nextConfigSerializable.cacheHandlers) {
@@ -953,15 +966,18 @@ function bindingToApi(
           nextConfigSerializable.cacheHandlers as Record<string, string>
         )
           .filter(([_, value]) => value != null)
-          .map(([key, value]) => [
-            key,
-            './' +
-              normalizePathOnWindows(
-                path.isAbsolute(value)
-                  ? path.relative(projectPath, value)
-                  : value
-              ),
-          ])
+          .map(([key, value]) => {
+            const resolved = resolveCacheHandlerPathToFilesystem(value)
+            return [
+              key,
+              './' +
+                normalizePathOnWindows(
+                  path.isAbsolute(resolved)
+                    ? path.relative(projectPath, resolved)
+                    : resolved
+                ),
+            ]
+          })
       )
     }
 
@@ -1009,6 +1025,25 @@ function bindingToApi(
       }
 
       nextConfigSerializable.turbopack = turbopack
+    }
+
+    // Serialize `experimental.turbopackChunkingHeuristics` route patterns: convert each RegExp to
+    // {source, flags} since RegExp objects are not JSON-serializable.
+    const chunkingHeuristics =
+      nextConfigSerializable.experimental?.turbopackChunkingHeuristics
+    if (chunkingHeuristics) {
+      const regexComponents = (regex: RegExp) => ({
+        source: regex.source,
+        flags: regex.flags,
+      })
+      nextConfigSerializable.experimental = {
+        ...nextConfigSerializable.experimental,
+        turbopackChunkingHeuristics: {
+          ...chunkingHeuristics,
+          priorityRoutes:
+            chunkingHeuristics.priorityRoutes?.map(regexComponents),
+        },
+      }
     }
 
     return JSON.stringify(nextConfigSerializable, null, 2)
@@ -1228,7 +1263,6 @@ function bindingToApi(
       pagesAppEndpoint: new EndpointImpl(entrypoints.pagesAppEndpoint),
       pagesErrorEndpoint: new EndpointImpl(entrypoints.pagesErrorEndpoint),
       issues: entrypoints.issues,
-      diagnostics: entrypoints.diagnostics,
     }
   }
 
@@ -1240,7 +1274,7 @@ function bindingToApi(
     return new ProjectImpl(
       await binding.projectNew(
         await rustifyProjectOptions(options),
-        turboEngineOptions || {},
+        turboEngineOptions,
         {
           throwTurbopackInternalError: (
             require('../../shared/lib/turbopack/internal-error') as typeof import('../../shared/lib/turbopack/internal-error')
@@ -1375,7 +1409,7 @@ async function loadWasm(importPath = '') {
     turbo: {
       createProject(
         _options: ProjectOptions,
-        _turboEngineOptions?: TurboEngineOptions | undefined,
+        _turboEngineOptions: TurboEngineOptions,
         _callbacks?: import('./types').TurbopackProjectCallbacks | undefined
       ): Promise<Project> {
         throw new Error(
@@ -1384,13 +1418,24 @@ async function loadWasm(importPath = '') {
             `Use the --webpack flag instead.`
         )
       },
-      startTurbopackTraceServer(
+      startTurbopackTraceServerHandle(
         _traceFilePath: string,
         _port: number | undefined
-      ): void {
+      ) {
         throw new Error(
           `Turbopack trace server is not supported on this platform (${PlatformName}/${ArchName}) because native bindings are not available. ` +
             `Only WebAssembly (WASM) bindings were loaded, and Turbopack requires native bindings.`
+        )
+      },
+      queryTraceSpans(_handle: any, _options: any) {
+        throw new Error(
+          `Turbopack trace server is not supported on this platform (${PlatformName}/${ArchName}) because native bindings are not available. ` +
+            `Only WebAssembly (WASM) bindings were loaded, and Turbopack requires native bindings.`
+        )
+      },
+      databaseCompact(_path: string, _nextVersion: string): Promise<void> {
+        throw new Error(
+          'Turbopack database compaction is not supported on this platform'
         )
       },
     },
@@ -1628,13 +1673,19 @@ function loadNative(importPath?: string): Binding {
           customBindingsPath ?? bindingsPath!,
           false
         ),
-        startTurbopackTraceServer(traceFilePath, port) {
-          Log.warn(
-            `Turbopack trace server started. View trace at https://trace.nextjs.org${port != null ? `?port=${port}` : ''}`
-          )
-          ;(customBindings ?? bindings).startTurbopackTraceServer(
+        startTurbopackTraceServerHandle(traceFilePath, port) {
+          return (customBindings ?? bindings).startTurbopackTraceServerHandle(
             traceFilePath,
             port
+          )
+        },
+        queryTraceSpans(handle, options) {
+          return (customBindings ?? bindings).queryTraceSpans(handle, options)
+        },
+        databaseCompact(dbPath: string, dbNextVersion: string) {
+          return (customBindings ?? bindings).turbopackDatabaseCompact(
+            dbPath,
+            dbNextVersion
           )
         },
       },

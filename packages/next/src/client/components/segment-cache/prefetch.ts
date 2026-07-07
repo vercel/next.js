@@ -42,6 +42,7 @@ export function prefetch(
     treeAtTimeOfPrefetch,
     fetchStrategy,
     PrefetchPriority.Default,
-    onInvalidate
+    onInvalidate,
+    null // navigationLockPrefetch
   )
 }

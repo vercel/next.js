@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react'
 import { ErrorOverlayLayout } from './error-overlay-layout'
-import { withShadowPortal } from '../../../storybook/with-shadow-portal'
+import { withShadowPortal } from '../../../../../../.storybook/decorators/with-shadow-portal'
 
 const meta: Meta<typeof ErrorOverlayLayout> = {
   component: ErrorOverlayLayout,

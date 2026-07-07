@@ -27,6 +27,8 @@ import type { StaticIndicatorState } from './dev/hot-reloader/app/hot-reloader-a
 import { createInitialRSCPayloadFromFallbackPrerender } from './flight-data-helpers'
 import { getDeploymentId } from '../shared/lib/deployment-id'
 import { setNavigationBuildId } from './navigation-build-id'
+import type { ClientInstrumentationModules } from './router-transition-types'
+import { initializeRouterTransitionModules } from './components/router-transition'
 
 /// <reference types="react-dom/experimental" />
 
@@ -215,6 +217,8 @@ if (
   typeof window !== 'undefined'
 ) {
   const { createDebugChannel } =
+    // TODO(browser-variant): migrate to a .ts/.browser.ts split so the browser bundle drops the server branch; see scripts/generate-browser-variant-aliases.mjs
+    // ast-grep-ignore: no-typeof-window-require-tsx
     require('./dev/debug-channel') as typeof import('./dev/debug-channel')
 
   debugChannel = createDebugChannel(undefined)
@@ -339,15 +343,8 @@ const reactRootOptions: ReactDOMClient.RootOptions = {
   onUncaughtError,
 }
 
-export type ClientInstrumentationHooks = {
-  onRouterTransitionStart?: (
-    url: string,
-    navigationType: 'push' | 'replace' | 'traverse'
-  ) => void
-}
-
 export async function hydrate(
-  instrumentationHooks: ClientInstrumentationHooks | null,
+  instrumentationModules: ClientInstrumentationModules,
   assetPrefix: string
 ) {
   let staticIndicatorState: StaticIndicatorState | undefined
@@ -362,6 +359,12 @@ export async function hydrate(
   }
   const initialRSCPayload = await initialServerResponse
 
+  // Initialize the offline module to register browser event listeners
+  // (offline/online) before any components hydrate.
+  if (process.env.__NEXT_USE_OFFLINE) {
+    require('./components/offline') as typeof import('./components/offline')
+  }
+
   // setNavigationBuildId should be called only once, during JS initialization
   // and before any components have hydrated.
   if (initialRSCPayload.b) {
@@ -370,6 +373,8 @@ export async function hydrate(
     setNavigationBuildId(getDeploymentId()!)
   }
 
+  initializeRouterTransitionModules(instrumentationModules)
+
   const initialTimestamp = Date.now()
   const actionQueue: AppRouterActionQueue = createMutableActionQueue(
     createInitialRouterState({
@@ -377,8 +382,7 @@ export async function hydrate(
       initialRSCPayload,
       initialFlightStreamForCache,
       location: window.location,
-    }),
-    instrumentationHooks
+    })
   )
 
   const reactEl = (

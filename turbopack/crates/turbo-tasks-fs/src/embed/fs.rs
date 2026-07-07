@@ -11,7 +11,7 @@ use crate::{
 
 #[derive(ValueToString)]
 #[value_to_string(self.name)]
-#[turbo_tasks::value(serialization = "none", cell = "new", eq = "manual")]
+#[turbo_tasks::value(serialization = "skip", cell = "new", eq = "manual")]
 pub struct EmbeddedFileSystem {
     name: RcStr,
     #[turbo_tasks(trace_ignore)]

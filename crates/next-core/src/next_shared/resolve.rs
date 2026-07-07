@@ -1,7 +1,5 @@
-use std::sync::LazyLock;
-
 use anyhow::Result;
-use rustc_hash::FxHashMap;
+use async_trait::async_trait;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::{
@@ -9,43 +7,17 @@ use turbo_tasks_fs::{
     glob::{Glob, GlobOptions},
 };
 use turbopack_core::{
-    diagnostics::DiagnosticExt,
     file_source::FileSource,
-    issue::{Issue, IssueSeverity, IssueStage, OptionStyledString, StyledString},
+    issue::{Issue, IssueSeverity, IssueStage, StyledString},
     reference_type::ReferenceType,
     resolve::{
         ExternalTraced, ExternalType, ResolveResult, ResolveResultItem, ResolveResultOption,
         parse::Request,
-        pattern::Pattern,
-        plugin::{
-            AfterResolvePlugin, AfterResolvePluginCondition, BeforeResolvePlugin,
-            BeforeResolvePluginCondition,
-        },
+        plugin::{AfterResolvePlugin, AfterResolvePluginCondition},
     },
 };
 
-use crate::{next_server::ServerContextType, next_telemetry::ModuleFeatureTelemetry};
-
-// Set of the features we want to track, following existing references in
-// webpack/plugins/telemetry-plugin.
-static FEATURE_MODULES: LazyLock<FxHashMap<&'static str, Vec<&'static str>>> =
-    LazyLock::new(|| {
-        FxHashMap::from_iter([
-            (
-                "next",
-                vec![
-                    "/image",
-                    "/future/image",
-                    "/legacy/image",
-                    "/script",
-                    "/dynamic",
-                    "/font/google",
-                    "/font/local",
-                ],
-            ),
-            ("@next/font", vec!["/google", "/local"]),
-        ])
-    });
+use crate::next_server::ServerContextType;
 
 #[turbo_tasks::value(shared)]
 pub struct InvalidImportModuleIssue {
@@ -56,80 +28,78 @@ pub struct InvalidImportModuleIssue {
     pub skip_context_message: bool,
 }
 
+#[async_trait]
 #[turbo_tasks::value_impl]
 impl Issue for InvalidImportModuleIssue {
     fn severity(&self) -> IssueSeverity {
         IssueSeverity::Error
     }
 
-    #[turbo_tasks::function]
-    fn stage(&self) -> Vc<IssueStage> {
-        IssueStage::Resolve.cell()
+    fn stage(&self) -> IssueStage {
+        IssueStage::Resolve
     }
 
-    #[turbo_tasks::function]
-    fn title(&self) -> Vc<StyledString> {
-        StyledString::Text(rcstr!("Invalid import")).cell()
+    async fn title(&self) -> Result<StyledString> {
+        Ok(StyledString::Text(rcstr!("Invalid import")))
     }
 
-    #[turbo_tasks::function]
-    fn file_path(&self) -> Vc<FileSystemPath> {
-        self.file_path.clone().cell()
+    async fn file_path(&self) -> Result<FileSystemPath> {
+        Ok(self.file_path.clone())
     }
 
-    #[turbo_tasks::function]
-    async fn description(&self) -> Result<Vc<OptionStyledString>> {
-        let raw_context = self.file_path.clone();
-
+    async fn description(&self) -> Result<Option<StyledString>> {
         let mut messages = self.messages.clone();
-
         if !self.skip_context_message {
             //[TODO]: how do we get the import trace?
-            messages
-                .push(format!("The error was caused by importing '{}'", raw_context.path).into());
+            messages.push(
+                format!(
+                    "The error was caused by importing '{}'",
+                    self.file_path.path
+                )
+                .into(),
+            );
         }
 
-        Ok(Vc::cell(Some(
-            StyledString::Line(
-                messages
-                    .iter()
-                    .map(|v| StyledString::Text(format!("{v}\n").into()))
-                    .collect::<Vec<StyledString>>(),
-            )
-            .resolved_cell(),
+        Ok(Some(StyledString::Line(
+            messages
+                .iter()
+                .map(|v| StyledString::Text(format!("{v}\n").into()))
+                .collect::<Vec<StyledString>>(),
         )))
     }
 }
 
 #[turbo_tasks::value]
 pub(crate) struct NextExternalResolvePlugin {
-    project_path: FileSystemPath,
+    condition: ResolvedVc<AfterResolvePluginCondition>,
 }
 
 #[turbo_tasks::value_impl]
 impl NextExternalResolvePlugin {
     #[turbo_tasks::function]
-    pub fn new(project_path: FileSystemPath) -> Vc<Self> {
-        NextExternalResolvePlugin { project_path }.cell()
+    pub async fn new(project_path: FileSystemPath) -> Result<Vc<Self>> {
+        let condition = AfterResolvePluginCondition::new_with_glob(
+            project_path.root().owned().await?,
+            Glob::new(
+                rcstr!("**/next/dist/**/*.{external,runtime.dev,runtime.prod}.js"),
+                GlobOptions::default(),
+            ),
+        )
+        .to_resolved()
+        .await?;
+        Ok(NextExternalResolvePlugin { condition }.cell())
     }
 }
 
 #[turbo_tasks::value_impl]
 impl AfterResolvePlugin for NextExternalResolvePlugin {
-    #[turbo_tasks::function]
-    async fn after_resolve_condition(&self) -> Result<Vc<AfterResolvePluginCondition>> {
-        Ok(AfterResolvePluginCondition::new_with_glob(
-            self.project_path.root().owned().await?,
-            Glob::new(
-                rcstr!("**/next/dist/**/*.{external,runtime.dev,runtime.prod}.js"),
-                GlobOptions::default(),
-            ),
-        ))
+    fn after_resolve_condition(&self) -> Vc<AfterResolvePluginCondition> {
+        *self.condition
     }
 
     #[turbo_tasks::function]
     async fn after_resolve(
-        &self,
+        self: Vc<Self>,
         fs_path: FileSystemPath,
         _lookup_path: FileSystemPath,
         _reference_type: ReferenceType,
@@ -157,33 +127,38 @@ impl AfterResolvePlugin for NextExternalResolvePlugin {
 
 #[turbo_tasks::value]
 pub(crate) struct NextNodeSharedRuntimeResolvePlugin {
-    root: FileSystemPath,
     server_context_type: ServerContextType,
+    condition: ResolvedVc<AfterResolvePluginCondition>,
 }
 
 #[turbo_tasks::value_impl]
 impl NextNodeSharedRuntimeResolvePlugin {
     #[turbo_tasks::function]
-    pub fn new(root: FileSystemPath, server_context_type: ServerContextType) -> Vc<Self> {
-        NextNodeSharedRuntimeResolvePlugin {
-            root,
+    pub async fn new(
+        root: FileSystemPath,
+        server_context_type: ServerContextType,
+    ) -> Result<Vc<Self>> {
+        let condition = AfterResolvePluginCondition::new_with_glob(
+            root.root().owned().await?,
+            Glob::new(
+                rcstr!("**/next/dist/**/*.shared-runtime.js"),
+                GlobOptions::default(),
+            ),
+        )
+        .to_resolved()
+        .await?;
+        Ok(NextNodeSharedRuntimeResolvePlugin {
             server_context_type,
+            condition,
         }
-        .cell()
+        .cell())
     }
 }
 
 #[turbo_tasks::value_impl]
 impl AfterResolvePlugin for NextNodeSharedRuntimeResolvePlugin {
-    #[turbo_tasks::function]
-    async fn after_resolve_condition(&self) -> Result<Vc<AfterResolvePluginCondition>> {
-        Ok(AfterResolvePluginCondition::new_with_glob(
-            self.root.root().owned().await?,
-            Glob::new(
-                rcstr!("**/next/dist/**/*.shared-runtime.js"),
-                GlobOptions::default(),
-            ),
-        ))
+    fn after_resolve_condition(&self) -> Vc<AfterResolvePluginCondition> {
+        *self.condition
     }
 
     #[turbo_tasks::function]
@@ -232,94 +207,37 @@ impl AfterResolvePlugin for NextNodeSharedRuntimeResolvePlugin {
     }
 }
 
-/// A resolver plugin tracks the usage of certain import paths, emit
-/// telemetry events if there is a match.
-#[turbo_tasks::value]
-pub(crate) struct ModuleFeatureReportResolvePlugin {
-    root: FileSystemPath,
-}
-
-#[turbo_tasks::value_impl]
-impl ModuleFeatureReportResolvePlugin {
-    #[turbo_tasks::function]
-    pub fn new(root: FileSystemPath) -> Vc<Self> {
-        ModuleFeatureReportResolvePlugin { root }.cell()
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl BeforeResolvePlugin for ModuleFeatureReportResolvePlugin {
-    #[turbo_tasks::function]
-    fn before_resolve_condition(&self) -> Vc<BeforeResolvePluginCondition> {
-        BeforeResolvePluginCondition::from_modules(Vc::cell(
-            FEATURE_MODULES
-                .keys()
-                .map(|k| (*k).into())
-                .collect::<Vec<RcStr>>(),
-        ))
-    }
-
-    #[turbo_tasks::function]
-    async fn before_resolve(
-        &self,
-        _lookup_path: FileSystemPath,
-        _reference_type: ReferenceType,
-        request: Vc<Request>,
-    ) -> Result<Vc<ResolveResultOption>> {
-        if let Request::Module {
-            module: Pattern::Constant(module),
-            path,
-            query: _,
-            fragment: _,
-        } = &*request.await?
-        {
-            let feature_module = FEATURE_MODULES.get(module.as_str());
-            if let Some(feature_module) = feature_module {
-                let sub_path = feature_module
-                    .iter()
-                    .find(|sub_path| path.is_match(sub_path));
-
-                if let Some(sub_path) = sub_path {
-                    ModuleFeatureTelemetry::new(format!("{module}{sub_path}").into(), 1)
-                        .resolved_cell()
-                        .emit();
-                }
-            }
-        }
-
-        Ok(ResolveResultOption::none())
-    }
-}
-
 #[turbo_tasks::value]
 pub(crate) struct NextSharedRuntimeResolvePlugin {
-    root: FileSystemPath,
+    condition: ResolvedVc<AfterResolvePluginCondition>,
 }
 
 #[turbo_tasks::value_impl]
 impl NextSharedRuntimeResolvePlugin {
     #[turbo_tasks::function]
-    pub fn new(root: FileSystemPath) -> Vc<Self> {
-        NextSharedRuntimeResolvePlugin { root }.cell()
+    pub async fn new(root: FileSystemPath) -> Result<Vc<Self>> {
+        let condition = AfterResolvePluginCondition::new_with_glob(
+            root.root().owned().await?,
+            Glob::new(
+                rcstr!("**/next/dist/esm/**/*.shared-runtime.js"),
+                GlobOptions::default(),
+            ),
+        )
+        .to_resolved()
+        .await?;
+        Ok(NextSharedRuntimeResolvePlugin { condition }.cell())
     }
 }
 
 #[turbo_tasks::value_impl]
 impl AfterResolvePlugin for NextSharedRuntimeResolvePlugin {
-    #[turbo_tasks::function]
-    async fn after_resolve_condition(&self) -> Result<Vc<AfterResolvePluginCondition>> {
-        Ok(AfterResolvePluginCondition::new_with_glob(
-            self.root.root().owned().await?,
-            Glob::new(
-                rcstr!("**/next/dist/esm/**/*.shared-runtime.js"),
-                GlobOptions::default(),
-            ),
-        ))
+    fn after_resolve_condition(&self) -> Vc<AfterResolvePluginCondition> {
+        *self.condition
     }
 
     #[turbo_tasks::function]
     async fn after_resolve(
-        &self,
+        self: Vc<Self>,
         fs_path: FileSystemPath,
         _lookup_path: FileSystemPath,
         _reference_type: ReferenceType,

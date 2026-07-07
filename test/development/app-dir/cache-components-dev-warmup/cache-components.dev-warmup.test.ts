@@ -1,7 +1,8 @@
-import { nextTestSetup } from 'e2e-utils'
+import { nextTestSetup, type Playwright } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 import * as nodePath from 'node:path'
-import type { Playwright } from '../../../lib/next-webdriver'
+
+const partialPrefetching = !!process.env.__NEXT_PARTIAL_PREFETCHING
 
 describe.each([
   {
@@ -75,15 +76,18 @@ describe.each([
     ) {
       const browser = await next.browser(path)
 
-      // Initial load.
-      await retry(() => assertLogs(browser))
+      // The initial load fills caches while streaming, so cached content
+      // resolves in a later phase than it will once the caches are warm. That's
+      // an accepted, non-representative tradeoff of the streaming dev render,
+      // so we don't assert the logs here — this load just fills the caches.
 
       // We should not see any errors related to the aborted render.
       expect(next.cliOutput).not.toContain(
         'AbortError: This operation was aborted'
       )
 
-      // After another load (with warm caches) the logs should be the same.
+      // After a warm reload the caches are filled, so the logs resolve in the
+      // correct phase.
       await browser.loadPage(next.url + path) // clears old logs
       await retry(() => assertLogs(browser))
 
@@ -104,11 +108,18 @@ describe.each([
         return
       }
 
-      // After a revalidation the subsequent warmup render must discard stale
-      // cache entries.
-      // This should not affect the environment labels.
+      // After a revalidation the subsequent render must discard the stale cache
+      // entries. This should not affect the environment labels once the caches
+      // are warm again.
       await revalidatePath(path)
 
+      // The first load after revalidation is a cold cache-miss request that we
+      // stream, so its stages aren't representative; it just refills the
+      // caches.
+      await browser.loadPage(next.url + path)
+
+      // After a warm reload the caches are filled, so the logs resolve in the
+      // correct phase.
       await browser.loadPage(next.url + path) // clears old logs
       await retry(() => assertLogs(browser))
 
@@ -124,16 +135,27 @@ describe.each([
     ) {
       const browser = await next.browser('/')
 
-      // Initial nav (first time loading the page)
+      // The initial nav fills caches while streaming, so cached content
+      // resolves in a later phase than it will once the caches are warm. That's
+      // an accepted, non-representative tradeoff of the streaming dev render,
+      // so we don't assert the logs here — this nav just fills the caches.
+      const initialNavOutputIndex = next.cliOutput.length
       await browser.elementByCss(`a[href="${path}"]`).click()
-      await retry(() => assertLogs(browser))
+      // Wait for the nav's request to finish before reloading, to ensure all
+      // caches were filled.
+      await retry(() => {
+        expect(next.cliOutput.slice(initialNavOutputIndex)).toContain(
+          `GET ${path} 200`
+        )
+      }, 10_000)
 
       // We should not see any errors related to the aborted render.
       expect(next.cliOutput).not.toContain(
         'AbortError: This operation was aborted'
       )
 
-      // Reload, and perform another nav (with warm caches). the logs should be the same.
+      // After a warm reload + nav the caches are filled, so the logs resolve in
+      // the correct phase.
       await browser.loadPage(next.url + '/') // clears old logs
       await browser.elementByCss(`a[href="${path}"]`).click()
       await retry(() => assertLogs(browser))
@@ -155,11 +177,25 @@ describe.each([
         return
       }
 
-      // After a revalidation the subsequent warmup render must discard stale
-      // cache entries.
-      // This should not affect the environment labels.
+      // After a revalidation the subsequent render must discard the stale cache
+      // entries. This should not affect the environment labels once the caches
+      // are warm again.
       await revalidatePath(path)
 
+      // The first navigation after revalidation is a cold cache-miss request
+      // that we stream, so its stages aren't representative; it just refills
+      // the caches. Wait for its request to finish before navigating again.
+      await browser.loadPage(next.url + '/')
+      const revalidatedNavOutputIndex = next.cliOutput.length
+      await browser.elementByCss(`a[href="${path}"]`).click()
+      await retry(() => {
+        expect(next.cliOutput.slice(revalidatedNavOutputIndex)).toContain(
+          `GET ${path} 200`
+        )
+      }, 10_000)
+
+      // After a warm reload + nav the caches are filled, so the logs resolve in
+      // the correct phase.
       await browser.loadPage(next.url + '/') // clears old logs
       await browser.elementByCss(`a[href="${path}"]`).click()
       await retry(() => assertLogs(browser))
@@ -186,6 +222,15 @@ describe.each([
       { description: 'initial load', isInitialLoad: true },
       { description: 'navigation', isInitialLoad: false },
     ])('$description', ({ isInitialLoad }) => {
+      // Static
+      const STATIC_LINK_DATA = isInitialLoad
+        ? 'Prerender'
+        : // If we're rendering an App Shell, static params are deferred until the runtime stage.
+          partialPrefetching || hasRuntimePrefetch
+          ? RUNTIME_ENV
+          : 'Prerender'
+      const RUNTIME_LINK_DATA = RUNTIME_ENV
+
       describe('cached data resolves in the correct phase', () => {
         it('cached data + cached fetch', async () => {
           const path = '/simple'
@@ -265,6 +310,31 @@ describe.each([
           }
         })
 
+        it('cached data + short-stale cached data', async () => {
+          const path = '/short-stale-cache'
+
+          // A short stale time excludes the entry from both the runtime prefetch
+          // shell and the static shell.
+
+          const assertLogs = async (browser: Playwright) => {
+            const logs = await browser.log()
+            assertLog(logs, 'after cache read - layout', 'Prerender')
+            assertLog(logs, 'after cache read - page', 'Prerender')
+
+            assertLog(logs, 'after short-stale cache read - page', 'Server')
+            assertLog(logs, 'after short-stale cache read - layout', 'Server')
+
+            assertLog(logs, 'after uncached fetch - layout', 'Server')
+            assertLog(logs, 'after uncached fetch - page', 'Server')
+          }
+
+          if (isInitialLoad) {
+            await testInitialLoad(path, assertLogs)
+          } else {
+            await testNavigation(path, assertLogs)
+          }
+        })
+
         it('cache reads that reveal more components with more caches', async () => {
           const path = '/successive-caches'
 
@@ -307,6 +377,72 @@ describe.each([
         } else {
           await testNavigation(path, assertLogs)
         }
+      })
+
+      describe('mixed static and fallback params resolve in the correct phase', () => {
+        it('covered leading param', async () => {
+          const path = '/mixed/en/123'
+
+          const assertLogs = async (browser: Playwright) => {
+            const logs = await browser.log()
+            // `en` is covered by `generateStaticParams`, so `lang` resolves in
+            // the static shell, unless we're rendering an App Shell, in which
+            // case they're deferred to the runtiem stage.
+            assertLog(logs, 'after params - lang', STATIC_LINK_DATA)
+            // `id` is never covered, so it's deferred to the runtime stage.
+            assertLog(logs, 'after params - id', RUNTIME_LINK_DATA)
+          }
+
+          if (isInitialLoad) {
+            await testInitialLoad(path, assertLogs)
+          } else {
+            await testNavigation(path, assertLogs)
+          }
+        })
+
+        it('uncovered leading param', async () => {
+          const path = '/mixed/fr/123'
+
+          const assertLogs = async (browser: Playwright) => {
+            const logs = await browser.log()
+            // `fr` is not covered by `generateStaticParams`, so the most-specific
+            // prerendered route matching this URL is the base route and its
+            // fallback set is both params. `lang` must therefore defer to the
+            // runtime stage too, not resolve in the static shell. (Picking the
+            // fewest-param route without matching the URL would resolve `lang`
+            // in `Prerender` here.)
+            assertLog(logs, 'after params - lang', RUNTIME_LINK_DATA)
+            assertLog(logs, 'after params - id', RUNTIME_LINK_DATA)
+          }
+
+          if (isInitialLoad) {
+            await testInitialLoad(path, assertLogs)
+          } else {
+            await testNavigation(path, assertLogs)
+          }
+        })
+
+        it('fully covered params', async () => {
+          const path = '/mixed/en/x'
+
+          const assertLogs = async (browser: Playwright) => {
+            const logs = await browser.log()
+            // Both `en` and `x` are covered by `generateStaticParams`, so this
+            // is a fully prerendered concrete route and both params resolve in
+            // the static shell unless we're rendering an App Shell, in which
+            // case they're deferred to the runtime stage.
+            // (Skipping the concrete route before matching the URL would let
+            // the base route win and defer the statically-known `id`.)
+            assertLog(logs, 'after params - lang', STATIC_LINK_DATA)
+            assertLog(logs, 'after params - id', STATIC_LINK_DATA)
+          }
+
+          if (isInitialLoad) {
+            await testInitialLoad(path, assertLogs)
+          } else {
+            await testNavigation(path, assertLogs)
+          }
+        })
       })
 
       // FIXME: it seems like in Turbopack we sometimes get two instances of `workUnitAsyncStorage` --

@@ -65,7 +65,7 @@ import {
   isStaticMetadataFile,
 } from '../../../lib/metadata/is-metadata-route'
 import {
-  fillMetadataSegment,
+  fillStaticMetadataSegment,
   normalizeMetadataPageToRoute,
 } from '../../../lib/metadata/get-metadata-route'
 import { JsConfigPathsPlugin } from '../../../build/webpack/plugins/jsconfig-paths-plugin'
@@ -89,6 +89,7 @@ import {
   writeValidatorFile,
 } from './route-types-utils'
 import { writeCacheLifeTypes } from './cache-life-type-utils'
+import { writeRootParamsTypes } from './root-params-type-utils'
 import {
   addSlotIfNew,
   type RouteInfo,
@@ -289,6 +290,7 @@ async function startWatcher(
       appRouteHandlers: new Set(),
       pageApiRoutes: new Set(),
       filePathToRoute: new Map(),
+      rootParams: new Map(),
     },
     path.join(distTypesDir, 'routes.d.ts'),
     opts.nextConfig
@@ -500,7 +502,10 @@ async function startWatcher(
             )
           }
           Log.warnOnce(
-            `The "${MIDDLEWARE_FILENAME}" file convention is deprecated. Please use "${PROXY_FILENAME}" instead. Learn more: https://nextjs.org/docs/messages/middleware-to-proxy`
+            `The "${MIDDLEWARE_FILENAME}" file convention is deprecated. Please use "${PROXY_FILENAME}" instead.\n\n` +
+              `  To migrate automatically, run:\n` +
+              `  npx @next/codemod@canary middleware-to-proxy .\n\n` +
+              `  Learn more: https://nextjs.org/docs/messages/middleware-to-proxy`
           )
         }
 
@@ -704,11 +709,9 @@ async function startWatcher(
             if (appDir && isStaticMetadataFile(fileName.replace(appDir, ''))) {
               const segment = path.posix.dirname(pageName)
               const lastSegment = path.posix.basename(pageName)
-              const normalizedPath = fillMetadataSegment(
+              const normalizedPath = fillStaticMetadataSegment(
                 segment,
-                {},
-                lastSegment,
-                true
+                lastSegment
               )
               staticMetadataFiles.set(normalizedPath, fileName)
             } else {
@@ -1208,6 +1211,11 @@ async function startWatcher(
           // Generate cache-life types if cacheLife config exists
           const cacheLifeFilePath = path.join(distTypesDir, 'cache-life.d.ts')
           writeCacheLifeTypes(opts.nextConfig.cacheLife, cacheLifeFilePath)
+
+          await writeRootParamsTypes(
+            routeTypesManifest,
+            path.join(distTypesDir, 'root-params.d.ts')
+          )
         }
 
         if (!resolved) {

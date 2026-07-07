@@ -104,7 +104,8 @@ function isInternalEndpoint(req: IncomingMessage): boolean {
     // CORS checks.
     const isIgnoredRequest =
       req.url.includes('/_next/image') ||
-      req.url.includes('/_next/static/media')
+      req.url.includes('/_next/static/media') ||
+      req.url.includes('/_next/static/immutable/media')
 
     return !isIgnoredRequest && (isInternalAsset || isMiddlewareRequest)
   } catch (err) {
@@ -119,7 +120,7 @@ export const blockCrossSiteDEV = (
   hostname: string | undefined
 ): boolean => {
   const allowedOrigins = [
-    '*.localhost',
+    '**.localhost',
     'localhost',
     ...(allowedDevOrigins ?? []),
   ]

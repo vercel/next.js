@@ -43,28 +43,31 @@ pub struct CssModule {
     ty: CssModuleType,
     environment: Option<ResolvedVc<Environment>>,
     lightningcss_features: LightningCssFeatureFlags,
+    /// The path of `source`, precomputed so that `ResolveOrigin::origin_path` is synchronous.
+    origin_path: FileSystemPath,
 }
 
 #[turbo_tasks::value_impl]
 impl CssModule {
     /// Creates a new CSS asset.
     #[turbo_tasks::function]
-    pub fn new(
+    pub async fn new(
         source: ResolvedVc<Box<dyn Source>>,
         asset_context: ResolvedVc<Box<dyn AssetContext>>,
         ty: CssModuleType,
         import_context: Option<ResolvedVc<ImportContext>>,
         environment: Option<ResolvedVc<Environment>>,
         lightningcss_features: LightningCssFeatureFlags,
-    ) -> Vc<Self> {
-        Self::cell(CssModule {
+    ) -> Result<Vc<Self>> {
+        Ok(Self::cell(CssModule {
+            origin_path: source.ident().await?.path.clone(),
             source,
             asset_context,
             import_context,
             ty,
             environment,
             lightningcss_features,
-        })
+        }))
     }
 
     /// Returns the asset ident of the source without the "css" modifier
@@ -137,12 +140,14 @@ impl Module for CssModule {
         let mut ident = self
             .source
             .ident()
+            .owned()
+            .await?
             .with_modifier(rcstr!("css"))
             .with_layer(self.asset_context.into_trait_ref().await?.layer());
         if let Some(import_context) = self.import_context {
             ident = ident.with_modifier(import_context.modifier().owned().await?)
         }
-        Ok(ident)
+        Ok(ident.into_vc())
     }
 
     #[turbo_tasks::function]
@@ -200,14 +205,12 @@ impl CssChunkPlaceable for CssModule {}
 
 #[turbo_tasks::value_impl]
 impl ResolveOrigin for CssModule {
-    #[turbo_tasks::function]
-    fn origin_path(&self) -> Vc<FileSystemPath> {
-        self.source.ident().path()
+    fn origin_path(&self) -> FileSystemPath {
+        self.origin_path.clone()
     }
 
-    #[turbo_tasks::function]
-    fn asset_context(&self) -> Vc<Box<dyn AssetContext>> {
-        *self.asset_context
+    fn asset_context(&self) -> ResolvedVc<Box<dyn AssetContext>> {
+        self.asset_context
     }
 }
 
@@ -224,7 +227,7 @@ impl OutputAssetsReference for CssModuleChunkItem {
     async fn references(&self) -> Result<Vc<OutputAssetsWithReferenced>> {
         let mut references = Vec::new();
         if let ParseCssResult::Ok { url_references, .. } = &*self.module.parse_css().await? {
-            for (_, reference) in url_references.await? {
+            for (_, reference) in &*url_references.await? {
                 if let ReferencedAsset::Some(asset) = *reference
                     .get_referenced_asset(*self.chunking_context)
                     .await?
@@ -246,12 +249,10 @@ impl ChunkItem for CssModuleChunkItem {
         self.module.ident()
     }
 
-    #[turbo_tasks::function]
     fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
         *self.chunking_context
     }
 
-    #[turbo_tasks::function]
     fn ty(&self) -> Vc<Box<dyn ChunkType>> {
         Vc::upcast(Vc::<CssChunkType>::default())
     }
@@ -276,7 +277,6 @@ impl CssChunkItem for CssModuleChunkItem {
             {
                 for &module in import_ref
                     .resolve_reference()
-                    .resolve()
                     .await?
                     .primary_modules()
                     .await?
@@ -298,7 +298,6 @@ impl CssChunkItem for CssModuleChunkItem {
             {
                 for &module in compose_ref
                     .resolve_reference()
-                    .resolve()
                     .await?
                     .primary_modules()
                     .await?

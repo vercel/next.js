@@ -6,14 +6,16 @@ use std::{
 };
 
 use anyhow::{Context, Result, bail};
-use either::Either;
 use rustc_hash::FxHashSet;
 use tracing::Instrument;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{ResolvedVc, TransientInstance, TryJoinIterExt, TurboTasks, Vc, apply_effects};
+use turbo_tasks::{
+    Effects, OperationVc, ResolvedVc, TransientInstance, TryJoinIterExt, TurboTasks, Vc,
+    read_strongly_consistent_and_apply_effects, take_effects,
+};
 use turbo_tasks_backend::{
-    BackendOptions, GitVersionInfo, NoopBackingStorage, StartupCacheState, StorageMode,
-    TurboBackingStorage, TurboTasksBackend, noop_backing_storage, turbo_backing_storage,
+    BackendOptions, GitVersionInfo, StartupCacheState, StorageMode, TurboTasksBackend,
+    noop_backing_storage, turbo_backing_storage,
 };
 use turbo_tasks_fs::FileSystem;
 use turbo_unix_path::join_path;
@@ -26,19 +28,20 @@ use turbopack_core::{
         ChunkingConfig, ChunkingContext, ChunkingContextExt, ContentHashing, EvaluatableAsset,
         MangleType, MinifyType, SourceMapsType, availability_info::AvailabilityInfo,
     },
+    context::AssetContext,
     environment::{BrowserEnvironment, Environment, ExecutionEnvironment, NodeJsEnvironment},
     ident::AssetIdent,
     issue::{IssueReporter, IssueSeverity, handle_issues},
     module::Module,
     module_graph::{
-        ModuleGraph, SingleModuleGraph,
+        GraphEntries, ModuleGraph, SingleModuleGraph,
         binding_usage_info::compute_binding_usage_info,
-        chunk_group_info::{ChunkGroup, ChunkGroupEntry},
+        chunk_group_info::{ChunkGroup, ChunkGroupEntry, EntryHeuristics},
     },
     output::{OutputAsset, OutputAssets, OutputAssetsWithReferenced},
     reference_type::{EntryReferenceSubType, ReferenceType},
     resolve::{
-        origin::{PlainResolveOrigin, ResolveOrigin, ResolveOriginExt},
+        origin::{PlainResolveOrigin, ResolveOrigin},
         parse::Request,
     },
 };
@@ -57,7 +60,7 @@ use crate::{
     },
 };
 
-type Backend = TurboTasksBackend<Either<TurboBackingStorage, NoopBackingStorage>>;
+type Backend = TurboTasksBackend;
 
 pub struct TurbopackBuildBuilder {
     turbo_tasks: Arc<TurboTasks<Backend>>,
@@ -144,7 +147,7 @@ impl TurbopackBuildBuilder {
     pub async fn build(self) -> Result<()> {
         self.turbo_tasks
             .run_once(async move {
-                let build_result_op = build_internal(
+                let wrapper_op = extract_effects_operation(build_internal(
                     self.project_dir.clone(),
                     self.root_dir,
                     self.entry_requests.clone(),
@@ -153,12 +156,9 @@ impl TurbopackBuildBuilder {
                     self.minify_type,
                     self.target,
                     self.scope_hoist,
-                );
+                ));
 
-                // Await the result to propagate any errors.
-                build_result_op.read_strongly_consistent().await?;
-
-                apply_effects(build_result_op).await?;
+                read_strongly_consistent_and_apply_effects(wrapper_op, |e| e).await?;
 
                 let issue_reporter: Vc<Box<dyn IssueReporter>> =
                     Vc::upcast(ConsoleUi::new(TransientInstance::new(LogOptions {
@@ -169,14 +169,7 @@ impl TurbopackBuildBuilder {
                         log_level: self.log_level,
                     })));
 
-                handle_issues(
-                    build_result_op,
-                    issue_reporter,
-                    IssueSeverity::Error,
-                    None,
-                    None,
-                )
-                .await?;
+                handle_issues(wrapper_op, issue_reporter, IssueSeverity::Error, None, None).await?;
 
                 Ok(())
             })
@@ -184,7 +177,13 @@ impl TurbopackBuildBuilder {
     }
 }
 
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
+async fn extract_effects_operation(op: OperationVc<()>) -> Result<Vc<Effects>> {
+    let _ = op.resolve().strongly_consistent().await?;
+    Ok(take_effects(op).await?.cell())
+}
+
+#[turbo_tasks::function(operation, root)]
 async fn build_internal(
     project_dir: RcStr,
     root_dir: RcStr,
@@ -194,7 +193,7 @@ async fn build_internal(
     minify_type: MinifyType,
     target: Target,
     scope_hoist: bool,
-) -> Result<Vc<()>> {
+) -> Result<()> {
     let output_fs = output_fs(project_dir.clone());
     const OUTPUT_DIR: &str = "dist";
     let project_relative = project_dir.strip_prefix(&*root_dir).unwrap();
@@ -282,26 +281,33 @@ async fn build_internal(
         .await?)
         .to_vec();
 
-    let origin = PlainResolveOrigin::new(asset_context, project_fs.root().await?.join("_")?);
+    let origin =
+        PlainResolveOrigin::new(asset_context, project_fs.root().await?.join("_")?).await?;
+    let resolve_options = origin.resolve_options();
+    let asset_context = origin.asset_context();
+    let origin_path = origin.origin_path();
     let project_dir = &project_dir;
     let entries = async move {
         entry_requests
             .into_iter()
-            .map(|request_vc| async move {
-                let ty = ReferenceType::Entry(EntryReferenceSubType::Undefined);
-                let request = request_vc.await?;
-                origin
-                    .resolve_asset(request_vc, origin.resolve_options(), ty)
-                    .await?
-                    .first_module()
-                    .await?
-                    .with_context(|| {
-                        format!(
-                            "Unable to resolve entry {} from directory {}.",
-                            request.request().unwrap(),
-                            project_dir
-                        )
-                    })
+            .map(|request_vc| {
+                let origin_path = origin_path.clone();
+                async move {
+                    let ty = ReferenceType::Entry(EntryReferenceSubType::Undefined);
+                    let request = request_vc.await?;
+                    asset_context
+                        .resolve_asset(origin_path, request_vc, resolve_options, ty)
+                        .await?
+                        .first_module()
+                        .await?
+                        .with_context(|| {
+                            format!(
+                                "Unable to resolve entry {} from directory {}.",
+                                request.request().unwrap(),
+                                project_dir
+                            )
+                        })
+                }
             })
             .try_join()
             .await
@@ -310,19 +316,22 @@ async fn build_internal(
     .await?;
 
     let single_graph = SingleModuleGraph::new_with_entries(
-        ResolvedVc::cell(vec![ChunkGroupEntry::Entry(entries.clone())]),
+        GraphEntries::from_chunk_groups(vec![ChunkGroupEntry::Entry {
+            modules: entries.clone(),
+            heuristics: EntryHeuristics::default(),
+        }])
+        .resolved_cell(),
         false,
         true,
     );
-    let mut module_graph = ModuleGraph::from_single_graph(single_graph);
+    let mut module_graph = ModuleGraph::from_graphs(vec![single_graph], None);
     let binding_usage = compute_binding_usage_info(module_graph, true);
     let unused_references = binding_usage
         .connect()
         .unused_references()
         .to_resolved()
         .await?;
-    module_graph =
-        ModuleGraph::from_single_graph_without_unused_references(single_graph, binding_usage);
+    module_graph = ModuleGraph::from_graphs(vec![single_graph], Some(binding_usage));
     let module_graph = module_graph.connect();
     let module_id_strategy = get_global_module_id_strategy(module_graph)
         .to_resolved()
@@ -449,15 +458,15 @@ async fn build_internal(
                             Target::Browser => chunking_context.evaluated_chunk_group_assets(
                                 AssetIdent::from_path(
                                     build_output_root
-                                        .join(
-                                            ecmascript.ident().path().await?.file_stem().unwrap(),
-                                        )?
+                                        .join(ecmascript.ident().await?.path.file_stem().unwrap())?
                                         .with_extension("entry.js"),
-                                ),
+                                )
+                                .into_vc(),
                                 ChunkGroup::Entry(
                                     [ResolvedVc::upcast(ecmascript)].into_iter().collect(),
                                 ),
                                 module_graph,
+                                OutputAssets::empty(),
                                 AvailabilityInfo::root(),
                             ),
                             Target::Node => OutputAssetsWithReferenced {
@@ -468,8 +477,8 @@ async fn build_internal(
                                                 .join(
                                                     ecmascript
                                                         .ident()
-                                                        .path()
                                                         .await?
+                                                        .path
                                                         .file_stem()
                                                         .unwrap(),
                                                 )?
@@ -516,7 +525,7 @@ async fn build_internal(
         .try_join()
         .await?;
 
-    Ok(Default::default())
+    Ok(())
 }
 
 pub async fn build(args: &BuildArguments) -> Result<()> {
@@ -540,7 +549,7 @@ pub async fn build(args: &BuildArguments) -> Result<()> {
             .clone()
             .unwrap_or_else(|| PathBuf::from(&*project_dir).join(".turbopack/cache"));
         let (backing_storage, cache_state) =
-            turbo_backing_storage(&cache_dir, &version_info, is_ci, is_short_session)?;
+            turbo_backing_storage(&cache_dir, &version_info, is_ci, is_short_session, false)?;
         let storage_mode = if std::env::var("TURBO_ENGINE_READ_ONLY").is_ok() {
             StorageMode::ReadOnly
         } else if is_ci || is_short_session {
@@ -554,7 +563,7 @@ pub async fn build(args: &BuildArguments) -> Result<()> {
                 storage_mode: Some(storage_mode),
                 ..Default::default()
             },
-            Either::Left(backing_storage),
+            backing_storage,
         ));
         if let StartupCacheState::Invalidated { reason_code } = cache_state {
             eprintln!(
@@ -573,7 +582,7 @@ pub async fn build(args: &BuildArguments) -> Result<()> {
                 storage_mode: None,
                 ..Default::default()
             },
-            Either::Right(noop_backing_storage()),
+            noop_backing_storage(),
         ))
     };
 

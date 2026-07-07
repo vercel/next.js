@@ -4,6 +4,12 @@ import * as Log from '../../build/output/log'
 import { bold, purple, strikethrough } from '../../lib/picocolors'
 import type { ConfiguredExperimentalFeature } from '../config'
 import { experimentalSchema } from '../config-schema'
+import { detectAgent } from '../../telemetry/detect-agent'
+import {
+  hasAgentRulesInstalled,
+  writeAgentFiles,
+  type AgentFilesResult,
+} from './generate-agent-files'
 
 // Re-export the type for consumers
 export type { ConfiguredExperimentalFeature }
@@ -70,12 +76,20 @@ export function logStartInfo({
 export function logExperimentalInfo({
   experimentalFeatures,
   cacheComponents,
+  partialPrefetching,
 }: {
   experimentalFeatures?: ConfiguredExperimentalFeature[]
   cacheComponents?: boolean
+  partialPrefetching?: boolean | 'unstable_eager'
 }) {
   if (cacheComponents) {
     Log.bootstrap(`- Cache Components enabled`)
+  }
+
+  if (partialPrefetching) {
+    const mode =
+      partialPrefetching === 'unstable_eager' ? ' (unstable_eager)' : ''
+    Log.bootstrap(`- Partial Prefetching enabled${mode}`)
   }
 
   if (experimentalFeatures?.length) {
@@ -111,6 +125,23 @@ export function logExperimentalInfo({
 
   // New line after the bootstrap info
   Log.info('')
+}
+
+/**
+ * When `next dev` detects an AI coding agent but the managed
+ * agent-rules block is missing from AGENTS.md / CLAUDE.md,
+ * auto-generate the files so the agent has access to version-matched
+ * docs. Returns the write result when files were generated, or `null`
+ * when no action was needed.
+ *
+ * Callers gate this on `config.agentRules !== false` — opt-out is
+ * declarative in next.config, not inside this function.
+ */
+export function ensureAgentRulesForDev(dir: string): AgentFilesResult | null {
+  if (detectAgent() === null) return null
+  if (hasAgentRulesInstalled(dir)) return null
+
+  return writeAgentFiles(dir)
 }
 
 /**
