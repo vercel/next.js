@@ -39,9 +39,12 @@ pub enum ResolveModules {
     },
 }
 
-#[derive(TraceRawVcs, Hash, PartialEq, Eq, Clone, Copy, Debug, NonLocalValue, Encode, Decode)]
+#[derive(
+    TraceRawVcs, Hash, PartialEq, Eq, Clone, Copy, Debug, NonLocalValue, Encode, Decode, Default,
+)]
 pub enum ConditionValue {
     Set,
+    #[default]
     Unset,
     Unknown,
 }
@@ -533,7 +536,16 @@ impl ValueToString for ImportMapResult {
             }
             ImportMapResult::NoEntry => Ok(Vc::cell(rcstr!("No import map entry"))),
             ImportMapResult::Error(issue) => Ok(Vc::cell(
-                format!("error: {}", issue.title().await?.to_unstyled_string()).into(),
+                format!(
+                    "error: {}",
+                    issue
+                        .into_trait_ref()
+                        .await?
+                        .title()
+                        .await?
+                        .to_unstyled_string()
+                )
+                .into(),
             )),
         }
     }

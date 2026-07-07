@@ -3,6 +3,8 @@ mod cell_mode;
 pub(crate) mod default;
 mod local;
 pub(crate) mod operation;
+mod ord;
+mod raw;
 mod read;
 pub(crate) mod resolved;
 mod traits;
@@ -10,7 +12,7 @@ mod traits;
 use std::{
     any::Any,
     fmt::Debug,
-    future::{Future, IntoFuture},
+    future::Future,
     hash::{Hash, Hasher},
     marker::PhantomData,
     ops::Deref,
@@ -23,7 +25,9 @@ use bincode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 use shrink_to_fit::ShrinkToFit;
 
-pub use self::{
+#[cfg(debug_assertions)]
+use crate::debug::{ValueDebug, ValueDebugFormat, ValueDebugFormatString};
+pub use crate::vc::{
     cast::{VcCast, VcValueTraitCast, VcValueTypeCast},
     cell_mode::{
         VcCellCompareMode, VcCellHashedCompareMode, VcCellKeyedCompareMode, VcCellMode,
@@ -32,13 +36,13 @@ pub use self::{
     default::ValueDefault,
     local::NonLocalValue,
     operation::{OperationValue, OperationVc, ResolveOperationVcFuture},
+    ord::OrdResolvedVc,
+    raw::{CellId, RawVc, RawVcUnpacked, ReadRawVcFuture, ResolveRawVcFuture},
     read::{ReadOwnedVcFuture, ReadVcFuture, VcDefaultRead, VcRead, VcTransparentRead},
     resolved::ResolvedVc,
     traits::{Dynamic, Upcast, UpcastStrict, VcValueTrait, VcValueType},
 };
 use crate::{
-    CellId, RawVc, ResolveRawVcFuture,
-    debug::{ValueDebug, ValueDebugFormat, ValueDebugFormatString},
     keyed::{KeyedAccess, KeyedEq},
     registry,
     trace::{TraceRawVcs, TraceRawVcsContext},
@@ -353,9 +357,12 @@ where
     pub async fn debug_identifier(vc: Self) -> Result<String> {
         let resolved = vc.to_resolved().await?;
         let raw_vc: RawVc = resolved.node.node;
-        if let RawVc::TaskCell(task_id, CellId { type_id, index }) = raw_vc {
-            let value_ty = registry::get_value_type(type_id);
-            Ok(format!("{}#{}: {}", value_ty.ty.name, index, task_id))
+        if let Some((task_id, cell_id)) = raw_vc.as_task_cell() {
+            let value_name = registry::get_value_type(cell_id.type_id()).ty.name;
+            Ok(format!(
+                "{value_name}#{index}: {task_id}",
+                index = cell_id.index(),
+            ))
         } else {
             unreachable!()
         }
@@ -451,7 +458,7 @@ where
     /// local or non-local cells, so this function is mostly useful inside tests and internally in
     /// turbo-tasks.
     pub fn is_local(self) -> bool {
-        self.node.is_local()
+        self.node.is_local_output()
     }
 }
 
@@ -476,38 +483,40 @@ where
     }
 }
 
+#[cfg(debug_assertions)]
 impl<T> ValueDebugFormat for Vc<T>
 where
     T: UpcastStrict<Box<dyn ValueDebug>> + Send + Sync + ?Sized,
 {
     fn value_debug_format(&self, depth: usize) -> ValueDebugFormatString<'_> {
         ValueDebugFormatString::Async(Box::pin(async move {
-            Ok({
-                let vc_value_debug = Vc::upcast::<Box<dyn ValueDebug>>(*self);
-                vc_value_debug.dbg_depth(depth).await?.to_string()
-            })
+            let vc_value_debug = Vc::upcast::<Box<dyn ValueDebug>>(*self);
+            let trait_ref = vc_value_debug.into_trait_ref().await?;
+            trait_ref.dbg_depth(depth).await
         }))
     }
 }
 
 macro_rules! into_future {
-    ($ty:ty) => {
-        impl<T> IntoFuture for $ty
+    ($ty:ty, |$this:ident| $into_future:expr $(,)?) => {
+        impl<T> ::std::future::IntoFuture for $ty
         where
-            T: VcValueType,
+            T: $crate::VcValueType,
         {
-            type Output = <ReadVcFuture<T> as Future>::Output;
-            type IntoFuture = ReadVcFuture<T>;
+            type Output = <$crate::ReadVcFuture<T> as ::std::future::Future>::Output;
+            type IntoFuture = $crate::ReadVcFuture<T>;
             fn into_future(self) -> Self::IntoFuture {
-                self.node.into_read(T::has_serialization()).into()
+                let $this = self;
+                $into_future
             }
         }
     };
 }
+pub(crate) use into_future;
 
-into_future!(Vc<T>);
-into_future!(&Vc<T>);
-into_future!(&mut Vc<T>);
+into_future!(Vc<T>, |this| this.node.into_read().into());
+into_future!(&Vc<T>, |this| this.node.into_read().into());
+into_future!(&mut Vc<T>, |this| this.node.into_read().into());
 
 impl<T> Vc<T>
 where
@@ -516,28 +525,19 @@ where
     /// Do not use this: Use [`OperationVc::read_strongly_consistent`] instead.
     #[cfg(feature = "non_operation_vc_strongly_consistent")]
     pub fn strongly_consistent(self) -> ReadVcFuture<T> {
-        self.node
-            .into_read(T::has_serialization())
-            .strongly_consistent()
-            .into()
+        self.node.into_read().strongly_consistent().into()
     }
 
     /// Returns a untracked read of the value. This will not invalidate the current function when
     /// the read value changed.
     pub fn untracked(self) -> ReadVcFuture<T> {
-        self.node
-            .into_read(T::has_serialization())
-            .untracked()
-            .into()
+        self.node.into_read().untracked().into()
     }
 
     /// Read the value with the hint that this is the final read of the value. This might drop the
     /// cell content. Future reads might need to recompute the value.
     pub fn final_read_hint(self) -> ReadVcFuture<T> {
-        self.node
-            .into_read(T::has_serialization())
-            .final_read_hint()
-            .into()
+        self.node.into_read().final_read_hint().into()
     }
 }
 
@@ -548,7 +548,7 @@ where
 {
     /// Read the value and returns a owned version of it. It might clone the value.
     pub fn owned(self) -> ReadOwnedVcFuture<T> {
-        let future: ReadVcFuture<T> = self.node.into_read(T::has_serialization()).into();
+        let future: ReadVcFuture<T> = self.node.into_read().into();
         future.owned()
     }
 }
@@ -565,7 +565,7 @@ where
         Q: Hash + ?Sized,
         VcReadTarget<T>: KeyedAccess<Q>,
     {
-        let future: ReadVcFuture<T> = self.node.into_read(T::has_serialization()).into();
+        let future: ReadVcFuture<T> = self.node.into_read().into();
         future.get(key)
     }
 
@@ -576,7 +576,7 @@ where
         Q: Hash + ?Sized,
         VcReadTarget<T>: KeyedAccess<Q>,
     {
-        let future: ReadVcFuture<T> = self.node.into_read(T::has_serialization()).into();
+        let future: ReadVcFuture<T> = self.node.into_read().into();
         future.contains_key(key)
     }
 }
@@ -593,9 +593,7 @@ where
     /// have the same future-like semantics as value vcs when it comes to producing refs. This
     /// behavior is rarely needed, so in most cases, `.await`ing a trait vc is a mistake.
     pub fn into_trait_ref(self) -> ReadVcFuture<T, VcValueTraitCast<T>> {
-        self.node
-            .into_read_with_unknown_is_serializable_cell_content()
-            .into()
+        self.node.into_read().into()
     }
 }
 

@@ -2,6 +2,7 @@ use std::future::IntoFuture;
 
 use anyhow::{Context, Result};
 use next_core::{
+    app_structure::FileSystemPathVec,
     middleware::get_middleware_module,
     next_edge::entry::wrap_edge_entry,
     next_manifests::{EdgeFunctionDefinition, MiddlewaresManifestV2, ProxyMatcher, Regions},
@@ -19,7 +20,7 @@ use turbopack_core::{
     module::Module,
     module_graph::{
         GraphEntries,
-        chunk_group_info::{ChunkGroup, ChunkGroupEntry},
+        chunk_group_info::{ChunkGroup, ChunkGroupEntry, EntryHeuristics},
     },
     output::{OutputAsset, OutputAssets, OutputAssetsWithReferenced},
     reference_type::{EntryReferenceSubType, ReferenceType},
@@ -28,6 +29,7 @@ use turbopack_core::{
 };
 
 use crate::{
+    nft::{EndpointTraceResult, trace_endpoint},
     nft_json::NftJsonAsset,
     paths::{
         all_asset_paths, all_paths_in_root, get_asset_paths_from_root, get_js_paths_from_root,
@@ -82,8 +84,7 @@ impl MiddlewareEndpoint {
             )
             .module();
 
-        let userland_path = userland_module.ident().path().await?;
-        let is_proxy = userland_path.file_stem() == Some("proxy");
+        let is_proxy = userland_module.ident().await?.path.file_stem() == Some("proxy");
 
         let module = get_middleware_module(
             *self.asset_context,
@@ -117,6 +118,7 @@ impl MiddlewareEndpoint {
             module.ident(),
             ChunkGroup::Entry(vec![module]),
             module_graph,
+            OutputAssets::empty(),
             AvailabilityInfo::root(),
         );
         Ok(edge_chunk_grou)
@@ -184,14 +186,20 @@ impl MiddlewareEndpoint {
                         source.insert_str(0, "/:nextInternalLocale((?!_next/)[^/.]{1,})");
                     }
 
+                    // Match transport-specific route forms that resolve to the
+                    // same page:
+                    // - Pages Router data routes: /_next/data/<build-id>/...
+                    // - App Router transport routes: .rsc, ...segments/...segment.rsc
                     if is_root {
                         source.push('(');
                         if has_i18n {
-                            source.push_str("|\\\\.json|");
+                            source.push_str("|\\.json|");
                         }
-                        source.push_str("/?index|/?index\\\\.json)?")
+                        source.push_str("/?index|/?index\\.json|");
+                        source.push_str("/?index(?:\\.rsc|\\.segments/.+\\.segment\\.rsc)");
+                        source.push_str(")?");
                     } else {
-                        source.push_str("{(\\\\.json)}?")
+                        source.push_str("{(\\.json|\\.rsc|\\.segments/.+\\.segment\\.rsc)}?");
                     };
 
                     source.insert_str(0, "/:nextData(_next/data/[^/]{1,})?");
@@ -220,9 +228,9 @@ impl MiddlewareEndpoint {
         if matches!(this.runtime, NextRuntime::NodeJs) {
             let chunk = self.node_chunk().to_resolved().await?;
             let mut output_assets = vec![chunk];
-            if this.project.next_mode().await?.is_production() {
+            if *this.project.should_write_nft_manifests().await? {
                 output_assets.push(ResolvedVc::upcast(
-                    NftJsonAsset::new(*this.project, None, *chunk, vec![])
+                    NftJsonAsset::new(*this.project, None, *chunk, vec![], self.trace_result())
                         .to_resolved()
                         .await?,
                 ));
@@ -258,7 +266,7 @@ impl MiddlewareEndpoint {
             let edge_assets = edge_chunk_group_ref.assets.await?;
 
             let file_paths_from_root =
-                get_js_paths_from_root(&node_root_value, &edge_assets).await?;
+                get_js_paths_from_root(&node_root_value, edge_assets.iter().copied()).await?;
             let entrypoint_asset = *edge_assets
                 .last()
                 .context("expected assets for edge middleware endpoint")?;
@@ -273,7 +281,7 @@ impl MiddlewareEndpoint {
                 get_wasm_paths_from_root(&node_root_value, edge_all_assets.await?).await?;
 
             let all_assets =
-                get_asset_paths_from_root(&node_root_value, &edge_all_assets.await?).await?;
+                get_asset_paths_from_root(&node_root_value, edge_all_assets.await?).await?;
 
             let regions = if let Some(regions) = config.preferred_region.as_ref() {
                 if regions.len() == 1 {
@@ -329,6 +337,18 @@ impl MiddlewareEndpoint {
                 ReferenceType::Entry(EntryReferenceSubType::Middleware),
             )
             .module()
+    }
+
+    #[turbo_tasks::function]
+    async fn trace_result(self: Vc<Self>) -> Result<Vc<EndpointTraceResult>> {
+        let this = self.await?;
+        let userland_module = self.entry_module();
+        Ok(trace_endpoint(
+            *this.project,
+            None,
+            this.project.module_graph(userland_module),
+            userland_module,
+        ))
     }
 }
 
@@ -386,9 +406,14 @@ impl Endpoint for MiddlewareEndpoint {
 
     #[turbo_tasks::function]
     async fn entries(self: Vc<Self>) -> Result<Vc<GraphEntries>> {
-        Ok(Vc::cell(vec![ChunkGroupEntry::Entry(vec![
-            self.entry_module().to_resolved().await?,
-        ])]))
+        Ok(
+            GraphEntries::from_chunk_groups(vec![ChunkGroupEntry::Entry {
+                modules: vec![self.entry_module().to_resolved().await?],
+                // Middleware runs on (potentially) all routes, so treat it as high priority.
+                heuristics: EntryHeuristics::high_priority(),
+            }])
+            .cell(),
+        )
     }
 
     #[turbo_tasks::function]
@@ -405,5 +430,10 @@ impl Endpoint for MiddlewareEndpoint {
     #[turbo_tasks::function]
     fn project(&self) -> Vc<Project> {
         *self.project
+    }
+
+    #[turbo_tasks::function]
+    fn traced_files(self: Vc<Self>) -> Vc<FileSystemPathVec> {
+        self.trace_result().all_files()
     }
 }

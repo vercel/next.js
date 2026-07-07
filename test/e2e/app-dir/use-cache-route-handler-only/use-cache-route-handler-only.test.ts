@@ -15,6 +15,24 @@ describe('use-cache-route-handler-only', () => {
     expect(date1).toBe(date2)
   })
 
+  if (!isNextDeploy) {
+    // In deploy mode, concurrent requests could hit different lambdas.
+    it('should dedupe concurrent cache invocations in route handlers', async () => {
+      // Restart to ensure a cold server. Without this, prior test activity
+      // can affect request timing enough for the concurrent requests to no
+      // longer overlap reliably.
+      await next.stop()
+      await next.start()
+
+      const [{ rand: first }, { rand: second }] = await Promise.all([
+        next.fetch('/node-dynamic').then((response) => response.json()),
+        next.fetch('/node-dynamic').then((response) => response.json()),
+      ])
+
+      expect(first).toBe(second)
+    })
+  }
+
   it('should be able to revalidate prerendered route handlers', async () => {
     const response1 = await next.fetch('/node')
     const { date1: date1a } = await response1.json()

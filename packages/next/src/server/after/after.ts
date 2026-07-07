@@ -1,4 +1,5 @@
 import { workAsyncStorage } from '../app-render/work-async-storage.external'
+import { workUnitAsyncStorage } from '../app-render/work-unit-async-storage.external'
 
 export type AfterTask<T = unknown> = Promise<T> | AfterCallback<T>
 export type AfterCallback<T = unknown> = () => T | Promise<T>
@@ -8,8 +9,9 @@ export type AfterCallback<T = unknown> = () => T | Promise<T>
  */
 export function after<T>(task: AfterTask<T>): void {
   const workStore = workAsyncStorage.getStore()
+  const workUnitStore = workUnitAsyncStorage.getStore()
 
-  if (!workStore) {
+  if (!workStore || !workUnitStore) {
     // TODO(after): the linked docs page talks about *dynamic* APIs, which after soon won't be anymore
     throw new Error(
       '`after` was called outside a request scope. Read more: https://nextjs.org/docs/messages/next-dynamic-api-wrong-context'
@@ -17,5 +19,5 @@ export function after<T>(task: AfterTask<T>): void {
   }
 
   const { afterContext } = workStore
-  return afterContext.after(task)
+  return afterContext.after(task, workUnitStore)
 }

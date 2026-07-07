@@ -1,19 +1,21 @@
 use anyhow::Result;
 use bincode::{Decode, Encode};
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{ResolvedVc, TaskInput, Vc, trace::TraceRawVcs};
+use turbo_tasks::{ResolvedVc, Vc, trace::TraceRawVcs};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_browser::BrowserChunkingContext;
 use turbopack_core::{
     chunk::{
-        AssetSuffix, ChunkingConfig, ChunkingContext, MangleType, MinifyType, SourceMapsType,
-        UnusedReferences, UrlBehavior, chunk_id_strategy::ModuleIdStrategy,
+        AssetSuffix, ChunkingConfig, ChunkingContext, CrossOrigin, MangleType, MinifyType,
+        SourceMapsType, UnusedReferences, UrlBehavior, chunk_id_strategy::ModuleIdStrategy,
     },
     compile_time_info::{CompileTimeDefines, CompileTimeInfo, FreeVarReference, FreeVarReferences},
     environment::{EdgeWorkerEnvironment, Environment, ExecutionEnvironment, NodeJsVersion},
     free_var_references,
     issue::IssueSeverity,
-    module_graph::binding_usage_info::OptionBindingUsageInfo,
+    module_graph::{
+        binding_usage_info::OptionBindingUsageInfo, style_groups::StyleGroupsAlgorithm,
+    },
 };
 use turbopack_css::chunk::CssChunkType;
 use turbopack_ecmascript::chunk::EcmascriptChunkType;
@@ -27,7 +29,7 @@ use crate::{
     next_font::local::NextFontLocalResolvePlugin,
     next_import_map::{get_next_edge_and_server_fallback_import_map, get_next_edge_import_map},
     next_server::context::ServerContextType,
-    next_shared::resolve::{ModuleFeatureReportResolvePlugin, NextSharedRuntimeResolvePlugin},
+    next_shared::resolve::NextSharedRuntimeResolvePlugin,
     util::{
         NextRuntime, OptionEnvMap, defines, foreign_code_context_condition,
         free_var_references_with_vercel_system_env_warnings, worker_forwarded_globals,
@@ -109,22 +111,19 @@ pub async fn get_edge_resolve_options_context(
             .to_resolved()
             .await?;
 
-    let mut before_resolve_plugins = vec![ResolvedVc::upcast(
-        ModuleFeatureReportResolvePlugin::new(project_path.clone())
-            .to_resolved()
-            .await?,
-    )];
-    if matches!(
+    let before_resolve_plugins = if matches!(
         ty,
         ServerContextType::Pages { .. }
             | ServerContextType::AppSSR { .. }
             | ServerContextType::AppRSC { .. }
     ) {
-        before_resolve_plugins.push(ResolvedVc::upcast(
+        vec![ResolvedVc::upcast(
             NextFontLocalResolvePlugin::new(project_path.clone())
                 .to_resolved()
                 .await?,
-        ));
+        )]
+    } else {
+        vec![]
     };
 
     let after_resolve_plugins = vec![ResolvedVc::upcast(
@@ -184,7 +183,8 @@ pub async fn get_edge_resolve_options_context(
     .cell())
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Hash, TaskInput, TraceRawVcs, Encode, Decode)]
+#[turbo_tasks::task_input(contains_unresolved_vcs)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash, TraceRawVcs, Encode, Decode)]
 pub struct EdgeChunkingContextOptions {
     pub mode: Vc<NextMode>,
     pub root_path: FileSystemPath,
@@ -204,6 +204,8 @@ pub struct EdgeChunkingContextOptions {
     pub asset_prefix: RcStr,
     pub css_url_suffix: Vc<Option<RcStr>>,
     pub hash_salt: ResolvedVc<RcStr>,
+    pub cross_origin: Vc<CrossOrigin>,
+    pub style_groups_algorithm: StyleGroupsAlgorithm,
 }
 
 /// Like `get_edge_chunking_context` but all assets are emitted as client assets (so `/_next`)
@@ -230,7 +232,10 @@ pub async fn get_edge_chunking_context_with_client_assets(
         asset_prefix,
         css_url_suffix,
         hash_salt,
+        cross_origin,
+        style_groups_algorithm,
     } = options;
+    let cross_origin_loading = *cross_origin.await?;
     let output_root = node_root.join("server/edge")?;
     let next_mode = mode.await?;
     let mut builder = BrowserChunkingContext::builder(
@@ -259,6 +264,7 @@ pub async fn get_edge_chunking_context_with_client_assets(
         MinifyType::NoMinify
     })
     .source_maps(*turbo_source_maps.await?)
+    .cross_origin(cross_origin_loading)
     .module_id_strategy(module_id_strategy.to_resolved().await?)
     .export_usage(*export_usage.await?)
     .unused_references(unused_references.to_resolved().await?)
@@ -279,6 +285,7 @@ pub async fn get_edge_chunking_context_with_client_assets(
                 Vc::<CssChunkType>::default().to_resolved().await?,
                 ChunkingConfig {
                     max_merge_chunk_size: 100_000,
+                    style_groups_algorithm: style_groups_algorithm.clone(),
                     ..Default::default()
                 },
             )
@@ -312,7 +319,10 @@ pub async fn get_edge_chunking_context(
         asset_prefix,
         css_url_suffix,
         hash_salt,
+        cross_origin,
+        style_groups_algorithm,
     } = options;
+    let cross_origin = *cross_origin.await?;
     let css_url_suffix = css_url_suffix.to_resolved().await?;
     let output_root = node_root.join("server/edge")?;
     let next_mode = mode.await?;
@@ -358,6 +368,7 @@ pub async fn get_edge_chunking_context(
         MinifyType::NoMinify
     })
     .source_maps(*turbo_source_maps.await?)
+    .cross_origin(cross_origin)
     .module_id_strategy(module_id_strategy.to_resolved().await?)
     .export_usage(*export_usage.await?)
     .unused_references(unused_references.to_resolved().await?)
@@ -378,6 +389,7 @@ pub async fn get_edge_chunking_context(
                 Vc::<CssChunkType>::default().to_resolved().await?,
                 ChunkingConfig {
                     max_merge_chunk_size: 100_000,
+                    style_groups_algorithm: style_groups_algorithm.clone(),
                     ..Default::default()
                 },
             )

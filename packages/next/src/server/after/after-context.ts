@@ -6,11 +6,9 @@ import { isThenable } from '../../shared/lib/is-thenable'
 import { workAsyncStorage } from '../app-render/work-async-storage.external'
 import { withExecuteRevalidates } from '../revalidation-utils'
 import { bindSnapshot } from '../app-render/async-local-storage'
-import {
-  workUnitAsyncStorage,
-  type WorkUnitStore,
-} from '../app-render/work-unit-async-storage.external'
+import type { WorkUnitStore } from '../app-render/work-unit-async-storage.external'
 import { afterTaskAsyncStorage } from '../app-render/after-task-async-storage.external'
+import { scheduleImmediate } from '../../lib/scheduler'
 
 export type AfterContextOpts = {
   waitUntil: RequestLifecycleOpts['waitUntil'] | undefined
@@ -23,6 +21,9 @@ export class AfterContext {
   private onClose: RequestLifecycleOpts['onClose']
   private onTaskError: RequestLifecycleOpts['onAfterTaskError'] | undefined
 
+  private isRequestClosed: boolean = false
+  private initialOnCloseError: null | { error: unknown } = null
+
   private runCallbacksOnClosePromise: Promise<void> | undefined
   private callbackQueue: PromiseQueue
   private workUnitStores = new Set<WorkUnitStore>()
@@ -34,33 +35,67 @@ export class AfterContext {
 
     this.callbackQueue = new PromiseQueue()
     this.callbackQueue.pause()
+
+    try {
+      onClose(() => {
+        this.isRequestClosed = true
+
+        // TODO(after): it's not ideal that we'll only switch the `phase` of a WorkUnitStore
+        // if `after()` was called inside it. We should probably track this whenever a store is created
+        for (const workUnitStore of this.workUnitStores) {
+          workUnitStore.phase = 'after'
+        }
+      })
+    } catch (err) {
+      // If onClose is broken, report errors lazily, when after() is called.
+      this.initialOnCloseError = { error: err }
+    }
   }
 
-  public after(task: AfterTask): void {
-    if (isThenable(task)) {
-      if (!this.waitUntil) {
-        errorWaitUntilNotAvailable()
-      }
-      this.waitUntil(
-        task.catch((error) => this.reportTaskError('promise', error))
+  public after(task: AfterTask, workUnitStore: WorkUnitStore): void {
+    if (this.initialOnCloseError) {
+      throw new InvariantError(
+        `An onClose call failed, which means after() can't work correctly.`,
+        { cause: this.initialOnCloseError.error }
       )
+    }
+
+    // Save the workUnitStore so we can switch its phase later.
+    this.workUnitStores.add(workUnitStore)
+
+    if (isThenable(task)) {
+      this.addThenable(task)
     } else if (typeof task === 'function') {
       // TODO(after): implement tracing
-      this.addCallback(task)
+      this.addCallback(task, workUnitStore)
     } else {
       throw new Error('`after()`: Argument must be a promise or a function')
     }
   }
 
-  private addCallback(callback: AfterCallback) {
-    // if something is wrong, throw synchronously, bubbling up to the `after` callsite.
+  private addThenable(thenable: PromiseLike<any>) {
     if (!this.waitUntil) {
       errorWaitUntilNotAvailable()
     }
+    this.waitUntil(
+      new Promise<void>((resolve) => {
+        thenable.then(
+          () => {
+            resolve()
+          },
+          (error) => {
+            resolve()
+            this.reportTaskError('promise', error)
+          }
+        )
+      })
+    )
+  }
 
-    const workUnitStore = workUnitAsyncStorage.getStore()
-    if (workUnitStore) {
-      this.workUnitStores.add(workUnitStore)
+  private addCallback(callback: AfterCallback, workUnitStore: WorkUnitStore) {
+    // if something is wrong, throw synchronously, bubbling up to the `after` callsite.
+    if (!this.waitUntil) {
+      errorWaitUntilNotAvailable()
     }
 
     const afterTaskStore = afterTaskAsyncStorage.getStore()
@@ -71,7 +106,7 @@ export class AfterContext {
     // Otherwise, we might allow `after(() => headers())`, but not `after(() => after(() => headers()))`.
     const rootTaskSpawnPhase = afterTaskStore
       ? afterTaskStore.rootTaskSpawnPhase // nested after
-      : workUnitStore?.phase // topmost after
+      : workUnitStore.phase // topmost after
 
     // this should only happen once.
     if (!this.runCallbacksOnClosePromise) {
@@ -102,16 +137,19 @@ export class AfterContext {
   }
 
   private async runCallbacksOnClose() {
-    await new Promise<void>((resolve) => this.onClose!(resolve))
+    if (!this.isRequestClosed) {
+      await new Promise<void>((resolve) => this.onClose(resolve))
+    } else {
+      // The request is already closed.
+      // Avoid running the callbacks too quickly to prevent userspace from
+      // e.g. relying on `after` being microtasky somewhere.
+      await new Promise<void>((resolve) => scheduleImmediate(resolve))
+    }
     return this.runCallbacks()
   }
 
   private async runCallbacks(): Promise<void> {
     if (this.callbackQueue.size === 0) return
-
-    for (const workUnitStore of this.workUnitStores) {
-      workUnitStore.phase = 'after'
-    }
 
     const workStore = workAsyncStorage.getStore()
     if (!workStore) {

@@ -36,6 +36,7 @@ import { NextDataPathnameNormalizer } from '../../normalizers/request/next-data'
 import { BasePathPathnameNormalizer } from '../../normalizers/request/base-path'
 
 import { addRequestMeta } from '../../request-meta'
+import { isRSCRequestHeader } from '../is-rsc-request'
 import {
   compileNonPath,
   matchHas,
@@ -203,6 +204,11 @@ export function getResolveRoutes(
       return pathname
     }
 
+    const setIsNextDataRequest = () => {
+      addRequestMeta(req, 'isNextDataReq', true)
+      req.headers['x-nextjs-data'] = '1'
+    }
+
     let domainLocale: ReturnType<typeof detectDomainLocale> | undefined
     let defaultLocale: string | undefined
     let initialLocaleResult:
@@ -341,7 +347,7 @@ export function getResolveRoutes(
           }
 
           if (pageOutput && curPathname?.startsWith('/_next/data')) {
-            addRequestMeta(req, 'isNextDataReq', true)
+            setIsNextDataRequest()
           }
 
           if (config.useFileSystemPublicRoutes || didRewrite) {
@@ -446,11 +452,18 @@ export function getResolveRoutes(
               normalized = normalizers.basePath.normalize(normalized, true)
             }
 
+            const isNextDataPath =
+              pathHasPrefix(normalized, '/_next/data') &&
+              normalized.endsWith('.json')
+            const hasCurrentBuildIdDataPath = normalizers.data.match(normalized)
+
             let updated = false
-            if (normalizers.data.match(normalized)) {
+            if (hasCurrentBuildIdDataPath) {
               updated = true
-              addRequestMeta(req, 'isNextDataReq', true)
               normalized = normalizers.data.normalize(normalized, true)
+            }
+            if (isNextDataPath) {
+              setIsNextDataRequest()
             }
 
             if (config.i18n) {
@@ -461,6 +474,21 @@ export function getResolveRoutes(
 
               if (curLocaleResult.detectedLocale) {
                 addRequestMeta(req, 'locale', curLocaleResult.detectedLocale)
+              } else if (
+                defaultLocale &&
+                !curLocaleResult.pathname.startsWith('/_next/')
+              ) {
+                // Match normalized _next/data requests against the same
+                // locale-prefixed internal pathname shape used by direct page
+                // requests when the default locale was inferred.
+                normalized = addPathPrefix(
+                  curLocaleResult.pathname === '/'
+                    ? `/${defaultLocale}`
+                    : addPathPrefix(
+                        curLocaleResult.pathname || '',
+                        `/${defaultLocale}`
+                      )
+                )
               }
             }
 
@@ -865,7 +893,7 @@ export function getResolveRoutes(
 
           // Set the rewrite headers only if this is a RSC request.
           if (
-            req.headers[RSC_HEADER] === '1' &&
+            isRSCRequestHeader(req.headers[RSC_HEADER]) &&
             (!parsedDestination.origin || isAllowedOrigin)
           ) {
             // We set the rewritten path and query headers on the response now

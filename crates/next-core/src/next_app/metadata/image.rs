@@ -228,5 +228,5 @@ async fn collect_direct_exports(module: Vc<Box<dyn Module>>) -> Result<Vc<Vec<Rc
         return Ok(Vc::cell(exports.exports.keys().cloned().collect()));
     }
 
-    Ok(Vc::cell(Vec::new()))
+    Ok(Default::default())
 }

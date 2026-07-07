@@ -27,7 +27,7 @@ import _pkg from 'next/package.json'
 import type { SpawnOptions, ChildProcess } from 'child_process'
 import type { RequestInit, Response } from 'node-fetch'
 import type { NextServer } from 'next/dist/server/next'
-import { Playwright } from 'next-webdriver'
+import type { Playwright } from './browsers/playwright'
 import { recursiveReadDir } from 'next/dist/lib/recursive-readdir'
 
 import { shouldUseTurbopack } from './turbo'
@@ -143,11 +143,16 @@ export function getFullUrl(
 
   if (typeof appPortOrUrl === 'string' && url) {
     const parsedUrl = new URL(fullUrl)
-    const parsedPathQuery = new URL(url, fullUrl)
 
-    parsedUrl.hash = parsedPathQuery.hash
-    parsedUrl.search = parsedPathQuery.search
-    parsedUrl.pathname = parsedPathQuery.pathname
+    // Handle '//' as a special case since it's not a valid relative URL for URL constructor
+    if (url === '//') {
+      parsedUrl.pathname = '//'
+    } else {
+      const parsedPathQuery = new URL(url, fullUrl)
+      parsedUrl.hash = parsedPathQuery.hash
+      parsedUrl.search = parsedPathQuery.search
+      parsedUrl.pathname = parsedPathQuery.pathname
+    }
 
     if (hostname && parsedUrl.hostname === 'localhost') {
       parsedUrl.hostname = hostname
@@ -1177,7 +1182,7 @@ export function getRedboxTitle(browser: Playwright): Promise<string | null> {
     const root = portal.shadowRoot
     return (
       root.querySelector(
-        '[data-nextjs-dialog-header] .nextjs__container_errors__error_title'
+        '[data-nextjs-dialog-header] [data-nextjs-error-label-group]'
       )?.innerText ?? null
     )
   })

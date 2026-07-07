@@ -947,8 +947,11 @@ impl<E: Entry> StreamingSstWriter<E> {
         // Hashes are already sorted by key_hash (SST invariant), but fingerprints
         // (truncated hashes) may not be sorted, so we sort by `fingerprint & mask`.
         let actual_count = self.collected_fingerprints.len() as u64;
-        let mut builder = qfilter::Builder::new(actual_count.max(1), AMQF_FALSE_POSITIVE_RATE)
-            .expect("Filter can't be constructed");
+        let mut builder = qfilter::Builder::new(
+            qfilter::Filter::new(actual_count.max(1), AMQF_FALSE_POSITIVE_RATE)
+                .expect("Filter can't be constructed"),
+        );
+
         let fp_size = builder.fingerprint_size();
         assert!(fp_size < 32, "fp_size {fp_size} exceeds u32");
         let fp_mask = (1u32 << fp_size) - 1;

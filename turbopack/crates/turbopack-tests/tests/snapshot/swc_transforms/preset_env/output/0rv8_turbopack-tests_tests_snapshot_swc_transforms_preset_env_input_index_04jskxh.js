@@ -11,13 +11,17 @@ var CHUNK_BASE_PATH = "";
 var RELATIVE_ROOT_PATH = "../../../../../../..";
 var RUNTIME_PUBLIC_PATH = "";
 var ASSET_SUFFIX = "";
-var WORKER_FORWARDED_GLOBALS = [];
+var CROSS_ORIGIN = null;
+var CHUNK_LOAD_RETRY_MAX_ATTEMPTS = 1;
+var CHUNK_LOAD_RETRY_BASE_DELAY_MS = 200;
+var CHUNK_LOAD_RETRY_MAX_JITTER_MS = 400;
 /**
  * This file contains runtime types and functions that are shared between all
  * TurboPack ECMAScript runtimes.
  *
  * It will be prepended to the runtime code of each runtime.
  */ /* eslint-disable @typescript-eslint/no-unused-vars */ /// <reference path="./runtime-types.d.ts" />
+/// <reference path="./async-module.ts" />
 function asyncGeneratorStep(gen, resolve, reject, _next, _throw, key, arg) {
     try {
         var info = gen[key](arg);
@@ -46,19 +50,6 @@ function _async_to_generator(fn) {
             _next(undefined);
         });
     };
-}
-function _define_property(obj, key, value) {
-    if (key in obj) {
-        Object.defineProperty(obj, key, {
-            value: value,
-            enumerable: true,
-            configurable: true,
-            writable: true
-        });
-    } else {
-        obj[key] = value;
-    }
-    return obj;
 }
 function _type_of(obj) {
     "@swc/helpers - typeof";
@@ -245,7 +236,7 @@ function createModuleWithDirection(id) {
 var BindingTag_Value = 0;
 /**
  * Adds the getters to the exports object.
- */ function esm(exports, bindings) {
+ */ function esm(exports, bindings, dynamic) {
     defineProp(exports, '__esModule', {
         value: true
     });
@@ -283,11 +274,18 @@ var BindingTag_Value = 0;
             }
         }
     }
-    Object.seal(exports);
+    // The properties defined above are already non-configurable and
+    // non-writable, so the namespace's existing exports are effectively
+    // immutable. Sealing additionally makes the object non-extensible, matching
+    // real ESM-namespace semantics. Modules with dynamic re-exports
+    // (`export *` from a CommonJS module) must stay extensible so the dynamic
+    // export proxy can surface keys discovered at runtime, so skip the seal for
+    // them.
+    if (!dynamic) Object.seal(exports);
 }
 /**
  * Makes the module an ESM with exports
- */ function esmExport(bindings, id) {
+ */ function esmExport(bindings, id, dynamic) {
     var module;
     var exports;
     if (id != null) {
@@ -298,24 +296,24 @@ var BindingTag_Value = 0;
         exports = this.e;
     }
     module.namespaceObject = exports;
-    esm(exports, bindings);
+    esm(exports, bindings, dynamic);
 }
 contextPrototype.s = esmExport;
 function ensureDynamicExports(module, exports) {
     var reexportedObjects = REEXPORTED_OBJECTS.get(module);
     if (!reexportedObjects) {
         REEXPORTED_OBJECTS.set(module, reexportedObjects = []);
-        module.exports = module.namespaceObject = new Proxy(exports, {
-            get: function get(target, prop) {
-                if (hasOwnProperty.call(target, prop) || prop === 'default' || prop === '__esModule') {
-                    return Reflect.get(target, prop);
-                }
+        // Returns the re-exported object that provides `prop` as an own property,
+        // or `undefined` if none does. The traps share this logic so they always
+        // agree on which keys are synthesized from `reexportedObjects`. `default`
+        // is never re-exported by `export *`, so it is never synthesized.
+        var reexportOwning = function reexportOwning(prop) {
+            if (prop !== 'default') {
                 var _iteratorNormalCompletion = true, _didIteratorError = false, _iteratorError = undefined;
                 try {
                     for(var _iterator = reexportedObjects[Symbol.iterator](), _step; !(_iteratorNormalCompletion = (_step = _iterator.next()).done); _iteratorNormalCompletion = true){
                         var obj = _step.value;
-                        var value = Reflect.get(obj, prop);
-                        if (value !== undefined) return value;
+                        if (hasOwnProperty.call(obj, prop)) return obj;
                     }
                 } catch (err) {
                     _didIteratorError = true;
@@ -331,8 +329,56 @@ function ensureDynamicExports(module, exports) {
                         }
                     }
                 }
-                return undefined;
+            }
+            return undefined;
+        };
+        // Modules with dynamic re-exports are not sealed by `esm()`, so the
+        // target beneath the namespace stays extensible. That is what lets the
+        // `ownKeys` and `getOwnPropertyDescriptor` traps legally report keys that
+        // exist on `reexportedObjects` but not on the target itself.
+        module.exports = module.namespaceObject = new Proxy(exports, {
+            get: function get(target, prop) {
+                if (hasOwnProperty.call(target, prop) || prop === 'default' || prop === '__esModule') {
+                    return Reflect.get(target, prop);
+                }
+                var obj = reexportOwning(prop);
+                return obj && Reflect.get(obj, prop);
             },
+            // The namespace is read-only, like a real esm namespace object. The
+            // re-exported modules can still mutate their own exports (exposed live
+            // via `get`), but mutating the namespace itself is rejected. Refusing
+            // here, rather than forwarding to the extensible target, also prevents an
+            // assignment/definition from shadowing a dynamic re-export. It also
+            // prevents delete from removing a static export.
+            set: function set() {
+                return false;
+            },
+            defineProperty: function defineProperty() {
+                return false;
+            },
+            deleteProperty: function deleteProperty() {
+                return false;
+            },
+            // The `has` trap ensures that `'exportName' in starImports` will reflect
+            // the truth of whether a key is exported.
+            has: function has(target, prop) {
+                if (Reflect.has(target, prop)) return true;
+                if (prop === 'default' || prop === '__esModule') return false;
+                return reexportOwning(prop) !== undefined;
+            },
+            // ownKeys and getOwnPropertyDescriptor together make the keys enumerable.
+            // If a value is returned from `ownKeys` but its property descriptor is
+            // not enumerable, it will not be visible to iterator methods.
+            // Collectively, they allow code like the following:
+            //
+            // ```
+            // // module.js re-exports dynamic CJS exports
+            // export * from './legacyModule.cjs'
+            //
+            // // from another JS file, reference the re-exported dynamic values
+            // import * as Namespace from './module.js'
+            // Object.keys(Namespace)
+            // ```
             ownKeys: function ownKeys(target) {
                 var keys = Reflect.ownKeys(target);
                 var _iteratorNormalCompletion = true, _didIteratorError = false, _iteratorError = undefined;
@@ -375,6 +421,24 @@ function ensureDynamicExports(module, exports) {
                     }
                 }
                 return keys;
+            },
+            getOwnPropertyDescriptor: function getOwnPropertyDescriptor(target, prop) {
+                var own = Reflect.getOwnPropertyDescriptor(target, prop);
+                if (own || prop === 'default' || prop === '__esModule') return own;
+                var obj = reexportOwning(prop);
+                if (obj) {
+                    // Synthetic keys don't exist on the target, so they MUST be
+                    // reported as configurable. However the set/delete traps above will
+                    // prevent them from actually being changed
+                    return {
+                        enumerable: true,
+                        configurable: true,
+                        get: function get() {
+                            return Reflect.get(obj, prop);
+                        }
+                    };
+                }
+                return undefined;
             }
         });
     }
@@ -590,25 +654,6 @@ contextPrototype.f = moduleContext;
  */ function getChunkPath(chunkData) {
     return typeof chunkData === 'string' ? chunkData : chunkData.path;
 }
-function isPromise(maybePromise) {
-    return maybePromise != null && (typeof maybePromise === "undefined" ? "undefined" : _type_of(maybePromise)) === 'object' && 'then' in maybePromise && typeof maybePromise.then === 'function';
-}
-function isAsyncModuleExt(obj) {
-    return turbopackQueues in obj;
-}
-function createPromise() {
-    var resolve;
-    var reject;
-    var promise = new Promise(function(res, rej) {
-        reject = rej;
-        resolve = res;
-    });
-    return {
-        promise: promise,
-        resolve: resolve,
-        reject: reject
-    };
-}
 // Load the CompressedmoduleFactories of a chunk into the `moduleFactories` Map.
 // The CompressedModuleFactories format is
 // - 1 or more module ids
@@ -658,116 +703,6 @@ function installCompressedModuleFactories(chunkModules, offset, moduleFactories,
         i = end + 1; // end is pointing at the last factory advance to the next id or the end of the array.
     }
 }
-// everything below is adapted from webpack
-// https://github.com/webpack/webpack/blob/6be4065ade1e252c1d8dcba4af0f43e32af1bdc1/lib/runtime/AsyncModuleRuntimeModule.js#L13
-var turbopackQueues = Symbol('turbopack queues');
-var turbopackExports = Symbol('turbopack exports');
-var turbopackError = Symbol('turbopack error');
-function resolveQueue(queue) {
-    if (queue && queue.status !== 1) {
-        queue.status = 1;
-        queue.forEach(function(fn) {
-            return fn.queueCount--;
-        });
-        queue.forEach(function(fn) {
-            return fn.queueCount-- ? fn.queueCount++ : fn();
-        });
-    }
-}
-function wrapDeps(deps) {
-    return deps.map(function(dep) {
-        if (dep !== null && (typeof dep === "undefined" ? "undefined" : _type_of(dep)) === 'object') {
-            if (isAsyncModuleExt(dep)) return dep;
-            if (isPromise(dep)) {
-                var queue = Object.assign([], {
-                    status: 0
-                });
-                var _obj;
-                var obj = (_obj = {}, _define_property(_obj, turbopackExports, {}), _define_property(_obj, turbopackQueues, function(fn) {
-                    return fn(queue);
-                }), _obj);
-                dep.then(function(res) {
-                    obj[turbopackExports] = res;
-                    resolveQueue(queue);
-                }, function(err) {
-                    obj[turbopackError] = err;
-                    resolveQueue(queue);
-                });
-                return obj;
-            }
-        }
-        var _obj1;
-        return _obj1 = {}, _define_property(_obj1, turbopackExports, dep), _define_property(_obj1, turbopackQueues, function() {}), _obj1;
-    });
-}
-function asyncModule(body, hasAwait) {
-    var module = this.m;
-    var queue = hasAwait ? Object.assign([], {
-        status: -1
-    }) : undefined;
-    var depQueues = new Set();
-    var _createPromise = createPromise(), resolve = _createPromise.resolve, reject = _createPromise.reject, rawPromise = _createPromise.promise;
-    var _obj;
-    var promise = Object.assign(rawPromise, (_obj = {}, _define_property(_obj, turbopackExports, module.exports), _define_property(_obj, turbopackQueues, function(fn) {
-        queue && fn(queue);
-        depQueues.forEach(fn);
-        promise['catch'](function() {});
-    }), _obj));
-    var attributes = {
-        get: function get() {
-            return promise;
-        },
-        set: function set(v) {
-            // Calling `esmExport` leads to this.
-            if (v !== promise) {
-                promise[turbopackExports] = v;
-            }
-        }
-    };
-    Object.defineProperty(module, 'exports', attributes);
-    Object.defineProperty(module, 'namespaceObject', attributes);
-    function handleAsyncDependencies(deps) {
-        var currentDeps = wrapDeps(deps);
-        var getResult = function getResult() {
-            return currentDeps.map(function(d) {
-                if (d[turbopackError]) throw d[turbopackError];
-                return d[turbopackExports];
-            });
-        };
-        var _createPromise = createPromise(), promise = _createPromise.promise, resolve = _createPromise.resolve;
-        var fn = Object.assign(function() {
-            return resolve(getResult);
-        }, {
-            queueCount: 0
-        });
-        function fnQueue(q) {
-            if (q !== queue && !depQueues.has(q)) {
-                depQueues.add(q);
-                if (q && q.status === 0) {
-                    fn.queueCount++;
-                    q.push(fn);
-                }
-            }
-        }
-        currentDeps.map(function(dep) {
-            return dep[turbopackQueues](fnQueue);
-        });
-        return fn.queueCount ? promise : getResult();
-    }
-    function asyncResult(err) {
-        if (err) {
-            reject(promise[turbopackError] = err);
-        } else {
-            resolve(promise[turbopackExports]);
-        }
-        resolveQueue(queue);
-    }
-    body(handleAsyncDependencies, asyncResult);
-    if (queue && queue.status === -1) {
-        queue.status = 0;
-    }
-}
-contextPrototype.a = asyncModule;
 /**
  * A pseudo "fake" URL object to resolve to its relative path.
  *
@@ -875,58 +810,6 @@ function _async_to_generator(fn) {
             _next(undefined);
         });
     };
-}
-function _define_property(obj, key, value) {
-    if (key in obj) {
-        Object.defineProperty(obj, key, {
-            value: value,
-            enumerable: true,
-            configurable: true,
-            writable: true
-        });
-    } else {
-        obj[key] = value;
-    }
-    return obj;
-}
-function _object_spread(target) {
-    for(var i = 1; i < arguments.length; i++){
-        var source = arguments[i] != null ? arguments[i] : {};
-        var ownKeys = Object.keys(source);
-        if (typeof Object.getOwnPropertySymbols === "function") {
-            ownKeys = ownKeys.concat(Object.getOwnPropertySymbols(source).filter(function(sym) {
-                return Object.getOwnPropertyDescriptor(source, sym).enumerable;
-            }));
-        }
-        ownKeys.forEach(function(key) {
-            _define_property(target, key, source[key]);
-        });
-    }
-    return target;
-}
-function ownKeys(object, enumerableOnly) {
-    var keys = Object.keys(object);
-    if (Object.getOwnPropertySymbols) {
-        var symbols = Object.getOwnPropertySymbols(object);
-        if (enumerableOnly) {
-            symbols = symbols.filter(function(sym) {
-                return Object.getOwnPropertyDescriptor(object, sym).enumerable;
-            });
-        }
-        keys.push.apply(keys, symbols);
-    }
-    return keys;
-}
-function _object_spread_props(target, source) {
-    source = source != null ? source : {};
-    if (Object.getOwnPropertyDescriptors) {
-        Object.defineProperties(target, Object.getOwnPropertyDescriptors(source));
-    } else {
-        ownKeys(Object(source)).forEach(function(key) {
-            Object.defineProperty(target, key, Object.getOwnPropertyDescriptor(source, key));
-        });
-    }
-    return target;
 }
 function _ts_generator(thisArg, body) {
     var f, y, t, _ = {
@@ -1275,68 +1158,20 @@ browserContextPrototype.R = resolvePathFromModule;
 }
 browserContextPrototype.P = resolveAbsolutePath;
 /**
+ * Returns a placeholder `file://` URL for the given module path. The browser
+ * runtime intentionally does not expose the real filesystem path. Path
+ * segments are percent-encoded so the result is always a valid file URI.
+ */ function resolveFileUrl(modulePath) {
+    if (!modulePath) return 'file:///ROOT/';
+    return `file:///ROOT/${modulePath.split('/').map(encodeURIComponent).join('/')}`;
+}
+browserContextPrototype.F = resolveFileUrl;
+/**
  * Exports a URL with the static suffix appended.
  */ function exportUrl(url, id) {
     exportValue.call(this, `${url}${ASSET_SUFFIX}`, id);
 }
 browserContextPrototype.q = exportUrl;
-/**
- * Creates a worker by instantiating the given WorkerConstructor with the
- * appropriate URL and options.
- *
- * The entrypoint is a pre-compiled worker runtime file. The params configure
- * which module chunks to load and which module to run as the entry point.
- *
- * The params are a JSON array of the following structure:
- * `[TURBOPACK_NEXT_CHUNK_URLS, ASSET_SUFFIX, ...WORKER_FORWARDED_GLOBALS values]`
- *
- * @param WorkerConstructor The Worker or SharedWorker constructor
- * @param entrypoint URL path to the worker entrypoint chunk
- * @param moduleChunks list of module chunk paths to load
- * @param workerOptions options to pass to the Worker constructor (optional)
- */ function createWorker(WorkerConstructor, entrypoint, moduleChunks, workerOptions) {
-    var isSharedWorker = WorkerConstructor.name === 'SharedWorker';
-    var chunkUrls = moduleChunks.map(function(chunk) {
-        return getChunkRelativeUrl(chunk);
-    }).reverse();
-    var params = [
-        chunkUrls,
-        ASSET_SUFFIX
-    ];
-    var _iteratorNormalCompletion = true, _didIteratorError = false, _iteratorError = undefined;
-    try {
-        for(var _iterator = WORKER_FORWARDED_GLOBALS[Symbol.iterator](), _step; !(_iteratorNormalCompletion = (_step = _iterator.next()).done); _iteratorNormalCompletion = true){
-            var globalName = _step.value;
-            params.push(globalThis[globalName]);
-        }
-    } catch (err) {
-        _didIteratorError = true;
-        _iteratorError = err;
-    } finally{
-        try {
-            if (!_iteratorNormalCompletion && _iterator.return != null) {
-                _iterator.return();
-            }
-        } finally{
-            if (_didIteratorError) {
-                throw _iteratorError;
-            }
-        }
-    }
-    var url = new URL(getChunkRelativeUrl(entrypoint), location.origin);
-    var paramsJson = JSON.stringify(params);
-    if (isSharedWorker) {
-        url.searchParams.set('params', paramsJson);
-    } else {
-        url.hash = '#params=' + encodeURIComponent(paramsJson);
-    }
-    // Remove type: "module" from options since our worker entrypoint is not a module
-    var options = workerOptions ? _object_spread_props(_object_spread({}, workerOptions), {
-        type: undefined
-    }) : undefined;
-    return new WorkerConstructor(url, options);
-}
-browserContextPrototype.b = createWorker;
 /**
  * Instantiates a runtime module.
  */ function instantiateRuntimeModule(moduleId, chunkPath) {
@@ -1345,10 +1180,18 @@ browserContextPrototype.b = createWorker;
 /**
  * Returns the URL relative to the origin where a chunk can be fetched from.
  */ function getChunkRelativeUrl(chunkPath) {
-    return `${CHUNK_BASE_PATH}${chunkPath.split('/').map(function(p) {
+    var basePath = arguments.length > 1 && arguments[1] !== void 0 ? arguments[1] : CHUNK_BASE_PATH;
+    return `${basePath}${chunkPath.split('/').map(function(p) {
         return encodeURIComponent(p);
     }).join('/')}${ASSET_SUFFIX}`;
 }
+// Shared runtime primitives consumed by the bundled `createWorker` helper,
+// exposed as `__turbopack_chunk_base_path__` and `__turbopack_chunk_asset_suffix__`.
+browserContextPrototype.b = CHUNK_BASE_PATH;
+browserContextPrototype.X = ASSET_SUFFIX;
+// Shared runtime primitive: build a chunk's URL. Used by the bundled worker
+// helper and the WASM helper, exposed as `__turbopack_chunk_relative_url__`.
+browserContextPrototype.h = getChunkRelativeUrl;
 function getPathFromScript(chunkScript) {
     if (typeof chunkScript === 'string') {
         return chunkScript;
@@ -1409,14 +1252,6 @@ function isJs(chunkUrlOrPath) {
 function isCss(chunkUrl) {
     return endsWithExtension(chunkUrl, '.css');
 }
-function loadWebAssembly(chunkPath, edgeModule, importsObj) {
-    return BACKEND.loadWebAssembly(SourceType.Parent, this.m.id, chunkPath, edgeModule, importsObj);
-}
-contextPrototype.w = loadWebAssembly;
-function loadWebAssemblyModule(chunkPath, edgeModule) {
-    return BACKEND.loadWebAssemblyModule(SourceType.Parent, this.m.id, chunkPath, edgeModule);
-}
-contextPrototype.u = loadWebAssemblyModule;
 /// <reference path="./runtime-base.ts" />
 /// <reference path="./dummy.ts" />
 var moduleCache = {};
@@ -1516,6 +1351,14 @@ function _async_to_generator(fn) {
             _next(undefined);
         });
     };
+}
+function _instanceof(left, right) {
+    "@swc/helpers - instanceof";
+    if (right != null && typeof Symbol !== "undefined" && right[Symbol.hasInstance]) {
+        return !!right[Symbol.hasInstance](left);
+    } else {
+        return left instanceof right;
+    }
 }
 function _ts_generator(thisArg, body) {
     var f, y, t, _ = {
@@ -1718,47 +1561,6 @@ var BACKEND;
      * has been loaded.
      */ loadChunkCached: function loadChunkCached(sourceType, chunkUrl) {
             return doLoadChunk(sourceType, chunkUrl);
-        },
-        loadWebAssembly: function loadWebAssembly(_sourceType, _sourceData, wasmChunkPath, _edgeModule, importsObj) {
-            return _async_to_generator(function() {
-                var req, instance;
-                return _ts_generator(this, function(_state) {
-                    switch(_state.label){
-                        case 0:
-                            req = fetchWebAssembly(wasmChunkPath);
-                            return [
-                                4,
-                                WebAssembly.instantiateStreaming(req, importsObj)
-                            ];
-                        case 1:
-                            instance = _state.sent().instance;
-                            return [
-                                2,
-                                instance.exports
-                            ];
-                    }
-                });
-            })();
-        },
-        loadWebAssemblyModule: function loadWebAssemblyModule(_sourceType, _sourceData, wasmChunkPath, _edgeModule) {
-            return _async_to_generator(function() {
-                var req;
-                return _ts_generator(this, function(_state) {
-                    switch(_state.label){
-                        case 0:
-                            req = fetchWebAssembly(wasmChunkPath);
-                            return [
-                                4,
-                                WebAssembly.compileStreaming(req)
-                            ];
-                        case 1:
-                            return [
-                                2,
-                                _state.sent()
-                            ];
-                    }
-                });
-            })();
         }
     };
     function getOrCreateResolver(chunkUrl) {
@@ -1773,6 +1575,7 @@ var BACKEND;
             resolver = {
                 resolved: false,
                 loadingStarted: false,
+                retryAttempts: 0,
                 promise: promise,
                 resolve: function resolve1() {
                     resolver.resolved = true;
@@ -1783,6 +1586,46 @@ var BACKEND;
             chunkResolvers.set(chunkUrl, resolver);
         }
         return resolver;
+    }
+    /**
+   * Rejects a chunk resolver and drops it from the cache.
+   * We don't want to cache failed chunk loads: a later
+   * request for the same chunk should try again.
+   */ function rejectChunkResolver(chunkUrl, resolver, error) {
+        if (chunkResolvers.get(chunkUrl) === resolver) {
+            chunkResolvers.delete(chunkUrl);
+        }
+        resolver.reject(error);
+    }
+    function getChunkLoadRetryDelayMs() {
+        var jitter = Math.floor(Math.random() * (CHUNK_LOAD_RETRY_MAX_JITTER_MS + 1));
+        return CHUNK_LOAD_RETRY_BASE_DELAY_MS + jitter;
+    }
+    function isRetryableChunkLoadError(error) {
+        return error == null || _instanceof(error, DOMException) && error.name === 'NetworkError';
+    }
+    /**
+   * Handles a failed chunk load: retries the load once after a short delay.
+   */ function onChunkLoadError(sourceType, chunkUrl, resolver, error, reload) {
+        if (!isRetryableChunkLoadError(error) || resolver.retryAttempts >= CHUNK_LOAD_RETRY_MAX_ATTEMPTS || chunkResolvers.get(chunkUrl) !== resolver) {
+            rejectChunkResolver(chunkUrl, resolver, error);
+            return;
+        }
+        resolver.retryAttempts++;
+        setTimeout(function() {
+            // if this chunk is being fetched multiple times, and one of those
+            // attempts succeeds. or, if this chunk has another resolver
+            // mapped to it - it's safe to skip retrying.
+            if (resolver.resolved || chunkResolvers.get(chunkUrl) !== resolver) {
+                return;
+            }
+            if (reload) {
+                reload();
+            } else {
+                resolver.loadingStarted = false;
+                doLoadChunk(sourceType, chunkUrl);
+            }
+        }, getChunkLoadRetryDelayMs());
     }
     /**
    * Loads the given chunk, and returns a promise that resolves once the chunk
@@ -1812,7 +1655,11 @@ var BACKEND;
             // ignore
             } else if (isJs(chunkUrl)) {
                 self.TURBOPACK_NEXT_CHUNK_URLS.push(chunkUrl);
-                importScripts(chunkUrl);
+                try {
+                    importScripts(chunkUrl);
+                } catch (error) {
+                    onChunkLoadError(sourceType, chunkUrl, resolver, error);
+                }
             } else {
                 throw new Error(`can't infer type of chunk from URL ${chunkUrl} in worker`);
             }
@@ -1826,33 +1673,46 @@ var BACKEND;
                     // loaded instantly.
                     resolver.resolve();
                 } else {
-                    var link = document.createElement('link');
-                    link.rel = 'stylesheet';
-                    link.href = chunkUrl;
-                    link.onerror = function() {
-                        resolver.reject();
-                    };
-                    link.onload = function() {
-                        // CSS chunks do not register themselves, and as such must be marked as
-                        // loaded instantly.
-                        resolver.resolve();
+                    var createLink = function createLink1() {
+                        var link = document.createElement('link');
+                        link.rel = 'stylesheet';
+                        link.crossOrigin = CROSS_ORIGIN;
+                        link.href = chunkUrl;
+                        link.onerror = function() {
+                            // Re-insert a fresh tag at the same position on retry to preserve
+                            // cascade order.
+                            var anchor = document.createComment('');
+                            link.replaceWith(anchor);
+                            onChunkLoadError(sourceType, chunkUrl, resolver, undefined, function() {
+                                return anchor.replaceWith(createLink());
+                            });
+                        };
+                        link.onload = function() {
+                            // CSS chunks do not register themselves, and as such must be marked as
+                            // loaded instantly.
+                            resolver.resolve();
+                        };
+                        return link;
                     };
                     // Append to the `head` for webpack compatibility.
-                    document.head.appendChild(link);
+                    document.head.appendChild(createLink());
                 }
             } else if (isJs(chunkUrl)) {
                 var previousScripts = document.querySelectorAll(`script[src="${chunkUrl}"],script[src^="${chunkUrl}?"],script[src="${decodedChunkUrl}"],script[src^="${decodedChunkUrl}?"]`);
                 if (previousScripts.length > 0) {
                     var _iteratorNormalCompletion = true, _didIteratorError = false, _iteratorError = undefined;
                     try {
-                        // There is this edge where the script already failed loading, but we
-                        // can't detect that. The Promise will never resolve in this case.
-                        for(var _iterator = Array.from(previousScripts)[Symbol.iterator](), _step; !(_iteratorNormalCompletion = (_step = _iterator.next()).done); _iteratorNormalCompletion = true){
+                        var _loop = function() {
                             var script = _step.value;
                             script.addEventListener('error', function() {
-                                resolver.reject();
+                                // Drop the failed tag so a retry can re-add it cleanly.
+                                script.remove();
+                                onChunkLoadError(sourceType, chunkUrl, resolver);
+                            }, {
+                                once: true
                             });
-                        }
+                        };
+                        for(var _iterator = Array.from(previousScripts)[Symbol.iterator](), _step; !(_iteratorNormalCompletion = (_step = _iterator.next()).done); _iteratorNormalCompletion = true)_loop();
                     } catch (err) {
                         _didIteratorError = true;
                         _iteratorError = err;
@@ -1868,16 +1728,19 @@ var BACKEND;
                         }
                     }
                 } else {
-                    var script1 = document.createElement('script');
-                    script1.src = chunkUrl;
+                    var script = document.createElement('script');
+                    script.crossOrigin = CROSS_ORIGIN;
+                    script.src = chunkUrl;
                     // We'll only mark the chunk as loaded once the script has been executed,
                     // which happens in `registerChunk`. Hence the absence of `resolve()` in
                     // this branch.
-                    script1.onerror = function() {
-                        resolver.reject();
+                    script.onerror = function() {
+                        // Drop the failed tag so a retry can re-add it cleanly.
+                        script.remove();
+                        onChunkLoadError(sourceType, chunkUrl, resolver);
                     };
                     // Append to the `head` for webpack compatibility.
-                    document.head.appendChild(script1);
+                    document.head.appendChild(script);
                 }
             } else {
                 throw new Error(`can't infer type of chunk from URL ${chunkUrl}`);
@@ -1885,9 +1748,6 @@ var BACKEND;
         }
         resolver.loadingStarted = true;
         return resolver.promise;
-    }
-    function fetchWebAssembly(wasmChunkPath) {
-        return fetch(getChunkRelativeUrl(wasmChunkPath));
     }
 })();
 var chunksToRegister = globalThis["TURBOPACK"];

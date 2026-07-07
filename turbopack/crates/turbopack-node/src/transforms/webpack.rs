@@ -1,6 +1,7 @@
 use std::mem::take;
 
 use anyhow::{Context, Result, bail};
+use async_trait::async_trait;
 use base64::Engine;
 use bincode::{Decode, Encode};
 use either::Either;
@@ -11,8 +12,8 @@ use serde_with::serde_as;
 use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    Completion, OperationVc, ReadRef, ResolvedVc, TaskInput, TryJoinIterExt, ValueToString,
-    ValueToStringRef, Vc, trace::TraceRawVcs,
+    Completion, OperationVc, ReadRef, ResolvedVc, TryJoinIterExt, ValueToString, ValueToStringRef,
+    Vc, trace::TraceRawVcs,
 };
 use turbo_tasks_env::ProcessEnv;
 use turbo_tasks_fs::{
@@ -27,13 +28,11 @@ use turbopack_core::{
     context::{AssetContext, ProcessResult},
     file_source::FileSource,
     ident::AssetIdent,
-    issue::{
-        Issue, IssueExt, IssueSeverity, IssueSource, IssueStage, OptionIssueSource,
-        OptionStyledString, StyledString,
-    },
+    issue::{Issue, IssueExt, IssueSeverity, IssueSource, IssueStage, StyledString},
+    module::Module,
     module_graph::{
         ModuleGraph, SingleModuleGraph,
-        chunk_group_info::{ChunkGroup, ChunkGroupEntry},
+        chunk_group_info::{ChunkGroup, ChunkGroupEntry, EntryHeuristics},
     },
     output::{ExpandOutputAssetsInput, OutputAsset, OutputAssets, expand_output_assets},
     reference_type::{EcmaScriptModulesReferenceSubType, InnerAssets, ReferenceType},
@@ -158,7 +157,12 @@ impl Source for WebpackLoadersProcessedAsset {
     async fn ident(&self) -> Result<Vc<AssetIdent>> {
         Ok(
             if let Some(rename_as) = self.transform.await?.rename_as.as_deref() {
-                self.source.ident().rename_as(rename_as.into())
+                self.source
+                    .ident()
+                    .owned()
+                    .await?
+                    .rename_as(rename_as)
+                    .into_vc()
             } else {
                 self.source.ident()
             },
@@ -276,23 +280,28 @@ impl WebpackLoadersProcessedAsset {
             .to_resolved()
             .await?;
 
-            let module_graph = ModuleGraph::from_single_graph(SingleModuleGraph::new_with_entries(
-                entries.graph_entries().to_resolved().await?,
-                false,
-                false,
-            ))
+            let module_graph = ModuleGraph::from_graphs(
+                vec![SingleModuleGraph::new_with_entries(
+                    entries.graph_entries().to_resolved().await?,
+                    false,
+                    false,
+                )],
+                None,
+            )
             .connect()
             .to_resolved()
             .await?;
 
-            let resource_fs_path = self.source.ident().path().await?;
-            let Some(resource_path) = project_path.get_relative_path_to(&resource_fs_path) else {
+            let source_ident = self.source.ident().await?;
+            let resource_fs_path = &source_ident.path;
+            let Some(resource_path) = project_path.get_relative_path_to(resource_fs_path) else {
                 bail!(
                     "Resource path \"{}\" needs to be on project filesystem \"{}\"",
                     resource_fs_path,
                     project_path
                 );
             };
+            let loader_names: Vec<RcStr> = loaders.iter().map(|l| l.loader.clone()).collect();
             let config_value = evaluate_webpack_loader(WebpackLoaderContext {
                 entries,
                 cwd: project_path.clone(),
@@ -313,6 +322,7 @@ impl WebpackLoadersProcessedAsset {
                     ResolvedVc::cell(transform.source_maps.into()),
                 ],
                 additional_invalidation: Completion::immutable().to_resolved().await?,
+                loader_names,
             })
             .await?;
 
@@ -340,7 +350,7 @@ impl WebpackLoadersProcessedAsset {
                     .map(|source_map| Rope::from(source_map.into_owned()))
             };
             let source_map =
-                resolve_source_map_sources(source_map.as_ref(), &resource_fs_path).await?;
+                resolve_source_map_sources(source_map.as_ref(), resource_fs_path).await?;
 
             let file = match processed.source {
                 Either::Left(str) => File::from(str),
@@ -428,9 +438,8 @@ pub enum InfoMessage {
     },
 }
 
-#[derive(
-    Debug, Clone, TaskInput, Hash, PartialEq, Eq, Deserialize, TraceRawVcs, Encode, Decode,
-)]
+#[turbo_tasks::task_input]
+#[derive(Debug, Clone, Hash, PartialEq, Eq, Deserialize, TraceRawVcs, Encode, Decode)]
 #[serde(rename_all = "camelCase")]
 pub struct WebpackResolveOptions {
     alias_fields: Option<Vec<RcStr>>,
@@ -486,7 +495,8 @@ pub enum ResponseMessage {
     },
 }
 
-#[derive(Clone, PartialEq, Eq, Hash, TaskInput, Debug, TraceRawVcs, Encode, Decode)]
+#[turbo_tasks::task_input]
+#[derive(Clone, PartialEq, Eq, Hash, Debug, TraceRawVcs, Encode, Decode)]
 pub struct WebpackLoaderContext {
     pub entries: ResolvedVc<EvaluateEntries>,
     pub cwd: FileSystemPath,
@@ -500,6 +510,34 @@ pub struct WebpackLoaderContext {
     pub asset_context: ResolvedVc<Box<dyn AssetContext>>,
     pub args: Vec<ResolvedVc<JsonValue>>,
     pub additional_invalidation: ResolvedVc<Completion>,
+    /// Names of the loaders being applied to the source, in pipeline order.
+    /// Used to enrich error messages and issue details so users know which
+    /// loader chain was running when an error occurred.
+    pub loader_names: Vec<RcStr>,
+}
+
+impl WebpackLoaderContext {
+    /// Format the loader chain as "loaders [a, b, c]" for inclusion in
+    /// error messages and issue detail text. Returns `None` if there are
+    /// no loaders, which should not normally happen but keeps the helper
+    /// well-defined.
+    fn loader_chain_description(&self) -> Option<RcStr> {
+        if self.loader_names.is_empty() {
+            None
+        } else {
+            Some(
+                format!(
+                    "loaders [{}]",
+                    self.loader_names
+                        .iter()
+                        .map(|n| n.as_str())
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                )
+                .into(),
+            )
+        }
+    }
 }
 
 impl EvaluateContext for WebpackLoaderContext {
@@ -537,6 +575,10 @@ impl EvaluateContext for WebpackLoaderContext {
         true
     }
 
+    fn crash_context_prefix(&self) -> Option<RcStr> {
+        self.loader_chain_description()
+    }
+
     async fn emit_error(&self, error: StructuredError, pool: &EvaluatePool) -> Result<()> {
         EvaluationIssue {
             error,
@@ -544,6 +586,7 @@ impl EvaluateContext for WebpackLoaderContext {
             assets_for_source_mapping: pool.assets_for_source_mapping,
             assets_root: pool.assets_root.clone(),
             root_path: self.chunking_context.root_path().owned().await?,
+            detail: self.loader_chain_description(),
         }
         .resolved_cell()
         .emit();
@@ -654,11 +697,8 @@ impl EvaluateContext for WebpackLoaderContext {
                     options,
                 );
 
-                if let Some(source) = *resolved.first_source().await? {
-                    if let Some(path) = self
-                        .cwd
-                        .get_relative_path_to(&*source.ident().path().await?)
-                    {
+                if let Some(source) = resolved.await?.first_source() {
+                    if let Some(path) = self.cwd.get_relative_path_to(&source.ident().await?.path) {
                         Ok(ResponseMessage::Resolve { path })
                     } else {
                         bail!(
@@ -698,7 +738,7 @@ impl EvaluateContext for WebpackLoaderContext {
                 )
                 .await?;
 
-                let Some(module) = *resolved.first_module().await? else {
+                let Some(module) = resolved.await?.first_module().await? else {
                     bail!(
                         "importModule: unable to resolve {} in {}",
                         request,
@@ -713,18 +753,29 @@ impl EvaluateContext for WebpackLoaderContext {
                 // Build a module graph from the resolved module and its
                 // transitive dependencies
                 let single_graph = SingleModuleGraph::new_with_entry(
-                    ChunkGroupEntry::Entry(vec![module]),
+                    ChunkGroupEntry::Entry {
+                        modules: vec![module],
+                        heuristics: EntryHeuristics::default(),
+                    },
                     false,
                     false,
                 );
-                let import_module_graph = ModuleGraph::from_single_graph(single_graph)
+                let import_module_graph = ModuleGraph::from_graphs(vec![single_graph], None)
                     .connect()
                     .to_resolved()
                     .await?;
 
                 // Generate a full Node.js bundle using the real runtime
-                let output_root = self.chunking_context.output_root().owned().await?;
-                let entry_path = output_root.join("importModule.js")?;
+                let entry_path = self
+                    .chunking_context
+                    .chunk_path(
+                        None,
+                        module.ident(),
+                        Some(rcstr!("importModule")),
+                        rcstr!(".js"),
+                    )
+                    .owned()
+                    .await?;
 
                 let bootstrap = self.chunking_context.root_entry_chunk_group_asset(
                     entry_path.clone(),
@@ -741,6 +792,7 @@ impl EvaluateContext for WebpackLoaderContext {
                     true,
                 )
                 .await?;
+                let output_root = self.chunking_context.output_root().owned().await?;
 
                 let mut chunks = Vec::new();
                 for asset in all_assets {
@@ -925,47 +977,42 @@ pub struct BuildDependencyIssue {
     pub source: IssueSource,
 }
 
+#[async_trait]
 #[turbo_tasks::value_impl]
 impl Issue for BuildDependencyIssue {
     fn severity(&self) -> IssueSeverity {
         IssueSeverity::Warning
     }
 
-    #[turbo_tasks::function]
-    fn title(&self) -> Vc<StyledString> {
-        StyledString::Text(rcstr!("Build dependencies are not yet supported")).cell()
-    }
-
-    #[turbo_tasks::function]
-    fn stage(&self) -> Vc<IssueStage> {
-        IssueStage::Unsupported.cell()
-    }
-
-    #[turbo_tasks::function]
-    fn file_path(&self) -> Vc<FileSystemPath> {
-        self.source.file_path()
-    }
-
-    #[turbo_tasks::function]
-    async fn description(&self) -> Result<Vc<OptionStyledString>> {
-        Ok(Vc::cell(Some(
-            StyledString::Line(vec![
-                StyledString::Text(rcstr!("The file at ")),
-                StyledString::Code(self.path.to_string().into()),
-                StyledString::Text(
-                    " is a build dependency, which is not yet implemented.
-    Changing this file or any dependency will not be recognized and might require restarting the \
-                     server"
-                        .into(),
-                ),
-            ])
-            .resolved_cell(),
+    async fn title(&self) -> Result<StyledString> {
+        Ok(StyledString::Text(rcstr!(
+            "Build dependencies are not yet supported"
         )))
     }
 
-    #[turbo_tasks::function]
-    fn source(&self) -> Vc<OptionIssueSource> {
-        Vc::cell(Some(self.source))
+    fn stage(&self) -> IssueStage {
+        IssueStage::Unsupported
+    }
+
+    async fn file_path(&self) -> Result<FileSystemPath> {
+        self.source.file_path().await
+    }
+
+    async fn description(&self) -> Result<Option<StyledString>> {
+        Ok(Some(StyledString::Line(vec![
+            StyledString::Text(rcstr!("The file at ")),
+            StyledString::Code(self.path.to_string().into()),
+            StyledString::Text(
+                " is a build dependency, which is not yet implemented.
+    Changing this file or any dependency will not be recognized and might require restarting the \
+                 server"
+                    .into(),
+            ),
+        ])))
+    }
+
+    fn source(&self) -> Option<IssueSource> {
+        Some(self.source)
     }
 }
 
@@ -979,48 +1026,41 @@ pub struct EvaluateEmittedErrorIssue {
     pub project_dir: FileSystemPath,
 }
 
+#[async_trait]
 #[turbo_tasks::value_impl]
 impl Issue for EvaluateEmittedErrorIssue {
-    #[turbo_tasks::function]
-    fn file_path(&self) -> Vc<FileSystemPath> {
-        self.source.file_path()
+    async fn file_path(&self) -> Result<FileSystemPath> {
+        self.source.file_path().await
     }
 
-    #[turbo_tasks::function]
-    fn stage(&self) -> Vc<IssueStage> {
-        IssueStage::Transform.cell()
+    fn stage(&self) -> IssueStage {
+        IssueStage::Transform
     }
 
     fn severity(&self) -> IssueSeverity {
         self.severity
     }
 
-    #[turbo_tasks::function]
-    fn title(&self) -> Vc<StyledString> {
-        StyledString::Text(rcstr!("Issue while running loader")).cell()
+    async fn title(&self) -> Result<StyledString> {
+        Ok(StyledString::Text(rcstr!("Issue while running loader")))
     }
 
-    #[turbo_tasks::function]
-    async fn description(&self) -> Result<Vc<OptionStyledString>> {
-        Ok(Vc::cell(Some(
-            StyledString::Text(
-                self.error
-                    .print(
-                        *self.assets_for_source_mapping,
-                        self.assets_root.clone(),
-                        self.project_dir.clone(),
-                        FormattingMode::Plain,
-                    )
-                    .await?
-                    .into(),
-            )
-            .resolved_cell(),
+    async fn description(&self) -> Result<Option<StyledString>> {
+        Ok(Some(StyledString::Text(
+            self.error
+                .print(
+                    *self.assets_for_source_mapping,
+                    self.assets_root.clone(),
+                    self.project_dir.clone(),
+                    FormattingMode::Plain,
+                )
+                .await?
+                .into(),
         )))
     }
 
-    #[turbo_tasks::function]
-    fn source(&self) -> Vc<OptionIssueSource> {
-        Vc::cell(Some(self.source))
+    fn source(&self) -> Option<IssueSource> {
+        Some(self.source)
     }
 }
 
@@ -1035,29 +1075,28 @@ pub struct EvaluateErrorLoggingIssue {
     pub project_dir: FileSystemPath,
 }
 
+#[async_trait]
 #[turbo_tasks::value_impl]
 impl Issue for EvaluateErrorLoggingIssue {
-    #[turbo_tasks::function]
-    fn file_path(&self) -> Vc<FileSystemPath> {
-        self.source.file_path()
+    async fn file_path(&self) -> Result<FileSystemPath> {
+        self.source.file_path().await
     }
 
-    #[turbo_tasks::function]
-    fn stage(&self) -> Vc<IssueStage> {
-        IssueStage::Transform.cell()
+    fn stage(&self) -> IssueStage {
+        IssueStage::Transform
     }
 
     fn severity(&self) -> IssueSeverity {
         self.severity
     }
 
-    #[turbo_tasks::function]
-    fn title(&self) -> Vc<StyledString> {
-        StyledString::Text(rcstr!("Error logging while running loader")).cell()
+    async fn title(&self) -> Result<StyledString> {
+        Ok(StyledString::Text(rcstr!(
+            "Error logging while running loader"
+        )))
     }
 
-    #[turbo_tasks::function]
-    fn description(&self) -> Vc<OptionStyledString> {
+    async fn description(&self) -> Result<Option<StyledString>> {
         fn fmt_args(prefix: String, args: &[JsonValue]) -> String {
             let mut iter = args.iter();
             let Some(first) = iter.next() else {
@@ -1091,11 +1130,10 @@ impl Issue for EvaluateErrorLoggingIssue {
                 }
             })
             .collect::<Vec<_>>();
-        Vc::cell(Some(StyledString::Stack(lines).resolved_cell()))
+        Ok(Some(StyledString::Stack(lines)))
     }
 
-    #[turbo_tasks::function]
-    fn source(&self) -> Vc<OptionIssueSource> {
-        Vc::cell(Some(self.source))
+    fn source(&self) -> Option<IssueSource> {
+        Some(self.source)
     }
 }
