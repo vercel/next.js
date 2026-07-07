@@ -12,7 +12,7 @@ describe('app dir - workers', () => {
   })
 
   function beforePageLoad(page: Page) {
-    // TODO fix deployment id for webpack
+    // TODO Webpack doesn't pass the ?dpl query param for the worker chunk request.
     if (isTurbopack && (isNextDeploy || isNextStart)) {
       page.on('request', (request) => {
         const url = request.url()
