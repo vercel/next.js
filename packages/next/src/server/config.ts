@@ -1408,7 +1408,7 @@ function assignDefaultsAndValidate(
   }
 
   if (result.cacheHandlers) {
-    const allowedHandlerNameRegex = /[a-z-]/
+    const allowedHandlerNameRegex = /^[a-z-]+$/
 
     if (typeof result.cacheHandlers !== 'object') {
       throw new Error(
@@ -1622,6 +1622,17 @@ function finalizeConfig(config: NextConfigComplete): NextConfigComplete {
     process.env.__NEXT_SUPPORTS_IMMUTABLE_ASSETS
   ) {
     config.experimental.supportsImmutableAssets = true
+  }
+
+  if (
+    config.experimental.supportsImmutableAssets &&
+    (config.output === 'export' || config.output === 'standalone')
+  ) {
+    // supportsImmutableAssets is designed to work with adapters. Disable it for output=export and
+    // output=standalone, which are currently using a non-adapter codepath.
+    // Particularly output=export should just run through the adapter, with only static assets.
+    // TODO remove again once output=export (and output=standalone) are using adapters.
+    config.experimental.supportsImmutableAssets = false
   }
 
   return config
@@ -2223,6 +2234,26 @@ function enforceExperimentalFeatures(
     }
   }
 
+  // TODO: Remove this once serverComponentsHmrCancellation is the default.
+  if (
+    process.env.__NEXT_EXPERIMENTAL_SERVER_COMPONENTS_HMR_CANCELLATION ===
+      'true' &&
+    // We do respect an explicit value in the user config.
+    (config.experimental.serverComponentsHmrCancellation === undefined ||
+      (isDefaultConfig && !config.experimental.serverComponentsHmrCancellation))
+  ) {
+    config.experimental.serverComponentsHmrCancellation = true
+
+    if (configuredExperimentalFeatures) {
+      addConfiguredExperimentalFeature(
+        configuredExperimentalFeatures,
+        'serverComponentsHmrCancellation',
+        true,
+        'enabled by `__NEXT_EXPERIMENTAL_SERVER_COMPONENTS_HMR_CANCELLATION`'
+      )
+    }
+  }
+
   // Enable cachedNavigations by default when cacheComponents is enabled.
   // cachedNavigations relies on Cache Components rendering to do anything
   // useful, so the two features are tied together: we only flip the default
@@ -2266,21 +2297,26 @@ function enforceExperimentalFeatures(
     config.experimental.appShells = true
   }
 
-  // TODO: Remove this once appNewScrollHandler is the default.
+  // appNewScrollHandler defaults to `true`. The env var lets us opt back out to
+  // keep test coverage of the old scroll handler on the non-experimental CI
+  // shards. Like the other env-var experimental toggles, opting out is surfaced
+  // in the reported experimental features.
+  // TODO: Remove this once the appNewScrollHandler opt-out is no longer needed
+  // for test coverage.
   if (
-    process.env.__NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER === 'true' &&
+    process.env.__NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER === 'false' &&
     // We do respect an explicit value in the user config.
     (config.experimental.appNewScrollHandler === undefined ||
-      (isDefaultConfig && !config.experimental.appNewScrollHandler))
+      (isDefaultConfig && config.experimental.appNewScrollHandler))
   ) {
-    config.experimental.appNewScrollHandler = true
+    config.experimental.appNewScrollHandler = false
 
     if (configuredExperimentalFeatures) {
       addConfiguredExperimentalFeature(
         configuredExperimentalFeatures,
         'appNewScrollHandler',
-        true,
-        'enabled by `__NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER`'
+        false,
+        'disabled by `__NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER`'
       )
     }
   }

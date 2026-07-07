@@ -27,7 +27,6 @@ import {
   canNewFetchStrategyProvideMoreContent,
   attemptToFulfillDynamicSegmentFromBFCache,
   attemptToUpgradeSegmentFromBFCache,
-  MetadataOnlyRequestTree,
 } from './cache'
 import type { RouteCacheKey } from './cache-key'
 import { createCacheKey } from './cache-key'
@@ -851,18 +850,22 @@ function pingRootRouteTree(
                 ? FetchStrategy.RuntimeShell
                 : FetchStrategy.PPRRuntime
 
-            // Always ping the runtime head — it may need to be fetched
-            // independently even if all runtime segments are already
-            // cached (e.g. navigating between siblings under a shared
-            // runtime layout).
-            const spawnedEntries = new Map<
-              SegmentRequestKey,
-              PendingSegmentCacheEntry
-            >()
-            pingRuntimeHead(now, task, route, spawnedEntries, runtimeStrategy)
-
+            // spawnedRuntimePrefetches was populated during the traversal
+            // above: every segment in the new part of the tree that is a
+            // candidate for runtime prefetching. It's derived purely from
+            // server hints, not cache state — it tells us whether a runtime
+            // request would be needed even if the cache were completely empty.
+            //
+            // If it's null, nothing in the new part of the tree is a candidate
+            // for runtime prefetching, and we don't fetch the head, either —
+            // the head is runtime prefetched only if one of the segments is.
             const spawnedRuntimePrefetches = task.spawnedRuntimePrefetches
             if (spawnedRuntimePrefetches !== null) {
+              const spawnedEntries = new Map<
+                SegmentRequestKey,
+                PendingSegmentCacheEntry
+              >()
+              pingRuntimeHead(now, task, route, spawnedEntries, runtimeStrategy)
               const requestTree = pingRuntimePrefetches(
                 now,
                 task,
@@ -879,25 +882,6 @@ function pingRootRouteTree(
                     route,
                     runtimeStrategy,
                     requestTree,
-                    spawnedEntries
-                  )
-                )
-              }
-            } else {
-              // No segments spawned a runtime prefetch; however, the head might
-              // have. If there are any spawned entries, it must have come from
-              // the head. Request the metadata only.
-              // TODO: Refactor the "request tree" format so that the metadata
-              // is less of a special case. Right now the logic for this is
-              // spread across both here
-              // and fetchSegmentPrefetchesUsingDynamicRequest.
-              if (spawnedEntries.size > 0) {
-                spawnPrefetchSubtask(
-                  fetchSegmentPrefetchesUsingDynamicRequest(
-                    task,
-                    route,
-                    runtimeStrategy,
-                    MetadataOnlyRequestTree,
                     spawnedEntries
                   )
                 )

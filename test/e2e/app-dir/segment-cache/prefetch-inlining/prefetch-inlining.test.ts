@@ -736,19 +736,23 @@ describe('prefetch inlining', () => {
     )
   })
 
-  it('independent head: metadata is prefetched even when no runtime segment request is needed', async () => {
+  it('independent head: param-dependent head is deferred to navigation, not speculatively prefetched', async () => {
     // The layout at /test-independent-head/[item] uses runtime prefetching
     // (reads cookies). The pages underneath it are static. The metadata
     // (head) accesses both the [item] param and searchParams, making it
     // depend on runtime data.
     //
     // When we prefetch route A, the runtime layout and head are fetched
-    // together. When we then prefetch sibling route B, the layout is
-    // already cached — no runtime segment request is needed. But the
-    // head is different (it includes the [item] param in the title) and
-    // must still be fetched via a runtime prefetch. This test verifies
-    // that the head is fetched independently even when no runtime segment
-    // request is spawned for the sibling.
+    // together (the layout is a runtime segment in the new part of the
+    // tree, so a runtime request happens and the head rides along). When
+    // we then prefetch sibling route B, the runtime layout is already
+    // shared and cached, so the new part of the tree (the [item] page) is
+    // fully static and needs no runtime request. Because the head is
+    // param-dependent it is NOT part of the reusable App Shell, and we do
+    // not spawn a standalone runtime request just to prefetch it — it is
+    // deferred to navigation. This test verifies that a speculative
+    // per-link prefetch fetches the static page but not the param-dependent
+    // head.
     const data = await fetchRouteTreePrefetch(next, '/test-independent-head/a')
     expect(renderInliningTree(data.tree)).toMatchInlineSnapshot(`
      "

@@ -47,15 +47,17 @@ The [`use cache`](/docs/app/api-reference/directives/use-cache) directive caches
 - **Data-level**: Cache a function that fetches or computes data (e.g., `getProducts()`, `getUser(id)`)
 - **UI-level**: Cache an entire component or page (e.g., `async function BlogPosts()`)
 
-Two variants cover specific scenarios: [`"use cache: remote"`](/docs/app/api-reference/directives/use-cache-remote) for durable, shared remote storage, and [`"use cache: private"`](/docs/app/api-reference/directives/use-cache-private) for caching functions that read runtime data.
+A cache directive gives a result a lifetime, information Next.js uses to apply rendering optimizations. See [Prerendering](#prerendering) for how cached results become part of the static shell and may be included in a [prefetch](#runtime-prefetching).
 
-> Arguments and any closed-over values from parent scopes automatically become part of the [cache key](/docs/app/api-reference/directives/use-cache#cache-keys), which means different inputs will produce separate cache entries. This enables personalized or parameterized cached content. See [serialization requirements and constraints](/docs/app/api-reference/directives/use-cache#constraints) for details on what can be cached and how arguments work.
+> **Good to know:** We recommend pairing every cache directive with a [`cacheLife`](/docs/app/api-reference/functions/cacheLife). Without one, the implicit `default` profile applies.
+
+Arguments and any closed-over values from parent scopes automatically become part of the [cache key](/docs/app/api-reference/directives/use-cache#cache-keys), which means different inputs will produce separate cache entries. See [serialization requirements and constraints](/docs/app/api-reference/directives/use-cache#constraints) for details on what can be cached and how arguments work.
 
 ### Data-level caching
 
 To cache an asynchronous function that fetches data, add the `use cache` directive at the top of the function body:
 
-```tsx filename="app/lib/data.ts" highlight={3,4,5}
+```tsx filename="app/lib/data.ts" highlight={1,4,5}
 import { cacheLife } from 'next/cache'
 
 export async function getUsers() {
@@ -154,7 +156,7 @@ Runtime APIs require information that is only available when a user makes a requ
 - [`cookies`](/docs/app/api-reference/functions/cookies) - User's cookie data
 - [`headers`](/docs/app/api-reference/functions/headers) - Request headers
 - [`searchParams`](/docs/app/api-reference/file-conventions/page#searchparams-optional) - URL query parameters
-- [`params`](/docs/app/api-reference/file-conventions/page#params-optional) - Dynamic route parameters. Use [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params) to prerender specific values at build time, or [ISR with Cache Components](/docs/app/guides/incremental-static-regeneration-cache-components) to serve an App Shell while unknown params resolve in the background.
+- [`params`](/docs/app/api-reference/file-conventions/page#params-optional) - Dynamic route parameters. Use [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params) to prerender specific values at build time, or [ISR with Cache Components](/docs/app/guides/incremental-static-regeneration-cache-components) to serve an [App Shell](/docs/app/glossary#app-shell) while unknown params resolve in the background.
 
 Components that access runtime APIs should be wrapped in `<Suspense>`:
 
@@ -195,6 +197,10 @@ A runtime API access without `<Suspense>` surfaces the same **blocking-route** i
   />
 </FixCardGrid>
 
+Runtime-dependent data can still be given a cache lifetime with [`"use cache: private"`](/docs/app/api-reference/directives/use-cache-private), another variant that ships with Cache Components. It gives a lifetime to a function that reads cookies, headers, or `searchParams` directly, so it can be included in a [prefetch](#runtime-prefetching).
+
+The following section shows an alternative to `use cache: private`: extracting a runtime value and passing it to a shared cached function.
+
 ### Passing runtime values to cached functions
 
 You can extract values from runtime APIs and pass them as arguments to cached functions:
@@ -226,11 +232,11 @@ async function CachedContent({ sessionId }: { sessionId: string }) {
 }
 ```
 
-At request time, `CachedContent` executes if no matching cache entry is found, and stores the result for future requests with the same `sessionId`.
+At request time, `<CachedContent />` executes if no matching cache entry is found, and stores the result for future requests with the same `sessionId`.
 
-This pattern also unlocks [runtime prefetching](#runtime-prefetching): on a client transition, the framework can prerender `CachedContent` with the user's actual session and have the result ready before the click.
+> **Good to know:** Because `<CachedContent />` is gated behind request data, it isn't added to the prerendered static shell. At runtime it's cached [in-memory](/docs/app/api-reference/directives/use-cache#runtime-caching-considerations) by default, which doesn't persist across serverless requests, so it may re-evaluate on each request. Reach for [`'use cache: remote'`](/docs/app/api-reference/directives/use-cache-remote) for durable, shared caching.
 
-By default, `use cache` stores entries [in-memory](/docs/app/api-reference/directives/use-cache#runtime-caching-considerations). In serverless environments where memory doesn't persist across requests, `CachedContent` may re-evaluate on every request. Consider [`'use cache: remote'`](/docs/app/api-reference/directives/use-cache-remote) for durable, shared caching.
+With this pattern, [runtime prefetching](#runtime-prefetching) can prerender `<CachedContent />` with the user's actual session during a client transition and have the result ready before the click. This works even when server-side entries rarely survive between requests, because the lifetime you assign is what lets the result join the prefetch, where the client treats it as fresh for its [`cacheLife`](/docs/app/api-reference/functions/cacheLife) `stale` window.
 
 ## Static, cached, and streaming
 
@@ -310,7 +316,7 @@ During prerendering, the header (static) and blog posts (cached with `use cache`
 
 Reading `cookies()` here doesn't opt-in the whole route into dynamic rendering, the way the previous rendering model did. The Suspense boundary provides fallback UI where the runtime access streams, while static and cached content still ship in the initial HTML.
 
-Just as `<Suspense>` contains async access, an **error boundary** contains failures: wrap them around a subtree that might error during rendering. Use [`unstable_catchError`](/docs/app/api-reference/functions/catchError) for component-level boundaries, or the [`error.js`](/docs/app/api-reference/file-conventions/error) file convention for route-level boundaries.
+Just as `<Suspense>` contains async access, an **error boundary** contains failures: wrap them around a subtree that might error during rendering. Use [`catchError`](/docs/app/api-reference/functions/catchError) for component-level boundaries, or the [`error.js`](/docs/app/api-reference/file-conventions/error) file convention for route-level boundaries.
 
 As you build, consider that inside [`generateMetadata`](/docs/app/api-reference/functions/generate-metadata#with-cache-components) and [`generateViewport`](/docs/app/api-reference/functions/generate-viewport#with-cache-components), uncached fetches or runtime data access surface the same insights and errors as in your page, guiding you to the rendering you intend. For incremental static regeneration with both known and unknown param values, see [ISR with Cache Components](/docs/app/guides/incremental-static-regeneration-cache-components).
 
@@ -318,11 +324,11 @@ As you build, consider that inside [`generateMetadata`](/docs/app/api-reference/
 
 Operations like `Math.random()`, `Date.now()`, or `crypto.randomUUID()` produce different values each time they execute. Cache Components requires you to explicitly handle these.
 
-> **Good to know:** `performance.now()` is meant for telemetry. Pass the value to your logger or metrics rather than rendering it.
+> **Good to know:** `performance.now()` is meant for telemetry, so Next.js doesn't treat it as a value to guard. Use it for timing and pass the result to your logger or metrics rather than rendering it.
 
 **To generate unique values per request**, defer to request time by calling [`connection()`](/docs/app/api-reference/functions/connection) before these operations, and wrap the component in `<Suspense>`:
 
-```tsx filename="page.tsx"
+```tsx filename="page.tsx" highlight={1,4-6}
 import { connection } from 'next/server'
 import { Suspense } from 'react'
 
@@ -407,7 +413,7 @@ export default async function Page() {
 
 At build time, Next.js renders your route's component tree. How each component is handled depends on the APIs it uses:
 
-- [`use cache`](#usage): the result is cached and included in the static shell
+- [`use cache`](#usage): the result is cached and included in the static shell, as long as its lifetime [isn't too short](/docs/app/api-reference/functions/cacheLife#prerendering-behavior)
 - [`<Suspense>`](#streaming-uncached-data): fallback UI is included in the static shell while the content streams at request time
 - [Synchronous I/O and pure computations](#synchronous-io-and-pure-computations): module imports, `fs.readFileSync`, and pure computations complete during prerender and are included in the static shell automatically
 - [Random values and timestamps](#random-values-and-timestamps): use `connection()` + `<Suspense>` to get a unique value per request, or `use cache` to share one across users
@@ -424,6 +430,8 @@ This generates a static shell consisting of HTML for initial page loads and a se
 
 Every produced static shell can be served directly from a CDN, without going through to the upstream server. This makes direct navigations [instant](#instant-navigation).
 
+What ends up in a route's static shell depends on what's known at build time. When a route's [dynamic params](/docs/app/api-reference/functions/generate-static-params) are known, the shell contains that concrete content, and any remaining uncached or runtime data still streams behind its `<Suspense>` fallback. When the params aren't known, the reusable, URL-independent version is the [**App Shell**](/docs/app/glossary#app-shell): the same static shell with the param-specific parts left behind their fallbacks. [Incremental Static Regeneration](#incremental-static-regeneration) fills in the concrete versions after the first visit.
+
 Next.js requires you to explicitly handle components that can't complete during prerendering. It surfaces a validation insight in the dev overlay and dev server console that names the route and points at fixes (cache the access, move it into a `<Suspense>` boundary, or opt the route out). This validation keeps every route producing a static shell, so direct navigations stay instant.
 
 <Image
@@ -435,12 +443,6 @@ Next.js requires you to explicitly handle components that can't complete during 
 />
 
 > **🎥 Watch:** Why Partial Prerendering and how it works → [YouTube (10 minutes)](https://www.youtube.com/watch?v=MTcPrTIBkpA).
-
-### Bots and crawlers
-
-Browsers receive the static shell instantly. Bots and crawlers are detected by their user agent and handled differently: because they need a complete document, Next.js skips the shell and renders the entire page dynamically at request time, then sends the finished HTML once the render completes.
-
-Because the shell is re-rendered instead of reused, work that completed during prerendering now runs at request time for a bot. If part of your shell depends on inputs that only exist while prerendering, such as build-time data or values that are not reachable in the request-time environment, a page that loads for a person can fail to render for a crawler. Make sure the data your shell relies on is also available at request time. See [Bots and crawlers](/docs/app/guides/streaming#bots-and-crawlers) for more details.
 
 ### Maximizing the static shell
 
@@ -469,9 +471,10 @@ If this param is dynamic (not provided by [`generateStaticParams`](/docs/app/api
 
 However, it is often possible to read the parameter value further down the tree. Instead of awaiting at the layout level, pass the params promise down and await there:
 
-```tsx filename="app/shop/[slug]/layout.tsx" highlight={3,10-13}
+```tsx filename="app/shop/[slug]/layout.tsx" highlight={3-4,11-16}
 import { Suspense } from 'react'
 
+// Not async: this layout never awaits params
 export default function Layout({
   children,
   params,
@@ -480,6 +483,7 @@ export default function Layout({
     <div>
       <Sidebar />
       <Suspense fallback={<h1>Loading...</h1>}>
+        {/* await happens inside the boundary, so the shell still renders */}
         {params.then(({ slug }) => (
           <SlugHeading slug={slug} />
         ))}
@@ -506,45 +510,79 @@ Read the [Instant navigation guide](/docs/app/guides/instant-navigation) for exa
 
 ### Runtime prefetching
 
-With [`prefetch = 'allow-runtime'`](/docs/app/api-reference/file-conventions/route-segment-config/prefetch) on a route, Next.js renders that route's component tree again at prefetch time, this time with the user's cookies, headers, and full URL available. The same rules apply, but more of the tree resolves now that runtime data is in scope:
+By default, the router prefetches each route's [App Shell](/docs/app/glossary#app-shell), which already includes static content and the session data derived from `cookies()` and `headers()`. Runtime prefetching extends the prefetch with **URL data**: the `searchParams` and dynamic `params` that vary per destination link.
+
+With [`prefetch = 'allow-runtime'`](/docs/app/api-reference/file-conventions/route-segment-config/prefetch) on a route, Next.js renders that route's component tree again at prefetch time, this time with the destination URL resolved. The same rules apply, but more of the tree resolves now that its `searchParams` and `params` are in scope:
 
 - [`use cache`](#usage) called with values extracted from runtime APIs (passed as arguments) joins the runtime prerender
 - [`use cache: private`](/docs/app/api-reference/directives/use-cache-private) executes on the server, reads runtime data directly, and caches the result in the browser, joining the runtime prerender
 - [`<Suspense>`](#streaming-uncached-data) fallbacks stay in the runtime prerender while uncached content streams at request time
 
-This generates a **runtime prerender** that extends past the static shell with content the user's request unlocks. Because it happens during the prefetch, the navigation has nothing to wait on. The cost is a server invocation per prefetchable link.
+This generates a **runtime prerender** that extends past the static shell with content the destination URL unlocks. Because it happens during the prefetch, the navigation has nothing to wait on. The cost is a server invocation per prefetchable link.
 
-For example, take a dashboard that reads the user's session cookie and opts into runtime prefetching:
+For example, take a search page that reads `searchParams` from the URL and opts into runtime prefetching:
 
-```tsx filename="app/dashboard/page.tsx"
-import { cookies } from 'next/headers'
+```tsx filename="app/search/page.tsx"
 import { Suspense } from 'react'
 
 export const prefetch = 'allow-runtime'
 
-export default function Dashboard() {
+export default function SearchPage(props: PageProps<'/search'>) {
   return (
-    <Suspense fallback={<p>Loading...</p>}>
-      <Stats />
+    <Suspense fallback={<p>Loading results...</p>}>
+      <Results searchParams={props.searchParams} />
     </Suspense>
   )
 }
 
-async function Stats() {
-  const session = (await cookies()).get('session')?.value
-  if (!session) return <p>Not signed in</p>
-  const stats = await getStats(session)
-  return <pre>{JSON.stringify(stats)}</pre>
+async function Results({
+  searchParams,
+}: Pick<PageProps<'/search'>, 'searchParams'>) {
+  const { q } = await searchParams
+  const results = await search(q)
+  return (
+    <ul>
+      {results.map((result) => (
+        <li key={result.id}>{result.title}</li>
+      ))}
+    </ul>
+  )
 }
 
-async function getStats(session: string) {
+async function search(query: string | string[] | undefined) {
   'use cache'
-  return db.users.getStats(session)
+  return db.search(query)
 }
 ```
 
-On a direct visit, `<Stats>` streams in behind the fallback. When a user navigates to `/dashboard` from another route, the framework prefetches with their session cookie. `getStats` is cached, so its result joins the runtime prerender before the click.
+On a direct visit, `<Results>` streams in behind the fallback.
+
+When a [`<Link>`](/docs/app/api-reference/components/link) to `/search?q=shoes` is prefetched, the framework resolves `searchParams` from the link's URL, so the cached `search` result is included in the runtime prerender before the click. The browser then reuses it until its [`stale`](/docs/app/api-reference/functions/cacheLife#stale) time passes or the `searchParams` change.
+
+See [Adopting Partial Prefetching](/docs/app/guides/adopting-partial-prefetching) to understand how `<Link>` prefetching behaves and how to adopt it.
 
 See the [Runtime prefetching guide](/docs/app/guides/runtime-prefetching) for full patterns and the [`prefetch` reference](/docs/app/api-reference/file-conventions/route-segment-config/prefetch) for all modes.
 
-{/* I wonder if we need a small section that develops ISR briefly and links to the ISR w/ CC guide */}
+## Where cached content is stored
+
+A cached function's output is serialized into an **RSC payload**, at build time or at runtime. This payload is what everything else works from. Next.js renders it into HTML, keeps it in a server or remote store, or sends it to the browser, and [`cacheLife`](/docs/app/api-reference/functions/cacheLife) sets how long each copy stays fresh:
+
+- **Prerendered HTML.** The payload is rendered to HTML and stored on disk when self-hosting, or in your platform's durable storage behind a CDN. That HTML is the [static shell](#prerendering) at build time and the concrete page after an [ISR](#incremental-static-regeneration) upgrade, with [`revalidate`](/docs/app/api-reference/functions/cacheLife#revalidate) and [`expire`](/docs/app/api-reference/functions/cacheLife#expire) controlling when it's rebuilt.
+- **Shared store.** By default the result stays in a per-instance, in-memory store that is ephemeral on serverless. [`use cache: remote`](/docs/app/api-reference/directives/use-cache-remote) moves it to a durable [cache handler](/docs/app/api-reference/config/next-config-js/cacheHandlers) shared across instances, a network roundtrip that pays off only at a **high hit rate**.
+- **Browser.** The payload is included in the RSC sent for a client navigation or [prefetch](#runtime-prefetching), where the browser keeps it fresh for its [`stale`](/docs/app/api-reference/functions/cacheLife#stale) window. [`use cache: private`](/docs/app/api-reference/directives/use-cache-private) results live only here.
+
+> **Good to know:** An [App Shell](/docs/app/glossary#app-shell) that reads `cookies()` or `headers()` is session-specific, cached per session on the client rather than in the shared server cache.
+
+All of these stores are scoped to a single deployment. A new deploy starts fresh, new prerenders are built, and `use cache` entries don't carry over, even durable [`remote`](/docs/app/api-reference/directives/use-cache-remote) ones, because the [cache key](/docs/app/api-reference/directives/use-cache#cache-keys) includes the build id. See [Runtime caching considerations](/docs/app/api-reference/directives/use-cache#runtime-caching-considerations) for per-environment behavior and [Self-hosting](/docs/app/guides/self-hosting#caching-and-isr) for configuring the server cache.
+
+## Incremental Static Regeneration
+
+In a route with dynamic param segments, [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params) prerenders the URLs you list at build time. Any other URL is served the [App Shell](/docs/app/glossary#app-shell) instantly, then upgraded in the background with its now-known params and cached for the next visitor.
+
+See [ISR with Cache Components](/docs/app/guides/incremental-static-regeneration-cache-components) for the full walkthrough.
+
+## Bots and crawlers
+
+Browsers receive the static shell instantly. Bots and crawlers are detected by their user agent and handled differently: because they need a complete document, Next.js skips the shell and renders the entire page dynamically at request time, then sends the finished HTML once the render completes.
+
+Because the shell is re-rendered instead of reused, work that completed during prerendering now runs at request time for a bot. If part of your shell depends on inputs that only exist while prerendering, such as build-time data or values that are not reachable in the request-time environment, a page that loads for a person can fail to render for a crawler. Make sure the data your shell relies on is also available at request time. See [Bots and crawlers](/docs/app/guides/streaming#bots-and-crawlers) in the Streaming guide for more details.
