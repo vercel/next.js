@@ -15,6 +15,7 @@ import { PHASE_PRODUCTION_BUILD } from '../../shared/lib/constants'
 import loadConfig from '../../server/config'
 import { hasCustomExportOutput } from '../../export/utils'
 import { Telemetry } from '../../telemetry/storage'
+import { eventBuildFeatureUsageFromTurbopack } from '../../telemetry/events/build'
 import {
   setGlobal,
   trace,
@@ -34,7 +35,7 @@ import type {
 } from '../swc/types'
 import { Bundler } from '../../lib/bundler'
 
-export async function turbopackBuild(): Promise<{
+export async function turbopackBuild(telemetry: Telemetry): Promise<{
   duration: number
   buildTraceContext: undefined
   shutdownPromise: Promise<void>
@@ -117,10 +118,11 @@ export async function turbopackBuild(): Promise<{
   }
 
   const sharedTurboOptions = {
-    memoryLimit: config.experimental?.turbopackMemoryLimit,
+    turbopackMemoryEviction: config.experimental.turbopackMemoryEvictionMode,
     dependencyTracking: persistentCaching || hasDeferredEntries,
     isCi: isCI,
     isShortSession: true,
+    skipCompaction: process.env.NEXT_USE_POST_BUILD === '1',
   }
 
   const sriEnabled = Boolean(config.experimental.sri?.algorithm)
@@ -146,15 +148,17 @@ export async function turbopackBuild(): Promise<{
         }
       : undefined
   )
-  try {
-    const buildEventsSpan = trace('turbopack-build-events')
-    // Stop immediately: this span is only used as a parent for
-    // manualTraceChild calls which carry their own timestamps.
-    buildEventsSpan.stop()
-    backgroundLogCompilationEvents(project, {
-      parentSpan: buildEventsSpan,
-    })
+  const buildEventsSpan = trace('turbopack-build-events')
+  // Stop immediately: this span is only used as a parent for
+  // manualTraceChild calls which carry their own timestamps.
+  buildEventsSpan.stop()
+  const shutdownController = new AbortController()
+  const compilationEvents = backgroundLogCompilationEvents(project, {
+    parentSpan: buildEventsSpan,
+    signal: shutdownController.signal,
+  })
 
+  try {
     // Write an empty file in a known location to signal this was built with Turbopack
     await fs.writeFile(path.join(distDir, 'turbopack'), '')
 
@@ -171,6 +175,20 @@ export async function turbopackBuild(): Promise<{
 
     const entrypoints = await project.writeAllEntrypointsToDisk(appDirOnly)
     printBuildErrors(entrypoints, dev)
+
+    // Skip when telemetry is fully off — featureUsage() isn't free.
+    if (telemetry.isEnabled || process.env.NEXT_TELEMETRY_DEBUG) {
+      try {
+        const featureUsage = await project.featureUsage()
+        const events = eventBuildFeatureUsageFromTurbopack(featureUsage)
+        if (events.length > 0) {
+          telemetry.record(events)
+        }
+      } catch (err) {
+        // Telemetry must never break a build.
+        console.warn('Failed to record Turbopack feature telemetry:', err)
+      }
+    }
 
     const routes = entrypoints.routes
     if (!routes) {
@@ -264,7 +282,14 @@ export async function turbopackBuild(): Promise<{
       await project.writeAnalyzeData(appDirOnly)
     }
 
-    const shutdownPromise = project.shutdown()
+    // Shutdown may trigger final compilation events (e.g. persistence,
+    // compaction trace spans).  This is the last chance to capture them.
+    // After shutdown resolves we abort the signal to close the iterator
+    // and drain any remaining buffered events.
+    const shutdownPromise = project.shutdown().then(() => {
+      shutdownController.abort()
+      return compilationEvents.catch(() => {})
+    })
 
     const time = process.hrtime(startTime)
     return {
@@ -274,6 +299,8 @@ export async function turbopackBuild(): Promise<{
     }
   } catch (err) {
     await project.shutdown()
+    shutdownController.abort()
+    await compilationEvents.catch(() => {})
     throw err
   }
 }
@@ -283,9 +310,7 @@ export async function workerMain(workerData: {
   buildContext: typeof NextBuildContext
   traceState: TraceState & { shouldSaveTraceEvents: boolean }
 }): Promise<
-  Omit<Awaited<ReturnType<typeof turbopackBuild>>, 'shutdownPromise'> & {
-    debugTraceEvents?: ReturnType<typeof getTraceEvents>
-  }
+  Omit<Awaited<ReturnType<typeof turbopackBuild>>, 'shutdownPromise'>
 > {
   // setup new build context from the serialized data passed from the parent
   Object.assign(NextBuildContext, workerData.buildContext)
@@ -322,16 +347,11 @@ export async function workerMain(workerData: {
       shutdownPromise: resultShutdownPromise,
       buildTraceContext,
       duration,
-    } = await turbopackBuild()
+    } = await turbopackBuild(telemetry)
     shutdownPromise = resultShutdownPromise
-    // Wait for shutdown to complete so that all compilation events
-    // (e.g. persistence trace spans) have been processed before we
-    // collect the saved trace events.
-    await shutdownPromise
     return {
       buildTraceContext,
       duration,
-      debugTraceEvents: getTraceEvents(),
     }
   } finally {
     // Always flush telemetry before worker exits (waits for async operations like setTimeout in debug mode)
@@ -341,8 +361,13 @@ export async function workerMain(workerData: {
   }
 }
 
-export async function waitForShutdown(): Promise<void> {
+export async function waitForShutdown(): Promise<{
+  debugTraceEvents?: ReturnType<typeof getTraceEvents>
+}> {
   if (shutdownPromise) {
     await shutdownPromise
   }
+  // Collect trace events after shutdown completes so that all compilation
+  // events (e.g. persistence trace spans) have been processed.
+  return { debugTraceEvents: getTraceEvents() }
 }

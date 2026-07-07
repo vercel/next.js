@@ -34,6 +34,12 @@ export async function GET() {
 }
 ```
 
+## `generateStaticParams`
+
+Request-time APIs like `headers()`, `cookies()`, `connection()`, and `draftMode()` are not available inside `generateStaticParams` because it runs at build time to determine which pages to statically generate. There is no HTTP request in this context.
+
+Note: Root param getters (`import { lang } from 'next/root-params'`) _are_ supported inside `generateStaticParams` for nested segments, as the parent params are known at that point.
+
 ## Useful Links
 
 - [`headers()` function](/docs/app/api-reference/functions/headers)

@@ -43,6 +43,7 @@ export interface JestTransformerConfig extends TransformerConfig {
   jsConfig: any
   resolvedBaseUrl?: ResolvedBaseUrl
   pagesDir?: string
+  configDir?: string
   serverComponents?: boolean
   isEsmProject: boolean
   modularizeImports?: NextConfig['modularizeImports']
@@ -90,6 +91,7 @@ const createTransformer: TransformerCreator<
         jestConfig.testEnvironment === 'node' ||
         jestConfig.testEnvironment.includes('jest-environment-node'),
       filename,
+      configDir: inputOptions?.configDir,
       jsConfig: inputOptions?.jsConfig,
       resolvedBaseUrl: inputOptions?.resolvedBaseUrl,
       pagesDir: inputOptions?.pagesDir,

@@ -129,6 +129,12 @@ Or without running the build:
 pnpm pack-next --no-js-build --tar && pnpm unpack-next path/to/project
 ```
 
+To create tarballs inside the project directory with deployable relative `file:` references:
+
+```bash
+pnpm pack-next --project path/to/project --deployable-tar
+```
+
 Without going through a tarball (only works if you've added the overrides from `pack-next`):
 
 ```bash
@@ -180,17 +186,3 @@ pnpm sweep
 ```
 
 It will also clean up other caches (pnpm store, cargo, etc.) and run `git gc` for you.
-
-### MacOS disk compression
-
-If you want to automatically use APFS disk compression on macOS for `node_modules/` and `target/` you can install a launch agent with:
-
-```bash
-./scripts/LaunchAgents/install-macos-agents.sh
-```
-
-Or run it manually with:
-
-```bash
-./scripts/macos-compress.sh
-```

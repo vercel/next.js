@@ -144,7 +144,7 @@ impl InvalidationReasonKind for InitializeKind {
 }
 
 /// Invalidation was caused by a write operation on the filesystem
-#[derive(PartialEq, Eq, Hash)]
+#[derive(PartialEq, Eq, Hash, Clone)]
 pub(crate) struct Write {
     pub path: String,
 }

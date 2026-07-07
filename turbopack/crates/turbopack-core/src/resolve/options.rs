@@ -39,9 +39,12 @@ pub enum ResolveModules {
     },
 }
 
-#[derive(TraceRawVcs, Hash, PartialEq, Eq, Clone, Copy, Debug, NonLocalValue, Encode, Decode)]
+#[derive(
+    TraceRawVcs, Hash, PartialEq, Eq, Clone, Copy, Debug, NonLocalValue, Encode, Decode, Default,
+)]
 pub enum ConditionValue {
     Set,
+    #[default]
     Unset,
     Unknown,
 }
@@ -533,7 +536,16 @@ impl ValueToString for ImportMapResult {
             }
             ImportMapResult::NoEntry => Ok(Vc::cell(rcstr!("No import map entry"))),
             ImportMapResult::Error(issue) => Ok(Vc::cell(
-                format!("error: {}", issue.title().await?.to_unstyled_string()).into(),
+                format!(
+                    "error: {}",
+                    issue
+                        .into_trait_ref()
+                        .await?
+                        .title()
+                        .await?
+                        .to_unstyled_string()
+                )
+                .into(),
             )),
         }
     }
@@ -576,8 +588,8 @@ impl ImportMap {
 
         let results = lookup_rel
             .into_iter()
-            .chain(lookup_rel_parent.into_iter())
-            .chain(lookup.into_iter())
+            .chain(lookup_rel_parent)
+            .chain(lookup)
             .map(async |result| {
                 import_mapping_to_result(*result?.output.await?, lookup_path.clone(), request).await
             })
@@ -658,8 +670,8 @@ pub struct ResolveOptions {
 
 #[turbo_tasks::value_impl]
 impl ResolveOptions {
-    /// Returns a new [Vc<ResolveOptions>] with its import map extended to
-    /// include the given import map.
+    /// Returns a new `Vc<ResolveOptions>` with its import map extended to include the given import
+    /// map.
     #[turbo_tasks::function]
     pub async fn with_extended_import_map(
         self: Vc<Self>,
@@ -677,8 +689,8 @@ impl ResolveOptions {
         Ok(resolve_options.cell())
     }
 
-    /// Returns a new [Vc<ResolveOptions>] with its fallback import map extended
-    /// to include the given import map.
+    /// Returns a new `Vc<ResolveOptions>` with its fallback import map extended to include the
+    /// given import map.
     #[turbo_tasks::function]
     pub async fn with_extended_fallback_import_map(
         self: Vc<Self>,

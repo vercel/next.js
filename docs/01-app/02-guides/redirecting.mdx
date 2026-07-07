@@ -107,7 +107,7 @@ export async function updateUsername(username: string, formData: FormData) {
     // Handle errors
   }
 
-  revalidateTag('username') // Update all references to the username
+  revalidateTag('username', 'max') // Update all references to the username
   permanentRedirect(`/profile/${username}`) // Navigate to the new user profile
 }
 ```
@@ -125,7 +125,7 @@ export async function updateUsername(username, formData) {
     // Handle errors
   }
 
-  revalidateTag('username') // Update all references to the username
+  revalidateTag('username', 'max') // Update all references to the username
   permanentRedirect(`/profile/${username}`) // Navigate to the new user profile
 }
 ```

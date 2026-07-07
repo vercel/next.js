@@ -32,9 +32,18 @@ export async function copy_regenerator_runtime(task, opts) {
 }
 
 export async function copy_docs(task, opts) {
-  // Copy documentation from repo root into the package
+  // Copy documentation from repo root into the package.
+  // Rename .mdx → .md so AI agents find them when globbing for *.md.
   const docsSource = join(__dirname, '../../docs')
-  await task.source(join(docsSource, '**/*')).target('dist/docs')
+  await task
+    .source(join(docsSource, '**/*'))
+    // eslint-disable-next-line require-yield
+    .run({ every: true }, function* (file) {
+      if (file.base.endsWith('.mdx')) {
+        file.base = file.base.replace(/\.mdx$/, '.md')
+      }
+    })
+    .target('dist/docs')
 }
 
 export async function copy_styled_jsx_assets(task, opts) {
@@ -1448,7 +1457,11 @@ export async function copy_vendor_react(task_) {
     // TODO-APP: remove unused fields from package.json and unused files
     function overridePackageName(source) {
       const json = JSON.parse(source)
-      json.name = json.name + '-' + channel
+      // avoid infinite suffix addition in case the package name already has the suffix
+      // e.g. if we install from src/compiled instead of npm registry.
+      if (!json.name.endsWith(`-${channel}`)) {
+        json.name = json.name + '-' + channel
+      }
       return JSON.stringify(
         {
           name: json.name,
@@ -1869,11 +1882,29 @@ export async function ncc_strip_ansi(task, opts) {
     .ncc({ packageName: 'strip-ansi', externals })
     .target('src/compiled/strip-ansi')
 }
+externals['@vercel/blob'] = 'next/dist/compiled/@vercel/blob'
+export async function ncc_vercel_blob(task, opts) {
+  await task
+    .source(relative(__dirname, require.resolve('@vercel/blob')))
+    .ncc({ packageName: '@vercel/blob', externals })
+    .target('src/compiled/@vercel/blob')
+}
+
 externals['@vercel/nft'] = 'next/dist/compiled/@vercel/nft'
 export async function ncc_nft(task, opts) {
   await task
     .source(relative(__dirname, require.resolve('@vercel/nft')))
-    .ncc({ packageName: '@vercel/nft', externals })
+    .ncc({
+      packageName: '@vercel/nft',
+      externals: Object.keys(externals).reduce((acc, key) => {
+        // @vercel/nft uses glob@13, while next/dist/compiled/glob is glob@7
+        // glob@13 -> path-scurry@2 -> lru-cache@11 which is incompatible
+        if (key !== 'glob' && key !== 'lru-cache') {
+          acc[key] = externals[key]
+        }
+        return acc
+      }, {}),
+    })
     .target('src/compiled/@vercel/nft')
 }
 
@@ -2083,6 +2114,14 @@ export async function ncc_webpack_bundle_packages(task, opts) {
     .target('src/compiled/webpack/')
 }
 
+externals['write-file-atomic'] = 'next/dist/compiled/write-file-atomic'
+export async function ncc_write_file_atomic(task, opts) {
+  await task
+    .source(relative(__dirname, require.resolve('write-file-atomic')))
+    .ncc({ packageName: 'write-file-atomic', externals })
+    .target('src/compiled/write-file-atomic')
+}
+
 externals['ws'] = 'next/dist/compiled/ws'
 export async function ncc_ws(task, opts) {
   await task
@@ -2276,6 +2315,7 @@ export async function ncc(task, opts) {
         'ncc_superstruct',
         'ncc_zod',
         'ncc_zod_validation_error',
+        'ncc_vercel_blob',
         'ncc_nft',
         'ncc_tar',
         'ncc_terser',
@@ -2287,6 +2327,7 @@ export async function ncc(task, opts) {
         'ncc_webpack_bundle5',
         'ncc_webpack_sources1',
         'ncc_webpack_sources3',
+        'ncc_write_file_atomic',
         'ncc_ws',
         'ncc_ua_parser_js',
         'ncc_minimatch',
@@ -2982,6 +3023,61 @@ export async function next_bundle_server(task, opts) {
   })
 }
 
+// The `app-worker` bundle currently has only one entry, the use-cache probe
+// worker, which is dev-only. We therefore build just the four dev variants
+// (turbo × experimental). If a future worker entry needs to run in prod,
+// add the matching prod tasks then.
+export async function next_bundle_app_worker_dev(task, opts) {
+  await task.source('dist').webpack({
+    watch: opts.dev,
+    config: require('./next-runtime.webpack-config')({
+      dev: true,
+      bundleType: 'app-worker',
+    }),
+    name: 'next-bundle-app-worker-dev',
+  })
+}
+
+export async function next_bundle_app_worker_dev_turbo(task, opts) {
+  await task.source('dist').webpack({
+    watch: opts.dev,
+    config: require('./next-runtime.webpack-config')({
+      turbo: true,
+      dev: true,
+      bundleType: 'app-worker',
+    }),
+    name: 'next-bundle-app-worker-dev-turbo',
+  })
+}
+
+export async function next_bundle_app_worker_dev_experimental(task, opts) {
+  await task.source('dist').webpack({
+    watch: opts.dev,
+    config: require('./next-runtime.webpack-config')({
+      dev: true,
+      bundleType: 'app-worker',
+      experimental: true,
+    }),
+    name: 'next-bundle-app-worker-dev-experimental',
+  })
+}
+
+export async function next_bundle_app_worker_dev_turbo_experimental(
+  task,
+  opts
+) {
+  await task.source('dist').webpack({
+    watch: opts.dev,
+    config: require('./next-runtime.webpack-config')({
+      turbo: true,
+      dev: true,
+      bundleType: 'app-worker',
+      experimental: true,
+    }),
+    name: 'next-bundle-app-worker-dev-turbo-experimental',
+  })
+}
+
 export async function next_bundle_devtools(task, opts) {
   await task.source('dist').webpack({
     watch: opts.dev,
@@ -3012,6 +3108,11 @@ export async function next_bundle(task, opts) {
       'next_bundle_pages_dev_turbo',
       // builds the minimal server
       'next_bundle_server',
+      // builds dev-only worker bundles (use-cache probe, etc.)
+      'next_bundle_app_worker_dev',
+      'next_bundle_app_worker_dev_turbo',
+      'next_bundle_app_worker_dev_experimental',
+      'next_bundle_app_worker_dev_turbo_experimental',
       // devtools
       'next_bundle_devtools',
     ],

@@ -50,9 +50,13 @@ fn bench_small_apps(c: &mut Criterion) {
 
                 b.iter(move || {
                     let mut rt = tokio::runtime::Builder::new_multi_thread();
-                    rt.enable_all().on_thread_stop(|| {
-                        TurboMalloc::thread_stop();
-                    });
+                    rt.enable_all()
+                        .on_thread_stop(|| {
+                            TurboMalloc::thread_stop();
+                        })
+                        .on_thread_park(|| {
+                            TurboMalloc::thread_park();
+                        });
                     let rt = rt.build().unwrap();
 
                     let apps_dir = apps_dir.clone();
@@ -72,6 +76,8 @@ fn bench_small_apps(c: &mut Criterion) {
                                 full_stats: false,
                                 target: None,
                                 worker_threads: None,
+                                persistent_caching: false,
+                                cache_dir: None,
                             },
                             no_sourcemap: false,
                             no_minify: false,

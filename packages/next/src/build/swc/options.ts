@@ -7,10 +7,7 @@ import type {
   StyledComponentsConfig,
 } from '../../server/config-shared'
 import type { ResolvedBaseUrl } from '../load-jsconfig'
-import {
-  shouldUseReactServerCondition,
-  isWebpackAppPagesLayer,
-} from '../webpack-layer'
+import { shouldUseReactServerCondition, isWebpackAppPagesLayer } from '../utils'
 import { escapeStringRegexp } from '../../shared/lib/escape-regexp'
 
 const nextDirname = path.dirname(require.resolve('next/package.json'))
@@ -63,6 +60,7 @@ function getBaseSWCOptions({
   hasReactRefresh,
   globalWindow,
   esm,
+  configDir,
   modularizeImports,
   swcPlugins,
   compilerOptions,
@@ -86,6 +84,7 @@ function getBaseSWCOptions({
   hasReactRefresh: boolean
   globalWindow: boolean
   esm: boolean
+  configDir?: string
   modularizeImports?: NextConfig['modularizeImports']
   compilerOptions: NextConfig['compiler']
   swcPlugins: ExperimentalConfig['swcPlugins']
@@ -118,7 +117,10 @@ function getBaseSWCOptions({
   )
   const plugins = (swcPlugins ?? [])
     .filter(Array.isArray)
-    .map(([name, options]: any) => [require.resolve(name), options])
+    .map(([name, options]: any) => [
+      require.resolve(name, configDir ? { paths: [configDir] } : undefined),
+      options,
+    ])
 
   return {
     jsc: {
@@ -314,6 +316,7 @@ export function getJestSWCOptions({
   filename,
   esm,
   modularizeImports,
+  configDir,
   swcPlugins,
   compilerOptions,
   jsConfig,
@@ -325,6 +328,7 @@ export function getJestSWCOptions({
   isServer: boolean
   filename: string
   esm: boolean
+  configDir?: string
   modularizeImports?: NextConfig['modularizeImports']
   swcPlugins: ExperimentalConfig['swcPlugins']
   compilerOptions: NextConfig['compiler']
@@ -340,6 +344,7 @@ export function getJestSWCOptions({
     jest: true,
     development: false,
     hasReactRefresh: false,
+    configDir,
     globalWindow: !isServer,
     modularizeImports,
     swcPlugins,
@@ -396,10 +401,13 @@ export function getLoaderSWCOptions({
   isPageFile,
   isCacheComponents,
   hasReactRefresh,
+  // The folder containing the next.config.js, used for resolving relative config paths.
+  configDir,
   modularizeImports,
   optimizeServerReact,
   optimizePackageImports,
   swcPlugins,
+  swcEnvOptions,
   compilerOptions,
   jsConfig,
   supportedBrowsers,
@@ -422,6 +430,7 @@ export function getLoaderSWCOptions({
   appDir?: string
   isPageFile: boolean
   hasReactRefresh: boolean
+  configDir: string
   optimizeServerReact?: boolean
   modularizeImports: NextConfig['modularizeImports']
   isCacheComponents?: boolean
@@ -429,6 +438,7 @@ export function getLoaderSWCOptions({
     NextConfig['experimental']
   >['optimizePackageImports']
   swcPlugins: ExperimentalConfig['swcPlugins']
+  swcEnvOptions?: ExperimentalConfig['swcEnvOptions']
   compilerOptions: NextConfig['compiler']
   jsConfig: any
   supportedBrowsers: string[] | undefined
@@ -449,6 +459,7 @@ export function getLoaderSWCOptions({
     development,
     globalWindow: !isServer,
     hasReactRefresh,
+    configDir,
     modularizeImports,
     swcPlugins,
     compilerOptions,
@@ -542,6 +553,7 @@ export function getLoaderSWCOptions({
         ? {
             env: {
               targets: supportedBrowsers,
+              ...swcEnvOptions,
             },
           }
         : {}),

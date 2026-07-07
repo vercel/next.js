@@ -3,13 +3,15 @@ use std::sync::Arc;
 use anyhow::Result;
 use swc_core::common::{BytePos, FileName, LineCol, SourceMap};
 use tokio::io::AsyncReadExt;
-use turbo_tasks::{ResolvedVc, Vc};
+use turbo_rcstr::rcstr;
+use turbo_tasks::{ResolvedVc, ValueToStringRef, Vc};
 use turbo_tasks_fs::{File, FileContent, FileSystemPath, rope::Rope};
 use turbopack_core::{
     asset::{Asset, AssetContent},
-    output::{OutputAsset, OutputAssetsReference},
+    chunk::ChunkingContext,
+    output::{OutputAsset, OutputAssets, OutputAssetsReference, OutputAssetsWithReferenced},
     source::Source,
-    source_map::GenerateSourceMap,
+    source_map::{GenerateSourceMap, SourceMapAsset},
 };
 
 use crate::parse::generate_js_source_map;
@@ -18,21 +20,35 @@ use crate::parse::generate_js_source_map;
 /// map to the original file.
 #[turbo_tasks::value]
 pub struct SingleFileEcmascriptOutput {
-    output_path: FileSystemPath,
-    source_path: FileSystemPath,
+    chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     source: ResolvedVc<Box<dyn Source>>,
+}
+
+#[turbo_tasks::value_impl]
+impl SingleFileEcmascriptOutput {
+    #[turbo_tasks::function]
+    async fn source_map(self: Vc<Self>) -> Result<Vc<SourceMapAsset>> {
+        let this = self.await?;
+        Ok(SourceMapAsset::new(
+            *this.chunking_context,
+            this.source.ident(),
+            Vc::upcast(self),
+        ))
+    }
 }
 
 #[turbo_tasks::value_impl]
 impl OutputAsset for SingleFileEcmascriptOutput {
     #[turbo_tasks::function]
     fn path(&self) -> Vc<FileSystemPath> {
-        self.output_path.clone().cell()
+        self.chunking_context.chunk_path(
+            Some(Vc::upcast(*self.source)),
+            self.source.ident(),
+            None,
+            rcstr!(".js"),
+        )
     }
 }
-
-#[turbo_tasks::value_impl]
-impl OutputAssetsReference for SingleFileEcmascriptOutput {}
 
 #[turbo_tasks::value_impl]
 impl Asset for SingleFileEcmascriptOutput {
@@ -46,14 +62,12 @@ impl Asset for SingleFileEcmascriptOutput {
 impl SingleFileEcmascriptOutput {
     #[turbo_tasks::function]
     pub fn new(
-        output_path: FileSystemPath,
-        source_path: FileSystemPath,
+        chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
         source: ResolvedVc<Box<dyn Source>>,
     ) -> Vc<SingleFileEcmascriptOutput> {
         SingleFileEcmascriptOutput {
-            output_path,
-            source_path,
             source,
+            chunking_context,
         }
         .cell()
     }
@@ -87,11 +101,17 @@ impl GenerateSourceMap for SingleFileEcmascriptOutput {
             pos += line.len() as u32;
         }
 
+        let source_path = self
+            .source
+            .ident()
+            .await?
+            .path
+            .to_string_ref()
+            .await?
+            .to_string();
+
         let sm: Arc<SourceMap> = Default::default();
-        sm.new_source_file(
-            FileName::Custom(self.source_path.to_string()).into(),
-            file_source,
-        );
+        sm.new_source_file(FileName::Custom(source_path).into(), file_source);
 
         let map = generate_js_source_map(
             &*sm,
@@ -102,5 +122,28 @@ impl GenerateSourceMap for SingleFileEcmascriptOutput {
             Default::default(),
         )?;
         Ok(FileContent::Content(File::from(map)).cell())
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl OutputAssetsReference for SingleFileEcmascriptOutput {
+    #[turbo_tasks::function]
+    async fn references(self: Vc<Self>) -> Result<Vc<OutputAssetsWithReferenced>> {
+        let this = self.await?;
+
+        let include_source_map = *this
+            .chunking_context
+            .reference_chunk_source_maps(Vc::upcast(self))
+            .await?;
+
+        let references = if include_source_map {
+            Vc::cell(vec![ResolvedVc::upcast(
+                self.source_map().to_resolved().await?,
+            )])
+        } else {
+            OutputAssets::empty()
+        };
+
+        Ok(OutputAssetsWithReferenced::from_assets(references))
     }
 }

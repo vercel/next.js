@@ -80,14 +80,10 @@ import type {
 } from '../server/route-modules/app-route/module'
 import type { FunctionsConfigManifest, ManifestRoute } from './index'
 import { getNamedRouteRegex } from '../shared/lib/router/utils/route-regex'
-import { parseAppRoute } from '../shared/lib/router/routes/app'
-import { fillMetadataSegment } from '../lib/metadata/get-metadata-route'
-import { STATIC_METADATA_IMAGES } from '../lib/metadata/is-metadata-route'
-
-// Build a set of static metadata image filenames for quick lookup
-const staticMetadataImageFilenames = new Set<string>(
-  Object.values(STATIC_METADATA_IMAGES).map((meta) => meta.filename)
-)
+import { parseNormalizedAppRoute } from '../shared/lib/router/routes/app'
+import { getStaticMetadataPrerenderPathname } from '../lib/metadata/get-metadata-route'
+import { isStaticMetadataFile } from '../lib/metadata/is-metadata-route'
+import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
 
 /**
  * Get the display path for build output. For static metadata files under
@@ -95,26 +91,42 @@ const staticMetadataImageFilenames = new Set<string>(
  * e.g., /dynamic/[id]/icon.png -> /dynamic/-/icon.png
  */
 function getTreeViewDisplayPath(pagePath: string): string {
-  // Check if the path contains dynamic segments
-  if (!isDynamicRoute(pagePath)) {
-    return pagePath
+  const prerenderPathname = getStaticMetadataPrerenderPathname(
+    pagePath.startsWith('/') ? pagePath : `/${pagePath}`
+  )
+  return prerenderPathname ?? pagePath
+}
+
+function buildStaticMetadataStaticPaths(page: string): {
+  fallbackMode: FallbackMode | undefined
+  prerenderedRoutes: PrerenderedRoute[]
+} {
+  let pathname = normalizeAppPath(page)
+  if (pathname.endsWith('/route')) {
+    pathname = pathname.slice(0, -'/route'.length)
   }
 
-  // Check if the filename is a static metadata image
-  const lastSlash = pagePath.lastIndexOf('/')
-  const filename = pagePath.slice(lastSlash + 1)
-  const dotIndex = filename.lastIndexOf('.')
-  const baseName = dotIndex > 0 ? filename.slice(0, dotIndex) : filename
-
-  // Check against known static metadata image filenames (e.g., icon, apple-icon, opengraph-image)
-  if (!staticMetadataImageFilenames.has(baseName)) {
-    return pagePath
+  const prerenderPathname = getStaticMetadataPrerenderPathname(pathname)
+  if (!prerenderPathname) {
+    throw new Error(
+      `Invariant: expected static metadata route to have a prerender pathname (${page})`
+    )
   }
 
-  // Transform using fillMetadataSegment with isStatic=true
-  const segment = pagePath.slice(0, lastSlash)
-  const lastSegment = filename
-  return fillMetadataSegment(segment, {}, lastSegment, true)
+  return {
+    fallbackMode: undefined,
+    prerenderedRoutes: [
+      {
+        params: {},
+        pathname: prerenderPathname,
+        encodedPathname: prerenderPathname,
+        fallbackRouteParams: undefined,
+        fallbackMode: undefined,
+        fallbackRootParams: undefined,
+        throwOnEmptyStaticShell: undefined,
+      },
+    ],
+  }
 }
 
 export type ROUTER_TYPE = 'pages' | 'app'
@@ -162,7 +174,7 @@ export function isInstrumentationHookFilename(file?: string | null) {
   )
 }
 
-const filterAndSortList = (
+export const filterAndSortList = (
   list: ReadonlyArray<string>,
   routeType: ROUTER_TYPE,
   hasCustomApp: boolean
@@ -211,6 +223,48 @@ export interface PageInfo {
 }
 
 export type PageInfos = Map<string, PageInfo>
+
+function getTreeViewSymbol(
+  item: string,
+  pageInfo: PageInfo | undefined
+): string {
+  if (item === '/_app' || item === '/_app.server') {
+    return ' '
+  }
+
+  if (isEdgeRuntime(pageInfo?.runtime)) {
+    return 'ƒ'
+  }
+
+  if (pageInfo?.isRoutePPREnabled) {
+    if (
+      // If the page has an empty static shell, then it's equivalent to a
+      // dynamic page
+      pageInfo?.hasEmptyStaticShell ||
+      // ensure we don't mark dynamic paths that postponed as being dynamic
+      // since in this case we're able to partially prerender it
+      (pageInfo.isDynamicAppRoute && !pageInfo.hasPostponed)
+    ) {
+      return 'ƒ'
+    }
+
+    if (!pageInfo?.hasPostponed) {
+      return '○'
+    }
+
+    return '◐'
+  }
+
+  if (pageInfo?.isStatic) {
+    return '○'
+  }
+
+  if (pageInfo?.isSSG) {
+    return '●'
+  }
+
+  return 'ƒ'
+}
 
 export interface RoutesUsingEdgeRuntime {
   [route: string]: 0
@@ -333,34 +387,8 @@ export async function printTreeView(
         (pageInfo?.pageDuration || 0) +
         (pageInfo?.ssgPageDurations?.reduce((a, b) => a + (b || 0), 0) || 0)
 
-      let symbol: string
-
-      if (item === '/_app' || item === '/_app.server') {
-        symbol = ' '
-      } else if (isEdgeRuntime(pageInfo?.runtime)) {
-        symbol = 'ƒ'
-      } else if (pageInfo?.isRoutePPREnabled) {
-        if (
-          // If the page has an empty static shell, then it's equivalent to a
-          // dynamic page
-          pageInfo?.hasEmptyStaticShell ||
-          // ensure we don't mark dynamic paths that postponed as being dynamic
-          // since in this case we're able to partially prerender it
-          (pageInfo.isDynamicAppRoute && !pageInfo.hasPostponed)
-        ) {
-          symbol = 'ƒ'
-        } else if (!pageInfo?.hasPostponed) {
-          symbol = '○'
-        } else {
-          symbol = '◐'
-        }
-      } else if (pageInfo?.isStatic) {
-        symbol = '○'
-      } else if (pageInfo?.isSSG) {
-        symbol = '●'
-      } else {
-        symbol = 'ƒ'
-      }
+      const symbol = getTreeViewSymbol(item, pageInfo)
+      const hasChildRoutes = Boolean(pageInfo?.ssgPageRoutes?.length)
 
       const displayPath = getTreeViewDisplayPath(item)
 
@@ -381,10 +409,14 @@ export async function printTreeView(
         ])
       }
 
-      usedSymbols.add(symbol)
+      // Grouped rows act as headers for the generated outputs below them. The
+      // child rows carry the concrete route symbols instead.
+      if (!hasChildRoutes) {
+        usedSymbols.add(symbol)
+      }
 
       messages.push([
-        `${border} ${symbol} ${displayPath}${
+        `${border} ${hasChildRoutes ? ' ' : symbol} ${displayPath}${
           totalDuration > MIN_DURATION
             ? ` (${getPrettyDuration(totalDuration)})`
             : ''
@@ -446,12 +478,17 @@ export async function printTreeView(
         routes.forEach(
           ({ route, duration, avgDuration }, index, { length }) => {
             const innerSymbol = index === length - 1 ? '└' : '├'
+            // Generated child paths can have more precise metadata than the
+            // parent route pattern, so prefer the child entry when present.
+            const routePageInfo = pageInfos.get(route) ?? pageInfo
+            const routeSymbol = getTreeViewSymbol(route, routePageInfo)
+            usedSymbols.add(routeSymbol)
 
             const initialCacheControl =
               pageInfos.get(route)?.initialCacheControl
 
             messages.push([
-              `${contSymbol} ${innerSymbol} ${route}${
+              `${contSymbol} ${innerSymbol} ${routeSymbol} ${route}${
                 duration > MIN_DURATION
                   ? ` (${getPrettyDuration(duration)})`
                   : ''
@@ -659,6 +696,8 @@ export async function isPageStatic({
   pageType,
   cacheComponents,
   authInterrupts,
+  useCacheTimeout,
+  staticPageGenerationTimeout,
   originalAppPath,
   isrFlushToDisk,
   cacheMaxMemorySize,
@@ -668,6 +707,7 @@ export async function isPageStatic({
   cacheLifeProfiles,
   pprConfig,
   buildId,
+  deploymentId,
   clientAssetToken,
   sriEnabled,
 }: {
@@ -676,6 +716,8 @@ export async function isPageStatic({
   distDir: string
   cacheComponents: boolean
   authInterrupts: boolean
+  useCacheTimeout: number
+  staticPageGenerationTimeout: number
   configFileName: string
   httpAgentOptions: NextConfigComplete['httpAgentOptions']
   locales?: readonly string[]
@@ -689,12 +731,11 @@ export async function isPageStatic({
   cacheMaxMemorySize: number
   cacheHandler?: string
   cacheHandlers?: Record<string, string | undefined>
-  cacheLifeProfiles?: {
-    [profile: string]: import('../server/use-cache/cache-life').CacheLife
-  }
+  cacheLifeProfiles: import('../server/config-shared').ResolvedCacheLifeProfiles
   nextConfigOutput: 'standalone' | 'export' | undefined
   pprConfig: ExperimentalPPRConfig | undefined
   buildId: string
+  deploymentId: string
   clientAssetToken: string
   sriEnabled: boolean
 }): Promise<PageIsStaticResult> {
@@ -834,32 +875,48 @@ export async function isPageStatic({
           appConfig.revalidate = 0
         }
 
-        const route = parseAppRoute(page, true)
+        const route = parseNormalizedAppRoute(page)
 
         // If the page is dynamic and we're not in edge runtime, then we need to
         // build the static paths. The edge runtime doesn't support static
         // paths.
         if (route.dynamicSegments.length > 0 && !pathIsEdgeRuntime) {
-          ;({ prerenderedRoutes, fallbackMode: prerenderFallbackMode } =
-            await buildAppStaticPaths({
-              dir,
-              page,
-              route,
-              cacheComponents,
-              authInterrupts,
-              segments,
-              distDir,
-              requestHeaders: {},
-              isrFlushToDisk,
-              cacheMaxMemorySize,
-              cacheHandler,
-              cacheLifeProfiles,
-              ComponentMod,
-              nextConfigOutput,
-              isRoutePPREnabled,
-              buildId,
-              rootParamKeys,
-            }))
+          let pathname = normalizeAppPath(page)
+          if (pathname.endsWith('/route')) {
+            pathname = pathname.slice(0, -'/route'.length)
+          }
+
+          if (
+            routeModule.definition.kind === RouteKind.APP_ROUTE &&
+            isStaticMetadataFile(pathname)
+          ) {
+            ;({ prerenderedRoutes, fallbackMode: prerenderFallbackMode } =
+              buildStaticMetadataStaticPaths(page))
+          } else {
+            ;({ prerenderedRoutes, fallbackMode: prerenderFallbackMode } =
+              await buildAppStaticPaths({
+                dir,
+                page,
+                route,
+                cacheComponents,
+                authInterrupts,
+                useCacheTimeout,
+                staticPageGenerationTimeout,
+                segments,
+                distDir,
+                requestHeaders: {},
+                isrFlushToDisk,
+                cacheMaxMemorySize,
+                cacheHandler,
+                cacheLifeProfiles,
+                ComponentMod,
+                nextConfigOutput,
+                isRoutePPREnabled,
+                buildId,
+                deploymentId,
+                rootParamKeys,
+              }))
+          }
         }
       } else {
         if (!Comp || !isValidElementType(Comp) || typeof Comp === 'string') {
@@ -1489,6 +1546,16 @@ export class NestedMiddlewareError extends Error {
   }
 }
 
+export { getSupportedBrowsers } from './get-supported-browsers'
+
+export function shouldUseReactServerCondition(
+  layer: WebpackLayerName | null | undefined
+): boolean {
+  return Boolean(
+    layer && WEBPACK_LAYERS.GROUP.serverOnly.includes(layer as any)
+  )
+}
+
 export function isWebpackClientOnlyLayer(
   layer: WebpackLayerName | null | undefined
 ): boolean {
@@ -1513,6 +1580,12 @@ export function isWebpackBundledLayer(
   layer: WebpackLayerName | null | undefined
 ): boolean {
   return Boolean(layer && WEBPACK_LAYERS.GROUP.bundled.includes(layer as any))
+}
+
+export function isWebpackAppPagesLayer(
+  layer: WebpackLayerName | null | undefined
+): boolean {
+  return Boolean(layer && WEBPACK_LAYERS.GROUP.appPages.includes(layer as any))
 }
 
 export function collectMeta({

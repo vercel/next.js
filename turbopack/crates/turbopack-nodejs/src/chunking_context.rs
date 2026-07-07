@@ -1,14 +1,18 @@
 use anyhow::{Context, Result, bail};
 use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{FxIndexMap, ResolvedVc, TryJoinIterExt, Upcast, ValueToString, Vc};
+use turbo_tasks::{
+    FxIndexMap, ResolvedVc, TryJoinIterExt, Upcast, ValueToString, ValueToStringRef, Vc,
+};
 use turbo_tasks_fs::FileSystemPath;
+use turbo_tasks_hash::HashAlgorithm;
 use turbopack_core::{
-    asset::Asset,
+    asset::{Asset, AssetContent},
     chunk::{
         AssetSuffix, Chunk, ChunkGroupResult, ChunkItem, ChunkType, ChunkableModule,
-        ChunkingConfig, ChunkingConfigs, ChunkingContext, EntryChunkGroupResult, EvaluatableAsset,
-        MinifyType, SourceMapSourceType, SourceMapsType, UnusedReferences, UrlBehavior,
+        ChunkingConfig, ChunkingConfigs, ChunkingContext, ContentHashing, EntryChunkGroupResult,
+        EvaluatableAsset, MinifyType, SourceMapSourceType, SourceMapsType, UnusedReferences,
+        UrlBehavior, WorkerConfigurationOptions,
         availability_info::AvailabilityInfo,
         chunk_group::{MakeChunkGroupResult, make_chunk_group},
         chunk_id_strategy::ModuleIdStrategy,
@@ -77,11 +81,6 @@ impl NodeJsChunkingContextBuilder {
 
     pub fn source_maps(mut self, source_maps: SourceMapsType) -> Self {
         self.chunking_context.source_maps_type = source_maps;
-        self
-    }
-
-    pub fn file_tracing(mut self, enable_tracing: bool) -> Self {
-        self.chunking_context.enable_file_tracing = enable_tracing;
         self
     }
 
@@ -156,6 +155,16 @@ impl NodeJsChunkingContextBuilder {
         self
     }
 
+    pub fn asset_content_hashing(mut self, content_hashing: ContentHashing) -> Self {
+        self.chunking_context.asset_content_hashing = content_hashing;
+        self
+    }
+
+    pub fn hash_salt(mut self, salt: ResolvedVc<RcStr>) -> Self {
+        self.chunking_context.hash_salt = salt;
+        self
+    }
+
     /// Builds the chunking context.
     pub fn build(self) -> Vc<NodeJsChunkingContext> {
         NodeJsChunkingContext::cell(self.chunking_context)
@@ -198,8 +207,6 @@ pub struct NodeJsChunkingContext {
     environment: ResolvedVc<Environment>,
     /// The kind of runtime to include in the output.
     runtime_type: RuntimeType,
-    /// Enable tracing for this chunking
-    enable_file_tracing: bool,
     /// Enable nested async availability for this chunking
     enable_nested_async_availability: bool,
     /// Enable module merging
@@ -226,6 +233,10 @@ pub struct NodeJsChunkingContext {
     debug_ids: bool,
     /// Global variable names to forward to workers (e.g. NEXT_DEPLOYMENT_ID)
     worker_forwarded_globals: Vec<RcStr>,
+    /// Content hashing for asset filenames.
+    asset_content_hashing: ContentHashing,
+    /// Salt mixed into chunk and asset content hashes. Empty string means no salt.
+    hash_salt: ResolvedVc<RcStr>,
 }
 
 impl NodeJsChunkingContext {
@@ -254,7 +265,6 @@ impl NodeJsChunkingContext {
                 asset_prefixes: Default::default(),
                 url_behaviors: Default::default(),
                 default_url_behavior: None,
-                enable_file_tracing: false,
                 enable_nested_async_availability: false,
                 enable_module_merging: false,
                 enable_dynamic_chunk_content_loading: false,
@@ -270,6 +280,8 @@ impl NodeJsChunkingContext {
                 chunking_configs: Default::default(),
                 debug_ids: false,
                 worker_forwarded_globals: vec![],
+                asset_content_hashing: ContentHashing::Direct { length: 13 },
+                hash_salt: ResolvedVc::cell(RcStr::default()),
             },
         }
     }
@@ -290,6 +302,11 @@ impl NodeJsChunkingContext {
     #[turbo_tasks::function]
     pub fn minify_type(&self) -> Vc<MinifyType> {
         self.minify_type.cell()
+    }
+
+    #[turbo_tasks::function]
+    pub fn hash_salt(&self) -> Vc<RcStr> {
+        *self.hash_salt
     }
 
     #[turbo_tasks::function]
@@ -347,11 +364,6 @@ impl ChunkingContext for NodeJsChunkingContext {
     #[turbo_tasks::function]
     fn environment(&self) -> Vc<Environment> {
         *self.environment
-    }
-
-    #[turbo_tasks::function]
-    fn is_tracing_enabled(&self) -> Vc<bool> {
-        Vc::cell(self.enable_file_tracing)
     }
 
     #[turbo_tasks::function]
@@ -453,30 +465,34 @@ impl ChunkingContext for NodeJsChunkingContext {
 
     #[turbo_tasks::function]
     async fn asset_path(
-        &self,
-        content_hash: Vc<RcStr>,
+        self: Vc<Self>,
+        content: Vc<AssetContent>,
         original_asset_ident: Vc<AssetIdent>,
         tag: Option<RcStr>,
     ) -> Result<Vc<FileSystemPath>> {
-        let source_path = original_asset_ident.path().await?;
+        let this = self.await?;
+        let source_path = original_asset_ident.await?.path.clone();
         let basename = source_path.file_name();
-        let content_hash = content_hash.await?;
-        let asset_path = match source_path.extension_ref() {
+        let ContentHashing::Direct { length } = this.asset_content_hashing;
+        let hash = content
+            .content_hash(self.hash_salt(), HashAlgorithm::Xxh3Hash128Base38)
+            .await?;
+        let hash = hash
+            .as_ref()
+            .context("Missing content when trying to generate the content hash for static asset")?;
+        let short_hash = &hash[..length as usize];
+        let asset_path = match source_path.extension() {
             Some(ext) => format!(
-                "{basename}.{content_hash}.{ext}",
+                "{basename}.{short_hash}.{ext}",
                 basename = &basename[..basename.len() - ext.len() - 1],
-                content_hash = &content_hash[..8]
             ),
-            None => format!(
-                "{basename}.{content_hash}",
-                content_hash = &content_hash[..8]
-            ),
+            None => format!("{basename}.{short_hash}"),
         };
 
         let asset_root_path = tag
             .as_ref()
-            .and_then(|tag| self.asset_root_paths.get(tag))
-            .unwrap_or(&self.asset_root_path);
+            .and_then(|tag| this.asset_root_paths.get(tag))
+            .unwrap_or(&this.asset_root_path);
 
         Ok(asset_root_path.join(&asset_path)?.cell())
     }
@@ -499,19 +515,17 @@ impl ChunkingContext for NodeJsChunkingContext {
         self: ResolvedVc<Self>,
         ident: Vc<AssetIdent>,
         chunk_group: ChunkGroup,
-        module_graph: Vc<ModuleGraph>,
+        module_graph: ResolvedVc<ModuleGraph>,
         availability_info: AvailabilityInfo,
     ) -> Result<Vc<ChunkGroupResult>> {
         let span = tracing::info_span!("chunking", name = display(ident.to_string().await?));
         async move {
-            let modules = chunk_group.entries();
             let MakeChunkGroupResult {
                 chunks,
-                referenced_output_assets,
                 references,
                 availability_info,
             } = make_chunk_group(
-                modules,
+                chunk_group,
                 module_graph,
                 ResolvedVc::upcast(self),
                 availability_info,
@@ -528,7 +542,7 @@ impl ChunkingContext for NodeJsChunkingContext {
 
             Ok(ChunkGroupResult {
                 assets: ResolvedVc::cell(assets),
-                referenced_assets: ResolvedVc::cell(referenced_output_assets),
+                referenced_assets: OutputAssets::empty_resolved(),
                 references: ResolvedVc::cell(references),
                 availability_info,
             }
@@ -543,25 +557,23 @@ impl ChunkingContext for NodeJsChunkingContext {
         self: ResolvedVc<Self>,
         path: FileSystemPath,
         chunk_group: ChunkGroup,
-        module_graph: Vc<ModuleGraph>,
+        module_graph: ResolvedVc<ModuleGraph>,
         extra_chunks: Vc<OutputAssets>,
         extra_referenced_assets: Vc<OutputAssets>,
         availability_info: AvailabilityInfo,
     ) -> Result<Vc<EntryChunkGroupResult>> {
         let span = tracing::info_span!(
             "chunking",
-            name = display(path.value_to_string().await?),
+            name = display(path.to_string_ref().await?),
             chunking_type = "entry",
         );
         async move {
-            let entries = chunk_group.entries();
             let MakeChunkGroupResult {
                 chunks,
-                mut referenced_output_assets,
                 references,
                 availability_info,
             } = make_chunk_group(
-                entries,
+                chunk_group.clone(),
                 module_graph,
                 ResolvedVc::upcast(self),
                 availability_info,
@@ -577,8 +589,6 @@ impl ChunkingContext for NodeJsChunkingContext {
                 .try_join()
                 .await?;
             other_chunks.extend(extra_chunks.iter().copied());
-
-            referenced_output_assets.extend(extra_referenced_assets.await?.iter().copied());
 
             let Some(module) = ResolvedVc::try_sidecast(chunk_group.entries().last().unwrap())
             else {
@@ -599,9 +609,9 @@ impl ChunkingContext for NodeJsChunkingContext {
                     Vc::cell(other_chunks),
                     Vc::cell(evaluatable_assets),
                     *module,
-                    Vc::cell(referenced_output_assets),
+                    extra_referenced_assets,
                     Vc::cell(references),
-                    module_graph,
+                    *module_graph,
                     *self,
                 )
                 .to_resolved()
@@ -624,6 +634,7 @@ impl ChunkingContext for NodeJsChunkingContext {
         _ident: Vc<AssetIdent>,
         _chunk_group: ChunkGroup,
         _module_graph: Vc<ModuleGraph>,
+        _extra_chunks: Vc<OutputAssets>,
         _availability_info: AvailabilityInfo,
     ) -> Result<Vc<ChunkGroupResult>> {
         bail!("the Node.js chunking context does not support evaluated chunk groups")
@@ -703,7 +714,11 @@ impl ChunkingContext for NodeJsChunkingContext {
     }
 
     #[turbo_tasks::function]
-    fn worker_forwarded_globals(&self) -> Vc<Vec<RcStr>> {
-        Vc::cell(self.worker_forwarded_globals.clone())
+    fn worker_configuration_options(&self) -> Vc<WorkerConfigurationOptions> {
+        WorkerConfigurationOptions {
+            asset_prefix: None,
+            forwarded_globals: self.worker_forwarded_globals.clone(),
+        }
+        .cell()
     }
 }

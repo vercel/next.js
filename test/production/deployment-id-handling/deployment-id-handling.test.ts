@@ -1,23 +1,33 @@
 import { nextTestSetup } from 'e2e-utils'
+import { NextAdapter } from 'next'
 import { retry } from 'next-test-utils'
 import { join } from 'node:path'
+
+const immutableAssetsFilter = (p) =>
+  p.includes('/_next/static/') &&
+  !(
+    p.includes('/_buildManifest.js') ||
+    p.includes('/_clientMiddlewareManifest.js') ||
+    p.includes('/_ssgManifest.js')
+  )
 
 describe.each([
   ['NEXT_DEPLOYMENT_ID', ''],
   ['CUSTOM_DEPLOYMENT_ID', ''],
   ['NEXT_DEPLOYMENT_ID', ' and runtimeServerDeploymentId'],
-  ['IMMUTABLE_ASSET_TOKEN', ''],
+  ['NEXT_DEPLOYMENT_ID_IMMUTABLE', ''],
 ])(
   'deployment-id-handling enabled with %s%s',
   (envKey, runtimeServerDeploymentId) => {
-    if (envKey === 'IMMUTABLE_ASSET_TOKEN' && !process.env.IS_TURBOPACK_TEST) {
+    const usesImmutableAssets = envKey === 'NEXT_DEPLOYMENT_ID_IMMUTABLE'
+
+    if (usesImmutableAssets && !process.env.IS_TURBOPACK_TEST) {
       it.skip('skip for webpack', () => {})
       return
     }
 
     const deploymentId = Date.now() + ''
-    const immutableAssetToken =
-      envKey === 'IMMUTABLE_ASSET_TOKEN' ? `imm-${deploymentId}` : deploymentId
+    const immutableAssetToken = usesImmutableAssets ? '' : deploymentId
 
     const { next } = nextTestSetup({
       files: join(__dirname, 'app'),
@@ -30,16 +40,18 @@ describe.each([
       disableAutoSkewProtection: true,
     })
 
-    const tokenForRequest = (url) => {
-      return url.includes('_next/static/chunks') ||
-        url.includes('_next/static/media')
-        ? // Turbopack-emitted chunks
-          immutableAssetToken
-        : // e.g. _next/static/build-id/_ssgManifest.js
-          deploymentId
-    }
-    const validateTokenForRequest = (url) => {
-      expect(url).toContain('dpl=' + tokenForRequest(url))
+    const validateTokenForRequest = (url: string) => {
+      const token =
+        usesImmutableAssets && immutableAssetsFilter(url)
+          ? // Turbopack-emitted chunks
+            immutableAssetToken
+          : // e.g. /_next/static/build-id/_ssgManifest.js
+            deploymentId
+      if (token) {
+        expect(url).toContain('dpl=' + token)
+      } else {
+        expect(url).not.toContain('dpl=')
+      }
     }
 
     it.each([
@@ -98,9 +110,7 @@ describe.each([
         await retry(() => expect(dynamicImportRequests).not.toBeEmpty())
 
         try {
-          expect(dynamicImportRequests).toSatisfyAll((item) =>
-            item.includes('dpl=' + tokenForRequest(item))
-          )
+          dynamicImportRequests.forEach((item) => validateTokenForRequest(item))
         } finally {
           require('console').error(
             'dynamicImportRequests',
@@ -109,9 +119,7 @@ describe.each([
         }
 
         try {
-          expect(clientRequests).toSatisfyAll((item) =>
-            item.includes('dpl=' + tokenForRequest(item))
-          )
+          clientRequests.forEach((item) => validateTokenForRequest(item))
         } finally {
           require('console').error('clientRequests', clientRequests)
         }
@@ -182,6 +190,28 @@ describe.each([
         (headers) => headers['x-deployment-id'] === deploymentId
       )
     })
+
+    if (usesImmutableAssets) {
+      it('should emit hashes to adapter', async () => {
+        const { outputs }: Parameters<NextAdapter['onBuildComplete']>[0] =
+          await next.readJSON('build-complete.json')
+
+        const immutableAssets = outputs.staticFiles.filter((p) =>
+          immutableAssetsFilter(p.pathname)
+        )
+        expect(immutableAssets).not.toBeEmpty()
+        expect(immutableAssets).toSatisfyAll(
+          (f) =>
+            // Should be same hash as in the filename, for better build performance.
+            // This check also ensure that we don't accidentally forget to content hash sourcemap
+            // files (i.e. 0cz1d0mv5g_q7.js is content hashed, but 0cz1d0mv5g_q7.js.map is not a
+            // content hash of itself)..
+            f.immutableHash &&
+            f.pathname.includes(f.immutableHash.slice(0, 13)) &&
+            f.pathname.startsWith('/_next/static/immutable')
+        )
+      })
+    }
   }
 )
 

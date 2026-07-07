@@ -3,7 +3,6 @@ import { findPort, retry } from 'next-test-utils'
 import https from 'https'
 import httpProxy from 'http-proxy'
 import fs from 'fs'
-import webdriver from 'next-webdriver'
 import { nextTestSetup } from 'e2e-utils'
 
 let proxyPort
@@ -55,7 +54,8 @@ describe('next-image-proxy', () => {
     let failCount = 0
     let fulfilledCount = 0
 
-    const browser = await webdriver(`https://localhost:${proxyPort}`, '/', {
+    const browser = await next.browser('/', {
+      baseUrl: `https://localhost:${proxyPort}`,
       ignoreHTTPSErrors: true,
       beforePageLoad(page) {
         page.on('response', (response) => {
@@ -77,7 +77,7 @@ describe('next-image-proxy', () => {
     })
 
     const local = await browser.elementByCss('#app-page').getAttribute('src')
-    expect(local.replace(/test\.[0-9a-f]{8,}\.png/g, 'test.HASH.png')).toEqual(
+    expect(normalizeURL(local)).toEqual(
       `/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.HASH.png&w=828&q=90${next.getAssetQuery(true)}`
     )
 
@@ -110,3 +110,9 @@ describe('next-image-proxy', () => {
     proxyServer.close()
   })
 })
+
+function normalizeURL(text: string) {
+  return text
+    .replace(/test\.[0-9a-z_-]{4,}\.(png|jpe?g)/g, 'test.HASH.$1')
+    .replace(/_next%2Fstatic%2Fimmutable%2F/g, '_next%2Fstatic%2F')
+}

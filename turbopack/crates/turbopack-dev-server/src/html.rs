@@ -2,11 +2,9 @@ use anyhow::Result;
 use bincode::{Decode, Encode};
 use mime_guess::mime::TEXT_HTML_UTF_8;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{
-    NonLocalValue, ReadRef, ResolvedVc, TaskInput, TryJoinIterExt, Vc, trace::TraceRawVcs,
-};
+use turbo_tasks::{ReadRef, ResolvedVc, TryJoinIterExt, Vc, trace::TraceRawVcs};
 use turbo_tasks_fs::{File, FileContent, FileSystemPath};
-use turbo_tasks_hash::{Xxh3Hash64Hasher, encode_hex};
+use turbo_tasks_hash::{Xxh3Hash64Hasher, encode_base64};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{
@@ -15,13 +13,12 @@ use turbopack_core::{
     },
     module::Module,
     module_graph::{ModuleGraph, chunk_group_info::ChunkGroup},
-    output::{OutputAsset, OutputAssetsReference, OutputAssetsWithReferenced},
+    output::{OutputAsset, OutputAssets, OutputAssetsReference, OutputAssetsWithReferenced},
     version::{Version, VersionedContent},
 };
 
-#[derive(
-    Clone, Debug, Eq, Hash, NonLocalValue, PartialEq, TaskInput, TraceRawVcs, Encode, Decode,
-)]
+#[turbo_tasks::task_input]
+#[derive(Clone, Debug, Eq, Hash, PartialEq, TraceRawVcs, Encode, Decode)]
 pub struct DevHtmlEntry {
     pub chunkable_module: ResolvedVc<Box<dyn ChunkableModule>>,
     pub module_graph: ResolvedVc<ModuleGraph>,
@@ -163,6 +160,7 @@ impl DevHtmlAsset {
                                     .collect(),
                             ),
                             *module_graph,
+                            OutputAssets::empty(),
                             AvailabilityInfo::root(),
                         )
                         .await?
@@ -289,7 +287,7 @@ impl Version for DevHtmlAssetVersion {
             hasher.write_ref(body);
         }
         let hash = hasher.finish();
-        let hex_hash = encode_hex(hash);
-        Vc::cell(hex_hash.into())
+        let hash = encode_base64(hash);
+        Vc::cell(hash.into())
     }
 }

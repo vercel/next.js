@@ -69,6 +69,12 @@ export async function writeAppTypeDeclarations({
   // Use ESM import instead of triple-slash reference for better ESLint compatibility
   lines.push(`import "./${routeTypesPath}";`)
 
+  const rootParamsTypesPath = path.posix.join(
+    distDir.replaceAll(path.win32.sep, path.posix.sep),
+    'types/root-params.d.ts'
+  )
+  lines.push(`import "./${rootParamsTypesPath}";`)
+
   if (strictRouteTypes) {
     const cacheLifePath = path.posix.join(
       distDir.replaceAll(path.win32.sep, path.posix.sep),

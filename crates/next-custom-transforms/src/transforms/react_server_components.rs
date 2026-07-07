@@ -3,10 +3,9 @@ use std::{
     iter::FromIterator,
     path::PathBuf,
     rc::Rc,
-    sync::Arc,
+    sync::{Arc, LazyLock},
 };
 
-use once_cell::sync::Lazy;
 use regex::Regex;
 use rustc_hash::FxHashMap;
 use serde::Deserialize;
@@ -328,9 +327,9 @@ fn report_error(app_dir: &Option<PathBuf>, filepath: &str, error_kind: RSCErrorK
                 .unwrap_or_default();
 
             let msg = if !is_app_dir {
-                format!("You're importing a component that needs \"{source}\". That only works in a Server Component which is not supported in the pages/ directory. Read more: https://nextjs.org/docs/app/building-your-application/rendering/server-components\n\n")
+                format!("You're importing a module that depends on \"{source}\". This API is only available in Server Components in the App Router, but you are using it in the Pages Router.\nLearn more: https://nextjs.org/docs/app/building-your-application/rendering/server-components\n\n")
             } else {
-                format!("You're importing a component that needs \"{source}\". That only works in a Server Component but one of its parents is marked with \"use client\", so it's a Client Component.\nLearn more: https://nextjs.org/docs/app/building-your-application/rendering\n\n")
+                format!("You're importing a module that depends on \"{source}\" into a React Client Component module. This API is only available in Server Components but one of its parents is marked with \"use client\", so this module is also a Client Component.\nLearn more: https://nextjs.org/docs/app/building-your-application/rendering\n\n")
             };
             (msg, vec![span])
         }
@@ -338,7 +337,7 @@ fn report_error(app_dir: &Option<PathBuf>, filepath: &str, error_kind: RSCErrorK
             let msg = if source == "Component" {
                 "You’re importing a class component. It only works in a Client Component but none of its parents are marked with \"use client\", so they're Server Components by default.\nLearn more: https://nextjs.org/docs/app/building-your-application/rendering/client-components\n\n".to_string()
             } else {
-                format!("You're importing a component that needs `{source}`. This React Hook only works in a Client Component. To fix, mark the file (or its parent) with the `\"use client\"` directive.\n\n Learn more: https://nextjs.org/docs/app/api-reference/directives/use-client\n\n")
+                format!("You're importing a module that depends on `{source}` into a React Server Component module. This API is only available in Client Components. To fix, mark the file (or its parent) with the `\"use client\"` directive.\nLearn more: https://nextjs.org/docs/app/api-reference/directives/use-client\n\n")
             };
 
             (msg, vec![span])
@@ -566,17 +565,11 @@ fn collect_module_info(
                 }
                 finished_directives = true;
             }
-            ModuleItem::ModuleDecl(ModuleDecl::ExportDefaultDecl(ExportDefaultDecl {
-                decl: _,
-                ..
-            })) => {
+            ModuleItem::ModuleDecl(ModuleDecl::ExportDefaultDecl(ExportDefaultDecl { .. })) => {
                 export_names.push(atom!("default"));
                 finished_directives = true;
             }
-            ModuleItem::ModuleDecl(ModuleDecl::ExportDefaultExpr(ExportDefaultExpr {
-                expr: _,
-                ..
-            })) => {
+            ModuleItem::ModuleDecl(ModuleDecl::ExportDefaultExpr(ExportDefaultExpr { .. })) => {
                 export_names.push(atom!("default"));
                 finished_directives = true;
             }
@@ -678,6 +671,7 @@ impl ReactServerComponentValidator {
                         "useFormState",
                     ],
                 ),
+                (atom!("next/error").into(), vec!["catchError"]),
                 (
                     atom!("next/navigation").into(),
                     vec![
@@ -738,7 +732,7 @@ impl ReactServerComponentValidator {
     }
 
     fn is_from_node_modules(&self, filepath: &str) -> bool {
-        static RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"node_modules[\\/]").unwrap());
+        static RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"node_modules[\\/]").unwrap());
         RE.is_match(filepath)
     }
 
@@ -908,7 +902,14 @@ impl ReactServerComponentValidator {
             return;
         }
         let ext_pattern = build_page_extensions_regex(&self.page_extensions);
-        let re = Regex::new(&format!(r"[\\/](page|layout|route)\.{ext_pattern}$")).unwrap();
+        // Metadata convention files (e.g. `icon`, `opengraph-image`, `sitemap`)
+        // compile to route handlers and accept the same route segment configs,
+        // so they're subject to the same `cacheComponents`/`useCache`
+        // restrictions as `page`/`layout`/`route` entries.
+        let re = Regex::new(&format!(
+            r"[\\/](page|layout|route|icon\d?|apple-icon\d?|opengraph-image\d?|twitter-image\d?|sitemap|robots|manifest)\.{ext_pattern}$",
+        ))
+        .unwrap();
         let is_app_entry = re.is_match(&self.filepath);
 
         if is_app_entry {
@@ -949,31 +950,29 @@ impl ReactServerComponentValidator {
                         }
                     }
                     "dynamicParams" | "dynamic" | "fetchCache" | "revalidate"
-                    | "experimental_ppr" => {
-                        if self.cache_components_enabled {
-                            possibly_invalid_exports.insert(
-                                export_name.clone(),
-                                (
-                                    InvalidExportKind::RouteSegmentConfig(
-                                        NextConfigProperty::CacheComponents,
-                                    ),
-                                    *span,
+                    | "experimental_ppr"
+                        if self.cache_components_enabled =>
+                    {
+                        possibly_invalid_exports.insert(
+                            export_name.clone(),
+                            (
+                                InvalidExportKind::RouteSegmentConfig(
+                                    NextConfigProperty::CacheComponents,
                                 ),
-                            );
-                        }
+                                *span,
+                            ),
+                        );
                     }
-                    "unstable_instant" => {
-                        if !self.cache_components_enabled {
-                            possibly_invalid_exports.insert(
-                                export_name.clone(),
-                                (
-                                    InvalidExportKind::RequiresRouteSegmentConfig(
-                                        NextConfigProperty::CacheComponents,
-                                    ),
-                                    *span,
+                    "instant" if !self.cache_components_enabled => {
+                        possibly_invalid_exports.insert(
+                            export_name.clone(),
+                            (
+                                InvalidExportKind::RequiresRouteSegmentConfig(
+                                    NextConfigProperty::CacheComponents,
                                 ),
-                            );
-                        }
+                                *span,
+                            ),
+                        );
                     }
                     _ => (),
                 };

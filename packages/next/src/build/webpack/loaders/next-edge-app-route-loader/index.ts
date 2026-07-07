@@ -12,7 +12,46 @@ export type EdgeAppRouteLoaderQuery = {
   appDirLoader: string
   preferredRegion: string | string[] | undefined
   middlewareConfig: string
+  cacheHandler?: string
   cacheHandlers: string
+}
+
+function getCacheHandlersSetup(
+  cacheHandlersStringified: string,
+  contextifyImportPath: (path: string) => string
+): {
+  cacheHandlerImports: string
+  edgeCacheHandlersRegistration: string
+} {
+  const cacheHandlers = JSON.parse(cacheHandlersStringified || '{}') as Record<
+    string,
+    string | undefined
+  >
+  const definedCacheHandlers = Object.entries(cacheHandlers).filter(
+    (entry): entry is [string, string] => Boolean(entry[1])
+  )
+
+  const cacheHandlerImports: string[] = []
+  const edgeCacheHandlersRegistration: string[] = []
+
+  for (const [index, [kind, handlerPath]] of definedCacheHandlers.entries()) {
+    const cacheHandlerVarName = `edgeCacheHandler_${index}`
+    const cacheHandlerImportPath = contextifyImportPath(handlerPath)
+    cacheHandlerImports.push(
+      `import ${cacheHandlerVarName} from ${JSON.stringify(
+        cacheHandlerImportPath
+      )}`
+    )
+    edgeCacheHandlersRegistration.push(
+      `edgeCacheHandlers[${JSON.stringify(kind)}] = ${cacheHandlerVarName}`
+    )
+  }
+
+  return {
+    cacheHandlerImports: cacheHandlerImports.join('\n') || '\n',
+    edgeCacheHandlersRegistration:
+      edgeCacheHandlersRegistration.join('\n') || '\n',
+  }
 }
 
 const EdgeAppRouteLoader: webpack.LoaderDefinitionFunction<EdgeAppRouteLoaderQuery> =
@@ -23,6 +62,7 @@ const EdgeAppRouteLoader: webpack.LoaderDefinitionFunction<EdgeAppRouteLoaderQue
       preferredRegion,
       appDirLoader: appDirLoaderBase64 = '',
       middlewareConfig: middlewareConfigBase64 = '',
+      cacheHandler,
       cacheHandlers: cacheHandlersStringified,
     } = this.getOptions()
 
@@ -31,13 +71,14 @@ const EdgeAppRouteLoader: webpack.LoaderDefinitionFunction<EdgeAppRouteLoaderQue
       Buffer.from(middlewareConfigBase64, 'base64').toString()
     )
 
-    const cacheHandlers = JSON.parse(cacheHandlersStringified || '{}')
-
-    if (!cacheHandlers.default) {
-      cacheHandlers.default = require.resolve(
-        '../../../../server/lib/cache-handlers/default.external'
-      )
-    }
+    const cacheHandlersSetup = getCacheHandlersSetup(
+      cacheHandlersStringified,
+      (handlerPath) =>
+        this.utils.contextify(this.context || this.rootContext, handlerPath)
+    )
+    const incrementalCacheHandler = cacheHandler
+      ? this.utils.contextify(this.context || this.rootContext, cacheHandler)
+      : null
 
     // Ensure we only run this loader for as a module.
     if (!this._module) throw new Error('This loader is only usable as a module')
@@ -68,7 +109,10 @@ const EdgeAppRouteLoader: webpack.LoaderDefinitionFunction<EdgeAppRouteLoaderQue
         VAR_USERLAND: modulePath,
         VAR_PAGE: page,
       },
-      {}
+      cacheHandlersSetup,
+      {
+        incrementalCacheHandler,
+      }
     )
   }
 

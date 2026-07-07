@@ -22,9 +22,7 @@ impl KeyBase for &'_ [u8] {
     }
 
     fn hash<H: Hasher>(&self, state: &mut H) {
-        for item in *self {
-            state.write_u8(*item);
-        }
+        state.write(self);
     }
 }
 
@@ -38,9 +36,7 @@ impl<const N: usize> KeyBase for [u8; N] {
     }
 
     fn hash<H: Hasher>(&self, state: &mut H) {
-        for item in self {
-            state.write_u8(*item);
-        }
+        state.write(self);
     }
 }
 
@@ -54,9 +50,7 @@ impl KeyBase for Vec<u8> {
     }
 
     fn hash<H: Hasher>(&self, state: &mut H) {
-        for item in self {
-            state.write_u8(*item);
-        }
+        state.write(self);
     }
 }
 
@@ -70,9 +64,7 @@ impl KeyBase for Box<[u8]> {
     }
 
     fn hash<H: Hasher>(&self, state: &mut H) {
-        for item in self {
-            state.write_u8(*item);
-        }
+        state.write(self);
     }
 }
 
@@ -230,7 +222,7 @@ impl<T: StoreKey> StoreKey for &'_ T {
 
 /// Hashes a key with a fast, deterministic hash function.
 pub fn hash_key(key: &impl KeyBase) -> u64 {
-    let mut hasher = twox_hash::XxHash3_64::with_seed(0);
+    let mut hasher = xxhash_rust::xxh3::Xxh3Default::new();
     key.hash(&mut hasher);
     hasher.finish()
 }

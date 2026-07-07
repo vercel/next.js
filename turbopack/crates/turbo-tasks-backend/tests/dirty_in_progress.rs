@@ -70,7 +70,7 @@ impl ValueToString for Collectible {
     }
 }
 
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 async fn inner_compute(input: ResolvedVc<ChangingInput>) -> Result<Vc<u32>> {
     println!("start inner_compute");
     let value = *input.await?.state.get();
@@ -88,7 +88,7 @@ async fn inner_compute(input: ResolvedVc<ChangingInput>) -> Result<Vc<u32>> {
     }
 }
 
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 async fn compute_operation(input: ResolvedVc<ChangingInput>) -> Result<Vc<Output>> {
     println!("start compute");
     let operation = inner_compute(input);

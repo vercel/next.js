@@ -3,7 +3,7 @@ import {
   stringToUint8Array,
 } from '../app-render/encryption-utils'
 import type { CachedFetchValue } from '../response-cache/types'
-import { DYNAMIC_EXPIRE } from '../use-cache/constants'
+import { MIN_PRERENDERABLE_EXPIRE } from '../use-cache/constants'
 import type { CollectedCacheResult } from '../use-cache/use-cache-wrapper'
 
 /**
@@ -11,7 +11,7 @@ import type { CollectedCacheResult } from '../use-cache/use-cache-wrapper'
  */
 type CacheStore<T> = Pick<
   Map<string, T>,
-  'entries' | 'keys' | 'size' | 'get' | 'set'
+  'entries' | 'keys' | 'size' | 'get' | 'set' | 'has' | typeof Symbol.iterator
 >
 
 /**
@@ -31,6 +31,16 @@ export type EncryptedBoundArgsCacheStore = CacheStore<string>
 export type DecryptedBoundArgsCacheStore = CacheStore<string>
 
 /**
+ * An in-memory-only cache store for rendered `ImageResponse` array buffers,
+ * keyed by a serialization of the `ImageResponse` constructor args. This lets
+ * the prospective prerender render the image once and hand the array buffer to
+ * the final prerender within microtasks, so that metadata image routes can be
+ * statically prerendered under Cache Components. Never serialized into the
+ * resume store.
+ */
+export type ImageResponseCacheStore = CacheStore<Promise<ArrayBuffer>>
+
+/**
  * Serialized format for "use cache" entries
  */
 export interface UseCacheCacheStoreSerialized {
@@ -44,6 +54,7 @@ export interface UseCacheCacheStoreSerialized {
   }
   hasExplicitRevalidate: boolean | undefined
   hasExplicitExpire: boolean | undefined
+  readRootParamNames: string[] | undefined
 }
 
 /**
@@ -64,7 +75,7 @@ export function parseUseCacheCacheStore(
 
   for (const [
     key,
-    { entry, hasExplicitRevalidate, hasExplicitExpire },
+    { entry, hasExplicitRevalidate, hasExplicitExpire, readRootParamNames },
   ] of entries) {
     store.set(
       key,
@@ -88,6 +99,14 @@ export function parseUseCacheCacheStore(
         },
         hasExplicitRevalidate,
         hasExplicitExpire,
+        readRootParamNames: readRootParamNames
+          ? new Set(readRootParamNames)
+          : undefined,
+        // Serialized RDC entries are non-dynamic by construction (the
+        // serializer drops dynamic entries), so this is never produced from the
+        // wire — the throw path that consumes it is only reachable for dynamic
+        // entries, which only exist in the in-memory RDC.
+        dynamicNestedCacheError: undefined,
       })
     )
   }
@@ -107,45 +126,56 @@ export async function serializeUseCacheCacheStore(
   return Promise.all(
     Array.from(entries).map(([key, value]) => {
       return value
-        .then(async ({ entry, hasExplicitRevalidate, hasExplicitExpire }) => {
-          if (
-            isCacheComponentsEnabled &&
-            (entry.revalidate === 0 || entry.expire < DYNAMIC_EXPIRE)
-          ) {
-            // The entry was omitted from the prerender result, and subsequently
-            // does not need to be included in the serialized RDC.
-            return null
-          }
+        .then(
+          async ({
+            entry,
+            hasExplicitRevalidate,
+            hasExplicitExpire,
+            readRootParamNames,
+          }) => {
+            if (
+              isCacheComponentsEnabled &&
+              (entry.revalidate === 0 ||
+                entry.expire < MIN_PRERENDERABLE_EXPIRE)
+            ) {
+              // The entry was omitted from the prerender result, and subsequently
+              // does not need to be included in the serialized RDC.
+              return null
+            }
 
-          const [left, right] = entry.value.tee()
-          entry.value = right
+            const [left, right] = entry.value.tee()
+            entry.value = right
 
-          let binaryString: string = ''
+            let binaryString: string = ''
 
-          // We want to encode the value as a string, but we aren't sure if the
-          // value is a a stream of UTF-8 bytes or not, so let's just encode it
-          // as a string using base64.
-          for await (const chunk of left) {
-            binaryString += arrayBufferToString(chunk)
-          }
+            // We want to encode the value as a string, but we aren't sure if the
+            // value is a a stream of UTF-8 bytes or not, so let's just encode it
+            // as a string using base64.
+            for await (const chunk of left) {
+              binaryString += arrayBufferToString(chunk)
+            }
 
-          return [
-            key,
-            {
-              entry: {
-                // Encode the value as a base64 string.
-                value: btoa(binaryString),
-                tags: entry.tags,
-                stale: entry.stale,
-                timestamp: entry.timestamp,
-                expire: entry.expire,
-                revalidate: entry.revalidate,
+            return [
+              key,
+              {
+                entry: {
+                  // Encode the value as a base64 string.
+                  value: btoa(binaryString),
+                  tags: entry.tags,
+                  stale: entry.stale,
+                  timestamp: entry.timestamp,
+                  expire: entry.expire,
+                  revalidate: entry.revalidate,
+                },
+                hasExplicitRevalidate,
+                hasExplicitExpire,
+                readRootParamNames: readRootParamNames
+                  ? [...readRootParamNames]
+                  : undefined,
               },
-              hasExplicitRevalidate,
-              hasExplicitExpire,
-            },
-          ] satisfies [string, UseCacheCacheStoreSerialized]
-        })
+            ] satisfies [string, UseCacheCacheStoreSerialized]
+          }
+        )
         .catch(() => {
           // Any failed cache writes should be ignored as to not discard the
           // entire cache.

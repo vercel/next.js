@@ -1,22 +1,14 @@
-import { createNext, FileRef } from 'e2e-utils'
-import { NextInstance } from 'e2e-utils'
-import webdriver from 'next-webdriver'
+import { FileRef, nextTestSetup, type Playwright } from 'e2e-utils'
 import { check } from 'next-test-utils'
 
 describe('useSelectedLayoutSegment(s)', () => {
-  let next: NextInstance
-
-  beforeAll(async () => {
-    next = await createNext({
-      files: new FileRef(__dirname),
-    })
+  const { next } = nextTestSetup({
+    files: new FileRef(__dirname),
   })
-  afterAll(() => next.destroy())
 
-  let browser: Awaited<ReturnType<typeof webdriver>>
+  let browser: Playwright
   beforeEach(async () => {
-    browser = await webdriver(
-      next.url,
+    browser = await next.browser(
       '/segment-name/value1/segment-name2/value2/value3/value4'
     )
   })

@@ -4,7 +4,7 @@ import { createSandbox } from 'development-sandbox'
 import { outdent } from 'outdent'
 
 describe('Error overlay - RSC build errors', () => {
-  const { next, isTurbopack } = nextTestSetup({
+  const { next, isTurbopack, isRspack } = nextTestSetup({
     files: new FileRef(path.join(__dirname, 'fixtures', 'rsc-build-errors')),
     skipStart: true,
   })
@@ -176,7 +176,7 @@ describe('Error overlay - RSC build errors', () => {
       // turbopack emits the resolve issue first instead of the transform issue.
       expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
        "./app/server-with-errors/client-only-in-server/client-only-lib.js (1:1)
-       You're importing a component that imports client-only. It only works in a Client Component but none of its parents are marked with "use client", so they're Server Components by default.
+       Error: You're importing a component that imports client-only. It only works in a Client Component but none of its parents are marked with "use client", so they're Server Components by default.
            Learn more: https://nextjs.org/docs/app/building-your-application/rendering
        > 1 | import 'client-only'
            | ^^^^^^^^^^^^^^^^^^^^
@@ -230,7 +230,7 @@ describe('Error overlay - RSC build errors', () => {
         // `Component` has a custom error message
         api === 'Component'
           ? `You’re importing a class component. It only works in a Client Component but none of its parents are marked with "use client", so they're Server Components by default.`
-          : `You're importing a component that needs \`${api}\`. This React Hook only works in a Client Component. To fix, mark the file (or its parent) with the \`"use client"\` directive.`
+          : `You're importing a module that depends on \`${api}\` into a React Server Component module. This API is only available in Client Components. To fix, mark the file (or its parent) with the \`"use client"\` directive.`
       )
     })
   }
@@ -251,10 +251,70 @@ describe('Error overlay - RSC build errors', () => {
       const { session } = sandbox
       await session.waitForRedbox()
       expect(await session.getRedboxSource()).toInclude(
-        `You're importing a component that needs \`${api}\`. This React Hook only works in a Client Component. To fix, mark the file (or its parent) with the \`"use client"\` directive.`
+        `You're importing a module that depends on \`${api}\` into a React Server Component module. This API is only available in Client Components. To fix, mark the file (or its parent) with the \`"use client"\` directive.`
       )
     })
   }
+
+  it('should error when catchError from next/error is used in a server component', async () => {
+    await using sandbox = await createSandbox(
+      next,
+      new Map([
+        [
+          'app/page.js',
+          outdent`
+            import { catchError } from 'next/error'
+
+            export default function Page() {
+              return 'Hello world'
+            }
+          `,
+        ],
+      ])
+    )
+
+    const { session } = sandbox
+    await session.waitForRedbox()
+    expect(await session.getRedboxSource()).toInclude(
+      'You\'re importing a module that depends on `catchError` into a React Server Component module. This API is only available in Client Components. To fix, mark the file (or its parent) with the `"use client"` directive.'
+    )
+  })
+
+  test.each([
+    ['middleware.js', 'export function middleware() {}'],
+    ['proxy.js', 'export function proxy() {}'],
+    ['instrumentation.js', 'export function register() {}'],
+  ])(
+    'should error when catchError from next/error is imported in %s',
+    async (entryFile, exportCode) => {
+      await using sandbox = await createSandbox(
+        next,
+        new Map([
+          [
+            'app/page.js',
+            outdent`
+              export default function Page() {
+                return 'Hello world'
+              }
+            `,
+          ],
+          [
+            entryFile,
+            outdent`
+              import { catchError } from 'next/error'
+              ${exportCode}
+            `,
+          ],
+        ])
+      )
+
+      const { session } = sandbox
+      await session.waitForRedbox()
+      expect(await session.getRedboxSource()).toInclude(
+        'You\'re importing a module that depends on `catchError` into a React Server Component module. This API is only available in Client Components. To fix, mark the file (or its parent) with the `"use client"` directive.'
+      )
+    }
+  )
 
   it('should allow to use and handle rsc poisoning server-only', async () => {
     await using sandbox = await createSandbox(
@@ -275,7 +335,7 @@ describe('Error overlay - RSC build errors', () => {
 
     await session.waitForRedbox()
     expect(await session.getRedboxSource()).toInclude(
-      `You're importing a component that needs "server-only". That only works in a Server Component but one of its parents is marked with "use client", so it's a Client Component.`
+      `You're importing a module that depends on "server-only" into a React Client Component module. This API is only available in Server Components but one of its parents is marked with "use client", so this module is also a Client Component.`
     )
   })
 
@@ -291,7 +351,7 @@ describe('Error overlay - RSC build errors', () => {
         const { session } = sandbox
         await session.waitForRedbox()
         expect(await session.getRedboxSource()).toInclude(
-          `You're importing a component that needs "${api}". That only works in a Server Component but one of its parents is marked with "use client", so it's a Client Component.`
+          `You're importing a module that depends on "${api}" into a React Client Component module. This API is only available in Server Components but one of its parents is marked with "use client", so this module is also a Client Component.`
         )
       }
     )
@@ -311,9 +371,7 @@ describe('Error overlay - RSC build errors', () => {
   })
 
   describe('next/root-params', () => {
-    const isCacheComponentsEnabled =
-      process.env.__NEXT_CACHE_COMPONENTS === 'true'
-    it("importing 'next/root-params' when experimental.rootParams is not enabled", async () => {
+    it("importing a non-existent getter from 'next/root-params'", async () => {
       await using sandbox = await createSandbox(
         next,
         undefined,
@@ -321,16 +379,17 @@ describe('Error overlay - RSC build errors', () => {
       )
       const { session } = sandbox
       await session.waitForRedbox()
-      if (!isCacheComponentsEnabled) {
+      if (isTurbopack) {
         expect(await session.getRedboxSource()).toInclude(
-          `'next/root-params' can only be imported when \`experimental.rootParams\` is enabled.`
+          `Export whatever doesn't exist in target module`
+        )
+      } else if (isRspack) {
+        expect(await session.getRedboxDescription()).toInclude(
+          `'whatever' is not exported from 'next/root-params'`
         )
       } else {
-        // in cacheComponents we auto-enable 'next/root-params', so we should get an error about using a non-existent getter instead.
-        expect(await session.getRedboxSource()).toInclude(
-          isTurbopack
-            ? `Export whatever doesn't exist in target module`
-            : `Attempted import error: 'whatever' is not exported from 'next/root-params' (imported as 'whatever').`
+        expect(await session.getRedboxDescription()).toInclude(
+          `whatever) is not a function`
         )
       }
     })
@@ -338,40 +397,20 @@ describe('Error overlay - RSC build errors', () => {
     it("importing 'next/root-params' in a client component", async () => {
       await using sandbox = await createSandbox(
         next,
-        // if cacheComponents is not enabled, the import is guarded behind an experimental flag
-        isCacheComponentsEnabled
-          ? new Map()
-          : new Map([
-              [
-                'next.config.js',
-                outdent`
-                  module.exports = { experimental: { rootParams: true } }
-                `,
-              ],
-            ]),
+        undefined,
         `/server-with-errors/next-root-params/in-client`
       )
       const { session } = sandbox
       await session.waitForRedbox()
       expect(await session.getRedboxSource()).toInclude(
-        `You're importing a component that needs "next/root-params". That only works in a Server Component but one of its parents is marked with "use client", so it's a Client Component.`
+        `You're importing a module that depends on "next/root-params" into a React Client Component module. This API is only available in Server Components but one of its parents is marked with "use client", so this module is also a Client Component.`
       )
     })
 
     it("importing 'next/root-params' in a client component in a way that bypasses import analysis", async () => {
       await using sandbox = await createSandbox(
         next,
-        // if cacheComponents is not enabled, the import is guarded behind an experimental flag
-        isCacheComponentsEnabled
-          ? new Map()
-          : new Map([
-              [
-                'next.config.js',
-                outdent`
-                  module.exports = { experimental: { rootParams: true } }
-                `,
-              ],
-            ]),
+        undefined,
         `/server-with-errors/next-root-params/in-client-await-import`
       )
       const { session } = sandbox
@@ -423,7 +462,7 @@ describe('Error overlay - RSC build errors', () => {
       expect(next.normalizeTestDirContent(await session.getRedboxSource()))
         .toMatchInlineSnapshot(`
        "./app/server-with-errors/error-file/error.js (1:1)
-       app/server-with-errors/error-file/error.js must be a Client Component. Add the "use client" directive the top of the file to resolve this issue.
+       Error: app/server-with-errors/error-file/error.js must be a Client Component. Add the "use client" directive the top of the file to resolve this issue.
            Learn more: https://nextjs.org/docs/app/api-reference/directives/use-client
        > 1 | export default function Error() {}
            | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

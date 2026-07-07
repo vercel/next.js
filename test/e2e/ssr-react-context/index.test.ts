@@ -1,20 +1,14 @@
 import { join } from 'path'
 import { renderViaHTTP, check } from 'next-test-utils'
-import { NextInstance } from 'e2e-utils'
-import { createNext, FileRef } from 'e2e-utils'
+import { FileRef, nextTestSetup } from 'e2e-utils'
 
 describe('React Context', () => {
-  let next: NextInstance
-
-  beforeAll(async () => {
-    next = await createNext({
-      files: {
-        pages: new FileRef(join(__dirname, 'app/pages')),
-        'context.js': new FileRef(join(__dirname, 'app/context.js')),
-      },
-    })
+  const { next } = nextTestSetup({
+    files: {
+      pages: new FileRef(join(__dirname, 'app/pages')),
+      'context.js': new FileRef(join(__dirname, 'app/context.js')),
+    },
   })
-  afterAll(() => next.destroy())
 
   it('should render a page with context', async () => {
     const html = await renderViaHTTP(next.url, '/')

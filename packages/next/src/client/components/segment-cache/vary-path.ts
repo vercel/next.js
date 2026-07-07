@@ -37,6 +37,14 @@ export type VaryPath = {
    */
   id: string | null
   value: string | null | FallbackType
+  /**
+   * Whether this node corresponds to a root param — a path param at or above
+   * the application's root layout. Root params may appear in the App Shell, so
+   * the shell vary path keeps their concrete value instead of replacing it with
+   * Fallback. See getShellSegmentVaryPath. Only set on path param nodes;
+   * undefined (falsy) for structural and search param nodes.
+   */
+  isRootParam?: boolean
   parent: VaryPath | null
 }
 
@@ -142,11 +150,13 @@ export function getFulfilledRouteVaryPath(
 export function appendLayoutVaryPath(
   parentPath: PartialSegmentVaryPath | null,
   cacheKey: string,
-  paramName: string
+  paramName: string,
+  isRootParam: boolean
 ): PartialSegmentVaryPath {
   const varyPathPart: VaryPath = {
     id: paramName,
     value: cacheKey,
+    isRootParam,
     parent: parentPath,
   }
   return varyPathPart as PartialSegmentVaryPath
@@ -269,6 +279,14 @@ export function getSegmentVaryPathForRequest(
   // params that can be treated as Fallback. (Or perhaps the inverse.)
   const originalVaryPath = tree.varyPath
 
+  if (fetchStrategy === FetchStrategy.RuntimeShell) {
+    // The Shell phase issues a runtime render with non-root params omitted. The
+    // resulting entry is reusable across all concrete values of those params, so
+    // we key it at the precomputed shell vary path (every non-root param
+    // substituted with Fallback; root params keep their concrete value).
+    return tree.shellVaryPath
+  }
+
   // Only page segments (and the special "metadata" segment, which is treated
   // like a page segment for the purposes of caching) may contain search
   // params. There's no reason to include them in the vary path otherwise.
@@ -355,10 +373,35 @@ export function getFulfilledSegmentVaryPath(
       original.id === null || varyParams.has(original.id)
         ? original.value
         : Fallback,
+    isRootParam: original.isRootParam,
     parent:
       original.parent === null
         ? null
         : getFulfilledSegmentVaryPath(original.parent, varyParams),
+  }
+  return clone as SegmentVaryPath
+}
+
+export function getShellSegmentVaryPath(original: VaryPath): SegmentVaryPath {
+  // Re-keys a segment's vary path to identify the "App Shell" entry for this
+  // segment position — a reusable loading state that can be served for any
+  // concrete navigation to this segment. The shell is rendered with params
+  // omitted, with one exception: root params (path params at or above the root
+  // layout) may be accessed during the shell render, so the shell varies on
+  // them. Accordingly, we keep the concrete value of structural nodes (request
+  // keys, etc.) and root param nodes, and replace every other param node (non-
+  // root path params and search params) with Fallback.
+  const clone: VaryPath = {
+    id: original.id,
+    value:
+      original.id === null || original.isRootParam === true
+        ? original.value
+        : Fallback,
+    isRootParam: original.isRootParam,
+    parent:
+      original.parent === null
+        ? null
+        : getShellSegmentVaryPath(original.parent),
   }
   return clone as SegmentVaryPath
 }

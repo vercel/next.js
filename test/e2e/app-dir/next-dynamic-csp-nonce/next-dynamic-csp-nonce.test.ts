@@ -14,7 +14,7 @@ describe('next/dynamic with CSP nonce', () => {
     const dynamicPreloadLinks = preloadLinks.filter((_, element) => {
       const $element = $(element)
       const href = $element.attr('href')
-      return href && href.includes('_next/static/chunks/')
+      return href && /_next\/static\/(immutable\/)?chunks\//.test(href)
     })
 
     // There should be at least one preload link for dynamic chunks
@@ -25,7 +25,7 @@ describe('next/dynamic with CSP nonce', () => {
       const href = $element.attr('href')
 
       // Only check preload links for dynamic chunks
-      if (href && href.includes('_next/static/chunks/')) {
+      if (href && /_next\/static\/(immutable\/)?chunks\//.test(href)) {
         expect($element.attr('nonce')).toBe('test-nonce')
       }
     })

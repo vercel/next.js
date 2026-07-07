@@ -1,4 +1,3 @@
-import { InvariantError } from '../../shared/lib/invariant-error'
 import { workAsyncStorage } from '../app-render/work-async-storage.external'
 import { workUnitAsyncStorage } from '../app-render/work-unit-async-storage.external'
 
@@ -92,6 +91,7 @@ export function cacheLife(profile: CacheLifeProfiles | CacheLife): void {
     case 'prerender-legacy':
     case 'request':
     case 'unstable-cache':
+    case 'generate-static-params':
     case undefined:
       throw new Error(
         '`cacheLife()` can only be called inside a "use cache" function.'
@@ -109,9 +109,6 @@ export function cacheLife(profile: CacheLifeProfiles | CacheLife): void {
       throw new Error(
         '`cacheLife()` can only be called during App Router rendering at the moment.'
       )
-    }
-    if (!workStore.cacheLifeProfiles) {
-      throw new InvariantError('`cacheLifeProfiles` should always be provided.')
     }
 
     // TODO: This should be globally available and not require an AsyncLocalStorage.

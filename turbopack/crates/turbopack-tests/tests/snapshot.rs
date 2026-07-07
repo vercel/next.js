@@ -11,7 +11,10 @@ use rustc_hash::FxHashSet;
 use serde::Deserialize;
 use serde_json::json;
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{Effects, ResolvedVc, TurboTasks, ValueToString, Vc, get_effects};
+use turbo_tasks::{
+    Effects, OperationVc, ResolvedVc, TurboTasks, Vc, read_strongly_consistent_and_apply_effects,
+    take_effects, turbofmt,
+};
 use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
 use turbo_tasks_env::DotenvProcessEnv;
 use turbo_tasks_fs::{
@@ -45,15 +48,16 @@ use turbopack_core::{
     issue::{CollectibleIssuesExt, IssueFilter, IssueSeverity},
     module::Module,
     module_graph::{
-        ModuleGraph, SingleModuleGraph,
+        GraphEntries, ModuleGraph, SingleModuleGraph,
         binding_usage_info::compute_binding_usage_info,
-        chunk_group_info::{ChunkGroup, ChunkGroupEntry},
+        chunk_group_info::{ChunkGroup, ChunkGroupEntry, EntryHeuristics},
     },
     output::{OutputAsset, OutputAssets, OutputAssetsReference, OutputAssetsWithReferenced},
-    reference_type::{EntryReferenceSubType, ReferenceType, UrlReferenceSubType},
+    reference_type::{EntryReferenceSubType, ReferenceType, ReferenceTypeCondition},
 };
 use turbopack_ecmascript::{
-    AnalyzeMode, EcmascriptInputTransform, TreeShakingMode, chunk::EcmascriptChunkType,
+    AnalyzeMode, CustomTransformer, EcmascriptInputTransform, TransformPlugin, TreeShakingMode,
+    chunk::EcmascriptChunkType, transform::ReactCompilerCompilationMode,
 };
 use turbopack_ecmascript_plugins::transform::{
     emotion::{EmotionTransformConfig, EmotionTransformer},
@@ -93,11 +97,15 @@ struct SnapshotOptions {
     #[serde(default)]
     production_chunking: bool,
     #[serde(default)]
+    single_chunk: bool,
+    #[serde(default)]
     enable_debug_ids: bool,
     #[serde(default)]
     source_map_source_type: SourceMapSourceType,
     #[serde(default = "default_chunk_loading_global")]
     chunk_loading_global: String,
+    #[serde(default)]
+    enable_rust_react_compiler: bool,
 }
 
 #[derive(Debug, Deserialize, Default)]
@@ -128,9 +136,11 @@ impl Default for SnapshotOptions {
             remove_unused_exports: false,
             scope_hoisting: false,
             production_chunking: false,
+            single_chunk: false,
             enable_debug_ids: false,
             source_map_source_type: SourceMapSourceType::default(),
             chunk_loading_global: default_chunk_loading_global(),
+            enable_rust_react_compiler: false,
         }
     }
 }
@@ -221,27 +231,38 @@ async fn run(resource: PathBuf) -> Result<()> {
         noop_backing_storage(),
     ));
     tt.run_once(async move {
-        #[turbo_tasks::function(operation)]
-        async fn inner_operation(resource: RcStr) -> Result<Vc<Effects>> {
+        #[turbo_tasks::function(operation, root)]
+        async fn inner_operation(resource: RcStr) -> Result<Vc<()>> {
             let out_op = run_test_operation(resource);
-            let out_vc = out_op.resolve_strongly_consistent().await?.owned().await?;
+            let out_vc = out_op
+                .resolve()
+                .strongly_consistent()
+                .await?
+                .owned()
+                .await?;
 
             let plain_issues = out_op
                 .peek_issues()
-                .get_plain_issues(IssueFilter::everything())
+                .get_plain_issues(&IssueFilter::everything())
                 .await?;
 
             snapshot_issues(plain_issues, out_vc.join("issues")?, &REPO_ROOT)
                 .await
                 .context("Unable to handle issues")?;
-
-            Ok(get_effects(out_op).await?.cell())
+            Ok(Vc::cell(()))
         }
-        inner_operation(resource.to_str().unwrap().into())
-            .read_strongly_consistent()
-            .await?
-            .apply()
-            .await?;
+
+        #[turbo_tasks::function(operation, root)]
+        async fn extract_effects(op: OperationVc<()>) -> Result<Vc<Effects>> {
+            let _ = op.resolve().strongly_consistent().await?;
+            Ok(take_effects(op).await?.cell())
+        }
+
+        read_strongly_consistent_and_apply_effects(
+            extract_effects(inner_operation(resource.to_str().unwrap().into())),
+            |e| e,
+        )
+        .await?;
 
         Ok(())
     })
@@ -250,7 +271,7 @@ async fn run(resource: PathBuf) -> Result<()> {
     Ok(())
 }
 
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
     let test_path = canonicalize(&resource)?;
     assert!(test_path.exists(), "{resource} does not exist");
@@ -265,7 +286,7 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
         Err(_) => SnapshotOptions::default(),
         Ok(options_str) => parse_json_with_source_context(&options_str).unwrap(),
     };
-    let project_fs = DiskFileSystem::new(rcstr!("project"), REPO_ROOT.clone());
+    let project_fs = DiskFileSystem::new(rcstr!("project"), Vc::cell(REPO_ROOT.clone()));
     let project_root = project_fs.root().owned().await?;
 
     let relative_path = test_path.strip_prefix(&*REPO_ROOT)?;
@@ -347,8 +368,8 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
         .await?;
 
     let conditions = RuleCondition::All(vec![
-        RuleCondition::not(RuleCondition::ReferenceType(ReferenceType::Url(
-            UrlReferenceSubType::Undefined,
+        RuleCondition::not(RuleCondition::ReferenceType(ReferenceTypeCondition::Url(
+            None,
         ))),
         RuleCondition::any(vec![
             RuleCondition::ResourcePathEndsWith(".js".into()),
@@ -363,13 +384,10 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
         vec![ModuleRuleEffect::ExtendEcmascriptTransforms {
             preprocess: ResolvedVc::cell(vec![]),
             main: ResolvedVc::cell(vec![
-                EcmascriptInputTransform::Plugin(ResolvedVc::cell(Box::new(
-                    EmotionTransformer::new(&EmotionTransformConfig::default())
-                        .expect("Should be able to create emotion transformer"),
-                ) as _)),
-                EcmascriptInputTransform::Plugin(ResolvedVc::cell(Box::new(
-                    StyledComponentsTransformer::new(&StyledComponentsTransformConfig::default()),
-                ) as _)),
+                EcmascriptInputTransform::Plugin(emotion_transform_plugin().to_resolved().await?),
+                EcmascriptInputTransform::Plugin(
+                    styled_components_transform_plugin().to_resolved().await?,
+                ),
             ]),
             postprocess: ResolvedVc::cell(vec![]),
         }],
@@ -390,6 +408,9 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
                 ignore_dynamic_requests: true,
                 infer_module_side_effects: true,
                 enable_exports_info_inlining: true,
+                enable_rust_react_compiler: options
+                    .enable_rust_react_compiler
+                    .then_some(ReactCompilerCompilationMode::Infer),
                 ..Default::default()
             },
             environment: Some(env),
@@ -447,11 +468,15 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
             .collect();
 
     let single_graph = SingleModuleGraph::new_with_entries(
-        ResolvedVc::cell(vec![ChunkGroupEntry::Entry(entry_modules.clone())]),
+        GraphEntries::from_chunk_groups(vec![ChunkGroupEntry::Entry {
+            modules: entry_modules.clone(),
+            heuristics: EntryHeuristics::default(),
+        }])
+        .resolved_cell(),
         false,
         true,
     );
-    let mut module_graph = ModuleGraph::from_single_graph(single_graph);
+    let mut module_graph = ModuleGraph::from_graphs(vec![single_graph], None);
 
     let binding_usage = if options.remove_unused_imports || options.remove_unused_exports {
         Some(compute_binding_usage_info(
@@ -464,8 +489,7 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
     if options.remove_unused_imports
         && let Some(binding_usage) = binding_usage
     {
-        module_graph =
-            ModuleGraph::from_single_graph_without_unused_references(single_graph, binding_usage);
+        module_graph = ModuleGraph::from_graphs(vec![single_graph], Some(binding_usage));
     }
     let module_graph = module_graph.connect();
 
@@ -499,6 +523,10 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
             .debug_ids(options.enable_debug_ids)
             .source_map_source_type(options.source_map_source_type)
             .chunk_loading_global(options.chunk_loading_global.into());
+
+            if options.single_chunk {
+                builder = builder.single_chunk().await?;
+            }
 
             if options.remove_unused_imports {
                 builder = builder.unused_references(
@@ -577,10 +605,32 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
 
     // TODO: Load runtime entries from snapshots
     let chunks = match options.runtime {
+        Runtime::Browser if options.single_chunk => OutputAssetsWithReferenced {
+            assets: ResolvedVc::cell(vec![
+                chunking_context
+                    .entry_chunk_group(
+                        // `expected` expects a completely flat output directory.
+                        chunk_root_path
+                            .join(entry_module.ident().await?.path.file_stem().unwrap())?
+                            .with_extension("entry.js"),
+                        ChunkGroup::Entry(entry_modules),
+                        module_graph,
+                        OutputAssets::empty(),
+                        OutputAssets::empty(),
+                        AvailabilityInfo::root(),
+                    )
+                    .await?
+                    .asset,
+            ]),
+            referenced_assets: ResolvedVc::cell(vec![]),
+            references: ResolvedVc::cell(vec![]),
+        }
+        .cell(),
         Runtime::Browser => chunking_context.evaluated_chunk_group_assets(
             entry_module.ident(),
             ChunkGroup::Entry(entry_modules.into_iter().collect()),
             module_graph,
+            OutputAssets::empty(),
             AvailabilityInfo::root(),
         ),
         Runtime::NodeJs => {
@@ -590,7 +640,7 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
                         .entry_chunk_group(
                             // `expected` expects a completely flat output directory.
                             chunk_root_path
-                                .join(entry_module.ident().path().await?.file_stem().unwrap())?
+                                .join(entry_module.ident().await?.path.file_stem().unwrap())?
                                 .with_extension("entry.js"),
                             ChunkGroup::Entry(entry_modules),
                             module_graph,
@@ -613,12 +663,10 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
 
     let output_path = project_path.clone();
     while let Some(asset) = queue.pop_front() {
-        walk_asset(asset, &output_path, &mut seen, &mut queue)
-            .await
-            .context(format!(
-                "Failed to walk asset {}",
-                asset.path().to_string().await.context("to_string failed")?
-            ))?;
+        if let Err(error) = walk_asset(asset, &output_path, &mut seen, &mut queue).await {
+            // ast-grep-ignore: no-context-turbofmt
+            return Err(error.context(turbofmt!("Failed to walk asset {}", asset.path()).await?));
+        }
     }
 
     matches_expected(expected_paths, seen)
@@ -667,4 +715,19 @@ async fn maybe_load_env(
         .await?;
 
     Ok(Some(asset))
+}
+
+#[turbo_tasks::function]
+fn emotion_transform_plugin() -> Vc<TransformPlugin> {
+    Vc::cell(Box::new(
+        EmotionTransformer::new(&EmotionTransformConfig::default())
+            .expect("Should be able to create emotion transformer"),
+    ) as Box<dyn CustomTransformer + Send + Sync>)
+}
+
+#[turbo_tasks::function]
+fn styled_components_transform_plugin() -> Vc<TransformPlugin> {
+    Vc::cell(Box::new(StyledComponentsTransformer::new(
+        &StyledComponentsTransformConfig::default(),
+    )) as Box<dyn CustomTransformer + Send + Sync>)
 }

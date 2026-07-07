@@ -10,6 +10,10 @@ export type PanelStateKind =
   | 'route-type'
   | 'segment-explorer'
   | 'panel-selector'
+  | 'instant-navs'
+  | 'turbo-info'
+  | 'cache-disabled'
+  | 'cold-cache'
 
 export const PanelRouterContext = createContext<{
   panel: PanelStateKind | null

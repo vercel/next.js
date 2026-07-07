@@ -1,8 +1,9 @@
 use anyhow::Result;
+use async_trait::async_trait;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::FileSystemPath;
-use turbopack_core::issue::{Issue, IssueSeverity, IssueStage, OptionStyledString, StyledString};
+use turbopack_core::issue::{Issue, IssueSeverity, IssueStage, StyledString};
 
 #[derive(Debug)]
 #[turbo_tasks::value(shared)]
@@ -68,61 +69,56 @@ pub struct FetchIssue {
     pub detail: ResolvedVc<StyledString>,
 }
 
+#[async_trait]
 #[turbo_tasks::value_impl]
 impl Issue for FetchIssue {
-    #[turbo_tasks::function]
-    fn file_path(&self) -> Vc<FileSystemPath> {
-        self.issue_context.clone().cell()
+    async fn file_path(&self) -> Result<FileSystemPath> {
+        Ok(self.issue_context.clone())
     }
 
     fn severity(&self) -> IssueSeverity {
         self.severity
     }
 
-    #[turbo_tasks::function]
-    fn title(&self) -> Vc<StyledString> {
-        StyledString::Text(rcstr!("Error while requesting resource")).cell()
-    }
-
-    #[turbo_tasks::function]
-    fn stage(&self) -> Vc<IssueStage> {
-        IssueStage::Load.cell()
-    }
-
-    #[turbo_tasks::function]
-    async fn description(&self) -> Result<Vc<OptionStyledString>> {
-        let url = &*self.url.await?;
-        let kind = &*self.kind.await?;
-
-        Ok(Vc::cell(Some(
-            match kind {
-                FetchErrorKind::Connect => StyledString::Line(vec![
-                    StyledString::Text(rcstr!(
-                        "There was an issue establishing a connection while requesting "
-                    )),
-                    StyledString::Code(url.clone()),
-                ]),
-                FetchErrorKind::Status(status) => StyledString::Line(vec![
-                    StyledString::Text(rcstr!("Received response with status ")),
-                    StyledString::Code(RcStr::from(status.to_string())),
-                    StyledString::Text(rcstr!(" when requesting ")),
-                    StyledString::Code(url.clone()),
-                ]),
-                FetchErrorKind::Timeout => StyledString::Line(vec![
-                    StyledString::Text(rcstr!("Connection timed out when requesting ")),
-                    StyledString::Code(url.clone()),
-                ]),
-                FetchErrorKind::Other => StyledString::Line(vec![
-                    StyledString::Text(rcstr!("There was an issue requesting ")),
-                    StyledString::Code(url.clone()),
-                ]),
-            }
-            .resolved_cell(),
+    async fn title(&self) -> Result<StyledString> {
+        Ok(StyledString::Text(rcstr!(
+            "Error while requesting resource"
         )))
     }
 
-    #[turbo_tasks::function]
-    fn detail(&self) -> Vc<OptionStyledString> {
-        Vc::cell(Some(self.detail))
+    fn stage(&self) -> IssueStage {
+        IssueStage::Load
+    }
+
+    async fn description(&self) -> Result<Option<StyledString>> {
+        let url = &*self.url.await?;
+        let kind = &*self.kind.await?;
+
+        Ok(Some(match kind {
+            FetchErrorKind::Connect => StyledString::Line(vec![
+                StyledString::Text(rcstr!(
+                    "There was an issue establishing a connection while requesting "
+                )),
+                StyledString::Code(url.clone()),
+            ]),
+            FetchErrorKind::Status(status) => StyledString::Line(vec![
+                StyledString::Text(rcstr!("Received response with status ")),
+                StyledString::Code(RcStr::from(status.to_string())),
+                StyledString::Text(rcstr!(" when requesting ")),
+                StyledString::Code(url.clone()),
+            ]),
+            FetchErrorKind::Timeout => StyledString::Line(vec![
+                StyledString::Text(rcstr!("Connection timed out when requesting ")),
+                StyledString::Code(url.clone()),
+            ]),
+            FetchErrorKind::Other => StyledString::Line(vec![
+                StyledString::Text(rcstr!("There was an issue requesting ")),
+                StyledString::Code(url.clone()),
+            ]),
+        }))
+    }
+
+    async fn detail(&self) -> Result<Option<StyledString>> {
+        Ok(Some((*self.detail.await?).clone()))
     }
 }

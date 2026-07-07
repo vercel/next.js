@@ -101,7 +101,7 @@ You should still ensure requests are properly authenticated and authorized. For 
 
 When you fetch data in Server Components, the data is fetched and rendered on the server for each request. If you have any slow data requests, the whole route will be blocked from rendering until all the data is fetched.
 
-To improve the initial load time and user experience, you can break the page into smaller _chunks_ and progressively send those chunks from the server to the client. This is called streaming.
+To improve the initial load time and user experience, you can break the page into smaller _chunks_ and progressively send those chunks from the server to the client. This is called streaming. See the [Streaming guide](/docs/app/guides/streaming) for a deeper look at how streaming works, including the HTTP contract, infrastructure considerations, and performance trade-offs.
 
 <Image
   alt="How Server Rendering with Streaming Works"
@@ -115,6 +115,8 @@ There are two ways you can use streaming in your application:
 
 1. Wrapping a page with a [`loading.js` file](#with-loadingjs)
 2. Wrapping a component with [`<Suspense>`](#with-suspense)
+
+> **Good to know:** Bots and crawlers are served differently from browsers. Next.js waits for data fetching to finish and sends the fully rendered page instead of streaming it progressively. See [Bots and crawlers](/docs/app/guides/streaming#bots-and-crawlers).
 
 #### With `loading.js`
 
@@ -372,7 +374,7 @@ export default function BlogPage() {
 
 Sequential data fetching happens when one request depends on data from another.
 
-For example, `<Playlists>` can only fetch data after `<Artist>` completes because it needs the `artistID`:
+For example, `<Playlists>` can only fetch data after `getArtist()` resolves because it needs the `artistID`:
 
 ```tsx filename="app/artist/[username]/page.tsx" switcher
 export default async function Page({

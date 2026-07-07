@@ -99,7 +99,7 @@ While building your application, we recommend using the following features to en
 <AppOnly>
 
 - **[Tainting](/docs/app/api-reference/config/next-config-js/taint):** Prevent sensitive data from being exposed to the client by tainting data objects and/or specific values.
-- **[Server Actions](/docs/app/getting-started/mutating-data):** Ensure users are authorized to call Server Actions. Review the recommended [security practices](/blog/security-nextjs-server-components-actions).
+- **[Server Actions](/docs/app/getting-started/mutating-data):** Verify authentication and authorization inside each action. Do not rely on Proxy or layout or page level checks alone. Move database access to a `server-only` [Data Access Layer](/docs/app/guides/data-security#data-access-layer) and consider [rate limiting](/docs/app/guides/backend-for-frontend#rate-limiting) for expensive operations. Review the recommended [security practices](/blog/security-nextjs-server-components-actions).
 
 </AppOnly>
 

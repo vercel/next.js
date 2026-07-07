@@ -3,6 +3,7 @@ import path from 'path'
 import { Worker } from '../../lib/worker'
 import { NextBuildContext } from '../build-context'
 import { exportTraceState, recordTraceEvents } from '../../trace'
+import type { Telemetry } from '../../telemetry/storage'
 
 async function turbopackBuildWithWorker(): ReturnType<
   typeof import('./impl').turbopackBuild
@@ -35,24 +36,22 @@ async function turbopackBuildWithWorker(): ReturnType<
       config: _config,
       ...prunedBuildContext
     } = NextBuildContext
-    const { buildTraceContext, duration, debugTraceEvents } =
-      await worker.workerMain({
-        buildContext: prunedBuildContext,
-        traceState: {
-          ...exportTraceState(),
-          defaultParentSpanId: nextBuildSpan.getId(),
-          shouldSaveTraceEvents: true,
-        },
-      })
-
-    if (debugTraceEvents) {
-      recordTraceEvents(debugTraceEvents)
-    }
+    const { buildTraceContext, duration } = await worker.workerMain({
+      buildContext: prunedBuildContext,
+      traceState: {
+        ...exportTraceState(),
+        defaultParentSpanId: nextBuildSpan.getId(),
+        shouldSaveTraceEvents: true,
+      },
+    })
 
     return {
       // destroy worker when Turbopack has shutdown so it's not sticking around using memory
       // We need to wait for shutdown to make sure filesystem cache is flushed
-      shutdownPromise: worker.waitForShutdown().then(() => {
+      shutdownPromise: worker.waitForShutdown().then(({ debugTraceEvents }) => {
+        if (debugTraceEvents) {
+          recordTraceEvents(debugTraceEvents)
+        }
         worker.end()
       }),
       buildTraceContext,
@@ -78,16 +77,18 @@ async function turbopackBuildWithWorker(): ReturnType<
 }
 
 export function turbopackBuild(
-  withWorker: boolean
+  withWorker: boolean,
+  telemetry: Telemetry
 ): ReturnType<typeof import('./impl').turbopackBuild> {
   const nextBuildSpan = NextBuildContext.nextBuildSpan!
   return nextBuildSpan.traceChild('run-turbopack').traceAsyncFn(async () => {
     if (withWorker) {
+      // Worker creates its own Telemetry instance; no need to forward.
       return await turbopackBuildWithWorker()
     } else {
       const build = (require('./impl') as typeof import('./impl'))
         .turbopackBuild
-      return await build()
+      return await build(telemetry)
     }
   })
 }

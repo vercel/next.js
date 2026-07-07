@@ -11,7 +11,7 @@ export type LoadingModuleData =
   | [React.JSX.Element, React.ReactNode, React.ReactNode]
   | null
 
-import type { VaryParamsThenable } from './segment-cache/vary-params-decoding'
+import type { VaryParamsIterable } from './segment-cache/vary-params-decoding'
 
 /** viewport metadata node */
 export type HeadData = React.ReactNode
@@ -49,7 +49,36 @@ export type CacheNode = {
   head: HeadData
 
   slots: Record<string, CacheNode> | null
+
+  /**
+   * A shared mutable ref that tracks whether this segment should be scrolled
+   * to. All new segments created during a single navigation share the same
+   * ref. When any segment's scroll handler fires, it sets `current` to
+   * `false` so no other segment scrolls for the same navigation.
+   *
+   * `null` means this segment is not a scroll target (e.g., a reused shared
+   * layout segment).
+   */
+  scrollRef: ScrollRef | null
+
+  /**
+   * Globally-unique identifier minted from a monotonic counter when the
+   * CacheNode is freshly created. Surfaced to user code as a string via
+   * `useRouter().bfcacheId` and intended to be used as a React `key` to
+   * opt out of Activity-based state preservation on fresh navigations.
+   *
+   * Preserved when the CacheNode is reused (shared layouts, refresh,
+   * search/hash-only navigations) or restored from the BFCache during a
+   * back/forward navigation.
+   */
+  bfcacheId: number
 }
+
+/**
+ * A mutable ref shared across all new segments created during a single
+ * navigation. Used to ensure that only one segment scrolls per navigation.
+ */
+export type ScrollRef = { current: boolean }
 
 export type DynamicParamTypes =
   | 'catchall'
@@ -152,20 +181,133 @@ export type FlightRouterState = [
 export type CompressedRefreshState = [url: string, renderedSearch: string]
 
 export const enum PrefetchHint {
-  // This segment has a runtime prefetch enabled (via unstable_instant with
+  // This segment has a runtime prefetch enabled (via instant with
   // prefetch: 'runtime'). Per-segment only, does not propagate to ancestors.
   HasRuntimePrefetch = 0b00001,
-  // This segment or one of its descendants has an instant config defined
-  // (any truthy unstable_instant, regardless of prefetch mode). Propagates
-  // upward so the root segment reflects the entire subtree.
-  SubtreeHasInstant = 0b00010,
+  // This segment or one of its descendants opts into Partial Prefetching.
+  // Currently set when a truthy instant config is present on any
+  // segment in the subtree (regardless of prefetch mode). Propagates upward
+  // so the root segment reflects the entire subtree.
+  SubtreeHasPartialPrefetching = 0b00010,
   // This segment itself has a loading.tsx boundary.
   SegmentHasLoadingBoundary = 0b00100,
   // A descendant segment (but not this one) has a loading.tsx boundary.
   // Propagates upward so the root reflects the entire subtree.
   SubtreeHasLoadingBoundary = 0b01000,
-  // This segment is the root layout of the application.
-  IsRootLayout = 0b10000,
+  // This segment is at or above the application's root layout — the root layout
+  // segment itself and all of its ancestors. A dynamic param in one of these
+  // segments is a "root param".
+  IsRootLayoutOrAbove = 0b10000,
+  // This segment's response includes its parent's data inlined into it.
+  // Set at build time by the segment size measurement pass.
+  ParentInlinedIntoSelf = 0b100000,
+  // This segment's data is inlined into one of its children — don't fetch
+  // it separately. Set at build time by the segment size measurement pass.
+  InlinedIntoChild = 0b1000000,
+  // On a __PAGE__: this page's response includes the head (metadata/viewport)
+  // at the end of its SegmentPrefetch[] array.
+  HeadInlinedIntoSelf = 0b10000000,
+  // On the root hint node: the head was NOT inlined into any page — fetch
+  // it separately. Absence of this bit means the head is bundled into a page.
+  HeadOutlined = 0b100000000,
+  // The inlining hints in this tree may be stale because the tree was
+  // generated before collectPrefetchHints ran (e.g. the initial RSC payload
+  // for a fully static page at build time). When writing this tree into the
+  // cache, the route entry should be immediately expired so it gets
+  // re-fetched with correct hints. Only set during build-time prerendering,
+  // never at runtime.
+  InliningHintsStale = 0b1000000000,
+  // This segment has instant = false, opting out of all
+  // prefetching entirely (neither static nor runtime).
+  PrefetchDisabled = 0b10000000000,
+  // This segment or one of its descendants has runtime prefetch enabled
+  // (HasRuntimePrefetch). Propagates upward so the root reflects the
+  // entire subtree.
+  SubtreeHasRuntimePrefetch = 0b100000000000,
+  // This segment or one of its descendants prefetches "eagerly" — i.e. its
+  // effective prefetch strategy is anything other than 'partial' or
+  // 'allow-runtime'. Used by App Shells: a non-eager subtree relies on the
+  // shared app shell and skips its Speculative prefetch. Propagates upward so
+  // the root reflects the entire subtree.
+  SubtreeHasEagerPrefetch = 0b1000000000000,
+  // This segment or one of its descendants exports `instant = false`,
+  // explicitly opting out of Partial Prefetching. Propagates upward so the root
+  // reflects the entire subtree. Used only to suppress the dev-time
+  // `<Link prefetch={true}>` warning — unlike PrefetchDisabled, it has no effect
+  // on the actual prefetch behavior.
+  SubtreeHasInstantFalse = 0b10000000000000,
+}
+
+/**
+ * Bitmask for checking whether a segment's static prefetch is skipped. Matches
+ * if EITHER bit is set — i.e. the segment uses runtime prefetching
+ * (HasRuntimePrefetch) OR prefetching is disabled entirely (PrefetchDisabled,
+ * e.g. instant = false). The segment participates in the bundle chain
+ * but with null data.
+ *
+ * Usage: `(hints & StaticPrefetchDisabled) !== 0`
+ */
+export const StaticPrefetchDisabled =
+  PrefetchHint.HasRuntimePrefetch | PrefetchHint.PrefetchDisabled
+
+/**
+ * The subset of PrefetchHint bits that propagate upward from a child segment to
+ * its ancestors (as opposed to segment-local bits like SegmentHasLoadingBoundary
+ * or IsRootLayoutOrAbove). Used to clear stale propagated bits before re-deriving them
+ * from a node's children.
+ */
+export const SubtreePrefetchHints =
+  PrefetchHint.SubtreeHasPartialPrefetching |
+  PrefetchHint.SubtreeHasLoadingBoundary |
+  PrefetchHint.SubtreeHasRuntimePrefetch |
+  PrefetchHint.SubtreeHasInstantFalse |
+  PrefetchHint.SubtreeHasEagerPrefetch
+
+/**
+ * Folds a child segment's prefetch hints into its parent's, propagating the
+ * "subtree" flags. A child's segment-local flag (e.g. it has a loading boundary,
+ * or it has a runtime prefetch) becomes the corresponding "subtree" flag on the
+ * parent, so the root segment ends up reflecting the entire subtree.
+ *
+ * Used wherever a route tree is assembled bottom-up: on the server when building
+ * a prefetch tree (createFlightRouterStateFromLoaderTree) and on the client when
+ * merging a navigation patch into the existing tree (convertServerPatchToFullTree).
+ * Keep these in sync by routing both through this helper.
+ */
+export function propagateSubtreeBits(
+  parentHints: number,
+  childHints: number
+): number {
+  if (childHints & PrefetchHint.SubtreeHasPartialPrefetching) {
+    parentHints |= PrefetchHint.SubtreeHasPartialPrefetching
+  }
+  // A child with a loading boundary (directly, or anywhere in its subtree) makes
+  // this a SubtreeHasLoadingBoundary on the parent.
+  if (
+    childHints &
+    (PrefetchHint.SegmentHasLoadingBoundary |
+      PrefetchHint.SubtreeHasLoadingBoundary)
+  ) {
+    parentHints |= PrefetchHint.SubtreeHasLoadingBoundary
+  }
+  // Likewise for runtime prefetch.
+  if (
+    childHints &
+    (PrefetchHint.HasRuntimePrefetch | PrefetchHint.SubtreeHasRuntimePrefetch)
+  ) {
+    parentHints |= PrefetchHint.SubtreeHasRuntimePrefetch
+  }
+  // And for eager prefetch. The bit is set directly on each eager segment, so
+  // there's no separate segment-local flag — propagate it as-is.
+  if (childHints & PrefetchHint.SubtreeHasEagerPrefetch) {
+    parentHints |= PrefetchHint.SubtreeHasEagerPrefetch
+  }
+  // And for `instant = false`. Like eager prefetch, the bit is set directly on
+  // each opted-out segment, so propagate it as-is.
+  if (childHints & PrefetchHint.SubtreeHasInstantFalse) {
+    parentHints |= PrefetchHint.SubtreeHasInstantFalse
+  }
+  return parentHints
 }
 
 /**
@@ -200,20 +342,23 @@ export type CacheNodeSeedData = [
   loading: null,
   isPartial: boolean,
   /**
-   * A thenable that resolves to the set of route params this segment accessed
-   * during server rendering. Used by the client router to determine cache key
-   * specificity - segments that only access certain params can be reused across
-   * navigations where unaccessed params change.
+   * An AsyncIterable that yields the route params this segment accessed during
+   * server rendering (one name per yield, deduped). Used by the client router
+   * to determine cache key specificity - segments that only access certain
+   * params can be reused across navigations where unaccessed params change.
    *
-   * - null thenable: tracking was not enabled for this render (e.g., not a
-   *   prerender). Treat conservatively - assume all params vary.
-   * - Thenable resolves to empty Set: segment accesses no params (e.g., client
-   *   components, or server components that don't read params). Can be shared
-   *   across all param values.
-   * - Thenable resolves to non-empty Set: segment depends on those params.
-   *   Can only reuse when those specific params match.
+   * Does NOT include root params; those are emitted once at the top level of
+   * the response (see `r` on the payload) and unioned in by the consumer.
+   *
+   * - null: tracking was not enabled for this render (e.g., not a prerender).
+   *   Treat conservatively - assume all params vary.
+   * - Drains to empty Set: segment accesses no params (e.g., client components,
+   *   or server components that don't read params). Can be shared across all
+   *   param values.
+   * - Drains to non-empty Set: segment depends on those params. Can only reuse
+   *   when those specific params match.
    */
-  varyParams: VaryParamsThenable | null,
+  varyParams: VaryParamsIterable | null,
 ]
 
 export type FlightDataSegment = [
@@ -239,6 +384,23 @@ export type FlightDataPath =
  */
 export type FlightData = Array<FlightDataPath> | string
 
+/**
+ * Per-route prefetch hints computed at build time. Mirrors the shape of the
+ * loader tree so hints can be traversed in parallel during router state
+ * creation. Each node stores a bitmask of PrefetchHint flags
+ * (ParentInlinedIntoSelf, InlinedIntoChild) computed by the segment size
+ * measurement pass.
+ *
+ * Persisted to prefetch-hints.json as Record<string, PrefetchHints> (keyed
+ * by route pattern) and loaded at server startup.
+ */
+export type PrefetchHints = {
+  /** Bitmask of PrefetchHint flags for this segment. */
+  hints: number
+  /** Child hint nodes, keyed by parallel route key. */
+  slots: Record<string, PrefetchHints> | null
+}
+
 export type ActionResult = Promise<any>
 
 export type InitialRSCPayload = {
@@ -260,14 +422,46 @@ export type InitialRSCPayload = {
   S: boolean
   /**
    * headVaryParams - vary params for the head (metadata) of the response.
+   * Does not include root params (see `r`).
    */
-  h: VaryParamsThenable | null
+  h: VaryParamsIterable | null
+  /**
+   * rootVaryParams - the root params accessed anywhere in the response, emitted
+   * once. The client unions these into the head and every segment's vary
+   * params, rather than the server folding them into each set.
+   */
+  r?: VaryParamsIterable
   /** staleTime in seconds - Only present when Cache Components is enabled. */
   s?: AsyncIterable<number>
   /** staticStageByteLength - Resolves when the static stage ends. */
   l?: Promise<number>
+  /**
+   * shellByteLength - Resolves when the shell stage ends.
+   * If it resolves to null, then the shell is the same as the main response.
+   * */
+  a?: Promise<number | null>
   /** runtimePrefetchStream — Embedded runtime prefetch Flight stream. */
   p?: ReadableStream<Uint8Array>
+  /**
+   * dynamicStaleTime — Per-page BFCache stale time in seconds, from
+   * `unstable_dynamicStaleTime`. Only included for dynamic renders. Controls
+   * how long the client router cache retains dynamic navigation data. This is
+   * distinct from the `s` field, which controls segment cache (prefetch)
+   * staleness.
+   */
+  d?: number
+  /**
+   * revealAfter (dev only). Resolves once the server has flushed the
+   * shell-stage content to the stream (static shell, or runtime-prefetchable
+   * shell for runtime-prefetch routes), or earlier on a cache miss. The client
+   * decodes this from the payload and defers resolving the response's deferred
+   * RSCs on it, so a boundary's children aren't revealed before their row has
+   * been decoded (which would flush a premature Suspense fallback). Its
+   * resolution row follows the children's row in the payload, so the children
+   * are decoded by the time the client unblocks. The HTML render gates on the
+   * same signal server-side instead of reading this field.
+   */
+  _revealAfter?: Promise<void>
 }
 
 // Response from `createFromFetch` for normal rendering
@@ -286,10 +480,48 @@ export type NavigationFlightResponse = {
   s?: AsyncIterable<number>
   /** staticStageByteLength - Resolves when the static stage ends. */
   l?: Promise<number>
-  /** headVaryParams */
-  h: VaryParamsThenable | null
+  /**
+   * shellByteLength - Resolves when the shell stage ends.
+   * If it resolves to null, then the shell is the same as the main response.
+   * */
+  a?: Promise<number | null>
+  /**
+   * shellUsedSessionData - true if resolving session data
+   * unblocked new content in the shell.
+   * NOTE: only use this in runtime/session prefetch requests
+   * where we have a proper session shell.
+   * */
+  u?: Promise<boolean>
+  /** headVaryParams. Does not include root params (see `r`). */
+  h: VaryParamsIterable | null
+  /**
+   * rootVaryParams - the root params accessed anywhere in the response, emitted
+   * once. The client unions these into the head and every segment's vary
+   * params.
+   */
+  r?: VaryParamsIterable
   /** runtimePrefetchStream — Embedded runtime prefetch Flight stream. */
   p?: ReadableStream<Uint8Array>
+  /**
+   * dynamicStaleTime — Per-page BFCache stale time in seconds, from
+   * `unstable_dynamicStaleTime`. Only included for dynamic renders. Controls
+   * how long the client router cache retains dynamic navigation data. This is
+   * distinct from the `s` field, which controls segment cache (prefetch)
+   * staleness.
+   */
+  d?: number
+  /**
+   * revealAfter (dev only). Resolves once the server has flushed the
+   * shell-stage content to the stream (static shell, or runtime-prefetchable
+   * shell for runtime-prefetch routes), or earlier on a cache miss. The client
+   * decodes this from the payload and defers resolving the response's deferred
+   * RSCs on it, so a boundary's children aren't revealed before their row has
+   * been decoded (which would flush a premature Suspense fallback). Its
+   * resolution row follows the children's row in the payload, so the children
+   * are decoded by the time the client unblocks. The HTML render gates on the
+   * same signal server-side instead of reading this field.
+   */
+  _revealAfter?: Promise<void>
 }
 
 // Response from `createFromFetch` for server actions. Action's flight data can be null
@@ -310,3 +542,15 @@ export type RSCPayload =
   | InitialRSCPayload
   | NavigationFlightResponse
   | ActionFlightResponse
+
+export type InstantCookie =
+  // pending (waiting to capture)
+  | [captured: 0, id: string]
+  // captured MPA page load
+  | [captured: 1, id: string, state: null]
+  // captured SPA navigation (from/to route trees)
+  | [
+      captured: 1,
+      id: string,
+      state: { from: FlightRouterState; to: FlightRouterState | null },
+    ]

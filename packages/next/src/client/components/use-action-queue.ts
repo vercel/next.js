@@ -2,16 +2,33 @@ import type { Dispatch } from 'react'
 import React, { use, useMemo, useOptimistic } from 'react'
 import { isThenable } from '../../shared/lib/is-thenable'
 import type { AppRouterActionQueue } from './app-router-instance'
-import type {
-  AppRouterState,
-  ReducerActions,
-  ReducerState,
+import {
+  ACTION_REFRESH,
+  type AppRouterState,
+  type ReducerActions,
+  type ReducerState,
 } from './router-reducer/router-reducer-types'
 
 // The app router state lives outside of React, so we can import the dispatch
 // method directly wherever we need it, rather than passing it around via props
 // or context.
 let dispatch: Dispatch<ReducerActions> | null = null
+
+/**
+ * Called when the instant navigation test lock is released. If the router
+ * is initialized, dispatches a soft refresh to fetch dynamic data. If not
+ * (e.g. the lock was released before hydration finished), falls back to a
+ * hard reload.
+ */
+export function refreshOnInstantNavigationUnlock() {
+  if (process.env.__NEXT_EXPOSE_TESTING_API) {
+    if (dispatch !== null) {
+      dispatch({ type: ACTION_REFRESH, bypassCacheInvalidation: true })
+    } else {
+      window.location.reload()
+    }
+  }
+}
 
 export function dispatchAppRouterAction(action: ReducerActions) {
   if (dispatch === null) {

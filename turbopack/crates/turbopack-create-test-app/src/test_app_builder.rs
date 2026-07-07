@@ -48,9 +48,8 @@ pub enum EffectMode {
     None,
     /// As a direct `useEffect` hook in the component's body.
     Hook,
-    /// Rendering an <Effect /> client-side component that has the `useEffect`
-    /// hook instead. Good for testing React Server Components, as they can't
-    /// use `useEffect` hooks directly.
+    /// Rendering an `<Effect />` client-side component that has the `useEffect` hook instead. Good
+    /// for testing React Server Components, as they can't use `useEffect` hooks directly.
     Component,
 }
 

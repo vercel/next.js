@@ -16,6 +16,7 @@ use turbopack_core::{
 };
 
 use crate::{
+    next_config::NextConfig,
     next_edge::entry::wrap_edge_entry,
     pages_structure::{PagesStructure, PagesStructureItem},
     util::{NextRuntime, file_content_rope, load_next_js_template, pages_function_name},
@@ -37,6 +38,7 @@ pub async fn create_page_ssr_entry_module(
     source: Vc<Box<dyn Source>>,
     next_original_name: RcStr,
     pages_structure: Vc<PagesStructure>,
+    next_config: Vc<NextConfig>,
     runtime: NextRuntime,
 ) -> Result<Vc<PageSsrEntryModule>> {
     let definition_page = next_original_name;
@@ -95,6 +97,56 @@ pub async fn create_page_ssr_entry_module(
     }
 
     let pages_structure_ref = pages_structure.await?;
+    let mut cache_handler_inner_assets = fxindexmap! {};
+    let mut cache_handler_imports = String::new();
+    let mut cache_handler_registration = String::new();
+    let mut incremental_cache_handler_import = None;
+
+    if runtime == NextRuntime::Edge {
+        if is_page {
+            let cache_handlers = next_config.cache_handlers_map().owned().await?;
+            for (index, (kind, handler_path)) in cache_handlers.iter().enumerate() {
+                let cache_handler_inner: RcStr = format!("INNER_CACHE_HANDLER_{index}").into();
+                let cache_handler_var = format!("cacheHandler{index}");
+                cache_handler_imports.push_str(&format!(
+                    "import {cache_handler_var} from {};\n",
+                    serde_json::to_string(&*cache_handler_inner)?
+                ));
+                cache_handler_registration.push_str(&format!(
+                    "  cacheHandlers.setCacheHandler({}, {cache_handler_var});\n",
+                    serde_json::to_string(kind.as_str())?
+                ));
+
+                let cache_handler_module = ssr_module_context
+                    .process(
+                        Vc::upcast(FileSource::new(project_root.join(handler_path)?)),
+                        ReferenceType::Undefined,
+                    )
+                    .module()
+                    .to_resolved()
+                    .await?;
+                cache_handler_inner_assets.insert(cache_handler_inner, cache_handler_module);
+            }
+        }
+
+        for cache_handler_path in next_config
+            .cache_handler(project_root.clone())
+            .await?
+            .into_iter()
+        {
+            let cache_handler_inner = rcstr!("INNER_INCREMENTAL_CACHE_HANDLER");
+            incremental_cache_handler_import = Some(cache_handler_inner.clone());
+            let cache_handler_module = ssr_module_context
+                .process(
+                    Vc::upcast(FileSource::new(cache_handler_path.clone())),
+                    ReferenceType::Undefined,
+                )
+                .module()
+                .to_resolved()
+                .await?;
+            cache_handler_inner_assets.insert(cache_handler_inner, cache_handler_module);
+        }
+    }
 
     let (injections, imports) = if is_page && runtime == NextRuntime::Edge {
         let injections = vec![
@@ -116,16 +168,24 @@ pub async fn create_page_ssr_entry_module(
                 "user500RouteModuleOptions",
                 serde_json::to_string(&get_route_module_options(rcstr!("/500"), rcstr!("/500")))?,
             ),
+            ("cacheHandlerImports", cache_handler_imports),
+            ("cacheHandlerRegistration", cache_handler_registration),
         ];
         let imports = vec![
-            // TODO
-            ("incrementalCacheHandler", None),
+            ("incrementalCacheHandler", incremental_cache_handler_import),
             (
                 "userland500Page",
-                pages_structure_ref.error_500.map(|_| &*inner_error_500),
+                pages_structure_ref
+                    .error_500
+                    .map(|_| inner_error_500.clone()),
             ),
         ];
         (injections, imports)
+    } else if runtime == NextRuntime::Edge {
+        (
+            vec![],
+            vec![("incrementalCacheHandler", incremental_cache_handler_import)],
+        )
     } else {
         (vec![], vec![])
     };
@@ -136,7 +196,9 @@ pub async fn create_page_ssr_entry_module(
         project_root.clone(),
         replacements,
         injections.iter().map(|(k, v)| (*k, &**v)),
-        imports,
+        imports
+            .iter()
+            .map(|(k, v)| (*k, v.as_ref().map(|value| value.as_str()))),
     )
     .await?;
 
@@ -167,6 +229,7 @@ pub async fn create_page_ssr_entry_module(
     let mut inner_assets = fxindexmap! {
         inner => ssr_module,
     };
+    inner_assets.extend(cache_handler_inner_assets);
 
     // for PagesData we apply a ?server-data query parameter to avoid conflicts with the Page
     // module.

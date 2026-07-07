@@ -1,6 +1,5 @@
-use std::collections::BTreeMap;
-
 use anyhow::{Result, bail};
+use turbo_frozenmap::FrozenMap;
 use turbo_tasks::{ResolvedVc, Vc};
 use turbopack_core::{
     chunk::{
@@ -33,7 +32,9 @@ use crate::{
 
 /// A module derived from an original ecmascript module that contains all
 /// the reexports from that module and also reexports the locals from
-/// [EcmascriptModuleLocalsModule].
+/// [`EcmascriptModuleLocalsModule`].
+///
+/// [`EcmascriptModuleLocalsModule`]: crate::side_effect_optimization::locals::module::EcmascriptModuleLocalsModule
 #[turbo_tasks::value]
 pub struct EcmascriptModuleFacadeModule {
     module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
@@ -99,8 +100,14 @@ impl EcmascriptModuleFacadeModule {
 #[turbo_tasks::value_impl]
 impl Module for EcmascriptModuleFacadeModule {
     #[turbo_tasks::function]
-    fn ident(&self) -> Vc<AssetIdent> {
-        self.module.ident().with_part(ModulePart::Facade)
+    async fn ident(&self) -> Result<Vc<AssetIdent>> {
+        Ok(self
+            .module
+            .ident()
+            .owned()
+            .await?
+            .with_part(ModulePart::Facade)
+            .into_vc())
     }
 
     #[turbo_tasks::function]
@@ -124,12 +131,12 @@ impl Module for EcmascriptModuleFacadeModule {
         let async_module = self.async_module();
         let references = self.references();
         let is_self_async = async_module
-            .resolve()
+            .to_resolved()
             .await?
-            .is_self_async(references.resolve().await?)
-            .resolve()
+            .is_self_async(*references.to_resolved().await?)
+            .to_resolved()
             .await?;
-        Ok(is_self_async)
+        Ok(*is_self_async)
     }
 
     #[turbo_tasks::function]
@@ -187,18 +194,16 @@ impl EcmascriptAnalyzable for EcmascriptModuleFacadeModule {
 impl EcmascriptChunkPlaceable for EcmascriptModuleFacadeModule {
     #[turbo_tasks::function]
     async fn get_exports(&self) -> Result<Vc<EcmascriptExports>> {
-        let mut exports = BTreeMap::new();
-        let mut star_exports = Vec::new();
-
         let EcmascriptExports::EsmExports(esm_exports) = &*self.module.get_exports().await? else {
             bail!("EcmascriptModuleFacadeModule must only be used on modules with EsmExports");
         };
         let esm_exports = esm_exports.await?;
+        let mut exports = Vec::with_capacity(esm_exports.exports.len());
         for (name, export) in &esm_exports.exports {
             let name = name.clone();
             match export {
                 EsmExport::LocalBinding(_, liveness) => {
-                    exports.insert(
+                    exports.push((
                         name.clone(),
                         EsmExport::ImportedBinding(
                             ResolvedVc::upcast(
@@ -213,27 +218,26 @@ impl EcmascriptChunkPlaceable for EcmascriptModuleFacadeModule {
                             name,
                             *liveness == Liveness::Mutable,
                         ),
-                    );
+                    ));
                 }
                 EsmExport::ImportedNamespace(reference) => {
-                    exports.insert(name, EsmExport::ImportedNamespace(*reference));
+                    exports.push((name, EsmExport::ImportedNamespace(*reference)));
                 }
                 EsmExport::ImportedBinding(reference, imported_name, mutable) => {
-                    exports.insert(
+                    exports.push((
                         name,
                         EsmExport::ImportedBinding(*reference, imported_name.clone(), *mutable),
-                    );
+                    ));
                 }
                 EsmExport::Error => {
-                    exports.insert(name, EsmExport::Error);
+                    exports.push((name, EsmExport::Error));
                 }
             }
         }
-        star_exports.extend(esm_exports.star_exports.iter().copied());
 
         let exports = EsmExports {
-            exports,
-            star_exports,
+            exports: FrozenMap::from_unique_sorted_box(exports.into_boxed_slice()),
+            star_exports: esm_exports.star_exports.clone(),
         }
         .resolved_cell();
         Ok(EcmascriptExports::EsmExports(exports).cell())

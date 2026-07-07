@@ -305,8 +305,10 @@ export default defineConfig([
         {
           additionalTestBlockFunctions: [
             'retry',
+            'itSkipDeploy',
             'itCI',
             'itHeaded',
+            'itTurbopack',
             'itTurbopackDev',
             'itOnlyTurbopack',
           ],
@@ -391,6 +393,34 @@ export default defineConfig([
       '@typescript-eslint/no-use-before-define': 'off',
       '@typescript-eslint/no-useless-constructor': 'error',
       '@typescript-eslint/prefer-literal-enum-member': 'error',
+    },
+  },
+  {
+    // This block mirrors the `files`/`ignores` of the type-checked config in
+    // eslint.cli.config.mjs, so it targets exactly the files for which those
+    // type-aware rules run. Use it to override non-type-checked rules whose
+    // behavior overlaps with a type-checked rule. Keep the globs below in sync
+    // with eslint.cli.config.mjs.
+    files: ['**/*.ts', '**/*.tsx'],
+    ignores: [
+      'bench/**/*',
+      // Eval fixtures are sandbox workspaces with their own package.json and
+      // tsconfig, not repo code — EVAL.ts files may import modules that only
+      // resolve inside the sandbox (e.g. @vercel/agent-eval/eval).
+      'evals/evals/**/*',
+      'examples/**/*',
+      'test/**/*',
+      '**/*.d.ts',
+      'turbopack/**/*',
+    ],
+    rules: {
+      // `@typescript-eslint/switch-exhaustiveness-check` already enforces
+      // complete switch coverage on these files: every member of a union or
+      // enum must be handled, and with `requireDefaultForNonUnion` a default
+      // is required for switches on plain types (string, number, …). Leaving
+      // `default-case` on would additionally force a redundant default on
+      // exhaustive union/enum switches.
+      'default-case': 'off',
     },
   },
   {

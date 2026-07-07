@@ -10,13 +10,12 @@ use swc_core::{
     },
     quote,
 };
-use turbo_rcstr::RcStr;
 use turbo_tasks::{
     NonLocalValue, ReadRef, ResolvedVc, TryJoinIterExt, ValueToString, Vc, debug::ValueDebugFormat,
     trace::TraceRawVcs,
 };
 use turbopack_core::{
-    chunk::{ChunkingContext, ChunkingType, ChunkingTypeOption, ModuleChunkItemIdExt},
+    chunk::{ChunkingContext, ChunkingType, ModuleChunkItemIdExt},
     issue::IssueSource,
     reference::ModuleReference,
     reference_type::{CommonJsReferenceSubType, EcmaScriptModulesReferenceSubType},
@@ -41,7 +40,8 @@ use crate::{
 /// `import.meta.hot.accept(dep, callback)`. Ensures the accepted dependency is included
 /// in the chunk graph so it can be hot-replaced at runtime.
 #[turbo_tasks::value]
-#[derive(Hash, Debug)]
+#[derive(Hash, Debug, ValueToString)]
+#[value_to_string("module.hot.accept/decline {request}")]
 pub struct ModuleHotReferenceAssetReference {
     origin: ResolvedVc<Box<dyn ResolveOrigin>>,
     pub request: ResolvedVc<Request>,
@@ -70,9 +70,10 @@ impl ModuleHotReferenceAssetReference {
     }
 }
 
-impl ModuleHotReferenceAssetReference {
-    /// Shared resolve logic used by both `resolve_reference` and code generation.
-    pub async fn resolve(&self) -> Result<Vc<ModuleResolveResult>> {
+#[turbo_tasks::value_impl]
+impl ModuleReference for ModuleHotReferenceAssetReference {
+    #[turbo_tasks::function]
+    async fn resolve_reference(&self) -> Result<Vc<ModuleResolveResult>> {
         if self.is_esm {
             esm_resolve(
                 *self.origin,
@@ -92,32 +93,12 @@ impl ModuleHotReferenceAssetReference {
             ))
         }
     }
-}
 
-#[turbo_tasks::value_impl]
-impl ValueToString for ModuleHotReferenceAssetReference {
-    #[turbo_tasks::function]
-    async fn to_string(&self) -> Result<Vc<RcStr>> {
-        let request_str = self.request.to_string().await?;
-        Ok(Vc::cell(
-            format!("module.hot.accept/decline {}", request_str).into(),
-        ))
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl ModuleReference for ModuleHotReferenceAssetReference {
-    #[turbo_tasks::function]
-    async fn resolve_reference(&self) -> Result<Vc<ModuleResolveResult>> {
-        self.resolve().await
-    }
-
-    #[turbo_tasks::function]
-    fn chunking_type(self: Vc<Self>) -> Vc<ChunkingTypeOption> {
-        Vc::cell(Some(ChunkingType::Parallel {
+    fn chunking_type(&self) -> Option<ChunkingType> {
+        Some(ChunkingType::Parallel {
             inherit_async: false,
             hoisted: false,
-        }))
+        })
     }
 }
 
@@ -156,7 +137,7 @@ impl ModuleHotReferenceCodeGen {
             .iter()
             .map(|reference| async move {
                 let r = reference.await?;
-                let resolve_result = r.resolve().await?;
+                let resolve_result = reference.resolve_reference();
                 PatternMapping::resolve_request(
                     *r.request,
                     *r.origin,
@@ -179,10 +160,9 @@ impl ModuleHotReferenceCodeGen {
                     return Ok(None);
                 };
                 let referenced_asset = esm_ref.get_referenced_asset().await?;
-                match &*referenced_asset {
+                match &referenced_asset {
                     ReferencedAsset::Some(asset) => {
-                        let imported_module = &*referenced_asset;
-                        let ident = imported_module
+                        let ident = referenced_asset
                             .get_ident(chunking_context, None, scope_hoisting_context)
                             .await?;
                         if let Some((namespace_ident, ctxt)) =

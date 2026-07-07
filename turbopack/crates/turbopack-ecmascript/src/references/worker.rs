@@ -1,8 +1,8 @@
 use anyhow::Result;
 use bincode::{Decode, Encode};
 use swc_core::{
-    common::util::take::Take,
-    ecma::ast::{CallExpr, Callee, Expr, ExprOrSpread, Lit},
+    common::{DUMMY_SP, util::take::Take},
+    ecma::ast::{ArrayLit, CallExpr, Callee, Expr, ExprOrSpread, Lit, Null},
     quote_expr,
 };
 use turbo_rcstr::{RcStr, rcstr};
@@ -12,7 +12,7 @@ use turbo_tasks::{
 };
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
-    chunk::{ChunkableModule, ChunkingContext, ChunkingType, ChunkingTypeOption, EvaluatableAsset},
+    chunk::{ChunkableModule, ChunkingContext, ChunkingType, EvaluatableAsset},
     context::AssetContext,
     issue::{IssueExt, IssueSeverity, IssueSource, StyledString, code_gen::CodeGenerationIssue},
     module::Module,
@@ -116,7 +116,8 @@ impl WorkerAssetReference {
 impl ModuleReference for WorkerAssetReference {
     #[turbo_tasks::function]
     async fn resolve_reference(&self) -> Result<Vc<ModuleResolveResult>> {
-        let asset_context = self.origin.asset_context().to_resolved().await?;
+        let origin = self.origin.into_trait_ref().await?;
+        let asset_context = origin.asset_context();
 
         let result = match (&self.worker_type, &self.request) {
             (WorkerType::WebWorker | WorkerType::SharedWebWorker, WorkerRequest::Url(request)) => {
@@ -151,9 +152,9 @@ impl ModuleReference for WorkerAssetReference {
                 handle_resolve_error(
                     result,
                     reference_type.clone(),
-                    *self.origin,
+                    origin.origin_path(),
                     Request::parse(path.owned().await?),
-                    self.origin.resolve_options(),
+                    origin.resolve_options(),
                     self.error_mode,
                     Some(self.issue_source),
                 )
@@ -195,7 +196,7 @@ impl ModuleReference for WorkerAssetReference {
                                 .await?,
                             )
                             .resolved_cell(),
-                            path: self.origin.origin_path().owned().await?,
+                            path: origin.origin_path(),
                             source: Some(self.issue_source),
                         }
                         .resolved_cell()
@@ -224,7 +225,7 @@ impl ModuleReference for WorkerAssetReference {
                                 .await?,
                             )
                             .resolved_cell(),
-                            path: self.origin.origin_path().owned().await?,
+                            path: origin.origin_path(),
                             source: Some(self.issue_source),
                         }
                         .resolved_cell()
@@ -256,12 +257,15 @@ impl ModuleReference for WorkerAssetReference {
         .cell())
     }
 
-    #[turbo_tasks::function]
-    fn chunking_type(self: Vc<Self>) -> Vc<ChunkingTypeOption> {
-        Vc::cell(Some(ChunkingType::Parallel {
+    fn chunking_type(&self) -> Option<ChunkingType> {
+        Some(ChunkingType::Parallel {
             inherit_async: false,
             hoisted: false,
-        }))
+        })
+    }
+
+    fn source(&self) -> Option<IssueSource> {
+        Some(self.issue_source)
     }
 }
 
@@ -270,7 +274,13 @@ impl WorkerAssetReference {
     async fn get_module_type_issue_severity(&self) -> Result<IssueSeverity> {
         Ok(
             if self.error_mode != ResolveErrorMode::Error
-                || self.origin.resolve_options().await?.loose_errors
+                || self
+                    .origin
+                    .into_trait_ref()
+                    .await?
+                    .resolve_options()
+                    .await?
+                    .loose_errors
             {
                 IssueSeverity::Warning
             } else {
@@ -395,5 +405,63 @@ impl WorkerAssetReferenceCodeGen {
         });
 
         Ok(CodeGeneration::visitors(vec![visitor]))
+    }
+}
+
+#[derive(
+    PartialEq, Eq, TraceRawVcs, ValueDebugFormat, NonLocalValue, Debug, Hash, Encode, Decode,
+)]
+pub enum WorkerGlobalPlaceholder {
+    /// `const _TURBOPACK_WORKER_FORWARDED_GLOBALS_ = []`
+    ForwardedGlobals,
+    /// `const _TURBOPACK_WORKER_BASE_PATH_ = '_TURBOPACK_WORKER_BASE_PATH_REPLACE_'`
+    BasePath,
+}
+
+#[derive(
+    PartialEq, Eq, TraceRawVcs, ValueDebugFormat, NonLocalValue, Debug, Hash, Encode, Decode,
+)]
+pub struct WorkerGlobalsReplacementCodeGen {
+    /// Which placeholder this codegen replaces (determines the injected value).
+    placeholder: WorkerGlobalPlaceholder,
+    path: AstPath,
+}
+
+impl WorkerGlobalsReplacementCodeGen {
+    pub fn new(placeholder: WorkerGlobalPlaceholder, path: AstPath) -> Self {
+        WorkerGlobalsReplacementCodeGen { placeholder, path }
+    }
+
+    pub async fn code_generation(
+        &self,
+        chunking_context: Vc<Box<dyn ChunkingContext>>,
+    ) -> Result<CodeGeneration> {
+        let options = chunking_context.worker_configuration_options().await?;
+        let value: Expr = match self.placeholder {
+            WorkerGlobalPlaceholder::ForwardedGlobals => Expr::Array(ArrayLit {
+                span: DUMMY_SP,
+                elems: options
+                    .forwarded_globals
+                    .iter()
+                    .map(|global| Some(Expr::Lit(Lit::Str(global.as_str().into())).into()))
+                    .collect(),
+            }),
+            WorkerGlobalPlaceholder::BasePath => match &options.asset_prefix {
+                Some(asset_prefix) => Expr::Lit(Lit::Str(asset_prefix.as_str().into())),
+                None => Expr::Lit(Lit::Null(Null { span: DUMMY_SP })),
+            },
+        };
+
+        let visitor = create_visitor!(self.path, visit_mut_expr, |expr: &mut Expr| {
+            *expr = value.clone();
+        });
+
+        Ok(CodeGeneration::visitors(vec![visitor]))
+    }
+}
+
+impl From<WorkerGlobalsReplacementCodeGen> for CodeGen {
+    fn from(val: WorkerGlobalsReplacementCodeGen) -> Self {
+        CodeGen::WorkerGlobalsReplacementCodeGen(val)
     }
 }

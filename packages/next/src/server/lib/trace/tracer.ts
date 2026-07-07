@@ -209,6 +209,24 @@ class NextTracerImpl implements NextTracer {
     return trace.getTracer('next.js', '0.0.1')
   }
 
+  private isTracingEnabled(): boolean {
+    if (this.getActiveScopeSpan()?.isRecording()) {
+      return true
+    }
+
+    const tracerProvider = trace.getTracerProvider() as {
+      getDelegate?: () => { constructor?: { name?: string } } | undefined
+    }
+
+    if (!('getDelegate' in tracerProvider)) {
+      return true
+    }
+
+    return (
+      tracerProvider.getDelegate?.()?.constructor?.name !== 'NoopTracerProvider'
+    )
+  }
+
   public getContext(): ContextAPI {
     return context
   }
@@ -224,6 +242,19 @@ class NextTracerImpl implements NextTracer {
     return trace.getSpan(context?.active())
   }
 
+  /**
+   * Run `fn` with the active span cleared, so spans created inside become new
+   * roots (or parent to incoming propagated context). Used for in-process
+   * Node.js middleware so its span is a sibling of the request span, matching
+   * edge middleware which runs in a detached sandbox.
+   */
+  public runWithDetachedContext<T>(fn: () => T): T {
+    if (!NEXT_OTEL_PERFORMANCE_PREFIX && !this.isTracingEnabled()) {
+      return fn()
+    }
+    return context.with(ROOT_CONTEXT, fn)
+  }
+
   public withPropagatedContext<T, C>(
     carrier: C,
     fn: () => T,
@@ -231,6 +262,14 @@ class NextTracerImpl implements NextTracer {
     force = false
   ): T {
     const activeContext = context.active()
+
+    if (
+      !NEXT_OTEL_PERFORMANCE_PREFIX &&
+      !this.isTracingEnabled() &&
+      !trace.getSpanContext(activeContext)
+    ) {
+      return fn()
+    }
 
     if (force) {
       const remoteContext = propagation.extract(ROOT_CONTEXT, carrier, getter)
@@ -276,6 +315,10 @@ class NextTracerImpl implements NextTracer {
   ): T
   public trace<T>(...args: Array<any>) {
     const [type, fnOrOptions, fnOrEmpty] = args
+
+    if (!NEXT_OTEL_PERFORMANCE_PREFIX && !this.isTracingEnabled()) {
+      return typeof fnOrOptions === 'function' ? fnOrOptions() : fnOrEmpty()
+    }
 
     // coerce options form overload
     const {

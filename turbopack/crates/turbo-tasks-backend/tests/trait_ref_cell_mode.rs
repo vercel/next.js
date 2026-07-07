@@ -3,8 +3,7 @@
 
 use anyhow::Result;
 use turbo_tasks::{
-    IntoTraitRef, State, TraitRef, Upcast, Vc,
-    unmark_top_level_task_may_leak_eventually_consistent_state,
+    State, TraitRef, Upcast, Vc, unmark_top_level_task_may_leak_eventually_consistent_state,
 };
 use turbo_tasks_testing::{Registration, register, run_once};
 

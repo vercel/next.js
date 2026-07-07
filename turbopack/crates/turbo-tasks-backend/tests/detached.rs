@@ -68,7 +68,7 @@ impl<T: TraceRawVcs> TraceRawVcs for WatchSenderTaskInput<T> {
     }
 }
 
-#[turbo_tasks::function]
+#[turbo_tasks::function(root)]
 async fn spawns_detached(
     notify: TransientInstance<NotifyTaskInput>,
     sender: TransientInstance<WatchSenderTaskInput<Option<Vc<u32>>>>,
@@ -138,7 +138,7 @@ struct ChangingInput {
     state: State<u32>,
 }
 
-#[turbo_tasks::function]
+#[turbo_tasks::function(root)]
 async fn spawns_detached_changing(
     sender: TransientInstance<WatchSenderTaskInput<Option<Vc<u32>>>>,
     changing_input_detached: Vc<ChangingInput>,

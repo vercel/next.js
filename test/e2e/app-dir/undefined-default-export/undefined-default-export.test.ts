@@ -14,7 +14,7 @@ describe('Undefined default export', () => {
 
       await expect(browser).toDisplayRedbox(`
        {
-         "code": "E394",
+         "code": "E45",
          "description": "The default export is not a React Component in "/specific-path/1/page"",
          "environmentLabel": null,
          "label": "Runtime Error",
@@ -29,7 +29,7 @@ describe('Undefined default export', () => {
 
       await expect(browser).toDisplayRedbox(`
        {
-         "code": "E394",
+         "code": "E45",
          "description": "The default export is not a React Component in "/specific-path/2/layout"",
          "environmentLabel": null,
          "label": "Runtime Error",
@@ -44,7 +44,7 @@ describe('Undefined default export', () => {
 
       await expect(browser).toDisplayRedbox(`
        {
-         "code": "E394",
+         "code": "E45",
          "description": "The default export is not a React Component in "/will-not-found/not-found"",
          "environmentLabel": null,
          "label": "Runtime Error",

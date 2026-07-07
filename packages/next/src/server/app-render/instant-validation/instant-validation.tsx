@@ -5,7 +5,7 @@ import type {
   InitialRSCPayload,
   Segment,
 } from '../../../shared/lib/app-router-types'
-import type { VaryParamsThenable } from '../../../shared/lib/segment-cache/vary-params-decoding'
+import type { VaryParamsIterable } from '../../../shared/lib/segment-cache/vary-params-decoding'
 import { InvariantError } from '../../../shared/lib/invariant-error'
 import { RenderStage } from '../staged-rendering'
 import { getServerModuleMap } from '../manifests-singleton'
@@ -17,9 +17,14 @@ import {
 } from '../prospective-render-utils'
 import { getDigestForWellKnownError } from '../create-error-handler'
 import {
-  // NOTE: we're in the server layer, so this is a client reference
+  // NOTE: we're in the server layer, so these are client references
   PlaceValidationBoundaryBelowThisLevel,
-} from './boundary'
+  SlotMarker,
+} from '../../../client/components/instant-validation/boundary'
+import {
+  INSTANT_SLOT_MARKER_PREFIX,
+  INSTANT_SLOT_MARKER_SUFFIX,
+} from './boundary-constants'
 import type { ValidationBoundaryTracking } from './boundary-tracking'
 import {
   getLayoutOrPageModule,
@@ -36,11 +41,11 @@ import {
   createNodeStreamWithLateRelease,
   createNodeStreamFromChunks,
 } from './stream-utils'
-import { createDebugChannel } from '../debug-channel-server'
+import type { DebugChannelPair } from '../debug-channel-server'
+import type { FlightComponentMod } from '../stream-ops'
+
 // eslint-disable-next-line import/no-extraneous-dependencies
 import { createFromNodeStream } from 'react-server-dom-webpack/client'
-// eslint-disable-next-line import/no-extraneous-dependencies
-import { renderToReadableStream } from 'react-server-dom-webpack/server'
 import {
   addSearchParamsIfPageSegment,
   isGroupSegment,
@@ -48,6 +53,10 @@ import {
   DEFAULT_SEGMENT_KEY,
   NOT_FOUND_SEGMENT_KEY,
 } from '../../../shared/lib/segment'
+import {
+  isFrameworkErrorRoute,
+  isImplicitValidationSegment,
+} from './instant-config'
 import type { NextParsedUrlQuery } from '../../request-meta'
 
 const filterStackFrame =
@@ -184,26 +193,44 @@ function stringifySegment(segment: Segment): SegmentPath {
 
 export type SegmentStage =
   | RenderStage.Static
+  | RenderStage.ShellRuntime
   | RenderStage.Runtime
   | RenderStage.Dynamic
 
+/** The stages that a prefetched segment can be in. */
+type PrefetchedSegmentStage = Exclude<SegmentStage, RenderStage.Dynamic>
+
+const SEGMENT_STAGE_ORDER = [
+  RenderStage.Static,
+  RenderStage.ShellRuntime,
+  RenderStage.Runtime,
+  RenderStage.Dynamic,
+] as const satisfies readonly SegmentStage[]
+
 export type StageChunks = Record<SegmentStage, Uint8Array[]>
 
-export type StageEndTimes = {
-  [RenderStage.Static]: number
-  [RenderStage.Runtime]: number
-}
+export type StageEndTimes = Record<PrefetchedSegmentStage, number>
+
+type RenderToFlightStream = (
+  ComponentMod: FlightComponentMod,
+  payload: any,
+  clientModules: any,
+  opts: any
+) => AsyncIterable<Uint8Array>
 
 /**
  * Splits an existing staged stream (represented as arrays of chunks)
  * into separate staged streams (also in arrays-of-chunks form), one for each segment.
  * */
 export async function collectStagedSegmentData(
+  ComponentMod: FlightComponentMod,
+  renderFlightStream: RenderToFlightStream,
   fullPageChunks: StageChunks,
   fullPageDebugChunks: Uint8Array[] | null,
   startTime: number,
   hasRuntimePrefetch: boolean,
-  clientReferenceManifest: ClientReferenceManifest
+  clientReferenceManifest: ClientReferenceManifest,
+  createDebugChannel: () => DebugChannelPair | undefined
 ) {
   const debugChannelAbortController = new AbortController()
   const debugStream = fullPageDebugChunks
@@ -227,6 +254,7 @@ export async function collectStagedSegmentData(
     switch (currentStage) {
       case RenderStage.Static:
         return 'Prerender'
+      case RenderStage.ShellRuntime: // TODO(app-shells) - proper environmentName
       case RenderStage.Runtime:
         return hasRuntimePrefetch ? 'Prefetch' : 'Prefetchable'
       case RenderStage.Dynamic:
@@ -274,8 +302,9 @@ export async function collectStagedSegmentData(
 
   /** Track when we advance stages so we can pass them as `endTime` later. */
   const stageEndTimes: StageEndTimes = {
-    [RenderStage.Static]: -1,
-    [RenderStage.Runtime]: -1,
+    [RenderStage.Static]: Infinity,
+    [RenderStage.ShellRuntime]: Infinity,
+    [RenderStage.Runtime]: Infinity,
   }
 
   const renderIntoCacheItem = async (
@@ -286,7 +315,8 @@ export async function collectStagedSegmentData(
       ? createDebugChannel()
       : undefined
 
-    const itemStream = renderToReadableStream(
+    const itemStream = renderFlightStream(
+      ComponentMod,
       data,
       clientReferenceManifest.clientModules,
       {
@@ -299,6 +329,17 @@ export async function collectStagedSegmentData(
           if (digest) {
             return digest
           }
+
+          // Forward existing digests
+          if (
+            error &&
+            typeof error === 'object' &&
+            'digest' in error &&
+            typeof error.digest === 'string'
+          ) {
+            return error.digest
+          }
+
           // We don't need to log the errors because we would have already done that
           // when generating the original Flight stream for the whole page.
           if (
@@ -319,18 +360,28 @@ export async function collectStagedSegmentData(
     await Promise.all([
       // accumulate Flight chunks
       (async () => {
-        for await (const chunk of itemStream.values()) {
+        for await (const chunk of itemStream) {
           writeChunk(cacheEntry.chunks, controller.currentStage, chunk)
         }
       })(),
       // accumulate Debug chunks
       segmentDebugChannel &&
         (async () => {
-          for await (const chunk of segmentDebugChannel.clientSide.readable.values()) {
+          for await (const chunk of segmentDebugChannel.clientSide.readable) {
             cacheEntry.debugChunks!.push(chunk)
           }
         })(),
     ])
+  }
+
+  const advanceStage = (
+    targetStage: Exclude<SegmentStage, RenderStage.Static>
+  ) => {
+    const { currentStage } = controller
+    if (currentStage !== RenderStage.Dynamic) {
+      stageEndTimes[currentStage] = performance.now() + performance.timeOrigin
+    }
+    controller.advanceStage(targetStage)
   }
 
   await runInSequentialTasks(
@@ -347,18 +398,9 @@ export async function collectStagedSegmentData(
         pendingTasks.push(renderIntoCacheItem(segmentData, segmentCacheItem))
       }
     },
-    () => {
-      stageEndTimes[RenderStage.Static] =
-        performance.now() + performance.timeOrigin
-
-      controller.advanceStage(RenderStage.Runtime)
-    },
-    () => {
-      stageEndTimes[RenderStage.Runtime] =
-        performance.now() + performance.timeOrigin
-
-      controller.advanceStage(RenderStage.Dynamic)
-    }
+    () => advanceStage(RenderStage.ShellRuntime),
+    () => advanceStage(RenderStage.Runtime),
+    () => advanceStage(RenderStage.Dynamic)
   )
   await Promise.all(pendingTasks)
 
@@ -378,19 +420,14 @@ function createStagedStreamFromChunks(stageChunks: StageChunks) {
   // and just look at the lengths of the Static/Runtime arrays
   const allChunks = stageChunks[RenderStage.Dynamic]
 
-  const numStaticChunks = stageChunks[RenderStage.Static].length
-  const numRuntimeChunks = stageChunks[RenderStage.Runtime].length
-  const numDynamicChunks = stageChunks[RenderStage.Dynamic].length
-
   let chunkIx = 0
-  let currentStage:
-    | RenderStage.Static
-    | RenderStage.Runtime
-    | RenderStage.Dynamic = RenderStage.Static
+  let currentStage: SegmentStage = RenderStage.Static
   let closed = false
 
-  function push(chunk: Uint8Array) {
-    stream.push(chunk)
+  function emitNewChunks(chunks: Uint8Array[]) {
+    for (; chunkIx < chunks.length; chunkIx++) {
+      stream.push(allChunks[chunkIx])
+    }
   }
 
   function close() {
@@ -401,9 +438,7 @@ function createStagedStreamFromChunks(stageChunks: StageChunks) {
   const stream = new Readable({
     read() {
       // Emit static chunks
-      for (; chunkIx < numStaticChunks; chunkIx++) {
-        push(allChunks[chunkIx])
-      }
+      emitNewChunks(stageChunks[RenderStage.Static])
 
       // If there's no more chunks after this stage, finish the stream.
       if (chunkIx >= allChunks.length) {
@@ -414,31 +449,14 @@ function createStagedStreamFromChunks(stageChunks: StageChunks) {
   })
 
   function advanceStage(
-    stage: RenderStage.Runtime | RenderStage.Dynamic
+    stage: Exclude<SegmentStage, RenderStage.Static>
   ): boolean {
     if (closed) return true
 
-    switch (stage) {
-      case RenderStage.Runtime: {
-        currentStage = RenderStage.Runtime
-        for (; chunkIx < numRuntimeChunks; chunkIx++) {
-          push(allChunks[chunkIx])
-        }
-        break
-      }
-
-      case RenderStage.Dynamic: {
-        currentStage = RenderStage.Dynamic
-        for (; chunkIx < numDynamicChunks; chunkIx++) {
-          push(allChunks[chunkIx])
-        }
-        break
-      }
-
-      default: {
-        stage satisfies never
-      }
-    }
+    // NOTE: we don't special handling for skipping stages,
+    // emitNewChunks will emit anything that hasn't been emitted before.
+    currentStage = stage
+    emitNewChunks(stageChunks[stage])
 
     // If there's no more chunks after this stage, finish the stream.
     if (chunkIx >= allChunks.length) {
@@ -462,24 +480,21 @@ function createStagedStreamFromChunks(stageChunks: StageChunks) {
 
 function writeChunk(
   stageChunks: StageChunks,
-  stage: SegmentStage,
+  currentStage: SegmentStage,
   chunk: Uint8Array
 ) {
-  switch (stage) {
-    case RenderStage.Static: {
-      stageChunks[RenderStage.Static].push(chunk)
-      // fallthrough
-    }
-    case RenderStage.Runtime: {
-      stageChunks[RenderStage.Runtime].push(chunk)
-      // fallthrough
-    }
-    case RenderStage.Dynamic: {
-      stageChunks[RenderStage.Dynamic].push(chunk)
+  // Add the chunk to every stage that's greater or equal to the current stage.
+  // Iterate in reverse (descending order) so that we can easily skip the stages
+  // that are already completed.
+  for (let i = SEGMENT_STAGE_ORDER.length - 1; i >= 0; i--) {
+    const stage = SEGMENT_STAGE_ORDER[i]
+    if (stage >= currentStage) {
+      stageChunks[stage].push(chunk)
+    } else {
+      // Found the first stage that's less than the current stage
+      // (i.e. one that ended and shouldn't get this chunk).
+      // Skip it and the rest.
       break
-    }
-    default: {
-      stage satisfies never
     }
   }
 }
@@ -494,12 +509,15 @@ function writeChunk(
  * to provide extra debug info.
  * */
 export async function createCombinedPayloadStream(
+  ComponentMod: FlightComponentMod,
+  renderFlightStream: RenderToFlightStream,
   payload: InitialRSCPayload,
   extraChunksAbortController: AbortController,
   renderSignal: AbortSignal,
   clientReferenceManifest: ClientReferenceManifest,
   startTime: number,
-  isDebugChannelEnabled: boolean
+  isDebugChannelEnabled: boolean,
+  createDebugChannel: () => DebugChannelPair | undefined
 ) {
   // Collect all the chunks so that we're not dependent on timing of the render.
 
@@ -514,7 +532,8 @@ export async function createCombinedPayloadStream(
 
   await runInSequentialTasks(
     () => {
-      const stream = renderToReadableStream(
+      const stream = renderFlightStream(
+        ComponentMod,
         payload,
         clientReferenceManifest.clientModules,
         {
@@ -526,6 +545,17 @@ export async function createCombinedPayloadStream(
             if (digest) {
               return digest
             }
+
+            // Forward existing digests
+            if (
+              error &&
+              typeof error === 'object' &&
+              'digest' in error &&
+              typeof error.digest === 'string'
+            ) {
+              return error.digest
+            }
+
             // We don't need to log the errors because we would have already done that
             // when generating the original Flight stream for the whole page.
             if (
@@ -546,7 +576,7 @@ export async function createCombinedPayloadStream(
       streamFinished = Promise.all([
         // Accumulate Flight chunks
         (async () => {
-          for await (const chunk of stream.values()) {
+          for await (const chunk of stream) {
             allChunks.push(chunk)
             if (isRenderable) {
               renderableChunks.push(chunk)
@@ -556,7 +586,7 @@ export async function createCombinedPayloadStream(
         // Accumulate debug chunks
         debugChannel &&
           (async () => {
-            for await (const chunk of debugChannel.clientSide.readable.values()) {
+            for await (const chunk of debugChannel.clientSide.readable) {
               debugChunks!.push(chunk)
             }
           })(),
@@ -603,7 +633,7 @@ async function createValidationHead(
   releaseSignal: AbortSignal,
   clientReferenceManifest: ClientReferenceManifest,
   stageEndTimes: StageEndTimes,
-  stage: RenderStage.Static | RenderStage.Runtime
+  stage: PrefetchedSegmentStage
 ): Promise<HeadData> {
   const segmentCacheItem = cache.head
   if (!segmentCacheItem) {
@@ -681,7 +711,7 @@ function deserializeFromChunks<T>(
 type SegmentData = {
   node: React.ReactNode | null
   isPartial: boolean
-  varyParams: VaryParamsThenable | null
+  varyParams: VaryParamsIterable | null
 }
 
 function createSegmentData(seedData: CacheNodeSeedData): SegmentData {
@@ -715,6 +745,7 @@ function createSegmentCacheItem(withDebugChunks: boolean): SegmentCacheItem {
   return {
     chunks: {
       [RenderStage.Static]: [],
+      [RenderStage.ShellRuntime]: [],
       [RenderStage.Runtime]: [],
       [RenderStage.Dynamic]: [],
     },
@@ -736,6 +767,17 @@ type TreeResult = {
   seedData: CacheNodeSeedData
   requiresInstantUI: boolean
   createInstantStack: (() => Error) | null
+  /** First module file path encountered (DFS) inside this subtree,
+   * or null if unavailable. The boundary's own segment may not own a
+   * layout/page module (e.g. a directory whose page lives in a
+   * __PAGE__ child), so we propagate the first one we find upward.
+   * Surfaced in the missing-boundary fallback message as a pointer
+   * to "something inside the subtree that didn't render". */
+  firstModFilePath: string | null
+  /** How deep in the tree the config was found. Higher = more specific.
+   * Used to prefer deeper configs over shallower ones when multiple
+   * slots have configs. */
+  configDepth: number
 }
 
 /**
@@ -764,6 +806,86 @@ function segmentConsumesURLDepth(segment: Segment): boolean {
 }
 
 /**
+ * Walks the LoaderTree to discover validation depth bounds.
+ *
+ * Each route group between URL segments represents a potential
+ * shared/new boundary in a client navigation. When a user navigates
+ * between sibling routes that share a route group layout, that
+ * layout is already mounted — its Suspense boundaries are revealed
+ * and don't cover new content below. By tracking the max group
+ * depth at each URL depth, we can iterate all possible group
+ * boundaries and validate that blocking code is always covered by
+ * Suspense in the new tree. This is conservative: some boundaries
+ * may not correspond to real navigations (e.g. a route group with
+ * no siblings), but it ensures we don't miss real violations.
+ *
+ * The max is taken across all parallel slots. When slots have
+ * different numbers of groups, the deepest slot determines the
+ * iteration range. Shallower slots simply stay entirely shared
+ * at group depths beyond their own group count — they run out
+ * of groups before reaching the boundary, so their content
+ * remains in the Dynamic stage.
+ *
+ * Returns an array where:
+ * - length = max URL depth (number of URL-consuming segments)
+ * - array[i] = max group depth at URL depth i (number of route group
+ *   segments between this URL depth and the next)
+ *
+ * For example, a tree like:
+ *   '' / (outer) / (inner) / dashboard / page
+ * returns [2, 0] — URL depth 0 (root) has 2 group layers before
+ * the next URL segment (dashboard), and URL depth 1 (dashboard) has
+ * 0 group layers before the leaf.
+ */
+export function discoverValidationDepths(loaderTree: LoaderTree): number[] {
+  const groupDepthsByUrlDepth: number[] = []
+
+  function recordGroupDepth(urlDepth: number, groupDepth: number): void {
+    while (groupDepthsByUrlDepth.length <= urlDepth) {
+      groupDepthsByUrlDepth.push(0)
+    }
+    if (groupDepth > groupDepthsByUrlDepth[urlDepth]) {
+      groupDepthsByUrlDepth[urlDepth] = groupDepth
+    }
+  }
+
+  // urlDepth tracks the index of the current URL-consuming segment.
+  // Groups accumulate at the same index. When the next URL segment
+  // is reached, it increments the index and resets the group counter.
+  // We start at -1 so the root segment '' increments to 0.
+  function walk(tree: LoaderTree, urlDepth: number, groupDepth: number): void {
+    const segment = tree[0]
+    const { parallelRoutes } = parseLoaderTree(tree)
+    const consumesDepth = segmentConsumesURLDepth(segment)
+
+    let nextUrlDepth = urlDepth
+    let nextGroupDepth = groupDepth
+    if (consumesDepth) {
+      nextUrlDepth = urlDepth + 1
+      nextGroupDepth = 0
+      recordGroupDepth(nextUrlDepth, 0)
+    } else if (
+      typeof segment === 'string' &&
+      isGroupSegment(segment) &&
+      segment !== '(__SLOT__)'
+    ) {
+      // Count real route groups but not the synthetic '(__SLOT__)' segment
+      // that Next.js inserts for parallel slots. The synthetic group
+      // can't be a real navigation boundary.
+      nextGroupDepth++
+      recordGroupDepth(urlDepth, nextGroupDepth)
+    }
+
+    for (const key in parallelRoutes) {
+      walk(parallelRoutes[key], nextUrlDepth, nextGroupDepth)
+    }
+  }
+
+  walk(loaderTree, -1, 0)
+  return groupDepthsByUrlDepth
+}
+
+/**
  * Builds a combined RSC payload for validation at a given URL depth.
  *
  * Walks the LoaderTree directly, loading modules and counting
@@ -783,24 +905,85 @@ export type ValidationPayloadResult = {
    * True when some segments used Static stage. False when all segments
    * used Runtime stage and errors are definitively from uncached IO. */
   hasAmbiguousErrors: boolean
-  createInstantStack: (() => Error) | null
+  /** Per-slot config factories indexed by slot marker index. When a
+   * boundary spans multiple parallel slots, each slot gets a marker
+   * component in the tree. The marker's index maps to this array to
+   * find the right config for error attribution. */
+  slotStacks: Array<(() => Error) | null>
+}
+
+export enum ValidationPrefetchKind {
+  /** App Shells, for `<Link>` without `prefetch={true}` */
+  Shell = 1,
+  // TODO(app-shells): validate speculative prefetches
+  // Speculative = 2,
+  /** Pre-appShells behavior. */
+  LegacySpeculative = 3,
 }
 
 export async function createCombinedPayloadAtDepth(
+  prefetchKind: ValidationPrefetchKind,
   initialRSCPayload: InitialRSCPayload,
   cache: SegmentCache,
   initialLoaderTree: LoaderTree,
   getDynamicParamFromSegment: GetDynamicParamFromSegment,
   query: NextParsedUrlQuery | null,
   depth: number,
+  groupDepth: number,
   releaseSignal: AbortSignal,
   boundaryState: ValidationBoundaryTracking,
   clientReferenceManifest: ClientReferenceManifest,
   stageEndTimes: StageEndTimes,
   useRuntimeStageForPartialSegments: boolean
 ): Promise<ValidationPayloadResult | null> {
+  const workStore = workAsyncStorage.getStore()
+  if (!workStore) {
+    throw new InvariantError(
+      'createCombinedPayloadAtDepth must run inside a WorkStore'
+    )
+  }
+  const { validationLevel, route } = workStore
+
   let hasStaticSegments = false
   let hasRuntimeSegments = false
+
+  // Index 0 is reserved for the root config. Slot markers start at 1.
+  const slotStacks: Array<(() => Error) | null> = [null]
+
+  /**
+   * When a segment has multiple parallel routes (a fork), wrap each
+   * slot's seed data with a slot marker component. The marker's index
+   * in the component stack maps to `slotStacks` for per-slot error
+   * attribution. Slot markers start at index 1 (index 0 is root).
+   */
+  function wrapSlotsWithMarkers(
+    slots: CacheNodeSeedDataSlots,
+    results: Map<string, TreeResult>
+  ): void {
+    const keys = Object.keys(slots)
+    if (keys.length <= 1) return
+
+    for (const key of keys) {
+      const slotSeedData = slots[key]
+      if (slotSeedData === null) continue
+      const result = results.get(key)
+      const markerIndex = slotStacks.length
+      slotStacks.push(result?.createInstantStack ?? null)
+      const markerName = `${INSTANT_SLOT_MARKER_PREFIX}${markerIndex - 1}${INSTANT_SLOT_MARKER_SUFFIX}`
+      const [node, parallelRoutesData, unused, isPartial, varyParams] =
+        slotSeedData
+      slots[key] = [
+        // eslint-disable-next-line @next/internal/no-ambiguous-jsx -- bundled in the server layer
+        <SlotMarker name={markerName} key="sm">
+          {node}
+        </SlotMarker>,
+        parallelRoutesData,
+        unused,
+        isPartial,
+        varyParams,
+      ]
+    }
+  }
 
   function getSegment(loaderTree: LoaderTree): Segment {
     const dynamicParam = getDynamicParamFromSegment(loaderTree)
@@ -815,7 +998,8 @@ export async function createCombinedPayloadAtDepth(
     loaderTree: LoaderTree,
     parentPath: SegmentPath | null,
     key: string | null,
-    urlDepthConsumed: number
+    urlDepthConsumed: number,
+    groupDepthConsumed: number
   ): Promise<TreeResult> {
     const { parallelRoutes } = parseLoaderTree(loaderTree)
 
@@ -840,12 +1024,34 @@ export async function createCombinedPayloadAtDepth(
       null
     )
 
-    const consumesDepth = segmentConsumesURLDepth(segment)
+    const consumesUrlDepth = segmentConsumesURLDepth(segment)
+    const isGroup =
+      typeof segment === 'string' &&
+      isGroupSegment(segment) &&
+      segment !== '(__SLOT__)'
 
-    if (consumesDepth && urlDepthConsumed === depth) {
-      debug?.(`    ['${path}' is the boundary]`)
-      boundaryState.expectedIds.add(path)
-      const wrappedSegmentData: SegmentData = {
+    // Advance counters for this segment before the boundary check,
+    // mirroring how discoverValidationDepths counts. URL segments
+    // increment urlDepthConsumed, groups increment groupDepthConsumed.
+    // The synthetic '(__SLOT__)' segment is excluded — it can't be a
+    // real navigation boundary.
+    let nextUrlDepth = urlDepthConsumed
+    let currentGroupDepth = groupDepthConsumed
+    if (consumesUrlDepth) {
+      nextUrlDepth++
+      currentGroupDepth = 0
+    } else if (isGroup) {
+      currentGroupDepth++
+    }
+
+    const pastUrlBoundary = nextUrlDepth > depth
+    const isBoundary = pastUrlBoundary && currentGroupDepth >= groupDepth
+
+    if (isBoundary) {
+      debug?.(
+        `    ['${path}' is the boundary (url=${nextUrlDepth}, group=${currentGroupDepth})]`
+      )
+      const finalSegmentData: SegmentData = {
         ...segmentData,
         node: (
           // eslint-disable-next-line @next/internal/no-ambiguous-jsx -- bundled in the server layer
@@ -854,54 +1060,107 @@ export async function createCombinedPayloadAtDepth(
           </PlaceValidationBoundaryBelowThisLevel>
         ),
       }
+
       const slots: CacheNodeSeedDataSlots = {}
+      const slotResults = new Map<string, TreeResult>()
       let requiresInstantUI = false
       let createInstantStack: (() => Error) | null = null
+      let bestConfigDepth = -1
+      // Collect the first mod file path from each slot's subtree.
+      // Don't include the boundary segment's own layout/page — that
+      // file DID render (it wraps the boundary). What didn't render
+      // is the content inside the children slots.
+      const slotModFilePaths: string[] = []
+      let firstModFilePath: string | null = null
+
       for (const parallelRouteKey in parallelRoutes) {
         const result = await buildNewTreeSeedData(
           parallelRoutes[parallelRouteKey],
           path,
           parallelRouteKey,
-          false /* isInsideRuntimePrefetch */
+          false /* isInsideRuntimePrefetch */,
+          0 /* segmentDepth */
         )
+        slotResults.set(parallelRouteKey, result)
         slots[parallelRouteKey] = result.seedData
+        if (result.firstModFilePath !== null) {
+          slotModFilePaths.push(result.firstModFilePath)
+          if (firstModFilePath === null) {
+            firstModFilePath = result.firstModFilePath
+          }
+        }
         if (result.requiresInstantUI) {
           requiresInstantUI = true
-          if (createInstantStack === null) {
+          if (
+            result.configDepth > bestConfigDepth ||
+            (result.configDepth === bestConfigDepth &&
+              parallelRouteKey === 'children')
+          ) {
+            bestConfigDepth = result.configDepth
             createInstantStack = result.createInstantStack
           }
         }
       }
+
+      // Only require this boundary to render if the subtree has an
+      // instant config. Unconfigured slot subtrees are allowed to not
+      // render (e.g. conditionally excluded by a layout).
+      if (requiresInstantUI) {
+        boundaryState.requiredIds.set(path, slotModFilePaths)
+      }
+
+      wrapSlotsWithMarkers(slots, slotResults)
+
       return {
-        seedData: getCacheNodeSeedDataFromSegment(wrappedSegmentData, slots),
+        seedData: getCacheNodeSeedDataFromSegment(finalSegmentData, slots),
         requiresInstantUI,
         createInstantStack,
+        firstModFilePath,
+        configDepth: bestConfigDepth,
       }
     }
 
-    // Not the boundary yet — keep walking the shared tree.
+    // Not at the boundary yet — keep walking as shared.
     const slots: CacheNodeSeedDataSlots = {}
+    const slotResults = new Map<string, TreeResult>()
     let requiresInstantUI = false
     let createInstantStack: (() => Error) | null = null
+    let bestConfigDepth = -1
+    let firstModFilePath: string | null = null
     for (const parallelRouteKey in parallelRoutes) {
       const result = await buildSharedTreeSeedData(
         parallelRoutes[parallelRouteKey],
         path,
         parallelRouteKey,
-        consumesDepth ? urlDepthConsumed + 1 : urlDepthConsumed
+        nextUrlDepth,
+        currentGroupDepth
       )
+      slotResults.set(parallelRouteKey, result)
       slots[parallelRouteKey] = result.seedData
+      if (firstModFilePath === null) {
+        firstModFilePath = result.firstModFilePath
+      }
       if (result.requiresInstantUI) {
         requiresInstantUI = true
-        if (createInstantStack === null) {
+        if (
+          result.configDepth > bestConfigDepth ||
+          (result.configDepth === bestConfigDepth &&
+            parallelRouteKey === 'children')
+        ) {
+          bestConfigDepth = result.configDepth
           createInstantStack = result.createInstantStack
         }
       }
     }
+
+    wrapSlotsWithMarkers(slots, slotResults)
+
     return {
       seedData: getCacheNodeSeedDataFromSegment(segmentData, slots),
       requiresInstantUI,
       createInstantStack,
+      firstModFilePath,
+      configDepth: bestConfigDepth,
     }
   }
 
@@ -909,10 +1168,13 @@ export async function createCombinedPayloadAtDepth(
     lt: LoaderTree,
     parentPath: SegmentPath | null,
     key: string | null,
-    isInsideRuntimePrefetch: boolean
+    isInsideRuntimePrefetch: boolean,
+    segmentDepth: number
   ): Promise<TreeResult> {
     const { parallelRoutes } = parseLoaderTree(lt)
-    const { mod: layoutOrPageMod } = await getLayoutOrPageModule(lt)
+    const { mod: layoutOrPageMod, filePath: layoutOrPageFilePath } =
+      await getLayoutOrPageModule(lt)
+    const localModFilePath: string | null = layoutOrPageFilePath ?? null
 
     const segment = getSegment(lt)
     const path: SegmentPath =
@@ -921,12 +1183,30 @@ export async function createCombinedPayloadAtDepth(
         : createChildSegmentPath(parentPath, key!, segment)
 
     let instantConfig: Instant | null = null
+    let prefetchConfig: AppSegmentConfig['prefetch'] | null = null
     let localCreateInstantStack: (() => Error) | null = null
     if (layoutOrPageMod !== undefined) {
-      instantConfig =
-        (layoutOrPageMod as AppSegmentConfig).unstable_instant ?? null
+      instantConfig = (layoutOrPageMod as AppSegmentConfig).instant ?? null
+      prefetchConfig = (layoutOrPageMod as AppSegmentConfig).prefetch ?? null
 
-      if (instantConfig && typeof instantConfig === 'object') {
+      // When the default validation level is active and this is a page or
+      // default segment without an explicit config, treat it as if
+      // instant = true was exported. Framework-synthesized error
+      // routes are excluded — see isFrameworkErrorRoute.
+      if (
+        instantConfig === null &&
+        validationLevel !== 'manual-warning' &&
+        validationLevel !== 'experimental-manual-error' &&
+        isImplicitValidationSegment(segment) &&
+        !isFrameworkErrorRoute(route)
+      ) {
+        instantConfig = true
+      }
+
+      if (
+        instantConfig === true ||
+        (typeof instantConfig === 'object' && instantConfig !== null)
+      ) {
         const rawFactory: unknown = (layoutOrPageMod as any)
           .__debugCreateInstantConfigStack
         localCreateInstantStack =
@@ -934,36 +1214,65 @@ export async function createCombinedPayloadAtDepth(
       }
     }
 
-    let childIsInsideRuntimePrefetch = isInsideRuntimePrefetch
-    let stage: SegmentStage
-    if (!isInsideRuntimePrefetch) {
-      if (
-        instantConfig &&
-        typeof instantConfig === 'object' &&
-        instantConfig.prefetch === 'runtime'
-      ) {
-        stage = RenderStage.Runtime
-        childIsInsideRuntimePrefetch = true
-        hasRuntimeSegments = true
-      } else {
-        if (useRuntimeStageForPartialSegments) {
-          stage = RenderStage.Runtime
-          hasRuntimeSegments = true
-        } else {
-          stage = RenderStage.Static
-          hasStaticSegments = true
-        }
-      }
-    } else {
-      stage = RenderStage.Runtime
-      hasRuntimeSegments = true
-    }
-
-    debug?.(`    ${path || '/'} - ${RenderStage[stage]}`)
     const segmentCacheItem = cache.segments.get(path)
     if (!segmentCacheItem) {
       throw new InvariantError(`Missing segment data: ${path}`)
     }
+
+    let stage: PrefetchedSegmentStage
+    let childIsInsideRuntimePrefetch = isInsideRuntimePrefetch
+
+    switch (prefetchKind) {
+      case ValidationPrefetchKind.Shell: {
+        if (useRuntimeStageForPartialSegments) {
+          stage = RenderStage.Runtime
+        } else {
+          stage = RenderStage.ShellRuntime
+        }
+        // We do not set or track
+        // - `[child]isInsideRuntimePrefetch`
+        // - `has{Static,Runtime}Segments`
+        // because they do not affect shell prefetches.
+        break
+      }
+      case ValidationPrefetchKind.LegacySpeculative: {
+        const segmentHasRuntimePrefetch = prefetchConfig === 'allow-runtime'
+
+        if (!isInsideRuntimePrefetch) {
+          if (segmentHasRuntimePrefetch) {
+            stage = RenderStage.Runtime
+            childIsInsideRuntimePrefetch = true
+          } else {
+            if (useRuntimeStageForPartialSegments) {
+              stage = RenderStage.Runtime
+            } else {
+              // In legacy speculative prefetches, we always use static
+              // for segments that aren't under an allow-runtime boundary.
+              stage = RenderStage.Static
+            }
+          }
+        } else {
+          stage = RenderStage.Runtime
+        }
+        break
+      }
+    }
+
+    switch (stage) {
+      case RenderStage.Static: {
+        hasStaticSegments = true
+        break
+      }
+      case RenderStage.ShellRuntime: {
+        break
+      }
+      case RenderStage.Runtime: {
+        hasRuntimeSegments = true
+        break
+      }
+    }
+
+    debug?.(`    ${path || '/'} - ${RenderStage[stage]}`)
 
     const segmentData = await deserializeFromChunks<SegmentData>(
       segmentCacheItem.chunks[stage],
@@ -976,42 +1285,73 @@ export async function createCombinedPayloadAtDepth(
 
     // Build children first, then determine requiresInstantUI.
     const slots: CacheNodeSeedDataSlots = {}
+    const slotResults = new Map<string, TreeResult>()
     let childrenRequireInstantUI = false
     let childCreateInstantStack: (() => Error) | null = null
+    let bestChildConfigDepth = -1
+    let childFirstModFilePath: string | null = null
     for (const parallelRouteKey in parallelRoutes) {
+      const childSegmentDepth = segmentConsumesURLDepth(segment)
+        ? segmentDepth + 1
+        : segmentDepth
       const result = await buildNewTreeSeedData(
         parallelRoutes[parallelRouteKey],
         path,
         parallelRouteKey,
-        childIsInsideRuntimePrefetch
+        childIsInsideRuntimePrefetch,
+        childSegmentDepth
       )
+      slotResults.set(parallelRouteKey, result)
       slots[parallelRouteKey] = result.seedData
+      if (childFirstModFilePath === null) {
+        childFirstModFilePath = result.firstModFilePath
+      }
       if (result.requiresInstantUI) {
         childrenRequireInstantUI = true
-        if (childCreateInstantStack === null) {
+        if (
+          result.configDepth > bestChildConfigDepth ||
+          (result.configDepth === bestChildConfigDepth &&
+            parallelRouteKey === 'children')
+        ) {
+          bestChildConfigDepth = result.configDepth
           childCreateInstantStack = result.createInstantStack
         }
       }
     }
 
+    wrapSlotsWithMarkers(slots, slotResults)
+
     // Local config takes precedence over children.
     let requiresInstantUI: boolean
     let createInstantStack: (() => Error) | null
+    let configDepth: number
     if (instantConfig === false) {
       requiresInstantUI = false
       createInstantStack = null
-    } else if (instantConfig && typeof instantConfig === 'object') {
+      configDepth = -1
+    } else if (
+      instantConfig === true ||
+      (typeof instantConfig === 'object' && instantConfig !== null)
+    ) {
       requiresInstantUI = true
       createInstantStack = localCreateInstantStack
+      configDepth = segmentDepth
     } else {
       requiresInstantUI = childrenRequireInstantUI
       createInstantStack = childCreateInstantStack
+      configDepth = bestChildConfigDepth
     }
+
+    // First mod we find in DFS order: this segment's own layout/page if
+    // any, otherwise the first non-null we got from a child.
+    const firstModFilePath = localModFilePath ?? childFirstModFilePath
 
     return {
       seedData: getCacheNodeSeedDataFromSegment(segmentData, slots),
       requiresInstantUI,
       createInstantStack,
+      firstModFilePath,
+      configDepth,
     }
   }
 
@@ -1020,18 +1360,54 @@ export async function createCombinedPayloadAtDepth(
       initialLoaderTree,
       null /* parentPath */,
       null /* key */,
-      0 /* urlDepthConsumed */
+      0 /* urlDepthConsumed */,
+      0 /* groupDepthConsumed */
     )
 
   if (!requiresInstantUI) {
     return null
   }
 
+  // Set the root config at index 0. This is the fallback for errors
+  // that occur above any fork (no slot marker in the component stack).
+  slotStacks[0] = createInstantStack
+
   const { flightRouterState } = getRootDataFromPayload(initialRSCPayload)
 
-  const headStage = hasRuntimeSegments
-    ? RenderStage.Runtime
-    : RenderStage.Static
+  let headStage: PrefetchedSegmentStage
+  switch (prefetchKind) {
+    case ValidationPrefetchKind.Shell: {
+      if (useRuntimeStageForPartialSegments) {
+        headStage = RenderStage.Runtime
+      } else {
+        headStage = RenderStage.ShellRuntime
+      }
+      break
+    }
+    case ValidationPrefetchKind.LegacySpeculative: {
+      headStage = hasRuntimeSegments ? RenderStage.Runtime : RenderStage.Static
+      break
+    }
+  }
+  debug?.(`    /_head - ${RenderStage[headStage]}`)
+
+  let hasAmbiguousErrors: boolean
+  switch (prefetchKind) {
+    case ValidationPrefetchKind.Shell: {
+      // In a shell prefetch, holes are always ambiguous
+      // (they can be either link data or dynamic data)
+      // unless we're already overriding and using the runtime stage,
+      // which resolves link data.
+      hasAmbiguousErrors = !useRuntimeStageForPartialSegments
+      break
+    }
+    case ValidationPrefetchKind.LegacySpeculative: {
+      // In the old prefetching mechanism, holes in static segments are ambiguous
+      // (they can be either runtime data or dynamic data).
+      hasAmbiguousErrors = hasStaticSegments
+      break
+    }
+  }
 
   const head = await createValidationHead(
     cache,
@@ -1048,7 +1424,7 @@ export async function createCombinedPayloadAtDepth(
 
   return {
     payload,
-    hasAmbiguousErrors: hasStaticSegments,
-    createInstantStack,
+    hasAmbiguousErrors,
+    slotStacks,
   }
 }

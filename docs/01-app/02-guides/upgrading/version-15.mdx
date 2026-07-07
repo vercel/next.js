@@ -374,7 +374,7 @@ export async function generateMetadata(props) {
   const query = searchParams.query
 }
 
-export async function Page(props) {
+export default async function Page(props) {
   const params = await props.params
   const searchParams = await props.searchParams
   const slug = params.slug
@@ -476,7 +476,7 @@ export async function GET(request, segmentData) {
 
 ## `runtime` configuration (Breaking change)
 
-The `runtime` [segment configuration](/docs/app/api-reference/file-conventions/route-segment-config#runtime) previously supported a value of `experimental-edge` in addition to `edge`. Both configurations refer to the same thing, and to simplify the options, we will now error if `experimental-edge` is used. To fix this, update your `runtime` configuration to `edge`. A [codemod](/docs/app/guides/upgrading/codemods#app-dir-runtime-config-experimental-edge) is available to automatically do this.
+The `runtime` [segment configuration](/docs/app/api-reference/file-conventions/route-segment-config/runtime) previously supported a value of `experimental-edge` in addition to `edge`. Both configurations refer to the same thing, and to simplify the options, we will now error if `experimental-edge` is used. To fix this, update your `runtime` configuration to `edge`. A [codemod](/docs/app/guides/upgrading/codemods#app-dir-runtime-config-experimental-edge) is available to automatically do this.
 
 </AppOnly>
 

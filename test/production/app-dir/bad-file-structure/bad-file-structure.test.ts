@@ -3,7 +3,6 @@ import { nextTestSetup } from 'e2e-utils'
 describe('bad-file-structure', () => {
   const { next } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
     skipStart: true,
   })
 
