@@ -27,7 +27,8 @@ import _pkg from 'next/package.json'
 import type { SpawnOptions, ChildProcess } from 'child_process'
 import type { RequestInit, Response } from 'node-fetch'
 import type { NextServer } from 'next/dist/server/next'
-import { Playwright } from 'next-webdriver'
+import type { Playwright } from './browsers/playwright'
+import { recursiveReadDir } from 'next/dist/lib/recursive-readdir'
 
 import { shouldUseTurbopack } from './turbo'
 import stripAnsi from 'strip-ansi'
@@ -142,11 +143,16 @@ export function getFullUrl(
 
   if (typeof appPortOrUrl === 'string' && url) {
     const parsedUrl = new URL(fullUrl)
-    const parsedPathQuery = new URL(url, fullUrl)
 
-    parsedUrl.hash = parsedPathQuery.hash
-    parsedUrl.search = parsedPathQuery.search
-    parsedUrl.pathname = parsedPathQuery.pathname
+    // Handle '//' as a special case since it's not a valid relative URL for URL constructor
+    if (url === '//') {
+      parsedUrl.pathname = '//'
+    } else {
+      const parsedPathQuery = new URL(url, fullUrl)
+      parsedUrl.hash = parsedPathQuery.hash
+      parsedUrl.search = parsedPathQuery.search
+      parsedUrl.pathname = parsedPathQuery.pathname
+    }
 
     if (hostname && parsedUrl.hostname === 'localhost') {
       parsedUrl.hostname = hostname
@@ -538,7 +544,7 @@ export function nextBuild(
   if (!opts.disableAutoSkewProtection && shouldUseTurbopack() && !opts.env) {
     opts.env ??= {}
     opts.env.NEXT_DEPLOYMENT_ID = 'test-dpl-id-1234'
-    opts.env.__NEXT_IMMUTABLE_ASSET_TOKEN = 'test-immutable-tkn-7890'
+    opts.env.__NEXT_SUPPORTS_IMMUTABLE_ASSETS = '1'
   }
 
   return runNextCommand(['build', dir, ...args], opts)
@@ -566,7 +572,7 @@ export function nextStart(
   if (!opts.disableAutoSkewProtection && shouldUseTurbopack() && !opts.env) {
     opts.env ??= {}
     opts.env.NEXT_DEPLOYMENT_ID = 'test-dpl-id-1234'
-    opts.env.__NEXT_IMMUTABLE_ASSET_TOKEN = 'test-immutable-tkn-7890'
+    opts.env.__NEXT_SUPPORTS_IMMUTABLE_ASSETS = '1'
   }
 
   return runNextCommandDev(
@@ -1176,7 +1182,7 @@ export function getRedboxTitle(browser: Playwright): Promise<string | null> {
     const root = portal.shadowRoot
     return (
       root.querySelector(
-        '[data-nextjs-dialog-header] .nextjs__container_errors__error_title'
+        '[data-nextjs-dialog-header] [data-nextjs-error-label-group]'
       )?.innerText ?? null
     )
   })
@@ -2134,9 +2140,11 @@ export function getDeploymentId(appDir: string, isDev: boolean) {
 
   const deploymentId: string | undefined =
     requiredServerFiles?.config?.deploymentId
-  const immutableAssetToken: string | undefined =
-    requiredServerFiles?.config?.experimental?.immutableAssetToken
-  const assetToken: string | undefined = immutableAssetToken || deploymentId
+
+  const assetToken: string | undefined = requiredServerFiles?.config
+    ?.experimental?.supportsImmutableAssets
+    ? undefined
+    : deploymentId
 
   return {
     deploymentId,
@@ -2148,4 +2156,12 @@ export function getDeploymentId(appDir: string, isDev: boolean) {
       return assetToken ? `${ampersand ? '&' : '?'}dpl=${assetToken}` : ''
     },
   }
+}
+
+export async function listClientChunks(distDir: string) {
+  return (
+    await recursiveReadDir(path.join(distDir, 'static'), {
+      relativePathnames: false,
+    })
+  ).map((f) => path.relative(distDir, f))
 }

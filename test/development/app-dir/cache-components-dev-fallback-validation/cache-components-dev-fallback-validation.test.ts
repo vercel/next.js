@@ -52,22 +52,8 @@ describe('Cache Components Fallback Validation', () => {
     if (isTurbopack) {
       await expect(browser).toDisplayCollapsedRedbox(`
        {
-         "code": "E1083",
-         "description": "Runtime data was accessed outside of <Suspense>
-
-       This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), and searchParams, are examples of Runtime data that can only come from a user request.
-
-       To fix this:
-
-       Provide a fallback UI using <Suspense> around this component.
-
-       or
-
-       Move the Runtime data access into a deeper component wrapped in <Suspense>.
-
-       In either case this allows Next.js to stream its contents to the user when they request the page, while still providing an initial UI that is prerendered and prefetchable for instant navigations.
-
-       Learn more: https://nextjs.org/docs/messages/blocking-route",
+         "code": "E1400",
+         "description": "Next.js encountered runtime data during prerendering.",
          "environmentLabel": "Server",
          "label": "Blocking Route",
          "source": "app/partial/[top]/unwrapped/[bottom]/page.tsx (6:26) @ Page
@@ -81,22 +67,8 @@ describe('Cache Components Fallback Validation', () => {
     } else {
       await expect(browser).toDisplayCollapsedRedbox(`
        {
-         "code": "E1083",
-         "description": "Runtime data was accessed outside of <Suspense>
-
-       This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), and searchParams, are examples of Runtime data that can only come from a user request.
-
-       To fix this:
-
-       Provide a fallback UI using <Suspense> around this component.
-
-       or
-
-       Move the Runtime data access into a deeper component wrapped in <Suspense>.
-
-       In either case this allows Next.js to stream its contents to the user when they request the page, while still providing an initial UI that is prerendered and prefetchable for instant navigations.
-
-       Learn more: https://nextjs.org/docs/messages/blocking-route",
+         "code": "E1400",
+         "description": "Next.js encountered runtime data during prerendering.",
          "environmentLabel": "Server",
          "label": "Blocking Route",
          "source": "app/partial/[top]/unwrapped/[bottom]/page.tsx (6:26) @ Page
@@ -113,22 +85,8 @@ describe('Cache Components Fallback Validation', () => {
     if (isTurbopack) {
       await expect(browser).toDisplayCollapsedRedbox(`
        {
-         "code": "E1083",
-         "description": "Runtime data was accessed outside of <Suspense>
-
-       This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), and searchParams, are examples of Runtime data that can only come from a user request.
-
-       To fix this:
-
-       Provide a fallback UI using <Suspense> around this component.
-
-       or
-
-       Move the Runtime data access into a deeper component wrapped in <Suspense>.
-
-       In either case this allows Next.js to stream its contents to the user when they request the page, while still providing an initial UI that is prerendered and prefetchable for instant navigations.
-
-       Learn more: https://nextjs.org/docs/messages/blocking-route",
+         "code": "E1400",
+         "description": "Next.js encountered runtime data during prerendering.",
          "environmentLabel": "Server",
          "label": "Blocking Route",
          "source": "app/partial/[top]/unwrapped/[bottom]/page.tsx (6:26) @ Page
@@ -142,22 +100,8 @@ describe('Cache Components Fallback Validation', () => {
     } else {
       await expect(browser).toDisplayCollapsedRedbox(`
        {
-         "code": "E1083",
-         "description": "Runtime data was accessed outside of <Suspense>
-
-       This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), and searchParams, are examples of Runtime data that can only come from a user request.
-
-       To fix this:
-
-       Provide a fallback UI using <Suspense> around this component.
-
-       or
-
-       Move the Runtime data access into a deeper component wrapped in <Suspense>.
-
-       In either case this allows Next.js to stream its contents to the user when they request the page, while still providing an initial UI that is prerendered and prefetchable for instant navigations.
-
-       Learn more: https://nextjs.org/docs/messages/blocking-route",
+         "code": "E1400",
+         "description": "Next.js encountered runtime data during prerendering.",
          "environmentLabel": "Server",
          "label": "Blocking Route",
          "source": "app/partial/[top]/unwrapped/[bottom]/page.tsx (6:26) @ Page
@@ -174,58 +118,30 @@ describe('Cache Components Fallback Validation', () => {
     if (isTurbopack) {
       await expect(browser).toDisplayCollapsedRedbox(`
        {
-         "code": "E1083",
-         "description": "Runtime data was accessed outside of <Suspense>
-
-       This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), and searchParams, are examples of Runtime data that can only come from a user request.
-
-       To fix this:
-
-       Provide a fallback UI using <Suspense> around this component.
-
-       or
-
-       Move the Runtime data access into a deeper component wrapped in <Suspense>.
-
-       In either case this allows Next.js to stream its contents to the user when they request the page, while still providing an initial UI that is prerendered and prefetchable for instant navigations.
-
-       Learn more: https://nextjs.org/docs/messages/blocking-route",
+         "code": "E1400",
+         "description": "Next.js encountered runtime data during prerendering.",
          "environmentLabel": "Server",
          "label": "Blocking Route",
-         "source": "app/partial/[top]/unwrapped/[bottom]/page.tsx (6:26) @ Page
-       > 6 |       Top: {(await props.params).top}, Bottom: {(await props.params).bottom}
-           |                          ^",
+         "source": "app/partial/[top]/unwrapped/layout.tsx (8:3) @ Layout
+       >  8 |   await params
+            |   ^",
          "stack": [
-           "Page app/partial/[top]/unwrapped/[bottom]/page.tsx (6:26)",
+           "Layout app/partial/[top]/unwrapped/layout.tsx (8:3)",
          ],
        }
       `)
     } else {
       await expect(browser).toDisplayCollapsedRedbox(`
        {
-         "code": "E1083",
-         "description": "Runtime data was accessed outside of <Suspense>
-
-       This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), and searchParams, are examples of Runtime data that can only come from a user request.
-
-       To fix this:
-
-       Provide a fallback UI using <Suspense> around this component.
-
-       or
-
-       Move the Runtime data access into a deeper component wrapped in <Suspense>.
-
-       In either case this allows Next.js to stream its contents to the user when they request the page, while still providing an initial UI that is prerendered and prefetchable for instant navigations.
-
-       Learn more: https://nextjs.org/docs/messages/blocking-route",
+         "code": "E1400",
+         "description": "Next.js encountered runtime data during prerendering.",
          "environmentLabel": "Server",
          "label": "Blocking Route",
-         "source": "app/partial/[top]/unwrapped/[bottom]/page.tsx (6:26) @ Page
-       > 6 |       Top: {(await props.params).top}, Bottom: {(await props.params).bottom}
-           |                          ^",
+         "source": "app/partial/[top]/unwrapped/layout.tsx (8:3) @ Layout
+       >  8 |   await params
+            |   ^",
          "stack": [
-           "Page app/partial/[top]/unwrapped/[bottom]/page.tsx (6:26)",
+           "Layout app/partial/[top]/unwrapped/layout.tsx (8:3)",
          ],
        }
       `)
@@ -239,22 +155,8 @@ describe('Cache Components Fallback Validation', () => {
     if (isTurbopack) {
       await expect(browser).toDisplayCollapsedRedbox(`
        {
-         "code": "E1083",
-         "description": "Runtime data was accessed outside of <Suspense>
-
-       This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), and searchParams, are examples of Runtime data that can only come from a user request.
-
-       To fix this:
-
-       Provide a fallback UI using <Suspense> around this component.
-
-       or
-
-       Move the Runtime data access into a deeper component wrapped in <Suspense>.
-
-       In either case this allows Next.js to stream its contents to the user when they request the page, while still providing an initial UI that is prerendered and prefetchable for instant navigations.
-
-       Learn more: https://nextjs.org/docs/messages/blocking-route",
+         "code": "E1400",
+         "description": "Next.js encountered runtime data during prerendering.",
          "environmentLabel": "Server",
          "label": "Blocking Route",
          "source": "app/none/[top]/wrapped/layout.tsx (10:3) @ Layout
@@ -268,22 +170,8 @@ describe('Cache Components Fallback Validation', () => {
     } else {
       await expect(browser).toDisplayCollapsedRedbox(`
        {
-         "code": "E1083",
-         "description": "Runtime data was accessed outside of <Suspense>
-
-       This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), and searchParams, are examples of Runtime data that can only come from a user request.
-
-       To fix this:
-
-       Provide a fallback UI using <Suspense> around this component.
-
-       or
-
-       Move the Runtime data access into a deeper component wrapped in <Suspense>.
-
-       In either case this allows Next.js to stream its contents to the user when they request the page, while still providing an initial UI that is prerendered and prefetchable for instant navigations.
-
-       Learn more: https://nextjs.org/docs/messages/blocking-route",
+         "code": "E1400",
+         "description": "Next.js encountered runtime data during prerendering.",
          "environmentLabel": "Server",
          "label": "Blocking Route",
          "source": "app/none/[top]/wrapped/layout.tsx (10:3) @ Layout
@@ -300,22 +188,8 @@ describe('Cache Components Fallback Validation', () => {
     if (isTurbopack) {
       await expect(browser).toDisplayCollapsedRedbox(`
        {
-         "code": "E1083",
-         "description": "Runtime data was accessed outside of <Suspense>
-
-       This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), and searchParams, are examples of Runtime data that can only come from a user request.
-
-       To fix this:
-
-       Provide a fallback UI using <Suspense> around this component.
-
-       or
-
-       Move the Runtime data access into a deeper component wrapped in <Suspense>.
-
-       In either case this allows Next.js to stream its contents to the user when they request the page, while still providing an initial UI that is prerendered and prefetchable for instant navigations.
-
-       Learn more: https://nextjs.org/docs/messages/blocking-route",
+         "code": "E1400",
+         "description": "Next.js encountered runtime data during prerendering.",
          "environmentLabel": "Server",
          "label": "Blocking Route",
          "source": "app/none/[top]/wrapped/layout.tsx (10:3) @ Layout
@@ -329,22 +203,8 @@ describe('Cache Components Fallback Validation', () => {
     } else {
       await expect(browser).toDisplayCollapsedRedbox(`
        {
-         "code": "E1083",
-         "description": "Runtime data was accessed outside of <Suspense>
-
-       This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), and searchParams, are examples of Runtime data that can only come from a user request.
-
-       To fix this:
-
-       Provide a fallback UI using <Suspense> around this component.
-
-       or
-
-       Move the Runtime data access into a deeper component wrapped in <Suspense>.
-
-       In either case this allows Next.js to stream its contents to the user when they request the page, while still providing an initial UI that is prerendered and prefetchable for instant navigations.
-
-       Learn more: https://nextjs.org/docs/messages/blocking-route",
+         "code": "E1400",
+         "description": "Next.js encountered runtime data during prerendering.",
          "environmentLabel": "Server",
          "label": "Blocking Route",
          "source": "app/none/[top]/wrapped/layout.tsx (10:3) @ Layout
@@ -361,22 +221,8 @@ describe('Cache Components Fallback Validation', () => {
     if (isTurbopack) {
       await expect(browser).toDisplayCollapsedRedbox(`
        {
-         "code": "E1083",
-         "description": "Runtime data was accessed outside of <Suspense>
-
-       This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), and searchParams, are examples of Runtime data that can only come from a user request.
-
-       To fix this:
-
-       Provide a fallback UI using <Suspense> around this component.
-
-       or
-
-       Move the Runtime data access into a deeper component wrapped in <Suspense>.
-
-       In either case this allows Next.js to stream its contents to the user when they request the page, while still providing an initial UI that is prerendered and prefetchable for instant navigations.
-
-       Learn more: https://nextjs.org/docs/messages/blocking-route",
+         "code": "E1400",
+         "description": "Next.js encountered runtime data during prerendering.",
          "environmentLabel": "Server",
          "label": "Blocking Route",
          "source": "app/none/[top]/wrapped/layout.tsx (10:3) @ Layout
@@ -390,22 +236,8 @@ describe('Cache Components Fallback Validation', () => {
     } else {
       await expect(browser).toDisplayCollapsedRedbox(`
        {
-         "code": "E1083",
-         "description": "Runtime data was accessed outside of <Suspense>
-
-       This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), and searchParams, are examples of Runtime data that can only come from a user request.
-
-       To fix this:
-
-       Provide a fallback UI using <Suspense> around this component.
-
-       or
-
-       Move the Runtime data access into a deeper component wrapped in <Suspense>.
-
-       In either case this allows Next.js to stream its contents to the user when they request the page, while still providing an initial UI that is prerendered and prefetchable for instant navigations.
-
-       Learn more: https://nextjs.org/docs/messages/blocking-route",
+         "code": "E1400",
+         "description": "Next.js encountered runtime data during prerendering.",
          "environmentLabel": "Server",
          "label": "Blocking Route",
          "source": "app/none/[top]/wrapped/layout.tsx (10:3) @ Layout
@@ -422,22 +254,8 @@ describe('Cache Components Fallback Validation', () => {
     if (isTurbopack) {
       await expect(browser).toDisplayCollapsedRedbox(`
        {
-         "code": "E1083",
-         "description": "Runtime data was accessed outside of <Suspense>
-
-       This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), and searchParams, are examples of Runtime data that can only come from a user request.
-
-       To fix this:
-
-       Provide a fallback UI using <Suspense> around this component.
-
-       or
-
-       Move the Runtime data access into a deeper component wrapped in <Suspense>.
-
-       In either case this allows Next.js to stream its contents to the user when they request the page, while still providing an initial UI that is prerendered and prefetchable for instant navigations.
-
-       Learn more: https://nextjs.org/docs/messages/blocking-route",
+         "code": "E1400",
+         "description": "Next.js encountered runtime data during prerendering.",
          "environmentLabel": "Server",
          "label": "Blocking Route",
          "source": "app/none/[top]/unwrapped/layout.tsx (8:3) @ Layout
@@ -451,22 +269,8 @@ describe('Cache Components Fallback Validation', () => {
     } else {
       await expect(browser).toDisplayCollapsedRedbox(`
        {
-         "code": "E1083",
-         "description": "Runtime data was accessed outside of <Suspense>
-
-       This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), and searchParams, are examples of Runtime data that can only come from a user request.
-
-       To fix this:
-
-       Provide a fallback UI using <Suspense> around this component.
-
-       or
-
-       Move the Runtime data access into a deeper component wrapped in <Suspense>.
-
-       In either case this allows Next.js to stream its contents to the user when they request the page, while still providing an initial UI that is prerendered and prefetchable for instant navigations.
-
-       Learn more: https://nextjs.org/docs/messages/blocking-route",
+         "code": "E1400",
+         "description": "Next.js encountered runtime data during prerendering.",
          "environmentLabel": "Server",
          "label": "Blocking Route",
          "source": "app/none/[top]/unwrapped/layout.tsx (8:3) @ Layout
@@ -483,22 +287,8 @@ describe('Cache Components Fallback Validation', () => {
     if (isTurbopack) {
       await expect(browser).toDisplayCollapsedRedbox(`
        {
-         "code": "E1083",
-         "description": "Runtime data was accessed outside of <Suspense>
-
-       This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), and searchParams, are examples of Runtime data that can only come from a user request.
-
-       To fix this:
-
-       Provide a fallback UI using <Suspense> around this component.
-
-       or
-
-       Move the Runtime data access into a deeper component wrapped in <Suspense>.
-
-       In either case this allows Next.js to stream its contents to the user when they request the page, while still providing an initial UI that is prerendered and prefetchable for instant navigations.
-
-       Learn more: https://nextjs.org/docs/messages/blocking-route",
+         "code": "E1400",
+         "description": "Next.js encountered runtime data during prerendering.",
          "environmentLabel": "Server",
          "label": "Blocking Route",
          "source": "app/none/[top]/unwrapped/layout.tsx (8:3) @ Layout
@@ -512,22 +302,8 @@ describe('Cache Components Fallback Validation', () => {
     } else {
       await expect(browser).toDisplayCollapsedRedbox(`
        {
-         "code": "E1083",
-         "description": "Runtime data was accessed outside of <Suspense>
-
-       This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), and searchParams, are examples of Runtime data that can only come from a user request.
-
-       To fix this:
-
-       Provide a fallback UI using <Suspense> around this component.
-
-       or
-
-       Move the Runtime data access into a deeper component wrapped in <Suspense>.
-
-       In either case this allows Next.js to stream its contents to the user when they request the page, while still providing an initial UI that is prerendered and prefetchable for instant navigations.
-
-       Learn more: https://nextjs.org/docs/messages/blocking-route",
+         "code": "E1400",
+         "description": "Next.js encountered runtime data during prerendering.",
          "environmentLabel": "Server",
          "label": "Blocking Route",
          "source": "app/none/[top]/unwrapped/layout.tsx (8:3) @ Layout
@@ -544,22 +320,8 @@ describe('Cache Components Fallback Validation', () => {
     if (isTurbopack) {
       await expect(browser).toDisplayCollapsedRedbox(`
        {
-         "code": "E1083",
-         "description": "Runtime data was accessed outside of <Suspense>
-
-       This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), and searchParams, are examples of Runtime data that can only come from a user request.
-
-       To fix this:
-
-       Provide a fallback UI using <Suspense> around this component.
-
-       or
-
-       Move the Runtime data access into a deeper component wrapped in <Suspense>.
-
-       In either case this allows Next.js to stream its contents to the user when they request the page, while still providing an initial UI that is prerendered and prefetchable for instant navigations.
-
-       Learn more: https://nextjs.org/docs/messages/blocking-route",
+         "code": "E1400",
+         "description": "Next.js encountered runtime data during prerendering.",
          "environmentLabel": "Server",
          "label": "Blocking Route",
          "source": "app/none/[top]/unwrapped/layout.tsx (8:3) @ Layout
@@ -573,22 +335,8 @@ describe('Cache Components Fallback Validation', () => {
     } else {
       await expect(browser).toDisplayCollapsedRedbox(`
        {
-         "code": "E1083",
-         "description": "Runtime data was accessed outside of <Suspense>
-
-       This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), and searchParams, are examples of Runtime data that can only come from a user request.
-
-       To fix this:
-
-       Provide a fallback UI using <Suspense> around this component.
-
-       or
-
-       Move the Runtime data access into a deeper component wrapped in <Suspense>.
-
-       In either case this allows Next.js to stream its contents to the user when they request the page, while still providing an initial UI that is prerendered and prefetchable for instant navigations.
-
-       Learn more: https://nextjs.org/docs/messages/blocking-route",
+         "code": "E1400",
+         "description": "Next.js encountered runtime data during prerendering.",
          "environmentLabel": "Server",
          "label": "Blocking Route",
          "source": "app/none/[top]/unwrapped/layout.tsx (8:3) @ Layout

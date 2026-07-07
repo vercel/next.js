@@ -26,7 +26,6 @@ import { workUnitAsyncStorage } from './work-unit-async-storage.external'
 import {
   createVaryParamsAccumulator,
   emptyVaryParamsAccumulator,
-  getVaryParamsThenable,
   type VaryParamsAccumulator,
 } from './vary-params'
 import type {
@@ -42,7 +41,10 @@ import {
   isNextjsBuiltinFilePath,
 } from './segment-explorer-path'
 import type { AppSegmentConfig } from '../../build/segment-config/app/app-segment-config'
-import { RenderStage, type StagedRenderingController } from './staged-rendering'
+import {
+  FIRST_LATE_RENDER_STAGE,
+  type StagedRenderingController,
+} from './staged-rendering'
 
 /**
  * Use the provided loader tree to create the React Component tree.
@@ -233,13 +235,10 @@ async function createComponentTreeInternal(
       })
     : []
 
-  const instantConfig = layoutOrPageMod
-    ? (layoutOrPageMod as AppSegmentConfig).unstable_instant
+  const prefetchConfig = layoutOrPageMod
+    ? (layoutOrPageMod as AppSegmentConfig).prefetch
     : undefined
-  const hasRuntimePrefetch =
-    instantConfig && typeof instantConfig === 'object'
-      ? instantConfig.prefetch === 'runtime'
-      : false
+  const hasRuntimePrefetch = prefetchConfig === 'allow-runtime'
   const isRuntimePrefetchable = hasRuntimePrefetch || parentRuntimePrefetchable
 
   const [Forbidden, forbiddenStyles] =
@@ -595,28 +594,31 @@ async function createComponentTreeInternal(
             }
           }
 
-          const seedData = await createComponentTreeInternal(
-            {
-              loaderTree: parallelRoute,
-              parentParams: currentParams,
-              parentOptionalCatchAllParamName: optionalCatchAllParamName,
-              parentRuntimePrefetchable: isRuntimePrefetchable,
-              rootLayoutIncluded: rootLayoutIncludedAtThisLevelOrAbove,
-              injectedCSS: injectedCSSWithCurrentLayout,
-              injectedJS: injectedJSWithCurrentLayout,
-              injectedFontPreloadTags: injectedFontPreloadTagsWithCurrentLayout,
-              ctx,
-              missingSlots,
-              preloadCallbacks,
-              authInterrupts,
-              // `StreamingMetadataOutlet` is used to conditionally throw. In the case of parallel routes we will have more than one page
-              // but we only want to throw on the first one.
-              MetadataOutlet: isChildrenRouteKey ? MetadataOutlet : null,
-            },
-            false
-          )
+          if (childCacheNodeSeedData === null) {
+            const seedData = await createComponentTreeInternal(
+              {
+                loaderTree: parallelRoute,
+                parentParams: currentParams,
+                parentOptionalCatchAllParamName: optionalCatchAllParamName,
+                parentRuntimePrefetchable: isRuntimePrefetchable,
+                rootLayoutIncluded: rootLayoutIncludedAtThisLevelOrAbove,
+                injectedCSS: injectedCSSWithCurrentLayout,
+                injectedJS: injectedJSWithCurrentLayout,
+                injectedFontPreloadTags:
+                  injectedFontPreloadTagsWithCurrentLayout,
+                ctx,
+                missingSlots,
+                preloadCallbacks,
+                authInterrupts,
+                // `StreamingMetadataOutlet` is used to conditionally throw. In the case of parallel routes we will have more than one page
+                // but we only want to throw on the first one.
+                MetadataOutlet: isChildrenRouteKey ? MetadataOutlet : null,
+              },
+              false
+            )
 
-          childCacheNodeSeedData = seedData
+            childCacheNodeSeedData = seedData
+          }
         }
 
         const templateNode = createElement(
@@ -1305,11 +1307,12 @@ function createSeedData(
 ): CacheNodeSeedData {
   const createElement = ctx.componentMod.createElement
 
-  // When this segment is NOT runtime-prefetchable, delay it until the Static
-  // stage by wrapping the node in a promise. This allows runtime-prefetchable
-  // segments (the lower tree) to render first during EarlyStatic, so their
-  // runtime data resolves in EarlyRuntime where sync IO can be checked.
-  // React will suspend on the thenable and resume when the stage advances.
+  // When this segment is NOT runtime-prefetchable, delay it until the ShellStatic
+  // stage (i.e. the first late stage) by wrapping the node in a promise.
+  // This allows runtime-prefetchable segments (the lower tree) to render first
+  // during ShellEarlyStatic, so their runtime data resolves in ShellEarlyRuntime
+  // where sync IO can be checked. React will suspend on the thenable and resume
+  // when the stage advances.
   if (!isRuntimePrefetchable) {
     const workUnitStore = workUnitAsyncStorage.getStore()
     if (workUnitStore) {
@@ -1321,7 +1324,7 @@ function createSeedData(
           if (stagedRendering) {
             const deferredRsc = rsc
             rsc = stagedRendering
-              .waitForStage(RenderStage.Static)
+              .waitForStage(FIRST_LATE_RENDER_STAGE)
               .then(() => deferredRsc)
           }
           break
@@ -1358,6 +1361,8 @@ function createSeedData(
     parallelRoutes,
     null,
     isPossiblyPartialResponse,
-    varyParamsAccumulator ? getVaryParamsThenable(varyParamsAccumulator) : null,
+    // The accumulator is itself the AsyncIterable<string> that Flight
+    // serializes into the segment's seed data.
+    varyParamsAccumulator,
   ]
 }

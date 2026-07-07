@@ -23,21 +23,21 @@ use crate::source::{
 
 /// The result of [`resolve_source_request`]. Similar to a [`ContentSourceContent`], but without the
 /// [`Rewrite`][ContentSourceContent::Rewrite] variant, as this is taken care in the function.
-#[turbo_tasks::value(serialization = "none", shared)]
+#[turbo_tasks::value(serialization = "skip", shared)]
 pub enum ResolveSourceRequestResult {
     NotFound,
     Static(ResolvedVc<StaticContent>, ResolvedVc<HeaderList>),
     HttpProxy(OperationVc<ProxyResult>),
 }
 
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 fn content_source_get_routes_operation(
     source: OperationVc<Box<dyn ContentSource>>,
 ) -> Vc<RouteTree> {
     source.connect().get_routes()
 }
 
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 fn route_tree_get_operation(
     route_tree: ResolvedVc<RouteTree>,
     asset_path: RcStr,
@@ -45,14 +45,14 @@ fn route_tree_get_operation(
     route_tree.get(asset_path)
 }
 
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 fn get_content_source_content_vary_operation(
     get_content: ResolvedVc<Box<dyn GetContentSourceContent>>,
 ) -> Vc<ContentSourceDataVary> {
     get_content.vary()
 }
 
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 fn get_content_source_content_get_operation(
     get_content: ResolvedVc<Box<dyn GetContentSourceContent>>,
     path: RcStr,
@@ -77,7 +77,7 @@ fn get_content_source_content_get_operation(
 /// TODO: The callers of this function now read this operation using strong consistency. This may
 /// have re-introduced performance issues that were solved in
 /// <https://github.com/vercel/turborepo/pull/5360>.
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 pub async fn resolve_source_request(
     source: OperationVc<Box<dyn ContentSource>>,
     request: TransientInstance<SourceRequest>,
@@ -88,7 +88,8 @@ pub async fn resolve_source_request(
     let mut request_overwrites = (*request).clone();
     let mut response_header_overwrites = Vec::new();
     let mut route_tree = content_source_get_routes_operation(source)
-        .resolve_strongly_consistent()
+        .resolve()
+        .strongly_consistent()
         .await?;
     'routes: loop {
         let mut sources_op = route_tree_get_operation(route_tree, current_asset_path.clone());
@@ -140,7 +141,8 @@ pub async fn resolve_source_request(
                                 request_overwrites.uri = new_uri;
                                 current_asset_path = new_asset_path.into();
                                 route_tree = content_source_get_routes_operation(*source)
-                                    .resolve_strongly_consistent()
+                                    .resolve()
+                                    .strongly_consistent()
                                     .await?;
                                 continue 'routes;
                             }

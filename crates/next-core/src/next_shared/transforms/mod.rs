@@ -6,6 +6,7 @@ pub(crate) mod next_debug_instant_stack;
 pub(crate) mod next_disallow_re_export_all_in_page;
 pub(crate) mod next_dynamic;
 pub(crate) mod next_edge_node_api_assert;
+pub(crate) mod next_empty_gsp;
 pub(crate) mod next_font;
 pub(crate) mod next_lint;
 pub(crate) mod next_middleware_dynamic_assert;
@@ -26,6 +27,7 @@ use anyhow::Result;
 pub use modularize_imports::{ModularizeImportPackageConfig, get_next_modularize_imports_rule};
 pub use next_debug_instant_stack::get_next_debug_instant_stack_rule;
 pub use next_dynamic::get_next_dynamic_transform_rule;
+pub use next_empty_gsp::get_next_empty_gsp_rule;
 pub use next_font::get_next_font_transform_rule;
 pub use next_lint::get_next_lint_transform_rule;
 pub use next_strip_page_exports::get_next_pages_transforms_rule;
@@ -35,7 +37,7 @@ use turbo_tasks::ResolvedVc;
 use turbo_tasks_fs::FileSystemPath;
 use turbopack::module_options::{ModuleRule, ModuleRuleEffect, ModuleType, RuleCondition};
 use turbopack_core::reference_type::ReferenceTypeCondition;
-use turbopack_ecmascript::{CustomTransformer, EcmascriptInputTransform};
+use turbopack_ecmascript::{EcmascriptInputTransform, TransformPlugin};
 
 use crate::next_image::{StructuredImageModuleType, module::BlurPlaceholderMode};
 
@@ -134,11 +136,11 @@ pub(crate) enum EcmascriptTransformStage {
 /// Create a new module rule for the given ecmatransform, runs against
 /// any ecmascript (with mdx if enabled) except url reference type
 pub(crate) fn get_ecma_transform_rule(
-    transformer: Box<dyn CustomTransformer + Send + Sync>,
+    transformer: ResolvedVc<TransformPlugin>,
     enable_mdx_rs: bool,
     stage: EcmascriptTransformStage,
 ) -> ModuleRule {
-    let transformer = EcmascriptInputTransform::Plugin(ResolvedVc::cell(transformer as _));
+    let transformer = EcmascriptInputTransform::Plugin(transformer);
     let (preprocess, main, postprocess) = match stage {
         EcmascriptTransformStage::Preprocess => (vec![transformer], vec![], vec![]),
         EcmascriptTransformStage::Main => (vec![], vec![transformer], vec![]),

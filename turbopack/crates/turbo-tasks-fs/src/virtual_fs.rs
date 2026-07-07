@@ -1,6 +1,6 @@
 use anyhow::{Result, bail};
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{ValueDefault, ValueToString, Vc};
+use turbo_tasks::{ValueToString, Vc};
 
 use crate::{FileContent, FileMeta, FileSystem, FileSystemPath, LinkContent, RawDirectoryContent};
 
@@ -36,12 +36,6 @@ impl VirtualFileSystem {
     /// [`Vc<VirtualFileSystem>`].
     pub fn new_with_name(name: RcStr) -> Vc<Self> {
         Self::cell(VirtualFileSystem { name })
-    }
-}
-
-impl ValueDefault for VirtualFileSystem {
-    fn value_default() -> Vc<Self> {
-        Self::new()
     }
 }
 

@@ -35,10 +35,12 @@ use crate::{
         exports_info::{ExportsInfoBinding, ExportsInfoRef},
         hot_module::ModuleHotReferenceCodeGen,
         ident::IdentReplacement,
+        import_meta_glob::ImportMetaGlobAssetReferenceCodeGen,
         member::MemberReplacement,
         require_context::RequireContextAssetReferenceCodeGen,
+        service_worker::ServiceWorkerAssetReferenceCodeGen,
         unreachable::Unreachable,
-        worker::WorkerAssetReferenceCodeGen,
+        worker::{WorkerAssetReferenceCodeGen, WorkerGlobalsReplacementCodeGen},
     },
 };
 
@@ -197,10 +199,13 @@ pub enum CodeGen {
     CjsRequireResolveAssetReferenceCodeGen(CjsRequireResolveAssetReferenceCodeGen),
     EsmAsyncAssetReferenceCodeGen(EsmAsyncAssetReferenceCodeGen),
     EsmModuleIdAssetReferenceCodeGen(EsmModuleIdAssetReferenceCodeGen),
+    ImportMetaGlobAssetReferenceCodeGen(ImportMetaGlobAssetReferenceCodeGen),
     RequireContextAssetReferenceCodeGen(RequireContextAssetReferenceCodeGen),
     UrlAssetReferenceCodeGen(UrlAssetReferenceCodeGen),
     WorkerAssetReferenceCodeGen(WorkerAssetReferenceCodeGen),
+    ServiceWorkerAssetReferenceCodeGen(ServiceWorkerAssetReferenceCodeGen),
     ModuleHotReferenceCodeGen(ModuleHotReferenceCodeGen),
+    WorkerGlobalsReplacementCodeGen(WorkerGlobalsReplacementCodeGen),
 }
 
 impl CodeGen {
@@ -230,12 +235,15 @@ impl CodeGen {
             Self::CjsRequireResolveAssetReferenceCodeGen(v) => v.code_generation(ctx).await,
             Self::EsmAsyncAssetReferenceCodeGen(v) => v.code_generation(ctx).await,
             Self::EsmModuleIdAssetReferenceCodeGen(v) => v.code_generation(ctx).await,
+            Self::ImportMetaGlobAssetReferenceCodeGen(v) => v.code_generation(ctx).await,
             Self::RequireContextAssetReferenceCodeGen(v) => v.code_generation(ctx).await,
             Self::UrlAssetReferenceCodeGen(v) => v.code_generation(ctx).await,
             Self::WorkerAssetReferenceCodeGen(v) => v.code_generation(ctx).await,
+            Self::ServiceWorkerAssetReferenceCodeGen(v) => v.code_generation(ctx).await,
             Self::ModuleHotReferenceCodeGen(v) => {
                 v.code_generation(ctx, scope_hoisting_context).await
             }
+            Self::WorkerGlobalsReplacementCodeGen(v) => v.code_generation(ctx).await,
         }
     }
 }

@@ -2,6 +2,7 @@ use std::{
     cmp::min,
     io::{BufRead, Result as IoResult, Write},
     ops,
+    sync::Arc,
 };
 
 use anyhow::Result;
@@ -13,7 +14,7 @@ use turbo_tasks_fs::{
     File, FileContent,
     rope::{Rope, RopeBuilder},
 };
-use turbo_tasks_hash::hash_xxh3_hash64;
+use turbo_tasks_hash::hash_xxh3_hash128;
 
 use crate::{
     debug_id::generate_debug_id,
@@ -30,13 +31,22 @@ pub type Mapping = (usize, Option<Rope>);
 #[derive(Debug, Clone, Encode, Decode)]
 pub struct Code {
     code: Rope,
-    mappings: Vec<Mapping>,
+    mappings: Arc<Vec<Mapping>>,
     should_generate_debug_id: bool,
 }
 
 #[turbo_tasks::value(transparent)]
 #[derive(Debug, Clone)]
 pub struct PersistedCode(Code);
+
+#[turbo_tasks::value_impl]
+impl PersistedCode {
+    #[turbo_tasks::function]
+    pub async fn to_code(self: Vc<Self>) -> Result<Vc<Code>> {
+        // PersistedCode is transparent over Code; owned() yields Code directly.
+        Ok(self.owned().await?.cell())
+    }
+}
 
 impl Code {
     pub fn source_code(&self) -> &Rope {
@@ -55,6 +65,12 @@ impl Code {
     /// Take the source code out of the Code.
     pub fn into_source_code(self) -> Rope {
         self.code
+    }
+
+    /// Stores this `Code` as a [`PersistedCode`] (fully serialized) and returns a `Vc<Code>`
+    /// backed by the persisted version, avoiding an intermediate hash-mode `Code` cell.
+    pub fn cell_persisted(self) -> ResolvedVc<PersistedCode> {
+        PersistedCode(self).resolved_cell()
     }
 
     // Formats the code with the source map and debug id comments as
@@ -215,7 +231,7 @@ impl CodeBuilder {
     pub fn build(self) -> Code {
         Code {
             code: self.code.build(),
-            mappings: self.mappings.unwrap_or_default(),
+            mappings: Arc::new(self.mappings.unwrap_or_default()),
             should_generate_debug_id: self.should_generate_debug_id,
         }
     }
@@ -276,9 +292,9 @@ pub struct OptionDebugId(Option<RcStr>);
 impl Code {
     /// Returns the hash of the source code of this Code.
     #[turbo_tasks::function]
-    pub fn source_code_hash(&self) -> Vc<u64> {
+    pub fn source_code_hash(&self) -> Vc<u128> {
         let code = self;
-        let hash = hash_xxh3_hash64(code.source_code());
+        let hash = hash_xxh3_hash128(code.source_code());
         Vc::cell(hash)
     }
 
@@ -289,16 +305,6 @@ impl Code {
         } else {
             None
         })
-    }
-
-    #[turbo_tasks::function]
-    pub async fn persisted(self: Vc<Self>) -> Result<Vc<Code>> {
-        Ok(self.persisted_internal().owned().await?.cell())
-    }
-
-    #[turbo_tasks::function]
-    fn persisted_internal(&self) -> Vc<PersistedCode> {
-        Vc::cell(self.clone())
     }
 }
 
@@ -317,7 +323,7 @@ impl Code {
 
         let mut sections = Vec::with_capacity(self.mappings.len());
         let mut read = self.code.read();
-        for (byte_pos, map) in &self.mappings {
+        for (byte_pos, map) in self.mappings.iter() {
             let mut want = byte_pos - last_byte_pos;
             while want > 0 {
                 // `fill_buf` never returns an error.

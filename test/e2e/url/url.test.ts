@@ -16,9 +16,7 @@ describe(`Handle new URL asset references`, () => {
     env: {
       // rely on skew protection when deployed
       NEXT_DEPLOYMENT_ID: isNextStart ? 'test-deployment-id' : undefined,
-      __NEXT_IMMUTABLE_ASSET_TOKEN: isNextStart
-        ? 'test-immutable-tkn-7890'
-        : undefined,
+      __NEXT_SUPPORTS_IMMUTABLE_ASSETS: isNextStart ? '1' : undefined,
     },
     skipDeployment: true,
   })
@@ -39,16 +37,16 @@ describe(`Handle new URL asset references`, () => {
     'Hello ' + Array(count).fill(clientUrl).join('+')
 
   beforeAll(() => {
-    let expectedToken
+    let expectedToken: string | undefined
     if (isNextDev || !isTurbopack) {
       expectedToken = undefined
     } else {
       expectedToken = next.assetToken
-      if (!expectedToken) {
-        throw new Error('Missing deployment id')
-      }
     }
-    clientUrl = `/_next/static/media/vercel.HASH.png${expectedToken ? `?dpl=${expectedToken}` : ''}`
+    clientUrl =
+      isTurbopack && !isNextDev
+        ? `/_next/static/immutable/media/vercel.HASH.png`
+        : `/_next/static/media/vercel.HASH.png${expectedToken ? `?dpl=${expectedToken}` : ''}`
   })
 
   it('should respond on middleware api', async () => {

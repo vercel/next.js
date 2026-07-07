@@ -5,7 +5,7 @@ import type {
   TurbopackResult,
 } from '../../../build/swc/types'
 
-import { bold, green, magenta, red } from '../../../lib/picocolors'
+import { bold, green, magenta, red, yellow } from '../../../lib/picocolors'
 import { deobfuscateText } from '../magic-identifier'
 import type { EntryKey } from './entry-key'
 import * as Log from '../../../build/output/log'
@@ -99,12 +99,28 @@ function formatFilePath(filePath: string): string {
 }
 
 export function formatIssue(issue: Issue) {
-  const { filePath, title, description, detail, source, importTraces } = issue
+  const {
+    filePath,
+    title,
+    description,
+    detail,
+    source,
+    importTraces,
+    severity,
+  } = issue
   let { documentationLink } = issue
-  const formattedTitle = renderStyledStringToErrorAnsi(title).replace(
+  let formattedTitle = renderStyledStringToErrorAnsi(title).replace(
     /\n/g,
     '\n    '
   )
+
+  if (severity === 'bug' || severity === 'error' || severity === 'fatal') {
+    formattedTitle = bold(`${red('Error')}: ${formattedTitle}`)
+  } else if (severity === 'warning') {
+    formattedTitle = bold(`${yellow('Warning')}: ${formattedTitle}`)
+  } else {
+    formattedTitle = bold(`Info: ${formattedTitle}`)
+  }
 
   // TODO: Use error codes to identify these
   // TODO: Generalize adapting Turbopack errors to Next.js errors

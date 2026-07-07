@@ -32,6 +32,7 @@
 const CONNECTIVITY_CHECK_TIMEOUT_MS = 200
 
 import { pingPrefetchScheduler } from './segment-cache/scheduler'
+import { fetch } from './segment-cache/fetch'
 import { RSC_HEADER } from './app-router-headers'
 import { dispatchOfflineChange } from './use-offline'
 

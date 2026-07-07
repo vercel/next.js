@@ -80,6 +80,10 @@ export class FileLogger {
     return this.logQueue
   }
 
+  public isEnabled(): boolean {
+    return this.mcpServerEnabled && this.isInitialized
+  }
+
   private flush(): void {
     if (this.logQueue.length === 0) {
       return
@@ -124,11 +128,7 @@ export class FileLogger {
 
   log(source: 'Server' | 'Browser', level: string, message: string): void {
     // Don't log anything if mcpServer is disabled
-    if (!this.mcpServerEnabled) {
-      return
-    }
-
-    if (!this.isInitialized) {
+    if (!this.isEnabled()) {
       return
     }
 

@@ -10,7 +10,6 @@ import { retry } from 'next-test-utils'
   () => {
     const { next } = nextTestSetupActionTreeShaking({
       files: __dirname,
-      skipDeployment: true,
     })
 
     it('should not tree-shake namespace exports the manifest', async () => {

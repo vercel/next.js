@@ -1,4 +1,4 @@
-import { a, b, c, default as d } from './root'
+import { a, b, c, default as d, e, e_var } from './root'
 
 expect(a()).toBe('a')
 if (process.env.NODE_ENV === 'production') {
@@ -7,6 +7,8 @@ if (process.env.NODE_ENV === 'production') {
   expect(Object(c).b()).toBe('b')
 }
 expect(() => d).toThrow()
+expect(() => e).toThrow()
+expect(e_var).toBeUndefined()
 
 export function test() {
   expect(d).toBe(d)

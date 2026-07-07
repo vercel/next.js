@@ -1,5 +1,6 @@
 import type * as Playwright from 'playwright'
 import { nextTestSetup } from 'e2e-utils'
+import { retry } from 'next-test-utils'
 import { createRouterAct } from 'router-act'
 
 // Bit values from PrefetchHint enum (const enum, so we duplicate values here)
@@ -230,6 +231,52 @@ describe('prefetch inlining', () => {
 
     expect(await browser.elementByCss('#page-outlined').text()).toBe(
       'Outlined test page'
+    )
+  })
+
+  it('preserves prefetch hints after on-demand revalidation', async () => {
+    const beforeTree = await fetchRouteTreePrefetch(
+      next,
+      '/test-on-demand-revalidate'
+    )
+    expect(renderInliningTree(beforeTree.tree)).toMatchInlineSnapshot(`
+     "
+              ⇣  root
+              ⇣  └── "test-on-demand-revalidate"
+     outlined ■      └── "__PAGE__" (+metadata)
+     "
+    `)
+
+    const before$ = await next.render$('/test-on-demand-revalidate')
+    const beforeValue = before$('#page-on-demand-revalidate-value').text()
+    expect(beforeValue).toMatch(/^0\.\d+$/)
+
+    const revalidateRes = await next.fetch(
+      '/api/revalidate-path?path=/test-on-demand-revalidate'
+    )
+    expect(revalidateRes.status).toBe(200)
+    expect(await revalidateRes.json()).toEqual({
+      revalidated: true,
+      path: '/test-on-demand-revalidate',
+    })
+
+    await retry(
+      async () => {
+        const $ = await next.render$('/test-on-demand-revalidate')
+        const afterValue = $('#page-on-demand-revalidate-value').text()
+        expect(afterValue).toMatch(/^0\.\d+$/)
+        expect(afterValue).not.toBe(beforeValue)
+      },
+      15000,
+      1000
+    )
+
+    const afterTree = await fetchRouteTreePrefetch(
+      next,
+      '/test-on-demand-revalidate'
+    )
+    expect(renderInliningTree(afterTree.tree)).toBe(
+      renderInliningTree(beforeTree.tree)
     )
   })
 
@@ -522,9 +569,13 @@ describe('prefetch inlining', () => {
       { includes: 'Static layout content' }
     )
 
+    // Navigate to the route. The static layout was prefetched (and is cached),
+    // but the runtime leaf page has no static descendants and is not
+    // speculatively prefetched under App Shells — it is fetched here, on
+    // navigation.
     await act(async () => {
       await browser.elementByCss('a[href="/test-runtime-bailout"]').click()
-    }, 'no-requests')
+    })
 
     expect(await browser.elementByCss('#layout-runtime-bailout').text()).toBe(
       'Static layout content'
@@ -685,19 +736,23 @@ describe('prefetch inlining', () => {
     )
   })
 
-  it('independent head: metadata is prefetched even when no runtime segment request is needed', async () => {
+  it('independent head: param-dependent head is deferred to navigation, not speculatively prefetched', async () => {
     // The layout at /test-independent-head/[item] uses runtime prefetching
     // (reads cookies). The pages underneath it are static. The metadata
     // (head) accesses both the [item] param and searchParams, making it
     // depend on runtime data.
     //
     // When we prefetch route A, the runtime layout and head are fetched
-    // together. When we then prefetch sibling route B, the layout is
-    // already cached — no runtime segment request is needed. But the
-    // head is different (it includes the [item] param in the title) and
-    // must still be fetched via a runtime prefetch. This test verifies
-    // that the head is fetched independently even when no runtime segment
-    // request is spawned for the sibling.
+    // together (the layout is a runtime segment in the new part of the
+    // tree, so a runtime request happens and the head rides along). When
+    // we then prefetch sibling route B, the runtime layout is already
+    // shared and cached, so the new part of the tree (the [item] page) is
+    // fully static and needs no runtime request. Because the head is
+    // param-dependent it is NOT part of the reusable App Shell, and we do
+    // not spawn a standalone runtime request just to prefetch it — it is
+    // deferred to navigation. This test verifies that a speculative
+    // per-link prefetch fetches the static page but not the param-dependent
+    // head.
     const data = await fetchRouteTreePrefetch(next, '/test-independent-head/a')
     expect(renderInliningTree(data.tree)).toMatchInlineSnapshot(`
      "
@@ -730,32 +785,46 @@ describe('prefetch inlining', () => {
     // Now we're on route A. Reveal the sibling link to route B. The
     // runtime layout is shared between A and B, so it's already cached
     // and won't be re-fetched. The only new segment is the [item] page,
-    // which is static. But the head differs (title includes "Item: b")
-    // and depends on runtime data, so it must still be fetched via a
-    // runtime prefetch even though no other runtime request is needed.
+    // which is static, so it IS prefetched. But the head depends on the
+    // [item] param (and searchParams), so it is param-dependent and is NOT
+    // part of the App Shell. Under App Shells, a speculative per-link
+    // prefetch does not request the param-dependent head — it is deferred
+    // to navigation. So the static page is prefetched here, but the title
+    // for B is not.
+    await act(async () => {
+      await browser
+        .elementByCss('input[data-link-accordion="/test-independent-head/b"]')
+        .click()
+    }, [
+      // The static page below the runtime layout is prefetched.
+      { includes: 'page-independent-head' },
+      // The param-dependent head must NOT be prefetched — it is not part
+      // of the App Shell and arrives on navigation instead.
+      { includes: 'Independent Head Title: b', block: 'reject' },
+    ])
+
+    // Navigate to route B. The param-dependent head was not prefetched, so
+    // it is fetched now, on navigation.
     await act(
       async () => {
-        await browser
-          .elementByCss('input[data-link-accordion="/test-independent-head/b"]')
-          .click()
+        await browser.elementByCss('a[href="/test-independent-head/b"]').click()
       },
       { includes: 'Independent Head Title: b' }
     )
 
-    // Navigate to route B. The page segment is unnecessarily marked as
-    // partial because the metadata outlet in the page's RSC data
-    // contains an unresolved reference to the dynamic metadata. This
-    // causes navigation to re-fetch the page even though the actual
-    // page content is fully static.
-    // TODO: The page segment should not be considered partial just
-    // because the metadata is dynamic. Once this is fixed, this
-    // navigation should not require any network requests.
-    await act(async () => {
-      await browser.elementByCss('a[href="/test-independent-head/b"]').click()
-    })
-
     expect(await browser.elementByCss('#page-independent-head').text()).toBe(
       'Independent head page'
+    )
+  })
+
+  it('notFound() during prerender does not crash build', async () => {
+    // Regression test: a page that calls notFound() during prerendering
+    // produces a flight data tree where some child seed data entries are
+    // undefined. collectPrefetchHints must handle this without crashing.
+    // The build succeeding is the primary assertion.
+    const browser = await next.browser('/test-not-found/exists')
+    expect(await browser.elementByCss('#page-not-found').text()).toBe(
+      'Found: exists'
     )
   })
 })

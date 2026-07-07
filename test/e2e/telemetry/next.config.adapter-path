@@ -1,0 +1,5 @@
+const path = require('path')
+
+module.exports = {
+  adapterPath: path.join(__dirname, 'adapter.js'),
+}

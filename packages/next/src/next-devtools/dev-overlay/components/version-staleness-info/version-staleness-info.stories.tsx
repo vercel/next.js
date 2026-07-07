@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react'
 import { VersionStalenessInfo } from './version-staleness-info'
-import { withShadowPortal } from '../../storybook/with-shadow-portal'
+import { withShadowPortal } from '../../../../../.storybook/decorators/with-shadow-portal'
 
 const meta: Meta<typeof VersionStalenessInfo> = {
   component: VersionStalenessInfo,
