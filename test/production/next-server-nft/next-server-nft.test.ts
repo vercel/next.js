@@ -1,9 +1,7 @@
-import { nextTestSetup } from 'e2e-utils'
+import { isReact18, nextTestSetup } from 'e2e-utils'
 import path from 'path'
 import fs from 'fs'
 import { NextAdapter } from 'next'
-
-const isReact18 = parseInt(process.env.NEXT_TEST_REACT_VERSION) === 18
 
 function normalizeNFT(base: string, files: string[]): string[] {
   const result = [
@@ -330,6 +328,7 @@ async function readNormalizedNFT(next, name) {
            "/node_modules/next/dist/lib/pick.js",
            "/node_modules/next/dist/lib/picocolors.js",
            "/node_modules/next/dist/lib/pretty-bytes.js",
+           "/node_modules/next/dist/lib/profiles-dir.js",
            "/node_modules/next/dist/lib/realpath.js",
            "/node_modules/next/dist/lib/recursive-copy.js",
            "/node_modules/next/dist/lib/recursive-delete.js",
@@ -707,6 +706,7 @@ async function readNormalizedNFT(next, name) {
            "/node_modules/next/dist/server/route-modules/app-page/vendored/contexts/server-inserted-html.js",
            "/node_modules/next/dist/server/runtime-reacts.external.js",
            "/node_modules/next/dist/shared/lib/deep-freeze.js",
+           "/node_modules/next/dist/shared/lib/instant-messages.js",
            "/node_modules/next/dist/shared/lib/invariant-error.js",
            "/node_modules/next/dist/shared/lib/is-plain-object.js",
            "/node_modules/next/dist/shared/lib/is-thenable.js",

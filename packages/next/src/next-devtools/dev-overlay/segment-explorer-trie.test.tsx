@@ -105,6 +105,85 @@ describe('Segment Explorer', () => {
     })
   })
 
+  test('handle segments that collide with Object.prototype members', () => {
+    insertSegmentNode(
+      createSegmentNode({ pagePath: '/constructor/page.js', type: 'page' })
+    )
+    insertSegmentNode(
+      createSegmentNode({ pagePath: '/toString/page.js', type: 'page' })
+    )
+
+    const { result } = renderHook(useSegmentTree)
+
+    expect(result.current).toEqual({
+      children: {
+        '': {
+          children: {
+            constructor: {
+              children: {
+                'page.js': {
+                  children: {},
+                  value: {
+                    pagePath: '/constructor/page.js',
+                    type: 'page',
+                    boundaryType: null,
+                    setBoundaryType: expect.anything(),
+                  },
+                },
+              },
+              value: undefined,
+            },
+            toString: {
+              children: {
+                'page.js': {
+                  children: {},
+                  value: {
+                    pagePath: '/toString/page.js',
+                    type: 'page',
+                    boundaryType: null,
+                    setBoundaryType: expect.anything(),
+                  },
+                },
+              },
+              value: undefined,
+            },
+          },
+          value: undefined,
+        },
+      },
+      value: undefined,
+    })
+
+    removeSegmentNode(
+      createSegmentNode({ pagePath: '/constructor/page.js', type: 'page' })
+    )
+
+    expect(result.current).toEqual({
+      children: {
+        '': {
+          children: {
+            toString: {
+              children: {
+                'page.js': {
+                  children: {},
+                  value: {
+                    pagePath: '/toString/page.js',
+                    type: 'page',
+                    boundaryType: null,
+                    setBoundaryType: expect.anything(),
+                  },
+                },
+              },
+              value: undefined,
+            },
+          },
+          value: undefined,
+        },
+      },
+      value: undefined,
+    })
+  })
+
   test('remove node in the middle', () => {
     insertSegmentNode(
       createSegmentNode({ pagePath: '/a/b/@sidebar/page.js', type: 'page' })

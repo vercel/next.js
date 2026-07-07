@@ -85,13 +85,19 @@ async function initCacheEntries(
   return entries.sort((a, b) => a.expireAt - b.expireAt)
 }
 
-export function getSharp(concurrency: number | null | undefined) {
+export function getSharp(
+  concurrency: number | null | undefined,
+  operationCache: boolean | null | undefined
+) {
   if (_sharp) {
     return _sharp
   }
   try {
     _sharp = require('sharp') as typeof import('sharp')
-    if (_sharp && _sharp.concurrency() > 1) {
+    if (typeof operationCache === 'boolean') {
+      _sharp.cache(operationCache)
+    }
+    if (_sharp.concurrency() > 1) {
       // Reducing concurrency should reduce the memory usage too.
       // We more aggressively reduce in dev but also reduce in prod.
       // https://sharp.pixelplumbing.com/api-utility#concurrency
@@ -224,7 +230,8 @@ async function deleteFromCacheDir(cacheDir: string, cacheKey: string) {
 export async function detectContentType(
   buffer: Buffer,
   skipMetadata: boolean | null | undefined,
-  concurrency?: number | null | undefined
+  concurrency?: number | null | undefined,
+  operationCache?: boolean | null | undefined
 ): Promise<string | null> {
   if (buffer.byteLength === 0) {
     return null
@@ -309,7 +316,7 @@ export async function detectContentType(
   format = detector(buffer)
 
   if (!format && !skipMetadata) {
-    const sharp = getSharp(concurrency)
+    const sharp = getSharp(concurrency, operationCache)
     const meta = await sharp(buffer)
       .metadata()
       .catch((_) => null)
@@ -812,6 +819,7 @@ export async function optimizeImage({
   width,
   height,
   concurrency,
+  operationCache,
   limitInputPixels,
   sequentialRead,
   timeoutInSeconds,
@@ -822,11 +830,12 @@ export async function optimizeImage({
   width: number
   height?: number
   concurrency?: number | null
+  operationCache?: boolean | null | undefined
   limitInputPixels?: number
   sequentialRead?: boolean | null
   timeoutInSeconds?: number
 }): Promise<Buffer> {
-  const sharp = getSharp(concurrency)
+  const sharp = getSharp(concurrency, operationCache)
   const transformer = sharp(buffer, {
     limitInputPixels,
     sequentialRead: sequentialRead ?? undefined,
@@ -1060,6 +1069,7 @@ export async function imageOptimizer(
     experimental: Pick<
       NextConfigComplete['experimental'],
       | 'imgOptConcurrency'
+      | 'imgOptOperationCache'
       | 'imgOptMaxInputPixels'
       | 'imgOptSequentialRead'
       | 'imgOptSkipMetadata'
@@ -1093,7 +1103,8 @@ export async function imageOptimizer(
   const upstreamType = await detectContentType(
     upstreamBuffer,
     nextConfig.experimental.imgOptSkipMetadata,
-    nextConfig.experimental.imgOptConcurrency
+    nextConfig.experimental.imgOptConcurrency,
+    nextConfig.experimental.imgOptOperationCache
   )
 
   if (
@@ -1183,6 +1194,7 @@ export async function imageOptimizer(
       quality,
       width,
       concurrency: nextConfig.experimental.imgOptConcurrency,
+      operationCache: nextConfig.experimental.imgOptOperationCache,
       limitInputPixels: nextConfig.experimental.imgOptMaxInputPixels,
       sequentialRead: nextConfig.experimental.imgOptSequentialRead,
       timeoutInSeconds: nextConfig.experimental.imgOptTimeoutInSeconds,

@@ -232,7 +232,10 @@ pub mod tests {
     };
 
     use turbo_rcstr::{RcStr, rcstr};
-    use turbo_tasks::{Completion, Effects, OperationVc, ReadRef, Vc, take_effects};
+    use turbo_tasks::{
+        Completion, Effects, OperationVc, ReadRef, Vc, read_strongly_consistent_and_apply_effects,
+        take_effects,
+    };
     use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
 
     use crate::{
@@ -263,7 +266,7 @@ pub mod tests {
         }
     }
 
-    #[turbo_tasks::function(operation)]
+    #[turbo_tasks::function(operation, root)]
     async fn assert_read_glob_basic_operation(path: RcStr) -> anyhow::Result<()> {
         let fs = DiskFileSystem::new(rcstr!("temp"), Vc::cell(path));
         let root = fs.root().await?;
@@ -306,7 +309,7 @@ pub mod tests {
         Ok(())
     }
 
-    #[turbo_tasks::function(operation)]
+    #[turbo_tasks::function(operation, root)]
     async fn assert_read_glob_symlinks_operation(path: RcStr) -> anyhow::Result<()> {
         let fs = DiskFileSystem::new(rcstr!("temp"), Vc::cell(path));
         let root = fs.root().await?;
@@ -357,7 +360,7 @@ pub mod tests {
         Ok(())
     }
 
-    #[turbo_tasks::function(operation)]
+    #[turbo_tasks::function(operation, root)]
     async fn assert_dead_symlink_read_glob_operation(path: RcStr) -> anyhow::Result<()> {
         let fs =
             Vc::upcast::<Box<dyn FileSystem>>(DiskFileSystem::new(rcstr!("temp"), Vc::cell(path)));
@@ -460,13 +463,13 @@ pub mod tests {
         .unwrap();
     }
 
-    #[turbo_tasks::function(operation)]
+    #[turbo_tasks::function(operation, root)]
     pub async fn delete(path: FileSystemPath) -> anyhow::Result<()> {
         path.write(FileContent::NotFound.cell()).await?;
         Ok(())
     }
 
-    #[turbo_tasks::function(operation)]
+    #[turbo_tasks::function(operation, root)]
     pub async fn write(path: FileSystemPath, contents: RcStr) -> anyhow::Result<()> {
         path.write(
             FileContent::Content(crate::File::from_bytes(contents.to_string().into_bytes())).cell(),
@@ -475,25 +478,25 @@ pub mod tests {
         Ok(())
     }
 
-    #[turbo_tasks::function(operation)]
+    #[turbo_tasks::function(operation, root)]
     pub fn track_star_star_glob(path: FileSystemPath) -> Vc<Completion> {
         path.track_glob(Glob::new(rcstr!("**"), GlobOptions::default()), false)
     }
 
-    #[turbo_tasks::function(operation)]
+    #[turbo_tasks::function(operation, root)]
     fn disk_file_system_root_operation(path: RcStr) -> Vc<FileSystemPath> {
         let fs =
             Vc::upcast::<Box<dyn FileSystem>>(DiskFileSystem::new(rcstr!("temp"), Vc::cell(path)));
         fs.root()
     }
 
-    #[turbo_tasks::function(operation)]
+    #[turbo_tasks::function(operation, root)]
     async fn extract_effects_operation(op: OperationVc<()>) -> anyhow::Result<Vc<Effects>> {
         let _ = op.resolve().strongly_consistent().await?;
         Ok(take_effects(op).await?.cell())
     }
 
-    #[turbo_tasks::function(operation)]
+    #[turbo_tasks::function(operation, root)]
     async fn track_glob_operation(path: RcStr, glob: RcStr) -> anyhow::Result<()> {
         let root = disk_file_system_root_operation(path)
             .read_strongly_consistent()
@@ -503,7 +506,7 @@ pub mod tests {
         Ok(())
     }
 
-    #[turbo_tasks::function(operation)]
+    #[turbo_tasks::function(operation, root)]
     async fn read_glob_operation(path: RcStr, glob: RcStr) -> anyhow::Result<()> {
         let root = disk_file_system_root_operation(path)
             .read_strongly_consistent()
@@ -560,11 +563,11 @@ pub mod tests {
                 .await?;
 
             // Delete a file that we shouldn't be tracking
-            extract_effects_operation(delete(root.join("dir/sub/.vim/.gitignore")?))
-                .read_strongly_consistent()
-                .await?
-                .apply()
-                .await?;
+            read_strongly_consistent_and_apply_effects(
+                extract_effects_operation(delete(root.join("dir/sub/.vim/.gitignore")?)),
+                |e| e,
+            )
+            .await?;
 
             let read_dir2 = track_star_star_glob(dir.clone())
                 .read_strongly_consistent()
@@ -572,11 +575,11 @@ pub mod tests {
             assert!(ReadRef::ptr_eq(&read_dir, &read_dir2));
 
             // Delete a file that we should be tracking
-            extract_effects_operation(delete(root.join("dir/foo")?))
-                .read_strongly_consistent()
-                .await?
-                .apply()
-                .await?;
+            read_strongly_consistent_and_apply_effects(
+                extract_effects_operation(delete(root.join("dir/foo")?)),
+                |e| e,
+            )
+            .await?;
 
             let read_dir2 = track_star_star_glob(dir.clone())
                 .read_strongly_consistent()
@@ -585,11 +588,14 @@ pub mod tests {
             assert!(!ReadRef::ptr_eq(&read_dir, &read_dir2));
 
             // Modify a symlink target file
-            extract_effects_operation(write(root.join("link_target.js")?, rcstr!("new_contents")))
-                .read_strongly_consistent()
-                .await?
-                .apply()
-                .await?;
+            read_strongly_consistent_and_apply_effects(
+                extract_effects_operation(write(
+                    root.join("link_target.js")?,
+                    rcstr!("new_contents"),
+                )),
+                |e| e,
+            )
+            .await?;
             let read_dir3 = track_star_star_glob(dir.clone())
                 .read_strongly_consistent()
                 .await?;

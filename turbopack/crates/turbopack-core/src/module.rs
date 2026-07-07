@@ -1,9 +1,9 @@
 use turbo_rcstr::RcStr;
-use turbo_tasks::{ResolvedVc, TaskInput, ValueToString, Vc};
+use turbo_tasks::{ResolvedVc, ValueToString, Vc};
 
 use crate::{ident::AssetIdent, reference::ModuleReferences, source::OptionSource};
 
-#[derive(Clone, Copy, Debug, TaskInput, Hash)]
+#[derive(Clone, Copy, Debug, Hash)]
 #[turbo_tasks::value(shared)]
 pub enum StyleType {
     IsolatedStyle,

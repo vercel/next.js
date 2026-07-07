@@ -1,7 +1,7 @@
 import type { Viewport } from 'next'
 import { connection } from 'next/server'
 
-export const unstable_instant = false
+export const instant = false
 
 export async function generateViewport(): Promise<Viewport> {
   await connection()

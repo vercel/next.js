@@ -1,8 +1,8 @@
-import { nextTestSetup, isNextDev } from 'e2e-utils'
+import { nextTestSetup, isNextDev, type Playwright } from 'e2e-utils'
 import cheerio from 'cheerio'
 
 describe('Build Error Tests', () => {
-  const { next, isTurbopack, isNextDeploy } = nextTestSetup({
+  const { next, isTurbopack, isRspack, isNextDeploy } = nextTestSetup({
     files: __dirname,
     skipStart: true,
     skipDeployment: true,
@@ -32,7 +32,9 @@ describe('Build Error Tests', () => {
         } else {
           expect(cliOutput).toContain('./pages/static-img.js')
         }
-        expect(cliOutput).not.toContain('Import trace for requested module')
+        if (!isRspack) {
+          expect(cliOutput).not.toContain('Import trace for requested module')
+        }
       }
     )
   })
@@ -45,7 +47,7 @@ describe('Static Image Component Tests for basePath', () => {
   })
   if (skipped) return
 
-  let browser: Awaited<ReturnType<typeof next.browser>>
+  let browser: Playwright
   let $: ReturnType<typeof cheerio.load>
 
   beforeAll(async () => {

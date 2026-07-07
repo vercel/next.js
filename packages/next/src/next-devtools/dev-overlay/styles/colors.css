@@ -90,6 +90,18 @@
   --color-blue-900: #0067d6;
   --color-blue-1000: #0025ad;
 
+  /* Purple Scale Light */
+  --color-purple-100: #f9f3fd;
+  --color-purple-200: #f8f2fd;
+  --color-purple-300: #f1ecfb;
+  --color-purple-400: #eadff7;
+  --color-purple-500: #d4bced;
+  --color-purple-600: #bd92e9;
+  --color-purple-700: #8250dc;
+  --color-purple-800: #6f47c4;
+  --color-purple-900: #6a2db5;
+  --color-purple-1000: #2e004d;
+
   /* Red Scale Light */
   --color-red-100: #fff0f0;
   --color-red-200: #ffebeb;

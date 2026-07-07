@@ -1,0 +1,1 @@
+{"version":3,"sources":["input.js"],"sourcesContent":["export async function generateStaticParams() {\n  if (process.env.X) {\n    return [{ slug: 'a' }]\n  }\n  return []\n}\n"],"names":[],"mappings":"AAAA,OAAO,eAAe;IACpB,IAAI,QAAQ,GAAG,CAAC,CAAC,EAAE;QACjB,OAAO;YAAC;gBAAE,MAAM;YAAI;SAAE;IACxB;IACA,OAAO,EAAE;AACX;6CALO;WAAA"}

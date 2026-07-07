@@ -8,11 +8,9 @@ import {
   listClientChunks,
   getDeploymentId,
 } from 'next-test-utils'
-import { nextTestSetup, isNextDev } from 'e2e-utils'
+import { isReact18, nextTestSetup, isNextDev } from 'e2e-utils'
 import { existsSync } from 'fs'
 import { join } from 'path'
-
-const isReact18 = parseInt(process.env.NEXT_TEST_REACT_VERSION) === 18
 
 describe('Image Component Default Tests', () => {
   const { next, skipped } = nextTestSetup({

@@ -441,7 +441,7 @@ impl ImportMappingReplacement for NextFontGoogleFontFileReplacer {
         } = font_file_options_from_query_map(query)?;
 
         let (filename, ext) = split_extension(&url);
-        let ext = ext.with_context(|| format!("font url {} is missing an extension", &url))?;
+        let ext = ext.with_context(|| format!("font url {} is missing an extension", url))?;
 
         // remove dashes and dots as they might be used for the markers below.
         let mut name = format!("{:016x}", hash_xxh3_hash64(filename.as_bytes()));
@@ -506,7 +506,7 @@ async fn update_google_stylesheet(
     // Update font-family definitions to the scoped name
     // TODO: Do this more resiliently, e.g. transforming an swc ast
     let mut stylesheet = stylesheet.await?.replace(
-        &format!("font-family: '{}';", &options.font_family),
+        &format!("font-family: '{}';", options.font_family),
         &format!("font-family: '{scoped_font_family}';"),
     );
 

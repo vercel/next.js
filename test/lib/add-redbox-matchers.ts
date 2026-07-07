@@ -14,7 +14,7 @@ import {
   getRedboxTotalErrorCount,
   openRedbox,
 } from './next-test-utils'
-import type { Playwright } from 'next-webdriver'
+import type { Playwright } from './browsers/playwright'
 import { NextInstance } from 'e2e-utils'
 
 declare global {
