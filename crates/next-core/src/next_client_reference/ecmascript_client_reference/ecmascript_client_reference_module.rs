@@ -1,6 +1,7 @@
 use std::{io::Write, iter::once};
 
 use anyhow::{Context, Result, bail};
+use async_trait::async_trait;
 use indoc::writedoc;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, ValueToString, Vc};
@@ -152,7 +153,7 @@ impl EcmascriptClientReferenceModule {
             AssetContent::file(FileContent::Content(File::from(code.source_code().clone())).cell());
 
         let proxy_source = VirtualSource::new(
-            self.server_ident.path().await?.join(
+            self.server_ident.await?.path.join(
                 // We choose the extension based on the original file because we're placing the
                 // virtual module next to the original code, so its parsing will be
                 // affected by `type` fields in package.json -- a bare `proxy.js`
@@ -194,8 +195,11 @@ impl Module for EcmascriptClientReferenceModule {
     async fn ident(&self) -> Result<Vc<AssetIdent>> {
         Ok(self
             .server_ident
+            .owned()
+            .await?
             .with_modifier(rcstr!("client reference proxy"))
-            .with_layer(self.server_asset_context.into_trait_ref().await?.layer()))
+            .with_layer(self.server_asset_context.into_trait_ref().await?.layer())
+            .into_vc())
     }
 
     #[turbo_tasks::function]
@@ -317,12 +321,10 @@ impl ChunkItem for EcmascriptClientReferenceProxyChunkItem {
         self.inner_module.ident()
     }
 
-    #[turbo_tasks::function]
     fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
         *self.chunking_context
     }
 
-    #[turbo_tasks::function]
     fn ty(&self) -> Vc<Box<dyn ChunkType>> {
         Vc::upcast(Vc::<EcmascriptChunkType>::default())
     }
@@ -333,21 +335,19 @@ impl ChunkItem for EcmascriptClientReferenceProxyChunkItem {
     }
 }
 
+#[async_trait]
 #[turbo_tasks::value_impl]
 impl EcmascriptChunkItem for EcmascriptClientReferenceProxyChunkItem {
-    #[turbo_tasks::function]
-    fn content(&self) -> Vc<EcmascriptChunkItemContent> {
-        self.inner_chunk_item.content()
-    }
-
-    #[turbo_tasks::function]
-    fn content_with_async_module_info(
+    async fn content_with_async_module_info(
         &self,
         async_module_info: Option<Vc<AsyncModuleInfo>>,
         estimated: bool,
-    ) -> Vc<EcmascriptChunkItemContent> {
+    ) -> Result<Vc<EcmascriptChunkItemContent>> {
         self.inner_chunk_item
+            .into_trait_ref()
+            .await?
             .content_with_async_module_info(async_module_info, estimated)
+            .await
     }
 }
 

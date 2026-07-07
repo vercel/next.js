@@ -1,5 +1,4 @@
-import { createNext } from 'e2e-utils'
-import type { NextInstance } from 'e2e-utils'
+import { nextTestSetup } from 'e2e-utils'
 import { statSync } from 'fs'
 import { join } from 'path'
 
@@ -7,8 +6,6 @@ import { join } from 'path'
 ;(process.env.IS_TURBOPACK_TEST ? describe.skip : describe)(
   'Disable fallback polyfills',
   () => {
-    let next: NextInstance
-
     async function getIndexPageSize() {
       // Read build manifest to get chunk files for the index page
       // this only works reliably for pages router and simple examples.
@@ -33,10 +30,9 @@ import { join } from 'path'
       return totalSize / 1024
     }
 
-    beforeAll(async () => {
-      next = await createNext({
-        files: {
-          'pages/index.js': `
+    const { next } = nextTestSetup({
+      files: {
+        'pages/index.js': `
           import { useEffect } from 'react'
           import crypto from 'crypto'
 
@@ -47,14 +43,15 @@ import { join } from 'path'
             return <p>hello world</p>
           } 
         `,
-        },
-        dependencies: {
-          axios: '0.27.2',
-        },
-      })
+      },
+      dependencies: {
+        axios: '0.27.2',
+      },
+    })
+
+    beforeAll(async () => {
       await next.stop()
     })
-    afterAll(() => next.destroy())
 
     it('Fallback polyfills added by default', async () => {
       const indexPageSizeKB = await getIndexPageSize()

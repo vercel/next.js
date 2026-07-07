@@ -2,10 +2,11 @@ import type { Instant } from 'next'
 import assert from 'node:assert/strict'
 
 import { ClientChild } from './client'
+import { Suspense } from 'react'
 
-export const unstable_instant: Instant = {
-  prefetch: 'runtime',
-  samples: [
+export const instant: Instant = {
+  level: 'experimental-error',
+  unstable_samples: [
     {
       searchParams: {
         single: 'test',
@@ -14,6 +15,7 @@ export const unstable_instant: Instant = {
     },
   ],
 }
+export const prefetch = 'allow-runtime'
 
 export default async function Page({
   searchParams,
@@ -22,7 +24,9 @@ export default async function Page({
 }) {
   return (
     <main>
-      <TestSearchParams searchParams={searchParams} />
+      <Suspense>
+        <TestSearchParams searchParams={searchParams} />
+      </Suspense>
     </main>
   )
 }

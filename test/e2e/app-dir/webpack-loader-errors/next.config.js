@@ -28,6 +28,10 @@ const nextConfig = {
         loaders: [require.resolve('./loaders/fs-error-loader.js')],
         as: '*.js',
       },
+      'crash.data': {
+        loaders: [require.resolve('./loaders/crash-loader.js')],
+        as: '*.js',
+      },
     },
   },
   webpack(config) {
@@ -55,6 +59,10 @@ const nextConfig = {
       {
         test: /fs-error\.data$/,
         use: [require.resolve('./loaders/fs-error-loader.js')],
+      },
+      {
+        test: /crash\.data$/,
+        use: [require.resolve('./loaders/crash-loader.js')],
       }
     )
     return config

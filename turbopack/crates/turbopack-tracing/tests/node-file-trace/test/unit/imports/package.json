@@ -7,6 +7,7 @@
       "default": {
         "node": "./node.js"
       }
-    }
+    },
+    "#pkg": "pkg"
   }
 }

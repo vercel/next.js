@@ -6,6 +6,7 @@ import {
 } from '../dynamic-rendering-utils'
 import { RenderStage } from '../app-render/staged-rendering'
 import { throwPrerenderPPRRemovedError } from '../../shared/lib/ppr-removed-error'
+import { isRequestApiAllowedInCurrentPhase } from './utils'
 
 // A fulfilled thenable that React can unwrap synchronously via `use()` without
 // ever suspending. Reusing a single instance avoids allocating on every call.
@@ -21,20 +22,19 @@ const resolvedIOPromise: Promise<void> = Promise.resolve(undefined)
  * point, creating a dynamic boundary. Inside `"use cache"` scopes or during
  * a real request it resolves immediately.
  *
- * Unlike `connection()`, `unstable_io()` does not require an actual HTTP
- * request and can be used freely inside cache scopes and client components.
+ * Unlike `connection()`, `io()` does not require an actual HTTP request and
+ * can be used freely inside cache scopes and client components.
  */
-export function unstable_io(): Promise<void> {
-  if (!process.env.__NEXT_UNSTABLE_IO) {
-    throw new Error(
-      '`unstable_io()` requires the `experimental.unstableIO` option to be enabled in your Next.js config.'
-    )
-  }
-
+export function io(): Promise<void> {
   const workStore = workAsyncStorage.getStore()
   const workUnitStore = workUnitAsyncStorage.getStore()
 
   if (workStore && workUnitStore) {
+    if (workUnitStore && !isRequestApiAllowedInCurrentPhase(workUnitStore)) {
+      throw new Error(
+        `Route ${workStore.route} used \`io()\` inside \`after()\` while rendering. The \`io()\` function is not allowed in this scope. See more info here: https://nextjs.org/docs/app/api-reference/functions/after`
+      )
+    }
     switch (workUnitStore.type) {
       case 'request':
         // For dev renders we instrument the promise so it will show up in
@@ -65,7 +65,7 @@ export function unstable_io(): Promise<void> {
         return makeHangingPromise(
           workUnitStore.renderSignal,
           workStore.route,
-          '`unstable_io()`'
+          '`io()`'
         )
       case 'prerender-ppr':
         // Dead code to be removed when we eliminate legacy ppr code
@@ -74,7 +74,7 @@ export function unstable_io(): Promise<void> {
       case 'cache':
       case 'private-cache':
       case 'unstable-cache':
-      // Inside cache scopes, unstable_io() resolves immediately.
+      // Inside cache scopes, io() resolves immediately.
       // Caches can contain IO-dependent code like new Date() — it will
       // simply return the value at cache-fill time.
       // ...
@@ -85,7 +85,7 @@ export function unstable_io(): Promise<void> {
       // ...
       // intentional fallthrough
       case 'validation-client':
-      // unstable_io() is usable in client components, resolve immediately.
+      // io() is usable in client components, resolve immediately.
       // The reason we take this position is most io shielding you would do
       // in a browser is for sync IO as there aren't many non-fetch based IO
       // operations you can do in the browser that have meaningful latency.

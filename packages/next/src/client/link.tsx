@@ -18,7 +18,6 @@ import { useIntersection } from './use-intersection'
 import { getDomainLocale } from './get-domain-locale'
 import { addBasePath } from './add-base-path'
 import { useMergedRef } from './use-merged-ref'
-import { errorOnce } from '../shared/lib/utils/error-once'
 
 type Url = string | UrlObject
 type RequiredKeys<T> = {
@@ -147,9 +146,9 @@ const prefetched = new Set<string>()
 type PrefetchOptions = RouterPrefetchOptions & {
   /**
    * bypassPrefetchedCheck will bypass the check to see if the `href` has
-   * already been fetched.
+   * already been fetched i.e. unconditionally prefetch the `href`.
    */
-  bypassPrefetchedCheck?: boolean
+  bypassPrefetchedCheck: boolean
 }
 
 function prefetch(
@@ -576,7 +575,11 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
       }
 
       // Prefetch the URL.
-      prefetch(router, href, as, { locale })
+      prefetch(router, href, as, {
+        // dedupe across appear/disappear of the Link.
+        bypassPrefetchedCheck: false,
+        locale,
+      })
     }, [as, href, isVisible, locale, prefetchEnabled, router?.locale, router])
 
     const childProps: {
@@ -703,6 +706,8 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
 
     if (legacyBehavior) {
       if (process.env.NODE_ENV === 'development') {
+        const { errorOnce } =
+          require('../shared/lib/utils/error-once') as typeof import('../shared/lib/utils/error-once')
         errorOnce(
           '`legacyBehavior` is deprecated and will be removed in a future ' +
             'release. A codemod is available to upgrade your components:\n\n' +

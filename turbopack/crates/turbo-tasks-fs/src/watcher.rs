@@ -5,7 +5,7 @@ use std::{
     mem::take,
     path::{Path, PathBuf},
     sync::{
-        Arc, LazyLock, RwLock, RwLockWriteGuard,
+        Arc, LazyLock,
         mpsc::{Receiver, TryRecvError, channel},
     },
     time::Duration,
@@ -18,6 +18,7 @@ use notify::{
     event::{MetadataKind, ModifyKind, RenameMode},
 };
 use rustc_hash::FxHashSet;
+use tokio::sync::{RwLock, RwLockWriteGuard};
 use tracing::instrument;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
@@ -94,10 +95,10 @@ impl State {
         }
     }
 
-    fn write(&self) -> StateWriteGuard<'_> {
+    async fn write(&self) -> StateWriteGuard<'_> {
         match self {
-            Self::Recursive(state) => StateWriteGuard::Recursive(state.write().unwrap()),
-            Self::NonRecursive(state) => StateWriteGuard::NonRecursive(state.write().unwrap()),
+            Self::Recursive(state) => StateWriteGuard::Recursive(state.write().await),
+            Self::NonRecursive(state) => StateWriteGuard::NonRecursive(state.write().await),
         }
     }
 }
@@ -156,8 +157,11 @@ mod non_recursive_helpers {
 
     /// Called after a rescan in case a previously watched-but-deleted directory was recreated.
     #[instrument(skip_all, level = "trace")]
-    pub fn restore_all_watched_ignore_errors(state: &RwLock<NonRecursiveState>, root_path: &Path) {
-        let mut guard = state.write().unwrap();
+    pub async fn restore_all_watched_ignore_errors(
+        state: &RwLock<NonRecursiveState>,
+        root_path: &Path,
+    ) {
+        let mut guard = state.write().await;
         let NonRecursiveState::Watching(watching_state) = &mut *guard else {
             return;
         };
@@ -174,7 +178,7 @@ mod non_recursive_helpers {
     /// Called when a new directory is found in a parent directory we're watching. Restores the
     /// watcher if we were previously watching it.
     #[instrument(skip_all, level = "trace")]
-    pub fn restore_if_watched(
+    pub async fn restore_if_watched(
         state: &RwLock<NonRecursiveState>,
         dir_path: &Path,
         root_path: &Path,
@@ -188,7 +192,7 @@ mod non_recursive_helpers {
 
         // fast path: the directory isn't in `watched`, only take a read lock and bail out early
         {
-            let guard = state.read().unwrap();
+            let guard = state.read().await;
             let NonRecursiveState::Watching(watching_state) = &*guard else {
                 return Ok(());
             };
@@ -198,7 +202,7 @@ mod non_recursive_helpers {
         }
 
         // slow path: re-watch the path
-        let mut guard = state.write().unwrap();
+        let mut guard = state.write().await;
         let NonRecursiveState::Watching(watching_state) = &mut *guard else {
             return Ok(());
         };
@@ -219,7 +223,7 @@ mod non_recursive_helpers {
     ///
     /// This should be called *before* reading a file to avoid a race condition.
     #[instrument(skip_all, level = "trace")]
-    pub fn ensure_watched(
+    pub async fn ensure_watched(
         state: &RwLock<NonRecursiveState>,
         dir_path: &Path,
         root_path: &Path,
@@ -233,7 +237,7 @@ mod non_recursive_helpers {
         // fast path: the directory is already in `watched`, only take a read lock and bail out
         // early
         {
-            let guard = state.read().unwrap();
+            let guard = state.read().await;
             let NonRecursiveState::Watching(watching_state) = &*guard else {
                 return Ok(());
             };
@@ -243,7 +247,7 @@ mod non_recursive_helpers {
         }
 
         // slow path: watch the path
-        let mut guard = state.write().unwrap();
+        let mut guard = state.write().await;
         let NonRecursiveState::Watching(watching_state) = &mut *guard else {
             return Ok(());
         };
@@ -354,13 +358,13 @@ impl DiskWatcher {
     /// - Emits only one Remove event when deleting a directory (inotify)
     /// - Doesn't emit duplicate create events
     /// - Doesn't emit Modify events after a Create event
-    pub fn start_watching(
+    pub async fn start_watching(
         &self,
         fs_inner: Arc<DiskFileSystemInner>,
         report_invalidation_reason: bool,
         poll_interval: Option<Duration>,
     ) -> Result<()> {
-        let state_guard = self.state.write();
+        let state_guard = self.state.write().await;
 
         // bail out if we're already watching
         if let StateWriteGuard::Recursive(guard) = &state_guard
@@ -458,10 +462,10 @@ impl DiskWatcher {
         Ok(())
     }
 
-    pub fn stop_watching(&self) {
+    pub async fn stop_watching(&self) {
         match &self.state {
-            State::Recursive(state) => *state.write().unwrap() = RecursiveState::Stopped,
-            State::NonRecursive(state) => *state.write().unwrap() = NonRecursiveState::Stopped,
+            State::Recursive(state) => *state.write().await = RecursiveState::Stopped,
+            State::NonRecursive(state) => *state.write().await = NonRecursiveState::Stopped,
         }
         // thread will detect the stop because the channel is disconnected when `NotifyWatcher` is
         // dropped
@@ -512,9 +516,11 @@ impl DiskWatcher {
                                 // we use only one global `notify::Watcher` instance.
                                 //
                                 // TODO: Report diagnostics if an error happens
-                                non_recursive_helpers::restore_all_watched_ignore_errors(
-                                    non_recursive,
-                                    fs_inner.root_path(),
+                                fs_inner.tokio_handle.block_on(
+                                    non_recursive_helpers::restore_all_watched_ignore_errors(
+                                        non_recursive,
+                                        fs_inner.root_path(),
+                                    ),
                                 );
                                 if let Some(batched_new_paths) = &mut batched_new_paths {
                                     batched_new_paths.clear();
@@ -682,11 +688,14 @@ impl DiskWatcher {
             if let State::NonRecursive(non_recursive) = &self.state {
                 for path in batched_new_paths.as_mut().unwrap().drain() {
                     // TODO: Report diagnostics if this error happens
-                    let _ = non_recursive_helpers::restore_if_watched(
-                        non_recursive,
-                        &path,
-                        fs_inner.root_path(),
-                    );
+                    let _ =
+                        fs_inner
+                            .tokio_handle
+                            .block_on(non_recursive_helpers::restore_if_watched(
+                                non_recursive,
+                                &path,
+                                fs_inner.root_path(),
+                            ));
                 }
             }
 
@@ -734,21 +743,21 @@ impl DiskWatcher {
         }
     }
 
-    pub fn ensure_watched_file(&self, path: &Path, root_path: &Path) -> Result<()> {
+    pub async fn ensure_watched_file(&self, path: &Path, root_path: &Path) -> Result<()> {
         // Watch the parent directory instead of the specified file, since directories also track
         // their immediate children (even in non-recursive mode), and we need to watch all the
         // parents anyways.
         if let State::NonRecursive(non_recursive) = &self.state
             && let Some(dir_path) = path.parent()
         {
-            non_recursive_helpers::ensure_watched(non_recursive, dir_path, root_path)?;
+            non_recursive_helpers::ensure_watched(non_recursive, dir_path, root_path).await?;
         }
         Ok(())
     }
 
-    pub fn ensure_watched_dir(&self, dir_path: &Path, root_path: &Path) -> Result<()> {
+    pub async fn ensure_watched_dir(&self, dir_path: &Path, root_path: &Path) -> Result<()> {
         if let State::NonRecursive(non_recursive) = &self.state {
-            non_recursive_helpers::ensure_watched(non_recursive, dir_path, root_path)?;
+            non_recursive_helpers::ensure_watched(non_recursive, dir_path, root_path).await?;
         }
         Ok(())
     }

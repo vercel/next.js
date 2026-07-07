@@ -197,7 +197,7 @@ impl Issue for SideEffectsInPackageJsonIssue {
     }
 
     async fn file_path(&self) -> Result<FileSystemPath> {
-        self.source.file_path().owned().await
+        self.source.file_path().await
     }
 
     async fn title(&self) -> Result<StyledString> {

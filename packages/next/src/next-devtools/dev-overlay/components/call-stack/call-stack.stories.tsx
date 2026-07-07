@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react'
 import { CallStack } from './call-stack'
-import { withShadowPortal } from '../../storybook/with-shadow-portal'
+import { withShadowPortal } from '../../../../../.storybook/decorators/with-shadow-portal'
 
 const meta: Meta<typeof CallStack> = {
   component: CallStack,

@@ -49,10 +49,14 @@ impl NextDynamicEntryModule {
 #[turbo_tasks::value_impl]
 impl Module for NextDynamicEntryModule {
     #[turbo_tasks::function]
-    fn ident(&self) -> Vc<AssetIdent> {
-        self.module
+    async fn ident(&self) -> Result<Vc<AssetIdent>> {
+        Ok(self
+            .module
             .ident()
+            .owned()
+            .await?
             .with_modifier(rcstr!("next/dynamic entry"))
+            .into_vc())
     }
 
     #[turbo_tasks::function]

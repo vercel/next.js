@@ -25,9 +25,11 @@ describe('max prefetch inlining', () => {
     //   /shared/a/b/c  and  /shared/a/d/e
     // Without inlining, prefetching each route would issue one request per
     // segment plus one for the head (6+ requests). With inlining enabled,
-    // all segment data is bundled into a single response, so revealing a
-    // link should produce at most 2 prefetch requests per route: one for
-    // /_tree and one for the inlined segment data.
+    // all segment data is bundled into a single response. Under App Shells a
+    // route is prefetched in two phases (App Shell + per-link), and each phase
+    // may issue a /_tree request plus an inlined segment-data request, so
+    // revealing a link produces at most 4 prefetch requests per route — still
+    // far fewer than the un-inlined per-segment requests.
 
     let rscRequestCount = 0
     let page: Playwright.Page
@@ -71,10 +73,13 @@ describe('max prefetch inlining', () => {
       }
     )
 
-    // The delta should be at most 2 requests (/_tree + /_inlined).
-    // Without inlining, there would be 6+ individual segment requests.
+    // The delta counts raw `rsc` requests via the listener above (NOT through
+    // `act`, which ignores App Shell requests), so it includes the App Shell
+    // prefetch as well as the per-link prefetch. Each may issue a /_tree request
+    // plus an inlined segment-data request, so the delta is at most 4. Without
+    // inlining there would be 6+ individual segment requests.
     const delta = rscRequestCount - countBeforeSecondPrefetch
-    expect(delta).toBeLessThanOrEqual(2)
+    expect(delta).toBeLessThanOrEqual(4)
 
     // Navigate to the second route. Because the data was fully prefetched,
     // there should be no additional requests.

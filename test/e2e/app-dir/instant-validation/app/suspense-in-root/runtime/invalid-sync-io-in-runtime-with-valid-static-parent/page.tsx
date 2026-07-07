@@ -1,9 +1,7 @@
 import { cookies } from 'next/headers'
 
-export const unstable_instant = {
-  prefetch: 'runtime',
-  samples: [{ cookies: [] }],
-}
+export const instant = { level: 'experimental-error' }
+export const prefetch = 'allow-runtime'
 
 // This page HAS runtime prefetch enabled. The sync IO (Date.now()) after
 // cookies() is invalid here because during a runtime prefetch, cookies()

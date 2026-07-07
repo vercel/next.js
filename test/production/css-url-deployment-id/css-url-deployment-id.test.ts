@@ -47,7 +47,7 @@ describe('css-url-deployment-id', () => {
     }
 
     // Extract all url() references from the CSS
-    const urlMatches = allCssContent.match(/url\([^)]+\)/g) || []
+    const urlMatches: string[] = allCssContent.match(/url\([^)]+\)/g) || []
 
     // Filter to only asset URLs (images and fonts), excluding data URIs
     const assetUrls = urlMatches.filter(
@@ -95,7 +95,8 @@ describe('css-url-deployment-id', () => {
     }
 
     // Find image references from CSS modules (page.module.css)
-    const imageUrls = allCssContent.match(/url\([^)]+\.png[^)]*\)/g) || []
+    const imageUrls: string[] =
+      allCssContent.match(/url\([^)]+\.png[^)]*\)/g) || []
     expect(imageUrls.length).toBeGreaterThanOrEqual(1)
 
     for (const imageUrl of imageUrls) {
@@ -103,7 +104,8 @@ describe('css-url-deployment-id', () => {
     }
 
     // Find font references from CSS modules
-    const fontUrls = allCssContent.match(/url\([^)]+\.woff2[^)]*\)/g) || []
+    const fontUrls: string[] =
+      allCssContent.match(/url\([^)]+\.woff2[^)]*\)/g) || []
     expect(fontUrls.length).toBeGreaterThanOrEqual(1)
 
     for (const fontUrl of fontUrls) {
