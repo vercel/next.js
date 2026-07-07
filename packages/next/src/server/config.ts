@@ -45,7 +45,7 @@ import { dset } from '../shared/lib/dset'
 import { normalizeZodErrors } from '../shared/lib/zod'
 import { HTML_LIMITED_BOT_UA_RE_STRING } from '../shared/lib/router/utils/is-bot'
 import { findDir } from '../lib/find-pages-dir'
-import { INFINITE_CACHE } from '../lib/constants'
+import { validateAndNormalizeCacheLifeProfile } from './use-cache/cache-life-profile'
 import { resolveCacheHandlerPathToFilesystem } from '../lib/format-dynamic-import-path'
 import { interopDefault } from '../lib/interop-default'
 import { djb2Hash } from '../shared/lib/hash'
@@ -1412,35 +1412,13 @@ function assignDefaultsAndValidate(
       }
     }
 
-    // `Infinity` is a documented value for `stale`/`revalidate`/`expire`, but
-    // the resolved config crosses JSON serialization boundaries (e.g. to build
-    // workers), where `Infinity` turns into `null`. Normalize it to
-    // `INFINITE_CACHE`, which has the same meaning and survives serialization.
-    // Other non-finite numbers would corrupt the same way and are rejected.
     const cacheLifeProfiles: NonNullable<NextConfig['cacheLife']> =
       result.cacheLife
     for (const [profileName, profile] of Object.entries(cacheLifeProfiles)) {
-      let normalizedProfile = profile
-      for (const key of ['stale', 'revalidate', 'expire'] as const) {
-        const value = profile[key]
-        if (value === undefined || Number.isFinite(value)) {
-          continue
-        }
-        if (value !== Infinity) {
-          throw new Error(
-            `Invalid "cacheLife.${profileName}.${key}" provided, expected a finite number of seconds or Infinity, received ${value}`
-          )
-        }
-        if (normalizedProfile === profile) {
-          // Profile objects are shared (the user's config objects, or the
-          // module-global default profiles), so clone instead of mutating.
-          normalizedProfile = { ...profile }
-        }
-        normalizedProfile[key] = INFINITE_CACHE
-      }
-      if (normalizedProfile !== profile) {
-        cacheLifeProfiles[profileName] = normalizedProfile
-      }
+      cacheLifeProfiles[profileName] = validateAndNormalizeCacheLifeProfile(
+        profile,
+        { kind: 'config', profileName }
+      )
     }
   }
 

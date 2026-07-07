@@ -1,18 +1,10 @@
-import { INFINITE_CACHE } from '../../lib/constants'
 import { workAsyncStorage } from '../app-render/work-async-storage.external'
 import { workUnitAsyncStorage } from '../app-render/work-unit-async-storage.external'
+import { validateAndNormalizeCacheLifeProfile } from './cache-life-profile'
+import type { CacheLife } from './cache-life-profile'
 
-export type CacheLife = {
-  // How long the client can cache a value without checking with the server.
-  stale?: number
-  // How frequently you want the cache to refresh on the server.
-  // Stale values may be served while revalidating.
-  revalidate?: number
-  // In the worst case scenario, where you haven't had traffic in a while,
-  // how stale can a value be until you prefer deopting to dynamic.
-  // Must be longer than revalidate.
-  expire?: number
-}
+export type { CacheLife }
+
 // The equivalent header is kind of like:
 // Cache-Control: max-age=[stale],s-max-age=[revalidate],stale-while-revalidate=[expire-revalidate],stale-if-error=[expire-revalidate]
 // Except that stale-while-revalidate/stale-if-error only applies to shared caches - not private caches.
@@ -30,67 +22,6 @@ type CacheLifeProfiles =
   | 'weeks'
   | 'max'
   | (string & {})
-
-function validateCacheLife(profile: CacheLife) {
-  if (profile.stale !== undefined) {
-    if ((profile.stale as any) === false) {
-      throw new Error(
-        'Pass `Infinity` instead of `false` if you want to cache on the client forever ' +
-          'without checking with the server.'
-      )
-    } else if (typeof profile.stale !== 'number') {
-      throw new Error('The stale option must be a number of seconds.')
-    } else if (!Number.isFinite(profile.stale) && profile.stale !== Infinity) {
-      throw new Error(
-        `Invalid \`cacheLife()\` option "stale" provided, expected a finite number of seconds or Infinity, received ${profile.stale}.`
-      )
-    }
-  }
-  if (profile.revalidate !== undefined) {
-    if ((profile.revalidate as any) === false) {
-      throw new Error(
-        'Pass `Infinity` instead of `false` if you do not want to revalidate by time.'
-      )
-    } else if (typeof profile.revalidate !== 'number') {
-      throw new Error('The revalidate option must be a number of seconds.')
-    } else if (
-      !Number.isFinite(profile.revalidate) &&
-      profile.revalidate !== Infinity
-    ) {
-      throw new Error(
-        `Invalid \`cacheLife()\` option "revalidate" provided, expected a finite number of seconds or Infinity, received ${profile.revalidate}.`
-      )
-    }
-  }
-  if (profile.expire !== undefined) {
-    if ((profile.expire as any) === false) {
-      throw new Error(
-        'Pass `Infinity` instead of `false` if you want to cache on the server forever ' +
-          'without checking with the origin.'
-      )
-    } else if (typeof profile.expire !== 'number') {
-      throw new Error('The expire option must be a number of seconds.')
-    } else if (
-      !Number.isFinite(profile.expire) &&
-      profile.expire !== Infinity
-    ) {
-      throw new Error(
-        `Invalid \`cacheLife()\` option "expire" provided, expected a finite number of seconds or Infinity, received ${profile.expire}.`
-      )
-    }
-  }
-
-  if (profile.revalidate !== undefined && profile.expire !== undefined) {
-    if (profile.revalidate > profile.expire) {
-      throw new Error(
-        'If providing both the revalidate and expire options, ' +
-          'the expire option must be greater than the revalidate option. ' +
-          'The expire option indicates how many seconds from the start ' +
-          'until it can no longer be used.'
-      )
-    }
-  }
-}
 
 export function cacheLife(profile: CacheLifeProfiles | CacheLife): void {
   if (!process.env.__NEXT_USE_CACHE) {
@@ -158,39 +89,34 @@ export function cacheLife(profile: CacheLifeProfiles | CacheLife): void {
       'Invalid `cacheLife()` option. Either pass a profile name or object.'
     )
   } else {
-    validateCacheLife(profile)
+    profile = validateAndNormalizeCacheLifeProfile(profile, { kind: 'inline' })
   }
 
   if (profile.revalidate !== undefined) {
-    // Track the explicit revalidate time. Infinity is tracked as
-    // INFINITE_CACHE, which survives JSON serialization.
-    const revalidate =
-      profile.revalidate === Infinity ? INFINITE_CACHE : profile.revalidate
+    // Track the explicit revalidate time.
     if (
       workUnitStore.explicitRevalidate === undefined ||
-      workUnitStore.explicitRevalidate > revalidate
+      workUnitStore.explicitRevalidate > profile.revalidate
     ) {
-      workUnitStore.explicitRevalidate = revalidate
+      workUnitStore.explicitRevalidate = profile.revalidate
     }
   }
   if (profile.expire !== undefined) {
     // Track the explicit expire time.
-    const expire = profile.expire === Infinity ? INFINITE_CACHE : profile.expire
     if (
       workUnitStore.explicitExpire === undefined ||
-      workUnitStore.explicitExpire > expire
+      workUnitStore.explicitExpire > profile.expire
     ) {
-      workUnitStore.explicitExpire = expire
+      workUnitStore.explicitExpire = profile.expire
     }
   }
   if (profile.stale !== undefined) {
     // Track the explicit stale time.
-    const stale = profile.stale === Infinity ? INFINITE_CACHE : profile.stale
     if (
       workUnitStore.explicitStale === undefined ||
-      workUnitStore.explicitStale > stale
+      workUnitStore.explicitStale > profile.stale
     ) {
-      workUnitStore.explicitStale = stale
+      workUnitStore.explicitStale = profile.stale
     }
   }
 }
