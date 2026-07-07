@@ -302,6 +302,8 @@ function linkClicked(
     }
 
     const { dispatchNavigateAction } =
+      // TODO(browser-variant): migrate to a .ts/.browser.ts split so the browser bundle drops the server branch; see scripts/generate-browser-variant-aliases.mjs
+      // ast-grep-ignore: no-typeof-window-require-tsx
       require('../components/app-router-instance') as typeof import('../components/app-router-instance')
 
     React.startTransition(() => {

@@ -38,6 +38,7 @@ use crate::{
         import_meta_glob::ImportMetaGlobAssetReferenceCodeGen,
         member::MemberReplacement,
         require_context::RequireContextAssetReferenceCodeGen,
+        service_worker::ServiceWorkerAssetReferenceCodeGen,
         unreachable::Unreachable,
         worker::{WorkerAssetReferenceCodeGen, WorkerGlobalsReplacementCodeGen},
     },
@@ -202,6 +203,7 @@ pub enum CodeGen {
     RequireContextAssetReferenceCodeGen(RequireContextAssetReferenceCodeGen),
     UrlAssetReferenceCodeGen(UrlAssetReferenceCodeGen),
     WorkerAssetReferenceCodeGen(WorkerAssetReferenceCodeGen),
+    ServiceWorkerAssetReferenceCodeGen(ServiceWorkerAssetReferenceCodeGen),
     ModuleHotReferenceCodeGen(ModuleHotReferenceCodeGen),
     WorkerGlobalsReplacementCodeGen(WorkerGlobalsReplacementCodeGen),
 }
@@ -237,6 +239,7 @@ impl CodeGen {
             Self::RequireContextAssetReferenceCodeGen(v) => v.code_generation(ctx).await,
             Self::UrlAssetReferenceCodeGen(v) => v.code_generation(ctx).await,
             Self::WorkerAssetReferenceCodeGen(v) => v.code_generation(ctx).await,
+            Self::ServiceWorkerAssetReferenceCodeGen(v) => v.code_generation(ctx).await,
             Self::ModuleHotReferenceCodeGen(v) => {
                 v.code_generation(ctx, scope_hoisting_context).await
             }

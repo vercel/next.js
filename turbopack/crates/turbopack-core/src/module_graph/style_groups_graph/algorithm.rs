@@ -535,7 +535,7 @@ impl PartialOrd for OrdF32 {
 ///   * `module_style_types` — per-module style type, indexed by module id. Used to forbid merges
 ///     that would leak global CSS into unrelated chunk groups.
 ///   * `request_cost` — per-request overhead in bytes.
-///   * `module_factor_cost` — see module-level docs.
+///   * `weight_distribution` — see module-level docs.
 ///   * `max_chunk_size` — bytes; merges that produce a multi-item chunk above this are forbidden
 ///     (`+infinity`). `0` disables the cap.
 ///
@@ -551,7 +551,7 @@ pub(super) fn split_into_chunks(
     module_sizes: &[u64],
     module_style_types: &[StyleType],
     request_cost: f32,
-    module_factor_cost: f32,
+    weight_distribution: f32,
     max_chunk_size: u64,
 ) -> Vec<(Vec<usize>, Option<f32>)> {
     if global_order.is_empty() {
@@ -562,12 +562,18 @@ pub(super) fn split_into_chunks(
     let order: Vec<usize> = global_order.iter().map(|n| n.index()).collect();
     let n = order.len();
 
-    // Per-group total CSS byte size — denominator in the cost formula. Memoized once because
-    // `chunk_groups` is fixed for the duration of this call. `.max(1)` avoids a div-by-zero
-    // when a chunk group has only zero-sized modules.
-    let group_total_size: Vec<u64> = chunk_groups
+    // Per-chunk-group weight applied to that group's share of every chunk cost. Derived once from
+    // each group's total CSS byte size as `group_total_size ^ (-weight_distribution)`:
+    //   * `weight_distribution == 0` → weight `1` for every group (all groups weighted equally).
+    //   * `weight_distribution > 0` → smaller groups get a larger weight, so the algorithm cares
+    //     proportionally more about the bytes/requests it ships to small chunk groups.
+    // `.max(1)` avoids a zero base when a chunk group has only zero-sized modules.
+    let chunk_group_weight: Vec<f32> = chunk_groups
         .iter()
-        .map(|g| g.iter().map(|&id| module_sizes[id]).sum::<u64>().max(1))
+        .map(|g| {
+            let total = g.iter().map(|&id| module_sizes[id]).sum::<u64>().max(1) as f32;
+            total.powf(-weight_distribution)
+        })
         .collect();
 
     // Inverse index: for each module id, the sorted, deduplicated list of chunk-group indices
@@ -588,11 +594,10 @@ pub(super) fn split_into_chunks(
 
     let cx = CostContext {
         module_to_groups: &module_to_groups,
-        group_total_size: &group_total_size,
+        chunk_group_weight: &chunk_group_weight,
         module_sizes,
         module_style_types,
         request_cost,
-        module_factor_cost,
         max_chunk_size,
     };
 
@@ -677,17 +682,28 @@ fn affected_range(split_points: &[bool], index: usize) -> (usize, usize) {
 }
 
 /// Constant inputs to [`CostContext::chunk_cost`]. Bundled together so we don't have to pass
-/// seven arguments at every call site.
+/// six arguments at every call site.
 struct CostContext<'a> {
     /// Inverse of `chunk_groups`: per module id, the sorted list of group indices containing
     /// that module. Built once in [`split_into_chunks`] and reused for every `chunk_cost`
-    /// invocation.
+    /// invocation. Used both to collect the groups that load a chunk (the union over its
+    /// modules) and to test, via binary search, whether a given group originally contains a
+    /// module.
     module_to_groups: &'a [Vec<u32>],
-    group_total_size: &'a [u64],
+    /// Per chunk-group weight applied to that group's share of a chunk's cost, indexed by group
+    /// index. Precomputed in [`split_into_chunks`] as `group_total_size ^ (-weight_distribution)`
+    /// so [`CostContext::chunk_cost`] only looks it up. Larger for smaller groups (when
+    /// `weight_distribution > 0`), making the algorithm care more about what it ships to them.
+    chunk_group_weight: &'a [f32],
+    /// Byte size of each module's chunk item, indexed by module id.
     module_sizes: &'a [u64],
+    /// Style type of each module, indexed by module id. Used to enforce that `GlobalStyle`
+    /// modules never leak into a chunk group that doesn't already load them.
     module_style_types: &'a [StyleType],
+    /// Per-request overhead in bytes, charged once for every chunk group that loads the chunk.
     request_cost: f32,
-    module_factor_cost: f32,
+    /// Byte cap for multi-item chunks; a merge that would exceed it costs `+infinity`. `0`
+    /// disables the cap.
     max_chunk_size: u64,
 }
 
@@ -744,17 +760,15 @@ impl CostContext<'_> {
             }
         }
 
-        // Per-group cost: `chunk_size + (chunk_size / group_total) * module_factor_cost +
-        // request_cost`. Total is the sum across all loading groups.
+        // Per-group cost: `chunk_group_weight * (chunk_size + request_cost)`, summed across all
+        // loading groups. The per-group weight (larger for smaller groups) is what makes shipping
+        // a chunk's bytes and request to a small chunk group more expensive than to a large one,
+        // so overshipping to small groups is discouraged.
         let chunk_size_f = chunk_size as f32;
+        let base = chunk_size_f + self.request_cost;
         loading_groups
             .iter()
-            .map(|&gi| {
-                let group_total = self.group_total_size[gi as usize] as f32;
-                chunk_size_f
-                    + (chunk_size_f / group_total) * self.module_factor_cost
-                    + self.request_cost
-            })
+            .map(|&gi| self.chunk_group_weight[gi as usize] * base)
             .sum()
     }
 }

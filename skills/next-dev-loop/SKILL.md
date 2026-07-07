@@ -32,7 +32,7 @@ The two views cross-check each other.
 
 - Next.js **16.3+** with **Turbopack** — `/_next/mcp` plus the
   proactive compile check via `get_compilation_issues`.
-- `agent-browser` **>= 0.31.0** — React introspection, worktree-scoped
+- `agent-browser` **>= 0.31.1** — React introspection, worktree-scoped
   `session id`, idempotent `--restore`, and launch flag reconciliation.
 
 These are hard floors, not soft preferences. If anything is missing,

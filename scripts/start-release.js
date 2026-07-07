@@ -3,14 +3,16 @@ const path = require('path')
 const execa = require('execa')
 const fs = require('fs/promises')
 const semver = require('semver')
-const resolveFrom = require('resolve-from')
 const {
   configureGitHubAuth,
   getGitHubToken,
   getGitHubTokenMissingMessage,
   verifyGitHubApiAccess,
 } = require('./release-github-auth')
-const { createGitHubReleaseCommit } = require('./release-github-api')
+const {
+  createGitHubReleaseCommit,
+  createGitHubRelease,
+} = require('./release-github-api')
 
 const SEMVER_TYPES = ['patch', 'minor', 'major']
 
@@ -147,15 +149,6 @@ async function main() {
       return
     }
 
-    const configStorePath = resolveFrom(
-      path.join(process.cwd(), 'node_modules/release'),
-      'configstore'
-    )
-    const ConfigStore = require(configStorePath)
-
-    const config = new ConfigStore('release')
-    config.set('token', githubToken)
-
     await configureGitHubAuth(githubToken)
     await verifyGitHubApiAccess(
       githubToken,
@@ -164,7 +157,7 @@ async function main() {
     )
   }
 
-  console.log(`Running pnpm release-${releaseType}...`)
+  console.log(`Running release-${releaseType}...`)
 
   const { version: canaryVersion } = JSON.parse(
     await fs.readFile(path.join(process.cwd(), 'lerna.json'), 'utf-8')
@@ -240,32 +233,26 @@ async function main() {
     ? { baseSha, tagName: `v${previewVersion}` }
     : {}
 
+  // On a dry run, route every GitHub API call through a mock client that logs
+  // instead of hitting the API, so the whole sign/tag/push + release flow is
+  // exercised without creating any remote commits, tags, refs, or releases.
+  const mockRequest = dryRun ? createMockGitHubRequest() : undefined
   if (dryRun) {
-    // Exercise the full sign/tag/push flow with a mock GitHub client that logs
-    // instead of calling the API, so the replay and tagging logic is covered
-    // without creating any remote commits, tags, or refs.
     console.log(
-      'Dry run: creating GitHub-signed release commit(s) with a mock GitHub client (no API calls)'
+      'Dry run: creating GitHub-signed release commit(s) and the GitHub release with a mock GitHub client (no API calls)'
     )
-    await createGitHubReleaseCommit(githubToken, {
-      ...releaseCommitOptions,
-      githubRequest: createMockGitHubRequest(),
+  }
+
+  const { tagName } = await createGitHubReleaseCommit(githubToken, {
+    ...releaseCommitOptions,
+    githubRequest: mockRequest,
+  })
+
+  if (isCanary || isReleaseCandidate || isBeta || isPreview) {
+    await createGitHubRelease(githubToken, {
+      tagName,
+      githubRequest: mockRequest,
     })
-    console.log('Dry run: skipping GitHub release creation')
-  } else {
-    await createGitHubReleaseCommit(githubToken, releaseCommitOptions)
-
-    if (isCanary || isReleaseCandidate || isBeta || isPreview) {
-      const releaseChild = execa(
-        'pnpm',
-        ['release', '--pre', '--skip-questions', '--show-url'],
-        {
-          stdio: 'inherit',
-        }
-      )
-
-      await releaseChild
-    }
   }
 
   console.log('Release process is finished')

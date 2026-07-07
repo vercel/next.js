@@ -39,17 +39,17 @@ pub enum StyleGroupsAlgorithm {
     Graph {
         /// See `experimental.cssChunking.requestCost` in Next.js.
         request_cost: F32TaskInput,
-        /// See `experimental.cssChunking.moduleFactorCost` in Next.js.
-        module_factor_cost: F32TaskInput,
+        /// See `experimental.cssChunking.weightDistribution` in Next.js.
+        weight_distribution: F32TaskInput,
     },
 }
 
 impl StyleGroupsAlgorithm {
     /// Build a [`StyleGroupsAlgorithm::Graph`] variant from real `f32` cost parameters.
-    pub fn graph(request_cost: f32, module_factor_cost: f32) -> Self {
+    pub fn graph(request_cost: f32, weight_distribution: f32) -> Self {
         Self::Graph {
             request_cost: F32TaskInput::from(request_cost),
-            module_factor_cost: F32TaskInput::from(module_factor_cost),
+            weight_distribution: F32TaskInput::from(weight_distribution),
         }
     }
 }

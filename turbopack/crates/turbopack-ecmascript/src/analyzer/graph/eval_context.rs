@@ -261,6 +261,13 @@ impl EvalContext {
                 ..
             }) => JsValue::strict_not_equal(arena, self.eval(arena, left), self.eval(arena, right)),
 
+            Expr::Bin(BinExpr {
+                op: op!("in"),
+                left,
+                right,
+                ..
+            }) => JsValue::r#in(arena, self.eval(arena, left), self.eval(arena, right)),
+
             &Expr::Cond(CondExpr {
                 box ref cons,
                 box ref alt,

@@ -40,6 +40,11 @@ import {
 import { createDedupedByCallsiteServerErrorLoggerDev } from '../create-deduped-by-callsite-server-error-logger'
 import { dynamicAccessAsyncStorage } from '../app-render/dynamic-access-async-storage.external'
 import { RenderStage } from '../app-render/staged-rendering'
+import {
+  isEmptyParams,
+  hasFallbackRouteParams,
+  allParamsAreRootParams,
+} from '../lib/params-utils'
 
 export type ParamValue = string | Array<string> | undefined
 export type Params = Record<string, ParamValue>
@@ -69,12 +74,6 @@ export function createParamsFromClient(
           workUnitStore,
           varyParamsAccumulator
         )
-      case 'validation-client':
-        return createClientParamsInInstantValidation(
-          underlyingParams,
-          workStore,
-          workUnitStore.validationSamples
-        )
       case 'cache':
       case 'private-cache':
       case 'unstable-cache':
@@ -89,6 +88,16 @@ export function createParamsFromClient(
         throw new InvariantError(
           'createParamsFromClient should not be called inside generateStaticParams.'
         )
+      case 'validation-client': {
+        if (workUnitStore.validationSamples) {
+          return createClientParamsInInstantValidation(
+            underlyingParams,
+            workStore,
+            workUnitStore.validationSamples
+          )
+        }
+        return makeUntrackedParams(underlyingParams)
+      }
       case 'request': {
         if (workUnitStore.validationSamples) {
           return createClientParamsInInstantValidation(
@@ -590,9 +599,13 @@ function createStagedRenderParamsImpl(
     !allParamsAreRootParams(underlyingParams, workUnitStore.rootParams)
   ) {
     // For a dynamic request we generally want to recover a static shell,
-    // so static params can resolve in the static stage.
-    // Session shells are handled with a separate render.
-    const staticParamsStages = RENDER_STAGES_BY_DATA_KIND.staticLinkData
+    // so static params can resolve in the static stage, because session
+    // shells are handled with a separate render.
+    // However, in dev we might need to recover a session shell for instant validation.
+    // This is indicated by `needsSessionShell`.
+    const staticParamsStages = workUnitStore.needsSessionShell
+      ? RENDER_STAGES_BY_DATA_KIND.runtimeLinkData
+      : RENDER_STAGES_BY_DATA_KIND.staticLinkData
     const stage = isRuntimePrefetchable
       ? staticParamsStages.early
       : staticParamsStages.late
@@ -600,15 +613,6 @@ function createStagedRenderParamsImpl(
   }
 
   return makeUntrackedParams(userspaceParams)
-}
-
-function allParamsAreRootParams(underlyingParams: Params, rootParams: Params) {
-  for (const paramName in underlyingParams) {
-    if (!Object.hasOwn(rootParams, paramName)) {
-      return false
-    }
-  }
-  return true
 }
 
 function createParamsPromiseFromTrigger(
@@ -633,27 +637,6 @@ function createParamsPromiseFromTrigger(
 }
 
 function noop() {}
-
-function isEmptyParams(params: Params): boolean {
-  for (const _paramKey in params) {
-    return false
-  }
-  return true
-}
-
-function hasFallbackRouteParams(
-  underlyingParams: Params,
-  fallbackParams: OpaqueFallbackRouteParams | null | undefined
-): boolean {
-  if (fallbackParams) {
-    for (let key in underlyingParams) {
-      if (fallbackParams.has(key)) {
-        return true
-      }
-    }
-  }
-  return false
-}
 
 function createServerParamsProxyForInstantValidation(
   underlyingParams: Params,

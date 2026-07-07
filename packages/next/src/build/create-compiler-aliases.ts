@@ -16,7 +16,8 @@ import {
 import type { NextConfigComplete } from '../server/config-shared'
 import { defaultOverrides } from '../server/require-hook'
 import { hasExternalOtelApiPackage } from './webpack-config'
-import { NEXT_PROJECT_ROOT } from './next-dir-paths'
+import { NEXT_PROJECT_ROOT, NEXT_PROJECT_ROOT_DIST } from './next-dir-paths'
+import { browserVariantModules } from './browser-variant-modules'
 import { shouldUseReactServerCondition } from './utils'
 
 interface CompilerAliases {
@@ -166,6 +167,19 @@ export function createWebpackAliases({
 
           // disable typechecker, webpack5 allows aliases to be set to false to create a no-op module
           'private-next-empty-module': false as any,
+
+          // In the browser bundle, swap every module that has a `.browser` sibling
+          // (see browser-variant-modules.ts, generated from the filesystem) for that
+          // sibling. The default module holds the full server logic; bundling it would
+          // drag server-only modules into the client bundle. Server/edge compilers are
+          // not aliased and keep the default. The trailing `$` is an exact match so it
+          // cannot catch the `.browser.js` file itself.
+          ...Object.fromEntries(
+            browserVariantModules.map((moduleId) => [
+              path.join(NEXT_PROJECT_ROOT_DIST, `${moduleId}.js`) + '$',
+              `next/dist/${moduleId}.browser`,
+            ])
+          ),
         }
       : {}),
 

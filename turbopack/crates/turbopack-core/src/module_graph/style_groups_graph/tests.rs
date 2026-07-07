@@ -103,7 +103,8 @@ fn split_simple(
         &equal_size_inputs(count),
         &no_global(count),
         request_cost,
-        // module_factor_cost = 0 reproduces the PoC's `(requestOverhead + 1*M) * N`.
+        // weight_distribution = 0 weights every group equally, reproducing the PoC's
+        // `(requestOverhead + 1*M) * N`.
         0.0,
         0,
     )
@@ -696,6 +697,40 @@ fn split_higher_request_overhead_drives_more_aggressive_merging() {
 
     let chunks_high = split_simple(&order(&[0, 1, 2]), &groups, 10.0);
     assert_eq!(chunks_high, vec![vec![0, 1, 2]]);
+}
+
+#[test]
+fn split_weight_distribution_protects_small_groups_from_overshipping() {
+    // Module 0 is shared by both groups; module 1 is unique to the larger group B. Group A is
+    // small (loads only [0]); group B is larger (loads [0, 1]). Merging [0] and [1] saves group B
+    // a request but overships module 1 to the small group A.
+    let groups = vec![vec![0], vec![0, 1]];
+    let global_order = order(&[0, 1]);
+    let sizes = vec![100u64; 2];
+    let styles = no_global(2);
+
+    let split = |weight_distribution: f32| -> Vec<Vec<usize>> {
+        split_into_chunks(
+            &global_order,
+            &groups,
+            &sizes,
+            &styles,
+            300.0,
+            weight_distribution,
+            0,
+        )
+        .into_iter()
+        .map(|(chunk, _cost)| chunk)
+        .collect()
+    };
+
+    // weight_distribution = 0 weights every group equally, so the request saved for B outweighs
+    // the bytes overshipped to A and the chunks fuse.
+    assert_eq!(split(0.0), vec![vec![0, 1]]);
+
+    // A high weight_distribution gives the small group A a much larger weight, making the overship
+    // of module 1 to A cost more than the request it would save, so module 1 stays isolated.
+    assert_eq!(split(3.0), vec![vec![0], vec![1]]);
 }
 
 // ---------------------------------------------------------------------------

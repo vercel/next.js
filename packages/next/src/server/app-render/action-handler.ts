@@ -841,7 +841,7 @@ export async function handleAction({
                 return handleUnrecognizedFetchAction(err)
               }
 
-              boundActionArguments = await decodeReply(
+              boundActionArguments = await decodeReply<unknown[]>(
                 formData,
                 serverModuleMap,
                 { temporaryReferences }
@@ -933,7 +933,7 @@ export async function handleAction({
 
             const actionData = Buffer.concat(chunks).toString('utf-8')
 
-            boundActionArguments = await decodeReply(
+            boundActionArguments = await decodeReply<unknown[]>(
               actionData,
               serverModuleMap,
               { temporaryReferences }
@@ -1026,7 +1026,7 @@ export async function handleAction({
                   pipeline(body, sizeLimitTransform, busboy, {
                     signal: abortController.signal,
                   }),
-                  decodeReplyFromBusboy(busboy, serverModuleMap, {
+                  decodeReplyFromBusboy<unknown[]>(busboy, serverModuleMap, {
                     temporaryReferences,
                   }),
                 ])
@@ -1142,7 +1142,7 @@ export async function handleAction({
 
             const actionData = Buffer.concat(chunks).toString('utf-8')
 
-            boundActionArguments = await decodeReply(
+            boundActionArguments = await decodeReply<unknown[]>(
               actionData,
               serverModuleMap,
               { temporaryReferences }
