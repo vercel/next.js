@@ -53,7 +53,6 @@ turbopack-wasm = { workspace = true }
 urlencoding = { workspace = true }
 
 [dev-dependencies]
-turbo-tasks-malloc = { workspace = true }
 tokio = { workspace = true }
 tempfile = { workspace = true }
 turbo-tasks-backend = { workspace = true }

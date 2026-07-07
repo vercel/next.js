@@ -16,7 +16,7 @@ RUN corepack enable
 FROM base AS pnpm-deploy
 
 WORKDIR /dot-github
-COPY pnpm-lock.yaml pnpm-workspace.yaml .
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY --exclude=actions/*/node_modules \
   actions/next-stats-action actions/next-stats-action
 RUN pnpm deploy --filter=next-stats-action --production /next-stats

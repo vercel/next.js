@@ -1,8 +1,10 @@
 import type { Instant } from 'next'
 import assert from 'node:assert/strict'
+import { Suspense } from 'react'
 
-export const unstable_instant: Instant = {
-  samples: [
+export const instant: Instant = {
+  level: 'experimental-error',
+  unstable_samples: [
     {
       params: {
         one: '123',
@@ -11,7 +13,7 @@ export const unstable_instant: Instant = {
     },
   ],
 }
-export const unstable_prefetch = 'force-runtime'
+export const prefetch = 'allow-runtime'
 
 export default async function Page({
   params,
@@ -24,7 +26,9 @@ export default async function Page({
         When validated in build, the page should receive the params specified in
         the sample.
       </p>
-      <TestParams params={params} />
+      <Suspense>
+        <TestParams params={params} />
+      </Suspense>
     </main>
   )
 }

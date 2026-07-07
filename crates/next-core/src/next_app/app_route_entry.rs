@@ -56,7 +56,8 @@ pub async fn get_app_route_entry(
     let original_name: RcStr = page.to_string().into();
     let pathname: RcStr = AppPath::from(page.clone()).to_string().into();
 
-    let path = source.ident().path().owned().await?;
+    let ident = source.ident().await?;
+    let path = &ident.path;
 
     let inner = rcstr!("INNER_APP_ROUTE");
 

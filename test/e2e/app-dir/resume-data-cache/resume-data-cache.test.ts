@@ -30,7 +30,12 @@ describe('resume-data-cache', () => {
 
         url.searchParams.set(
           '_rsc',
-          computeCacheBustingSearchParam('1', '/__PAGE__', undefined, undefined)
+          await computeCacheBustingSearchParam(
+            '1',
+            '/__PAGE__',
+            undefined,
+            undefined
+          )
         )
 
         const rsc = await next

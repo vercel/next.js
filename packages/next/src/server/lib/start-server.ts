@@ -25,7 +25,12 @@ import {
   CONFIG_FILES,
   PHASE_DEVELOPMENT_SERVER,
 } from '../../shared/lib/constants'
-import { getEnvInfo, logExperimentalInfo, logStartInfo } from './app-info-log'
+import {
+  ensureAgentRulesForDev,
+  getEnvInfo,
+  logExperimentalInfo,
+  logStartInfo,
+} from './app-info-log'
 import { validateTurboNextConfig } from '../../lib/turbopack-warning'
 import {
   type Span,
@@ -500,7 +505,33 @@ export async function startServer(
           logExperimentalInfo({
             experimentalFeatures: initResult.experimentalFeatures,
             cacheComponents: initResult.cacheComponents,
+            partialPrefetching: initResult.partialPrefetching,
           })
+
+          // Auto-generate AGENTS.md / CLAUDE.md when an AI coding agent
+          // is detected but the managed agent-rules block is missing.
+          // Gated on `agentRules` in next.config (default true).
+          if (initResult.agentRules !== false) {
+            const result = ensureAgentRulesForDev(dir)
+            if (result) {
+              const generated: string[] = []
+              if (
+                result.agentsMd === 'created' ||
+                result.agentsMd === 'updated'
+              )
+                generated.push('AGENTS.md')
+              if (
+                result.claudeMd === 'created' ||
+                result.claudeMd === 'updated'
+              )
+                generated.push('CLAUDE.md')
+              if (generated.length > 0) {
+                Log.event(
+                  `Generated ${generated.join(' and ')} for AI agents. Set \`agentRules: false\` in next.config to disable.`
+                )
+              }
+            }
+          }
         }
 
         handlersReady()

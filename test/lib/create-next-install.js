@@ -9,6 +9,7 @@ const { linkPackages } =
 
 const PREFER_OFFLINE = process.env.NEXT_TEST_PREFER_OFFLINE === '1'
 const useRspack = process.env.NEXT_TEST_USE_RSPACK === '1'
+const ROOT_PACKAGE_MANAGER = require('../../package.json').packageManager
 
 async function installDependencies(cwd, tmpDir) {
   const args = [
@@ -82,10 +83,24 @@ async function createNextInstall({
         require('console').log('using provided pkg paths')
       } else {
         await rootSpan.traceChild('turbo-run-pack').traceAsyncFn(() =>
-          execa('pnpm', ['turbo', 'run', 'pack-for-isolated-tests'], {
-            cwd: origRepoDir,
-            stdio: ['ignore', 'inherit', 'inherit'],
-          })
+          execa(
+            'pnpm',
+            [
+              'turbo',
+              'run',
+              'pack-for-isolated-tests',
+              '--output-logs',
+              'new-only',
+              // Jest tui can't handle Turborepo tui. But we're cutting off stdin
+              // so Turborepo's tui isn't interactive anyway.
+              '--ui',
+              'stream',
+            ],
+            {
+              cwd: origRepoDir,
+              stdio: ['ignore', 'inherit', 'inherit'],
+            }
+          )
         )
 
         if (process.env.NEXT_TEST_WASM) {
@@ -156,12 +171,34 @@ async function createNextInstall({
         ...packageJson.scripts,
       }
 
+      // Pin the same pnpm version the repo uses so corepack resolves a
+      // consistent pnpm across isolated test dirs. Without this, `pnpm` may
+      // fall back to whatever version is installed at the system level, which
+      // can disagree with the repo's `packageManager` field and cause mismatch
+      // errors (e.g. pnpm-workspace.yaml written for v10 parsed by v9).
+      //
+      // Only fall back to the root `packageManager` for the default pnpm
+      // install path. Tests that provide their own `installCommand` (e.g.
+      // yarn-pnp) need to switch package managers themselves and would be
+      // blocked by corepack if the file already pinned `pnpm@...`.
+      const rootPackageManager = require(
+        path.join(__dirname, '../../package.json')
+      ).packageManager
+      const packageManagerField =
+        packageJson.packageManager ||
+        (installCommand ? undefined : rootPackageManager)
+
       await fs.ensureDir(installDir)
       await fs.writeFile(
         path.join(installDir, 'package.json'),
         JSON.stringify(
           {
+            // Pin packageManager so corepack doesn't auto-inject a reference
+            // to the latest version (and rewrite this file mid-test).
+            // Callers can override via packageJson.packageManager.
+            packageManager: ROOT_PACKAGE_MANAGER,
             ...packageJson,
+            ...(packageManagerField && { packageManager: packageManagerField }),
             scripts,
             dependencies: combinedDependencies,
             private: true,

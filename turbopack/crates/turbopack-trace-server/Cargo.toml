@@ -28,6 +28,7 @@ rustc-demangle = "0.1"
 rustc-hash = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
+smallvec = { workspace = true }
 turbo-rcstr = { workspace = true }
 turbo-tasks-malloc = { workspace = true, default-features = false }
 tungstenite = { version = "0.21.0" }

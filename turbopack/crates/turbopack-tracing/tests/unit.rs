@@ -7,9 +7,10 @@ use std::{path::PathBuf, sync::LazyLock};
 use anyhow::Result;
 use regex::Regex;
 use rstest::*;
+use rustc_hash::FxHashSet;
 use similar::TextDiff;
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{FxIndexSet, ResolvedVc, TryJoinIterExt, TurboTasks, Vc};
+use turbo_tasks::{FxIndexSet, ResolvedVc, TurboTasks, Vc};
 use turbo_tasks_backend::TurboTasksBackend;
 use turbo_tasks_fs::{DiskFileSystem, FileSystem};
 use turbopack::{
@@ -27,10 +28,9 @@ use turbopack_core::{
     file_source::FileSource,
     ident::Layer,
     module::Module,
-    output::OutputAsset,
-    reference::all_assets_from_entries,
+    reference::referenced_modules_and_affecting_sources,
     reference_type::ReferenceType,
-    traced_asset::TracedAsset,
+    resolve::options::ConditionValue,
 };
 use turbopack_ecmascript::AnalyzeMode;
 use turbopack_resolve::resolve_options_context::ResolveOptionsContext;
@@ -98,22 +98,22 @@ static ALLOC: turbo_tasks_malloc::TurboMalloc = turbo_tasks_malloc::TurboMalloc;
 // #[case::exports_path("exports-path")]
 // #[case::exports_wildcard("exports-wildcard")]
 // #[case::ffmpeg_installer("ffmpeg-installer")]
-// #[case::file_folder_slash("file-folder-slash")]
+#[case::file_folder_slash("file-folder-slash")]
 // #[case::filter_asset_base("filter-asset-base")]
 // #[case::fs_emission("fs-emission")]
 // #[case::glob_dot("glob-dot")]
-// #[case::import_assertions("import-assertions")]
-// #[case::import_attributes("import-attributes")]
+#[case::import_assertions("import-assertions")]
+#[case::import_attributes("import-attributes")]
 // #[case::import_meta_bad_url("import-meta-bad-url")]
 // #[case::import_meta_tpl_cnd("import-meta-tpl-cnd")]
 #[case::import_meta_url("import-meta-url")]
-// #[case::imports("imports")]
-// #[case::imports_module_sync("imports-module-sync")]
-// #[case::imports_module_sync_cjs("imports-module-sync-cjs")]
-// #[case::jsonc_parser_wrapper("jsonc-parser-wrapper")]
+#[case::imports("imports")]
+#[case::imports_module_sync("imports-module-sync")]
+#[case::imports_module_sync_cjs("imports-module-sync-cjs")]
+#[case::jsonc_parser_wrapper("jsonc-parser-wrapper")]
 // #[case::jsx_input("jsx-input")]
 // #[case::microtime_node_gyp("microtime-node-gyp")]
-// #[case::mixed_esm_cjs("mixed-esm-cjs")]
+#[case::mixed_esm_cjs("mixed-esm-cjs")]
 #[case::module_create_require("module-create-require")]
 #[case::module_create_require_destructure_namespace("module-create-require-destructure-namespace")]
 #[case::module_create_require_destructure("module-create-require-destructure")]
@@ -123,10 +123,12 @@ static ALLOC: turbo_tasks_malloc::TurboMalloc = turbo_tasks_malloc::TurboMalloc;
 #[case::module_create_require_no_mixed("module-create-require-no-mixed")]
 // #[case::module_register("module-register")]
 // #[case::module_require("module-require")]
-// #[case::module_sync_condition_cjs("module-sync-condition-cjs")]
+#[case::module_sync_condition_cjs("module-sync-condition-cjs")]
+// Turbopack always includes the module-sync version, regardless of the current Node version
 // #[case::module_sync_condition_cjs_node20("module-sync-condition-cjs-node20")]
-// #[case::module_sync_condition_es("module-sync-condition-es")]
-// #[case::module_sync_condition_es_nested("module-sync-condition-es-nested")]
+#[case::module_sync_condition_es("module-sync-condition-es")]
+#[case::module_sync_condition_es_nested("module-sync-condition-es-nested")]
+// Turbopack always includes the module-sync version, regardless of the current Node version
 // #[case::module_sync_condition_es_node20("module-sync-condition-es-node20")]
 // #[case::mongoose("mongoose")]
 // #[case::multi_input("multi-input")]
@@ -136,6 +138,8 @@ static ALLOC: turbo_tasks_malloc::TurboMalloc = turbo_tasks_malloc::TurboMalloc;
 #[case::path_sep("path-sep")]
 // #[case::phantomjs_prebuilt("phantomjs-prebuilt")]
 // #[case::pino_transport("pino-transport")]
+// #[case::pino_transport_constructor("pino-transport-constructor")]
+// #[case::pino_transport_fastify("pino-transport-fastify")]
 // #[case::pino_transport_targets("pino-transport-targets")]
 // #[case::pixelmatch("pixelmatch")]
 // #[case::pkg_dir_outside_base("pkg-dir-outside-base")]
@@ -143,31 +147,33 @@ static ALLOC: turbo_tasks_malloc::TurboMalloc = turbo_tasks_malloc::TurboMalloc;
 // #[case::pkginfo("pkginfo")]
 // #[case::pnpm_symlinks("pnpm-symlinks")]
 // #[case::prisma_photon("prisma-photon")]
-// #[case::process_cwd("process-cwd")]
+#[case::process_cwd("process-cwd")]
+// Ternary currently becomes Unknown as opposed to Alternatives when the condition isn't static
 // #[case::process_env("process-env")]
 // #[case::processed_dependency("processed-dependency")]
 #[case::protobuf_loop("protobuf-loop")]
 #[case::protobuf_loop2("protobuf-loop2")]
 #[case::require_call("require-call")]
 // #[case::require_dirname_tpl("require-dirname-tpl")]
-// #[case::require_dot("require-dot")]
-// #[case::require_dynamic_fallback("require-dynamic-fallback")]
+#[case::require_dot("require-dot")]
+#[case::require_dynamic_fallback("require-dynamic-fallback")]
 #[case::require_empty("require-empty")]
 // #[case::require_resolve("require-resolve")]
 // #[case::require_symlink("require-symlink")]
 // #[case::require_symlink_subdir("require-symlink-subdir")]
 // #[case::require_var_branch("require-var-branch")]
+// TODO require-wrapper* should conceptually be working already
 // #[case::require_wrapper("require-wrapper")]
 // #[case::require_wrapper2("require-wrapper2")]
 // #[case::require_wrapper3("require-wrapper3")]
 // #[case::resolve_from("resolve-from")]
 // #[case::resolve_hook("resolve-hook")]
 // #[case::return_emission("return-emission")]
-// #[case::self_reference_module_sync("self-reference-module-sync")]
+#[case::self_reference_module_sync("self-reference-module-sync")]
 // #[case::shiki("shiki")]
-// #[case::string_concat("string-concat")]
+#[case::string_concat("string-concat")]
 #[case::syntax_err("syntax-err")]
-// #[case::top_level_await("top-level-await")]
+#[case::top_level_await("top-level-await")]
 // #[case::ts_filter("ts-filter")]
 // #[case::ts_input_esm("ts-input-esm")]
 #[case::ts_path_join("ts-path-join")]
@@ -183,7 +189,7 @@ static ALLOC: turbo_tasks_malloc::TurboMalloc = turbo_tasks_malloc::TurboMalloc;
 // #[case::webpack_wrapper_null("webpack-wrapper-null")]
 // #[case::webpack_wrapper_strs_namespaces("webpack-wrapper-strs-namespaces")]
 // #[case::webpack_wrapper_strs_namespaces_large("webpack-wrapper-strs-namespaces-large")]
-// #[case::when_wrapper("when-wrapper")]
+#[case::when_wrapper("when-wrapper")]
 #[case::wildcard("wildcard")]
 #[case::wildcard_require("wildcard-require")]
 // #[case::wildcard2("wildcard2")]
@@ -195,7 +201,7 @@ fn unit_test(#[case] input: &str) -> Result<()> {
     node_file_trace(input)
 }
 
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 async fn node_file_trace_operation(package_root: RcStr, input: RcStr) -> Result<Vc<Vec<RcStr>>> {
     let workspace_fs: Vc<Box<dyn FileSystem>> = Vc::upcast(DiskFileSystem::new(
         rcstr!("workspace"),
@@ -248,6 +254,7 @@ async fn node_file_trace_operation(package_root: RcStr, input: RcStr) -> Result<
             enable_node_native_modules: true,
             enable_node_modules: Some(input_dir.clone()),
             custom_conditions: vec![rcstr!("node")],
+            module_sync: ConditionValue::Unknown,
             ..Default::default()
         }
         .cell(),
@@ -259,22 +266,32 @@ async fn node_file_trace_operation(package_root: RcStr, input: RcStr) -> Result<
         .module();
 
     // We treat the entry as an external
-    let mut paths = to_list(vec![ResolvedVc::upcast(
-        TracedAsset::new(module).to_resolved().await?,
-    )])
-    .await?;
-    paths.push(module.ident().path().await?.path.clone());
+    let mut paths = to_list(module).await?;
+    paths.push(module.ident().await?.path.path.clone());
 
     Ok(Vc::cell(paths))
 }
 
-async fn to_list(assets: Vec<ResolvedVc<Box<dyn OutputAsset>>>) -> Result<Vec<RcStr>> {
-    let mut assets = all_assets_from_entries(Vc::cell(assets))
-        .await?
-        .iter()
-        .map(async |a| Ok(a.path().await?.path.clone()))
-        .try_join()
-        .await?;
+async fn to_list(asset: Vc<Box<dyn Module>>) -> Result<Vec<RcStr>> {
+    let mut assets = vec![];
+
+    let mut visited = FxHashSet::default();
+    let mut queue = Vec::new();
+    queue.push(asset);
+
+    while let Some(asset) = queue.pop() {
+        let references = referenced_modules_and_affecting_sources(asset, false).await?;
+        let path = &asset.ident().await?.path;
+        if visited.insert(asset) {
+            for (_, references) in references.iter().rev() {
+                for asset in references.modules.iter() {
+                    queue.push(**asset);
+                }
+            }
+        }
+        assets.push(path.path.clone());
+    }
+
     assets.sort();
     assets.dedup();
 

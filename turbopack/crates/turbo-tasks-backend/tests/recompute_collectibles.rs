@@ -80,7 +80,7 @@ impl ValueToString for Collectible {
     }
 }
 
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 async fn inner_compute(
     input: ResolvedVc<ChangingInput>,
     input2: ResolvedVc<ChangingInput>,
@@ -103,7 +103,7 @@ async fn inner_compute2(input: Vc<ChangingInput>, innerness: u32) -> Result<Vc<u
     Ok(Vc::cell(42))
 }
 
-#[turbo_tasks::function]
+#[turbo_tasks::function(root)]
 async fn compute(
     input: ResolvedVc<ChangingInput>,
     input2: ResolvedVc<ChangingInput>,
