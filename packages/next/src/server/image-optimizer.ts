@@ -835,7 +835,10 @@ export async function optimizeImage({
 
   if (contentType === AVIF) {
     transformer.avif({
-      quality: Math.max(quality - 30, 1),
+      // Scale the quality to try and match webp. This ratio was derived
+      // from sharp's default 80 (webp) and 50 (avif), and then verified
+      // using DSSIM visual quality tests.
+      quality: Math.max(Math.round(quality * (50 / 80)), 1),
       effort: 3,
     })
   } else if (contentType === WEBP) {
