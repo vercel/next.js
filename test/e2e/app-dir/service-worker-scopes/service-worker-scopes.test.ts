@@ -1,14 +1,17 @@
 import { nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 
-// Compiling `navigator.serviceWorker.register(new URL(...))` is a
-// Turbopack-only feature.
+// Compiling `navigator.serviceWorker.register(new URL(...))` is a Turbopack-only feature.
 ;(process.env.IS_TURBOPACK_TEST ? describe : describe.skip)(
   'app dir - service worker (one worker per scope)',
   () => {
-    const { next } = nextTestSetup({
+    const { next, skipped } = nextTestSetup({
       files: __dirname,
+      // TODO(sampoder) output sw.js into static/ instead of special handling in next-server
+      skipDeployment: true,
     })
+
+    if (skipped) return
 
     it('serves one worker per scope at scope-derived file names', async () => {
       const browser = await next.browser('/')
