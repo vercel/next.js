@@ -41,7 +41,7 @@ impl Transition for NextServerComponentTransition {
         reference_type: ReferenceType,
     ) -> Result<Vc<ProcessResult>> {
         // Capture the original source path before any transformation
-        let source_path = source.ident().path().owned().await?;
+        let source_path = source.ident().await?.path.clone();
 
         let source = self.process_source(source);
         let module_asset_context = self.process_context(module_asset_context);

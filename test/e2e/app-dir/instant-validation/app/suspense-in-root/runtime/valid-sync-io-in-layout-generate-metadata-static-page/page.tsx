@@ -1,7 +1,7 @@
 import { cookies } from 'next/headers'
 import { Suspense } from 'react'
 
-// No unstable_instant — this page is NOT runtime-prefetchable.
+// No instant — this page is NOT runtime-prefetchable.
 
 async function Runtime() {
   await cookies()

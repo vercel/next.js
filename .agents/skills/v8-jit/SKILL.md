@@ -8,6 +8,8 @@ description: >
   megamorphic deopt, closure allocation, array packing, and profiling with
   --trace-opt / --trace-deopt.
 user-invocable: false
+metadata:
+  internal: true
 ---
 
 # V8 JIT Optimization

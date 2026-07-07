@@ -671,6 +671,8 @@ export default function OuterLayoutRouter({
   let maybeValidationBoundaryId: string | null = null
   if (typeof window === 'undefined' && process.env.__NEXT_CACHE_COMPONENTS) {
     const { InstantValidationBoundaryContext } =
+      // TODO(browser-variant): migrate to a .ts/.browser.ts split so the browser bundle drops the server branch; see scripts/generate-browser-variant-aliases.mjs
+      // ast-grep-ignore: no-typeof-window-require-tsx
       require('./instant-validation/boundary') as typeof import('./instant-validation/boundary')
     maybeValidationBoundaryId = use(InstantValidationBoundaryContext)
   }
@@ -811,6 +813,8 @@ export default function OuterLayoutRouter({
       typeof maybeValidationBoundaryId === 'string'
     ) {
       const { RenderValidationBoundaryAtThisLevel } =
+        // TODO(browser-variant): migrate to a .ts/.browser.ts split so the browser bundle drops the server branch; see scripts/generate-browser-variant-aliases.mjs
+        // ast-grep-ignore: no-typeof-window-require-tsx
         require('./instant-validation/boundary') as typeof import('./instant-validation/boundary')
       templateValue = (
         <RenderValidationBoundaryAtThisLevel id={maybeValidationBoundaryId}>

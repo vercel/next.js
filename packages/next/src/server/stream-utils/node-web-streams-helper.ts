@@ -19,7 +19,6 @@ import {
   NEXT_ROUTER_PREFETCH_HEADER,
   NEXT_ROUTER_SEGMENT_PREFETCH_HEADER,
   NEXT_RSC_UNION_QUERY,
-  NEXT_INSTANT_PREFETCH_HEADER,
 } from '../../client/components/app-router-headers'
 import { computeCacheBustingSearchParam } from '../../shared/lib/router/utils/cache-busting-search-param'
 import type { AnyStream } from '../app-render/stream-ops'
@@ -142,7 +141,10 @@ function webToReadable(
     if (process.env.TURBOPACK) {
       Readable = (require('node:stream') as typeof import('node:stream'))
         .Readable
-    } else if (process.env.__NEXT_BUNDLER === 'Webpack') {
+    } else if (
+      process.env.__NEXT_BUNDLER === 'Webpack' ||
+      process.env.__NEXT_BUNDLER === 'Rspack'
+    ) {
       Readable = (
         __non_webpack_require__('node:stream') as typeof import('node:stream')
       ).Readable
@@ -176,7 +178,10 @@ export async function streamToUint8Array(stream: AnyStream) {
     if (process.env.TURBOPACK) {
       Readable = (require('node:stream') as typeof import('node:stream'))
         .Readable
-    } else if (process.env.__NEXT_BUNDLER === 'Webpack') {
+    } else if (
+      process.env.__NEXT_BUNDLER === 'Webpack' ||
+      process.env.__NEXT_BUNDLER === 'Rspack'
+    ) {
       Readable = (
         __non_webpack_require__('node:stream') as typeof import('node:stream')
       ).Readable
@@ -521,12 +526,11 @@ export function createHeadInsertionTransformStream(
   })
 }
 
-function createClientResumeScriptInsertionTransformStream(): TransformStream<
-  Uint8Array,
-  Uint8Array
+async function createClientResumeScriptInsertionTransformStream(): Promise<
+  TransformStream<Uint8Array, Uint8Array>
 > {
   const segmentPath = '/_full'
-  const cacheBustingHeader = computeCacheBustingSearchParam(
+  const cacheBustingHeader = await computeCacheBustingSearchParam(
     '1', //            headers[NEXT_ROUTER_PREFETCH_HEADER]
     '/_full', //       headers[NEXT_ROUTER_SEGMENT_PREFETCH_HEADER]
     undefined, //      headers[NEXT_ROUTER_STATE_TREE_HEADER]
@@ -577,91 +581,6 @@ function createClientResumeScriptInsertionTransformStream(): TransformStream<
 
       controller.enqueue(insertedHeadContent)
       didAlreadyInsert = true
-    },
-  })
-}
-
-/**
- * Creates a transform stream that injects an inline script as the first
- * element inside <head>. Used during instant navigation testing to set
- * self.__next_instant_test before any async bootstrap scripts execute.
- */
-export function createInstantTestScriptInsertionTransformStream(
-  requestId: string | null
-): TransformStream<Uint8Array, Uint8Array> {
-  // Kick off a fetch for the static RSC payload. This is the hydration
-  // source for the locked static shell — same as the __NEXT_CLIENT_RESUME
-  // fetch used for fallback routes, but with NEXT_INSTANT_PREFETCH_HEADER
-  // so the server returns static-only data.
-  //
-  // The fetch promise is stored as self.__next_instant_test, which doubles
-  // as the feature flag (truthy = instant test mode). The client processes
-  // this as a fallback prerender payload for hydration.
-  const segmentPath = '/_full'
-  const cacheBustingHeader = computeCacheBustingSearchParam(
-    '1',
-    segmentPath,
-    undefined,
-    undefined
-  )
-  const searchStr = `${NEXT_RSC_UNION_QUERY}=${cacheBustingHeader}`
-  // In dev mode, inject self.__next_r (request ID) so that HMR WebSocket
-  // and debug channel initialization don't crash. The static shell
-  // bypasses renderToFizzStream which normally injects this via
-  // bootstrapScriptContent.
-  const requestIdScript =
-    requestId !== null ? `self.__next_r=${JSON.stringify(requestId)};` : ''
-  const INSTANT_TEST_SCRIPT = `<script>${requestIdScript}self.__next_instant_test=fetch(location.pathname+'?${searchStr}',{credentials:'same-origin',headers:{'${RSC_HEADER}':'1','${NEXT_ROUTER_PREFETCH_HEADER}':'1','${NEXT_ROUTER_SEGMENT_PREFETCH_HEADER}':'${segmentPath}','${NEXT_INSTANT_PREFETCH_HEADER}':'1'}})</script>`
-
-  let didAlreadyInsert = false
-  return new TransformStream({
-    transform(chunk, controller) {
-      if (didAlreadyInsert) {
-        // Already inserted the script into the head. Pass through.
-        controller.enqueue(chunk)
-        return
-      }
-
-      // Find the opening <head tag (may have attributes like <head class="...">)
-      const headOpenIndex = indexOfUint8Array(chunk, ENCODED_TAGS.OPENING.HEAD)
-
-      if (headOpenIndex === -1) {
-        controller.enqueue(chunk)
-        return
-      }
-
-      // Find the closing > of the <head ...> tag
-      const headCloseAngle = chunk.indexOf(
-        62, // '>'
-        headOpenIndex + ENCODED_TAGS.OPENING.HEAD.length
-      )
-      if (headCloseAngle === -1) {
-        controller.enqueue(chunk)
-        return
-      }
-
-      const encodedInsertion = encoder.encode(INSTANT_TEST_SCRIPT)
-      const insertionPoint = headCloseAngle + 1
-      // e.g.
-      // chunk = <!DOCTYPE html><html><head><meta charset="utf-8">...
-      // insertion = <script>self.__next_instant_test=fetch(...)</script>
-      // output = <!DOCTYPE html><html><head> [ <script>...</script> ] <meta charset="utf-8">...
-      const insertedHeadContent = new Uint8Array(
-        chunk.length + encodedInsertion.length
-      )
-      insertedHeadContent.set(chunk.slice(0, insertionPoint))
-      insertedHeadContent.set(encodedInsertion, insertionPoint)
-      insertedHeadContent.set(
-        chunk.slice(insertionPoint),
-        insertionPoint + encodedInsertion.length
-      )
-
-      controller.enqueue(insertedHeadContent)
-      didAlreadyInsert = true
-    },
-    flush(controller) {
-      // Append closing tags so the browser can parse the full document.
-      controller.enqueue(ENCODED_TAGS.CLOSED.BODY_AND_HTML)
     },
   })
 }
@@ -1139,7 +1058,7 @@ export async function continueStaticFallbackPrerender(
     // Insert generated tags to head
     createHeadInsertionTransformStream(getServerInsertedHTML),
     // Insert the client resume script into the head
-    createClientResumeScriptInsertionTransformStream(),
+    await createClientResumeScriptInsertionTransformStream(),
     // Transform metadata
     createMetadataTransformStream(getServerInsertedMetadata),
     // Insert the inlined data (Flight data, form state, etc.) stream into the HTML

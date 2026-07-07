@@ -11,6 +11,9 @@ export type PanelStateKind =
   | 'segment-explorer'
   | 'panel-selector'
   | 'instant-navs'
+  | 'turbo-info'
+  | 'cache-disabled'
+  | 'cold-cache'
 
 export const PanelRouterContext = createContext<{
   panel: PanelStateKind | null

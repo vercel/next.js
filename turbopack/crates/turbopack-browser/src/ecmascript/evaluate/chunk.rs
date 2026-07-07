@@ -78,7 +78,7 @@ impl EcmascriptBrowserEvaluateChunk {
     }
 
     #[turbo_tasks::function]
-    async fn code(self: Vc<Self>) -> Result<Vc<Code>> {
+    pub(crate) async fn code(self: Vc<Self>) -> Result<Vc<Code>> {
         let this = self.await?;
         let environment = this.chunking_context.environment();
 
@@ -171,18 +171,30 @@ impl EcmascriptBrowserEvaluateChunk {
             params = StringifyJs(&params),
         )?;
 
+        let asset_context = turbopack::get_runtime_asset_context(environment);
+
         let runtime_type = *this.chunking_context.runtime_type().await?;
+        // Detect async modules from the whole-app graph in production. In development, the graph
+        // is per-page. To keep the shared `runtime.js` stable, always include the machinery.
+        let has_async_modules = if matches!(runtime_type, RuntimeType::Production) {
+            !this.module_graph.async_module_info().await?.is_empty()
+        } else {
+            true
+        };
         match runtime_type {
             RuntimeType::Production | RuntimeType::Development => {
                 let runtime_code = turbopack_ecmascript_runtime::get_browser_runtime_code(
-                    environment,
+                    asset_context,
                     this.chunking_context.chunk_base_path(),
                     this.chunking_context.asset_suffix(),
-                    this.chunking_context.worker_forwarded_globals(),
                     runtime_type,
                     output_root_to_root_path,
                     source_maps,
                     this.chunking_context.chunk_loading_global(),
+                    this.chunking_context.cross_origin(),
+                    this.chunking_context.chunk_load_retry(),
+                    has_async_modules,
+                    this.chunking_context.chunk_loading(),
                 );
                 code.push_code(&*runtime_code.await?);
             }
@@ -204,9 +216,11 @@ impl EcmascriptBrowserEvaluateChunk {
 
     #[turbo_tasks::function]
     async fn ident_for_path(&self) -> Result<Vc<AssetIdent>> {
-        let mut ident = self.ident.owned().await?;
-
-        ident.add_modifier(rcstr!("ecmascript browser evaluate chunk"));
+        let mut ident = self
+            .ident
+            .owned()
+            .await?
+            .with_modifier(rcstr!("ecmascript browser evaluate chunk"));
 
         let evaluatable_assets = self.evaluatable_assets.await?;
         ident.modifiers.extend(
@@ -216,7 +230,6 @@ impl EcmascriptBrowserEvaluateChunk {
                 .try_join()
                 .await?,
         );
-
         ident.modifiers.extend(
             self.other_chunks
                 .await?
@@ -226,7 +239,7 @@ impl EcmascriptBrowserEvaluateChunk {
                 .await?,
         );
 
-        Ok(AssetIdent::new(ident))
+        Ok(ident.into_vc())
     }
 
     #[turbo_tasks::function]

@@ -30,7 +30,7 @@ async fn test_conversion() -> Result<()> {
     run_once(&REGISTRATION, move || {
         nonce += 1;
         async move {
-            #[turbo_tasks::function(operation)]
+            #[turbo_tasks::function(operation, root)]
             async fn test_operation(nonce: u32) -> Result<Vc<()>> {
                 let _ = nonce; // ensure the nonce is part of our cache key
                 let unresolved: Vc<u32> = Vc::cell(42);
@@ -54,7 +54,7 @@ async fn test_cell_construction() -> Result<()> {
     run_once(&REGISTRATION, move || {
         nonce += 1;
         async move {
-            #[turbo_tasks::function(operation)]
+            #[turbo_tasks::function(operation, root)]
             async fn test_operation(nonce: u32) -> Result<Vc<()>> {
                 let _ = nonce;
                 let a: ResolvedVc<u32> = ResolvedVc::cell(42);
@@ -75,7 +75,7 @@ async fn test_resolved_vc_as_arg() -> Result<()> {
     run_once(&REGISTRATION, move || {
         nonce += 1;
         async move {
-            #[turbo_tasks::function(operation)]
+            #[turbo_tasks::function(operation, root)]
             async fn test_operation(nonce: u32) -> Result<Vc<()>> {
                 dbg!(nonce);
                 let _ = nonce;
@@ -97,7 +97,7 @@ async fn test_into_future() -> Result<()> {
     run_once(&REGISTRATION, move || {
         nonce += 1;
         async move {
-            #[turbo_tasks::function(operation)]
+            #[turbo_tasks::function(operation, root)]
             async fn test_operation(nonce: u32) -> Result<Vc<()>> {
                 let _ = nonce;
                 let mut resolved = ResolvedVc::cell(42);

@@ -14,7 +14,7 @@ use turbo_tasks_fs::{
     File, FileContent,
     rope::{Rope, RopeBuilder},
 };
-use turbo_tasks_hash::hash_xxh3_hash64;
+use turbo_tasks_hash::hash_xxh3_hash128;
 
 use crate::{
     debug_id::generate_debug_id,
@@ -42,7 +42,7 @@ pub struct PersistedCode(Code);
 #[turbo_tasks::value_impl]
 impl PersistedCode {
     #[turbo_tasks::function]
-    async fn to_code(self: Vc<Self>) -> Result<Vc<Code>> {
+    pub async fn to_code(self: Vc<Self>) -> Result<Vc<Code>> {
         // PersistedCode is transparent over Code; owned() yields Code directly.
         Ok(self.owned().await?.cell())
     }
@@ -69,8 +69,8 @@ impl Code {
 
     /// Stores this `Code` as a [`PersistedCode`] (fully serialized) and returns a `Vc<Code>`
     /// backed by the persisted version, avoiding an intermediate hash-mode `Code` cell.
-    pub fn cell_persisted(self) -> Vc<Code> {
-        PersistedCode::to_code(PersistedCode(self).cell())
+    pub fn cell_persisted(self) -> ResolvedVc<PersistedCode> {
+        PersistedCode(self).resolved_cell()
     }
 
     // Formats the code with the source map and debug id comments as
@@ -292,9 +292,9 @@ pub struct OptionDebugId(Option<RcStr>);
 impl Code {
     /// Returns the hash of the source code of this Code.
     #[turbo_tasks::function]
-    pub fn source_code_hash(&self) -> Vc<u64> {
+    pub fn source_code_hash(&self) -> Vc<u128> {
         let code = self;
-        let hash = hash_xxh3_hash64(code.source_code());
+        let hash = hash_xxh3_hash128(code.source_code());
         Vc::cell(hash)
     }
 

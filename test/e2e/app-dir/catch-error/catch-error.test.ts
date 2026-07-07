@@ -1,6 +1,6 @@
 import { nextTestSetup } from 'e2e-utils'
 
-describe('app-dir - unstable_catchError', () => {
+describe('app-dir - catchError', () => {
   const { next, isNextDev } = nextTestSetup({
     files: __dirname,
   })
@@ -30,7 +30,7 @@ describe('app-dir - unstable_catchError', () => {
     }
   })
 
-  it('should recover Client Component error after unstable_retry', async () => {
+  it('should recover Client Component error after retry', async () => {
     const browser = await next.browser('/client-component')
 
     // Try triggering and retrying a few times in a row
@@ -55,18 +55,60 @@ describe('app-dir - unstable_catchError', () => {
     }
   })
 
-  it('should recover Server Component error after unstable_retry', async () => {
+  it('should recover Server Component error after retry', async () => {
     const browser = await next.browser('/server-component')
 
     expect(await browser.elementByCss('#error-boundary-message').text()).toBe(
       isNextDev
         ? 'this is a test'
-        : 'An error occurred in the Server Components render. The specific message is omitted in production builds to avoid leaking sensitive details. A digest property is included on this error instance which may provide additional details about the nature of the error.'
+        : 'Minified React error #441; visit https://react.dev/errors/441 for the full message or use the non-minified dev environment for full errors and additional helpful warnings.'
     )
 
     await browser.elementByCss('#retry').click().waitForElementByCss('#recover')
 
     expect(await browser.elementByCss('#recover').text()).toBe('Recovered')
+  })
+
+  it('should render fallback when undefined is thrown from a Client Component', async () => {
+    const browser = await next.browser('/client-component/throw-undefined')
+
+    await browser.elementByCss('#error-trigger-button').click()
+    expect(
+      await browser.waitForElementByCss('#error-boundary-message').text()
+    ).toBe('An error occurred: undefined')
+  })
+
+  it('should render fallback when null is thrown from a Client Component', async () => {
+    const browser = await next.browser('/client-component/throw-null')
+
+    await browser.elementByCss('#error-trigger-button').click()
+    expect(
+      await browser.waitForElementByCss('#error-boundary-message').text()
+    ).toBe('An error occurred: null')
+  })
+
+  it('should render fallback when undefined is thrown from a Server Component', async () => {
+    const browser = await next.browser('/server-component/throw-undefined')
+    // non-error values thrown during rendering get wrapped in an Error when transported over RSC.
+    expect(
+      await browser.waitForElementByCss('#error-boundary-message').text()
+    ).toBe(
+      isNextDev
+        ? 'An error occurred: Error: undefined'
+        : 'An error occurred: Error: Minified React error #441; visit https://react.dev/errors/441 for the full message or use the non-minified dev environment for full errors and additional helpful warnings.'
+    )
+  })
+
+  it('should render fallback when null is thrown from a Server Component', async () => {
+    const browser = await next.browser('/server-component/throw-null')
+    // non-error values thrown during rendering get wrapped in an Error when transported over RSC.
+    expect(
+      await browser.waitForElementByCss('#error-boundary-message').text()
+    ).toBe(
+      isNextDev
+        ? 'An error occurred: Error: null'
+        : 'An error occurred: Error: Minified React error #441; visit https://react.dev/errors/441 for the full message or use the non-minified dev environment for full errors and additional helpful warnings.'
+    )
   })
 
   it('should recover after reset on Pages Router', async () => {
@@ -89,7 +131,7 @@ describe('app-dir - unstable_catchError', () => {
     )
   })
 
-  it('should throw when unstable_retry is called on Pages Router', async () => {
+  it('should throw when retry is called on Pages Router', async () => {
     const browser = await next.browser('/pages-router')
 
     await browser
@@ -101,7 +143,7 @@ describe('app-dir - unstable_catchError', () => {
     await browser.waitForElementByCss('#pages-retry-error')
 
     expect(await browser.elementByCss('#pages-retry-error').text()).toBe(
-      '`unstable_retry()` can only be used in the App Router. Use `reset()` in the Pages Router.'
+      '`retry()` can only be used in the App Router. Use `reset()` in the Pages Router.'
     )
   })
 })

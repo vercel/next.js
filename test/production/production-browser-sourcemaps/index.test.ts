@@ -16,7 +16,7 @@ async function validateSourceMapForChunk(
   {
     polyfillFiles,
     productionBrowserSourceMaps,
-  }: { polyfillFiles: Set<string>; productionBrowserSourceMaps: boolean }
+  }: { polyfillFiles: string[]; productionBrowserSourceMaps: boolean }
 ) {
   const jsFilePath = path.join(dir, file)
   const jsContent = await fs.readFile(jsFilePath, 'utf8')
@@ -36,7 +36,7 @@ async function validateSourceMapForChunk(
         throw new Error(`Source map file exists for ${jsFilePath}.`)
       }
     }
-    if (polyfillFiles.has(file)) {
+    if (polyfillFiles.some((f) => f.endsWith(file))) {
       // polyfill files might not have sourcemaps, ignore
       return
     }
@@ -69,22 +69,20 @@ describe('Production browser sourcemaps', () => {
       it('check sourcemaps for all browser files', async () => {
         const buildManifest = getBuildManifest(next.testDir)
 
-        let polyfillFiles = new Set<string>(
-          buildManifest.polyfillFiles.map(
-            (f: string) => '/' + path.relative(path.join('static', 'chunks'), f)
-          )
-        )
+        for (let dir of ['static', 'static/immutable']) {
+          const chunksDir = path.join(next.testDir, '.next', dir, 'chunks')
+          if (fs.existsSync(chunksDir)) {
+            const browserFiles = await recursiveReadDir(chunksDir)
+            const jsFiles = browserFiles.filter((file) => file.endsWith('.js'))
+            expect(jsFiles).not.toBeEmpty()
 
-        const staticDir = path.join(next.testDir, '.next', 'static', 'chunks')
-        const browserFiles = await recursiveReadDir(staticDir)
-        const jsFiles = browserFiles.filter((file) => file.endsWith('.js'))
-        expect(jsFiles).not.toBeEmpty()
-
-        for (const file of jsFiles) {
-          await validateSourceMapForChunk(staticDir, file, {
-            polyfillFiles,
-            productionBrowserSourceMaps,
-          })
+            for (const file of jsFiles) {
+              await validateSourceMapForChunk(chunksDir, file, {
+                polyfillFiles: buildManifest.polyfillFiles,
+                productionBrowserSourceMaps,
+              })
+            }
+          }
         }
 
         for (let page of ['/ssr', '/static']) {
@@ -94,7 +92,7 @@ describe('Production browser sourcemaps', () => {
               path.join(next.testDir, '.next'),
               file,
               {
-                polyfillFiles,
+                polyfillFiles: buildManifest.polyfillFiles,
                 productionBrowserSourceMaps,
               }
             )

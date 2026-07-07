@@ -1,24 +1,15 @@
 import cheerio from 'cheerio'
 import { nextTestSetup } from 'e2e-utils'
 import { splitResponseWithPPRSentinel } from 'e2e-utils/ppr'
-import { retry } from 'next-test-utils'
+import { retry, waitFor } from 'next-test-utils'
+import path from 'path'
 
 const isAdapterTest = Boolean(process.env.NEXT_ENABLE_ADAPTER)
 
-describe('partial-fallback-shell-upgrade', () => {
-  const { next, isNextDev } = nextTestSetup({
-    files: __dirname,
-    // The latest changes to support this behavior on deployed infra are available in the adapter,
-    // and are not being backported to the CLI
-    skipDeployment: !isAdapterTest,
-  })
+type NextInstance = ReturnType<typeof nextTestSetup>['next']
 
-  if (isNextDev) {
-    it('skipped in dev', () => {})
-    return
-  }
-
-  async function fetchSplitHTML(pathname: string) {
+function createSplitHTMLFetcher(next: NextInstance) {
+  return async function fetchSplitHTML(pathname: string) {
     let response: Awaited<ReturnType<typeof next.fetch>> | undefined
     const [staticPart, dynamicPart] = await splitResponseWithPPRSentinel(
       async () => {
@@ -35,11 +26,26 @@ describe('partial-fallback-shell-upgrade', () => {
 
     return {
       response: response!,
-      staticPart,
       dynamicPart,
       static$: cheerio.load(staticPart),
     }
   }
+}
+
+describe('partial-fallback-shell-upgrade', () => {
+  const { next, isNextDev } = nextTestSetup({
+    files: path.join(__dirname, 'fixtures', 'default'),
+    // The latest changes to support this behavior on deployed infra are available in the adapter,
+    // and are not being backported to the CLI
+    skipDeployment: !isAdapterTest,
+  })
+
+  if (isNextDev) {
+    it('skipped in dev', () => {})
+    return
+  }
+
+  const fetchSplitHTML = createSplitHTMLFetcher(next)
 
   it('should upgrade the fallback shell to a route shell', async () => {
     const pathname = '/two'
@@ -98,6 +104,31 @@ describe('partial-fallback-shell-upgrade', () => {
       expect(secondResult.dynamicPart).toContain('<div id="two">bar</div>')
       expect(secondResult.dynamicPart).not.toContain('<div id="two">foo</div>')
     })
+  })
+
+  it('should let a segment prefetch trigger the background shell upgrade', async () => {
+    const prefetchResponse = await next.fetch('/prefix/z/foo', {
+      headers: {
+        rsc: '1',
+        'next-router-prefetch': '1',
+        'next-router-segment-prefetch': '/_tree',
+      },
+    })
+
+    expect(prefetchResponse.status).toBe(200)
+
+    // Wait a moment to let the background upgrade to finish
+    await waitFor(3000)
+
+    const result = await fetchSplitHTML('/prefix/z/bar')
+
+    expect(result.response.status).toBe(200)
+    expect(result.static$('#one').text()).toBe('z')
+    expect(result.static$('#one-fallback').length).toBe(0)
+    expect(result.static$('#two-fallback').text()).toBe('loading two...')
+    expect(result.static$('#two').length).toBe(0)
+    expect(result.dynamicPart).toContain('<div id="two">bar</div>')
+    expect(result.dynamicPart).not.toContain('<div id="two">foo</div>')
   })
 
   it('should not keep upgrading once only fully dynamic params remain', async () => {

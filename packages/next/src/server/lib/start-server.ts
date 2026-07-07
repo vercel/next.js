@@ -16,7 +16,6 @@ import http from 'http'
 import https from 'https'
 import os from 'os'
 import { exec } from 'child_process'
-import Watchpack from 'next/dist/compiled/watchpack'
 import * as Log from '../../build/output/log'
 import setupDebug from 'next/dist/compiled/debug'
 import { RESTART_EXIT_CODE } from './utils'
@@ -26,7 +25,12 @@ import {
   CONFIG_FILES,
   PHASE_DEVELOPMENT_SERVER,
 } from '../../shared/lib/constants'
-import { getEnvInfo, logExperimentalInfo, logStartInfo } from './app-info-log'
+import {
+  ensureAgentRulesForDev,
+  getEnvInfo,
+  logExperimentalInfo,
+  logStartInfo,
+} from './app-info-log'
 import { validateTurboNextConfig } from '../../lib/turbopack-warning'
 import {
   type Span,
@@ -501,7 +505,33 @@ export async function startServer(
           logExperimentalInfo({
             experimentalFeatures: initResult.experimentalFeatures,
             cacheComponents: initResult.cacheComponents,
+            partialPrefetching: initResult.partialPrefetching,
           })
+
+          // Auto-generate AGENTS.md / CLAUDE.md when an AI coding agent
+          // is detected but the managed agent-rules block is missing.
+          // Gated on `agentRules` in next.config (default true).
+          if (initResult.agentRules !== false) {
+            const result = ensureAgentRulesForDev(dir)
+            if (result) {
+              const generated: string[] = []
+              if (
+                result.agentsMd === 'created' ||
+                result.agentsMd === 'updated'
+              )
+                generated.push('AGENTS.md')
+              if (
+                result.claudeMd === 'created' ||
+                result.claudeMd === 'updated'
+              )
+                generated.push('CLAUDE.md')
+              if (generated.length > 0) {
+                Log.event(
+                  `Generated ${generated.join(' and ')} for AI agents. Set \`agentRules: false\` in next.config to disable.`
+                )
+              }
+            }
+          }
         }
 
         handlersReady()
@@ -548,7 +578,8 @@ export async function startServer(
     }
 
     const configFiles = CONFIG_FILES.map((file) => path.join(dir, file))
-
+    const Watchpack =
+      require('next/dist/compiled/watchpack') as typeof import('next/dist/compiled/watchpack').default
     const wp = new Watchpack()
     wp.watch({
       files: configFiles,
@@ -599,6 +630,13 @@ if (process.env.NEXT_PRIVATE_WORKER && process.send) {
         )
       }
 
+      let rageRestartAttrsFromParent = {}
+      if (process.env.NEXT_PRIVATE_DEV_SPAN_ATTRS) {
+        rageRestartAttrsFromParent = JSON.parse(
+          process.env.NEXT_PRIVATE_DEV_SPAN_ATTRS
+        )
+      }
+
       startServerSpan = trace('start-dev-server', undefined, {
         cpus: String(os.cpus().length),
         platform: os.platform(),
@@ -606,6 +644,7 @@ if (process.env.NEXT_PRIVATE_WORKER && process.send) {
         'memory.totalMem': String(os.totalmem()),
         'memory.heapSizeLimit': String(v8.getHeapStatistics().heap_size_limit),
         ...enabledFeaturesFromParent,
+        ...rageRestartAttrsFromParent,
       })
 
       initializeTraceState({

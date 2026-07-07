@@ -1,12 +1,12 @@
 use std::io::Write;
 
 use anyhow::{Result, bail};
+use async_trait::async_trait;
 use bincode::{Decode, Encode};
 use smallvec::SmallVec;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    NonLocalValue, PrettyPrintError, ResolvedVc, TaskInput, Upcast, ValueToString, Vc,
-    trace::TraceRawVcs,
+    NonLocalValue, PrettyPrintError, ResolvedVc, Upcast, ValueToString, Vc, trace::TraceRawVcs,
 };
 use turbo_tasks_fs::{FileSystemPath, rope::Rope};
 use turbopack_core::{
@@ -14,7 +14,7 @@ use turbopack_core::{
         AsyncModuleInfo, ChunkItem, ChunkItemWithAsyncModuleInfo, ChunkType, ChunkingContext,
         ChunkingContextExt, ModuleId, SourceMapSourceType,
     },
-    code_builder::{Code, CodeBuilder},
+    code_builder::{Code, CodeBuilder, PersistedCode},
     ident::AssetIdent,
     issue::{IssueExt, IssueSeverity, StyledString, code_gen::CodeGenerationIssue},
     module::Module,
@@ -31,19 +31,8 @@ use crate::{
     utils::StringifyJs,
 };
 
-#[derive(
-    Debug,
-    Clone,
-    PartialEq,
-    Eq,
-    Hash,
-    TraceRawVcs,
-    TaskInput,
-    NonLocalValue,
-    Default,
-    Encode,
-    Decode,
-)]
+#[turbo_tasks::task_input]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, TraceRawVcs, Default, Encode, Decode)]
 pub enum RewriteSourcePath {
     AbsoluteFilePath(FileSystemPath),
     RelativeFilePath(FileSystemPath, RcStr),
@@ -53,7 +42,7 @@ pub enum RewriteSourcePath {
 
 // Note we don't want to persist this as `module_factory_with_code_generation_issue` is already
 // persisted and we want to avoid duplicating it.
-#[turbo_tasks::value(shared, serialization = "none")]
+#[turbo_tasks::value(shared, serialization = "skip")]
 #[derive(Default, Clone)]
 pub struct EcmascriptChunkItemContent {
     pub inner_code: Rope,
@@ -132,7 +121,7 @@ impl EcmascriptChunkItemContent {
 }
 
 impl EcmascriptChunkItemContent {
-    async fn module_factory(&self) -> Result<ResolvedVc<Code>> {
+    async fn module_factory(&self) -> Result<ResolvedVc<PersistedCode>> {
         let mut code = CodeBuilder::default();
         for additional_id in self.additional_ids.iter() {
             writeln!(code, "{}, ", StringifyJs(&additional_id))?;
@@ -204,7 +193,7 @@ impl EcmascriptChunkItemContent {
 
         code += "})";
 
-        Ok(code.build().resolved_cell())
+        Ok(code.build().cell_persisted())
     }
 }
 
@@ -226,9 +215,8 @@ pub struct EcmascriptChunkItemOptions {
     pub placeholder_for_future_extensions: (),
 }
 
-#[derive(
-    Debug, Clone, PartialEq, Eq, Hash, TraceRawVcs, TaskInput, NonLocalValue, Encode, Decode,
-)]
+#[turbo_tasks::task_input]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, TraceRawVcs, Encode, Decode)]
 pub struct EcmascriptChunkItemWithAsyncInfo {
     pub chunk_item: ResolvedVc<Box<dyn EcmascriptChunkItem>>,
     pub async_info: Option<ResolvedVc<AsyncModuleInfo>>,
@@ -240,6 +228,7 @@ impl EcmascriptChunkItemWithAsyncInfo {
     ) -> Result<EcmascriptChunkItemWithAsyncInfo> {
         let ChunkItemWithAsyncModuleInfo {
             chunk_item,
+            chunk_type: _,
             module: _,
             async_info,
         } = chunk_item;
@@ -255,23 +244,18 @@ impl EcmascriptChunkItemWithAsyncInfo {
     }
 }
 
+#[async_trait]
 #[turbo_tasks::value_trait]
 pub trait EcmascriptChunkItem: ChunkItem + OutputAssetsReference {
-    #[turbo_tasks::function]
-    fn content(self: Vc<Self>) -> Vc<EcmascriptChunkItemContent>;
-
     /// Fetches the content of the chunk item with async module info.
     /// When `estimated` is true, it's ok to provide an estimated content, since it's only used for
     /// compute the chunking. When `estimated` is true, this function should not invoke other
     /// chunking operations that would cause cycles.
-    #[turbo_tasks::function]
-    fn content_with_async_module_info(
-        self: Vc<Self>,
-        _async_module_info: Option<Vc<AsyncModuleInfo>>,
-        _estimated: bool,
-    ) -> Vc<EcmascriptChunkItemContent> {
-        self.content()
-    }
+    async fn content_with_async_module_info(
+        &self,
+        async_module_info: Option<Vc<AsyncModuleInfo>>,
+        estimated: bool,
+    ) -> Result<Vc<EcmascriptChunkItemContent>>;
 }
 
 pub trait EcmascriptChunkItemExt {
@@ -286,6 +270,7 @@ where
     /// Generates the module factory for this chunk item.
     fn code(self: Vc<Self>, async_module_info: Option<Vc<AsyncModuleInfo>>) -> Vc<Code> {
         module_factory_with_code_generation_issue(Vc::upcast_non_strict(self), async_module_info)
+            .to_code()
     }
 }
 
@@ -293,14 +278,19 @@ where
 async fn module_factory_with_code_generation_issue(
     chunk_item: Vc<Box<dyn EcmascriptChunkItem>>,
     async_module_info: Option<Vc<AsyncModuleInfo>>,
-) -> Result<Vc<Code>> {
-    let content = match chunk_item
-        .content_with_async_module_info(async_module_info, false)
-        .await
-    {
-        Ok(item) => item.module_factory().await,
-        Err(err) => Err(err),
-    };
+) -> Result<Vc<PersistedCode>> {
+    async fn get_content(
+        chunk_item: Vc<Box<dyn EcmascriptChunkItem>>,
+        async_module_info: Option<Vc<AsyncModuleInfo>>,
+    ) -> Result<ResolvedVc<PersistedCode>> {
+        let chunk_item_ref = chunk_item.into_trait_ref().await?;
+        let content = chunk_item_ref
+            .content_with_async_module_info(async_module_info, false)
+            .await?
+            .await?;
+        content.module_factory().await
+    }
+    let content = get_content(chunk_item, async_module_info).await;
     Ok(match content {
         Ok(factory) => *factory,
         Err(error) => {
@@ -315,7 +305,7 @@ async fn module_factory_with_code_generation_issue(
             let js_error_message = serde_json::to_string(&error_message)?;
             CodeGenerationIssue {
                 severity: IssueSeverity::Error,
-                path: chunk_item.asset_ident().path().owned().await?,
+                path: chunk_item.asset_ident().await?.path.clone(),
                 title: StyledString::Text(rcstr!("Code generation for chunk item errored"))
                     .resolved_cell(),
                 message: StyledString::Text(error_message).resolved_cell(),
@@ -325,9 +315,9 @@ async fn module_factory_with_code_generation_issue(
             .emit();
             let mut code = CodeBuilder::default();
             code += "(() => {{\n\n";
-            writeln!(code, "throw new Error({error});", error = &js_error_message)?;
+            writeln!(code, "throw new Error({error});", error = js_error_message)?;
             code += "\n}})";
-            code.build().cell_persisted()
+            *code.build().cell_persisted()
         }
     })
 }
@@ -371,7 +361,6 @@ impl ChunkItem for EcmascriptModuleChunkItem {
             .chunk_item_content_ident(*self.chunking_context, *self.module_graph)
     }
 
-    #[turbo_tasks::function]
     fn ty(&self) -> Vc<Box<dyn ChunkType>> {
         Vc::upcast(Vc::<EcmascriptChunkType>::default())
     }
@@ -381,7 +370,6 @@ impl ChunkItem for EcmascriptModuleChunkItem {
         Vc::upcast(*self.module)
     }
 
-    #[turbo_tasks::function]
     fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
         *self.chunking_context
     }
@@ -396,25 +384,19 @@ impl OutputAssetsReference for EcmascriptModuleChunkItem {
     }
 }
 
+#[async_trait]
 #[turbo_tasks::value_impl]
 impl EcmascriptChunkItem for EcmascriptModuleChunkItem {
-    #[turbo_tasks::function]
-    fn content(&self) -> Vc<EcmascriptChunkItemContent> {
-        self.module
-            .chunk_item_content(*self.chunking_context, *self.module_graph, None, false)
-    }
-
-    #[turbo_tasks::function]
-    fn content_with_async_module_info(
+    async fn content_with_async_module_info(
         &self,
         async_module_info: Option<Vc<AsyncModuleInfo>>,
         estimated: bool,
-    ) -> Vc<EcmascriptChunkItemContent> {
-        self.module.chunk_item_content(
+    ) -> Result<Vc<EcmascriptChunkItemContent>> {
+        Ok(self.module.chunk_item_content(
             *self.chunking_context,
             *self.module_graph,
             async_module_info,
             estimated,
-        )
+        ))
     }
 }

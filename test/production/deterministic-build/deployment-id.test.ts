@@ -1,4 +1,4 @@
-import { FileRef, NextInstance, nextTestSetup } from 'e2e-utils'
+import { NextInstance, nextTestSetup } from 'e2e-utils'
 import path from 'path'
 import fs from 'fs/promises'
 import { promisify } from 'util'
@@ -7,6 +7,7 @@ import crypto from 'crypto'
 import globOrig from 'glob'
 import { diff } from 'jest-diff'
 const glob = promisify(globOrig)
+import { FILES } from './files'
 
 const IGNORE_CONTENT_NEXT_REGEX = new RegExp(
   [
@@ -24,17 +25,17 @@ const IGNORE_CONTENT_NEXT_REGEX = new RegExp(
     .join('|')
 )
 
+const IGNORE = /(^|\/)(trace|trace-build)$/
+
 async function readFilesNext(
   next: NextInstance
 ): Promise<Map<string, Map<string, string>>> {
-  // These are cosmetic files which aren't deployed.
-  const IGNORE = /^trace$|^trace-build$/
-
   const files = (
     (await glob('**/*', {
       cwd: path.join(next.testDir, next.distDir),
       nodir: true,
       dot: true,
+      ignore: 'cache/**',
     })) as string[]
   )
     .filter((f) => !IGNORE.test(f) && !IGNORE_CONTENT_NEXT_REGEX.test(f))
@@ -64,9 +65,28 @@ async function readFilesBuilder(
       nodir: true,
     })) as string[]
   ).sort()
+  const statics = (
+    (await glob('.vercel/output/static/**/*', {
+      cwd: next.testDir,
+      nodir: true,
+    })) as string[]
+  )
+    .sort()
+    // HTML Prerenders contain `<html data-dpl-id="foo-dpl-id">`
+    .filter((f) => !f.endsWith('.html') && !IGNORE.test(f))
 
-  return new Map(
-    await Promise.all(
+  return new Map([
+    [
+      'static' as string,
+      new Map(
+        await Promise.all(
+          statics.map(async (f) => {
+            return [f, await next.readFile(f)] as const
+          })
+        )
+      ),
+    ] as const,
+    ...(await Promise.all(
       functions.map(async (fn) => {
         let config = await next.readJSON(fn)
         let fnDir = path.dirname(fn)
@@ -109,8 +129,8 @@ async function readFilesBuilder(
           ),
         ] as const
       })
-    )
-  )
+    )),
+  ])
 }
 
 async function runTest(
@@ -118,7 +138,7 @@ async function runTest(
   readFiles: (next: NextInstance) => Promise<Map<string, Map<string, string>>>
 ) {
   // Same for both builds
-  next.env['__NEXT_IMMUTABLE_ASSET_TOKEN'] = 'imm-token'
+  next.env['__NEXT_SUPPORTS_IMMUTABLE_ASSETS'] = '1'
 
   // First build
   next.env['NEXT_DEPLOYMENT_ID'] = 'foo-dpl-id'
@@ -178,29 +198,6 @@ async function runTest(
   }
 
   return { run1, run2 }
-}
-
-const FILES = {
-  standard: {
-    app: new FileRef(path.join(__dirname, 'standard', 'app')),
-    pages: new FileRef(path.join(__dirname, 'standard', 'pages')),
-    public: new FileRef(path.join(__dirname, 'standard', 'public')),
-    'instrumentation.ts': new FileRef(
-      path.join(__dirname, 'standard', 'instrumentation.ts')
-    ),
-    'middleware.ts': new FileRef(
-      path.join(__dirname, 'standard', 'middleware.ts')
-    ),
-    'next.config.js': new FileRef(
-      path.join(__dirname, 'standard', 'next.config.js')
-    ),
-  },
-  cacheComponents: {
-    app: new FileRef(path.join(__dirname, 'cache-components', 'app')),
-    'next.config.js': new FileRef(
-      path.join(__dirname, 'cache-components', 'next.config.js')
-    ),
-  },
 }
 
 // Webpack itself isn't deterministic

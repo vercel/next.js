@@ -30,12 +30,11 @@ pub enum Pattern {
     Concatenation(Vec<Pattern>),
 }
 
-/// manually implement TaskInput to avoid recursion in the implementation of `resolve_input` in the
-/// derived implementation.  We can instead use the default implementation since `Pattern` contains
-/// no VCs.
+// Use a manual impl since llvm cannot prove the default generated recursive impl always returns
+// false from `is_transient`
 impl TaskInput for Pattern {
     fn is_transient(&self) -> bool {
-        // We contain no vcs so they cannot be transient.
+        // contains no vcs
         false
     }
 }
@@ -2666,15 +2665,17 @@ mod tests {
                 subpath_ordering: Vec<String>,
             }
 
-            #[turbo_tasks::function(operation)]
+            #[turbo_tasks::function(operation, root)]
             async fn read_matches_operation() -> anyhow::Result<Vc<ReadMatchesOutput>> {
                 let root = DiskFileSystem::new(
                     rcstr!("test"),
-                    Path::new(env!("CARGO_MANIFEST_DIR"))
-                        .join("tests/pattern/read_matches")
-                        .to_str()
-                        .unwrap()
-                        .into(),
+                    Vc::cell(
+                        Path::new(env!("CARGO_MANIFEST_DIR"))
+                            .join("tests/pattern/read_matches")
+                            .to_str()
+                            .unwrap()
+                            .into(),
+                    ),
                 )
                 .root()
                 .owned()

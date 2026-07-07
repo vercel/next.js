@@ -24,14 +24,22 @@ use crate::NodeJsChunkingContext;
 #[value_to_string("Ecmascript Build Node Runtime Chunk")]
 pub(crate) struct EcmascriptBuildNodeRuntimeChunk {
     chunking_context: ResolvedVc<NodeJsChunkingContext>,
+    has_async_modules: bool,
 }
 
 #[turbo_tasks::value_impl]
 impl EcmascriptBuildNodeRuntimeChunk {
     /// Creates a new [`Vc<EcmascriptBuildNodeRuntimeChunk>`].
     #[turbo_tasks::function]
-    pub fn new(chunking_context: ResolvedVc<NodeJsChunkingContext>) -> Vc<Self> {
-        EcmascriptBuildNodeRuntimeChunk { chunking_context }.cell()
+    pub fn new(
+        chunking_context: ResolvedVc<NodeJsChunkingContext>,
+        has_async_modules: bool,
+    ) -> Vc<Self> {
+        EcmascriptBuildNodeRuntimeChunk {
+            chunking_context,
+            has_async_modules,
+        }
+        .cell()
     }
 
     #[turbo_tasks::function]
@@ -56,10 +64,9 @@ impl EcmascriptBuildNodeRuntimeChunk {
         let asset_prefix = asset_prefix.as_deref().unwrap_or("/");
 
         // Get the list of global variable names to forward to workers
-        let worker_forwarded_globals =
-            Vc::upcast::<Box<dyn ChunkingContext>>(*this.chunking_context)
-                .worker_forwarded_globals()
-                .await?;
+        let worker_config = Vc::upcast::<Box<dyn ChunkingContext>>(*this.chunking_context)
+            .worker_configuration_options()
+            .await?;
 
         writedoc!(
             code,
@@ -67,16 +74,14 @@ impl EcmascriptBuildNodeRuntimeChunk {
                 var RUNTIME_PUBLIC_PATH = {};
                 var RELATIVE_ROOT_PATH = {};
                 var ASSET_PREFIX = {};
-                var WORKER_FORWARDED_GLOBALS = {};
             "#,
             StringifyJs(runtime_public_path),
             StringifyJs(output_root_to_root_path.as_str()),
             StringifyJs(asset_prefix),
-            StringifyJs(&*worker_forwarded_globals),
         )?;
 
         // Add preamble to read forwarded globals from workerData (for worker_threads)
-        if !worker_forwarded_globals.is_empty() {
+        if !worker_config.forwarded_globals.is_empty() {
             writedoc!(
                 code,
                 r#"
@@ -97,19 +102,24 @@ impl EcmascriptBuildNodeRuntimeChunk {
             )?;
         }
 
+        let asset_context =
+            turbopack::get_runtime_asset_context(this.chunking_context.environment());
+
         match *this.chunking_context.runtime_type().await? {
             RuntimeType::Development => {
                 let runtime_code = turbopack_ecmascript_runtime::get_nodejs_runtime_code(
-                    this.chunking_context.environment(),
+                    asset_context,
                     RuntimeType::Development,
+                    this.has_async_modules,
                     generate_source_map,
                 );
                 code.push_code(&*runtime_code.await?);
             }
             RuntimeType::Production => {
                 let runtime_code = turbopack_ecmascript_runtime::get_nodejs_runtime_code(
-                    this.chunking_context.environment(),
+                    asset_context,
                     RuntimeType::Production,
+                    this.has_async_modules,
                     generate_source_map,
                 );
                 code.push_code(&*runtime_code.await?);
@@ -131,7 +141,8 @@ impl EcmascriptBuildNodeRuntimeChunk {
                 .root()
                 .await?
                 .join("runtime.js")?,
-        ))
+        )
+        .into_vc())
     }
 
     #[turbo_tasks::function]

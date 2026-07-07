@@ -1,12 +1,10 @@
-import { nextTestSetup } from 'e2e-utils'
+import { isReact18, nextTestSetup } from 'e2e-utils'
 import {
   waitForRedbox,
   waitForNoRedbox,
   getRedboxDescription,
   getRedboxSource,
 } from 'next-test-utils'
-
-const isReact18 = parseInt(process.env.NEXT_TEST_REACT_VERSION) === 18
 
 const isRspack = process.env.NEXT_RSPACK !== undefined
 
@@ -187,7 +185,7 @@ describe('react-dom/server in React Server environment', () => {
          "environmentLabel": null,
          "label": "Build Error",
          "source": "./app/exports/app-code/react-dom-server-edge-implicit/page.js (3:1)
-       You're importing a component that imports react-dom/server. To fix it, render or return the content directly as a Server Component instead for perf and security.
+       Error: You're importing a component that imports react-dom/server. To fix it, render or return the content directly as a Server Component instead for perf and security.
            Learn more: https://nextjs.org/docs/app/building-your-application/rendering
        > 3 | import ReactDOMServerEdgeDefault from 'react-dom/server'
            | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
@@ -329,7 +327,7 @@ describe('react-dom/server in React Server environment', () => {
        {
          "description": "You're importing a component that imports react-dom/server. To fix it, render or return the content directly as a Server Component instead for perf and security.",
          "source": "./app/exports/app-code/react-dom-server-node-implicit/page.js (3:1)
-       You're importing a component that imports react-dom/server. To fix it, render or return the content directly as a Server Component instead for perf and security.
+       Error: You're importing a component that imports react-dom/server. To fix it, render or return the content directly as a Server Component instead for perf and security.
            Learn more: https://nextjs.org/docs/app/building-your-application/rendering
          1 | import * as ReactDOMServerNode from 'react-dom/server'
          2 | // Fine to drop once React is on ESM
