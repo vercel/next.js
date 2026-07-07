@@ -10,7 +10,11 @@ import { hoist } from './helpers'
 
 // Import the userland code.
 import * as userland from 'VAR_USERLAND'
-import { getTracer, SpanKind } from '../../server/lib/trace/tracer'
+import {
+  getTracer,
+  SpanKind,
+  SpanStatusCode,
+} from '../../server/lib/trace/tracer'
 import { BaseServerSpan } from '../../server/lib/trace/constants'
 import type { InstrumentationOnRequestError } from '../../server/instrumentation/types'
 import {
@@ -119,6 +123,16 @@ export async function handler(
             'http.status_code': res.statusCode,
             'next.rsc': false,
           })
+
+          if (res.statusCode && res.statusCode >= 500) {
+            // For 5xx status codes: SHOULD be set to 'Error' span status.
+            // x-ref: https://opentelemetry.io/docs/specs/semconv/http/http-spans/#status
+            span.setStatus({
+              code: SpanStatusCode.ERROR,
+            })
+            // For span status 'Error', SHOULD set 'error.type' attribute.
+            span.setAttribute('error.type', res.statusCode.toString())
+          }
 
           const rootSpanAttributes = tracer.getRootSpanAttributes()
           // We were unable to get attributes, probably OTEL is not enabled

@@ -5,27 +5,20 @@ use swc_core::{
     atoms::{Wtf8Atom, atom},
     ecma::{ast::Program, visit::VisitMutWith},
 };
-use turbo_tasks::{ResolvedVc, Vc};
-use turbopack::module_options::{ModuleRule, ModuleRuleEffect};
-use turbopack_ecmascript::{
-    CustomTransformer, EcmascriptInputTransform, TransformContext, TransformPlugin,
-};
+use turbo_tasks::Vc;
+use turbopack::module_options::ModuleRule;
+use turbopack_ecmascript::{CustomTransformer, TransformContext, TransformPlugin};
 
-use super::module_rule_match_js_no_url;
+use super::{EcmascriptTransformStage, get_ecma_transform_rule};
 
 /// Returns a rule which applies the Next.js font transform.
 pub async fn get_next_font_transform_rule(enable_mdx_rs: bool) -> Result<ModuleRule> {
-    let transformer =
-        EcmascriptInputTransform::Plugin(next_font_transform_plugin().to_resolved().await?);
-    // TODO: use get_ecma_transform_rule instead
-    Ok(ModuleRule::new(
-        // TODO: Only match in pages (not pages/api), app/, etc.
-        module_rule_match_js_no_url(enable_mdx_rs),
-        vec![ModuleRuleEffect::ExtendEcmascriptTransforms {
-            preprocess: ResolvedVc::cell(vec![]),
-            main: ResolvedVc::cell(vec![]),
-            postprocess: ResolvedVc::cell(vec![transformer]),
-        }],
+    let transformer = next_font_transform_plugin().to_resolved().await?;
+    // TODO: Only match in pages (not pages/api), app/, etc.
+    Ok(get_ecma_transform_rule(
+        transformer,
+        enable_mdx_rs,
+        EcmascriptTransformStage::Postprocess,
     ))
 }
 

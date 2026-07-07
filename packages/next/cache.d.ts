@@ -9,7 +9,7 @@ export {
 
 export { unstable_noStore } from 'next/dist/server/web/spec-extension/unstable-no-store'
 
-export { unstable_io } from 'next/dist/server/request/io'
+export { io } from 'next/dist/server/request/io'
 
 import { cacheTag } from 'next/dist/server/use-cache/cache-tag'
 

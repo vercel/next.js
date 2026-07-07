@@ -9,6 +9,7 @@ use rustc_hash::FxHashSet;
 use turbo_rcstr::{RcStr, rcstr};
 
 use crate::{
+    chunked_vec::ChunkedVec,
     self_time_tree::SelfTimeTree,
     span::{Span, SpanArgs, SpanEvent, SpanIndex, SpanTimeData},
     span_ref::SpanRef,
@@ -33,7 +34,7 @@ type MemorySample = (Timestamp, u64, u8);
 const MAX_MEMORY_SAMPLES: usize = 200;
 
 pub struct Store {
-    pub(crate) spans: Vec<Span>,
+    pub(crate) spans: ChunkedVec<Span>,
     pub(crate) self_time_tree: Option<SelfTimeTree<SpanIndex>>,
     max_self_time_lookup_time: AtomicU64,
     /// Global sorted list of memory samples (timestamp, memory_bytes).
@@ -66,12 +67,10 @@ fn new_root_span() -> Span {
 
 impl Store {
     pub fn new() -> Self {
+        let mut spans = ChunkedVec::new();
+        spans.push(new_root_span());
         Self {
-            spans: {
-                let mut v = Vec::with_capacity(131_072);
-                v.push(new_root_span());
-                v
-            },
+            spans,
             self_time_tree: env::var("NO_CORRECTED_TIME")
                 .ok()
                 .is_none()
@@ -82,8 +81,8 @@ impl Store {
     }
 
     pub fn reset(&mut self) {
-        self.spans.truncate(1);
-        self.spans[0] = new_root_span();
+        self.spans = ChunkedVec::new();
+        self.spans.push(new_root_span());
         if let Some(tree) = self.self_time_tree.as_mut() {
             *tree = SelfTimeTree::new();
         }
@@ -163,7 +162,7 @@ impl Store {
     pub fn add_args(
         &mut self,
         span_index: SpanIndex,
-        args: Vec<(RcStr, RcStr)>,
+        args: SpanArgs,
         outdated_spans: &mut FxHashSet<SpanIndex>,
     ) {
         let span = &mut self.spans[span_index.get()];
@@ -358,6 +357,23 @@ impl Store {
     /// `[start, end]`. When more samples exist, groups of N consecutive
     /// samples are merged by taking the maximum memory value in each group.
     pub fn memory_samples_for_range(&self, start: Timestamp, end: Timestamp) -> Vec<u64> {
+        self.memory_samples_for_range_with_ts(start, end)
+            .into_iter()
+            .map(|(_, mem, _)| mem)
+            .collect()
+    }
+
+    /// Like `memory_samples_for_range` but keeps the timestamps and the
+    /// memory-pressure byte. Timestamps are absolute store timestamps (same
+    /// reference frame as span start/end). When the raw slice exceeds
+    /// `MAX_MEMORY_SAMPLES`, each merged group is represented by the sample
+    /// whose memory value was the group's max (its timestamp and pressure
+    /// byte are kept alongside it).
+    pub fn memory_samples_for_range_with_ts(
+        &self,
+        start: Timestamp,
+        end: Timestamp,
+    ) -> Vec<MemorySample> {
         let slice = self.memory_samples_slice(start, end);
         let count = slice.len();
         if count == 0 {
@@ -365,14 +381,15 @@ impl Store {
         }
 
         if count <= MAX_MEMORY_SAMPLES {
-            return slice.iter().map(|(_, mem, _)| *mem).collect();
+            return slice.to_vec();
         }
 
-        // Merge groups of N samples, taking the max memory in each group.
+        // Merge groups of N samples, taking the max memory in each group and
+        // keeping the timestamp and pressure of that max sample.
         let n = count.div_ceil(MAX_MEMORY_SAMPLES);
         slice
             .chunks(n)
-            .map(|chunk| chunk.iter().map(|(_, mem, _)| *mem).max().unwrap())
+            .map(|chunk| *chunk.iter().max_by_key(|(_, mem, _)| *mem).unwrap())
             .collect()
     }
 

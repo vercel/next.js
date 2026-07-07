@@ -1,11 +1,9 @@
 /* eslint-env jest */
 import { createSandbox } from 'development-sandbox'
-import { FileRef, nextTestSetup } from 'e2e-utils'
+import { FileRef, isReact18, nextTestSetup } from 'e2e-utils'
 import { check, retry } from 'next-test-utils'
 import { outdent } from 'outdent'
 import path from 'path'
-
-const isReact18 = parseInt(process.env.NEXT_TEST_REACT_VERSION) === 18
 
 describe('pages/ error recovery', () => {
   const { next, isTurbopack, isRspack } = nextTestSetup({
@@ -49,7 +47,7 @@ describe('pages/ error recovery', () => {
          "environmentLabel": null,
          "label": "Build Error",
          "source": "./index.js (1:27)
-       Expected '>', got '<eof>'
+       Error: Expected '>', got '<eof>'
        > 1 | export default () => <div/
            |                           ^",
          "stack": [],
@@ -407,7 +405,7 @@ describe('pages/ error recovery', () => {
          "environmentLabel": null,
          "label": "Build Error",
          "source": "./index.js (5:5)
-       Expected '{', got 'return'
+       Error: Expected '{', got 'return'
        > 5 |     return <h1>Default Export</h1>;
            |     ^^^^^^",
          "stack": [],
@@ -491,7 +489,7 @@ describe('pages/ error recovery', () => {
          "environmentLabel": null,
          "label": "Build Error",
          "source": "./index.js (5:5)
-       Expected '{', got 'throw'
+       Error: Expected '{', got 'throw'
        > 5 |     throw new Error('nooo');
            |     ^^^^^",
          "stack": [],
@@ -825,7 +823,7 @@ describe('pages/ error recovery', () => {
          "environmentLabel": null,
          "label": "Build Error",
          "source": "./index.js (7:42)
-       Expected '}', got '<eof>'
+       Error: Expected '}', got '<eof>'
        > 7 | export default function FunctionNamed() {
            |                                          ^",
          "stack": [],
@@ -890,7 +888,7 @@ describe('pages/ error recovery', () => {
          "environmentLabel": null,
          "label": "Build Error",
          "source": "./index.js (7:42)
-       Expected '}', got '<eof>'
+       Error: Expected '}', got '<eof>'
        > 7 | export default function FunctionNamed() {
            |                                          ^",
          "stack": [],

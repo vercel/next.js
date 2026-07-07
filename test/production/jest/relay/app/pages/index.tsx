@@ -1,11 +1,11 @@
 import { graphql, useRelayEnvironment, QueryRenderer } from 'react-relay'
 
-import type { pagesQueryResponse } from '@/types/pagesQuery.graphql'
+import type { pagesQuery } from '@/types/pagesQuery.graphql'
 
 function Component() {
   const env = useRelayEnvironment()
   return (
-    <QueryRenderer
+    <QueryRenderer<pagesQuery>
       environment={env}
       query={graphql`
         query pagesQuery {
@@ -17,7 +17,7 @@ function Component() {
           }
         }
       `}
-      render={({ props }: { props: pagesQueryResponse }) => {
+      render={({ props }) => {
         if (props) {
           return (
             <div>
@@ -28,6 +28,7 @@ function Component() {
 
         return <div>Loading...</div>
       }}
+      variables={{}}
     />
   )
 }

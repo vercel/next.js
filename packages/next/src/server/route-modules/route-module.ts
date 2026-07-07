@@ -670,8 +670,11 @@ export abstract class RouteModule<
         '../lib/router-utils/instrumentation-globals.external.js'
       )
       // ensure instrumentation is registered and pass
-      // onRequestError below
-      ensureInstrumentationRegistered(absoluteProjectDir, this.distDir)
+      // onRequestError below. Awaited so any caller of `RouteModule.prepare`
+      // that bypasses `BaseServer.handleRequest` (where this is also awaited
+      // via `prepareImpl`) still observes the instrumentation hook completing
+      // before the userland route handler runs.
+      await ensureInstrumentationRegistered(absoluteProjectDir, this.distDir)
     }
     const manifests = this.loadManifests(srcPage, absoluteProjectDir)
     const { routesManifest, prerenderManifest, serverFilesManifest } = manifests
@@ -867,7 +870,13 @@ export abstract class RouteModule<
     }
 
     serverUtils.normalizeCdnUrl(req, combinedParamKeys)
-    serverUtils.normalizeQueryParams(query, routeParamKeys)
+    // When Next is not hosted in a single process, upstream proxies will add query values for route params that were used to match the route.
+    // Outside of that environment, there is no reason to do any normalization to honor those query values.
+    if (!routerServerContext?.isWrappedByNextServer) {
+      serverUtils.normalizeQueryParams(query, routeParamKeys)
+    } else {
+      serverUtils.filterInternalQuery(query, [])
+    }
     serverUtils.filterInternalQuery(originalQuery, combinedParamKeys)
 
     if (pageIsDynamic) {
@@ -982,7 +991,7 @@ export abstract class RouteModule<
     }
 
     const { isOnDemandRevalidate, revalidateOnlyGenerated } =
-      checkIsOnDemandRevalidate(req, prerenderManifest.preview)
+      checkIsOnDemandRevalidate(req.headers, prerenderManifest.preview)
 
     let isDraftMode = false
     let previewData: PreviewData
@@ -1127,12 +1136,28 @@ export abstract class RouteModule<
     isMinimalMode: boolean
   }) {
     const responseCache = this.getResponseCache(req)
+    // The prefetch-serves-fallback-shell behavior is gated behind the
+    // `appShells` experimental flag. When it's off, Next.js Segment Cache
+    // prefetches keep the previous (non-prefetch) response-cache behavior so
+    // existing suites that incidentally depend on it are unaffected.
+    const appShells = nextConfig.experimental.appShells === true
     const cacheEntry = await responseCache.get(cacheKey, responseGenerator, {
       routeKind,
       isFallback,
       isRoutePPREnabled,
       isOnDemandRevalidate,
-      isPrefetch: req.headers.purpose === 'prefetch',
+      appShells,
+      // A Next.js Segment Cache prefetch uses the `Next-Router-Prefetch`
+      // header (surfaced as the `isPrefetchRSCRequest` request meta), not the
+      // standard browser `purpose: prefetch` header. Recognize both so the
+      // response cache treats segment prefetches as prefetches — most
+      // importantly, so a prefetch that misses serves a fallback shell rather
+      // than joining an in-flight background (concrete) revalidation. The
+      // Next.js-prefetch arm is gated on `appShells`; with the flag off, only
+      // the standard browser prefetch header is recognized (unchanged).
+      isPrefetch:
+        req.headers.purpose === 'prefetch' ||
+        (appShells && getRequestMeta(req, 'isPrefetchRSCRequest') === true),
       // Use x-invocation-id header to scope the in-memory cache to a single
       // revalidation request in minimal mode.
       invocationID: req.headers['x-invocation-id'] as string | undefined,

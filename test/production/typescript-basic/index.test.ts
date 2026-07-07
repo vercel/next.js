@@ -1,24 +1,18 @@
 import path from 'path'
-import { createNext, FileRef } from 'e2e-utils'
+import { FileRef, nextTestSetup } from 'e2e-utils'
 import { renderViaHTTP } from 'next-test-utils'
-import { NextInstance } from 'e2e-utils'
 
 describe('TypeScript basic', () => {
-  let next: NextInstance
-
-  beforeAll(async () => {
-    next = await createNext({
-      files: new FileRef(path.join(__dirname, 'app')),
-      dependencies: {
-        '@next/bundle-analyzer': 'canary',
-        typescript: 'latest',
-        '@types/node': 'latest',
-        '@types/react': 'latest',
-        '@types/react-dom': 'latest',
-      },
-    })
+  const { next } = nextTestSetup({
+    files: new FileRef(path.join(__dirname, 'app')),
+    dependencies: {
+      '@next/bundle-analyzer': 'canary',
+      typescript: 'latest',
+      '@types/node': 'latest',
+      '@types/react': 'latest',
+      '@types/react-dom': 'latest',
+    },
   })
-  afterAll(() => next.destroy())
 
   it('should not have eslint setup started', async () => {
     expect(next.cliOutput).not.toContain(

@@ -2,13 +2,13 @@ import { Suspense } from 'react'
 import { cachedDelay, DebugRenderKind } from '../../../../shared'
 import { cacheLife } from 'next/cache'
 
-export const unstable_instant = {
+export const instant = {
   // We're intentionally testing error behavior at runtime.
   // Build-time validation catches it and prevents that.
   unstable_disableValidation: true,
-  samples: [{ cookies: [] }],
+  unstable_samples: [{ cookies: [] }],
 }
-export const unstable_prefetch = 'force-runtime'
+export const prefetch = 'allow-runtime'
 
 export default async function Page() {
   return (
