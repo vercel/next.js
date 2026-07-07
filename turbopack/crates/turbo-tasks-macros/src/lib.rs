@@ -1,7 +1,6 @@
 #![allow(internal_features)]
 #![feature(proc_macro_diagnostic)]
 #![feature(allow_internal_unstable)]
-#![feature(box_patterns)]
 
 mod assert_fields;
 mod derive;
@@ -9,6 +8,7 @@ mod func;
 mod function_macro;
 mod global_name;
 mod primitive_macro;
+mod task_input_attr_macro;
 mod value_impl_macro;
 mod value_macro;
 mod value_trait_macro;
@@ -53,11 +53,6 @@ pub fn derive_deterministic_hash(input: TokenStream) -> TokenStream {
     derive::derive_deterministic_hash(input)
 }
 
-#[proc_macro_derive(TaskInput, attributes(turbo_tasks))]
-pub fn derive_task_input(input: TokenStream) -> TokenStream {
-    derive::derive_task_input(input)
-}
-
 /// Derive macro for `ValueToString`. Also generates `ValueToStringify for &T`.
 #[doc = include_str!("../../turbo-tasks/FORMATTING.md")]
 #[proc_macro_derive(ValueToString, attributes(value_to_string))]
@@ -83,6 +78,11 @@ pub fn task_storage(_args: TokenStream, input: TokenStream) -> TokenStream {
 #[proc_macro_attribute]
 pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
     value_macro::value(args, input)
+}
+
+#[proc_macro_attribute]
+pub fn task_input(args: TokenStream, input: TokenStream) -> TokenStream {
+    task_input_attr_macro::task_input(args, input)
 }
 
 /// <!--

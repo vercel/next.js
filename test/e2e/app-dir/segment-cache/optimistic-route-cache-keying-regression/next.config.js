@@ -12,6 +12,7 @@ const nextConfig = {
     //
     // Once the client cache writes segment data during navigations more
     // broadly, this test could be rewritten without this config.
+    prefetchInlining: false,
     staleTimes: {
       dynamic: 180,
     },

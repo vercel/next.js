@@ -15,7 +15,7 @@ The `outputs` object contains arrays of build output types:
 
 > **Note:** When `config.output` is set to `'export'`, only `outputs.staticFiles` is populated. All other arrays (`pages`, `appPages`, `pagesApi`, `appRoutes`, `prerenders`) will be empty since the entire application is exported as static files.
 
-For any route output with `runtime: 'edge'`, `edgeRuntime` is included and contains the canonical entry metadata for invoking that output in your edge runtime.
+For any route output with `runtime: 'edge'`, `edgeRuntime` is included and contains the canonical entry metadata for invoking that output in your edge runtime. Note that the Edge Runtime is [deprecated](/docs/messages/edge-runtime-deprecated).
 
 ## Pages (`outputs.pages`)
 
@@ -38,7 +38,7 @@ React pages from the `pages/` directory:
   }
   config: {
     maxDuration?: number  // Maximum duration of the route in seconds
-    preferredRegion?: string | string[]  // Preferred deployment region
+    preferredRegion?: string | string[]  // Preferred deployment region (deprecated)
     env?: Record<string, string>  // Environment variables (edge runtime only)
   }
 }
@@ -65,7 +65,7 @@ API routes from `pages/api/`:
   }
   config: {
     maxDuration?: number  // Maximum duration of the route in seconds
-    preferredRegion?: string | string[]  // Preferred deployment region
+    preferredRegion?: string | string[]  // Preferred deployment region (deprecated)
     env?: Record<string, string>  // Environment variables (edge runtime only)
   }
 }
@@ -80,7 +80,7 @@ React pages from the `app/` directory:
   type: 'APP_PAGE'
   id: string           // Route identifier
   filePath: string     // Path to the built file
-  pathname: string     // URL pathname.Includes .rsc suffix for RSC routes
+  pathname: string     // URL pathname. Includes .rsc suffix for RSC routes
   sourcePage: string   // Original relative source file path
   runtime: 'nodejs' | 'edge' // Runtime the route is built for
   assets: Record<string, string>  // Traced dependencies (key: relative path from repo root, value: absolute path)
@@ -92,7 +92,7 @@ React pages from the `app/` directory:
   }
   config: {
     maxDuration?: number  // Maximum duration of the route in seconds
-    preferredRegion?: string | string[]  // Preferred deployment region
+    preferredRegion?: string | string[]  // Preferred deployment region (deprecated)
     env?: Record<string, string>  // Environment variables (edge runtime only)
   }
 }
@@ -119,7 +119,7 @@ API and metadata routes from the `app/` directory:
   }
   config: {
     maxDuration?: number  // Maximum duration of the route in seconds
-    preferredRegion?: string | string[]  // Preferred deployment region
+    preferredRegion?: string | string[]  // Preferred deployment region (deprecated)
     env?: Record<string, string>  // Environment variables (edge runtime only)
   }
 }
@@ -166,9 +166,9 @@ Static assets and auto-statically optimized pages:
 ```typescript
 {
   type: 'STATIC_FILE'
-  id: string // Route identifier
-  filePath: string // Path to the built file
-  pathname: string // URL pathname
+  id: string // Unique identifier for this static file output
+  filePath: string // Absolute filesystem path to the built file
+  pathname: string // The routable URL pathname for this static file
   immutableHash: string | undefined // Content hash when the filename contains a hash, indicating the file is immutable
 }
 ```
@@ -194,7 +194,7 @@ Static assets and auto-statically optimized pages:
   }
   config: {
     maxDuration?: number  // Maximum duration of the route in seconds
-    preferredRegion?: string | string[]  // Preferred deployment region
+    preferredRegion?: string | string[]  // Preferred deployment region (deprecated)
     env?: Record<string, string>  // Environment variables (edge runtime only)
     matchers?: Array<{
       source: string  // Source pattern

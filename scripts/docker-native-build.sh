@@ -16,6 +16,10 @@
 
 set -xeo pipefail
 
+# /build is bind-mounted from the host with a uid that differs from the
+# container's root user; mark it safe so vergen's `git rev-parse` works.
+git config --global --add safe.directory /build
+
 BUILD_TASK="${BUILD_TASK:-build-native-release}"
 
 # Node.js (installed via nodesource) is used only as a build tool (runs
@@ -116,17 +120,31 @@ if [ "$ARCH" = "aarch64" ]; then
   export JEMALLOC_SYS_WITH_LG_PAGE=16
 fi
 
+# Verify sccache is available if RUSTC_WRAPPER is set to it.
+# Cached docker images may not have sccache installed yet.
+if [ "${RUSTC_WRAPPER:-}" = "sccache" ] && ! command -v sccache &>/dev/null; then
+  echo "WARNING: RUSTC_WRAPPER=sccache but sccache not found — disabling"
+  unset RUSTC_WRAPPER
+fi
+
 echo "--- Build environment ---"
 node -v
 rustc --version
 echo "Target: $TARGET"
 echo "RUSTFLAGS: $RUSTFLAGS"
+echo "RUSTC_WRAPPER: ${RUSTC_WRAPPER:-<unset>}"
 echo "-------------------------"
 
 rustup target add "$TARGET"
 cd packages/next-swc
 npm run "$BUILD_TASK" -- --target "$TARGET"
 llvm-strip -x native/next-swc.*.node
+
+# Show sccache stats if available
+if command -v sccache &>/dev/null; then
+  echo "--- sccache stats ---"
+  sccache --show-stats || true
+fi
 
 # Post-build verification
 echo "--- Dynamic libraries ---"

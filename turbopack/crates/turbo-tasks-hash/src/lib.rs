@@ -38,43 +38,42 @@ pub enum HashAlgorithm {
     Sha512Base64,
 }
 
-pub fn deterministic_hash<T: DeterministicHash>(input: T, algorithm: HashAlgorithm) -> String {
+/// Feed `salt` (if non-empty) then `input` into `hasher` in a single pass, then return it.
+/// An empty salt writes zero bytes, which produces the same result as calling with no prefix.
+fn feed<H: DeterministicHasher, T: DeterministicHash>(mut h: H, salt: &str, input: T) -> H {
+    h.write_bytes(salt.as_bytes());
+    input.deterministic_hash(&mut h);
+    h
+}
+
+/// Hash `input` with `algorithm`. If `salt` is non-empty it is written into
+/// the hasher before the content so the two are mixed in a single pass —
+/// never as a hash-of-hash composition. An empty salt produces the same
+/// result as hashing without a prefix.
+pub fn deterministic_hash<T: DeterministicHash>(
+    salt: &str,
+    input: T,
+    algorithm: HashAlgorithm,
+) -> String {
+    // Each arm feeds salt+input into the appropriate hasher and encodes the output.
+    // The inherent finish() methods on the hasher types are used (not the trait method,
+    // which panics for 128-bit and SHA hashers).
     match algorithm {
         HashAlgorithm::Xxh3Hash64Hex => {
-            let mut hasher = Xxh3Hash64Hasher::new();
-            input.deterministic_hash(&mut hasher);
-            encode_hex(hasher.finish())
+            encode_hex(feed(Xxh3Hash64Hasher::new(), salt, &input).finish())
         }
         HashAlgorithm::Xxh3Hash128Hex => {
-            let mut hasher = Xxh3Hash128Hasher::new();
-            input.deterministic_hash(&mut hasher);
-            encode_hex_128(hasher.finish())
+            encode_hex_128(feed(Xxh3Hash128Hasher::new(), salt, &input).finish())
         }
         HashAlgorithm::Xxh3Hash64Base38 => {
-            let mut hasher = Xxh3Hash64Hasher::new();
-            input.deterministic_hash(&mut hasher);
-            encode_base38(hasher.finish())
+            encode_base38(feed(Xxh3Hash64Hasher::new(), salt, &input).finish())
         }
         HashAlgorithm::Xxh3Hash128Base38 => {
-            let mut hasher = Xxh3Hash128Hasher::new();
-            input.deterministic_hash(&mut hasher);
-            encode_base38_128(hasher.finish())
+            encode_base38_128(feed(Xxh3Hash128Hasher::new(), salt, &input).finish())
         }
-        HashAlgorithm::Sha256Base64 => {
-            let mut hasher = ShaHasher::new_sha256();
-            input.deterministic_hash(&mut hasher);
-            hasher.finish_base64()
-        }
-        HashAlgorithm::Sha384Base64 => {
-            let mut hasher = ShaHasher::new_sha384();
-            input.deterministic_hash(&mut hasher);
-            hasher.finish_base64()
-        }
-        HashAlgorithm::Sha512Base64 => {
-            let mut hasher = ShaHasher::new_sha512();
-            input.deterministic_hash(&mut hasher);
-            hasher.finish_base64()
-        }
+        HashAlgorithm::Sha256Base64 => feed(ShaHasher::new_sha256(), salt, &input).finish_base64(),
+        HashAlgorithm::Sha384Base64 => feed(ShaHasher::new_sha384(), salt, &input).finish_base64(),
+        HashAlgorithm::Sha512Base64 => feed(ShaHasher::new_sha512(), salt, &input).finish_base64(),
     }
 }
 

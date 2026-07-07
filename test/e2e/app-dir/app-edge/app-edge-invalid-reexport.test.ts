@@ -34,7 +34,7 @@ describe('app-dir edge SSR invalid reexport', () => {
            "environmentLabel": null,
            "label": "Build Error",
            "source": "./app/export/inherit/page.tsx (1:28)
-         Next.js can't recognize the exported \`preferredRegion\` field in route. It mustn't be reexported.
+         Error: Next.js can't recognize the exported \`preferredRegion\` field in route. It mustn't be reexported.
          > 1 | export { default, runtime, preferredRegion } from '../basic/page'
              |                            ^^^^^^^^^^^^^^^",
            "stack": [],

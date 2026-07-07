@@ -917,6 +917,8 @@ module.exports = {
 }
 ```
 
+This might be necessary when hosting Next.js in a VPC with split-horizon DNS and you receive status 400 Bad Request. Only enable once you understand the SSRF risk.
+
 #### `dangerouslyAllowSVG`
 
 `dangerouslyAllowSVG` allows you to serve SVG images.

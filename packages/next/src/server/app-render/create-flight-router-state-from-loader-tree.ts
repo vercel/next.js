@@ -1,6 +1,7 @@
 import type { LoaderTree } from '../lib/app-dir-module'
 import {
   PrefetchHint,
+  propagateSubtreeBits,
   type FlightRouterState,
   type PrefetchHints,
 } from '../../shared/lib/app-router-types'
@@ -12,6 +13,8 @@ async function createFlightRouterStateFromLoaderTreeImpl(
   loaderTree: LoaderTree,
   hintTree: PrefetchHints | null,
   prefetchInliningEnabled: boolean,
+  cacheComponents: boolean,
+  partialPrefetching: boolean | 'unstable_eager' | undefined,
   isStaticGeneration: boolean,
   isBuildTimePrerendering: boolean,
   getDynamicParamFromSegment: GetDynamicParamFromSegment,
@@ -27,11 +30,19 @@ async function createFlightRouterStateFromLoaderTreeImpl(
     {},
   ]
 
-  // Load the layout or page module to check for unstable_instant config
+  // Load the layout or page module to check its instant and prefetch
+  // configs. When a segment doesn't export prefetch, it defaults to
+  // 'partial' if the app has opted into partial prefetching globally via the
+  // `partialPrefetching` config in next.config.js.
   const mod = layout ? await layout[0]() : page ? await page[0]() : undefined
-  const instantConfig = mod
-    ? (mod as AppSegmentConfig).unstable_instant
-    : undefined
+  const instantConfig = mod ? (mod as AppSegmentConfig).instant : undefined
+  const prefetchConfig =
+    (mod ? (mod as AppSegmentConfig).prefetch : undefined) ??
+    (partialPrefetching === 'unstable_eager'
+      ? 'unstable_eager'
+      : partialPrefetching
+        ? 'partial'
+        : undefined)
   let prefetchHints = 0
 
   // Union in the precomputed build-time hints (e.g. segment inlining
@@ -40,7 +51,7 @@ async function createFlightRouterStateFromLoaderTreeImpl(
   // compute the other hints below. In the future this should be a build
   // error, but for now we gracefully degrade.
   //
-  // TODO: Move more of the hints computation (IsRootLayout, instant config,
+  // TODO: Move more of the hints computation (IsRootLayoutOrAbove, instant config,
   // loading boundary detection) into the build-time measurement step in
   // collectPrefetchHints, so this function only needs to union the
   // precomputed bitmask rather than re-derive hints on every render.
@@ -65,28 +76,67 @@ async function createFlightRouterStateFromLoaderTreeImpl(
       // Once that bug is fixed, this branch should become an error again —
       // hints should always be available from the manifest during ISR.
       prefetchHints |= PrefetchHint.PrefetchDisabled
-    } else {
+    } else if (cacheComponents) {
       // At runtime with no hint tree, this is a fully dynamic route with no
       // manifest entry. Treat every segment as unprefetchable. Do NOT set
       // InliningHintsStale — that would cause the client to enter an
       // infinite re-fetch loop trying to get hints that will never exist.
       prefetchHints |= PrefetchHint.PrefetchDisabled
+    } else {
+      // Without cacheComponents, dynamic pages have no static shell so
+      // hints are never computed. Don't disable prefetching — just skip
+      // the inlining hint system and let prefetching proceed normally.
     }
   }
 
-  // Mark the first segment that has a layout as the "root" layout
-  if (!didFindRootLayout && typeof layout !== 'undefined') {
-    didFindRootLayout = true
-    prefetchHints |= PrefetchHint.IsRootLayout
+  // Mark every segment at or above the root layout (i.e. until we descend past
+  // the first segment that has a layout).
+  if (!didFindRootLayout) {
+    prefetchHints |= PrefetchHint.IsRootLayoutOrAbove
+    if (typeof layout !== 'undefined') {
+      // This segment is the root layout; its descendants are below it.
+      didFindRootLayout = true
+    }
   }
 
-  if (instantConfig === false) {
+  const isInstant =
+    instantConfig === true ||
+    (typeof instantConfig === 'object' && instantConfig !== null)
+  if (isInstant) {
+    prefetchHints |= PrefetchHint.SubtreeHasPartialPrefetching
+  } else if (instantConfig === false) {
+    // The segment explicitly opts out of Partial Prefetching. We don't change
+    // the prefetch behavior, but we record it so the dev-time
+    // `<Link prefetch={true}>` warning can be suppressed for this route.
+    prefetchHints |= PrefetchHint.SubtreeHasInstantFalse
+  }
+
+  if (prefetchConfig === 'partial') {
+    prefetchHints |= PrefetchHint.SubtreeHasPartialPrefetching
+  } else if (prefetchConfig === 'unstable_eager') {
+    // Like 'partial' (uses the PPR fetch strategy) but also marks the segment
+    // as eager, so App Shells keeps prefetching it instead of relying on the
+    // shared app shell.
+    prefetchHints |=
+      PrefetchHint.SubtreeHasPartialPrefetching |
+      PrefetchHint.SubtreeHasEagerPrefetch
+  } else if (prefetchConfig === 'force-disabled') {
     prefetchHints |= PrefetchHint.PrefetchDisabled
-  } else if (instantConfig && typeof instantConfig === 'object') {
-    prefetchHints |= PrefetchHint.SubtreeHasInstant
-    if (instantConfig.prefetch === 'runtime') {
-      prefetchHints |= PrefetchHint.HasRuntimePrefetch
-    }
+  } else if (prefetchConfig === 'allow-runtime') {
+    prefetchHints |= PrefetchHint.HasRuntimePrefetch
+  }
+
+  // Mark the segment as "eager" unless its effective prefetch strategy is
+  // 'partial' or 'allow-runtime'. A truthy instant is treated as
+  // 'partial' (not eager). 'unstable_eager' already set the bit above. Under
+  // App Shells, a subtree with no eager segment skips its Speculative prefetch
+  // and relies on the shared app shell instead.
+  if (
+    !isInstant &&
+    prefetchConfig !== 'partial' &&
+    prefetchConfig !== 'allow-runtime'
+  ) {
+    prefetchHints |= PrefetchHint.SubtreeHasEagerPrefetch
   }
 
   // Check if this segment has a loading boundary
@@ -104,6 +154,8 @@ async function createFlightRouterStateFromLoaderTreeImpl(
       parallelRoutes[parallelRouteKey],
       childHintNode,
       prefetchInliningEnabled,
+      cacheComponents,
+      partialPrefetching,
       isStaticGeneration,
       isBuildTimePrerendering,
       getDynamicParamFromSegment,
@@ -112,29 +164,7 @@ async function createFlightRouterStateFromLoaderTreeImpl(
     )
     // Propagate subtree flags from children
     if (child[4] !== undefined) {
-      prefetchHints |=
-        child[4] &
-        (PrefetchHint.SubtreeHasInstant |
-          PrefetchHint.SubtreeHasLoadingBoundary |
-          PrefetchHint.SubtreeHasRuntimePrefetch)
-      // If a child has a loading boundary (either directly or in its subtree),
-      // propagate that as SubtreeHasLoadingBoundary to this segment.
-      if (
-        child[4] &
-        (PrefetchHint.SegmentHasLoadingBoundary |
-          PrefetchHint.SubtreeHasLoadingBoundary)
-      ) {
-        prefetchHints |= PrefetchHint.SubtreeHasLoadingBoundary
-      }
-      // If a child has runtime prefetch (either directly or in its subtree),
-      // propagate that as SubtreeHasRuntimePrefetch to this segment.
-      if (
-        child[4] &
-        (PrefetchHint.HasRuntimePrefetch |
-          PrefetchHint.SubtreeHasRuntimePrefetch)
-      ) {
-        prefetchHints |= PrefetchHint.SubtreeHasRuntimePrefetch
-      }
+      prefetchHints = propagateSubtreeBits(prefetchHints, child[4])
     }
     children[parallelRouteKey] = child
   }
@@ -151,16 +181,23 @@ export async function createFlightRouterStateFromLoaderTree(
   loaderTree: LoaderTree,
   hintTree: PrefetchHints | null,
   prefetchInliningEnabled: boolean,
+  cacheComponents: boolean,
+  partialPrefetching: boolean | 'unstable_eager' | undefined,
   isStaticGeneration: boolean,
   isBuildTimePrerendering: boolean,
   getDynamicParamFromSegment: GetDynamicParamFromSegment,
-  searchParams: any
+  searchParams: any,
+  // Whether a root layout was already found above this loader tree slice, so a
+  // slice that starts below the root layout doesn't mark a sub-layout as the
+  // root layout.
+  didFindRootLayout: boolean = false
 ): Promise<FlightRouterState> {
-  const didFindRootLayout = false
   return createFlightRouterStateFromLoaderTreeImpl(
     loaderTree,
     hintTree,
     prefetchInliningEnabled,
+    cacheComponents,
+    partialPrefetching,
     isStaticGeneration,
     isBuildTimePrerendering,
     getDynamicParamFromSegment,
@@ -173,19 +210,24 @@ export async function createRouteTreePrefetch(
   loaderTree: LoaderTree,
   hintTree: PrefetchHints | null,
   prefetchInliningEnabled: boolean,
+  cacheComponents: boolean,
+  partialPrefetching: boolean | 'unstable_eager' | undefined,
   isStaticGeneration: boolean,
   isBuildTimePrerendering: boolean,
-  getDynamicParamFromSegment: GetDynamicParamFromSegment
+  getDynamicParamFromSegment: GetDynamicParamFromSegment,
+  // See note on createFlightRouterStateFromLoaderTree's didFindRootLayout.
+  didFindRootLayout: boolean = false
 ): Promise<FlightRouterState> {
   // Search params should not be added to page segment's cache key during a
   // route tree prefetch request, because they do not affect the structure of
   // the route. The client cache has its own logic to handle search params.
   const searchParams = {}
-  const didFindRootLayout = false
   return createFlightRouterStateFromLoaderTreeImpl(
     loaderTree,
     hintTree,
     prefetchInliningEnabled,
+    cacheComponents,
+    partialPrefetching,
     isStaticGeneration,
     isBuildTimePrerendering,
     getDynamicParamFromSegment,

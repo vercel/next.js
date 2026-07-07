@@ -1,13 +1,13 @@
 var RUNTIME_PUBLIC_PATH = "output/[turbopack]_runtime.js";
 var RELATIVE_ROOT_PATH = "../../../../../../..";
 var ASSET_PREFIX = "/";
-var WORKER_FORWARDED_GLOBALS = [];
 /**
  * This file contains runtime types and functions that are shared between all
  * TurboPack ECMAScript runtimes.
  *
  * It will be prepended to the runtime code of each runtime.
  */ /* eslint-disable @typescript-eslint/no-unused-vars */ /// <reference path="./runtime-types.d.ts" />
+/// <reference path="./async-module.ts" />
 /**
  * Describes why a module was instantiated.
  * Shared between browser and Node.js runtimes.
@@ -90,7 +90,7 @@ function createModuleWithDirection(id) {
 const BindingTag_Value = 0;
 /**
  * Adds the getters to the exports object.
- */ function esm(exports, bindings) {
+ */ function esm(exports, bindings, dynamic) {
     defineProp(exports, '__esModule', {
         value: true
     });
@@ -128,11 +128,18 @@ const BindingTag_Value = 0;
             }
         }
     }
-    Object.seal(exports);
+    // The properties defined above are already non-configurable and
+    // non-writable, so the namespace's existing exports are effectively
+    // immutable. Sealing additionally makes the object non-extensible, matching
+    // real ESM-namespace semantics. Modules with dynamic re-exports
+    // (`export *` from a CommonJS module) must stay extensible so the dynamic
+    // export proxy can surface keys discovered at runtime, so skip the seal for
+    // them.
+    if (!dynamic) Object.seal(exports);
 }
 /**
  * Makes the module an ESM with exports
- */ function esmExport(bindings, id) {
+ */ function esmExport(bindings, id, dynamic) {
     let module;
     let exports;
     if (id != null) {
@@ -143,24 +150,72 @@ const BindingTag_Value = 0;
         exports = this.e;
     }
     module.namespaceObject = exports;
-    esm(exports, bindings);
+    esm(exports, bindings, dynamic);
 }
 contextPrototype.s = esmExport;
 function ensureDynamicExports(module, exports) {
     let reexportedObjects = REEXPORTED_OBJECTS.get(module);
     if (!reexportedObjects) {
         REEXPORTED_OBJECTS.set(module, reexportedObjects = []);
+        // Returns the re-exported object that provides `prop` as an own property,
+        // or `undefined` if none does. The traps share this logic so they always
+        // agree on which keys are synthesized from `reexportedObjects`. `default`
+        // is never re-exported by `export *`, so it is never synthesized.
+        const reexportOwning = (prop)=>{
+            if (prop !== 'default') {
+                for (const obj of reexportedObjects){
+                    if (hasOwnProperty.call(obj, prop)) return obj;
+                }
+            }
+            return undefined;
+        };
+        // Modules with dynamic re-exports are not sealed by `esm()`, so the
+        // target beneath the namespace stays extensible. That is what lets the
+        // `ownKeys` and `getOwnPropertyDescriptor` traps legally report keys that
+        // exist on `reexportedObjects` but not on the target itself.
         module.exports = module.namespaceObject = new Proxy(exports, {
             get (target, prop) {
                 if (hasOwnProperty.call(target, prop) || prop === 'default' || prop === '__esModule') {
                     return Reflect.get(target, prop);
                 }
-                for (const obj of reexportedObjects){
-                    const value = Reflect.get(obj, prop);
-                    if (value !== undefined) return value;
-                }
-                return undefined;
+                const obj = reexportOwning(prop);
+                return obj && Reflect.get(obj, prop);
             },
+            // The namespace is read-only, like a real esm namespace object. The
+            // re-exported modules can still mutate their own exports (exposed live
+            // via `get`), but mutating the namespace itself is rejected. Refusing
+            // here, rather than forwarding to the extensible target, also prevents an
+            // assignment/definition from shadowing a dynamic re-export. It also
+            // prevents delete from removing a static export.
+            set () {
+                return false;
+            },
+            defineProperty () {
+                return false;
+            },
+            deleteProperty () {
+                return false;
+            },
+            // The `has` trap ensures that `'exportName' in starImports` will reflect
+            // the truth of whether a key is exported.
+            has (target, prop) {
+                if (Reflect.has(target, prop)) return true;
+                if (prop === 'default' || prop === '__esModule') return false;
+                return reexportOwning(prop) !== undefined;
+            },
+            // ownKeys and getOwnPropertyDescriptor together make the keys enumerable.
+            // If a value is returned from `ownKeys` but its property descriptor is
+            // not enumerable, it will not be visible to iterator methods.
+            // Collectively, they allow code like the following:
+            //
+            // ```
+            // // module.js re-exports dynamic CJS exports
+            // export * from './legacyModule.cjs'
+            //
+            // // from another JS file, reference the re-exported dynamic values
+            // import * as Namespace from './module.js'
+            // Object.keys(Namespace)
+            // ```
             ownKeys (target) {
                 const keys = Reflect.ownKeys(target);
                 for (const obj of reexportedObjects){
@@ -169,6 +224,22 @@ function ensureDynamicExports(module, exports) {
                     }
                 }
                 return keys;
+            },
+            getOwnPropertyDescriptor (target, prop) {
+                const own = Reflect.getOwnPropertyDescriptor(target, prop);
+                if (own || prop === 'default' || prop === '__esModule') return own;
+                const obj = reexportOwning(prop);
+                if (obj) {
+                    // Synthetic keys don't exist on the target, so they MUST be
+                    // reported as configurable. However the set/delete traps above will
+                    // prevent them from actually being changed
+                    return {
+                        enumerable: true,
+                        configurable: true,
+                        get: ()=>Reflect.get(obj, prop)
+                    };
+                }
+                return undefined;
             }
         });
     }
@@ -343,25 +414,6 @@ contextPrototype.f = moduleContext;
  */ function getChunkPath(chunkData) {
     return typeof chunkData === 'string' ? chunkData : chunkData.path;
 }
-function isPromise(maybePromise) {
-    return maybePromise != null && typeof maybePromise === 'object' && 'then' in maybePromise && typeof maybePromise.then === 'function';
-}
-function isAsyncModuleExt(obj) {
-    return turbopackQueues in obj;
-}
-function createPromise() {
-    let resolve;
-    let reject;
-    const promise = new Promise((res, rej)=>{
-        reject = rej;
-        resolve = res;
-    });
-    return {
-        promise,
-        resolve: resolve,
-        reject: reject
-    };
-}
 // Load the CompressedmoduleFactories of a chunk into the `moduleFactories` Map.
 // The CompressedModuleFactories format is
 // - 1 or more module ids
@@ -411,11 +463,102 @@ function installCompressedModuleFactories(chunkModules, offset, moduleFactories,
         i = end + 1; // end is pointing at the last factory advance to the next id or the end of the array.
     }
 }
-// everything below is adapted from webpack
-// https://github.com/webpack/webpack/blob/6be4065ade1e252c1d8dcba4af0f43e32af1bdc1/lib/runtime/AsyncModuleRuntimeModule.js#L13
-const turbopackQueues = Symbol('turbopack queues');
+/**
+ * A pseudo "fake" URL object to resolve to its relative path.
+ *
+ * When UrlRewriteBehavior is set to relative, calls to the `new URL()` will construct url without base using this
+ * runtime function to generate context-agnostic urls between different rendering context, i.e ssr / client to avoid
+ * hydration mismatch.
+ *
+ * This is based on webpack's existing implementation:
+ * https://github.com/webpack/webpack/blob/87660921808566ef3b8796f8df61bd79fc026108/lib/runtime/RelativeUrlRuntimeModule.js
+ */ const relativeURL = function relativeURL(inputUrl) {
+    const realUrl = new URL(inputUrl, 'x:/');
+    const values = {};
+    for(const key in realUrl)values[key] = realUrl[key];
+    values.href = inputUrl;
+    values.pathname = inputUrl.replace(/[?#].*/, '');
+    values.origin = values.protocol = '';
+    values.toString = values.toJSON = (..._args)=>inputUrl;
+    for(const key in values)Object.defineProperty(this, key, {
+        enumerable: true,
+        configurable: true,
+        value: values[key]
+    });
+};
+relativeURL.prototype = URL.prototype;
+contextPrototype.U = relativeURL;
+/**
+ * Utility function to ensure all variants of an enum are handled.
+ */ function invariant(never, computeMessage) {
+    throw new Error(`Invariant: ${computeMessage(never)}`);
+}
+/**
+ * Constructs an error message for when a module factory is not available.
+ */ function factoryNotAvailableMessage(moduleId, sourceType, sourceData) {
+    let instantiationReason;
+    switch(sourceType){
+        case 0:
+            instantiationReason = `as a runtime entry of chunk ${sourceData}`;
+            break;
+        case 1:
+            instantiationReason = `because it was required from module ${sourceData}`;
+            break;
+        case 2:
+            instantiationReason = 'because of an HMR update';
+            break;
+        default:
+            invariant(sourceType, (sourceType)=>`Unknown source type: ${sourceType}`);
+    }
+    return `Module ${moduleId} was instantiated ${instantiationReason}, but the module factory is not available.`;
+}
+/**
+ * A stub function to make `require` available but non-functional in ESM.
+ */ function requireStub(_moduleId) {
+    throw new Error('dynamic usage of require is not supported');
+}
+contextPrototype.z = requireStub;
+// Make `globalThis` available to the module in a way that cannot be shadowed by a local variable.
+contextPrototype.g = globalThis;
+function applyModuleFactoryName(factory) {
+    // Give the module factory a nice name to improve stack traces.
+    Object.defineProperty(factory, 'name', {
+        value: 'module evaluation'
+    });
+}
+/// <reference path="./runtime-types.d.ts" />
+/// <reference path="./runtime-utils.ts" />
+/**
+ * Top-level-await / async-module machinery. This is only included in the runtime
+ * when the module graph actually contains an async module (a module with
+ * top-level await, or one that transitively depends on one). When no async
+ * module is present, the chunk items never reference `__turbopack_context__.a`,
+ * so this whole file can be omitted.
+ *
+ * everything below is adapted from webpack
+ * https://github.com/webpack/webpack/blob/6be4065ade1e252c1d8dcba4af0f43e32af1bdc1/lib/runtime/AsyncModuleRuntimeModule.js#L13
+ */ const turbopackQueues = Symbol('turbopack queues');
 const turbopackExports = Symbol('turbopack exports');
 const turbopackError = Symbol('turbopack error');
+function isPromise(maybePromise) {
+    return maybePromise != null && typeof maybePromise === 'object' && 'then' in maybePromise && typeof maybePromise.then === 'function';
+}
+function isAsyncModuleExt(obj) {
+    return turbopackQueues in obj;
+}
+function createPromise() {
+    let resolve;
+    let reject;
+    const promise = new Promise((res, rej)=>{
+        reject = rej;
+        resolve = res;
+    });
+    return {
+        promise,
+        resolve: resolve,
+        reject: reject
+    };
+}
 function resolveQueue(queue) {
     if (queue && queue.status !== 1) {
         queue.status = 1;
@@ -515,69 +658,6 @@ function asyncModule(body, hasAwait) {
     }
 }
 contextPrototype.a = asyncModule;
-/**
- * A pseudo "fake" URL object to resolve to its relative path.
- *
- * When UrlRewriteBehavior is set to relative, calls to the `new URL()` will construct url without base using this
- * runtime function to generate context-agnostic urls between different rendering context, i.e ssr / client to avoid
- * hydration mismatch.
- *
- * This is based on webpack's existing implementation:
- * https://github.com/webpack/webpack/blob/87660921808566ef3b8796f8df61bd79fc026108/lib/runtime/RelativeUrlRuntimeModule.js
- */ const relativeURL = function relativeURL(inputUrl) {
-    const realUrl = new URL(inputUrl, 'x:/');
-    const values = {};
-    for(const key in realUrl)values[key] = realUrl[key];
-    values.href = inputUrl;
-    values.pathname = inputUrl.replace(/[?#].*/, '');
-    values.origin = values.protocol = '';
-    values.toString = values.toJSON = (..._args)=>inputUrl;
-    for(const key in values)Object.defineProperty(this, key, {
-        enumerable: true,
-        configurable: true,
-        value: values[key]
-    });
-};
-relativeURL.prototype = URL.prototype;
-contextPrototype.U = relativeURL;
-/**
- * Utility function to ensure all variants of an enum are handled.
- */ function invariant(never, computeMessage) {
-    throw new Error(`Invariant: ${computeMessage(never)}`);
-}
-/**
- * Constructs an error message for when a module factory is not available.
- */ function factoryNotAvailableMessage(moduleId, sourceType, sourceData) {
-    let instantiationReason;
-    switch(sourceType){
-        case 0:
-            instantiationReason = `as a runtime entry of chunk ${sourceData}`;
-            break;
-        case 1:
-            instantiationReason = `because it was required from module ${sourceData}`;
-            break;
-        case 2:
-            instantiationReason = 'because of an HMR update';
-            break;
-        default:
-            invariant(sourceType, (sourceType)=>`Unknown source type: ${sourceType}`);
-    }
-    return `Module ${moduleId} was instantiated ${instantiationReason}, but the module factory is not available.`;
-}
-/**
- * A stub function to make `require` available but non-functional in ESM.
- */ function requireStub(_moduleId) {
-    throw new Error('dynamic usage of require is not supported');
-}
-contextPrototype.z = requireStub;
-// Make `globalThis` available to the module in a way that cannot be shadowed by a local variable.
-contextPrototype.g = globalThis;
-function applyModuleFactoryName(factory) {
-    // Give the module factory a nice name to improve stack traces.
-    Object.defineProperty(factory, 'name', {
-        value: 'module evaluation'
-    });
-}
 /// <reference path="../shared/runtime/runtime-utils.ts" />
 /// A 'base' utilities to support runtime can have externals.
 /// Currently this is for node.js / edge runtime both.
@@ -640,31 +720,19 @@ const ABSOLUTE_ROOT = path.resolve(__filename, relativePathToDistRoot);
     return ABSOLUTE_ROOT;
 }
 Context.prototype.P = resolveAbsolutePath;
-/* eslint-disable @typescript-eslint/no-unused-vars */ /// <reference path="../shared/runtime/runtime-utils.ts" />
-function readWebAssemblyAsResponse(path) {
-    const { createReadStream } = require('fs');
-    const { Readable } = require('stream');
-    const stream = createReadStream(path);
-    // @ts-ignore unfortunately there's a slight type mismatch with the stream.
-    return new Response(Readable.toWeb(stream), {
-        headers: {
-            'content-type': 'application/wasm'
-        }
-    });
+/**
+ * Returns an absolute `file://` URL for the given module path.
+ *
+ * Uses `url.pathToFileURL` so that the resulting URL is a valid file URI on
+ * all platforms (forward slashes on Windows, drive letters handled
+ * correctly, path segments URL-encoded).
+ */ function resolveFileUrl(modulePath) {
+    return require('url').pathToFileURL(resolveAbsolutePath(modulePath)).href;
 }
-async function compileWebAssemblyFromPath(path) {
-    const response = readWebAssemblyAsResponse(path);
-    return await WebAssembly.compileStreaming(response);
-}
-async function instantiateWebAssemblyFromPath(path, importsObj) {
-    const response = readWebAssemblyAsResponse(path);
-    const { instance } = await WebAssembly.instantiateStreaming(response, importsObj);
-    return instance.exports;
-}
+Context.prototype.F = resolveFileUrl;
 /* eslint-disable @typescript-eslint/no-unused-vars */ /// <reference path="../../shared/runtime/runtime-utils.ts" />
 /// <reference path="../../shared-node/base-externals-utils.ts" />
 /// <reference path="../../shared-node/node-externals-utils.ts" />
-/// <reference path="../../shared-node/node-wasm-utils.ts" />
 /// <reference path="./nodejs-globals.d.ts" />
 /**
  * Base Node.js runtime shared between production and development.
@@ -768,40 +836,9 @@ function loadChunkAsyncByUrl(chunkUrl) {
     return loadChunkAsync.call(this, path1);
 }
 contextPrototype.L = loadChunkAsyncByUrl;
-function loadWebAssembly(chunkPath, _edgeModule, imports) {
-    const resolved = path.resolve(RUNTIME_ROOT, chunkPath);
-    return instantiateWebAssemblyFromPath(resolved, imports);
-}
-contextPrototype.w = loadWebAssembly;
-function loadWebAssemblyModule(chunkPath, _edgeModule) {
-    const resolved = path.resolve(RUNTIME_ROOT, chunkPath);
-    return compileWebAssemblyFromPath(resolved);
-}
-contextPrototype.u = loadWebAssemblyModule;
-/**
- * Creates a Node.js worker thread by instantiating the given WorkerConstructor
- * with the appropriate path and options, including forwarded globals.
- *
- * @param WorkerConstructor The Worker constructor from worker_threads
- * @param workerPath Path to the worker entry chunk
- * @param workerOptions options to pass to the Worker constructor (optional)
- */ function createWorker(WorkerConstructor, workerPath, workerOptions) {
-    // Build the forwarded globals object
-    const forwardedGlobals = {};
-    for (const name of WORKER_FORWARDED_GLOBALS){
-        forwardedGlobals[name] = globalThis[name];
-    }
-    // Merge workerData with forwarded globals
-    const existingWorkerData = workerOptions?.workerData || {};
-    const options = {
-        ...workerOptions,
-        workerData: {
-            ...typeof existingWorkerData === 'object' ? existingWorkerData : {},
-            __turbopack_globals__: forwardedGlobals
-        }
-    };
-    return new WorkerConstructor(workerPath, options);
-}
+// Shared runtime primitive: the root that on-disk chunk paths are resolved
+// against. Used by the bundled wasm helper (exposed as `__turbopack_runtime_root__`).
+contextPrototype.w = RUNTIME_ROOT;
 const regexJsUrl = /\.js(?:\?[^#]*)?(?:#.*)?$/;
 /**
  * Checks if a given path/URL ends with .js, optionally followed by ?query or #fragment.
@@ -1523,7 +1560,6 @@ nodeDevContextPrototype.q = exportUrl;
 nodeDevContextPrototype.M = moduleFactories;
 nodeDevContextPrototype.c = devModuleCache;
 nodeDevContextPrototype.R = resolvePathFromModule;
-nodeDevContextPrototype.b = createWorker;
 nodeDevContextPrototype.C = clearChunkCache;
 /**
  * Instantiates a module in development mode using shared HMR logic.
@@ -1696,7 +1732,44 @@ function __turbopack_server_hmr_apply__(update) {
         return false;
     }
 }
-globalThis.__turbopack_server_hmr_apply__ = __turbopack_server_hmr_apply__;
+const handlers = globalThis.__turbopack_server_hmr_handlers__ ?? new Map();
+const chunkPrefix = path.relative(RUNTIME_ROOT, path.dirname(__filename));
+if (handlers.size === 0) {
+    // First registration in this generation: install the routing dispatcher.
+    globalThis.__turbopack_server_hmr_apply__ = (update)=>{
+        const registry = globalThis.__turbopack_server_hmr_handlers__ ?? new Map();
+        const updateChunkPaths = Object.keys(update.instruction?.chunks ?? {});
+        const toCall = [];
+        if (updateChunkPaths.length === 0) {
+            for (const entry of registry.values())toCall.push(entry);
+        } else {
+            const seen = new Set();
+            for (const chunkPath of updateChunkPaths){
+                const dir = path.dirname(chunkPath);
+                for (const [key, entry] of registry){
+                    if (dir === entry.chunkPrefix && !seen.has(key)) {
+                        seen.add(key);
+                        toCall.push(entry);
+                    }
+                }
+            }
+        }
+        let applied = false;
+        for (const { handler } of toCall){
+            try {
+                if (handler(update)) applied = true;
+            } catch (err) {
+                console.error('[Server HMR] Handler error:', err);
+            }
+        }
+        return applied;
+    };
+}
+globalThis.__turbopack_server_hmr_handlers__ = handlers;
+handlers.set(__filename, {
+    handler: __turbopack_server_hmr_apply__,
+    chunkPrefix
+});
 
 
 //# sourceMappingURL=%5Bturbopack%5D_runtime.js.map

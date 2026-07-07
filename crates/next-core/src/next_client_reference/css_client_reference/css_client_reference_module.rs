@@ -36,10 +36,14 @@ impl CssClientReferenceModule {
 #[turbo_tasks::value_impl]
 impl Module for CssClientReferenceModule {
     #[turbo_tasks::function]
-    fn ident(&self) -> Vc<AssetIdent> {
-        self.client_module
+    async fn ident(&self) -> Result<Vc<AssetIdent>> {
+        Ok(self
+            .client_module
             .ident()
+            .owned()
+            .await?
             .with_modifier(rcstr!("css client reference"))
+            .into_vc())
     }
 
     #[turbo_tasks::function]

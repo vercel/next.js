@@ -44,26 +44,26 @@ describe('app dir - next-image', () => {
       const $ = await next.render$('/')
 
       const layout = $('#app-layout')
-      expect(stripTestHash(layout.attr('src'))).toBe(
+      expect(normalizeURL(layout.attr('src'))).toBe(
         `/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.HASH.png&w=828&q=85${next.getAssetQuery(true)}`
       )
-      expect(stripTestHash(layout.attr('srcset'))).toBe(
+      expect(normalizeURL(layout.attr('srcset'))).toBe(
         `/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.HASH.png&w=640&q=85${next.getAssetQuery(true)} 1x, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.HASH.png&w=828&q=85${next.getAssetQuery(true)} 2x`
       )
 
       const page = $('#app-page')
-      expect(stripTestHash(page.attr('src'))).toBe(
+      expect(normalizeURL(page.attr('src'))).toBe(
         `/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.HASH.png&w=828&q=90${next.getAssetQuery(true)}`
       )
-      expect(stripTestHash(page.attr('srcset'))).toBe(
+      expect(normalizeURL(page.attr('srcset'))).toBe(
         `/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.HASH.png&w=640&q=90${next.getAssetQuery(true)} 1x, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.HASH.png&w=828&q=90${next.getAssetQuery(true)} 2x`
       )
 
       const comp = $('#app-comp')
-      expect(stripTestHash(comp.attr('src'))).toBe(
+      expect(normalizeURL(comp.attr('src'))).toBe(
         `/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.HASH.png&w=828&q=80${next.getAssetQuery(true)}`
       )
-      expect(stripTestHash(comp.attr('srcset'))).toBe(
+      expect(normalizeURL(comp.attr('srcset'))).toBe(
         `/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.HASH.png&w=640&q=80${next.getAssetQuery(true)} 1x, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.HASH.png&w=828&q=80${next.getAssetQuery(true)} 2x`
       )
     })
@@ -72,34 +72,34 @@ describe('app dir - next-image', () => {
       const $ = await next.render$('/client')
 
       const root = $('#app-layout')
-      expect(stripTestHash(root.attr('src'))).toBe(
+      expect(normalizeURL(root.attr('src'))).toBe(
         `/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.HASH.png&w=828&q=85${next.getAssetQuery(true)}`
       )
-      expect(stripTestHash(root.attr('srcset'))).toBe(
+      expect(normalizeURL(root.attr('srcset'))).toBe(
         `/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.HASH.png&w=640&q=85${next.getAssetQuery(true)} 1x, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.HASH.png&w=828&q=85${next.getAssetQuery(true)} 2x`
       )
 
       const layout = $('#app-client-layout')
-      expect(stripTestHash(layout.attr('src'))).toBe(
+      expect(normalizeURL(layout.attr('src'))).toBe(
         `/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.HASH.png&w=828&q=55${next.getAssetQuery(true)}`
       )
-      expect(stripTestHash(layout.attr('srcset'))).toBe(
+      expect(normalizeURL(layout.attr('srcset'))).toBe(
         `/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.HASH.png&w=640&q=55${next.getAssetQuery(true)} 1x, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.HASH.png&w=828&q=55${next.getAssetQuery(true)} 2x`
       )
 
       const page = $('#app-client-page')
-      expect(stripTestHash(page.attr('src'))).toBe(
+      expect(normalizeURL(page.attr('src'))).toBe(
         `/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.HASH.png&w=828&q=60${next.getAssetQuery(true)}`
       )
-      expect(stripTestHash(page.attr('srcset'))).toBe(
+      expect(normalizeURL(page.attr('srcset'))).toBe(
         `/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.HASH.png&w=640&q=60${next.getAssetQuery(true)} 1x, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.HASH.png&w=828&q=60${next.getAssetQuery(true)} 2x`
       )
 
       const comp = $('#app-client-comp')
-      expect(stripTestHash(comp.attr('src'))).toBe(
+      expect(normalizeURL(comp.attr('src'))).toBe(
         `/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.HASH.png&w=828&q=50${next.getAssetQuery(true)}`
       )
-      expect(stripTestHash(comp.attr('srcset'))).toBe(
+      expect(normalizeURL(comp.attr('srcset'))).toBe(
         `/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.HASH.png&w=640&q=50${next.getAssetQuery(true)} 1x, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.HASH.png&w=828&q=50${next.getAssetQuery(true)} 2x`
       )
     })
@@ -108,34 +108,34 @@ describe('app dir - next-image', () => {
       const $ = await next.render$('/nested')
 
       const root = $('#app-layout')
-      expect(stripTestHash(root.attr('src'))).toBe(
+      expect(normalizeURL(root.attr('src'))).toBe(
         `/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.HASH.png&w=828&q=85${next.getAssetQuery(true)}`
       )
-      expect(stripTestHash(root.attr('srcset'))).toBe(
+      expect(normalizeURL(root.attr('srcset'))).toBe(
         `/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.HASH.png&w=640&q=85${next.getAssetQuery(true)} 1x, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.HASH.png&w=828&q=85${next.getAssetQuery(true)} 2x`
       )
 
       const layout = $('#app-nested-layout')
-      expect(stripTestHash(layout.attr('src'))).toBe(
+      expect(normalizeURL(layout.attr('src'))).toBe(
         `/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.HASH.jpg&w=828&q=70${next.getAssetQuery(true)}`
       )
-      expect(stripTestHash(layout.attr('srcset'))).toBe(
+      expect(normalizeURL(layout.attr('srcset'))).toBe(
         `/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.HASH.jpg&w=640&q=70${next.getAssetQuery(true)} 1x, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.HASH.jpg&w=828&q=70${next.getAssetQuery(true)} 2x`
       )
 
       const page = $('#app-nested-page')
-      expect(stripTestHash(page.attr('src'))).toBe(
+      expect(normalizeURL(page.attr('src'))).toBe(
         `/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.HASH.jpg&w=828&q=75${next.getAssetQuery(true)}`
       )
-      expect(stripTestHash(page.attr('srcset'))).toBe(
+      expect(normalizeURL(page.attr('srcset'))).toBe(
         `/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.HASH.jpg&w=640&q=75${next.getAssetQuery(true)} 1x, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.HASH.jpg&w=828&q=75${next.getAssetQuery(true)} 2x`
       )
 
       const comp = $('#app-nested-comp')
-      expect(stripTestHash(comp.attr('src'))).toBe(
+      expect(normalizeURL(comp.attr('src'))).toBe(
         `/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.HASH.jpg&w=828&q=65${next.getAssetQuery(true)}`
       )
-      expect(stripTestHash(comp.attr('srcset'))).toBe(
+      expect(normalizeURL(comp.attr('srcset'))).toBe(
         `/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.HASH.jpg&w=640&q=65${next.getAssetQuery(true)} 1x, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.HASH.jpg&w=828&q=65${next.getAssetQuery(true)} 2x`
       )
     })
@@ -146,26 +146,26 @@ describe('app dir - next-image', () => {
       const browser = await next.browser('/')
 
       const layout = await browser.elementById('app-layout')
-      expect(stripTestHash(await layout.getAttribute('src'))).toBe(
+      expect(normalizeURL(await layout.getAttribute('src'))).toBe(
         `/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.HASH.png&w=828&q=85${next.getAssetQuery(true)}`
       )
-      expect(stripTestHash(await layout.getAttribute('srcset'))).toBe(
+      expect(normalizeURL(await layout.getAttribute('srcset'))).toBe(
         `/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.HASH.png&w=640&q=85${next.getAssetQuery(true)} 1x, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.HASH.png&w=828&q=85${next.getAssetQuery(true)} 2x`
       )
 
       const page = await browser.elementById('app-page')
-      expect(stripTestHash(await page.getAttribute('src'))).toBe(
+      expect(normalizeURL(await page.getAttribute('src'))).toBe(
         `/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.HASH.png&w=828&q=90${next.getAssetQuery(true)}`
       )
-      expect(stripTestHash(await page.getAttribute('srcset'))).toBe(
+      expect(normalizeURL(await page.getAttribute('srcset'))).toBe(
         `/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.HASH.png&w=640&q=90${next.getAssetQuery(true)} 1x, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.HASH.png&w=828&q=90${next.getAssetQuery(true)} 2x`
       )
 
       const comp = await browser.elementById('app-comp')
-      expect(stripTestHash(await comp.getAttribute('src'))).toBe(
+      expect(normalizeURL(await comp.getAttribute('src'))).toBe(
         `/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.HASH.png&w=828&q=80${next.getAssetQuery(true)}`
       )
-      expect(stripTestHash(await comp.getAttribute('srcset'))).toBe(
+      expect(normalizeURL(await comp.getAttribute('srcset'))).toBe(
         `/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.HASH.png&w=640&q=80${next.getAssetQuery(true)} 1x, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.HASH.png&w=828&q=80${next.getAssetQuery(true)} 2x`
       )
     })
@@ -174,34 +174,34 @@ describe('app dir - next-image', () => {
       const browser = await next.browser('/nested')
 
       const root = await browser.elementById('app-layout')
-      expect(stripTestHash(await root.getAttribute('src'))).toBe(
+      expect(normalizeURL(await root.getAttribute('src'))).toBe(
         `/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.HASH.png&w=828&q=85${next.getAssetQuery(true)}`
       )
-      expect(stripTestHash(await root.getAttribute('srcset'))).toBe(
+      expect(normalizeURL(await root.getAttribute('srcset'))).toBe(
         `/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.HASH.png&w=640&q=85${next.getAssetQuery(true)} 1x, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.HASH.png&w=828&q=85${next.getAssetQuery(true)} 2x`
       )
 
       const layout = await browser.elementById('app-nested-layout')
-      expect(stripTestHash(await layout.getAttribute('src'))).toBe(
+      expect(normalizeURL(await layout.getAttribute('src'))).toBe(
         `/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.HASH.jpg&w=828&q=70${next.getAssetQuery(true)}`
       )
-      expect(stripTestHash(await layout.getAttribute('srcset'))).toBe(
+      expect(normalizeURL(await layout.getAttribute('srcset'))).toBe(
         `/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.HASH.jpg&w=640&q=70${next.getAssetQuery(true)} 1x, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.HASH.jpg&w=828&q=70${next.getAssetQuery(true)} 2x`
       )
 
       const page = await browser.elementById('app-nested-page')
-      expect(stripTestHash(await page.getAttribute('src'))).toBe(
+      expect(normalizeURL(await page.getAttribute('src'))).toBe(
         `/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.HASH.jpg&w=828&q=75${next.getAssetQuery(true)}`
       )
-      expect(stripTestHash(await page.getAttribute('srcset'))).toBe(
+      expect(normalizeURL(await page.getAttribute('srcset'))).toBe(
         `/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.HASH.jpg&w=640&q=75${next.getAssetQuery(true)} 1x, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.HASH.jpg&w=828&q=75${next.getAssetQuery(true)} 2x`
       )
 
       const comp = await browser.elementById('app-nested-comp')
-      expect(stripTestHash(await comp.getAttribute('src'))).toBe(
+      expect(normalizeURL(await comp.getAttribute('src'))).toBe(
         `/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.HASH.jpg&w=828&q=65${next.getAssetQuery(true)}`
       )
-      expect(stripTestHash(await comp.getAttribute('srcset'))).toBe(
+      expect(normalizeURL(await comp.getAttribute('srcset'))).toBe(
         `/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.HASH.jpg&w=640&q=65${next.getAssetQuery(true)} 1x, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.HASH.jpg&w=828&q=65${next.getAssetQuery(true)} 2x`
       )
     })
@@ -290,6 +290,8 @@ describe('app dir - next-image', () => {
   })
 })
 
-function stripTestHash(text: string) {
-  return text.replace(/test\.[0-9a-z_-]{4,}\.(png|jpe?g)/g, 'test.HASH.$1')
+function normalizeURL(text: string) {
+  return text
+    .replace(/test\.[0-9a-z_-]{4,}\.(png|jpe?g)/g, 'test.HASH.$1')
+    .replace(/_next%2Fstatic%2Fimmutable%2F/g, '_next%2Fstatic%2F')
 }

@@ -1,11 +1,12 @@
 use anyhow::Result;
+use async_trait::async_trait;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, Vc, fxindexmap};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     context::AssetContext,
     file_source::FileSource,
-    issue::{Issue, IssueExt, IssueSeverity, IssueStage, OptionStyledString, StyledString},
+    issue::{Issue, IssueExt, IssueSeverity, IssueStage, StyledString},
     module::Module,
     reference_type::ReferenceType,
 };
@@ -38,8 +39,6 @@ pub async fn get_middleware_module(
 ) -> Result<Vc<Box<dyn Module>>> {
     const INNER: &str = "INNER_MIDDLEWARE_MODULE";
 
-    // Determine if this is a proxy file by checking the module path
-    let userland_path = userland_module.ident().path().await?;
     let (file_type, function_name, page_path) = if is_proxy {
         ("Proxy", "proxy", "/proxy")
     } else {
@@ -77,7 +76,7 @@ pub async fn get_middleware_module(
             MiddlewareMissingExportIssue {
                 file_type: file_type.into(),
                 function_name: function_name.into(),
-                file_path: (*userland_path).clone(),
+                file_path: userland_module.ident().await?.path.clone(),
             }
             .resolved_cell()
             .emit();
@@ -144,34 +143,30 @@ struct MiddlewareMissingExportIssue {
     file_path: FileSystemPath,
 }
 
+#[async_trait]
 #[turbo_tasks::value_impl]
 impl Issue for MiddlewareMissingExportIssue {
-    #[turbo_tasks::function]
-    fn stage(&self) -> Vc<IssueStage> {
-        IssueStage::Transform.cell()
+    fn stage(&self) -> IssueStage {
+        IssueStage::Transform
     }
 
     fn severity(&self) -> IssueSeverity {
         IssueSeverity::Error
     }
 
-    #[turbo_tasks::function]
-    fn file_path(&self) -> Vc<FileSystemPath> {
-        self.file_path.clone().cell()
+    async fn file_path(&self) -> Result<FileSystemPath> {
+        Ok(self.file_path.clone())
     }
 
-    #[turbo_tasks::function]
-    async fn title(&self) -> Result<Vc<StyledString>> {
+    async fn title(&self) -> Result<StyledString> {
         let title_text = format!(
             "{} is missing expected function export name",
             self.file_type
         );
-
-        Ok(StyledString::Text(title_text.into()).cell())
+        Ok(StyledString::Text(title_text.into()))
     }
 
-    #[turbo_tasks::function]
-    async fn description(&self) -> Result<Vc<OptionStyledString>> {
+    async fn description(&self) -> Result<Option<StyledString>> {
         let type_description = if self.file_type == "Proxy" {
             "proxy (previously called middleware)"
         } else {
@@ -196,13 +191,9 @@ impl Issue for MiddlewareMissingExportIssue {
              To fix it:\n\
              - Ensure this file has either a default or \"{}\" function export.\n\n\
              Learn more: https://nextjs.org/docs/messages/middleware-to-proxy",
-            type_description,
-            migration_bullet,
-            self.function_name
+            type_description, migration_bullet, self.function_name
         );
 
-        Ok(Vc::cell(Some(
-            StyledString::Text(description_text.into()).resolved_cell(),
-        )))
+        Ok(Some(StyledString::Text(description_text.into())))
     }
 }

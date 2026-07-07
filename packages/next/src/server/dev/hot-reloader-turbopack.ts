@@ -59,6 +59,7 @@ import {
   processTopLevelIssues,
   printNonFatalIssue,
   normalizedPageToTurbopackStructureRoute,
+  type StartChangeSubscription,
 } from './turbopack-utils'
 import {
   propagateServerField,
@@ -82,16 +83,14 @@ import { isAppPageRouteDefinition } from '../route-definitions/app-page-route-de
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
 import type { ModernSourceMapPayload } from '../lib/source-maps'
 import { isDeferredEntry } from '../../build/entries'
-import {
-  isMetadataRoute,
-  isMetadataRouteFile,
-} from '../../lib/metadata/is-metadata-route'
+import { isMetadataRouteFile } from '../../lib/metadata/is-metadata-route'
 import { setBundlerFindSourceMapImplementation } from '../patch-error-inspect'
 import { getNextErrorFeedbackMiddleware } from '../../next-devtools/server/get-next-error-feedback-middleware'
 import {
   formatIssue,
   isFileSystemCacheEnabledForDev,
   isWellKnownError,
+  ModuleBuildError,
   processIssues,
   renderStyledStringToErrorAnsi,
   type EntryIssuesMap,
@@ -105,10 +104,7 @@ import { getRestartDevServerMiddleware } from '../../next-devtools/server/restar
 import { backgroundLogCompilationEvents } from '../../shared/lib/turbopack/compilation-events'
 import { getSupportedBrowsers } from '../../build/get-supported-browsers'
 import { printBuildErrors } from '../../build/print-build-errors'
-import {
-  receiveBrowserLogsTurbopack,
-  handleClientFileLogs,
-} from './browser-logs/receive-logs'
+import { receiveBrowserLogsTurbopack } from './browser-logs/receive-logs'
 import { normalizePath } from '../../lib/normalize-path'
 import {
   devToolsConfigMiddleware,
@@ -126,6 +122,8 @@ import {
   matchNextPageBundleRequest,
 } from './hot-reloader-shared-utils'
 import { getMcpMiddleware } from '../mcp/get-mcp-middleware'
+import { formatCompilationIssues } from '../mcp/tools/utils/format-compilation-issues'
+import { resolvePathToRoute } from '../mcp/tools/utils/resolve-path-to-route'
 import { handleErrorStateResponse } from '../mcp/tools/get-errors'
 import { handlePageMetadataResponse } from '../mcp/tools/get-page-metadata'
 import { setStackFrameResolver } from '../mcp/tools/utils/format-errors'
@@ -419,7 +417,8 @@ export async function createHotReloaderTurbopack(
       serverHmr: serverFastRefresh,
     },
     {
-      memoryLimit: opts.nextConfig.experimental?.turbopackMemoryLimit,
+      turbopackMemoryEviction:
+        opts.nextConfig.experimental.turbopackMemoryEvictionMode,
       isShortSession: false,
     }
   )
@@ -605,20 +604,15 @@ export async function createHotReloaderTurbopack(
       join(distDir, p)
     )
 
-    const { type: entryType, page: entryPage } = splitEntryKey(key)
+    const { type: entryType } = splitEntryKey(key)
 
     // Server HMR applies to App Router entries built with the Turbopack Node.js
-    // runtime: app pages and regular route handlers. Edge routes, Pages Router
-    // pages, middleware/instrumentation, and metadata routes (manifest.ts,
-    // robots.ts, sitemap.ts, icon.tsx, etc.) are excluded. Metadata routes are
-    // excluded because they serve HTTP responses directly and must re-execute
-    // on every request to pick up file changes; the in-place module update
-    // model of Server HMR does not apply to them.
+    // runtime: app pages and route handlers (including metadata routes). Edge
+    // routes, Pages Router pages, and middleware/instrumentation are excluded.
     const usesServerHmr =
       serverFastRefresh &&
       entryType === 'app' &&
-      writtenEndpoint.type !== 'edge' &&
-      !isMetadataRoute(entryPage)
+      writtenEndpoint.type !== 'edge'
 
     const filesToDelete: string[] = []
     for (const file of serverPaths) {
@@ -626,9 +620,10 @@ export async function createHotReloaderTurbopack(
 
       const relativePath = relative(distDir, file)
       if (
-        // For Pages Router, edge routes, middleware, and manifest files:
-        // clear the sharedCache in evalManifest(), Node.js require.cache,
-        // and edge runtime module contexts.
+        // For Pages Router, edge routes, middleware, and any entry not
+        // participating in server HMR: clear the sharedCache in
+        // evalManifest(), Node.js require.cache, and edge runtime module
+        // contexts.
         force ||
         !usesServerHmr ||
         !serverHmrSubscriptions?.has(relativePath)
@@ -1048,6 +1043,117 @@ export async function createHotReloaderTurbopack(
             getActiveConnectionCount: () =>
               clientsWithoutHtmlRequestId.size + clientsByHtmlRequestId.size,
             getDevServerUrl: () => process.env.__NEXT_PRIVATE_ORIGIN,
+            getTurbopackProject: () => project,
+            compileRoute: async ({ routeSpecifier, path }) => {
+              // Resolve the caller's input to a concrete route specifier. The
+              // path-mode branch reuses the dev router's own live route table
+              // (opts.fsChecker) — the same one resolve-routes.ts consults on
+              // every incoming HTTP request — so first-match ordering and live
+              // route updates are inherited for free.
+              let page: string
+              if (routeSpecifier != null) {
+                page = routeSpecifier
+              } else if (path != null) {
+                const resolved = resolvePathToRoute(path, {
+                  appFiles: opts.fsChecker.appFiles,
+                  pageFiles: opts.fsChecker.pageFiles,
+                  dynamicRoutes: opts.fsChecker.getDynamicRoutes(),
+                })
+                if ('notFound' in resolved) {
+                  const err: NodeJS.ErrnoException = new Error(
+                    `no route matched for path "${resolved.pathname}"`
+                  )
+                  err.code = 'ENOENT'
+                  throw err
+                }
+                page = resolved.routeSpecifier
+              } else {
+                // Tool handler rejects the empty case; defend the boundary.
+                throw new Error(
+                  'compileRoute: either routeSpecifier or path is required'
+                )
+              }
+
+              // ensurePage uses findPagePathData when no definition is provided,
+              // which calls normalizePagePath("/") → "/index" then findPageFile
+              // looking for "index.tsx" — neither of which matches "page.tsx" in
+              // the app dir. Pass a synthetic definition instead.
+              //
+              // currentEntrypoints.app is keyed by originalName which includes the
+              // trailing /page or /route segment (e.g. "/page" for the root route,
+              // "/blog/[slug]/page" for a dynamic page). Use normalizeAppPath to
+              // strip that suffix and find the entry matching the user-facing route.
+              let extraOptions: object | undefined = undefined
+              for (const [name] of currentEntrypoints.app) {
+                if (normalizeAppPath(name) === page) {
+                  extraOptions = {
+                    // Synthesize a definition so ensurePage bypasses findPagePathData.
+                    // Only page and bundlePath are used from the definition:
+                    // - page: the originalName used as the route key for currentEntrypoints lookup
+                    // - bundlePath: must start with "app/" to set isInsideAppDir=true
+                    definition: {
+                      page: name,
+                      bundlePath: `app${name}`,
+                      filename: '',
+                    } as any,
+                  }
+                  break
+                }
+              }
+              const ensureOpts = {
+                page,
+                // Compile both server and client bundles, matching what happens
+                // on a real page navigation. Client-only compilation isn't a
+                // meaningful MCP use case so we don't expose it as a knob.
+                clientOnly: false,
+                // Skip wiring HMR subscriptions: there is no client to receive
+                // updates for routes compiled this way, and these subscriptions
+                // are never unsubscribed (see TODOs in handleRouteType).
+                subscribeToChanges: false,
+                ...extraOptions,
+              }
+
+              // Snapshot the current issue maps before compilation so we can
+              // identify which entry keys were added or updated by this call.
+              // processIssues always creates a new Map() reference, so identity
+              // comparison detects changes even for re-compilations.
+              const snapshotBefore = new Map(currentEntryIssues)
+
+              // For app-page routes, processIssues is called with throwIssue=true,
+              // meaning it throws ModuleBuildError when there are compile errors—but
+              // it still writes the issues into currentEntryIssues before throwing.
+              // Catch ModuleBuildError so we can read those issues and return them
+              // as structured output rather than propagating the throw.
+              let moduleBuildError: ModuleBuildError | undefined
+              try {
+                await hotReloader.ensurePage(ensureOpts)
+              } catch (err) {
+                if (err instanceof ModuleBuildError) {
+                  moduleBuildError = err
+                } else {
+                  throw err
+                }
+              }
+
+              const rawIssues = []
+              for (const [key, issueMap] of currentEntryIssues) {
+                if (snapshotBefore.get(key) !== issueMap) {
+                  rawIssues.push(...issueMap.values())
+                }
+              }
+
+              // If ensurePage threw ModuleBuildError but we found no new issues in
+              // the map (shouldn't happen, but be safe), re-surface the original
+              // error so its message and stack are preserved.
+              if (moduleBuildError && rawIssues.length === 0) {
+                throw moduleBuildError
+              }
+
+              return {
+                routeSpecifier: page,
+                issues: formatCompilationIssues(rawIssues),
+              }
+            },
           }),
         ]
       : []),
@@ -1261,24 +1367,18 @@ export async function createHotReloaderTurbopack(
               // TODO
               break
             case 'browser-logs': {
-              const browserToTerminalConfig =
-                nextConfig.logging && nextConfig.logging.browserToTerminal
-              if (browserToTerminalConfig) {
-                await receiveBrowserLogsTurbopack({
-                  entries: parsedData.entries,
-                  router: parsedData.router,
-                  sourceType: parsedData.sourceType,
-                  project,
-                  projectPath,
-                  distDir,
-                  config: browserToTerminalConfig,
-                })
-              }
-              break
-            }
-            case 'client-file-logs': {
-              // Always log to file regardless of terminal flag
-              await handleClientFileLogs(parsedData.logs)
+              await receiveBrowserLogsTurbopack({
+                entries: parsedData.entries,
+                router: parsedData.router,
+                sourceType: parsedData.sourceType,
+                project,
+                projectPath,
+                distDir,
+                config:
+                  (nextConfig.logging &&
+                    nextConfig.logging.browserToTerminal) ||
+                  false,
+              })
               break
             }
             case 'ping': {
@@ -1547,6 +1647,7 @@ export async function createHotReloaderTurbopack(
       definition,
       isApp,
       url: requestUrl,
+      subscribeToChanges = true,
     }) {
       // When there is no route definition this is an internal file not a route the user added.
       // Middleware and instrumentation are handled in turbpack-utils.ts handleEntrypoints instead.
@@ -1697,7 +1798,11 @@ export async function createHotReloaderTurbopack(
               logErrors: true,
 
               hooks: {
-                subscribeToChanges: subscribeToClientChanges,
+                // Pass a no-o subscribeToChanges to skip wiring HMR subscriptions for
+                // one-shot compilations (e.g. compile_route MCP tool).
+                subscribeToChanges: subscribeToChanges
+                  ? subscribeToClientChanges
+                  : ((async () => {}) as StartChangeSubscription),
                 handleWrittenEndpoint: (id, result, forceDeleteCache) => {
                   currentWrittenEntrypoints.set(id, result)
                   assetMapper.setPathsForKey(id, result.clientPaths)
@@ -1853,6 +1958,11 @@ export async function createHotReloaderTurbopack(
         if (typeof __next__clear_chunk_cache__ === 'function') {
           __next__clear_chunk_cache__()
         }
+
+        // Reset the server HMR handler registry. All server runtime chunks are
+        // cleared from require.cache above; when they're next required they'll
+        // re-register into this Map and reinstall the routing dispatcher.
+        ;(globalThis as any).__turbopack_server_hmr_handlers__ = new Map()
 
         // Clear all edge contexts
         await clearAllModuleContexts()

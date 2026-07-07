@@ -1,4 +1,12 @@
 (globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push(["output/1do3_crates_turbopack-tests_tests_snapshot_comptime_early-return_input_00p0fdz._.js",
+"[project]/turbopack/crates/turbopack-tests/tests/snapshot/comptime/early-return/input/index.js [test] (ecmascript)", ((__turbopack_context__) => {
+"use strict";
+
+__turbopack_context__.s([]);
+var __TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$comptime$2f$early$2d$return$2f$input$2f$module$2e$js__$5b$test$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/turbopack/crates/turbopack-tests/tests/snapshot/comptime/early-return/input/module.js [test] (ecmascript)");
+;
+console.log(__TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$comptime$2f$early$2d$return$2f$input$2f$module$2e$js__$5b$test$5d$__$28$ecmascript$29$__);
+}),
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/comptime/early-return/input/module.js [test] (ecmascript)", ((__turbopack_context__) => {
 "use strict";
 
@@ -217,14 +225,6 @@ function r() {
 z1();
 return;
 z2();
-}),
-"[project]/turbopack/crates/turbopack-tests/tests/snapshot/comptime/early-return/input/index.js [test] (ecmascript)", ((__turbopack_context__) => {
-"use strict";
-
-__turbopack_context__.s([]);
-var __TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$comptime$2f$early$2d$return$2f$input$2f$module$2e$js__$5b$test$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/turbopack/crates/turbopack-tests/tests/snapshot/comptime/early-return/input/module.js [test] (ecmascript)");
-;
-console.log(__TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$comptime$2f$early$2d$return$2f$input$2f$module$2e$js__$5b$test$5d$__$28$ecmascript$29$__);
 }),
 ]);
 

@@ -1,4 +1,8 @@
-use std::{future::Future, ops::Deref, sync::Arc};
+use std::{
+    future::Future,
+    ops::Deref,
+    sync::{Arc, LazyLock},
+};
 
 use anyhow::{Context, Result, anyhow};
 use futures_util::TryFutureExt;
@@ -8,18 +12,16 @@ use napi::{
     threadsafe_function::{ThreadSafeCallContext, ThreadsafeFunction, ThreadsafeFunctionCallMode},
 };
 use napi_derive::napi;
-use next_code_frame::{CodeFrameLocation, CodeFrameOptions, Location, render_code_frame};
-use once_cell::sync::Lazy;
+use next_code_frame::{
+    CodeFrameColorMode, CodeFrameLocation, CodeFrameOptions, Location, render_code_frame,
+};
 use regex::Regex;
 use rustc_hash::FxHashMap;
 use serde::Serialize;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{
-    Effects, OperationVc, ReadRef, TaskId, TryJoinIterExt, Vc, VcValueType, get_effects,
-};
+use turbo_tasks::{Effects, OperationVc, ReadRef, TaskId, Vc, VcValueType, take_effects};
 use turbo_tasks_fs::FileContent;
 use turbopack_core::{
-    diagnostics::{Diagnostic, DiagnosticContextExt, PlainDiagnostic},
     issue::{
         CollectibleIssuesExt, IssueFilter, IssueSeverity, PlainIssue, PlainIssueSource,
         PlainSource, StyledString,
@@ -99,7 +101,7 @@ pub fn root_task_dispose(
     Ok(())
 }
 
-/// [Peeks] at the [`Issue`] held by the given source and returns it as a [`PlainDiagnostic`].
+/// [Peeks] at the [`Issue`]s held by the given source and returns them as [`PlainIssue`]s.
 /// It does not [consume] any [`Issue`]s held by the source.
 ///
 /// [Peeks]: turbo_tasks::CollectiblesSource::peek_collectibles
@@ -107,32 +109,11 @@ pub fn root_task_dispose(
 /// [consume]: turbo_tasks::CollectiblesSource::take_collectibles
 pub async fn get_issues<T: Send>(
     source: OperationVc<T>,
-    filter: Vc<IssueFilter>,
+    filter: &IssueFilter,
 ) -> Result<Arc<Vec<ReadRef<PlainIssue>>>> {
     Ok(Arc::new(
         source.peek_issues().get_plain_issues(filter).await?,
     ))
-}
-
-/// [Peeks] at the [`Diagnostic`]s held by the given source and returns it as a [`PlainDiagnostic`].
-/// It does not [consume] any [`Diagnostic`]s held by the source.
-///
-/// [Peeks]: turbo_tasks::CollectiblesSource::peek_collectibles
-/// [consume]: turbo_tasks::CollectiblesSource::take_collectibles
-pub async fn get_diagnostics<T: Send>(
-    source: OperationVc<T>,
-) -> Result<Arc<Vec<ReadRef<PlainDiagnostic>>>> {
-    let captured_diags = source.peek_diagnostics().await?;
-    let mut diags = captured_diags
-        .diagnostics
-        .iter()
-        .map(|d| d.into_plain())
-        .try_join()
-        .await?;
-
-    diags.sort();
-
-    Ok(Arc::new(diags))
 }
 
 /// Returns true if the file path refers to a Next.js/React internal file whose
@@ -143,7 +124,7 @@ pub async fn get_diagnostics<T: Send>(
 fn is_internal(file_path: &str) -> bool {
     // Uses [/\\] so both Unix and Windows separators are matched without
     // needing to normalize the path
-    static RE: Lazy<Regex> = Lazy::new(|| {
+    static RE: LazyLock<Regex> = LazyLock::new(|| {
         Regex::new(
             r"(?x)
             # React vendored in Next.js dist/compiled (reactVendoredRe)
@@ -170,7 +151,11 @@ fn is_internal(file_path: &str) -> bool {
 ///
 /// Because this accesses the terminal size, this function call should not be cached (e.g. in
 /// turbo-tasks).
-fn render_source_code_frame(source: &PlainIssueSource, file_path: &str) -> Result<Option<String>> {
+fn render_source_code_frame(
+    severity: IssueSeverity,
+    source: &PlainIssueSource,
+    file_path: &str,
+) -> Result<Option<String>> {
     let Some((start, end)) = source.range else {
         return Ok(None);
     };
@@ -205,7 +190,16 @@ fn render_source_code_frame(source: &PlainIssueSource, file_path: &str) -> Resul
         &content,
         &location,
         &CodeFrameOptions {
-            color: true,
+            color: match severity {
+                IssueSeverity::Bug | IssueSeverity::Fatal | IssueSeverity::Error => {
+                    CodeFrameColorMode::Error
+                }
+                IssueSeverity::Warning => CodeFrameColorMode::Warning,
+                IssueSeverity::Hint
+                | IssueSeverity::Note
+                | IssueSeverity::Suggestion
+                | IssueSeverity::Info => CodeFrameColorMode::Info,
+            },
             highlight_code: true,
             max_width: terminal_size::terminal_size()
                 .map(|(w, _)| w.0 as usize)
@@ -220,7 +214,7 @@ fn render_issue_code_frame(issue: &PlainIssue) -> Result<Option<String>> {
     let Some(source) = issue.source.as_ref() else {
         return Ok(None);
     };
-    render_source_code_frame(source, &issue.file_path)
+    render_source_code_frame(issue.severity, source, &issue.file_path)
 }
 
 #[napi(object)]
@@ -269,8 +263,12 @@ impl From<&PlainIssue> for NapiIssue {
                 .iter()
                 .map(|s| NapiAdditionalIssueSource {
                     description: s.description.clone(),
-                    code_frame: render_source_code_frame(&s.source, &s.source.asset.file_path)
-                        .unwrap_or_default(),
+                    code_frame: render_source_code_frame(
+                        issue.severity,
+                        &s.source,
+                        &s.source.asset.file_path,
+                    )
+                    .unwrap_or_default(),
                     source: (&s.source).into(),
                 })
                 .collect(),
@@ -361,8 +359,8 @@ pub struct NapiSource {
 impl From<&PlainSource> for NapiSource {
     fn from(source: &PlainSource) -> Self {
         Self {
-            ident: (*source.ident).clone(),
-            file_path: (*source.file_path).clone(),
+            ident: source.ident.clone(),
+            file_path: source.file_path.clone(),
         }
     }
 }
@@ -383,23 +381,17 @@ impl From<SourcePos> for NapiSourcePos {
 }
 
 #[napi(object)]
-pub struct NapiDiagnostic {
-    pub category: RcStr,
-    pub name: RcStr,
-    #[napi(ts_type = "Record<string, string>")]
-    pub payload: FxHashMap<RcStr, RcStr>,
+pub struct NapiUsedFeature {
+    pub feature_name: RcStr,
+    /// How many times it was used, typically this means how often it was imported.
+    pub invocation_count: u32,
 }
 
-impl NapiDiagnostic {
-    pub fn from(diagnostic: &PlainDiagnostic) -> Self {
+impl NapiUsedFeature {
+    pub fn new(feature_name: RcStr, invocation_count: u32) -> Self {
         Self {
-            category: diagnostic.category.clone(),
-            name: diagnostic.name.clone(),
-            payload: diagnostic
-                .payload
-                .iter()
-                .map(|(k, v)| (k.clone(), v.clone()))
-                .collect(),
+            feature_name,
+            invocation_count,
         }
     }
 }
@@ -407,7 +399,6 @@ impl NapiDiagnostic {
 pub struct TurbopackResult<T: ToNapiValue> {
     pub result: T,
     pub issues: Vec<NapiIssue>,
-    pub diagnostics: Vec<NapiDiagnostic>,
 }
 
 impl<T: ToNapiValue> ToNapiValue for TurbopackResult<T> {
@@ -432,7 +423,6 @@ impl<T: ToNapiValue> ToNapiValue for TurbopackResult<T> {
         }
 
         obj.set_named_property("issues", val.issues)?;
-        obj.set_named_property("diagnostics", val.diagnostics)?;
 
         Ok(unsafe { obj.raw() })
     }
@@ -476,17 +466,15 @@ pub fn subscribe<T: 'static + Send + Sync, F: Future<Output = Result<T>> + Send,
 // propagate any actual error results.
 pub async fn strongly_consistent_catch_collectables<R: VcValueType + Send>(
     source_op: OperationVc<R>,
-    filter: Vc<IssueFilter>,
+    filter: &IssueFilter,
 ) -> Result<(
     Option<ReadRef<R>>,
     Arc<Vec<ReadRef<PlainIssue>>>,
-    Arc<Vec<ReadRef<PlainDiagnostic>>>,
     Arc<Effects>,
 )> {
     let result = source_op.read_strongly_consistent().await;
     let issues = get_issues(source_op, filter).await?;
-    let diagnostics = get_diagnostics(source_op).await?;
-    let effects = Arc::new(get_effects(source_op).await?);
+    let effects = Arc::new(take_effects(source_op).await?);
 
     let result = if result.is_err() && issues.iter().any(|i| i.severity <= IssueSeverity::Error) {
         None
@@ -494,7 +482,7 @@ pub async fn strongly_consistent_catch_collectables<R: VcValueType + Send>(
         Some(result?)
     };
 
-    Ok((result, issues, diagnostics, effects))
+    Ok((result, issues, effects))
 }
 
 #[napi]

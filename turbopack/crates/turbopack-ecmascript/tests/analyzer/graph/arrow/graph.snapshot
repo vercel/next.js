@@ -7,9 +7,7 @@
             Constant(
                 Num(
                     ConstantNumber(
-                        TotalOrderF64(
-                            3.0,
-                        ),
+                        3.0,
                     ),
                 ),
             ),
@@ -23,9 +21,7 @@
             Constant(
                 Num(
                     ConstantNumber(
-                        TotalOrderF64(
-                            3.0,
-                        ),
+                        3.0,
                     ),
                 ),
             ),
@@ -39,9 +35,7 @@
             Constant(
                 Num(
                     ConstantNumber(
-                        TotalOrderF64(
-                            1.0,
-                        ),
+                        1.0,
                     ),
                 ),
             ),
@@ -55,9 +49,7 @@
             Constant(
                 Num(
                     ConstantNumber(
-                        TotalOrderF64(
-                            1.0,
-                        ),
+                        1.0,
                     ),
                 ),
             ),
@@ -71,9 +63,7 @@
             Constant(
                 Num(
                     ConstantNumber(
-                        TotalOrderF64(
-                            2.0,
-                        ),
+                        2.0,
                     ),
                 ),
             ),
@@ -87,9 +77,7 @@
             Constant(
                 Num(
                     ConstantNumber(
-                        TotalOrderF64(
-                            1.0,
-                        ),
+                        1.0,
                     ),
                 ),
             ),
@@ -103,9 +91,7 @@
             Constant(
                 Num(
                     ConstantNumber(
-                        TotalOrderF64(
-                            2.0,
-                        ),
+                        2.0,
                     ),
                 ),
             ),
@@ -119,9 +105,7 @@
             Constant(
                 Num(
                     ConstantNumber(
-                        TotalOrderF64(
-                            2.0,
-                        ),
+                        2.0,
                     ),
                 ),
             ),
@@ -135,9 +119,7 @@
             Constant(
                 Num(
                     ConstantNumber(
-                        TotalOrderF64(
-                            1.0,
-                        ),
+                        1.0,
                     ),
                 ),
             ),
@@ -151,9 +133,7 @@
             Constant(
                 Num(
                     ConstantNumber(
-                        TotalOrderF64(
-                            2.0,
-                        ),
+                        2.0,
                     ),
                 ),
             ),
@@ -205,16 +185,14 @@
         ),
     ),
     (
-        "e#6",
+        "e#8",
         Function(
             2,
             155,
             Constant(
                 Num(
                     ConstantNumber(
-                        TotalOrderF64(
-                            4.0,
-                        ),
+                        4.0,
                     ),
                 ),
             ),
@@ -225,7 +203,7 @@
         Variable(
             (
                 "e",
-                #6,
+                #8,
             ),
         ),
     ),
@@ -276,23 +254,7 @@
         ),
     ),
     (
-        "xe#12",
-        Function(
-            2,
-            385,
-            Constant(
-                Num(
-                    ConstantNumber(
-                        TotalOrderF64(
-                            4.0,
-                        ),
-                    ),
-                ),
-            ),
-        ),
-    ),
-    (
-        "xe#8",
+        "xe#10",
         Variable(
             (
                 "*anonymous function 339*",
@@ -301,11 +263,25 @@
         ),
     ),
     (
+        "xe#16",
+        Function(
+            2,
+            385,
+            Constant(
+                Num(
+                    ConstantNumber(
+                        4.0,
+                    ),
+                ),
+            ),
+        ),
+    ),
+    (
         "xf",
         Variable(
             (
                 "xe",
-                #12,
+                #16,
             ),
         ),
     ),

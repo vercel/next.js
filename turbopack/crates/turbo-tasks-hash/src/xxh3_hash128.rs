@@ -32,7 +32,12 @@ impl Xxh3Hash128Hasher {
         input.deterministic_hash(self);
     }
 
-    /// Finish the hash computation and return the digest.
+    /// Finish the hash computation and return the digest as bytes.
+    pub fn finish_bytes(&self) -> [u8; 16] {
+        self.0.digest128().to_le_bytes()
+    }
+
+    /// Finish the hash computation and return the digest as u128.
     pub fn finish(&self) -> u128 {
         self.0.digest128()
     }

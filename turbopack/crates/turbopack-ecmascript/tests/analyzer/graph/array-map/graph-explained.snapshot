@@ -1,8 +1,8 @@
-*anonymous function 170* (const after eval) = (...) => [file]
+*anonymous function 170* = (...) => [file]
 
-*anonymous function 254* (const after eval) = (...) => FreeVar(require)["resolve"](file)
+*anonymous function 254* = (...) => FreeVar(require)["resolve"](file)
 
-*anonymous function 88* (const after eval) = (...) => file
+*anonymous function 88* = (...) => file
 
 a (const after eval) = ["../lib/a.js", "../lib/b.js"]
 

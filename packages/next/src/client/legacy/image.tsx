@@ -24,7 +24,7 @@ import { ImageConfigContext } from '../../shared/lib/image-config-context.shared
 import { warnOnce } from '../../shared/lib/utils/warn-once'
 import { normalizePathTrailingSlash } from '../normalize-trailing-slash'
 import { findClosestQuality } from '../../shared/lib/find-closest-quality'
-import { getDeploymentId } from '../../shared/lib/deployment-id'
+import { getAssetToken, getDeploymentId } from '../../shared/lib/deployment-id'
 
 function normalizeSrc(src: string): string {
   return src[0] === '/' ? src.slice(1) : src
@@ -130,17 +130,22 @@ function defaultLoader({
   // Extract dpl parameter early so validation uses the clean URL
   let deploymentId = getDeploymentId()
   if (src.startsWith('/') && !src.startsWith('//')) {
-    // We unfortunately can't easily use `new URL()` here, because it normalizes the URL which causes
-    // double-encoding with the `encodeURIComponent(src)` below
-    const qIndex = src.indexOf('?')
-    if (qIndex !== -1) {
-      const params = new URLSearchParams(src.slice(qIndex + 1))
-      const srcDpl = params.get('dpl')
-      if (srcDpl) {
-        deploymentId = srcDpl
-        params.delete('dpl')
-        const remaining = params.toString()
-        src = src.slice(0, qIndex) + (remaining ? '?' + remaining : '')
+    if (src.includes('/_next/static/immutable') && !getAssetToken()) {
+      // immutable static asset and supported by platform, don't add `?dpl=`
+      deploymentId = undefined
+    } else {
+      // We unfortunately can't easily use `new URL()` here, because it normalizes the URL which causes
+      // double-encoding with the `encodeURIComponent(src)` below
+      const qIndex = src.indexOf('?')
+      if (qIndex !== -1) {
+        const params = new URLSearchParams(src.slice(qIndex + 1))
+        const srcDpl = params.get('dpl')
+        if (srcDpl) {
+          deploymentId = srcDpl
+          params.delete('dpl')
+          const remaining = params.toString()
+          src = src.slice(0, qIndex) + (remaining ? '?' + remaining : '')
+        }
       }
     }
   }
@@ -427,7 +432,10 @@ function generateImgAttrs({
   if (unoptimized) {
     if (src.startsWith('/') && !src.startsWith('//')) {
       let deploymentId = getDeploymentId()
-      if (deploymentId) {
+      if (src.includes('/_next/static/immutable') && !getAssetToken()) {
+        // immutable static asset and supported by platform, don't add `?dpl=`
+        deploymentId = undefined
+      } else if (deploymentId) {
         // We unfortunately can't easily use `new URL()` here, because it normalizes the URL which causes
         // double-encoding with the `encodeURIComponent(src)` below
         const qIndex = src.indexOf('?')

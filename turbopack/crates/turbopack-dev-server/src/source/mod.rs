@@ -18,8 +18,8 @@ use bincode::{Decode, Encode};
 use futures::{TryStreamExt, stream::Stream as StreamTrait};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    Completion, NonLocalValue, OperationVc, ResolvedVc, TaskInput, Upcast, ValueDefault, Vc,
-    trace::TraceRawVcs, util::SharedError,
+    Completion, NonLocalValue, OperationVc, ResolvedVc, Upcast, Vc, trace::TraceRawVcs,
+    util::SharedError,
 };
 use turbo_tasks_bytes::{Bytes, Stream, StreamRead};
 use turbo_tasks_fs::FileSystemPath;
@@ -158,19 +158,8 @@ impl HeaderList {
 ///
 /// Note that you might not receive information that has not been requested via
 /// [`GetContentSourceContent::vary`]. So make sure to request all information that's needed.
-#[derive(
-    PartialEq,
-    Eq,
-    NonLocalValue,
-    TraceRawVcs,
-    Clone,
-    Debug,
-    Hash,
-    Default,
-    TaskInput,
-    Encode,
-    Decode,
-)]
+#[turbo_tasks::task_input]
+#[derive(PartialEq, Eq, TraceRawVcs, Clone, Debug, Hash, Default, Encode, Decode)]
 pub struct ContentSourceData {
     /// HTTP method, if requested.
     pub method: Option<RcStr>,
@@ -230,12 +219,6 @@ impl Body {
 impl<T: Into<Bytes>> From<T> for Body {
     fn from(value: T) -> Self {
         Body::new(vec![Ok(value.into())])
-    }
-}
-
-impl ValueDefault for Body {
-    fn value_default() -> Vc<Self> {
-        Body::default().cell()
     }
 }
 

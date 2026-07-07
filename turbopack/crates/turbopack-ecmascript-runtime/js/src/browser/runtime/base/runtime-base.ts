@@ -21,7 +21,10 @@ declare var TURBOPACK_NEXT_CHUNK_URLS: ChunkUrl[] | undefined
 // Injected by rust code
 declare var CHUNK_BASE_PATH: string
 declare var ASSET_SUFFIX: string
-declare var WORKER_FORWARDED_GLOBALS: string[]
+declare var CROSS_ORIGIN: 'anonymous' | 'use-credentials' | null
+declare var CHUNK_LOAD_RETRY_MAX_ATTEMPTS: number
+declare var CHUNK_LOAD_RETRY_BASE_DELAY_MS: number
+declare var CHUNK_LOAD_RETRY_MAX_JITTER_MS: number
 
 interface TurbopackBrowserBaseContext<M> extends TurbopackBaseContext<M> {
   R: ResolvePathFromModule
@@ -67,19 +70,6 @@ interface RuntimeBackend {
    * Returns the same Promise for the same chunk URL.
    */
   loadChunkCached: (sourceType: SourceType, chunkUrl: ChunkUrl) => Promise<void>
-  loadWebAssembly: (
-    sourceType: SourceType,
-    sourceData: SourceData,
-    wasmChunkPath: ChunkPath,
-    edgeModule: () => WebAssembly.Module,
-    importsObj: WebAssembly.Imports
-  ) => Promise<Exports>
-  loadWebAssemblyModule: (
-    sourceType: SourceType,
-    sourceData: SourceData,
-    wasmChunkPath: ChunkPath,
-    edgeModule: () => WebAssembly.Module
-  ) => Promise<WebAssembly.Module>
 }
 
 interface DevRuntimeBackend {
@@ -277,6 +267,20 @@ function resolveAbsolutePath(modulePath?: string): string {
 browserContextPrototype.P = resolveAbsolutePath
 
 /**
+ * Returns a placeholder `file://` URL for the given module path. The browser
+ * runtime intentionally does not expose the real filesystem path. Path
+ * segments are percent-encoded so the result is always a valid file URI.
+ */
+function resolveFileUrl(modulePath?: string): string {
+  if (!modulePath) return 'file:///ROOT/'
+  return `file:///ROOT/${modulePath
+    .split('/')
+    .map(encodeURIComponent)
+    .join('/')}`
+}
+browserContextPrototype.F = resolveFileUrl
+
+/**
  * Exports a URL with the static suffix appended.
  */
 function exportUrl(
@@ -287,53 +291,6 @@ function exportUrl(
   exportValue.call(this, `${url}${ASSET_SUFFIX}`, id)
 }
 browserContextPrototype.q = exportUrl
-
-/**
- * Creates a worker by instantiating the given WorkerConstructor with the
- * appropriate URL and options.
- *
- * The entrypoint is a pre-compiled worker runtime file. The params configure
- * which module chunks to load and which module to run as the entry point.
- *
- * The params are a JSON array of the following structure:
- * `[TURBOPACK_NEXT_CHUNK_URLS, ASSET_SUFFIX, ...WORKER_FORWARDED_GLOBALS values]`
- *
- * @param WorkerConstructor The Worker or SharedWorker constructor
- * @param entrypoint URL path to the worker entrypoint chunk
- * @param moduleChunks list of module chunk paths to load
- * @param workerOptions options to pass to the Worker constructor (optional)
- */
-function createWorker(
-  WorkerConstructor: { new (url: URL, options?: object): Worker },
-  entrypoint: ChunkPath,
-  moduleChunks: ChunkPath[],
-  workerOptions?: object
-): Worker {
-  const isSharedWorker = WorkerConstructor.name === 'SharedWorker'
-
-  const chunkUrls = moduleChunks
-    .map((chunk) => getChunkRelativeUrl(chunk))
-    .reverse()
-  const params: unknown[] = [chunkUrls, ASSET_SUFFIX]
-  for (const globalName of WORKER_FORWARDED_GLOBALS) {
-    params.push((globalThis as Record<string, unknown>)[globalName])
-  }
-
-  const url = new URL(getChunkRelativeUrl(entrypoint), location.origin)
-  const paramsJson = JSON.stringify(params)
-  if (isSharedWorker) {
-    url.searchParams.set('params', paramsJson)
-  } else {
-    url.hash = '#params=' + encodeURIComponent(paramsJson)
-  }
-
-  // Remove type: "module" from options since our worker entrypoint is not a module
-  const options = workerOptions
-    ? { ...workerOptions, type: undefined }
-    : undefined
-  return new WorkerConstructor(url, options)
-}
-browserContextPrototype.b = createWorker
 
 /**
  * Instantiates a runtime module.
@@ -347,12 +304,24 @@ function instantiateRuntimeModule(
 /**
  * Returns the URL relative to the origin where a chunk can be fetched from.
  */
-function getChunkRelativeUrl(chunkPath: ChunkPath | ChunkListPath): ChunkUrl {
-  return `${CHUNK_BASE_PATH}${chunkPath
+function getChunkRelativeUrl(
+  chunkPath: ChunkPath | ChunkListPath,
+  basePath: string = CHUNK_BASE_PATH
+): ChunkUrl {
+  return `${basePath}${chunkPath
     .split('/')
     .map((p) => encodeURIComponent(p))
     .join('/')}${ASSET_SUFFIX}` as ChunkUrl
 }
+
+// Shared runtime primitives consumed by the bundled `createWorker` helper,
+// exposed as `__turbopack_chunk_base_path__` and `__turbopack_chunk_asset_suffix__`.
+browserContextPrototype.b = CHUNK_BASE_PATH as ChunkBasePath
+browserContextPrototype.X = ASSET_SUFFIX as AssetSuffix
+
+// Shared runtime primitive: build a chunk's URL. Used by the bundled worker
+// helper and the WASM helper, exposed as `__turbopack_chunk_relative_url__`.
+browserContextPrototype.h = getChunkRelativeUrl
 
 /**
  * Return the ChunkPath from a ChunkScript.
@@ -434,33 +403,3 @@ function isJs(chunkUrlOrPath: ChunkUrl | ChunkPath): boolean {
 function isCss(chunkUrl: ChunkUrl): boolean {
   return endsWithExtension(chunkUrl, '.css')
 }
-
-function loadWebAssembly(
-  this: TurbopackBaseContext<Module>,
-  chunkPath: ChunkPath,
-  edgeModule: () => WebAssembly.Module,
-  importsObj: WebAssembly.Imports
-): Promise<Exports> {
-  return BACKEND.loadWebAssembly(
-    SourceType.Parent,
-    this.m.id,
-    chunkPath,
-    edgeModule,
-    importsObj
-  )
-}
-contextPrototype.w = loadWebAssembly
-
-function loadWebAssemblyModule(
-  this: TurbopackBaseContext<Module>,
-  chunkPath: ChunkPath,
-  edgeModule: () => WebAssembly.Module
-): Promise<WebAssembly.Module> {
-  return BACKEND.loadWebAssemblyModule(
-    SourceType.Parent,
-    this.m.id,
-    chunkPath,
-    edgeModule
-  )
-}
-contextPrototype.u = loadWebAssemblyModule

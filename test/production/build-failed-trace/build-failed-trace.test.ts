@@ -10,7 +10,6 @@ describe('build-failed-trace', () => {
   const { next } = nextTestSetup({
     files: __dirname,
     skipStart: true,
-    skipDeployment: true,
   })
 
   it('should mark the next-build span as failed when the build fails', async () => {

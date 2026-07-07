@@ -20,7 +20,7 @@ use crate::{
     data::{CellRef, CollectibleRef, CollectiblesRef},
 };
 
-#[derive(Encode, Decode, Clone, Default)]
+#[derive(Encode, Decode, Clone)]
 pub enum CleanupOldEdgesOperation {
     RemoveEdges {
         task_id: TaskId,
@@ -30,19 +30,34 @@ pub enum CleanupOldEdgesOperation {
     AggregationUpdate {
         queue: AggregationUpdateQueue,
     },
-    #[default]
-    Done,
+    Done {
+        stats: Stats,
+    },
     // TODO Add aggregated edge
+}
+
+impl Default for CleanupOldEdgesOperation {
+    fn default() -> Self {
+        Self::Done {
+            stats: Default::default(),
+        }
+    }
 }
 
 #[derive(Encode, Decode, Clone)]
 pub enum OutdatedEdge {
     Child(TaskId),
     Collectible(CollectibleRef, i32),
-    CellDependency(CellRef, Option<u64>),
+    CellDependency(CellRef),
+    HashedCellDependency(CellRef, u64),
     OutputDependency(TaskId),
     CollectiblesDependency(CollectiblesRef),
 }
+
+#[cfg(feature = "trace_aggregation_update_stats")]
+type Stats = super::aggregation_update::AggregationUpdateQueueStats;
+#[cfg(not(feature = "trace_aggregation_update_stats"))]
+type Stats = ();
 
 impl CleanupOldEdgesOperation {
     pub fn run(
@@ -50,18 +65,16 @@ impl CleanupOldEdgesOperation {
         outdated: Vec<OutdatedEdge>,
         queue: AggregationUpdateQueue,
         ctx: &mut impl ExecuteContext<'_>,
-    ) {
+    ) -> Stats {
         CleanupOldEdgesOperation::RemoveEdges {
             task_id,
             outdated,
             queue,
         }
-        .execute(ctx);
+        .execute_with_stats(ctx)
     }
-}
 
-impl Operation for CleanupOldEdgesOperation {
-    fn execute(mut self, ctx: &mut impl ExecuteContext<'_>) {
+    fn execute_with_stats(mut self, ctx: &mut impl ExecuteContext<'_>) -> Stats {
         loop {
             ctx.operation_suspend_point(&self);
             match self {
@@ -144,7 +157,7 @@ impl Operation for CleanupOldEdgesOperation {
                                     queue.push(
                                         AggregationUpdateJob::InvalidateDueToCollectiblesChange {
                                             task_ids,
-                                            #[cfg(feature = "trace_task_dirty")]
+                                            #[cfg(feature = "task_dirty_cause")]
                                             collectible_type: ty,
                                         },
                                     );
@@ -154,26 +167,42 @@ impl Operation for CleanupOldEdgesOperation {
                                     AggregatedDataUpdate::new().collectibles_update(collectibles),
                                 ));
                             }
-                            OutdatedEdge::CellDependency(
-                                CellRef {
+                            OutdatedEdge::CellDependency(forward) => {
+                                let CellRef {
                                     task: cell_task_id,
                                     cell,
-                                },
-                                key,
-                            ) => {
+                                } = forward;
                                 {
                                     let mut task = ctx.task(cell_task_id, TaskDataCategory::Data);
-                                    task.remove_cell_dependents(&(cell, key, task_id));
+                                    task.remove_cell_dependents(&CellRef {
+                                        task: task_id,
+                                        cell,
+                                    });
                                 }
                                 {
                                     let mut task = ctx.task(task_id, TaskDataCategory::Data);
-                                    task.remove_cell_dependencies(&(
+                                    task.remove_cell_dependencies(&forward);
+                                }
+                            }
+                            OutdatedEdge::HashedCellDependency(forward, key) => {
+                                // ame as above but in the `_hashed` sets.
+                                let CellRef {
+                                    task: cell_task_id,
+                                    cell,
+                                } = forward;
+                                {
+                                    let mut task = ctx.task(cell_task_id, TaskDataCategory::Data);
+                                    task.remove_cell_dependents_hashed(&(
                                         CellRef {
-                                            task: cell_task_id,
+                                            task: task_id,
                                             cell,
                                         },
                                         key,
                                     ));
+                                }
+                                {
+                                    let mut task = ctx.task(task_id, TaskDataCategory::Data);
+                                    task.remove_cell_dependencies_hashed(&(forward, key));
                                 }
                             }
                             OutdatedEdge::OutputDependency(output_task_id) => {
@@ -222,13 +251,24 @@ impl Operation for CleanupOldEdgesOperation {
                 }
                 CleanupOldEdgesOperation::AggregationUpdate { ref mut queue } => {
                     if queue.process(ctx) {
-                        self = CleanupOldEdgesOperation::Done;
+                        self = CleanupOldEdgesOperation::Done {
+                            #[cfg(feature = "trace_aggregation_update_stats")]
+                            stats: take(&mut queue.stats),
+                            #[cfg(not(feature = "trace_aggregation_update_stats"))]
+                            stats: (),
+                        };
                     }
                 }
-                CleanupOldEdgesOperation::Done => {
-                    return;
+                CleanupOldEdgesOperation::Done { stats } => {
+                    return stats;
                 }
             }
         }
+    }
+}
+
+impl Operation for CleanupOldEdgesOperation {
+    fn execute(self, ctx: &mut impl ExecuteContext<'_>) {
+        self.execute_with_stats(ctx);
     }
 }

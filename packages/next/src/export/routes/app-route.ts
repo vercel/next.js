@@ -40,16 +40,16 @@ export async function exportAppRoute(
   page: string,
   module: AppRouteRouteModule,
   incrementalCache: IncrementalCache | undefined,
-  cacheLifeProfiles:
-    | undefined
-    | {
-        [profile: string]: import('../../server/use-cache/cache-life').CacheLife
-      },
+  cacheLifeProfiles: import('../../server/config-shared').ResolvedCacheLifeProfiles,
   htmlFilepath: string,
   fileWriter: MultiFileWriter,
   cacheComponents: boolean,
-  experimental: Required<Pick<ExperimentalConfig, 'authInterrupts'>>,
-  buildId: string
+  staticPageGenerationTimeout: number,
+  experimental: Required<
+    Pick<ExperimentalConfig, 'authInterrupts' | 'useCacheTimeout'>
+  >,
+  buildId: string,
+  deploymentId: string
 ): Promise<ExportRouteResult> {
   // Ensure that the URL is absolute.
   req.url = `http://localhost:3000${req.url}`
@@ -73,6 +73,10 @@ export async function exportAppRoute(
     },
     renderOpts: {
       cacheComponents,
+      // app-route handlers don't run instant validation, so the level
+      // value is irrelevant here.
+      // TODO: move validationLevel and other global config out of renderOpts
+      validationLevel: 'warning',
       experimental,
       isBuildTimePrerendering: true,
       supportsDynamicResponse: false,
@@ -81,13 +85,20 @@ export async function exportAppRoute(
       onClose: afterRunner.context.onClose,
       onAfterTaskError: afterRunner.context.onTaskError,
       cacheLifeProfiles,
+      staticPageGenerationTimeout,
     },
     sharedContext: {
       buildId,
+      deploymentId,
     },
   }
 
   try {
+    // Ensure the userland module is fully loaded before accessing it. This is
+    // required for route files that use top-level await: require() returns a
+    // Promise for async modules, so module.userland would be undefined until
+    // the Promise resolves.
+    await module.ensureUserland()
     const userland = module.userland
     // we don't bail from the static optimization for
     // metadata routes, since it's app-route we can always append /route suffix.

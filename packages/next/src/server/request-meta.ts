@@ -221,6 +221,14 @@ export interface RequestMeta {
   renderFallbackShell?: boolean
 
   /**
+   * Route param keys that were explicitly resolved from partial nxtP*
+   * query params during background revalidation. Used by app-page.ts to
+   * determine which fallback params should remain deferred vs resolved
+   * in intermediate PPR shells.
+   */
+  resolvedRouteParamKeys?: Set<string>
+
+  /**
    * Whether the request is for the custom error page.
    */
   customErrorRender?: true

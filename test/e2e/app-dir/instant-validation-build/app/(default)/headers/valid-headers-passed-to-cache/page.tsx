@@ -2,14 +2,15 @@ import type { Instant } from 'next'
 import { headers } from 'next/headers'
 import assert from 'node:assert/strict'
 
-export const unstable_instant: Instant = {
-  prefetch: 'runtime',
-  samples: [
+export const instant: Instant = {
+  level: 'experimental-error',
+  unstable_samples: [
     {
       headers: [['x-test-header', 'testValue']],
     },
   ],
 }
+export const prefetch = 'allow-runtime'
 
 export default async function Page() {
   return (

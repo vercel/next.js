@@ -22,12 +22,13 @@ import {
 } from '../app-render/dynamic-rendering'
 import { StaticGenBailoutError } from '../../client/components/static-generation-bailout'
 import {
-  delayUntilRuntimeStage,
   makeDevtoolsIOAwarePromise,
   makeHangingPromise,
+  getSessionDataStage,
 } from '../dynamic-rendering-utils'
 import { createDedupedByCallsiteServerErrorLoggerDev } from '../create-deduped-by-callsite-server-error-logger'
-import { isRequestAPICallableInsideAfter } from './utils'
+import { isRequestApiAllowedInCurrentPhase } from './utils'
+import { applyOwnerStack } from '../dynamic-rendering-utils'
 import { InvariantError } from '../../shared/lib/invariant-error'
 import { RenderStage } from '../app-render/staged-rendering'
 
@@ -37,14 +38,9 @@ export function cookies(): Promise<ReadonlyRequestCookies> {
   const workUnitStore = workUnitAsyncStorage.getStore()
 
   if (workStore) {
-    if (
-      workUnitStore &&
-      workUnitStore.phase === 'after' &&
-      !isRequestAPICallableInsideAfter()
-    ) {
+    if (workUnitStore && !isRequestApiAllowedInCurrentPhase(workUnitStore)) {
       throw new Error(
-        // TODO(after): clarify that this only applies to pages?
-        `Route ${workStore.route} used \`cookies()\` inside \`after()\`. This is not supported. If you need this data inside an \`after()\` callback, use \`cookies()\` outside of the callback. See more info here: https://nextjs.org/docs/canary/app/api-reference/functions/after`
+        `Route ${workStore.route} used \`cookies()\` inside \`after()\` while rendering. This is not supported. If you need this data inside an \`after()\` callback, use \`cookies()\` outside of the callback. See more info here: https://nextjs.org/docs/app/api-reference/functions/after`
       )
     }
 
@@ -68,6 +64,7 @@ export function cookies(): Promise<ReadonlyRequestCookies> {
             `Route ${workStore.route} used \`cookies()\` inside "use cache". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use \`cookies()\` outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache`
           )
           Error.captureStackTrace(error, cookies)
+          applyOwnerStack(error)
           workStore.invalidDynamicUsageError ??= error
           throw error
         case 'unstable-cache':
@@ -102,11 +99,18 @@ export function cookies(): Promise<ReadonlyRequestCookies> {
             workStore,
             workUnitStore
           )
-        case 'prerender-runtime':
-          return delayUntilRuntimeStage(
-            workUnitStore,
-            makeUntrackedCookies(workUnitStore.cookies)
-          )
+        case 'prerender-runtime': {
+          const { stagedRendering } = workUnitStore
+          if (stagedRendering) {
+            return stagedRendering.delayUntilStage(
+              getSessionDataStage(stagedRendering),
+              'cookies',
+              workUnitStore.cookies
+            )
+          } else {
+            return makeUntrackedCookies(workUnitStore.cookies)
+          }
+        }
         case 'private-cache':
           // Private caches are delayed until the runtime stage in use-cache-wrapper,
           // so we don't need an additional delay here.
@@ -233,7 +237,7 @@ function makeUntrackedCookiesWithDevWarnings(
   const promise = makeDevtoolsIOAwarePromise(
     underlyingCookies,
     requestStore,
-    RenderStage.Runtime
+    RenderStage.ShellRuntime
   )
 
   const proxiedPromise = instrumentCookiesPromiseWithDevWarnings(promise, route)
