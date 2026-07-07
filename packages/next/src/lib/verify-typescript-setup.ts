@@ -225,7 +225,19 @@ export async function verifyAndRunTypeScript({
         require('../build/swc/install-bindings') as typeof import('../build/swc/install-bindings')
       await installBindings()
 
-      const tsPath = deps.resolved.get('typescript')!
+      const tsPath = deps.resolved.get('typescript')
+      if (!tsPath) {
+        // TypeScript is installed but doesn't expose a compatible JavaScript
+        // API entry point. This occurs with TypeScript 7+, which has a
+        // fundamentally different package structure (no lib/typescript.js).
+        // Type checking in Next.js requires TypeScript 5.x or a compatible version.
+        throw new CompileError(
+          `TypeScript ${typescriptVersion} is installed but does not expose a ` +
+            `JavaScript API compatible with Next.js. Please install TypeScript 5.x, ` +
+            `or disable type checking by setting ` +
+            `\`typescript.ignoreBuildErrors: true\` in your Next.js config.`
+        )
+      }
       const typescript = (await Promise.resolve(
         require(tsPath)
       )) as typeof import('typescript')

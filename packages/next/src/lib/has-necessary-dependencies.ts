@@ -52,8 +52,19 @@ export function hasNecessaryDependencies(
           if (existsSync(fileToVerify)) {
             resolutions.set(p.pkg, fileToVerify)
           } else {
-            missingPackages.push(p)
-            continue
+            // The specific file doesn't exist in the package directory.
+            // This can happen when packages restructure their files across major
+            // versions (e.g. TypeScript 7 removed typescript/lib/typescript.js).
+            // Try resolving via the package's main entry point as a fallback.
+            try {
+              resolutions.set(p.pkg, resolveFrom(baseDir, p.pkg))
+            } catch {
+              // Package has no resolvable main entry point, but the package is
+              // installed (package.json was found above). Do not mark it as
+              // missing — the package exists but has a different file layout
+              // than expected. The pkg-keyed resolution is intentionally left
+              // unset; callers should handle undefined from resolved.get(pkg).
+            }
           }
         } else {
           resolutions.set(p.pkg, pkgPath)
