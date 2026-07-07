@@ -120,11 +120,11 @@ Learn more: [Streaming](https://preview.nextjs.org/docs/app/guides/streaming).
 
 ### Trade-off
 
-The shared parts of the route are prefetched, and the URL-dependent region streams in after navigation, so the user sees a fallback for that region. Design the fallback to approximate the final layout so the page doesn't visibly jump when the content arrives.
+The shared parts of the route are prefetched, and the URL-dependent region streams in after navigation, so the user sees a fallback for that region. Design the fallback so it approximates the final layout. A generic spinner causes the page to visibly jump when content arrives. See [CLS-safe skeleton fallback guidance](https://preview.nextjs.org/docs/app/guides/streaming#cls-cumulative-layout-shift).
 
 ### Gotchas
 
-- [`cookies()`](https://preview.nextjs.org/docs/app/api-reference/functions/cookies) and [`headers()`](https://preview.nextjs.org/docs/app/api-reference/functions/headers) don't trigger this error, even outside `<Suspense>`. They vary per user, not per link, so the shell stays reusable across links. The initial load's [static shell](https://preview.nextjs.org/docs/app/glossary#static-shell) may still need them behind `<Suspense>`, and that requirement surfaces separately as [runtime data during prerendering](/docs/messages/blocking-prerender-runtime).
+- [`cookies()`](https://preview.nextjs.org/docs/app/api-reference/functions/cookies) and [`headers()`](https://preview.nextjs.org/docs/app/api-reference/functions/headers) don't trigger this error, even outside `<Suspense>`. They vary per session, not per link, so the shell stays reusable across links. The initial load's [static shell](https://preview.nextjs.org/docs/app/glossary#static-shell) may still need them behind `<Suspense>`, and that requirement surfaces separately as [runtime data during prerendering](/docs/messages/blocking-prerender-runtime).
 - Making the route static with [`generateStaticParams`](https://preview.nextjs.org/docs/app/api-reference/functions/generate-static-params) does not resolve this error. A static param is still specific to one URL, so it can't be part of a prefetch shared across links.
 - The `params` and `searchParams` props are promises. Passing the promise down without awaiting it keeps the rest of the route in the shared prefetch. Awaiting it above the boundary pulls the URL data back in.
 

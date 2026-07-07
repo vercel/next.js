@@ -275,7 +275,7 @@ The process of removing unused code from your JavaScript bundles during the buil
 
 ## URL data
 
-Data that identifies a specific URL, such as the pathname and query parameters. In the App Router this means [`params`](/docs/app/api-reference/file-conventions/page#params-optional) and [`searchParams`](/docs/app/api-reference/file-conventions/page#searchparams-optional), and the client hooks that read them like [`usePathname`](/docs/app/api-reference/functions/use-pathname) and [`useSearchParams`](/docs/app/api-reference/functions/use-search-params). URL data varies per link, not per user, so it can't be part of a shared [App Shell](#app-shell).
+Data that identifies a specific URL, such as the pathname and query parameters. In the App Router this means [`params`](/docs/app/api-reference/file-conventions/page#params-optional) and [`searchParams`](/docs/app/api-reference/file-conventions/page#searchparams-optional), and the client hooks that read them like [`usePathname`](/docs/app/api-reference/functions/use-pathname) and [`useSearchParams`](/docs/app/api-reference/functions/use-search-params). URL data varies per link, not per session, so it can't be part of a shared [App Shell](#app-shell).
 
 ## `"use cache"` Directive
 
