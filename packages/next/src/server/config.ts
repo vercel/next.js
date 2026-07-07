@@ -10,6 +10,7 @@ import {
   PHASE_EXPORT,
   PHASE_PRODUCTION_BUILD,
   PHASE_PRODUCTION_SERVER,
+  PHASE_INFO,
   type PHASE_TYPE,
 } from '../shared/lib/constants'
 import {
@@ -489,7 +490,7 @@ function assignDefaultsAndValidate(
   // Turbopack-only; strict mode and `false` (single-chunk-per-module) are webpack-only.
   // Only validate during build/dev — `next start` doesn't pick a bundler and would otherwise
   // see `process.env.TURBOPACK` unset and reject a valid `cssChunking: "graph"` config.
-  if (phase !== PHASE_PRODUCTION_SERVER) {
+  if (phase !== PHASE_PRODUCTION_SERVER && phase !== PHASE_INFO) {
     const cssChunkingValue = result.experimental.cssChunking
     const cssChunkingMode = resolveCssChunkingMode(cssChunkingValue)
     if (cssChunkingMode === 'graph' && !process.env.TURBOPACK) {
