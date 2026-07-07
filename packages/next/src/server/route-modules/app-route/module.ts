@@ -96,6 +96,7 @@ import {
   createRouteHandlerRequestInUseCacheError,
   createRouteHandlerRequestInUnstableCacheError,
 } from '../../use-cache/use-cache-messages'
+import { isWebSocketUpgradeResponse } from '../../web/spec-extension/response'
 
 export class WrappedNextRouterError {
   constructor(
@@ -482,6 +483,26 @@ export class AppRouteRouteModule extends RouteModule<
       )
     }
 
+    if (isWebSocketUpgradeResponse(res)) {
+      let message: string | undefined
+      if (this.nextConfigOutput === 'export') {
+        message = 'NextResponse.upgrade() cannot be used with output: "export".'
+      } else if (workStore.forceStatic) {
+        message =
+          'NextResponse.upgrade() cannot be used in a route configured with dynamic = "force-static".'
+      } else if (workStore.isStaticGeneration) {
+        message =
+          'NextResponse.upgrade() cannot be used while an App Route is being prerendered or cached.'
+      }
+
+      if (message) {
+        const error = new DynamicServerError(message)
+        workStore.dynamicUsageDescription = message
+        workStore.dynamicUsageStack = error.stack
+        throw error
+      }
+    }
+
     context.renderOpts.fetchMetrics = workStore.fetchMetrics
     this.resolvePendingRevalidations(workStore, requestStore, context)
 
@@ -494,6 +515,11 @@ export class AppRouteRouteModule extends RouteModule<
 
     // It's possible cookies were set in the handler, so we need to merge the
     // modified cookies and the returned response here.
+    if (isWebSocketUpgradeResponse(res)) {
+      appendMutableCookies(res.headers, requestStore.mutableCookies)
+      return res
+    }
+
     const headers = new Headers(res.headers)
     if (appendMutableCookies(headers, requestStore.mutableCookies)) {
       return new Response(res.body, {
@@ -563,6 +589,7 @@ export class AppRouteRouteModule extends RouteModule<
          */
         const prospectiveController = new AbortController()
         let prospectiveRenderIsDynamic = false
+        let prospectiveReturnedUpgrade = false
         const cacheSignal = new CacheSignal()
         let dynamicTracking = createDynamicTrackingState(undefined)
 
@@ -634,7 +661,15 @@ export class AppRouteRouteModule extends RouteModule<
           // The handler returned a Thenable. We'll listen for rejections to determine
           // if the route is erroring for dynamic reasons.
           ;(prospectiveResult as any as Promise<unknown>).then(
-            () => {},
+            (result) => {
+              if (
+                result instanceof Response &&
+                isWebSocketUpgradeResponse(result)
+              ) {
+                prospectiveRenderIsDynamic = true
+                prospectiveReturnedUpgrade = true
+              }
+            },
             (err) => {
               if (prospectiveController.signal.aborted) {
                 // the route handler called an API which is always dynamic
@@ -655,6 +690,11 @@ export class AppRouteRouteModule extends RouteModule<
         await cacheSignal.cacheReady()
 
         if (prospectiveRenderIsDynamic) {
+          if (prospectiveReturnedUpgrade) {
+            throw new DynamicServerError(
+              `Route ${workStore.route} couldn't be rendered statically because it returned NextResponse.upgrade().`
+            )
+          }
           // the route handler called an API which is always dynamic
           // there is no need to try again
           const dynamicReason = getFirstDynamicReason(dynamicTracking)

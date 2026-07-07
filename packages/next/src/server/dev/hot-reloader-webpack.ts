@@ -113,6 +113,7 @@ import { recordMcpTelemetry } from '../mcp/mcp-telemetry-tracker'
 import { getFileLogger } from './browser-logs/file-logger'
 import type { ServerCacheStatus } from '../../next-devtools/dev-overlay/cache-indicator'
 import type { Lockfile } from '../../build/lockfile'
+import { closeWebSocketsForBundle } from '../websocket-connection-registry'
 import {
   sendSerializedErrorsToClient,
   sendSerializedErrorsToClientForHtmlRequest,
@@ -1579,6 +1580,10 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
       ) {
         this.resetFetch()
         this.refreshServerComponents(stats.hash)
+      }
+
+      for (const bundlePath of changedServerPages) {
+        closeWebSocketsForBundle(bundlePath, 1012)
       }
 
       changedClientPages.clear()

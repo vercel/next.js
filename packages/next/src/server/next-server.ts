@@ -26,6 +26,7 @@ import type { Params } from './request/params'
 import type { MiddlewareRouteMatch } from '../shared/lib/router/utils/middleware-route-matcher'
 import type { RouteMatch } from './route-matches/route-match'
 import type { IncomingMessage, ServerResponse } from 'http'
+import type { Duplex } from 'stream'
 import type { ParsedUrlQuery } from 'querystring'
 import type { ParsedUrl } from '../shared/lib/router/utils/parse-url'
 import type { CacheControl } from './lib/cache-control'
@@ -355,9 +356,65 @@ export default class NextNodeServer extends BaseServer<
     }
   }
 
-  protected async handleUpgrade(): Promise<void> {
-    // The web server does not support web sockets, it's only used for HMR in
-    // development.
+  protected async handleUpgrade(
+    request: NodeNextRequest | IncomingMessage,
+    socket: Duplex,
+    head: Buffer = Buffer.alloc(0)
+  ): Promise<void> {
+    const req =
+      request instanceof NodeNextRequest ? request.originalRequest : request
+    if (!this.nextConfig.experimental.webSocketRouteHandlers) {
+      socket.end()
+      return
+    }
+
+    const invokeOutput = getRequestMeta(req, 'invokeOutput')
+    const query = getRequestMeta(req, 'invokeQuery') || {}
+    if (!invokeOutput) {
+      socket.end()
+      return
+    }
+
+    const appPaths = this.getOriginalAppPaths(invokeOutput)
+    const page = appPaths?.[appPaths.length - 1] || invokeOutput
+
+    const result = await this.findPageComponents({
+      locale: getRequestMeta(req, 'locale'),
+      page,
+      query,
+      params: {},
+      isAppPath: true,
+      appPaths,
+      shouldEnsure: true,
+      url: req.url,
+    })
+
+    if (
+      !result ||
+      result.components.routeModule?.definition.kind !== RouteKind.APP_ROUTE ||
+      typeof (result.components.ComponentMod as AppRouteModule)
+        .upgradeHandler !== 'function'
+    ) {
+      socket.end()
+      return
+    }
+
+    addRequestMeta(req, 'relativeProjectDir', relative(process.cwd(), this.dir))
+    addRequestMeta(req, 'distDir', this.distDir)
+    await (result.components.ComponentMod as AppRouteModule).upgradeHandler(
+      {
+        waitUntil: this.getWaitUntil(),
+        requestMeta: getRequestMeta(req),
+        responseHeaders: getRequestMeta(req, 'webSocketUpgradeHeaders'),
+      },
+      {
+        node: {
+          req,
+          socket,
+          head,
+        },
+      }
+    )
   }
 
   protected async loadInstrumentationModule() {

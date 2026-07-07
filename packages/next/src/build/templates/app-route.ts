@@ -6,6 +6,8 @@ import {
 import { RouteKind } from '../../server/route-kind'
 import { patchFetch as _patchFetch } from '../../server/lib/patch-fetch'
 import type { IncomingMessage, ServerResponse } from 'node:http'
+import type { Socket } from 'node:net'
+import type { Duplex } from 'node:stream'
 import {
   addRequestMeta,
   getRequestMeta,
@@ -40,6 +42,17 @@ import {
   type ResponseCacheEntry,
   type ResponseGenerator,
 } from '../../server/response-cache'
+import { MockedResponse } from '../../server/lib/mock-request'
+import {
+  createWebSocketUpgradeTransport,
+  writeRawHttpError,
+  writeRawHttpResponse,
+} from '../../server/websocket-upgrade'
+import { isWebSocketUpgradeResponse } from '../../server/web/spec-extension/response'
+import {
+  registerWebSocketPeer,
+  unregisterWebSocketPeer,
+} from '../../server/websocket-connection-registry'
 
 // These are injected by the loader afterwards. This is injected as a variable
 // instead of a replacement because this could also be `undefined` instead of
@@ -82,6 +95,20 @@ const routeModule = new AppRouteRouteModule({
     : {}),
 })
 
+let webSocketUpgradeTransport:
+  | ReturnType<typeof createWebSocketUpgradeTransport>
+  | undefined
+if (process.env.__NEXT_EXPERIMENTAL_WEBSOCKET_ROUTE_HANDLERS) {
+  webSocketUpgradeTransport = createWebSocketUpgradeTransport({
+    registerPeer: (peer) =>
+      registerWebSocketPeer('VAR_DEFINITION_BUNDLE_PATH', peer),
+    unregisterPeer: (peer) =>
+      unregisterWebSocketPeer('VAR_DEFINITION_BUNDLE_PATH', peer),
+  })
+} else {
+  webSocketUpgradeTransport = undefined
+}
+
 // Pull out the exports that we need to expose from the module. This should
 // be eliminated when we've moved the other routes to the new format. These
 // are used to hook into the route.
@@ -102,13 +129,24 @@ export {
   patchFetch,
 }
 
+export interface AppRouteHandlerContext {
+  waitUntil?: (prom: Promise<void>) => void
+  requestMeta?: RequestMeta
+  responseHeaders?: Record<string, string | string[]>
+}
+
+export interface AppRouteUpgradeHandlerTransport {
+  node: {
+    req: IncomingMessage
+    socket: Duplex
+    head: Buffer
+  }
+}
+
 export async function handler(
   req: IncomingMessage,
   res: ServerResponse,
-  ctx: {
-    waitUntil?: (prom: Promise<void>) => void
-    requestMeta?: RequestMeta
-  }
+  ctx: AppRouteHandlerContext
 ) {
   if (ctx.requestMeta) {
     setRequestMeta(req, ctx.requestMeta)
@@ -297,10 +335,19 @@ export async function handler(
         return null
       }
 
-      const response =
+      let response =
         cacheKey === null
           ? await routeModule.handle(nextReq, context)
           : await routeModule.prerender(nextReq, context)
+
+      if (isWebSocketUpgradeResponse(response)) {
+        const headers = new Headers(response.headers)
+        headers.set('Upgrade', 'websocket')
+        response = new Response(
+          'This route only accepts WebSocket upgrade requests.',
+          { status: 426, headers }
+        )
+      }
 
       ;(req as any).fetchMetrics = (context.renderOpts as any).fetchMetrics
       let pendingWaitUntil = context.renderOpts.pendingWaitUntil
@@ -594,5 +641,256 @@ export async function handler(
       undefined,
       !isWrappedByNextServer
     )
+  }
+}
+
+/**
+ * Adapter-facing entrypoint for requests delivered by Node's `upgrade` event.
+ * The App Route GET handler is invoked exactly once and its returned response
+ * determines whether the connection is accepted or receives an ordinary HTTP
+ * response.
+ */
+export async function upgradeHandler(
+  ctx: AppRouteHandlerContext,
+  transport: AppRouteUpgradeHandlerTransport
+): Promise<void> {
+  const node = transport?.node
+  if (
+    !node?.req ||
+    !node.socket ||
+    typeof node.socket.write !== 'function' ||
+    node.socket.destroyed
+  ) {
+    console.error(
+      'WebSocket Route Handlers require the Node.js upgrade transport namespace with raw upgrade primitives and persistent sockets.'
+    )
+    return
+  }
+
+  const { req, socket, head } = node
+  try {
+    await upgradeHandlerImpl(req, socket, head, ctx)
+  } catch (error) {
+    console.error('Error handling App Route WebSocket upgrade', error)
+    if (!socket.destroyed && !socket.writableEnded) {
+      await writeRawHttpError(req, socket, 500, 'Internal Server Error')
+    }
+  }
+}
+
+async function upgradeHandlerImpl(
+  req: IncomingMessage,
+  socket: Duplex,
+  head: Buffer,
+  ctx: AppRouteHandlerContext
+): Promise<void> {
+  if (!process.env.__NEXT_EXPERIMENTAL_WEBSOCKET_ROUTE_HANDLERS) {
+    const message =
+      'WebSocket Route Handlers are unavailable because experimental.webSocketRouteHandlers is not enabled.'
+    console.error(message)
+    await writeRawHttpError(req, socket, 501, message)
+    return
+  }
+
+  if (!webSocketUpgradeTransport) {
+    const message = 'WebSocket Route Handlers are unavailable in this runtime.'
+    console.error(message)
+    await writeRawHttpError(req, socket, 501, message)
+    return
+  }
+
+  if (ctx.requestMeta) {
+    setRequestMeta(req, ctx.requestMeta)
+  }
+  if (routeModule.isDev) {
+    addRequestMeta(req, 'devRequestTimingInternalsEnd', process.hrtime.bigint())
+  }
+
+  let srcPage = 'VAR_DEFINITION_PAGE'
+  if (process.env.TURBOPACK) {
+    srcPage = srcPage.replace(/\/index$/, '') || '/'
+  } else if (srcPage === '/index') {
+    srcPage = '/'
+  }
+
+  const multiZoneDraftMode = process.env
+    .__NEXT_MULTI_ZONE_DRAFT_MODE as any as boolean
+  const mockedRes = new MockedResponse({ socket: socket as Socket })
+  const prepareResult = await routeModule.prepare(req, mockedRes, {
+    srcPage,
+    multiZoneDraftMode,
+  })
+
+  if (!prepareResult) {
+    await writeRawHttpError(req, socket, 400, 'Bad Request')
+    return
+  }
+
+  const {
+    buildId,
+    deploymentId,
+    params,
+    nextConfig,
+    prerenderManifest,
+    routerServerContext,
+    clientReferenceManifest,
+    serverActionsManifest,
+  } = prepareResult
+
+  if (serverActionsManifest && clientReferenceManifest) {
+    setManifestsSingleton({
+      page: srcPage,
+      clientReferenceManifest,
+      serverActionsManifest,
+    })
+  }
+
+  const normalizedSrcPage = normalizeAppPath(srcPage)
+  const isMinimalMode = Boolean(getRequestMeta(req, 'minimalMode'))
+  const incrementalCache =
+    getRequestMeta(req, 'incrementalCache') ||
+    (await routeModule.getIncrementalCache(
+      req,
+      nextConfig,
+      prerenderManifest,
+      isMinimalMode
+    ))
+  incrementalCache?.resetRequestCache()
+  ;(globalThis as any).__incrementalCache = incrementalCache
+
+  const context: AppRouteRouteHandlerContext = {
+    params,
+    previewProps: prerenderManifest.preview,
+    renderOpts: {
+      experimental: {
+        authInterrupts: Boolean(nextConfig.experimental.authInterrupts),
+        useCacheTimeout: nextConfig.experimental.useCacheTimeout,
+      },
+      cacheComponents: Boolean(nextConfig.cacheComponents),
+      validationLevel: nextConfig.experimental.instantInsights.validationLevel,
+      supportsDynamicResponse: true,
+      incrementalCache,
+      cacheLifeProfiles: nextConfig.cacheLife,
+      staticPageGenerationTimeout: nextConfig.staticPageGenerationTimeout,
+      waitUntil: ctx.waitUntil,
+      onClose: (callback) => socket.once('close', callback),
+      onAfterTaskError: undefined,
+      onInstrumentationRequestError: (
+        error,
+        _request,
+        errorContext,
+        silenceLog
+      ) =>
+        routeModule.onRequestError(
+          req,
+          error,
+          errorContext,
+          silenceLog,
+          routerServerContext
+        ),
+    },
+    sharedContext: { buildId, deploymentId },
+  }
+
+  const nextReq = NextRequestAdapter.fromNodeNextRequest(
+    new NodeNextRequest(req),
+    signalFromNodeResponse(socket)
+  )
+  const tracer = getTracer()
+  const method = req.method || 'GET'
+
+  const reportError = (error: unknown) =>
+    routeModule.onRequestError(
+      req,
+      error,
+      {
+        routerKind: 'App Router',
+        routePath: normalizedSrcPage,
+        routeType: 'route',
+        revalidateReason: getRevalidateReason({
+          isStaticGeneration: false,
+          isOnDemandRevalidate: false,
+        }),
+      },
+      false,
+      routerServerContext
+    )
+
+  try {
+    const invokeRouteModule = async (span?: Span) =>
+      routeModule.handle(nextReq, context).finally(() => {
+        if (!span) return
+        span.setAttributes({
+          'http.status_code': mockedRes.statusCode,
+          'next.rsc': false,
+        })
+
+        const route =
+          tracer.getRootSpanAttributes()?.get('next.route') || normalizedSrcPage
+        const name = `${method} ${route}`
+        span.setAttributes({
+          'next.route': route,
+          'http.route': route,
+          'next.span_name': name,
+        })
+        span.updateName(name)
+      })
+
+    const response = await tracer.withPropagatedContext(
+      req.headers,
+      () =>
+        tracer.trace(
+          BaseServerSpan.handleRequest,
+          {
+            spanName: `${method} ${srcPage}`,
+            kind: SpanKind.SERVER,
+            attributes: {
+              'http.method': method,
+              'http.target': req.url,
+            },
+          },
+          invokeRouteModule
+        ),
+      undefined,
+      true
+    )
+
+    if (ctx.responseHeaders) {
+      const routingHeaders = fromNodeOutgoingHttpHeaders(ctx.responseHeaders)
+      routingHeaders.forEach((value, name) => {
+        if (name.toLowerCase() === 'set-cookie') {
+          response.headers.append(name, value)
+        } else {
+          response.headers.set(name, value)
+        }
+      })
+    }
+
+    ;(req as any).fetchMetrics = (context.renderOpts as any).fetchMetrics
+    const pendingWaitUntil = context.renderOpts.pendingWaitUntil
+    if (pendingWaitUntil && ctx.waitUntil) {
+      ctx.waitUntil(pendingWaitUntil)
+    }
+
+    if (!isWebSocketUpgradeResponse(response)) {
+      await writeRawHttpResponse(req, socket, response)
+      return
+    }
+
+    await webSocketUpgradeTransport.handleUpgrade(
+      req,
+      socket,
+      head,
+      nextReq,
+      response,
+      {
+        onHookError: reportError,
+      }
+    )
+  } catch (error) {
+    await reportError(error)
+    if (!socket.destroyed && !socket.writableEnded) {
+      await writeRawHttpError(req, socket, 500, 'Internal Server Error')
+    }
   }
 }
