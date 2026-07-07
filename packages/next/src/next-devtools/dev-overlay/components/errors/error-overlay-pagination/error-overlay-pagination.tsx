@@ -9,18 +9,42 @@ import { LeftArrow } from '../../../icons/left-arrow'
 import { RightArrow } from '../../../icons/right-arrow'
 import type { ReadyRuntimeError } from '../../../utils/get-error-by-type'
 
+export type ErrorOverlayPaginationControls = {
+  previousButton: React.ReactNode
+  nextButton: React.ReactNode
+  createCount: (
+    activeIdx: number,
+    total: number,
+    isActive?: boolean
+  ) => React.ReactNode
+}
+
+export type ErrorOverlayTabBarRenderer = (
+  controls: ErrorOverlayPaginationControls
+) => React.ReactNode
+
 type ErrorPaginationProps = {
   runtimeErrors: ReadyRuntimeError[]
   activeIdx: number
   onActiveIndexChange: (index: number) => void
+  canGoPrevious?: boolean
+  canGoNext?: boolean
+  onPrevious?: () => void
+  onNext?: () => void
+  renderTabBar?: ErrorOverlayTabBarRenderer
 }
 
 export function ErrorOverlayPagination({
   runtimeErrors,
   activeIdx,
   onActiveIndexChange,
+  canGoPrevious,
+  canGoNext,
+  onPrevious,
+  onNext,
+  renderTabBar,
 }: ErrorPaginationProps) {
-  const handlePrevious = useCallback(
+  const handlePreviousWithinGroup = useCallback(
     () =>
       startTransition(() => {
         if (activeIdx > 0) {
@@ -30,7 +54,7 @@ export function ErrorOverlayPagination({
     [activeIdx, onActiveIndexChange]
   )
 
-  const handleNext = useCallback(
+  const handleNextWithinGroup = useCallback(
     () =>
       startTransition(() => {
         if (activeIdx < runtimeErrors.length - 1) {
@@ -41,6 +65,12 @@ export function ErrorOverlayPagination({
       }),
     [activeIdx, runtimeErrors.length, onActiveIndexChange]
   )
+
+  const canNavigatePrevious = canGoPrevious ?? activeIdx > 0
+  const canNavigateNext = canGoNext ?? activeIdx < runtimeErrors.length - 1
+
+  const handlePrevious = onPrevious ?? handlePreviousWithinGroup
+  const handleNext = onNext ?? handleNextWithinGroup
 
   const buttonLeft = useRef<HTMLButtonElement | null>(null)
   const buttonRight = useRef<HTMLButtonElement | null>(null)
@@ -94,59 +124,87 @@ export function ErrorOverlayPagination({
     if (root instanceof ShadowRoot) {
       const a = root.activeElement
 
-      if (activeIdx === 0) {
+      if (!canNavigatePrevious) {
         if (buttonLeft.current && a === buttonLeft.current) {
           buttonLeft.current.blur()
         }
-      } else if (activeIdx === runtimeErrors.length - 1) {
+      } else if (!canNavigateNext) {
         if (buttonRight.current && a === buttonRight.current) {
           buttonRight.current.blur()
         }
       }
     }
-  }, [nav, activeIdx, runtimeErrors.length])
+  }, [nav, canNavigateNext, canNavigatePrevious])
+
+  const previousButton = (
+    <button
+      ref={buttonLeft}
+      type="button"
+      disabled={!canNavigatePrevious}
+      aria-disabled={!canNavigatePrevious}
+      onClick={handlePrevious}
+      data-nextjs-dialog-error-previous
+      className="error-overlay-pagination-button"
+    >
+      <LeftArrow
+        title="previous"
+        className="error-overlay-pagination-button-icon"
+      />
+    </button>
+  )
+
+  const createCount = (
+    currentActiveIdx: number,
+    total: number,
+    isActive: boolean = true
+  ) => (
+    <div className="error-overlay-pagination-count">
+      <span
+        {...(isActive
+          ? { 'data-nextjs-dialog-error-index': currentActiveIdx }
+          : {})}
+      >
+        {total === 0 ? 0 : currentActiveIdx + 1}/
+      </span>
+      <span
+        {...(isActive ? { 'data-nextjs-dialog-header-total-count': '' } : {})}
+      >
+        {total}
+      </span>
+    </div>
+  )
+
+  const nextButton = (
+    <button
+      ref={buttonRight}
+      type="button"
+      disabled={!canNavigateNext}
+      aria-disabled={!canNavigateNext}
+      onClick={handleNext}
+      data-nextjs-dialog-error-next
+      className="error-overlay-pagination-button"
+    >
+      <RightArrow
+        title="next"
+        className="error-overlay-pagination-button-icon"
+      />
+    </button>
+  )
 
   return (
     <nav
       className="error-overlay-pagination dialog-exclude-closing-from-outside-click"
       ref={onNav}
     >
-      <button
-        ref={buttonLeft}
-        type="button"
-        disabled={activeIdx === 0}
-        aria-disabled={activeIdx === 0}
-        onClick={handlePrevious}
-        data-nextjs-dialog-error-previous
-        className="error-overlay-pagination-button"
-      >
-        <LeftArrow
-          title="previous"
-          className="error-overlay-pagination-button-icon"
-        />
-      </button>
-      <div className="error-overlay-pagination-count">
-        <span data-nextjs-dialog-error-index={activeIdx}>{activeIdx + 1}/</span>
-        <span data-nextjs-dialog-header-total-count>
-          {/* Display 1 out of 1 if there are no errors (e.g. for build errors). */}
-          {runtimeErrors.length || 1}
-        </span>
-      </div>
-      <button
-        ref={buttonRight}
-        type="button"
-        // If no errors or the last error is active, disable the button.
-        disabled={activeIdx >= runtimeErrors.length - 1}
-        aria-disabled={activeIdx >= runtimeErrors.length - 1}
-        onClick={handleNext}
-        data-nextjs-dialog-error-next
-        className="error-overlay-pagination-button"
-      >
-        <RightArrow
-          title="next"
-          className="error-overlay-pagination-button-icon"
-        />
-      </button>
+      {renderTabBar ? (
+        renderTabBar({ previousButton, createCount, nextButton })
+      ) : (
+        <>
+          {previousButton}
+          {createCount(activeIdx, runtimeErrors.length || 1)}
+          {nextButton}
+        </>
+      )}
     </nav>
   )
 }
@@ -168,9 +226,11 @@ export const styles = `
   }
 
   .error-overlay-pagination-count {
-    color: var(--color-gray-900);
+    display: flex;
+    align-items: center;
+    color: inherit;
     text-align: center;
-    font-size: var(--size-14);
+    font-size: var(--size-13);
     font-family: var(--font-mono);
     line-height: var(--size-16);
     font-variant-numeric: tabular-nums;

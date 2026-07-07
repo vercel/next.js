@@ -1,5 +1,9 @@
 import { isNextDev, nextTestSetup } from 'e2e-utils'
-import { retry, waitForNoErrorToast } from 'next-test-utils'
+import {
+  getRedboxDescription,
+  retry,
+  waitForNoErrorToast,
+} from 'next-test-utils'
 import { getDeterministicOutput, getPrerenderOutput } from './utils'
 
 describe('Cache Components Errors', () => {
@@ -86,10 +90,10 @@ describe('Cache Components Errors', () => {
 
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E1231",
+             "code": "E1370",
              "description": "Next.js encountered uncached data in generateMetadata().",
              "environmentLabel": "Server",
-             "label": "Instant",
+             "label": "Blocking Route",
              "source": "app/dynamic-metadata-static-route/page.tsx (2:9) @ Module.generateMetadata
            > 2 |   await new Promise((r) => setTimeout(r, 0))
                |         ^",
@@ -119,11 +123,12 @@ describe('Cache Components Errors', () => {
              This route's metadata is blocked, but the rest of its content can be prerendered.
 
              Ways to fix this:
-               - Use a static metadata export instead of \`generateMetadata()\`
-               - Cache the metadata with \`"use cache"\` in \`generateMetadata()\`
-               - Add a dynamic data access (e.g. \`await connection()\`) to the page to render it at request time
-
-             Learn more: https://nextjs.org/docs/messages/next-prerender-dynamic-metadata
+               - [static] Use a static metadata export instead of \`generateMetadata()\`
+                 https://nextjs.org/docs/messages/blocking-prerender-metadata-runtime#use-static-metadata
+               - [cache] Cache the metadata with \`"use cache"\` in \`generateMetadata()\` (does not apply to \`connection()\`)
+                 https://nextjs.org/docs/messages/blocking-prerender-metadata-dynamic#cache-the-metadata
+               - [dynamic] Render a marker component that calls \`await connection()\` inside \`<Suspense>\` on the page
+                 https://nextjs.org/docs/messages/blocking-prerender-metadata-dynamic#mark-the-route-as-dynamic
              Error occurred prerendering page "/dynamic-metadata-static-route". Read more: https://nextjs.org/docs/messages/prerender-error
 
              > Export encountered errors on 1 path:
@@ -136,11 +141,12 @@ describe('Cache Components Errors', () => {
              This route's metadata is blocked, but the rest of its content can be prerendered.
 
              Ways to fix this:
-               - Use a static metadata export instead of \`generateMetadata()\`
-               - Cache the metadata with \`"use cache"\` in \`generateMetadata()\`
-               - Add a dynamic data access (e.g. \`await connection()\`) to the page to render it at request time
-
-             Learn more: https://nextjs.org/docs/messages/next-prerender-dynamic-metadata
+               - [static] Use a static metadata export instead of \`generateMetadata()\`
+                 https://nextjs.org/docs/messages/blocking-prerender-metadata-runtime#use-static-metadata
+               - [cache] Cache the metadata with \`"use cache"\` in \`generateMetadata()\` (does not apply to \`connection()\`)
+                 https://nextjs.org/docs/messages/blocking-prerender-metadata-dynamic#cache-the-metadata
+               - [dynamic] Render a marker component that calls \`await connection()\` inside \`<Suspense>\` on the page
+                 https://nextjs.org/docs/messages/blocking-prerender-metadata-dynamic#mark-the-route-as-dynamic
              Error occurred prerendering page "/dynamic-metadata-static-route". Read more: https://nextjs.org/docs/messages/prerender-error
              Export encountered an error on /dynamic-metadata-static-route/page: /dynamic-metadata-static-route, exiting the build."
             `)
@@ -158,10 +164,10 @@ describe('Cache Components Errors', () => {
 
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E1265",
+             "code": "E1401",
              "description": "Next.js encountered uncached data during prerendering.",
              "environmentLabel": "Server",
-             "label": "Instant",
+             "label": "Blocking Route",
              "source": "app/dynamic-metadata-error-route/page.tsx (21:9) @ Dynamic
            > 21 |   await new Promise((r) => setTimeout(r))
                 |         ^",
@@ -194,12 +200,12 @@ describe('Cache Components Errors', () => {
                \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
 
                Ways to fix this:
-                 - Cache the data access with \`"use cache"\`
-                 - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                 - If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
-                 - Set \`export const instant = false\` to allow a blocking route
-
-               Learn more: https://nextjs.org/docs/messages/blocking-route
+                 - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+                   https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
+                 - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
+                   https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
+                 - [block] Set \`export const instant = false\` to allow a blocking route
+                   https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
                    at Dynamic (app/dynamic-metadata-error-route/page.tsx:20:16)
                    at Page (app/dynamic-metadata-error-route/page.tsx:15:7)
                  18 | }
@@ -222,12 +228,12 @@ describe('Cache Components Errors', () => {
                \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
 
                Ways to fix this:
-                 - Cache the data access with \`"use cache"\`
-                 - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                 - If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
-                 - Set \`export const instant = false\` to allow a blocking route
-
-               Learn more: https://nextjs.org/docs/messages/blocking-route
+                 - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+                   https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
+                 - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
+                   https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
+                 - [block] Set \`export const instant = false\` to allow a blocking route
+                   https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
                    at main (<anonymous>)
                    at body (<anonymous>)
                    at html (<anonymous>)
@@ -246,12 +252,12 @@ describe('Cache Components Errors', () => {
                \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
 
                Ways to fix this:
-                 - Cache the data access with \`"use cache"\`
-                 - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                 - If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
-                 - Set \`export const instant = false\` to allow a blocking route
-
-               Learn more: https://nextjs.org/docs/messages/blocking-route
+                 - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+                   https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
+                 - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
+                   https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
+                 - [block] Set \`export const instant = false\` to allow a blocking route
+                   https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
                    at Dynamic (webpack:///app/dynamic-metadata-error-route/page.tsx:20:16)
                    at Page (webpack:///app/dynamic-metadata-error-route/page.tsx:15:7)
                  18 | }
@@ -274,12 +280,12 @@ describe('Cache Components Errors', () => {
                \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
 
                Ways to fix this:
-                 - Cache the data access with \`"use cache"\`
-                 - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                 - If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
-                 - Set \`export const instant = false\` to allow a blocking route
-
-               Learn more: https://nextjs.org/docs/messages/blocking-route
+                 - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+                   https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
+                 - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
+                   https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
+                 - [block] Set \`export const instant = false\` to allow a blocking route
+                   https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
                    at a (<next-dist-dir>)
                    at b (<next-dist-dir>)
                    at c (<next-dist-dir>)
@@ -325,10 +331,10 @@ describe('Cache Components Errors', () => {
 
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E1231",
+             "code": "E1370",
              "description": "Next.js encountered uncached data in generateMetadata().",
              "environmentLabel": "Server",
-             "label": "Instant",
+             "label": "Blocking Route",
              "source": "app/dynamic-metadata-static-with-suspense/page.tsx (2:9) @ Module.generateMetadata
            > 2 |   await new Promise((r) => setTimeout(r, 0))
                |         ^",
@@ -358,11 +364,12 @@ describe('Cache Components Errors', () => {
              This route's metadata is blocked, but the rest of its content can be prerendered.
 
              Ways to fix this:
-               - Use a static metadata export instead of \`generateMetadata()\`
-               - Cache the metadata with \`"use cache"\` in \`generateMetadata()\`
-               - Add a dynamic data access (e.g. \`await connection()\`) to the page to render it at request time
-
-             Learn more: https://nextjs.org/docs/messages/next-prerender-dynamic-metadata
+               - [static] Use a static metadata export instead of \`generateMetadata()\`
+                 https://nextjs.org/docs/messages/blocking-prerender-metadata-runtime#use-static-metadata
+               - [cache] Cache the metadata with \`"use cache"\` in \`generateMetadata()\` (does not apply to \`connection()\`)
+                 https://nextjs.org/docs/messages/blocking-prerender-metadata-dynamic#cache-the-metadata
+               - [dynamic] Render a marker component that calls \`await connection()\` inside \`<Suspense>\` on the page
+                 https://nextjs.org/docs/messages/blocking-prerender-metadata-dynamic#mark-the-route-as-dynamic
              Error occurred prerendering page "/dynamic-metadata-static-with-suspense". Read more: https://nextjs.org/docs/messages/prerender-error
 
              > Export encountered errors on 1 path:
@@ -375,11 +382,12 @@ describe('Cache Components Errors', () => {
              This route's metadata is blocked, but the rest of its content can be prerendered.
 
              Ways to fix this:
-               - Use a static metadata export instead of \`generateMetadata()\`
-               - Cache the metadata with \`"use cache"\` in \`generateMetadata()\`
-               - Add a dynamic data access (e.g. \`await connection()\`) to the page to render it at request time
-
-             Learn more: https://nextjs.org/docs/messages/next-prerender-dynamic-metadata
+               - [static] Use a static metadata export instead of \`generateMetadata()\`
+                 https://nextjs.org/docs/messages/blocking-prerender-metadata-runtime#use-static-metadata
+               - [cache] Cache the metadata with \`"use cache"\` in \`generateMetadata()\` (does not apply to \`connection()\`)
+                 https://nextjs.org/docs/messages/blocking-prerender-metadata-dynamic#cache-the-metadata
+               - [dynamic] Render a marker component that calls \`await connection()\` inside \`<Suspense>\` on the page
+                 https://nextjs.org/docs/messages/blocking-prerender-metadata-dynamic#mark-the-route-as-dynamic
              Error occurred prerendering page "/dynamic-metadata-static-with-suspense". Read more: https://nextjs.org/docs/messages/prerender-error
              Export encountered an error on /dynamic-metadata-static-with-suspense/page: /dynamic-metadata-static-with-suspense, exiting the build."
             `)
@@ -397,10 +405,10 @@ describe('Cache Components Errors', () => {
 
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E1231",
+             "code": "E1370",
              "description": "Next.js encountered uncached data in generateMetadata().",
              "environmentLabel": "Server",
-             "label": "Instant",
+             "label": "Blocking Route",
              "source": "app/dynamic-metadata-static-with-suspense-above-body/page.tsx (2:9) @ Module.generateMetadata
            > 2 |   await new Promise((r) => setTimeout(r, 0))
                |         ^",
@@ -430,11 +438,12 @@ describe('Cache Components Errors', () => {
              This route's metadata is blocked, but the rest of its content can be prerendered.
 
              Ways to fix this:
-               - Use a static metadata export instead of \`generateMetadata()\`
-               - Cache the metadata with \`"use cache"\` in \`generateMetadata()\`
-               - Add a dynamic data access (e.g. \`await connection()\`) to the page to render it at request time
-
-             Learn more: https://nextjs.org/docs/messages/next-prerender-dynamic-metadata
+               - [static] Use a static metadata export instead of \`generateMetadata()\`
+                 https://nextjs.org/docs/messages/blocking-prerender-metadata-runtime#use-static-metadata
+               - [cache] Cache the metadata with \`"use cache"\` in \`generateMetadata()\` (does not apply to \`connection()\`)
+                 https://nextjs.org/docs/messages/blocking-prerender-metadata-dynamic#cache-the-metadata
+               - [dynamic] Render a marker component that calls \`await connection()\` inside \`<Suspense>\` on the page
+                 https://nextjs.org/docs/messages/blocking-prerender-metadata-dynamic#mark-the-route-as-dynamic
              Error occurred prerendering page "/dynamic-metadata-static-with-suspense-above-body". Read more: https://nextjs.org/docs/messages/prerender-error
 
              > Export encountered errors on 1 path:
@@ -447,11 +456,12 @@ describe('Cache Components Errors', () => {
              This route's metadata is blocked, but the rest of its content can be prerendered.
 
              Ways to fix this:
-               - Use a static metadata export instead of \`generateMetadata()\`
-               - Cache the metadata with \`"use cache"\` in \`generateMetadata()\`
-               - Add a dynamic data access (e.g. \`await connection()\`) to the page to render it at request time
-
-             Learn more: https://nextjs.org/docs/messages/next-prerender-dynamic-metadata
+               - [static] Use a static metadata export instead of \`generateMetadata()\`
+                 https://nextjs.org/docs/messages/blocking-prerender-metadata-runtime#use-static-metadata
+               - [cache] Cache the metadata with \`"use cache"\` in \`generateMetadata()\` (does not apply to \`connection()\`)
+                 https://nextjs.org/docs/messages/blocking-prerender-metadata-dynamic#cache-the-metadata
+               - [dynamic] Render a marker component that calls \`await connection()\` inside \`<Suspense>\` on the page
+                 https://nextjs.org/docs/messages/blocking-prerender-metadata-dynamic#mark-the-route-as-dynamic
              Error occurred prerendering page "/dynamic-metadata-static-with-suspense-above-body". Read more: https://nextjs.org/docs/messages/prerender-error
              Export encountered an error on /dynamic-metadata-static-with-suspense-above-body/page: /dynamic-metadata-static-with-suspense-above-body, exiting the build."
             `)
@@ -469,10 +479,10 @@ describe('Cache Components Errors', () => {
 
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E1231",
+             "code": "E1370",
              "description": "Next.js encountered uncached data in generateMetadata().",
              "environmentLabel": "Server",
-             "label": "Instant",
+             "label": "Blocking Route",
              "source": "app/dynamic-metadata-static-with-instant-false/page.tsx (4:9) @ Module.generateMetadata
            > 4 |   await new Promise((r) => setTimeout(r, 0))
                |         ^",
@@ -502,11 +512,12 @@ describe('Cache Components Errors', () => {
              This route's metadata is blocked, but the rest of its content can be prerendered.
 
              Ways to fix this:
-               - Use a static metadata export instead of \`generateMetadata()\`
-               - Cache the metadata with \`"use cache"\` in \`generateMetadata()\`
-               - Add a dynamic data access (e.g. \`await connection()\`) to the page to render it at request time
-
-             Learn more: https://nextjs.org/docs/messages/next-prerender-dynamic-metadata
+               - [static] Use a static metadata export instead of \`generateMetadata()\`
+                 https://nextjs.org/docs/messages/blocking-prerender-metadata-runtime#use-static-metadata
+               - [cache] Cache the metadata with \`"use cache"\` in \`generateMetadata()\` (does not apply to \`connection()\`)
+                 https://nextjs.org/docs/messages/blocking-prerender-metadata-dynamic#cache-the-metadata
+               - [dynamic] Render a marker component that calls \`await connection()\` inside \`<Suspense>\` on the page
+                 https://nextjs.org/docs/messages/blocking-prerender-metadata-dynamic#mark-the-route-as-dynamic
              Error occurred prerendering page "/dynamic-metadata-static-with-instant-false". Read more: https://nextjs.org/docs/messages/prerender-error
 
              > Export encountered errors on 1 path:
@@ -519,11 +530,12 @@ describe('Cache Components Errors', () => {
              This route's metadata is blocked, but the rest of its content can be prerendered.
 
              Ways to fix this:
-               - Use a static metadata export instead of \`generateMetadata()\`
-               - Cache the metadata with \`"use cache"\` in \`generateMetadata()\`
-               - Add a dynamic data access (e.g. \`await connection()\`) to the page to render it at request time
-
-             Learn more: https://nextjs.org/docs/messages/next-prerender-dynamic-metadata
+               - [static] Use a static metadata export instead of \`generateMetadata()\`
+                 https://nextjs.org/docs/messages/blocking-prerender-metadata-runtime#use-static-metadata
+               - [cache] Cache the metadata with \`"use cache"\` in \`generateMetadata()\` (does not apply to \`connection()\`)
+                 https://nextjs.org/docs/messages/blocking-prerender-metadata-dynamic#cache-the-metadata
+               - [dynamic] Render a marker component that calls \`await connection()\` inside \`<Suspense>\` on the page
+                 https://nextjs.org/docs/messages/blocking-prerender-metadata-dynamic#mark-the-route-as-dynamic
              Error occurred prerendering page "/dynamic-metadata-static-with-instant-false". Read more: https://nextjs.org/docs/messages/prerender-error
              Export encountered an error on /dynamic-metadata-static-with-instant-false/page: /dynamic-metadata-static-with-instant-false, exiting the build."
             `)
@@ -566,10 +578,10 @@ describe('Cache Components Errors', () => {
 
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E1255",
+             "code": "E1395",
              "description": "Next.js encountered uncached data in generateViewport().",
              "environmentLabel": "Server",
-             "label": "Instant",
+             "label": "Blocking Route",
              "source": "app/dynamic-viewport-static-route/page.tsx (2:9) @ Module.generateViewport
            > 2 |   await new Promise((r) => setTimeout(r, 0))
                |         ^",
@@ -596,14 +608,15 @@ describe('Cache Components Errors', () => {
             expect(output).toMatchInlineSnapshot(`
              "Route "/dynamic-viewport-static-route": Next.js encountered uncached or runtime data in \`generateViewport()\`.
 
-             This prevents the page from being prerendered, leading to a slower user experience.
+             This prevents the page from being prerendered, leading to a slower user experience. Unlike metadata, viewport cannot be streamed behind \`<Suspense>\` because it affects the initial page load.
 
              Ways to fix this:
-               - Use a static viewport export instead of \`generateViewport()\`
-               - Cache the viewport data with \`"use cache"\` in \`generateViewport()\`
-               - Set \`export const instant = false\` to allow a blocking route
-
-             Learn more: https://nextjs.org/docs/messages/next-prerender-dynamic-viewport
+               - [static] Use a static viewport export instead of \`generateViewport()\`
+                 https://nextjs.org/docs/messages/blocking-prerender-viewport-runtime#use-static-viewport
+               - [cache] For uncached data (\`fetch\`, database calls): cache the viewport with \`"use cache"\` in \`generateViewport()\` (does not apply to \`connection()\`)
+                 https://nextjs.org/docs/messages/blocking-prerender-viewport-dynamic#cache-the-viewport-data
+               - [block] Set \`export const instant = false\` to allow a blocking route
+                 https://nextjs.org/docs/messages/blocking-prerender-viewport-dynamic#allow-blocking-route
              Error occurred prerendering page "/dynamic-viewport-static-route". Read more: https://nextjs.org/docs/messages/prerender-error
 
              > Export encountered errors on 1 path:
@@ -611,19 +624,20 @@ describe('Cache Components Errors', () => {
             `)
           } else {
             expect(output).toMatchInlineSnapshot(`
-               "Route "/dynamic-viewport-static-route": Next.js encountered uncached or runtime data in \`generateViewport()\`.
+             "Route "/dynamic-viewport-static-route": Next.js encountered uncached or runtime data in \`generateViewport()\`.
 
-               This prevents the page from being prerendered, leading to a slower user experience.
+             This prevents the page from being prerendered, leading to a slower user experience. Unlike metadata, viewport cannot be streamed behind \`<Suspense>\` because it affects the initial page load.
 
-               Ways to fix this:
-                 - Use a static viewport export instead of \`generateViewport()\`
-                 - Cache the viewport data with \`"use cache"\` in \`generateViewport()\`
-                 - Set \`export const instant = false\` to allow a blocking route
-
-               Learn more: https://nextjs.org/docs/messages/next-prerender-dynamic-viewport
-               Error occurred prerendering page "/dynamic-viewport-static-route". Read more: https://nextjs.org/docs/messages/prerender-error
-               Export encountered an error on /dynamic-viewport-static-route/page: /dynamic-viewport-static-route, exiting the build."
-              `)
+             Ways to fix this:
+               - [static] Use a static viewport export instead of \`generateViewport()\`
+                 https://nextjs.org/docs/messages/blocking-prerender-viewport-runtime#use-static-viewport
+               - [cache] For uncached data (\`fetch\`, database calls): cache the viewport with \`"use cache"\` in \`generateViewport()\` (does not apply to \`connection()\`)
+                 https://nextjs.org/docs/messages/blocking-prerender-viewport-dynamic#cache-the-viewport-data
+               - [block] Set \`export const instant = false\` to allow a blocking route
+                 https://nextjs.org/docs/messages/blocking-prerender-viewport-dynamic#allow-blocking-route
+             Error occurred prerendering page "/dynamic-viewport-static-route". Read more: https://nextjs.org/docs/messages/prerender-error
+             Export encountered an error on /dynamic-viewport-static-route/page: /dynamic-viewport-static-route, exiting the build."
+            `)
           }
         })
       }
@@ -676,10 +690,10 @@ describe('Cache Components Errors', () => {
 
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E1255",
+             "code": "E1395",
              "description": "Next.js encountered uncached data in generateViewport().",
              "environmentLabel": "Server",
-             "label": "Instant",
+             "label": "Blocking Route",
              "source": "app/dynamic-viewport-dynamic-route/page.tsx (4:9) @ Module.generateViewport
            > 4 |   await new Promise((r) => setTimeout(r, 0))
                |         ^",
@@ -706,14 +720,15 @@ describe('Cache Components Errors', () => {
             expect(output).toMatchInlineSnapshot(`
              "Route "/dynamic-viewport-dynamic-route": Next.js encountered uncached or runtime data in \`generateViewport()\`.
 
-             This prevents the page from being prerendered, leading to a slower user experience.
+             This prevents the page from being prerendered, leading to a slower user experience. Unlike metadata, viewport cannot be streamed behind \`<Suspense>\` because it affects the initial page load.
 
              Ways to fix this:
-               - Use a static viewport export instead of \`generateViewport()\`
-               - Cache the viewport data with \`"use cache"\` in \`generateViewport()\`
-               - Set \`export const instant = false\` to allow a blocking route
-
-             Learn more: https://nextjs.org/docs/messages/next-prerender-dynamic-viewport
+               - [static] Use a static viewport export instead of \`generateViewport()\`
+                 https://nextjs.org/docs/messages/blocking-prerender-viewport-runtime#use-static-viewport
+               - [cache] For uncached data (\`fetch\`, database calls): cache the viewport with \`"use cache"\` in \`generateViewport()\` (does not apply to \`connection()\`)
+                 https://nextjs.org/docs/messages/blocking-prerender-viewport-dynamic#cache-the-viewport-data
+               - [block] Set \`export const instant = false\` to allow a blocking route
+                 https://nextjs.org/docs/messages/blocking-prerender-viewport-dynamic#allow-blocking-route
              Error occurred prerendering page "/dynamic-viewport-dynamic-route". Read more: https://nextjs.org/docs/messages/prerender-error
 
              > Export encountered errors on 1 path:
@@ -721,19 +736,20 @@ describe('Cache Components Errors', () => {
             `)
           } else {
             expect(output).toMatchInlineSnapshot(`
-               "Route "/dynamic-viewport-dynamic-route": Next.js encountered uncached or runtime data in \`generateViewport()\`.
+             "Route "/dynamic-viewport-dynamic-route": Next.js encountered uncached or runtime data in \`generateViewport()\`.
 
-               This prevents the page from being prerendered, leading to a slower user experience.
+             This prevents the page from being prerendered, leading to a slower user experience. Unlike metadata, viewport cannot be streamed behind \`<Suspense>\` because it affects the initial page load.
 
-               Ways to fix this:
-                 - Use a static viewport export instead of \`generateViewport()\`
-                 - Cache the viewport data with \`"use cache"\` in \`generateViewport()\`
-                 - Set \`export const instant = false\` to allow a blocking route
-
-               Learn more: https://nextjs.org/docs/messages/next-prerender-dynamic-viewport
-               Error occurred prerendering page "/dynamic-viewport-dynamic-route". Read more: https://nextjs.org/docs/messages/prerender-error
-               Export encountered an error on /dynamic-viewport-dynamic-route/page: /dynamic-viewport-dynamic-route, exiting the build."
-              `)
+             Ways to fix this:
+               - [static] Use a static viewport export instead of \`generateViewport()\`
+                 https://nextjs.org/docs/messages/blocking-prerender-viewport-runtime#use-static-viewport
+               - [cache] For uncached data (\`fetch\`, database calls): cache the viewport with \`"use cache"\` in \`generateViewport()\` (does not apply to \`connection()\`)
+                 https://nextjs.org/docs/messages/blocking-prerender-viewport-dynamic#cache-the-viewport-data
+               - [block] Set \`export const instant = false\` to allow a blocking route
+                 https://nextjs.org/docs/messages/blocking-prerender-viewport-dynamic#allow-blocking-route
+             Error occurred prerendering page "/dynamic-viewport-dynamic-route". Read more: https://nextjs.org/docs/messages/prerender-error
+             Export encountered an error on /dynamic-viewport-dynamic-route/page: /dynamic-viewport-dynamic-route, exiting the build."
+            `)
           }
         })
       }
@@ -768,10 +784,10 @@ describe('Cache Components Errors', () => {
           await expect(browser).toDisplayCollapsedRedbox(`
            [
              {
-               "code": "E1265",
+               "code": "E1401",
                "description": "Next.js encountered uncached data during prerendering.",
                "environmentLabel": "Server",
-               "label": "Instant",
+               "label": "Blocking Route",
                "source": "app/dynamic-root/page.tsx (63:26) @ fetchRandom
            > 63 |   const response = await fetch(
                 |                          ^",
@@ -782,10 +798,10 @@ describe('Cache Components Errors', () => {
                ],
              },
              {
-               "code": "E1265",
+               "code": "E1401",
                "description": "Next.js encountered uncached data during prerendering.",
                "environmentLabel": "Server",
-               "label": "Instant",
+               "label": "Blocking Route",
                "source": "app/dynamic-root/page.tsx (63:26) @ fetchRandom
            > 63 |   const response = await fetch(
                 |                          ^",
@@ -819,12 +835,12 @@ describe('Cache Components Errors', () => {
                \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
 
                Ways to fix this:
-                 - Cache the data access with \`"use cache"\`
-                 - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                 - If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
-                 - Set \`export const instant = false\` to allow a blocking route
-
-               Learn more: https://nextjs.org/docs/messages/blocking-route
+                 - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+                   https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
+                 - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
+                   https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
+                 - [block] Set \`export const instant = false\` to allow a blocking route
+                   https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
                    at fetchRandom (app/dynamic-root/page.tsx:62:16)
                    at FetchingComponent (app/dynamic-root/page.tsx:46:56)
                    at Page (app/dynamic-root/page.tsx:23:9)
@@ -841,12 +857,12 @@ describe('Cache Components Errors', () => {
                \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
 
                Ways to fix this:
-                 - Cache the data access with \`"use cache"\`
-                 - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                 - If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
-                 - Set \`export const instant = false\` to allow a blocking route
-
-               Learn more: https://nextjs.org/docs/messages/blocking-route
+                 - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+                   https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
+                 - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
+                   https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
+                 - [block] Set \`export const instant = false\` to allow a blocking route
+                   https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
                    at fetchRandom (app/dynamic-root/page.tsx:62:16)
                    at FetchingComponent (app/dynamic-root/page.tsx:46:56)
                    at Page (app/dynamic-root/page.tsx:28:7)
@@ -870,12 +886,12 @@ describe('Cache Components Errors', () => {
                \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
 
                Ways to fix this:
-                 - Cache the data access with \`"use cache"\`
-                 - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                 - If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
-                 - Set \`export const instant = false\` to allow a blocking route
-
-               Learn more: https://nextjs.org/docs/messages/blocking-route
+                 - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+                   https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
+                 - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
+                   https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
+                 - [block] Set \`export const instant = false\` to allow a blocking route
+                   https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
                    at <unknown> (app/dynamic-root/indirection.tsx:7:34)
                    at main (<anonymous>)
                    at body (<anonymous>)
@@ -895,12 +911,12 @@ describe('Cache Components Errors', () => {
                \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
 
                Ways to fix this:
-                 - Cache the data access with \`"use cache"\`
-                 - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                 - If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
-                 - Set \`export const instant = false\` to allow a blocking route
-
-               Learn more: https://nextjs.org/docs/messages/blocking-route
+                 - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+                   https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
+                 - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
+                   https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
+                 - [block] Set \`export const instant = false\` to allow a blocking route
+                   https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
                    at main (<anonymous>)
                    at body (<anonymous>)
                    at html (<anonymous>)
@@ -919,12 +935,12 @@ describe('Cache Components Errors', () => {
                \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
 
                Ways to fix this:
-                 - Cache the data access with \`"use cache"\`
-                 - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                 - If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
-                 - Set \`export const instant = false\` to allow a blocking route
-
-               Learn more: https://nextjs.org/docs/messages/blocking-route
+                 - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+                   https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
+                 - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
+                   https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
+                 - [block] Set \`export const instant = false\` to allow a blocking route
+                   https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
                    at fetchRandom (webpack:///app/dynamic-root/page.tsx:62:16)
                    at FetchingComponent (webpack:///app/dynamic-root/page.tsx:46:56)
                    at Page (webpack:///app/dynamic-root/page.tsx:23:9)
@@ -941,12 +957,12 @@ describe('Cache Components Errors', () => {
                \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
 
                Ways to fix this:
-                 - Cache the data access with \`"use cache"\`
-                 - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                 - If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
-                 - Set \`export const instant = false\` to allow a blocking route
-
-               Learn more: https://nextjs.org/docs/messages/blocking-route
+                 - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+                   https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
+                 - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
+                   https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
+                 - [block] Set \`export const instant = false\` to allow a blocking route
+                   https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
                    at fetchRandom (webpack:///app/dynamic-root/page.tsx:62:16)
                    at FetchingComponent (webpack:///app/dynamic-root/page.tsx:46:56)
                    at Page (webpack:///app/dynamic-root/page.tsx:28:7)
@@ -970,12 +986,12 @@ describe('Cache Components Errors', () => {
                \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
 
                Ways to fix this:
-                 - Cache the data access with \`"use cache"\`
-                 - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                 - If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
-                 - Set \`export const instant = false\` to allow a blocking route
-
-               Learn more: https://nextjs.org/docs/messages/blocking-route
+                 - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+                   https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
+                 - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
+                   https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
+                 - [block] Set \`export const instant = false\` to allow a blocking route
+                   https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
                    at a (<next-dist-dir>)
                    at b (<next-dist-dir>)
                    at c (<next-dist-dir>)
@@ -1009,12 +1025,12 @@ describe('Cache Components Errors', () => {
                \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
 
                Ways to fix this:
-                 - Cache the data access with \`"use cache"\`
-                 - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                 - If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
-                 - Set \`export const instant = false\` to allow a blocking route
-
-               Learn more: https://nextjs.org/docs/messages/blocking-route
+                 - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+                   https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
+                 - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
+                   https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
+                 - [block] Set \`export const instant = false\` to allow a blocking route
+                   https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
                    at w (<next-dist-dir>)
                    at x (<next-dist-dir>)
                    at y (<next-dist-dir>)
@@ -1089,10 +1105,10 @@ describe('Cache Components Errors', () => {
 
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1261",
+               "code": "E1295",
                "description": "Next.js encountered the unstable value Math.random() while prerendering.",
                "environmentLabel": "Server",
-               "label": "Instant",
+               "label": "Blocking Route",
                "source": "app/sync-random-with-fallback/page.tsx (37:23) @ RandomReadingComponent
              > 37 |   const random = Math.random()
                   |                       ^",
@@ -1124,11 +1140,12 @@ describe('Cache Components Errors', () => {
                  This value can change between renders, so it must be either prerendered or computed later.
 
                  Ways to fix this:
-                   - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
-                   - Prerender and cache the value with \`"use cache"\`
-                   - Render the value on the client with \`"use client"\`
-
-                 Learn more: https://nextjs.org/docs/messages/next-prerender-random
+                   - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+                     https://nextjs.org/docs/messages/blocking-prerender-random#generate-on-every-request
+                   - [cache] Prerender and cache the value with \`"use cache"\`
+                     https://nextjs.org/docs/messages/blocking-prerender-random#cache-the-random-value
+                   - [client] Render the value on the client with \`"use client"\`
+                     https://nextjs.org/docs/messages/blocking-prerender-random#render-on-the-client
                      at RandomReadingComponent (app/sync-random-with-fallback/page.tsx:37:23)
                      at Page (app/sync-random-with-fallback/page.tsx:18:11)
                    35 |     use(new Promise((r) => process.nextTick(r)))
@@ -1151,11 +1168,12 @@ describe('Cache Components Errors', () => {
                  This value can change between renders, so it must be either prerendered or computed later.
 
                  Ways to fix this:
-                   - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
-                   - Prerender and cache the value with \`"use cache"\`
-                   - Render the value on the client with \`"use client"\`
-
-                 Learn more: https://nextjs.org/docs/messages/next-prerender-random
+                   - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+                     https://nextjs.org/docs/messages/blocking-prerender-random#generate-on-every-request
+                   - [cache] Prerender and cache the value with \`"use cache"\`
+                     https://nextjs.org/docs/messages/blocking-prerender-random#cache-the-random-value
+                   - [client] Render the value on the client with \`"use client"\`
+                     https://nextjs.org/docs/messages/blocking-prerender-random#render-on-the-client
                      at RandomReadingComponent (webpack:///app/sync-random-with-fallback/page.tsx:37:23)
                      at Page (webpack:///app/sync-random-with-fallback/page.tsx:18:11)
                    35 |     use(new Promise((r) => process.nextTick(r)))
@@ -1180,11 +1198,12 @@ describe('Cache Components Errors', () => {
                  This value can change between renders, so it must be either prerendered or computed later.
 
                  Ways to fix this:
-                   - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
-                   - Prerender and cache the value with \`"use cache"\`
-                   - Render the value on the client with \`"use client"\`
-
-                 Learn more: https://nextjs.org/docs/messages/next-prerender-random
+                   - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+                     https://nextjs.org/docs/messages/blocking-prerender-random#generate-on-every-request
+                   - [cache] Prerender and cache the value with \`"use cache"\`
+                     https://nextjs.org/docs/messages/blocking-prerender-random#cache-the-random-value
+                   - [client] Render the value on the client with \`"use client"\`
+                     https://nextjs.org/docs/messages/blocking-prerender-random#render-on-the-client
                      at a (app/sync-random-with-fallback/page.tsx:37:23)
                    35 |     use(new Promise((r) => process.nextTick(r)))
                    36 |   }
@@ -1206,11 +1225,12 @@ describe('Cache Components Errors', () => {
                  This value can change between renders, so it must be either prerendered or computed later.
 
                  Ways to fix this:
-                   - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
-                   - Prerender and cache the value with \`"use cache"\`
-                   - Render the value on the client with \`"use client"\`
-
-                 Learn more: https://nextjs.org/docs/messages/next-prerender-random
+                   - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+                     https://nextjs.org/docs/messages/blocking-prerender-random#generate-on-every-request
+                   - [cache] Prerender and cache the value with \`"use cache"\`
+                     https://nextjs.org/docs/messages/blocking-prerender-random#cache-the-random-value
+                   - [client] Render the value on the client with \`"use client"\`
+                     https://nextjs.org/docs/messages/blocking-prerender-random#render-on-the-client
                      at a (<next-dist-dir>)
                  To get a more detailed stack trace and pinpoint the issue, try one of the following:
                    - Start the app in development mode by running \`next dev\`, then open "/sync-random-with-fallback" in your browser to investigate the error.
@@ -1237,10 +1257,10 @@ describe('Cache Components Errors', () => {
 
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1261",
+               "code": "E1295",
                "description": "Next.js encountered the unstable value Math.random() while prerendering.",
                "environmentLabel": "Server",
-               "label": "Instant",
+               "label": "Blocking Route",
                "source": "app/sync-random-without-fallback/page.tsx (32:15) @ getRandomNumber
              > 32 |   return Math.random()
                   |               ^",
@@ -1273,11 +1293,12 @@ describe('Cache Components Errors', () => {
                  This value can change between renders, so it must be either prerendered or computed later.
 
                  Ways to fix this:
-                   - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
-                   - Prerender and cache the value with \`"use cache"\`
-                   - Render the value on the client with \`"use client"\`
-
-                 Learn more: https://nextjs.org/docs/messages/next-prerender-random
+                   - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+                     https://nextjs.org/docs/messages/blocking-prerender-random#generate-on-every-request
+                   - [cache] Prerender and cache the value with \`"use cache"\`
+                     https://nextjs.org/docs/messages/blocking-prerender-random#cache-the-random-value
+                   - [client] Render the value on the client with \`"use client"\`
+                     https://nextjs.org/docs/messages/blocking-prerender-random#render-on-the-client
                      at getRandomNumber (app/sync-random-without-fallback/page.tsx:32:15)
                      at RandomReadingComponent (app/sync-random-without-fallback/page.tsx:40:18)
                      at Page (app/sync-random-without-fallback/page.tsx:18:11)
@@ -1301,11 +1322,12 @@ describe('Cache Components Errors', () => {
                  This value can change between renders, so it must be either prerendered or computed later.
 
                  Ways to fix this:
-                   - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
-                   - Prerender and cache the value with \`"use cache"\`
-                   - Render the value on the client with \`"use client"\`
-
-                 Learn more: https://nextjs.org/docs/messages/next-prerender-random
+                   - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+                     https://nextjs.org/docs/messages/blocking-prerender-random#generate-on-every-request
+                   - [cache] Prerender and cache the value with \`"use cache"\`
+                     https://nextjs.org/docs/messages/blocking-prerender-random#cache-the-random-value
+                   - [client] Render the value on the client with \`"use client"\`
+                     https://nextjs.org/docs/messages/blocking-prerender-random#render-on-the-client
                      at getRandomNumber (webpack:///app/sync-random-without-fallback/page.tsx:32:15)
                      at RandomReadingComponent (webpack:///app/sync-random-without-fallback/page.tsx:40:18)
                      at Page (webpack:///app/sync-random-without-fallback/page.tsx:18:11)
@@ -1331,11 +1353,12 @@ describe('Cache Components Errors', () => {
                  This value can change between renders, so it must be either prerendered or computed later.
 
                  Ways to fix this:
-                   - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
-                   - Prerender and cache the value with \`"use cache"\`
-                   - Render the value on the client with \`"use client"\`
-
-                 Learn more: https://nextjs.org/docs/messages/next-prerender-random
+                   - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+                     https://nextjs.org/docs/messages/blocking-prerender-random#generate-on-every-request
+                   - [cache] Prerender and cache the value with \`"use cache"\`
+                     https://nextjs.org/docs/messages/blocking-prerender-random#cache-the-random-value
+                   - [client] Render the value on the client with \`"use client"\`
+                     https://nextjs.org/docs/messages/blocking-prerender-random#render-on-the-client
                      at a (app/sync-random-without-fallback/page.tsx:32:15)
                    30 |
                    31 | function getRandomNumber() {
@@ -1357,11 +1380,12 @@ describe('Cache Components Errors', () => {
                  This value can change between renders, so it must be either prerendered or computed later.
 
                  Ways to fix this:
-                   - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
-                   - Prerender and cache the value with \`"use cache"\`
-                   - Render the value on the client with \`"use client"\`
-
-                 Learn more: https://nextjs.org/docs/messages/next-prerender-random
+                   - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+                     https://nextjs.org/docs/messages/blocking-prerender-random#generate-on-every-request
+                   - [cache] Prerender and cache the value with \`"use cache"\`
+                     https://nextjs.org/docs/messages/blocking-prerender-random#cache-the-random-value
+                   - [client] Render the value on the client with \`"use client"\`
+                     https://nextjs.org/docs/messages/blocking-prerender-random#render-on-the-client
                      at a (<next-dist-dir>)
                  To get a more detailed stack trace and pinpoint the issue, try one of the following:
                    - Start the app in development mode by running \`next dev\`, then open "/sync-random-without-fallback" in your browser to investigate the error.
@@ -1569,7 +1593,7 @@ describe('Cache Components Errors', () => {
                  TypeError: <module-function>().get is not a function
                      at CookiesReadingComponent (app/sync-cookies/page.tsx:18:36)
                    16 | async function CookiesReadingComponent() {
-                   17 |   // Cast to any as we removed UnsafeUnwrapped types, but still need to test with the sync...
+                   17 |   // Cast to any as we removed UnsafeUnwrapped types, but still need to test with the sync access
                  > 18 |   const token = (cookies() as any).get('token')
                       |                                    ^
                    19 |
@@ -1587,7 +1611,7 @@ describe('Cache Components Errors', () => {
                  TypeError: <module-function>().get is not a function
                      at CookiesReadingComponent (webpack:///app/sync-cookies/page.tsx:18:36)
                    16 | async function CookiesReadingComponent() {
-                   17 |   // Cast to any as we removed UnsafeUnwrapped types, but still need to test with the sync...
+                   17 |   // Cast to any as we removed UnsafeUnwrapped types, but still need to test with the sync access
                  > 18 |   const token = (cookies() as any).get('token')
                       |                                    ^
                    19 |
@@ -1606,9 +1630,8 @@ describe('Cache Components Errors', () => {
                  "Error occurred prerendering page "/sync-cookies". Read more: https://nextjs.org/docs/messages/prerender-error
                  TypeError: <module-function>().get is not a function
                      at a (app/sync-cookies/page.tsx:18:36)
-                     at b (<anonymous>)
                    16 | async function CookiesReadingComponent() {
-                   17 |   // Cast to any as we removed UnsafeUnwrapped types, but still need to test with the sync...
+                   17 |   // Cast to any as we removed UnsafeUnwrapped types, but still need to test with the sync access
                  > 18 |   const token = (cookies() as any).get('token')
                       |                                    ^
                    19 |
@@ -1622,8 +1645,7 @@ describe('Cache Components Errors', () => {
                 expect(output).toMatchInlineSnapshot(`
                  "Error occurred prerendering page "/sync-cookies". Read more: https://nextjs.org/docs/messages/prerender-error
                  TypeError: <module-function>().get is not a function
-                     at a (<next-dist-dir>)
-                     at b (<anonymous>) {
+                     at a (<next-dist-dir>) {
                    digest: '<error-digest>'
                  }
                  Export encountered an error on /sync-cookies/page: /sync-cookies, exiting the build."
@@ -1903,7 +1925,7 @@ describe('Cache Components Errors', () => {
                  TypeError: <module-function>().get is not a function
                      at HeadersReadingComponent (app/sync-headers/page.tsx:18:40)
                    16 | async function HeadersReadingComponent() {
-                   17 |   // Cast to any as we removed UnsafeUnwrapped types, but still need to test with the sync...
+                   17 |   // Cast to any as we removed UnsafeUnwrapped types, but still need to test with the sync access
                  > 18 |   const userAgent = (headers() as any).get('user-agent')
                       |                                        ^
                    19 |   return (
@@ -1921,7 +1943,7 @@ describe('Cache Components Errors', () => {
                  TypeError: <module-function>().get is not a function
                      at HeadersReadingComponent (webpack:///app/sync-headers/page.tsx:18:40)
                    16 | async function HeadersReadingComponent() {
-                   17 |   // Cast to any as we removed UnsafeUnwrapped types, but still need to test with the sync...
+                   17 |   // Cast to any as we removed UnsafeUnwrapped types, but still need to test with the sync access
                  > 18 |   const userAgent = (headers() as any).get('user-agent')
                       |                                        ^
                    19 |   return (
@@ -1940,9 +1962,8 @@ describe('Cache Components Errors', () => {
                  "Error occurred prerendering page "/sync-headers". Read more: https://nextjs.org/docs/messages/prerender-error
                  TypeError: <module-function>().get is not a function
                      at a (app/sync-headers/page.tsx:18:40)
-                     at b (<anonymous>)
                    16 | async function HeadersReadingComponent() {
-                   17 |   // Cast to any as we removed UnsafeUnwrapped types, but still need to test with the sync...
+                   17 |   // Cast to any as we removed UnsafeUnwrapped types, but still need to test with the sync access
                  > 18 |   const userAgent = (headers() as any).get('user-agent')
                       |                                        ^
                    19 |   return (
@@ -1956,8 +1977,7 @@ describe('Cache Components Errors', () => {
                 expect(output).toMatchInlineSnapshot(`
                  "Error occurred prerendering page "/sync-headers". Read more: https://nextjs.org/docs/messages/prerender-error
                  TypeError: <module-function>().get is not a function
-                     at a (<next-dist-dir>)
-                     at b (<anonymous>) {
+                     at a (<next-dist-dir>) {
                    digest: '<error-digest>'
                  }
                  Export encountered an error on /sync-headers/page: /sync-headers, exiting the build."
@@ -2177,10 +2197,10 @@ describe('Cache Components Errors', () => {
 
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1266",
+               "code": "E1287",
                "description": "Next.js encountered the unstable value new Date() in a Client Component.",
                "environmentLabel": "Server",
-               "label": "Instant",
+               "label": "Blocking Route",
                "source": "app/sync-attribution/guarded-async-unguarded-clientsync/client.tsx (5:16) @ SyncIO
              > 5 |   const data = new Date().toISOString()
                  |                ^",
@@ -2212,11 +2232,12 @@ describe('Cache Components Errors', () => {
                  This value would be evaluated during the prerender, instead of recomputed on each visit.
 
                  Ways to fix this:
-                   - Wrap the Client Component in \`<Suspense fallback={...}>\`
-                   - Move the read into a \`useEffect\` or event handler
-                   - If the value is for telemetry, use a timing API such as \`performance.now()\`
-
-                 Learn more: https://nextjs.org/docs/messages/next-prerender-current-time-client
+                   - [stream] Wrap the Client Component in \`<Suspense fallback={...}>\`
+                     https://nextjs.org/docs/messages/blocking-prerender-current-time-client#wrap-in-or-move-into-suspense
+                   - [defer] Move the read into a \`useEffect\` or event handler
+                     https://nextjs.org/docs/messages/blocking-prerender-current-time-client#move-into-effect-or-event-handler
+                   - [measure] If the value is for telemetry, use a timing API such as \`performance.now()\`
+                     https://nextjs.org/docs/messages/blocking-prerender-current-time-client#for-telemetry-use-a-timing-api
                      at SyncIO (app/sync-attribution/guarded-async-unguarded-clientsync/client.tsx:5:16)
                      at Page (app/sync-attribution/guarded-async-unguarded-clientsync/page.tsx:22:9)
                    3 | export function SyncIO() {
@@ -2239,11 +2260,12 @@ describe('Cache Components Errors', () => {
                  This value would be evaluated during the prerender, instead of recomputed on each visit.
 
                  Ways to fix this:
-                   - Wrap the Client Component in \`<Suspense fallback={...}>\`
-                   - Move the read into a \`useEffect\` or event handler
-                   - If the value is for telemetry, use a timing API such as \`performance.now()\`
-
-                 Learn more: https://nextjs.org/docs/messages/next-prerender-current-time-client
+                   - [stream] Wrap the Client Component in \`<Suspense fallback={...}>\`
+                     https://nextjs.org/docs/messages/blocking-prerender-current-time-client#wrap-in-or-move-into-suspense
+                   - [defer] Move the read into a \`useEffect\` or event handler
+                     https://nextjs.org/docs/messages/blocking-prerender-current-time-client#move-into-effect-or-event-handler
+                   - [measure] If the value is for telemetry, use a timing API such as \`performance.now()\`
+                     https://nextjs.org/docs/messages/blocking-prerender-current-time-client#for-telemetry-use-a-timing-api
                      at SyncIO (webpack:///app/sync-attribution/guarded-async-unguarded-clientsync/client.tsx:5:16)
                      at Page (webpack:///app/sync-attribution/guarded-async-unguarded-clientsync/page.tsx:22:9)
                    3 | export function SyncIO() {
@@ -2268,11 +2290,12 @@ describe('Cache Components Errors', () => {
                  This value would be evaluated during the prerender, instead of recomputed on each visit.
 
                  Ways to fix this:
-                   - Wrap the Client Component in \`<Suspense fallback={...}>\`
-                   - Move the read into a \`useEffect\` or event handler
-                   - If the value is for telemetry, use a timing API such as \`performance.now()\`
-
-                 Learn more: https://nextjs.org/docs/messages/next-prerender-current-time-client
+                   - [stream] Wrap the Client Component in \`<Suspense fallback={...}>\`
+                     https://nextjs.org/docs/messages/blocking-prerender-current-time-client#wrap-in-or-move-into-suspense
+                   - [defer] Move the read into a \`useEffect\` or event handler
+                     https://nextjs.org/docs/messages/blocking-prerender-current-time-client#move-into-effect-or-event-handler
+                   - [measure] If the value is for telemetry, use a timing API such as \`performance.now()\`
+                     https://nextjs.org/docs/messages/blocking-prerender-current-time-client#for-telemetry-use-a-timing-api
                      at <unknown> (app/sync-attribution/guarded-async-unguarded-clientsync/client.tsx:5:16)
                    3 | export function SyncIO() {
                    4 |   // This is a sync IO access that should not cause an error
@@ -2294,11 +2317,12 @@ describe('Cache Components Errors', () => {
                  This value would be evaluated during the prerender, instead of recomputed on each visit.
 
                  Ways to fix this:
-                   - Wrap the Client Component in \`<Suspense fallback={...}>\`
-                   - Move the read into a \`useEffect\` or event handler
-                   - If the value is for telemetry, use a timing API such as \`performance.now()\`
-
-                 Learn more: https://nextjs.org/docs/messages/next-prerender-current-time-client
+                   - [stream] Wrap the Client Component in \`<Suspense fallback={...}>\`
+                     https://nextjs.org/docs/messages/blocking-prerender-current-time-client#wrap-in-or-move-into-suspense
+                   - [defer] Move the read into a \`useEffect\` or event handler
+                     https://nextjs.org/docs/messages/blocking-prerender-current-time-client#move-into-effect-or-event-handler
+                   - [measure] If the value is for telemetry, use a timing API such as \`performance.now()\`
+                     https://nextjs.org/docs/messages/blocking-prerender-current-time-client#for-telemetry-use-a-timing-api
                      at a (<next-dist-dir>)
                  To get a more detailed stack trace and pinpoint the issue, try one of the following:
                    - Start the app in development mode by running \`next dev\`, then open "/sync-attribution/guarded-async-unguarded-clientsync" in your browser to investigate the error.
@@ -2325,10 +2349,10 @@ describe('Cache Components Errors', () => {
 
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1272",
+               "code": "E1400",
                "description": "Next.js encountered runtime data during prerendering.",
                "environmentLabel": "Server",
-               "label": "Instant",
+               "label": "Blocking Route",
                "source": "app/sync-attribution/unguarded-async-guarded-clientsync/page.tsx (34:18) @ RequestData
              > 34 |   ;(await cookies()).get('foo')
                   |                  ^",
@@ -2360,12 +2384,12 @@ describe('Cache Components Errors', () => {
                  \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
 
                  Ways to fix this:
-                   - Cache the data access with \`"use cache"\`
-                   - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                   - If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
-                   - Set \`export const instant = false\` to allow a blocking route
-
-                 Learn more: https://nextjs.org/docs/messages/blocking-route
+                   - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+                     https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
+                   - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
+                     https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
+                   - [block] Set \`export const instant = false\` to allow a blocking route
+                     https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
                      at RequestData (app/sync-attribution/unguarded-async-guarded-clientsync/page.tsx:34:18)
                      at Page (app/sync-attribution/unguarded-async-guarded-clientsync/page.tsx:27:9)
                    32 |
@@ -2388,12 +2412,12 @@ describe('Cache Components Errors', () => {
                  \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
 
                  Ways to fix this:
-                   - Cache the data access with \`"use cache"\`
-                   - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                   - If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
-                   - Set \`export const instant = false\` to allow a blocking route
-
-                 Learn more: https://nextjs.org/docs/messages/blocking-route
+                   - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+                     https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
+                   - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
+                     https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
+                   - [block] Set \`export const instant = false\` to allow a blocking route
+                     https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
                      at a (<anonymous>)
                      at main (<anonymous>)
                      at main (<anonymous>)
@@ -2414,12 +2438,12 @@ describe('Cache Components Errors', () => {
                  \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
 
                  Ways to fix this:
-                   - Cache the data access with \`"use cache"\`
-                   - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                   - If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
-                   - Set \`export const instant = false\` to allow a blocking route
-
-                 Learn more: https://nextjs.org/docs/messages/blocking-route
+                   - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+                     https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
+                   - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
+                     https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
+                   - [block] Set \`export const instant = false\` to allow a blocking route
+                     https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
                      at RequestData (webpack:///app/sync-attribution/unguarded-async-guarded-clientsync/page.tsx:34:18)
                      at Page (webpack:///app/sync-attribution/unguarded-async-guarded-clientsync/page.tsx:27:9)
                    32 |
@@ -2449,6 +2473,49 @@ describe('Cache Components Errors', () => {
         }
       })
 
+      describe('Unguarded RSC with Client sync IO in a microtask', () => {
+        const pathname =
+          '/sync-attribution/unguarded-async-client-microtask-syncio'
+
+        if (skipped) {
+          return
+        }
+
+        if (isNextDev) {
+          it('should show request data rather than attribute a microtask sync IO access', async () => {
+            const browser = await next.browser(pathname)
+
+            await retry(async () => {
+              const redbox = await getRedboxDescription(browser)
+              expect(redbox).toContain(
+                'Next.js encountered runtime data during prerendering.'
+              )
+              expect(redbox).not.toContain('new Date()')
+            })
+          })
+        } else {
+          it('should error for request data rather than attribute a microtask sync IO access', async () => {
+            try {
+              await prerender(pathname)
+            } catch {
+              // we expect the build to fail
+            }
+
+            const output = getPrerenderOutput(
+              next.cliOutput.slice(cliOutputLength),
+              { isMinified: !isDebugPrerender }
+            )
+
+            expect(output).toContain(
+              `Error: Route "${pathname}": Next.js encountered uncached or runtime data during prerendering.`
+            )
+            expect(output).not.toContain(
+              'Next.js encountered the unstable value `new Date()` in a Client Component.'
+            )
+          })
+        }
+      })
+
       describe('unguarded RSC with unguarded Client sync IO', () => {
         const pathname =
           '/sync-attribution/unguarded-async-unguarded-clientsync'
@@ -2463,10 +2530,10 @@ describe('Cache Components Errors', () => {
 
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1266",
+               "code": "E1287",
                "description": "Next.js encountered the unstable value new Date() in a Client Component.",
                "environmentLabel": "Server",
-               "label": "Instant",
+               "label": "Blocking Route",
                "source": "app/sync-attribution/unguarded-async-unguarded-clientsync/client.tsx (5:16) @ SyncIO
              > 5 |   const data = new Date().toISOString()
                  |                ^",
@@ -2498,11 +2565,12 @@ describe('Cache Components Errors', () => {
                  This value would be evaluated during the prerender, instead of recomputed on each visit.
 
                  Ways to fix this:
-                   - Wrap the Client Component in \`<Suspense fallback={...}>\`
-                   - Move the read into a \`useEffect\` or event handler
-                   - If the value is for telemetry, use a timing API such as \`performance.now()\`
-
-                 Learn more: https://nextjs.org/docs/messages/next-prerender-current-time-client
+                   - [stream] Wrap the Client Component in \`<Suspense fallback={...}>\`
+                     https://nextjs.org/docs/messages/blocking-prerender-current-time-client#wrap-in-or-move-into-suspense
+                   - [defer] Move the read into a \`useEffect\` or event handler
+                     https://nextjs.org/docs/messages/blocking-prerender-current-time-client#move-into-effect-or-event-handler
+                   - [measure] If the value is for telemetry, use a timing API such as \`performance.now()\`
+                     https://nextjs.org/docs/messages/blocking-prerender-current-time-client#for-telemetry-use-a-timing-api
                      at SyncIO (app/sync-attribution/unguarded-async-unguarded-clientsync/client.tsx:5:16)
                      at Page (app/sync-attribution/unguarded-async-unguarded-clientsync/page.tsx:22:9)
                    3 | export function SyncIO() {
@@ -2525,11 +2593,12 @@ describe('Cache Components Errors', () => {
                  This value would be evaluated during the prerender, instead of recomputed on each visit.
 
                  Ways to fix this:
-                   - Wrap the Client Component in \`<Suspense fallback={...}>\`
-                   - Move the read into a \`useEffect\` or event handler
-                   - If the value is for telemetry, use a timing API such as \`performance.now()\`
-
-                 Learn more: https://nextjs.org/docs/messages/next-prerender-current-time-client
+                   - [stream] Wrap the Client Component in \`<Suspense fallback={...}>\`
+                     https://nextjs.org/docs/messages/blocking-prerender-current-time-client#wrap-in-or-move-into-suspense
+                   - [defer] Move the read into a \`useEffect\` or event handler
+                     https://nextjs.org/docs/messages/blocking-prerender-current-time-client#move-into-effect-or-event-handler
+                   - [measure] If the value is for telemetry, use a timing API such as \`performance.now()\`
+                     https://nextjs.org/docs/messages/blocking-prerender-current-time-client#for-telemetry-use-a-timing-api
                      at SyncIO (webpack:///app/sync-attribution/unguarded-async-unguarded-clientsync/client.tsx:5:16)
                      at Page (webpack:///app/sync-attribution/unguarded-async-unguarded-clientsync/page.tsx:22:9)
                    3 | export function SyncIO() {
@@ -2554,11 +2623,12 @@ describe('Cache Components Errors', () => {
                  This value would be evaluated during the prerender, instead of recomputed on each visit.
 
                  Ways to fix this:
-                   - Wrap the Client Component in \`<Suspense fallback={...}>\`
-                   - Move the read into a \`useEffect\` or event handler
-                   - If the value is for telemetry, use a timing API such as \`performance.now()\`
-
-                 Learn more: https://nextjs.org/docs/messages/next-prerender-current-time-client
+                   - [stream] Wrap the Client Component in \`<Suspense fallback={...}>\`
+                     https://nextjs.org/docs/messages/blocking-prerender-current-time-client#wrap-in-or-move-into-suspense
+                   - [defer] Move the read into a \`useEffect\` or event handler
+                     https://nextjs.org/docs/messages/blocking-prerender-current-time-client#move-into-effect-or-event-handler
+                   - [measure] If the value is for telemetry, use a timing API such as \`performance.now()\`
+                     https://nextjs.org/docs/messages/blocking-prerender-current-time-client#for-telemetry-use-a-timing-api
                      at <unknown> (app/sync-attribution/unguarded-async-unguarded-clientsync/client.tsx:5:16)
                    3 | export function SyncIO() {
                    4 |   // This is a sync IO access that should not cause an error
@@ -2580,11 +2650,12 @@ describe('Cache Components Errors', () => {
                  This value would be evaluated during the prerender, instead of recomputed on each visit.
 
                  Ways to fix this:
-                   - Wrap the Client Component in \`<Suspense fallback={...}>\`
-                   - Move the read into a \`useEffect\` or event handler
-                   - If the value is for telemetry, use a timing API such as \`performance.now()\`
-
-                 Learn more: https://nextjs.org/docs/messages/next-prerender-current-time-client
+                   - [stream] Wrap the Client Component in \`<Suspense fallback={...}>\`
+                     https://nextjs.org/docs/messages/blocking-prerender-current-time-client#wrap-in-or-move-into-suspense
+                   - [defer] Move the read into a \`useEffect\` or event handler
+                     https://nextjs.org/docs/messages/blocking-prerender-current-time-client#move-into-effect-or-event-handler
+                   - [measure] If the value is for telemetry, use a timing API such as \`performance.now()\`
+                     https://nextjs.org/docs/messages/blocking-prerender-current-time-client#for-telemetry-use-a-timing-api
                      at a (<next-dist-dir>)
                  To get a more detailed stack trace and pinpoint the issue, try one of the following:
                    - Start the app in development mode by running \`next dev\`, then open "/sync-attribution/unguarded-async-unguarded-clientsync" in your browser to investigate the error.
@@ -2607,12 +2678,12 @@ describe('Cache Components Errors', () => {
           it('should show a redbox error', async () => {
             const browser = await next.browser(pathname)
 
-            await expect(browser).toDisplayRedbox(`
+            await expect(browser).toDisplayCollapsedRedbox(`
              {
                "code": "E831",
                "description": "Route /use-cache-cookies used \`cookies()\` inside "use cache". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use \`cookies()\` outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache",
-               "environmentLabel": "Prerender",
-               "label": "Runtime Error",
+               "environmentLabel": "Server",
+               "label": "Console Error",
                "source": "app/use-cache-cookies/page.tsx (22:18) @ CookiesReadingComponent
              > 22 |     await cookies()
                   |                  ^",
@@ -2716,12 +2787,12 @@ describe('Cache Components Errors', () => {
           it('should show a redbox error', async () => {
             const browser = await next.browser(pathname)
 
-            await expect(browser).toDisplayRedbox(`
+            await expect(browser).toDisplayCollapsedRedbox(`
              {
                "code": "E829",
                "description": "Route /use-cache-draft-mode used "draftMode().enable()" inside "use cache". The enabled status of \`draftMode()\` can be read in caches but you must not enable or disable \`draftMode()\` inside a cache. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache",
-               "environmentLabel": "Prerender",
-               "label": "Runtime Error",
+               "environmentLabel": "Server",
+               "label": "Console Error",
                "source": "app/use-cache-draft-mode/page.tsx (20:26) @ DraftModeEnablingComponent
              > 20 |     ;(await draftMode()).enable()
                   |                          ^",
@@ -2824,12 +2895,12 @@ describe('Cache Components Errors', () => {
           it('should show a redbox error', async () => {
             const browser = await next.browser(pathname)
 
-            await expect(browser).toDisplayRedbox(`
+            await expect(browser).toDisplayCollapsedRedbox(`
              {
                "code": "E833",
                "description": "Route /use-cache-headers used \`headers()\` inside "use cache". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use \`headers()\` outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache",
-               "environmentLabel": "Prerender",
-               "label": "Runtime Error",
+               "environmentLabel": "Server",
+               "label": "Console Error",
                "source": "app/use-cache-headers/page.tsx (21:18) @ HeadersReadingComponent
              > 21 |     await headers()
                   |                  ^",
@@ -2931,12 +3002,12 @@ describe('Cache Components Errors', () => {
           it('should show a redbox error', async () => {
             const browser = await next.browser('/use-cache-connection')
 
-            await expect(browser).toDisplayRedbox(`
+            await expect(browser).toDisplayCollapsedRedbox(`
              {
                "code": "E841",
                "description": "Route /use-cache-connection used \`connection()\` inside "use cache". The \`connection()\` function is used to indicate the subsequent code must only run when there is an actual request, but caches must be able to be produced before a request, so this function is not allowed in this scope. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache",
-               "environmentLabel": "Prerender",
-               "label": "Runtime Error",
+               "environmentLabel": "Server",
+               "label": "Console Error",
                "source": "app/use-cache-connection/page.tsx (21:21) @ ConnectionCallingComponent
              > 21 |     await connection()
                   |                     ^",
@@ -3041,10 +3112,10 @@ describe('Cache Components Errors', () => {
 
               await expect(browser).toDisplayCollapsedRedbox(`
                {
-                 "code": "E1272",
+                 "code": "E1400",
                  "description": "Next.js encountered runtime data during prerendering.",
                  "environmentLabel": "Server",
-                 "label": "Instant",
+                 "label": "Blocking Route",
                  "source": "app/use-cache-low-expire/fast/page.tsx (3:16) @ Page
                > 3 | export default async function Page() {
                    |                ^",
@@ -3075,12 +3146,12 @@ describe('Cache Components Errors', () => {
                    \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
 
                    Ways to fix this:
-                     - Cache the data access with \`"use cache"\`
-                     - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                     - If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
-                     - Set \`export const instant = false\` to allow a blocking route
-
-                   Learn more: https://nextjs.org/docs/messages/blocking-route
+                     - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+                       https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
+                     - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
+                       https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
+                     - [block] Set \`export const instant = false\` to allow a blocking route
+                       https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
                        at Page (app/use-cache-low-expire/fast/page.tsx:3:16)
                      1 | import { cacheLife } from 'next/cache'
                      2 |
@@ -3102,12 +3173,12 @@ describe('Cache Components Errors', () => {
                    \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
 
                    Ways to fix this:
-                     - Cache the data access with \`"use cache"\`
-                     - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                     - If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
-                     - Set \`export const instant = false\` to allow a blocking route
-
-                   Learn more: https://nextjs.org/docs/messages/blocking-route
+                     - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+                       https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
+                     - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
+                       https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
+                     - [block] Set \`export const instant = false\` to allow a blocking route
+                       https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
                        at main (<anonymous>)
                        at body (<anonymous>)
                        at html (<anonymous>)
@@ -3129,12 +3200,12 @@ describe('Cache Components Errors', () => {
 \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
 
 Ways to fix this:
-  - Cache the data access with \`"use cache"\`
-  - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-  - If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
-  - Set \`export const instant = false\` to allow a blocking route
-
-Learn more: https://nextjs.org/docs/messages/blocking-route`
+  - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+    https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
+  - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
+    https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
+  - [block] Set \`export const instant = false\` to allow a blocking route
+    https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route`
                   )
                 } else {
                   expect(output).toInclude(
@@ -3143,12 +3214,12 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
 \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
 
 Ways to fix this:
-  - Cache the data access with \`"use cache"\`
-  - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-  - If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
-  - Set \`export const instant = false\` to allow a blocking route
-
-Learn more: https://nextjs.org/docs/messages/blocking-route`
+  - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+    https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
+  - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
+    https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
+  - [block] Set \`export const instant = false\` to allow a blocking route
+    https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route`
                   )
                 }
               }
@@ -3163,10 +3234,10 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
 
               await expect(browser).toDisplayCollapsedRedbox(`
                {
-                 "code": "E1272",
+                 "code": "E1400",
                  "description": "Next.js encountered runtime data during prerendering.",
                  "environmentLabel": "Server",
-                 "label": "Instant",
+                 "label": "Blocking Route",
                  "source": "app/use-cache-low-expire/slow/page.tsx (3:16) @ Page
                > 3 | export default async function Page() {
                    |                ^",
@@ -3197,12 +3268,12 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                    \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
 
                    Ways to fix this:
-                     - Cache the data access with \`"use cache"\`
-                     - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                     - If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
-                     - Set \`export const instant = false\` to allow a blocking route
-
-                   Learn more: https://nextjs.org/docs/messages/blocking-route
+                     - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+                       https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
+                     - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
+                       https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
+                     - [block] Set \`export const instant = false\` to allow a blocking route
+                       https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
                        at Page (app/use-cache-low-expire/slow/page.tsx:3:16)
                      1 | import { cacheLife } from 'next/cache'
                      2 |
@@ -3224,12 +3295,12 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                    \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
 
                    Ways to fix this:
-                     - Cache the data access with \`"use cache"\`
-                     - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                     - If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
-                     - Set \`export const instant = false\` to allow a blocking route
-
-                   Learn more: https://nextjs.org/docs/messages/blocking-route
+                     - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+                       https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
+                     - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
+                       https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
+                     - [block] Set \`export const instant = false\` to allow a blocking route
+                       https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
                        at main (<anonymous>)
                        at body (<anonymous>)
                        at html (<anonymous>)
@@ -3251,12 +3322,12 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
 \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
 
 Ways to fix this:
-  - Cache the data access with \`"use cache"\`
-  - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-  - If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
-  - Set \`export const instant = false\` to allow a blocking route
-
-Learn more: https://nextjs.org/docs/messages/blocking-route`
+  - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+    https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
+  - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
+    https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
+  - [block] Set \`export const instant = false\` to allow a blocking route
+    https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route`
                   )
                 } else {
                   expect(output).toInclude(
@@ -3265,12 +3336,12 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
 \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
 
 Ways to fix this:
-  - Cache the data access with \`"use cache"\`
-  - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-  - If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
-  - Set \`export const instant = false\` to allow a blocking route
-
-Learn more: https://nextjs.org/docs/messages/blocking-route`
+  - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+    https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
+  - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
+    https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
+  - [block] Set \`export const instant = false\` to allow a blocking route
+    https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route`
                   )
                 }
               }
@@ -3444,10 +3515,10 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
 
               await expect(browser).toDisplayCollapsedRedbox(`
                {
-                 "code": "E1272",
+                 "code": "E1400",
                  "description": "Next.js encountered runtime data during prerendering.",
                  "environmentLabel": "Server",
-                 "label": "Instant",
+                 "label": "Blocking Route",
                  "source": "app/use-cache-revalidate-0/fast/page.tsx (3:16) @ Page
                > 3 | export default async function Page() {
                    |                ^",
@@ -3478,12 +3549,12 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                    \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
 
                    Ways to fix this:
-                     - Cache the data access with \`"use cache"\`
-                     - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                     - If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
-                     - Set \`export const instant = false\` to allow a blocking route
-
-                   Learn more: https://nextjs.org/docs/messages/blocking-route
+                     - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+                       https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
+                     - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
+                       https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
+                     - [block] Set \`export const instant = false\` to allow a blocking route
+                       https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
                        at Page (app/use-cache-revalidate-0/fast/page.tsx:3:16)
                      1 | import { cacheLife } from 'next/cache'
                      2 |
@@ -3505,12 +3576,12 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                    \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
 
                    Ways to fix this:
-                     - Cache the data access with \`"use cache"\`
-                     - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                     - If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
-                     - Set \`export const instant = false\` to allow a blocking route
-
-                   Learn more: https://nextjs.org/docs/messages/blocking-route
+                     - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+                       https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
+                     - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
+                       https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
+                     - [block] Set \`export const instant = false\` to allow a blocking route
+                       https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
                        at main (<anonymous>)
                        at body (<anonymous>)
                        at html (<anonymous>)
@@ -3532,12 +3603,12 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
 \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
 
 Ways to fix this:
-  - Cache the data access with \`"use cache"\`
-  - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-  - If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
-  - Set \`export const instant = false\` to allow a blocking route
-
-Learn more: https://nextjs.org/docs/messages/blocking-route`
+  - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+    https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
+  - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
+    https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
+  - [block] Set \`export const instant = false\` to allow a blocking route
+    https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route`
                   )
                 } else {
                   expect(output).toInclude(
@@ -3546,12 +3617,12 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
 \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
 
 Ways to fix this:
-  - Cache the data access with \`"use cache"\`
-  - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-  - If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
-  - Set \`export const instant = false\` to allow a blocking route
-
-Learn more: https://nextjs.org/docs/messages/blocking-route`
+  - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+    https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
+  - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
+    https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
+  - [block] Set \`export const instant = false\` to allow a blocking route
+    https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route`
                   )
                 }
               }
@@ -3566,10 +3637,10 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
 
               await expect(browser).toDisplayCollapsedRedbox(`
                {
-                 "code": "E1272",
+                 "code": "E1400",
                  "description": "Next.js encountered runtime data during prerendering.",
                  "environmentLabel": "Server",
-                 "label": "Instant",
+                 "label": "Blocking Route",
                  "source": "app/use-cache-revalidate-0/slow/page.tsx (3:16) @ Page
                > 3 | export default async function Page() {
                    |                ^",
@@ -3600,12 +3671,12 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                    \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
 
                    Ways to fix this:
-                     - Cache the data access with \`"use cache"\`
-                     - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                     - If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
-                     - Set \`export const instant = false\` to allow a blocking route
-
-                   Learn more: https://nextjs.org/docs/messages/blocking-route
+                     - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+                       https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
+                     - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
+                       https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
+                     - [block] Set \`export const instant = false\` to allow a blocking route
+                       https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
                        at Page (app/use-cache-revalidate-0/slow/page.tsx:3:16)
                      1 | import { cacheLife } from 'next/cache'
                      2 |
@@ -3622,25 +3693,25 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                   `)
                 } else {
                   expect(output).toMatchInlineSnapshot(`
-                    "Error: Route "/use-cache-revalidate-0/slow": Next.js encountered uncached or runtime data during prerendering.
+                   "Error: Route "/use-cache-revalidate-0/slow": Next.js encountered uncached or runtime data during prerendering.
 
-                    \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
+                   \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
 
-                    Ways to fix this:
-                      - Cache the data access with \`"use cache"\`
-                      - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                      - If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
-                      - Set \`export const instant = false\` to allow a blocking route
-
-                    Learn more: https://nextjs.org/docs/messages/blocking-route
-                        at main (<anonymous>)
-                        at body (<anonymous>)
-                        at html (<anonymous>)
-                    To get a more detailed stack trace and pinpoint the issue, try one of the following:
-                      - Start the app in development mode by running \`next dev\`, then open "/use-cache-revalidate-0/slow" in your browser to investigate the error.
-                      - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
-                    Error occurred prerendering page "/use-cache-revalidate-0/slow". Read more: https://nextjs.org/docs/messages/prerender-error
-                    Export encountered an error on /use-cache-revalidate-0/slow/page: /use-cache-revalidate-0/slow, exiting the build."
+                   Ways to fix this:
+                     - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+                       https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
+                     - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
+                       https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
+                     - [block] Set \`export const instant = false\` to allow a blocking route
+                       https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
+                       at main (<anonymous>)
+                       at body (<anonymous>)
+                       at html (<anonymous>)
+                   To get a more detailed stack trace and pinpoint the issue, try one of the following:
+                     - Start the app in development mode by running \`next dev\`, then open "/use-cache-revalidate-0/slow" in your browser to investigate the error.
+                     - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
+                   Error occurred prerendering page "/use-cache-revalidate-0/slow". Read more: https://nextjs.org/docs/messages/prerender-error
+                   Export encountered an error on /use-cache-revalidate-0/slow/page: /use-cache-revalidate-0/slow, exiting the build."
                   `)
                 }
               } else {
@@ -3654,12 +3725,12 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
 \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
 
 Ways to fix this:
-  - Cache the data access with \`"use cache"\`
-  - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-  - If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
-  - Set \`export const instant = false\` to allow a blocking route
-
-Learn more: https://nextjs.org/docs/messages/blocking-route`
+  - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+    https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
+  - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
+    https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
+  - [block] Set \`export const instant = false\` to allow a blocking route
+    https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route`
                   )
                 } else {
                   expect(output).toInclude(
@@ -3668,12 +3739,12 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
 \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
 
 Ways to fix this:
-  - Cache the data access with \`"use cache"\`
-  - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-  - If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
-  - Set \`export const instant = false\` to allow a blocking route
-
-Learn more: https://nextjs.org/docs/messages/blocking-route`
+  - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+    https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
+  - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
+    https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
+  - [block] Set \`export const instant = false\` to allow a blocking route
+    https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route`
                   )
                 }
               }
@@ -3848,10 +3919,10 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
 
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1272",
+               "code": "E1400",
                "description": "Next.js encountered runtime data during prerendering.",
                "environmentLabel": "Server",
-               "label": "Instant",
+               "label": "Blocking Route",
                "source": null,
                "stack": [
                  "Page [Prerender] <anonymous>",
@@ -3880,12 +3951,12 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                  \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
 
                  Ways to fix this:
-                   - Cache the data access with \`"use cache"\`
-                   - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                   - If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
-                   - Set \`export const instant = false\` to allow a blocking route
-
-                 Learn more: https://nextjs.org/docs/messages/blocking-route
+                   - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+                     https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
+                   - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
+                     https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
+                   - [block] Set \`export const instant = false\` to allow a blocking route
+                     https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
                      at Page (app/use-cache-params/[slug]/page.tsx:1:16)
                  > 1 | export default async function Page({
                      |                ^
@@ -3905,12 +3976,12 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                  \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
 
                  Ways to fix this:
-                   - Cache the data access with \`"use cache"\`
-                   - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                   - If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
-                   - Set \`export const instant = false\` to allow a blocking route
-
-                 Learn more: https://nextjs.org/docs/messages/blocking-route
+                   - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+                     https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
+                   - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
+                     https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
+                   - [block] Set \`export const instant = false\` to allow a blocking route
+                     https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
                      at main (<anonymous>)
                      at body (<anonymous>)
                      at html (<anonymous>)
@@ -4088,12 +4159,12 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                 '/use-cache-cookies-third-party'
               )
 
-              await expect(browser).toDisplayRedbox(`
+              await expect(browser).toDisplayCollapsedRedbox(`
                {
                  "code": "E831",
                  "description": "Route /use-cache-cookies-third-party used \`cookies()\` inside "use cache". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use \`cookies()\` outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache",
-                 "environmentLabel": "Prerender",
-                 "label": "Runtime Error",
+                 "environmentLabel": "Server",
+                 "label": "Console Error",
                  "source": "app/use-cache-cookies-third-party/page.tsx (10:7) @ Page
                > 10 |       <CachedCookiesReader />
                     |       ^",
@@ -4187,12 +4258,12 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                 '/use-cache-draft-mode-third-party'
               )
 
-              await expect(browser).toDisplayRedbox(`
+              await expect(browser).toDisplayCollapsedRedbox(`
                {
                  "code": "E829",
                  "description": "Route /use-cache-draft-mode-third-party used "draftMode().enable()" inside "use cache". The enabled status of \`draftMode()\` can be read in caches but you must not enable or disable \`draftMode()\` inside a cache. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache",
-                 "environmentLabel": "Prerender",
-                 "label": "Runtime Error",
+                 "environmentLabel": "Server",
+                 "label": "Console Error",
                  "source": "app/use-cache-draft-mode-third-party/page.tsx (10:7) @ Page
                > 10 |       <CachedDraftModeEnabler />
                     |       ^",
@@ -4285,12 +4356,12 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                 '/use-cache-headers-third-party'
               )
 
-              await expect(browser).toDisplayRedbox(`
+              await expect(browser).toDisplayCollapsedRedbox(`
                {
                  "code": "E833",
                  "description": "Route /use-cache-headers-third-party used \`headers()\` inside "use cache". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use \`headers()\` outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache",
-                 "environmentLabel": "Prerender",
-                 "label": "Runtime Error",
+                 "environmentLabel": "Server",
+                 "label": "Console Error",
                  "source": "app/use-cache-headers-third-party/page.tsx (10:7) @ Page
                > 10 |       <CachedHeadersReader />
                     |       ^",
@@ -4384,12 +4455,12 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                 '/use-cache-connection-third-party'
               )
 
-              await expect(browser).toDisplayRedbox(`
+              await expect(browser).toDisplayCollapsedRedbox(`
                {
                  "code": "E841",
                  "description": "Route /use-cache-connection-third-party used \`connection()\` inside "use cache". The \`connection()\` function is used to indicate the subsequent code must only run when there is an actual request, but caches must be able to be produced before a request, so this function is not allowed in this scope. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache",
-                 "environmentLabel": "Prerender",
-                 "label": "Runtime Error",
+                 "environmentLabel": "Server",
+                 "label": "Console Error",
                  "source": "app/use-cache-connection-third-party/page.tsx (10:7) @ Page
                > 10 |       <CachedConnectionCaller />
                     |       ^",
@@ -4619,7 +4690,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
              {
                "code": "E1001",
                "description": ""use cache: private" must not be used within "use cache". It can only be nested inside of another "use cache: private".",
-               "environmentLabel": "Prerender",
+               "environmentLabel": "Cache",
                "label": "Runtime Error",
                "source": "app/use-cache-private-in-use-cache/page.tsx (15:1) @ Private
              > 15 | async function Private() {
@@ -4688,7 +4759,6 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                 expect(output).toMatchInlineSnapshot(`
                  "⨯ Error: "use cache: private" must not be used within "use cache". It can only be nested inside of another "use cache: private".
                      at <unknown> (app/use-cache-private-in-use-cache/page.tsx:15:1)
-                     at a (<anonymous>)
                    13 | }
                    14 |
                  > 15 | async function Private() {
@@ -4700,7 +4770,6 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                  }
                  Error: "use cache: private" must not be used within "use cache". It can only be nested inside of another "use cache: private".
                      at <unknown> (app/use-cache-private-in-use-cache/page.tsx:15:1)
-                     at b (<anonymous>)
                    13 | }
                    14 |
                  > 15 | async function Private() {
@@ -4719,13 +4788,11 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               } else {
                 expect(output).toMatchInlineSnapshot(`
                  "⨯ Error: "use cache: private" must not be used within "use cache". It can only be nested inside of another "use cache: private".
-                     at a (<next-dist-dir>)
-                     at b (<anonymous>) {
+                     at a (<next-dist-dir>) {
                    digest: '<error-digest>'
                  }
                  Error: "use cache: private" must not be used within "use cache". It can only be nested inside of another "use cache: private".
-                     at c (<next-dist-dir>)
-                     at d (<anonymous>) {
+                     at b (<next-dist-dir>) {
                    digest: '<error-digest>'
                  }
                  To get a more detailed stack trace and pinpoint the issue, try one of the following:
@@ -4749,10 +4816,10 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
 
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1272",
+               "code": "E1400",
                "description": "Next.js encountered runtime data during prerendering.",
                "environmentLabel": "Server",
-               "label": "Instant",
+               "label": "Blocking Route",
                "source": "app/use-cache-private-without-suspense/page.tsx (15:1) @ Private
              > 15 | async function Private() {
                   | ^",
@@ -4784,12 +4851,12 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                  \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
 
                  Ways to fix this:
-                   - Cache the data access with \`"use cache"\`
-                   - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                   - If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
-                   - Set \`export const instant = false\` to allow a blocking route
-
-                 Learn more: https://nextjs.org/docs/messages/blocking-route
+                   - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+                     https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
+                   - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
+                     https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
+                   - [block] Set \`export const instant = false\` to allow a blocking route
+                     https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
                      at Private (app/use-cache-private-without-suspense/page.tsx:15:1)
                      at Page (app/use-cache-private-without-suspense/page.tsx:10:7)
                    13 | }
@@ -4812,12 +4879,12 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                  \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
 
                  Ways to fix this:
-                   - Cache the data access with \`"use cache"\`
-                   - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                   - If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
-                   - Set \`export const instant = false\` to allow a blocking route
-
-                 Learn more: https://nextjs.org/docs/messages/blocking-route
+                   - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+                     https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
+                   - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
+                     https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
+                   - [block] Set \`export const instant = false\` to allow a blocking route
+                     https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
                      at main (<anonymous>)
                      at body (<anonymous>)
                      at html (<anonymous>)
@@ -4839,12 +4906,12 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
 \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
 
 Ways to fix this:
-  - Cache the data access with \`"use cache"\`
-  - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-  - If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
-  - Set \`export const instant = false\` to allow a blocking route
-
-Learn more: https://nextjs.org/docs/messages/blocking-route`
+  - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+    https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
+  - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
+    https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
+  - [block] Set \`export const instant = false\` to allow a blocking route
+    https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route`
                 )
               } else {
                 expect(output).toMatchInlineSnapshot(`
@@ -4853,12 +4920,12 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                  \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
 
                  Ways to fix this:
-                   - Cache the data access with \`"use cache"\`
-                   - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                   - If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
-                   - Set \`export const instant = false\` to allow a blocking route
-
-                 Learn more: https://nextjs.org/docs/messages/blocking-route
+                   - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+                     https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
+                   - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
+                     https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
+                   - [block] Set \`export const instant = false\` to allow a blocking route
+                     https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
                      at a (<next-dist-dir>)
                      at b (<next-dist-dir>)
                      at c (<next-dist-dir>)
@@ -4952,10 +5019,10 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
 
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E1261",
+             "code": "E1295",
              "description": "Next.js encountered the unstable value Date() while prerendering.",
              "environmentLabel": "Server",
-             "label": "Instant",
+             "label": "Blocking Route",
              "source": "app/sync-io-current-time/date/page.tsx (19:16) @ DateReadingComponent
            > 19 |   return <div>{Date()}</div>
                 |                ^",
@@ -4987,12 +5054,14 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                This value can change between renders, so it must be either prerendered or computed later.
 
                Ways to fix this:
-                 - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
-                 - Prerender and cache the value with \`"use cache"\`
-                 - Render the value on the client with \`"use client"\`
-                 - If the value is for telemetry, use a timing API such as \`performance.now()\`
-
-               Learn more: https://nextjs.org/docs/messages/next-prerender-current-time
+                 - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+                   https://nextjs.org/docs/messages/blocking-prerender-current-time#generate-on-every-request
+                 - [cache] Prerender and cache the value with \`"use cache"\`
+                   https://nextjs.org/docs/messages/blocking-prerender-current-time#cache-the-timestamp
+                 - [client] Render the value on the client with \`"use client"\`
+                   https://nextjs.org/docs/messages/blocking-prerender-current-time#render-on-the-client
+                 - [measure] If the value is for telemetry, use a timing API such as \`performance.now()\`
+                   https://nextjs.org/docs/messages/blocking-prerender-current-time#for-telemetry-use-a-timing-api
                    at DateReadingComponent (app/sync-io-current-time/date/page.tsx:19:16)
                    at Page (app/sync-io-current-time/date/page.tsx:11:9)
                  17 | async function DateReadingComponent() {
@@ -5014,12 +5083,14 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                This value can change between renders, so it must be either prerendered or computed later.
 
                Ways to fix this:
-                 - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
-                 - Prerender and cache the value with \`"use cache"\`
-                 - Render the value on the client with \`"use client"\`
-                 - If the value is for telemetry, use a timing API such as \`performance.now()\`
-
-               Learn more: https://nextjs.org/docs/messages/next-prerender-current-time
+                 - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+                   https://nextjs.org/docs/messages/blocking-prerender-current-time#generate-on-every-request
+                 - [cache] Prerender and cache the value with \`"use cache"\`
+                   https://nextjs.org/docs/messages/blocking-prerender-current-time#cache-the-timestamp
+                 - [client] Render the value on the client with \`"use client"\`
+                   https://nextjs.org/docs/messages/blocking-prerender-current-time#render-on-the-client
+                 - [measure] If the value is for telemetry, use a timing API such as \`performance.now()\`
+                   https://nextjs.org/docs/messages/blocking-prerender-current-time#for-telemetry-use-a-timing-api
                    at DateReadingComponent (webpack:///app/sync-io-current-time/date/page.tsx:19:16)
                    at Page (webpack:///app/sync-io-current-time/date/page.tsx:11:9)
                  17 | async function DateReadingComponent() {
@@ -5043,12 +5114,14 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                This value can change between renders, so it must be either prerendered or computed later.
 
                Ways to fix this:
-                 - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
-                 - Prerender and cache the value with \`"use cache"\`
-                 - Render the value on the client with \`"use client"\`
-                 - If the value is for telemetry, use a timing API such as \`performance.now()\`
-
-               Learn more: https://nextjs.org/docs/messages/next-prerender-current-time
+                 - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+                   https://nextjs.org/docs/messages/blocking-prerender-current-time#generate-on-every-request
+                 - [cache] Prerender and cache the value with \`"use cache"\`
+                   https://nextjs.org/docs/messages/blocking-prerender-current-time#cache-the-timestamp
+                 - [client] Render the value on the client with \`"use client"\`
+                   https://nextjs.org/docs/messages/blocking-prerender-current-time#render-on-the-client
+                 - [measure] If the value is for telemetry, use a timing API such as \`performance.now()\`
+                   https://nextjs.org/docs/messages/blocking-prerender-current-time#for-telemetry-use-a-timing-api
                    at a (app/sync-io-current-time/date/page.tsx:19:16)
                  17 | async function DateReadingComponent() {
                  18 |   await new Promise((r) => process.nextTick(r))
@@ -5069,12 +5142,14 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                This value can change between renders, so it must be either prerendered or computed later.
 
                Ways to fix this:
-                 - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
-                 - Prerender and cache the value with \`"use cache"\`
-                 - Render the value on the client with \`"use client"\`
-                 - If the value is for telemetry, use a timing API such as \`performance.now()\`
-
-               Learn more: https://nextjs.org/docs/messages/next-prerender-current-time
+                 - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+                   https://nextjs.org/docs/messages/blocking-prerender-current-time#generate-on-every-request
+                 - [cache] Prerender and cache the value with \`"use cache"\`
+                   https://nextjs.org/docs/messages/blocking-prerender-current-time#cache-the-timestamp
+                 - [client] Render the value on the client with \`"use client"\`
+                   https://nextjs.org/docs/messages/blocking-prerender-current-time#render-on-the-client
+                 - [measure] If the value is for telemetry, use a timing API such as \`performance.now()\`
+                   https://nextjs.org/docs/messages/blocking-prerender-current-time#for-telemetry-use-a-timing-api
                    at a (<next-dist-dir>)
                To get a more detailed stack trace and pinpoint the issue, try one of the following:
                  - Start the app in development mode by running \`next dev\`, then open "/sync-io-current-time/date" in your browser to investigate the error.
@@ -5097,10 +5172,10 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
 
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E1261",
+             "code": "E1295",
              "description": "Next.js encountered the unstable value Date.now() while prerendering.",
              "environmentLabel": "Server",
-             "label": "Instant",
+             "label": "Blocking Route",
              "source": "app/sync-io-current-time/date-now/page.tsx (19:21) @ DateReadingComponent
            > 19 |   return <div>{Date.now()}</div>
                 |                     ^",
@@ -5132,12 +5207,14 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                This value can change between renders, so it must be either prerendered or computed later.
 
                Ways to fix this:
-                 - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
-                 - Prerender and cache the value with \`"use cache"\`
-                 - Render the value on the client with \`"use client"\`
-                 - If the value is for telemetry, use a timing API such as \`performance.now()\`
-
-               Learn more: https://nextjs.org/docs/messages/next-prerender-current-time
+                 - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+                   https://nextjs.org/docs/messages/blocking-prerender-current-time#generate-on-every-request
+                 - [cache] Prerender and cache the value with \`"use cache"\`
+                   https://nextjs.org/docs/messages/blocking-prerender-current-time#cache-the-timestamp
+                 - [client] Render the value on the client with \`"use client"\`
+                   https://nextjs.org/docs/messages/blocking-prerender-current-time#render-on-the-client
+                 - [measure] If the value is for telemetry, use a timing API such as \`performance.now()\`
+                   https://nextjs.org/docs/messages/blocking-prerender-current-time#for-telemetry-use-a-timing-api
                    at DateReadingComponent (app/sync-io-current-time/date-now/page.tsx:19:21)
                    at Page (app/sync-io-current-time/date-now/page.tsx:11:9)
                  17 | async function DateReadingComponent() {
@@ -5159,12 +5236,14 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                This value can change between renders, so it must be either prerendered or computed later.
 
                Ways to fix this:
-                 - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
-                 - Prerender and cache the value with \`"use cache"\`
-                 - Render the value on the client with \`"use client"\`
-                 - If the value is for telemetry, use a timing API such as \`performance.now()\`
-
-               Learn more: https://nextjs.org/docs/messages/next-prerender-current-time
+                 - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+                   https://nextjs.org/docs/messages/blocking-prerender-current-time#generate-on-every-request
+                 - [cache] Prerender and cache the value with \`"use cache"\`
+                   https://nextjs.org/docs/messages/blocking-prerender-current-time#cache-the-timestamp
+                 - [client] Render the value on the client with \`"use client"\`
+                   https://nextjs.org/docs/messages/blocking-prerender-current-time#render-on-the-client
+                 - [measure] If the value is for telemetry, use a timing API such as \`performance.now()\`
+                   https://nextjs.org/docs/messages/blocking-prerender-current-time#for-telemetry-use-a-timing-api
                    at DateReadingComponent (webpack:///app/sync-io-current-time/date-now/page.tsx:19:21)
                    at Page (webpack:///app/sync-io-current-time/date-now/page.tsx:11:9)
                  17 | async function DateReadingComponent() {
@@ -5188,12 +5267,14 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                This value can change between renders, so it must be either prerendered or computed later.
 
                Ways to fix this:
-                 - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
-                 - Prerender and cache the value with \`"use cache"\`
-                 - Render the value on the client with \`"use client"\`
-                 - If the value is for telemetry, use a timing API such as \`performance.now()\`
-
-               Learn more: https://nextjs.org/docs/messages/next-prerender-current-time
+                 - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+                   https://nextjs.org/docs/messages/blocking-prerender-current-time#generate-on-every-request
+                 - [cache] Prerender and cache the value with \`"use cache"\`
+                   https://nextjs.org/docs/messages/blocking-prerender-current-time#cache-the-timestamp
+                 - [client] Render the value on the client with \`"use client"\`
+                   https://nextjs.org/docs/messages/blocking-prerender-current-time#render-on-the-client
+                 - [measure] If the value is for telemetry, use a timing API such as \`performance.now()\`
+                   https://nextjs.org/docs/messages/blocking-prerender-current-time#for-telemetry-use-a-timing-api
                    at a (app/sync-io-current-time/date-now/page.tsx:19:21)
                  17 | async function DateReadingComponent() {
                  18 |   await new Promise((r) => process.nextTick(r))
@@ -5214,12 +5295,14 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                This value can change between renders, so it must be either prerendered or computed later.
 
                Ways to fix this:
-                 - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
-                 - Prerender and cache the value with \`"use cache"\`
-                 - Render the value on the client with \`"use client"\`
-                 - If the value is for telemetry, use a timing API such as \`performance.now()\`
-
-               Learn more: https://nextjs.org/docs/messages/next-prerender-current-time
+                 - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+                   https://nextjs.org/docs/messages/blocking-prerender-current-time#generate-on-every-request
+                 - [cache] Prerender and cache the value with \`"use cache"\`
+                   https://nextjs.org/docs/messages/blocking-prerender-current-time#cache-the-timestamp
+                 - [client] Render the value on the client with \`"use client"\`
+                   https://nextjs.org/docs/messages/blocking-prerender-current-time#render-on-the-client
+                 - [measure] If the value is for telemetry, use a timing API such as \`performance.now()\`
+                   https://nextjs.org/docs/messages/blocking-prerender-current-time#for-telemetry-use-a-timing-api
                    at a (<next-dist-dir>)
                To get a more detailed stack trace and pinpoint the issue, try one of the following:
                  - Start the app in development mode by running \`next dev\`, then open "/sync-io-current-time/date-now" in your browser to investigate the error.
@@ -5242,10 +5325,10 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
 
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E1261",
+             "code": "E1295",
              "description": "Next.js encountered the unstable value new Date() while prerendering.",
              "environmentLabel": "Server",
-             "label": "Instant",
+             "label": "Blocking Route",
              "source": "app/sync-io-current-time/new-date/page.tsx (19:16) @ DateReadingComponent
            > 19 |   return <div>{new Date().toString()}</div>
                 |                ^",
@@ -5277,12 +5360,14 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                This value can change between renders, so it must be either prerendered or computed later.
 
                Ways to fix this:
-                 - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
-                 - Prerender and cache the value with \`"use cache"\`
-                 - Render the value on the client with \`"use client"\`
-                 - If the value is for telemetry, use a timing API such as \`performance.now()\`
-
-               Learn more: https://nextjs.org/docs/messages/next-prerender-current-time
+                 - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+                   https://nextjs.org/docs/messages/blocking-prerender-current-time#generate-on-every-request
+                 - [cache] Prerender and cache the value with \`"use cache"\`
+                   https://nextjs.org/docs/messages/blocking-prerender-current-time#cache-the-timestamp
+                 - [client] Render the value on the client with \`"use client"\`
+                   https://nextjs.org/docs/messages/blocking-prerender-current-time#render-on-the-client
+                 - [measure] If the value is for telemetry, use a timing API such as \`performance.now()\`
+                   https://nextjs.org/docs/messages/blocking-prerender-current-time#for-telemetry-use-a-timing-api
                    at DateReadingComponent (app/sync-io-current-time/new-date/page.tsx:19:16)
                    at Page (app/sync-io-current-time/new-date/page.tsx:11:9)
                  17 | async function DateReadingComponent() {
@@ -5304,12 +5389,14 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                This value can change between renders, so it must be either prerendered or computed later.
 
                Ways to fix this:
-                 - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
-                 - Prerender and cache the value with \`"use cache"\`
-                 - Render the value on the client with \`"use client"\`
-                 - If the value is for telemetry, use a timing API such as \`performance.now()\`
-
-               Learn more: https://nextjs.org/docs/messages/next-prerender-current-time
+                 - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+                   https://nextjs.org/docs/messages/blocking-prerender-current-time#generate-on-every-request
+                 - [cache] Prerender and cache the value with \`"use cache"\`
+                   https://nextjs.org/docs/messages/blocking-prerender-current-time#cache-the-timestamp
+                 - [client] Render the value on the client with \`"use client"\`
+                   https://nextjs.org/docs/messages/blocking-prerender-current-time#render-on-the-client
+                 - [measure] If the value is for telemetry, use a timing API such as \`performance.now()\`
+                   https://nextjs.org/docs/messages/blocking-prerender-current-time#for-telemetry-use-a-timing-api
                    at DateReadingComponent (webpack:///app/sync-io-current-time/new-date/page.tsx:19:16)
                    at Page (webpack:///app/sync-io-current-time/new-date/page.tsx:11:9)
                  17 | async function DateReadingComponent() {
@@ -5333,12 +5420,14 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                This value can change between renders, so it must be either prerendered or computed later.
 
                Ways to fix this:
-                 - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
-                 - Prerender and cache the value with \`"use cache"\`
-                 - Render the value on the client with \`"use client"\`
-                 - If the value is for telemetry, use a timing API such as \`performance.now()\`
-
-               Learn more: https://nextjs.org/docs/messages/next-prerender-current-time
+                 - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+                   https://nextjs.org/docs/messages/blocking-prerender-current-time#generate-on-every-request
+                 - [cache] Prerender and cache the value with \`"use cache"\`
+                   https://nextjs.org/docs/messages/blocking-prerender-current-time#cache-the-timestamp
+                 - [client] Render the value on the client with \`"use client"\`
+                   https://nextjs.org/docs/messages/blocking-prerender-current-time#render-on-the-client
+                 - [measure] If the value is for telemetry, use a timing API such as \`performance.now()\`
+                   https://nextjs.org/docs/messages/blocking-prerender-current-time#for-telemetry-use-a-timing-api
                    at a (app/sync-io-current-time/new-date/page.tsx:19:16)
                  17 | async function DateReadingComponent() {
                  18 |   await new Promise((r) => process.nextTick(r))
@@ -5359,12 +5448,14 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                This value can change between renders, so it must be either prerendered or computed later.
 
                Ways to fix this:
-                 - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
-                 - Prerender and cache the value with \`"use cache"\`
-                 - Render the value on the client with \`"use client"\`
-                 - If the value is for telemetry, use a timing API such as \`performance.now()\`
-
-               Learn more: https://nextjs.org/docs/messages/next-prerender-current-time
+                 - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+                   https://nextjs.org/docs/messages/blocking-prerender-current-time#generate-on-every-request
+                 - [cache] Prerender and cache the value with \`"use cache"\`
+                   https://nextjs.org/docs/messages/blocking-prerender-current-time#cache-the-timestamp
+                 - [client] Render the value on the client with \`"use client"\`
+                   https://nextjs.org/docs/messages/blocking-prerender-current-time#render-on-the-client
+                 - [measure] If the value is for telemetry, use a timing API such as \`performance.now()\`
+                   https://nextjs.org/docs/messages/blocking-prerender-current-time#for-telemetry-use-a-timing-api
                    at a (<next-dist-dir>)
                To get a more detailed stack trace and pinpoint the issue, try one of the following:
                  - Start the app in development mode by running \`next dev\`, then open "/sync-io-current-time/new-date" in your browser to investigate the error.
@@ -5387,10 +5478,10 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
 
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E1261",
+             "code": "E1295",
              "description": "Next.js encountered the unstable value Math.random() while prerendering.",
              "environmentLabel": "Server",
-             "label": "Instant",
+             "label": "Blocking Route",
              "source": "app/sync-io-random/math-random/page.tsx (19:21) @ SyncIOComponent
            > 19 |   return <div>{Math.random()}</div>
                 |                     ^",
@@ -5422,11 +5513,12 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                This value can change between renders, so it must be either prerendered or computed later.
 
                Ways to fix this:
-                 - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
-                 - Prerender and cache the value with \`"use cache"\`
-                 - Render the value on the client with \`"use client"\`
-
-               Learn more: https://nextjs.org/docs/messages/next-prerender-random
+                 - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+                   https://nextjs.org/docs/messages/blocking-prerender-random#generate-on-every-request
+                 - [cache] Prerender and cache the value with \`"use cache"\`
+                   https://nextjs.org/docs/messages/blocking-prerender-random#cache-the-random-value
+                 - [client] Render the value on the client with \`"use client"\`
+                   https://nextjs.org/docs/messages/blocking-prerender-random#render-on-the-client
                    at SyncIOComponent (app/sync-io-random/math-random/page.tsx:19:21)
                    at Page (app/sync-io-random/math-random/page.tsx:11:9)
                  17 | async function SyncIOComponent() {
@@ -5448,11 +5540,12 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                This value can change between renders, so it must be either prerendered or computed later.
 
                Ways to fix this:
-                 - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
-                 - Prerender and cache the value with \`"use cache"\`
-                 - Render the value on the client with \`"use client"\`
-
-               Learn more: https://nextjs.org/docs/messages/next-prerender-random
+                 - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+                   https://nextjs.org/docs/messages/blocking-prerender-random#generate-on-every-request
+                 - [cache] Prerender and cache the value with \`"use cache"\`
+                   https://nextjs.org/docs/messages/blocking-prerender-random#cache-the-random-value
+                 - [client] Render the value on the client with \`"use client"\`
+                   https://nextjs.org/docs/messages/blocking-prerender-random#render-on-the-client
                    at SyncIOComponent (webpack:///app/sync-io-random/math-random/page.tsx:19:21)
                    at Page (webpack:///app/sync-io-random/math-random/page.tsx:11:9)
                  17 | async function SyncIOComponent() {
@@ -5476,11 +5569,12 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                This value can change between renders, so it must be either prerendered or computed later.
 
                Ways to fix this:
-                 - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
-                 - Prerender and cache the value with \`"use cache"\`
-                 - Render the value on the client with \`"use client"\`
-
-               Learn more: https://nextjs.org/docs/messages/next-prerender-random
+                 - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+                   https://nextjs.org/docs/messages/blocking-prerender-random#generate-on-every-request
+                 - [cache] Prerender and cache the value with \`"use cache"\`
+                   https://nextjs.org/docs/messages/blocking-prerender-random#cache-the-random-value
+                 - [client] Render the value on the client with \`"use client"\`
+                   https://nextjs.org/docs/messages/blocking-prerender-random#render-on-the-client
                    at a (app/sync-io-random/math-random/page.tsx:19:21)
                  17 | async function SyncIOComponent() {
                  18 |   await new Promise((r) => process.nextTick(r))
@@ -5501,11 +5595,12 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                This value can change between renders, so it must be either prerendered or computed later.
 
                Ways to fix this:
-                 - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
-                 - Prerender and cache the value with \`"use cache"\`
-                 - Render the value on the client with \`"use client"\`
-
-               Learn more: https://nextjs.org/docs/messages/next-prerender-random
+                 - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+                   https://nextjs.org/docs/messages/blocking-prerender-random#generate-on-every-request
+                 - [cache] Prerender and cache the value with \`"use cache"\`
+                   https://nextjs.org/docs/messages/blocking-prerender-random#cache-the-random-value
+                 - [client] Render the value on the client with \`"use client"\`
+                   https://nextjs.org/docs/messages/blocking-prerender-random#render-on-the-client
                    at a (<next-dist-dir>)
                To get a more detailed stack trace and pinpoint the issue, try one of the following:
                  - Start the app in development mode by running \`next dev\`, then open "/sync-io-random/math-random" in your browser to investigate the error.
@@ -5528,10 +5623,10 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
 
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E1261",
+             "code": "E1295",
              "description": "Next.js encountered the unstable value crypto.getRandomValues() while prerendering.",
              "environmentLabel": "Server",
-             "label": "Instant",
+             "label": "Blocking Route",
              "source": "app/sync-io-web-crypto/get-random-value/page.tsx (20:10) @ SyncIOComponent
            > 20 |   crypto.getRandomValues(buffer)
                 |          ^",
@@ -5563,11 +5658,12 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                This value can change between renders, so it must be either prerendered or computed later.
 
                Ways to fix this:
-                 - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
-                 - Prerender and cache the value with \`"use cache"\`
-                 - Render the value on the client with \`"use client"\`
-
-               Learn more: https://nextjs.org/docs/messages/next-prerender-crypto
+                 - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+                   https://nextjs.org/docs/messages/blocking-prerender-crypto#generate-on-every-request
+                 - [cache] Prerender and cache the value with \`"use cache"\`
+                   https://nextjs.org/docs/messages/blocking-prerender-crypto#cache-the-generated-value
+                 - [client] Render the value on the client with \`"use client"\`
+                   https://nextjs.org/docs/messages/blocking-prerender-crypto#render-on-the-client
                    at SyncIOComponent (app/sync-io-web-crypto/get-random-value/page.tsx:20:10)
                    at Page (app/sync-io-web-crypto/get-random-value/page.tsx:11:9)
                  18 |   await new Promise((r) => process.nextTick(r))
@@ -5590,11 +5686,12 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                This value can change between renders, so it must be either prerendered or computed later.
 
                Ways to fix this:
-                 - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
-                 - Prerender and cache the value with \`"use cache"\`
-                 - Render the value on the client with \`"use client"\`
-
-               Learn more: https://nextjs.org/docs/messages/next-prerender-crypto
+                 - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+                   https://nextjs.org/docs/messages/blocking-prerender-crypto#generate-on-every-request
+                 - [cache] Prerender and cache the value with \`"use cache"\`
+                   https://nextjs.org/docs/messages/blocking-prerender-crypto#cache-the-generated-value
+                 - [client] Render the value on the client with \`"use client"\`
+                   https://nextjs.org/docs/messages/blocking-prerender-crypto#render-on-the-client
                    at SyncIOComponent (webpack:///app/sync-io-web-crypto/get-random-value/page.tsx:20:10)
                    at Page (webpack:///app/sync-io-web-crypto/get-random-value/page.tsx:11:9)
                  18 |   await new Promise((r) => process.nextTick(r))
@@ -5619,11 +5716,12 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                This value can change between renders, so it must be either prerendered or computed later.
 
                Ways to fix this:
-                 - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
-                 - Prerender and cache the value with \`"use cache"\`
-                 - Render the value on the client with \`"use client"\`
-
-               Learn more: https://nextjs.org/docs/messages/next-prerender-crypto
+                 - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+                   https://nextjs.org/docs/messages/blocking-prerender-crypto#generate-on-every-request
+                 - [cache] Prerender and cache the value with \`"use cache"\`
+                   https://nextjs.org/docs/messages/blocking-prerender-crypto#cache-the-generated-value
+                 - [client] Render the value on the client with \`"use client"\`
+                   https://nextjs.org/docs/messages/blocking-prerender-crypto#render-on-the-client
                    at a (app/sync-io-web-crypto/get-random-value/page.tsx:20:10)
                  18 |   await new Promise((r) => process.nextTick(r))
                  19 |   const buffer = new Uint8Array(8)
@@ -5645,11 +5743,12 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                This value can change between renders, so it must be either prerendered or computed later.
 
                Ways to fix this:
-                 - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
-                 - Prerender and cache the value with \`"use cache"\`
-                 - Render the value on the client with \`"use client"\`
-
-               Learn more: https://nextjs.org/docs/messages/next-prerender-crypto
+                 - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+                   https://nextjs.org/docs/messages/blocking-prerender-crypto#generate-on-every-request
+                 - [cache] Prerender and cache the value with \`"use cache"\`
+                   https://nextjs.org/docs/messages/blocking-prerender-crypto#cache-the-generated-value
+                 - [client] Render the value on the client with \`"use client"\`
+                   https://nextjs.org/docs/messages/blocking-prerender-crypto#render-on-the-client
                    at a (<next-dist-dir>)
                To get a more detailed stack trace and pinpoint the issue, try one of the following:
                  - Start the app in development mode by running \`next dev\`, then open "/sync-io-web-crypto/get-random-value" in your browser to investigate the error.
@@ -5672,10 +5771,10 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
 
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E1261",
+             "code": "E1295",
              "description": "Next.js encountered the unstable value crypto.randomUUID() while prerendering.",
              "environmentLabel": "Server",
-             "label": "Instant",
+             "label": "Blocking Route",
              "source": "app/sync-io-web-crypto/random-uuid/page.tsx (19:23) @ SyncIOComponent
            > 19 |   return <div>{crypto.randomUUID()}</div>
                 |                       ^",
@@ -5707,11 +5806,12 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                This value can change between renders, so it must be either prerendered or computed later.
 
                Ways to fix this:
-                 - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
-                 - Prerender and cache the value with \`"use cache"\`
-                 - Render the value on the client with \`"use client"\`
-
-               Learn more: https://nextjs.org/docs/messages/next-prerender-crypto
+                 - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+                   https://nextjs.org/docs/messages/blocking-prerender-crypto#generate-on-every-request
+                 - [cache] Prerender and cache the value with \`"use cache"\`
+                   https://nextjs.org/docs/messages/blocking-prerender-crypto#cache-the-generated-value
+                 - [client] Render the value on the client with \`"use client"\`
+                   https://nextjs.org/docs/messages/blocking-prerender-crypto#render-on-the-client
                    at SyncIOComponent (app/sync-io-web-crypto/random-uuid/page.tsx:19:23)
                    at Page (app/sync-io-web-crypto/random-uuid/page.tsx:11:9)
                  17 | async function SyncIOComponent() {
@@ -5733,11 +5833,12 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                This value can change between renders, so it must be either prerendered or computed later.
 
                Ways to fix this:
-                 - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
-                 - Prerender and cache the value with \`"use cache"\`
-                 - Render the value on the client with \`"use client"\`
-
-               Learn more: https://nextjs.org/docs/messages/next-prerender-crypto
+                 - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+                   https://nextjs.org/docs/messages/blocking-prerender-crypto#generate-on-every-request
+                 - [cache] Prerender and cache the value with \`"use cache"\`
+                   https://nextjs.org/docs/messages/blocking-prerender-crypto#cache-the-generated-value
+                 - [client] Render the value on the client with \`"use client"\`
+                   https://nextjs.org/docs/messages/blocking-prerender-crypto#render-on-the-client
                    at SyncIOComponent (webpack:///app/sync-io-web-crypto/random-uuid/page.tsx:19:23)
                    at Page (webpack:///app/sync-io-web-crypto/random-uuid/page.tsx:11:9)
                  17 | async function SyncIOComponent() {
@@ -5761,11 +5862,12 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                This value can change between renders, so it must be either prerendered or computed later.
 
                Ways to fix this:
-                 - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
-                 - Prerender and cache the value with \`"use cache"\`
-                 - Render the value on the client with \`"use client"\`
-
-               Learn more: https://nextjs.org/docs/messages/next-prerender-crypto
+                 - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+                   https://nextjs.org/docs/messages/blocking-prerender-crypto#generate-on-every-request
+                 - [cache] Prerender and cache the value with \`"use cache"\`
+                   https://nextjs.org/docs/messages/blocking-prerender-crypto#cache-the-generated-value
+                 - [client] Render the value on the client with \`"use client"\`
+                   https://nextjs.org/docs/messages/blocking-prerender-crypto#render-on-the-client
                    at a (app/sync-io-web-crypto/random-uuid/page.tsx:19:23)
                  17 | async function SyncIOComponent() {
                  18 |   await new Promise((r) => process.nextTick(r))
@@ -5786,11 +5888,12 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                This value can change between renders, so it must be either prerendered or computed later.
 
                Ways to fix this:
-                 - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
-                 - Prerender and cache the value with \`"use cache"\`
-                 - Render the value on the client with \`"use client"\`
-
-               Learn more: https://nextjs.org/docs/messages/next-prerender-crypto
+                 - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+                   https://nextjs.org/docs/messages/blocking-prerender-crypto#generate-on-every-request
+                 - [cache] Prerender and cache the value with \`"use cache"\`
+                   https://nextjs.org/docs/messages/blocking-prerender-crypto#cache-the-generated-value
+                 - [client] Render the value on the client with \`"use client"\`
+                   https://nextjs.org/docs/messages/blocking-prerender-crypto#render-on-the-client
                    at a (<next-dist-dir>)
                To get a more detailed stack trace and pinpoint the issue, try one of the following:
                  - Start the app in development mode by running \`next dev\`, then open "/sync-io-web-crypto/random-uuid" in your browser to investigate the error.
@@ -5814,10 +5917,10 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           if (isTurbopack) {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1261",
+               "code": "E1295",
                "description": "Next.js encountered the unstable value require('node:crypto').generateKeyPairSync(...) while prerendering.",
                "environmentLabel": "Server",
-               "label": "Instant",
+               "label": "Blocking Route",
                "source": "app/sync-io-node-crypto/generate-key-pair-sync/page.tsx (20:24) @ SyncIOComponent
              > 20 |   const first = crypto.generateKeyPairSync('rsa', keyGenOptions)
                   |                        ^",
@@ -5830,10 +5933,10 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           } else {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1261",
+               "code": "E1295",
                "description": "Next.js encountered the unstable value require('node:crypto').generateKeyPairSync(...) while prerendering.",
                "environmentLabel": "Server",
-               "label": "Instant",
+               "label": "Blocking Route",
                "source": "app/sync-io-node-crypto/generate-key-pair-sync/page.tsx (20:17) @ SyncIOComponent
              > 20 |   const first = crypto.generateKeyPairSync('rsa', keyGenOptions)
                   |                 ^",
@@ -5866,11 +5969,12 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                This value can change between renders, so it must be either prerendered or computed later.
 
                Ways to fix this:
-                 - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
-                 - Prerender and cache the value with \`"use cache"\`
-                 - Render the value on the client with \`"use client"\`
-
-               Learn more: https://nextjs.org/docs/messages/next-prerender-random
+                 - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+                   https://nextjs.org/docs/messages/blocking-prerender-random#generate-on-every-request
+                 - [cache] Prerender and cache the value with \`"use cache"\`
+                   https://nextjs.org/docs/messages/blocking-prerender-random#cache-the-random-value
+                 - [client] Render the value on the client with \`"use client"\`
+                   https://nextjs.org/docs/messages/blocking-prerender-random#render-on-the-client
                    at SyncIOComponent (app/sync-io-node-crypto/generate-key-pair-sync/page.tsx:20:24)
                    at Page (app/sync-io-node-crypto/generate-key-pair-sync/page.tsx:12:9)
                  18 | async function SyncIOComponent() {
@@ -5893,11 +5997,12 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                This value can change between renders, so it must be either prerendered or computed later.
 
                Ways to fix this:
-                 - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
-                 - Prerender and cache the value with \`"use cache"\`
-                 - Render the value on the client with \`"use client"\`
-
-               Learn more: https://nextjs.org/docs/messages/next-prerender-random
+                 - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+                   https://nextjs.org/docs/messages/blocking-prerender-random#generate-on-every-request
+                 - [cache] Prerender and cache the value with \`"use cache"\`
+                   https://nextjs.org/docs/messages/blocking-prerender-random#cache-the-random-value
+                 - [client] Render the value on the client with \`"use client"\`
+                   https://nextjs.org/docs/messages/blocking-prerender-random#render-on-the-client
                    at a (app/sync-io-node-crypto/generate-key-pair-sync/page.tsx:20:24)
                  18 | async function SyncIOComponent() {
                  19 |   await new Promise((r) => process.nextTick(r))
@@ -5921,11 +6026,12 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                This value can change between renders, so it must be either prerendered or computed later.
 
                Ways to fix this:
-                 - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
-                 - Prerender and cache the value with \`"use cache"\`
-                 - Render the value on the client with \`"use client"\`
-
-               Learn more: https://nextjs.org/docs/messages/next-prerender-random
+                 - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+                   https://nextjs.org/docs/messages/blocking-prerender-random#generate-on-every-request
+                 - [cache] Prerender and cache the value with \`"use cache"\`
+                   https://nextjs.org/docs/messages/blocking-prerender-random#cache-the-random-value
+                 - [client] Render the value on the client with \`"use client"\`
+                   https://nextjs.org/docs/messages/blocking-prerender-random#render-on-the-client
                    at SyncIOComponent (webpack:///app/sync-io-node-crypto/generate-key-pair-sync/page.tsx:20:17)
                    at Page (webpack:///app/sync-io-node-crypto/generate-key-pair-sync/page.tsx:12:9)
                  18 | async function SyncIOComponent() {
@@ -5948,11 +6054,12 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                This value can change between renders, so it must be either prerendered or computed later.
 
                Ways to fix this:
-                 - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
-                 - Prerender and cache the value with \`"use cache"\`
-                 - Render the value on the client with \`"use client"\`
-
-               Learn more: https://nextjs.org/docs/messages/next-prerender-random
+                 - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+                   https://nextjs.org/docs/messages/blocking-prerender-random#generate-on-every-request
+                 - [cache] Prerender and cache the value with \`"use cache"\`
+                   https://nextjs.org/docs/messages/blocking-prerender-random#cache-the-random-value
+                 - [client] Render the value on the client with \`"use client"\`
+                   https://nextjs.org/docs/messages/blocking-prerender-random#render-on-the-client
                    at a (<next-dist-dir>)
                To get a more detailed stack trace and pinpoint the issue, try one of the following:
                  - Start the app in development mode by running \`next dev\`, then open "/sync-io-node-crypto/generate-key-pair-sync" in your browser to investigate the error.
@@ -5976,10 +6083,10 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           if (isTurbopack) {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1261",
+               "code": "E1295",
                "description": "Next.js encountered the unstable value require('node:crypto').generateKeySync(...) while prerendering.",
                "environmentLabel": "Server",
-               "label": "Instant",
+               "label": "Blocking Route",
                "source": "app/sync-io-node-crypto/generate-key-sync/page.tsx (21:6) @ SyncIOComponent
              > 21 |     .generateKeySync('hmac', {
                   |      ^",
@@ -5992,10 +6099,10 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           } else {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1261",
+               "code": "E1295",
                "description": "Next.js encountered the unstable value require('node:crypto').generateKeySync(...) while prerendering.",
                "environmentLabel": "Server",
-               "label": "Instant",
+               "label": "Blocking Route",
                "source": "app/sync-io-node-crypto/generate-key-sync/page.tsx (20:17) @ SyncIOComponent
              > 20 |   const first = crypto
                   |                 ^",
@@ -6028,11 +6135,12 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                This value can change between renders, so it must be either prerendered or computed later.
 
                Ways to fix this:
-                 - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
-                 - Prerender and cache the value with \`"use cache"\`
-                 - Render the value on the client with \`"use client"\`
-
-               Learn more: https://nextjs.org/docs/messages/next-prerender-random
+                 - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+                   https://nextjs.org/docs/messages/blocking-prerender-random#generate-on-every-request
+                 - [cache] Prerender and cache the value with \`"use cache"\`
+                   https://nextjs.org/docs/messages/blocking-prerender-random#cache-the-random-value
+                 - [client] Render the value on the client with \`"use client"\`
+                   https://nextjs.org/docs/messages/blocking-prerender-random#render-on-the-client
                    at SyncIOComponent (app/sync-io-node-crypto/generate-key-sync/page.tsx:21:6)
                    at Page (app/sync-io-node-crypto/generate-key-sync/page.tsx:12:9)
                  19 |   await new Promise((r) => process.nextTick(r))
@@ -6055,11 +6163,12 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                This value can change between renders, so it must be either prerendered or computed later.
 
                Ways to fix this:
-                 - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
-                 - Prerender and cache the value with \`"use cache"\`
-                 - Render the value on the client with \`"use client"\`
-
-               Learn more: https://nextjs.org/docs/messages/next-prerender-random
+                 - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+                   https://nextjs.org/docs/messages/blocking-prerender-random#generate-on-every-request
+                 - [cache] Prerender and cache the value with \`"use cache"\`
+                   https://nextjs.org/docs/messages/blocking-prerender-random#cache-the-random-value
+                 - [client] Render the value on the client with \`"use client"\`
+                   https://nextjs.org/docs/messages/blocking-prerender-random#render-on-the-client
                    at a (app/sync-io-node-crypto/generate-key-sync/page.tsx:21:6)
                  19 |   await new Promise((r) => process.nextTick(r))
                  20 |   const first = crypto
@@ -6083,11 +6192,12 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                This value can change between renders, so it must be either prerendered or computed later.
 
                Ways to fix this:
-                 - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
-                 - Prerender and cache the value with \`"use cache"\`
-                 - Render the value on the client with \`"use client"\`
-
-               Learn more: https://nextjs.org/docs/messages/next-prerender-random
+                 - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+                   https://nextjs.org/docs/messages/blocking-prerender-random#generate-on-every-request
+                 - [cache] Prerender and cache the value with \`"use cache"\`
+                   https://nextjs.org/docs/messages/blocking-prerender-random#cache-the-random-value
+                 - [client] Render the value on the client with \`"use client"\`
+                   https://nextjs.org/docs/messages/blocking-prerender-random#render-on-the-client
                    at SyncIOComponent (webpack:///app/sync-io-node-crypto/generate-key-sync/page.tsx:20:17)
                    at Page (webpack:///app/sync-io-node-crypto/generate-key-sync/page.tsx:12:9)
                  18 | async function SyncIOComponent() {
@@ -6110,11 +6220,12 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                This value can change between renders, so it must be either prerendered or computed later.
 
                Ways to fix this:
-                 - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
-                 - Prerender and cache the value with \`"use cache"\`
-                 - Render the value on the client with \`"use client"\`
-
-               Learn more: https://nextjs.org/docs/messages/next-prerender-random
+                 - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+                   https://nextjs.org/docs/messages/blocking-prerender-random#generate-on-every-request
+                 - [cache] Prerender and cache the value with \`"use cache"\`
+                   https://nextjs.org/docs/messages/blocking-prerender-random#cache-the-random-value
+                 - [client] Render the value on the client with \`"use client"\`
+                   https://nextjs.org/docs/messages/blocking-prerender-random#render-on-the-client
                    at a (<next-dist-dir>)
                To get a more detailed stack trace and pinpoint the issue, try one of the following:
                  - Start the app in development mode by running \`next dev\`, then open "/sync-io-node-crypto/generate-key-sync" in your browser to investigate the error.
@@ -6138,10 +6249,10 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           if (isTurbopack) {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1261",
+               "code": "E1295",
                "description": "Next.js encountered the unstable value require('node:crypto').generatePrimeSync(...) while prerendering.",
                "environmentLabel": "Server",
-               "label": "Instant",
+               "label": "Blocking Route",
                "source": "app/sync-io-node-crypto/generate-prime-sync/page.tsx (20:39) @ SyncIOComponent
              > 20 |   const first = new Uint8Array(crypto.generatePrimeSync(128))
                   |                                       ^",
@@ -6154,10 +6265,10 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           } else {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1261",
+               "code": "E1295",
                "description": "Next.js encountered the unstable value require('node:crypto').generatePrimeSync(...) while prerendering.",
                "environmentLabel": "Server",
-               "label": "Instant",
+               "label": "Blocking Route",
                "source": "app/sync-io-node-crypto/generate-prime-sync/page.tsx (20:32) @ SyncIOComponent
              > 20 |   const first = new Uint8Array(crypto.generatePrimeSync(128))
                   |                                ^",
@@ -6190,11 +6301,12 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                This value can change between renders, so it must be either prerendered or computed later.
 
                Ways to fix this:
-                 - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
-                 - Prerender and cache the value with \`"use cache"\`
-                 - Render the value on the client with \`"use client"\`
-
-               Learn more: https://nextjs.org/docs/messages/next-prerender-random
+                 - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+                   https://nextjs.org/docs/messages/blocking-prerender-random#generate-on-every-request
+                 - [cache] Prerender and cache the value with \`"use cache"\`
+                   https://nextjs.org/docs/messages/blocking-prerender-random#cache-the-random-value
+                 - [client] Render the value on the client with \`"use client"\`
+                   https://nextjs.org/docs/messages/blocking-prerender-random#render-on-the-client
                    at SyncIOComponent (app/sync-io-node-crypto/generate-prime-sync/page.tsx:20:39)
                    at Page (app/sync-io-node-crypto/generate-prime-sync/page.tsx:12:9)
                  18 | async function SyncIOComponent() {
@@ -6217,11 +6329,12 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                This value can change between renders, so it must be either prerendered or computed later.
 
                Ways to fix this:
-                 - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
-                 - Prerender and cache the value with \`"use cache"\`
-                 - Render the value on the client with \`"use client"\`
-
-               Learn more: https://nextjs.org/docs/messages/next-prerender-random
+                 - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+                   https://nextjs.org/docs/messages/blocking-prerender-random#generate-on-every-request
+                 - [cache] Prerender and cache the value with \`"use cache"\`
+                   https://nextjs.org/docs/messages/blocking-prerender-random#cache-the-random-value
+                 - [client] Render the value on the client with \`"use client"\`
+                   https://nextjs.org/docs/messages/blocking-prerender-random#render-on-the-client
                    at a (app/sync-io-node-crypto/generate-prime-sync/page.tsx:20:39)
                  18 | async function SyncIOComponent() {
                  19 |   await new Promise((r) => process.nextTick(r))
@@ -6245,11 +6358,12 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                This value can change between renders, so it must be either prerendered or computed later.
 
                Ways to fix this:
-                 - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
-                 - Prerender and cache the value with \`"use cache"\`
-                 - Render the value on the client with \`"use client"\`
-
-               Learn more: https://nextjs.org/docs/messages/next-prerender-random
+                 - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+                   https://nextjs.org/docs/messages/blocking-prerender-random#generate-on-every-request
+                 - [cache] Prerender and cache the value with \`"use cache"\`
+                   https://nextjs.org/docs/messages/blocking-prerender-random#cache-the-random-value
+                 - [client] Render the value on the client with \`"use client"\`
+                   https://nextjs.org/docs/messages/blocking-prerender-random#render-on-the-client
                    at SyncIOComponent (webpack:///app/sync-io-node-crypto/generate-prime-sync/page.tsx:20:32)
                    at Page (webpack:///app/sync-io-node-crypto/generate-prime-sync/page.tsx:12:9)
                  18 | async function SyncIOComponent() {
@@ -6272,11 +6386,12 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                This value can change between renders, so it must be either prerendered or computed later.
 
                Ways to fix this:
-                 - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
-                 - Prerender and cache the value with \`"use cache"\`
-                 - Render the value on the client with \`"use client"\`
-
-               Learn more: https://nextjs.org/docs/messages/next-prerender-random
+                 - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+                   https://nextjs.org/docs/messages/blocking-prerender-random#generate-on-every-request
+                 - [cache] Prerender and cache the value with \`"use cache"\`
+                   https://nextjs.org/docs/messages/blocking-prerender-random#cache-the-random-value
+                 - [client] Render the value on the client with \`"use client"\`
+                   https://nextjs.org/docs/messages/blocking-prerender-random#render-on-the-client
                    at a (<next-dist-dir>)
                To get a more detailed stack trace and pinpoint the issue, try one of the following:
                  - Start the app in development mode by running \`next dev\`, then open "/sync-io-node-crypto/generate-prime-sync" in your browser to investigate the error.
@@ -6300,10 +6415,10 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           if (isTurbopack) {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1261",
+               "code": "E1295",
                "description": "Next.js encountered the unstable value crypto.getRandomValues() while prerendering.",
                "environmentLabel": "Server",
-               "label": "Instant",
+               "label": "Blocking Route",
                "source": "app/sync-io-node-crypto/get-random-values/page.tsx (21:10) @ SyncIOComponent
              > 21 |   crypto.getRandomValues(first)
                   |          ^",
@@ -6316,10 +6431,10 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           } else {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1261",
+               "code": "E1295",
                "description": "Next.js encountered the unstable value crypto.getRandomValues() while prerendering.",
                "environmentLabel": "Server",
-               "label": "Instant",
+               "label": "Blocking Route",
                "source": "app/sync-io-node-crypto/get-random-values/page.tsx (21:3) @ SyncIOComponent
              > 21 |   crypto.getRandomValues(first)
                   |   ^",
@@ -6352,11 +6467,12 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                This value can change between renders, so it must be either prerendered or computed later.
 
                Ways to fix this:
-                 - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
-                 - Prerender and cache the value with \`"use cache"\`
-                 - Render the value on the client with \`"use client"\`
-
-               Learn more: https://nextjs.org/docs/messages/next-prerender-crypto
+                 - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+                   https://nextjs.org/docs/messages/blocking-prerender-crypto#generate-on-every-request
+                 - [cache] Prerender and cache the value with \`"use cache"\`
+                   https://nextjs.org/docs/messages/blocking-prerender-crypto#cache-the-generated-value
+                 - [client] Render the value on the client with \`"use client"\`
+                   https://nextjs.org/docs/messages/blocking-prerender-crypto#render-on-the-client
                    at SyncIOComponent (app/sync-io-node-crypto/get-random-values/page.tsx:21:10)
                    at Page (app/sync-io-node-crypto/get-random-values/page.tsx:12:9)
                  19 |   await new Promise((r) => process.nextTick(r))
@@ -6379,11 +6495,12 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                This value can change between renders, so it must be either prerendered or computed later.
 
                Ways to fix this:
-                 - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
-                 - Prerender and cache the value with \`"use cache"\`
-                 - Render the value on the client with \`"use client"\`
-
-               Learn more: https://nextjs.org/docs/messages/next-prerender-crypto
+                 - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+                   https://nextjs.org/docs/messages/blocking-prerender-crypto#generate-on-every-request
+                 - [cache] Prerender and cache the value with \`"use cache"\`
+                   https://nextjs.org/docs/messages/blocking-prerender-crypto#cache-the-generated-value
+                 - [client] Render the value on the client with \`"use client"\`
+                   https://nextjs.org/docs/messages/blocking-prerender-crypto#render-on-the-client
                    at a (app/sync-io-node-crypto/get-random-values/page.tsx:21:10)
                  19 |   await new Promise((r) => process.nextTick(r))
                  20 |   const first = new Uint8Array(8)
@@ -6407,11 +6524,12 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                This value can change between renders, so it must be either prerendered or computed later.
 
                Ways to fix this:
-                 - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
-                 - Prerender and cache the value with \`"use cache"\`
-                 - Render the value on the client with \`"use client"\`
-
-               Learn more: https://nextjs.org/docs/messages/next-prerender-crypto
+                 - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+                   https://nextjs.org/docs/messages/blocking-prerender-crypto#generate-on-every-request
+                 - [cache] Prerender and cache the value with \`"use cache"\`
+                   https://nextjs.org/docs/messages/blocking-prerender-crypto#cache-the-generated-value
+                 - [client] Render the value on the client with \`"use client"\`
+                   https://nextjs.org/docs/messages/blocking-prerender-crypto#render-on-the-client
                    at SyncIOComponent (webpack:///app/sync-io-node-crypto/get-random-values/page.tsx:21:3)
                    at Page (webpack:///app/sync-io-node-crypto/get-random-values/page.tsx:12:9)
                  19 |   await new Promise((r) => process.nextTick(r))
@@ -6434,11 +6552,12 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                This value can change between renders, so it must be either prerendered or computed later.
 
                Ways to fix this:
-                 - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
-                 - Prerender and cache the value with \`"use cache"\`
-                 - Render the value on the client with \`"use client"\`
-
-               Learn more: https://nextjs.org/docs/messages/next-prerender-crypto
+                 - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+                   https://nextjs.org/docs/messages/blocking-prerender-crypto#generate-on-every-request
+                 - [cache] Prerender and cache the value with \`"use cache"\`
+                   https://nextjs.org/docs/messages/blocking-prerender-crypto#cache-the-generated-value
+                 - [client] Render the value on the client with \`"use client"\`
+                   https://nextjs.org/docs/messages/blocking-prerender-crypto#render-on-the-client
                    at a (<next-dist-dir>)
                To get a more detailed stack trace and pinpoint the issue, try one of the following:
                  - Start the app in development mode by running \`next dev\`, then open "/sync-io-node-crypto/get-random-values" in your browser to investigate the error.
@@ -6462,10 +6581,10 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           if (isTurbopack) {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1261",
+               "code": "E1295",
                "description": "Next.js encountered the unstable value require('node:crypto').randomBytes(size) while prerendering.",
                "environmentLabel": "Server",
-               "label": "Instant",
+               "label": "Blocking Route",
                "source": "app/sync-io-node-crypto/random-bytes/page.tsx (20:24) @ SyncIOComponent
              > 20 |   const first = crypto.randomBytes(8)
                   |                        ^",
@@ -6478,10 +6597,10 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           } else {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1261",
+               "code": "E1295",
                "description": "Next.js encountered the unstable value require('node:crypto').randomBytes(size) while prerendering.",
                "environmentLabel": "Server",
-               "label": "Instant",
+               "label": "Blocking Route",
                "source": "app/sync-io-node-crypto/random-bytes/page.tsx (20:17) @ SyncIOComponent
              > 20 |   const first = crypto.randomBytes(8)
                   |                 ^",
@@ -6514,11 +6633,12 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                This value can change between renders, so it must be either prerendered or computed later.
 
                Ways to fix this:
-                 - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
-                 - Prerender and cache the value with \`"use cache"\`
-                 - Render the value on the client with \`"use client"\`
-
-               Learn more: https://nextjs.org/docs/messages/next-prerender-random
+                 - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+                   https://nextjs.org/docs/messages/blocking-prerender-random#generate-on-every-request
+                 - [cache] Prerender and cache the value with \`"use cache"\`
+                   https://nextjs.org/docs/messages/blocking-prerender-random#cache-the-random-value
+                 - [client] Render the value on the client with \`"use client"\`
+                   https://nextjs.org/docs/messages/blocking-prerender-random#render-on-the-client
                    at SyncIOComponent (app/sync-io-node-crypto/random-bytes/page.tsx:20:24)
                    at Page (app/sync-io-node-crypto/random-bytes/page.tsx:12:9)
                  18 | async function SyncIOComponent() {
@@ -6541,11 +6661,12 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                This value can change between renders, so it must be either prerendered or computed later.
 
                Ways to fix this:
-                 - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
-                 - Prerender and cache the value with \`"use cache"\`
-                 - Render the value on the client with \`"use client"\`
-
-               Learn more: https://nextjs.org/docs/messages/next-prerender-random
+                 - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+                   https://nextjs.org/docs/messages/blocking-prerender-random#generate-on-every-request
+                 - [cache] Prerender and cache the value with \`"use cache"\`
+                   https://nextjs.org/docs/messages/blocking-prerender-random#cache-the-random-value
+                 - [client] Render the value on the client with \`"use client"\`
+                   https://nextjs.org/docs/messages/blocking-prerender-random#render-on-the-client
                    at a (app/sync-io-node-crypto/random-bytes/page.tsx:20:24)
                  18 | async function SyncIOComponent() {
                  19 |   await new Promise((r) => process.nextTick(r))
@@ -6569,11 +6690,12 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                This value can change between renders, so it must be either prerendered or computed later.
 
                Ways to fix this:
-                 - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
-                 - Prerender and cache the value with \`"use cache"\`
-                 - Render the value on the client with \`"use client"\`
-
-               Learn more: https://nextjs.org/docs/messages/next-prerender-random
+                 - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+                   https://nextjs.org/docs/messages/blocking-prerender-random#generate-on-every-request
+                 - [cache] Prerender and cache the value with \`"use cache"\`
+                   https://nextjs.org/docs/messages/blocking-prerender-random#cache-the-random-value
+                 - [client] Render the value on the client with \`"use client"\`
+                   https://nextjs.org/docs/messages/blocking-prerender-random#render-on-the-client
                    at SyncIOComponent (webpack:///app/sync-io-node-crypto/random-bytes/page.tsx:20:17)
                    at Page (webpack:///app/sync-io-node-crypto/random-bytes/page.tsx:12:9)
                  18 | async function SyncIOComponent() {
@@ -6596,11 +6718,12 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                This value can change between renders, so it must be either prerendered or computed later.
 
                Ways to fix this:
-                 - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
-                 - Prerender and cache the value with \`"use cache"\`
-                 - Render the value on the client with \`"use client"\`
-
-               Learn more: https://nextjs.org/docs/messages/next-prerender-random
+                 - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+                   https://nextjs.org/docs/messages/blocking-prerender-random#generate-on-every-request
+                 - [cache] Prerender and cache the value with \`"use cache"\`
+                   https://nextjs.org/docs/messages/blocking-prerender-random#cache-the-random-value
+                 - [client] Render the value on the client with \`"use client"\`
+                   https://nextjs.org/docs/messages/blocking-prerender-random#render-on-the-client
                    at a (<next-dist-dir>)
                To get a more detailed stack trace and pinpoint the issue, try one of the following:
                  - Start the app in development mode by running \`next dev\`, then open "/sync-io-node-crypto/random-bytes" in your browser to investigate the error.
@@ -6624,10 +6747,10 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           if (isTurbopack) {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1261",
+               "code": "E1295",
                "description": "Next.js encountered the unstable value require('node:crypto').randomFillSync(...) while prerendering.",
                "environmentLabel": "Server",
-               "label": "Instant",
+               "label": "Blocking Route",
                "source": "app/sync-io-node-crypto/random-fill-sync/page.tsx (21:10) @ SyncIOComponent
              > 21 |   crypto.randomFillSync(first, 4, 8)
                   |          ^",
@@ -6640,10 +6763,10 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           } else {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1261",
+               "code": "E1295",
                "description": "Next.js encountered the unstable value require('node:crypto').randomFillSync(...) while prerendering.",
                "environmentLabel": "Server",
-               "label": "Instant",
+               "label": "Blocking Route",
                "source": "app/sync-io-node-crypto/random-fill-sync/page.tsx (21:3) @ SyncIOComponent
              > 21 |   crypto.randomFillSync(first, 4, 8)
                   |   ^",
@@ -6676,11 +6799,12 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                This value can change between renders, so it must be either prerendered or computed later.
 
                Ways to fix this:
-                 - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
-                 - Prerender and cache the value with \`"use cache"\`
-                 - Render the value on the client with \`"use client"\`
-
-               Learn more: https://nextjs.org/docs/messages/next-prerender-random
+                 - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+                   https://nextjs.org/docs/messages/blocking-prerender-random#generate-on-every-request
+                 - [cache] Prerender and cache the value with \`"use cache"\`
+                   https://nextjs.org/docs/messages/blocking-prerender-random#cache-the-random-value
+                 - [client] Render the value on the client with \`"use client"\`
+                   https://nextjs.org/docs/messages/blocking-prerender-random#render-on-the-client
                    at SyncIOComponent (app/sync-io-node-crypto/random-fill-sync/page.tsx:21:10)
                    at Page (app/sync-io-node-crypto/random-fill-sync/page.tsx:12:9)
                  19 |   await new Promise((r) => process.nextTick(r))
@@ -6703,11 +6827,12 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                This value can change between renders, so it must be either prerendered or computed later.
 
                Ways to fix this:
-                 - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
-                 - Prerender and cache the value with \`"use cache"\`
-                 - Render the value on the client with \`"use client"\`
-
-               Learn more: https://nextjs.org/docs/messages/next-prerender-random
+                 - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+                   https://nextjs.org/docs/messages/blocking-prerender-random#generate-on-every-request
+                 - [cache] Prerender and cache the value with \`"use cache"\`
+                   https://nextjs.org/docs/messages/blocking-prerender-random#cache-the-random-value
+                 - [client] Render the value on the client with \`"use client"\`
+                   https://nextjs.org/docs/messages/blocking-prerender-random#render-on-the-client
                    at a (app/sync-io-node-crypto/random-fill-sync/page.tsx:21:10)
                  19 |   await new Promise((r) => process.nextTick(r))
                  20 |   const first = new Uint8Array(16)
@@ -6731,11 +6856,12 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                This value can change between renders, so it must be either prerendered or computed later.
 
                Ways to fix this:
-                 - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
-                 - Prerender and cache the value with \`"use cache"\`
-                 - Render the value on the client with \`"use client"\`
-
-               Learn more: https://nextjs.org/docs/messages/next-prerender-random
+                 - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+                   https://nextjs.org/docs/messages/blocking-prerender-random#generate-on-every-request
+                 - [cache] Prerender and cache the value with \`"use cache"\`
+                   https://nextjs.org/docs/messages/blocking-prerender-random#cache-the-random-value
+                 - [client] Render the value on the client with \`"use client"\`
+                   https://nextjs.org/docs/messages/blocking-prerender-random#render-on-the-client
                    at SyncIOComponent (webpack:///app/sync-io-node-crypto/random-fill-sync/page.tsx:21:3)
                    at Page (webpack:///app/sync-io-node-crypto/random-fill-sync/page.tsx:12:9)
                  19 |   await new Promise((r) => process.nextTick(r))
@@ -6758,11 +6884,12 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                This value can change between renders, so it must be either prerendered or computed later.
 
                Ways to fix this:
-                 - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
-                 - Prerender and cache the value with \`"use cache"\`
-                 - Render the value on the client with \`"use client"\`
-
-               Learn more: https://nextjs.org/docs/messages/next-prerender-random
+                 - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+                   https://nextjs.org/docs/messages/blocking-prerender-random#generate-on-every-request
+                 - [cache] Prerender and cache the value with \`"use cache"\`
+                   https://nextjs.org/docs/messages/blocking-prerender-random#cache-the-random-value
+                 - [client] Render the value on the client with \`"use client"\`
+                   https://nextjs.org/docs/messages/blocking-prerender-random#render-on-the-client
                    at a (<next-dist-dir>)
                To get a more detailed stack trace and pinpoint the issue, try one of the following:
                  - Start the app in development mode by running \`next dev\`, then open "/sync-io-node-crypto/random-fill-sync" in your browser to investigate the error.
@@ -6786,10 +6913,10 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           if (isTurbopack) {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1261",
+               "code": "E1295",
                "description": "Next.js encountered the unstable value require('node:crypto').randomInt(min, max) while prerendering.",
                "environmentLabel": "Server",
-               "label": "Instant",
+               "label": "Blocking Route",
                "source": "app/sync-io-node-crypto/random-int-between/page.tsx (20:24) @ SyncIOComponent
              > 20 |   const first = crypto.randomInt(128, 256)
                   |                        ^",
@@ -6802,10 +6929,10 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           } else {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1261",
+               "code": "E1295",
                "description": "Next.js encountered the unstable value require('node:crypto').randomInt(min, max) while prerendering.",
                "environmentLabel": "Server",
-               "label": "Instant",
+               "label": "Blocking Route",
                "source": "app/sync-io-node-crypto/random-int-between/page.tsx (20:17) @ SyncIOComponent
              > 20 |   const first = crypto.randomInt(128, 256)
                   |                 ^",
@@ -6838,11 +6965,12 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                This value can change between renders, so it must be either prerendered or computed later.
 
                Ways to fix this:
-                 - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
-                 - Prerender and cache the value with \`"use cache"\`
-                 - Render the value on the client with \`"use client"\`
-
-               Learn more: https://nextjs.org/docs/messages/next-prerender-random
+                 - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+                   https://nextjs.org/docs/messages/blocking-prerender-random#generate-on-every-request
+                 - [cache] Prerender and cache the value with \`"use cache"\`
+                   https://nextjs.org/docs/messages/blocking-prerender-random#cache-the-random-value
+                 - [client] Render the value on the client with \`"use client"\`
+                   https://nextjs.org/docs/messages/blocking-prerender-random#render-on-the-client
                    at SyncIOComponent (app/sync-io-node-crypto/random-int-between/page.tsx:20:24)
                    at Page (app/sync-io-node-crypto/random-int-between/page.tsx:12:9)
                  18 | async function SyncIOComponent() {
@@ -6865,11 +6993,12 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                This value can change between renders, so it must be either prerendered or computed later.
 
                Ways to fix this:
-                 - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
-                 - Prerender and cache the value with \`"use cache"\`
-                 - Render the value on the client with \`"use client"\`
-
-               Learn more: https://nextjs.org/docs/messages/next-prerender-random
+                 - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+                   https://nextjs.org/docs/messages/blocking-prerender-random#generate-on-every-request
+                 - [cache] Prerender and cache the value with \`"use cache"\`
+                   https://nextjs.org/docs/messages/blocking-prerender-random#cache-the-random-value
+                 - [client] Render the value on the client with \`"use client"\`
+                   https://nextjs.org/docs/messages/blocking-prerender-random#render-on-the-client
                    at a (app/sync-io-node-crypto/random-int-between/page.tsx:20:24)
                  18 | async function SyncIOComponent() {
                  19 |   await new Promise((r) => process.nextTick(r))
@@ -6893,11 +7022,12 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                This value can change between renders, so it must be either prerendered or computed later.
 
                Ways to fix this:
-                 - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
-                 - Prerender and cache the value with \`"use cache"\`
-                 - Render the value on the client with \`"use client"\`
-
-               Learn more: https://nextjs.org/docs/messages/next-prerender-random
+                 - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+                   https://nextjs.org/docs/messages/blocking-prerender-random#generate-on-every-request
+                 - [cache] Prerender and cache the value with \`"use cache"\`
+                   https://nextjs.org/docs/messages/blocking-prerender-random#cache-the-random-value
+                 - [client] Render the value on the client with \`"use client"\`
+                   https://nextjs.org/docs/messages/blocking-prerender-random#render-on-the-client
                    at SyncIOComponent (webpack:///app/sync-io-node-crypto/random-int-between/page.tsx:20:17)
                    at Page (webpack:///app/sync-io-node-crypto/random-int-between/page.tsx:12:9)
                  18 | async function SyncIOComponent() {
@@ -6920,11 +7050,12 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                This value can change between renders, so it must be either prerendered or computed later.
 
                Ways to fix this:
-                 - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
-                 - Prerender and cache the value with \`"use cache"\`
-                 - Render the value on the client with \`"use client"\`
-
-               Learn more: https://nextjs.org/docs/messages/next-prerender-random
+                 - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+                   https://nextjs.org/docs/messages/blocking-prerender-random#generate-on-every-request
+                 - [cache] Prerender and cache the value with \`"use cache"\`
+                   https://nextjs.org/docs/messages/blocking-prerender-random#cache-the-random-value
+                 - [client] Render the value on the client with \`"use client"\`
+                   https://nextjs.org/docs/messages/blocking-prerender-random#render-on-the-client
                    at a (<next-dist-dir>)
                To get a more detailed stack trace and pinpoint the issue, try one of the following:
                  - Start the app in development mode by running \`next dev\`, then open "/sync-io-node-crypto/random-int-between" in your browser to investigate the error.
@@ -6948,10 +7079,10 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           if (isTurbopack) {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1261",
+               "code": "E1295",
                "description": "Next.js encountered the unstable value require('node:crypto').randomInt(min, max) while prerendering.",
                "environmentLabel": "Server",
-               "label": "Instant",
+               "label": "Blocking Route",
                "source": "app/sync-io-node-crypto/random-int-up-to/page.tsx (20:24) @ SyncIOComponent
              > 20 |   const first = crypto.randomInt(128)
                   |                        ^",
@@ -6964,10 +7095,10 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           } else {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1261",
+               "code": "E1295",
                "description": "Next.js encountered the unstable value require('node:crypto').randomInt(min, max) while prerendering.",
                "environmentLabel": "Server",
-               "label": "Instant",
+               "label": "Blocking Route",
                "source": "app/sync-io-node-crypto/random-int-up-to/page.tsx (20:17) @ SyncIOComponent
              > 20 |   const first = crypto.randomInt(128)
                   |                 ^",
@@ -7000,11 +7131,12 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                This value can change between renders, so it must be either prerendered or computed later.
 
                Ways to fix this:
-                 - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
-                 - Prerender and cache the value with \`"use cache"\`
-                 - Render the value on the client with \`"use client"\`
-
-               Learn more: https://nextjs.org/docs/messages/next-prerender-random
+                 - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+                   https://nextjs.org/docs/messages/blocking-prerender-random#generate-on-every-request
+                 - [cache] Prerender and cache the value with \`"use cache"\`
+                   https://nextjs.org/docs/messages/blocking-prerender-random#cache-the-random-value
+                 - [client] Render the value on the client with \`"use client"\`
+                   https://nextjs.org/docs/messages/blocking-prerender-random#render-on-the-client
                    at SyncIOComponent (app/sync-io-node-crypto/random-int-up-to/page.tsx:20:24)
                    at Page (app/sync-io-node-crypto/random-int-up-to/page.tsx:12:9)
                  18 | async function SyncIOComponent() {
@@ -7027,11 +7159,12 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                This value can change between renders, so it must be either prerendered or computed later.
 
                Ways to fix this:
-                 - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
-                 - Prerender and cache the value with \`"use cache"\`
-                 - Render the value on the client with \`"use client"\`
-
-               Learn more: https://nextjs.org/docs/messages/next-prerender-random
+                 - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+                   https://nextjs.org/docs/messages/blocking-prerender-random#generate-on-every-request
+                 - [cache] Prerender and cache the value with \`"use cache"\`
+                   https://nextjs.org/docs/messages/blocking-prerender-random#cache-the-random-value
+                 - [client] Render the value on the client with \`"use client"\`
+                   https://nextjs.org/docs/messages/blocking-prerender-random#render-on-the-client
                    at a (app/sync-io-node-crypto/random-int-up-to/page.tsx:20:24)
                  18 | async function SyncIOComponent() {
                  19 |   await new Promise((r) => process.nextTick(r))
@@ -7055,11 +7188,12 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                This value can change between renders, so it must be either prerendered or computed later.
 
                Ways to fix this:
-                 - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
-                 - Prerender and cache the value with \`"use cache"\`
-                 - Render the value on the client with \`"use client"\`
-
-               Learn more: https://nextjs.org/docs/messages/next-prerender-random
+                 - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+                   https://nextjs.org/docs/messages/blocking-prerender-random#generate-on-every-request
+                 - [cache] Prerender and cache the value with \`"use cache"\`
+                   https://nextjs.org/docs/messages/blocking-prerender-random#cache-the-random-value
+                 - [client] Render the value on the client with \`"use client"\`
+                   https://nextjs.org/docs/messages/blocking-prerender-random#render-on-the-client
                    at SyncIOComponent (webpack:///app/sync-io-node-crypto/random-int-up-to/page.tsx:20:17)
                    at Page (webpack:///app/sync-io-node-crypto/random-int-up-to/page.tsx:12:9)
                  18 | async function SyncIOComponent() {
@@ -7082,11 +7216,12 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                This value can change between renders, so it must be either prerendered or computed later.
 
                Ways to fix this:
-                 - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
-                 - Prerender and cache the value with \`"use cache"\`
-                 - Render the value on the client with \`"use client"\`
-
-               Learn more: https://nextjs.org/docs/messages/next-prerender-random
+                 - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+                   https://nextjs.org/docs/messages/blocking-prerender-random#generate-on-every-request
+                 - [cache] Prerender and cache the value with \`"use cache"\`
+                   https://nextjs.org/docs/messages/blocking-prerender-random#cache-the-random-value
+                 - [client] Render the value on the client with \`"use client"\`
+                   https://nextjs.org/docs/messages/blocking-prerender-random#render-on-the-client
                    at a (<next-dist-dir>)
                To get a more detailed stack trace and pinpoint the issue, try one of the following:
                  - Start the app in development mode by running \`next dev\`, then open "/sync-io-node-crypto/random-int-up-to" in your browser to investigate the error.
@@ -7110,10 +7245,10 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           if (isTurbopack) {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1261",
+               "code": "E1295",
                "description": "Next.js encountered the unstable value require('node:crypto').randomUUID() while prerendering.",
                "environmentLabel": "Server",
-               "label": "Instant",
+               "label": "Blocking Route",
                "source": "app/sync-io-node-crypto/random-uuid/page.tsx (20:24) @ SyncIOComponent
              > 20 |   const first = crypto.randomUUID()
                   |                        ^",
@@ -7126,10 +7261,10 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           } else {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1261",
+               "code": "E1295",
                "description": "Next.js encountered the unstable value require('node:crypto').randomUUID() while prerendering.",
                "environmentLabel": "Server",
-               "label": "Instant",
+               "label": "Blocking Route",
                "source": "app/sync-io-node-crypto/random-uuid/page.tsx (20:17) @ SyncIOComponent
              > 20 |   const first = crypto.randomUUID()
                   |                 ^",
@@ -7162,11 +7297,12 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                This value can change between renders, so it must be either prerendered or computed later.
 
                Ways to fix this:
-                 - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
-                 - Prerender and cache the value with \`"use cache"\`
-                 - Render the value on the client with \`"use client"\`
-
-               Learn more: https://nextjs.org/docs/messages/next-prerender-random
+                 - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+                   https://nextjs.org/docs/messages/blocking-prerender-random#generate-on-every-request
+                 - [cache] Prerender and cache the value with \`"use cache"\`
+                   https://nextjs.org/docs/messages/blocking-prerender-random#cache-the-random-value
+                 - [client] Render the value on the client with \`"use client"\`
+                   https://nextjs.org/docs/messages/blocking-prerender-random#render-on-the-client
                    at SyncIOComponent (app/sync-io-node-crypto/random-uuid/page.tsx:20:24)
                    at Page (app/sync-io-node-crypto/random-uuid/page.tsx:12:9)
                  18 | async function SyncIOComponent() {
@@ -7189,11 +7325,12 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                This value can change between renders, so it must be either prerendered or computed later.
 
                Ways to fix this:
-                 - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
-                 - Prerender and cache the value with \`"use cache"\`
-                 - Render the value on the client with \`"use client"\`
-
-               Learn more: https://nextjs.org/docs/messages/next-prerender-random
+                 - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+                   https://nextjs.org/docs/messages/blocking-prerender-random#generate-on-every-request
+                 - [cache] Prerender and cache the value with \`"use cache"\`
+                   https://nextjs.org/docs/messages/blocking-prerender-random#cache-the-random-value
+                 - [client] Render the value on the client with \`"use client"\`
+                   https://nextjs.org/docs/messages/blocking-prerender-random#render-on-the-client
                    at a (app/sync-io-node-crypto/random-uuid/page.tsx:20:24)
                  18 | async function SyncIOComponent() {
                  19 |   await new Promise((r) => process.nextTick(r))
@@ -7217,11 +7354,12 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                This value can change between renders, so it must be either prerendered or computed later.
 
                Ways to fix this:
-                 - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
-                 - Prerender and cache the value with \`"use cache"\`
-                 - Render the value on the client with \`"use client"\`
-
-               Learn more: https://nextjs.org/docs/messages/next-prerender-random
+                 - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+                   https://nextjs.org/docs/messages/blocking-prerender-random#generate-on-every-request
+                 - [cache] Prerender and cache the value with \`"use cache"\`
+                   https://nextjs.org/docs/messages/blocking-prerender-random#cache-the-random-value
+                 - [client] Render the value on the client with \`"use client"\`
+                   https://nextjs.org/docs/messages/blocking-prerender-random#render-on-the-client
                    at SyncIOComponent (webpack:///app/sync-io-node-crypto/random-uuid/page.tsx:20:17)
                    at Page (webpack:///app/sync-io-node-crypto/random-uuid/page.tsx:12:9)
                  18 | async function SyncIOComponent() {
@@ -7244,190 +7382,18 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                This value can change between renders, so it must be either prerendered or computed later.
 
                Ways to fix this:
-                 - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
-                 - Prerender and cache the value with \`"use cache"\`
-                 - Render the value on the client with \`"use client"\`
-
-               Learn more: https://nextjs.org/docs/messages/next-prerender-random
+                 - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+                   https://nextjs.org/docs/messages/blocking-prerender-random#generate-on-every-request
+                 - [cache] Prerender and cache the value with \`"use cache"\`
+                   https://nextjs.org/docs/messages/blocking-prerender-random#cache-the-random-value
+                 - [client] Render the value on the client with \`"use client"\`
+                   https://nextjs.org/docs/messages/blocking-prerender-random#render-on-the-client
                    at a (<next-dist-dir>)
                To get a more detailed stack trace and pinpoint the issue, try one of the following:
                  - Start the app in development mode by running \`next dev\`, then open "/sync-io-node-crypto/random-uuid" in your browser to investigate the error.
                  - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
                Error occurred prerendering page "/sync-io-node-crypto/random-uuid". Read more: https://nextjs.org/docs/messages/prerender-error
                Export encountered an error on /sync-io-node-crypto/random-uuid/page: /sync-io-node-crypto/random-uuid, exiting the build."
-              `)
-            }
-          }
-        })
-      }
-    })
-
-    describe('IO accessed in Client Components', () => {
-      const pathname = '/client-awaited-io'
-
-      if (isNextDev) {
-        it('should show a collapsed redbox error', async () => {
-          const browser = await next.browser(pathname)
-
-          await expect(browser).toDisplayCollapsedRedbox(`
-           {
-             "code": "E1265",
-             "description": "Next.js encountered uncached data during prerendering.",
-             "environmentLabel": "Server",
-             "label": "Instant",
-             "source": "app/client-awaited-io/client.tsx (6:19) @ Client
-           > 6 |   const data = use(io)
-               |                   ^",
-             "stack": [
-               "Client app/client-awaited-io/client.tsx (6:19)",
-               "Page app/client-awaited-io/page.tsx (5:10)",
-             ],
-           }
-          `)
-        })
-      } else {
-        it('should error the build if IO is accessed in a Client Component', async () => {
-          try {
-            await prerender(pathname)
-          } catch {
-            // we expect the build to fail
-          }
-
-          const output = getPrerenderOutput(
-            next.cliOutput.slice(cliOutputLength),
-            { isMinified: !isDebugPrerender }
-          )
-
-          if (isTurbopack) {
-            if (isDebugPrerender) {
-              expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/client-awaited-io": Next.js encountered uncached or runtime data during prerendering.
-
-               \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
-
-               Ways to fix this:
-                 - Cache the data access with \`"use cache"\`
-                 - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                 - If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
-                 - Set \`export const instant = false\` to allow a blocking route
-
-               Learn more: https://nextjs.org/docs/messages/blocking-route
-                   at Client (app/client-awaited-io/client.tsx:6:19)
-                   at Page (app/client-awaited-io/page.tsx:5:10)
-                 4 |
-                 5 | export function Client({ io }: { io: Promise<string> }) {
-               > 6 |   const data = use(io)
-                   |                   ^
-                 7 |   return <div>Data: {data}</div>
-                 8 | }
-                 9 |
-               To debug the issue, start the app in development mode by running \`next dev\`, then open "/client-awaited-io" in your browser to investigate the error.
-               Error occurred prerendering page "/client-awaited-io". Read more: https://nextjs.org/docs/messages/prerender-error
-
-               > Export encountered errors on 1 path:
-               	/client-awaited-io/page: /client-awaited-io"
-              `)
-            } else {
-              expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/client-awaited-io": Next.js encountered uncached or runtime data during prerendering.
-
-               \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
-
-               Ways to fix this:
-                 - Cache the data access with \`"use cache"\`
-                 - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                 - If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
-                 - Set \`export const instant = false\` to allow a blocking route
-
-               Learn more: https://nextjs.org/docs/messages/blocking-route
-                   at <unknown> (app/client-awaited-io/client.tsx:5:26)
-                   at body (<anonymous>)
-                   at html (<anonymous>)
-                 3 | import { use } from 'react'
-                 4 |
-               > 5 | export function Client({ io }: { io: Promise<string> }) {
-                   |                          ^
-                 6 |   const data = use(io)
-                 7 |   return <div>Data: {data}</div>
-                 8 | }
-               To get a more detailed stack trace and pinpoint the issue, try one of the following:
-                 - Start the app in development mode by running \`next dev\`, then open "/client-awaited-io" in your browser to investigate the error.
-                 - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
-               Error occurred prerendering page "/client-awaited-io". Read more: https://nextjs.org/docs/messages/prerender-error
-               Export encountered an error on /client-awaited-io/page: /client-awaited-io, exiting the build."
-              `)
-            }
-          } else {
-            if (isDebugPrerender) {
-              expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/client-awaited-io": Next.js encountered uncached or runtime data during prerendering.
-
-               \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
-
-               Ways to fix this:
-                 - Cache the data access with \`"use cache"\`
-                 - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                 - If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
-                 - Set \`export const instant = false\` to allow a blocking route
-
-               Learn more: https://nextjs.org/docs/messages/blocking-route
-                   at Client (webpack:///app/client-awaited-io/client.tsx:6:19)
-                   at Page (webpack:///app/client-awaited-io/page.tsx:5:10)
-                 4 |
-                 5 | export function Client({ io }: { io: Promise<string> }) {
-               > 6 |   const data = use(io)
-                   |                   ^
-                 7 |   return <div>Data: {data}</div>
-                 8 | }
-                 9 |
-               To debug the issue, start the app in development mode by running \`next dev\`, then open "/client-awaited-io" in your browser to investigate the error.
-               Error occurred prerendering page "/client-awaited-io". Read more: https://nextjs.org/docs/messages/prerender-error
-
-               > Export encountered errors on 1 path:
-               	/client-awaited-io/page: /client-awaited-io"
-              `)
-            } else {
-              expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/client-awaited-io": Next.js encountered uncached or runtime data during prerendering.
-
-               \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
-
-               Ways to fix this:
-                 - Cache the data access with \`"use cache"\`
-                 - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                 - If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
-                 - Set \`export const instant = false\` to allow a blocking route
-
-               Learn more: https://nextjs.org/docs/messages/blocking-route
-                   at a (<next-dist-dir>)
-                   at b (<next-dist-dir>)
-                   at c (<next-dist-dir>)
-                   at d (<next-dist-dir>)
-                   at e (<next-dist-dir>)
-                   at f (<next-dist-dir>)
-                   at g (<next-dist-dir>)
-                   at h (<next-dist-dir>)
-                   at i (<next-dist-dir>)
-                   at j (<next-dist-dir>)
-                   at k (<next-dist-dir>)
-                   at body (<anonymous>)
-                   at html (<anonymous>)
-                   at l (<next-dist-dir>)
-                   at m (<next-dist-dir>)
-                   at n (<next-dist-dir>)
-                   at o (<next-dist-dir>)
-                   at p (<next-dist-dir>)
-                   at q (<next-dist-dir>)
-                   at r (<next-dist-dir>)
-                   at s (<next-dist-dir>)
-                   at t (<next-dist-dir>)
-                   at u (<next-dist-dir>)
-                   at v (<next-dist-dir>)
-               To get a more detailed stack trace and pinpoint the issue, try one of the following:
-                 - Start the app in development mode by running \`next dev\`, then open "/client-awaited-io" in your browser to investigate the error.
-                 - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
-               Error occurred prerendering page "/client-awaited-io". Read more: https://nextjs.org/docs/messages/prerender-error
-               Export encountered an error on /client-awaited-io/page: /client-awaited-io, exiting the build."
               `)
             }
           }

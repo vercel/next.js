@@ -1,7 +1,6 @@
 import { Server } from 'http'
 import { nextTestSetup } from 'e2e-utils'
 import { findPort, startStaticServer, stopApp } from 'next-test-utils'
-import webdriver from 'next-webdriver'
 import { join } from 'path'
 
 const itHeaded = process.env.HEADLESS ? it.skip : it
@@ -35,7 +34,10 @@ describe('bfcache-routing', () => {
       // bfcache is not currently supported by CDP, so we need to run this particular test in headed mode
       // https://bugs.chromium.org/p/chromium/issues/detail?id=1317959
 
-      const browser = await webdriver(port, '/index.html', { headless: false })
+      const browser = await next.browser('/index.html', {
+        baseUrl: port,
+        headless: false,
+      })
 
       // we overwrite the typical waitUntil: 'load' option here as the event is never being triggered if we hit the bfcache
       const bfOptions = { waitUntil: 'commit' as const }

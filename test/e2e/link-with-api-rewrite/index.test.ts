@@ -1,7 +1,6 @@
 import { FileRef, nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 import { join } from 'path'
-import webdriver from 'next-webdriver'
 
 describe('link-with-api-rewrite', () => {
   const { next } = nextTestSetup({
@@ -13,7 +12,7 @@ describe('link-with-api-rewrite', () => {
   })
 
   it('should perform hard navigation for rewritten urls', async () => {
-    const browser = await webdriver(next.url, '/')
+    const browser = await next.browser('/')
 
     try {
       // Click the link on the page, we expect that there will be a hard
@@ -40,7 +39,7 @@ describe('link-with-api-rewrite', () => {
   })
 
   it('should perform hard navigation for direct urls', async () => {
-    const browser = await webdriver(next.url, '/')
+    const browser = await next.browser('/')
 
     try {
       // Click the link on the page, we expect that there will be a hard

@@ -289,12 +289,8 @@ export function getInstantErrorRoute(error: unknown): string | null {
   const message = (error as Error).message
   if (typeof message !== 'string') return null
   if (!isBlockingRouteInNavError(message)) return null
-  // Most factories prefix `Route "<path>":`; the missing-segment factory in
-  // `dynamic-rendering.ts` writes `Route: <path>` on its own line in the body.
   const prefixMatch = /^Route "([^"]+)":/.exec(message)
-  if (prefixMatch) return prefixMatch[1]
-  const lineMatch = /\nRoute: (\S+)/.exec(message)
-  return lineMatch ? lineMatch[1] : null
+  return prefixMatch ? prefixMatch[1] : null
 }
 
 // The route stored on an instant error is the route *template* from

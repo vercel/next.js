@@ -14,8 +14,9 @@ use serde::Deserialize;
 use tracing_subscriber::{Registry, layer::SubscriberExt, util::SubscriberInitExt};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    Completion, Effects, NonLocalValue, OperationVc, ReadRef, ResolvedVc, TaskInput, TurboTasks,
-    Vc, debug::ValueDebugFormat, fxindexmap, take_effects, trace::TraceRawVcs,
+    Completion, Effects, NonLocalValue, OperationVc, ReadRef, ResolvedVc, TurboTasks, Vc,
+    debug::ValueDebugFormat, fxindexmap, read_strongly_consistent_and_apply_effects, take_effects,
+    trace::TraceRawVcs,
 };
 use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
 use turbo_tasks_env::CommandLineProcessEnv;
@@ -81,8 +82,8 @@ struct JsResult {
     jest_result: JestRunResult,
 }
 
-#[turbo_tasks::value]
-#[derive(Copy, Clone, Debug, Hash, TaskInput)]
+#[turbo_tasks::value(task_input)]
+#[derive(Copy, Clone, Debug, Hash)]
 enum IssueSnapshotMode {
     Snapshots,
     NoSnapshots,
@@ -249,11 +250,9 @@ async fn run(resource: PathBuf, snapshot_mode: IssueSnapshotMode) -> Result<JsRe
     }
 
     tt.run_once(async move {
+        let op = run_inner_operation_with_effects(resource.to_str().unwrap().into(), snapshot_mode);
         let result_with_effects =
-            run_inner_operation_with_effects(resource.to_str().unwrap().into(), snapshot_mode)
-                .read_strongly_consistent()
-                .await?;
-        result_with_effects.effects.apply().await?;
+            read_strongly_consistent_and_apply_effects(op, |v| &v.effects).await?;
 
         Ok((*result_with_effects.result).clone())
     })
@@ -638,7 +637,7 @@ async fn snapshot_issues(
 
     let plain_issues = run_result_op
         .peek_issues()
-        .get_plain_issues(IssueFilter::everything())
+        .get_plain_issues(&IssueFilter::everything())
         .await?;
 
     turbopack_test_utils::snapshot::snapshot_issues(plain_issues, path.join("issues")?, &REPO_ROOT)

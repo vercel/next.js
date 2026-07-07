@@ -2,7 +2,7 @@ use anyhow::Result;
 use bincode::{Decode, Encode};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    FxIndexMap, NonLocalValue, OperationValue, OperationVc, ResolvedVc, TaskInput, Vc,
+    FxIndexMap, NonLocalValue, OperationValue, OperationVc, ResolvedVc, Vc,
     debug::ValueDebugFormat, take_effects, trace::TraceRawVcs,
 };
 use turbopack_core::issue::CollectibleIssuesExt;
@@ -108,19 +108,9 @@ fn pick_route(entrypoints: OperationVc<Entrypoints>, key: RcStr, route: &Route) 
     }
 }
 
+#[turbo_tasks::task_input]
 #[derive(
-    Debug,
-    Clone,
-    TaskInput,
-    TraceRawVcs,
-    PartialEq,
-    Eq,
-    Hash,
-    ValueDebugFormat,
-    NonLocalValue,
-    OperationValue,
-    Encode,
-    Decode,
+    Debug, Clone, TraceRawVcs, PartialEq, Eq, Hash, ValueDebugFormat, OperationValue, Encode, Decode,
 )]
 enum EndpointSelector {
     RoutePageHtml(RcStr),

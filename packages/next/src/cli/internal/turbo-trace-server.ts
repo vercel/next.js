@@ -288,7 +288,7 @@ export async function startTurboTraceServerCli(
 
   server.listen(httpPort, '127.0.0.1', () => {
     console.log(
-      `Query this trace from the command line: next internal query-trace --help`
+      `Query this trace from the command line: next internal query-trace --help --port ${httpPort}`
     )
     console.log(
       `Alternatively, connect an MCP client to http://127.0.0.1:${httpPort}/mcp`

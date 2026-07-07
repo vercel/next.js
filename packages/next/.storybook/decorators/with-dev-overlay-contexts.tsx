@@ -20,6 +20,8 @@ interface WithDevOverlayContextsOptions {
   dispatch?: (action: DispatcherEvent) => void
   runtimeErrors?: ReadyRuntimeError[]
   totalErrorCount?: number
+  normalErrorCount?: number
+  instantErrorCount?: number
   panel?: PanelStateKind | null
   setPanel?: Dispatch<SetStateAction<PanelStateKind | null>>
   selectedIndex?: number
@@ -67,6 +69,11 @@ export const withDevOverlayContexts =
           value={{
             runtimeErrors: options?.runtimeErrors ?? [],
             totalErrorCount: options?.totalErrorCount ?? 0,
+            normalErrorCount:
+              options?.normalErrorCount ??
+              (options?.totalErrorCount ?? 0) -
+                (options?.instantErrorCount ?? 0),
+            instantErrorCount: options?.instantErrorCount ?? 0,
           }}
         >
           <PanelRouterContext.Provider

@@ -130,11 +130,9 @@ class GitHubClient {
     )
   }
 
-  async upsertIssueComment(issueNumber, marker, body, fallbackHeadings = []) {
-    body = fitComment(body)
-
+  async findExistingBotComment(issueNumber, marker, fallbackHeadings = []) {
     const comments = await this.listIssueComments(issueNumber)
-    const existing = [...comments].reverse().find((comment) => {
+    return [...comments].reverse().find((comment) => {
       if (comment.user?.login !== COMMENT_AUTHOR) {
         return false
       }
@@ -144,6 +142,16 @@ class GitHubClient {
         fallbackHeadings.some((heading) => comment.body?.includes(heading))
       )
     })
+  }
+
+  async upsertIssueComment(issueNumber, marker, body, fallbackHeadings = []) {
+    body = fitComment(body)
+
+    const existing = await this.findExistingBotComment(
+      issueNumber,
+      marker,
+      fallbackHeadings
+    )
 
     if (this.dryRun) {
       console.log(
@@ -180,6 +188,45 @@ class GitHubClient {
       }
     )
     console.log(`Created comment ${created.html_url}`)
+  }
+
+  async insertIssueCommentIfMissing(
+    issueNumber,
+    marker,
+    body,
+    fallbackHeadings = []
+  ) {
+    body = fitComment(body)
+
+    const existing = await this.findExistingBotComment(
+      issueNumber,
+      marker,
+      fallbackHeadings
+    )
+
+    if (existing) {
+      console.log(
+        `Existing comment ${existing.html_url} found for #${issueNumber}; requested-phase is create-only, leaving it alone`
+      )
+      return
+    }
+
+    if (this.dryRun) {
+      console.log(
+        `[dry-run] Would create placeholder comment for #${issueNumber}`
+      )
+      console.log(body)
+      return
+    }
+
+    const created = await this.request(
+      `/repos/${this.owner}/${this.repo}/issues/${issueNumber}/comments`,
+      {
+        method: 'POST',
+        body: JSON.stringify({ body }),
+      }
+    )
+    console.log(`Created placeholder comment ${created.html_url}`)
   }
 
   async findPullRequestForCommit(sha) {
@@ -244,13 +291,26 @@ async function main() {
     return
   }
 
+  const phase = event.action
+  if (phase !== 'requested' && phase !== 'completed') {
+    console.log(`Ignoring workflow_run action "${phase}"`)
+    return
+  }
+
   if (workflowRun.name === 'Generate Stats') {
-    await handleStatsWorkflow({ github, workflowRun, pr })
+    await handleStatsWorkflow({ github, workflowRun, pr, phase })
     return
   }
 
   if (workflowRun.name === 'build-and-test') {
-    await handleBuildAndTestWorkflow({ github, workflowRun, pr, owner, repo })
+    await handleBuildAndTestWorkflow({
+      github,
+      workflowRun,
+      pr,
+      owner,
+      repo,
+      phase,
+    })
     return
   }
 
@@ -398,12 +458,33 @@ async function readPullRequestMetadataArtifact() {
   }
 }
 
-async function handleStatsWorkflow({ github, workflowRun, pr }) {
-  if (workflowRun.conclusion === 'cancelled') {
-    console.log('Stats workflow was cancelled, skipping')
+async function handleStatsWorkflow({ github, workflowRun, pr, phase }) {
+  if (phase === 'requested') {
+    const sha = pr.headSha || workflowRun.head_sha
+    const body = [
+      STATS_COMMENT_MARKER,
+      '## Stats in progress',
+      '',
+      `Commit: ${sha}`,
+      `[View workflow run](${workflowRun.html_url})`,
+      '',
+    ].join('\n')
+
+    await github.insertIssueCommentIfMissing(
+      pr.number,
+      STATS_COMMENT_MARKER,
+      body,
+      ['## Stats from current PR']
+    )
     return
   }
 
+  // Look for a stats block before reacting to the run conclusion. A single
+  // bundler timing out cancels its job and marks the whole run "cancelled", but
+  // the aggregate still emits stats for the bundlers that finished. Treating a
+  // cancelled run as "no data" up front would discard that partial comment, so
+  // we post whatever the aggregate produced first and only fall back to a
+  // cancelled/skipped notice when there is genuinely no block.
   const jobs = await github.listJobsForRunAttempt(
     workflowRun.id,
     workflowRun.run_attempt || 1
@@ -411,7 +492,15 @@ async function handleStatsWorkflow({ github, workflowRun, pr }) {
   const candidates = jobs.filter((job) => /aggregate stats/i.test(job.name))
 
   for (const job of candidates) {
-    const logs = await github.downloadJobLogs(job.id)
+    let logs
+    try {
+      logs = await github.downloadJobLogs(job.id)
+    } catch (err) {
+      // A cancelled or skipped aggregate job may have no retrievable logs.
+      console.log(`Failed to download logs for job ${job.id}`, err)
+      continue
+    }
+
     const stats = extractDelimitedBlock(
       logs,
       '--stats start--',
@@ -439,7 +528,43 @@ async function handleStatsWorkflow({ github, workflowRun, pr }) {
     return
   }
 
-  console.log('No stats block found in the completed stats workflow')
+  const sha = pr.headSha || workflowRun.head_sha
+
+  // No stats block. A cancelled conclusion here means the whole run was
+  // cancelled (superseded, or every bundler cancelled) rather than an
+  // individual bundler, since a partial run would have produced a block above.
+  if (workflowRun.conclusion === 'cancelled') {
+    console.log('No stats block found and the run was cancelled.')
+    const body = [
+      STATS_COMMENT_MARKER,
+      '## Stats cancelled',
+      '',
+      `Commit: ${sha}`,
+      `[View workflow run](${workflowRun.html_url})`,
+      '',
+    ].join('\n')
+
+    await github.upsertIssueComment(pr.number, STATS_COMMENT_MARKER, body, [
+      '## Stats from current PR',
+    ])
+    return
+  }
+
+  console.log(
+    'No stats block found in the completed stats workflow. Assuming stats were skipped.'
+  )
+
+  const body = [
+    STATS_COMMENT_MARKER,
+    '## Stats skipped',
+    '',
+    `Commit: ${sha}`,
+    `[View workflow run](${workflowRun.html_url})`,
+    '',
+  ].join('\n')
+  await github.upsertIssueComment(pr.number, STATS_COMMENT_MARKER, body, [
+    '## Stats from current PR',
+  ])
 }
 
 async function handleBuildAndTestWorkflow({
@@ -448,9 +573,25 @@ async function handleBuildAndTestWorkflow({
   pr,
   owner,
   repo,
+  phase,
 }) {
-  if (workflowRun.conclusion === 'cancelled') {
-    console.log('build-and-test was cancelled, skipping')
+  if (phase === 'requested') {
+    const sha = pr.headSha || workflowRun.head_sha
+    const body = [
+      TEST_COMMENT_MARKER,
+      '## Tests in progress',
+      '',
+      `Commit: ${sha}`,
+      `[View workflow run](${workflowRun.html_url})`,
+      '',
+    ].join('\n')
+
+    await github.insertIssueCommentIfMissing(
+      pr.number,
+      TEST_COMMENT_MARKER,
+      body,
+      ['## Failing test suites', '## Failing CI jobs']
+    )
     return
   }
 
@@ -687,9 +828,10 @@ function datadogSearchQuery(values) {
 
 function getTestCommand(suite) {
   const jobName = suite.job.name.toLowerCase()
-  const isTurbopack = jobName.includes('turbopack')
+  const isCacheComponents = jobName.includes('cache components')
+  const isTurbopack = jobName.includes('turbopack') || isCacheComponents
   const isRspack = jobName.includes('rspack')
-  const isExperimental = jobName.includes('experimental')
+  const isExperimental = jobName.includes('experimental') || isCacheComponents
   const isPPR = jobName.includes('ppr')
   const script = suite.mode
     ? `test-${suite.mode}${isExperimental ? '-experimental' : ''}${

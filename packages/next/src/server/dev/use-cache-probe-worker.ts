@@ -117,9 +117,13 @@ export async function probeUseCache(msg: ProbeMessage): Promise<boolean> {
     const temporaryReferences = createTemporaryReferenceSet()
     let decoded: CacheKeyParts
     if (msg.encodedArguments.kind === 'string') {
-      decoded = (await decodeReply(msg.encodedArguments.data, serverModuleMap, {
-        temporaryReferences,
-      })) as CacheKeyParts
+      decoded = await decodeReply<CacheKeyParts>(
+        msg.encodedArguments.data,
+        serverModuleMap,
+        {
+          temporaryReferences,
+        }
+      )
     } else {
       const entries = msg.encodedArguments.entries.map<[string, string | File]>(
         ([key, value]) => {
@@ -130,7 +134,7 @@ export async function probeUseCache(msg: ProbeMessage): Promise<boolean> {
           return [key, new File([bytes], '', { type: value.type })]
         }
       )
-      decoded = (await decodeReplyFromAsyncIterable(
+      decoded = await decodeReplyFromAsyncIterable<CacheKeyParts>(
         {
           async *[Symbol.asyncIterator]() {
             for (const pair of entries) {
@@ -140,7 +144,7 @@ export async function probeUseCache(msg: ProbeMessage): Promise<boolean> {
         },
         serverModuleMap,
         { temporaryReferences }
-      )) as CacheKeyParts
+      )
     }
 
     const args = decoded[2]
@@ -159,7 +163,7 @@ export async function probeUseCache(msg: ProbeMessage): Promise<boolean> {
       url: { pathname: msg.request.urlPathname, search: msg.request.urlSearch },
       rootParams: msg.request.rootParams,
       implicitTags: { tags: [], expirationsByCacheKind: new Map() },
-      renderResumeDataCache: null,
+      resumeDataCache: null,
       previewProps: undefined,
       isHmrRefresh: msg.request.isHmrRefresh,
       serverComponentsHmrCache: undefined,

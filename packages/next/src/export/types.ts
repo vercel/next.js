@@ -61,7 +61,6 @@ export interface ExportPageInput {
   debugOutput?: boolean
   nextConfigOutput?: NextConfigComplete['output']
   enableExperimentalReact?: boolean
-  enableNodeStreams?: boolean
   sriEnabled: boolean
   renderResumeDataCache: RenderResumeDataCache | undefined
 }

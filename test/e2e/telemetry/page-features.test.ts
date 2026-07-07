@@ -5,7 +5,7 @@ import { nextTestSetup } from 'e2e-utils'
 import { findPort, killApp, renderViaHTTP, retry } from 'next-test-utils'
 
 describe('page features telemetry', () => {
-  const { next, isTurbopack, isNextStart, skipped } = nextTestSetup({
+  const { next, isTurbopack, isRspack, isNextStart, skipped } = nextTestSetup({
     files: __dirname,
     skipStart: true,
     // Calls `next.build()` directly which is not supported on `NextDeployInstance`.
@@ -135,6 +135,9 @@ describe('page features telemetry', () => {
   } else {
     it('detects correctly for `next dev` stopped (no turbo)', async () => {
       const port = await findPort()
+      // Rspack startup can take longer while restoring persistent cache state,
+      // so give telemetry events a wider retry window.
+      const retryDuration = isRspack ? 10_000 : 3_000
       let stderr = ''
 
       const { child, exit } = await launchDevServer(port, {
@@ -148,7 +151,7 @@ describe('page features telemetry', () => {
 
       await retry(async () => {
         expect(stderr).toMatch(/NEXT_CLI_SESSION_STARTED/)
-      })
+      }, retryDuration)
       await renderViaHTTP(port, '/hello')
 
       if (child) {
@@ -158,7 +161,7 @@ describe('page features telemetry', () => {
 
       await retry(async () => {
         expect(stderr).toMatch(/NEXT_CLI_SESSION_STOPPED/)
-      })
+      }, retryDuration)
 
       expect(stderr).toContain('NEXT_CLI_SESSION_STOPPED')
       const event1 = /NEXT_CLI_SESSION_STOPPED[\s\S]+?{([\s\S]+?)}/

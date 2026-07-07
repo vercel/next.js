@@ -9,6 +9,7 @@ import { NextDeployInstance } from '../next-modes/next-deploy'
 import { shouldUseTurbopack } from '../next-test-utils'
 
 export type { NextInstance }
+export type { Playwright } from '../browsers/playwright'
 
 const individualTestTimeout = 60 * 1000
 

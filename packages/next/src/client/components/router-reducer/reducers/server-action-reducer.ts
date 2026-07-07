@@ -67,7 +67,7 @@ import {
   type ActionRevalidationKind,
 } from '../../../../shared/lib/action-revalidation-kind'
 import { isExternalURL } from '../../app-router-utils'
-import { FreshnessPolicy } from '../ppr-navigations'
+import { FreshnessPolicy, getCurrentNavigationLock } from '../ppr-navigations'
 import { processFetch } from '../fetch-server-response'
 import {
   invalidateBfCache,
@@ -485,6 +485,7 @@ export function serverActionReducer(
           discoverKnownRoute(
             now,
             redirectUrl.pathname,
+            redirectUrl.search as NormalizedSearch,
             nextUrl,
             null, // No pending entry
             redirectSeed.routeTree,
@@ -495,6 +496,7 @@ export function serverActionReducer(
             false // hasDynamicRewrite
           )
         }
+        const navigationLock = getCurrentNavigationLock()
 
         return navigateToKnownRoute(
           now,
@@ -510,12 +512,15 @@ export function serverActionReducer(
           nextUrl,
           scrollBehavior,
           navigateType,
+          navigationLock,
           null,
           // Server action redirects don't use route prediction - we already
           // have the route tree from the server response. If a mismatch occurs
           // during dynamic data fetch, the retry handler will traverse the
           // known route tree to mark the entry as having a dynamic rewrite.
-          null
+          null,
+          // Not an HMR refresh, so there's no request generation to cancel.
+          undefined
         )
       }
 

@@ -72,7 +72,7 @@ impl EcmascriptBrowserChunkContent {
     }
 
     #[turbo_tasks::function]
-    async fn code(self: Vc<Self>) -> Result<Vc<Code>> {
+    pub(crate) async fn code(self: Vc<Self>) -> Result<Vc<Code>> {
         let this = self.await?;
         let source_maps = *this
             .chunking_context
@@ -118,10 +118,17 @@ impl EcmascriptBrowserChunkContent {
         )?;
 
         let content = this.content.await?;
-        let chunk_items = content.chunk_item_code_and_ids().await?;
-        for item in chunk_items {
-            for (id, item_code) in item {
-                write!(code, "\n{}, ", StringifyJs(&id))?;
+        let mut chunk_items = content.chunk_item_code_module_ids_and_paths().await?;
+        // Sort items by their module path so that similar modules stay
+        // together so that the chunks gzips better.
+        chunk_items.sort_by(|a, b| {
+            a.first()
+                .map(|(id, _, path)| (path, id))
+                .cmp(&b.first().map(|(id, _, path)| (path, id)))
+        });
+        for item in &chunk_items {
+            for (id, item_code, _) in &**item {
+                write!(code, "\n{}, ", StringifyJs(id))?;
                 code.push_code(item_code);
                 write!(code, ",")?;
             }

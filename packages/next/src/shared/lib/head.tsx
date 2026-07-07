@@ -3,7 +3,6 @@
 import React, { useContext, type JSX } from 'react'
 import Effect from './side-effect'
 import { HeadManagerContext } from './head-manager-context.shared-runtime'
-import { warnOnce } from './utils/warn-once'
 
 export function defaultHead(): JSX.Element[] {
   const head = [
@@ -73,7 +72,6 @@ function unique() {
       }
     }
 
-    // eslint-disable-next-line default-case
     switch (h.type) {
       case 'title':
       case 'base':
@@ -106,6 +104,8 @@ function unique() {
           }
         }
         break
+      default:
+        break
     }
 
     return isUnique
@@ -128,6 +128,8 @@ function reduceComponents(
     .map((c: React.ReactElement<any>, i: number) => {
       const key = c.key || i
       if (process.env.NODE_ENV === 'development') {
+        const { warnOnce } =
+          require('./utils/warn-once') as typeof import('./utils/warn-once')
         // omit JSON-LD structured data snippets from the warning
         if (c.type === 'script' && c.props['type'] !== 'application/ld+json') {
           const srcMessage = c.props['src']

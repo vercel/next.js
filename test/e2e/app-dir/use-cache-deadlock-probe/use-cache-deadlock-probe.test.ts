@@ -8,7 +8,15 @@ const expectedTimeoutErrorMessage =
 const expectedDeadlockMessage =
   'Filling a "use cache" entry appears to be stuck on shared state from the outer render scope. The same function completed when run in isolation, which usually means a module-scoped value (for example a top-level Map used to dedupe fetches) is joining a promise created outside the cache. "use cache" already dedupes calls with the same arguments — within a request and across requests on the same server instance — so the surrounding dedupe layer is both unnecessary and the likely cause. Remove it and rely on "use cache" alone for deduping.'
 
-describe('use-cache-deadlock-probe', () => {
+// TODO: The `'use cache'` deadlock probe is disabled in dev for now. The
+// streaming dev render now advances to the dynamic stage without waiting for
+// cache fills, so dynamic content streams to the browser immediately instead of
+// being withheld until the slowest cache fills. A fill that depends on
+// dynamic-stage IO is therefore unblocked by reaching the dynamic stage rather
+// than detected as a deadlock. Revisit by surfacing these deadlocks at build
+// time via `next build --debug-prerender`, then re-enable (and retarget) this
+// suite.
+describe.skip('use-cache-deadlock-probe', () => {
   const { next, isNextDev, skipped } = nextTestSetup({
     files: __dirname,
     skipDeployment: true,
@@ -228,12 +236,12 @@ describe('use-cache-deadlock-probe', () => {
         waitUntil: 'commit',
       })
 
-      await expect(browser).toDisplayCollapsedRedbox(`
+      await expect(browser).toDisplayRedbox(`
        {
          "code": "E1181",
          "description": "Filling a "use cache" entry appears to be stuck on shared state from the outer render scope. The same function completed when run in isolation, which usually means a module-scoped value (for example a top-level Map used to dedupe fetches) is joining a promise created outside the cache. "use cache" already dedupes calls with the same arguments — within a request and across requests on the same server instance — so the surrounding dedupe layer is both unnecessary and the likely cause. Remove it and rely on "use cache" alone for deduping.",
-         "environmentLabel": "Server",
-         "label": "Console Error",
+         "environmentLabel": "Cache",
+         "label": "Runtime Error",
          "source": "app/recovery-stuck/page.tsx (24:1) @ getCachedData
        > 24 | async function getCachedData() {
             | ^",

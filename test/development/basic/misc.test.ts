@@ -1,5 +1,4 @@
 import { join } from 'path'
-import webdriver from 'next-webdriver'
 import { FileRef, nextTestSetup } from 'e2e-utils'
 import { fetchViaHTTP, renderViaHTTP } from 'next-test-utils'
 
@@ -17,7 +16,7 @@ describe.each([[''], ['/docs']])(
     })
 
     it('should set process.env.NODE_ENV in development', async () => {
-      const browser = await webdriver(next.url, basePath + '/process-env')
+      const browser = await next.browser(basePath + '/process-env')
       const nodeEnv = await browser.elementByCss('#node-env').text()
       expect(nodeEnv).toBe('development')
       await browser.close()

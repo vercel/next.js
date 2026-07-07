@@ -232,7 +232,7 @@ async fn batch_chunk_items_with_info(
 ) -> Result<Vc<BatchChunkItemsWithInfo>> {
     let split_batch_group = batch_group.split_by_chunk_type().await?;
     if split_batch_group.len() == 1 {
-        let &(ty, batch) = split_batch_group.into_iter().next().unwrap();
+        let (ty, batch) = split_batch_group.into_iter().next().unwrap();
         Ok(batch_chunk_items_with_info_with_type(
             *batch,
             *ty,
@@ -241,9 +241,7 @@ async fn batch_chunk_items_with_info(
     } else {
         let maps = split_batch_group
             .into_iter()
-            .map(|&(ty, batch)| {
-                batch_chunk_items_with_info_with_type(*batch, *ty, chunking_context)
-            })
+            .map(|(ty, batch)| batch_chunk_items_with_info_with_type(*batch, *ty, chunking_context))
             .try_join()
             .await?;
         Ok(Vc::cell(

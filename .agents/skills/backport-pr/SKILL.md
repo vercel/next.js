@@ -7,6 +7,8 @@ description: >
   finding the merged PR commit, creating a backport branch from the target
   release branch, cherry-picking from canary, validating, and opening the PR
   with the release branch as the base.
+metadata:
+  internal: true
 ---
 
 # Backport PR

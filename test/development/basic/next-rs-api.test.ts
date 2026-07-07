@@ -3,6 +3,7 @@ import { PHASE_DEVELOPMENT_SERVER } from 'next/constants'
 import { createDefineEnv, loadBindings, HmrTarget } from 'next/dist/build/swc'
 import type {
   Issue,
+  MemoryEvictionMode,
   Project,
   RawEntrypoints,
   StyledString,
@@ -200,6 +201,8 @@ async function main() {
     currentNodeJsVersion: '18.0.0',
     isPersistentCachingEnabled: false,
     nextVersion: '0.0.0',
+  }, {
+    turbopackMemoryEviction: 'off',
   });
 
   const entrypointsSubscription = project.entrypointsSubscribe();
@@ -313,46 +316,51 @@ describe('next.rs api', () => {
       ? path.resolve(__dirname, '../../..')
       : next.testDir
     const distDir = '.next'
-    project = await bindings.turbo.createProject({
-      env: {},
-      nextConfig: nextConfig,
-      rootPath,
-      projectPath: path.relative(rootPath, next.testDir) || '.',
-      distDir,
-      watch: {
-        enable: true,
-      },
-      dev: true,
-      defineEnv: createDefineEnv({
-        projectPath: next.testDir,
-        isTurbopack: true,
-        clientRouterFilters: undefined,
-        config: nextConfig,
-        dev: true,
-        distDir: path.join(rootPath, distDir),
-        fetchCacheKeyPrefix: undefined,
-        hasRewrites: false,
-        middlewareMatchers: undefined,
-        rewrites: {
-          beforeFiles: [],
-          afterFiles: [],
-          fallback: [],
+    project = await bindings.turbo.createProject(
+      {
+        env: {},
+        nextConfig: nextConfig,
+        rootPath,
+        projectPath: path.relative(rootPath, next.testDir) || '.',
+        distDir,
+        watch: {
+          enable: true,
         },
-      }),
-      buildId: 'development',
-      encryptionKey: '12345',
-      previewProps: {
-        previewModeId: 'development',
-        previewModeEncryptionKey: '12345',
-        previewModeSigningKey: '12345',
+        dev: true,
+        defineEnv: createDefineEnv({
+          projectPath: next.testDir,
+          isTurbopack: true,
+          clientRouterFilters: undefined,
+          config: nextConfig,
+          dev: true,
+          distDir: path.join(rootPath, distDir),
+          fetchCacheKeyPrefix: undefined,
+          hasRewrites: false,
+          middlewareMatchers: undefined,
+          rewrites: {
+            beforeFiles: [],
+            afterFiles: [],
+            fallback: [],
+          },
+        }),
+        buildId: 'development',
+        encryptionKey: '12345',
+        previewProps: {
+          previewModeId: 'development',
+          previewModeEncryptionKey: '12345',
+          previewModeSigningKey: '12345',
+        },
+        browserslistQuery: 'last 2 versions',
+        noMangling: false,
+        writeRoutesHashesManifest: false,
+        currentNodeJsVersion: '18.0.0',
+        isPersistentCachingEnabled: false,
+        nextVersion: '0.0.0',
       },
-      browserslistQuery: 'last 2 versions',
-      noMangling: false,
-      writeRoutesHashesManifest: false,
-      currentNodeJsVersion: '18.0.0',
-      isPersistentCachingEnabled: false,
-      nextVersion: '0.0.0',
-    })
+      {
+        turbopackMemoryEviction: 'off' as MemoryEvictionMode,
+      }
+    )
     projectUpdateSubscription = filterMapAsyncIterator(
       project.updateInfoSubscribe(1000),
       (update) => (update.updateType === 'end' ? update.value : undefined)

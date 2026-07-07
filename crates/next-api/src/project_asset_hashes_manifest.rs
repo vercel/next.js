@@ -68,11 +68,7 @@ pub async fn endpoints_outputs(endpoints: Vc<Endpoints>) -> Result<Vc<OutputAsse
         .map(async |endpoint| endpoint.output().await?.output_assets.await)
         .try_join()
         .await?;
-    let set = all_outputs
-        .into_iter()
-        .flatten()
-        .copied()
-        .collect::<FxIndexSet<_>>();
+    let set = all_outputs.into_iter().flatten().collect::<FxIndexSet<_>>();
     Ok(Vc::cell(set.into_iter().collect()))
 }
 
@@ -105,7 +101,7 @@ pub async fn expand_outputs(
             .await?
             .into_iter()
             .flatten()
-            .map(|asset| ExpandOutputAssetsInput::Asset(*asset)),
+            .map(ExpandOutputAssetsInput::Asset),
         true,
     )
     .await?;
@@ -138,7 +134,7 @@ impl Asset for AssetHashesManifestAsset {
         let output_assets = expand_outputs(*self.project, self.asset_root.clone()).await?;
 
         let asset_paths = output_assets
-            .into_iter()
+            .iter()
             .map(async |(asset, path)| {
                 Ok((
                     path,

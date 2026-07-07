@@ -1,7 +1,6 @@
 import { FileRef, nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 import { join } from 'path'
-import webdriver from 'next-webdriver'
 
 const locales = ['', '/en', '/sv', '/nl']
 
@@ -51,7 +50,7 @@ describe('i18n-ignore-redirect-source-locale with basepath', () => {
   test.each(locales)(
     'get redirected to the new page, from: %s to: sv',
     async (locale) => {
-      const browser = await webdriver(next.url, `basepath/${locale}/to-sv`)
+      const browser = await next.browser(`basepath/${locale}/to-sv`)
       await retry(async () => {
         expect(await browser.elementById('current-locale').text()).toBe('sv')
       })
@@ -61,7 +60,7 @@ describe('i18n-ignore-redirect-source-locale with basepath', () => {
   test.each(locales)(
     'get redirected to the new page, from: %s to: en',
     async (locale) => {
-      const browser = await webdriver(next.url, `basepath/${locale}/to-en`)
+      const browser = await next.browser(`basepath/${locale}/to-en`)
       await retry(async () => {
         expect(await browser.elementById('current-locale').text()).toBe('en')
       })
@@ -71,7 +70,7 @@ describe('i18n-ignore-redirect-source-locale with basepath', () => {
   test.each(locales)(
     'get redirected to the new page, from: %s to: /',
     async (locale) => {
-      const browser = await webdriver(next.url, `basepath/${locale}/to-slash`)
+      const browser = await next.browser(`basepath/${locale}/to-slash`)
       await retry(async () => {
         expect(await browser.elementById('current-locale').text()).toBe('en')
       })
@@ -81,7 +80,7 @@ describe('i18n-ignore-redirect-source-locale with basepath', () => {
   test.each(locales)(
     'get redirected to the new page, from and to: %s',
     async (locale) => {
-      const browser = await webdriver(next.url, `basepath/${locale}/to-same`)
+      const browser = await next.browser(`basepath/${locale}/to-same`)
       await retry(async () => {
         expect(await browser.elementById('current-locale').text()).toBe(
           locale === '' ? 'en' : locale.slice(1)

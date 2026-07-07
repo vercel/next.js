@@ -9,7 +9,7 @@ fn add(a: i32, b: i32) -> Vc<Something> {
 
 - Tasks can be implemented as either a **synchronous or asynchronous** function.
 - Arguments must implement the **[`TaskInput`] trait**. Usually these are primitives or types wrapped in [`Vc<T>`].
-- The **external signature** of a task always **returns a [`Vc<T>`]** or an [`OperationVc<T>`].
+- The **external signature** of a task always **returns a [`Vc<T>`]** or an [`OperationVc<T>`]. A task may declare its return type as [`Vc<T>`] or [`ResolvedVc<T>`] (optionally wrapped in `Result<...>`); a [`ResolvedVc<T>`] return is rewritten to [`Vc<T>`] in the external signature.
 - **Generics** (type or lifetime parameters) are **not supported** in task functions.
 
 [`Vc<T>`]: crate::Vc
@@ -34,6 +34,9 @@ The `#[turbo_tasks::function]` macro **rewrites the arguments and return values*
 
 - A return type of **`Result<Vc<T>>` is rewritten into `Vc<T>`**.
   - The `Result<Vc<T>>` return type allows for idiomatic use of the `?` operator inside of task functions.
+- A return type of **[`ResolvedVc<T>`] is rewritten into `Vc<T>`**.
+  - This lets a task return an already-resolved cell (e.g. from [`ResolvedVc::cell`] or a `.resolved_cell()` method) without an explicit conversion back to `Vc<T>`.
+  - This also applies when wrapped in a `Result`: **`Result<ResolvedVc<T>>` is rewritten into `Vc<T>`**.
 - A function with **no return type** is rewritten to return **`Vc<()>` instead of `()`**.
 - The **[`impl Future<Output = Vc<T>>`][Future]** type implicitly returned by an async function is **flattened into the `Vc<T>` type**, which implements [`IntoFuture`] and can be `.await`ed.
 
@@ -41,6 +44,7 @@ Some of this logic is represented by the [`TaskOutput`] trait and its associated
 
 [`TaskOutput`]: crate::task::TaskOutput
 [`Return`]: crate::task::TaskOutput::Return
+[`ResolvedVc::cell`]: crate::ResolvedVc::cell
 
 ### External Signature Example
 
@@ -54,7 +58,7 @@ async fn foo(
     b: Vc<i32>,
     c: ResolvedVc<i32>,
     d: Option<Vec<ResolvedVc<i32>>>,
-) -> Result<Vc<i32>> {
+) -> Result<ResolvedVc<i32>> {
     // ...
 }
 ```
@@ -68,7 +72,7 @@ fn foo(
     b: Vc<i32>,
     c: Vc<i32>,               // was: ResolvedVc<i32>
     d: Option<Vec<Vc<i32>>>,  // was: Option<Vec<ResolvedVc<i32>>>
-) -> Vc<i32>;                 // was: impl Future<Output = Result<Vc<i32>>>
+) -> Vc<i32>;                 // was: impl Future<Output = Result<ResolvedVc<i32>>>
 ```
 
 ## Attributes

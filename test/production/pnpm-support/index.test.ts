@@ -1,7 +1,6 @@
 /* eslint-env jest */
 import path from 'path'
 import fs from 'fs-extra'
-import webdriver from 'next-webdriver'
 import { FileRef, nextTestSetup } from 'e2e-utils'
 import {
   findPort,
@@ -114,13 +113,15 @@ describe('pnpm support', () => {
 
         await renderViaHTTP(appPort, '/')
 
-        browser = await webdriver(appPort, '/', {
+        browser = await next.browser('/', {
+          baseUrl: appPort,
           waitHydration: false,
         })
         expect(await browser.waitForElementByCss('#world').text()).toBe('World')
         await browser.close()
 
-        browser = await webdriver(appPort, '/about', {
+        browser = await next.browser('/about', {
+          baseUrl: appPort,
           waitHydration: false,
         })
         expect(await browser.waitForElementByCss('#world').text()).toBe('World')
