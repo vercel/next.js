@@ -42,6 +42,7 @@ auto-hash-map = { workspace = true }
 bitfield = { workspace = true }
 crossbeam-utils = { workspace = true }
 dashmap = { workspace = true, features = ["raw-api"]}
+fs-err = { workspace = true }
 hashbrown = { workspace = true, features = ["raw"] }
 indexmap = { workspace = true }
 lzzzz = { workspace = true, optional = true }

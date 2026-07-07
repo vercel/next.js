@@ -1,6 +1,5 @@
 use std::{
     cmp::Ordering,
-    fs::File,
     hash::BuildHasherDefault,
     path::Path,
     rc::Rc,
@@ -11,6 +10,7 @@ use std::{
 };
 
 use anyhow::{Context, Result, bail, ensure};
+use fs_err::File;
 use memmap2::Mmap;
 use quick_cache::{Lifecycle, sync::GuardResult};
 use rustc_hash::FxHasher;
@@ -219,9 +219,8 @@ impl StaticSortedFile {
     pub fn open(db_path: &Path, meta: StaticSortedFileMetaData) -> Result<Self> {
         let filename = format!("{:08}.sst", meta.sequence_number);
         let path = db_path.join(&filename);
-        let file = File::open(&path)
-            .with_context(|| format!("Failed to open SST file {}", path.display()))?;
-        let mmap = unsafe { Mmap::map(&file) }.with_context(|| {
+        let file = File::open(&path)?;
+        let mmap = unsafe { Mmap::map(file.file()) }.with_context(|| {
             format!(
                 "Failed to mmap SST file {} ({} bytes)",
                 path.display(),
@@ -781,9 +780,8 @@ impl StaticSortedFileIter {
     pub fn open(db_path: &Path, meta: StaticSortedFileMetaData) -> Result<Self> {
         let filename = format!("{:08}.sst", meta.sequence_number);
         let path = db_path.join(&filename);
-        let file = File::open(&path)
-            .with_context(|| format!("Failed to open SST file {}", path.display()))?;
-        let mmap = unsafe { Mmap::map(&file) }.with_context(|| {
+        let file = File::open(&path)?;
+        let mmap = unsafe { Mmap::map(file.file()) }.with_context(|| {
             format!(
                 "Failed to mmap SST file {} ({} bytes)",
                 path.display(),

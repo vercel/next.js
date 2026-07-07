@@ -2810,6 +2810,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "fs-err"
+version = "3.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b91aa448ca50d7e79433bdf3ee8d99215430d2ec02ade5aefab2a073a1822e8a"
+dependencies = [
+ "autocfg",
+]
+
+[[package]]
 name = "fs-set-times"
 version = "0.20.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -9962,6 +9971,7 @@ dependencies = [
  "crc32fast",
  "dashmap 6.1.0",
  "either",
+ "fs-err",
  "jiff",
  "lzzzz",
  "memmap2 0.9.5",
@@ -10072,6 +10082,7 @@ dependencies = [
  "codspeed-criterion-compat",
  "crossbeam-utils",
  "dashmap 6.1.0",
+ "fs-err",
  "futures",
  "hashbrown 0.14.5",
  "indexmap 2.13.0",

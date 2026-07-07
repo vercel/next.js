@@ -1,6 +1,5 @@
 use std::{
     cell::SyncUnsafeCell,
-    fs::File,
     io::Write,
     mem::{replace, take},
     path::PathBuf,
@@ -10,6 +9,7 @@ use std::{
 use anyhow::{Context, Result};
 use byteorder::{BE, WriteBytesExt};
 use either::Either;
+use fs_err::File;
 use parking_lot::Mutex;
 use smallvec::SmallVec;
 use thread_local::ThreadLocal;
@@ -460,10 +460,9 @@ impl<'db, K: StoreKey + Send + Sync, S: ParallelScheduler, const FAMILIES: usize
 
         let size = buffer.len() as u64;
         let file = self.db_path.join(format!("{seq:08}.blob"));
-        let mut file = File::create(&file).context("Unable to create blob file")?;
-        file.write_all(&buffer)
-            .context("Unable to write blob file")?;
-        file.flush().context("Unable to flush blob file")?;
+        let mut file = File::create(&file)?;
+        file.write_all(&buffer)?;
+        file.flush()?;
         Ok(NewFile { seq, file, size })
     }
 

@@ -12,12 +12,12 @@
 
 use std::{
     collections::{BTreeMap, HashSet},
-    fs::{self, File},
     path::{Path, PathBuf},
 };
 
 use anyhow::{Context, Result, bail};
 use byteorder::{BE, ReadBytesExt};
+use fs_err::{self as fs, File};
 use lzzzz::lz4::decompress;
 use memmap2::Mmap;
 use turbo_persistence::{
@@ -211,8 +211,7 @@ fn format_bytes(bytes: u64) -> String {
 /// and apply SstFilter to skip superseded entries.
 fn collect_sst_info(db_path: &Path) -> Result<BTreeMap<u32, Vec<SstInfo>>> {
     // Read the CURRENT sequence number — only files with seq <= current are valid.
-    let current: u32 = File::open(db_path.join("CURRENT"))
-        .context("Failed to open CURRENT file")?
+    let current: u32 = File::open(db_path.join("CURRENT"))?
         .read_u32::<BE>()
         .context("Failed to read CURRENT file")?;
 
@@ -425,9 +424,9 @@ fn analyze_sst_file(db_path: &Path, info: &SstInfo) -> Result<SstStats> {
     let filename = format!("{:08}.sst", info.sequence_number);
     let path = db_path.join(&filename);
 
-    let file = File::open(&path).with_context(|| format!("Failed to open {}", filename))?;
+    let file = File::open(&path)?;
     let file_size = file.metadata()?.len();
-    let mmap = unsafe { Mmap::map(&file)? };
+    let mmap = unsafe { Mmap::map(file.file())? };
     advise_mmap_for_persistence(&mmap)?;
 
     let mut stats = SstStats {
