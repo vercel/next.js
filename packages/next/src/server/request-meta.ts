@@ -227,6 +227,11 @@ export interface RequestMeta {
   middlewareInvoke?: boolean
 
   /**
+   * Headers accumulated while routing a Node.js WebSocket upgrade request.
+   */
+  webSocketUpgradeHeaders?: Record<string, string | string[]>
+
+  /**
    * Whether the request should render the fallback shell or not.
    */
   renderFallbackShell?: boolean

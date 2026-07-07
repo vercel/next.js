@@ -1,0 +1,95 @@
+import type { IncomingMessage } from 'node:http'
+import { PassThrough } from 'node:stream'
+
+import {
+  getWebSocketUpgradeMetadata,
+  NextResponse,
+} from 'next/dist/server/web/spec-extension/response'
+import { writeRawHttpResponse } from 'next/dist/server/websocket-upgrade'
+
+describe('NextResponse.upgrade()', () => {
+  const originalRuntime = process.env.NEXT_RUNTIME
+  const originalFlag = process.env.__NEXT_EXPERIMENTAL_WEBSOCKET_ROUTE_HANDLERS
+
+  afterEach(() => {
+    process.env.NEXT_RUNTIME = originalRuntime
+    process.env.__NEXT_EXPERIMENTAL_WEBSOCKET_ROUTE_HANDLERS = originalFlag
+  })
+
+  it('requires the experimental flag', () => {
+    delete process.env.NEXT_RUNTIME
+    delete process.env.__NEXT_EXPERIMENTAL_WEBSOCKET_ROUTE_HANDLERS
+
+    expect(() => NextResponse.upgrade({})).toThrow(
+      'experimental.webSocketRouteHandlers'
+    )
+  })
+
+  it('throws a targeted Edge Runtime error', () => {
+    process.env.NEXT_RUNTIME = 'edge'
+    process.env.__NEXT_EXPERIMENTAL_WEBSOCKET_ROUTE_HANDLERS = '1'
+
+    expect(() => NextResponse.upgrade({})).toThrow(
+      'not supported in the Edge Runtime'
+    )
+  })
+
+  it('preserves hooks, headers, cookies, and metadata through clone()', () => {
+    delete process.env.NEXT_RUNTIME
+    process.env.__NEXT_EXPERIMENTAL_WEBSOCKET_ROUTE_HANDLERS = '1'
+    const hooks = { open: async () => {} }
+    const response = NextResponse.upgrade(hooks)
+    response.headers.set('x-upgrade', 'yes')
+    response.cookies.set('session', 'value')
+
+    const cloned = response.clone()
+    expect(cloned.headers.get('x-upgrade')).toBe('yes')
+    expect(cloned.cookies.get('session')?.value).toBe('value')
+    expect(getWebSocketUpgradeMetadata(cloned)).toEqual({ hooks })
+  })
+
+  it('validates the hooks object and hook functions', () => {
+    delete process.env.NEXT_RUNTIME
+    process.env.__NEXT_EXPERIMENTAL_WEBSOCKET_ROUTE_HANDLERS = '1'
+    expect(() => NextResponse.upgrade(null as any)).toThrow('hooks object')
+    expect(() => NextResponse.upgrade({ open: 'invalid' } as any)).toThrow(
+      'hook "open" must be a function'
+    )
+    expect(() => NextResponse.upgrade({ upgrade() {} } as any)).toThrow(
+      'does not support the "upgrade" hook'
+    )
+  })
+
+  it('allows an empty hooks object', () => {
+    delete process.env.NEXT_RUNTIME
+    process.env.__NEXT_EXPERIMENTAL_WEBSOCKET_ROUTE_HANDLERS = '1'
+    const hooks = {}
+    expect(getWebSocketUpgradeMetadata(NextResponse.upgrade(hooks))).toEqual({
+      hooks,
+    })
+  })
+})
+
+describe('writeRawHttpResponse()', () => {
+  it('preserves status, repeated cookies, and chunked body framing', async () => {
+    const socket = new PassThrough()
+    const chunks: Buffer[] = []
+    socket.on('data', (chunk) => chunks.push(Buffer.from(chunk)))
+
+    const headers = new Headers({ 'x-response': 'yes' })
+    headers.append('set-cookie', 'first=1; Path=/')
+    headers.append('set-cookie', 'second=2; Path=/')
+    await writeRawHttpResponse(
+      { method: 'GET' } as IncomingMessage,
+      socket,
+      new Response('hello', { status: 403, statusText: 'Forbidden', headers })
+    )
+
+    const raw = Buffer.concat(chunks).toString()
+    expect(raw).toContain('HTTP/1.1 403 Forbidden\r\n')
+    expect(raw).toContain('set-cookie: first=1; Path=/\r\n')
+    expect(raw).toContain('set-cookie: second=2; Path=/\r\n')
+    expect(raw).toContain('Transfer-Encoding: chunked\r\n')
+    expect(raw).toContain('\r\n5\r\nhello\r\n0\r\n\r\n')
+  })
+})

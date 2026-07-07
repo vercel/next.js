@@ -186,6 +186,7 @@
     "critters": "0.0.6",
     "cross-env": "6.0.3",
     "cross-spawn": "6.0.5",
+    "crossws": "0.4.4",
     "dd-trace": "4.12.0",
     "es5-ext": "0.10.53",
     "escape-string-regexp": "2.0.0",

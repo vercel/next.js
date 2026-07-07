@@ -3,11 +3,28 @@ import type { I18NConfig } from '../../config-shared'
 import { NextURL } from '../next-url'
 import { toNodeOutgoingHttpHeaders, validateURL } from '../utils'
 import { ReflectAdapter } from './adapters/reflect'
-
 import { ResponseCookies } from './cookies'
 
 const INTERNALS = Symbol('internal response')
+const WEBSOCKET_UPGRADE = Symbol.for('next.internal.websocket-upgrade-response')
 const REDIRECTS = new Set([301, 302, 303, 307, 308])
+const WEBSOCKET_HOOKS = new Set(['open', 'message', 'close', 'error'])
+
+export type WebSocketPeer = import('next/dist/compiled/crossws').Peer
+export type WebSocketMessage = import('next/dist/compiled/crossws').Message
+export type WebSocketError = import('next/dist/compiled/crossws').WSError
+export type WebSocketCloseDetails = {
+  code?: number
+  reason?: string
+}
+export type WebSocketHooks = Pick<
+  Partial<import('next/dist/compiled/crossws').Hooks>,
+  'open' | 'message' | 'close' | 'error'
+>
+
+export interface WebSocketUpgradeMetadata {
+  hooks: WebSocketHooks
+}
 
 function handleMiddlewareField(
   init: MiddlewareResponseInit | undefined,
@@ -150,6 +167,77 @@ export class NextResponse<Body = unknown> extends Response {
     handleMiddlewareField(init, headers)
     return new NextResponse(null, { ...init, headers })
   }
+
+  static upgrade(hooks: WebSocketHooks): NextResponse<null> {
+    if (process.env.NEXT_RUNTIME === 'edge') {
+      throw new Error(
+        'NextResponse.upgrade() is not supported in the Edge Runtime.'
+      )
+    }
+
+    if (!process.env.__NEXT_EXPERIMENTAL_WEBSOCKET_ROUTE_HANDLERS) {
+      throw new Error(
+        'NextResponse.upgrade() requires experimental.webSocketRouteHandlers to be enabled in next.config.js.'
+      )
+    }
+
+    if (!hooks || typeof hooks !== 'object' || Array.isArray(hooks)) {
+      throw new TypeError('NextResponse.upgrade() requires a hooks object.')
+    }
+
+    for (const name of Object.keys(hooks)) {
+      if (!WEBSOCKET_HOOKS.has(name)) {
+        throw new TypeError(
+          `NextResponse.upgrade() does not support the "${name}" hook.`
+        )
+      }
+    }
+
+    for (const name of ['open', 'message', 'close', 'error'] as const) {
+      if (hooks[name] !== undefined && typeof hooks[name] !== 'function') {
+        throw new TypeError(
+          `NextResponse.upgrade() hook "${name}" must be a function.`
+        )
+      }
+    }
+
+    return new WebSocketUpgradeResponse(hooks)
+  }
+}
+
+class WebSocketUpgradeResponse extends NextResponse<null> {
+  constructor(hooks: WebSocketHooks, headers?: HeadersInit) {
+    super(null, { headers })
+    Object.defineProperty(this, WEBSOCKET_UPGRADE, {
+      value: { hooks } satisfies WebSocketUpgradeMetadata,
+    })
+  }
+
+  clone(): WebSocketUpgradeResponse {
+    const metadata = getWebSocketUpgradeMetadata(this)!
+    return new WebSocketUpgradeResponse(
+      metadata.hooks,
+      new Headers(this.headers)
+    )
+  }
+}
+
+/** @internal */
+export function getWebSocketUpgradeMetadata(
+  response: Response
+): WebSocketUpgradeMetadata | undefined {
+  return (
+    response as Response & {
+      [WEBSOCKET_UPGRADE]?: WebSocketUpgradeMetadata
+    }
+  )[WEBSOCKET_UPGRADE]
+}
+
+/** @internal */
+export function isWebSocketUpgradeResponse(
+  response: Response
+): response is NextResponse<null> {
+  return getWebSocketUpgradeMetadata(response) !== undefined
 }
 
 interface ResponseInit extends globalThis.ResponseInit {

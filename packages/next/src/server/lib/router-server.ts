@@ -72,6 +72,9 @@ import {
   getRequestInsightsSnapshot,
   isRequestInsightsEnabled,
 } from './trace/request-insights'
+import { fromNodeOutgoingHttpHeaders } from '../web/utils'
+import { writeRawHttpError, writeRawHttpResponse } from '../websocket-upgrade'
+import { closeAllWebSockets } from '../websocket-connection-registry'
 
 const debug = setupDebug('next:router-server:main')
 const isNextFont = (pathname: string | null) =>
@@ -1040,40 +1043,91 @@ export async function initialize(opts: {
         }
       }
 
-      const res = new MockedResponse({
-        resWriter: () => {
-          throw new Error(
-            'Invariant: did not expect response writer to be written to for upgrade request'
-          )
-        },
+      const res = new MockedResponse()
+      const {
+        finished,
+        matchedOutput,
+        parsedUrl,
+        statusCode,
+        resHeaders,
+        bodyStream,
+      } = await resolveRoutes({
+        req,
+        res,
+        isUpgradeReq: true,
+        signal: signalFromNodeResponse(socket),
       })
-      const { finished, matchedOutput, parsedUrl, statusCode } =
-        await resolveRoutes({
-          req,
-          res,
-          isUpgradeReq: true,
-          signal: signalFromNodeResponse(socket),
-        })
 
-      // TODO: allow upgrade requests to pages/app paths?
-      // this was not previously supported
-      if (matchedOutput) {
-        return socket.end()
+      const responseHeaders = fromNodeOutgoingHttpHeaders(resHeaders || {})
+
+      if (bodyStream) {
+        await writeRawHttpResponse(
+          req,
+          socket,
+          new Response(bodyStream, {
+            status: statusCode || 200,
+            headers: responseHeaders,
+          })
+        )
+        return
+      }
+
+      if (statusCode && statusCode >= 300 && statusCode < 400) {
+        const destination = url.format(parsedUrl)
+        if (!responseHeaders.has('location')) {
+          responseHeaders.set('location', destination)
+        }
+        await writeRawHttpResponse(
+          req,
+          socket,
+          new Response(destination, {
+            status: statusCode,
+            headers: responseHeaders,
+          })
+        )
+        return
       }
 
       if (finished && parsedUrl.protocol) {
         if (!statusCode) {
           return await proxyRequest(req, socket, parsedUrl, head)
         }
+      }
 
-        return socket.end()
+      if (
+        matchedOutput?.type === 'appFile' &&
+        config.experimental.webSocketRouteHandlers
+      ) {
+        addRequestMeta(req, 'invokePath', parsedUrl.pathname || '/')
+        addRequestMeta(req, 'invokeQuery', parsedUrl.query)
+        addRequestMeta(req, 'invokeOutput', matchedOutput.itemPath)
+        addRequestMeta(req, 'middlewareInvoke', false)
+        addRequestMeta(req, 'webSocketUpgradeHeaders', resHeaders || {})
+        await handlers.upgradeHandler(req, socket, head)
+        return
+      }
+
+      if (matchedOutput) return socket.end()
+
+      if (res.finished || statusCode) {
+        await writeRawHttpResponse(
+          req,
+          socket,
+          new Response(res.buffers.length ? Buffer.concat(res.buffers) : null, {
+            status: statusCode || res.statusCode || 200,
+            headers: responseHeaders,
+          })
+        )
+        return
       }
 
       // If there's no matched output, we don't handle the request as user's
       // custom WS server may be listening on the same path.
     } catch (err) {
       console.error('Error handling upgrade request', err)
-      socket.end()
+      if (!socket.destroyed && !socket.writableEnded) {
+        await writeRawHttpError(req, socket, 500, 'Internal Server Error')
+      }
     }
   }
 
@@ -1083,6 +1137,7 @@ export async function initialize(opts: {
     server: handlers.server,
     closeUpgraded() {
       development?.bundler?.hotReloader?.close()
+      closeAllWebSockets(1001)
     },
     distDir: config.distDir,
     experimentalFeatures,

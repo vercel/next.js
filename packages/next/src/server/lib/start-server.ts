@@ -417,8 +417,8 @@ export async function startServer(
               })
               if (isDev) {
                 server.closeAllConnections()
-                closeUpgraded?.()
               }
+              closeUpgraded?.()
             })
 
             // now that no new requests can come in, clean up the rest

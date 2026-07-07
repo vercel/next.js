@@ -384,6 +384,115 @@ describe('config telemetry', () => {
       })
     })
 
+    it('emits telemetry for usage of `webSocketRouteHandlers`', async () => {
+      await fs.rename(
+        path.join(next.testDir, 'next.config.websocket-route-handlers'),
+        path.join(next.testDir, 'next.config.js')
+      )
+
+      const { cliOutput } = await next.build({
+        env: { NEXT_TELEMETRY_DEBUG: '1' },
+      })
+
+      await fs.rename(
+        path.join(next.testDir, 'next.config.js'),
+        path.join(next.testDir, 'next.config.websocket-route-handlers')
+      )
+
+      const featureUsageEvents = findAllTelemetryEvents(
+        cliOutput,
+        'NEXT_BUILD_FEATURE_USAGE'
+      )
+      expect(featureUsageEvents).toContainEqual({
+        featureName: 'experimental/webSocketRouteHandlers',
+        invocationCount: 1,
+      })
+    })
+
+    it('uses the Adapter-modified WebSocket configuration for telemetry', async () => {
+      await fs.rename(
+        path.join(
+          next.testDir,
+          'next.config.websocket-route-handlers-disabled-by-adapter'
+        ),
+        path.join(next.testDir, 'next.config.js')
+      )
+
+      const { cliOutput } = await next.build({
+        env: { NEXT_TELEMETRY_DEBUG: '1' },
+      })
+
+      await fs.rename(
+        path.join(next.testDir, 'next.config.js'),
+        path.join(
+          next.testDir,
+          'next.config.websocket-route-handlers-disabled-by-adapter'
+        )
+      )
+
+      const featureUsageEvents = findAllTelemetryEvents(
+        cliOutput,
+        'NEXT_BUILD_FEATURE_USAGE'
+      )
+      expect(featureUsageEvents).toContainEqual({
+        featureName: 'experimental/webSocketRouteHandlers',
+        invocationCount: 0,
+      })
+    })
+
+    it.each([
+      ['next.config.websocket-route-handlers', 1],
+      ['next.config.websocket-route-handlers-disabled-by-adapter', 0],
+    ])(
+      'emits the final WebSocket configuration when next dev starts with %s',
+      async (configFile, invocationCount) => {
+        await fs.rename(
+          path.join(next.testDir, configFile),
+          path.join(next.testDir, 'next.config.js')
+        )
+
+        let child: ChildProcess | undefined
+        let exitPromise: Promise<any> | undefined
+        let stderr = ''
+
+        try {
+          const result = await launchDevServer(await findPort(), {
+            env: { NEXT_TELEMETRY_DEBUG: '1' },
+            onStderr(msg) {
+              stderr += msg || ''
+            },
+          })
+          child = result.child
+          exitPromise = result.exit
+
+          await retry(async () => {
+            const featureUsageEvents = findAllTelemetryEvents(
+              stderr,
+              'NEXT_BUILD_FEATURE_USAGE'
+            )
+            expect(featureUsageEvents).toContainEqual({
+              featureName: 'experimental/webSocketRouteHandlers',
+              invocationCount,
+            })
+          })
+        } catch (err) {
+          require('console').error('failing stderr', stderr, err)
+          throw err
+        } finally {
+          if (child) {
+            await killApp(child)
+          }
+          if (exitPromise) {
+            await exitPromise.catch(() => {})
+          }
+          await fs.rename(
+            path.join(next.testDir, 'next.config.js'),
+            path.join(next.testDir, configFile)
+          )
+        }
+      }
+    )
+
     it('emits telemetry for usage of `adapterPath`', async () => {
       await fs.rename(
         path.join(next.testDir, 'next.config.adapter-path'),

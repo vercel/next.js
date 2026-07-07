@@ -144,6 +144,7 @@ import { recordMcpTelemetry } from '../mcp/mcp-telemetry-tracker'
 import { getFileLogger } from './browser-logs/file-logger'
 import type { ServerCacheStatus } from '../../next-devtools/dev-overlay/cache-indicator'
 import type { Lockfile } from '../../build/lockfile'
+import { closeAllWebSockets } from '../websocket-connection-registry'
 import {
   sendSerializedErrorsToClient,
   sendSerializedErrorsToClientForHtmlRequest,
@@ -293,7 +294,15 @@ function setupServerHmr(
                 const updatedChunkPaths = collectUpdatedChunkPaths(
                   update.instruction
                 )
+                // An empty partial only advances the version state (e.g. the seed
+                // transition or a new endpoint); nothing changed on disk, so don't
+                // invalidate manifests or ping browsers to refetch RSC.
                 if (updatedChunkPaths.length > 0) {
+                  // Turbopack's server update identifies changed chunks rather
+                  // than route entrypoints. Application WebSockets are kept
+                  // separate from HMR clients, so closing them here cannot
+                  // disrupt HMR itself.
+                  closeAllWebSockets(1012)
                   await onApplied(updatedChunkPaths)
                 }
                 return
