@@ -186,8 +186,8 @@ fn commit_current(path: &Path, seq: u32) -> Result<()> {
     // fsync before invoking this.
     //
     // Skipped on Windows: `sync_data` on a directory handle fails with ERROR_ACCESS_DENIED (the
-    // handle `File::open` returns for a directory has no write access). Other storage engines
-    // (LevelDB, SQLite) also skip directory syncing on Windows.
+    // handle `File::open` returns for a directory has no write access).Apparently metadata changes
+    // are always atomic on windows so this is simply unneeded.
     #[cfg(not(windows))]
     File::open(path)
         .and_then(|dir| dir.sync_data())
