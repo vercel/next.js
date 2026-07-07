@@ -5,13 +5,9 @@ import { retry } from 'next-test-utils'
 ;(process.env.IS_TURBOPACK_TEST ? describe : describe.skip)(
   'app dir - service worker (one worker per scope)',
   () => {
-    const { next, skipped } = nextTestSetup({
+    const { next } = nextTestSetup({
       files: __dirname,
-      // TODO(sampoder) output sw.js into static/ instead of special handling in next-server
-      skipDeployment: true,
     })
-
-    if (skipped) return
 
     it('serves one worker per scope at scope-derived file names', async () => {
       const browser = await next.browser('/')
