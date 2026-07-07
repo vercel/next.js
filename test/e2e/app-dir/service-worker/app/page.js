@@ -15,7 +15,8 @@ export default function Page() {
 
     async function register() {
       const registration = await navigator.serviceWorker.register(
-        new URL('../lib/pwa', import.meta.url)
+        new URL('../lib/pwa', import.meta.url),
+        { updateViaCache: 'none' }
       )
       setScope(registration.scope)
 

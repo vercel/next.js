@@ -250,9 +250,9 @@ impl ServiceWorkerAssetReferenceCodeGen {
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<CodeGeneration> {
         // Rewrite `register(...)`'s script argument to the served URL and pin the `{ scope }` the
-        // analyzer resolved, replacing any options the user passed. Both are prefixed with the
-        // context's base path (e.g. a framework's `basePath`, provided by the host) so the worker
-        // is fetched and scoped under it.
+        // analyzer resolved, preserving any other options the user passed (such as `type` or
+        // `updateViaCache`). Both are prefixed with the context's base path (e.g. a framework's
+        // `basePath`, provided by the host) so the worker is fetched and scoped under it.
         //
         //   register(new URL("./sw", import.meta.url))            // base path ""
         //     -> register("/_next/static/service-worker/sw.js", { scope: "/" })
@@ -274,19 +274,27 @@ impl ServiceWorkerAssetReferenceCodeGen {
             let message = if let Expr::Call(call_expr) = expr {
                 match call_expr.args.first() {
                     Some(ExprOrSpread { spread: None, .. }) => {
-                        call_expr.args = vec![
-                            ExprOrSpread {
-                                spread: None,
-                                expr: Box::new(Expr::Lit(Lit::Str(url.as_str().into()))),
-                            },
-                            ExprOrSpread {
-                                spread: None,
-                                expr: quote_expr!(
-                                    "({ scope: $scope })",
-                                    scope: Expr = Expr::Lit(Lit::Str(scope.as_str().into()))
-                                ),
-                            },
-                        ];
+                        let scope_expr = Expr::Lit(Lit::Str(scope.as_str().into()));
+                        let options = match call_expr.args.get(1) {
+                            Some(ExprOrSpread { spread: None, expr }) => quote_expr!(
+                                "({ ...$user, scope: $scope })",
+                                user: Expr = (**expr).clone(),
+                                scope: Expr = scope_expr
+                            ),
+                            _ => quote_expr!(
+                                "({ scope: $scope })",
+                                scope: Expr = scope_expr
+                            ),
+                        };
+                        call_expr.args.truncate(1);
+                        call_expr.args[0] = ExprOrSpread {
+                            spread: None,
+                            expr: Box::new(Expr::Lit(Lit::Str(url.as_str().into()))),
+                        };
+                        call_expr.args.push(ExprOrSpread {
+                            spread: None,
+                            expr: options,
+                        });
                         return;
                     }
                     Some(ExprOrSpread {
