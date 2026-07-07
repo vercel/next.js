@@ -537,8 +537,15 @@ export { renderToWebFlightStream } from './stream-ops.web'
 export function renderToNodeFlightStream(
   ComponentMod: FlightComponentMod,
   payload: any,
-  clientModules: any,
-  opts: any
+  clientModules: Record<string, any>,
+  opts?: {
+    filterStackFrame: NonNullable<
+      Parameters<
+        (typeof import('react-server-dom-webpack/server'))['renderToReadableStream']
+      >[2]
+    >['filterStackFrame']
+    [key: string]: any
+  }
 ): AnyStream {
   if (!ComponentMod.renderToPipeableStream) {
     throw new Error('renderToPipeableStream is not implemented')

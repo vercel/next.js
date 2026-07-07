@@ -34,8 +34,15 @@ import type { AnyStream as AnyStreamType } from './app-render-prerender-utils'
 
 type FlightRenderToReadableStream = (
   model: any,
-  webpackMap: any,
-  options?: any
+  webpackMap: Record<string, any>,
+  options?: {
+    filterStackFrame: NonNullable<
+      Parameters<
+        (typeof import('react-server-dom-webpack/server'))['renderToReadableStream']
+      >[2]
+    >['filterStackFrame']
+    [key: string]: any
+  }
 ) => ReadableStream<Uint8Array>
 
 export type AnyStream = AnyStreamType
@@ -68,7 +75,8 @@ export type FlightComponentMod = {
 }
 
 export type ServerPrerenderComponentMod = {
-  prerender: (...args: any[]) => Promise<any>
+  // TODO(node-streams): use `prerenderToNodeStream`
+  prerender: typeof import('react-server-dom-webpack/static').prerender
 }
 
 export type FlightPayload = Parameters<FlightRenderToReadableStream>[0]
@@ -284,7 +292,7 @@ export async function resumeToFizzStream(
 
 export function getServerPrerender(
   ComponentMod: ServerPrerenderComponentMod
-): (...args: any[]) => any {
+): typeof import('react-server-dom-webpack/static').prerender {
   return ComponentMod.prerender
 }
 

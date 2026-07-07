@@ -65,8 +65,20 @@ declare module 'next/dist/compiled/amphtml-validator' {
   export type ValidationError = any
 }
 
-declare module 'react-server-dom-webpack/server'
-declare module 'react-server-dom-webpack/static'
+// TODO: It feels wrong that we need to declare these, but without them,
+// `pnpm types:test-lib` and `pnpm lint-typescript` error in `stream-ops.web.ts`.
+// (really, any typecheck that doesn't include the `$$compiled.internal.d.ts` declarations will fail).
+// The actual definitions are in `$$compiled.internal.d.ts`, these are just stubs.
+declare module 'react-server-dom-webpack/server' {
+  export const createTemporaryReferenceSet: (...args: any[]) => any
+  export const renderToReadableStream: (...args: any[]) => any
+  export const decodeReply: (...args: any[]) => any
+  export const decodeAction: (...args: any[]) => any
+  export const decodeFormState: (...args: any[]) => any
+}
+declare module 'react-server-dom-webpack/static' {
+  export const prerender: (...args: any[]) => any
+}
 
 declare module 'VAR_MODULE_GLOBAL_ERROR'
 declare module 'VAR_USERLAND'
