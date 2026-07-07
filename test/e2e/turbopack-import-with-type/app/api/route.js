@@ -3,6 +3,8 @@ import jsAsText from './some.js' with { type: 'text' }
 import bytes from './data.bin' with { type: 'bytes' }
 import jsAsBytes from './some.js' with { type: 'bytes' }
 import configuredAsJsAsBytes from './configured-as-ecmascript.txt' with { type: 'bytes' }
+import json from './data.json' with { type: 'json' }
+import jsonAsText from './data.json' with { type: 'text' }
 
 export async function GET(_req) {
   return Response.json(
@@ -28,6 +30,14 @@ export async function GET(_req) {
       configuredAsJsAsBytes: {
         instanceofUint8Array: configuredAsJsAsBytes instanceof Uint8Array,
         content: new TextDecoder().decode(configuredAsJsAsBytes),
+      },
+      json: {
+        typeofObject: typeof json === 'object',
+        content: json,
+      },
+      jsonAsText: {
+        typeofString: typeof jsonAsText === 'string',
+        content: jsonAsText,
       },
     },
     { status: 200 }

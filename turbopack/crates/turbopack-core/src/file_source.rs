@@ -1,4 +1,4 @@
-use anyhow::Result;
+use anyhow::{Result, bail};
 use turbo_rcstr::RcStr;
 use turbo_tasks::Vc;
 use turbo_tasks_fs::{FileContent, FileSystemEntryType, FileSystemPath, LinkContent};
@@ -47,14 +47,15 @@ impl FileSource {
 impl Source for FileSource {
     #[turbo_tasks::function]
     fn ident(&self) -> Vc<AssetIdent> {
-        let mut ident = AssetIdent::from_path(self.path.clone());
-        if !self.query.is_empty() {
-            ident = ident.with_query(self.query.clone());
-        }
-        if !self.fragment.is_empty() {
-            ident = ident.with_fragment(self.fragment.clone());
-        }
-        ident
+        AssetIdent::from_path(self.path.clone())
+            .with_query(self.query.clone())
+            .with_fragment(self.fragment.clone())
+            .into_vc()
+    }
+
+    #[turbo_tasks::function]
+    fn description(&self) -> Vc<RcStr> {
+        Vc::cell(format!("file content of {}", self.path).into())
     }
 }
 
@@ -70,7 +71,7 @@ impl Asset for FileSource {
                     link_type: *link_type,
                 }
                 .cell()),
-                _ => Err(anyhow::anyhow!("Invalid symlink")),
+                _ => bail!("Invalid symlink"),
             },
             FileSystemEntryType::File => {
                 Ok(AssetContent::File(self.path.read().to_resolved().await?).cell())
@@ -78,7 +79,7 @@ impl Asset for FileSource {
             FileSystemEntryType::NotFound => {
                 Ok(AssetContent::File(FileContent::NotFound.resolved_cell()).cell())
             }
-            _ => Err(anyhow::anyhow!("Invalid file type {:?}", file_type)),
+            _ => bail!("Invalid file type {:?}", file_type),
         }
     }
 }

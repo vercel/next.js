@@ -16,7 +16,7 @@ use crate::resolve::{
 
 /// A small helper type to differentiate parsing exports and imports fields.
 #[derive(Copy, Clone)]
-enum ExportImport {
+pub(crate) enum ExportImport {
     Export,
     Import,
 }
@@ -45,7 +45,9 @@ pub enum SubpathValue {
     /// allow remapping based on certain predefined conditions. Eg, if using
     /// ESM import syntax, the `import` condition allows you to remap to a
     /// file that uses ESM syntax.
-    /// Node defines several conditions in https://nodejs.org/api/packages.html#conditional-exports
+    ///
+    /// Node defines several conditions in
+    /// <https://nodejs.org/api/packages.html#conditional-exports>
     /// TODO: Should this use an enum of predefined keys?
     Conditional(Vec<(RcStr, SubpathValue)>),
 

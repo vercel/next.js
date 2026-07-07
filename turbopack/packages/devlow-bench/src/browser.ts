@@ -259,9 +259,17 @@ class BrowserSessionImpl implements BrowserSession {
     await withRequestMetrics(metricName, page, async () => {
       await measureTime(`${metricName}/start`)
       const idle = networkIdle(page, 3000)
-      await page.goto(url, {
+      const response = await page.goto(url, {
         waitUntil: 'commit',
       })
+      if (!response) {
+        throw new Error(`Navigation to ${url} produced no response`)
+      }
+      if (!response.ok()) {
+        throw new Error(
+          `Navigation to ${url} returned HTTP ${response.status()}`
+        )
+      }
       await measureTime(`${metricName}/html`, {
         relativeTo: `${metricName}/start`,
       })
@@ -318,9 +326,15 @@ class BrowserSessionImpl implements BrowserSession {
     await withRequestMetrics(metricName, page, async () => {
       await measureTime(`${metricName}/start`)
       const idle = networkIdle(page, 3000)
-      await page.reload({
+      const response = await page.reload({
         waitUntil: 'commit',
       })
+      if (!response) {
+        throw new Error('Reload produced no response')
+      }
+      if (!response.ok()) {
+        throw new Error(`Reload returned HTTP ${response.status()}`)
+      }
       await measureTime(`${metricName}/html`, {
         relativeTo: `${metricName}/start`,
       })
@@ -348,7 +362,7 @@ export async function newBrowserSession(options: {
 }): Promise<BrowserSession> {
   const browser = await chromium.launch({
     headless: options.headless ?? process.env.HEADLESS !== 'false',
-    devtools: true,
+    args: options.headless ? undefined : ['--auto-open-devtools-for-tabs'],
     timeout: 60000,
   })
   const context = await browser.newContext({

@@ -11,7 +11,7 @@ import { installDependencies } from '../lib/install-dependencies'
 import type { NextConfigComplete } from '../server/config-shared'
 import findUp from 'next/dist/compiled/find-up'
 import { findPagesDir } from '../lib/find-pages-dir'
-import { verifyTypeScriptSetup } from '../lib/verify-typescript-setup'
+import { verifyAndRunTypeScript } from '../lib/verify-typescript-setup'
 import path from 'path'
 import spawn from 'next/dist/compiled/cross-spawn'
 
@@ -137,13 +137,13 @@ async function runPlaywright(
   if (!playwrightConfigFile) {
     const { pagesDir, appDir } = findPagesDir(baseDir)
 
-    const { version: typeScriptVersion } = await verifyTypeScriptSetup({
+    const { version: typeScriptVersion } = await verifyAndRunTypeScript({
       dir: baseDir,
       distDir: nextConfig.distDir,
-      distDirRoot: nextConfig.distDirRoot,
       strictRouteTypes: Boolean(nextConfig.experimental.strictRouteTypes),
-      typeCheckPreflight: false,
+      shouldRunTypeCheck: false,
       tsconfigPath: nextConfig.typescript.tsconfigPath,
+      typedRoutes: Boolean(nextConfig.typedRoutes),
       disableStaticImages: nextConfig.images.disableStaticImages,
       hasAppDir: !!appDir,
       hasPagesDir: !!pagesDir,

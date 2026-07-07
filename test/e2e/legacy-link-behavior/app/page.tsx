@@ -5,7 +5,7 @@ export default function Page() {
     <>
       <h1>Home Page</h1>
       <Link href="/about" legacyBehavior>
-        <a>About</a>
+        About
       </Link>
     </>
   )

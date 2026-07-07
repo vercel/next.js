@@ -1,9 +1,8 @@
-import type { Playwright } from 'next-webdriver'
-import { nextTestSetup } from 'e2e-utils'
+import { nextTestSetup, type Playwright } from 'e2e-utils'
 import { check, assertNoConsoleErrors, retry } from 'next-test-utils'
 
 const enableNewScrollHandler =
-  process.env.__NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER === 'true'
+  process.env.__NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER !== 'false'
 
 describe('router autoscrolling on navigation', () => {
   const { next, isNextDev } = nextTestSetup({
@@ -171,6 +170,33 @@ describe('router autoscrolling on navigation', () => {
         await next.patchFile(pagePath, originalContent)
       }
     )
+  })
+
+  describe('server action refresh', () => {
+    it('should not scroll when refresh() is called from a server action', async () => {
+      const browser = await next.browser('/server-action-refresh')
+
+      const initialTimestamp = await browser
+        .elementByCss('#server-timestamp')
+        .text()
+
+      // Scroll down past the first spacer div
+      await scrollTo(browser, { x: 0, y: 1000 })
+
+      // Click the refresh button which calls refresh() via a server action
+      await browser.elementByCss('#refresh-button').click()
+
+      // Wait for the action to complete by checking the server timestamp
+      await retry(async () => {
+        const newTimestamp = await browser
+          .elementByCss('#server-timestamp')
+          .text()
+        expect(newTimestamp).not.toBe(initialTimestamp)
+      })
+
+      // Scroll position should be preserved
+      await waitForScrollToComplete(browser, { x: 0, y: 1000 })
+    })
   })
 
   describe('bugs', () => {

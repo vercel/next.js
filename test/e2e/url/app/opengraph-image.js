@@ -5,5 +5,5 @@ export const contentType = 'text/json'
 
 // Image generation
 export default async function Image() {
-  return Response.json({ imported, url })
+  return Response.json({ imported: imported.src, url })
 }

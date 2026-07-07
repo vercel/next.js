@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use anyhow::Result;
 use serde::Serialize;
-use turbo_tasks::{FxIndexMap, FxIndexSet, IntoTraitRef, ReadRef, ResolvedVc, TryJoinIterExt, Vc};
+use turbo_tasks::{FxIndexMap, FxIndexSet, ReadRef, ResolvedVc, TryJoinIterExt, Vc};
 use turbo_tasks_fs::rope::Rope;
 use turbopack_core::{
     chunk::{ChunkingContext, ModuleId},
@@ -96,7 +96,7 @@ impl EcmascriptModuleEntry {
         Ok(EcmascriptModuleEntry {
             // Cloning a rope is cheap.
             code: code.await?.source_code().clone(),
-            url: format!("{}?{}", chunk_path, &id),
+            url: format!("{}?{}", chunk_path, id),
             map,
         })
     }
@@ -117,7 +117,7 @@ impl MergedModuleMap {
 
     /// Returns the hash of the module with the given id, or `None` if the
     /// module is not present in any of the versions.
-    fn get(&self, id: &ModuleId) -> Option<u64> {
+    fn get(&self, id: &ModuleId) -> Option<u128> {
         for version in &self.versions {
             if let Some(hash) = version.entries_hashes.get(id) {
                 return Some(*hash);

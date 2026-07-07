@@ -10,6 +10,7 @@ describe('deployment-id-handling disabled', () => {
       COOKIE_SKEW: '1',
       NEXT_DEPLOYMENT_ID: 'thankyounext',
     },
+    disableAutoSkewProtection: true,
   })
 
   it('should set set-cookie header correctly', async () => {

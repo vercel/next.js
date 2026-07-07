@@ -35,13 +35,12 @@ impl<T: Send + 'static> ExitGuard<T> {
 
 type BoxExitFuture = Pin<Box<dyn Future<Output = ()> + Send + 'static>>;
 
-/// The singular global ExitHandler. This is primarily used to ensure
-/// `ExitHandler::listen` is only called once.
+/// The singular global ExitHandler. This is primarily used to ensure `ExitHandler::listen` is only
+/// called once.
 ///
-/// The global handler is intentionally not exposed, so that APIs that depend on
-/// exit behavior are required to take the `ExitHandler`. This ensures that the
-/// `ExitHandler` is configured before these APIs are run, and that these
-/// consumers can be used with a callback (e.g. a mock) instead.
+/// The global handler is intentionally not exposed, so that APIs that depend on exit behavior are
+/// required to take the `ExitHandler`. This ensures that the `ExitHandler` is configured before
+/// these APIs are run, and that these consumers can be used with a callback (e.g. a mock) instead.
 static GLOBAL_EXIT_HANDLER: OnceLock<Arc<ExitHandler>> = OnceLock::new();
 
 pub struct ExitHandler {
@@ -49,19 +48,16 @@ pub struct ExitHandler {
 }
 
 impl ExitHandler {
-    /// Waits for `SIGINT` using [`tokio::signal::ctrl_c`], and exits the
-    /// process with exit code `0` after running any futures scheduled with
-    /// [`ExitHandler::on_exit`].
+    /// Waits for `SIGINT` using [`tokio::signal::ctrl_c`], and exits the process with exit code `0`
+    /// after running any futures scheduled with [`ExitHandler::on_exit`].
     ///
-    /// As this uses global process signals, this must only be called once, and
-    /// will panic if called multiple times. Use this when you own the
-    /// process (e.g. `turbopack-cli`).
+    /// As this uses global process signals, this must only be called once, and will panic if called
+    /// multiple times. Use this when you own the process (e.g. `turbopack-cli`).
     ///
-    /// If you don't own the process (e.g. you're called as a library, such as
-    /// in `next-swc`), use [`ExitHandler::new_trigger`] instead.
+    /// If you don't own the process (e.g. you're called as a library, such as in `next-swc`), use
+    /// [`ExitHandler::new_receiver`] instead.
     ///
-    /// This may listen for other signals, like `SIGTERM` or `SIGPIPE` in the
-    /// future.
+    /// This may listen for other signals, like `SIGTERM` or `SIGPIPE` in the future.
     pub fn listen() -> &'static Arc<ExitHandler> {
         let (handler, receiver) = Self::new_receiver();
         if GLOBAL_EXIT_HANDLER.set(handler).is_err() {
@@ -77,15 +73,13 @@ impl ExitHandler {
         GLOBAL_EXIT_HANDLER.get().expect("value is set")
     }
 
-    /// Creates an [`ExitHandler`] that can be manually controlled with an
-    /// [`ExitReceiver`].
+    /// Creates an [`ExitHandler`] that can be manually controlled with an [`ExitReceiver`].
     ///
-    /// This does not actually exit the process or listen for any signals. If
-    /// you'd like that behavior, use [`ExitHandler::listen`].
+    /// This does not actually exit the process or listen for any signals. If you'd like that
+    /// behavior, use [`ExitHandler::listen`].
     ///
-    /// Because this API has no global side-effects and can be called many times
-    /// within the same process, it is possible to use it to provide a mock
-    /// [`ExitHandler`] inside unit tests.
+    /// Because this API has no global side-effects and can be called many times within the same
+    /// process, it is possible to use it to provide a mock [`ExitHandler`] inside unit tests.
     pub fn new_receiver() -> (Arc<ExitHandler>, ExitReceiver) {
         let (tx, rx) = mpsc::unbounded_channel();
         (Arc::new(ExitHandler { tx }), ExitReceiver { rx })
@@ -93,9 +87,8 @@ impl ExitHandler {
 
     /// Register this given [`Future`] to run upon process exit.
     ///
-    /// As there are many ways for a process be killed that are outside of a
-    /// process's own control (e.g. `SIGKILL` or `SIGSEGV`), this API is
-    /// provided on a best-effort basis.
+    /// As there are many ways for a process be killed that are outside of a process's own control
+    /// (e.g. `SIGKILL` or `SIGSEGV`), this API is provided on a best-effort basis.
     pub fn on_exit(&self, fut: impl Future<Output = ()> + Send + 'static) {
         // realistically, this error case can only happen with the `new_receiver` API.
         self.tx
@@ -110,16 +103,14 @@ pub struct ExitReceiver {
 }
 
 impl ExitReceiver {
-    /// Call this when the process exits to run the futures scheduled via
-    /// [`ExitHandler::on_exit`].
+    /// Call this when the process exits to run the futures scheduled via [`ExitHandler::on_exit`].
     ///
-    /// As this is intended to be used in a library context, this does not exit
-    /// the process. It is expected that the process will not exit until
-    /// this async method finishes executing.
+    /// As this is intended to be used in a library context, this does not exit the process. It is
+    /// expected that the process will not exit until this async method finishes executing.
     ///
-    /// Additional work can be scheduled using [`ExitHandler::on_exit`] even
-    /// while this is running, and it will execute before this function
-    /// finishes. Work attempted to be scheduled after this finishes will panic.
+    /// Additional work can be scheduled using [`ExitHandler::on_exit`] even while this is running,
+    /// and it will execute before this function finishes. Work attempted to be scheduled after this
+    /// finishes will panic.
     pub async fn run_exit_handler(mut self) {
         let mut set = JoinSet::new();
         while let Ok(fut) = self.rx.try_recv() {

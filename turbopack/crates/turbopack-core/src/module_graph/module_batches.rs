@@ -13,8 +13,8 @@ use serde::{Deserialize, Serialize};
 use tracing::Instrument;
 use turbo_prehash::BuildHasherExt;
 use turbo_tasks::{
-    FxIndexMap, FxIndexSet, NonLocalValue, ResolvedVc, TaskInput, TryJoinIterExt, ValueToString,
-    Vc, trace::TraceRawVcs,
+    FxIndexMap, FxIndexSet, NonLocalValue, ResolvedVc, TryJoinIterExt, ValueToString, Vc,
+    trace::TraceRawVcs, turbobail,
 };
 
 use crate::{
@@ -27,8 +27,8 @@ use crate::{
         traced_di_graph::{TracedDiGraph, iter_neighbors_rev},
     },
 };
-#[turbo_tasks::value]
-#[derive(Debug, Clone, Default, TaskInput, Hash)]
+#[turbo_tasks::value(task_input)]
+#[derive(Debug, Clone, Default, Hash)]
 pub struct BatchingConfig {
     /// Use a heuristic based on the module path to create batches. It aims for batches of a good
     /// size.
@@ -79,15 +79,23 @@ pub struct ModuleBatchesGraph {
 impl ModuleBatchesGraph {
     pub async fn get_entry_index(&self, entry: ResolvedVc<Box<dyn Module>>) -> Result<NodeIndex> {
         let Some(entry) = self.entries.get(&entry) else {
-            bail!(
-                "Entry {} is not in graph (possible entries: {:#?})",
-                entry.ident().to_string().await?,
-                self.entries
-                    .keys()
-                    .map(|e| e.ident().to_string())
-                    .try_join()
-                    .await?
-            );
+            if cfg!(debug_assertions) {
+                let possible_entries = format!(
+                    "{:#?}",
+                    self.entries
+                        .keys()
+                        .map(|e| e.ident().to_string())
+                        .try_join()
+                        .await?
+                );
+                turbobail!(
+                    "Entry {} is not in graph (possible entries: {})",
+                    entry.ident(),
+                    possible_entries
+                );
+            } else {
+                bail!("Entry is not in graph");
+            }
         };
         Ok(*entry)
     }
@@ -327,6 +335,7 @@ impl PreBatches {
                 state.items.push(item);
                 Ok(())
             },
+            false,
         )?;
         Ok(state.items)
     }

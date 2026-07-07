@@ -1,44 +1,43 @@
-export type DebugChannelPair = {
-  serverSide: DebugChannelServer
-  clientSide: DebugChannelClient
+/**
+ * Compile-time switcher for debug channel operations.
+ *
+ * When __NEXT_USE_NODE_STREAMS is true, uses a Node PassThrough-based channel.
+ * Otherwise, uses web WritableStream APIs.
+ */
+export type {
+  DebugChannelPair,
+  DebugChannelServer,
+} from './debug-channel-server.web'
+export type { NodeDebugChannelPair } from './debug-channel-server.node'
+import type { DebugChannelPair } from './debug-channel-server.web'
+import type { NodeDebugChannelPair } from './debug-channel-server.node'
+
+type DebugChannelMod = {
+  createWebDebugChannel: typeof import('./debug-channel-server.web').createWebDebugChannel
+  createNodeDebugChannel: typeof import('./debug-channel-server.node').createNodeDebugChannel
 }
 
-export type DebugChannelServer = {
-  readable?: ReadableStream<Uint8Array>
-  writable: WritableStream<Uint8Array>
-}
-export type DebugChannelClient = {
-  readable: ReadableStream<Uint8Array>
-  writable?: WritableStream<Uint8Array>
+let _m: DebugChannelMod
+if (process.env.__NEXT_USE_NODE_STREAMS) {
+  _m =
+    require('./debug-channel-server.node') as typeof import('./debug-channel-server.node')
+} else {
+  _m =
+    require('./debug-channel-server.web') as typeof import('./debug-channel-server.web')
 }
 
-export function createDebugChannel(): DebugChannelPair | undefined {
+export function createWebDebugChannel(): DebugChannelPair | undefined {
   if (process.env.NODE_ENV === 'production') {
     return undefined
   }
 
-  let readableController: ReadableStreamDefaultController | undefined
+  return _m.createWebDebugChannel()
+}
 
-  let clientSideReadable = new ReadableStream<Uint8Array>({
-    start(controller) {
-      readableController = controller
-    },
-  })
-
-  return {
-    serverSide: {
-      writable: new WritableStream<Uint8Array>({
-        write(chunk) {
-          readableController?.enqueue(chunk)
-        },
-        close() {
-          readableController?.close()
-        },
-        abort(err) {
-          readableController?.error(err)
-        },
-      }),
-    },
-    clientSide: { readable: clientSideReadable },
+export function createNodeDebugChannel(): NodeDebugChannelPair | undefined {
+  if (process.env.NODE_ENV === 'production') {
+    return undefined
   }
+
+  return _m.createNodeDebugChannel()
 }

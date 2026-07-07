@@ -5,7 +5,7 @@ import {
   type NextRequestHint,
 } from '../../server/web/adapter'
 import { IncrementalCache } from '../../server/lib/incremental-cache'
-import { initializeCacheHandlers } from '../../server/use-cache/handlers'
+import * as cacheHandlers from '../../server/use-cache/handlers'
 
 import Document from 'VAR_MODULE_DOCUMENT'
 import * as appMod from 'VAR_MODULE_APP'
@@ -25,7 +25,12 @@ import { WebNextRequest, WebNextResponse } from '../../server/base-http/web'
 import type { NextFetchEvent } from '../../server/web/spec-extension/fetch-event'
 import type RenderResult from '../../server/render-result'
 import type { RenderResultMetadata } from '../../server/render-result'
-import { getTracer, SpanKind, type Span } from '../../server/lib/trace/tracer'
+import {
+  getTracer,
+  SpanKind,
+  SpanStatusCode,
+  type Span,
+} from '../../server/lib/trace/tracer'
 import { BaseServerSpan } from '../../server/lib/trace/constants'
 import { HTML_CONTENT_TYPE_HEADER } from '../../lib/constants'
 import type { RequestMeta } from '../../server/request-meta'
@@ -38,6 +43,7 @@ declare const user500RouteModuleOptions: any
 // INJECT:pageRouteModuleOptions
 // INJECT:errorRouteModuleOptions
 // INJECT:user500RouteModuleOptions
+// INJECT_RAW:cacheHandlerImports
 
 const pageMod = {
   ...userlandPage,
@@ -117,9 +123,11 @@ async function requestHandler(
     reactLoadableManifest,
     subresourceIntegrityManifest,
     dynamicCssManifest,
+    clientAssetToken,
   } = prepareResult
 
-  initializeCacheHandlers(nextConfig.cacheMaxMemorySize)
+  cacheHandlers.initializeCacheHandlers(nextConfig.cacheMaxMemorySize)
+  // INJECT_RAW:cacheHandlerRegistration
 
   const renderContext: PagesRouteHandlerContext = {
     page: srcPage,
@@ -129,6 +137,7 @@ async function requestHandler(
     sharedContext: {
       buildId,
       deploymentId,
+      clientAssetToken,
       customServer: undefined,
     },
 
@@ -262,6 +271,16 @@ async function requestHandler(
             'http.status_code': finalStatus,
             'next.rsc': false,
           })
+
+          if (finalStatus && finalStatus >= 500) {
+            // For 5xx status codes: SHOULD be set to 'Error' span status.
+            // x-ref: https://opentelemetry.io/docs/specs/semconv/http/http-spans/#status
+            span.setStatus({
+              code: SpanStatusCode.ERROR,
+            })
+            // For span status 'Error', SHOULD set 'error.type' attribute.
+            span.setAttribute('error.type', finalStatus.toString())
+          }
 
           const rootSpanAttributes = tracer.getRootSpanAttributes()
           // We were unable to get attributes, probably OTEL is not enabled

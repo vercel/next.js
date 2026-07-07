@@ -17,7 +17,7 @@ const validFixtures = [
     },
     null,
     null,
-    true,
+    0b10000, // PrefetchHint.IsRootLayoutOrAbove
   ],
   [
     ['a', 'b', 'c', null],
@@ -52,7 +52,7 @@ const invalidFixtures = [
       invalid: 'invalid',
     },
   ],
-  // invalid isRootLayout
+  // invalid refresh marker (number instead of string)
   [
     ['a', 'b', 'c', null],
     {

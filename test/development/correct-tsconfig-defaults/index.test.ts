@@ -1,24 +1,18 @@
-import { createNext } from 'e2e-utils'
+import { nextTestSetup } from 'e2e-utils'
 import { check } from 'next-test-utils'
-import { NextInstance } from 'e2e-utils'
 
 describe('correct tsconfig.json defaults', () => {
-  let next: NextInstance
-
-  beforeAll(async () => {
-    next = await createNext({
-      files: {
-        'pages/index.tsx': 'export default function Page() {}',
-      },
-      skipStart: true,
-      dependencies: {
-        typescript: 'latest',
-        '@types/react': 'latest',
-        '@types/node': 'latest',
-      },
-    })
+  const { next } = nextTestSetup({
+    files: {
+      'pages/index.tsx': 'export default function Page() {}',
+    },
+    skipStart: true,
+    dependencies: {
+      typescript: 'latest',
+      '@types/react': 'latest',
+      '@types/node': 'latest',
+    },
   })
-  afterAll(() => next.destroy())
 
   it('should add `moduleResolution` when generating tsconfig.json in dev', async () => {
     try {
@@ -39,7 +33,7 @@ describe('correct tsconfig.json defaults', () => {
       expect(next.cliOutput).not.toContain('moduleResolution')
 
       expect(tsconfig.compilerOptions).toEqual(
-        expect.objectContaining({ moduleResolution: 'node' })
+        expect.objectContaining({ moduleResolution: 'bundler' })
       )
     } finally {
       await next.stop()
@@ -57,7 +51,7 @@ describe('correct tsconfig.json defaults', () => {
       const tsconfig = JSON.parse(await next.readFile('tsconfig.json'))
 
       expect(tsconfig.compilerOptions).toEqual(
-        expect.objectContaining({ moduleResolution: 'node' })
+        expect.objectContaining({ moduleResolution: 'bundler' })
       )
       expect(next.cliOutput).not.toContain('moduleResolution')
     } finally {

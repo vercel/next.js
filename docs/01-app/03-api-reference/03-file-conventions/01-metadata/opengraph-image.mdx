@@ -53,7 +53,7 @@ Add a `twitter-image.(jpg|jpeg|png|gif)` image file to any route segment.
 
 ### `opengraph-image.alt.txt`
 
-Add an accompanying `opengraph-image.alt.txt` file in the same route segment as the `opengraph-image.(jpg|jpeg|png|gif)` image it's alt text.
+Add an accompanying `opengraph-image.alt.txt` file in the same route segment as the `opengraph-image.(jpg|jpeg|png|gif)` image its alt text.
 
 ```txt filename="opengraph-image.alt.txt"
 About Acme
@@ -65,14 +65,14 @@ About Acme
 
 ### `twitter-image.alt.txt`
 
-Add an accompanying `twitter-image.alt.txt` file in the same route segment as the `twitter-image.(jpg|jpeg|png|gif)` image it's alt text.
+Add an accompanying `twitter-image.alt.txt` file in the same route segment as the `twitter-image.(jpg|jpeg|png|gif)` image its alt text.
 
 ```txt filename="twitter-image.alt.txt"
 About Acme
 ```
 
 ```html filename="<head> output"
-<meta property="twitter:image:alt" content="About Acme" />
+<meta name="twitter:image:alt" content="About Acme" />
 ```
 
 ## Generate images using code (.js, .ts, .tsx)
@@ -88,9 +88,9 @@ Generate a route segment's shared image by creating an `opengraph-image` or `twi
 
 > **Good to know**:
 >
-> - By default, generated images are [**statically optimized**](/docs/app/guides/caching#static-rendering) (generated at build time and cached) unless they use [Dynamic APIs](/docs/app/guides/caching#dynamic-rendering) or uncached data.
+> - By default, generated images are [**statically optimized**](/docs/app/glossary#prerendering) (generated at build time and cached) unless they use [Request-time APIs](/docs/app/glossary#request-time-apis) or uncached data.
 > - You can generate multiple Images in the same file using [`generateImageMetadata`](/docs/app/api-reference/functions/generate-image-metadata).
-> - `opengraph-image.js` and `twitter-image.js` are special Route Handlers that is cached by default unless it uses a [Dynamic API](/docs/app/guides/caching#dynamic-apis) or [dynamic config](/docs/app/guides/caching#segment-config-options) option.
+> - `opengraph-image.js` and `twitter-image.js` are special Route Handlers that are cached by default unless it uses a [Request-time API](/docs/app/glossary#request-time-apis) or [dynamic config](/docs/app/guides/caching-without-cache-components#dynamic) option.
 
 The easiest way to generate an image is to use the [ImageResponse](/docs/app/api-reference/functions/image-response) API from `next/og`.
 
@@ -250,7 +250,7 @@ export default async function Image({ params }) {
 
 ### Returns
 
-The default export function should return a `Blob` | `ArrayBuffer` | `TypedArray` | `DataView` | `ReadableStream` | `Response`.
+The default export function should return a `Response`.
 
 > **Good to know**: `ImageResponse` satisfies this return type.
 
@@ -330,7 +330,7 @@ export default function Image() {}
 This example uses the `params` object and external data to generate the image.
 
 > **Good to know**:
-> By default, this generated image will be [statically optimized](/docs/app/guides/caching#static-rendering). You can configure the individual `fetch` [`options`](/docs/app/api-reference/functions/fetch) or route segments [options](/docs/app/api-reference/file-conventions/route-segment-config#revalidate) to change this behavior.
+> By default, this generated image will be statically optimized. You can configure the individual `fetch` [`options`](/docs/app/api-reference/functions/fetch) or route segments [options](/docs/app/guides/caching-without-cache-components#route-segment-config-revalidate) to change this behavior.
 
 ```tsx filename="app/posts/[slug]/opengraph-image.tsx" switcher
 import { ImageResponse } from 'next/og'

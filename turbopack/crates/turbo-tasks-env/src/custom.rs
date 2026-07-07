@@ -2,7 +2,7 @@ use anyhow::Result;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, Vc};
 
-use crate::{EnvMap, ProcessEnv, case_insensitive_read};
+use crate::{EnvMap, ProcessEnv, TransientEnvMap, case_insensitive_read};
 
 /// Allows providing any custom env values that you'd like, deferring the prior
 /// envs if a key is not overridden.
@@ -23,7 +23,7 @@ impl CustomProcessEnv {
 #[turbo_tasks::value_impl]
 impl ProcessEnv for CustomProcessEnv {
     #[turbo_tasks::function]
-    async fn read_all(&self) -> Result<Vc<EnvMap>> {
+    async fn read_all(&self) -> Result<Vc<TransientEnvMap>> {
         let prior = self.prior.read_all().owned().await?;
         let custom = self.custom.owned().await?;
 
@@ -34,7 +34,8 @@ impl ProcessEnv for CustomProcessEnv {
 
     #[turbo_tasks::function]
     async fn read(&self, name: RcStr) -> Result<Vc<Option<RcStr>>> {
-        let custom = case_insensitive_read(*self.custom, name.clone());
+        let custom_transient: Vc<TransientEnvMap> = Vc::cell((*self.custom.await?).clone());
+        let custom = case_insensitive_read(custom_transient, name.clone());
         match &*custom.await? {
             Some(_) => Ok(custom),
             None => Ok(self.prior.read(name)),

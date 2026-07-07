@@ -75,7 +75,10 @@ describe.each([
           cssContent
         )[1]
 
-        const actualSourceMapUrl = stylesheetUrl.replace(/[^/]+$/, sourceMapUrl)
+        const actualSourceMapUrl = stylesheetUrl.replace(
+          /(?<=^|\/)[^/?]+(?=$|\?)/,
+          sourceMapUrl
+        )
         const sourceMapContent = await next
           .fetch(actualSourceMapUrl)
           .then((res) => res.text())

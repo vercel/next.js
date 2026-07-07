@@ -166,35 +166,68 @@ export const getParsedDebugAddress = (
 }
 
 /**
+ * Node.js CLI flags that are not allowed in NODE_OPTIONS and must be
+ * passed as direct CLI arguments via execArgv.
+ * This set is the difference between all Node.js CLI flags and the ones **not**
+ * allowed in NODE_OPTIONS, as listed in the Node.js documentation:
+ * https://nodejs.org/api/cli.html#node_optionsoptions
+ *
+ * It is not exhaustive since not all options make sense for Next.js (e.g. --test)
+ */
+const EXEC_ARGV_ONLY_OPTIONS = new Set([
+  'experimental-network-inspection',
+  'experimental-storage-inspection',
+  'experimental-worker-inspection',
+  'experimental-inspector-network-resource',
+])
+
+function formatArg(
+  key: string,
+  value: string | boolean | undefined
+): string | null {
+  if (value === true) {
+    return `--${key}`
+  }
+
+  if (value) {
+    return `--${key}=${
+      // Values with spaces need to be quoted. We use JSON.stringify to
+      // also escape any nested quotes.
+      value.includes(' ') && !value.startsWith('"')
+        ? JSON.stringify(value)
+        : value
+    }`
+  }
+
+  return null
+}
+
+/**
  * Stringify the arguments to be used in a command line. It will ignore any
- * argument that has a value of `undefined`.
+ * argument that has a value of `undefined`. Options that are not allowed in
+ * NODE_OPTIONS are returned separately as execArgv.
  *
  * @param args The arguments to be stringified.
- * @returns A string with the arguments.
+ * @returns An object with `nodeOptions` string and `execArgv` array.
  */
 export function formatNodeOptions(
   args: Record<string, string | boolean | undefined>
-): string {
-  return Object.entries(args)
-    .map(([key, value]) => {
-      if (value === true) {
-        return `--${key}`
-      }
+): { nodeOptions: string; execArgv: string[] } {
+  const nodeOptionsParts: string[] = []
+  const execArgv: string[] = []
 
-      if (value) {
-        return `--${key}=${
-          // Values with spaces need to be quoted. We use JSON.stringify to
-          // also escape any nested quotes.
-          value.includes(' ') && !value.startsWith('"')
-            ? JSON.stringify(value)
-            : value
-        }`
-      }
+  for (const [key, value] of Object.entries(args)) {
+    const formatted = formatArg(key, value)
+    if (formatted === null) continue
 
-      return null
-    })
-    .filter((arg) => arg !== null)
-    .join(' ')
+    if (EXEC_ARGV_ONLY_OPTIONS.has(key)) {
+      execArgv.push(formatted)
+    } else {
+      nodeOptionsParts.push(formatted)
+    }
+  }
+
+  return { nodeOptions: nodeOptionsParts.join(' '), execArgv }
 }
 
 export function getParsedNodeOptions(): Record<
@@ -237,7 +270,7 @@ export function getFormattedNodeOptionsWithoutInspect() {
   const args = getParsedNodeOptionsWithoutInspect()
   if (Object.keys(args).length === 0) return ''
 
-  return formatNodeOptions(args)
+  return formatNodeOptions(args).nodeOptions
 }
 
 /**

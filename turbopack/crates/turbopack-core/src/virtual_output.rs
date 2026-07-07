@@ -26,20 +26,6 @@ impl VirtualOutputAsset {
         }
         .cell()
     }
-
-    #[turbo_tasks::function]
-    pub fn new_with_references(
-        path: FileSystemPath,
-        content: ResolvedVc<AssetContent>,
-        references: ResolvedVc<OutputAssets>,
-    ) -> Vc<Self> {
-        VirtualOutputAsset {
-            path,
-            content,
-            references,
-        }
-        .cell()
-    }
 }
 
 #[turbo_tasks::value_impl]

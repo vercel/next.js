@@ -9,6 +9,7 @@ export type EdgeFunctionLoaderOptions = {
   rootDir: string
   preferredRegion: string | string[] | undefined
   middlewareConfig: string
+  cacheHandler?: string
 }
 
 const nextEdgeFunctionLoader: webpack.LoaderDefinitionFunction<EdgeFunctionLoaderOptions> =
@@ -19,8 +20,12 @@ const nextEdgeFunctionLoader: webpack.LoaderDefinitionFunction<EdgeFunctionLoade
       rootDir,
       preferredRegion,
       middlewareConfig: middlewareConfigBase64,
+      cacheHandler,
     }: EdgeFunctionLoaderOptions = this.getOptions()
     const stringifiedPagePath = stringifyRequest(this, absolutePagePath)
+    const stringifiedCacheHandlerPath = cacheHandler
+      ? stringifyRequest(this, cacheHandler)
+      : null
     const buildInfo = getModuleBuildInfo(this._module as any)
     const middlewareConfig: ProxyConfig = JSON.parse(
       Buffer.from(middlewareConfigBase64, 'base64').toString()
@@ -41,6 +46,11 @@ const nextEdgeFunctionLoader: webpack.LoaderDefinitionFunction<EdgeFunctionLoade
         import { adapter } from 'next/dist/esm/server/web/adapter'
         import { IncrementalCache } from 'next/dist/esm/server/lib/incremental-cache'
         import { wrapApiHandler } from 'next/dist/esm/server/api-utils'
+        ${
+          stringifiedCacheHandlerPath
+            ? `import incrementalCacheHandler from ${stringifiedCacheHandlerPath}`
+            : 'const incrementalCacheHandler = null'
+        }
 
         import handler from ${stringifiedPagePath}
 
@@ -52,6 +62,7 @@ const nextEdgeFunctionLoader: webpack.LoaderDefinitionFunction<EdgeFunctionLoade
           return adapter({
               ...opts,
               IncrementalCache,
+              incrementalCacheHandler,
               page: ${JSON.stringify(page)},
               handler: wrapApiHandler(${JSON.stringify(page)}, handler),
           })

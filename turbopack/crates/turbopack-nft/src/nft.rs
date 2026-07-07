@@ -1,8 +1,9 @@
-use std::{collections::HashSet, env::current_dir, path::PathBuf};
+use std::{env::current_dir, path::PathBuf};
 
 use anyhow::Result;
+use rustc_hash::FxHashSet;
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{ResolvedVc, TransientInstance, TryJoinIterExt, ValueToString, Vc};
+use turbo_tasks::{TransientInstance, Vc, turbofmt};
 use turbo_tasks_fs::{DiskFileSystem, FileSystem};
 use turbopack::{
     ModuleAssetContext,
@@ -19,10 +20,10 @@ use turbopack_core::{
     file_source::FileSource,
     ident::Layer,
     issue::{IssueReporter, IssueSeverity, handle_issues},
-    output::{OutputAsset, OutputAssetsReference},
-    reference::all_assets_from_entries,
+    module::Module,
+    reference::referenced_modules_and_affecting_sources,
     reference_type::ReferenceType,
-    traced_asset::TracedAsset,
+    resolve::options::ConditionValue,
 };
 use turbopack_ecmascript::AnalyzeMode;
 use turbopack_resolve::resolve_options_context::ResolveOptionsContext;
@@ -35,7 +36,7 @@ pub async fn node_file_trace(
     max_depth: Option<usize>,
 ) -> Result<()> {
     let op = node_file_trace_operation(project_root.clone(), input.clone(), graph, max_depth);
-    let result = op.resolve_strongly_consistent().await?;
+    let result = op.read_strongly_consistent().await?;
 
     if show_issues {
         let issue_reporter: Vc<Box<dyn IssueReporter>> =
@@ -51,7 +52,7 @@ pub async fn node_file_trace(
     }
 
     println!("FILELIST:");
-    for a in result.await? {
+    for a in &result {
         println!("{a}");
     }
 
@@ -67,7 +68,7 @@ async fn node_file_trace_operation(
 ) -> Result<Vc<Vec<RcStr>>> {
     let workspace_fs: Vc<Box<dyn FileSystem>> = Vc::upcast(DiskFileSystem::new(
         rcstr!("workspace"),
-        project_root.clone(),
+        Vc::cell(project_root.clone()),
     ));
     let input_dir = workspace_fs.root().owned().await?;
     let input = input_dir.join(&format!("{input}"))?;
@@ -109,6 +110,7 @@ async fn node_file_trace_operation(
             enable_node_native_modules: true,
             enable_node_modules: Some(input_dir),
             custom_conditions: vec![rcstr!("node")],
+            module_sync: ConditionValue::Unknown,
             enable_node_externals: true,
             loose_errors: true,
             collect_affecting_sources: true,
@@ -121,51 +123,65 @@ async fn node_file_trace_operation(
         .process(Vc::upcast(source), ReferenceType::Undefined)
         .module();
 
-    let asset = TracedAsset::new(module).to_resolved().await?;
-
     Ok(Vc::cell(if graph {
-        to_graph(ResolvedVc::upcast(asset), max_depth.unwrap_or(usize::MAX)).await?
+        to_graph(module, max_depth.unwrap_or(usize::MAX)).await?
     } else {
-        to_list(ResolvedVc::upcast(asset)).await?
+        to_list(module).await?
     }))
 }
 
-async fn to_list(asset: ResolvedVc<Box<dyn OutputAsset>>) -> Result<Vec<RcStr>> {
-    let mut assets = all_assets_from_entries(Vc::cell(vec![asset]))
-        .await?
-        .iter()
-        .map(async |a| Ok(a.path().await?.path.clone()))
-        .try_join()
-        .await?;
+async fn to_list(asset: Vc<Box<dyn Module>>) -> Result<Vec<RcStr>> {
+    let mut assets = vec![];
+
+    let mut visited = FxHashSet::default();
+    let mut queue = Vec::new();
+    queue.push(asset);
+
+    while let Some(asset) = queue.pop() {
+        let references = referenced_modules_and_affecting_sources(asset, false).await?;
+        let path = &asset.ident().await?.path;
+        if visited.insert(asset) {
+            for (_, references) in references.iter().rev() {
+                for asset in references.modules.iter() {
+                    queue.push(**asset);
+                }
+            }
+        }
+        assets.push(path.path.clone());
+    }
+
     assets.sort();
     assets.dedup();
 
     Ok(assets)
 }
 
-async fn to_graph(asset: ResolvedVc<Box<dyn OutputAsset>>, max_depth: usize) -> Result<Vec<RcStr>> {
-    let mut visited = HashSet::new();
+async fn to_graph(asset: Vc<Box<dyn Module>>, max_depth: usize) -> Result<Vec<RcStr>> {
+    let mut visited = FxHashSet::default();
     let mut queue = Vec::new();
     queue.push((0, asset));
 
     let mut result = vec![];
     while let Some((depth, asset)) = queue.pop() {
-        let references = asset.references().all_assets().await?;
+        let references = referenced_modules_and_affecting_sources(asset, false).await?;
         let mut indent = String::new();
         for _ in 0..depth {
             indent.push_str("  ");
         }
+        let path = &asset.ident().await?.path;
         if visited.insert(asset) {
             if depth < max_depth {
-                for &asset in references.iter().rev() {
-                    queue.push((depth + 1, asset));
+                for (_, references) in references.iter().rev() {
+                    for asset in references.modules.iter() {
+                        queue.push((depth + 1, **asset));
+                    }
                 }
             }
-            result.push(format!("{}{}", indent, asset.path().to_string().await?).into());
+            result.push(turbofmt!("{indent}{}", path.path).await?);
         } else if references.is_empty() {
-            result.push(format!("{}{} *", indent, asset.path().to_string().await?).into());
+            result.push(turbofmt!("{indent}{} *", path.path).await?);
         } else {
-            result.push(format!("{}{} *...", indent, asset.path().to_string().await?).into());
+            result.push(turbofmt!("{indent}{} *...", path.path).await?);
         }
     }
     result.push("".into());

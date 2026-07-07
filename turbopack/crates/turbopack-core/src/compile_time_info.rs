@@ -1,8 +1,9 @@
 use anyhow::Result;
 use bincode::{Decode, Encode};
 use indexmap::Equivalent;
+use num_bigint::BigInt;
 use rustc_hash::FxHashSet;
-use smallvec::SmallVec;
+use smallvec::{SmallVec, smallvec};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{FxIndexMap, NonLocalValue, ResolvedVc, Vc, trace::TraceRawVcs};
 use turbo_tasks_fs::FileSystemPath;
@@ -104,16 +105,26 @@ macro_rules! free_var_references {
 
 // TODO: replace with just a `serde_json::Value`
 // https://linear.app/vercel/issue/WEB-1641/compiletimedefinevalue-should-just-use-serde-jsonvalue
-#[derive(Debug, Clone, Hash, TraceRawVcs, NonLocalValue, Encode, Decode, PartialEq, Eq)]
+#[derive(Debug, Clone, TraceRawVcs, NonLocalValue, Encode, Decode, PartialEq, Eq, Hash)]
 pub enum CompileTimeDefineValue {
     Null,
     Bool(bool),
-    Number(RcStr),
+    Number(
+        #[bincode(with = "turbo_bincode::serde_self_describing")]
+        #[turbo_tasks(trace_ignore)]
+        serde_json::Number,
+    ),
     String(RcStr),
+    BigInt(
+        #[bincode(with_serde)]
+        #[turbo_tasks(trace_ignore)]
+        Box<BigInt>,
+    ),
     Array(Vec<CompileTimeDefineValue>),
     Object(Vec<(RcStr, CompileTimeDefineValue)>),
     Undefined,
     Evaluate(RcStr),
+    Regex(RcStr, RcStr),
 }
 
 impl From<bool> for CompileTimeDefineValue {
@@ -145,7 +156,7 @@ impl From<serde_json::Value> for CompileTimeDefineValue {
         match value {
             serde_json::Value::Null => Self::Null,
             serde_json::Value::Bool(b) => Self::Bool(b),
-            serde_json::Value::Number(n) => Self::Number(n.to_string().into()),
+            serde_json::Value::Number(n) => Self::Number(n),
             serde_json::Value::String(s) => Self::String(s.into()),
             serde_json::Value::Array(a) => Self::Array(a.into_iter().map(|i| i.into()).collect()),
             serde_json::Value::Object(m) => {
@@ -292,6 +303,19 @@ impl CompileTimeDefines {
     pub fn empty() -> Vc<Self> {
         Vc::cell(FxIndexMap::default())
     }
+
+    #[turbo_tasks::function]
+    pub async fn read_process_env(&self, key: RcStr) -> Result<Vc<Option<RcStr>>> {
+        let key = DefinableNameSegmentRefs(smallvec![
+            DefinableNameSegmentRef::Name("process"),
+            DefinableNameSegmentRef::Name("env"),
+            DefinableNameSegmentRef::Name(&key),
+        ]);
+        Ok(Vc::cell(match self.0.get(&key) {
+            Some(CompileTimeDefineValue::String(s)) => Some(s.clone()),
+            _ => None,
+        }))
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, TraceRawVcs, NonLocalValue, Encode, Decode)]
@@ -407,6 +431,7 @@ pub struct CompileTimeInfo {
     pub environment: ResolvedVc<Environment>,
     pub defines: ResolvedVc<CompileTimeDefines>,
     pub free_var_references: ResolvedVc<FreeVarReferences>,
+    pub hot_module_replacement_enabled: bool,
 }
 
 impl CompileTimeInfo {
@@ -415,6 +440,7 @@ impl CompileTimeInfo {
             environment,
             defines: None,
             free_var_references: None,
+            hot_module_replacement_enabled: false,
         }
     }
 }
@@ -427,6 +453,7 @@ impl CompileTimeInfo {
             environment,
             defines: CompileTimeDefines::empty().to_resolved().await?,
             free_var_references: FreeVarReferences::empty().to_resolved().await?,
+            hot_module_replacement_enabled: false,
         }
         .cell())
     }
@@ -441,6 +468,7 @@ pub struct CompileTimeInfoBuilder {
     environment: ResolvedVc<Environment>,
     defines: Option<ResolvedVc<CompileTimeDefines>>,
     free_var_references: Option<ResolvedVc<FreeVarReferences>>,
+    hot_module_replacement_enabled: bool,
 }
 
 impl CompileTimeInfoBuilder {
@@ -457,6 +485,11 @@ impl CompileTimeInfoBuilder {
         self
     }
 
+    pub fn hot_module_replacement_enabled(mut self, enabled: bool) -> Self {
+        self.hot_module_replacement_enabled = enabled;
+        self
+    }
+
     pub async fn build(self) -> Result<CompileTimeInfo> {
         Ok(CompileTimeInfo {
             environment: self.environment,
@@ -468,6 +501,7 @@ impl CompileTimeInfoBuilder {
                 Some(free_var_references) => free_var_references,
                 None => FreeVarReferences::empty().to_resolved().await?,
             },
+            hot_module_replacement_enabled: self.hot_module_replacement_enabled,
         })
     }
 

@@ -1,0 +1,223 @@
+import { nextTestSetup } from 'e2e-utils'
+import { retry } from '../../../lib/next-test-utils'
+
+describe('instant validation causes', () => {
+  const { next, skipped, isNextDev } = nextTestSetup({
+    files: __dirname,
+    skipDeployment: true,
+    env: {
+      NEXT_TEST_LOG_VALIDATION: '1',
+    },
+  })
+  if (skipped) return
+  if (!isNextDev) {
+    it.skip('Only implemented in dev', () => {})
+    return
+  }
+
+  let currentCliOutputIndex = 0
+  beforeEach(() => {
+    currentCliOutputIndex = next.cliOutput.length
+  })
+
+  function getCliOutputSinceMark(): string {
+    if (next.cliOutput.length < currentCliOutputIndex) {
+      currentCliOutputIndex = 0
+    }
+    return next.cliOutput.slice(currentCliOutputIndex)
+  }
+
+  type ValidationEvent =
+    | { type: 'validation_start'; requestId: string; url: string }
+    | { type: 'validation_end'; requestId: string; url: string }
+
+  function parseValidationMessages(output: string): ValidationEvent[] {
+    const messageRe = /<VALIDATION_MESSAGE>(.*?)<\/VALIDATION_MESSAGE>/g
+    const events: ValidationEvent[] = []
+    let match: RegExpExecArray | null
+    while ((match = messageRe.exec(output)) !== null) {
+      try {
+        events.push(JSON.parse(match[1]))
+      } catch (err) {
+        throw new Error(`Failed to parse message '${match[1]}'`, {
+          cause: err,
+        })
+      }
+    }
+    return events
+  }
+
+  function normalizeValidationUrl(url: string): string {
+    const parsed = new URL(url, 'http://n')
+    parsed.searchParams.delete('_rsc')
+    return parsed.pathname + parsed.search + parsed.hash
+  }
+
+  async function waitForValidation(targetUrl: string) {
+    const parsedTargetUrl = new URL(targetUrl)
+    const relativeTargetUrl =
+      parsedTargetUrl.pathname + parsedTargetUrl.search + parsedTargetUrl.hash
+
+    const requestId = await retry(
+      async () => {
+        const events = parseValidationMessages(getCliOutputSinceMark())
+        const start = events.find(
+          (e) =>
+            e.type === 'validation_start' &&
+            normalizeValidationUrl(e.url) === relativeTargetUrl
+        )
+        expect(start).toBeDefined()
+        return start!.requestId
+      },
+      undefined,
+      undefined,
+      `wait for validation of '${relativeTargetUrl}' to start`
+    )
+
+    await retry(
+      async () => {
+        const events = parseValidationMessages(getCliOutputSinceMark())
+        const end = events.find(
+          (e) => e.type === 'validation_end' && e.requestId === requestId
+        )
+        expect(end).toBeDefined()
+      },
+      undefined,
+      undefined,
+      'wait for validation to end'
+    )
+  }
+
+  it('named export - export { instant }', async () => {
+    const browser = await next.browser('/named-export')
+    await waitForValidation(await browser.url())
+    await expect(browser).toDisplayCollapsedRedbox(`
+     {
+       "cause": [
+         {
+           "label": "Caused by: Instant Validation",
+           "source": "app/named-export/page.tsx (3:17) @ instant
+     > 3 | const instant = true
+         |                 ^",
+           "stack": [
+             "instant app/named-export/page.tsx (3:17)",
+             "Set.forEach <anonymous>",
+           ],
+         },
+       ],
+       "code": "E1398",
+       "description": "Next.js encountered uncached data during a navigation.",
+       "environmentLabel": "Server",
+       "label": "Instant",
+       "source": "app/named-export/page.tsx (7:19) @ Page
+     >  7 |   await connection()
+          |                   ^",
+       "stack": [
+         "Page app/named-export/page.tsx (7:19)",
+       ],
+     }
+    `)
+  })
+
+  it('aliased export - export { instantConfig as instant }', async () => {
+    const browser = await next.browser('/aliased-export')
+    await waitForValidation(await browser.url())
+    await expect(browser).toDisplayCollapsedRedbox(`
+     {
+       "cause": [
+         {
+           "label": "Caused by: Instant Validation",
+           "source": "app/aliased-export/page.tsx (3:23) @ instant
+     > 3 | const instantConfig = true
+         |                       ^",
+           "stack": [
+             "instant app/aliased-export/page.tsx (3:23)",
+             "Set.forEach <anonymous>",
+           ],
+         },
+       ],
+       "code": "E1398",
+       "description": "Next.js encountered uncached data during a navigation.",
+       "environmentLabel": "Server",
+       "label": "Instant",
+       "source": "app/aliased-export/page.tsx (7:19) @ Page
+     >  7 |   await connection()
+          |                   ^",
+       "stack": [
+         "Page app/aliased-export/page.tsx (7:19)",
+       ],
+     }
+    `)
+  })
+
+  it('re-export - export { instant } from "./config"', async () => {
+    const browser = await next.browser('/reexport')
+    await waitForValidation(await browser.url())
+    await expect(browser).toDisplayCollapsedRedbox(`
+     {
+       "cause": [
+         {
+           "label": "Caused by: Instant Validation",
+           "source": "app/reexport/page.tsx (3:10) @ instant
+     > 3 | export { instant } from './config'
+         |          ^",
+           "stack": [
+             "instant app/reexport/page.tsx (3:10)",
+             "Set.forEach <anonymous>",
+           ],
+         },
+       ],
+       "code": "E1398",
+       "description": "Next.js encountered uncached data during a navigation.",
+       "environmentLabel": "Server",
+       "label": "Instant",
+       "source": "app/reexport/page.tsx (6:19) @ Page
+     > 6 |   await connection()
+         |                   ^",
+       "stack": [
+         "Page app/reexport/page.tsx (6:19)",
+       ],
+     }
+    `)
+  })
+
+  it('indirect export - const instantConfig = _instant; export { instantConfig as instant }', async () => {
+    const browser = await next.browser('/indirect-export')
+    await waitForValidation(await browser.url())
+    // Ideally we'd be pointing at the original value declaration.
+    // We're not following declarations recursively mostly to keep the implementation simpler
+    // presuming that almost all configs are just `export const instant = ...`
+    await expect(browser).toDisplayCollapsedRedbox(`
+     {
+       "cause": [
+         {
+           "label": "Caused by: Instant Validation",
+           "source": "app/indirect-export/page.tsx (4:23) @ instant
+     > 4 | const instantConfig = _instant
+         |                       ^",
+           "stack": [
+             "instant app/indirect-export/page.tsx (4:23)",
+             "Set.forEach <anonymous>",
+           ],
+         },
+       ],
+       "code": "E1398",
+       "description": "Next.js encountered uncached data during a navigation.",
+       "environmentLabel": "Server",
+       "label": "Instant",
+       "source": "app/indirect-export/page.tsx (8:19) @ Page
+     >  8 |   await connection()
+          |                   ^",
+       "stack": [
+         "Page app/indirect-export/page.tsx (8:19)",
+       ],
+     }
+    `)
+  })
+
+  it('does not add an instant stack for random instant exports', async () => {
+    const browser = await next.browser('/not-actual-instant')
+    const config = await browser.waitForElementByCss('[data-testid="config"]')
+    expect(await config.innerText()).toBe(JSON.stringify({ instant: false }))
+  })
+})

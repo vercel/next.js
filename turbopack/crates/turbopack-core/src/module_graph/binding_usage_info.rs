@@ -17,6 +17,12 @@ use crate::{
     resolve::{ExportUsage, ImportUsage},
 };
 
+#[turbo_tasks::value(transparent, cell = "keyed")]
+pub struct UsedExportsMap(FxHashMap<ResolvedVc<Box<dyn Module>>, ModuleExportUsageInfo>);
+
+#[turbo_tasks::value(transparent, cell = "keyed")]
+pub struct ExportCircuitBreakers(FxHashSet<ResolvedVc<Box<dyn Module>>>);
+
 #[turbo_tasks::value]
 #[derive(Clone, Default, Debug)]
 pub struct BindingUsageInfo {
@@ -24,8 +30,8 @@ pub struct BindingUsageInfo {
     #[turbo_tasks(trace_ignore)]
     unused_references_edges: FxHashSet<GraphEdgeIndex>,
 
-    used_exports: FxHashMap<ResolvedVc<Box<dyn Module>>, ModuleExportUsageInfo>,
-    export_circuit_breakers: FxHashSet<ResolvedVc<Box<dyn Module>>>,
+    used_exports: ResolvedVc<UsedExportsMap>,
+    export_circuit_breakers: ResolvedVc<ExportCircuitBreakers>,
 }
 
 #[turbo_tasks::value(transparent)]
@@ -58,8 +64,8 @@ impl BindingUsageInfo {
         &self,
         module: ResolvedVc<Box<dyn Module>>,
     ) -> Result<Vc<ModuleExportUsage>> {
-        let is_circuit_breaker = self.export_circuit_breakers.contains(&module);
-        let Some(exports) = self.used_exports.get(&module) else {
+        let is_circuit_breaker = self.export_circuit_breakers.contains_key(&module).await?;
+        let Some(exports) = self.used_exports.get(&module).await? else {
             // There are some module that are codegened, but not referenced in the module graph,
             let ident = module.ident_string().await?;
             if ident.contains(".wasm_.loader.mjs") || ident.contains("/__nextjs-internal-proxy.") {
@@ -73,7 +79,7 @@ impl BindingUsageInfo {
             bail!("export usage not found for module: {ident:?}");
         };
         Ok(ModuleExportUsage {
-            export_usage: exports.clone().resolved_cell(),
+            export_usage: (*exports).clone().resolved_cell(),
             is_circuit_breaker,
         }
         .cell())
@@ -138,7 +144,7 @@ pub async fn compute_binding_usage_info(
             None
         };
 
-        let entries = graph_ref.graphs.iter().flat_map(|g| g.entry_modules());
+        let entries = graph_ref.all_chunk_group_entry_modules();
 
         let visit_count = graph_ref.traverse_edges_fixed_point_with_priority(
             entries.map(|m| (m, 0)),
@@ -266,8 +272,8 @@ pub async fn compute_binding_usage_info(
 
         #[cfg(debug_assertions)]
         {
-            use once_cell::sync::Lazy;
-            static PRINT_UNUSED_REFERENCES: Lazy<bool> = Lazy::new(|| {
+            use std::sync::LazyLock;
+            static PRINT_UNUSED_REFERENCES: LazyLock<bool> = LazyLock::new(|| {
                 std::env::var_os("TURBOPACK_PRINT_UNUSED_REFERENCES")
                     .is_some_and(|v| v == "1" || v == "true")
             });
@@ -286,13 +292,29 @@ pub async fn compute_binding_usage_info(
                         .await?
                 );
             }
+
+            static PRINT_USED_EXPORTS: LazyLock<bool> = LazyLock::new(|| {
+                std::env::var_os("TURBOPACK_PRINT_USED_EXPORTS")
+                    .is_some_and(|v| v == "1" || v == "true")
+            });
+            if *PRINT_USED_EXPORTS {
+                use turbo_tasks::TryJoinIterExt;
+                println!(
+                    "used exports: {:#?}",
+                    used_exports
+                        .iter()
+                        .map(async |(m, v)| Ok((m.ident_string().await?, v,)))
+                        .try_join()
+                        .await?
+                );
+            }
         }
 
         Ok(BindingUsageInfo {
             unused_references: ResolvedVc::cell(unused_references),
             unused_references_edges,
-            used_exports,
-            export_circuit_breakers,
+            used_exports: ResolvedVc::cell(used_exports),
+            export_circuit_breakers: ResolvedVc::cell(export_circuit_breakers),
         }
         .cell())
     }
@@ -332,9 +354,20 @@ impl ModuleExportUsageInfo {
                 *self = Self::Exports(AutoSet::from_iter([name.clone()]));
                 true
             }
+            (Self::Evaluation, ExportUsage::PartialNamespaceObject(names)) => {
+                *self = Self::Exports(AutoSet::from_iter(names.iter().cloned()));
+                true
+            }
             (Self::Exports(l), ExportUsage::Named(r)) => {
                 // Merge exports
                 l.insert(r.clone())
+            }
+            (Self::Exports(l), ExportUsage::PartialNamespaceObject(names)) => {
+                let mut changed = false;
+                for name in names {
+                    changed |= l.insert(name.clone());
+                }
+                changed
             }
             (_, ExportUsage::Evaluation) => false,
         }

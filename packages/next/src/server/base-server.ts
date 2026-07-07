@@ -6,10 +6,7 @@ import type {
 import type { MiddlewareRouteMatch } from '../shared/lib/router/utils/middleware-route-matcher'
 import type { Params } from './request/params'
 import type { NextConfig, NextConfigRuntime } from './config-shared'
-import {
-  DEFAULT_MAX_POSTPONED_STATE_SIZE,
-  parseMaxPostponedStateSize,
-} from './config-shared'
+import { parseMaxPostponedStateSize } from './config-shared'
 import type {
   NextParsedUrlQuery,
   NextUrlWithParsedQuery,
@@ -51,6 +48,7 @@ import type { InstrumentationModule } from './instrumentation/types'
 import * as path from 'path'
 import { format as formatUrl } from 'url'
 import { formatHostname } from './lib/format-hostname'
+import { isRSCRequestHeader } from './lib/is-rsc-request'
 import {
   APP_PATHS_MANIFEST,
   NEXT_BUILTIN_DOCUMENT,
@@ -63,6 +61,7 @@ import { isDynamicRoute } from '../shared/lib/router/utils'
 import { execOnce } from '../shared/lib/utils'
 import { isBlockedPage } from './utils'
 import { getBotType, isBot } from '../shared/lib/router/utils/is-bot'
+import { getRouteRegex } from '../shared/lib/router/utils/route-regex'
 import RenderResult from './render-result'
 import { removeTrailingSlash } from '../shared/lib/router/utils/remove-trailing-slash'
 import { denormalizePagePath } from '../shared/lib/page-path/denormalize-page-path'
@@ -91,6 +90,7 @@ import {
   NEXT_URL,
   NEXT_ROUTER_STATE_TREE_HEADER,
   NEXT_INSTANT_TEST_COOKIE,
+  NEXT_HMR_REFRESH_HEADER,
 } from '../client/components/app-router-headers'
 import type {
   MatchOptions,
@@ -148,13 +148,21 @@ import { shouldServeStreamingMetadata } from './lib/streaming-metadata'
 import { decodeQueryPathParameter } from './lib/decode-query-path-parameter'
 import { NoFallbackError } from '../shared/lib/no-fallback-error.external'
 import { fixMojibake } from './lib/fix-mojibake'
-import { computeCacheBustingSearchParam } from '../shared/lib/router/utils/cache-busting-search-param'
 import { setCacheBustingSearchParamWithHash } from '../client/components/router-reducer/set-cache-busting-search-param'
 import type { CacheControl } from './lib/cache-control'
 import type { PrerenderedRoute } from '../build/static-paths/types'
 import { createOpaqueFallbackRouteParams } from './request/fallback-params'
 import { RouteKind } from './route-kind'
 import type { ErrorModule } from './load-default-error-components'
+import {
+  getMaxPostponedStateSize,
+  getPostponedStateExceededErrorMessage,
+  readBodyWithSizeLimit,
+} from './lib/postponed-request-body'
+import {
+  computeCacheBustingSearchParam,
+  computeLegacyCacheBustingSearchParam,
+} from '../shared/lib/router/utils/cache-busting-search-param'
 
 export type FindComponentsResult<
   NextModule extends GenericComponentMod = GenericComponentMod,
@@ -465,9 +473,6 @@ export default abstract class Server<
         )
       }
       this.deploymentId = process.env.NEXT_DEPLOYMENT_ID
-      ;(globalThis as any).NEXT_CLIENT_ASSET_SUFFIX = this.deploymentId
-        ? `?dpl=${this.deploymentId}`
-        : ''
     } else {
       let id = this.nextConfig.experimental.useSkewCookie
         ? ''
@@ -475,8 +480,11 @@ export default abstract class Server<
 
       this.deploymentId = id
       process.env.NEXT_DEPLOYMENT_ID = id
-      ;(globalThis as any).NEXT_CLIENT_ASSET_SUFFIX = id ? `?dpl=${id}` : ''
     }
+    ;(globalThis as any).NEXT_CLIENT_ASSET_SUFFIX =
+      this.nextConfig.experimental.supportsImmutableAssets || !this.deploymentId
+        ? ''
+        : `?dpl=${this.deploymentId}`
 
     this.hostname = hostname
     if (this.hostname) {
@@ -551,6 +559,7 @@ export default abstract class Server<
       distDir: this.distDir,
       serverComponents: this.enabledDirectories.app,
       cacheLifeProfiles: this.nextConfig.cacheLife,
+      staticPageGenerationTimeout: this.nextConfig.staticPageGenerationTimeout,
       enableTainting: this.nextConfig.experimental.taint,
       crossOrigin: this.nextConfig.crossOrigin
         ? this.nextConfig.crossOrigin
@@ -561,6 +570,9 @@ export default abstract class Server<
       // `htmlLimitedBots` is passed to server as serialized config in string format
       htmlLimitedBots: this.nextConfig.htmlLimitedBots,
       cacheComponents: this.nextConfig.cacheComponents ?? false,
+      partialPrefetching: this.nextConfig.partialPrefetching,
+      validationLevel:
+        this.nextConfig.experimental.instantInsights.validationLevel,
       experimental: {
         expireTime: this.nextConfig.expireTime,
         staleTimes: this.nextConfig.experimental.staleTimes,
@@ -571,13 +583,26 @@ export default abstract class Server<
         optimisticRouting:
           this.nextConfig.experimental.optimisticRouting ?? false,
         inlineCss: this.nextConfig.experimental.inlineCss ?? false,
+        prefetchInlining:
+          this.nextConfig.experimental.prefetchInlining ?? false,
         authInterrupts: !!this.nextConfig.experimental.authInterrupts,
+        serverComponentsHmrCancellation:
+          this.nextConfig.experimental.serverComponentsHmrCancellation,
+        useCacheTimeout: this.nextConfig.experimental.useCacheTimeout,
+        cachedNavigations:
+          this.nextConfig.experimental.cachedNavigations ?? false,
+        appShells: this.nextConfig.experimental.appShells,
         maxPostponedStateSizeBytes: parseMaxPostponedStateSize(
           this.nextConfig.experimental.maxPostponedStateSize
         ),
+        exposeTestingApi:
+          this.dev === true ||
+          this.nextConfig.experimental.exposeTestingApiInProductionBuild ===
+            true,
       },
       onInstrumentationRequestError:
         this.instrumentationOnRequestError.bind(this),
+      prefetchHints: {},
       reactMaxHeadersLength: this.nextConfig.reactMaxHeadersLength,
       logServerFunctions:
         typeof this.nextConfig.logging === 'object' &&
@@ -646,7 +671,7 @@ export default abstract class Server<
       stripFlightHeaders(req.headers)
 
       return false
-    } else if (req.headers[RSC_HEADER] === '1') {
+    } else if (isRSCRequestHeader(req.headers[RSC_HEADER])) {
       addRequestMeta(req, 'isRSCRequest', true)
 
       if (req.headers[NEXT_ROUTER_PREFETCH_HEADER] === '1') {
@@ -872,6 +897,13 @@ export default abstract class Server<
     const tracer = getTracer()
 
     return tracer.withPropagatedContext(req.headers, () => {
+      // Capture the parent span before creating the handleRequest span.
+      // When deployed with an adapter, the platform's runtime may create its
+      // own OTEL HTTP server span before Next.js runs. We propagate http.route
+      // to this parent span so APM tools (e.g. Datadog) can derive the
+      // resource name correctly.
+      const parentSpan = tracer.getActiveScopeSpan()
+
       return tracer.trace(
         BaseServerSpan.handleRequest,
         {
@@ -930,6 +962,14 @@ export default abstract class Server<
                 'next.span_name': name,
               })
               span.updateName(name)
+
+              // Propagate http.route to the parent span if one exists and
+              // is different from the handleRequest span. This ensures APM
+              // tools that read attributes from the outermost span (e.g.
+              // a platform-created HTTP span) can derive the resource name.
+              if (parentSpan && parentSpan !== span) {
+                parentSpan.setAttribute('http.route', route)
+              }
             } else {
               span.updateName(isRSCRequest ? `RSC ${method}` : `${method}`)
             }
@@ -1069,37 +1109,28 @@ export default abstract class Server<
             req.headers[NEXT_RESUME_HEADER] === '1' &&
             req.method === 'POST'
           ) {
-            // Get the configured max postponed state size.
-            const maxPostponedStateSize =
-              this.nextConfig.experimental.maxPostponedStateSize ??
-              DEFAULT_MAX_POSTPONED_STATE_SIZE
-            const maxPostponedStateSizeBytes = parseMaxPostponedStateSize(
-              this.nextConfig.experimental.maxPostponedStateSize
-            )
-            if (maxPostponedStateSizeBytes === undefined) {
-              throw new Error(
-                'maxPostponedStateSize must be a valid number (bytes) or filesize format string (e.g., "5mb")'
+            const { maxPostponedStateSize, maxPostponedStateSizeBytes } =
+              getMaxPostponedStateSize(
+                this.nextConfig.experimental.maxPostponedStateSize
               )
-            }
 
             // Decode the postponed state from the request body, it will come as
             // an array of buffers, so collect them and then concat them to form
             // the string.
-            const body: Array<Buffer> = []
-            let size = 0
-            for await (const chunk of req.body) {
-              size += Buffer.byteLength(chunk)
-              if (size > maxPostponedStateSizeBytes) {
-                res.statusCode = 413
-                const errorMessage =
-                  `Postponed state exceeded ${maxPostponedStateSize} limit. ` +
-                  `To configure the limit, see: https://nextjs.org/docs/app/api-reference/config/next-config-js/max-postponed-state-size`
-                res.body(errorMessage).send()
-                return
-              }
-              body.push(chunk)
+            const body = await readBodyWithSizeLimit(
+              req.body,
+              maxPostponedStateSizeBytes
+            )
+            if (body === null) {
+              res.statusCode = 413
+              res
+                .body(
+                  getPostponedStateExceededErrorMessage(maxPostponedStateSize)
+                )
+                .send()
+              return
             }
-            const postponed = Buffer.concat(body).toString('utf8')
+            const postponed = body.toString('utf8')
 
             addRequestMeta(req, 'postponed', postponed)
           }
@@ -1108,7 +1139,7 @@ export default abstract class Server<
           // we should error, as it represents an unprocessable request.
           if (
             getRequestMeta(req, 'isNextDataReq') &&
-            getRequestMeta(req, 'postponed')
+            typeof getRequestMeta(req, 'postponed') === 'string'
           ) {
             // The server understood that this is a PPR resume request, as the
             // headers were included to correctly indicate a resume request, but
@@ -1788,13 +1819,20 @@ export default abstract class Server<
     if (!res.sent) {
       const { generateEtags, poweredByHeader } = this.renderOpts
 
-      // In dev, we should not cache pages for any reason.
+      // Dev responses use `no-cache` so the browser can restore them from the
+      // HTTP cache on back/forward instead of reloading. HMR refresh responses
+      // opt out into `no-store` because a superseded refresh's fetch is aborted
+      // mid-write: under `no-cache` the response is stored, so the abort leaves
+      // the cache entry shared with the superseding refresh (same URL)
+      // half-written; Chromium then discards it and reissues the superseding
+      // refresh on a second connection as a duplicate request. `no-store` keeps
+      // that entry from being created.
       if (this.dev) {
         res.setHeader(
           'Cache-Control',
-          this.nextConfig.experimental.devCacheControlNoCache
-            ? 'no-cache, must-revalidate'
-            : 'no-store, must-revalidate'
+          req.headers[NEXT_HMR_REFRESH_HEADER] === '1'
+            ? 'no-store'
+            : 'no-cache, must-revalidate'
         )
         cacheControl = undefined
       }
@@ -2055,8 +2093,10 @@ export default abstract class Server<
       const prefetchHeaderValue = headers[NEXT_ROUTER_PREFETCH_HEADER]
       const routerPrefetch =
         prefetchHeaderValue !== undefined
-          ? // We only recognize '1' and '2'. Strip all other values here.
-            prefetchHeaderValue === '1' || prefetchHeaderValue === '2'
+          ? // We only recognize '1', '2', and '3'. Strip all other values here.
+            prefetchHeaderValue === '1' ||
+            prefetchHeaderValue === '2' ||
+            prefetchHeaderValue === '3'
             ? prefetchHeaderValue
             : undefined
           : // For runtime prefetches, we always perform a dynamic request,
@@ -2070,7 +2110,7 @@ export default abstract class Server<
         headers[NEXT_ROUTER_SEGMENT_PREFETCH_HEADER] ||
         getRequestMeta(req, 'segmentPrefetchRSCRequest')
 
-      const expectedHash = computeCacheBustingSearchParam(
+      const expectedHash = await computeCacheBustingSearchParam(
         routerPrefetch,
         segmentPrefetchRSCRequest,
         headers[NEXT_ROUTER_STATE_TREE_HEADER],
@@ -2082,10 +2122,24 @@ export default abstract class Server<
           NEXT_RSC_UNION_QUERY
         )
 
-      if (expectedHash !== actualHash) {
+      let matchesHash = expectedHash === actualHash
+      if (!matchesHash && actualHash !== null) {
+        // We'll fallback to checking the legacy hash format to support clients that do not have a secure context
+        matchesHash =
+          computeLegacyCacheBustingSearchParam(
+            routerPrefetch,
+            segmentPrefetchRSCRequest,
+            headers[NEXT_ROUTER_STATE_TREE_HEADER],
+            headers[NEXT_URL]
+          ) === actualHash
+      }
+
+      if (!matchesHash) {
         // The hash sent by the client does not match the expected value.
         // Redirect to the URL with the correct cache-busting search param.
         // This prevents cache poisoning attacks on CDNs that don't respect Vary headers.
+        // We continue to accept the legacy short hash for clients that still
+        // generate the 5-character `_rsc` form.
         // Note: When no headers are present, expectedHash is empty string and client
         // must send `_rsc` param, otherwise actualHash is null and hash check fails.
         const url = new URL(req.url || '', 'http://localhost')
@@ -2206,7 +2260,7 @@ export default abstract class Server<
     // even during a locked scope, with blocking happening on the client side.
     const hasInstantTestCookie =
       exposeTestingApi &&
-      req.headers[RSC_HEADER] === undefined &&
+      !isRSCRequestHeader(req.headers[RSC_HEADER]) &&
       typeof req.headers.cookie === 'string' &&
       req.headers.cookie.includes(NEXT_INSTANT_TEST_COOKIE + '=') &&
       couldSupportPPR
@@ -2232,6 +2286,7 @@ export default abstract class Server<
     const minimalPostponed = isRoutePPREnabled
       ? getRequestMeta(req, 'postponed')
       : undefined
+    const hasPostponedState = typeof minimalPostponed === 'string'
 
     // we need to ensure the status code if /404 is visited directly
     if (is404Page && !isNextDataRequest && !isRSCRequest) {
@@ -2248,7 +2303,7 @@ export default abstract class Server<
       // Server actions can use non-GET/HEAD methods.
       !isPossibleServerAction &&
       // Resume can use non-GET/HEAD methods.
-      !minimalPostponed &&
+      !hasPostponedState &&
       !is404Page &&
       !is500Page &&
       pathname !== '/_error' &&
@@ -2349,26 +2404,44 @@ export default abstract class Server<
 
       if (isAppPath && this.nextConfig.cacheComponents) {
         if (pathsResults.prerenderedRoutes?.length) {
-          let smallestFallbackRouteParams = null
+          // Replicate, on demand, the per-URL fallback set a production build
+          // writes to the prerender manifest. Production matches the requested
+          // URL to the most-specific prerendered route and defers that route's
+          // `fallbackRouteParams` (so `generateStaticParams`-covered params
+          // resolve in the static shell and only the uncovered ones are
+          // deferred). The dev prerender manifest isn't populated for these
+          // ad-hoc routes, but `getStaticPaths` already computed every
+          // prerendered route here, so we do the same match: among the routes
+          // whose canonical regex matches this URL, pick the one with the
+          // fewest fallback params (the most-specific) and thread it via the
+          // `fallbackParams` meta. A fully-covered concrete route (e.g.
+          // `/blog/a`) has zero fallback params and is the most-specific match
+          // for its own URL, so it must be considered alongside the others: it
+          // wins over the base dynamic route (`/blog/[slug]`) and leaves its
+          // statically-known params out of the deferred set.
+          let perUrlFallbackRouteParams: NonNullable<
+            (typeof pathsResults.prerenderedRoutes)[number]['fallbackRouteParams']
+          > | null = null
           for (const route of pathsResults.prerenderedRoutes) {
-            const fallbackRouteParams = route.fallbackRouteParams
-            if (!fallbackRouteParams || fallbackRouteParams.length === 0) {
-              // There are no fallback route params so we don't need to continue
-              smallestFallbackRouteParams = null
-              break
+            const fallbackRouteParams = route.fallbackRouteParams ?? []
+            if (!getRouteRegex(route.pathname).re.test(urlPathname)) {
+              continue
             }
             if (
-              smallestFallbackRouteParams === null ||
-              fallbackRouteParams.length < smallestFallbackRouteParams.length
+              perUrlFallbackRouteParams === null ||
+              fallbackRouteParams.length < perUrlFallbackRouteParams.length
             ) {
-              smallestFallbackRouteParams = fallbackRouteParams
+              perUrlFallbackRouteParams = fallbackRouteParams
             }
           }
-          if (smallestFallbackRouteParams) {
+          if (
+            perUrlFallbackRouteParams &&
+            perUrlFallbackRouteParams.length > 0
+          ) {
             addRequestMeta(
               req,
-              'devFallbackParams',
-              createOpaqueFallbackRouteParams(smallestFallbackRouteParams)!
+              'fallbackParams',
+              createOpaqueFallbackRouteParams(perUrlFallbackRouteParams)!
             )
           }
         }

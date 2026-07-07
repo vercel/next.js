@@ -43,6 +43,7 @@ describe('adapter-config', () => {
     }
 
     expect(ctx.nextVersion).toBe(nextVersion)
+    expect(ctx.projectDir).toBe(next.testDir)
     expect(config?.basePath).toBe('/docs')
 
     const combinedRouteOutputs = [
@@ -89,6 +90,73 @@ describe('adapter-config', () => {
     expect(staticOutputs.length).toBeGreaterThan(0)
     expect(prerenderOutputs.length).toBeGreaterThan(0)
 
+    const expectedRouteConfigs = [
+      {
+        pathname: '/docs/node-app',
+        type: 'APP_PAGE',
+        runtime: 'nodejs',
+        maxDuration: 10,
+      },
+      {
+        pathname: '/docs/edge-app',
+        type: 'APP_PAGE',
+        runtime: 'edge',
+        maxDuration: 20,
+      },
+      {
+        pathname: '/docs/node-route',
+        type: 'APP_ROUTE',
+        runtime: 'nodejs',
+        maxDuration: 30,
+      },
+      {
+        pathname: '/docs/edge-route',
+        type: 'APP_ROUTE',
+        runtime: 'edge',
+        maxDuration: 40,
+      },
+      {
+        pathname: '/docs/node-pages',
+        type: 'PAGES',
+        runtime: 'nodejs',
+        maxDuration: 50,
+      },
+      {
+        pathname: '/docs/edge-pages',
+        type: 'PAGES',
+        runtime: 'edge',
+        maxDuration: 60,
+      },
+      {
+        pathname: '/docs/api/node-pages',
+        type: 'PAGES_API',
+        runtime: 'nodejs',
+        maxDuration: 70,
+      },
+      {
+        pathname: '/docs/api/edge-pages',
+        type: 'PAGES_API',
+        runtime: 'edge',
+        maxDuration: 80,
+      },
+    ] as const
+
+    for (const {
+      pathname,
+      type,
+      runtime,
+      maxDuration,
+    } of expectedRouteConfigs) {
+      expect(combinedRouteOutputs).toContainEqual(
+        expect.objectContaining({
+          pathname,
+          type,
+          runtime,
+          config: expect.objectContaining({ maxDuration }),
+        })
+      )
+    }
+
     for (const output of staticOutputs) {
       expect(output.id).toBeTruthy()
 
@@ -102,7 +170,7 @@ describe('adapter-config', () => {
           /\.(png|jpg|jpeg|ico|svg|gif|json|webmanifest|xml|txt)$/
         )
       } else {
-        expect(output.pathname).toStartWith('/docs/_next/static')
+        expect(output.pathname).toMatch(/^\/docs\/_next\/static/)
       }
       // ensure / -> /index normalizing is correct
       expect(output.pathname.includes('/.')).toBe(false)
@@ -258,7 +326,6 @@ describe('adapter-config', () => {
     const indexPrerender = prerenderOutputs.find(
       (item) => item.pathname === '/docs'
     )
-
     expect(indexPrerender?.fallback?.initialHeaders).toEqual({
       'content-type': 'text/html; charset=utf-8',
       vary: 'rsc, next-router-state-tree, next-router-prefetch, next-router-segment-prefetch',
@@ -341,6 +408,24 @@ describe('adapter-config', () => {
             __NEXT_PREVIEW_MODE_SIGNING_KEY: expect.toBeString(),
           })
         )
+        const edgeRuntime = (
+          route as PageRoutesType & {
+            edgeRuntime?: {
+              modulePath: string
+              entryKey: string
+              handlerExport: string
+            }
+          }
+        ).edgeRuntime
+        expect(edgeRuntime).toEqual(
+          expect.objectContaining({
+            modulePath: expect.toBeString(),
+            entryKey: expect.toBeString(),
+            handlerExport: 'handler',
+          })
+        )
+        expect(edgeRuntime?.entryKey.startsWith('middleware_')).toBe(true)
+        expect(edgeRuntime?.modulePath).toBe(route.filePath)
 
         const stats = await fs.promises.stat(route.filePath)
         expect(stats.isFile()).toBe(true)
@@ -362,6 +447,7 @@ describe('adapter-config', () => {
 
     expect(routing).toEqual({
       beforeMiddleware: expect.toBeArray(),
+      middlewareMatchers: expect.toBeArray(),
       beforeFiles: expect.toBeArray(),
       afterFiles: expect.toBeArray(),
       dynamicRoutes: expect.toBeArray(),
@@ -370,5 +456,18 @@ describe('adapter-config', () => {
       shouldNormalizeNextData: expect.toBeBoolean(),
       rsc: expect.toBeObject(),
     })
+  })
+
+  it('should propagate preferredRegion to adapter output', async () => {
+    const { outputs }: Parameters<NextAdapter['onBuildComplete']>[0] =
+      await next.readJSON('build-complete.json')
+
+    const preferredRegionRoute = outputs.appRoutes.find(
+      (output) => output.pathname === '/docs/preferred-region'
+    )
+
+    expect(preferredRegionRoute).toBeDefined()
+    expect(preferredRegionRoute?.runtime).toBe('edge')
+    expect(preferredRegionRoute?.config.preferredRegion).toEqual(['cdg1'])
   })
 })

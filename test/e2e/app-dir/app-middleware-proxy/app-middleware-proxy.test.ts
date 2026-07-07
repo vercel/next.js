@@ -13,7 +13,7 @@ describe('app-dir with proxy', () => {
     it('should log compilation time', async () => {
       await next.browser('/')
       expect(next.cliOutput).toMatch(
-        /GET \/ 200 in .* \(compile:.*, proxy.ts:.*, render:.*\)/
+        /GET \/ 200 in .* \(next\.js:.*, proxy\.ts:.*, application-code:.*\)/
       )
     })
   }

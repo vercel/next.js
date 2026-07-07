@@ -5,7 +5,6 @@ import path from 'path'
 describe('500-page - mixed-router-with-custom-pages-error', () => {
   const { next, skipped } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
   })
 
   if (skipped) {

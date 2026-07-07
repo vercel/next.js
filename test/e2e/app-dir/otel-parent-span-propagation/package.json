@@ -1,0 +1,10 @@
+{
+  "dependencies": {
+    "@opentelemetry/api": "^1.7.0",
+    "@opentelemetry/context-async-hooks": "^1.21.0",
+    "@opentelemetry/core": "^1.21.0",
+    "@opentelemetry/resources": "^1.21.0",
+    "@opentelemetry/sdk-trace-base": "^1.21.0",
+    "@opentelemetry/semantic-conventions": "^1.21.0"
+  }
+}

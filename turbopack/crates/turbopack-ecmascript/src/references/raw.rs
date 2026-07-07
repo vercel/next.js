@@ -4,7 +4,7 @@ use turbo_rcstr::rcstr;
 use turbo_tasks::{ResolvedVc, ValueToString, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
-    chunk::{ChunkingType, ChunkingTypeOption},
+    chunk::{ChunkingType, TracedMode},
     file_source::FileSource,
     issue::IssueSource,
     raw_module::RawModule,
@@ -62,25 +62,30 @@ impl ModuleReference for FileSourceReference {
                 /* force_in_lookup_dir */ false,
             )
             .as_raw_module_result()
-            .resolve()
+            .to_resolved()
             .await?;
             check_and_emit_too_many_matches_warning(
-                result,
+                *result,
                 self.issue_source,
                 self.context_dir.clone(),
                 self.path,
             )
             .await?;
 
-            Ok(result)
+            Ok(*result)
         }
         .instrument(span)
         .await
     }
 
-    #[turbo_tasks::function]
-    fn chunking_type(&self) -> Vc<ChunkingTypeOption> {
-        Vc::cell(Some(ChunkingType::Traced))
+    fn chunking_type(&self) -> Option<ChunkingType> {
+        Some(ChunkingType::Traced {
+            mode: TracedMode::Entry,
+        })
+    }
+
+    fn source(&self) -> Option<IssueSource> {
+        Some(self.issue_source)
     }
 }
 
@@ -147,9 +152,9 @@ async fn resolve_reference_from_dir(
     };
 
     let matches = abs_matches
-        .into_iter()
+        .iter()
         .flatten()
-        .chain(rel_matches.into_iter().flatten());
+        .chain(rel_matches.iter().flatten());
 
     let mut affecting_sources = Vec::new();
     let mut results = Vec::new();
@@ -164,12 +169,12 @@ async fn resolve_reference_from_dir(
                 }
                 let path: FileSystemPath = match &realpath.path_result {
                     Ok(path) => path.clone(),
-                    Err(e) => bail!(e.as_error_message(file, &realpath)),
+                    Err(e) => bail!(e.as_error_message(file, &realpath).await?),
                 };
                 results.push((
                     RequestKey::new(matched_path.clone()),
                     ResolvedVc::upcast(
-                        RawModule::new(Vc::upcast(FileSource::new(path)))
+                        RawModule::new(Vc::upcast(FileSource::new(path.clone())))
                             .to_resolved()
                             .await?,
                     ),
@@ -207,8 +212,13 @@ impl ModuleReference for DirAssetReference {
         .await
     }
 
-    #[turbo_tasks::function]
-    fn chunking_type(&self) -> Vc<ChunkingTypeOption> {
-        Vc::cell(Some(ChunkingType::Traced))
+    fn chunking_type(&self) -> Option<ChunkingType> {
+        Some(ChunkingType::Traced {
+            mode: TracedMode::Entry,
+        })
+    }
+
+    fn source(&self) -> Option<IssueSource> {
+        Some(self.issue_source)
     }
 }

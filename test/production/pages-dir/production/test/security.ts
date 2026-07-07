@@ -1,5 +1,4 @@
 /* eslint-env jest */
-import webdriver from 'next-webdriver'
 import { readFileSync } from 'fs'
 import http from 'http'
 import { join } from 'path'
@@ -93,9 +92,7 @@ export default (next: NextInstance) => {
     })
 
     it("should not leak the user's home directory into the build", async () => {
-      const buildId = next.buildId
-
-      const readPath = join(next.testDir, `.next/static/${buildId}`)
+      const readPath = join(next.testDir, `.next/static/`)
       const buildFiles = await recursiveReadDir(readPath, {
         pathnameFilter: (f) => /\.js$/.test(f),
       })
@@ -128,8 +125,7 @@ export default (next: NextInstance) => {
     })
 
     it('should prevent URI based XSS attacks', async () => {
-      const browser = await webdriver(
-        next.appPort,
+      const browser = await next.browser(
         '/\',document.body.innerHTML="INJECTED",\''
       )
       await checkInjected(browser)
@@ -137,8 +133,7 @@ export default (next: NextInstance) => {
     })
 
     it('should prevent URI based XSS attacks using single quotes', async () => {
-      const browser = await webdriver(
-        next.appPort,
+      const browser = await next.browser(
         `/'-(document.body.innerHTML='INJECTED')-'`
       )
       await checkInjected(browser)
@@ -146,8 +141,7 @@ export default (next: NextInstance) => {
     })
 
     it('should prevent URI based XSS attacks using double quotes', async () => {
-      const browser = await webdriver(
-        next.appPort,
+      const browser = await next.browser(
         `/"-(document.body.innerHTML='INJECTED')-"`
       )
       await checkInjected(browser)
@@ -156,8 +150,7 @@ export default (next: NextInstance) => {
     })
 
     it('should prevent URI based XSS attacks using semicolons and double quotes', async () => {
-      const browser = await webdriver(
-        next.appPort,
+      const browser = await next.browser(
         `/;"-(document.body.innerHTML='INJECTED')-"`
       )
       await checkInjected(browser)
@@ -166,8 +159,7 @@ export default (next: NextInstance) => {
     })
 
     it('should prevent URI based XSS attacks using semicolons and single quotes', async () => {
-      const browser = await webdriver(
-        next.appPort,
+      const browser = await next.browser(
         `/;'-(document.body.innerHTML='INJECTED')-'`
       )
       await checkInjected(browser)
@@ -176,8 +168,7 @@ export default (next: NextInstance) => {
     })
 
     it('should prevent URI based XSS attacks using src', async () => {
-      const browser = await webdriver(
-        next.appPort,
+      const browser = await next.browser(
         `/javascript:(document.body.innerHTML='INJECTED')`
       )
       await checkInjected(browser)
@@ -186,8 +177,7 @@ export default (next: NextInstance) => {
     })
 
     it('should prevent URI based XSS attacks using querystring', async () => {
-      const browser = await webdriver(
-        next.appPort,
+      const browser = await next.browser(
         `/?javascript=(document.body.innerHTML='INJECTED')`
       )
       await checkInjected(browser)
@@ -196,8 +186,7 @@ export default (next: NextInstance) => {
     })
 
     it('should prevent URI based XSS attacks using querystring and quotes', async () => {
-      const browser = await webdriver(
-        next.appPort,
+      const browser = await next.browser(
         `/?javascript="(document.body.innerHTML='INJECTED')"`
       )
       await checkInjected(browser)
@@ -311,7 +300,7 @@ export default (next: NextInstance) => {
       it('should not execute script embedded inside svg image, even if dangerouslyAllowSVG=true', async () => {
         let browser
         try {
-          browser = await webdriver(next.appPort, '/svg-image')
+          browser = await next.browser('/svg-image')
           await browser.eval(`document.getElementById("img").scrollIntoView()`)
           const src = await browser.elementById('img').getAttribute('src')
           expect(src).toMatch(/_next\/image\?.*xss\.svg/)

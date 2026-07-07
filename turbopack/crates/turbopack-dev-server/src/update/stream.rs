@@ -1,21 +1,21 @@
 use std::pin::Pin;
 
 use anyhow::Result;
+use async_trait::async_trait;
 use futures::prelude::*;
 use tokio::sync::mpsc::Sender;
 use tokio_stream::wrappers::ReceiverStream;
 use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    IntoTraitRef, NonLocalValue, OperationVc, PrettyPrintError, ReadRef, ResolvedVc,
-    TransientInstance, Vc,
+    NonLocalValue, OperationVc, PrettyPrintError, ReadRef, ResolvedVc, TransientInstance, Vc,
     trace::{TraceRawVcs, TraceRawVcsContext},
 };
 use turbo_tasks_fs::{FileSystem, FileSystemPath};
 use turbopack_core::{
     issue::{
-        CollectibleIssuesExt, Issue, IssueFilter, IssueSeverity, IssueStage, OptionStyledString,
-        PlainIssue, StyledString,
+        CollectibleIssuesExt, Issue, IssueFilter, IssueSeverity, IssueStage, PlainIssue,
+        StyledString,
     },
     server_fs::ServerFileSystem,
     version::{
@@ -90,7 +90,7 @@ impl GetContentFn {
 async fn peek_issues<T: Send>(source: OperationVc<T>) -> Result<Vec<ReadRef<PlainIssue>>> {
     let captured = source.peek_issues();
 
-    captured.get_plain_issues(IssueFilter::everything()).await
+    captured.get_plain_issues(&IssueFilter::everything()).await
 }
 
 fn extend_issues(issues: &mut Vec<ReadRef<PlainIssue>>, new_issues: Vec<ReadRef<PlainIssue>>) {
@@ -103,7 +103,7 @@ fn extend_issues(issues: &mut Vec<ReadRef<PlainIssue>>, new_issues: Vec<ReadRef<
     }
 }
 
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 fn versioned_content_update_operation(
     content: ResolvedVc<Box<dyn VersionedContent>>,
     from: ResolvedVc<Box<dyn Version>>,
@@ -111,7 +111,23 @@ fn versioned_content_update_operation(
     content.update(*from)
 }
 
-#[turbo_tasks::function(operation)]
+/// Computes the initial [`Version`] for an update stream from a resolved source request. Runs as
+/// an `operation` so [`UpdateStream::new`] can read it strongly consistently from its top-level
+/// task without performing an eventually-consistent read.
+#[turbo_tasks::function(operation, root)]
+async fn initial_version_operation(
+    content: OperationVc<ResolveSourceRequestResult>,
+) -> Result<Vc<Box<dyn Version>>> {
+    Ok(match *content.read_strongly_consistent().await? {
+        ResolveSourceRequestResult::Static(static_content, _) => {
+            static_content.await?.content.version()
+        }
+        ResolveSourceRequestResult::HttpProxy(proxy_result) => Vc::upcast(proxy_result.connect()),
+        _ => Vc::upcast(NotFoundVersion::new()),
+    })
+}
+
+#[turbo_tasks::function(operation, root)]
 async fn get_update_stream_item_operation(
     resource: RcStr,
     from: ResolvedVc<VersionState>,
@@ -254,15 +270,13 @@ async fn compute_update_stream(
     from: ResolvedVc<VersionState>,
     get_content: TransientInstance<GetContentFn>,
     sender: TransientInstance<ComputeUpdateStreamSender>,
-) -> Vc<()> {
+) -> () {
     let item = get_update_stream_item_operation(resource, from, get_content)
         .read_strongly_consistent()
         .await;
 
     // Send update. Ignore channel closed error.
     let _ = sender.0.send(item).await;
-
-    Default::default()
 }
 
 pub(super) struct UpdateStream(
@@ -279,17 +293,13 @@ impl UpdateStream {
 
         let content = get_content.call();
         // We can ignore issues reported in content here since [compute_update_stream]
-        // will handle them
-        let version = match *content.connect().await? {
-            ResolveSourceRequestResult::Static(static_content, _) => {
-                static_content.await?.content.version()
-            }
-            ResolveSourceRequestResult::HttpProxy(proxy_result) => {
-                Vc::upcast(proxy_result.connect())
-            }
-            _ => Vc::upcast(NotFoundVersion::new()),
-        };
-        let version_state = VersionState::new(version.into_trait_ref().await?).await?;
+        // will handle them. This runs in a top-level task (`UpdateServer::run`'s
+        // `start_once_process`), so the initial version is computed in a dedicated `operation`
+        // task (where the per-content reads are legal) and read strongly consistently.
+        let version = initial_version_operation(content)
+            .read_trait_strongly_consistent()
+            .await?;
+        let version_state = VersionState::new(version).await?;
 
         let _ = compute_update_stream(
             resource,
@@ -361,7 +371,7 @@ impl Stream for UpdateStream {
     }
 }
 
-#[turbo_tasks::value(serialization = "none")]
+#[turbo_tasks::value(serialization = "skip")]
 #[derive(Debug)]
 pub enum UpdateStreamItem {
     NotFound,
@@ -371,40 +381,35 @@ pub enum UpdateStreamItem {
     },
 }
 
-#[turbo_tasks::value(serialization = "none")]
+#[turbo_tasks::value(serialization = "skip")]
 struct FatalStreamIssue {
     description: ResolvedVc<StyledString>,
     resource: RcStr,
 }
 
+#[async_trait]
 #[turbo_tasks::value_impl]
 impl Issue for FatalStreamIssue {
     fn severity(&self) -> IssueSeverity {
         IssueSeverity::Fatal
     }
 
-    #[turbo_tasks::function]
-    fn stage(&self) -> Vc<IssueStage> {
-        IssueStage::Other(rcstr!("websocket")).cell()
+    fn stage(&self) -> IssueStage {
+        IssueStage::Other(rcstr!("websocket"))
     }
 
-    #[turbo_tasks::function]
-    async fn file_path(&self) -> Result<Vc<FileSystemPath>> {
-        Ok(ServerFileSystem::new()
-            .root()
-            .await?
-            .join(&self.resource)?
-            .cell())
+    async fn file_path(&self) -> Result<FileSystemPath> {
+        ServerFileSystem::new().root().await?.join(&self.resource)
     }
 
-    #[turbo_tasks::function]
-    fn title(&self) -> Vc<StyledString> {
-        StyledString::Text(rcstr!("Fatal error while getting content to stream")).cell()
+    async fn title(&self) -> Result<StyledString> {
+        Ok(StyledString::Text(rcstr!(
+            "Fatal error while getting content to stream"
+        )))
     }
 
-    #[turbo_tasks::function]
-    fn description(&self) -> Vc<OptionStyledString> {
-        Vc::cell(Some(self.description))
+    async fn description(&self) -> Result<Option<StyledString>> {
+        Ok(Some((*self.description.await?).clone()))
     }
 }
 
@@ -420,7 +425,7 @@ pub mod test {
 
     use super::*;
 
-    #[turbo_tasks::function(operation)]
+    #[turbo_tasks::function(operation, root)]
     pub fn noop_operation() -> Vc<ResolveSourceRequestResult> {
         ResolveSourceRequestResult::NotFound.cell()
     }

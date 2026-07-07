@@ -1,4 +1,4 @@
-use crate::{OperationVc, ResolvedVc, marker_trait::impl_auto_marker_trait};
+use crate::{OperationVc, OrdResolvedVc, ResolvedVc, marker_trait::impl_auto_marker_trait};
 
 /// Marker trait indicating that a type does not contain any instances of [`Vc`] or references to
 /// [`Vc`]. It may contain [`ResolvedVc`] or [`OperationVc`].
@@ -35,6 +35,7 @@ pub unsafe trait NonLocalValue {}
 
 unsafe impl<T: NonLocalValue + ?Sized> NonLocalValue for OperationVc<T> {}
 unsafe impl<T: NonLocalValue + ?Sized> NonLocalValue for ResolvedVc<T> {}
+unsafe impl<T: NonLocalValue + ?Sized> NonLocalValue for OrdResolvedVc<T> {}
 
 impl_auto_marker_trait!(NonLocalValue);
 
