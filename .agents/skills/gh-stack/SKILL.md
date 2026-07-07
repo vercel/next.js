@@ -7,8 +7,7 @@ description: >
   branch chains, or incremental code review workflows.
 metadata:
   author: github
-  version: '0.0.2'
-  internal: true
+  version: '0.0.7'
 ---
 
 # gh-stack
@@ -139,30 +138,33 @@ Small, incidental fixes (e.g., fixing a typo you noticed) can go in the current 
 
 ## Quick reference
 
-| Task                                              | Command                                   |
-| ------------------------------------------------- | ----------------------------------------- |
-| Create a stack (recommended)                      | `gh stack init -p feat auth`              |
-| Create a stack without prefix                     | `gh stack init auth`                      |
-| Adopt existing branches                           | `gh stack init --adopt branch-a branch-b` |
-| Set custom trunk                                  | `gh stack init --base develop branch-a`   |
-| Add a branch to stack (suffix only if prefix set) | `gh stack add api-routes`                 |
-| Add branch + stage all + commit                   | `gh stack add -Am "message" api-routes`   |
-| Push branches to remote                           | `gh stack push`                           |
-| Push to specific remote                           | `gh stack push --remote origin`           |
-| Push branches + create PRs                        | `gh stack submit --auto`                  |
-| Create PRs as drafts                              | `gh stack submit --auto --draft`          |
-| Sync (fetch, rebase, push)                        | `gh stack sync`                           |
-| Sync with specific remote                         | `gh stack sync --remote origin`           |
-| Rebase entire stack                               | `gh stack rebase`                         |
-| Rebase upstack only                               | `gh stack rebase --upstack`               |
-| Continue after conflict                           | `gh stack rebase --continue`              |
-| Abort rebase                                      | `gh stack rebase --abort`                 |
-| View stack details (JSON)                         | `gh stack view --json`                    |
-| Switch branches up/down in stack                  | `gh stack up [n]` / `gh stack down [n]`   |
-| Switch to top/bottom branch                       | `gh stack top` / `gh stack bottom`        |
-| Check out by PR                                   | `gh stack checkout 42`                    |
-| Check out by branch (local only)                  | `gh stack checkout feature-auth`          |
-| Tear down a stack to restructure it               | `gh stack unstack`                        |
+| Task                                              | Command                                             |
+| ------------------------------------------------- | --------------------------------------------------- |
+| Create a stack (recommended)                      | `gh stack init -p feat auth`                        |
+| Create a stack without prefix                     | `gh stack init auth`                                |
+| Create a stack of multiple branches               | `gh stack init auth api frontend`                   |
+| Adopt existing branches                           | `gh stack init existing-branch-a existing-branch-b` |
+| Set custom trunk                                  | `gh stack init --base develop branch-a`             |
+| Add a branch to stack (suffix only if prefix set) | `gh stack add api-routes`                           |
+| Add branch + stage all + commit                   | `gh stack add -Am "message" api-routes`             |
+| Push branches to remote                           | `gh stack push`                                     |
+| Push to specific remote                           | `gh stack push --remote origin`                     |
+| Push branches + create draft PRs                  | `gh stack submit --auto`                            |
+| Create PRs as ready for review                    | `gh stack submit --auto --open`                     |
+| Sync (fetch, rebase, push)                        | `gh stack sync`                                     |
+| Sync with specific remote                         | `gh stack sync --remote origin`                     |
+| Sync and prune merged branches                    | `gh stack sync --prune`                             |
+| Rebase entire stack                               | `gh stack rebase`                                   |
+| Rebase upstack only                               | `gh stack rebase --upstack`                         |
+| Rebase without trunk                              | `gh stack rebase --no-trunk`                        |
+| Continue after conflict                           | `gh stack rebase --continue`                        |
+| Abort rebase                                      | `gh stack rebase --abort`                           |
+| View stack details (JSON)                         | `gh stack view --json`                              |
+| Switch branches up/down in stack                  | `gh stack up [n]` / `gh stack down [n]`             |
+| Switch to top/bottom branch                       | `gh stack top` / `gh stack bottom`                  |
+| Check out by PR                                   | `gh stack checkout 42`                              |
+| Check out by branch (local only)                  | `gh stack checkout feature-auth`                    |
+| Tear down a stack to restructure it               | `gh stack unstack`                                  |
 
 ---
 
@@ -233,8 +235,8 @@ git commit -m "Add frontend dashboard"
 
 # ── Stack complete: feat/auth → feat/api-routes → feat/frontend ──
 
-# 7. Push everything and create draft PRs
-gh stack submit --auto --draft
+# 7. Push everything and create PRs (drafts by default)
+gh stack submit --auto
 
 # 8. Verify the stack
 gh stack view --json
@@ -306,7 +308,12 @@ gh stack push
 ```bash
 # Single command: fetch, rebase, push, sync PR state
 gh stack sync
+
+# Sync and automatically clean up local branches for merged PRs
+gh stack sync --prune
 ```
+
+> **Note for agents:** In non-interactive environments, the prune prompt is not shown. Use `--prune` explicitly to delete local branches for merged PRs.
 
 ### Squash-merge recovery
 
@@ -389,7 +396,7 @@ gh stack unstack
 git branch -m old-branch-1 new-branch-1
 
 # 3. Re-create the stack with the new structure
-gh stack init --base main --adopt new-branch-1 new-branch-2 new-branch-3
+gh stack init --base main new-branch-1 new-branch-2 new-branch-3
 ```
 
 ---
@@ -419,21 +426,20 @@ gh stack init branch-a branch-b branch-c
 # Use a different trunk branch
 gh stack init --base develop branch-a branch-b
 
-# Adopt existing branches into a stack
-gh stack init --adopt branch-a branch-b branch-c
+# Adopt existing branches into a stack (handled automatically if the branches exist)
+gh stack init branch-a branch-b branch-c
 ```
 
 | Flag                    | Description                                                                                                                     |
 | ----------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
 | `-b, --base <branch>`   | Trunk branch (defaults to the repo's default branch)                                                                            |
-| `-a, --adopt`           | Adopt existing branches instead of creating new ones                                                                            |
 | `-p, --prefix <string>` | Branch name prefix. Subsequent `add` calls only need the suffix (e.g., with `-p feat`, `gh stack add auth` creates `feat/auth`) |
 
 **Behavior:**
 
 - Using `-p` is recommended — it simplifies branch naming for subsequent `add` calls
 - Creates any branches that don't already exist (branching from the trunk branch)
-- In `--adopt` mode: validates all branches exist, rejects if any is already in a stack or has an existing PR
+- Existing branches are adopted automatically; missing branches are created from the trunk
 - Checks out the last branch in the list
 - Enables `git rerere` so conflict resolutions are remembered across rebases. On first run in a repo, this may trigger a confirmation prompt — pre-configure with `git config rerere.enabled true` to avoid it
 
@@ -527,14 +533,14 @@ Push all stack branches and create PRs on GitHub. **Always pass `--auto`** — w
 # Submit and auto-title new PRs (required for non-interactive use)
 gh stack submit --auto
 
-# Submit and create PRs as drafts
-gh stack submit --auto --draft
+# Submit and create PRs as ready for review (not drafts)
+gh stack submit --auto --open
 ```
 
 | Flag              | Description                                                                      |
 | ----------------- | -------------------------------------------------------------------------------- |
 | `--auto`          | Auto-generate PR titles without prompting (**required** for non-interactive use) |
-| `--draft`         | Create new PRs as drafts                                                         |
+| `--open`          | Mark new and existing PRs as ready for review                                    |
 | `--remote <name>` | Remote to push to (use if multiple remotes exist)                                |
 
 **Behavior:**
@@ -542,6 +548,7 @@ gh stack submit --auto --draft
 - Pushes all active (non-merged) branches atomically (`--force-with-lease --atomic`)
 - Creates a new PR for each branch that doesn't have one (base set to the first non-merged ancestor branch)
 - After creating PRs, links them together as a **Stack** on GitHub (requires the repository to have stacks enabled)
+- If every PR in the stack has already been merged, the stack is complete and can't be extended. `submit` automatically forks your unmerged branches into a **new** stack rooted at the trunk and creates it on GitHub, leaving the merged stack untouched.
 - If stacks are not available (exit code 9), the repository does not have stacked PRs enabled. In interactive mode, `submit` offers to create regular (unstacked) PRs instead. In non-interactive mode, it exits with code 9.
 - Syncs PR metadata for branches that already have PRs
 
@@ -570,8 +577,8 @@ gh stack link [flags] <branch-or-pr> <branch-or-pr> [...]
 # Link branches into a stack (pushes, creates PRs, creates stack)
 gh stack link branch-a branch-b branch-c
 
-# Use a different base branch and create PRs as drafts
-gh stack link --base develop --draft branch-a branch-b branch-c
+# Use a different base branch and mark PRs as ready for review
+gh stack link --base develop --open branch-a branch-b branch-c
 
 # Link existing PRs by number
 gh stack link 10 20 30
@@ -583,7 +590,7 @@ gh stack link 42 43 feature-auth feature-ui
 | Flag              | Description                                               |
 | ----------------- | --------------------------------------------------------- |
 | `--base <branch>` | Base branch for the bottom of the stack (default: `main`) |
-| `--draft`         | Create new PRs as drafts                                  |
+| `--open`          | Mark new and existing PRs as ready for review             |
 | `--remote <name>` | Remote to push to (use if multiple remotes exist)         |
 
 **Behavior:**
@@ -617,6 +624,7 @@ gh stack sync [flags]
 | Flag              | Description                                                      |
 | ----------------- | ---------------------------------------------------------------- |
 | `--remote <name>` | Remote to fetch from and push to (use if multiple remotes exist) |
+| `--prune`         | Delete local branches for merged PRs                             |
 
 **What it does (in order):**
 
@@ -625,6 +633,8 @@ gh stack sync [flags]
 3. **Cascade rebase** all stack branches onto their updated parents (only if trunk moved). Handles merged PRs automatically. If a conflict is detected, **all branches are restored** to their pre-rebase state and the command exits with code 3 — see [Handle rebase conflicts](#handle-rebase-conflicts-agent-workflow) for the resolution workflow
 4. **Push** all active branches atomically
 5. **Sync PR state** from GitHub and report the status of each PR
+6. **Sync the stack object** — link the open PRs into a stack on GitHub. If the PRs are not yet in a stack, a new stack is created; if some PRs are already in a stack, it is updated (additive only). This only happens when two or more PRs exist. Sync **never opens PRs** — use `gh stack submit` for that
+7. **Prune** — in interactive terminals, prompts to delete local branches for merged PRs. Use `--prune` to skip the prompt. In non-interactive environments, pruning only happens when `--prune` is passed explicitly
 
 **Output (stderr):**
 
@@ -634,7 +644,9 @@ gh stack sync [flags]
 - `✓ Pushed N branches`
 - `✓ PR #N (<branch>) — Open` per branch
 - `Merged: #N, #M` for merged branches
-- `✓ Stack synced`
+- `✓ Stack created on GitHub with N PRs` / `✓ Stack updated on GitHub with N PRs` / `✓ Linked to the existing stack on GitHub` (when two or more PRs exist)
+- `✓ Pruned <branch> (merged)` per pruned branch (when pruning)
+- `✓ Stack synced` when the stack object on GitHub was created/updated to match local, or `✓ Branches synced` when only the branches were synced (fewer than two PRs, stacked PRs unavailable, or a divergence)
 
 ---
 
@@ -656,6 +668,9 @@ gh stack rebase --downstack
 # Rebase only branches from current branch to top
 gh stack rebase --upstack
 
+# Rebase stack branches without pulling from or rebasing with trunk
+gh stack rebase --no-trunk
+
 # After resolving a conflict: stage files with `git add`, then:
 gh stack rebase --continue
 
@@ -663,13 +678,14 @@ gh stack rebase --continue
 gh stack rebase --abort
 ```
 
-| Flag              | Description                                             |
-| ----------------- | ------------------------------------------------------- |
-| `--downstack`     | Only rebase branches from trunk to the current branch   |
-| `--upstack`       | Only rebase branches from the current branch to the top |
-| `--continue`      | Continue after resolving conflicts                      |
-| `--abort`         | Abort and restore all branches                          |
-| `--remote <name>` | Remote to fetch from (use if multiple remotes exist)    |
+| Flag              | Description                                                                         |
+| ----------------- | ----------------------------------------------------------------------------------- |
+| `--downstack`     | Only rebase branches from trunk to the current branch                               |
+| `--upstack`       | Only rebase branches from the current branch to the top                             |
+| `--no-trunk`      | Skip trunk — only rebase stack branches onto each other (no fetch, no trunk rebase) |
+| `--continue`      | Continue after resolving conflicts                                                  |
+| `--abort`         | Abort and restore all branches                                                      |
+| `--remote <name>` | Remote to fetch from (use if multiple remotes exist)                                |
 
 | Argument   | Description                                    |
 | ---------- | ---------------------------------------------- |
@@ -680,6 +696,8 @@ gh stack rebase --abort
 **Merged PR detection:** If a branch's PR was merged on GitHub, the rebase automatically handles this using `--onto` mode and correctly replays commits on top of the merge target.
 
 **Rerere (conflict memory):** `git rerere` is enabled by `init` so previously resolved conflicts are auto-resolved in future rebases.
+
+**No-trunk mode:** Use `--no-trunk` to skip fetching from the remote and rebasing with the trunk branch. Only inter-branch rebases are performed (branch 2 onto branch 1, branch 3 onto branch 2, etc.). Useful when you only need to align stack branches with each other without pulling upstream changes.
 
 ---
 
@@ -791,29 +809,24 @@ When a branch name is provided, the command resolves it against locally tracked 
 
 Tear down a stack so you can restructure it — remove a branch, reorder branches, rename branches, or make other large changes. After unstacking, use `gh stack init` to re-create the stack with the desired structure.
 
+You must have a branch from the stack checked out locally. The command targets the active stack — the one that contains the currently checked out branch.
+
 ```
-gh stack unstack [flags] [branch]
+gh stack unstack [flags]
 ```
 
 ```bash
 # Tear down the stack (locally and on GitHub), then rebuild
 gh stack unstack
-gh stack init --base main --adopt branch-2 branch-1 branch-3 # reordered
+gh stack init --base main branch-2 branch-1 branch-3 # reordered
 
 # Only remove local tracking (keep the stack on GitHub)
 gh stack unstack --local
-
-# Specify a branch to identify which stack to tear down
-gh stack unstack feature-auth
 ```
 
 | Flag      | Description                                       |
 | --------- | ------------------------------------------------- |
 | `--local` | Only delete the stack locally (keep it on GitHub) |
-
-| Argument   | Description                                            |
-| ---------- | ------------------------------------------------------ |
-| `[branch]` | A branch in the stack (defaults to the current branch) |
 
 ---
 
