@@ -46,6 +46,30 @@ const INSTANT_COOKIE = 'next-instant-navigation-testing'
 // shares the browser context.
 const contextsWithActiveScope = new WeakSet<PlaywrightBrowserContext>()
 
+export interface InstantOptions {
+  /**
+   * The base URL of the application, used to scope the instant cookie to the
+   * correct domain before the first page load. If the page is already loaded,
+   * the URL is inferred automatically.
+   */
+  baseURL?: string
+  /**
+   * Which prefetched data the simulated warm cache contains.
+   *
+   * By default, navigations render everything the link would have prefetched —
+   * including per-link data and runtime-prefetched data (for routes that allow
+   * runtime prefetching).
+   *
+   * Pass `'app-shell'` to simulate a cache where only the route's shared App
+   * Shell is warm: navigations render just the App Shell (the param- and
+   * searchParam-independent part of the route, including its loading
+   * boundaries), regardless of the link's own prefetch configuration. Per-link
+   * and runtime-prefetched data is deferred until the callback returns, like
+   * any other dynamic data.
+   */
+  prefetch?: 'app-shell'
+}
+
 /**
  * Runs a function with instant navigation enabled. Within this scope,
  * navigations render the prefetched UI immediately and wait for the
@@ -64,13 +88,23 @@ const contextsWithActiveScope = new WeakSet<PlaywrightBrowserContext>()
  *     // ...
  *   }, { baseURL: 'http://localhost:3000' })
  *
+ * Pass `prefetch: 'app-shell'` to assert on just the App Shell — the
+ * shared, param-independent part of the route — instead of everything
+ * the link would have prefetched:
+ *
+ *   await instant(page, async () => {
+ *     await page.click('a[href="/products/123"]')
+ *     // Only the App Shell (e.g. loading boundaries) is rendered;
+ *     // per-link and runtime-prefetched data is deferred.
+ *   }, { prefetch: 'app-shell' })
+ *
  * When `@playwright/test` is installed, acquire/release actions appear
  * as labeled steps in the Playwright UI.
  */
 export async function instant<T>(
   page: PlaywrightPage,
   fn: () => Promise<T>,
-  options?: { baseURL?: string }
+  options?: InstantOptions
 ): Promise<T> {
   const context = page.context()
   if (contextsWithActiveScope.has(context)) {
@@ -99,11 +133,19 @@ export async function instant<T>(
     // ensures the cookie is present even on the very first navigation. The
     // cookie triggers the CookieStore change event in
     // navigation-testing-lock.ts, which acquires the in-memory navigation lock.
+    //
+    // The pending value optionally carries the scope's options in its third
+    // slot; Next.js preserves them on captured values so they survive MPA
+    // page loads within the scope.
+    const pendingValue =
+      options?.prefetch === 'app-shell'
+        ? [0, `p${Math.random()}`, { prefetch: 'app-shell' }]
+        : [0, `p${Math.random()}`]
     await step('Acquire Instant Lock', () =>
       context.addCookies([
         {
           name: INSTANT_COOKIE,
-          value: JSON.stringify([0, `p${Math.random()}`]),
+          value: JSON.stringify(pendingValue),
           domain: hostname,
           path: '/',
         },
@@ -170,10 +212,7 @@ async function releaseInstantCookie(
  * Throws a descriptive error if neither is available (e.g. fresh page
  * before any navigation).
  */
-function resolveURL(
-  page: PlaywrightPage,
-  options?: { baseURL?: string }
-): string {
+function resolveURL(page: PlaywrightPage, options?: InstantOptions): string {
   const url = options?.baseURL ?? page.url()
   if (url && url !== 'about:blank') {
     return url

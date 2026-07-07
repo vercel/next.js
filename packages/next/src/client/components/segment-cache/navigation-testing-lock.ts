@@ -15,6 +15,7 @@ import {
   PrefetchHint,
   type FlightRouterState,
   type InstantCookie,
+  type InstantCookieOptions,
 } from '../../../shared/lib/app-router-types'
 import { NEXT_INSTANT_TEST_COOKIE } from '../app-router-headers'
 import { refreshOnInstantNavigationUnlock } from '../use-action-queue'
@@ -28,20 +29,46 @@ import type { FetchStrategy } from './types'
 
 type InstantNavCookieState = 'empty' | 'pending' | 'mpa' | 'spa'
 
-function parseCookieValue(raw: string): InstantNavCookieState {
+type ParsedInstantCookie = {
+  state: InstantNavCookieState
+  options: InstantCookieOptions | null
+}
+
+/**
+ * Extracts the scope options from a cookie value's options slot. Only shapes
+ * we understand are accepted; anything else is treated as "no options" so a
+ * malformed value degrades to the default behavior.
+ */
+function parseCookieOptions(raw: unknown): InstantCookieOptions | null {
+  if (typeof raw === 'object' && raw !== null && !Array.isArray(raw)) {
+    if ((raw as InstantCookieOptions).prefetch === 'app-shell') {
+      return { prefetch: 'app-shell' }
+    }
+  }
+  return null
+}
+
+function parseCookieValue(raw: string): ParsedInstantCookie {
   if (raw === '') {
-    return 'empty'
+    return { state: 'empty', options: null }
   }
   try {
     const parsed = JSON.parse(raw)
     if (Array.isArray(parsed)) {
-      if (parsed.length >= 3) {
+      // Captured values have 1 as their first element; a pending value starts
+      // with 0 and may carry an options object in its third slot, so the array
+      // length alone can't distinguish the two.
+      if (parsed[0] === 1 && parsed.length >= 3) {
         const rawState = parsed[2]
-        return rawState === null ? 'mpa' : 'spa'
+        return {
+          state: rawState === null ? 'mpa' : 'spa',
+          options: parseCookieOptions(parsed[3]),
+        }
       }
+      return { state: 'pending', options: parseCookieOptions(parsed[2]) }
     }
   } catch {}
-  return 'pending'
+  return { state: 'pending', options: null }
 }
 
 function writeDocumentCookie(
@@ -84,6 +111,12 @@ function writeCookieValue(value: InstantCookie): void {
   // clears any such entry once the lock is released (see the `event.deleted`
   // loop below).
   const lockAtCall = lockState
+  // Preserve the scope's options on self-written (captured) values so they
+  // survive MPA page loads within the scope: the bootstrap on a fresh document
+  // re-reads them synchronously from the cookie.
+  if (lockAtCall !== null && lockAtCall.appShellOnly && value[0] === 1) {
+    value = [value[0], value[1], value[2], { prefetch: 'app-shell' }]
+  }
   cookieStore.get(NEXT_INSTANT_TEST_COOKIE).then((existing: any) => {
     if (existing && lockState === lockAtCall && lockAtCall !== null) {
       writeDocumentCookie(value, existing)
@@ -109,6 +142,11 @@ export type NavigationLockPrefetch = {
   resolve: () => void
   pendingCount: number
   trackedEntries: Set<PendingSegmentCacheEntry>
+  // Mirrors NavigationLockState.appShellOnly for the scope this prefetch was
+  // created in. When true, the scheduler stops the locked-navigation prefetch
+  // after the App Shell phases (skipping the Speculative phase), and the
+  // navigation forces the App Shell fetch strategy.
+  appShellOnly: boolean
 }
 
 export type NavigationLockState = {
@@ -133,6 +171,12 @@ export type NavigationLockState = {
   // entry left in the cache by an earlier navigation or prefetch. See
   // `readSegmentCacheEntryForNavigation`.
   ownedEntries: Set<SegmentCacheEntry>
+  // When true (instant() was configured with `prefetch: 'app-shell'`), locked
+  // navigations simulate a cache where only the route's shared App Shell is
+  // warm: the locked prefetch stops after the Shell phase — no per-link
+  // concrete-param or runtime-prefetch data is fetched — and navigation reads
+  // are restricted to shell entries regardless of the link's fetch strategy.
+  appShellOnly: boolean
 }
 
 let lockState: NavigationLockState | null = null
@@ -166,6 +210,7 @@ export function beginNavigationLockPrefetch(): NavigationLockPrefetch | null {
       resolve: resolve!,
       pendingCount: 1,
       trackedEntries: new Set(),
+      appShellOnly: lockState.appShellOnly,
     }
     lockState.activePrefetches.add(prefetch)
     return prefetch
@@ -244,7 +289,7 @@ function settleNavigationLockPrefetchIfDrained(
   }
 }
 
-function acquireLock(): void {
+function acquireLock(options: InstantCookieOptions | null): void {
   if (lockState !== null) {
     return
   }
@@ -258,6 +303,7 @@ function acquireLock(): void {
     fetch: window.fetch,
     activePrefetches: new Set(),
     ownedEntries: new Set(),
+    appShellOnly: options !== null && options.prefetch === 'app-shell',
   }
 
   // Install the fetch blocker. We only intercept `window.fetch` for the
@@ -332,9 +378,19 @@ export function startListeningForInstantNavigationCookie(): void {
     // If the server served a shell, this is an MPA page load
     // while the lock is held. Transition to captured-MPA and acquire.
     if (self.__next_instant_test) {
+      // The external actor can release the scope after the server renders the
+      // shell but before this bootstrap runs. Check synchronously before
+      // acquiring so that window does not create a lock with no deletion event
+      // left to release it.
+      const initialCookie = readCookieFromDocument()
+      if (initialCookie === null) {
+        window.location.reload()
+        return
+      }
+
       if (typeof cookieStore !== 'undefined') {
-        // If the cookie was already cleared during the MPA page
-        // transition, reload to get the full dynamic page.
+        // Catch a release that happens after the synchronous read above but
+        // before the Cookie Store listener below is ready.
         cookieStore.get(NEXT_INSTANT_TEST_COOKIE).then((cookie: any) => {
           if (!cookie) {
             window.location.reload()
@@ -346,8 +402,10 @@ export function startListeningForInstantNavigationCookie(): void {
       // guard requires lockState to be non-null at call time (so a stale
       // write can't outlive its scope). On a fresh page load that scope
       // is the one we're about to establish, so we have to establish it
-      // first.
-      acquireLock()
+      // first. The scope's options are recovered synchronously from the
+      // cookie (self-writes preserve them across captured transitions, so
+      // they survive multiple page loads within one scope).
+      acquireLock(initialCookie.options)
       writeCookieValue([1, `c${Math.random()}`, null])
     }
 
@@ -358,7 +416,7 @@ export function startListeningForInstantNavigationCookie(): void {
     cookieStore.addEventListener('change', (event: CookieChangeEvent) => {
       for (const cookie of event.changed) {
         if (cookie.name === NEXT_INSTANT_TEST_COOKIE) {
-          const state = parseCookieValue(cookie.value ?? '')
+          const { state, options } = parseCookieValue(cookie.value ?? '')
 
           if (state === 'pending') {
             // External actor starting a new lock scope.
@@ -367,17 +425,26 @@ export function startListeningForInstantNavigationCookie(): void {
               // cookie that was already observed synchronously from
               // document.cookie. Keep the existing lock identity so work that
               // captured it keeps waiting on the same promise.
-              return
+              break
             }
-            acquireLock()
+            acquireLock(options)
+            break
           }
-          // Captured value (our own transition) or empty. Ignore.
-          return
+          // Captured value (our own transition) or empty. Keep processing the
+          // event because Cookie Store may batch it with the deletion that
+          // releases the current lock.
+          break
         }
       }
 
       for (const cookie of event.deleted) {
         if (cookie.name === NEXT_INSTANT_TEST_COOKIE) {
+          const currentCookie = readCookieFromDocument()
+          if (currentCookie?.state === 'pending') {
+            // This deletion belongs to a stale entry from the previous scope;
+            // a new externally-created pending scope is already current.
+            return
+          }
           if (lockState === null) {
             // Either no lock is active, or this is the re-entrant change event
             // from the defensive clear below (which runs after releaseLock).
@@ -444,18 +511,41 @@ export function isNavigationLocked(): boolean {
     const target = NEXT_INSTANT_TEST_COOKIE + '='
     for (const segment of allCookies.split(';')) {
       const trimmed = segment.trim()
-      if (
-        trimmed.startsWith(target) &&
-        parseCookieValue(trimmed.slice(target.length)) === 'pending'
-      ) {
-        // The cookie was set by an external actor but the change event was not
-        // yet dispatched. Acquire the lock synchronously.
-        acquireLock()
-        return true
+      if (trimmed.startsWith(target)) {
+        const { state, options } = parseCookieValue(
+          trimmed.slice(target.length)
+        )
+        if (state === 'pending') {
+          // The cookie was set by an external actor but the change event was
+          // not yet dispatched. Acquire the lock synchronously.
+          acquireLock(options)
+          return true
+        }
       }
     }
   }
   return false
+}
+
+/**
+ * Synchronously reads the scope options from the instant cookie in
+ * `document.cookie`. Used during the MPA bootstrap, where the lock must be
+ * established before any async cookie read could resolve. The cookie may hold
+ * either the pending value written by the external actor or a captured value
+ * from an earlier navigation in the same scope; both carry the options.
+ */
+function readCookieFromDocument(): ParsedInstantCookie | null {
+  if (typeof document === 'undefined') {
+    return null
+  }
+  const target = NEXT_INSTANT_TEST_COOKIE + '='
+  for (const segment of document.cookie.split(';')) {
+    const trimmed = segment.trim()
+    if (trimmed.startsWith(target)) {
+      return parseCookieValue(trimmed.slice(target.length))
+    }
+  }
+  return null
 }
 
 export function getCurrentNavigationLock(): NavigationLockState | null {
@@ -463,6 +553,22 @@ export function getCurrentNavigationLock(): NavigationLockState | null {
     return lockState
   }
   return null
+}
+
+/**
+ * Returns true if the navigation lock is active and the scope simulates an
+ * App Shell-only cache (instant() was configured with `prefetch:
+ * 'app-shell'`). Unlike the locked navigation's own prefetch — which carries
+ * the flag on its NavigationLockPrefetch — this is consulted for every other
+ * prefetch task processed while the scope is active (e.g. a hover- or
+ * viewport-initiated link prefetch), so no per-link concrete-param or
+ * runtime-prefetch data is fetched anywhere during the scope.
+ */
+export function isNavigationLockedToAppShell(): boolean {
+  if (process.env.__NEXT_EXPOSE_TESTING_API) {
+    return isNavigationLocked() && lockState !== null && lockState.appShellOnly
+  }
+  return false
 }
 
 /**
@@ -478,6 +584,10 @@ export function getCurrentNavigationLock(): NavigationLockState | null {
  * `<Link prefetch={true}>` or an eagerly-prefetched subtree, in which case the
  * concrete-param entry is genuinely warm and may be matched.
  *
+ * When the scope was configured with `prefetch: 'app-shell'`, it explicitly
+ * simulates a cache where only the App Shell is warm, so the restriction
+ * applies regardless of the route's hints or the link's fetch strategy.
+ *
  * Always returns false outside the testing API; the branch below is eliminated
  * from production bundles.
  */
@@ -486,8 +596,15 @@ export function shouldRestrictNavigationToShell(
   linkFetchStrategy: FetchStrategy
 ): boolean {
   if (process.env.__NEXT_EXPOSE_TESTING_API) {
+    if (!isNavigationLocked()) {
+      return false
+    }
+    // isNavigationLocked() acquires the lock synchronously if the pending
+    // cookie hasn't been observed yet, so lockState is non-null here.
+    if (lockState !== null && lockState.appShellOnly) {
+      return true
+    }
     return (
-      isNavigationLocked() &&
       (rootPrefetchHints & PrefetchHint.SubtreeHasPartialPrefetching) !== 0 &&
       !subtreeHasSpeculativePrefetch(linkFetchStrategy, rootPrefetchHints)
     )

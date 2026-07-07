@@ -61,6 +61,36 @@ test('navigates to profile instantly', async ({ page }) => {
 })
 ```
 
+**Asserting on the App Shell only** (`prefetch: 'app-shell'`):
+
+By default, `instant()` assumes everything the link would have prefetched is
+cached — including per-link data and runtime-prefetched data on routes that
+allow runtime prefetching. To assert only on the route's shared
+[App Shell](https://nextjs.org/docs/app/guides/runtime-prefetching#app-shells)
+— the param- and searchParam-independent part that is reused across every
+navigation to the route — pass `prefetch: 'app-shell'`:
+
+```ts
+test('renders the app shell during navigation', async ({ page }) => {
+  await page.goto('/')
+
+  await instant(
+    page,
+    async () => {
+      await page.click('a[href="/products/123"]')
+
+      // Only the App Shell renders — content that depends on the concrete
+      // params (even runtime-prefetchable content) shows its fallback
+      await expect(page.locator('[data-testid="product-fallback"]')).toBeVisible()
+    },
+    { prefetch: 'app-shell' }
+  )
+
+  // After instant() returns, the rest of the page streams in
+  await expect(page.locator('[data-testid="product-name"]')).toBeVisible()
+})
+```
+
 ### Enabling in production builds
 
 In development (`next dev`), the testing API is available by default. In

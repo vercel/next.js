@@ -31,6 +31,7 @@ import {
 import { instant } from '@next/playwright'
 import { assertNoConsoleErrors } from 'next-test-utils'
 import type * as Playwright from 'playwright'
+import { createRouterAct } from 'router-act'
 import { join } from 'node:path'
 
 /**
@@ -1263,6 +1264,155 @@ describe('instant-navigation-testing-api - partial prefetching (App Shells)', ()
       const fallback = page.locator('[data-testid="params-fallback"]')
       expect(await fallback.count()).toBe(0)
     })
+  })
+})
+
+describe('instant-navigation-testing-api - App Shell (prefetch: "app-shell")', () => {
+  const { next } = nextTestSetup({
+    files: join(__dirname, 'fixtures', 'app-shell'),
+  })
+
+  // Keep the eager link hidden until the instant lock is active. Otherwise a
+  // production viewport prefetch can enter the Speculative phase before the
+  // scope starts and issue a per-link request after the test begins recording.
+  async function revealAndNavigateToCourses(page: Playwright.Page) {
+    const act = createRouterAct(page, { includeAppShellRequests: true })
+    await act(async () => {
+      await page
+        .locator('input[data-link-accordion="/courses?sort=featured"]')
+        .click()
+      await page.click('#courses-link')
+    })
+  }
+
+  // The fixture is the standard App Shell example (see the Runtime
+  // Prefetching guide): /courses mixes a static heading, a cached course
+  // list ('use cache'), a session-cookie badge, a searchParams-derived sort
+  // label, and an uncached live count. The link pairs the destination's
+  // `prefetch = 'allow-runtime'` with `prefetch={true}`.
+
+  // Control: by default, instant() simulates everything the link would have
+  // prefetched. The runtime prefetch resolves the request data available at
+  // prefetch time — including the link's searchParams — so only the uncached
+  // live count is deferred.
+  it('renders runtime-prefetched request data instantly by default', async () => {
+    const page = await openPage(next, '/', {
+      cookies: [{ name: 'enrolled', value: 'pro-plan' }],
+    })
+
+    await instant(page, async () => {
+      await revealAndNavigateToCourses(page)
+
+      // The App Shell content...
+      await page
+        .locator('[data-testid="courses-heading"]')
+        .waitFor({ state: 'visible' })
+      await page
+        .locator('[data-testid="featured-courses"]')
+        .waitFor({ state: 'visible' })
+
+      // ...plus the runtime-prefetched request data.
+      const badge = page.locator('[data-testid="enrolled-badge"]')
+      await badge.waitFor({ state: 'visible' })
+      expect(await badge.textContent()).toContain('Enrolled: pro-plan')
+
+      const sortLabel = page.locator('[data-testid="sort-label"]')
+      await sortLabel.waitFor({ state: 'visible' })
+      expect(await sortLabel.textContent()).toContain('Sorted by: featured')
+
+      // The uncached live count cannot be included in any prerender.
+      await page
+        .locator('[data-testid="live-fallback"]')
+        .waitFor({ state: 'visible' })
+      expect(
+        await page.locator('[data-testid="live-enrollment"]').count()
+      ).toBe(0)
+    })
+
+    // After the scope exits, the live count streams in.
+    await page
+      .locator('[data-testid="live-enrollment"]')
+      .waitFor({ state: 'visible' })
+  })
+
+  // With `prefetch: 'app-shell'`, the same navigation simulates a cache where
+  // only the route's App Shell is warm — the per-route prerender minus
+  // per-link data — regardless of the link's own prefetch configuration.
+  it('renders only the App Shell with prefetch: "app-shell"', async () => {
+    const page = await openPage(next, '/', {
+      cookies: [{ name: 'enrolled', value: 'pro-plan' }],
+    })
+
+    // Record the prefetch protocol marker of every router request: '2' is a
+    // per-link runtime prefetch, '3' is the shared App Shell prefetch. This
+    // pins the scope to App Shell data at the network level too: prefetches
+    // triggered incidentally while the scope is active (clicking a link
+    // hovers it first, which normally reschedules the link's own prefetch)
+    // must not fetch per-link data either.
+    const prefetchHeaderValues: Array<string> = []
+    page.on('request', (req) => {
+      const headers = req.headers()
+      if (headers['rsc'] === '1') {
+        prefetchHeaderValues.push(headers['next-router-prefetch'] ?? 'none')
+      }
+    })
+
+    await instant(
+      page,
+      async () => {
+        await revealAndNavigateToCourses(page)
+
+        // The App Shell renders instantly: the static heading and the cached
+        // course list.
+        await page
+          .locator('[data-testid="courses-heading"]')
+          .waitFor({ state: 'visible' })
+        await page
+          .locator('[data-testid="featured-courses"]')
+          .waitFor({ state: 'visible' })
+
+        // The route reads cookies, so its App Shell is the session-
+        // personalized variant: the enrollment badge is part of the shell.
+        const badge = page.locator('[data-testid="enrolled-badge"]')
+        await badge.waitFor({ state: 'visible' })
+        expect(await badge.textContent()).toContain('Enrolled: pro-plan')
+
+        // Per-link data is NOT part of the App Shell, even though the link is
+        // configured to runtime-prefetch it: the searchParams-derived sort
+        // label shows its fallback.
+        await page
+          .locator('[data-testid="sort-fallback"]')
+          .waitFor({ state: 'visible' })
+        expect(await page.locator('[data-testid="sort-label"]').count()).toBe(0)
+
+        // The uncached live count is deferred as always.
+        await page
+          .locator('[data-testid="live-fallback"]')
+          .waitFor({ state: 'visible' })
+        expect(
+          await page.locator('[data-testid="live-enrollment"]').count()
+        ).toBe(0)
+
+        // The scope's cache was warmed via the App Shell prefetch ('3'), and
+        // no per-link runtime prefetch ('2') was made during the scope.
+        expect(prefetchHeaderValues).toContain('3')
+        expect(prefetchHeaderValues).not.toContain('2')
+      },
+      { prefetch: 'app-shell' }
+    )
+
+    // After the scope exits, the deferred request data streams in.
+    const badge = page.locator('[data-testid="enrolled-badge"]')
+    await badge.waitFor({ state: 'visible' })
+    expect(await badge.textContent()).toContain('Enrolled: pro-plan')
+
+    const sortLabel = page.locator('[data-testid="sort-label"]')
+    await sortLabel.waitFor({ state: 'visible' })
+    expect(await sortLabel.textContent()).toContain('Sorted by: featured')
+
+    await page
+      .locator('[data-testid="live-enrollment"]')
+      .waitFor({ state: 'visible' })
   })
 })
 

@@ -1073,7 +1073,6 @@ async function ensurePrefetchThenNavigate(
   navigationLock: NavigationLock
 ): Promise<AppRouterState> {
   const link = getLinkForCurrentNavigation()
-  const fetchStrategy = link !== null ? link.fetchStrategy : FetchStrategy.PPR
 
   const cacheKey = createCacheKey(url.href, nextUrl)
 
@@ -1085,6 +1084,18 @@ async function ensurePrefetchThenNavigate(
   const { beginNavigationLockPrefetch } =
     require('./navigation-testing-lock') as typeof import('./navigation-testing-lock')
   const navigationLockPrefetch = beginNavigationLockPrefetch()
+
+  // When the scope simulates an App Shell-only cache, ignore the link's own
+  // fetch strategy (e.g. prefetch={true}) and use the default strategy — the
+  // scheduler stops the task after the App Shell phases anyway, and the
+  // simulation should not depend on how the link is configured.
+  const fetchStrategy =
+    navigationLockPrefetch !== null && navigationLockPrefetch.appShellOnly
+      ? FetchStrategy.PPR
+      : link !== null
+        ? link.fetchStrategy
+        : FetchStrategy.PPR
+
   schedulePrefetchTask(
     cacheKey,
     currentFlightRouterState,

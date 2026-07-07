@@ -12,7 +12,10 @@ export type InstantNavCookieData =
 export function parseInstantNavCookieValue(raw: string): InstantNavCookieData {
   try {
     const parsed = JSON.parse(raw)
-    if (Array.isArray(parsed) && parsed.length >= 3) {
+    // Captured values have 1 as their first element; a pending value starts
+    // with 0 and may carry an options object (see InstantCookieOptions), so
+    // the array length alone can't distinguish the two.
+    if (Array.isArray(parsed) && parsed[0] === 1 && parsed.length >= 3) {
       const rawState = parsed[2]
       if (rawState === null) {
         return { state: 'mpa' }

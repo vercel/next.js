@@ -543,14 +543,30 @@ export type RSCPayload =
   | NavigationFlightResponse
   | ActionFlightResponse
 
+/**
+ * Options for an Instant Navigation Testing scope, set by the external actor
+ * (Playwright, devtools) on the pending cookie value and preserved by Next.js
+ * on captured values so they survive MPA page loads within the scope.
+ */
+export type InstantCookieOptions = {
+  /**
+   * When 'app-shell', locked navigations simulate a cache where only the
+   * route's shared App Shell is warm: the locked prefetch stops after the
+   * Shell phase (no per-link concrete-param or runtime-prefetch data is
+   * fetched) and navigation reads are restricted to shell entries.
+   */
+  prefetch?: 'app-shell'
+}
+
 export type InstantCookie =
   // pending (waiting to capture)
-  | [captured: 0, id: string]
+  | [captured: 0, id: string, options?: InstantCookieOptions]
   // captured MPA page load
-  | [captured: 1, id: string, state: null]
+  | [captured: 1, id: string, state: null, options?: InstantCookieOptions]
   // captured SPA navigation (from/to route trees)
   | [
       captured: 1,
       id: string,
       state: { from: FlightRouterState; to: FlightRouterState | null },
+      options?: InstantCookieOptions,
     ]

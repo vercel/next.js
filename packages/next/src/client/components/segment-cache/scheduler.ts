@@ -573,22 +573,42 @@ function processQueueInMicrotask() {
         // Continue to the next task
         task = heapPeek(taskHeap)
         continue
-      case PrefetchTaskExitStatus.Done:
-        if (task.phase === PrefetchPhase.RouteTree) {
+      case PrefetchTaskExitStatus.Done: {
+        // Instant Navigation Testing API: while a scope simulates an App
+        // Shell-only cache, every prefetch task stops before the Speculative
+        // phase, so no per-link concrete-param or runtime-prefetch data is
+        // fetched during the scope. This covers both the locked-navigation
+        // prefetch itself and incidental link prefetches (e.g. the hover-
+        // intent reschedule triggered by clicking the link). Background work
+        // is skipped too.
+        const stopBeforeSpeculativePhase =
+          process.env.__NEXT_EXPOSE_TESTING_API &&
+          (task._navigationLockPrefetch != null
+            ? task._navigationLockPrefetch.appShellOnly
+            : (
+                require('./navigation-testing-lock') as typeof import('./navigation-testing-lock')
+              ).isNavigationLockedToAppShell())
+        if (
+          task.phase === PrefetchPhase.RouteTree &&
+          !(stopBeforeSpeculativePhase && !process.env.__NEXT_APP_SHELLS)
+        ) {
           // Finished prefetching the route tree. If App Shells are enabled,
           // run the Shell phase next; otherwise go straight to Speculative.
           task.phase = process.env.__NEXT_APP_SHELLS
             ? PrefetchPhase.Shell
             : PrefetchPhase.Speculative
           heapResift(taskHeap, task)
-        } else if (task.phase === PrefetchPhase.Shell) {
+        } else if (
+          task.phase === PrefetchPhase.Shell &&
+          !stopBeforeSpeculativePhase
+        ) {
           // Shell phase complete. Always advance to Speculative regardless
           // of whether Shell-phase work fired — Speculative is responsible
           // for the per-link concrete work and runs even on routes whose
           // shell phase was a no-op.
           task.phase = PrefetchPhase.Speculative
           heapResift(taskHeap, task)
-        } else if (hasBackgroundWork) {
+        } else if (hasBackgroundWork && !stopBeforeSpeculativePhase) {
           // The task spawned additional background work. Reschedule the task
           // at background priority.
           task.priority = PrefetchPriority.Background
@@ -613,6 +633,7 @@ function processQueueInMicrotask() {
         }
         task = heapPeek(taskHeap)
         continue
+      }
       default:
         exitStatus satisfies never
     }
