@@ -52,6 +52,18 @@ const linterConfigWithCustomDirectory: any = {
     ],
   },
 }
+const linterConfigWithCustomDirectoryAndPageExtensions: any = {
+  ...linterConfig,
+  rules: {
+    'no-html-link-for-pages': [
+      2,
+      path.join(withCustomPagesDir, 'custom-pages'),
+      {
+        pageExtensions: ['page.tsx', 'ts', 'tsx', 'js', 'jsx'],
+      },
+    ],
+  },
+}
 const linterConfigWithMultipleDirectories = {
   ...linterConfig,
   rules: {
@@ -307,6 +319,18 @@ describe('no-html-link-for-pages', function () {
     )
     assert.deepEqual(report, [])
   })
+  it('invalid static route with custom pageExtensions', function () {
+    const [report] = linters.withCustomPages.verify(
+      invalidStaticCode,
+      linterConfigWithCustomDirectoryAndPageExtensions,
+      { filename: 'foo.js' }
+    )
+    assert.notEqual(report, undefined, 'No lint errors found.')
+    assert.equal(
+      report.message,
+      'Do not use an `<a>` element to navigate to `/`. Use `<Link />` from `next/link` instead. See: https://nextjs.org/docs/messages/no-html-link-for-pages'
+    )
+  })
   it('valid anchor element', function () {
     const report = linters.withCustomPages.verify(
       validAnchorCode,
@@ -443,6 +467,32 @@ describe('no-html-link-for-pages', function () {
     assert.equal(
       report.message,
       'Do not use an `<a>` element to navigate to `/`. Use `<Link />` from `next/link` instead. See: https://nextjs.org/docs/messages/no-html-link-for-pages'
+    )
+  })
+  it('invalid about route with custom pageExtensions', function () {
+    const code = `
+import Link from 'next/link';
+
+export class Blah extends Head {
+  render() {
+    return (
+      <div>
+        <a href='/about'>About</a>
+        <h1>Hello title</h1>
+      </div>
+    )
+  }
+}
+`
+    const [report] = linters.withCustomPages.verify(
+      code,
+      linterConfigWithCustomDirectoryAndPageExtensions,
+      { filename: 'foo.js' }
+    )
+    assert.notEqual(report, undefined, 'No lint errors found.')
+    assert.equal(
+      report.message,
+      'Do not use an `<a>` element to navigate to `/about/`. Use `<Link />` from `next/link` instead. See: https://nextjs.org/docs/messages/no-html-link-for-pages'
     )
   })
   it('invalid dynamic route with appDir', function () {
