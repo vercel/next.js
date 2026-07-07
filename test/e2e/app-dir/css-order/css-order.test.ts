@@ -33,20 +33,12 @@ const PAGES: Record<
     requestsGraph?: number
   }
 > = {
-  // Graph-chunking note for the "basic" pages (and their pages-dir equivalents):
-  // they share base2/base2-scss and add a unique per-page style. The graph
-  // algorithm keeps the shared base contiguous with one subset of these pages, so
-  // pages outside that subset load the shared base separately from their unique
-  // style — more requests than the single fused chunk loose/strict produce. The
-  // `requestsGraph` overrides below capture that. (Which pages need >1 request is
-  // asymmetric because it depends on which subset the shared base fuses with.)
   first: {
     group: 'basic',
     url: '/first',
     selector: '#hello1',
     color: 'rgb(0, 0, 255)',
     requests: 1,
-    requestsGraph: 2,
   },
   second: {
     group: 'basic',
@@ -54,7 +46,6 @@ const PAGES: Record<
     selector: '#hello2',
     color: 'rgb(0, 128, 0)',
     requests: 1,
-    requestsGraph: 2,
   },
   third: {
     group: 'basic',
@@ -62,7 +53,6 @@ const PAGES: Record<
     selector: '#hello3',
     color: 'rgb(0, 128, 128)',
     requests: 1,
-    requestsGraph: 3,
   },
   'first-client': {
     group: 'basic',
@@ -70,7 +60,6 @@ const PAGES: Record<
     selector: '#hello1c',
     color: 'rgb(255, 0, 255)',
     requests: 1,
-    requestsGraph: 2,
   },
   'second-client': {
     group: 'basic',
@@ -189,8 +178,6 @@ const PAGES: Record<
     selector: '#hello1',
     color: 'rgb(0, 0, 255)',
     requests: 1,
-    // See the graph-chunking note on the app-dir `first` entry above.
-    requestsGraph: 2,
   },
   'pages-second': {
     group: 'pages-basic',
@@ -205,8 +192,6 @@ const PAGES: Record<
     selector: '#hello3',
     color: 'rgb(0, 128, 128)',
     requests: 1,
-    // See the graph-chunking note on the app-dir `first` entry above.
-    requestsGraph: 2,
   },
 
   'pages-interleaved-a': {

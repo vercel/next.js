@@ -4,12 +4,12 @@
 //! `e2e_*` tests cover the assembled pipeline; the rest cover individual stages.
 
 use petgraph::graph::{DiGraph, NodeIndex};
-use rustc_hash::{FxHashMap, FxHashSet};
+use rustc_hash::FxHashSet;
 
 use super::{
     algorithm::{
         compute_chunked_chunk_groups, create_graph, find_short_cycle, linearize, make_acyclic,
-        split_into_chunks, strongly_connected_components,
+        shared_chunk_groups, split_into_chunks, strongly_connected_components,
     },
     subgraph_view::{ReadonlyGraph, SubgraphView},
 };
@@ -81,9 +81,10 @@ fn ids(v: &[NodeIndex]) -> Vec<usize> {
     v.iter().map(|n| n.index()).collect()
 }
 
-/// Empty cut-edge map, for `linearize` tests on graphs that never went through `make_acyclic`.
-fn no_cuts() -> FxHashMap<(NodeIndex, NodeIndex), u32> {
-    FxHashMap::default()
+/// Empty module-to-groups map for `linearize` tests on small hand-built graphs. All
+/// `shared_chunk_groups` calls return 0, so the tie-break falls through to insertion order.
+fn no_groups(node_count: usize) -> Vec<Vec<usize>> {
+    vec![vec![]; node_count]
 }
 
 fn equal_size_inputs(node_count: usize) -> Vec<u64> {
@@ -236,7 +237,7 @@ fn subgraphview_outgoing_for_node_outside_subset_yields_nothing() {
 
 #[test]
 fn create_graph_empty_input_produces_empty_graph() {
-    let g = create_graph(&[], 0);
+    let (g, _) = create_graph(&[], 0);
     assert_eq!(g.node_count(), 0);
 }
 
@@ -244,14 +245,14 @@ fn create_graph_empty_input_produces_empty_graph() {
 fn create_graph_assigns_sequential_indices() {
     // Note: in the PoC, `createGraph` assigns node ids by first-appearance. In the Rust port the
     // caller pre-assigns ids, so we test that node count and edge structure match.
-    let g = create_graph(&[vec![0, 1, 2]], 3);
+    let (g, _) = create_graph(&[vec![0, 1, 2]], 3);
     assert_eq!(g.node_count(), 3);
 }
 
 #[test]
 fn create_graph_pairwise_edges_for_each_group() {
     // group [0, 1, 2, 3] => 1->0, 2->0, 2->1, 3->0, 3->1, 3->2
-    let g = create_graph(&[vec![0, 1, 2, 3]], 4);
+    let (g, _) = create_graph(&[vec![0, 1, 2, 3]], 4);
     assert!(outgoing_targets(&g, n(0)).is_empty());
     assert_eq!(outgoing_targets(&g, n(1)), vec![0]);
     assert_eq!(outgoing_targets(&g, n(2)), vec![0, 1]);
@@ -260,21 +261,21 @@ fn create_graph_pairwise_edges_for_each_group() {
 
 #[test]
 fn create_graph_all_edge_weights_are_one_within_a_single_group() {
-    let g = create_graph(&[vec![0, 1, 2]], 3);
+    let (g, _) = create_graph(&[vec![0, 1, 2]], 3);
     assert_eq!(outgoing_with_weight(&g, n(1)), vec![(0, 1)]);
     assert_eq!(outgoing_with_weight(&g, n(2)), vec![(0, 1), (1, 1)]);
 }
 
 #[test]
 fn create_graph_accumulates_weights_for_repeated_pairs() {
-    let g = create_graph(&[vec![0, 1], vec![0, 1], vec![0, 1]], 2);
+    let (g, _) = create_graph(&[vec![0, 1], vec![0, 1], vec![0, 1]], 2);
     assert_eq!(outgoing_with_weight(&g, n(1)), vec![(0, 3)]);
     assert_eq!(incoming_with_weight(&g, n(0)), vec![(1, 3)]);
 }
 
 #[test]
 fn create_graph_single_element_groups_produce_no_edges() {
-    let g = create_graph(&[vec![0], vec![1]], 2);
+    let (g, _) = create_graph(&[vec![0], vec![1]], 2);
     assert!(outgoing_targets(&g, n(0)).is_empty());
     assert!(outgoing_targets(&g, n(1)).is_empty());
     assert!(incoming_targets(&g, n(0)).is_empty());
@@ -284,7 +285,7 @@ fn create_graph_single_element_groups_produce_no_edges() {
 #[test]
 fn create_graph_preserves_group_order_when_computing_edges() {
     // [0, 1, 2] then [2, 1, 0] should produce edges in BOTH directions.
-    let g = create_graph(&[vec![0, 1, 2], vec![2, 1, 0]], 3);
+    let (g, _) = create_graph(&[vec![0, 1, 2], vec![2, 1, 0]], 3);
     assert_eq!(outgoing_with_weight(&g, n(0)), vec![(1, 1), (2, 1)]);
     assert_eq!(outgoing_with_weight(&g, n(1)), vec![(0, 1), (2, 1)]);
     assert_eq!(outgoing_with_weight(&g, n(2)), vec![(0, 1), (1, 1)]);
@@ -292,8 +293,36 @@ fn create_graph_preserves_group_order_when_computing_edges() {
 
 #[test]
 fn create_graph_duplicated_module_in_a_group_creates_self_loop() {
-    let g = create_graph(&[vec![0, 0]], 1);
+    let (g, _) = create_graph(&[vec![0, 0]], 1);
     assert_eq!(outgoing_with_weight(&g, n(0)), vec![(0, 1)]);
+}
+
+#[test]
+fn create_graph_builds_module_to_groups_index() {
+    // module 0 is in groups 0 and 1; module 1 only in group 0; module 2 only in group 1.
+    let (_, module_to_groups) = create_graph(&[vec![0, 1], vec![0, 2]], 3);
+    assert_eq!(module_to_groups[0], vec![0, 1]);
+    assert_eq!(module_to_groups[1], vec![0]);
+    assert_eq!(module_to_groups[2], vec![1]);
+}
+
+// ---------------------------------------------------------------------------
+// shared_chunk_groups
+// ---------------------------------------------------------------------------
+
+#[test]
+fn shared_chunk_groups_counts_intersection() {
+    let module_to_groups = vec![
+        vec![0, 1, 2, 4], // module 0
+        vec![1, 2, 3],    // module 1
+        vec![],           // module 2
+    ];
+    // {0,1,2,4} ∩ {1,2,3} = {1,2}
+    assert_eq!(shared_chunk_groups(&module_to_groups, n(0), n(1)), 2);
+    // nothing shared with a module in no groups
+    assert_eq!(shared_chunk_groups(&module_to_groups, n(0), n(2)), 0);
+    // a module shares all of its own groups with itself
+    assert_eq!(shared_chunk_groups(&module_to_groups, n(0), n(0)), 4);
 }
 
 // ---------------------------------------------------------------------------
@@ -557,13 +586,13 @@ fn make_acyclic_preserves_non_cycle_edges() {
 #[test]
 fn linearize_empty_graph() {
     let g: DiGraph<usize, u32> = DiGraph::new();
-    assert!(linearize(&g, &no_cuts()).is_empty());
+    assert!(linearize(&g, &no_groups(0)).is_empty());
 }
 
 #[test]
 fn linearize_single_node() {
     let g = build_graph(1, |_| {});
-    assert_eq!(ids(&linearize(&g, &no_cuts())), vec![0]);
+    assert_eq!(ids(&linearize(&g, &no_groups(1))), vec![0]);
 }
 
 #[test]
@@ -573,31 +602,58 @@ fn linearize_emits_dependencies_before_dependents() {
         g.add_edge(n(0), n(1), 1);
         g.add_edge(n(1), n(2), 1);
     });
-    assert_eq!(ids(&linearize(&g, &no_cuts())), vec![2, 1, 0]);
+    assert_eq!(ids(&linearize(&g, &no_groups(3))), vec![2, 1, 0]);
 }
 
 #[test]
 fn linearize_prefers_candidate_sharing_most_chunk_groups_with_last_placed() {
-    // 1 and 2 both depend on 0, so both become ready once 0 is placed. The edge weight is the
-    // number of chunk groups the two modules share: module 2 shares 10 chunk groups with 0 while
-    // module 1 shares only 1, so 2 is placed next — even though 1 comes first in insertion order.
-    let g = build_graph(3, |g| {
-        g.add_edge(n(1), n(0), 1);
-        g.add_edge(n(2), n(0), 10);
-    });
-    assert_eq!(ids(&linearize(&g, &no_cuts())), vec![0, 2, 1]);
-}
-
-#[test]
-fn linearize_breaks_ties_by_insertion_order() {
-    // Both 1 and 2 depend on 0 and share the same number of chunk groups with it (equal edge
-    // weight), so the tie falls to insertion order: 1's edge is added first, so 1 is placed
-    // before 2 after 0.
+    // 1 and 2 both depend on 0, so both become ready once 0 is placed. Module 2 shares two chunk
+    // groups with 0 while module 1 shares only one, so 2 is placed next — even though 1 comes
+    // first in insertion order.
     let g = build_graph(3, |g| {
         g.add_edge(n(1), n(0), 1);
         g.add_edge(n(2), n(0), 1);
     });
-    assert_eq!(ids(&linearize(&g, &no_cuts())), vec![0, 1, 2]);
+    let module_to_groups = vec![
+        vec![0, 1, 2], // module 0
+        vec![0],       // module 1: shares 1 group ({0}) with module 0
+        vec![0, 1],    // module 2: shares 2 groups ({0, 1}) with module 0
+    ];
+    assert_eq!(ids(&linearize(&g, &module_to_groups)), vec![0, 2, 1]);
+}
+
+#[test]
+fn linearize_breaks_last_placed_ties_by_earlier_placements() {
+    // Placement forces the order 0 -> 1, then a choice between 2 and 3 (both depend on 1).
+    // 2 and 3 share the same number of groups with the last-placed module 1 (tie at depth 0), so
+    // the tie is broken by looking one further back to module 0 (depth 1): module 3 shares two
+    // groups with 0 while module 2 shares one, so 3 is placed before 2.
+    let g = build_graph(4, |g| {
+        g.add_edge(n(1), n(0), 1); // 1 depends on 0
+        g.add_edge(n(2), n(1), 1); // 2 depends on 1
+        g.add_edge(n(3), n(1), 1); // 3 depends on 1
+    });
+    // Each module's group list is ascending, as `create_graph` produces.
+    let module_to_groups = vec![
+        vec![0, 1],    // module 0
+        vec![2],       // module 1 (irrelevant sharing)
+        vec![0, 2],    // module 2: shared(2,1)=1 ({2}); shared(2,0)=1 ({0})
+        vec![0, 1, 2], // module 3: shared(3,1)=1 ({2}); shared(3,0)=2 ({0,1})
+    ];
+    // pick after [0,1]: depth 0 (last=1) -> shared(2,1)=shared(3,1)=1 (tie);
+    //                   depth 1 (ref=0)  -> shared(2,0)=1, shared(3,0)=2 -> 3 wins.
+    assert_eq!(ids(&linearize(&g, &module_to_groups)), vec![0, 1, 3, 2]);
+}
+
+#[test]
+fn linearize_breaks_ties_by_insertion_order() {
+    // Both 1 and 2 depend on 0 and share no chunk groups with anything (empty map), so the tie
+    // falls to insertion order: 1's edge is added first, so 1 is placed before 2 after 0.
+    let g = build_graph(3, |g| {
+        g.add_edge(n(1), n(0), 1);
+        g.add_edge(n(2), n(0), 1);
+    });
+    assert_eq!(ids(&linearize(&g, &no_groups(3))), vec![0, 1, 2]);
 }
 
 #[test]
@@ -609,7 +665,7 @@ fn linearize_diamond_is_topo() {
         g.add_edge(n(1), n(3), 1);
         g.add_edge(n(2), n(3), 1);
     });
-    let order = linearize(&g, &no_cuts());
+    let order = linearize(&g, &no_groups(4));
     assert_eq!(order.len(), 4);
     let pos: std::collections::HashMap<NodeIndex, usize> =
         order.iter().enumerate().map(|(i, n)| (*n, i)).collect();
@@ -627,7 +683,7 @@ fn linearize_runs_on_subgraphview() {
     });
     let subset: FxHashSet<_> = [n(0), n(1)].into_iter().collect();
     let view = SubgraphView::new(&g, &subset);
-    assert_eq!(ids(&linearize(view, &no_cuts())), vec![1, 0]);
+    assert_eq!(ids(&linearize(view, &no_groups(3))), vec![1, 0]);
 }
 
 #[test]
@@ -636,7 +692,7 @@ fn linearize_returns_partial_result_for_cyclic_graph() {
         g.add_edge(n(0), n(1), 1);
         g.add_edge(n(1), n(0), 1);
     });
-    assert!(linearize(&g, &no_cuts()).is_empty());
+    assert!(linearize(&g, &no_groups(2)).is_empty());
 }
 
 // ---------------------------------------------------------------------------
@@ -750,9 +806,9 @@ fn run_pipeline(
     node_count: usize,
     request_cost: f32,
 ) -> (Vec<Vec<usize>>, Vec<usize>) {
-    let mut g = create_graph(chunk_groups, node_count);
-    let cut_edges = make_acyclic(&mut g);
-    let global_order = linearize(&g, &cut_edges);
+    let (mut g, module_to_groups) = create_graph(chunk_groups, node_count);
+    make_acyclic(&mut g);
+    let global_order = linearize(&g, &module_to_groups);
     let chunks = split_simple(&global_order, chunk_groups, request_cost);
     let chunked = compute_chunked_chunk_groups(chunk_groups, &chunks);
     let request_counts: Vec<usize> = chunked.iter().map(|c| c.len()).collect();

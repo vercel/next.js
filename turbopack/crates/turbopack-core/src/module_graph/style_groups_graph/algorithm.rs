@@ -24,14 +24,25 @@ use crate::module::StyleType;
 /// inside the group, an edge `later → earlier` is added (weight 1). Repeated edges accumulate.
 /// `node_count` is the total number of distinct module ids referenced; node ids are dense in
 /// `0..node_count`.
-pub(super) fn create_graph(chunk_groups: &[Vec<usize>], node_count: usize) -> DiGraph<usize, u32> {
+///
+/// Also returns a `module_to_groups` index: for each module id, the list of chunk-group indices
+/// that contain it (in ascending order). Used by [`linearize`] to count shared chunk groups
+/// between two modules without reading potentially-lossy post-[`make_acyclic`] edge weights.
+pub(super) fn create_graph(
+    chunk_groups: &[Vec<usize>],
+    node_count: usize,
+) -> (DiGraph<usize, u32>, Vec<Vec<usize>>) {
     let mut graph: DiGraph<usize, u32> = DiGraph::with_capacity(node_count, 0);
+    let mut module_to_groups: Vec<Vec<usize>> = vec![vec![]; node_count];
     for i in 0..node_count {
         let idx = graph.add_node(i);
         debug_assert_eq!(idx.index(), i);
     }
     let mut edge_index: FxHashMap<(NodeIndex, NodeIndex), EdgeIndex> = FxHashMap::default();
-    for group in chunk_groups {
+    for (group_idx, group) in chunk_groups.iter().enumerate() {
+        for &module_id in group {
+            module_to_groups[module_id].push(group_idx);
+        }
         for (i, &later_id) in group.iter().enumerate() {
             let later = NodeIndex::new(later_id);
             for &earlier_id in &group[..i] {
@@ -49,7 +60,35 @@ pub(super) fn create_graph(chunk_groups: &[Vec<usize>], node_count: usize) -> Di
             }
         }
     }
-    graph
+    (graph, module_to_groups)
+}
+
+/// Count the chunk groups that both module `a` and module `b` belong to.
+///
+/// `module_to_groups` maps each module id to its sorted list of chunk-group indices (built by
+/// [`create_graph`]). The merge runs in O(min(|groups_a|, |groups_b|)).
+pub(super) fn shared_chunk_groups(
+    module_to_groups: &[Vec<usize>],
+    a: NodeIndex,
+    b: NodeIndex,
+) -> usize {
+    let a_groups = &module_to_groups[a.index()];
+    let b_groups = &module_to_groups[b.index()];
+    let mut count = 0;
+    let mut i = 0;
+    let mut j = 0;
+    while i < a_groups.len() && j < b_groups.len() {
+        match a_groups[i].cmp(&b_groups[j]) {
+            std::cmp::Ordering::Equal => {
+                count += 1;
+                i += 1;
+                j += 1;
+            }
+            std::cmp::Ordering::Less => i += 1,
+            std::cmp::Ordering::Greater => j += 1,
+        }
+    }
+    count
 }
 
 // ---------------------------------------------------------------------------
@@ -388,14 +427,7 @@ fn reconstruct_path(
 
 /// Mutate `graph` in place to remove all multi-node cycles by repeatedly cutting the
 /// lowest-weight edge of a short cycle in each SCC.
-///
-/// Returns the edges that were cut as `(from, to) -> weight`. [`linearize`] needs them: it derives
-/// its ordering heuristic from edge weights (chunk-group co-occurrence), and the cut edges are
-/// real co-occurrences that would otherwise be invisible in the now-acyclic graph.
-pub(super) fn make_acyclic<N>(
-    graph: &mut DiGraph<N, u32>,
-) -> FxHashMap<(NodeIndex, NodeIndex), u32> {
-    let mut cut_edges: FxHashMap<(NodeIndex, NodeIndex), u32> = FxHashMap::default();
+pub(super) fn make_acyclic<N>(graph: &mut DiGraph<N, u32>) {
     let mut queue: Vec<FxHashSet<NodeIndex>> = Vec::new();
     for scc in strongly_connected_components(&*graph) {
         if scc.len() > 1 {
@@ -421,7 +453,6 @@ pub(super) fn make_acyclic<N>(
             // cycle nodes — guarantees the chosen cut breaks this cycle, not an unrelated chord.
             let mut min_weight: Option<u32> = None;
             let mut min_edge: Option<EdgeIndex> = None;
-            let mut min_from: Option<NodeIndex> = None;
             let mut min_to: Option<NodeIndex> = None;
             for i in 0..short_cycle.len() {
                 let from = short_cycle[i];
@@ -433,19 +464,13 @@ pub(super) fn make_acyclic<N>(
                 if min_weight.is_none_or(|w| weight < w) {
                     min_weight = Some(weight);
                     min_edge = Some(edge);
-                    min_from = Some(from);
                     min_to = Some(to);
                 }
             }
 
-            let (Some(edge), Some(from), Some(to), Some(weight)) =
-                (min_edge, min_from, min_to, min_weight)
-            else {
+            let (Some(edge), Some(to)) = (min_edge, min_to) else {
                 break;
             };
-            // Record the cut edge so `linearize` can still count this co-occurrence: its weight is
-            // the number of chunk groups in which `from` appears after `to`.
-            cut_edges.insert((from, to), weight);
             graph.remove_edge(edge);
             seed_node = Some(to);
         }
@@ -458,8 +483,6 @@ pub(super) fn make_acyclic<N>(
             }
         }
     }
-
-    cut_edges
 }
 
 // ---------------------------------------------------------------------------
@@ -467,37 +490,28 @@ pub(super) fn make_acyclic<N>(
 // ---------------------------------------------------------------------------
 
 /// Topologically sort `graph` (Kahn). Among the currently unblocked candidates, prefer the one
-/// that shares the most chunk groups with the previously placed module (the last entry in
-/// `result`), so modules that load together end up adjacent in the global order.
+/// that shares the most chunk groups with the previously placed module, so modules that load
+/// together end up adjacent in the global order.
 ///
-/// The shared-group count comes from edge weights: the weight of edge `a → b` is the number of
-/// chunk groups in which `a` appears after `b` (see [`create_graph`]), so the chunk groups `last`
-/// and a candidate share is `weight(candidate → last) + weight(last → candidate)`. Most of those
-/// weights are still in `graph`, but [`make_acyclic`] deletes the lowest-weight edge of every cycle
-/// to break it (on real inputs ~30% of the total edge weight), and those cut edges are exactly the
-/// conflicting-order co-occurrences we still want to count. `cut_edges` (its return value) restores
-/// them, so the two together reconstruct the full co-occurrence without cloning the graph.
+/// The shared-group count is read from `module_to_groups` (built by [`create_graph`]), which maps
+/// each module id to its sorted list of chunk-group indices. Reading from the original chunk-group
+/// data (not the post-[`make_acyclic`] graph) gives a lossless signal: [`make_acyclic`] deletes
+/// ~30% of edge weight on real inputs, and those deleted edges represent real co-occurrences.
 ///
-/// Ties keep the earliest remaining candidate; before anything has been placed, the stable seed
-/// order (insertion order) decides.
-pub(super) fn linearize<'a, G>(
-    graph: G,
-    cut_edges: &FxHashMap<(NodeIndex, NodeIndex), u32>,
-) -> Vec<NodeIndex>
+/// **Tie-breaking** is done by looking further back through `result`: when multiple candidates
+/// share the same count with the last-placed module, the tie is broken by the count with the
+/// second-to-last module, then the third-to-last, and so on. Formally, the per-candidate key is
+/// the lexicographic sequence `[shared(last), shared(last-1), shared(last-2), …]`, sorted
+/// descending — equivalent to choosing the candidate with the best `(Reverse(distance), shared)`
+/// metric, where `distance` is the first look-back position that produces a non-tie. Final ties
+/// (zero shared at all positions) fall back to the earliest remaining candidate (insertion order).
+pub(super) fn linearize<'a, G>(graph: G, module_to_groups: &[Vec<usize>]) -> Vec<NodeIndex>
 where
     G: ReadonlyGraph<'a>,
 {
     let mut remaining_deps: FxHashMap<NodeIndex, usize> = FxHashMap::default();
     for n in graph.nodes() {
         remaining_deps.insert(n, graph.outgoing_edges(n).count());
-    }
-
-    // Re-index the cut edges by node so both endpoints can look up their incident cut edges in
-    // O(1): each cut edge `(from, to, w)` contributes `w` shared chunk groups to the pair.
-    let mut cut_adjacency: FxHashMap<NodeIndex, Vec<(NodeIndex, u32)>> = FxHashMap::default();
-    for (&(from, to), &weight) in cut_edges {
-        cut_adjacency.entry(from).or_default().push((to, weight));
-        cut_adjacency.entry(to).or_default().push((from, weight));
     }
 
     let mut candidates: Vec<NodeIndex> = remaining_deps
@@ -513,41 +527,42 @@ where
     }
 
     let mut result: Vec<NodeIndex> = Vec::new();
-    // Shared-group count of each candidate with the previously placed module, keyed by node. Built
-    // from `last`'s surviving edges (both directions) plus its cut edges, and reused across
-    // iterations to avoid reallocating.
-    let mut shared_with_last: FxHashMap<NodeIndex, u32> = FxHashMap::default();
     while !candidates.is_empty() {
-        // Pick the candidate sharing the most chunk groups with the previously placed module.
-        // There is no point keeping `candidates` sorted: this criterion depends on `result`'s
-        // last element and changes every step. Ties fall to the earliest remaining candidate.
-        let pick = match result.last() {
-            Some(&last) => {
-                shared_with_last.clear();
-                for (source, weight) in graph.incoming_edges_with_weight(last) {
-                    *shared_with_last.entry(source).or_default() += weight;
-                }
-                for (target, weight) in graph.outgoing_edges_with_weight(last) {
-                    *shared_with_last.entry(target).or_default() += weight;
-                }
-                if let Some(cuts) = cut_adjacency.get(&last) {
-                    for &(neighbor, weight) in cuts {
-                        *shared_with_last.entry(neighbor).or_default() += weight;
+        // Find the best candidate using progressive look-back tie-breaking.
+        // `survivors` holds indices into `candidates`; it starts with all candidates and is
+        // narrowed by comparing shared group counts at increasing look-back distances until
+        // either one candidate remains or `result` is exhausted.
+        let pick = if result.is_empty() {
+            0 // insertion order before anything is placed
+        } else {
+            let mut survivors: Vec<usize> = (0..candidates.len()).collect();
+            'outer: for depth in 0..result.len() {
+                let reference = result[result.len() - 1 - depth];
+                // Compute shared count for each surviving candidate at this depth.
+                let scores: Vec<(usize, usize)> = survivors
+                    .iter()
+                    .map(|&i| {
+                        (
+                            i,
+                            shared_chunk_groups(module_to_groups, candidates[i], reference),
+                        )
+                    })
+                    .collect();
+                let max_shared = scores.iter().map(|&(_, s)| s).max().unwrap_or(0);
+                // Only filter when at least one candidate has a real match at this depth;
+                // otherwise all are equally far from `reference` and we try the next depth.
+                if max_shared > 0 {
+                    survivors = scores
+                        .into_iter()
+                        .filter(|&(_, s)| s == max_shared)
+                        .map(|(i, _)| i)
+                        .collect();
+                    if survivors.len() == 1 {
+                        break 'outer;
                     }
                 }
-                let shared = |c: NodeIndex| shared_with_last.get(&c).copied().unwrap_or(0);
-                let mut best = 0;
-                let mut best_shared = shared(candidates[0]);
-                for i in 1..candidates.len() {
-                    let s = shared(candidates[i]);
-                    if s > best_shared {
-                        best_shared = s;
-                        best = i;
-                    }
-                }
-                best
             }
-            None => 0,
+            survivors[0] // insertion-order fallback among any remaining ties
         };
         let placed = candidates.swap_remove(pick);
         result.push(placed);
