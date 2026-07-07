@@ -1348,6 +1348,9 @@ importers:
       '@vercel/blob':
         specifier: 2.3.2
         version: 2.3.2(patch_hash=cb53bfa5effb15b3a361e176003df667cadf757b27b7c9b458c2f0fce86ea893)
+      '@vercel/detect-agent':
+        specifier: 1.2.3
+        version: 1.2.3
       '@vercel/ncc':
         specifier: 0.38.4
         version: 0.38.4
@@ -6979,6 +6982,10 @@ packages:
   '@vercel/blob@2.3.2':
     resolution: {integrity: sha512-FjlTJ5ffGj0RssrU0dJ90Zgr83AdhpIs2y9f3x386w+q9sM0P8m8Ouxsm3fqsjr4IyqTTo7Ioc2PJqxxOKNhjA==}
     engines: {node: '>=20.0.0'}
+
+  '@vercel/detect-agent@1.2.3':
+    resolution: {integrity: sha512-VYNCgUc0nOmC4WJmWw9GkrKdfr8Zl4/rxhC5SvgacBgxiW9W/9NRttUoHHXV8xdII3MaRgkZZVX8Ikzc/Jmjag==}
+    engines: {node: '>=14'}
 
   '@vercel/kv@3.0.0':
     resolution: {integrity: sha512-pKT8fRnfyYk2MgvyB6fn6ipJPCdfZwiKDdw7vB+HL50rjboEBHDVBEcnwfkEpVSp2AjNtoaOUH7zG+bVC/rvSg==}
@@ -23702,6 +23709,8 @@ snapshots:
       is-node-process: 1.2.0
       throttleit: 2.1.0
       undici: 6.24.1
+
+  '@vercel/detect-agent@1.2.3': {}
 
   '@vercel/kv@3.0.0':
     dependencies:

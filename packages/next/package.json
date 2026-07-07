@@ -219,6 +219,7 @@
     "@types/webpack-sources1": "npm:@types/webpack-sources@0.1.5",
     "@types/ws": "8.2.0",
     "@vercel/blob": "2.3.2",
+    "@vercel/detect-agent": "1.2.3",
     "@vercel/ncc": "0.38.4",
     "@vercel/nft": "1.10.2",
     "@vercel/routing-utils": "5.2.0",
