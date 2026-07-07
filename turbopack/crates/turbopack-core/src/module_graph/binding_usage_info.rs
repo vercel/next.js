@@ -144,7 +144,7 @@ pub async fn compute_binding_usage_info(
             None
         };
 
-        let entries = graph_ref.graphs.iter().flat_map(|g| g.entry_modules());
+        let entries = graph_ref.all_chunk_group_entry_modules();
 
         let visit_count = graph_ref.traverse_edges_fixed_point_with_priority(
             entries.map(|m| (m, 0)),

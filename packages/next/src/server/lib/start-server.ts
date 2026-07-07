@@ -505,6 +505,7 @@ export async function startServer(
           logExperimentalInfo({
             experimentalFeatures: initResult.experimentalFeatures,
             cacheComponents: initResult.cacheComponents,
+            partialPrefetching: initResult.partialPrefetching,
           })
 
           // Auto-generate AGENTS.md / CLAUDE.md when an AI coding agent

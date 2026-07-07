@@ -44,6 +44,7 @@
  */
 
 import type { DynamicParamTypesShort } from '../../../shared/lib/app-router-types'
+import { PrefetchHint } from '../../../shared/lib/app-router-types'
 import type { RouteTree, FulfilledRouteCacheEntry } from './cache'
 import {
   EntryStatus,
@@ -61,6 +62,7 @@ import {
   finalizeLayoutVaryPath,
   finalizePageVaryPath,
   finalizeMetadataVaryPath,
+  getShellSegmentVaryPath,
   type PartialSegmentVaryPath,
   type PageVaryPath,
 } from './vary-path'
@@ -197,6 +199,7 @@ let knownRouteTreeRoot: KnownRoutePart = createEmptyPart()
 export function discoverKnownRoute(
   now: number,
   pathname: string,
+  search: NormalizedSearch,
   nextUrl: string | null,
   pendingEntry: PendingRouteCacheEntry | null,
   routeTree: RouteTree,
@@ -235,6 +238,7 @@ export function discoverKnownRoute(
       fulfilledEntry,
       now,
       pathname,
+      search,
       nextUrl,
       tree,
       metadataVaryPath,
@@ -256,6 +260,7 @@ export function discoverKnownRoute(
     null,
     now,
     pathname,
+    search,
     nextUrl,
     tree,
     metadataVaryPath,
@@ -276,6 +281,7 @@ function handleMismatchDueToRewrite(
   existingEntry: FulfilledRouteCacheEntry | null,
   now: number,
   pathname: string,
+  search: NormalizedSearch,
   nextUrl: string | null,
   fullTree: RouteTree,
   metadataVaryPath: PageVaryPath,
@@ -289,6 +295,7 @@ function handleMismatchDueToRewrite(
   return writeRouteIntoCache(
     now,
     pathname as NormalizedPathname,
+    search,
     nextUrl,
     fullTree,
     metadataVaryPath,
@@ -344,6 +351,7 @@ function discoverKnownRoutePart(
   // These are passed through unchanged for entry creation at the leaf
   now: number,
   pathname: string,
+  search: NormalizedSearch,
   nextUrl: string | null,
   fullTree: RouteTree,
   metadataVaryPath: PageVaryPath,
@@ -370,6 +378,7 @@ function discoverKnownRoutePart(
           existingEntry,
           now,
           pathname,
+          search,
           nextUrl,
           fullTree,
           metadataVaryPath,
@@ -409,6 +418,7 @@ function discoverKnownRoutePart(
         existingEntry,
         now,
         pathname,
+        search,
         nextUrl,
         fullTree,
         metadataVaryPath,
@@ -429,6 +439,7 @@ function discoverKnownRoutePart(
         existingEntry,
         now,
         pathname,
+        search,
         nextUrl,
         fullTree,
         metadataVaryPath,
@@ -496,6 +507,7 @@ function discoverKnownRoutePart(
         existingEntry,
         now,
         pathname,
+        search,
         nextUrl,
         fullTree,
         metadataVaryPath,
@@ -517,6 +529,7 @@ function discoverKnownRoutePart(
       existingEntry,
       now,
       pathname,
+      search,
       nextUrl,
       fullTree,
       metadataVaryPath,
@@ -534,6 +547,7 @@ function discoverKnownRoutePart(
       existingEntry,
       now,
       pathname,
+      search,
       nextUrl,
       fullTree,
       metadataVaryPath,
@@ -565,6 +579,7 @@ function discoverKnownRoutePart(
     entry = writeRouteIntoCache(
       now,
       pathname as NormalizedPathname,
+      search,
       nextUrl,
       fullTree,
       metadataVaryPath,
@@ -870,6 +885,11 @@ function reifyRouteTree(
 ): RouteTree {
   const originalSegment = pattern.segment
 
+  // This segment's param (if any) is a root param iff the segment is at or
+  // above the root layout, which the server marks directly.
+  const isRootParam =
+    (pattern.prefetchHints & PrefetchHint.IsRootLayoutOrAbove) !== 0
+
   let newSegment = originalSegment
   let partialVaryPath: PartialSegmentVaryPath | null
 
@@ -887,7 +907,8 @@ function reifyRouteTree(
       partialVaryPath = appendLayoutVaryPath(
         parentPartialVaryPath,
         newCacheKey,
-        paramName
+        paramName,
+        isRootParam
       )
     } else {
       // Param not found in resolvedParams - keep original and inherit partial
@@ -932,6 +953,7 @@ function reifyRouteTree(
     return {
       requestKey: pattern.requestKey,
       segment: newSegment,
+      shellVaryPath: getShellSegmentVaryPath(newVaryPath),
       refreshState: pattern.refreshState,
       slots: newSlots,
 
@@ -948,6 +970,7 @@ function reifyRouteTree(
     return {
       requestKey: pattern.requestKey,
       segment: newSegment,
+      shellVaryPath: getShellSegmentVaryPath(newVaryPath),
       refreshState: pattern.refreshState,
       slots: newSlots,
 

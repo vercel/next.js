@@ -1,5 +1,4 @@
 import { FileRef, isNextDev, nextTestSetup } from 'e2e-utils'
-import webdriver from 'next-webdriver'
 import path from 'path'
 
 const appDir = path.join(__dirname, 'child-a-tag-error')
@@ -16,7 +15,7 @@ describe('New Link Behavior with <a> child', () => {
   })
 
   it('should throw error with <a> child', async () => {
-    const browser = await webdriver(next.url, `/`)
+    const browser = await next.browser(`/`)
     const link = await browser.elementsByCss('a[href="/about"]')
 
     if (isNextDev) {

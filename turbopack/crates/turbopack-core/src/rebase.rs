@@ -41,10 +41,11 @@ impl RebasedAsset {
 impl OutputAssetsReference for RebasedAsset {
     #[turbo_tasks::function]
     async fn references(&self) -> Result<Vc<OutputAssetsWithReferenced>> {
-        let references = referenced_modules_and_affecting_sources(*self.module)
+        let references = referenced_modules_and_affecting_sources(*self.module, false)
             .await?
             .iter()
-            .map(|module| async move {
+            .flat_map(|(_, ref_data)| ref_data.modules.iter())
+            .map(async |module| {
                 Ok(ResolvedVc::upcast(
                     RebasedAsset::new(**module, self.input_dir.clone(), self.output_dir.clone())
                         .to_resolved()

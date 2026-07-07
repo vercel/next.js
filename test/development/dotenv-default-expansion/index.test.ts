@@ -1,5 +1,4 @@
 import { nextTestSetup } from 'e2e-utils'
-import webdriver from 'next-webdriver'
 
 describe('Dotenv default expansion', () => {
   const { next } = nextTestSetup({
@@ -17,7 +16,7 @@ describe('Dotenv default expansion', () => {
   })
 
   it('should work', async () => {
-    const browser = await webdriver(next.url, '/')
+    const browser = await next.browser('/')
     const text = await browser.elementByCss('p').text()
     expect(text).toBe('default')
 

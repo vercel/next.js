@@ -10,7 +10,6 @@ use std::{
 };
 
 use anyhow::Result;
-use either::Either;
 use napi::{Env, JsFunction, bindgen_prelude::Promise, threadsafe_function::ThreadsafeFunction};
 use napi_derive::napi;
 use owo_colors::OwoColorize;
@@ -22,13 +21,11 @@ use turbo_tasks::{
     message_queue::{CompilationEvent, Severity},
 };
 use turbo_tasks_backend::{
-    BackendOptions, GitVersionInfo, NoopBackingStorage, StartupCacheState, TurboBackingStorage,
-    TurboTasksBackend, db_invalidation::invalidation_reasons, noop_backing_storage,
-    turbo_backing_storage,
+    BackendOptions, GitVersionInfo, StartupCacheState, TurboTasksBackend,
+    db_invalidation::invalidation_reasons, noop_backing_storage, turbo_backing_storage,
 };
 
-pub type NextTurboTasks =
-    Arc<TurboTasks<TurboTasksBackend<Either<TurboBackingStorage, NoopBackingStorage>>>>;
+pub type NextTurboTasks = Arc<TurboTasks<TurboTasksBackend>>;
 
 /// A value often wrapped in [`napi::bindgen_prelude::External`] that retains the [TurboTasks]
 /// instance used by Next.js, and [various napi helpers that are passed to us from
@@ -225,16 +222,39 @@ pub fn git_version_info(describe: &str) -> GitVersionInfo<'_> {
     }
 }
 
+/// Turbopack's memory eviction strategy for the persistent cache, mirroring the
+/// `experimental.turbopackMemoryEviction` config option.
+#[napi(string_enum = "lowercase")]
+#[derive(Debug, PartialEq, Eq)]
+pub enum MemoryEvictionMode {
+    /// Never evict.
+    Off,
+    /// After every snapshot, evict all evictable tasks from memory, reloading
+    /// them from disk on demand.
+    Full,
+}
+
+impl MemoryEvictionMode {
+    /// Whether this mode evicts evictable tasks after each snapshot.
+    fn evicts_after_snapshot(self) -> bool {
+        match self {
+            Self::Off => false,
+            Self::Full => true,
+        }
+    }
+}
+
 pub fn create_turbo_tasks(
     output_path: PathBuf,
     next_version: &str,
     persistent_caching: bool,
-    _memory_limit: usize,
     dependency_tracking: bool,
     is_ci: bool,
     is_short_session: bool,
     skip_compaction: bool,
+    turbopack_memory_eviction: MemoryEvictionMode,
 ) -> Result<NextTurboTasks> {
+    let evict_after_snapshot = turbopack_memory_eviction.evicts_after_snapshot();
     Ok(if persistent_caching {
         let describe = cache_describe(next_version);
         let version_info = git_version_info(&describe);
@@ -256,11 +276,10 @@ pub fn create_turbo_tasks(
                 }),
                 dependency_tracking,
                 num_workers: Some(tokio::runtime::Handle::current().metrics().num_workers()),
-                evict_after_snapshot: std::env::var("TURBO_ENGINE_EVICT_AFTER_SNAPSHOT")
-                    .is_ok_and(|v| v == "1" || v == "true"),
+                evict_after_snapshot,
                 ..Default::default()
             },
-            Either::Left(backing_storage),
+            backing_storage,
         ));
         if let StartupCacheState::Invalidated { reason_code } = cache_state {
             tt.send_compilation_event(Arc::new(StartupCacheInvalidationEvent { reason_code }));
@@ -273,7 +292,7 @@ pub fn create_turbo_tasks(
                 dependency_tracking,
                 ..Default::default()
             },
-            Either::Right(noop_backing_storage()),
+            noop_backing_storage(),
         ))
     })
 }
@@ -395,7 +414,7 @@ pub fn log_internal_error_and_inform(internal_error: &anyhow::Error) {
         .unwrap_or_else(|_| panic!("Failed to open {}", PANIC_LOG.to_string_lossy()));
 
     let internal_error_str: String = PrettyPrintError(internal_error).to_string();
-    writeln!(log_file, "{}\n{}", LOG_DIVIDER, &internal_error_str).unwrap();
+    writeln!(log_file, "{}\n{}", LOG_DIVIDER, internal_error_str).unwrap();
 
     let title = format!(
         "Turbopack Error: {}",
@@ -408,10 +427,10 @@ pub fn log_internal_error_and_inform(internal_error: &anyhow::Error) {
     );
     let bug_report_url = format!(
         "https://bugs.nextjs.org/search?category=turbopack-error-report&title={}&body={}&labels=Turbopack,Turbopack%20Panic%20Backtrace",
-        &urlencoding::encode(&title),
-        &urlencoding::encode(&format!(
+        urlencoding::encode(&title),
+        urlencoding::encode(&format!(
             "{}\n\nError message:\n```\n{}\n```",
-            &version_str, &internal_error_str
+            version_str, internal_error_str
         ))
     );
     let bug_report_message = if supports_hyperlinks::supports_hyperlinks() {
@@ -425,6 +444,6 @@ pub fn log_internal_error_and_inform(internal_error: &anyhow::Error) {
          {}.\n\nTo help make Turbopack better, report this error by {}\n-----\n",
         "FATAL".red().bold(),
         PANIC_LOG.to_string_lossy(),
-        &bug_report_message
+        bug_report_message
     );
 }

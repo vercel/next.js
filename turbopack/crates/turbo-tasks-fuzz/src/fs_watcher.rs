@@ -15,8 +15,8 @@ use rustc_hash::FxHashSet;
 use tokio::time::sleep;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    Effects, NonLocalValue, OperationVc, ResolvedVc, TransientInstance, Vc, take_effects,
-    trace::TraceRawVcs,
+    Effects, NonLocalValue, OperationVc, ResolvedVc, TransientInstance, Vc,
+    read_strongly_consistent_and_apply_effects, take_effects, trace::TraceRawVcs,
 };
 use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
 use turbo_tasks_fs::{
@@ -142,7 +142,7 @@ pub async fn run(args: FsWatcher) -> anyhow::Result<()> {
         let symlink_is_directory =
             symlink_mode.map(|m| m.to_link_type().contains(LinkType::DIRECTORY));
 
-        let effects = extract_effects_operation(read_or_write_all_paths_operation(
+        let effects_op = extract_effects_operation(read_or_write_all_paths_operation(
             invalidations.clone(),
             project_root.clone(),
             args.depth,
@@ -150,11 +150,9 @@ pub async fn run(args: FsWatcher) -> anyhow::Result<()> {
             symlink_count,
             symlink_is_directory,
             track_writes,
-        ))
-        .read_strongly_consistent()
-        .await?;
+        ));
         if track_writes {
-            effects.apply().await?;
+            read_strongly_consistent_and_apply_effects(effects_op, |e| e).await?;
             let (total, mismatched) = verify_written_files(
                 &fs_root,
                 args.depth,
@@ -169,6 +167,8 @@ pub async fn run(args: FsWatcher) -> anyhow::Result<()> {
                 }
             }
         } else {
+            // Still drive the computation (and propagate errors) without applying effects.
+            effects_op.read_strongly_consistent().await?;
             let invalidations = invalidations.0.lock().unwrap();
             println!("read all {} files", invalidations.len());
         }
@@ -228,7 +228,7 @@ pub async fn run(args: FsWatcher) -> anyhow::Result<()> {
             // there's no way to know when we've received all the pending events from the operating
             // system, so just sleep and pray
             sleep(Duration::from_millis(args.notify_timeout_ms)).await;
-            let effects = extract_effects_operation(read_or_write_all_paths_operation(
+            let effects_op = extract_effects_operation(read_or_write_all_paths_operation(
                 invalidations.clone(),
                 project_root.clone(),
                 args.depth,
@@ -236,16 +236,14 @@ pub async fn run(args: FsWatcher) -> anyhow::Result<()> {
                 symlink_count,
                 symlink_is_directory,
                 track_writes,
-            ))
-            .read_strongly_consistent()
-            .await?;
+            ));
             let symlink_info = if args.symlinks.is_some() {
                 " and symlinks"
             } else {
                 ""
             };
             if track_writes {
-                effects.apply().await?;
+                read_strongly_consistent_and_apply_effects(effects_op, |e| e).await?;
                 let (total, mismatched) = verify_written_files(
                     &fs_root,
                     args.depth,
@@ -268,6 +266,8 @@ pub async fn run(args: FsWatcher) -> anyhow::Result<()> {
                     }
                 }
             } else {
+                // Still drive the computation (and propagate errors) without applying effects.
+                effects_op.read_strongly_consistent().await?;
                 let mut invalidations = invalidations.0.lock().unwrap();
                 println!(
                     "modified {} files{}. found {} invalidations",

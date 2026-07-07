@@ -1,5 +1,5 @@
 import path from 'path'
-import { createNext, FileRef, nextTestSetup } from 'e2e-utils'
+import { FileRef, nextTestSetup } from 'e2e-utils'
 import { check } from 'next-test-utils'
 import stripAnsi from 'strip-ansi'
 
@@ -202,24 +202,23 @@ import stripAnsi from 'strip-ansi'
       })
     } else {
       describe('build', () => {
-        it('should break the build if a page is missing root layout', async () => {
-          const next = await createNext({
-            skipStart: true,
-            files: {
-              'app/page.js': new FileRef(
-                path.join(__dirname, 'app/route/page.js')
-              ),
-              'next.config.js': new FileRef(
-                path.join(__dirname, 'next.config.js')
-              ),
-            },
-          })
+        const { next } = nextTestSetup({
+          skipStart: true,
+          files: {
+            'app/page.js': new FileRef(
+              path.join(__dirname, 'app/route/page.js')
+            ),
+            'next.config.js': new FileRef(
+              path.join(__dirname, 'next.config.js')
+            ),
+          },
+        })
 
+        it('should break the build if a page is missing root layout', async () => {
           await expect(next.start()).rejects.toThrow('next build failed')
           expect(stripAnsi(next.cliOutput)).toInclude(
             "page.js doesn't have a root layout. To fix this error, make sure every page has a root layout."
           )
-          await next.destroy()
         })
       })
     }

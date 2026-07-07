@@ -77,9 +77,9 @@ Because cells are keyed by a combination of their type and construction order, *
 
 There are a couple of explicit "subtypes" of `Vc`. These can both be cheaply converted back into a `Vc`.
 
-- **[`ResolvedVc`]:** *(aka [`RawVc::TaskCell`])* A reference to a cell constructed within a task, as part of a [`Vc::cell`] or `value_type.cell()` constructor. As the cell has been constructed at least once, the concrete type of the cell is known (allowing [downcasting][ResolvedVc::try_downcast]). This is stored as a combination of a task id, a type id, and a cell id.
+- **[`ResolvedVc`]:** *(aka [`RawVcUnpacked::TaskCell`])* A reference to a cell constructed within a task, as part of a [`Vc::cell`] or `value_type.cell()` constructor. As the cell has been constructed at least once, the concrete type of the cell is known (allowing [downcasting][ResolvedVc::try_downcast]). This is stored as a combination of a task id, a type id, and a cell id.
 
-- **[`OperationVc`]:** *(aka [`RawVc::TaskOutput`])* The synchronous return value of a [`turbo_tasks::function`]. Internally, this is stored using a task id. [`OperationVc`]s must first be [`connect`][crate::OperationVc::connect]ed before being read.
+- **[`OperationVc`]:** *(aka [`RawVcUnpacked::TaskOutput`])* The synchronous return value of a [`turbo_tasks::function`]. Internally, this is stored using a task id. [`OperationVc`]s must first be [`connect`][crate::OperationVc::connect]ed before being read.
 
 [`ResolvedVc`] is almost always preferred over the more awkward [`OperationVc`] API, but [`OperationVc`] can be useful when dealing with [collectibles], when you need to [read the result of a function with strong consistency][crate::OperationVc::read_strongly_consistent], or with [`State`].
 
@@ -100,8 +100,8 @@ This means that `Vc` often uses the same in-memory representation as a `Resolved
 [`turbo_tasks::function`]: crate::function
 [`State`]: crate::State
 [Non-Local]: crate::NonLocalValue
-[rtc]: crate::RawVc::TaskCell
-[rto]: crate::RawVc::TaskOutput
+[rtc]: crate::RawVcUnpacked::TaskCell
+[rto]: crate::RawVcUnpacked::TaskOutput
 [loc]: #optimization-local-outputs
 [eq]: #equality--hashing
 [resolve]: crate::ResolvedVc::try_downcast
@@ -133,7 +133,7 @@ Currently, all inconsistent tasks are polled to completion. Future versions of t
 
 ## Optimization: Local Outputs
 
-In addition to the potentially-explicit "resolved" and "operation" representations of a `Vc`, there's another internal representation of a `Vc`, known as a "Local `Vc`", or [`RawVc::LocalOutput`].
+In addition to the potentially-explicit "resolved" and "operation" representations of a `Vc`, there's another internal representation of a `Vc`, known as a "Local `Vc`", or [`RawVcUnpacked::LocalOutput`].
 
 This is a special case of the synchronous return value of a [`turbo_tasks::function`] when some of its arguments have not yet been resolved. These are stored in task-local state that is freed after their parent non-local task exits.
 

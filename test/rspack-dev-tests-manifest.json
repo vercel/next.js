@@ -225,7 +225,7 @@
       "Error overlay - RSC build errors importing 'next/cache' APIs in a client component unstable_noStore is allowed",
       "Error overlay - RSC build errors next/root-params importing 'next/root-params' in a client component",
       "Error overlay - RSC build errors next/root-params importing 'next/root-params' in a client component in a way that bypasses import analysis",
-      "Error overlay - RSC build errors next/root-params importing 'next/root-params' when experimental.rootParams is not enabled",
+      "Error overlay - RSC build errors next/root-params importing a non-existent getter from 'next/root-params'",
       "Error overlay - RSC build errors should allow to use and handle rsc poisoning client-only",
       "Error overlay - RSC build errors should allow to use and handle rsc poisoning server-only",
       "Error overlay - RSC build errors should error for invalid undefined module retuning from next dynamic",
@@ -235,10 +235,10 @@
       "Error overlay - RSC build errors should error when createFactory from react is used in server component",
       "Error overlay - RSC build errors should error when flushSync from react-dom is used in server component",
       "Error overlay - RSC build errors should error when unstable_batchedUpdates from react-dom is used in server component",
-      "Error overlay - RSC build errors should error when unstable_catchError from next/error is imported in instrumentation.js",
-      "Error overlay - RSC build errors should error when unstable_catchError from next/error is imported in middleware.js",
-      "Error overlay - RSC build errors should error when unstable_catchError from next/error is imported in proxy.js",
-      "Error overlay - RSC build errors should error when unstable_catchError from next/error is used in a server component",
+      "Error overlay - RSC build errors should error when catchError from next/error is imported in instrumentation.js",
+      "Error overlay - RSC build errors should error when catchError from next/error is imported in middleware.js",
+      "Error overlay - RSC build errors should error when catchError from next/error is imported in proxy.js",
+      "Error overlay - RSC build errors should error when catchError from next/error is used in a server component",
       "Error overlay - RSC build errors should error when useActionState from react is used in server component",
       "Error overlay - RSC build errors should error when useDeferredValue from react is used in server component",
       "Error overlay - RSC build errors should error when useEffect from react is used in server component",
@@ -4901,11 +4901,11 @@
   },
   "test/e2e/app-dir/catch-error/catch-error-react-compiler.test.ts": {
     "passed": [
-      "app-dir - unstable_catchError with react compiler should recover Client Component error after reset",
-      "app-dir - unstable_catchError with react compiler should recover Client Component error after unstable_retry",
-      "app-dir - unstable_catchError with react compiler should recover Server Component error after unstable_retry",
-      "app-dir - unstable_catchError with react compiler should recover after reset on Pages Router",
-      "app-dir - unstable_catchError with react compiler should throw when unstable_retry is called on Pages Router"
+      "app-dir - catchError with react compiler should recover Client Component error after reset",
+      "app-dir - catchError with react compiler should recover Client Component error after retry",
+      "app-dir - catchError with react compiler should recover Server Component error after retry",
+      "app-dir - catchError with react compiler should recover after reset on Pages Router",
+      "app-dir - catchError with react compiler should throw when retry is called on Pages Router"
     ],
     "failed": [],
     "pending": [],
@@ -4914,11 +4914,11 @@
   },
   "test/e2e/app-dir/catch-error/catch-error.test.ts": {
     "passed": [
-      "app-dir - unstable_catchError should recover Client Component error after reset",
-      "app-dir - unstable_catchError should recover Client Component error after unstable_retry",
-      "app-dir - unstable_catchError should recover Server Component error after unstable_retry",
-      "app-dir - unstable_catchError should recover after reset on Pages Router",
-      "app-dir - unstable_catchError should throw when unstable_retry is called on Pages Router"
+      "app-dir - catchError should recover Client Component error after reset",
+      "app-dir - catchError should recover Client Component error after retry",
+      "app-dir - catchError should recover Server Component error after retry",
+      "app-dir - catchError should recover after reset on Pages Router",
+      "app-dir - catchError should throw when retry is called on Pages Router"
     ],
     "failed": [],
     "pending": [],
@@ -5661,8 +5661,8 @@
       "app-dir - errors error component should trigger error component when null is thrown during server components rendering",
       "app-dir - errors error component should trigger error component when undefined is thrown during server components rendering",
       "app-dir - errors error component should use default error boundary for prod and overlay for dev when no error component specified",
-      "app-dir - errors error component unstable_retry should recover Client Component error after unstable_retry",
-      "app-dir - errors error component unstable_retry should recover Server Component error after unstable_retry"
+      "app-dir - errors error component retry should recover Client Component error after retry",
+      "app-dir - errors error component retry should recover Server Component error after retry"
     ],
     "failed": [],
     "pending": [],
@@ -6070,11 +6070,11 @@
   },
   "test/e2e/app-dir/instant-validation-causes/instant-validation-causes.test.ts": {
     "passed": [
-      "instant validation causes aliased export - export { instant as unstable_instant }",
-      "instant validation causes does not add an instant stack for random unstable_instant exports",
-      "instant validation causes indirect export - const instant = _instant; export { instant as unstable_instant }",
-      "instant validation causes named export - export { unstable_instant }",
-      "instant validation causes re-export - export { unstable_instant } from \"./config\""
+      "instant validation causes aliased export - export { instantConfig as instant }",
+      "instant validation causes does not add an instant stack for random instant exports",
+      "instant validation causes indirect export - const instantConfig = _instant; export { instantConfig as instant }",
+      "instant validation causes named export - export { instant }",
+      "instant validation causes re-export - export { instant } from \"./config\""
     ],
     "failed": [],
     "pending": [],
@@ -6083,7 +6083,7 @@
   },
   "test/e2e/app-dir/instant-validation-client/instant-validation-client.test.ts": {
     "passed": [
-      "app dir - instant-validation-client should error when a client component exports unstable_instant"
+      "app dir - instant-validation-client should error when a client component exports instant"
     ],
     "failed": [],
     "pending": [],
@@ -6141,7 +6141,7 @@
       "instant validation dev - client navigation blocking invalid - blocking page inside a runtime layout is not allowed if the layout has no suspense",
       "instant validation dev - client navigation blocking invalid - blocking page inside a static layout is not allowed if the layout has no suspense",
       "instant validation dev - client navigation blocking invalid - missing suspense inside blocking layout",
-      "instant validation dev - client navigation blocking valid - blocking layout with unstable_instant = false is allowed to block",
+      "instant validation dev - client navigation blocking valid - blocking layout with instant = false is allowed to block",
       "instant validation dev - client navigation blocking valid - blocking page inside a runtime layout is allowed if the layout has suspense",
       "instant validation dev - client navigation blocking valid - blocking page inside a static layout is allowed if the layout has suspense",
       "instant validation dev - client navigation client components unable to validate - parent suspends on client data and blocks children",
@@ -6210,7 +6210,7 @@
       "instant validation dev - initial load blocking invalid - blocking page inside a runtime layout is not allowed if the layout has no suspense",
       "instant validation dev - initial load blocking invalid - blocking page inside a static layout is not allowed if the layout has no suspense",
       "instant validation dev - initial load blocking invalid - missing suspense inside blocking layout",
-      "instant validation dev - initial load blocking valid - blocking layout with unstable_instant = false is allowed to block",
+      "instant validation dev - initial load blocking valid - blocking layout with instant = false is allowed to block",
       "instant validation dev - initial load blocking valid - blocking page inside a runtime layout is allowed if the layout has suspense",
       "instant validation dev - initial load blocking valid - blocking page inside a static layout is allowed if the layout has suspense",
       "instant validation dev - initial load client components unable to validate - parent suspends on client data and blocks children",

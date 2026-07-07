@@ -255,12 +255,10 @@ describeExpectation = (...) => DESCRIBE_EXPECTATION_FNS[expectation["type"]](exp
 describeExpected = (...) => (
   | descriptions[0]
   | `${descriptions[0]} or ${descriptions[1]}`
-  | `${descriptions["slice"](0, ???*0*)["join"](", ")}, or ${descriptions[???*1*]}`
+  | `${descriptions["slice"](0, -1)["join"](", ")}, or ${descriptions[???*0*]}`
   | undefined
 )
 - *0* unsupported expression
-  ⚠️  This value might have side effects
-- *1* unsupported expression
   ⚠️  This value might have side effects
 
 describeFound = (...) => (found ? `"${literalEscape(found)}"` : "end of input")

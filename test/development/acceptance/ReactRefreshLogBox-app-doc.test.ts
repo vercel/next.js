@@ -112,7 +112,7 @@ describe('ReactRefreshLogBox _app _document', () => {
          "environmentLabel": null,
          "label": "Build Error",
          "source": "./pages/_app.js (2:10)
-       Expression expected
+       Error: Expression expected
        > 2 |   return <<Component {...pageProps} />;
            |          ^^",
          "stack": [],
@@ -231,7 +231,7 @@ describe('ReactRefreshLogBox _app _document', () => {
          "environmentLabel": null,
          "label": "Build Error",
          "source": "./pages/_document.js (3:36)
-       Unexpected token \`{\`. Expected identifier, string literal, numeric literal or [ for the computed key
+       Error: Unexpected token \`{\`. Expected identifier, string literal, numeric literal or [ for the computed key
        > 3 | class MyDocument extends Document {{
            |                                    ^",
          "stack": [],

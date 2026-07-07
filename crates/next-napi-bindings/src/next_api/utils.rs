@@ -12,7 +12,9 @@ use napi::{
     threadsafe_function::{ThreadSafeCallContext, ThreadsafeFunction, ThreadsafeFunctionCallMode},
 };
 use napi_derive::napi;
-use next_code_frame::{CodeFrameLocation, CodeFrameOptions, Location, render_code_frame};
+use next_code_frame::{
+    CodeFrameColorMode, CodeFrameLocation, CodeFrameOptions, Location, render_code_frame,
+};
 use regex::Regex;
 use rustc_hash::FxHashMap;
 use serde::Serialize;
@@ -107,7 +109,7 @@ pub fn root_task_dispose(
 /// [consume]: turbo_tasks::CollectiblesSource::take_collectibles
 pub async fn get_issues<T: Send>(
     source: OperationVc<T>,
-    filter: Vc<IssueFilter>,
+    filter: &IssueFilter,
 ) -> Result<Arc<Vec<ReadRef<PlainIssue>>>> {
     Ok(Arc::new(
         source.peek_issues().get_plain_issues(filter).await?,
@@ -149,7 +151,11 @@ fn is_internal(file_path: &str) -> bool {
 ///
 /// Because this accesses the terminal size, this function call should not be cached (e.g. in
 /// turbo-tasks).
-fn render_source_code_frame(source: &PlainIssueSource, file_path: &str) -> Result<Option<String>> {
+fn render_source_code_frame(
+    severity: IssueSeverity,
+    source: &PlainIssueSource,
+    file_path: &str,
+) -> Result<Option<String>> {
     let Some((start, end)) = source.range else {
         return Ok(None);
     };
@@ -184,7 +190,16 @@ fn render_source_code_frame(source: &PlainIssueSource, file_path: &str) -> Resul
         &content,
         &location,
         &CodeFrameOptions {
-            color: true,
+            color: match severity {
+                IssueSeverity::Bug | IssueSeverity::Fatal | IssueSeverity::Error => {
+                    CodeFrameColorMode::Error
+                }
+                IssueSeverity::Warning => CodeFrameColorMode::Warning,
+                IssueSeverity::Hint
+                | IssueSeverity::Note
+                | IssueSeverity::Suggestion
+                | IssueSeverity::Info => CodeFrameColorMode::Info,
+            },
             highlight_code: true,
             max_width: terminal_size::terminal_size()
                 .map(|(w, _)| w.0 as usize)
@@ -199,7 +214,7 @@ fn render_issue_code_frame(issue: &PlainIssue) -> Result<Option<String>> {
     let Some(source) = issue.source.as_ref() else {
         return Ok(None);
     };
-    render_source_code_frame(source, &issue.file_path)
+    render_source_code_frame(issue.severity, source, &issue.file_path)
 }
 
 #[napi(object)]
@@ -248,8 +263,12 @@ impl From<&PlainIssue> for NapiIssue {
                 .iter()
                 .map(|s| NapiAdditionalIssueSource {
                     description: s.description.clone(),
-                    code_frame: render_source_code_frame(&s.source, &s.source.asset.file_path)
-                        .unwrap_or_default(),
+                    code_frame: render_source_code_frame(
+                        issue.severity,
+                        &s.source,
+                        &s.source.asset.file_path,
+                    )
+                    .unwrap_or_default(),
                     source: (&s.source).into(),
                 })
                 .collect(),
@@ -447,7 +466,7 @@ pub fn subscribe<T: 'static + Send + Sync, F: Future<Output = Result<T>> + Send,
 // propagate any actual error results.
 pub async fn strongly_consistent_catch_collectables<R: VcValueType + Send>(
     source_op: OperationVc<R>,
-    filter: Vc<IssueFilter>,
+    filter: &IssueFilter,
 ) -> Result<(
     Option<ReadRef<R>>,
     Arc<Vec<ReadRef<PlainIssue>>>,

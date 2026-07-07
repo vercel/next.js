@@ -6,6 +6,9 @@ const nextConfig = {
   experimental: {
     cpus: 1,
     serverSourceMaps: true,
+    instantInsights: {
+      validationLevel: 'manual-warning',
+    },
   },
   serverExternalPackages: ['external-pkg'],
 }

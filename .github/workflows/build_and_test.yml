@@ -22,7 +22,7 @@ env:
 
 jobs:
   optimize-ci:
-    uses: ./.github/workflows/graphite_ci_optimizer.yml
+    uses: ./.github/workflows/pr_stack_optimizer.yml
     secrets: inherit
 
   changes:
@@ -31,9 +31,10 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           fetch-depth: 25
+          persist-credentials: false
 
       - name: check for docs only change
         id: docs-change
@@ -115,7 +116,19 @@ jobs:
     with:
       skipInstallBuild: 'yes'
       stepName: 'build-native'
-      uploadNativeArtifact: 'next-swc-linux'
+      uploadNativeArtifact: true
+    secrets: inherit
+
+  build-native-x64:
+    name: build-native-x64
+    uses: ./.github/workflows/build_reusable.yml
+    needs: ['changes']
+    if: ${{ needs.changes.outputs.docs-only == 'false' }}
+    with:
+      skipInstallBuild: 'yes'
+      stepName: 'build-native-x64'
+      runs_on_labels: '["ubuntu-latest-16-core-oss"]'
+      uploadNativeArtifact: true
     secrets: inherit
 
   build-native-windows:
@@ -127,8 +140,7 @@ jobs:
       skipInstallBuild: 'yes'
       stepName: 'build-native-windows'
       runs_on_labels: '["windows-latest-8-core-oss"]'
-      buildNativeTarget: 'x86_64-pc-windows-msvc'
-      uploadNativeArtifact: 'next-swc-windows'
+      uploadNativeArtifact: true
 
     secrets: inherit
 
@@ -148,10 +160,11 @@ jobs:
     if: ${{ needs.changes.outputs.docs-only == 'false' }}
     steps:
       - name: Setup Node.js
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
         with:
           node-version: ${{ env.NODE_LTS_VERSION }}
           check-latest: true
+          package-manager-cache: false
 
       - name: Setup pnpm
         run: |
@@ -159,20 +172,19 @@ jobs:
           corepack enable
 
       - name: Checkout
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           fetch-depth: 25
+          persist-credentials: false
 
       # Match the reusable workflow's pnpm-store cache path so this setup-only
       # job does not bottleneck the larger test matrix.
       - name: Get pnpm store directory
-        if: ${{ runner.environment == 'github-hosted' }}
         id: get-store-path
         run: echo STORE_PATH="$(pnpm store path)" >> "$GITHUB_OUTPUT"
 
       - name: Cache pnpm store
-        if: ${{ runner.environment == 'github-hosted' }}
-        uses: actions/cache@v5
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         timeout-minutes: 5
         id: cache-pnpm-store
         with:
@@ -218,16 +230,24 @@ jobs:
         pnpm lint-no-typescript
         pnpm check-examples
         pnpm validate-externals-doc
+        # Regenerate the browser-variant lists and fail if they changed, i.e. a
+        # `*.browser.{ts,tsx}` sibling was added/removed without running
+        # `pnpm generate-browser-variant-aliases` and committing the result.
+        pnpm generate-browser-variant-aliases
+        git diff --exit-code
       stepName: 'lint'
     secrets: inherit
 
   validate-docs-links:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
         with:
           node-version: 20
+          package-manager-cache: false
       - name: Setup corepack
         run: |
           npm i -g corepack@0.31
@@ -261,6 +281,13 @@ jobs:
       skipInstallBuild: 'yes'
       afterBuild: pnpm dlx turbo@${TURBO_VERSION} run test-cargo-unit ${TURBO_ARGS}
       stepName: 'test-cargo-unit'
+      # Run on x86-64 instead of arm64/aarch64. The pnpm workspace in
+      # turbopack/crates/turbopack-tracing/tests/node-file-trace pulls in a ton
+      # of old native dependencies that do not support arm64. We can't easily
+      # update these, because the goal of the NFT tests is to ensure we can
+      # trace unusual packages, who may have since changed how they package
+      # themselves.
+      runs_on_labels: '["ubuntu-latest-16-core-oss"]'
     secrets: inherit
 
   test-bench:
@@ -304,7 +331,9 @@ jobs:
     runs-on: ubuntu-latest
     name: ast-grep lint
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
       - name: ast-grep lint step
         uses: ast-grep/action@cf62e780f0c88301228978d593a7784427a097a6 # v1.5.0
         with:
@@ -330,7 +359,7 @@ jobs:
     with:
       afterBuild: |
         ./node_modules/.bin/devlow-bench ./scripts/devlow-bench.mjs \
-          --datadog=ubuntu-latest-16-core \
+          --datadog=ubuntu-latest-16-core-arm-oss \
           ${{ matrix.mode }} \
           ${{ matrix.selector }}
       stepName: 'devlow-bench-${{ matrix.mode }}-${{ matrix.selector }}'
@@ -377,6 +406,7 @@ jobs:
         export NEXT_TEST_MODE=dev
         export NEXT_TEST_REACT_VERSION="${{ matrix.react }}"
         export __NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES=true
+        export __NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER=false
         export RUST_BACKTRACE=1
 
         node run-tests.js \
@@ -386,6 +416,7 @@ jobs:
           -g ${{ matrix.group }}
       testTimingsArtifact: 'test-timings'
       stepName: 'test-turbopack-dev-react-${{ matrix.react }}-${{ matrix.group }}'
+      runs_on_labels: '["ubuntu-latest-16-core-arm-oss"]'
     secrets: inherit
 
   test-turbopack-production:
@@ -418,11 +449,13 @@ jobs:
         export NEXT_TEST_MODE=start
         export NEXT_TEST_REACT_VERSION="${{ matrix.react }}"
         export __NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES=true
+        export __NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER=false
         export RUST_BACKTRACE=1
 
         node run-tests.js --timings --require-timings -g ${{ matrix.group }} --type production
       testTimingsArtifact: 'test-timings'
       stepName: 'test-turbopack-production-react-${{ matrix.react }}-${{ matrix.group }}'
+      runs_on_labels: '["ubuntu-latest-16-core-arm-oss"]'
     secrets: inherit
 
   test-rspack-dev:
@@ -447,11 +480,13 @@ jobs:
         react: ['', '18.3.1']
     uses: ./.github/workflows/build_reusable.yml
     with:
+      nodeVersion: 20.19.x
       afterBuild: |
         export NEXT_EXTERNAL_TESTS_FILTERS="$(pwd)/test/rspack-dev-tests-manifest.json"
         export NEXT_TEST_MODE=dev
         export NEXT_TEST_REACT_VERSION="${{ matrix.react }}"
         export __NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES=true
+        export __NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER=false
 
         # rspack flags
         export NEXT_RSPACK=1
@@ -492,12 +527,13 @@ jobs:
         react: ['', '18.3.1']
     uses: ./.github/workflows/build_reusable.yml
     with:
-      nodeVersion: 20.9.0
+      nodeVersion: 20.19.x
       afterBuild: |
         export NEXT_EXTERNAL_TESTS_FILTERS="$(pwd)/test/rspack-build-tests-manifest.json"
         export NEXT_TEST_MODE=start
         export NEXT_TEST_REACT_VERSION="${{ matrix.react }}"
         export __NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES=true
+        export __NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER=false
 
         # rspack flags
         export NEXT_RSPACK=1
@@ -584,7 +620,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        node: [22, 24]
+        # Playwright hangs on Node 24.16+, we can remove this exact node version
+        # pin once we update to playwright 1.60.0 or newer.
+        # https://github.com/microsoft/playwright/issues/40724
+        node: [22, '24.15.0']
 
     uses: ./.github/workflows/build_reusable.yml
     with:
@@ -606,7 +645,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        node: [22, 24]
+        # Playwright hangs on Node 24.16+, we can remove this exact node version
+        # pin once we update to playwright 1.60.0 or newer.
+        node: [22, '24.15.0']
 
     uses: ./.github/workflows/build_reusable.yml
     with:
@@ -636,7 +677,6 @@ jobs:
       afterBuild: node run-tests.js --type unit
       stepName: 'test-unit-windows-${{ matrix.node }}'
       runs_on_labels: '["windows-latest-8-core-oss"]'
-      buildNativeTarget: 'x86_64-pc-windows-msvc'
 
     secrets: inherit
 
@@ -650,12 +690,13 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        group: [1/10, 2/10, 3/10, 4/10, 5/10, 6/10, 7/10, 8/10, 9/10, 10/10]
+        group: [1/5, 2/5, 3/5, 4/5, 5/5]
 
     uses: ./.github/workflows/build_reusable.yml
     with:
       afterBuild: |
         export __NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES=true
+        export __NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER=false
         node scripts/test-new-tests.mjs \
           --flake-detection \
           --mode dev \
@@ -676,12 +717,13 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        group: [1/10, 2/10, 3/10, 4/10, 5/10, 6/10, 7/10, 8/10, 9/10, 10/10]
+        group: [1/5, 2/5, 3/5, 4/5, 5/5]
 
     uses: ./.github/workflows/build_reusable.yml
     with:
       afterBuild: |
         export __NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES=true
+        export __NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER=false
         node scripts/test-new-tests.mjs \
           --flake-detection \
           --mode start \
@@ -711,6 +753,7 @@ jobs:
         export NEXT_ENABLE_ADAPTER=1
         export NEXT_E2E_TEST_TIMEOUT=240000
         export __NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES=true
+        export __NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER=false
         node scripts/test-new-tests.mjs \
           --mode deploy \
           --group ${{ matrix.group }} \
@@ -742,7 +785,6 @@ jobs:
       afterBuild: |
         export __NEXT_CACHE_COMPONENTS=true
         export __NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS=true
-        export __NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER=true
         export NEXT_ENABLE_ADAPTER=1
         export NEXT_EXTERNAL_TESTS_FILTERS="test/deploy-tests-manifest.json,test/cache-components-tests-manifest.json"
         export NEXT_E2E_TEST_TIMEOUT=240000
@@ -760,7 +802,7 @@ jobs:
       [
         'optimize-ci',
         'changes',
-        'build-native',
+        'build-native-x64',
         'build-next',
         'fetch-test-timings',
       ]
@@ -782,6 +824,7 @@ jobs:
         export NEXT_TEST_MODE=dev
         export NEXT_TEST_REACT_VERSION="${{ matrix.react }}"
         export __NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES=true
+        export __NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER=false
 
         node run-tests.js \
           --timings \
@@ -790,6 +833,7 @@ jobs:
           --type development
       testTimingsArtifact: 'test-timings'
       stepName: 'test-dev-react-${{ matrix.react }}-${{ matrix.group }}'
+      runs_on_labels: '["ubuntu-latest-16-core-oss"]'
     secrets: inherit
 
   test-dev-windows:
@@ -799,11 +843,12 @@ jobs:
 
     uses: ./.github/workflows/build_reusable.yml
     with:
-      # Should this be using turbopack? a variation?
       afterBuild: |
         export NEXT_TEST_MODE=dev
-        export IS_WEBPACK_TEST=1
         export __NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES=true
+        export __NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER=false
+        export IS_TURBOPACK_TEST=1
+        export TURBOPACK_DEV=1
 
         node run-tests.js \
           test/e2e/app-dir/app/index.test.ts \
@@ -812,7 +857,6 @@ jobs:
           test/development/app-dir/segment-explorer/segment-explorer.test.ts
       stepName: 'test-dev-windows'
       runs_on_labels: '["windows-latest-8-core-oss"]'
-      buildNativeTarget: 'x86_64-pc-windows-msvc'
     secrets: inherit
 
   test-integration-windows:
@@ -825,8 +869,11 @@ jobs:
       nodeVersion: 20.9.0
       afterBuild: |
         export NEXT_TEST_MODE=start
-        export IS_WEBPACK_TEST=1
         export __NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES=true
+        export __NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER=false
+        export IS_TURBOPACK_TEST=1
+        export TURBOPACK_BUILD=1
+
         node run-tests.js --type production \
           --concurrency 4 \
           test/production/pages-dir/production/test/index.test.ts \
@@ -836,7 +883,6 @@ jobs:
           test/production/create-next-app/package-manager/pnpm.test.ts
       stepName: 'test-integration-windows'
       runs_on_labels: '["windows-latest-8-core-oss"]'
-      buildNativeTarget: 'x86_64-pc-windows-msvc'
     secrets: inherit
 
   test-prod-windows:
@@ -848,8 +894,10 @@ jobs:
     with:
       afterBuild: |
         export NEXT_TEST_MODE=start
-        export IS_WEBPACK_TEST=1
         export __NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES=true
+        export __NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER=false
+        export IS_TURBOPACK_TEST=1
+        export TURBOPACK_BUILD=1
 
         node run-tests.js --type production \
           test/e2e/app-dir/app/index.test.ts \
@@ -859,7 +907,6 @@ jobs:
           test/e2e/app-dir/proxy-runtime-nodejs/proxy-runtime-nodejs.test.ts
       stepName: 'test-prod-windows'
       runs_on_labels: '["windows-latest-8-core-oss"]'
-      buildNativeTarget: 'x86_64-pc-windows-msvc'
     secrets: inherit
 
   test-prod:
@@ -868,7 +915,7 @@ jobs:
       [
         'optimize-ci',
         'changes',
-        'build-native',
+        'build-native-x64',
         'build-next',
         'fetch-test-timings',
       ]
@@ -890,10 +937,12 @@ jobs:
         export NEXT_TEST_MODE=start
         export NEXT_TEST_REACT_VERSION="${{ matrix.react }}"
         export __NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES=true
+        export __NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER=false
 
         node run-tests.js --timings --require-timings -g ${{ matrix.group }} --type production
       testTimingsArtifact: 'test-timings'
       stepName: 'test-prod-react-${{ matrix.react }}-${{ matrix.group }}'
+      runs_on_labels: '["ubuntu-latest-16-core-oss"]'
     secrets: inherit
 
   test-firefox-safari:
@@ -908,15 +957,18 @@ jobs:
         # these all run without concurrency because they're heavier
         export TEST_CONCURRENCY=1
         export IS_TURBOPACK_TEST=1
+        export __NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER=false
         TURBOPACK_BUILD=1 NEXT_TEST_MODE=start BROWSER_NAME=firefox node run-tests.js \
           test/production/pages-dir/production/test/index.test.ts \
           test/production/chunk-load-failure/chunk-load-failure.test.ts
 
         TURBOPACK_DEV=1 NEXT_TEST_MODE=dev BROWSER_NAME=firefox node run-tests.js \
-          test/e2e/app-dir/scss/hmr-module/hmr-module.test.ts
+          test/e2e/app-dir/scss/hmr-module/hmr-module.test.ts \
+          test/e2e/app-dir/bfcache-regression/bfcache-regression.test.ts
 
         TURBOPACK_DEV=1 NEXT_TEST_MODE=dev BROWSER_NAME=safari node run-tests.js \
-          test/e2e/app-dir/scss/hmr-module/hmr-module.test.ts
+          test/e2e/app-dir/scss/hmr-module/hmr-module.test.ts \
+          test/e2e/app-dir/bfcache-regression/bfcache-regression.test.ts
 
         TURBOPACK_BUILD=1 NEXT_TEST_MODE=start BROWSER_NAME=safari node run-tests.js \
           test/production/pages-dir/production/test/index.test.ts \
@@ -950,10 +1002,11 @@ jobs:
       afterBuild: |
         export __NEXT_CACHE_COMPONENTS=true
         export __NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS=true
-        export __NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER=true
+        export __NEXT_EXPERIMENTAL_SERVER_COMPONENTS_HMR_CANCELLATION=true
         export NEXT_EXTERNAL_TESTS_FILTERS="test/cache-components-tests-manifest.json"
         export NEXT_TEST_MODE=dev
-        export IS_WEBPACK_TEST=1
+        export IS_TURBOPACK_TEST=1
+        export TURBOPACK_DEV=1
 
         node run-tests.js \
           --timings \
@@ -985,10 +1038,11 @@ jobs:
       afterBuild: |
         export __NEXT_CACHE_COMPONENTS=true
         export __NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS=true
-        export __NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER=true
+        export __NEXT_EXPERIMENTAL_SERVER_COMPONENTS_HMR_CANCELLATION=true
         export NEXT_EXTERNAL_TESTS_FILTERS="test/cache-components-tests-manifest.json"
         export NEXT_TEST_MODE=start
-        export IS_WEBPACK_TEST=1
+        export IS_TURBOPACK_TEST=1
+        export TURBOPACK_BUILD=1
 
         node run-tests.js \
           --timings \
@@ -999,168 +1053,46 @@ jobs:
       stepName: 'test-cache-components-prod-${{ matrix.group }}'
     secrets: inherit
 
-  test-node-streams-cache-components-dev:
-    name: test node streams cache components dev
-    needs:
-      [
-        'optimize-ci',
-        'changes',
-        'build-native',
-        'build-next',
-        'fetch-test-timings',
-      ]
-    if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
-
-    strategy:
-      fail-fast: false
-      matrix:
-        group: [1/6, 2/6, 3/6, 4/6, 5/6, 6/6]
-    uses: ./.github/workflows/build_reusable.yml
-    with:
-      afterBuild: |
-        export __NEXT_USE_NODE_STREAMS=true
-        export __NEXT_CACHE_COMPONENTS=true
-        export __NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS=true
-        export __NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER=true
-        export NEXT_EXTERNAL_TESTS_FILTERS="test/cache-components-tests-manifest.json"
-        export NEXT_TEST_MODE=dev
-        export IS_WEBPACK_TEST=1
-
-        node run-tests.js \
-          --timings \
-          --require-timings \
-          -g ${{ matrix.group }} \
-          --type development
-      testTimingsArtifact: 'test-timings'
-      stepName: 'test-node-streams-cache-components-dev-${{ matrix.group }}'
-    secrets: inherit
-
-  test-node-streams-cache-components-prod:
-    name: test node streams cache components prod
-    needs:
-      [
-        'optimize-ci',
-        'changes',
-        'build-native',
-        'build-next',
-        'fetch-test-timings',
-      ]
-    if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
-
-    strategy:
-      fail-fast: false
-      matrix:
-        group: [1/7, 2/7, 3/7, 4/7, 5/7, 6/7, 7/7]
-    uses: ./.github/workflows/build_reusable.yml
-    with:
-      afterBuild: |
-        export __NEXT_USE_NODE_STREAMS=true
-        export __NEXT_CACHE_COMPONENTS=true
-        export __NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS=true
-        export __NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER=true
-        export NEXT_EXTERNAL_TESTS_FILTERS="test/cache-components-tests-manifest.json"
-        export NEXT_TEST_MODE=start
-        export IS_WEBPACK_TEST=1
-
-        node run-tests.js \
-          --timings \
-          --require-timings \
-          -g ${{ matrix.group }} \
-          --type production
-      testTimingsArtifact: 'test-timings'
-      stepName: 'test-node-streams-cache-components-prod-${{ matrix.group }}'
-    secrets: inherit
-
-  test-node-streams-dev:
-    name: test node streams dev
-    needs: ['optimize-ci', 'changes', 'build-native', 'build-next']
-    if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
-
-    strategy:
-      fail-fast: false
-      matrix:
-        group: [1/6, 2/6, 3/6, 4/6, 5/6, 6/6]
-    uses: ./.github/workflows/build_reusable.yml
-    with:
-      afterBuild: |
-        export __NEXT_USE_NODE_STREAMS=true
-        export NEXT_EXTERNAL_TESTS_FILTERS="test/cache-components-tests-manifest.json,test/use-node-streams-tests-manifest.json"
-        export NEXT_TEST_MODE=dev
-        export IS_TURBOPACK_TEST=1
-        export TURBOPACK_DEV=1
-        export __NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES=true
-        export RUST_BACKTRACE=1
-
-        node run-tests.js \
-          --timings \
-          -g ${{ matrix.group }} \
-          --type development
-      stepName: 'test-node-streams-dev-${{ matrix.group }}'
-    secrets: inherit
-
-  test-node-streams-prod:
-    name: test node streams prod
-    needs: ['optimize-ci', 'changes', 'build-native', 'build-next']
-    if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
-
-    strategy:
-      fail-fast: false
-      matrix:
-        group: [1/7, 2/7, 3/7, 4/7, 5/7, 6/7, 7/7]
-    uses: ./.github/workflows/build_reusable.yml
-    with:
-      afterBuild: |
-        export __NEXT_USE_NODE_STREAMS=true
-        export NEXT_EXTERNAL_TESTS_FILTERS="test/cache-components-tests-manifest.json,test/use-node-streams-tests-manifest.json"
-        export NEXT_TEST_MODE=start
-        export IS_TURBOPACK_TEST=1
-        export TURBOPACK_BUILD=1
-        export __NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES=true
-        export RUST_BACKTRACE=1
-
-        node run-tests.js \
-          --timings \
-          -g ${{ matrix.group }} \
-          --type production
-      stepName: 'test-node-streams-prod-${{ matrix.group }}'
-    secrets: inherit
-
+  # We block merging unless this job passes. This is enforced by a "require
+  # status checks to pass" rule on the canary branch.
+  # <https://github.com/vercel/next.js/settings/rules/15507172>
   tests-pass:
     needs:
-      [
-        'build-native',
-        'build-next',
-        'lint',
-        'validate-docs-links',
-        'check-types-precompiled',
-        'test-unit',
-        'test-next-config-ts-native-ts-dev',
-        'test-next-config-ts-native-ts-prod',
-        'test-dev',
-        'test-prod',
-        'test-firefox-safari',
-        'test-cache-components-dev',
-        'test-cache-components-prod',
-        'test-node-streams-cache-components-dev',
-        'test-node-streams-cache-components-prod',
-        'test-node-streams-dev',
-        'test-node-streams-prod',
-        'test-cargo-unit',
-        'rust-check',
-        'rustdoc-check',
-        'test-next-swc-wasm',
-        'test-turbopack-dev',
-        'test-new-tests-dev',
-        'test-new-tests-start',
-        'test-new-tests-deploy',
-        'test-new-tests-deploy-cache-components',
-        'test-turbopack-production',
-        'test-unit-windows',
-        'test-dev-windows',
-        'test-integration-windows',
-        'test-prod-windows',
-      ]
-
+      # Note: Some of these jobs are dependencies of other test jobs. If they
+      # fail, they'll cause the dependent test job to be skipped, which could
+      # cause this aggregation job to incorrectly pass if the dependency job is
+      # not listed here.
+      - optimize-ci
+      - changes
+      - build-native
+      - build-native-x64
+      - build-next
+      - fetch-test-timings
+      - lint
+      - validate-docs-links
+      - check-types-precompiled
+      - test-unit
+      - test-next-config-ts-native-ts-dev
+      - test-next-config-ts-native-ts-prod
+      - test-dev
+      - test-prod
+      - test-firefox-safari
+      - test-cache-components-dev
+      - test-cache-components-prod
+      - test-cargo-unit
+      - rust-check
+      - rustdoc-check
+      - test-next-swc-wasm
+      - test-turbopack-dev
+      - test-new-tests-dev
+      - test-new-tests-start
+      - test-new-tests-deploy
+      - test-new-tests-deploy-cache-components
+      - test-turbopack-production
+      - test-unit-windows
+      - test-dev-windows
+      - test-integration-windows
+      - test-prod-windows
     if: always()
     runs-on: ubuntu-latest
     # Coupled with retry logic in retry_test.yml
