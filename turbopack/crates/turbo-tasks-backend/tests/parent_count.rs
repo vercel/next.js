@@ -426,3 +426,32 @@ async fn gc_does_not_collect_pinned_task() {
 
     tt.stop_and_wait().await;
 }
+
+/// Unpinning a task after the backend has started stopping must not panic. This mirrors the real
+/// shutdown ordering: a `DetachedVc` handed to JS across NAPI is finalized (dropped, which unpins)
+/// during Node worker teardown, which can run *after* `stop()` has dropped the whole task map.
+/// pin/unpin are gated on the `stopping` flag (set before the map is dropped) so a late unpin is a
+/// no-op rather than resurrecting a blank entry and underflowing `transient_ref_count`.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn unpin_after_stop_does_not_panic() {
+    let (tt, _persistence_dir) = create_tt("unpin_after_stop_does_not_panic");
+
+    // Pin a real task inside a session (as `prevent_gc` / `DetachedVc::new` would).
+    let tt2 = tt.clone();
+    let leaf_id = turbo_tasks::run_once(tt.clone(), async move {
+        unmark_top_level_task_may_leak_eventually_consistent_state();
+        let id = task_id_of(leaf(7).resolve().await?);
+        tt2.pin_task_for_gc(id);
+        anyhow::Ok(id)
+    })
+    .await
+    .unwrap();
+
+    // Stop the backend — this drops the in-memory task map, so the pinned task is no longer
+    // resident (exactly as at `next build` shutdown).
+    tt.stop_and_wait().await;
+
+    // Unpin after teardown, as a `DetachedVc`'s `Drop` finalized during Node worker cleanup would.
+    // The task is gone from the map, so this must be a harmless no-op — not an underflow panic.
+    tt.unpin_task_for_gc(leaf_id);
+}

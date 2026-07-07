@@ -4070,6 +4070,14 @@ impl Backend for TurboTasksBackend {
     }
 
     fn pin_task_for_gc(&self, task: TaskId, _turbo_tasks: &TurboTasks<Self>) {
+        // Once the backend is stopping, GC bookkeeping is irrelevant (the whole task map is torn
+        // down in `stop()`), so pin/unpin become no-ops. This also makes them safe against handles
+        // finalized during shutdown — e.g. a `DetachedVc` handed to JS across NAPI is dropped
+        // (which unpins) during Node worker teardown, *after* `stop()` has dropped the map; without
+        // this gate that unpin would resurrect a blank entry and underflow `transient_ref_count`.
+        if self.stopping.load(Ordering::Acquire) {
+            return;
+        }
         // A pin is an in-session reference from outside the tracked graph (an explicit
         // `prevent_gc`, or a detached handle like `DetachedVc` holding the task's
         // `OperationVc` across NAPI). It is counted the same way a transient parent's edge
@@ -4083,6 +4091,11 @@ impl Backend for TurboTasksBackend {
     }
 
     fn unpin_task_for_gc(&self, task: TaskId, _turbo_tasks: &TurboTasks<Self>) {
+        // See `pin_task_for_gc`: no-op once stopping, so handles finalized during shutdown (after
+        // the map is dropped) don't underflow the count.
+        if self.stopping.load(Ordering::Acquire) {
+            return;
+        }
         self.storage
             .access_mut(task)
             .gc_decrement_transient_ref_count();
