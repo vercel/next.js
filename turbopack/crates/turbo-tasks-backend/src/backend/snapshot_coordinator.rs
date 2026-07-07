@@ -383,6 +383,59 @@ pub struct GcPhase<'a, O> {
     coord: &'a SnapshotCoordinator<O>,
 }
 
+impl<'a, O> GcPhase<'a, O> {
+    /// Atomically transitions from the GC phase directly into a snapshot phase **without ever
+    /// releasing operation exclusion**. Under the state lock it clears the GC request bit and sets
+    /// the snapshot request bit in one critical section, so no operation can start in between (an
+    /// operation blocks while *either* bit is set). This closes the race where a mutation could
+    /// resurrect a just-collected task in the gap between the GC pass and the snapshot: with an
+    /// atomic hand-off there is no such gap, so the GC cascade's `parent_count` decrements and the
+    /// snapshot see a consistent graph.
+    ///
+    /// Because operations were already drained to zero by `begin_gc`, no further draining is
+    /// needed.
+    pub fn into_snapshot(self) -> SnapshotPhase<'a, O> {
+        let coord = self.coord;
+        // Do not run `GcPhase::Drop` — we are handing the exclusion off to the snapshot phase, not
+        // releasing it. `forget` leaves the GC bit set; we clear it (and set the snapshot bit)
+        // below under the lock.
+        std::mem::forget(self);
+
+        let mut state = coord.state.lock();
+        debug_assert!(state.gc_requested, "into_snapshot: GC phase was not active");
+        debug_assert!(
+            !state.snapshot_requested,
+            "into_snapshot: a snapshot was already in flight"
+        );
+        state.gc_requested = false;
+        state.snapshot_requested = true;
+        // Swap the bits atomically: clear GC, set snapshot, in one AcqRel RMW. Operations that
+        // observe the value either before or after still see a request bit set, so none can start.
+        let prev = coord.in_progress_operations.fetch_add(
+            SNAPSHOT_REQUESTED_BIT.wrapping_sub(GC_REQUESTED_BIT),
+            Ordering::AcqRel,
+        );
+        assert!(
+            (prev & GC_REQUESTED_BIT) != 0 && (prev & SNAPSHOT_REQUESTED_BIT) == 0,
+            "into_snapshot: unexpected request bits {prev:#x}"
+        );
+        debug_assert!(
+            (prev & !REQUEST_BITS) == 0,
+            "into_snapshot: operations in flight during hand-off {prev:#x}"
+        );
+        let suspended_operations: Vec<Arc<O>> = state
+            .suspended_operations
+            .iter()
+            .map(|op| op.arc().clone())
+            .collect();
+        drop(state);
+        SnapshotPhase {
+            coord,
+            suspended_operations,
+        }
+    }
+}
+
 impl<O> Drop for GcPhase<'_, O> {
     fn drop(&mut self) {
         let mut state = self.coord.state.lock();
@@ -752,6 +805,50 @@ mod tests {
         assert_eq!(started_op.load(Ordering::Acquire), 0);
 
         drop(phase);
+        op_thread.join().unwrap();
+        assert_eq!(started_op.load(Ordering::Acquire), 1);
+    }
+
+    #[test]
+    fn into_snapshot_keeps_operations_excluded_across_handoff() {
+        // The GC->snapshot hand-off must never open a window in which an operation can start:
+        // exclusion is held continuously from `begin_gc` through the snapshot phase.
+        let coord = Arc::new(SnapshotCoordinator::<Op>::new());
+        let gc_phase = coord.begin_gc();
+
+        let started_op = Arc::new(AtomicUsize::new(0));
+        let arrived = Arc::new(AtomicUsize::new(0));
+        let coord2 = coord.clone();
+        let op_thread = thread::spawn({
+            let started_op = started_op.clone();
+            let arrived = arrived.clone();
+            move || {
+                arrived.store(1, Ordering::Release);
+                let _guard = coord2.begin_operation();
+                started_op.store(1, Ordering::Release);
+            }
+        });
+
+        // Wait until the op thread is trying to begin (and thus blocked on the GC bit).
+        while arrived.load(Ordering::Acquire) == 0 {
+            thread::yield_now();
+        }
+        assert_eq!(started_op.load(Ordering::Acquire), 0);
+
+        // Hand off GC -> snapshot. The op must remain blocked (the snapshot bit is now set).
+        let snapshot_phase = gc_phase.into_snapshot();
+        // Give the op thread a chance to (wrongly) proceed if there were a gap.
+        for _ in 0..1000 {
+            thread::yield_now();
+        }
+        assert_eq!(
+            started_op.load(Ordering::Acquire),
+            0,
+            "operation started during the GC->snapshot hand-off — exclusion was released"
+        );
+
+        // Only once the snapshot phase ends may the operation proceed.
+        drop(snapshot_phase);
         op_thread.join().unwrap();
         assert_eq!(started_op.load(Ordering::Acquire), 1);
     }

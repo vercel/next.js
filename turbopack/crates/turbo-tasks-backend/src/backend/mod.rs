@@ -1290,21 +1290,37 @@ impl TurboTasksBackend {
         // very commit that would otherwise have re-written it, and the tombstone is re-validated
         // against the post-drain map below so a task resurrected in the brief window between the GC
         // phase and the snapshot drain is not wrongly tombstoned. Opt-in via TURBO_ENGINE_GC.
-        let gc_deletes = if *GC_ENABLED {
+        // Run the GC pass and transition to the snapshot **atomically**, without ever releasing
+        // operation exclusion in between. `begin_gc` drains all operations; `gc_collect` tears down
+        // collectible tasks and cascades `parent_count` decrements to their children; then
+        // `GcPhase::into_snapshot` hands the exclusion straight to the snapshot phase (swapping the
+        // GC request bit for the snapshot bit under one lock). Because no operation can run between
+        // the cascade and the snapshot, a task the cascade decremented cannot be resurrected before
+        // it is persisted — so the decremented children counts and the snapshot are consistent, and
+        // GC-collected tasks' tombstones ride this same commit.
+        //
+        // Without GC we just begin the snapshot directly.
+        let mut snapshot_phase = if *GC_ENABLED {
             let _gc_span = tracing::info_span!(parent: parent_span.clone(), "gc").entered();
-            let _gc_phase = self.snapshot_coord.begin_gc();
+            let gc_phase = self.snapshot_coord.begin_gc();
             let (collected, deletes) = self.gc_collect(turbo_tasks);
             if collected > 0 {
                 tracing::info!(collected, "gc pass collected tasks");
             }
-            deletes
+            self.pending_gc_deletes.lock().extend(deletes);
+            let _span = tracing::info_span!("blocking").entered();
+            gc_phase.into_snapshot()
         } else {
-            Vec::new()
+            let _span = tracing::info_span!("blocking").entered();
+            self.snapshot_coord.begin_snapshot()
         };
-        // Also drain any tombstones buffered by the test-only `gc_for_testing` hook (production
-        // takes the inline `gc_deletes` path above; both feed the same commit).
-        let mut deletes = gc_deletes;
-        deletes.append(&mut self.pending_gc_deletes.lock());
+        // Drain the GC tombstones for this commit. In the production (GC-enabled) path they were
+        // just produced above under the *same continuous exclusion* as this snapshot (the atomic
+        // `into_snapshot` hand-off), so nothing could have resurrected a collected task. The
+        // test-only `gc_for_testing` hook also buffers here, and it runs GC as a separate exclusion
+        // window — so we still re-validate below (after the drain stabilizes the map) as a cheap
+        // belt-and-suspenders against a task revived between that hook and this snapshot.
+        let mut deletes = std::mem::take(&mut *self.pending_gc_deletes.lock());
         let start = Instant::now();
         // SystemTime for wall-clock timestamps in trace events (milliseconds
         // since epoch). Instant is monotonic but has no defined epoch, so it
@@ -1312,21 +1328,15 @@ impl TurboTasksBackend {
         let wall_start = SystemTime::now();
         debug_assert!(self.should_persist());
 
-        let mut snapshot_phase = {
-            let _span = tracing::info_span!("blocking").entered();
-            self.snapshot_coord.begin_snapshot()
-        };
         // Enter snapshot mode, which atomically reads and resets the modified count.
         // Checking after start_snapshot ensures no concurrent increments can race.
         let (snapshot_guard, has_modifications) = self.storage.start_snapshot();
 
-        // Re-validate GC tombstones against the now-drained map: `begin_snapshot` has drained/
-        // suspended all operations, so the map is stable. GC removed each collected task from the
-        // map; if one is resident again it was resurrected by an operation in the brief window
-        // between the GC phase ending and this drain (a concurrent read re-connected it, restoring
-        // it from its not-yet-tombstoned on-disk copy). Such a task is live again — drop its
-        // tombstone so we don't delete a task the snapshot is about to (re-)persist.
-        deletes.retain(|d| self.storage.with_task(d.task_id, |_| ()).is_none());
+        // Belt-and-suspenders: drop the tombstone for any task that is resident again (would only
+        // happen via the non-atomic `gc_for_testing` path; the production path can't resurrect).
+        if !deletes.is_empty() {
+            deletes.retain(|d| self.storage.with_task(d.task_id, |_| ()).is_none());
+        }
 
         let suspended_operations = snapshot_phase.take_suspended_operations();
 
