@@ -23,11 +23,11 @@ kind: insight
   validates them, then come back here for the specific fix.
 </div>
 
-During a [client-side navigation](https://preview.nextjs.org/docs/app/glossary#client-side-navigation), a Server Component read [`params`](https://preview.nextjs.org/docs/app/api-reference/file-conventions/page#params-optional) or [`searchParams`](https://preview.nextjs.org/docs/app/api-reference/file-conventions/page#searchparams-optional) outside of a [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary. With [Partial Prefetching](https://preview.nextjs.org/docs/app/glossary#partial-prefetching) enabled, Next.js extracts one [reusable shell](https://preview.nextjs.org/docs/app/glossary#app-shell) from the route ahead of the click, so every link to it reuses the same prefetch instead of fetching a fresh one per URL.
+During a [client-side navigation](https://preview.nextjs.org/docs/app/glossary#client-side-navigation), a Server Component read [`params`](https://preview.nextjs.org/docs/app/api-reference/file-conventions/page#params-optional) or [`searchParams`](https://preview.nextjs.org/docs/app/api-reference/file-conventions/page#searchparams-optional) outside of a [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary. With [Partial Prefetching](https://preview.nextjs.org/docs/app/glossary#partial-prefetching) enabled, Next.js extracts one [App Shell](https://preview.nextjs.org/docs/app/glossary#app-shell) from the route ahead of the click, so every link to it reuses the same prefetch instead of fetching a fresh one per URL.
 
-The `params` and `searchParams` props are [URL data](https://preview.nextjs.org/docs/app/glossary#url-data): they're specific to a single URL, so reading them outside a `<Suspense>` boundary ties the shell to one link. Next.js can no longer reuse it across links, and navigations to this route may not be instant.
+The `params` and `searchParams` props are [URL data](https://preview.nextjs.org/docs/app/glossary#url-data): they're specific to a single URL, so reading them outside a `<Suspense>` boundary ties the App Shell to one link. Next.js can no longer reuse it across links, and navigations to this route may not be instant.
 
-The check runs when you load the route and when you navigate to it. The reusable shell itself is only used for client-side navigations: the initial load has its own validation against the route's [static shell](https://preview.nextjs.org/docs/app/glossary#static-shell), where the same read surfaces as [runtime data during prerendering](/docs/messages/blocking-prerender-runtime). For URL data read through client hooks like [`useSearchParams`](https://preview.nextjs.org/docs/app/api-reference/functions/use-search-params), see [URL data in a Client Component outside of Suspense](/docs/messages/blocking-prerender-client-hook).
+The check runs when you load the route and when you navigate to it. The App Shell itself is only used for client-side navigations: the initial load has its own validation against the route's [static shell](https://preview.nextjs.org/docs/app/glossary#static-shell), where the same read surfaces as [runtime data during prerendering](/docs/messages/blocking-prerender-runtime). For URL data read through client hooks like [`useSearchParams`](https://preview.nextjs.org/docs/app/api-reference/functions/use-search-params), see [URL data in a Client Component outside of Suspense](/docs/messages/blocking-prerender-client-hook).
 
 ## Ways to fix this
 
@@ -55,7 +55,7 @@ The check runs when you load the route and when you navigate to it. The reusable
 
 ## Wrap in or move into Suspense
 
-Choose this fix when the URL-specific content can render after the navigation. A [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary keeps the read out of the reusable shell, so every link still shares the same prefetch and only the wrapped region [streams](https://preview.nextjs.org/docs/app/glossary#streaming) in after the navigation.
+Choose this fix when the URL-specific content can render after the navigation. A [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary keeps the read out of the App Shell, so every link still shares the same prefetch and only the wrapped region [streams](https://preview.nextjs.org/docs/app/glossary#streaming) in after the navigation.
 
 ### Patterns
 
@@ -120,17 +120,17 @@ Learn more: [Streaming](https://preview.nextjs.org/docs/app/guides/streaming).
 
 ### Trade-off
 
-The shared parts of the route are prefetched, and the URL-dependent region streams in after navigation, so the user sees a fallback for that region. Design the fallback so it approximates the final layout. A generic spinner causes the page to visibly jump when content arrives. See [CLS-safe skeleton fallback guidance](https://preview.nextjs.org/docs/app/guides/streaming#cls-cumulative-layout-shift).
+The shared parts of the route are prefetched, and the URL-dependent region streams in after navigation, so the user sees a fallback for that region. Design the fallback so it approximates the final layout. A generic spinner causes a layout shift when content arrives. See [minimizing layout shift](https://preview.nextjs.org/docs/app/guides/streaming#cls-cumulative-layout-shift).
 
 ### Gotchas
 
-- [`cookies()`](https://preview.nextjs.org/docs/app/api-reference/functions/cookies) and [`headers()`](https://preview.nextjs.org/docs/app/api-reference/functions/headers) don't trigger this error, even outside `<Suspense>`. They vary per session, not per link, so the shell stays reusable across links. The initial load's [static shell](https://preview.nextjs.org/docs/app/glossary#static-shell) may still need them behind `<Suspense>`, and that requirement surfaces separately as [runtime data during prerendering](/docs/messages/blocking-prerender-runtime).
+- [`cookies()`](https://preview.nextjs.org/docs/app/api-reference/functions/cookies) and [`headers()`](https://preview.nextjs.org/docs/app/api-reference/functions/headers) don't trigger this error, even outside `<Suspense>`. They vary per session, not per link, so the App Shell stays reusable across links. The initial load's [static shell](https://preview.nextjs.org/docs/app/glossary#static-shell) may still need them behind `<Suspense>`, and that requirement surfaces separately as [runtime data during prerendering](/docs/messages/blocking-prerender-runtime).
 - Making the route static with [`generateStaticParams`](https://preview.nextjs.org/docs/app/api-reference/functions/generate-static-params) does not resolve this error. A static param is still specific to one URL, so it can't be part of a prefetch shared across links.
 - The `params` and `searchParams` props are promises. Passing the promise down without awaiting it keeps the rest of the route in the shared prefetch. Awaiting it above the boundary pulls the URL data back in.
 
 ## Disable validation on this route
 
-Choose this fix when the route can't provide a reusable shell and you accept that navigations to it may not be instant. Setting [`instant`](https://preview.nextjs.org/docs/app/api-reference/file-conventions/route-segment-config/instant) to `false` opts the route out of instant-navigation validation.
+Choose this fix when the route can't provide an App Shell and you accept that navigations to it may not be instant. Setting [`instant`](https://preview.nextjs.org/docs/app/api-reference/file-conventions/route-segment-config/instant) to `false` opts the route out of instant-navigation validation.
 
 ### Patterns
 
@@ -172,7 +172,7 @@ For this error, disabling validation is rarely the right answer. The route reads
 
 ### Trade-off
 
-Without a reusable shell, navigations to this route may not be instant. Use this only when the route genuinely can't provide one.
+Without an App Shell, navigations to this route may not be instant. Use this only when the route genuinely can't provide one.
 
 ### Gotchas
 

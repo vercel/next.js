@@ -90,7 +90,7 @@ Learn more: [Streaming](https://preview.nextjs.org/docs/app/guides/streaming).
 
 ### Trade-off
 
-The component shows the fallback during SSR and the first paint. For above-the-fold UI this can be visible. Use [`loading.js`](https://preview.nextjs.org/docs/app/api-reference/file-conventions/loading) for full-segment fallback or pick a fallback that matches the final layout to minimize visual jump. See [CLS-safe skeleton fallback guidance](https://preview.nextjs.org/docs/app/guides/streaming#cls-cumulative-layout-shift).
+The component shows the fallback during SSR and the first paint. For above-the-fold UI this can be visible. Use [`loading.js`](https://preview.nextjs.org/docs/app/api-reference/file-conventions/loading) for full-segment fallback or pick a fallback that matches the final layout so it doesn't cause a layout shift when the component hydrates. See [minimizing layout shift](https://preview.nextjs.org/docs/app/guides/streaming#cls-cumulative-layout-shift).
 
 ### Gotchas
 

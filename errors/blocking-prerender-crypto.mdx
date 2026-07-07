@@ -142,7 +142,7 @@ Learn more: [Node `crypto` API](https://nodejs.org/docs/latest/api/crypto.html).
 
 ### Trade-off
 
-The route renders on every request. The shell still ships instantly because of the [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary, but the dynamic region waits on the server render before it paints. When the fallback is visible UI, design it to approximate the final layout so the page doesn't visibly jump when the content arrives. See [CLS-safe skeleton fallback guidance](https://preview.nextjs.org/docs/app/guides/streaming#cls-cumulative-layout-shift).
+The route renders on every request. The shell still ships instantly because of the [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary, but the dynamic region waits on the server render before it paints. When the fallback is visible UI, design it to approximate the final layout so it doesn't cause a layout shift when the content arrives. See [minimizing layout shift](https://preview.nextjs.org/docs/app/guides/streaming#cls-cumulative-layout-shift).
 
 ### Gotchas
 

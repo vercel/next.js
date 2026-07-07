@@ -193,7 +193,7 @@ The sibling renders nothing visible, so an empty fallback is correct. There is n
 
 ### Trade-off
 
-The user sees the fallback on the first paint of the suspended region, then it swaps to the real value once the hook resolves after hydration. Choose a fallback shape that matches the final layout so the swap doesn't shift surrounding content.
+The user sees the fallback on the first paint of the suspended region, then it swaps to the real value once the hook resolves after hydration. Choose a fallback shape that matches the final layout so the swap doesn't cause a layout shift. See [minimizing layout shift](https://preview.nextjs.org/docs/app/guides/streaming#cls-cumulative-layout-shift).
 
 ### Gotchas
 

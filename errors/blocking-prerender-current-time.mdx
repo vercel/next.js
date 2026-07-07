@@ -125,7 +125,7 @@ Learn more: [`io`](https://preview.nextjs.org/docs/app/api-reference/functions/i
 
 ### Trade-off
 
-The route renders on every request. The shell still ships instantly because of the [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary, but the dynamic region waits on the server render before it paints. Design the fallback so it approximates the final layout. A generic spinner or empty box causes the page to visibly jump when the content arrives. See [CLS-safe skeleton fallback guidance](https://preview.nextjs.org/docs/app/guides/streaming#cls-cumulative-layout-shift).
+The route renders on every request. The shell still ships instantly because of the [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary, but the dynamic region waits on the server render before it paints. Design the fallback so it approximates the final layout. A generic spinner or empty box causes a layout shift when the content arrives. See [minimizing layout shift](https://preview.nextjs.org/docs/app/guides/streaming#cls-cumulative-layout-shift).
 
 ### Gotchas
 

@@ -117,7 +117,7 @@ Learn more: [`connection`](https://preview.nextjs.org/docs/app/api-reference/fun
 
 ### Trade-off
 
-The route renders on every request. The shell still ships instantly because of the [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary, but the dynamic region waits on the server render before it can paint. Make sure the fallback approximates the final layout so the page doesn't visibly jump when the value arrives. See [CLS-safe skeleton fallback guidance](https://preview.nextjs.org/docs/app/guides/streaming#cls-cumulative-layout-shift).
+The route renders on every request. The shell still ships instantly because of the [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary, but the dynamic region waits on the server render before it can paint. Make sure the fallback approximates the final layout so it doesn't cause a layout shift when the value arrives. See [minimizing layout shift](https://preview.nextjs.org/docs/app/guides/streaming#cls-cumulative-layout-shift).
 
 ### Gotchas
 
