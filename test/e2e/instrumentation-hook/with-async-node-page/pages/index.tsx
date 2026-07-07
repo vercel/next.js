@@ -1,11 +1,11 @@
 export default function Page({ finished }) {
-  return <p>{`Node - finished: ${finished}`}</p>
+  return <h1>{`Page Node instrumentationFinished=${finished}`}</h1>
 }
 
 export async function getServerSideProps() {
   return {
     props: {
-      finished: Boolean(globalThis.instrumentationFinished),
+      finished: globalThis.instrumentationFinished,
     },
   }
 }

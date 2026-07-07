@@ -45,6 +45,7 @@ describe('getDynamicHTMLPostponedState', () => {
         hasExplicitRevalidate: true,
         hasExplicitExpire: true,
         readRootParamNames: undefined,
+        dynamicNestedCacheError: undefined,
       })
     )
 
@@ -76,6 +77,8 @@ describe('getDynamicHTMLPostponedState', () => {
          "decryptedBoundArgs": Map {},
          "encryptedBoundArgs": Map {},
          "fetch": Map {},
+         "imageResponses": Map {},
+         "mutable": false,
        },
        "type": 2,
      }
@@ -123,6 +126,8 @@ describe('getDynamicHTMLPostponedState', () => {
         fetch: new Map(),
         encryptedBoundArgs: new Map(),
         decryptedBoundArgs: new Map(),
+        imageResponses: new Map(),
+        mutable: false,
       },
     })
 
@@ -158,6 +163,8 @@ describe('parsePostponedState', () => {
         fetch: new Map(),
         encryptedBoundArgs: new Map(),
         decryptedBoundArgs: new Map(),
+        imageResponses: new Map(),
+        mutable: false,
       },
     })
 
@@ -179,6 +186,8 @@ describe('parsePostponedState', () => {
         fetch: new Map(),
         encryptedBoundArgs: new Map(),
         decryptedBoundArgs: new Map(),
+        imageResponses: new Map(),
+        mutable: false,
       },
     })
   })
@@ -195,6 +204,8 @@ describe('parsePostponedState', () => {
         fetch: new Map(),
         encryptedBoundArgs: new Map(),
         decryptedBoundArgs: new Map(),
+        imageResponses: new Map(),
+        mutable: false,
       },
     })
   })

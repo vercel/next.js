@@ -28,11 +28,15 @@ impl TextContentFileSource {
 #[turbo_tasks::value_impl]
 impl Source for TextContentFileSource {
     #[turbo_tasks::function]
-    fn ident(&self) -> Vc<AssetIdent> {
-        self.source
+    async fn ident(&self) -> Result<Vc<AssetIdent>> {
+        Ok(self
+            .source
             .ident()
+            .owned()
+            .await?
             .with_modifier(rcstr!("text content"))
-            .rename_as(rcstr!("*.mjs"))
+            .rename_as("*.mjs")
+            .into_vc())
     }
 
     #[turbo_tasks::function]

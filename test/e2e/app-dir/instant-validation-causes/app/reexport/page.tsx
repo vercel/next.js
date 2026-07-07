@@ -1,8 +1,8 @@
-import { cookies } from 'next/headers'
+import { connection } from 'next/server'
 
-export { unstable_instant } from './config'
+export { instant } from './config'
 
 export default async function Page() {
-  await cookies()
+  await connection()
   return <p>reexport</p>
 }

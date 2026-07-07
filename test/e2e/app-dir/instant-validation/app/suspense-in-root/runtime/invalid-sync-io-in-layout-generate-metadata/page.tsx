@@ -1,8 +1,8 @@
 import { cookies } from 'next/headers'
 import { Suspense } from 'react'
 
-export const unstable_instant = true
-export const unstable_prefetch = 'force-runtime'
+export const instant = { level: 'experimental-error' }
+export const prefetch = 'allow-runtime'
 
 async function Runtime() {
   await cookies()

@@ -16,7 +16,16 @@ use turbopack_ecmascript::{CustomTransformer, TransformContext};
 /// Internally this contains a `CompiledPluginModuleBytes`, which points to the
 /// compiled, serialized WASM module instead of raw file bytes to reduce the
 /// cost of the compilation.
-#[turbo_tasks::value(serialization = "none", eq = "manual", cell = "new", shared)]
+///
+/// Tagged `evict = "last"` so eviction prefers evicting cheaper cells first —
+/// re-deriving a compiled module is pure but pays a non-trivial WASM compile.
+#[turbo_tasks::value(
+    serialization = "skip",
+    evict = "last",
+    eq = "manual",
+    cell = "new",
+    shared
+)]
 pub struct SwcPluginModule {
     pub name: RcStr,
     #[turbo_tasks(trace_ignore, debug_ignore)]
@@ -93,12 +102,11 @@ impl SwcEcmaTransformPluginsTransformer {
 impl CustomTransformer for SwcEcmaTransformPluginsTransformer {
     #[tracing::instrument(level = tracing::Level::TRACE, name = "swc_ecma_transform_plugin", skip_all)]
     async fn transform(&self, program: &mut Program, ctx: &TransformContext<'_>) -> Result<()> {
-        use std::{cell::RefCell, rc::Rc, sync::Arc};
+        use std::sync::Arc;
 
         use anyhow::Context;
         use swc_core::{
             common::{
-                comments::SingleThreadedComments,
                 plugin::{
                     metadata::TransformPluginMetadataContext, serialized::PluginSerializedBytes,
                 },
@@ -132,22 +140,8 @@ impl CustomTransformer for SwcEcmaTransformPluginsTransformer {
         // depends on the src's comments availability. For now, check naively if leading
         // / trailing comments are empty.
         let comments = if should_enable_comments_proxy {
-            // Plugin only able to accept singlethreaded comments, interop from
-            // multithreaded comments.
-            let mut leading = swc_core::common::comments::SingleThreadedCommentsMapInner::default();
-            ctx.comments.leading.as_ref().into_iter().for_each(|c| {
-                leading.insert(*c.key(), c.value().clone());
-            });
-
-            let mut trailing =
-                swc_core::common::comments::SingleThreadedCommentsMapInner::default();
-            ctx.comments.trailing.as_ref().into_iter().for_each(|c| {
-                trailing.insert(*c.key(), c.value().clone());
-            });
-
-            Some(SingleThreadedComments::from_leading_and_trailing(
-                Rc::new(RefCell::new(leading)),
-                Rc::new(RefCell::new(trailing)),
+            Some(turbopack_ecmascript::swc_comments_to_single_threaded(
+                ctx.comments,
             ))
         } else {
             None

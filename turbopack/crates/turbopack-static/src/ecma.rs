@@ -46,15 +46,17 @@ impl StaticUrlJsModule {
 #[turbo_tasks::value_impl]
 impl Module for StaticUrlJsModule {
     #[turbo_tasks::function]
-    fn ident(&self) -> Vc<AssetIdent> {
+    async fn ident(&self) -> Result<Vc<AssetIdent>> {
         let mut ident = self
             .source
             .ident()
+            .owned()
+            .await?
             .with_modifier(rcstr!("static in ecmascript"));
         if let Some(tag) = &self.tag {
             ident = ident.with_modifier(format!("tag {}", tag).into());
         }
-        ident
+        Ok(ident.into_vc())
     }
 
     #[turbo_tasks::function]

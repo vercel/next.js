@@ -16,6 +16,7 @@ import {
 } from '../server/lib/utils'
 import * as Log from '../build/output/log'
 import { getProjectDir } from '../lib/get-project-dir'
+import { ensureProfilesDir } from '../lib/profiles-dir'
 import path from 'path'
 import { traceGlobals } from '../trace/shared'
 import { Telemetry } from '../telemetry/storage'
@@ -33,6 +34,7 @@ import {
   isPortIsReserved,
 } from '../lib/helpers/get-reserved-port'
 import { getCacheDirectory } from '../lib/helpers/get-cache-directory'
+import { getGitBranch } from '../lib/helpers/git'
 import os from 'os'
 import fs from 'node:fs'
 import { once } from 'node:events'
@@ -78,7 +80,15 @@ const sessionStarted = Date.now()
 const sessionSpan = trace('next-dev')
 
 // If the user restarts the dev server within this window we count it as a "rage restart".
-const RAGE_RESTART_THRESHOLD_MS = 120_000
+const RAGE_RESTART_THRESHOLD_MS = 90_000
+
+// Shape of a single project entry in the dev-state.json file.
+// All fields are optional so older entries without gitBranch are still valid.
+type DevStateEntry = {
+  stopTime?: number
+  distDirPath?: string
+  gitBranch?: string
+}
 
 // Single shared file for all projects — keyed by project directory path.
 const DEV_STATE_FILE = path.join(
@@ -279,13 +289,22 @@ const nextDev = async (
       if (fs.existsSync(DEV_STATE_FILE)) {
         const allState = JSON.parse(
           fs.readFileSync(DEV_STATE_FILE, 'utf8')
-        ) as Record<string, { stopTime?: number; distDirPath?: string }>
+        ) as Record<string, DevStateEntry>
         const state = allState[dir]
         if (
           state?.stopTime &&
           Date.now() - state.stopTime < RAGE_RESTART_THRESHOLD_MS
         ) {
-          isRageRestart = true
+          // Only flag as a rage restart if the git branch hasn't changed. If
+          // either the stored or current branch is unknown, skip the comparison
+          // and fall back to time-only detection.
+          const storedBranch = state.gitBranch
+          const currentBranch = getGitBranch(dir)
+          const branchChanged =
+            storedBranch && currentBranch && storedBranch !== currentBranch
+          if (!branchChanged) {
+            isRageRestart = true
+          }
         }
         if (state?.distDirPath && !fs.existsSync(state.distDirPath)) {
           distDirCleared = true
@@ -398,7 +417,7 @@ const nextDev = async (
           ...(options.experimentalCpuProf
             ? {
                 NEXT_CPU_PROF: '1',
-                NEXT_CPU_PROF_DIR: path.join(dir, '.next-profiles'),
+                NEXT_CPU_PROF_DIR: ensureProfilesDir(dir),
                 __NEXT_PRIVATE_CPU_PROFILE: 'dev-server',
               }
             : undefined),
@@ -507,7 +526,7 @@ function writeDevState(): void {
   try {
     fs.mkdirSync(path.dirname(DEV_STATE_FILE), { recursive: true })
 
-    let state: Record<string, { stopTime: number; distDirPath: string }> = {}
+    let state: Record<string, DevStateEntry> = {}
     try {
       state = JSON.parse(fs.readFileSync(DEV_STATE_FILE, 'utf8'))
     } catch {
@@ -526,9 +545,11 @@ function writeDevState(): void {
     }
 
     // Update current project
+    const gitBranch = getGitBranch(dir)
     state[dir] = {
       stopTime: Date.now(),
       distDirPath: path.join(dir, distDir ?? '.next'),
+      ...(gitBranch ? { gitBranch } : {}),
     }
 
     const { sync: writeFileAtomicSync } =

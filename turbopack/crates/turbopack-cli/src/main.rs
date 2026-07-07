@@ -1,8 +1,9 @@
-use std::{cell::RefCell, path::Path, thread::available_parallelism, time::Instant};
+use std::{cell::RefCell, path::Path, time::Instant};
 
 use anyhow::{Context, Result};
 use clap::Parser;
 use tracing_subscriber::{Registry, layer::SubscriberExt, util::SubscriberInitExt};
+use turbo_tasks::parallel::available_parallelism;
 use turbo_tasks_malloc::TurboMalloc;
 use turbopack_cli::arguments::Arguments;
 use turbopack_trace_utils::{

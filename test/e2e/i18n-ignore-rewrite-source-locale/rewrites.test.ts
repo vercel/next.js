@@ -1,5 +1,4 @@
-import { createNext } from 'e2e-utils'
-import { NextInstance } from 'e2e-utils'
+import { nextTestSetup } from 'e2e-utils'
 import { fetchViaHTTP, renderViaHTTP } from 'next-test-utils'
 import path from 'path'
 import fs from 'fs-extra'
@@ -7,45 +6,40 @@ import fs from 'fs-extra'
 const locales = ['', '/en', '/sv', '/nl']
 
 describe('i18n-ignore-rewrite-source-locale', () => {
-  let next: NextInstance
-
-  beforeAll(async () => {
-    next = await createNext({
-      files: {
-        'pages/api/hello.js': `
-        export default function handler(req, res) {
-          res.send('hello from api')
-        }`,
-        'public/file.txt': 'hello from file.txt',
+  const { next } = nextTestSetup({
+    files: {
+      'pages/api/hello.js': `
+      export default function handler(req, res) {
+        res.send('hello from api')
+      }`,
+      'public/file.txt': 'hello from file.txt',
+    },
+    dependencies: {},
+    nextConfig: {
+      i18n: {
+        locales: ['en', 'sv', 'nl'],
+        defaultLocale: 'en',
       },
-      dependencies: {},
-      nextConfig: {
-        i18n: {
-          locales: ['en', 'sv', 'nl'],
-          defaultLocale: 'en',
-        },
-        async rewrites() {
-          return {
-            beforeFiles: [
-              {
-                source: '/:locale/rewrite-files/:path*',
-                destination: '/:path*',
-                locale: false,
-              },
-              {
-                source: '/:locale/rewrite-api/:path*',
-                destination: '/api/:path*',
-                locale: false,
-              },
-            ],
-            afterFiles: [],
-            fallback: [],
-          }
-        },
+      async rewrites() {
+        return {
+          beforeFiles: [
+            {
+              source: '/:locale/rewrite-files/:path*',
+              destination: '/:path*',
+              locale: false,
+            },
+            {
+              source: '/:locale/rewrite-api/:path*',
+              destination: '/api/:path*',
+              locale: false,
+            },
+          ],
+          afterFiles: [],
+          fallback: [],
+        }
       },
-    })
+    },
   })
-  afterAll(() => next.destroy())
 
   test.each(locales)(
     'get public file by skipping locale in rewrite, locale: %s',
