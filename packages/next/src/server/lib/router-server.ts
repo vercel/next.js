@@ -529,6 +529,7 @@ export async function initialize(opts: {
         ) {
           if (parsedUrl.pathname?.startsWith('/_next/static/service-worker/')) {
             res.setHeader('Cache-Control', 'public, max-age=0, must-revalidate')
+            res.setHeader('Service-Worker-Allowed', '/')
           } else if (opts.dev && !isNextFont(parsedUrl.pathname)) {
             res.setHeader('Cache-Control', 'no-cache, must-revalidate')
           } else {
