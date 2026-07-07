@@ -136,7 +136,6 @@ pub struct ServiceWorkerAssetReference {
     origin: ResolvedVc<Box<dyn ResolveOrigin>>,
     request: ResolvedVc<Request>,
     scope: RcStr,
-    base_path: RcStr,
     issue_source: IssueSource,
     error_mode: ResolveErrorMode,
 }
@@ -146,7 +145,6 @@ impl ServiceWorkerAssetReference {
         origin: ResolvedVc<Box<dyn ResolveOrigin>>,
         request: ResolvedVc<Request>,
         scope: RcStr,
-        base_path: RcStr,
         issue_source: IssueSource,
         error_mode: ResolveErrorMode,
     ) -> Self {
@@ -154,7 +152,6 @@ impl ServiceWorkerAssetReference {
             origin,
             request,
             scope,
-            base_path,
             issue_source,
             error_mode,
         }
@@ -228,13 +225,11 @@ impl IntoCodeGenReference for ServiceWorkerAssetReference {
         path: AstPath,
     ) -> (ResolvedVc<Box<dyn ModuleReference>>, CodeGen) {
         let scope = self.scope.clone();
-        let base_path = self.base_path.clone();
         let reference = self.resolved_cell();
         (
             ResolvedVc::upcast(reference),
             CodeGen::ServiceWorkerAssetReferenceCodeGen(ServiceWorkerAssetReferenceCodeGen {
                 scope,
-                base_path,
                 path,
             }),
         )
@@ -246,24 +241,25 @@ impl IntoCodeGenReference for ServiceWorkerAssetReference {
 )]
 pub struct ServiceWorkerAssetReferenceCodeGen {
     scope: RcStr,
-    base_path: RcStr,
     path: AstPath,
 }
 
 impl ServiceWorkerAssetReferenceCodeGen {
     pub async fn code_generation(
         &self,
-        _chunking_context: Vc<Box<dyn ChunkingContext>>,
+        chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<CodeGeneration> {
         // Rewrite `register(...)`'s script argument to the served URL and pin the `{ scope }` the
         // analyzer resolved, replacing any options the user passed. Both are prefixed with the
-        // app's `basePath` so the worker is fetched and scoped under it.
+        // context's base path (e.g. a framework's `basePath`, provided by the host) so the worker
+        // is fetched and scoped under it.
         //
-        //   register(new URL("./sw", import.meta.url))            // basePath ""
+        //   register(new URL("./sw", import.meta.url))            // base path ""
         //     -> register("/_next/static/service-worker/sw.js", { scope: "/" })
-        //   register(new URL("./sw", import.meta.url))            // basePath "/base"
+        //   register(new URL("./sw", import.meta.url))            // base path "/base"
         //     -> register("/base/_next/static/service-worker/sw.js", { scope: "/base" })
-        let base_path = self.base_path.trim_end_matches('/');
+        let base_path = chunking_context.base_path().await?;
+        let base_path = base_path.trim_end_matches('/');
         let url = format!(
             "{base_path}/_next/static/service-worker/{}",
             service_worker_chunk_filename(&self.scope)

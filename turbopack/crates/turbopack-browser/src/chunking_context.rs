@@ -101,6 +101,11 @@ impl BrowserChunkingContextBuilder {
         self
     }
 
+    pub fn base_path(mut self, base_path: Option<RcStr>) -> Self {
+        self.chunking_context.base_path = base_path;
+        self
+    }
+
     pub fn chunk_base_path(mut self, chunk_base_path: Option<RcStr>) -> Self {
         self.chunking_context.chunk_base_path = chunk_base_path;
         self
@@ -315,6 +320,7 @@ pub struct BrowserChunkingContext {
     /// them.
     #[bincode(with = "turbo_bincode::indexmap")]
     asset_base_paths: FxIndexMap<RcStr, RcStr>,
+    base_path: Option<RcStr>,
     /// URL behavior overrides for different tags.
     #[bincode(with = "turbo_bincode::indexmap")]
     url_behaviors: FxIndexMap<RcStr, UrlBehavior>,
@@ -400,6 +406,7 @@ impl BrowserChunkingContext {
                 asset_suffix: None,
                 asset_base_path: None,
                 asset_base_paths: Default::default(),
+                base_path: None,
                 url_behaviors: Default::default(),
                 default_url_behavior: None,
                 enable_hot_module_replacement: false,
@@ -676,6 +683,11 @@ impl ChunkingContext for BrowserChunkingContext {
             )
             .into(),
         ))
+    }
+
+    #[turbo_tasks::function]
+    fn base_path(&self) -> Vc<RcStr> {
+        Vc::cell(self.base_path.clone().unwrap_or_default())
     }
 
     #[turbo_tasks::function]
