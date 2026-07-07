@@ -74,11 +74,7 @@ describe('browser-chunks', () => {
     const cacheComponents = process.env.__NEXT_CACHE_COMPONENTS === 'true'
     if (process.env.IS_TURBOPACK_TEST) {
       if (cacheComponents) {
-        expect(serverSources).toMatchInlineSnapshot(`
-         [
-           "src/server/app-render/instant-validation/instant-samples-client.browser.ts",
-         ]
-        `)
+        expect(serverSources).toMatchInlineSnapshot(`[]`)
       } else {
         expect(serverSources).toMatchInlineSnapshot(`[]`)
       }

@@ -7,9 +7,9 @@
 // `packages/next/dist` (extension omitted).
 export const browserVariantModules = [
   'client/components/client-boundary-params',
+  'client/components/instant-samples',
   'client/components/instant-validation/impl',
   'client/components/navigation-dynamic-rendering',
   'client/components/server-async-storage',
   'client/components/unstable-rethrow',
-  'server/app-render/instant-validation/instant-samples-client',
 ] as const

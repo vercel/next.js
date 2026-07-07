@@ -28,7 +28,7 @@ const {
   instrumentSearchParamsForClientValidation,
   expectCompleteParamsInClientValidation,
 } = process.env.__NEXT_CACHE_COMPONENTS
-  ? (require('../../server/app-render/instant-validation/instant-samples-client') as typeof import('../../server/app-render/instant-validation/instant-samples-client'))
+  ? (require('./instant-samples') as typeof import('./instant-samples'))
   : {}
 
 /**
