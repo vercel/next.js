@@ -142,8 +142,12 @@ pub async fn compute_style_groups_graph(
     // 3. Run the synchronous chunking pipeline.
     let mut graph = tracing::trace_span!("create_graph")
         .in_scope(|| algorithm::create_graph(&chunk_groups, modules_in_order.len()));
-    tracing::trace_span!("make_acyclic").in_scope(|| algorithm::make_acyclic(&mut graph));
-    let global_order = tracing::trace_span!("linearize").in_scope(|| algorithm::linearize(&graph));
+    // `make_acyclic` mutates the graph in place and returns the edges it cut, so `linearize` can
+    // still count that (pre-cut) co-occurrence without a full clone of the graph.
+    let cut_edges =
+        tracing::trace_span!("make_acyclic").in_scope(|| algorithm::make_acyclic(&mut graph));
+    let global_order =
+        tracing::trace_span!("linearize").in_scope(|| algorithm::linearize(&graph, &cut_edges));
     let chunks = tracing::trace_span!("split_into_chunks").in_scope(|| {
         algorithm::split_into_chunks(
             &global_order,

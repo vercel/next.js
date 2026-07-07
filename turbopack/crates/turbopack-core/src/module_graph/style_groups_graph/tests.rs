@@ -4,7 +4,7 @@
 //! `e2e_*` tests cover the assembled pipeline; the rest cover individual stages.
 
 use petgraph::graph::{DiGraph, NodeIndex};
-use rustc_hash::FxHashSet;
+use rustc_hash::{FxHashMap, FxHashSet};
 
 use super::{
     algorithm::{
@@ -79,6 +79,11 @@ fn to_set(v: &[NodeIndex]) -> FxHashSet<NodeIndex> {
 
 fn ids(v: &[NodeIndex]) -> Vec<usize> {
     v.iter().map(|n| n.index()).collect()
+}
+
+/// Empty cut-edge map, for `linearize` tests on graphs that never went through `make_acyclic`.
+fn no_cuts() -> FxHashMap<(NodeIndex, NodeIndex), u32> {
+    FxHashMap::default()
 }
 
 fn equal_size_inputs(node_count: usize) -> Vec<u64> {
@@ -552,13 +557,13 @@ fn make_acyclic_preserves_non_cycle_edges() {
 #[test]
 fn linearize_empty_graph() {
     let g: DiGraph<usize, u32> = DiGraph::new();
-    assert!(linearize(&g).is_empty());
+    assert!(linearize(&g, &no_cuts()).is_empty());
 }
 
 #[test]
 fn linearize_single_node() {
     let g = build_graph(1, |_| {});
-    assert_eq!(ids(&linearize(&g)), vec![0]);
+    assert_eq!(ids(&linearize(&g, &no_cuts())), vec![0]);
 }
 
 #[test]
@@ -568,28 +573,31 @@ fn linearize_emits_dependencies_before_dependents() {
         g.add_edge(n(0), n(1), 1);
         g.add_edge(n(1), n(2), 1);
     });
-    assert_eq!(ids(&linearize(&g)), vec![2, 1, 0]);
+    assert_eq!(ids(&linearize(&g, &no_cuts())), vec![2, 1, 0]);
 }
 
 #[test]
-fn linearize_higher_weight_dependents_placed_earlier() {
-    // x is a sink; a (weight 1) and b (weight 10) both depend on x. b should be placed first.
+fn linearize_prefers_candidate_sharing_most_chunk_groups_with_last_placed() {
+    // 1 and 2 both depend on 0, so both become ready once 0 is placed. The edge weight is the
+    // number of chunk groups the two modules share: module 2 shares 10 chunk groups with 0 while
+    // module 1 shares only 1, so 2 is placed next — even though 1 comes first in insertion order.
     let g = build_graph(3, |g| {
         g.add_edge(n(1), n(0), 1);
         g.add_edge(n(2), n(0), 10);
     });
-    assert_eq!(ids(&linearize(&g)), vec![0, 2, 1]);
+    assert_eq!(ids(&linearize(&g, &no_cuts())), vec![0, 2, 1]);
 }
 
 #[test]
-fn linearize_breaks_weight_ties_by_insertion_order() {
-    // Both 1 and 2 depend on 0 with weight 1; 1's edge is added first, so 1 should be placed
+fn linearize_breaks_ties_by_insertion_order() {
+    // Both 1 and 2 depend on 0 and share the same number of chunk groups with it (equal edge
+    // weight), so the tie falls to insertion order: 1's edge is added first, so 1 is placed
     // before 2 after 0.
     let g = build_graph(3, |g| {
         g.add_edge(n(1), n(0), 1);
         g.add_edge(n(2), n(0), 1);
     });
-    assert_eq!(ids(&linearize(&g)), vec![0, 1, 2]);
+    assert_eq!(ids(&linearize(&g, &no_cuts())), vec![0, 1, 2]);
 }
 
 #[test]
@@ -601,7 +609,7 @@ fn linearize_diamond_is_topo() {
         g.add_edge(n(1), n(3), 1);
         g.add_edge(n(2), n(3), 1);
     });
-    let order = linearize(&g);
+    let order = linearize(&g, &no_cuts());
     assert_eq!(order.len(), 4);
     let pos: std::collections::HashMap<NodeIndex, usize> =
         order.iter().enumerate().map(|(i, n)| (*n, i)).collect();
@@ -619,7 +627,7 @@ fn linearize_runs_on_subgraphview() {
     });
     let subset: FxHashSet<_> = [n(0), n(1)].into_iter().collect();
     let view = SubgraphView::new(&g, &subset);
-    assert_eq!(ids(&linearize(view)), vec![1, 0]);
+    assert_eq!(ids(&linearize(view, &no_cuts())), vec![1, 0]);
 }
 
 #[test]
@@ -628,7 +636,7 @@ fn linearize_returns_partial_result_for_cyclic_graph() {
         g.add_edge(n(0), n(1), 1);
         g.add_edge(n(1), n(0), 1);
     });
-    assert!(linearize(&g).is_empty());
+    assert!(linearize(&g, &no_cuts()).is_empty());
 }
 
 // ---------------------------------------------------------------------------
@@ -743,8 +751,8 @@ fn run_pipeline(
     request_cost: f32,
 ) -> (Vec<Vec<usize>>, Vec<usize>) {
     let mut g = create_graph(chunk_groups, node_count);
-    make_acyclic(&mut g);
-    let global_order = linearize(&g);
+    let cut_edges = make_acyclic(&mut g);
+    let global_order = linearize(&g, &cut_edges);
     let chunks = split_simple(&global_order, chunk_groups, request_cost);
     let chunked = compute_chunked_chunk_groups(chunk_groups, &chunks);
     let request_counts: Vec<usize> = chunked.iter().map(|c| c.len()).collect();
