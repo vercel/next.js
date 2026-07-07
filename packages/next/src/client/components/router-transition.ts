@@ -518,31 +518,17 @@ function describeRouteForInstrumentation(
 
 /**
  * Returns the rendered routes for the tree — each a route template paired
- * with the dynamic param values that fill that template's holes — the primary
- * (leaf page) route first, then parallel slots in stable alphabetical order.
+ * with the dynamic param values that fill it — the primary (leaf page) route
+ * first, then parallel slots in stable alphabetical order.
  *
- * Templates render dynamic segments as positional holes (`:1`, `:2`, ...)
- * rather than param names, so a `[param]` folder rename does not break log
- * continuity. Hole numbering is per-branch: a hole's number is its position
- * along its own template's path. Given:
- *
- *   app/[locale]/blog/[slug]/page.tsx          → "/:1/blog/:2"
- *   app/[locale]/@sidebar/tags/[tag]/page.tsx  → "/:1/@sidebar/tags/:2"
- *
- * each branch numbers its own holes, continuing from the shared prefix
- * (`:1` is [locale] in both), so the two `:2`s name different params
- * ([slug] vs [tag]) and a template never changes because a *sibling* route
- * gained or lost a dynamic segment.
- *
- * The cost of per-branch numbering is exactly that `:2` collision, which is
- * why params are scoped to each template instead of pooled per event:
- * `params[i]` fills `:(i+1)` of that template only. A value on a shared
- * prefix repeats in every template rendered beneath it — `/en/blog/hello`
- * with the sidebar rendering `/en/tags/js` reports
- * `[{ template: "/:1/blog/:2", params: ["en", "hello"] },
- *   { template: "/:1/@sidebar/tags/:2", params: ["en", "js"] }]`, each entry
- * joinable on its own. (Both walks are one traversal here on purpose —
- * splitting them is how templates and params drift apart.)
+ * Templates render dynamic segments in their source notation (`[slug]`,
+ * `[...parts]`), with param values keyed by name. Params are scoped to each
+ * template rather than pooled per event: parallel branches can bind the same
+ * param name to different values (e.g. an intercepted route's `[id]` vs a
+ * sibling slot's `[id]`), and a value on a shared prefix simply repeats in
+ * every template rendered beneath it, so each entry is joinable on its own.
+ * (Both walks are one traversal here on purpose — splitting them is how
+ * templates and params drift apart.)
  *
  * These are route-path templates, not filesystem paths: the `app`/`src/app`
  * root and the `page`/`layout` suffix are not knowable on the client.
@@ -552,37 +538,34 @@ function getRoutesForInstrumentation(
 ): RouterTransitionMatchedRoute[] {
   const routes: Array<{
     template: string
-    params: Array<string | string[]>
+    params: Record<string, string | string[]>
     primary: boolean
   }> = []
 
   function visit(
     node: FlightRouterState,
     segments: string[],
-    params: Array<string | string[]>,
+    params: Record<string, string | string[]>,
     primary: boolean
   ): void {
     const rawSegment = node[0]
     let rendered: string | null
     let nextParams = params
     if (Array.isArray(rawSegment)) {
-      // A dynamic segment: [paramName, value, paramType]. Render a positional
-      // hole and record its value in the same step — `nextParams.length`
-      // doubles as the hole counter, since every hole records exactly one
-      // value. A catch-all matches multiple path segments, so its value is
-      // reported as the array of segments.
-      const value = rawSegment[1]
-      const paramType = rawSegment[2]
-      nextParams = [
+      // A dynamic segment: [paramName, value, paramType]. A catch-all matches
+      // multiple path segments, so its value is reported as the array of
+      // segments.
+      const [paramName, value, paramType] = rawSegment
+      nextParams = {
         ...params,
-        isCatchAllParamType(paramType) ? value.split('/') : value,
-      ]
-      rendered = `:${nextParams.length}`
+        [paramName]: isCatchAllParamType(paramType) ? value.split('/') : value,
+      }
+      rendered = segmentToSourcePagePathname(rawSegment)
     } else {
       const source = segmentToSourcePagePathname(rawSegment)
       if (source === 'page') {
         // The page segment terminates a template. Its params are exactly the
-        // values collected on the path from the root, in hole order.
+        // values collected on the path from the root.
         routes.push({ template: `/${segments.join('/')}`, params, primary })
         return
       }
@@ -611,8 +594,8 @@ function getRoutesForInstrumentation(
     }
 
     // Sibling branches each receive the same `nextParams` (the values on the
-    // shared prefix) and extend it independently — this is what makes hole
-    // numbering per-branch and shared-prefix values repeat per template.
+    // shared prefix) and extend it independently — this is what makes
+    // shared-prefix values repeat per template.
     if (parallelRoutes.children !== undefined) {
       visit(parallelRoutes.children, nextSegments, nextParams, primary)
     }
@@ -629,7 +612,7 @@ function getRoutesForInstrumentation(
     }
   }
 
-  visit(tree, [], [], true)
+  visit(tree, [], {}, true)
   return routes
     .sort((a, b) => {
       if (a.primary !== b.primary) {
