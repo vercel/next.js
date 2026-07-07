@@ -529,7 +529,7 @@ export async function initialize(opts: {
         ) {
           if (matchedOutput.itemPath.startsWith('/service-worker/')) {
             res.setHeader('Cache-Control', 'public, max-age=0, must-revalidate')
-            res.setHeader('Service-Worker-Allowed', '/')
+            res.setHeader('Service-Worker-Allowed', config.basePath || '/')
           } else if (opts.dev && !isNextFont(parsedUrl.pathname)) {
             res.setHeader('Cache-Control', 'no-cache, must-revalidate')
           } else {

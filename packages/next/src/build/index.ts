@@ -2722,7 +2722,9 @@ export default async function build(
         routesManifest.headers.push(
           buildCustomRoute('header', {
             source: `${config.basePath || ''}/_next/static/service-worker/:path*`,
-            headers: [{ key: 'Service-Worker-Allowed', value: '/' }],
+            headers: [
+              { key: 'Service-Worker-Allowed', value: config.basePath || '/' },
+            ],
             locale: false,
             internal: true,
           })
