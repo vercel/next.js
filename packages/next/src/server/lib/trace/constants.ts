@@ -27,6 +27,10 @@ enum LoadComponentsSpan {
   loadComponents = 'LoadComponents.loadComponents',
 }
 
+enum InstrumentationSpan {
+  register = 'Instrumentation.register',
+}
+
 enum NextServerSpan {
   getRequestHandler = 'NextServer.getRequestHandler',
   getRequestHandlerWithMetadata = 'NextServer.getRequestHandlerWithMetadata',
@@ -48,6 +52,7 @@ enum NextNodeServerSpan {
   sendRenderResult = 'NextNodeServer.sendRenderResult',
   proxyRequest = 'NextNodeServer.proxyRequest',
   runApi = 'NextNodeServer.runApi',
+  runMiddleware = 'NextNodeServer.runMiddleware',
   render = 'NextNodeServer.render',
   renderHTML = 'NextNodeServer.renderHTML',
   imageOptimizer = 'NextNodeServer.imageOptimizer',
@@ -115,6 +120,7 @@ enum MiddlewareSpan {
 type SpanTypes =
   | `${BaseServerSpan}`
   | `${LoadComponentsSpan}`
+  | `${InstrumentationSpan}`
   | `${NextServerSpan}`
   | `${StartServerSpan}`
   | `${NextNodeServerSpan}`
@@ -144,6 +150,9 @@ export const NextVanillaSpanAllowlist = new Set([
   NextNodeServerSpan.getLayoutOrPageModule,
   NextNodeServerSpan.startResponse,
   NextNodeServerSpan.clientComponentLoading,
+  NextNodeServerSpan.runApi,
+  NextNodeServerSpan.runMiddleware,
+  InstrumentationSpan.register,
 ])
 
 // These Spans are allowed to be always logged
@@ -157,6 +166,7 @@ export const LogSpanAllowList = new Set([
 export {
   BaseServerSpan,
   LoadComponentsSpan,
+  InstrumentationSpan,
   NextServerSpan,
   NextNodeServerSpan,
   StartServerSpan,
