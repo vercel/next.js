@@ -136,6 +136,7 @@ pub struct ServiceWorkerAssetReference {
     origin: ResolvedVc<Box<dyn ResolveOrigin>>,
     request: ResolvedVc<Request>,
     scope: RcStr,
+    base_path: RcStr,
     issue_source: IssueSource,
     error_mode: ResolveErrorMode,
 }
@@ -145,6 +146,7 @@ impl ServiceWorkerAssetReference {
         origin: ResolvedVc<Box<dyn ResolveOrigin>>,
         request: ResolvedVc<Request>,
         scope: RcStr,
+        base_path: RcStr,
         issue_source: IssueSource,
         error_mode: ResolveErrorMode,
     ) -> Self {
@@ -152,6 +154,7 @@ impl ServiceWorkerAssetReference {
             origin,
             request,
             scope,
+            base_path,
             issue_source,
             error_mode,
         }
@@ -225,11 +228,13 @@ impl IntoCodeGenReference for ServiceWorkerAssetReference {
         path: AstPath,
     ) -> (ResolvedVc<Box<dyn ModuleReference>>, CodeGen) {
         let scope = self.scope.clone();
+        let base_path = self.base_path.clone();
         let reference = self.resolved_cell();
         (
             ResolvedVc::upcast(reference),
             CodeGen::ServiceWorkerAssetReferenceCodeGen(ServiceWorkerAssetReferenceCodeGen {
                 scope,
+                base_path,
                 path,
             }),
         )
@@ -241,6 +246,7 @@ impl IntoCodeGenReference for ServiceWorkerAssetReference {
 )]
 pub struct ServiceWorkerAssetReferenceCodeGen {
     scope: RcStr,
+    base_path: RcStr,
     path: AstPath,
 }
 
@@ -250,18 +256,23 @@ impl ServiceWorkerAssetReferenceCodeGen {
         _chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<CodeGeneration> {
         // Rewrite `register(...)`'s script argument to the served URL and pin the `{ scope }` the
-        // analyzer resolved, replacing any options the user passed:
+        // analyzer resolved, replacing any options the user passed. Both are prefixed with the
+        // app's `basePath` so the worker is fetched and scoped under it.
         //
-        //   register(new URL("./sw", import.meta.url))
+        //   register(new URL("./sw", import.meta.url))            // basePath ""
         //     -> register("/_next/static/service-worker/sw.js", { scope: "/" })
-        //
-        //   register(new URL("./sw", import.meta.url), { scope: "/app" })
-        //     -> register("/_next/static/service-worker/sw-app-<hash>.js", { scope: "/app" })
+        //   register(new URL("./sw", import.meta.url))            // basePath "/base"
+        //     -> register("/base/_next/static/service-worker/sw.js", { scope: "/base" })
+        let base_path = self.base_path.trim_end_matches('/');
         let url = format!(
-            "/_next/static/service-worker/{}",
+            "{base_path}/_next/static/service-worker/{}",
             service_worker_chunk_filename(&self.scope)
         );
-        let scope = self.scope.clone();
+        let scope = match self.scope.as_str() {
+            "/" if base_path.is_empty() => "/".to_string(),
+            "/" => base_path.to_string(),
+            s => format!("{base_path}{s}"),
+        };
 
         let visitor = create_visitor!(self.path, visit_mut_expr, |expr: &mut Expr| {
             let message = if let Expr::Call(call_expr) = expr {

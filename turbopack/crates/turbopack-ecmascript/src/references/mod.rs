@@ -3077,11 +3077,20 @@ where
                         // No options argument: register at the default scope.
                         _ => rcstr!("/"),
                     };
+                    let base_path = compile_time_info
+                        .await?
+                        .defines
+                        .read_process_env(rcstr!("__NEXT_ROUTER_BASEPATH"))
+                        .await?
+                        .as_ref()
+                        .cloned()
+                        .unwrap_or_default();
                     analysis.add_reference_code_gen(
                         ServiceWorkerAssetReference::new(
                             origin,
                             Request::parse(pat).to_resolved().await?,
                             scope,
+                            base_path,
                             issue_source(source, span),
                             error_mode,
                         ),
