@@ -184,6 +184,12 @@ export default async function Page() {
           <DebugLinks href="/suspense-in-root/parallel/slot-config-children-suspended" />
         </li>
         <li>
+          <DebugLinks href="/suspense-in-root/parallel/catchall-breadcrumbs/docs/api/reference" />
+        </li>
+        <li>
+          <DebugLinks href="/suspense-in-root/parallel/optional-catchall-breadcrumbs/docs/api/reference" />
+        </li>
+        <li>
           <DebugLinks href="/suspense-in-root/parallel/conditional-breadcrumbs/show-both/unblocked" />
         </li>
         <li>

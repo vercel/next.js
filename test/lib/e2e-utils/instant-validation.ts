@@ -111,7 +111,15 @@ export function extractValidationOutput(
   }
 
   const output = cliOutput.slice(start.endIndex, end.index).trim()
-  return getDeterministicOutput(output, { isMinified })
+  const deterministicOutput = getDeterministicOutput(output, { isMinified })
+
+  if (deterministicOutput.includes('Error [InvariantError]: Invariant:')) {
+    throw new Error(
+      `Instant validation produced an internal Next.js error:\n${deterministicOutput}`
+    )
+  }
+
+  return deterministicOutput
 }
 
 export function normalizeValidationUrl(url: string): string {

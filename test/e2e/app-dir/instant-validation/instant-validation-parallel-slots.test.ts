@@ -433,6 +433,88 @@ describe('instant validation - parallel slot configs', () => {
       })
     })
 
+    describe('catchall slot configs', () => {
+      it('catches dynamic content below the catchall entry point', async () => {
+        const href =
+          '/suspense-in-root/parallel/catchall-breadcrumbs/docs/api/reference'
+        if (isNextDev) {
+          const browser = await navigateTo(href)
+          await expect(browser).toDisplayCollapsedRedbox(`
+           {
+             "cause": [
+               {
+                 "label": "Caused by: Instant Validation",
+                 "source": "app/suspense-in-root/parallel/catchall-breadcrumbs/@breadcrumbs/[...catchall]/page.tsx (1:24) @ instant
+           > 1 | export const instant = { level: 'experimental-error' }
+               |                        ^",
+                 "stack": [
+                   "instant app/suspense-in-root/parallel/catchall-breadcrumbs/@breadcrumbs/[...catchall]/page.tsx (1:24)",
+                   "Set.forEach <anonymous>",
+                 ],
+               },
+             ],
+             "code": "E1319",
+             "description": "Next.js encountered runtime data during a navigation.",
+             "environmentLabel": "Server",
+             "label": "Instant",
+             "source": "app/suspense-in-root/parallel/catchall-breadcrumbs/docs/api/reference/page.tsx (4:16) @ Page
+           > 4 |   await cookies()
+               |                ^",
+             "stack": [
+               "Page app/suspense-in-root/parallel/catchall-breadcrumbs/docs/api/reference/page.tsx (4:16)",
+             ],
+           }
+          `)
+        } else {
+          const result = await prerender(href)
+          expect(extractBuildValidationError(result.cliOutput)).toContain(
+            'Error: Route "/suspense-in-root/parallel/catchall-breadcrumbs/docs/api/reference": Next.js encountered runtime data during prerendering or a navigation.'
+          )
+          expect(result.exitCode).toBe(1)
+        }
+      })
+
+      it('catches dynamic content below the optional catchall entry point', async () => {
+        const href =
+          '/suspense-in-root/parallel/optional-catchall-breadcrumbs/docs/api/reference'
+        if (isNextDev) {
+          const browser = await navigateTo(href)
+          await expect(browser).toDisplayCollapsedRedbox(`
+           {
+             "cause": [
+               {
+                 "label": "Caused by: Instant Validation",
+                 "source": "app/suspense-in-root/parallel/optional-catchall-breadcrumbs/@breadcrumbs/[[...catchall]]/page.tsx (1:24) @ instant
+           > 1 | export const instant = { level: 'experimental-error' }
+               |                        ^",
+                 "stack": [
+                   "instant app/suspense-in-root/parallel/optional-catchall-breadcrumbs/@breadcrumbs/[[...catchall]]/page.tsx (1:24)",
+                   "Set.forEach <anonymous>",
+                 ],
+               },
+             ],
+             "code": "E1319",
+             "description": "Next.js encountered runtime data during a navigation.",
+             "environmentLabel": "Server",
+             "label": "Instant",
+             "source": "app/suspense-in-root/parallel/optional-catchall-breadcrumbs/docs/api/reference/page.tsx (4:16) @ Page
+           > 4 |   await cookies()
+               |                ^",
+             "stack": [
+               "Page app/suspense-in-root/parallel/optional-catchall-breadcrumbs/docs/api/reference/page.tsx (4:16)",
+             ],
+           }
+          `)
+        } else {
+          const result = await prerender(href)
+          expect(extractBuildValidationError(result.cliOutput)).toContain(
+            'Error: Route "/suspense-in-root/parallel/optional-catchall-breadcrumbs/docs/api/reference": Next.js encountered runtime data during prerendering or a navigation.'
+          )
+          expect(result.exitCode).toBe(1)
+        }
+      })
+    })
+
     describe('conditional slot rendering', () => {
       it('valid - both slots render, no cookies', async () => {
         const href =

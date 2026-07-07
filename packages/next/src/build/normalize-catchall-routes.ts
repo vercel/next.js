@@ -43,8 +43,6 @@ export function normalizeCatchAllRoutes(
         // check if there's not already a slot value that could match the catch-all
         !appPaths[appPath].some((path) => hasMatchedSlots(path, catchAllRoute))
       ) {
-        // optional catch-all routes are not currently supported, but leaving this logic in place
-        // for when they are eventually supported.
         if (isOptionalCatchAll(catchAllRoute)) {
           // optional catch-all routes should match both the root segment and any segment after it
           // for example, `/[[...slug]]` should match `/` and `/foo` and `/foo/bar`
@@ -88,8 +86,16 @@ function isMatchableSlot(segment: string): boolean {
 const catchAllRouteRegex = /\[?\[\.\.\./
 
 function isCatchAllRoute(pathname: string): boolean {
-  // Optional catch-all slots are not currently supported, and as such they are not considered when checking for match compatability.
-  return !isOptionalCatchAll(pathname) && isCatchAll(pathname)
+  if (!isCatchAll(pathname)) {
+    return false
+  }
+
+  // Only normalize optional catch-alls in parallel slots. Normal optional
+  // catch-all routes already participate in route matching directly, and
+  // propagating them here could override more specific routes.
+  return (
+    !isOptionalCatchAll(pathname) || pathname.split('/').some(isMatchableSlot)
+  )
 }
 
 function isOptionalCatchAll(pathname: string): boolean {

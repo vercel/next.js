@@ -3595,11 +3595,26 @@ describe('instant validation', () => {
           )
           expect(extractBuildValidationError(result.cliOutput))
             .toMatchInlineSnapshot(`
-           "Error [InvariantError]: Invariant: An unexpected error occurred during instant validation. This is a bug in Next.js.
-               at ignore-listed frames {
-             [cause]: Error [InvariantError]: Invariant: Missing value for segment key: "catchall" with dynamic param type: c. This is a bug in Next.js.
-                 at ignore-listed frames
-           }
+           "Error: Route "/suspense-in-root/static/config-depth-preference/deeper/still/deep": Next.js encountered runtime data during prerendering or a navigation.
+
+           \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
+
+           Ways to fix this:
+             - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+               https://nextjs.org/docs/messages/blocking-prerender-runtime#wrap-in-or-move-into-suspense
+             - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
+               https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
+             - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
+               https://nextjs.org/docs/messages/blocking-prerender-runtime#allow-blocking-route
+               at div (<anonymous>)
+               at div (<anonymous>)
+               at body (<anonymous>)
+               at html (<anonymous>)
+               at a (<anonymous>)
+           Build-time instant validation failed for route "/suspense-in-root/static/config-depth-preference/deeper/still/deep".
+           To get a more detailed stack trace and pinpoint the issue, try one of the following:
+             - Start the app in development mode by running \`next dev\`, then open "/suspense-in-root/static/config-depth-preference/deeper/still/deep" in your browser to investigate the error.
+             - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
            Stopping prerender due to instant validation errors."
           `)
           expect(result.exitCode).toBe(1)
@@ -3803,11 +3818,26 @@ describe('instant validation', () => {
           )
           expect(extractBuildValidationError(result.cliOutput))
             .toMatchInlineSnapshot(`
-           "Error [InvariantError]: Invariant: An unexpected error occurred during instant validation. This is a bug in Next.js.
-               at ignore-listed frames {
-             [cause]: Error [InvariantError]: Invariant: Missing value for segment key: "catchall" with dynamic param type: c. This is a bug in Next.js.
-                 at ignore-listed frames
-           }
+           "Error: Route "/suspense-in-root/static/cross-slot-blocking/inner/deep": Next.js encountered runtime data during prerendering or a navigation.
+
+           \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
+
+           Ways to fix this:
+             - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+               https://nextjs.org/docs/messages/blocking-prerender-runtime#wrap-in-or-move-into-suspense
+             - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
+               https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
+             - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
+               https://nextjs.org/docs/messages/blocking-prerender-runtime#allow-blocking-route
+               at div (<anonymous>)
+               at div (<anonymous>)
+               at body (<anonymous>)
+               at html (<anonymous>)
+               at a (<anonymous>)
+           Build-time instant validation failed for route "/suspense-in-root/static/cross-slot-blocking/inner/deep".
+           To get a more detailed stack trace and pinpoint the issue, try one of the following:
+             - Start the app in development mode by running \`next dev\`, then open "/suspense-in-root/static/cross-slot-blocking/inner/deep" in your browser to investigate the error.
+             - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
            Stopping prerender due to instant validation errors."
           `)
           expect(result.exitCode).toBe(1)

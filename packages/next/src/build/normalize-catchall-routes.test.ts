@@ -100,8 +100,7 @@ describe('normalizeCatchallRoutes', () => {
     })
   })
 
-  // TODO-APP: Enable this test once support for optional catch-all slots is added.
-  it.skip('should only match optional catch-all paths to the "index" of a segment', () => {
+  it('should match optional catch-all slots at and below their segment', () => {
     const appPaths = {
       '/': ['/page'],
       '/[[...catchAll]]': ['/@slot/[[...catchAll]]/page'],
