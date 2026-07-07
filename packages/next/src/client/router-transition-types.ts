@@ -7,45 +7,34 @@ export type RouterTransitionEvent = {
 
 /**
  * One rendered route of a transition: a route template plus the dynamic param
- * values that fill its holes. Scoping the params to the template (rather than
- * pooling them per event) makes the join unambiguous — `params[i]` always
- * fills `:(i+1)` of *this* template — even when parallel-route slots render
- * sibling templates whose holes share the same positional labels.
+ * values that fill it. Params are scoped to the template (rather than pooled
+ * per event) so parallel-route slots that bind the same param name stay
+ * unambiguous, and every entry of `routes` is joinable on its own.
  */
 export type RouterTransitionMatchedRoute = {
   /**
-   * The route template path, with parallel-route slots included (as `@slot`).
-   * Dynamic segments are positional holes (`:1`, `:2`, ...) rather than param
-   * names, so renaming a `[param]` folder does not break log continuity.
-   *
-   * Hole numbering is per-template: `:n` is the n-th dynamic segment along
-   * this template's own path, independent of sibling templates. That keeps
-   * template strings — the values consumers group logs by — stable when an
-   * unrelated sibling route gains or loses a dynamic segment. Best-effort:
-   * the `app/` root and `page`/`layout` suffix are not reconstructable on
-   * the client.
+   * The route template path, with parallel-route slots included (as `@slot`)
+   * and dynamic segments in their source notation (`[slug]`, `[...parts]`,
+   * `[[...parts]]`). Param names are reported verbatim, so renaming a
+   * `[param]` folder changes the template. Best-effort: the `app/` root and
+   * `page`/`layout` suffix are not reconstructable on the client.
    *
    * Examples: `/blog/hello` rendered by `app/blog/[slug]/page.tsx` reports
-   * `"/blog/:1"`; a photo modal intercepted over a gallery reports
-   * `"/gallery/@modal/(.)photos/:1"`; a route group folder like `(marketing)`
-   * never appears.
+   * `"/blog/[slug]"`; a photo modal intercepted over a gallery reports
+   * `"/gallery/@modal/(.)photos/[id]"`; a route group folder like
+   * `(marketing)` never appears.
    */
   template: string
   /**
-   * The dynamic param values for this template, positional by hole order:
-   * `params[i]` fills this template's `:(i+1)` hole. Values are NOT keyed by
-   * param name, which is folder-derived and not rename-stable. A catch-all
-   * value is the array of its path segments.
+   * The dynamic param values for this template, keyed by param name. A
+   * catch-all value is the array of its path segments. A param on a path
+   * prefix shared with sibling templates repeats in each sibling's `params`.
    *
-   * A hole on a path prefix shared with sibling templates repeats its value
-   * in each sibling's `params`, so every entry of `routes` is joinable on
-   * its own.
-   *
-   * Examples: `{ template: "/blog/:1", params: ["hello"] }`; `/docs/a/b`
-   * under `app/docs/[...parts]` reports
-   * `{ template: "/docs/:1", params: [["a", "b"]] }`.
+   * Examples: `{ template: "/blog/[slug]", params: { slug: "hello" } }`;
+   * `/docs/a/b` under `app/docs/[...parts]` reports
+   * `{ template: "/docs/[...parts]", params: { parts: ["a", "b"] } }`.
    */
-  params: Array<string | string[]>
+  params: Record<string, string | string[]>
 }
 
 /**
@@ -78,21 +67,20 @@ export type RouterTransitionRoute = {
   /**
    * The rendered routes, primary (leaf/page) first, then parallel-route slot
    * templates in stable (alphabetical) order. Each entry pairs a route
-   * template with the param values that fill that template's own holes; see
-   * `RouterTransitionMatchedRoute` for the join rule.
+   * template with the param values that fill it; see
+   * `RouterTransitionMatchedRoute`.
    *
    * Examples: `/blog/hello` rendered by `app/blog/[slug]/page.tsx` reports
-   * `[{ template: "/blog/:1", params: ["hello"] }]`; a photo modal
-   * intercepted over a gallery reports
-   * `[{ template: "/gallery", params: [] },
-   *   { template: "/gallery/@modal/(.)photos/:1", params: ["1"] }]`.
+   * `[{ template: "/blog/[slug]", params: { slug: "hello" } }]`; a photo
+   * modal intercepted over a gallery reports
+   * `[{ template: "/gallery", params: {} },
+   *   { template: "/gallery/@modal/(.)photos/[id]", params: { id: "1" } }]`.
    */
   routes: RouterTransitionMatchedRoute[]
   /**
    * The post-rewrite search params (from the server-observed
    * `renderedSearch`), so a search param added or changed by a middleware
-   * rewrite is reflected here. Unlike route param names, search param keys
-   * are reported verbatim — they are already user-visible in the address bar.
+   * rewrite is reflected here.
    *
    * Example: `?q=shoes&color=red&color=blue` reports
    * `{ q: "shoes", color: ["red", "blue"] }`.

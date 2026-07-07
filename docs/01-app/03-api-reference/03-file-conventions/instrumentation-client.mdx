@@ -135,7 +135,7 @@ The `start` event also carries `event.from` describing the route the navigation 
 
 - `renderedPathname` - The server's post-rewrite pathname (the route that actually rendered), which can differ from the canonical URL
 - `canonicalUrl` - The URL shown in the browser address bar
-- `routes` - The rendered routes, primary (page) first, then parallel slots. Each entry pairs a `template` with the `params` filling that template's holes: dynamic segments appear as positional holes (`:1`, `:2`, ...) rather than param names, so a navigation away from `/blog/hello` reports `{ template: '/blog/:1', params: ['hello'] }`, and a photo modal intercepted over a gallery reports `{ template: '/gallery/@modal/(.)photos/:1', params: ['1'] }`. `params[i]` always fills `:(i+1)` of its own template — hole numbers are per-template, so do not join one template's params against another's holes. Catch-all values are arrays of path segments
+- `routes` - The rendered routes, primary (page) first, then parallel slots. Each entry pairs a `template` (with dynamic segments in their source notation) with the `params` that fill it, keyed by param name: a navigation away from `/blog/hello` reports `{ template: '/blog/[slug]', params: { slug: 'hello' } }`, and a photo modal intercepted over a gallery reports `{ template: '/gallery/@modal/(.)photos/[id]', params: { id: '1' } }`. Params are scoped per template, and catch-all values are arrays of path segments
 - `searchParams` - The post-rewrite search params
 
 A hash-only navigation keeps the same route, so a commit's `to` matches its start's `from` (only the hash-bearing canonical URL differs).

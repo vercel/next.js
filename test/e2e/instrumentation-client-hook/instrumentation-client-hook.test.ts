@@ -201,7 +201,7 @@ describe('Instrumentation Client Hook', () => {
         expect(start.event.timestamp).toBeGreaterThan(0)
         // The `from` route describes the page we navigated away from (the
         // home page).
-        expect(start.event.from.routes).toEqual([{ template: '/', params: [] }])
+        expect(start.event.from.routes).toEqual([{ template: '/', params: {} }])
         expect(start.event.from.renderedPathname).toBe('/')
         expect(start.event.from.searchParams).toEqual({})
         // The events carry exactly the public fields — in particular no
@@ -229,7 +229,7 @@ describe('Instrumentation Client Hook', () => {
           'to',
         ])
         expect(commit.event.to.routes).toEqual([
-          { template: '/some-page', params: [] },
+          { template: '/some-page', params: {} },
         ])
         expect(commit.event.to.renderedPathname).toBe('/some-page')
       }
@@ -251,7 +251,7 @@ describe('Instrumentation Client Hook', () => {
         expect(start.navigateType).toBe('traverse')
         expect(commit.navigateType).toBe('traverse')
         expect(commit.event.id).toBe(start.event.id)
-        expect(commit.event.to.routes).toEqual([{ template: '/', params: [] }])
+        expect(commit.event.to.routes).toEqual([{ template: '/', params: {} }])
       }
 
       // A direct History API call is not a router navigation: the router
@@ -288,32 +288,28 @@ describe('Instrumentation Client Hook', () => {
       await browser.elementById('home')
       const [groupStart] = await waitForCommitCount(browser, 1)
       expect(groupStart.event.from.routes).toEqual([
-        { template: '/about', params: [] },
+        { template: '/about', params: {} },
       ])
 
-      // Dynamic segment: a positional hole with its value in params. The
-      // param name (`slug`) is an app-internal identifier — renaming the
-      // folder must not change what consumers group logs by — so it appears
-      // nowhere in the event. Search params are the exception: their names
-      // are user-facing already, so they are kept verbatim.
+      // Dynamic segment: the template reports the param name verbatim in its
+      // source notation, with the value keyed by that name.
       await browser.elementByCss('a[href="/blog/hello?tag=react"]').click()
       await browser.elementById('blog-post')
       const blogCommit = lastCommit(await waitForCommitCount(browser, 2))
       expect(blogCommit.event.to.routes).toEqual([
-        { template: '/blog/:1', params: ['hello'] },
+        { template: '/blog/[slug]', params: { slug: 'hello' } },
       ])
-      expect(JSON.stringify(blogCommit.event)).not.toContain('slug')
       expect(blogCommit.event.to.searchParams).toEqual({ tag: 'react' })
       expect(blogCommit.event.to.canonicalUrl).toBe('/blog/hello?tag=react')
       expect(blogCommit.event.to.renderedPathname).toBe('/blog/hello')
 
-      // Catch-all: one positional hole holding the segment array; repeated
-      // search params are reported as an array, verbatim.
+      // Catch-all: the param value is the array of matched path segments;
+      // repeated search params are reported as an array, verbatim.
       await browser.elementById('push-catch-all').click()
       await browser.elementById('docs-page')
       const docsCommit = lastCommit(await waitForCommitCount(browser, 3))
       expect(docsCommit.event.to.routes).toEqual([
-        { template: '/docs/:1', params: [['a', 'b']] },
+        { template: '/docs/[...parts]', params: { parts: ['a', 'b'] } },
       ])
       expect(docsCommit.event.to.renderedPathname).toBe('/docs/a/b')
       expect(docsCommit.event.to.canonicalUrl).toBe('/docs/a/b?x=1&x=2')
@@ -333,7 +329,7 @@ describe('Instrumentation Client Hook', () => {
       )
       expect(rewriteCommit.event.to.renderedPathname).toBe('/rewrite-target')
       expect(rewriteCommit.event.to.routes).toEqual([
-        { template: '/rewrite-target', params: [] },
+        { template: '/rewrite-target', params: {} },
       ])
       expect(rewriteCommit.event.to.searchParams).toEqual({
         q: 'from-user',
@@ -363,7 +359,7 @@ describe('Instrumentation Client Hook', () => {
       const hashCommit = lastCommit(await waitForCommitCount(browser, 6))
       expect(hashCommit.event.to.canonicalUrl).toBe('/#section')
       expect(hashCommit.event.to.routes).toEqual([
-        { template: '/', params: [] },
+        { template: '/', params: {} },
       ])
       expect(hashCommit.event.to.renderedPathname).toBe('/')
       await browser.back()
@@ -372,7 +368,7 @@ describe('Instrumentation Client Hook', () => {
           (e) => e.phase === 'commit' && e.navigateType === 'traverse'
         )
         expect(traverseCommit?.event.to.routes).toEqual([
-          { template: '/', params: [] },
+          { template: '/', params: {} },
         ])
       })
 
@@ -395,7 +391,7 @@ describe('Instrumentation Client Hook', () => {
       // Parallel slots + interception (fresh full-page load, so the modal is
       // reached from the gallery): the intercepted modal keeps the gallery
       // as the rendered primary route, and params are scoped per template —
-      // the modal's own `:1` hole carries the photo id.
+      // the modal's own `id` param carries the photo id.
       await browser.get(new URL('/gallery', next.url).href)
       // browser.get() does not wait for hydration (next.browser does): a
       // pre-hydration click would fall back to a native full-page navigation
@@ -406,8 +402,8 @@ describe('Instrumentation Client Hook', () => {
       const modalCommit = lastCommit(await waitForCommitCount(browser, 1))
       expect(modalCommit.event.to.renderedPathname).toBe('/gallery')
       expect(modalCommit.event.to.routes).toEqual([
-        { template: '/gallery', params: [] },
-        { template: '/gallery/@modal/(.)photos/:1', params: ['1'] },
+        { template: '/gallery', params: {} },
+        { template: '/gallery/@modal/(.)photos/[id]', params: { id: '1' } },
       ])
     })
 
@@ -494,7 +490,7 @@ describe('Instrumentation Client Hook', () => {
       expect(freshAbort.event.replacedBy).toBe(freshCommit.event.id)
       // Same-page navigation: the committed route equals the origin.
       expect(freshCommit.event.to.routes).toEqual([
-        { template: '/', params: [] },
+        { template: '/', params: {} },
       ])
       expect(freshCommit.event.to.renderedPathname).toBe('/')
     })
