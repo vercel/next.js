@@ -1,9 +1,9 @@
 import { Instant } from 'next'
 import { ThrowsInClient } from './client'
 
-export const unstable_instant: Instant = {
-  prefetch: 'static',
-  samples: [{ searchParams: {} }],
+export const instant: Instant = {
+  level: 'experimental-error',
+  unstable_samples: [{ searchParams: {} }],
 }
 
 export default function Page() {

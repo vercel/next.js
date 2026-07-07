@@ -8,17 +8,15 @@ import { connection } from 'next/server'
  * are both tracked in varyParams. Every unique combination of (category, itemId)
  * requires its own prefetch — no cache sharing.
  */
-export const unstable_instant: {
-  prefetch: 'runtime'
-  samples: Array<{ params: { category: string; itemId: string } }>
+export const instant: {
+  unstable_samples: Array<{ params: { category: string; itemId: string } }>
 } = {
-  prefetch: 'runtime',
-  samples: [
+  unstable_samples: [
     { params: { category: 'electronics', itemId: 'phone' } },
     { params: { category: 'clothing', itemId: 'shirt' } },
   ],
 }
-export const unstable_prefetch = 'runtime'
+export const prefetch = 'allow-runtime'
 
 type Params = { category: string; itemId: string }
 

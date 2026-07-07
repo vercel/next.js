@@ -14,7 +14,7 @@ It supports having multiple key families, which are stored in separate files, bu
 
 There is a single `CURRENT` file which stores the latest committed sequence number.
 
-All other files have a sequence number as file name, e. g. `0000123.sst`. All files are immutable once there sequence number is <= the committed sequence number. But they might be deleted when they are superseeded by other committed files.
+All other files have a sequence number as file name, e. g. `0000123.sst`. All files are immutable once their sequence number is <= the committed sequence number. But they might be deleted when they are superseded by other committed files.
 
 There are four different file types:
 
@@ -102,7 +102,7 @@ Each block stores a 4-byte CRC32 checksum (big-endian) computed on the **on-disk
   - 8 bytes hash
   - 2 bytes block index
 
-An Index block contains `n` 8 bytes hashes, which specify `n - 1` hash ranges (eq hash goes into the prev range, except for the first key). Between these `n` hashes there are `n - 1` 2 byte block indicies that point to the block that contains the hash range.
+An Index block contains `n` 8 bytes hashes, which specify `n - 1` hash ranges (eq hash goes into the prev range, except for the first key). Between these `n` hashes there are `n - 1` 2 byte block indices that point to the block that contains the hash range.
 
 The hashes are sorted.
 
@@ -222,7 +222,7 @@ For compaction we compute the "coverage" of the SST files. The coverage is the a
 
 For a single SST file we can compute `(max_hash - min_hash) / u64::MAX` as the coverage of the SST file. We sum up all these coverages to get the total coverage.
 
-Compaction chooses a few SST files and runs the merge step of merge sort on tham to create a few new SST files with sorted ranges.
+Compaction chooses a few SST files and runs the merge step of merge sort on them to create a few new SST files with sorted ranges.
 
 Example:
 
@@ -305,7 +305,7 @@ DEL 17:  (2, 3, 4, 5, 6, 7, 8, 9)
 CURRENT: 17
 ```
 
-Configuration options for compations are:
+Configuration options for compactions are:
 
 - max number of SST files that are merged at once
 - coverage when compaction is triggered (otherwise calling compact is a noop)

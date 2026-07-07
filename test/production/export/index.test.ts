@@ -8,7 +8,6 @@ import {
 } from 'next-test-utils'
 import { AddressInfo, Server } from 'net'
 import cheerio from 'cheerio'
-import webdriver from 'next-webdriver'
 
 describe('static export', () => {
   const { next, skipped } = nextTestSetup({
@@ -75,6 +74,8 @@ describe('static export', () => {
       .readFile(file)
       .then(() => true)
       .catch(() => false)
+  const openBrowser = (url: string, baseUrl: string | number = port) =>
+    next.browser(url, { baseUrl })
 
   it('should honor trailingSlash for 404 page', async () => {
     expect(await fileExist(path.join(outdir, '404/index.html'))).toBe(true)
@@ -126,7 +127,7 @@ describe('static export', () => {
 
   describe('Render via browser', () => {
     it('should render the home page', async () => {
-      const browser = await webdriver(port, '/')
+      const browser = await openBrowser('/')
       const text = await browser.elementByCss('#home-page p').text()
 
       expect(text).toBe('This is the home page')
@@ -134,7 +135,7 @@ describe('static export', () => {
     })
 
     it('should add trailing slash on Link', async () => {
-      const browser = await webdriver(port, '/')
+      const browser = await openBrowser('/')
       const link = await browser
         .elementByCss('#about-via-link')
         .getAttribute('href')
@@ -143,14 +144,14 @@ describe('static export', () => {
     })
 
     it('should not add any slash on hash Link', async () => {
-      const browser = await webdriver(port, '/hash-link')
+      const browser = await openBrowser('/hash-link')
       const link = await browser.elementByCss('#hash-link').getAttribute('href')
 
       expect(link).toMatch(/\/hash-link\/#hash$/)
     })
 
     it('should preserve hash symbol on empty hash Link', async () => {
-      const browser = await webdriver(port, '/empty-hash-link')
+      const browser = await openBrowser('/empty-hash-link')
       const link = await browser
         .elementByCss('#empty-hash-link')
         .getAttribute('href')
@@ -159,7 +160,7 @@ describe('static export', () => {
     })
 
     it('should preserve question mark on empty query Link', async () => {
-      const browser = await webdriver(port, '/empty-query-link')
+      const browser = await openBrowser('/empty-query-link')
       const link = await browser
         .elementByCss('#empty-query-link')
         .getAttribute('href')
@@ -168,7 +169,7 @@ describe('static export', () => {
     })
 
     it('should not add trailing slash on Link when disabled', async () => {
-      const browser = await webdriver(portNoTrailSlash, '/')
+      const browser = await openBrowser('/', portNoTrailSlash)
       const link = await browser
         .elementByCss('#about-via-link')
         .getAttribute('href')
@@ -177,7 +178,7 @@ describe('static export', () => {
     })
 
     it('should do navigations via Link', async () => {
-      const browser = await webdriver(port, '/')
+      const browser = await openBrowser('/')
       const text = await browser
         .elementByCss('#about-via-link')
         .click()
@@ -190,7 +191,7 @@ describe('static export', () => {
     })
 
     it('should do navigations via Router', async () => {
-      const browser = await webdriver(port, '/')
+      const browser = await openBrowser('/')
       const text = await browser
         .elementByCss('#about-via-router')
         .click()
@@ -203,7 +204,7 @@ describe('static export', () => {
     })
 
     it('should do run client side javascript', async () => {
-      const browser = await webdriver(port, '/')
+      const browser = await openBrowser('/')
       const text = await browser
         .elementByCss('#counter')
         .click()
@@ -220,7 +221,7 @@ describe('static export', () => {
     })
 
     it('should render pages using getInitialProps', async () => {
-      const browser = await webdriver(port, '/')
+      const browser = await openBrowser('/')
       const text = await browser
         .elementByCss('#get-initial-props')
         .click()
@@ -233,7 +234,7 @@ describe('static export', () => {
     })
 
     it('should render dynamic pages with custom urls', async () => {
-      const browser = await webdriver(port, '/')
+      const browser = await openBrowser('/')
       const text = await browser
         .elementByCss('#dynamic-1')
         .click()
@@ -246,7 +247,7 @@ describe('static export', () => {
     })
 
     it('should support client side navigation', async () => {
-      const browser = await webdriver(port, '/')
+      const browser = await openBrowser('/')
       const text = await browser
         .elementByCss('#counter')
         .click()
@@ -277,7 +278,7 @@ describe('static export', () => {
     })
 
     it('should render dynamic import components in the client', async () => {
-      const browser = await webdriver(port, '/')
+      const browser = await openBrowser('/')
       await browser
         .elementByCss('#dynamic-imports-link')
         .click()
@@ -294,7 +295,7 @@ describe('static export', () => {
     it('should render pages with url hash correctly', async () => {
       let browser
       try {
-        browser = await webdriver(port, '/')
+        browser = await openBrowser('/')
 
         // Check for the query string content
         const text = await browser
@@ -317,7 +318,7 @@ describe('static export', () => {
     it('should render 404 when visiting a page that returns notFound from gsp', async () => {
       let browser
       try {
-        browser = await webdriver(port, '/')
+        browser = await openBrowser('/')
 
         const text = await browser
           .elementByCss('#gsp-notfound-link')
@@ -335,7 +336,7 @@ describe('static export', () => {
     })
 
     it('should navigate even if used a button inside <Link />', async () => {
-      const browser = await webdriver(port, '/button-link')
+      const browser = await openBrowser('/button-link')
 
       const text = await browser
         .elementByCss('button')
@@ -349,7 +350,7 @@ describe('static export', () => {
     })
 
     it('should update query after mount', async () => {
-      const browser = await webdriver(port, '/query-update?hello=world')
+      const browser = await openBrowser('/query-update?hello=world')
       const query = await browser.elementByCss('#query').text()
       expect(JSON.parse(query)).toEqual({ hello: 'world', a: 'blue' })
       await browser.close()
@@ -357,7 +358,7 @@ describe('static export', () => {
 
     describe('pages in the nested level: level1', () => {
       it('should render the home page', async () => {
-        const browser = await webdriver(port, '/')
+        const browser = await openBrowser('/')
 
         await browser.eval(
           'document.getElementById("level1-home-page").click()'
@@ -372,7 +373,7 @@ describe('static export', () => {
       })
 
       it('should render the about page', async () => {
-        const browser = await webdriver(port, '/')
+        const browser = await openBrowser('/')
 
         await browser.eval(
           'document.getElementById("level1-about-page").click()'

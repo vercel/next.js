@@ -165,9 +165,6 @@ async function verifyTypeScript(opts: SetupOpts) {
     hasPagesDir: !!opts.pagesDir,
     appDir: opts.appDir,
     pagesDir: opts.pagesDir,
-    rootParams:
-      !!opts.nextConfig.experimental.rootParams ||
-      !!opts.nextConfig.cacheComponents,
   })
 
   if (verifyResult.version) {
@@ -1200,8 +1197,7 @@ async function startWatcher(
 
           await writeRootParamsTypes(
             routeTypesManifest,
-            path.join(distTypesDir, 'root-params.d.ts'),
-            opts.nextConfig
+            path.join(distTypesDir, 'root-params.d.ts')
           )
         }
 

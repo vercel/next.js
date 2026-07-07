@@ -4,6 +4,10 @@
 const fs = require('fs/promises')
 const path = require('path')
 const semver = require('semver')
+const {
+  getGitHubToken,
+  getGitHubTokenMissingMessage,
+} = require('./release-github-auth')
 
 const PUBLISH_RELEASE_JOB_NAME = 'Potentially publish release'
 const TRIGGER_RELEASE_WORKFLOW = 'trigger_release.yml'
@@ -25,17 +29,7 @@ function parseReleaseVersion(commitMessage) {
     : null
 }
 
-function compareSemver(left, right) {
-  const result = semver.compare(left, right)
-
-  if (Number.isNaN(result)) {
-    throw new Error(`Invalid semver comparison "${left}" vs "${right}"`)
-  }
-
-  return result
-}
-
-async function fetchJson(url, token) {
+async function fetchGitHubJson(url, token) {
   const headers = {
     Accept: 'application/vnd.github+json',
   }
@@ -78,7 +72,7 @@ async function getWorkflowRunJobs(owner, repo, workflowRunId, token) {
       per_page: '100',
       page: String(page),
     })
-    const data = await fetchJson(
+    const data = await fetchGitHubJson(
       `https://api.github.com/repos/${owner}/${repo}/actions/runs/${workflowRunId}/jobs?${params}`,
       token
     )
@@ -98,7 +92,7 @@ async function getActiveTriggerReleaseRun(owner, repo, token) {
       status,
       per_page: '100',
     })
-    const data = await fetchJson(
+    const data = await fetchGitHubJson(
       `https://api.github.com/repos/${owner}/${repo}/actions/workflows/${TRIGGER_RELEASE_WORKFLOW}/runs?${params}`,
       token
     )
@@ -112,7 +106,7 @@ async function getActiveTriggerReleaseRun(owner, repo, token) {
 }
 
 async function getCommitMessage(owner, repo, sha, token) {
-  const data = await fetchJson(
+  const data = await fetchGitHubJson(
     `https://api.github.com/repos/${owner}/${repo}/commits/${sha}`,
     token
   )
@@ -142,11 +136,11 @@ async function main() {
     throw new Error('Missing --head-sha')
   }
 
-  const token = process.env.RELEASE_BOT_GITHUB_TOKEN || process.env.GITHUB_TOKEN
+  const token = getGitHubToken() || process.env.GITHUB_TOKEN
   const repoFullName = process.env.GITHUB_REPOSITORY
 
   if (!token) {
-    throw new Error('Missing RELEASE_BOT_GITHUB_TOKEN or GITHUB_TOKEN')
+    throw new Error(`${getGitHubTokenMissingMessage()} or GITHUB_TOKEN`)
   }
 
   if (!repoFullName) {
@@ -197,31 +191,12 @@ async function main() {
     return
   }
 
-  const distTags = await fetchJson(
-    'https://registry.npmjs.org/-/package/next/dist-tags'
-  )
-  const latestStableVersion = distTags.latest
-
-  // Backports publish a stable version lower than npm's current latest.
-  // If the released version is not lower than latest, this was not a backport.
-  if (compareSemver(releasedVersion, latestStableVersion) >= 0) {
-    await finish({
-      should_dispatch: 'false',
-      reason: `Released version ${releasedVersion} is not a backport`,
-      current_canary_version: currentCanaryVersion,
-      released_version: releasedVersion,
-      latest_version: latestStableVersion,
-    })
-    return
-  }
-
-  if (compareSemver(currentCanaryVersion, releasedVersion) > 0) {
+  if (semver.gt(currentCanaryVersion, releasedVersion)) {
     await finish({
       should_dispatch: 'false',
       reason: `Current canary version ${currentCanaryVersion} is already ahead of ${releasedVersion}`,
       current_canary_version: currentCanaryVersion,
       released_version: releasedVersion,
-      latest_version: latestStableVersion,
     })
     return
   }
@@ -241,17 +216,15 @@ async function main() {
       active_trigger_release_url: activeTriggerReleaseRun.html_url,
       current_canary_version: currentCanaryVersion,
       released_version: releasedVersion,
-      latest_version: latestStableVersion,
     })
     return
   }
 
   await finish({
     should_dispatch: 'true',
-    reason: `Dispatching canary preminor release because backport ${releasedVersion} is ahead of ${currentCanaryVersion}`,
+    reason: `Dispatching canary preminor release because stable release ${releasedVersion} is ahead of ${currentCanaryVersion}`,
     current_canary_version: currentCanaryVersion,
     released_version: releasedVersion,
-    latest_version: latestStableVersion,
   })
 }
 

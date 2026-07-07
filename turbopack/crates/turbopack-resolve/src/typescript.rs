@@ -25,7 +25,7 @@ use turbopack_core::{
         pattern::Pattern,
         resolve,
     },
-    source::{OptionSource, Source},
+    source::Source,
 };
 
 use crate::ecmascript::get_condition_maps;
@@ -88,7 +88,7 @@ pub async fn read_tsconfigs(
                 configs.push((parsed_data, tsconfig));
                 if let Some(extends) = json["extends"].as_str() {
                     let resolved = resolve_extends(*tsconfig, extends, resolve_options).await?;
-                    if let Some(source) = *resolved.await? {
+                    if let Some(source) = resolved {
                         data = source.content().file_content();
                         tsconfig = source;
                         continue;
@@ -118,8 +118,8 @@ async fn resolve_extends(
     tsconfig: Vc<Box<dyn Source>>,
     extends: &str,
     resolve_options: Vc<ResolveOptions>,
-) -> Result<Vc<OptionSource>> {
-    let parent_dir = tsconfig.ident().path().await?.parent();
+) -> Result<Option<ResolvedVc<Box<dyn Source>>>> {
+    let parent_dir = tsconfig.ident().await?.path.parent();
     let request = Request::parse_string(extends.into());
 
     // TS's resolution is weird, and has special behavior for different import
@@ -148,18 +148,18 @@ async fn resolve_extends(
         Request::Empty => {
             let request = Request::parse_string(rcstr!("./tsconfig"));
             Ok(resolve(parent_dir,
-                ReferenceType::TypeScript(TypeScriptReferenceSubType::Undefined), request, resolve_options).first_source())
+                ReferenceType::TypeScript(TypeScriptReferenceSubType::Undefined), request, resolve_options).await?.first_source())
         }
 
         // All other types are treated as module imports, and potentially joined with
         // "tsconfig.json". This includes "relative" imports like '.' and '..'.
         _ => {
-            let mut result = resolve(parent_dir.clone(), ReferenceType::TypeScript(TypeScriptReferenceSubType::Undefined), request, resolve_options).first_source();
-            if result.await?.is_none() {
-                let request = Request::parse_string(format!("{extends}/tsconfig").into());
-                result = resolve(parent_dir, ReferenceType::TypeScript(TypeScriptReferenceSubType::Undefined), request, resolve_options).first_source();
+            let result = resolve(parent_dir.clone(), ReferenceType::TypeScript(TypeScriptReferenceSubType::Undefined), request, resolve_options).await?;
+            if let Some(source) = result.first_source() {
+                return Ok(Some(source));
             }
-            Ok(result)
+            let request = Request::parse_string(format!("{extends}/tsconfig").into());
+            Ok(resolve(parent_dir, ReferenceType::TypeScript(TypeScriptReferenceSubType::Undefined), request, resolve_options).await?.first_source())
         }
     }
 }
@@ -169,19 +169,21 @@ async fn resolve_extends_rooted_or_relative(
     request: Vc<Request>,
     resolve_options: Vc<ResolveOptions>,
     path: &str,
-) -> Result<Vc<OptionSource>> {
-    let mut result = resolve(
+) -> Result<Option<ResolvedVc<Box<dyn Source>>>> {
+    let result = resolve(
         lookup_path.clone(),
         ReferenceType::TypeScript(TypeScriptReferenceSubType::Undefined),
         request,
         resolve_options,
     )
-    .first_source();
+    .await?;
+
+    let mut result = result.first_source();
 
     // If the file doesn't end with ".json" and we can't find the file, then we have
     // to try again with it.
     // https://github.com/microsoft/TypeScript/blob/611a912d/src/compiler/commandLineParser.ts#L3305
-    if !path.ends_with(".json") && result.await?.is_none() {
+    if !path.ends_with(".json") && result.is_none() {
         let request = Request::parse_string(format!("{path}.json").into());
         result = resolve(
             lookup_path.clone(),
@@ -189,6 +191,7 @@ async fn resolve_extends_rooted_or_relative(
             request,
             resolve_options,
         )
+        .await?
         .first_source();
     }
     Ok(result)
@@ -231,7 +234,7 @@ async fn try_join_base_url(
     base_url: RcStr,
 ) -> Result<Vc<FileSystemPathOption>> {
     Ok(Vc::cell(
-        source.ident().path().await?.parent().try_join(&base_url),
+        source.ident().await?.path.parent().try_join(&base_url),
     ))
 }
 
@@ -268,13 +271,12 @@ pub async fn tsconfig_resolve_options(
         if let FileJsonContent::Content(json) = &*content.await?
             && let JsonValue::Object(paths) = &json["compilerOptions"]["paths"]
         {
-            let mut context_dir = source.ident().path().await?.parent();
+            let mut context_dir = source.ident().await?.path.parent();
             if let Some(base_url) = json["compilerOptions"]["baseUrl"].as_str()
                 && let Some(new_context) = context_dir.try_join(base_url)
             {
                 context_dir = new_context;
             };
-            let context_dir = context_dir.clone();
             for (key, value) in paths.iter() {
                 if let JsonValue::Array(vec) = value {
                     let entries = vec
@@ -392,8 +394,9 @@ pub async fn type_resolve(
     request: Vc<Request>,
 ) -> Result<Vc<ModuleResolveResult>> {
     let ty = ReferenceType::TypeScript(TypeScriptReferenceSubType::Undefined);
-    let context_path = origin.origin_path().await?.parent();
-    let options = origin.resolve_options();
+    let origin_ref = origin.into_trait_ref().await?;
+    let context_path = origin_ref.origin_path().parent();
+    let options = origin_ref.resolve_options();
     let options = apply_typescript_types_options(options);
     let types_request = if let Request::Module {
         module: m,
@@ -425,7 +428,7 @@ pub async fn type_resolve(
             request,
             options,
         );
-        if !*result1.is_unresolvable().await? {
+        if !result1.await?.is_unresolvable() {
             result1
         } else {
             resolve(
@@ -444,14 +447,14 @@ pub async fn type_resolve(
         )
     };
     let result = as_typings_result(
-        origin
+        origin_ref
             .asset_context()
             .process_resolve_result(result, ty.clone()),
     );
     handle_resolve_error(
         result,
         ty,
-        origin,
+        origin_ref.origin_path(),
         request,
         options,
         ResolveErrorMode::Error,
@@ -527,7 +530,7 @@ impl Issue for TsConfigIssue {
     }
 
     async fn file_path(&self) -> anyhow::Result<FileSystemPath> {
-        self.source.file_path().owned().await
+        self.source.file_path().await
     }
 
     async fn description(&self) -> anyhow::Result<Option<StyledString>> {

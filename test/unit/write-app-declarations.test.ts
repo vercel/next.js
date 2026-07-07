@@ -24,6 +24,8 @@ describe('find config', () => {
         : '') +
       `import "./.next/types/routes.d.ts";` +
       eol +
+      `import "./.next/types/root-params.d.ts";` +
+      eol +
       eol +
       '// NOTE: This file should not be edited' +
       eol +
@@ -40,7 +42,6 @@ describe('find config', () => {
       hasAppDir: false,
       strictRouteTypes: false,
       typedRoutes: true,
-      rootParams: false,
     })
     expect(await fs.readFile(declarationFile, 'utf8')).toBe(content)
   })
@@ -55,6 +56,8 @@ describe('find config', () => {
         : '') +
       `import "./.next/types/routes.d.ts";` +
       eol +
+      `import "./.next/types/root-params.d.ts";` +
+      eol +
       eol +
       '// NOTE: This file should not be edited' +
       eol +
@@ -71,7 +74,6 @@ describe('find config', () => {
       hasAppDir: false,
       strictRouteTypes: false,
       typedRoutes: true,
-      rootParams: false,
     })
     expect(await fs.readFile(declarationFile, 'utf8')).toBe(content)
   })
@@ -85,6 +87,8 @@ describe('find config', () => {
         ? '/// <reference types="next/image-types/global" />' + eol
         : '') +
       `import "./.next/types/routes.d.ts";` +
+      eol +
+      `import "./.next/types/root-params.d.ts";` +
       eol +
       eol +
       '// NOTE: This file should not be edited' +
@@ -100,7 +104,6 @@ describe('find config', () => {
       hasAppDir: false,
       strictRouteTypes: false,
       typedRoutes: true,
-      rootParams: false,
     })
     expect(await fs.readFile(declarationFile, 'utf8')).toBe(content)
   })
@@ -114,7 +117,6 @@ describe('find config', () => {
       hasAppDir: true,
       strictRouteTypes: false,
       typedRoutes: true,
-      rootParams: false,
     })
 
     await expect(fs.readFile(declarationFile, 'utf8')).resolves.not.toContain(
@@ -129,7 +131,6 @@ describe('find config', () => {
       hasAppDir: true,
       strictRouteTypes: false,
       typedRoutes: true,
-      rootParams: false,
     })
 
     await expect(fs.readFile(declarationFile, 'utf8')).resolves.toContain(

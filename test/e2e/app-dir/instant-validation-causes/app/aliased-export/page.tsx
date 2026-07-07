@@ -1,9 +1,9 @@
-import { cookies } from 'next/headers'
+import { connection } from 'next/server'
 
-const instant = { prefetch: 'static' }
-export { instant as unstable_instant }
+const instantConfig = true
+export { instantConfig as instant }
 
 export default async function Page() {
-  await cookies()
+  await connection()
   return <p>aliased export</p>
 }

@@ -3,12 +3,12 @@ import { cookies } from 'next/headers'
 import { lang } from 'next/root-params'
 import { ensureRejects } from '../../../../ensure-error'
 
-export const unstable_instant: Instant = {
-  prefetch: 'runtime',
+export const instant: Instant = {
+  level: 'experimental-error',
   // no samples
-  samples: [{}],
+  unstable_samples: [{}],
 }
-export const unstable_prefetch = 'runtime'
+export const prefetch = 'allow-runtime'
 
 export default async function Page() {
   // Guard behind cookies() so that the rest of this component only runs during validation

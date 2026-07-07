@@ -26,7 +26,6 @@ import { workUnitAsyncStorage } from './work-unit-async-storage.external'
 import {
   createVaryParamsAccumulator,
   emptyVaryParamsAccumulator,
-  getVaryParamsThenable,
   type VaryParamsAccumulator,
 } from './vary-params'
 import type {
@@ -42,14 +41,10 @@ import {
   isNextjsBuiltinFilePath,
 } from './segment-explorer-path'
 import type { AppSegmentConfig } from '../../build/segment-config/app/app-segment-config'
-import { RenderStage, type StagedRenderingController } from './staged-rendering'
-
-type HTTPAccessErrorStatusCode = 404 | 403 | 401
-
-export type PrerenderHTTPErrorState = {
-  boundaryTree: LoaderTree
-  triggeredStatus: HTTPAccessErrorStatusCode
-}
+import {
+  FIRST_LATE_RENDER_STAGE,
+  type StagedRenderingController,
+} from './staged-rendering'
 
 /**
  * Use the provided loader tree to create the React Component tree.
@@ -69,7 +64,6 @@ export function createComponentTree(props: {
   preloadCallbacks: PreloadCallbacks
   authInterrupts: boolean
   MetadataOutlet: ComponentType
-  prerenderHTTPError?: PrerenderHTTPErrorState
 }): Promise<CacheNodeSeedData> {
   return getTracer().trace(
     NextNodeServerSpan.createComponentTree,
@@ -107,7 +101,6 @@ async function createComponentTreeInternal(
     preloadCallbacks,
     authInterrupts,
     MetadataOutlet,
-    prerenderHTTPError,
   }: {
     loaderTree: LoaderTree
     parentParams: Params
@@ -122,7 +115,6 @@ async function createComponentTreeInternal(
     preloadCallbacks: PreloadCallbacks
     authInterrupts: boolean
     MetadataOutlet: ComponentType | null
-    prerenderHTTPError?: PrerenderHTTPErrorState
   },
   isRoot: boolean
 ): Promise<CacheNodeSeedData> {
@@ -244,9 +236,9 @@ async function createComponentTreeInternal(
     : []
 
   const prefetchConfig = layoutOrPageMod
-    ? (layoutOrPageMod as AppSegmentConfig).unstable_prefetch
+    ? (layoutOrPageMod as AppSegmentConfig).prefetch
     : undefined
-  const hasRuntimePrefetch = prefetchConfig === 'runtime'
+  const hasRuntimePrefetch = prefetchConfig === 'allow-runtime'
   const isRuntimePrefetchable = hasRuntimePrefetch || parentRuntimePrefetchable
 
   const [Forbidden, forbiddenStyles] =
@@ -602,46 +594,6 @@ async function createComponentTreeInternal(
             }
           }
 
-          // The outer prerender catch already found the deepest segment whose
-          // HTTP fallback should replace the throwing page. When we reach that
-          // segment's `children` slot, render the fallback directly instead of
-          // descending back into the subtree that threw during deserialization.
-
-          // Like the other segment-level boundary props below, HTTP access
-          // fallbacks are attached to the default `children` slot, not to named
-          // parallel routes.
-          const shouldRenderPrerenderHTTPFallback =
-            prerenderHTTPError?.boundaryTree === tree && isChildrenRouteKey
-
-          if (shouldRenderPrerenderHTTPFallback) {
-            let fallbackElement: React.ReactNode | undefined
-            switch (prerenderHTTPError.triggeredStatus) {
-              case 404:
-                fallbackElement = notFoundElement
-                break
-              case 403:
-                fallbackElement = forbiddenElement
-                break
-              case 401:
-                fallbackElement = unauthorizedElement
-                break
-              default:
-                break
-            }
-
-            if (fallbackElement) {
-              childCacheNodeSeedData = createSeedData(
-                ctx,
-                fallbackElement,
-                {},
-                null,
-                isPossiblyPartialResponse,
-                false,
-                emptyVaryParamsAccumulator
-              )
-            }
-          }
-
           if (childCacheNodeSeedData === null) {
             const seedData = await createComponentTreeInternal(
               {
@@ -661,7 +613,6 @@ async function createComponentTreeInternal(
                 // `StreamingMetadataOutlet` is used to conditionally throw. In the case of parallel routes we will have more than one page
                 // but we only want to throw on the first one.
                 MetadataOutlet: isChildrenRouteKey ? MetadataOutlet : null,
-                prerenderHTTPError,
               },
               false
             )
@@ -1356,11 +1307,12 @@ function createSeedData(
 ): CacheNodeSeedData {
   const createElement = ctx.componentMod.createElement
 
-  // When this segment is NOT runtime-prefetchable, delay it until the Static
-  // stage by wrapping the node in a promise. This allows runtime-prefetchable
-  // segments (the lower tree) to render first during EarlyStatic, so their
-  // runtime data resolves in EarlyRuntime where sync IO can be checked.
-  // React will suspend on the thenable and resume when the stage advances.
+  // When this segment is NOT runtime-prefetchable, delay it until the ShellStatic
+  // stage (i.e. the first late stage) by wrapping the node in a promise.
+  // This allows runtime-prefetchable segments (the lower tree) to render first
+  // during ShellEarlyStatic, so their runtime data resolves in ShellEarlyRuntime
+  // where sync IO can be checked. React will suspend on the thenable and resume
+  // when the stage advances.
   if (!isRuntimePrefetchable) {
     const workUnitStore = workUnitAsyncStorage.getStore()
     if (workUnitStore) {
@@ -1372,7 +1324,7 @@ function createSeedData(
           if (stagedRendering) {
             const deferredRsc = rsc
             rsc = stagedRendering
-              .waitForStage(RenderStage.Static)
+              .waitForStage(FIRST_LATE_RENDER_STAGE)
               .then(() => deferredRsc)
           }
           break
@@ -1409,6 +1361,8 @@ function createSeedData(
     parallelRoutes,
     null,
     isPossiblyPartialResponse,
-    varyParamsAccumulator ? getVaryParamsThenable(varyParamsAccumulator) : null,
+    // The accumulator is itself the AsyncIterable<string> that Flight
+    // serializes into the segment's seed data.
+    varyParamsAccumulator,
   ]
 }

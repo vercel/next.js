@@ -39,8 +39,6 @@ pub async fn get_middleware_module(
 ) -> Result<Vc<Box<dyn Module>>> {
     const INNER: &str = "INNER_MIDDLEWARE_MODULE";
 
-    // Determine if this is a proxy file by checking the module path
-    let userland_path = userland_module.ident().path().await?;
     let (file_type, function_name, page_path) = if is_proxy {
         ("Proxy", "proxy", "/proxy")
     } else {
@@ -78,7 +76,7 @@ pub async fn get_middleware_module(
             MiddlewareMissingExportIssue {
                 file_type: file_type.into(),
                 function_name: function_name.into(),
-                file_path: (*userland_path).clone(),
+                file_path: userland_module.ident().await?.path.clone(),
             }
             .resolved_cell()
             .emit();
@@ -193,9 +191,7 @@ impl Issue for MiddlewareMissingExportIssue {
              To fix it:\n\
              - Ensure this file has either a default or \"{}\" function export.\n\n\
              Learn more: https://nextjs.org/docs/messages/middleware-to-proxy",
-            type_description,
-            migration_bullet,
-            self.function_name
+            type_description, migration_bullet, self.function_name
         );
 
         Ok(Some(StyledString::Text(description_text.into())))
