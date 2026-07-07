@@ -403,6 +403,32 @@ export default async function Page() {
 
 > **Good to know:** This includes queries to embedded databases with synchronous APIs, such as `better-sqlite3` or Node.js's built-in [`node:sqlite`](https://nodejs.org/api/sqlite.html). If you need per-request data from a synchronous source, call [`connection()`](/docs/app/api-reference/functions/connection) before the query.
 
+## Asynchronous I/O at module scope
+
+Asynchronous I/O during render, such as `await readFile(...)` inside a component, defers the route to request time. Request-time rendering is expected when the response should be dynamic. To keep the route prerendered, you have two options:
+
+- Read request-independent data once at module scope with a top-level `await`, so it runs when the module loads rather than during render.
+- Wrap the read in [`use cache`](/docs/app/api-reference/directives/use-cache), so Next.js includes the cached result in the static shell.
+
+Module scope fits data that never varies per request, such as a local file, because it avoids caching entirely:
+
+```tsx filename="page.tsx"
+import { readFile } from 'node:fs/promises'
+
+const content = await readFile('./config.json', 'utf-8')
+const items = JSON.parse(content).items ?? []
+
+export default async function Page() {
+  return (
+    <ul>
+      {items.map((item) => (
+        <li key={item.id}>{item.value}</li>
+      ))}
+    </ul>
+  )
+}
+```
+
 ## Prerendering
 
 At build time, Next.js renders your route's component tree. How each component is handled depends on the APIs it uses:

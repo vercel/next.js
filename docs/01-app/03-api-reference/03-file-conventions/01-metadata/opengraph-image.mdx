@@ -108,9 +108,6 @@ export const size = {
 
 export const contentType = 'image/png'
 
-// Load assets at module scope. Reading inside the component would be treated
-// as dynamic I/O under Cache Components and opt the route out of static
-// generation.
 const interSemiBold = await readFile(
   join(process.cwd(), 'assets/Inter-SemiBold.ttf')
 )
@@ -418,6 +415,8 @@ export default async function Image({ params }) {
 #### Using Node.js runtime with local assets
 
 These examples use the Node.js runtime to fetch a local image from the file system and pass it to the `<img>` `src` attribute, either as a base64 string or an `ArrayBuffer`. Place the local asset relative to the project root, not the example source file.
+
+Because the asset doesn't depend on request data, read it once at module scope so the route stays prerenderable. See [Asynchronous I/O at module scope](/docs/app/getting-started/caching#asynchronous-io-at-module-scope).
 
 ```tsx filename="app/opengraph-image.tsx" switcher
 import { ImageResponse } from 'next/og'
