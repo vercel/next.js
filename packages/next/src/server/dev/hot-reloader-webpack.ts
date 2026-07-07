@@ -1583,7 +1583,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
       }
 
       for (const bundlePath of changedServerPages) {
-        closeWebSocketsForBundle(bundlePath, 1012)
+        void closeWebSocketsForBundle(bundlePath, 1012)
       }
 
       changedClientPages.clear()
