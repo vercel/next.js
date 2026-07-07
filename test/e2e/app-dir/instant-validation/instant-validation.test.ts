@@ -635,9 +635,9 @@ describe('instant validation', () => {
 
          Ways to fix this:
            - [stream] Wrap the \`params\`/\`searchParams\` read in \`<Suspense fallback={...}>\` so the value streams in after navigation
-             https://nextjs.org/docs/messages/instant-shell-link-data#wrap-in-or-move-into-suspense
+             https://nextjs.org/docs/messages/instant-shell-url-data#wrap-in-or-move-into-suspense
            - [ignore] Set \`export const instant = false\` to opt the route out of instant-navigation validation
-             https://nextjs.org/docs/messages/instant-shell-link-data#disable-validation-on-this-route
+             https://nextjs.org/docs/messages/instant-shell-url-data#disable-validation-on-this-route
              at div (<anonymous>)
              at main (<anonymous>)
              at body (<anonymous>)
@@ -726,9 +726,9 @@ describe('instant validation', () => {
 
            Ways to fix this:
              - [stream] Wrap the \`params\`/\`searchParams\` read in \`<Suspense fallback={...}>\` so the value streams in after navigation
-               https://nextjs.org/docs/messages/instant-shell-link-data#wrap-in-or-move-into-suspense
+               https://nextjs.org/docs/messages/instant-shell-url-data#wrap-in-or-move-into-suspense
              - [ignore] Set \`export const instant = false\` to opt the route out of instant-navigation validation
-               https://nextjs.org/docs/messages/instant-shell-link-data#disable-validation-on-this-route
+               https://nextjs.org/docs/messages/instant-shell-url-data#disable-validation-on-this-route
                at body (<anonymous>)
                at html (<anonymous>)
                at a (<anonymous>)
@@ -785,9 +785,9 @@ describe('instant validation', () => {
 
            Ways to fix this:
              - [stream] Wrap the \`params\`/\`searchParams\` read in \`<Suspense fallback={...}>\` so the value streams in after navigation
-               https://nextjs.org/docs/messages/instant-shell-link-data#wrap-in-or-move-into-suspense
+               https://nextjs.org/docs/messages/instant-shell-url-data#wrap-in-or-move-into-suspense
              - [ignore] Set \`export const instant = false\` to opt the route out of instant-navigation validation
-               https://nextjs.org/docs/messages/instant-shell-link-data#disable-validation-on-this-route
+               https://nextjs.org/docs/messages/instant-shell-url-data#disable-validation-on-this-route
                at LinkData (app/suspense-in-root/runtime/invalid-no-suspense-around-search-params/page.tsx:40:18)
                at Page (app/suspense-in-root/runtime/invalid-no-suspense-around-search-params/page.tsx:22:9)
              38 |   searchParams: Promise<Record<string, string | string[]>>
@@ -849,9 +849,9 @@ describe('instant validation', () => {
 
          Ways to fix this:
            - [stream] Wrap the \`params\`/\`searchParams\` read in \`<Suspense fallback={...}>\` so the value streams in after navigation
-             https://nextjs.org/docs/messages/instant-shell-link-data#wrap-in-or-move-into-suspense
+             https://nextjs.org/docs/messages/instant-shell-url-data#wrap-in-or-move-into-suspense
            - [ignore] Set \`export const instant = false\` to opt the route out of instant-navigation validation
-             https://nextjs.org/docs/messages/instant-shell-link-data#disable-validation-on-this-route
+             https://nextjs.org/docs/messages/instant-shell-url-data#disable-validation-on-this-route
              at div (<anonymous>)
              at main (<anonymous>)
              at body (<anonymous>)
@@ -4208,9 +4208,9 @@ describe('instant validation', () => {
 
              Ways to fix this:
                - [stream] Wrap the \`params\`/\`searchParams\` read in \`<Suspense fallback={...}>\` so the value streams in after navigation
-                 https://nextjs.org/docs/messages/instant-shell-link-data#wrap-in-or-move-into-suspense
+                 https://nextjs.org/docs/messages/instant-shell-url-data#wrap-in-or-move-into-suspense
                - [ignore] Set \`export const instant = false\` to opt the route out of instant-navigation validation
-                 https://nextjs.org/docs/messages/instant-shell-link-data#disable-validation-on-this-route
+                 https://nextjs.org/docs/messages/instant-shell-url-data#disable-validation-on-this-route
                  at main (<anonymous>)
                  at body (<anonymous>)
                  at html (<anonymous>)
@@ -4245,9 +4245,9 @@ describe('instant validation', () => {
 
                Ways to fix this:
                  - [stream] Wrap the \`params\`/\`searchParams\` read in \`<Suspense fallback={...}>\` so the value streams in after navigation
-                   https://nextjs.org/docs/messages/instant-shell-link-data#wrap-in-or-move-into-suspense
+                   https://nextjs.org/docs/messages/instant-shell-url-data#wrap-in-or-move-into-suspense
                  - [ignore] Set \`export const instant = false\` to opt the route out of instant-navigation validation
-                   https://nextjs.org/docs/messages/instant-shell-link-data#disable-validation-on-this-route
+                   https://nextjs.org/docs/messages/instant-shell-url-data#disable-validation-on-this-route
                    at LinkData (app/shells/(default)/invalid-runtime-searchparams/page.tsx:27:3)
                    at Page (app/shells/(default)/invalid-runtime-searchparams/page.tsx:17:7)
                  25 |   searchParams: Promise<Record<string, string | string[]>>
@@ -4309,9 +4309,9 @@ describe('instant validation', () => {
 
              Ways to fix this:
                - [stream] Wrap the \`params\`/\`searchParams\` read in \`<Suspense fallback={...}>\` so the value streams in after navigation
-                 https://nextjs.org/docs/messages/instant-shell-link-data#wrap-in-or-move-into-suspense
+                 https://nextjs.org/docs/messages/instant-shell-url-data#wrap-in-or-move-into-suspense
                - [ignore] Set \`export const instant = false\` to opt the route out of instant-navigation validation
-                 https://nextjs.org/docs/messages/instant-shell-link-data#disable-validation-on-this-route
+                 https://nextjs.org/docs/messages/instant-shell-url-data#disable-validation-on-this-route
                  at main (<anonymous>)
                  at body (<anonymous>)
                  at html (<anonymous>)
@@ -4423,9 +4423,9 @@ describe('instant validation', () => {
 
              Ways to fix this:
                - [stream] Wrap the \`params\`/\`searchParams\` read in \`<Suspense fallback={...}>\` so the value streams in after navigation
-                 https://nextjs.org/docs/messages/instant-shell-link-data#wrap-in-or-move-into-suspense
+                 https://nextjs.org/docs/messages/instant-shell-url-data#wrap-in-or-move-into-suspense
                - [ignore] Set \`export const instant = false\` to opt the route out of instant-navigation validation
-                 https://nextjs.org/docs/messages/instant-shell-link-data#disable-validation-on-this-route
+                 https://nextjs.org/docs/messages/instant-shell-url-data#disable-validation-on-this-route
                  at main (<anonymous>)
                  at body (<anonymous>)
                  at html (<anonymous>)

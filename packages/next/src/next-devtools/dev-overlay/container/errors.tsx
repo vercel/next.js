@@ -416,9 +416,6 @@ export function isSyncIOClientError(message: string): boolean {
 export function isBlockingRouteInNavError(message: string): boolean {
   return (
     message.includes('or a navigation') ||
-    message.includes(
-      'encountered URL data during prerendering or a navigation'
-    ) ||
     message.includes('Could not validate `instant`') ||
     message.includes(
       'Could not validate that a segment in your UI has instant navigation'
@@ -443,19 +440,10 @@ export function getBlockingRouteErrorDetails(
     }
   }
 
-  if (
-    message.includes('encountered URL data during prerendering or a navigation')
-  ) {
-    return {
-      type: 'blocking-route',
-      variant: 'link',
-      inNavigation: true,
-    }
-  }
-
   const isBlockingPageLoadError =
     message.includes('/blocking-prerender-runtime#') ||
-    message.includes('/blocking-prerender-dynamic#')
+    message.includes('/blocking-prerender-dynamic#') ||
+    message.includes('/instant-shell-url-data#')
   if (isBlockingPageLoadError) {
     return {
       type: 'blocking-route',

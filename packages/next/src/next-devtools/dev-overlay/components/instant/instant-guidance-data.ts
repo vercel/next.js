@@ -77,7 +77,7 @@ const linkCards: FixCard[] = [
     id: 'wrap-in-or-move-into-suspense',
     title: 'Wrap in or move into Suspense',
     group: 'stream',
-    link: 'https://nextjs.org/docs/messages/instant-shell-link-data#wrap-in-or-move-into-suspense',
+    link: 'https://nextjs.org/docs/messages/instant-shell-url-data#wrap-in-or-move-into-suspense',
     snippets: [
       { text: '<Suspense fallback={…}>', highlight: true },
       { text: '  <Details params={params} />' },
@@ -89,7 +89,7 @@ const linkCards: FixCard[] = [
     id: 'disable-validation-on-this-route',
     title: 'Disable validation on this route',
     group: 'ignore',
-    link: 'https://nextjs.org/docs/messages/instant-shell-link-data#disable-validation-on-this-route',
+    link: 'https://nextjs.org/docs/messages/instant-shell-url-data#disable-validation-on-this-route',
     snippets: [
       { text: '// page.tsx or layout.tsx' },
       { text: 'export const instant = false', highlight: true },

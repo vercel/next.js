@@ -42,9 +42,9 @@ export function createLinkBodyErrorInNavigation(route: string): Error {
       `\`params\` or \`searchParams\` accessed outside of \`<Suspense>\` may prevent the navigation from being instant, leading to a slower user experience.\n\n` +
       `Ways to fix this:\n` +
       `  - [stream] Wrap the \`params\`/\`searchParams\` read in \`<Suspense fallback={...}>\` so the value streams in after navigation\n` +
-      `    https://nextjs.org/docs/messages/instant-shell-link-data#wrap-in-or-move-into-suspense\n` +
+      `    https://nextjs.org/docs/messages/instant-shell-url-data#wrap-in-or-move-into-suspense\n` +
       `  - [ignore] Set \`export const instant = false\` to opt the route out of instant-navigation validation\n` +
-      `    https://nextjs.org/docs/messages/instant-shell-link-data#disable-validation-on-this-route`
+      `    https://nextjs.org/docs/messages/instant-shell-url-data#disable-validation-on-this-route`
   )
 }
 
