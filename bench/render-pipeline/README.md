@@ -3,7 +3,7 @@
 This benchmark targets the full App Router render path (`renderToHTMLOrFlight`) via real HTTP requests through `bench/next-minimal-server`.
 
 It supports:
-- `web` vs `node` streams mode comparison
+- Node streams mode benchmarking
 - route-based stress suites for streaming SSR
 - CPU/heap profiling for the server process
 - Node trace events and Next internal trace artifact capture
@@ -17,7 +17,7 @@ Runs `next build` + `next start`, exercising the full production stack:
 Use this for production-realistic throughput numbers.
 
 ```bash
-pnpm bench:render-pipeline --scenario=e2e --stream-mode=both
+pnpm bench:render-pipeline --scenario=e2e --stream-mode=node
 ```
 
 ### `--scenario=minimal-server`
@@ -28,7 +28,7 @@ render pipeline from routing/middleware overhead — useful when profiling chang
 to `app-render.tsx`, streaming, or Flight serialization.
 
 ```bash
-pnpm bench:render-pipeline --scenario=minimal-server --stream-mode=both
+pnpm bench:render-pipeline --scenario=minimal-server --stream-mode=node
 ```
 
 When comparing both scenarios, the delta reveals how much overhead the
@@ -39,7 +39,7 @@ router-server layer adds on top of the raw render path.
 Run end-to-end benchmark (default stress routes):
 
 ```bash
-pnpm bench:render-pipeline --scenario=e2e --stream-mode=both
+pnpm bench:render-pipeline --scenario=e2e --stream-mode=node
 ```
 
 CPU profiling is off by default. Enable with `--capture-cpu=true` for profiling runs.
@@ -50,13 +50,10 @@ Skip rebuild for faster iteration (after you already built once):
 pnpm bench:render-pipeline --scenario=e2e --stream-mode=node --build=false
 ```
 
-When `--stream-mode=both`, the runner forces `--build=true` so web/node
-comparisons do not accidentally reuse stale build output.
-
 Output JSON report:
 
 ```bash
-pnpm bench:render-pipeline --scenario=e2e --stream-mode=both --json-out=/tmp/render-pipeline.json
+pnpm bench:render-pipeline --scenario=e2e --stream-mode=node --json-out=/tmp/render-pipeline.json
 ```
 
 ## Profiling and traces
@@ -66,7 +63,7 @@ Capture CPU profiles + Node trace events + Next trace logs:
 ```bash
 pnpm bench:render-pipeline \
   --scenario=e2e \
-  --stream-mode=both \
+  --stream-mode=node \
   --capture-cpu=true \
   --capture-trace=true \
   --capture-next-trace=true
@@ -78,7 +75,7 @@ Artifacts are written to:
 bench/render-pipeline/artifacts/<timestamp>/
 ```
 
-Per mode (`web` and `node`) this includes:
+Per run this includes:
 - `<mode>.cpuprofile` (if `--capture-cpu=true`)
 - `<mode>.heapprofile` (if `--capture-heap=true`)
 - `<mode>-trace-*.json` (if `--capture-trace=true`)
@@ -118,8 +115,8 @@ pnpm bench:render-pipeline --scenario=e2e --routes=/,/streaming/heavy
 The benchmark uses a **closed-loop** load generator: each concurrent worker
 issues the next request only after the current one completes. This means:
 
-- **Throughput numbers are reliable for relative comparison** (A/B between stream
-  modes, before/after a code change). Both sides experience the same measurement
+- **Throughput numbers are reliable for relative comparison** (before/after a
+  code change). Both sides experience the same measurement
   model, so deltas are valid.
 - **Latency percentiles (p95, max) under load are optimistic.** Slow requests
   reduce back-pressure instead of queuing, masking tail latency. Do not compare

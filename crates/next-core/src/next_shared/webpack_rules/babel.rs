@@ -15,12 +15,11 @@ use turbopack_core::{
     resolve::{node::node_cjs_resolve_options, parse::Request, pattern::Pattern, resolve},
     source::Source,
 };
+use turbopack_ecmascript::transform::{ReactCompilerCompilationMode, ReactCompilerTarget};
 use turbopack_node::transforms::webpack::WebpackLoaderItem;
 
 use crate::{
-    next_config::{
-        NextConfig, ReactCompilerCompilationMode, ReactCompilerOptions, ReactCompilerTarget,
-    },
+    next_config::{NextConfig, ReactCompilerOptions},
     next_import_map::try_get_next_package,
     next_shared::webpack_rules::{
         ManuallyConfiguredBuiltinLoaderIssue, WebpackLoaderBuiltinCondition,
@@ -46,10 +45,11 @@ static BABEL_LOADER_RE: LazyLock<Regex> =
 
 /// The forked version of babel-loader that we should use for automatic configuration. This version
 /// is always available, as it's installed as part of next.js.
-const NEXT_JS_BABEL_LOADER: &str = "next/dist/build/babel/loader";
+const NEXT_JS_BABEL_LOADER: RcStr = rcstr!("next/dist/build/babel/loader");
 
-const BABEL_PLUGIN_REACT_COMPILER: &str = "babel-plugin-react-compiler";
-const BABEL_PLUGIN_REACT_COMPILER_PACKAGE_JSON: &str = "babel-plugin-react-compiler/package.json";
+const BABEL_PLUGIN_REACT_COMPILER: RcStr = rcstr!("babel-plugin-react-compiler");
+const BABEL_PLUGIN_REACT_COMPILER_PACKAGE_JSON: RcStr =
+    rcstr!("babel-plugin-react-compiler/package.json");
 
 /// Detect manually-configured babel loaders. This is used to generate a warning, suggesting using
 /// the built-in babel support.
@@ -118,10 +118,13 @@ pub async fn get_babel_loader_rules(
     }
 
     let react_compiler_options = next_config.react_compiler_options().await?;
+    let use_rust_react_compiler = next_config.rust_react_compiler().await?.is_some();
 
-    // if there's no babel config and react-compiler shouldn't be enabled, bail out early
+    // bail early: no babel config, no react-compiler, or Rust React Compiler is active (babel has
+    // nothing to do).
     if babel_config_path.is_none()
         && (react_compiler_options.is_none()
+            || use_rust_react_compiler
             || !builtin_conditions.contains(&WebpackLoaderBuiltinCondition::Browser))
     {
         return Ok(Vec::new());
@@ -150,6 +153,7 @@ pub async fn get_babel_loader_rules(
 
     let mut loader_conditions = Vec::new();
     if let Some(react_compiler_options) = react_compiler_options.as_ref()
+        && !use_rust_react_compiler
         && let Some(babel_plugin_path) =
             resolve_babel_plugin_react_compiler(next_config, project_path).await?
     {
@@ -234,7 +238,7 @@ pub async fn get_babel_loader_rules(
         rcstr!("*.{js,jsx,ts,tsx,cjs,mjs,mts,cts}"),
         LoaderRuleItem {
             loaders: ResolvedVc::cell(vec![WebpackLoaderItem {
-                loader: rcstr!(NEXT_JS_BABEL_LOADER),
+                loader: NEXT_JS_BABEL_LOADER,
                 options: loader_options,
             }]),
             rename_as: Some(rcstr!("*")),
@@ -244,7 +248,7 @@ pub async fn get_babel_loader_rules(
     )])
 }
 
-async fn detect_react_compiler_target(
+pub async fn detect_react_compiler_target(
     project_path: &FileSystemPath,
 ) -> Result<Option<ReactCompilerTarget>> {
     #[derive(Deserialize)]
@@ -259,11 +263,12 @@ async fn detect_react_compiler_target(
         node_cjs_resolve_options(project_path.root().owned().await?),
     );
 
-    let Some(source) = &*react_pkg_result.first_source().await? else {
+    let Some(source) = react_pkg_result.await?.first_source() else {
         return Ok(None);
     };
 
-    let path = source.ident().path().await?;
+    let ident = source.ident().await?;
+    let path = &ident.path;
     let FileContent::Content(file) = &*path.read().await? else {
         return Ok(None);
     };
@@ -272,7 +277,7 @@ async fn detect_react_compiler_target(
         Ok(pkg) => pkg,
         Err(e) => {
             ReactPackageJsonParseIssue {
-                file_path: (*path).clone(),
+                file_path: path.clone(),
                 error: e.to_string().into(),
             }
             .resolved_cell()
@@ -330,14 +335,12 @@ pub async fn resolve_babel_plugin_react_compiler(
     let babel_plugin_result = resolve(
         next_package.clone(),
         ReferenceType::CommonJs(CommonJsReferenceSubType::Undefined),
-        Request::parse(Pattern::Constant(rcstr!(
-            BABEL_PLUGIN_REACT_COMPILER_PACKAGE_JSON
-        ))),
+        Request::parse(Pattern::Constant(BABEL_PLUGIN_REACT_COMPILER_PACKAGE_JSON)),
         node_cjs_resolve_options(project_path.root().owned().await?),
     );
-    let Some(source) = &*babel_plugin_result.first_source().await? else {
+    let Some(source) = babel_plugin_result.await?.first_source() else {
         BabelPluginReactCompilerResolutionIssue {
-            failed_resolution: rcstr!(BABEL_PLUGIN_REACT_COMPILER),
+            failed_resolution: BABEL_PLUGIN_REACT_COMPILER,
             config_file_path: next_config
                 .config_file_path(project_path.clone())
                 .owned()
@@ -352,7 +355,7 @@ pub async fn resolve_babel_plugin_react_compiler(
         // the relative path should only ever fail to resolve when the `fs` is different, which
         // should only happen due to eventual consistency.
         project_path
-            .get_relative_path_to(&source.ident().path().await?.parent())
+            .get_relative_path_to(&source.ident().await?.path.parent())
             .context("failed to resolve relative path for react compiler plugin")?,
     ))
 }
@@ -395,7 +398,7 @@ impl Issue for BabelPluginReactCompilerResolutionIssue {
             )),
             StyledString::Code(rcstr!("next")),
             StyledString::Text(rcstr!(" package. Is ")),
-            StyledString::Code(rcstr!(BABEL_PLUGIN_REACT_COMPILER)),
+            StyledString::Code(BABEL_PLUGIN_REACT_COMPILER),
             StyledString::Text(rcstr!(" installed in your ")),
             StyledString::Code(rcstr!("node_modules")),
             StyledString::Text(rcstr!(" directory?")),

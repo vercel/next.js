@@ -117,8 +117,14 @@ impl Module for EcmascriptModuleRenameModule {
     }
 
     #[turbo_tasks::function]
-    fn ident(&self) -> Vc<AssetIdent> {
-        self.module.ident().with_part(self.part.clone())
+    async fn ident(&self) -> Result<Vc<AssetIdent>> {
+        Ok(self
+            .module
+            .ident()
+            .owned()
+            .await?
+            .with_part(self.part.clone())
+            .into_vc())
     }
 
     #[turbo_tasks::function]

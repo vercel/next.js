@@ -2,11 +2,11 @@ import { headers } from 'next/headers'
 import { Suspense } from 'react'
 import { ensureThrows } from '../../../../ensure-error'
 
-export const unstable_instant = {
-  prefetch: 'runtime',
-  samples: [{ headers: [] }],
+export const instant = {
+  level: 'experimental-error',
+  unstable_samples: [{ headers: [] }],
 }
-export const unstable_prefetch = 'runtime'
+export const prefetch = 'allow-runtime'
 
 export default async function Page() {
   return (

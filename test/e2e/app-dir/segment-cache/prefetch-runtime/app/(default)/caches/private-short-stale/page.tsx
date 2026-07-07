@@ -2,11 +2,8 @@ import { Suspense } from 'react'
 import { cachedDelay, DebugRenderKind } from '../../../shared'
 import { cacheLife } from 'next/cache'
 
-export const unstable_instant = {
-  prefetch: 'runtime',
-  samples: [{ cookies: [] }],
-}
-export const unstable_prefetch = 'runtime'
+export const instant = true
+export const prefetch = 'allow-runtime'
 
 export default async function Page() {
   return (
@@ -14,8 +11,8 @@ export default async function Page() {
       <DebugRenderKind />
       <p id="intro">
         This page uses a short-lived private cache (staleTime &lt;
-        RUNTIME_PREFETCH_DYNAMIC_STALE, which is 30s), which should not be
-        included in a runtime prefetch
+        MIN_PREFETCHABLE_STALE, which is 30s), which should not be included in a
+        runtime prefetch
       </p>
       <Suspense fallback={<div style={{ color: 'grey' }}>Loading...</div>}>
         <CachedButShortLived />

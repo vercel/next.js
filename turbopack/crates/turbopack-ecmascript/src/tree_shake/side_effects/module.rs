@@ -59,24 +59,26 @@ impl SideEffectsModule {
 impl Module for SideEffectsModule {
     #[turbo_tasks::function]
     async fn ident(&self) -> Result<Vc<AssetIdent>> {
-        let mut ident = self.module.ident().owned().await?;
-        ident.parts.push(self.part.clone());
-
-        ident.add_asset(
-            rcstr!("resolved"),
-            self.resolved_as.ident().to_resolved().await?,
-        );
-
-        ident.add_modifier(rcstr!("side effects"));
+        let mut ident = self
+            .module
+            .ident()
+            .owned()
+            .await?
+            .with_part(self.part.clone())
+            .with_asset(
+                rcstr!("resolved"),
+                self.resolved_as.ident().to_resolved().await?,
+            )
+            .with_modifier(rcstr!("side effects"));
 
         for (i, side_effect) in self.side_effects.iter().enumerate() {
-            ident.add_asset(
+            ident = ident.with_asset(
                 RcStr::from(format!("side effect {i}")),
                 side_effect.ident().to_resolved().await?,
             );
         }
 
-        Ok(AssetIdent::new(ident))
+        Ok(ident.into_vc())
     }
 
     #[turbo_tasks::function]

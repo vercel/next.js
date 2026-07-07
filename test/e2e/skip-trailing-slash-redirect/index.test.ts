@@ -1,5 +1,4 @@
-import { createNext, FileRef } from 'e2e-utils'
-import { NextInstance } from 'e2e-utils'
+import { FileRef, nextTestSetup } from 'e2e-utils'
 import { check, fetchViaHTTP } from 'next-test-utils'
 import {
   NEXT_HMR_REFRESH_HEADER,
@@ -11,18 +10,12 @@ import {
 } from 'next/dist/client/components/app-router-headers'
 import { join } from 'path'
 import cheerio from 'cheerio'
-import webdriver from 'next-webdriver'
 
 describe('skip-trailing-slash-redirect', () => {
-  let next: NextInstance
-
-  beforeAll(async () => {
-    next = await createNext({
-      files: new FileRef(join(__dirname, 'app')),
-      dependencies: {},
-    })
+  const { next } = nextTestSetup({
+    files: new FileRef(join(__dirname, 'app')),
+    dependencies: {},
   })
-  afterAll(() => next.destroy())
 
   // the tests below are run in both pages and app dir to ensure the behavior is the same
   // the other cases aren't added to this block since they are either testing pages-specific behavior
@@ -55,7 +48,7 @@ describe('skip-trailing-slash-redirect', () => {
     })
 
     it('should preserve original trailing slashes to links on client', async () => {
-      const browser = await webdriver(next.url, basePath)
+      const browser = await next.browser(basePath)
       await browser.eval('window.beforeNav = 1')
 
       expect(
@@ -125,7 +118,7 @@ describe('skip-trailing-slash-redirect', () => {
     })
 
     it('should navigate client side correctly', async () => {
-      const browser = await webdriver(next.url, basePath)
+      const browser = await next.browser(basePath)
 
       expect(await browser.eval('location.pathname')).toBe(basePath)
 
@@ -195,7 +188,7 @@ describe('skip-trailing-slash-redirect', () => {
         })
       }
 
-      const browser = await webdriver(next.url, '/docs', {
+      const browser = await next.browser('/docs', {
         waitHydration: false,
       })
       await check(
@@ -392,12 +385,12 @@ describe('skip-trailing-slash-redirect', () => {
   })
 
   it('should not apply trailing slash on load on client', async () => {
-    let browser = await webdriver(next.url, '/another')
+    let browser = await next.browser('/another')
     await check(() => browser.eval('next.router.isReady ? "yes": "no"'), 'yes')
 
     expect(await browser.eval('location.pathname')).toBe('/another')
 
-    browser = await webdriver(next.url, '/another/')
+    browser = await next.browser('/another/')
     await check(() => browser.eval('next.router.isReady ? "yes": "no"'), 'yes')
 
     expect(await browser.eval('location.pathname')).toBe('/another/')

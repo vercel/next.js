@@ -26,7 +26,7 @@ describe('use-cache-segment-configs', () => {
            "environmentLabel": null,
            "label": "Build Error",
            "source": "./app/runtime/page.tsx (1:14)
-         Route segment config "runtime" is not compatible with \`nextConfig.experimental.useCache\`. Please remove it.
+         Error: Route segment config "runtime" is not compatible with \`nextConfig.experimental.useCache\`. Please remove it.
          > 1 | export const runtime = 'edge'
              |              ^^^^^^^",
            "stack": [],
@@ -78,9 +78,9 @@ describe('use-cache-segment-configs', () => {
 
       if (isTurbopack) {
         expect(buildOutput).toMatchInlineSnapshot(`
-         "Error: Turbopack build failed with 1 errors:
+         "Error: Turbopack build failed with 1 error:
          ./app/runtime/page.tsx:1:14
-         Route segment config "runtime" is not compatible with \`nextConfig.experimental.useCache\`. Please remove it.
+         Error: Route segment config "runtime" is not compatible with \`nextConfig.experimental.useCache\`. Please remove it.
          > 1 | export const runtime = 'edge'
              |              ^^^^^^^
            2 |

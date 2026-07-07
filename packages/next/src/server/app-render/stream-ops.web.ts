@@ -1,6 +1,7 @@
 /**
  * Web stream operations for the rendering pipeline.
- * Loaded by stream-ops.ts when __NEXT_USE_NODE_STREAMS is false (default).
+ * Loaded by stream-ops.ts when __NEXT_USE_NODE_STREAMS is false, such as edge
+ * bundles where Node.js streams are unavailable.
  *
  * AnyStream = AnyStreamType so the exported type surface matches stream-ops.node.ts,
  * allowing the switcher to assign either module without `as unknown as`.
@@ -253,7 +254,8 @@ export async function streamToString(stream: AnyStream): Promise<string> {
 
 export async function renderToWebFizzStream(
   element: React.ReactElement,
-  streamOptions: any
+  streamOptions: any,
+  _options?: { waitForAllReady?: boolean }
 ): Promise<FizzStreamResult> {
   const stream = await renderToInitialFizzStream({
     ReactDOMServer: { renderToReadableStream },
@@ -265,7 +267,8 @@ export async function renderToWebFizzStream(
 
 export async function renderToNodeFizzStream(
   _element: React.ReactElement,
-  _streamOptions: any
+  _streamOptions: any,
+  _options?: { waitForAllReady?: boolean }
 ): Promise<FizzStreamResult> {
   throw new Error('Not implemented')
 }

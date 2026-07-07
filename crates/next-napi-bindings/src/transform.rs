@@ -31,14 +31,13 @@ use std::{
     fs::read_to_string,
     panic::{AssertUnwindSafe, catch_unwind},
     rc::Rc,
-    sync::Arc,
+    sync::{Arc, LazyLock},
 };
 
 use anyhow::{Context as _, anyhow, bail};
 use napi::bindgen_prelude::*;
 use napi_derive::napi;
 use next_custom_transforms::chain_transforms::{TransformOptions, custom_before_pass};
-use once_cell::sync::Lazy;
 use rustc_hash::{FxHashMap, FxHashSet};
 use swc_core::{
     atoms::Atom,
@@ -76,7 +75,7 @@ fn skip_filename() -> bool {
         !v.is_empty() && v != "0"
     }
 
-    static SKIP_FILENAME: Lazy<bool> = Lazy::new(|| {
+    static SKIP_FILENAME: LazyLock<bool> = LazyLock::new(|| {
         check("NEXT_TEST_MODE") || check("__NEXT_TEST_MODE") || check("NEXT_TEST_JOB")
     });
 

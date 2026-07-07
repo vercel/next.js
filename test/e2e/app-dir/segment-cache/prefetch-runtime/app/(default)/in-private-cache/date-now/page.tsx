@@ -2,11 +2,8 @@ import { Suspense } from 'react'
 import { cachedDelay, DebugRenderKind, uncachedIO } from '../../../shared'
 import { connection } from 'next/server'
 
-export const unstable_instant = {
-  prefetch: 'runtime',
-  samples: [{ cookies: [] }],
-}
-export const unstable_prefetch = 'runtime'
+export const instant = true
+export const prefetch = 'allow-runtime'
 
 export default async function Page() {
   return (

@@ -3,11 +3,10 @@ import { cachedDelay, DebugRenderKind } from '../../../../shared'
 import { connection } from 'next/server'
 import { cookies } from 'next/headers'
 
-export const unstable_instant = {
-  prefetch: 'runtime',
-  samples: [{ params: { id: 'test' } }],
+export const instant = {
+  unstable_samples: [{ params: { id: 'test' } }],
 }
-export const unstable_prefetch = 'runtime'
+export const prefetch = 'allow-runtime'
 
 type Params = { id: string }
 

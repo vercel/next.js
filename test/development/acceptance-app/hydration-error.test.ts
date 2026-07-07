@@ -153,7 +153,6 @@ describe('Error overlay for hydration errors in App router', () => {
                              <Next.js Internal Component>
                                <Next.js Internal Component>
                                <script>
-                               <script>
                                <Next.js Internal Component>
                                  <RootLayout params={Promise}>
                                    <html
@@ -788,7 +787,6 @@ describe('Error overlay for hydration errors in App router', () => {
                              <Next.js Internal Component>
                                <Next.js Internal Component>
                                  <Next.js Internal Component>
-                                 <script>
                                  <script>
                                  <RootLayout>
        >                           <html>
