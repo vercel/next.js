@@ -32,6 +32,7 @@ import RenderResult, {
   type AppPageRenderResultMetadata,
 } from '../render-result'
 import type { WorkStore } from '../app-render/work-async-storage.external'
+import { actionAsyncStorage } from '../app-render/action-async-storage.external'
 import { FlightRenderResult } from './flight-render-result'
 import {
   filterReqHeaders,
@@ -67,11 +68,12 @@ import { workUnitAsyncStorage } from '../app-render/work-unit-async-storage.exte
 import { InvariantError } from '../../shared/lib/invariant-error'
 import { executeRevalidates } from '../revalidation-utils'
 import { addRequestMeta, getRequestMeta } from '../request-meta'
-import { setCacheBustingSearchParam } from '../../client/components/router-reducer/set-cache-busting-search-param'
+import { setCacheBustingSearchParamWithHash } from '../../client/components/router-reducer/set-cache-busting-search-param'
 import {
   ActionDidNotRevalidate,
   ActionDidRevalidateStaticAndDynamic,
 } from '../../shared/lib/action-revalidation-kind'
+import { computeCacheBustingSearchParam } from '../../shared/lib/router/utils/cache-busting-search-param'
 
 const INLINE_ACTION_PREFIX = '$$RSC_SERVER_ACTION_'
 
@@ -277,9 +279,18 @@ async function createForwardedActionResponse(
       }
 
       return new FlightRenderResult(response.body!)
-    } else {
-      // Since we aren't consuming the response body, we cancel it to avoid memory leaks
-      response.body?.cancel()
+    }
+
+    // Since we aren't consuming the response body, we cancel it to avoid memory leaks
+    response.body?.cancel()
+
+    // Pass the action-not-found marker through so the client throws
+    // UnrecognizedActionError instead of a generic "unexpected response".
+    if (response.headers.get(NEXT_ACTION_NOT_FOUND_HEADER) === '1') {
+      res.setHeader(NEXT_ACTION_NOT_FOUND_HEADER, '1')
+      res.setHeader('content-type', 'text/plain')
+      res.statusCode = 404
+      return RenderResult.fromStatic('Server action not found.', 'text/plain')
     }
   } catch (err) {
     // we couldn't stream the forwarded response, so we'll just return an empty response
@@ -400,19 +411,15 @@ async function createRedirectRenderResult(
     forwardedHeaders.delete(ACTION_HEADER)
 
     try {
-      setCacheBustingSearchParam(fetchUrl, {
-        [NEXT_ROUTER_PREFETCH_HEADER]: forwardedHeaders.get(
-          NEXT_ROUTER_PREFETCH_HEADER
-        )
+      const cacheBustingSearchParam = await computeCacheBustingSearchParam(
+        forwardedHeaders.get(NEXT_ROUTER_PREFETCH_HEADER)
           ? ('1' as const)
           : undefined,
-        [NEXT_ROUTER_SEGMENT_PREFETCH_HEADER]:
-          forwardedHeaders.get(NEXT_ROUTER_SEGMENT_PREFETCH_HEADER) ??
-          undefined,
-        [NEXT_ROUTER_STATE_TREE_HEADER]:
-          forwardedHeaders.get(NEXT_ROUTER_STATE_TREE_HEADER) ?? undefined,
-        [NEXT_URL]: forwardedHeaders.get(NEXT_URL) ?? undefined,
-      })
+        forwardedHeaders.get(NEXT_ROUTER_SEGMENT_PREFETCH_HEADER) ?? undefined,
+        forwardedHeaders.get(NEXT_ROUTER_STATE_TREE_HEADER) ?? undefined,
+        forwardedHeaders.get(NEXT_URL) ?? undefined
+      )
+      setCacheBustingSearchParamWithHash(fetchUrl, cacheBustingSearchParam)
 
       const response = await fetch(fetchUrl, {
         method: 'GET',
@@ -616,9 +623,14 @@ export async function handleAction({
   workStore.fetchCache = 'default-no-store'
 
   const originHeader = req.headers['origin']
-  const originDomain =
-    typeof originHeader === 'string' && originHeader !== 'null'
-      ? new URL(originHeader).host
+  const originHost =
+    typeof originHeader === 'string'
+      ? // 'null' is a valid origin e.g. from privacy-sensitive contexts like sandboxed iframes.
+        // However, these contexts can still send along credentials like cookies,
+        // so we need to check if they're allowed cross-origin requests.
+        originHeader === 'null'
+        ? 'null'
+        : new URL(originHeader).host
       : undefined
   const host = parseHostHeader(req.headers)
 
@@ -631,15 +643,17 @@ export async function handleAction({
   }
   // This is to prevent CSRF attacks. If `x-forwarded-host` is set, we need to
   // ensure that the request is coming from the same host.
-  if (!originDomain) {
-    // This might be an old browser that doesn't send `host` header. We ignore
-    // this case.
+  if (!originHost) {
+    // This is a handcrafted request without an origin or a request from an unsafe browser.
+    // We'll let this through but log a warning.
+    // We can't guard against unsafe browsers and handcrafted requests can't contain
+    // user credentials that haven't been shared willingly.
     warning = 'Missing `origin` header from a forwarded Server Actions request.'
-  } else if (!host || originDomain !== host.value) {
+  } else if (!host || originHost !== host.value) {
     // If the customer sets a list of allowed origins, we'll allow the request.
     // These are considered safe but might be different from forwarded host set
     // by the infra (i.e. reverse proxies).
-    if (isCsrfOriginAllowed(originDomain, serverActions?.allowedOrigins)) {
+    if (isCsrfOriginAllowed(originHost, serverActions?.allowedOrigins)) {
       // Ignore it
     } else {
       if (host) {
@@ -650,7 +664,7 @@ export async function handleAction({
           }\` header with value \`${limitUntrustedHeaderValueForLogs(
             host.value
           )}\` does not match \`origin\` header with value \`${limitUntrustedHeaderValueForLogs(
-            originDomain
+            originHost
           )}\` from a forwarded Server Actions request. Aborting the action.`
         )
       } else {
@@ -699,15 +713,17 @@ export async function handleAction({
     'no-cache, no-store, max-age=0, must-revalidate'
   )
 
-  const { actionAsyncStorage } = ComponentMod
-
   const actionWasForwarded = Boolean(req.headers['x-action-forwarded'])
 
-  if (actionId) {
+  // Only attempt to forward if this request has not already been forwarded.
+  // Otherwise middleware that rewrites the action POST can cause the receiving
+  // worker to forward again, looping indefinitely.
+  if (actionId && !actionWasForwarded) {
     const forwardedWorker = selectWorkerForForwarding(actionId, page)
 
-    // If forwardedWorker is truthy, it means there isn't a worker for the action
-    // in the current handler, so we forward the request to a worker that has the action.
+    // If forwardedWorker is truthy, it means there isn't a worker for the
+    // action in the current handler, so we forward the request to a worker that
+    // has the action.
     if (forwardedWorker) {
       return {
         type: 'done',
@@ -764,7 +780,7 @@ export async function handleAction({
                 return handleUnrecognizedFetchAction(err)
               }
 
-              boundActionArguments = await decodeReply(
+              boundActionArguments = await decodeReply<unknown[]>(
                 formData,
                 serverModuleMap,
                 { temporaryReferences }
@@ -845,7 +861,7 @@ export async function handleAction({
 
             const actionData = Buffer.concat(chunks).toString('utf-8')
 
-            boundActionArguments = await decodeReply(
+            boundActionArguments = await decodeReply<unknown[]>(
               actionData,
               serverModuleMap,
               { temporaryReferences }
@@ -938,7 +954,7 @@ export async function handleAction({
                   pipeline(body, sizeLimitTransform, busboy, {
                     signal: abortController.signal,
                   }),
-                  decodeReplyFromBusboy(busboy, serverModuleMap, {
+                  decodeReplyFromBusboy<unknown[]>(busboy, serverModuleMap, {
                     temporaryReferences,
                   }),
                 ])
@@ -1054,7 +1070,7 @@ export async function handleAction({
 
             const actionData = Buffer.concat(chunks).toString('utf-8')
 
-            boundActionArguments = await decodeReply(
+            boundActionArguments = await decodeReply<unknown[]>(
               actionData,
               serverModuleMap,
               { temporaryReferences }
@@ -1155,15 +1171,17 @@ export async function handleAction({
 
           return {
             type: 'done',
-            result: await generateFlight(req, ctx, requestStore, {
-              actionResult: Promise.resolve(actionResult),
-              skipPageRendering,
-              temporaryReferences,
-              waitUntil:
-                maybeRevalidatesPromise === false
-                  ? undefined
-                  : maybeRevalidatesPromise,
-            }),
+            result: await actionAsyncStorage.exit(() =>
+              generateFlight(req, ctx, requestStore, {
+                actionResult: Promise.resolve(actionResult),
+                skipPageRendering,
+                temporaryReferences,
+                waitUntil:
+                  maybeRevalidatesPromise === false
+                    ? undefined
+                    : maybeRevalidatesPromise,
+              })
+            ),
           }
         } else {
           // TODO: this shouldn't be reachable, because all non-fetch codepaths return early.

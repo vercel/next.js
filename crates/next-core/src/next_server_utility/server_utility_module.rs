@@ -36,18 +36,32 @@ impl NextServerUtilityModule {
     }
 
     #[turbo_tasks::function]
-    pub fn server_path(&self) -> Vc<FileSystemPath> {
-        self.module.ident().path()
+    pub async fn server_path(&self) -> Result<Vc<FileSystemPath>> {
+        Ok(self.module.ident().await?.path.clone().cell())
+    }
+}
+
+impl NextServerUtilityModule {
+    async fn module_reference(&self) -> Result<ResolvedVc<Box<dyn ModuleReference>>> {
+        Ok(ResolvedVc::upcast(
+            NextServerUtilityModuleReference::new(Vc::upcast(*self.module))
+                .to_resolved()
+                .await?,
+        ))
     }
 }
 
 #[turbo_tasks::value_impl]
 impl Module for NextServerUtilityModule {
     #[turbo_tasks::function]
-    fn ident(&self) -> Vc<AssetIdent> {
-        self.module
+    async fn ident(&self) -> Result<Vc<AssetIdent>> {
+        Ok(self
+            .module
             .ident()
+            .owned()
+            .await?
             .with_modifier(rcstr!("Next.js server utility"))
+            .into_vc())
     }
 
     #[turbo_tasks::function]
@@ -57,11 +71,7 @@ impl Module for NextServerUtilityModule {
 
     #[turbo_tasks::function]
     async fn references(&self) -> Result<Vc<ModuleReferences>> {
-        Ok(Vc::cell(vec![ResolvedVc::upcast(
-            NextServerUtilityModuleReference::new(Vc::upcast(*self.module))
-                .to_resolved()
-                .await?,
-        )]))
+        Ok(Vc::cell(vec![self.module_reference().await?]))
     }
 
     #[turbo_tasks::function]

@@ -6,9 +6,13 @@ let clientComponentLoadTimes = 0
 let clientComponentLoadCount = 0
 
 export function wrapClientComponentLoader(
-  ComponentMod: AppPageModule
+  ComponentMod: AppPageModule,
+  isTracingEnabled: boolean
 ): AppPageModule['__next_app__'] {
-  if (!('performance' in globalThis)) {
+  if (
+    !('performance' in globalThis) ||
+    (!process.env.NEXT_OTEL_PERFORMANCE_PREFIX && !isTracingEnabled)
+  ) {
     return ComponentMod.__next_app__
   }
 

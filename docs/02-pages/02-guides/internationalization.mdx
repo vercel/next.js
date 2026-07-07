@@ -209,7 +209,7 @@ You can access the locale information via the Next.js router. For example, using
 - `locales` contains all configured locales.
 - `defaultLocale` contains the configured default locale.
 
-When [pre-rendering](/docs/pages/building-your-application/rendering/static-site-generation) pages with `getStaticProps` or `getServerSideProps`, the locale information is provided in [the context](/docs/pages/building-your-application/data-fetching/get-static-props) provided to the function.
+When [prerendering](/docs/pages/building-your-application/rendering/static-site-generation) pages with `getStaticProps` or `getServerSideProps`, the locale information is provided in [the context](/docs/pages/building-your-application/data-fetching/get-static-props) provided to the function.
 
 When leveraging `getStaticPaths`, the configured locales are provided in the context parameter of the function under `locales` and the configured defaultLocale under `defaultLocale`.
 
@@ -322,7 +322,7 @@ For pages that are [automatically statically optimized](/docs/pages/building-you
 
 ### Non-dynamic getStaticProps Pages
 
-For non-dynamic `getStaticProps` pages, a version is generated for each locale like above. `getStaticProps` is called with each `locale` that is being rendered. If you would like to opt-out of a certain locale from being pre-rendered, you can return `notFound: true` from `getStaticProps` and this variant of the page will not be generated.
+For non-dynamic `getStaticProps` pages, a version is generated for each locale like above. `getStaticProps` is called with each `locale` that is being rendered. If you would like to opt-out of a certain locale from being prerendered, you can return `notFound: true` from `getStaticProps` and this variant of the page will not be generated.
 
 ```js
 export async function getStaticProps({ locale }) {

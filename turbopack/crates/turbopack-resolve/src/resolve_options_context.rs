@@ -7,26 +7,29 @@ use turbopack_core::{
     condition::ContextCondition,
     environment::Environment,
     resolve::{
-        options::{ImportMap, ResolvedMap},
+        options::{ConditionValue, ImportMap, ResolvedMap},
         plugin::{AfterResolvePlugin, BeforeResolvePlugin},
     },
 };
 
 #[derive(Default, Debug, Clone, TraceRawVcs, PartialEq, Eq, NonLocalValue, Encode, Decode)]
 pub enum TsConfigHandling {
-    /// Ignore tsconfig and jsconfig files
+    /// Ignore tsconfig and jsconfig files.
     Disabled,
     #[default]
-    /// Find corresponding tsconfig files based on the location of the file
+    /// Find corresponding tsconfig files based on the location of the file.
     ContextFile,
-    /// Use the provided config file for all files (if it exists, otherwise fall back to
-    /// ContextFile)
+    /// Use the provided config file for all files if it exists, otherwise fall back to the
+    /// [`Self::ContextFile`] behavior.
     Fixed(FileSystemPath),
 }
 
 #[turbo_tasks::value(shared)]
 #[derive(Default, Clone)]
 pub struct ResolveOptionsContext {
+    /// - Overrides `options.node_externals`
+    /// - Appends `environment.resolve_conditions`
+    /// - Overrides `options.extensions`
     pub emulate_environment: Option<ResolvedVc<Environment>>,
     pub enable_types: bool,
     pub enable_typescript: bool,
@@ -50,6 +53,8 @@ pub struct ResolveOptionsContext {
     pub browser: bool,
     /// Enables the "module" field and export condition in package.json
     pub module: bool,
+    /// Enables the "module-sync" export condition in package.json
+    pub module_sync: ConditionValue,
     pub custom_conditions: Vec<RcStr>,
     pub custom_extensions: Option<Vec<RcStr>>,
     /// An additional import map to use when resolving modules.
@@ -90,8 +95,8 @@ impl ResolveOptionsContext {
         Ok(Self::cell(clone))
     }
 
-    /// Returns a new [Vc<ResolveOptionsContext>] with its import map extended
-    /// to include the given import map.
+    /// Returns a new [`Vc<ResolveOptionsContext>`][Self] with its import map extended to include
+    /// the given import map.
     #[turbo_tasks::function]
     pub async fn with_extended_import_map(
         self: Vc<Self>,
@@ -109,8 +114,8 @@ impl ResolveOptionsContext {
         Ok(resolve_options_context.cell())
     }
 
-    /// Returns a new [Vc<ResolveOptionsContext>] with its fallback import map
-    /// extended to include the given import map.
+    /// Returns a new [`Vc<ResolveOptionsContext>`][Self] with its fallback import map extended to
+    /// include the given import map.
     #[turbo_tasks::function]
     pub async fn with_extended_fallback_import_map(
         self: Vc<Self>,

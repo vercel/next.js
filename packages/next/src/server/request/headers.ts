@@ -20,12 +20,13 @@ import {
 } from '../app-render/dynamic-rendering'
 import { StaticGenBailoutError } from '../../client/components/static-generation-bailout'
 import {
-  delayUntilRuntimeStage,
   makeDevtoolsIOAwarePromise,
   makeHangingPromise,
+  getSessionDataStage,
 } from '../dynamic-rendering-utils'
 import { createDedupedByCallsiteServerErrorLoggerDev } from '../create-deduped-by-callsite-server-error-logger'
-import { isRequestAPICallableInsideAfter } from './utils'
+import { isRequestApiAllowedInCurrentPhase } from './utils'
+import { applyOwnerStack } from '../dynamic-rendering-utils'
 import { InvariantError } from '../../shared/lib/invariant-error'
 import { RenderStage } from '../app-render/staged-rendering'
 
@@ -44,13 +45,9 @@ export function headers(): Promise<ReadonlyHeaders> {
   const workUnitStore = workUnitAsyncStorage.getStore()
 
   if (workStore) {
-    if (
-      workUnitStore &&
-      workUnitStore.phase === 'after' &&
-      !isRequestAPICallableInsideAfter()
-    ) {
+    if (workUnitStore && !isRequestApiAllowedInCurrentPhase(workUnitStore)) {
       throw new Error(
-        `Route ${workStore.route} used \`headers()\` inside \`after()\`. This is not supported. If you need this data inside an \`after()\` callback, use \`headers()\` outside of the callback. See more info here: https://nextjs.org/docs/canary/app/api-reference/functions/after`
+        `Route ${workStore.route} used \`headers()\` inside \`after()\` while rendering. This is not supported. If you need this data inside an \`after()\` callback, use \`headers()\` outside of the callback. See more info here: https://nextjs.org/docs/app/api-reference/functions/after`
       )
     }
 
@@ -68,12 +65,17 @@ export function headers(): Promise<ReadonlyHeaders> {
             `Route ${workStore.route} used \`headers()\` inside "use cache". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use \`headers()\` outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache`
           )
           Error.captureStackTrace(error, headers)
+          applyOwnerStack(error)
           workStore.invalidDynamicUsageError ??= error
           throw error
         }
         case 'unstable-cache':
           throw new Error(
             `Route ${workStore.route} used \`headers()\` inside a function cached with \`unstable_cache()\`. Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use \`headers()\` outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/app/api-reference/functions/unstable_cache`
+          )
+        case 'generate-static-params':
+          throw new Error(
+            `Route ${workStore.route} used \`headers()\` inside \`generateStaticParams\`. This is not supported because \`generateStaticParams\` runs at build time without an HTTP request. Read more: https://nextjs.org/docs/messages/next-dynamic-api-wrong-context`
           )
         case 'prerender':
         case 'prerender-client':
@@ -125,11 +127,18 @@ export function headers(): Promise<ReadonlyHeaders> {
             workStore,
             workUnitStore
           )
-        case 'prerender-runtime':
-          return delayUntilRuntimeStage(
-            workUnitStore,
-            makeUntrackedHeaders(workUnitStore.headers)
-          )
+        case 'prerender-runtime': {
+          const { stagedRendering } = workUnitStore
+          if (stagedRendering) {
+            return stagedRendering.delayUntilStage(
+              getSessionDataStage(stagedRendering),
+              'headers',
+              workUnitStore.headers
+            )
+          } else {
+            return makeUntrackedHeaders(workUnitStore.headers)
+          }
+        }
         case 'private-cache':
           // Private caches are delayed until the runtime stage in use-cache-wrapper,
           // so we don't need an additional delay here.

@@ -1,14 +1,13 @@
 use js_sys::JsString;
-use mdxjs::{Options, compile};
 use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::future_to_promise;
 
 #[wasm_bindgen(js_name = "mdxCompileSync")]
 pub fn mdx_compile_sync(value: JsString, opts: JsValue) -> Result<JsValue, JsValue> {
     let value: String = value.into();
-    let option: Options = serde_wasm_bindgen::from_value(opts)?;
+    let option: mdxjs::Options = serde_wasm_bindgen::from_value(opts)?;
 
-    compile(value.as_str(), &option)
+    mdxjs::compile(value.as_str(), &option)
         .map(|v| serde_wasm_bindgen::to_value(&v).expect("Should able to convert to JsValue"))
         .map_err(|v| {
             serde_wasm_bindgen::to_value(&v.to_string()).expect("Should able to convert to JsValue")

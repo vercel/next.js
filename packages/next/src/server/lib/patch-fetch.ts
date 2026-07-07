@@ -30,6 +30,7 @@ import {
 import { cloneResponse } from './clone-response'
 import type { IncrementalCache } from './incremental-cache'
 import { RenderStage } from '../app-render/staged-rendering'
+import { encodeCacheTag } from './encode-cache-tag'
 
 const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
 
@@ -95,7 +96,10 @@ export function validateTags(tags: any[], description: string) {
         reason: `exceeded max length of ${NEXT_CACHE_TAG_MAX_LENGTH}`,
       })
     } else {
-      validTags.push(tag)
+      // Encode so a non-ASCII tag can be safely serialized into the
+      // `x-next-cache-tags` HTTP header without tripping Node's header
+      // validation. Length is checked on the raw input above.
+      validTags.push(encodeCacheTag(tag))
     }
 
     if (validTags.length > NEXT_CACHE_TAG_MAX_ITEMS) {
@@ -373,6 +377,7 @@ export function createPatchedFetcher(
               break
             case 'request':
             case 'unstable-cache':
+            case 'generate-static-params':
               break
             default:
               workUnitStore satisfies never
@@ -412,6 +417,7 @@ export function createPatchedFetcher(
             case 'request':
             case 'cache':
             case 'private-cache':
+            case 'generate-static-params':
               break
             default:
               workUnitStore satisfies never
@@ -583,6 +589,7 @@ export function createPatchedFetcher(
             case 'cache':
             case 'private-cache':
             case 'unstable-cache':
+            case 'generate-static-params':
               break
             default:
               workUnitStore satisfies never
@@ -715,6 +722,7 @@ export function createPatchedFetcher(
                 case 'cache':
                 case 'private-cache':
                 case 'unstable-cache':
+                case 'generate-static-params':
                   break
                 default:
                   workUnitStore satisfies never
@@ -759,6 +767,7 @@ export function createPatchedFetcher(
             case 'prerender-ppr':
             case 'prerender-legacy':
             case 'unstable-cache':
+            case 'generate-static-params':
               break
             default:
               workUnitStore satisfies never
@@ -913,6 +922,7 @@ export function createPatchedFetcher(
                   case 'cache':
                   case 'private-cache':
                   case 'unstable-cache':
+                  case 'generate-static-params':
                   case undefined:
                     return createCachedDynamicResponse(
                       workStore,
@@ -996,6 +1006,7 @@ export function createPatchedFetcher(
                 case 'cache':
                 case 'private-cache':
                 case 'unstable-cache':
+                case 'generate-static-params':
                   break
                 default:
                   workUnitStore satisfies never
@@ -1125,6 +1136,7 @@ export function createPatchedFetcher(
                 case 'cache':
                 case 'private-cache':
                 case 'unstable-cache':
+                case 'generate-static-params':
                   break
                 default:
                   workUnitStore satisfies never
@@ -1172,6 +1184,7 @@ export function createPatchedFetcher(
                   case 'unstable-cache':
                   case 'prerender-legacy':
                   case 'prerender-ppr':
+                  case 'generate-static-params':
                     break
                   default:
                     workUnitStore satisfies never

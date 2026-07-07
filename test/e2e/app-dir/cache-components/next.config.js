@@ -3,9 +3,12 @@
  */
 const nextConfig = {
   cacheComponents: true,
+  adapterPath:
+    process.env.NEXT_ADAPTER_PATH ?? require.resolve('./my-adapter.mjs'),
   experimental: {
-    adapterPath:
-      process.env.NEXT_ADAPTER_PATH ?? require.resolve('./my-adapter.mjs'),
+    instantInsights: {
+      validationLevel: 'manual-warning',
+    },
   },
 }
 

@@ -75,6 +75,10 @@ turbopack-resolve = { workspace = true }
 turbopack-trace-utils = { workspace = true }
 webbrowser = { workspace = true }
 
+[build-dependencies]
+anyhow = { workspace = true }
+vergen-gitcl = { workspace = true }
+
 [dev-dependencies]
 criterion = { workspace = true, features = ["async_tokio"] }
 regex = { workspace = true }

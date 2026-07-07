@@ -1,5 +1,10 @@
+// Allow the `rcstr!` proc macro's emitted `::turbo_rcstr::...` paths to
+// resolve when used inside this crate's own source (e.g. tests, doctests).
+extern crate self as turbo_rcstr;
+
 use std::{
     borrow::{Borrow, Cow},
+    collections::HashMap,
     ffi::OsStr,
     fmt::{Debug, Display},
     hash::{Hash, Hasher},
@@ -7,25 +12,33 @@ use std::{
     num::NonZeroU8,
     ops::Deref,
     path::{Path, PathBuf},
+    sync::LazyLock,
 };
 
 use bincode::{
     Decode, Encode,
-    de::Decoder,
+    de::{Decoder, read::Reader},
     enc::Encoder,
     error::{DecodeError, EncodeError},
     impl_borrow_decode,
 };
 use bytes_str::BytesStr;
 use debug_unreachable::debug_unreachable;
+use rustc_hash::FxBuildHasher;
+#[cfg(not(target_family = "wasm"))]
+use scattered_collect::slice::ScatteredSlice;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use shrink_to_fit::ShrinkToFit;
+use smallvec::SmallVec;
 use triomphe::Arc;
 use turbo_tasks_hash::{DeterministicHash, DeterministicHasher};
 
 use crate::{
-    dynamic::{deref_from, hash_bytes, new_atom},
-    tagged_value::TaggedValue,
+    dynamic::{
+        DynamicPrehashedString, deref_dynamic, deref_static, hash_bytes, new_atom,
+        new_atom_from_prehashed, new_static_atom,
+    },
+    tagged_value::{MAX_INLINE_LEN, TaggedValue},
 };
 
 mod dynamic;
@@ -49,7 +62,7 @@ mod tagged_value;
 /// `RcStr::from(...)`, or the `rcstr!` macro.
 ///
 /// ```
-/// # use turbo_rcstr::RcStr;
+/// # use turbo_rcstr::{RcStr, rcstr};
 /// #
 /// let s = "foo";
 /// let rc_s1: RcStr = s.into();
@@ -87,16 +100,13 @@ unsafe impl Send for RcStr {}
 unsafe impl Sync for RcStr {}
 
 // Marks a payload that is stored in an Arc
-const DYNAMIC_TAG: u8 = 0b_00;
-const PREHASHED_STRING_LOCATION: u8 = 0b_0;
+const DYNAMIC_TAG: u8 = 0b_10;
 // Marks a payload that has been leaked since it has a static lifetime
-const STATIC_TAG: u8 = 0b_10;
+const STATIC_TAG: u8 = 0b_00;
 // The payload is stored inline
 const INLINE_TAG: u8 = 0b_01; // len in upper nybble
-const INLINE_LOCATION: u8 = 0b_1;
 const INLINE_TAG_INIT: NonZeroU8 = NonZeroU8::new(INLINE_TAG).unwrap();
 const TAG_MASK: u8 = 0b_11;
-const LOCATION_MASK: u8 = 0b_1;
 // For inline tags the length is stored in the upper 4 bits of the tag byte
 const LEN_OFFSET: usize = 4;
 const LEN_MASK: u8 = 0xf0;
@@ -106,31 +116,22 @@ impl RcStr {
     fn tag(&self) -> u8 {
         self.unsafe_data.tag_byte() & TAG_MASK
     }
-    #[inline(always)]
-    fn location(&self) -> u8 {
-        self.unsafe_data.tag_byte() & LOCATION_MASK
-    }
 
     #[inline(never)]
     pub fn as_str(&self) -> &str {
-        match self.location() {
-            PREHASHED_STRING_LOCATION => self.prehashed_string_as_str(),
-            INLINE_LOCATION => self.inline_as_str(),
+        match self.tag() {
+            STATIC_TAG => unsafe { deref_static(self.unsafe_data).value },
+            DYNAMIC_TAG => unsafe { &deref_dynamic(self.unsafe_data).value },
+            INLINE_TAG => self.inline_as_str(),
             _ => unsafe { debug_unreachable!() },
         }
     }
 
     fn inline_as_str(&self) -> &str {
-        debug_assert!(self.location() == INLINE_LOCATION);
+        debug_assert!(self.tag() == INLINE_TAG);
         let len = (self.unsafe_data.tag_byte() & LEN_MASK) >> LEN_OFFSET;
         let src = self.unsafe_data.data();
         unsafe { std::str::from_utf8_unchecked(&src[..(len as usize)]) }
-    }
-
-    // Extract the str reference from a string stored in a PrehashedString
-    fn prehashed_string_as_str(&self) -> &str {
-        debug_assert!(self.location() == PREHASHED_STRING_LOCATION);
-        unsafe { dynamic::deref_from(self.unsafe_data).value.as_str() }
     }
 
     /// Returns an owned mutable [`String`].
@@ -146,18 +147,44 @@ impl RcStr {
                 // convert `self` into `arc`
                 let arc = unsafe { dynamic::restore_arc(ManuallyDrop::new(self).unsafe_data) };
                 match Arc::try_unwrap(arc) {
-                    Ok(v) => v.value.into_string(),
-                    Err(arc) => arc.value.as_str().to_string(),
+                    // `String::from(Box<str>)` reuses the boxed allocation, so this is O(1).
+                    Ok(v) => String::from(v.value),
+                    Err(arc) => arc.value.to_string(),
                 }
             }
             INLINE_TAG => self.inline_as_str().to_string(),
-            STATIC_TAG => self.prehashed_string_as_str().to_string(),
+            STATIC_TAG => unsafe { deref_static(self.unsafe_data).value.to_string() },
             _ => unsafe { debug_unreachable!() },
         }
     }
 
     pub fn map(self, f: impl FnOnce(String) -> String) -> Self {
         RcStr::from(Cow::Owned(f(self.into_owned())))
+    }
+
+    /// Create an RcStr from a deserialized string, checking the static constant
+    /// table first. If the string matches an `rcstr!` constant, returns a
+    /// zero-cost static copy instead of allocating a new Arc.
+    ///
+    /// Accepts `&str` so that borrow-decode paths can avoid heap allocation
+    /// entirely for inline strings (≤7 bytes) and static table hits.
+    fn from_deserialized(s: &str) -> Self {
+        if !is_atom_inlineable(s) {
+            let hash = hash_bytes(s.as_bytes());
+            // Check the static table
+            if let Some(entries) = STATIC_TABLE.get(&hash)
+                && let Some(static_phs) = entries.iter().find(|phs| phs.value == s)
+            {
+                new_static_atom(static_phs)
+            } else {
+                new_atom_from_prehashed(DynamicPrehashedString {
+                    hash,
+                    value: s.into(),
+                })
+            }
+        } else {
+            inline_atom(s).unwrap()
+        }
     }
 }
 
@@ -178,6 +205,12 @@ impl Deref for RcStr {
 
 impl Borrow<str> for RcStr {
     fn borrow(&self) -> &str {
+        self.as_str()
+    }
+}
+
+impl AsRef<str> for RcStr {
+    fn as_ref(&self) -> &str {
         self.as_str()
     }
 }
@@ -291,18 +324,19 @@ impl From<RcStr> for PathBuf {
 impl Clone for RcStr {
     #[inline(always)]
     fn clone(&self) -> Self {
-        let alias = self.unsafe_data;
-        // We only need to increment the ref count for DYNAMIC_TAG values
+        // We only need to increment the ref count for DYNAMIC_TAG values.
         // For STATIC_TAG and INLINE_TAG we can just copy the value.
-        if alias.tag_byte() & TAG_MASK == DYNAMIC_TAG {
+        if self.tag() == DYNAMIC_TAG {
             unsafe {
-                let arc = dynamic::restore_arc(alias);
+                let arc = dynamic::restore_arc(self.unsafe_data);
                 forget(arc.clone());
                 forget(arc);
             }
         }
 
-        RcStr { unsafe_data: alias }
+        RcStr {
+            unsafe_data: self.unsafe_data,
+        }
     }
 }
 
@@ -319,17 +353,33 @@ impl PartialEq for RcStr {
         if self.unsafe_data == other.unsafe_data {
             return true;
         }
-        // They can still be equal if they are both stored on the heap
-        match (self.location(), other.location()) {
-            (PREHASHED_STRING_LOCATION, PREHASHED_STRING_LOCATION) => {
-                let l = unsafe { deref_from(self.unsafe_data) };
-                let r = unsafe { deref_from(other.unsafe_data) };
-                l.hash == r.hash && l.value == r.value
-            }
-            // NOTE: it is never possible for an inline storage string to compare equal to a dynamic
-            // allocated string, the construction routines separate the strings based on length.
-            _ => false,
+        // If either side is inline, they can't be equal: an inline string is always shorter than
+        // any heap-allocated one (construction splits on length), and two inline strings would
+        // have been caught by the `unsafe_data == unsafe_data` check above.
+        if self.tag() == INLINE_TAG || other.tag() == INLINE_TAG {
+            return false;
         }
+
+        // slow path compare precomputed hashes and string refs
+        let (l_hash, l_str) = unsafe { heap_hash_and_str(self) };
+        let (r_hash, r_str) = unsafe { heap_hash_and_str(other) };
+        l_hash == r_hash && l_str == r_str
+    }
+}
+
+/// Caller must ensure `s.tag()` is `STATIC_TAG` or `DYNAMIC_TAG`.
+#[inline]
+unsafe fn heap_hash_and_str(s: &RcStr) -> (u64, &str) {
+    match s.tag() {
+        STATIC_TAG => {
+            let p = unsafe { deref_static(s.unsafe_data) };
+            (p.hash, p.value)
+        }
+        DYNAMIC_TAG => {
+            let p = unsafe { deref_dynamic(s.unsafe_data) };
+            (p.hash, &p.value)
+        }
+        _ => unsafe { debug_unreachable!() },
     }
 }
 
@@ -349,13 +399,16 @@ impl Ord for RcStr {
 
 impl Hash for RcStr {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        match self.location() {
-            PREHASHED_STRING_LOCATION => {
-                let l = unsafe { deref_from(self.unsafe_data) };
-                state.write_u64(l.hash);
+        match self.tag() {
+            STATIC_TAG => {
+                state.write_u64(unsafe { deref_static(self.unsafe_data).hash });
                 state.write_u8(0xff); // matches the implementation of the `str` Hash impl
             }
-            INLINE_LOCATION => {
+            DYNAMIC_TAG => {
+                state.write_u64(unsafe { deref_dynamic(self.unsafe_data).hash });
+                state.write_u8(0xff); // matches the implementation of the `str` Hash impl
+            }
+            INLINE_TAG => {
                 self.inline_as_str().hash(state);
             }
             _ => unsafe { debug_unreachable!() },
@@ -371,8 +424,25 @@ impl Serialize for RcStr {
 
 impl<'de> Deserialize<'de> for RcStr {
     fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-        let s = String::deserialize(deserializer)?;
-        Ok(RcStr::from(s))
+        struct RcStrVisitor;
+
+        impl serde::de::Visitor<'_> for RcStrVisitor {
+            type Value = RcStr;
+
+            fn expecting(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+                f.write_str("a string")
+            }
+
+            fn visit_str<E: serde::de::Error>(self, v: &str) -> Result<RcStr, E> {
+                Ok(RcStr::from_deserialized(v))
+            }
+
+            fn visit_string<E: serde::de::Error>(self, v: String) -> Result<RcStr, E> {
+                Ok(RcStr::from_deserialized(&v))
+            }
+        }
+
+        deserializer.deserialize_str(RcStrVisitor)
     }
 }
 
@@ -384,7 +454,29 @@ impl Encode for RcStr {
 
 impl<Context> Decode<Context> for RcStr {
     fn decode<D: Decoder<Context = Context>>(decoder: &mut D) -> Result<Self, DecodeError> {
-        Ok(RcStr::from(String::decode(decoder)?))
+        // Decode the length prefix
+        let len = u64::decode(decoder)?;
+        let len: usize = len
+            .try_into()
+            .map_err(|_| DecodeError::OutsideUsizeRange(len))?;
+
+        if unty::type_equal::<D::R, turbo_bincode::TurboBincodeReader>() {
+            // We know the reader is a TurboBincodeReader backed by &[u8], so peek_read
+            // returning None means data corruption (not enough bytes), not "unsupported".
+            let bytes = decoder
+                .reader()
+                .peek_read(len)
+                .ok_or(DecodeError::UnexpectedEnd { additional: len })?;
+            let s = core::str::from_utf8(bytes).map_err(|inner| DecodeError::Utf8 { inner })?;
+            let rcstr = RcStr::from_deserialized(s);
+            decoder.reader().consume(len);
+            Ok(rcstr)
+        } else {
+            unreachable!(
+                "RcStr::decode expected TurboBincodeReader, but was called with a {} reader",
+                std::any::type_name::<D::R>(),
+            )
+        }
     }
 }
 
@@ -394,11 +486,8 @@ impl Drop for RcStr {
     fn drop(&mut self) {
         match self.tag() {
             DYNAMIC_TAG => unsafe { drop(dynamic::restore_arc(self.unsafe_data)) },
-            STATIC_TAG => {
-                // do nothing, these are never deallocated
-            }
-            INLINE_TAG => {
-                // do nothing, these payloads need no drop logic
+            INLINE_TAG | STATIC_TAG => {
+                // no-ops
             }
             _ => unsafe { debug_unreachable!() },
         }
@@ -411,44 +500,101 @@ pub const fn inline_atom(s: &str) -> Option<RcStr> {
     dynamic::inline_atom(s)
 }
 
+// Exports for our macro
+#[doc(hidden)]
+pub const fn is_atom_inlineable(s: &str) -> bool {
+    s.len() <= MAX_INLINE_LEN
+}
+
 #[doc(hidden)]
 #[inline(always)]
-pub fn from_static(s: &'static PrehashedString) -> RcStr {
+pub const fn from_static(s: &'static StaticPrehashedString) -> RcStr {
     dynamic::new_static_atom(s)
 }
 #[doc(hidden)]
-pub use dynamic::PrehashedString;
+pub use dynamic::StaticPrehashedString;
 
 #[doc(hidden)]
-pub const fn make_const_prehashed_string(text: &'static str) -> PrehashedString {
-    PrehashedString {
-        value: dynamic::Payload::Ref(text),
+pub const fn make_const_prehashed_string(text: &'static str) -> StaticPrehashedString {
+    StaticPrehashedString {
+        value: text,
         hash: hash_bytes(text.as_bytes()),
     }
 }
 
-/// Create an rcstr from a string literal.
-/// allocates the RcStr inline when possible otherwise uses a `LazyLock` to manage the allocation.
+// Re-export scattered-collect so the `rcstr!` macro can reference it via
+// `$crate::scattered_collect`.
+#[cfg(not(target_family = "wasm"))]
+#[doc(hidden)]
+pub use scattered_collect;
+
+/// Wrapper for collecting `rcstr!` static constants at link time.
+#[doc(hidden)]
+pub struct StaticRcStr(pub &'static StaticPrehashedString);
+
+// Link-time collection of every `rcstr!` static.
+//
+// Disabled under wasm because scattered-collect relies on a environment provided function
+// described in <https://docs.rs/link-section/latest/link_section/#wasm> and installing it is tricky
+// using wasm-bindgen. Also this is only here to support deserialization of rcstrs which shouldn't
+// happen under wasm anyway.
+#[cfg(not(target_family = "wasm"))]
+#[doc(hidden)]
+#[scattered_collect::gather]
+pub static STATIC_RCSTRS: ScatteredSlice<StaticRcStr>;
+// stubbed out for wasm
+#[cfg(target_family = "wasm")]
+const STATIC_RCSTRS: [StaticRcStr; 0] = [];
+
+/// Submits a `StaticRcStr` into [`STATIC_RCSTRS`] at link time.
+#[doc(hidden)]
 #[macro_export]
-macro_rules! rcstr {
-    ($s:expr) => {{
-        const INLINE: core::option::Option<$crate::RcStr> = $crate::inline_atom($s);
-        // This condition can be compile time evaluated and inlined.
-        if INLINE.is_some() {
-            INLINE.unwrap()
-        } else {
-            fn get_rcstr() -> $crate::RcStr {
-                // Allocate static storage for the PrehashedString
-                static RCSTR_STORAGE: $crate::PrehashedString =
-                    $crate::make_const_prehashed_string($s);
-                // This basically just tags a bit onto the raw pointer and wraps it in an RcStr
-                // should be fast enough to do every time.
-                $crate::from_static(&RCSTR_STORAGE)
-            }
-            get_rcstr()
+macro_rules! __rcstr_static_submit {
+    ($value:expr) => {
+        #[cfg(not(target_family = "wasm"))]
+        $crate::scattered_collect::declarative::scatter! {
+            #[scatter($crate::STATIC_RCSTRS)]
+            const _: $crate::StaticRcStr = $value;
         }
-    }};
+    };
 }
+
+/// Read-only lookup table mapping precomputed hash -> static StaticPrehashedString.
+/// Built once on first access from all `rcstr!` constants gathered at link time into
+/// [`STATIC_RCSTRS`].
+///
+/// Multiple `rcstr!` calls with the same string content will each scatter an entry, but we
+/// deduplicate by content here so only one entry per unique string is stored.
+static STATIC_TABLE: LazyLock<
+    HashMap<u64, SmallVec<[&'static StaticPrehashedString; 1]>, FxBuildHasher>,
+> = LazyLock::new(|| {
+    let mut map: HashMap<u64, SmallVec<[&'static StaticPrehashedString; 1]>, FxBuildHasher> =
+        HashMap::with_hasher(FxBuildHasher);
+    for &StaticRcStr(phs) in STATIC_RCSTRS.iter() {
+        if phs.value.len() <= MAX_INLINE_LEN {
+            // This is rare, but possible if our macro cannot determine the length of the string at
+            // macro time we may end up with a wasted StaticPrehashedString scattered into the
+            // collection.
+
+            // Just skip it
+            continue;
+        }
+        let entries = map.entry(phs.hash).or_default();
+        // Deduplicate: skip if an entry with the same string content exists
+        // Mostly linkers will merge static strings but this isn't guaranteed so we cannot just rely
+        // on pointer equality.
+        if !entries.iter().any(|e| e.value == phs.value) {
+            entries.push(phs);
+        }
+    }
+    map.shrink_to_fit(); // this map will never change again
+    map
+});
+
+/// Create an rcstr from a string literal.
+/// Allocates the RcStr inline when possible, otherwise uses a static `PrehashedString`.  In
+/// either case this is a compile time constant
+pub use turbo_rcstr_macros::rcstr;
 
 /// noop
 impl ShrinkToFit for RcStr {
@@ -496,6 +642,76 @@ mod napi_impl {
         unsafe fn validate(env: napi_env, napi_val: napi_value) -> napi::Result<napi_value> {
             unsafe { String::validate(env, napi_val) }
         }
+    }
+}
+
+/// Runtime string interning table.
+///
+/// Deduplicates strings by storing them in an `FxHashSet<RcStr>`. Strings
+/// shorter than the inline threshold are already zero-allocation, so only
+/// longer strings benefit from interning.
+pub struct RcStrInterning {
+    set: rustc_hash::FxHashSet<RcStr>,
+}
+
+impl Default for RcStrInterning {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl RcStrInterning {
+    /// Create a new empty interning table.
+    pub fn new() -> Self {
+        Self {
+            set: rustc_hash::FxHashSet::default(),
+        }
+    }
+
+    /// Intern a string slice. Returns a cheap-to-clone [`RcStr`].
+    ///
+    /// Strings below the inline threshold are returned directly (they are
+    /// already zero-allocation inline atoms). Longer strings are looked up
+    /// in the interning table and deduplicated.
+    pub fn intern(&mut self, s: &str) -> RcStr {
+        if is_atom_inlineable(s) {
+            // Inline atom — no allocation needed, don't bother with the set.
+            return RcStr::from(s);
+        }
+        if let Some(existing) = self.set.get(s) {
+            return existing.clone();
+        }
+        let rc = RcStr::from(s);
+        self.set.insert(rc.clone());
+        rc
+    }
+
+    /// Intern an owned `String`. When the string is not yet interned, avoids
+    /// an extra copy compared to [`intern`](Self::intern).
+    fn intern_owned(&mut self, s: String) -> RcStr {
+        if is_atom_inlineable(&s) {
+            return RcStr::from(s);
+        }
+        if let Some(existing) = self.set.get(s.as_str()) {
+            return existing.clone();
+        }
+        let rc = RcStr::from(s);
+        self.set.insert(rc.clone());
+        rc
+    }
+
+    /// Intern a `Cow<str>`. When the cow is `Owned`, avoids an extra copy
+    /// if the string is not yet interned.
+    pub fn intern_cow(&mut self, s: std::borrow::Cow<'_, str>) -> RcStr {
+        match s {
+            std::borrow::Cow::Borrowed(s) => self.intern(s),
+            std::borrow::Cow::Owned(s) => self.intern_owned(s),
+        }
+    }
+
+    /// Intern the [`Display`](std::fmt::Display) output of a value.
+    pub fn intern_display(&mut self, v: &impl std::fmt::Display) -> RcStr {
+        self.intern_owned(v.to_string())
     }
 }
 
@@ -617,5 +833,68 @@ mod tests {
                 );
             }
         }
+    }
+
+    #[test]
+    fn test_bincode_roundtrip() {
+        use turbo_bincode::{turbo_bincode_decode, turbo_bincode_encode};
+
+        // Test inline string
+        let short = RcStr::from("hi");
+        let encoded = turbo_bincode_encode(&short).unwrap();
+        let decoded: RcStr = turbo_bincode_decode(&encoded).unwrap();
+        assert_eq!(decoded, short);
+        assert_eq!(decoded.tag(), INLINE_TAG);
+
+        // Test dynamic string (no static match)
+        let long = RcStr::from("bincode_roundtrip: no matching rcstr constant");
+        let encoded = turbo_bincode_encode(&long).unwrap();
+        let decoded: RcStr = turbo_bincode_decode(&encoded).unwrap();
+        assert_eq!(decoded, long);
+        assert_eq!(decoded.tag(), DYNAMIC_TAG);
+
+        // Test static dedup via decode
+        const STATIC_STR: &str = "bincode_roundtrip: a static constant for testing";
+        let _register = rcstr!(STATIC_STR);
+        let original = RcStr::from(STATIC_STR); // DYNAMIC since from() doesn't check
+        let encoded = turbo_bincode_encode(&original).unwrap();
+        let decoded: RcStr = turbo_bincode_decode(&encoded).unwrap();
+        assert_eq!(decoded.as_str(), STATIC_STR);
+        // Decoded via peek_read path should find the static constant
+        assert_eq!(decoded.tag(), STATIC_TAG);
+    }
+
+    #[test]
+    fn test_interning() {
+        let mut interner = RcStrInterning::new();
+
+        // Short strings are always inline (no interning needed)
+        let a = interner.intern("hi");
+        let b = interner.intern("hi");
+        assert_eq!(a, b);
+
+        // Long strings should be deduplicated to the same allocation.
+        let long = "this is a long string that exceeds inline threshold";
+        let c = interner.intern(long);
+        let d = interner.intern(long);
+        assert_eq!(c, d);
+        assert!(std::ptr::eq(c.as_str().as_ptr(), d.as_str().as_ptr()));
+
+        // intern_cow with borrowed — same allocation as c
+        let e = interner.intern_cow(std::borrow::Cow::Borrowed(long));
+        assert_eq!(e, c);
+        assert!(std::ptr::eq(e.as_str().as_ptr(), c.as_str().as_ptr()));
+
+        // intern_cow with owned — same allocation as c (no new alloc)
+        let f = interner.intern_cow(std::borrow::Cow::Owned(long.to_string()));
+        assert_eq!(f, c);
+        assert!(std::ptr::eq(f.as_str().as_ptr(), c.as_str().as_ptr()));
+
+        // intern_display — a fresh long string, verify it is interned too
+        let long2 = "another long string that exceeds the inline threshold here";
+        let g = interner.intern_display(&long2);
+        let h = interner.intern_display(&long2);
+        assert_eq!(g, h);
+        assert!(std::ptr::eq(g.as_str().as_ptr(), h.as_str().as_ptr()));
     }
 }

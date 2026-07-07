@@ -33,21 +33,9 @@ impl ValueBlockCountTracker {
             >= MAX_VALUE_BLOCK_COUNT
     }
 
-    /// Returns true if the tracked value block count has reached half of the maximum.
-    pub fn is_half_full(&self) -> bool {
-        self.value_block_count + (self.current_small_value_block_size > 0) as usize
-            >= MAX_VALUE_BLOCK_COUNT / 2
-    }
-
     /// Reset the tracker to empty.
     pub fn reset(&mut self) {
         self.value_block_count = 0;
         self.current_small_value_block_size = 0;
-    }
-
-    /// Reset the tracker to contain only the given entry.
-    pub fn reset_to(&mut self, is_medium: bool, small_value_size: usize) {
-        self.value_block_count = if is_medium { 1 } else { 0 };
-        self.current_small_value_block_size = small_value_size;
     }
 }

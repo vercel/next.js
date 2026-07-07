@@ -39,6 +39,7 @@ import {
   PAGES_MANIFEST,
   BUILD_ID_FILE,
   MIDDLEWARE_MANIFEST,
+  PREFETCH_HINTS,
   PRERENDER_MANIFEST,
   ROUTES_MANIFEST,
   CLIENT_PUBLIC_FILES_PATH,
@@ -109,8 +110,9 @@ import { lazyRenderPagesPage } from './route-modules/pages/module.render'
 import { interopDefault } from '../lib/interop-default'
 import { formatDynamicImportPath } from '../lib/format-dynamic-import-path'
 import type { NextFontManifest } from '../build/webpack/plugins/next-font-manifest-plugin'
-import { isInterceptionRouteRewrite } from '../lib/generate-interception-routes-rewrites'
+import { isInterceptionRouteRewrite } from '../lib/is-interception-route-rewrite'
 import type { ServerOnInstrumentationRequestError } from './app-render/types'
+import type { PrefetchHints } from '../shared/lib/app-router-types'
 import { RouteKind } from './route-kind'
 import { InvariantError } from '../shared/lib/invariant-error'
 import { AwaiterOnce } from './after/awaiter'
@@ -201,6 +203,10 @@ export default class NextNodeServer extends BaseServer<
 
     installGlobalBehaviors(this.nextConfig)
 
+    // Load prefetch hints from the build output. This must happen before
+    // any render to ensure segment inlining decisions are available.
+    this.renderOpts.prefetchHints = this.getPrefetchHints()
+
     const isDev = options.dev ?? false
     this.isDev = isDev
     this.sriEnabled = Boolean(options.conf.experimental?.sri?.algorithm)
@@ -274,8 +280,8 @@ export default class NextNodeServer extends BaseServer<
     // when using compile mode static env isn't inlined so we
     // need to populate in normal runtime env
     if (this.renderOpts.isExperimentalCompile) {
-      // immutableAssetToken only works with Turbopack, and `isExperimentalCompile` isn't supported
-      // with that anyway, so we can assign immutableAssetToken to deploymentId here
+      // supportsImmutableAssets only works with Turbopack, and `isExperimentalCompile` isn't supported
+      // with that anyway, so we can assign just use deploymentId here
       populateStaticEnv(this.nextConfig, this.deploymentId || '')
     }
 
@@ -577,6 +583,7 @@ export default class NextNodeServer extends BaseServer<
         res: ServerResponse,
         ctx: {
           waitUntil: ReturnType<BaseServer['getWaitUntil']>
+          requestMeta?: RequestMeta
         }
       ) => Promise<void>
     }
@@ -588,6 +595,11 @@ export default class NextNodeServer extends BaseServer<
     addRequestMeta(req.originalRequest, 'distDir', this.distDir)
     await module.handler(req.originalRequest, res.originalResponse, {
       waitUntil: this.getWaitUntil(),
+      requestMeta: {
+        ...getRequestMeta(req.originalRequest),
+        query,
+        params: match.params,
+      },
     })
     return true
   }
@@ -636,9 +648,10 @@ export default class NextNodeServer extends BaseServer<
           {
             buildId: this.buildId,
             deploymentId: this.deploymentId,
-            clientAssetToken:
-              this.nextConfig.experimental.immutableAssetToken ??
-              this.deploymentId,
+            clientAssetToken: this.nextConfig.experimental
+              .supportsImmutableAssets
+              ? ''
+              : this.deploymentId,
           }
         )
       } else {
@@ -654,9 +667,10 @@ export default class NextNodeServer extends BaseServer<
           {
             buildId: this.buildId,
             deploymentId: this.deploymentId,
-            clientAssetToken:
-              this.nextConfig.experimental.immutableAssetToken ??
-              this.deploymentId,
+            clientAssetToken: this.nextConfig.experimental
+              .supportsImmutableAssets
+              ? undefined
+              : this.deploymentId,
             customServer: this.serverOptions.customServer || undefined,
           },
           {
@@ -738,6 +752,7 @@ export default class NextNodeServer extends BaseServer<
             href,
             req.originalRequest,
             res.originalResponse,
+            this.nextConfig.images.maximumResponseBody,
             handleInternalReq
           )
 
@@ -1284,16 +1299,16 @@ export default class NextNodeServer extends BaseServer<
 
   public async revalidate({
     urlPath,
-    revalidateHeaders,
+    headers,
     opts,
   }: {
     urlPath: string
-    revalidateHeaders: { [key: string]: string | string[] }
+    headers: { [key: string]: string | string[] }
     opts: { unstable_onlyGenerated?: boolean }
   }) {
     const mocked = createRequestResponseMocks({
       url: urlPath,
-      headers: revalidateHeaders,
+      headers,
     })
 
     const handler = this.getRequestHandler()
@@ -1620,8 +1635,10 @@ export default class NextNodeServer extends BaseServer<
 
     // Middleware is skipped for on-demand revalidate requests
     if (
-      checkIsOnDemandRevalidate(params.request, this.renderOpts.previewProps)
-        .isOnDemandRevalidate
+      checkIsOnDemandRevalidate(
+        params.request.headers,
+        this.renderOpts.previewProps
+      ).isOnDemandRevalidate
     ) {
       return {
         response: new Response(null, { headers: { 'x-middleware-next': '1' } }),
@@ -1713,19 +1730,25 @@ export default class NextNodeServer extends BaseServer<
         Boolean(requestData.body)
 
       try {
-        result = await adapterFn({
-          handler:
-            middlewareModule.proxy ||
-            middlewareModule.middleware ||
-            middlewareModule,
-          request: {
-            ...requestData,
-            body: hasRequestBody
-              ? requestData.body.cloneBodyStream()
-              : undefined,
-          },
-          page: 'middleware',
-        })
+        // Node.js middleware runs in-process, inside the active
+        // `handleRequest` span. Detach that span so the middleware span
+        // becomes a sibling root (or parents to an incoming traceparent),
+        // matching edge middleware which runs in a detached sandbox.
+        result = await getTracer().runWithDetachedContext(() =>
+          adapterFn({
+            handler:
+              middlewareModule.proxy ||
+              middlewareModule.middleware ||
+              middlewareModule,
+            request: {
+              ...requestData,
+              body: hasRequestBody
+                ? requestData.body.cloneBodyStream()
+                : undefined,
+            },
+            page: 'middleware',
+          })
+        )
       } finally {
         if (hasRequestBody) {
           await requestData.body.finalize()
@@ -1742,8 +1765,9 @@ export default class NextNodeServer extends BaseServer<
         request: requestData,
         useCache: true,
         onWarning: params.onWarning,
-        clientAssetToken:
-          this.nextConfig.experimental.immutableAssetToken || this.deploymentId,
+        clientAssetToken: this.nextConfig.experimental.supportsImmutableAssets
+          ? ''
+          : this.deploymentId,
       })
     }
 
@@ -1906,6 +1930,28 @@ export default class NextNodeServer extends BaseServer<
     return this._cachedPreviewManifest
   }
 
+  private _cachedPrefetchHints: Record<string, PrefetchHints> | undefined
+  protected getPrefetchHints(): Record<string, PrefetchHints> {
+    if (this._cachedPrefetchHints) {
+      return this._cachedPrefetchHints
+    }
+
+    this._cachedPrefetchHints =
+      (loadManifest(
+        join(
+          /* turbopackIgnore: true */ this.distDir,
+          SERVER_DIRECTORY,
+          PREFETCH_HINTS
+        ),
+        true,
+        undefined,
+        false,
+        true // handleMissing: don't crash if the file doesn't exist
+      ) as Record<string, PrefetchHints>) ?? {}
+
+    return this._cachedPrefetchHints
+  }
+
   protected getRoutesManifest(): NormalizedRouteManifest | undefined {
     return getTracer().trace(
       NextNodeServerSpan.getRoutesManifest,
@@ -2041,8 +2087,9 @@ export default class NextNodeServer extends BaseServer<
         params.req,
         'serverComponentsHmrCache'
       ),
-      clientAssetToken:
-        this.nextConfig.experimental.immutableAssetToken || this.deploymentId,
+      clientAssetToken: this.nextConfig.experimental.supportsImmutableAssets
+        ? ''
+        : this.deploymentId,
     })
 
     if (result.fetchMetrics) {

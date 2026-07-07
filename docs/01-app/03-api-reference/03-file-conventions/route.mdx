@@ -338,7 +338,7 @@ export async function GET(request, { params }) {
 
 You can use [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params) with dynamic Route Handlers to statically generate responses at build time for specified params, while handling other params dynamically at request time.
 
-When using [Cache Components](/docs/app/getting-started/cache-components), you can combine `generateStaticParams` with `use cache` to enable data caching for both prerendered and runtime params.
+When using [Cache Components](/docs/app/getting-started/caching), you can combine `generateStaticParams` with `use cache` to enable data caching for both prerendered and runtime params.
 
 See the [generateStaticParams with Route Handlers](/docs/app/api-reference/functions/generate-static-params#with-route-handlers) documentation for examples and details.
 
@@ -647,7 +647,7 @@ export const dynamicParams = true
 export const revalidate = false
 export const fetchCache = 'auto'
 export const runtime = 'nodejs'
-export const preferredRegion = 'auto'
+export const preferredRegion = 'auto' // deprecated
 ```
 
 ```js filename="app/items/route.js" switcher
@@ -656,7 +656,7 @@ export const dynamicParams = true
 export const revalidate = false
 export const fetchCache = 'auto'
 export const runtime = 'nodejs'
-export const preferredRegion = 'auto'
+export const preferredRegion = 'auto' // deprecated
 ```
 
 See the [API reference](/docs/app/api-reference/file-conventions/route-segment-config) for more details.

@@ -1,11 +1,14 @@
-use std::{collections::VecDeque, sync::Arc};
+use std::{
+    collections::VecDeque,
+    sync::{Arc, OnceLock},
+};
 
+use bytes::Bytes;
 use napi::{
     Env,
     threadsafe_function::{ErrorStrategy, ThreadsafeFunction, ThreadsafeFunctionCallMode},
 };
 use napi_derive::napi;
-use once_cell::sync::OnceCell;
 use parking_lot::Mutex;
 use tokio::sync::oneshot;
 use turbo_rcstr::RcStr;
@@ -15,14 +18,14 @@ use crate::worker_pool::{
     operation::{TaskMessage, WORKER_POOL_OPERATION},
 };
 
-static WORKER_CREATOR: OnceCell<ThreadsafeFunction<NapiWorkerCreation, ErrorStrategy::Fatal>> =
-    OnceCell::new();
+static WORKER_CREATOR: OnceLock<ThreadsafeFunction<NapiWorkerCreation, ErrorStrategy::Fatal>> =
+    OnceLock::new();
 
-static WORKER_TERMINATOR: OnceCell<
+static WORKER_TERMINATOR: OnceLock<
     ThreadsafeFunction<NapiWorkerTermination, ErrorStrategy::Fatal>,
-> = OnceCell::new();
+> = OnceLock::new();
 
-static PENDING_CREATIONS: OnceCell<Mutex<VecDeque<oneshot::Sender<u32>>>> = OnceCell::new();
+static PENDING_CREATIONS: OnceLock<Mutex<VecDeque<oneshot::Sender<u32>>>> = OnceLock::new();
 
 // Allow dead_code for test builds where napi exports are not entry points
 #[allow(dead_code)]
@@ -79,7 +82,7 @@ pub async fn create_worker(options: Arc<WorkerOptions>) -> anyhow::Result<u32> {
             ThreadsafeFunctionCallMode::NonBlocking,
         );
     } else {
-        return Err(anyhow::anyhow!("Worker creator not registered"));
+        anyhow::bail!("Worker creator not registered");
     }
 
     let worker_id = rx.await?;
@@ -152,7 +155,14 @@ impl From<NapiTaskMessage> for TaskMessage {
         let NapiTaskMessage { task_id, data } = message;
         TaskMessage {
             task_id,
-            data: data.into(),
+            // Copy out of the JS Buffer rather than retaining a napi reference
+            // (`Bytes::from_owner`). Because `send_task_message` is a *sync*
+            // `#[napi]` fn, this runs on the env thread, so the `Buffer` is
+            // dropped here via a direct `napi_reference_unref`. It never crosses
+            // to a tokio/turbo-tasks thread, so the global CustomGC
+            // ThreadsafeFunction (napi-rs#3357) is never
+            // invoked for our task payloads.
+            data: Bytes::copy_from_slice(&data),
         }
     }
 }
@@ -166,15 +176,13 @@ pub async fn recv_task_message_in_worker(worker_id: u32) -> napi::Result<NapiTas
         .await?;
     Ok(NapiTaskMessage {
         task_id,
-        data: message.into(),
+        data: Vec::from(message).into(),
     })
 }
 
 // Allow dead_code for test builds where napi exports are not entry points
 #[allow(dead_code)]
 #[napi]
-pub async fn send_task_message(message: NapiTaskMessage) -> napi::Result<()> {
-    Ok(WORKER_POOL_OPERATION
-        .send_task_message(message.into())
-        .await?)
+pub fn send_task_message(message: NapiTaskMessage) -> napi::Result<()> {
+    Ok(WORKER_POOL_OPERATION.send_task_message(message.into())?)
 }

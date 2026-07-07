@@ -1,5 +1,5 @@
 import type { Preview } from '@storybook/react'
-import { withDevOverlayContexts } from '../src/next-devtools/dev-overlay/storybook/with-dev-overlay-contexts'
+import { withDevOverlayContexts } from './decorators/with-dev-overlay-contexts'
 
 const portalNode = document.querySelector('nextjs-portal')!
 const shadowRoot = portalNode.attachShadow({ mode: 'open' })

@@ -10,7 +10,9 @@ describe('fallback-prefetch', () => {
     const browser = await next.browser('/', {
       beforePageLoad: (page) => {
         page.on('response', (response) => {
-          if (!response.ok()) {
+          // 304 Not Modified is a valid revalidation response (from no-cache),
+          // not a network error
+          if (!response.ok() && response.status() !== 304) {
             hasNetworkError = true
           }
         })

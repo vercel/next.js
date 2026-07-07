@@ -7,9 +7,19 @@ import type {
   NapiSourceDiagnostic,
   NapiProjectOptions,
   NapiPartialProjectOptions,
+  NapiCodeFrameOptions,
+  NapiCodeFrameLocation,
+  TraceServerHandle,
+  TraceQueryOptions,
+  TraceQueryResult,
+  MemoryEvictionMode,
 } from './generated-native'
 
+export type { TraceServerHandle, TraceQueryOptions, TraceQueryResult }
+
 export type { NapiTurboEngineOptions as TurboEngineOptions }
+
+export type { MemoryEvictionMode }
 
 export type Lockfile = { __napiType: 'Lockfile' }
 
@@ -22,13 +32,18 @@ export interface Binding {
   turbo: {
     createProject(
       options: ProjectOptions,
-      turboEngineOptions?: NapiTurboEngineOptions,
+      turboEngineOptions: NapiTurboEngineOptions,
       callbacks?: TurbopackProjectCallbacks
     ): Promise<Project>
-    startTurbopackTraceServer(
+    startTurbopackTraceServerHandle(
       traceFilePath: string,
       port: number | undefined
-    ): void
+    ): TraceServerHandle
+    queryTraceSpans(
+      handle: TraceServerHandle,
+      options: TraceQueryOptions
+    ): TraceQueryResult
+    databaseCompact(path: string, nextVersion: string): Promise<void>
 
     nextBuild?: any
   }
@@ -50,6 +65,7 @@ export interface Binding {
     lightning: {
       transform(transformOptions: any): Promise<any>
       transformStyleAttr(transformAttrOptions: any): Promise<any>
+      featureNamesToMask(names: string[]): number
     }
   }
 
@@ -80,6 +96,11 @@ export interface Binding {
   lockfileTryAcquireSync(path: string, content?: string | null): Lockfile | null
   lockfileUnlock(lockfile: Lockfile): Promise<void>
   lockfileUnlockSync(lockfile: Lockfile): void
+  codeFrameColumns(
+    source: string,
+    location: NapiCodeFrameLocation,
+    options?: NapiCodeFrameOptions
+  ): string | undefined
 }
 
 export type StyledString =
@@ -104,6 +125,30 @@ export type StyledString =
       value: StyledString[]
     }
 
+/** 0-indexed line and column position within a source file. */
+export interface SourcePosition {
+  line: number
+  column: number
+}
+
+export interface IssueSource {
+  source: {
+    ident: string
+    filePath: string
+  }
+  range?: {
+    start: SourcePosition
+    end: SourcePosition
+  }
+}
+
+export interface AdditionalIssueSource {
+  description: string
+  source: IssueSource
+  /** Pre-rendered code frame from the Rust NAPI layer */
+  codeFrame?: string
+}
+
 export interface Issue {
   severity: string
   stage: string
@@ -111,28 +156,12 @@ export interface Issue {
   title: StyledString
   description?: StyledString
   detail?: StyledString
-  source?: {
-    source: {
-      ident: string
-      content?: string
-    }
-    range?: {
-      start: {
-        // 0-indexed
-        line: number
-        // 0-indexed
-        column: number
-      }
-      end: {
-        // 0-indexed
-        line: number
-        // 0-indexed
-        column: number
-      }
-    }
-  }
+  source?: IssueSource
+  additionalSources?: AdditionalIssueSource[]
   documentationLink: string
   importTraces?: PlainTraceItem[][]
+  /** Pre-rendered code frame from the Rust NAPI layer */
+  codeFrame?: string
 }
 export interface PlainTraceItem {
   fsName: string
@@ -141,15 +170,13 @@ export interface PlainTraceItem {
   layer?: string
 }
 
-export interface Diagnostics {
-  category: string
-  name: string
-  payload: unknown
+export interface BuildFeatureUsage {
+  featureName: string
+  invocationCount: number
 }
 
 export type TurbopackResult<T = {}> = T & {
   issues: Issue[]
-  diagnostics: Diagnostics[]
 }
 
 export interface Middleware {
@@ -259,6 +286,7 @@ export type CompilationEvent = {
   typeName: string
   message: string
   severity: string
+  eventJson: string
   eventData: any
 }
 
@@ -272,9 +300,22 @@ export interface Project {
 
   writeAnalyzeData(appDirOnly: boolean): Promise<TurbopackResult<void>>
 
+  getAllCompilationIssues(): Promise<TurbopackResult<void>>
+
   writeAllEntrypointsToDisk(
     appDirOnly: boolean
   ): Promise<TurbopackResult<Partial<RawEntrypoints>>>
+
+  /**
+   * Returns the build-feature-usage telemetry summary — `(featureName,
+   * invocationCount)` pairs reported to the Next.js telemetry service.
+   *
+   * **Must only be called in a `next build` (production) context**, once at the
+   * end of the build, after `writeAllEntrypointsToDisk`. The Rust implementation
+   * walks the whole-app module graph and will error if invoked from a
+   * development project, because dev builds do not produce a complete graph.
+   */
+  featureUsage(): Promise<BuildFeatureUsage[]>
 
   entrypointsSubscribe(): AsyncIterableIterator<
     TurbopackResult<RawEntrypoints | {}>

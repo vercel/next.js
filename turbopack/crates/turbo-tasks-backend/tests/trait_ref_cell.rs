@@ -6,7 +6,7 @@ use std::{collections::HashSet, mem::take, sync::Mutex};
 
 use anyhow::Result;
 use turbo_tasks::{
-    IntoTraitRef, Invalidator, TraitRef, Vc, get_invalidator,
+    Invalidator, TraitRef, Vc, get_invalidator,
     unmark_top_level_task_may_leak_eventually_consistent_state, with_turbo_tasks,
 };
 use turbo_tasks_testing::{Registration, register, run_once};
@@ -65,7 +65,7 @@ async fn trait_ref() {
 #[derive(Copy, Clone)]
 struct CounterValue(usize);
 
-#[turbo_tasks::value(serialization = "none", cell = "new", eq = "manual")]
+#[turbo_tasks::value(serialization = "skip", evict = "never", cell = "new", eq = "manual")]
 struct Counter {
     #[turbo_tasks(debug_ignore, trace_ignore)]
     value: Mutex<(usize, HashSet<Invalidator>)>,
@@ -86,7 +86,7 @@ impl Counter {
 
 #[turbo_tasks::value_trait]
 trait CounterTrait {
-    #[turbo_tasks::function]
+    #[turbo_tasks::function(root)]
     fn get_value(&self) -> Vc<CounterValue>;
 
     fn get_value_sync(&self) -> CounterValue;
@@ -94,7 +94,7 @@ trait CounterTrait {
 
 #[turbo_tasks::value_impl]
 impl CounterTrait for Counter {
-    #[turbo_tasks::function]
+    #[turbo_tasks::function(root)]
     fn get_value(&self) -> Result<Vc<CounterValue>> {
         let mut lock = self.value.lock().unwrap();
         lock.1.insert(get_invalidator().unwrap());
@@ -108,13 +108,13 @@ impl CounterTrait for Counter {
 
 #[turbo_tasks::value_trait]
 trait CounterValueTrait {
-    #[turbo_tasks::function]
+    #[turbo_tasks::function(root)]
     fn get_value(&self) -> Vc<CounterValue>;
 }
 
 #[turbo_tasks::value_impl]
 impl CounterValueTrait for CounterValue {
-    #[turbo_tasks::function]
+    #[turbo_tasks::function(root)]
     fn get_value(self: Vc<Self>) -> Vc<Self> {
         self
     }

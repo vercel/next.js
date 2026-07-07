@@ -14,7 +14,7 @@ It supports having multiple key families, which are stored in separate files, bu
 
 There is a single `CURRENT` file which stores the latest committed sequence number.
 
-All other files have a sequence number as file name, e. g. `0000123.sst`. All files are immutable once there sequence number is <= the committed sequence number. But they might be deleted when they are superseeded by other committed files.
+All other files have a sequence number as file name, e. g. `0000123.sst`. All files are immutable once their sequence number is <= the committed sequence number. But they might be deleted when they are superseded by other committed files.
 
 There are four different file types:
 
@@ -41,7 +41,7 @@ Therefore there are these value types:
 | Compression unit      | key block         | shared value block (≥ 8 kB)                     | dedicated value block                 | separate file                             |
 | Compression unit size | ≤ 16 kB           | 8 kB .. 12 kB                                   | 4 kB .. 64 MB                         | > 64 MB                                   |
 | Access cost           | no extra overhead | decompress shared block (~8 kB)                 | decompress value size                 | open separate file, decompress value size |
-| Storage overhead      | 0                 | 8 B in key block + 8 B per ~8 kB in block table | 2 B in key block + 8 B in block table | 4 B in key block + 4 B in blob header     |
+| Storage overhead      | 0                 | 8 B in key block + 8 B per ~8 kB in block table | 2 B in key block + 8 B in block table | 4 B in key block + 8 B in blob header     |
 | Compaction            | re-compressed     | re-compressed                                   | copied compressed                     | pointer copied                            |
 
 Small value blocks are emitted once they accumulate at least `MIN_SMALL_VALUE_BLOCK_SIZE` (8 kB) of data. This means actual block sizes range from 8 kB up to 8 kB + `MAX_SMALL_VALUE_SIZE` (4 kB) = 12 kB. This provides a good balance between compression efficiency (blocks ≥ 4 kB compress well with LZ4) and access cost (only ~8–12 kB needs to be decompressed per lookup).
@@ -78,6 +78,7 @@ The SST file contains only data without any header.
 
 - foreach block
   - 4 bytes block header (uncompressed length or sentinel)
+  - 4 bytes checksum (CRC32 of uncompressed block data)
   - block data (compressed or uncompressed)
 - foreach block
   - 4 bytes end of block offset relative to start of all blocks
@@ -89,6 +90,10 @@ Blocks can be stored compressed (LZ4) or uncompressed. The 4-byte header disting
 - **Header > 0**: Block is LZ4 compressed. Header value is the uncompressed length.
 - **Header = 0**: Block is stored uncompressed. Actual length is derived from block offsets.
 
+#### Block Checksum
+
+Each block stores a 4-byte CRC32 checksum (big-endian) computed on the **on-disk** block data (i.e. after compression). On read, the checksum is verified **before** decompression so that on-disk damage is caught before passing data to LZ4. A checksum mismatch returns an error indicating that the cached data is damaged.
+
 #### Index Block
 
 - 1 byte block type (0: index block)
@@ -97,13 +102,13 @@ Blocks can be stored compressed (LZ4) or uncompressed. The 4-byte header disting
   - 8 bytes hash
   - 2 bytes block index
 
-An Index block contains `n` 8 bytes hashes, which specify `n - 1` hash ranges (eq hash goes into the prev range, except for the first key). Between these `n` hashes there are `n - 1` 2 byte block indicies that point to the block that contains the hash range.
+An Index block contains `n` 8 bytes hashes, which specify `n - 1` hash ranges (eq hash goes into the prev range, except for the first key). Between these `n` hashes there are `n - 1` 2 byte block indices that point to the block that contains the hash range.
 
 The hashes are sorted.
 
 `n` is `(block size + 1) / 10`
 
-#### Key Block
+#### Key Block (variable-size)
 
 - 1 byte block type (1: key block with hash, 2: key block without hash)
 - 3 bytes entry count
@@ -152,8 +157,20 @@ Depending on the `type` field entry has a different format:
 
 The entries are sorted by key hash and key.
 
-Future:
- * Some tables have fixed sized keys with consistent values (4 byte task ids).  We could optimize key block representation in this case by skipping offset tables.
+#### Key Block (fixed-size)
+
+Used when all entries in a block have the same key size and value type. Eliminates the per-entry offset table, enabling direct arithmetic indexing during binary search.
+
+- 1 byte block type (3: fixed-size with hash, 4: fixed-size without hash)
+- 3 bytes entry count
+- 1 byte key size (uniform across all entries)
+- 1 byte value type (shared by all entries, same encoding as variable-size type field)
+- foreach entry (packed at stride = hash_len + key_size + val_size):
+  - 8 bytes key hash (if block type 3)
+  - key data (key_size bytes)
+  - value data (size determined by value type)
+
+Entry position for index `i` is computed as `header_size + i * stride` with no indirection. The writer automatically selects fixed-size format when all entries in a block qualify; otherwise falls back to the variable-size format above.
 
 #### Value Block
 
@@ -162,7 +179,13 @@ Future:
 
 ### Blob file
 
-The plain value compressed with dynamic compression.
+The plain value compressed with dynamic compression. Each blob file has an 8-byte header:
+
+- 4 bytes: uncompressed length (u32 big-endian)
+- 4 bytes: CRC32 checksum of the compressed data (u32 big-endian)
+- remaining bytes: LZ4-compressed value data
+
+The checksum is verified on the compressed data **before** decompression when the blob is read.
 
 ## Reading
 
@@ -199,7 +222,7 @@ For compaction we compute the "coverage" of the SST files. The coverage is the a
 
 For a single SST file we can compute `(max_hash - min_hash) / u64::MAX` as the coverage of the SST file. We sum up all these coverages to get the total coverage.
 
-Compaction chooses a few SST files and runs the merge step of merge sort on tham to create a few new SST files with sorted ranges.
+Compaction chooses a few SST files and runs the merge step of merge sort on them to create a few new SST files with sorted ranges.
 
 Example:
 
@@ -282,7 +305,7 @@ DEL 17:  (2, 3, 4, 5, 6, 7, 8, 9)
 CURRENT: 17
 ```
 
-Configuration options for compations are:
+Configuration options for compactions are:
 
 - max number of SST files that are merged at once
 - coverage when compaction is triggered (otherwise calling compact is a noop)

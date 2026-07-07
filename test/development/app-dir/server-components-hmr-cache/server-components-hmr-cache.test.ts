@@ -233,5 +233,5 @@ describe('server-components-hmr-cache', () => {
     expect(next.cliOutput.slice(cliOutputLength)).not.toContain(
       'Failed to set fetch cache'
     )
-  }, 10_000) // fail fast
+  })
 })

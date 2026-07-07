@@ -1,5 +1,7 @@
-export const unstable_instant = {
-  prefetch: 'static',
+export const instant = {
+  level: 'experimental-error',
+  // `usePathname` will error if we don't have a sample for `[id]`.
+  unstable_samples: [{ params: { id: '123' } }],
 }
 
 export default function Page() {

@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use next_taskless::{EDGE_NODE_EXTERNALS, NODE_EXTERNALS};
 use swc_core::{
     atoms::{Atom, Wtf8Atom},
     common::{SourceMap, Span, errors::HANDLER},
@@ -111,77 +112,6 @@ const EDGE_UNSUPPORTED_NODE_APIS: &[&str] = &[
     "WritableStreamDefaultController",
 ];
 
-/// https://vercel.com/docs/functions/runtimes/edge-runtime#compatible-node.js-modules
-const NODEJS_MODULE_NAMES: &[&str] = &[
-    "_http_agent",
-    "_http_client",
-    "_http_common",
-    "_http_incoming",
-    "_http_outgoing",
-    "_http_server",
-    "_stream_duplex",
-    "_stream_passthrough",
-    "_stream_readable",
-    "_stream_transform",
-    "_stream_wrap",
-    "_stream_writable",
-    "_tls_common",
-    "_tls_wrap",
-    // "assert",
-    // "assert/strict",
-    // "async_hooks",
-    // "buffer",
-    "child_process",
-    "cluster",
-    "console",
-    "constants",
-    "crypto",
-    "dgram",
-    "diagnostics_channel",
-    "dns",
-    "dns/promises",
-    "domain",
-    // "events",
-    "fs",
-    "fs/promises",
-    "http",
-    "http2",
-    "https",
-    "inspector",
-    "module",
-    "net",
-    "os",
-    "path",
-    "path/posix",
-    "path/win32",
-    "perf_hooks",
-    "process",
-    "punycode",
-    "querystring",
-    "readline",
-    "readline/promises",
-    "repl",
-    "stream",
-    "stream/consumers",
-    "stream/promises",
-    "stream/web",
-    "string_decoder",
-    "sys",
-    "timers",
-    "timers/promises",
-    "tls",
-    "trace_events",
-    "tty",
-    "url",
-    // "util",
-    // "util/types",
-    "v8",
-    "vm",
-    "wasi",
-    "worker_threads",
-    "zlib",
-];
-
 impl<EmitWarn, EmitError> WarnForEdgeRuntime<EmitWarn, EmitError>
 where
     EmitWarn: Fn(Span, String),
@@ -193,9 +123,12 @@ where
             return None;
         }
 
-        // Node.js modules can be loaded with `node:` prefix or directly
-        if module_specifier.starts_with("node:")
-            || NODEJS_MODULE_NAMES.contains(&module_specifier_str)
+        let module_name = module_specifier_str
+            .strip_prefix("node:")
+            .unwrap_or(module_specifier_str);
+
+        if NODE_EXTERNALS.binary_search(&module_name).is_ok()
+            && EDGE_NODE_EXTERNALS.binary_search(&module_name).is_err()
         {
             let loc = self.cm.lookup_line(span.lo).ok()?;
 

@@ -1,6 +1,6 @@
 /* eslint-env jest */
 import { createSandbox } from 'development-sandbox'
-import { FileRef, nextTestSetup } from 'e2e-utils'
+import { FileRef, isReact18, nextTestSetup } from 'e2e-utils'
 import {
   getRedboxTotalErrorCount,
   getRedboxCallStack,
@@ -9,8 +9,6 @@ import {
 } from 'next-test-utils'
 import path from 'path'
 import { outdent } from 'outdent'
-
-const isReact18 = parseInt(process.env.NEXT_TEST_REACT_VERSION) === 18
 
 describe('ReactRefreshLogBox', () => {
   const { isTurbopack, next, isRspack } = nextTestSetup({
@@ -128,7 +126,7 @@ describe('ReactRefreshLogBox', () => {
            "stack": [
              "module evaluation index.js (3:7)",
              "module evaluation pages/index.js (1:1)",
-             "module evaluation pages/index.js (1:1)",
+             "module evaluation index.js (9:16)",
              "<FIXME-next-dist-dir>",
            ],
          }
@@ -171,7 +169,7 @@ describe('ReactRefreshLogBox', () => {
            "stack": [
              "module evaluation index.js (3:7)",
              "module evaluation pages/index.js (1:1)",
-             "module evaluation pages/index.js (1:1)",
+             "module evaluation index.js (9:16)",
              "<FIXME-next-dist-dir>",
            ],
          }
@@ -447,11 +445,11 @@ describe('ReactRefreshLogBox', () => {
     if (process.env.IS_TURBOPACK_TEST) {
       await expect(browser).toDisplayRedbox(`
        {
-         "description": "Parsing ecmascript source code failed",
+         "description": "Unexpected token. Did you mean \`{'}'}\` or \`&rbrace;\`?",
          "environmentLabel": null,
          "label": "Build Error",
          "source": "./index.js (7:1)
-       Parsing ecmascript source code failed
+       Error: Unexpected token. Did you mean \`{'}'}\` or \`&rbrace;\`?
        > 7 | }
            | ^",
          "stack": [],
@@ -718,7 +716,7 @@ describe('ReactRefreshLogBox', () => {
          "environmentLabel": null,
          "label": "Build Error",
          "source": "./index.module.css (1:8)
-       Parsing CSS source code failed
+       Error: Parsing CSS source code failed
        > 1 | .button
            |        ^",
          "stack": [],
@@ -733,7 +731,7 @@ describe('ReactRefreshLogBox', () => {
          "source": "./index.module.css
          ╰─▶   × SyntaxError
                │
-               │ (1:1) <FIXME-project-root>/index.module.css Unknown word
+               │ (1:1) <FIXME-project-root>/index.module.css Unknown word .button
                │
                │ > 1 | .button
                │     | ^
@@ -748,11 +746,11 @@ describe('ReactRefreshLogBox', () => {
     } else {
       await expect({ browser, next }).toDisplayRedbox(`
        {
-         "description": "Syntax error: <FIXME-project-root>/index.module.css Unknown word",
+         "description": "Syntax error: <FIXME-project-root>/index.module.css Unknown word .button",
          "environmentLabel": null,
          "label": "Build Error",
          "source": "./index.module.css (1:1)
-       Syntax error: <FIXME-project-root>/index.module.css Unknown word
+       Syntax error: <FIXME-project-root>/index.module.css Unknown word .button
        > 1 | .button
            | ^",
          "stack": [],
@@ -771,7 +769,7 @@ describe('ReactRefreshLogBox', () => {
          "environmentLabel": null,
          "label": "Build Error",
          "source": "./index.module.css
-       Transforming CSS failed
+       Error: Transforming CSS failed
        Selector "button" is not pure. Pure selectors must contain at least one local class or id.
        Import traces:
          Browser:
@@ -1249,7 +1247,7 @@ describe('ReactRefreshLogBox', () => {
     if (isReact18) {
       await expect(browser).toDisplayRedbox(`
        {
-         "code": "E394",
+         "code": "E336",
          "description": "A null error was thrown, see here for more info: https://nextjs.org/docs/messages/threw-undefined",
          "environmentLabel": null,
          "label": "Runtime Error",
@@ -1260,7 +1258,7 @@ describe('ReactRefreshLogBox', () => {
     } else {
       await expect(browser).toDisplayRedbox(`
        {
-         "code": "E394",
+         "code": "E336",
          "description": "A null error was thrown, see here for more info: https://nextjs.org/docs/messages/threw-undefined",
          "environmentLabel": null,
          "label": "Runtime Error",

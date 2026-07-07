@@ -379,6 +379,7 @@ export default class FileSystemCache implements CacheHandler {
         status: data.status,
         postponed: undefined,
         segmentPaths: undefined,
+        prefetchHints: undefined,
       }
 
       writer.append(
@@ -432,6 +433,7 @@ export default class FileSystemCache implements CacheHandler {
           status: data.status,
           postponed: data.postponed,
           segmentPaths,
+          prefetchHints: undefined,
         }
 
         writer.append(

@@ -281,11 +281,11 @@ describe('ReactRefreshLogBox app', () => {
     if (isTurbopack) {
       await expect(browser).toDisplayRedbox(`
        {
-         "description": "Parsing ecmascript source code failed",
+         "description": "Unexpected token. Did you mean \`{'}'}\` or \`&rbrace;\`?",
          "environmentLabel": null,
          "label": "Build Error",
          "source": "./index.js (7:1)
-       Parsing ecmascript source code failed
+       Error: Unexpected token. Did you mean \`{'}'}\` or \`&rbrace;\`?
        > 7 | }
            | ^",
          "stack": [],
@@ -485,7 +485,7 @@ describe('ReactRefreshLogBox app', () => {
          "environmentLabel": null,
          "label": "Build Error",
          "source": "./index.module.css (1:8)
-       Parsing CSS source code failed
+       Error: Parsing CSS source code failed
        > 1 | .button
            |        ^",
          "stack": [],
@@ -500,7 +500,7 @@ describe('ReactRefreshLogBox app', () => {
          "source": "./index.module.css
          ╰─▶   × SyntaxError
                │
-               │ (1:1) <FIXME-project-root>/index.module.css Unknown word
+               │ (1:1) <FIXME-project-root>/index.module.css Unknown word .button
                │
                │ > 1 | .button
                │     | ^
@@ -515,11 +515,11 @@ describe('ReactRefreshLogBox app', () => {
     } else {
       await expect({ browser, next }).toDisplayRedbox(`
        {
-         "description": "Syntax error: <FIXME-project-root>/index.module.css Unknown word",
+         "description": "Syntax error: <FIXME-project-root>/index.module.css Unknown word .button",
          "environmentLabel": null,
          "label": "Build Error",
          "source": "./index.module.css (1:1)
-       Syntax error: <FIXME-project-root>/index.module.css Unknown word
+       Syntax error: <FIXME-project-root>/index.module.css Unknown word .button
        > 1 | .button
            | ^",
          "stack": [],
@@ -538,7 +538,7 @@ describe('ReactRefreshLogBox app', () => {
          "environmentLabel": null,
          "label": "Build Error",
          "source": "./index.module.css
-       Transforming CSS failed
+       Error: Transforming CSS failed
        Selector "button" is not pure. Pure selectors must contain at least one local class or id.
        Import traces:
          Client Component Browser:
@@ -629,7 +629,7 @@ describe('ReactRefreshLogBox app', () => {
            "Index.useCallback[boom] index.js (5:11)",
            "button <anonymous>",
            "Index index.js (9:7)",
-           "Page index.js (9:30)",
+           "Page app/page.js (4:10)",
          ],
        }
       `)
@@ -708,7 +708,7 @@ describe('ReactRefreshLogBox app', () => {
            "Index.useCallback[boom] index.js (5:11)",
            "button <anonymous>",
            "Index index.js (9:7)",
-           "Page index.js (9:30)",
+           "Page app/page.js (4:10)",
          ],
        }
       `)
@@ -786,7 +786,7 @@ describe('ReactRefreshLogBox app', () => {
            "Index.useCallback[boom] index.js (5:11)",
            "button <anonymous>",
            "Index index.js (9:7)",
-           "Page index.js (9:30)",
+           "Page app/page.js (4:10)",
          ],
        }
       `)
@@ -864,7 +864,7 @@ describe('ReactRefreshLogBox app', () => {
            "Index.useCallback[boom] index.js (5:11)",
            "button <anonymous>",
            "Index index.js (9:7)",
-           "Page index.js (9:30)",
+           "Page app/page.js (4:10)",
          ],
        }
       `)
@@ -1049,7 +1049,7 @@ describe('ReactRefreshLogBox app', () => {
            |           ^",
          "stack": [
            "{default export} index.js (3:11)",
-           "Page app/page.js (2:1)",
+           "Page app/page.js (4:10)",
          ],
        }
       `)
@@ -1164,7 +1164,7 @@ describe('ReactRefreshLogBox app', () => {
            |                                            ^",
          "stack": [
            "Index index.js (2:44)",
-           "Page index.js (16:8)",
+           "Page app/page.js (4:10)",
          ],
        }
       `)
@@ -1436,7 +1436,7 @@ describe('ReactRefreshLogBox app', () => {
          "environmentLabel": null,
          "label": "Build Error",
          "source": "./app/module.js (1:1)
-       Module not found: Can't resolve 'non-existing-module'
+       Error: Module not found: Can't resolve 'non-existing-module'
        > 1 | import "non-existing-module"
            | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
          "stack": [],
@@ -1509,7 +1509,7 @@ describe('ReactRefreshLogBox app', () => {
          "environmentLabel": null,
          "label": "Build Error",
          "source": "./app/styles2.css (1:1)
-       Module not found: Can't resolve './boom.css'
+       Error: Module not found: Can't resolve './boom.css'
        > 1 | @import "./boom.css"
            | ^",
          "stack": [],

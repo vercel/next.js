@@ -8,8 +8,9 @@ use bytes_str::BytesStr;
 use next_custom_transforms::transforms::{
     cjs_optimizer::cjs_optimizer,
     debug_fn_name::debug_fn_name,
-    debug_instant_stack::debug_instant_stack,
+    debug_instant_stack::DebugInstantStack,
     dynamic::{NextDynamicMode, next_dynamic},
+    empty_gsp::EmptyGenerateStaticParams,
     fonts::{Config as FontLoaderConfig, next_font_loaders},
     named_import_transform::named_import_transform,
     next_ssg::next_ssg,
@@ -455,6 +456,7 @@ fn react_server_components_typescript(input: PathBuf) {
                     cache_components_enabled: false,
                     use_cache_enabled: false,
                     taint_enabled: true,
+                    page_extensions: vec![],
                 }),
                 tr.comments.as_ref().clone(),
                 None,
@@ -489,6 +491,7 @@ fn react_server_components_fixture(input: PathBuf) {
                         cache_components_enabled: false,
                         use_cache_enabled: false,
                         taint_enabled: true,
+                        page_extensions: vec![],
                     }),
                     tr.comments.as_ref().clone(),
                     None,
@@ -876,7 +879,26 @@ fn test_debug_instant_stack(input: PathBuf) {
 
     test_fixture(
         syntax(),
-        &|_| debug_instant_stack("app/page.js".to_string()),
+        &|_| DebugInstantStack::new::<Vec<&str>, &str>(vec![]).get_pass("app/page.js".to_string()),
+        &input,
+        &output,
+        FixtureTestConfig {
+            sourcemap: true,
+            ..Default::default()
+        },
+    );
+}
+
+#[fixture("tests/fixture/empty-gsp/**/input.js")]
+fn test_empty_gsp(input: PathBuf) {
+    let output = input.parent().unwrap().join("output.js");
+
+    test_fixture(
+        syntax(),
+        &|_| {
+            EmptyGenerateStaticParams::new::<Vec<&str>, &str>(vec![])
+                .get_pass("app/page.js".to_string())
+        },
         &input,
         &output,
         FixtureTestConfig {

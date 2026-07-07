@@ -3,6 +3,10 @@
  */
 const nextConfig = {
   experimental: {
+    // TODO(appShells): migrate this test to the two-phase (app shell +
+    // per-page data) prefetch behavior, then remove this override. See #94516.
+    appShells: false,
+    prefetchInlining: false,
     useCache: true,
   },
   rewrites: async () => {
