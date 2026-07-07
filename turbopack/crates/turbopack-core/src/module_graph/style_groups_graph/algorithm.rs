@@ -529,40 +529,33 @@ where
     let mut result: Vec<NodeIndex> = Vec::new();
     while !candidates.is_empty() {
         // Find the best candidate using progressive look-back tie-breaking.
-        // `survivors` holds indices into `candidates`; it starts with all candidates and is
-        // narrowed by comparing shared group counts at increasing look-back distances until
-        // either one candidate remains or `result` is exhausted.
+        // `survivors` holds `(candidate index, shared count)` pairs; it starts with all candidates
+        // and is narrowed in place by comparing shared group counts at increasing look-back
+        // distances until either one candidate remains or `result` is exhausted.
         let pick = if result.is_empty() {
             0 // insertion order before anything is placed
         } else {
-            let mut survivors: Vec<usize> = (0..candidates.len()).collect();
+            let mut survivors: Vec<(usize, usize)> =
+                (0..candidates.len()).map(|i| (i, 0)).collect();
             'outer: for depth in 0..result.len() {
                 let reference = result[result.len() - 1 - depth];
-                // Compute shared count for each surviving candidate at this depth.
-                let scores: Vec<(usize, usize)> = survivors
-                    .iter()
-                    .map(|&i| {
-                        (
-                            i,
-                            shared_chunk_groups(module_to_groups, candidates[i], reference),
-                        )
-                    })
-                    .collect();
-                let max_shared = scores.iter().map(|&(_, s)| s).max().unwrap_or(0);
+                // Recompute the shared count for each surviving candidate at this depth, in place.
+                let mut max_shared = 0;
+                for entry in survivors.iter_mut() {
+                    let s = shared_chunk_groups(module_to_groups, candidates[entry.0], reference);
+                    entry.1 = s;
+                    max_shared = max_shared.max(s);
+                }
                 // Only filter when at least one candidate has a real match at this depth;
                 // otherwise all are equally far from `reference` and we try the next depth.
                 if max_shared > 0 {
-                    survivors = scores
-                        .into_iter()
-                        .filter(|&(_, s)| s == max_shared)
-                        .map(|(i, _)| i)
-                        .collect();
+                    survivors.retain(|&(_, s)| s == max_shared);
                     if survivors.len() == 1 {
                         break 'outer;
                     }
                 }
             }
-            survivors[0] // insertion-order fallback among any remaining ties
+            survivors[0].0 // insertion-order fallback among any remaining ties
         };
         let placed = candidates.swap_remove(pick);
         result.push(placed);
