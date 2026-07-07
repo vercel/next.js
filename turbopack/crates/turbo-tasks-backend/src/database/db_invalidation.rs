@@ -1,11 +1,11 @@
 use std::{
     borrow::Cow,
-    fs::{self, File, read_dir},
     io::{BufReader, BufWriter, ErrorKind, Write},
     path::Path,
 };
 
 use anyhow::Context;
+use fs_err::{self as fs, File, read_dir};
 use serde::{Deserialize, Serialize};
 
 const INVALIDATION_MARKER: &str = "__turbo_tasks_invalidated_db";
@@ -163,26 +163,18 @@ fn cleanup_db_inner(base_path: &Path) -> anyhow::Result<()> {
 
     // delete everything except the invalidation marker
     for entry in contents {
-        let entry =
-            entry.with_context(|| format!("Failed to read directory entry in {base_path:?}"))?;
+        let entry = entry?;
         let path = entry.path();
         if entry.file_name() != INVALIDATION_MARKER {
-            let file_type = entry
-                .file_type()
-                .with_context(|| format!("Failed to read file type of {path:?}"))?;
-            if file_type.is_dir() {
-                fs::remove_dir_all(&path)
-                    .with_context(|| format!("Failed to remove directory {path:?}"))?;
+            if entry.file_type()?.is_dir() {
+                fs::remove_dir_all(&path)?;
             } else {
-                fs::remove_file(&path)
-                    .with_context(|| format!("Failed to remove file {path:?}"))?;
+                fs::remove_file(&path)?;
             }
         }
     }
 
     // delete the invalidation marker last, once we're sure everything is cleaned up
-    let marker_path = base_path.join(INVALIDATION_MARKER);
-    fs::remove_file(&marker_path)
-        .with_context(|| format!("Failed to remove invalidation marker {marker_path:?}"))?;
+    fs::remove_file(base_path.join(INVALIDATION_MARKER))?;
     Ok(())
 }
