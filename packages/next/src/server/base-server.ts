@@ -48,6 +48,7 @@ import type { InstrumentationModule } from './instrumentation/types'
 import * as path from 'path'
 import { format as formatUrl } from 'url'
 import { formatHostname } from './lib/format-hostname'
+import { isRSCRequestHeader } from './lib/is-rsc-request'
 import {
   APP_PATHS_MANIFEST,
   NEXT_BUILTIN_DOCUMENT,
@@ -60,6 +61,7 @@ import { isDynamicRoute } from '../shared/lib/router/utils'
 import { execOnce } from '../shared/lib/utils'
 import { isBlockedPage } from './utils'
 import { getBotType, isBot } from '../shared/lib/router/utils/is-bot'
+import { getRouteRegex } from '../shared/lib/router/utils/route-regex'
 import RenderResult from './render-result'
 import { removeTrailingSlash } from '../shared/lib/router/utils/remove-trailing-slash'
 import { denormalizePagePath } from '../shared/lib/page-path/denormalize-page-path'
@@ -88,6 +90,7 @@ import {
   NEXT_URL,
   NEXT_ROUTER_STATE_TREE_HEADER,
   NEXT_INSTANT_TEST_COOKIE,
+  NEXT_HMR_REFRESH_HEADER,
 } from '../client/components/app-router-headers'
 import type {
   MatchOptions,
@@ -567,6 +570,9 @@ export default abstract class Server<
       // `htmlLimitedBots` is passed to server as serialized config in string format
       htmlLimitedBots: this.nextConfig.htmlLimitedBots,
       cacheComponents: this.nextConfig.cacheComponents ?? false,
+      partialPrefetching: this.nextConfig.partialPrefetching,
+      validationLevel:
+        this.nextConfig.experimental.instantInsights.validationLevel,
       experimental: {
         expireTime: this.nextConfig.expireTime,
         staleTimes: this.nextConfig.experimental.staleTimes,
@@ -580,12 +586,19 @@ export default abstract class Server<
         prefetchInlining:
           this.nextConfig.experimental.prefetchInlining ?? false,
         authInterrupts: !!this.nextConfig.experimental.authInterrupts,
+        serverComponentsHmrCancellation:
+          this.nextConfig.experimental.serverComponentsHmrCancellation,
         useCacheTimeout: this.nextConfig.experimental.useCacheTimeout,
         cachedNavigations:
           this.nextConfig.experimental.cachedNavigations ?? false,
+        appShells: this.nextConfig.experimental.appShells,
         maxPostponedStateSizeBytes: parseMaxPostponedStateSize(
           this.nextConfig.experimental.maxPostponedStateSize
         ),
+        exposeTestingApi:
+          this.dev === true ||
+          this.nextConfig.experimental.exposeTestingApiInProductionBuild ===
+            true,
       },
       onInstrumentationRequestError:
         this.instrumentationOnRequestError.bind(this),
@@ -658,7 +671,7 @@ export default abstract class Server<
       stripFlightHeaders(req.headers)
 
       return false
-    } else if (req.headers[RSC_HEADER] === '1') {
+    } else if (isRSCRequestHeader(req.headers[RSC_HEADER])) {
       addRequestMeta(req, 'isRSCRequest', true)
 
       if (req.headers[NEXT_ROUTER_PREFETCH_HEADER] === '1') {
@@ -1126,7 +1139,7 @@ export default abstract class Server<
           // we should error, as it represents an unprocessable request.
           if (
             getRequestMeta(req, 'isNextDataReq') &&
-            getRequestMeta(req, 'postponed')
+            typeof getRequestMeta(req, 'postponed') === 'string'
           ) {
             // The server understood that this is a PPR resume request, as the
             // headers were included to correctly indicate a resume request, but
@@ -1806,9 +1819,21 @@ export default abstract class Server<
     if (!res.sent) {
       const { generateEtags, poweredByHeader } = this.renderOpts
 
-      // In dev, we should not cache pages for any reason.
+      // Dev responses use `no-cache` so the browser can restore them from the
+      // HTTP cache on back/forward instead of reloading. HMR refresh responses
+      // opt out into `no-store` because a superseded refresh's fetch is aborted
+      // mid-write: under `no-cache` the response is stored, so the abort leaves
+      // the cache entry shared with the superseding refresh (same URL)
+      // half-written; Chromium then discards it and reissues the superseding
+      // refresh on a second connection as a duplicate request. `no-store` keeps
+      // that entry from being created.
       if (this.dev) {
-        res.setHeader('Cache-Control', 'no-cache, must-revalidate')
+        res.setHeader(
+          'Cache-Control',
+          req.headers[NEXT_HMR_REFRESH_HEADER] === '1'
+            ? 'no-store'
+            : 'no-cache, must-revalidate'
+        )
         cacheControl = undefined
       }
 
@@ -2068,8 +2093,10 @@ export default abstract class Server<
       const prefetchHeaderValue = headers[NEXT_ROUTER_PREFETCH_HEADER]
       const routerPrefetch =
         prefetchHeaderValue !== undefined
-          ? // We only recognize '1' and '2'. Strip all other values here.
-            prefetchHeaderValue === '1' || prefetchHeaderValue === '2'
+          ? // We only recognize '1', '2', and '3'. Strip all other values here.
+            prefetchHeaderValue === '1' ||
+            prefetchHeaderValue === '2' ||
+            prefetchHeaderValue === '3'
             ? prefetchHeaderValue
             : undefined
           : // For runtime prefetches, we always perform a dynamic request,
@@ -2233,7 +2260,7 @@ export default abstract class Server<
     // even during a locked scope, with blocking happening on the client side.
     const hasInstantTestCookie =
       exposeTestingApi &&
-      req.headers[RSC_HEADER] === undefined &&
+      !isRSCRequestHeader(req.headers[RSC_HEADER]) &&
       typeof req.headers.cookie === 'string' &&
       req.headers.cookie.includes(NEXT_INSTANT_TEST_COOKIE + '=') &&
       couldSupportPPR
@@ -2259,6 +2286,7 @@ export default abstract class Server<
     const minimalPostponed = isRoutePPREnabled
       ? getRequestMeta(req, 'postponed')
       : undefined
+    const hasPostponedState = typeof minimalPostponed === 'string'
 
     // we need to ensure the status code if /404 is visited directly
     if (is404Page && !isNextDataRequest && !isRSCRequest) {
@@ -2275,7 +2303,7 @@ export default abstract class Server<
       // Server actions can use non-GET/HEAD methods.
       !isPossibleServerAction &&
       // Resume can use non-GET/HEAD methods.
-      !minimalPostponed &&
+      !hasPostponedState &&
       !is404Page &&
       !is500Page &&
       pathname !== '/_error' &&
@@ -2376,26 +2404,44 @@ export default abstract class Server<
 
       if (isAppPath && this.nextConfig.cacheComponents) {
         if (pathsResults.prerenderedRoutes?.length) {
-          let smallestFallbackRouteParams = null
+          // Replicate, on demand, the per-URL fallback set a production build
+          // writes to the prerender manifest. Production matches the requested
+          // URL to the most-specific prerendered route and defers that route's
+          // `fallbackRouteParams` (so `generateStaticParams`-covered params
+          // resolve in the static shell and only the uncovered ones are
+          // deferred). The dev prerender manifest isn't populated for these
+          // ad-hoc routes, but `getStaticPaths` already computed every
+          // prerendered route here, so we do the same match: among the routes
+          // whose canonical regex matches this URL, pick the one with the
+          // fewest fallback params (the most-specific) and thread it via the
+          // `fallbackParams` meta. A fully-covered concrete route (e.g.
+          // `/blog/a`) has zero fallback params and is the most-specific match
+          // for its own URL, so it must be considered alongside the others: it
+          // wins over the base dynamic route (`/blog/[slug]`) and leaves its
+          // statically-known params out of the deferred set.
+          let perUrlFallbackRouteParams: NonNullable<
+            (typeof pathsResults.prerenderedRoutes)[number]['fallbackRouteParams']
+          > | null = null
           for (const route of pathsResults.prerenderedRoutes) {
-            const fallbackRouteParams = route.fallbackRouteParams
-            if (!fallbackRouteParams || fallbackRouteParams.length === 0) {
-              // There are no fallback route params so we don't need to continue
-              smallestFallbackRouteParams = null
-              break
+            const fallbackRouteParams = route.fallbackRouteParams ?? []
+            if (!getRouteRegex(route.pathname).re.test(urlPathname)) {
+              continue
             }
             if (
-              smallestFallbackRouteParams === null ||
-              fallbackRouteParams.length < smallestFallbackRouteParams.length
+              perUrlFallbackRouteParams === null ||
+              fallbackRouteParams.length < perUrlFallbackRouteParams.length
             ) {
-              smallestFallbackRouteParams = fallbackRouteParams
+              perUrlFallbackRouteParams = fallbackRouteParams
             }
           }
-          if (smallestFallbackRouteParams) {
+          if (
+            perUrlFallbackRouteParams &&
+            perUrlFallbackRouteParams.length > 0
+          ) {
             addRequestMeta(
               req,
               'fallbackParams',
-              createOpaqueFallbackRouteParams(smallestFallbackRouteParams)!
+              createOpaqueFallbackRouteParams(perUrlFallbackRouteParams)!
             )
           }
         }

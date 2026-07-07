@@ -86,6 +86,8 @@ Through `next-devtools-mcp`, agents can use the following tools:
 - **`get_project_metadata`**: Retrieve project structure, configuration, and dev server URL
 - **`get_routes`**: Get all routes that will become entry points by scanning the filesystem. Returns routes grouped by router type (appRouter, pagesRouter). Dynamic segments appear as `[param]` or `[...slug]` patterns
 - **`get_server_action_by_id`**: Look up Server Actions by their ID to find the source file and function name
+- **`get_compilation_issues`**: Retrieve compilation warnings and errors for the whole project from the bundler. Turbopack only.
+- **`compile_route`**: Trigger on-demand compilation of a specific route without making an HTTP request to it. Accepts either a `routeSpecifier` (e.g. `/blog/[slug]`, as returned by `get_routes`) or a `path` (e.g. `/blog/hello-world`) which is resolved to the matching route using the dev router's live route table. Returns any compilation issues for the route. Turbopack only.
 
 ## Using with agents
 

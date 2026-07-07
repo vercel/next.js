@@ -32,7 +32,27 @@ import type { NextAnalyzeOptions } from '../cli/next-analyze.js'
 import type { NextBuildOptions } from '../cli/next-build.js'
 import type { NextTypegenOptions } from '../cli/next-typegen.js'
 import type { NextPostBuildOptions } from '../cli/next-post-build.js'
-import { mkdirSync } from 'fs'
+import { ensureProfilesDir } from '../lib/profiles-dir'
+
+/**
+ * Create `.next-profiles` (with its `.gitignore`) when profiling/tracing is
+ * enabled — whether via the CLI flags or the env vars directly — so the
+ * gitignore logic lives in one place. Also points CPU profiles at the directory.
+ * Skipped for tracing when `NEXT_TURBOPACK_TRACING_PATH` redirects the output.
+ */
+function setupProfilesDir(dir: string): void {
+  const cpuProf = !!process.env.NEXT_CPU_PROF
+  const turbopackTrace =
+    !!process.env.NEXT_TURBOPACK_TRACING &&
+    !process.env.NEXT_TURBOPACK_TRACING_PATH
+  if (!cpuProf && !turbopackTrace) {
+    return
+  }
+  const profilesDir = ensureProfilesDir(dir)
+  if (cpuProf) {
+    process.env.NEXT_CPU_PROF_DIR = profilesDir
+  }
+}
 
 if (process.env.NEXT_RSPACK) {
   // silent rspack's schema check
@@ -227,11 +247,6 @@ program
     if (options.experimentalCpuProf) {
       process.env.NEXT_CPU_PROF = '1'
       process.env.__NEXT_PRIVATE_CPU_PROFILE = 'build-main'
-      const { join } = require('path') as typeof import('path')
-      const dir = directory || process.cwd()
-      const cpuProfileDir = join(dir, '.next-profiles')
-      mkdirSync(cpuProfileDir, { recursive: true })
-      process.env.NEXT_CPU_PROF_DIR = cpuProfileDir
     }
     if (options.internalTrace) {
       process.env.NEXT_TURBOPACK_TRACING =
@@ -239,6 +254,7 @@ program
           ? 'turbo-tasks'
           : String(options.internalTrace)
     }
+    setupProfilesDir(directory || process.cwd())
 
     // ensure process exits after build completes so open handles/connections
     // don't cause process to hang
@@ -380,11 +396,6 @@ program
       if (options.experimentalCpuProf) {
         process.env.NEXT_CPU_PROF = '1'
         process.env.__NEXT_PRIVATE_CPU_PROFILE = 'dev-main'
-        const { join } = require('path') as typeof import('path')
-        const dir = directory || process.cwd()
-        const cpuProfileDir = join(dir, '.next-profiles')
-        mkdirSync(cpuProfileDir, { recursive: true })
-        process.env.NEXT_CPU_PROF_DIR = cpuProfileDir
       }
       if (options.internalTrace) {
         process.env.NEXT_TURBOPACK_TRACING =
@@ -392,6 +403,7 @@ program
             ? 'turbo-tasks'
             : String(options.internalTrace)
       }
+      setupProfilesDir(directory || process.cwd())
       const portSource = _optionValueSources.port
       import('../cli/next-dev.js').then((mod) =>
         mod.nextDev(options, portSource, directory)
@@ -470,12 +482,8 @@ program
     if (options.experimentalCpuProf) {
       process.env.NEXT_CPU_PROF = '1'
       process.env.__NEXT_PRIVATE_CPU_PROFILE = 'start-main'
-      const { join } = require('path') as typeof import('path')
-      const dir = directory || process.cwd()
-      const cpuProfileDir = join(dir, '.next-profiles')
-      mkdirSync(cpuProfileDir, { recursive: true })
-      process.env.NEXT_CPU_PROF_DIR = cpuProfileDir
     }
+    setupProfilesDir(directory || process.cwd())
     return import('../cli/next-start.js').then((mod) =>
       mod.nextStart(options, directory)
     )
@@ -514,11 +522,25 @@ program
       'If no directory is provided, the current directory will be used.'
     )}`
   )
+  .option('--webpack', 'Use webpack when validating next.config.js')
   .action((directory: string, options: NextTypegenOptions) =>
     // ensure process exits after typegen completes so open handles/connections
     // don't cause process to hang
     import('../cli/next-typegen.js').then((mod) =>
-      mod.nextTypegen(options, directory).then(() => process.exit(0))
+      mod
+        .nextTypegen(options, directory)
+        .then(() => process.exit(0))
+        .catch((err: unknown) => {
+          // Without this, a failed typegen (e.g. `next.config` throwing) is
+          // swallowed as an unhandled rejection that exits 0; surface it with a
+          // non-zero exit so `next typegen && tsc` halts instead of running
+          // against missing route types.
+          console.error(
+            '\n> Unexpected error while generating route types. Original error:\n'
+          )
+          console.error(err)
+          process.exit(1)
+        })
     )
   )
   .usage('[directory] [options]')
@@ -656,6 +678,10 @@ internal
       parseValidPositiveInteger
     )
   )
+  .addHelpText('after', ({ command }) => {
+    const port = (command.opts() as { port?: number }).port ?? 5748
+    return `\nExample:\n  next internal query-trace --port ${port} --parent <id>`
+  })
   .action((options) =>
     import('../cli/internal/query-trace.js').then((mod) =>
       mod.queryTraceCli(options)
@@ -698,6 +724,48 @@ internal
       mod.uploadTraceToBlob({ directory })
     )
   })
+  .usage('[directory] [options]')
+
+internal
+  .command('static-routes-info')
+  .description(
+    'Analyze a built Next.js app and report per-route bundle sizes across server bundled JS, server source maps, server unbundled, client JS, client source maps, and client CSS categories.'
+  )
+  .argument(
+    '[directory]',
+    `A directory containing the built Next.js application. ${italic(
+      'If no directory is provided, the current directory will be used.'
+    )}`
+  )
+  .option('--json', 'Output as JSON instead of markdown.')
+  .option(
+    '--limit <n>',
+    'Only show the first N routes after sorting (totals always reflect all routes).',
+    parseInt
+  )
+  .option(
+    '--sort <key>',
+    'Sort routes by: name (default, ascending), or one of client, client-js, client-css, client-map, server, server-bundled-js, server-unbundled, server-map, total (descending).'
+  )
+  .option(
+    '--files',
+    'Include the list of files (relative to the output directory) per category in the JSON output. Requires --json.'
+  )
+  .action(
+    (
+      directory: string,
+      options: {
+        json?: boolean
+        limit?: number
+        sort?: string
+        files?: boolean
+      }
+    ) => {
+      return import('../cli/internal/static-routes-info.js').then((mod) =>
+        mod.staticRoutesInfoCli(options, directory)
+      )
+    }
+  )
   .usage('[directory] [options]')
 
 program.parse(process.argv)

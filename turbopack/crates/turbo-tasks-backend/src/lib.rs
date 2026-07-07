@@ -14,22 +14,16 @@ use std::path::Path;
 use anyhow::Result;
 use turbo_persistence::{CompactConfig, TurboPersistence};
 
-use crate::database::{
-    noop_kv::NoopKvDb,
-    turbo::{self, TurboKeyValueDatabase},
-};
+use crate::database::turbo::{self, TurboKeyValueDatabase};
 pub use crate::{
     backend::{BackendOptions, StorageMode, TurboTasksBackend},
-    backing_storage::BackingStorage,
     database::{
         db_invalidation,
         db_invalidation::StartupCacheState,
         db_versioning::{GitVersionInfo, handle_db_versioning},
     },
-    kv_backing_storage::KeyValueDatabaseBackingStorage,
+    kv_backing_storage::TurboBackingStorage,
 };
-
-pub type TurboBackingStorage = KeyValueDatabaseBackingStorage<TurboKeyValueDatabase>;
 
 /// Creates a `BackingStorage` to be passed to [`TurboTasksBackend::new`].
 ///
@@ -41,19 +35,16 @@ pub fn turbo_backing_storage(
     is_short_session: bool,
     skip_compaction: bool,
 ) -> Result<(TurboBackingStorage, StartupCacheState)> {
-    KeyValueDatabaseBackingStorage::open_versioned_on_disk(
-        base_path.to_owned(),
-        version_info,
-        is_ci,
-        |path| TurboKeyValueDatabase::new(path, is_ci, is_short_session, skip_compaction),
-    )
+    TurboBackingStorage::open_versioned_on_disk(base_path.to_owned(), version_info, is_ci, |path| {
+        TurboKeyValueDatabase::new(path, is_ci, is_short_session, skip_compaction)
+    })
 }
 
-pub type NoopBackingStorage = KeyValueDatabaseBackingStorage<NoopKvDb>;
-
-/// Creates an no-op in-memory `BackingStorage` to be passed to [`TurboTasksBackend::new`].
-pub fn noop_backing_storage() -> NoopBackingStorage {
-    KeyValueDatabaseBackingStorage::new_in_memory(NoopKvDb)
+/// Creates an in-memory `BackingStorage` to be passed to [`TurboTasksBackend::new`]. Backed by
+/// an empty, read-only [`TurboPersistence`] — reads return `None`, writes are not expected
+/// (callers should set [`BackendOptions::storage_mode`] to `None`).
+pub fn noop_backing_storage() -> TurboBackingStorage {
+    TurboBackingStorage::new_in_memory(TurboKeyValueDatabase::empty_in_memory())
 }
 
 /// Opens a Turbopack persistent cache database at the given base path and performs a full

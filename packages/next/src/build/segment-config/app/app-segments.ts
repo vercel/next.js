@@ -45,6 +45,15 @@ function attach(segment: AppSegment, userland: unknown, route: string) {
     segment.generateStaticParams =
       userland.generateStaticParams as GenerateStaticParams
 
+    // Compiler-injected factory whose error stack is anchored at the user's
+    // `generateStaticParams` declaration. Used to throw a meaningful error when
+    // an empty result is detected under Cache Components.
+    const createEmptyParamsError = (userland as Record<string, unknown>)
+      .__next_create_empty_gsp_error
+    if (typeof createEmptyParamsError === 'function') {
+      segment.createEmptyParamsError = createEmptyParamsError as () => Error
+    }
+
     // Validate that `generateStaticParams` makes sense in this context.
     if (segment.config?.runtime === 'edge') {
       throw new Error(
@@ -61,6 +70,7 @@ export type AppSegment = {
   filePath: string | undefined
   config: AppSegmentConfig | undefined
   generateStaticParams: GenerateStaticParams | undefined
+  createEmptyParamsError?: () => Error
 }
 
 /**

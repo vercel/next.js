@@ -143,4 +143,10 @@ export const TRANSFORMER_INQUIRER_CHOICES = [
     value: 'remove-experimental-ppr',
     version: '16.0.0-canary.11',
   },
+  {
+    title:
+      'Add `export const instant = false` to App Router pages and layouts to ease Cache Components adoption',
+    value: 'cache-components-instant-false',
+    version: '16.3.0',
+  },
 ]

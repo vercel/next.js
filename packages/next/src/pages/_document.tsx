@@ -14,7 +14,7 @@ import type { NextFontManifest } from '../build/webpack/plugins/next-font-manife
 
 import { getPageFiles } from '../server/get-page-files'
 import type { BuildManifest } from '../server/get-page-files'
-import { htmlEscapeJsonString } from '../server/htmlescape'
+import { htmlEscapeJsonString } from '../shared/lib/htmlescape'
 import isError from '../lib/is-error'
 
 import {

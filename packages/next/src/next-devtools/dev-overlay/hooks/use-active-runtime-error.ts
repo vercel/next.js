@@ -8,11 +8,18 @@ import { extractNextErrorCode } from '../../../lib/error-telemetry-utils'
 export function useActiveRuntimeError({
   runtimeErrors,
   getSquashedHydrationErrorDetails,
+  activeIdx: controlledActiveIdx,
+  setActiveIndex: controlledSetActiveIndex,
 }: {
   runtimeErrors: ReadyRuntimeError[]
   getSquashedHydrationErrorDetails: (error: Error) => HydrationErrorState | null
+  activeIdx?: number
+  setActiveIndex?: (index: number) => void
 }) {
-  const [activeIdx, setActiveIndex] = useState<number>(0)
+  const [uncontrolledActiveIdx, setUncontrolledActiveIndex] =
+    useState<number>(0)
+  const activeIdx = controlledActiveIdx ?? uncontrolledActiveIdx
+  const setActiveIndex = controlledSetActiveIndex ?? setUncontrolledActiveIndex
 
   const isLoading = useMemo<boolean>(() => {
     return runtimeErrors.length === 0

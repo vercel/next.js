@@ -58,6 +58,12 @@ async function main() {
   if (!process.env.BLOB_READ_WRITE_TOKEN) {
     throw new Error('BLOB_READ_WRITE_TOKEN environment variable is required')
   }
+  const blobAccess = process.env.BLOB_ACCESS
+  if (blobAccess !== 'private' && blobAccess !== 'public') {
+    throw new Error(
+      `BLOB_ACCESS environment variable can only be "private" or "public" but got "${blobAccess}".`
+    )
+  }
 
   for await (const { packageName, tarballPath } of findTarballs(
     tarballDirectory
@@ -66,7 +72,7 @@ async function main() {
 
     const fileBuffer = await fs.readFile(tarballPath)
     const { url } = await put(blobPathname, fileBuffer, {
-      access: 'public',
+      access: blobAccess,
       addRandomSuffix: false,
       contentType: 'application/gzip',
     })

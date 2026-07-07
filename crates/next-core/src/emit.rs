@@ -100,15 +100,21 @@ pub async fn emit_assets(
         path: &FileSystemPath,
         assets: AssetVec,
         node_root: &FileSystemPath,
-    ) -> Result<ResolvedVc<Box<dyn OutputAsset>>> {
+    ) -> Result<()> {
         let mut iter = assets.into_iter();
         let first = iter.next().unwrap();
-        for next in iter {
-            let ext: RcStr = path.extension().unwrap_or_default().into();
-            if let Some(detail) = assets_diff(*next, *first, ext, node_root.clone())
-                .owned()
-                .await?
-            {
+        let ext: RcStr = path.extension().unwrap_or_default().into();
+        let conflicts = iter
+            .map(async |next| {
+                assets_diff(*next, *first, ext.clone(), node_root.clone())
+                    .owned()
+                    .await
+            })
+            .try_flat_join()
+            .await?;
+        if let Some(detail) = conflicts.into_iter().next() {
+            #[turbo_tasks::function]
+            fn emit_conflict_issue(path: FileSystemPath, detail: RcStr) {
                 EmitConflictIssue {
                     asset_path: path.clone(),
                     detail,
@@ -116,8 +122,11 @@ pub async fn emit_assets(
                 .resolved_cell()
                 .emit();
             }
+            emit_conflict_issue(path.clone(), detail)
+                .as_side_effect()
+                .await?;
         }
-        Ok(first)
+        Ok(())
     }
 
     // Use join! instead of try_join! to collect all errors deterministically
@@ -129,14 +138,20 @@ pub async fn emit_assets(
                 let node_root = node_root.clone();
 
                 async move {
-                    let asset = check_duplicates(&path, assets, &node_root).await?;
+                    let asset = *assets.first().unwrap();
                     let span = tracing::info_span!(
                         "emit asset",
                         name = %path.to_string_ref().await?
                     );
-                    async move { emit(*asset).as_side_effect().await }
-                        .instrument(span)
-                        .await
+                    async move {
+                        emit(*asset).as_side_effect().await?;
+                        // This need to be after `emit()`, so the asset is emitted even if this
+                        // method crashes due to eventual consistency.
+                        check_duplicates(&path, assets, &node_root).await?;
+                        Ok(())
+                    }
+                    .instrument(span)
+                    .await
                 }
             })
             .try_join(),
@@ -148,18 +163,22 @@ pub async fn emit_assets(
                 let client_output_path = client_output_path.clone();
 
                 async move {
-                    let asset = check_duplicates(&path, assets, &node_root).await?;
                     let span = tracing::info_span!(
                         "emit asset",
                         name = %path.to_string_ref().await?
                     );
                     async move {
+                        let asset = *assets.first().unwrap();
                         // Client assets are emitted to the client output path, which is
                         // prefixed with _next. We need to rebase them to
                         // remove that prefix.
                         emit_rebase(*asset, client_relative_path, client_output_path)
                             .as_side_effect()
-                            .await
+                            .await?;
+                        // This need to be after `emit_rebase()`, so the asset is emitted even if
+                        // this method crashes due to eventual consistency.
+                        check_duplicates(&path, assets, &node_root).await?;
+                        Ok(())
                     }
                     .instrument(span)
                     .await

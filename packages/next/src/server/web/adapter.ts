@@ -27,6 +27,8 @@ import { createRequestStoreForAPI } from '../async-storage/request-store'
 import { workUnitAsyncStorage } from '../app-render/work-unit-async-storage.external'
 import { createWorkStore } from '../async-storage/work-store'
 import { workAsyncStorage } from '../app-render/work-async-storage.external'
+import { InvariantError } from '../../shared/lib/invariant-error'
+import type { ResolvedCacheLifeProfiles } from '../config-shared'
 import { NEXT_ROUTER_PREFETCH_HEADER } from '../../client/components/app-router-headers'
 import { getTracer } from '../lib/trace/tracer'
 import type { TextMapGetter } from 'next/dist/compiled/@opentelemetry/api'
@@ -35,7 +37,23 @@ import { CloseController } from './web-on-close'
 import { getEdgePreviewProps } from './get-edge-preview-props'
 import { getBuiltinRequestContext } from '../after/builtin-request-context'
 import { getImplicitTags } from '../lib/implicit-tags'
+import { isRSCRequestHeader } from '../lib/is-rsc-request'
 import { setRequestMeta } from '../request-meta'
+
+// The proxy (middleware) does not support `'use cache'`, so this work store
+// never reaches the code that reads `cacheLife` (and `'use cache'` is
+// disallowed on the edge runtime anyway). This sentinel satisfies the
+// non-optional type while throwing if `default` is ever read, matching the
+// "never read" sentinels used for the proxy's other unused renderOpts fields
+// (`staticPageGenerationTimeout: 0`, `useCacheTimeout: 0`). It surfaces loudly
+// rather than silently serving a misleading profile.
+const proxyCacheLifeProfiles: ResolvedCacheLifeProfiles = {
+  get default(): never {
+    throw new InvariantError(
+      'Proxy does not support `use cache`, so reading its `default` cacheLife profile is unexpected.'
+    )
+  },
+}
 
 export class NextRequestHint extends NextRequest {
   sourcePage: string
@@ -147,10 +165,11 @@ export async function adapter(
     buildId = (requestURL as NextURL).buildId || ''
     requestURL.buildId = ''
   }
+  let deploymentId = process.env.NEXT_DEPLOYMENT_ID
 
   const requestHeaders = fromNodeOutgoingHttpHeaders(params.request.headers)
   const isNextDataRequest = requestHeaders.has('x-nextjs-data')
-  const isRSCRequest = requestHeaders.get(RSC_HEADER) === '1'
+  const isRSCRequest = isRSCRequestHeader(requestHeaders.get(RSC_HEADER))
 
   if (isNextDataRequest && requestURL.pathname === '/index') {
     requestURL.pathname = '/'
@@ -300,14 +319,17 @@ export async function adapter(
             const workStore = createWorkStore({
               page,
               renderOpts: {
-                cacheLifeProfiles:
-                  params.request.nextConfig?.experimental?.cacheLife,
+                cacheLifeProfiles: proxyCacheLifeProfiles,
                 // Proxy doesn't do static generation, so this value does not
                 // apply here. 0 is a sentinel: if something ever reads it,
                 // it'll surface loudly instead of silently using a misleading
                 // default.
                 staticPageGenerationTimeout: 0,
                 cacheComponents: false,
+                // Proxy doesn't run instant validation; the level value is
+                // irrelevant here.
+                // TODO: remove validationLevel and other global config from renderOpts
+                validationLevel: 'warning',
                 experimental: {
                   isRoutePPREnabled: false,
                   authInterrupts:
@@ -326,6 +348,7 @@ export async function adapter(
               isPrefetchRequest:
                 request.headers.get(NEXT_ROUTER_PREFETCH_HEADER) === '1',
               buildId: buildId ?? '',
+              deploymentId: deploymentId ?? '',
               previouslyRevalidatedTags: [],
             })
 

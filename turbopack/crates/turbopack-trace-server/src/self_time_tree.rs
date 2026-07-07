@@ -90,8 +90,12 @@ impl<T> SelfTimeTree<T> {
 
     fn distribute_entries(&mut self) {
         if self.children.is_none() {
-            let start = self.entries.iter().min_by_key(|e| e.start).unwrap().start;
-            let end = self.entries.iter().max_by_key(|e| e.end).unwrap().end;
+            let (start, end) = self
+                .entries
+                .iter()
+                .fold((Timestamp::MAX, Timestamp::ZERO), |(lo, hi), e| {
+                    (lo.min(e.start), hi.max(e.end))
+                });
             let middle = (start + end) / 2;
             // Pre-allocate half the split threshold: after distributing, each child
             // typically receives ~SPLIT_COUNT / 2 entries.
@@ -235,7 +239,6 @@ impl<T> SelfTimeTree<T> {
     }
 
     pub fn lookup_range_corrected_time(&self, start: Timestamp, end: Timestamp) -> Timestamp {
-        let mut factor_times_1000 = 0u64;
         #[derive(PartialEq, Eq, PartialOrd, Ord)]
         enum Change {
             Start,
@@ -253,7 +256,18 @@ impl<T> SelfTimeTree<T> {
                 changes.push((e, Change::End));
             }
         });
+
+        // Fast path: every overlapping interval fully contains `[start, end]`, so the
+        // count is constant over the whole window. Skip the sort and the sweep.
+        if changes.is_empty() {
+            if current_count == 0 {
+                return Timestamp::ZERO;
+            }
+            return Timestamp::from_value(*(end - start) / current_count);
+        }
+
         changes.sort_unstable();
+        let mut factor_times_1000 = 0u64;
         let mut current_ts = start;
         for (ts, change) in changes {
             if current_ts < ts {
@@ -442,5 +456,54 @@ mod tests {
         );
         print_tree(&tree, 0);
         assert_balanced(&tree);
+    }
+
+    #[test]
+    fn test_corrected_time_no_overlap() {
+        // No intervals at all — corrected time of an empty range is zero.
+        let tree: SelfTimeTree<u32> = SelfTimeTree::new();
+        let r = tree
+            .lookup_range_corrected_time(Timestamp::from_micros(0), Timestamp::from_micros(100));
+        assert_eq!(r, Timestamp::ZERO);
+    }
+
+    #[test]
+    fn test_corrected_time_single_interval() {
+        // One interval matching the query window exactly: correction factor 1, returns full
+        // duration.
+        let mut tree = SelfTimeTree::new();
+        tree.insert(Timestamp::from_micros(0), Timestamp::from_micros(100), 0u32);
+        let r = tree
+            .lookup_range_corrected_time(Timestamp::from_micros(0), Timestamp::from_micros(100));
+        assert_eq!(r, Timestamp::from_micros(100));
+    }
+
+    #[test]
+    fn test_corrected_time_fast_path_full_containment() {
+        // Two intervals each fully contain [10, 20]: count is 2 throughout, answer = 10/2 = 5us.
+        let mut tree = SelfTimeTree::new();
+        tree.insert(Timestamp::from_micros(0), Timestamp::from_micros(100), 0u32);
+        tree.insert(Timestamp::from_micros(5), Timestamp::from_micros(50), 1u32);
+        let r = tree
+            .lookup_range_corrected_time(Timestamp::from_micros(10), Timestamp::from_micros(20));
+        assert_eq!(r, Timestamp::from_micros(5));
+    }
+
+    #[test]
+    fn test_corrected_time_partial_overlap() {
+        // [0, 100] is the query window. Intervals:
+        //   A: [0, 100]    (covers whole window)
+        //   B: [30, 70]    (fully inside, contributes corrections during [30, 70])
+        // Expected:
+        //   [0, 30):  count=1, time=30, corrected = 30 / 1 = 30
+        //   [30, 70): count=2, time=40, corrected = 40 / 2 = 20
+        //   [70, 100): count=1, time=30, corrected = 30 / 1 = 30
+        // Total: 80us
+        let mut tree = SelfTimeTree::new();
+        tree.insert(Timestamp::from_micros(0), Timestamp::from_micros(100), 0u32);
+        tree.insert(Timestamp::from_micros(30), Timestamp::from_micros(70), 1u32);
+        let r = tree
+            .lookup_range_corrected_time(Timestamp::from_micros(0), Timestamp::from_micros(100));
+        assert_eq!(r, Timestamp::from_micros(80));
     }
 }

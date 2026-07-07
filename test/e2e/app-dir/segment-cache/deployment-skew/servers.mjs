@@ -12,7 +12,7 @@ function getEnv(id, mode) {
     ...process.env,
     DIST_DIR: id,
     // Required so the build includes the __NEXT_HYDRATED callback used by
-    // webdriver() to detect hydration. Without this, the hydration check
+    // next.browser() to detect hydration. Without this, the hydration check
     // always times out and tests may interact with the page before the
     // React app router is initialized.
     __NEXT_TEST_MODE: 'e2e',
