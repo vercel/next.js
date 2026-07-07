@@ -27,6 +27,7 @@ import {
 import { dispatchAppRouterAction, useActionQueue } from './use-action-queue'
 import { setLastCommittedTree } from './router-reducer/reducers/committed-state'
 import { commitRouterTransition } from './router-transition'
+import { RouterTransitionEndContext } from './router-transition-end-marker'
 import { AppRouterAnnouncer } from './app-router-announcer'
 import { RedirectBoundary } from './redirect-boundary'
 import { findHeadInCache } from './router-reducer/reducers/find-head-in-cache'
@@ -569,6 +570,22 @@ function Router({
     const { OfflineProvider } =
       require('./use-offline') as typeof import('./use-offline')
     content = <OfflineProvider>{content}</OfflineProvider>
+  }
+
+  // Positive flag check so the provider is removed by DCE when the
+  // experimental lifecycle is disabled (the marker then reads the context's
+  // default `null` and reports nothing). The provider binds each render to
+  // the transition of the state being rendered, which is what lets an
+  // `unstable_RouterTransitionEndMarker` attribute itself correctly even
+  // when it mounts in the same React commit that applies the navigation.
+  if (process.env.__NEXT_INSTRUMENTATION_CLIENT_ROUTER_TRANSITION_EVENTS) {
+    content = (
+      <RouterTransitionEndContext.Provider
+        value={state.instrumentationTransition}
+      >
+        {content}
+      </RouterTransitionEndContext.Provider>
+    )
   }
 
   return (

@@ -351,6 +351,7 @@ export function useSelectedLayoutSegment(
 }
 
 export { unstable_isUnrecognizedActionError } from './unrecognized-action-error'
+export { unstable_RouterTransitionEndMarker } from './router-transition-end-marker'
 
 // Shared components APIs
 export {

@@ -279,9 +279,12 @@ export type AppRouterState = {
    * since their derived state re-derives the same destination and may
    * commit in its place.
    *
-   * Consumed read-only by HistoryUpdater, which reports `commit` for the
-   * transition carried by the state it applies. Nothing in the router may
-   * otherwise depend on this field.
+   * Consumed in two places, both read-only for the router: HistoryUpdater
+   * reports `commit` for the transition carried by the state it applies,
+   * and `RouterTransitionEndContext` exposes it to
+   * `unstable_RouterTransitionEndMarker` so a marker showing on screen can
+   * report `end` for the navigation that rendered it. Nothing in the router
+   * may otherwise depend on this field.
    */
   instrumentationTransition: PendingRouterTransition | null
 }

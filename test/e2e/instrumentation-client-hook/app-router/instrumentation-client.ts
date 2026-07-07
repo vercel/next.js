@@ -51,6 +51,16 @@ export function unstable_onRouterTransitionCommit(
   record('commit', href, navigateType, event)
 }
 
+export function unstable_onRouterTransitionEnd(
+  href: string,
+  navigateType: string,
+  event: unknown
+) {
+  const pathname = new URL(href, window.location.href).pathname
+  console.log(`[Router Transition End] [${navigateType}] ${pathname}`)
+  record('end', href, navigateType, event)
+}
+
 export function unstable_onRouterTransitionAbort(
   href: string,
   navigateType: string,

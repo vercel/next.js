@@ -132,6 +132,27 @@ export type RouterTransitionCommitEvent = RouterTransitionEvent & {
   cacheHit: boolean
 }
 
+/**
+ * Emitted when the navigation's destination declares itself loaded: the first
+ * `unstable_RouterTransitionEndMarker` rendered for the destination is
+ * committed to the screen. The marker is user-placed — the app decides what
+ * "the page has loaded" means by rendering the marker next to that content
+ * (typically inside the Suspense boundary whose reveal completes the page).
+ *
+ * The timestamp is the React commit that showed the marker, so
+ * `end.timestamp - commit.timestamp` measures the streaming/client-rendering
+ * cost paid after the navigation was applied. When the marker is part of the
+ * content the navigation itself commits (fully prefetched pages, hash-only
+ * navigations, BFCache traversals), `end` is reported in the same commit and
+ * carries the same timestamp as `commit`.
+ *
+ * At most one `end` is reported per transition, always after its `commit`.
+ * It is not guaranteed: a route that renders no marker, a marker whose
+ * content never streams in, or a newer navigation replacing the page before
+ * the marker shows all leave the transition with a `commit` but no `end`.
+ */
+export type RouterTransitionEndEvent = RouterTransitionEvent
+
 export type RouterTransitionAbortEvent = RouterTransitionEvent & {
   /**
    * The id of the transition whose commit replaced (and thereby aborted)
@@ -151,6 +172,11 @@ export type ClientInstrumentationHooks = {
     url: string,
     navigationType: RouterTransitionType,
     event: RouterTransitionCommitEvent
+  ) => void
+  unstable_onRouterTransitionEnd?: (
+    url: string,
+    navigationType: RouterTransitionType,
+    event: RouterTransitionEndEvent
   ) => void
   unstable_onRouterTransitionAbort?: (
     url: string,

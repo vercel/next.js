@@ -50,6 +50,7 @@ export type {
   RouterTransitionRoute,
   RouterTransitionStartEvent,
   RouterTransitionCommitEvent,
+  RouterTransitionEndEvent,
   RouterTransitionAbortEvent,
 } from './client/router-transition-types'
 

@@ -36,6 +36,14 @@ export default function RootLayout({ children }) {
           <li>
             <Link href="/query?tab=stats">Query page with query</Link>
           </li>
+          <li>
+            <Link href="/end-marker" prefetch={true}>
+              End marker page
+            </Link>
+          </li>
+          <li>
+            <Link href="/streaming">Streaming page</Link>
+          </li>
         </ul>
         {/* Rendered in the layout so the buttons are available on every page
             (several lifecycle tests navigate first and then trigger a race

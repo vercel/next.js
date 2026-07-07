@@ -376,6 +376,86 @@ describe('Instrumentation Client Hook', () => {
       })
     })
 
+    it('reports end when the destination’s end marker reveals with streamed content, after commit', async () => {
+      const browser = await next.browser('/')
+
+      await browser.elementByCss('a[href="/streaming"]').click()
+      // The navigation commits with the Suspense fallback; the marker is
+      // inside the boundary, so `end` must not exist yet when the streamed
+      // content is still pending. Wait for the reveal, then for the event.
+      await browser.elementById('streaming-content')
+      const events = await retry(async () => {
+        const snapshot = await getTransitionEvents(browser)
+        expect(snapshot.filter((e) => e.phase === 'end')).toHaveLength(1)
+        return snapshot
+      })
+
+      const start = events.find((e) => e.phase === 'start')
+      const commit = lastCommit(events)
+      const end = events.find((e) => e.phase === 'end')
+      expect(end.url).toBe('/streaming')
+      expect(end.navigateType).toBe('push')
+      // `end` correlates to the same transition as its start/commit, is
+      // reported after `commit`, and carries exactly the public fields.
+      expect(end.event.id).toBe(start.event.id)
+      expect(end.event.id).toBe(commit.event.id)
+      expect(events.indexOf(end)).toBeGreaterThan(events.indexOf(commit))
+      expect(Object.keys(end.event).sort()).toEqual(['id', 'timestamp'])
+      // The reveal waited on the server's 1s delay, so the end-commit gap
+      // measures streaming cost: clearly after the commit, not the same
+      // instant. (Asserted loosely to keep slow CI off the flake list.)
+      expect(end.event.timestamp - commit.event.timestamp).toBeGreaterThan(100)
+    })
+
+    it('reports end in the same commit when the marker is part of the committed content', async () => {
+      const browser = await next.browser('/')
+
+      // The marker is in the page's own content and the link is prefetched,
+      // so the navigation commits with the marker already on screen: `end`
+      // reports immediately after `commit`, not in a later reveal.
+      await browser.waitForIdleNetwork()
+      await browser.elementByCss('a[href="/end-marker"]').click()
+      await browser.elementById('end-marker-page')
+      const events = await retry(async () => {
+        const snapshot = await getTransitionEvents(browser)
+        expect(snapshot.filter((e) => e.phase === 'end')).toHaveLength(1)
+        return snapshot
+      })
+
+      const commit = lastCommit(events)
+      const end = events.find((e) => e.phase === 'end')
+      expect(end.event.id).toBe(commit.event.id)
+      expect(events.indexOf(end)).toBeGreaterThan(events.indexOf(commit))
+      expect(end.event.timestamp).toBeGreaterThanOrEqual(commit.event.timestamp)
+    })
+
+    it('reports no end for a route that renders no marker', async () => {
+      const browser = await next.browser('/')
+
+      // Navigate to an unmarked route, then to a marked one. The marked
+      // navigation’s `end` is the fence that bounds the wait: once it
+      // arrives, the unmarked navigation can no longer produce one.
+      await browser.elementByCss('a[href="/some-page"]').click()
+      await browser.elementById('some-page')
+      await waitForCommitCount(browser, 1)
+
+      await browser.elementByCss('a[href="/end-marker"]').click()
+      await browser.elementById('end-marker-page')
+      const events = await retry(async () => {
+        const snapshot = await getTransitionEvents(browser)
+        expect(snapshot.filter((e) => e.phase === 'end')).toHaveLength(1)
+        return snapshot
+      })
+
+      // The only `end` belongs to the marked navigation — the unmarked
+      // one ended its lifecycle at `commit`.
+      const commits = events.filter((e) => e.phase === 'commit')
+      expect(commits).toHaveLength(2)
+      const end = events.find((e) => e.phase === 'end')
+      expect(end.event.id).toBe(commits[1].event.id)
+      expect(end.event.id).not.toBe(commits[0].event.id)
+    })
+
     it('describes routes across group, dynamic, catch-all, rewritten, hash, query, and intercepted URLs', async () => {
       // One journey through every route-description shape the describe logic
       // handles; each leg waits for its commit and asserts on the newest
