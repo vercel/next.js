@@ -119,18 +119,6 @@ jobs:
       uploadNativeArtifact: true
     secrets: inherit
 
-  build-native-x64:
-    name: build-native-x64
-    uses: ./.github/workflows/build_reusable.yml
-    needs: ['changes']
-    if: ${{ needs.changes.outputs.docs-only == 'false' }}
-    with:
-      skipInstallBuild: 'yes'
-      stepName: 'build-native-x64'
-      runs_on_labels: '["ubuntu-latest-16-core-oss"]'
-      uploadNativeArtifact: true
-    secrets: inherit
-
   build-native-windows:
     name: build-native-windows
     uses: ./.github/workflows/build_reusable.yml
@@ -804,7 +792,7 @@ jobs:
       [
         'optimize-ci',
         'changes',
-        'build-native-x64',
+        'build-native',
         'build-next',
         'fetch-test-timings',
       ]
@@ -835,7 +823,7 @@ jobs:
           --type development
       testTimingsArtifact: 'test-timings'
       stepName: 'test-dev-react-${{ matrix.react }}-${{ matrix.group }}'
-      runs_on_labels: '["ubuntu-latest-16-core-oss"]'
+      runs_on_labels: '["ubuntu-latest-16-core-arm-oss"]'
     secrets: inherit
 
   test-dev-windows:
@@ -917,7 +905,7 @@ jobs:
       [
         'optimize-ci',
         'changes',
-        'build-native-x64',
+        'build-native',
         'build-next',
         'fetch-test-timings',
       ]
@@ -944,7 +932,7 @@ jobs:
         node run-tests.js --timings --require-timings -g ${{ matrix.group }} --type production
       testTimingsArtifact: 'test-timings'
       stepName: 'test-prod-react-${{ matrix.react }}-${{ matrix.group }}'
-      runs_on_labels: '["ubuntu-latest-16-core-oss"]'
+      runs_on_labels: '["ubuntu-latest-16-core-arm-oss"]'
     secrets: inherit
 
   test-firefox-safari:
@@ -1067,7 +1055,6 @@ jobs:
       - optimize-ci
       - changes
       - build-native
-      - build-native-x64
       - build-next
       - fetch-test-timings
       - lint
