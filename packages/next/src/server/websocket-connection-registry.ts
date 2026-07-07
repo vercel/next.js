@@ -38,50 +38,99 @@ export function unregisterWebSocketPeer(
   if (connections.size === 0) registry.delete(bundlePath)
 }
 
-function closeConnections(connections: Iterable<WebSocketPeer>, code: number) {
-  const remaining = new Set<WebSocketPeer>()
-
-  for (const peer of connections) {
-    const readyState = peer.websocket.readyState
-    if (readyState === 2 || readyState === 3) continue
-
-    remaining.add(peer)
-    try {
-      peer.close(code)
-    } catch {
-      remaining.delete(peer)
-    }
+function waitForCloseOrTerminate(peer: WebSocketPeer, code: number) {
+  const websocket = peer.websocket as typeof peer.websocket & {
+    once?: (event: 'close', listener: () => void) => void
+    off?: (event: 'close', listener: () => void) => void
+    addEventListener?: (
+      event: 'close',
+      listener: () => void,
+      options?: { once?: boolean }
+    ) => void
+    removeEventListener?: (event: 'close', listener: () => void) => void
   }
 
-  if (remaining.size > 0) {
-    const timeout = setTimeout(() => {
-      for (const peer of remaining) {
-        if (peer.websocket.readyState === 3) continue
-        peer.terminate()
+  return new Promise<void>((resolve) => {
+    let settled = false
+    let timeout: NodeJS.Timeout | undefined
+
+    const cleanup = () => {
+      websocket.off?.('close', finish)
+      websocket.removeEventListener?.('close', finish)
+      if (timeout) clearTimeout(timeout)
+    }
+
+    const finish = () => {
+      if (settled) return
+      settled = true
+      cleanup()
+      resolve()
+    }
+
+    if (websocket.readyState === 3) {
+      finish()
+      return
+    }
+
+    websocket.once?.('close', finish)
+    websocket.addEventListener?.('close', finish, { once: true })
+
+    timeout = setTimeout(() => {
+      try {
+        if (websocket.readyState !== 3) {
+          peer.terminate()
+        }
+      } finally {
+        finish()
       }
     }, CLOSE_GRACE_PERIOD_MS)
-    timeout.unref()
+
+    if (websocket.readyState !== 2) {
+      try {
+        peer.close(code)
+      } catch {
+        try {
+          peer.terminate()
+        } finally {
+          finish()
+        }
+      }
+    }
+  })
+}
+
+function closeConnections(
+  connections: Iterable<WebSocketPeer>,
+  code: number
+): Promise<void> {
+  const pending: Array<Promise<void>> = []
+
+  for (const peer of connections) {
+    if (peer.websocket.readyState === 3) continue
+    pending.push(waitForCloseOrTerminate(peer, code))
   }
+
+  return Promise.all(pending).then(() => {})
 }
 
 export function closeWebSocketsForBundle(
   bundlePath: string,
   code: number = 1012
-): void {
+): Promise<void> {
   const registry = getRegistry()
   const connections = registry.get(bundlePath)
-  if (!connections) return
+  if (!connections) return Promise.resolve()
 
   registry.delete(bundlePath)
-  closeConnections(connections, code)
+  return closeConnections(connections, code)
 }
 
-export function closeAllWebSockets(code: number = 1001): void {
+export function closeAllWebSockets(code: number = 1001): Promise<void> {
   const registry = getRegistry()
   const connections: WebSocketPeer[] = []
   for (const bundleConnections of registry.values()) {
     connections.push(...bundleConnections)
   }
   registry.clear()
-  closeConnections(connections, code)
+  return closeConnections(connections, code)
 }

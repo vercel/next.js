@@ -15,7 +15,7 @@ export type ServerInitResult = {
   upgradeHandler: UpgradeHandler
   server: NextServer
   // Make an effort to close upgraded HTTP requests (e.g. Turbopack HMR websockets)
-  closeUpgraded: () => void
+  closeUpgraded: () => Promise<void>
   // The distDir from config, used by the parent process for telemetry/trace
   distDir: string
   // Experimental features from config, used for logging after server is ready
@@ -181,7 +181,7 @@ async function initializeImpl(opts: {
     requestHandler,
     upgradeHandler,
     server,
-    closeUpgraded() {
+    async closeUpgraded() {
       opts.bundlerService?.close()
     },
     distDir: opts.distDir,

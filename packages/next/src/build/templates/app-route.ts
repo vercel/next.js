@@ -655,19 +655,33 @@ export async function upgradeHandler(
   transport: AppRouteUpgradeHandlerTransport
 ): Promise<void> {
   const node = transport?.node
+  const req = node?.req
+  const socket = node?.socket
+  const head = node?.head
+  const message =
+    'WebSocket Route Handlers require the Node.js upgrade transport namespace with raw upgrade primitives and persistent sockets.'
+
   if (
-    !node?.req ||
-    !node.socket ||
-    typeof node.socket.write !== 'function' ||
-    node.socket.destroyed
+    !socket ||
+    typeof socket.write !== 'function' ||
+    socket.destroyed ||
+    socket.writableEnded
   ) {
-    console.error(
-      'WebSocket Route Handlers require the Node.js upgrade transport namespace with raw upgrade primitives and persistent sockets.'
+    console.error(message)
+    return
+  }
+
+  if (!req || !Buffer.isBuffer(head)) {
+    console.error(message)
+    await writeRawHttpError(
+      (req || { method: 'GET' }) as IncomingMessage,
+      socket,
+      501,
+      message
     )
     return
   }
 
-  const { req, socket, head } = node
   try {
     await upgradeHandlerImpl(req, socket, head, ctx)
   } catch (error) {

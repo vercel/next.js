@@ -395,7 +395,7 @@ export async function startServer(
 
       try {
         let cleanupStarted = false
-        let closeUpgraded: (() => void) | null = null
+        let closeUpgraded: (() => Promise<void>) | null = null
         const cleanup = (signal: 'SIGINT' | 'SIGTERM') => {
           if (cleanupStarted) {
             // We can get duplicate signals, e.g. when `ctrl+c` is used in an
@@ -408,6 +408,9 @@ export async function startServer(
           ;(async () => {
             debug('start-server process cleanup')
 
+            const closeUpgradedPromise =
+              closeUpgraded?.().catch(console.error) ?? Promise.resolve()
+
             // first, stop accepting new connections and finish pending requests,
             // because they might affect `nextServer.close()` (e.g. by scheduling an `after`)
             await new Promise<void>((res) => {
@@ -418,8 +421,8 @@ export async function startServer(
               if (isDev) {
                 server.closeAllConnections()
               }
-              closeUpgraded?.()
             })
+            await closeUpgradedPromise
 
             // now that no new requests can come in, clean up the rest
             await Promise.all([

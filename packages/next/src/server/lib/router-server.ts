@@ -1135,9 +1135,9 @@ export async function initialize(opts: {
     requestHandler,
     upgradeHandler,
     server: handlers.server,
-    closeUpgraded() {
+    async closeUpgraded() {
       development?.bundler?.hotReloader?.close()
-      closeAllWebSockets(1001)
+      await closeAllWebSockets(1001)
     },
     distDir: config.distDir,
     experimentalFeatures,

@@ -259,6 +259,48 @@ describe('WebSocket Route Handlers', () => {
     }
   })
 
+  it('returns 501 from upgradeHandler when raw primitives are incomplete', async () => {
+    if (isNextDev) return
+
+    const { outputs }: Parameters<NextAdapter['onBuildComplete']>[0] =
+      await next.readJSON('build-complete.json')
+    const output = outputs.appRoutes.find((route) => route.pathname === '/ws')
+    const routeModule = require(output!.filePath)
+
+    const port = await findPort()
+    const server = http.createServer()
+    server.on('upgrade', (request, socket) => {
+      void routeModule.upgradeHandler(
+        {
+          requestMeta: {
+            relativeProjectDir: path.relative(process.cwd(), next.testDir),
+            distDir: path.join(next.testDir, '.next'),
+          },
+        },
+        { node: { req: request, socket, head: undefined } as any }
+      )
+    })
+    await new Promise<void>((resolve) => server.listen(port, resolve))
+
+    try {
+      const response = await new Promise<http.IncomingMessage>(
+        (resolve, reject) => {
+          const socket = new WebSocket(`ws://localhost:${port}/ws`, {
+            headers: { authorization: 'Bearer secret' },
+          })
+          socket.once('unexpected-response', (request, result) => {
+            request.destroy()
+            resolve(result)
+          })
+          socket.once('error', reject)
+        }
+      )
+      expect(response.statusCode).toBe(501)
+    } finally {
+      await new Promise<void>((resolve) => server.close(() => resolve()))
+    }
+  })
+
   it('closes sockets with 1012 when the route changes in development', async () => {
     if (!isNextDev) return
 
