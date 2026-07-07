@@ -1,11 +1,17 @@
 import { nextTestSetup } from 'e2e-utils'
 import { retry, assertNoConsoleErrors } from 'next-test-utils'
+import { parseValidationMessages } from 'e2e-utils/instant-validation'
 import type { Playwright } from 'next-webdriver'
+
+const cacheComponentsEnabled = process.env.__NEXT_CACHE_COMPONENTS === 'true'
 
 describe('hmr-rsc-cancellation', () => {
   const { next } = nextTestSetup({
     files: __dirname,
     skipStart: true,
+    // Emit `<VALIDATION_MESSAGE>` markers so the server-side validation-skip
+    // can be asserted.
+    env: { NEXT_TEST_LOG_VALIDATION: '1' },
   })
 
   let pristinePage: string
@@ -79,7 +85,21 @@ describe('hmr-rsc-cancellation', () => {
     expect(output).not.toContain('unhandledRejection')
   }
 
-  it('cancels a superseded Server Component HMR request', async () => {
+  // The markers `DynamicMarker` logs when React renders it. The dev server
+  // forwards server-component logs to the browser console, so we read them from
+  // there. A render aborted before React reaches the child logs nothing for its
+  // marker.
+  async function renderedMarkers(browser: Playwright): Promise<string[]> {
+    const logs = await browser.log()
+    return logs.flatMap((entry) => {
+      const match = entry.message.match(
+        /\[hmr-rsc-cancellation\] rendered (\w+)/
+      )
+      return match ? [match[1]] : []
+    })
+  }
+
+  it('cancels a superseded Server Components HMR request', async () => {
     await next.start()
     const browser = await next.browser('/', { pushErrorAsConsoleLog: true })
     await retry(async () => {
@@ -219,12 +239,10 @@ describe('hmr-rsc-cancellation', () => {
         )
         .replace(/const dynamicDelayMs = \d+/, 'const dynamicDelayMs = 0')
     )
-    await retry(async () => {
-      expect(await browser.elementById('dynamic').text()).toBe('latest')
-    })
-
     // With cancellation disabled, neither refresh is aborted; both run to
-    // completion like before.
+    // completion. Which marker ends up committed is a race (the superseded
+    // refresh can still finish and clobber the newest), so we assert only that
+    // both requests ran, unaborted, rather than the final DOM.
     await retry(async () => {
       const { requests } = await readResult(browser)
       expect(requests).toMatchObject([
@@ -232,5 +250,70 @@ describe('hmr-rsc-cancellation', () => {
         { aborted: false, settled: true },
       ])
     })
+  })
+
+  it("aborts the superseded refresh's render server-side", async () => {
+    await next.start()
+    const browser = await next.browser('/', { pushErrorAsConsoleLog: true })
+    await retry(async () => {
+      expect(await browser.elementById('dynamic').text()).toBe('initial')
+    })
+    await instrumentBrowser(browser)
+    const cliStart = next.cliOutput.length
+
+    // Request A: a slow refresh that stays in flight until B supersedes it.
+    await next.patchFile('app/page.tsx', (src) =>
+      src
+        .replace(
+          /const dynamicMarker = '[^']*'/,
+          "const dynamicMarker = 'slow'"
+        )
+        .replace(/const dynamicDelayMs = \d+/, 'const dynamicDelayMs = 5000')
+    )
+    await retry(async () => {
+      expect(
+        await browser.eval(() => (window as any).__hmrRequests.length)
+      ).toBe(1)
+    })
+
+    // Request B changes only the marker, so it keeps A's slow delay while
+    // superseding it. By the time B commits, A's delay has elapsed: had A's
+    // render not been aborted, `DynamicMarker` would already have rendered and
+    // logged `slow`.
+    await next.patchFile('app/page.tsx', (src) =>
+      src.replace(
+        /const dynamicMarker = '[^']*'/,
+        "const dynamicMarker = 'latest'"
+      )
+    )
+    await retry(async () => {
+      expect(await browser.elementById('dynamic').text()).toBe('latest')
+    }, 10000)
+
+    await retry(async () => {
+      const markers = await renderedMarkers(browser)
+      // The superseding refresh rendered; the superseded refresh's render was
+      // aborted before React reached `DynamicMarker`, so it never logged.
+      expect(markers).toContain('latest')
+      expect(markers).not.toContain('slow')
+    }, 10000)
+
+    if (cacheComponentsEnabled) {
+      // On the Cache Components staged render the superseded refresh also skips
+      // its detached validation: it emits `validation_aborted` and never a
+      // start/end pair, while the committed refresh validates normally.
+      await retry(async () => {
+        const events = parseValidationMessages(next.cliOutput.slice(cliStart))
+        expect(events).toMatchObject([
+          { type: 'validation_aborted' },
+          { type: 'validation_start' },
+          { type: 'validation_end' },
+        ])
+        expect(events[0].requestId).not.toBe(events[1].requestId)
+      }, 10000)
+    }
+
+    await assertNoConsoleErrors(browser)
+    expectCleanCliOutput(next.cliOutput.slice(cliStart))
   })
 })
