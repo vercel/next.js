@@ -7,12 +7,12 @@ export function readBareArg(dynamicPath) {
   return fs.readFileSync(/* turbopackIgnore: true */ dynamicPath, 'utf8')
 }
 
-// The comment on the fs call's first argument also works when that argument
-// is itself a `path.join(...)` call (issue #95125: the comment must be on the
-// fs call's argument, not nested inside `path.join`).
-export function readJoinedArg(folder, f) {
+// The comment also works when placed on a nested `path.join(...)` argument of
+// the fs call (issue #95125): ignoring the `path.join` bubbles up and silences
+// the enclosing `fs.readFileSync` whole-project tracing warning too.
+export function readJoinedArg(f) {
   return fs.readFileSync(
-    /* turbopackIgnore: true */ path.join(folder, f),
+    path.join(/* turbopackIgnore: true */ process.cwd(), f),
     'utf8'
   )
 }

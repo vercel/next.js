@@ -60,7 +60,9 @@ import stripAnsi from 'strip-ansi'
       it('should not warn for fs calls annotated with turbopackIgnore', async () => {
         // The build above (in the previous test) already ran; assert that none of
         // the `turbopackIgnore`-annotated accesses in ./app/read-ignored.js produced
-        // a warning. Only ./app/join-cwd.js should warn.
+        // a warning. This covers both the comment on the fs call's own argument
+        // (`readBareArg`) and the comment on a nested `path.join(...)` argument
+        // (`readJoinedArg`, issue #95125). Only ./app/join-cwd.js should warn.
         expect(next.cliOutput).toContain(
           'Turbopack build encountered 1 warning:'
         )
