@@ -252,6 +252,25 @@ pub struct TurboTasksBackend {
     root_tasks: Mutex<FxHashSet<TaskId>>,
 }
 
+/// The result of processing one garbage-collection worklist item (see
+/// [`TurboTasksBackend::gc_process_one`]).
+enum GcOutcome {
+    /// The task was collectible and has been torn down: its reverse-dependency edges were scrubbed
+    /// and it was removed from the in-memory map. Carries the on-disk `TaskDeletion` tombstone to
+    /// commit, and the children whose `parent_count` reached 0 as a result (to enqueue next).
+    Collected {
+        deletion: TaskDeletion,
+        newly_garbage: Vec<TaskId>,
+    },
+    /// The task was not collectible this pass but still has no persistent parent (e.g. its
+    /// transient activeness has not been torn down yet), so it is re-queued to retry on a later
+    /// pass.
+    Retain(TaskId),
+    /// The task is no longer garbage (it was revived by a concurrent re-connect before the GC
+    /// phase, or is transient): nothing to do.
+    Skip,
+}
+
 impl TurboTasksBackend {
     /// Invalidates the persistent storage so that it will be deleted the next time a turbopack
     /// instance is created with the filesystem cache enabled.
@@ -381,28 +400,17 @@ impl TurboTasksBackend {
         // the whole pass inside `spawn_blocking` (per the `scope_and_block` guidance) rather than
         // spawning from within this already-blocking context.
         while let Some(task_id) = worklist.pop() {
-            if !self.gc_is_collectible(task_id) {
-                if self.gc_parent_count(task_id) == 0 && !task_id.is_transient() {
-                    retain.push(task_id);
+            match self.gc_process_one(task_id, turbo_tasks) {
+                GcOutcome::Collected {
+                    deletion,
+                    newly_garbage,
+                } => {
+                    deletions.push(deletion);
+                    collected += 1;
+                    worklist.extend(newly_garbage);
                 }
-                continue;
-            }
-            let (children, deletion) = self.gc_delete_one(task_id, turbo_tasks);
-            deletions.push(deletion);
-            collected += 1;
-
-            // Cascade: each child loses a persistent parent; any that reaches 0 is peeled next.
-            let mut ctx = self.execute_context_gc(turbo_tasks);
-            for child in children {
-                if child.is_transient() {
-                    continue;
-                }
-                let mut child_task = ctx.task(child, TaskDataCategory::Meta);
-                let new_count = child_task.update_and_get_parent_count(-1);
-                drop(child_task);
-                if new_count == 0 {
-                    worklist.push(child);
-                }
+                GcOutcome::Retain(task_id) => retain.push(task_id),
+                GcOutcome::Skip => {}
             }
         }
 
@@ -412,6 +420,46 @@ impl TurboTasksBackend {
             self.gc_candidates.lock().extend(retain);
         }
         (collected, deletions)
+    }
+
+    /// Processes one GC worklist item under the held GC phase: re-validates collectibility, and if
+    /// collectible tears the task down (scrub reverse-dep edges + remove from map + produce a
+    /// tombstone) and decrements each child's `parent_count`, returning the children that reached
+    /// 0. See [`GcOutcome`] for the cases.
+    fn gc_process_one(
+        &self,
+        task_id: TaskId,
+        turbo_tasks: &TurboTasks<TurboTasksBackend>,
+    ) -> GcOutcome {
+        if !self.gc_is_collectible(task_id) {
+            // Not collectible: keep retrying only while it is still parentless (and persistent);
+            // otherwise a concurrent re-connect revived it and it is no longer garbage.
+            return if self.gc_parent_count(task_id) == 0 && !task_id.is_transient() {
+                GcOutcome::Retain(task_id)
+            } else {
+                GcOutcome::Skip
+            };
+        }
+        let (children, deletion) = self.gc_delete_one(task_id, turbo_tasks);
+
+        // Cascade: each child loses a persistent parent; collect those that reach 0.
+        let mut ctx = self.execute_context_gc(turbo_tasks);
+        let mut newly_garbage = Vec::new();
+        for child in children {
+            if child.is_transient() {
+                continue;
+            }
+            let mut child_task = ctx.task(child, TaskDataCategory::Meta);
+            let new_count = child_task.update_and_get_parent_count(-1);
+            drop(child_task);
+            if new_count == 0 {
+                newly_garbage.push(child);
+            }
+        }
+        GcOutcome::Collected {
+            deletion,
+            newly_garbage,
+        }
     }
 
     /// Scrubs all references from `task_id` off its dependency targets, removes it from the
