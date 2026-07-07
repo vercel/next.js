@@ -3,7 +3,6 @@ import { nextTestSetup } from 'e2e-utils'
 describe('proxy request body with Readable.toWeb', () => {
   const { next } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
   })
 
   it('allows a pages api route to read the proxied body with Readable.toWeb()', async () => {
