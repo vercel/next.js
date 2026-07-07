@@ -56,6 +56,20 @@ describe('cacheLife Infinity normalization', () => {
     expect(pinned.expire).toBe(120)
   })
 
+  it('rejects non-finite values other than Infinity', async () => {
+    await expect(
+      loadConfig(PHASE_PRODUCTION_SERVER, uniqueDir('negative-infinity'), {
+        customConfig: {
+          cacheLife: {
+            invalid: { revalidate: -Infinity },
+          },
+        },
+      })
+    ).rejects.toThrow(
+      'Invalid "cacheLife.invalid.revalidate" provided, expected a finite number of seconds or Infinity, received -Infinity'
+    )
+  })
+
   it('does not mutate the profile objects of the provided config', async () => {
     const frozen = { stale: 300, revalidate: Infinity, expire: Infinity }
     await loadConfig(PHASE_PRODUCTION_SERVER, uniqueDir('no-mutation'), {

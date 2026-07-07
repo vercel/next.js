@@ -40,6 +40,10 @@ function validateCacheLife(profile: CacheLife) {
       )
     } else if (typeof profile.stale !== 'number') {
       throw new Error('The stale option must be a number of seconds.')
+    } else if (!Number.isFinite(profile.stale) && profile.stale !== Infinity) {
+      throw new Error(
+        `Invalid \`cacheLife()\` option "stale" provided, expected a finite number of seconds or Infinity, received ${profile.stale}.`
+      )
     }
   }
   if (profile.revalidate !== undefined) {
@@ -49,6 +53,13 @@ function validateCacheLife(profile: CacheLife) {
       )
     } else if (typeof profile.revalidate !== 'number') {
       throw new Error('The revalidate option must be a number of seconds.')
+    } else if (
+      !Number.isFinite(profile.revalidate) &&
+      profile.revalidate !== Infinity
+    ) {
+      throw new Error(
+        `Invalid \`cacheLife()\` option "revalidate" provided, expected a finite number of seconds or Infinity, received ${profile.revalidate}.`
+      )
     }
   }
   if (profile.expire !== undefined) {
@@ -59,6 +70,13 @@ function validateCacheLife(profile: CacheLife) {
       )
     } else if (typeof profile.expire !== 'number') {
       throw new Error('The expire option must be a number of seconds.')
+    } else if (
+      !Number.isFinite(profile.expire) &&
+      profile.expire !== Infinity
+    ) {
+      throw new Error(
+        `Invalid \`cacheLife()\` option "expire" provided, expected a finite number of seconds or Infinity, received ${profile.expire}.`
+      )
     }
   }
 

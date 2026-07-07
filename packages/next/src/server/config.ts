@@ -1416,26 +1416,29 @@ function assignDefaultsAndValidate(
     // the resolved config crosses JSON serialization boundaries (e.g. to build
     // workers), where `Infinity` turns into `null`. Normalize it to
     // `INFINITE_CACHE`, which has the same meaning and survives serialization.
+    // Other non-finite numbers would corrupt the same way and are rejected.
     const cacheLifeProfiles: NonNullable<NextConfig['cacheLife']> =
       result.cacheLife
     for (const [profileName, profile] of Object.entries(cacheLifeProfiles)) {
-      if (
-        profile.stale === Infinity ||
-        profile.revalidate === Infinity ||
-        profile.expire === Infinity
-      ) {
-        // Profile objects are shared (the user's config objects, or the
-        // module-global default profiles), so clone instead of mutating.
-        const normalizedProfile = { ...profile }
-        if (normalizedProfile.stale === Infinity) {
-          normalizedProfile.stale = INFINITE_CACHE
+      let normalizedProfile = profile
+      for (const key of ['stale', 'revalidate', 'expire'] as const) {
+        const value = profile[key]
+        if (value === undefined || Number.isFinite(value)) {
+          continue
         }
-        if (normalizedProfile.revalidate === Infinity) {
-          normalizedProfile.revalidate = INFINITE_CACHE
+        if (value !== Infinity) {
+          throw new Error(
+            `Invalid "cacheLife.${profileName}.${key}" provided, expected a finite number of seconds or Infinity, received ${value}`
+          )
         }
-        if (normalizedProfile.expire === Infinity) {
-          normalizedProfile.expire = INFINITE_CACHE
+        if (normalizedProfile === profile) {
+          // Profile objects are shared (the user's config objects, or the
+          // module-global default profiles), so clone instead of mutating.
+          normalizedProfile = { ...profile }
         }
+        normalizedProfile[key] = INFINITE_CACHE
+      }
+      if (normalizedProfile !== profile) {
         cacheLifeProfiles[profileName] = normalizedProfile
       }
     }
