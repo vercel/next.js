@@ -25,9 +25,9 @@ import { retry } from 'next-test-utils'
         )
       })
 
-      // The root scope "/" is served unhashed at /sw.js. Both workers are served
-      // as mutable, always-revalidated assets (never immutable).
-      const root = await next.fetch('/sw.js')
+      // The root scope "/" is served unhashed at /_next/static/service-worker/sw.js. Both workers
+      // are served as mutable, always-revalidated assets (never immutable).
+      const root = await next.fetch('/_next/static/service-worker/sw.js')
       expect(root.status).toBe(200)
       expect(root.headers.get('cache-control')).toContain('max-age=0')
       expect(root.headers.get('cache-control')).not.toContain('immutable')
@@ -37,7 +37,9 @@ import { retry } from 'next-test-utils'
       let offlineScript = ''
       await retry(async () => {
         offlineScript = await browser.elementByCss('#offline-script').text()
-        expect(offlineScript).toMatch(/^\/sw-offline-mode-[0-9a-f]+\.js$/)
+        expect(offlineScript).toMatch(
+          /^\/_next\/static\/service-worker\/sw-offline-mode-[0-9a-f]+\.js$/
+        )
       })
 
       const offline = await next.fetch(offlineScript)

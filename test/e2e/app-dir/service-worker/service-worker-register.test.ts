@@ -22,23 +22,25 @@ import { retry } from 'next-test-utils'
         )
       })
 
-      // Served from the origin root, so the registration scope is the whole origin
-      // with no Service-Worker-Allowed header needed.
+      // The worker is served under `/_next/static/service-worker/` but registers at the whole
+      // origin: the codegen pins `{ scope: '/' }` and the response carries `Service-Worker-Allowed`.
       const scope = await browser.elementByCss('#sw-scope').text()
       expect(new URL(scope).pathname).toBe('/')
 
-      // A single service worker per app is served at the fixed, root-scoped /sw.js.
+      // A single service worker per scope is served at a fixed URL under the static folder.
       const script = await browser.elementByCss('#sw-script').text()
-      expect(script).toBe('/sw.js')
+      expect(script).toBe('/_next/static/service-worker/sw.js')
     })
 
-    it('serves the worker chunk at the root as a revalidated, mutable asset', async () => {
+    it('serves the worker chunk as a revalidated, mutable asset', async () => {
       const browser = await next.browser('/')
       await retry(async () => {
-        expect(await browser.elementByCss('#sw-script').text()).toBe('/sw.js')
+        expect(await browser.elementByCss('#sw-script').text()).toBe(
+          '/_next/static/service-worker/sw.js'
+        )
       })
 
-      const res = await next.fetch('/sw.js')
+      const res = await next.fetch('/_next/static/service-worker/sw.js')
       expect(res.status).toBe(200)
       // Stable URL across builds: it must be served as a mutable asset (never
       // immutable) that is revalidated on every use, so a new worker ships
@@ -47,6 +49,10 @@ import { retry } from 'next-test-utils'
       expect(cacheControl).not.toContain('immutable')
       expect(cacheControl).toContain('max-age=0')
 
+      // It registers at a broader scope than its own directory, so the response must
+      // carry `Service-Worker-Allowed` or the browser rejects the registration.
+      expect(res.headers.get('service-worker-allowed')).toBe('/')
+
       // Revalidated on every use, so it must ship an ETag to turn those
       // revalidations into cheap 304s instead of re-downloading the worker body.
       const etag = res.headers.get('etag')
@@ -54,9 +60,12 @@ import { retry } from 'next-test-utils'
 
       // A conditional re-fetch with the ETag returns 304 Not Modified (no body),
       // confirming we don't over-fetch an unchanged worker.
-      const conditional = await next.fetch('/sw.js', {
-        headers: { 'If-None-Match': etag },
-      })
+      const conditional = await next.fetch(
+        '/_next/static/service-worker/sw.js',
+        {
+          headers: { 'If-None-Match': etag },
+        }
+      )
       expect(conditional.status).toBe(304)
     })
 

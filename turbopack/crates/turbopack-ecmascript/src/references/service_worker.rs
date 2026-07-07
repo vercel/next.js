@@ -249,18 +249,37 @@ impl ServiceWorkerAssetReferenceCodeGen {
         &self,
         _chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<CodeGeneration> {
-        // The worker is served at a fixed, root-scoped URL derived from its `scope`. Rewrite the
-        // `new URL(...)` script argument to that URL string.
-        let url = format!("/{}", service_worker_chunk_filename(&self.scope));
+        // Rewrite `register(...)`'s script argument to the served URL and pin the `{ scope }` the
+        // analyzer resolved, replacing any options the user passed:
+        //
+        //   register(new URL("./sw", import.meta.url))
+        //     -> register("/_next/static/service-worker/sw.js", { scope: "/" })
+        //
+        //   register(new URL("./sw", import.meta.url), { scope: "/app" })
+        //     -> register("/_next/static/service-worker/sw-app-<hash>.js", { scope: "/app" })
+        let url = format!(
+            "/_next/static/service-worker/{}",
+            service_worker_chunk_filename(&self.scope)
+        );
+        let scope = self.scope.clone();
 
         let visitor = create_visitor!(self.path, visit_mut_expr, |expr: &mut Expr| {
             let message = if let Expr::Call(call_expr) = expr {
-                match call_expr.args.first_mut() {
-                    Some(ExprOrSpread {
-                        spread: None,
-                        expr: url_expr,
-                    }) => {
-                        **url_expr = Expr::Lit(Lit::Str(url.as_str().into()));
+                match call_expr.args.first() {
+                    Some(ExprOrSpread { spread: None, .. }) => {
+                        call_expr.args = vec![
+                            ExprOrSpread {
+                                spread: None,
+                                expr: Box::new(Expr::Lit(Lit::Str(url.as_str().into()))),
+                            },
+                            ExprOrSpread {
+                                spread: None,
+                                expr: quote_expr!(
+                                    "({ scope: $scope })",
+                                    scope: Expr = Expr::Lit(Lit::Str(scope.as_str().into()))
+                                ),
+                            },
+                        ];
                         return;
                     }
                     Some(ExprOrSpread {

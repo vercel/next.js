@@ -853,6 +853,16 @@ export default async function loadCustomRoutes(
     }
   }
 
+  // Service workers are compiled into `/_next/static/service-worker/` but register with a broader
+  // scope (e.g. `/`) than their own directory, so the browser requires a `Service-Worker-Allowed`
+  // header on the script response to permit that scope.
+  headers.push({
+    source: '/_next/static/service-worker/:path*',
+    headers: [{ key: 'Service-Worker-Allowed', value: '/' }],
+    locale: false,
+    internal: true,
+  })
+
   return {
     headers,
     onMatchHeaders,

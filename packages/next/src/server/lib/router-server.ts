@@ -527,7 +527,9 @@ export async function initialize(opts: {
           !res.getHeader('cache-control') &&
           matchedOutput.type === 'nextStaticFolder'
         ) {
-          if (opts.dev && !isNextFont(parsedUrl.pathname)) {
+          if (parsedUrl.pathname?.startsWith('/_next/static/service-worker/')) {
+            res.setHeader('Cache-Control', 'public, max-age=0, must-revalidate')
+          } else if (opts.dev && !isNextFont(parsedUrl.pathname)) {
             res.setHeader('Cache-Control', 'no-cache, must-revalidate')
           } else {
             res.setHeader(
