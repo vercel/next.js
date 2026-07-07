@@ -3,6 +3,7 @@ import type {
   ReducerState,
   RestoreAction,
 } from '../router-reducer-types'
+import { ScrollBehavior } from '../router-reducer-types'
 import { extractPathFromFlightRouterState } from '../compute-changed-path'
 import {
   FreshnessPolicy,
@@ -95,6 +96,8 @@ export function restoreReducer(
     // History traversal always uses 'replace'.
     'replace',
     navigationLock,
+    // History traversal preserves the current scroll position by default.
+    ScrollBehavior.Default,
     // Not an HMR refresh, so there's no request generation to cancel.
     undefined
   )
