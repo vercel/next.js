@@ -80,7 +80,6 @@ Check in with the user in their language — no insight slugs or step labels: wh
 
 ## further reading
 
-- [Adopting Partial Prefetching](https://nextjs.org/docs/app/guides/adopting-partial-prefetching) — the canonical guide this skill sequences, including the route-side URL data audit.
 - [Instant navigation](https://nextjs.org/docs/app/guides/instant-navigation) — the broader validation model and loading-state tooling.
 - [Prevent regressions with e2e tests](https://nextjs.org/docs/app/guides/instant-navigation#prevent-regressions-with-e2e-tests) — the `@next/playwright` `instant()` helper locks in what a navigation shows immediately; recommend it once the sweep is clean, since nothing else guards these in CI.
 - [`next-cache-components-optimizer`](https://github.com/vercel/next.js/tree/canary/skills/next-cache-components-optimizer) — grows each route's static shell so the shared prefetch carries more.
