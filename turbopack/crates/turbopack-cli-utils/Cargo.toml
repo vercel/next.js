@@ -16,6 +16,7 @@ workspace = true
 
 [dependencies]
 anyhow = { workspace = true }
+async-trait = { workspace = true }
 crossterm = "0.26.0"
 owo-colors = { workspace = true }
 rustc-hash = { workspace = true }

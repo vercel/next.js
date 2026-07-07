@@ -125,8 +125,7 @@ pub trait VcValueTrait: NonLocalValue + Send + Sync + 'static {
     // The concrete type of the value_trait implementing VcValueTrait
     type ValueTrait: ?Sized + std::ptr::Pointee<Metadata = std::ptr::DynMetadata<Self::ValueTrait>>;
 
-    /// The per-trait vtable registry, populated at program load by `#[ctor::ctor]`
-    /// functions emitted by each `#[turbo_tasks::value_impl]` expansion.
+    /// The per-trait vtable registry, populated by [crate::value_type::register_all_trait_methods]
     ///
     /// [`VTableRegistry::cast`] panics if the value type being cast doesn't implement this
     /// trait.

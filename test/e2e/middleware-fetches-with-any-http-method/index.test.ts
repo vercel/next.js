@@ -1,51 +1,45 @@
-import { createNext } from 'e2e-utils'
-import { NextInstance } from 'e2e-utils'
+import { nextTestSetup } from 'e2e-utils'
 import { fetchViaHTTP } from 'next-test-utils'
 
 describe('Middleware fetches with any HTTP method', () => {
-  let next: NextInstance
+  const { next } = nextTestSetup({
+    files: {
+      'pages/api/ping.js': `
+        export default (req, res) => {
+          res.send(JSON.stringify({
+            method: req.method,
+            headers: {...req.headers},
+          }))
+        }
+      `,
+      'middleware.js': `
+        import { NextResponse } from 'next/server';
 
-  beforeAll(async () => {
-    next = await createNext({
-      files: {
-        'pages/api/ping.js': `
-          export default (req, res) => {
-            res.send(JSON.stringify({
-              method: req.method,
-              headers: {...req.headers},
-            }))
-          }
-        `,
-        'middleware.js': `
-          import { NextResponse } from 'next/server';
+        const HTTP_ECHO_URL = 'https://next-data-api-endpoint.vercel.app/api/echo-headers';
 
-          const HTTP_ECHO_URL = 'https://next-data-api-endpoint.vercel.app/api/echo-headers';
+        export default async (req) => {
+          const kind = req.nextUrl.searchParams.get('kind')
+          const handler = handlers[kind] ?? handlers['normal-fetch'];
 
-          export default async (req) => {
-            const kind = req.nextUrl.searchParams.get('kind')
-            const handler = handlers[kind] ?? handlers['normal-fetch'];
+          const response = await handler({url: HTTP_ECHO_URL, method: req.method});
+          const json = await response.text()
 
-            const response = await handler({url: HTTP_ECHO_URL, method: req.method});
-            const json = await response.text()
+          const res = NextResponse.next();
+          res.headers.set('x-resolved', json ?? '{}');
+          return res
+        }
 
-            const res = NextResponse.next();
-            res.headers.set('x-resolved', json ?? '{}');
-            return res
-          }
+        const handlers = {
+          'new-request': ({url, method}) =>
+            fetch(new Request(url, { method, headers: { 'x-kind': 'new-request' } })),
 
-          const handlers = {
-            'new-request': ({url, method}) =>
-              fetch(new Request(url, { method, headers: { 'x-kind': 'new-request' } })),
-
-            'normal-fetch': ({url, method}) =>
-              fetch(url, { method, headers: { 'x-kind': 'normal-fetch' } })
-          }
-        `,
-      },
-      dependencies: {},
-    })
+          'normal-fetch': ({url, method}) =>
+            fetch(url, { method, headers: { 'x-kind': 'normal-fetch' } })
+        }
+      `,
+    },
+    dependencies: {},
   })
-  afterAll(() => next.destroy())
 
   it('passes the method on a direct fetch request', async () => {
     const response = await fetchViaHTTP(

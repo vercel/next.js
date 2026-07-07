@@ -85,6 +85,8 @@ This allows a part of the route to be prerendered while the dynamic part that us
 
 We recommend wrapping the Client Component that uses `useSearchParams` in a `<Suspense/>` boundary. This will allow any Client Components above it to be prerendered and sent as part of initial HTML. [Example](/docs/app/api-reference/functions/use-search-params#prerendering).
 
+See [Next.js encountered URL data in a Client Component outside of Suspense](/docs/messages/blocking-prerender-client-hook) for full fix options and trade-offs.
+
 For example:
 
 ```tsx filename="app/dashboard/search-bar.tsx" switcher

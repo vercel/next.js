@@ -843,6 +843,8 @@ const nextConfig = {
 module.exports = nextConfig
 ```
 
+This might be necessary when hosting Next.js in a VPC with split-horizon DNS and you receive status 400 Bad Request. Only enable once you understand the SSRF risk.
+
 ### Maximum Redirects (Breaking change)
 
 The default for `images.maximumRedirects` has changed from unlimited to 3 redirects maximum.
@@ -924,19 +926,19 @@ Additionally, a lockfile mechanism prevents multiple `next dev` or `next build` 
 The [Turbopack tracing command](/docs/app/guides/local-development#turbopack-tracing) should be:
 
 ```bash package="pnpm"
-pnpm next internal trace .next-profiles/trace-turbopack
+pnpm next internal trace .next-profiles/trace-turbopack.bin
 ```
 
 ```bash package="npm"
-npx next internal trace .next-profiles/trace-turbopack
+npx next internal trace .next-profiles/trace-turbopack.bin
 ```
 
 ```bash package="yarn"
-yarn next internal trace .next-profiles/trace-turbopack
+yarn next internal trace .next-profiles/trace-turbopack.bin
 ```
 
 ```bash package="bun"
-bunx next internal trace .next-profiles/trace-turbopack
+bunx next internal trace .next-profiles/trace-turbopack.bin
 ```
 
 ## Parallel Routes `default.js` requirement
@@ -1252,4 +1254,4 @@ For more on Cache Components, see [Migrating to Cache Components](/docs/app/guid
 
 ### `unstable_rootParams`
 
-The `unstable_rootParams` function has been removed. We are working on an alternative API that we will ship in an upcoming minor release.
+The `unstable_rootParams` function has been removed. Use [`next/root-params`](/docs/app/api-reference/functions/next-root-params) instead.

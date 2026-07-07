@@ -1,7 +1,7 @@
 import { nextTestSetup } from 'e2e-utils'
 
 describe.each([
-  ['forceWorkerThreads', true],
+  ['workerThreads', true],
   ['childProcesses', false],
 ] as const)(
   'turbopack-node-backend (%s)',

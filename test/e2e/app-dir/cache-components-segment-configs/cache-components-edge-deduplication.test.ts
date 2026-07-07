@@ -52,7 +52,7 @@ function filterToErrorHeaders(output: string): string {
            "environmentLabel": null,
            "label": "Build Error",
            "source": "./app/edge-with-layout/layout.tsx (1:14)
-         Route segment config "dynamic" is not compatible with \`nextConfig.cacheComponents\`. Please remove it.
+         Error: Route segment config "dynamic" is not compatible with \`nextConfig.cacheComponents\`. Please remove it.
          > 1 | export const dynamic = 'force-dynamic'
              |              ^^^^^^^",
            "stack": [],

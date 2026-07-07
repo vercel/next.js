@@ -5,13 +5,11 @@ const execa = require('execa')
 const REPO_URL = 'github.com/vercel/next.js.git'
 
 function getGitHubToken() {
-  return (
-    process.env.RELEASE_GITHUB_TOKEN || process.env.RELEASE_BOT_GITHUB_TOKEN
-  )
+  return process.env.RELEASE_GITHUB_TOKEN
 }
 
 function getGitHubTokenMissingMessage() {
-  return 'Missing RELEASE_GITHUB_TOKEN or RELEASE_BOT_GITHUB_TOKEN'
+  return 'Missing RELEASE_GITHUB_TOKEN'
 }
 
 function getGitUser() {

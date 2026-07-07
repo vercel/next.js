@@ -1,4 +1,4 @@
-import { Playwright } from 'next-webdriver'
+import type { Playwright } from 'e2e-utils'
 
 export const getPathname = (url: string) => {
   const urlObj = new URL(url)

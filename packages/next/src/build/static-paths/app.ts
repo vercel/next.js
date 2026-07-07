@@ -433,8 +433,7 @@ export function assignStaticShellMetadata(
   pathnameSegments: ReadonlyArray<{
     readonly paramName: string
     readonly hasGenerateStaticParams: boolean
-  }>,
-  computeRemainingPrerenderableParams: boolean
+  }>
 ): void {
   // If there are no routes to process, exit early.
   if (prerenderedRoutes.length === 0) {
@@ -554,11 +553,7 @@ export function assignStaticShellMetadata(
           route.throwOnEmptyStaticShell = true // Should throw on empty static shell.
         }
 
-        if (
-          computeRemainingPrerenderableParams &&
-          route.fallbackRouteParams &&
-          route.fallbackRouteParams.length > 0
-        ) {
+        if (route.fallbackRouteParams && route.fallbackRouteParams.length > 0) {
           const fallbackRouteParamsByName = new Map(
             route.fallbackRouteParams.map((param) => [param.paramName, param])
           )
@@ -646,7 +641,12 @@ async function callGenerateStaticParams(
  */
 export async function generateRouteStaticParams(
   segments: ReadonlyArray<
-    Readonly<Pick<AppSegment, 'config' | 'generateStaticParams'>>
+    Readonly<
+      Pick<
+        AppSegment,
+        'config' | 'generateStaticParams' | 'createEmptyParamsError'
+      >
+    >
   >,
   store: Pick<WorkStore, 'fetchCache' | 'page'>,
   isRoutePPREnabled: boolean,
@@ -707,7 +707,7 @@ export async function generateRouteStaticParams(
             nextParams.push({ ...parentParams, ...item })
           }
         } else if (isRoutePPREnabled) {
-          throwEmptyGenerateStaticParamsError()
+          throwEmptyGenerateStaticParamsError(current.createEmptyParamsError)
         } else {
           // No results, just pass through parent params
           nextParams.push(parentParams)
@@ -722,7 +722,7 @@ export async function generateRouteStaticParams(
         implicitTags
       )
       if (result.length === 0 && isRoutePPREnabled) {
-        throwEmptyGenerateStaticParamsError()
+        throwEmptyGenerateStaticParamsError(current.createEmptyParamsError)
       }
 
       nextParams.push(...result)
@@ -795,8 +795,8 @@ export async function buildAppStaticPaths({
   nextConfigOutput,
   ComponentMod,
   isRoutePPREnabled = false,
-  partialFallbacksEnabled = false,
   buildId,
+  deploymentId,
   rootParamKeys,
 }: {
   dir: string
@@ -812,16 +812,14 @@ export async function buildAppStaticPaths({
   fetchCacheKeyPrefix?: string
   cacheHandler?: string
   cacheHandlers?: NextConfigComplete['cacheHandlers']
-  cacheLifeProfiles?: {
-    [profile: string]: import('../../server/use-cache/cache-life').CacheLife
-  }
+  cacheLifeProfiles: import('../../server/config-shared').ResolvedCacheLifeProfiles
   cacheMaxMemorySize: number
   requestHeaders: IncrementalCache['requestHeaders']
   nextConfigOutput: 'standalone' | 'export' | undefined
   ComponentMod: AppPageModule | AppRouteModule
   isRoutePPREnabled: boolean
-  partialFallbacksEnabled?: boolean
   buildId: string
+  deploymentId: string
   rootParamKeys: readonly string[]
 }): Promise<StaticPathsResult> {
   if (
@@ -866,6 +864,10 @@ export async function buildAppStaticPaths({
       staticPageGenerationTimeout,
       supportsDynamicResponse: true,
       cacheComponents,
+      // generateStaticParams evaluation doesn't render pages, so instant
+      // validation never runs here. The level value is irrelevant.
+      // TODO: remove validationLevel and other global config out of renderOpts
+      validationLevel: 'warning',
       experimental: {
         authInterrupts,
         useCacheTimeout,
@@ -875,6 +877,7 @@ export async function buildAppStaticPaths({
       onAfterTaskError: afterRunner.context.onTaskError,
     },
     buildId,
+    deploymentId,
     previouslyRevalidatedTags: [],
   })
 
@@ -1118,11 +1121,7 @@ export async function buildAppStaticPaths({
 
   // Now we have to set the throwOnEmptyStaticShell for each of the routes.
   if (prerenderedRoutes && cacheComponents) {
-    assignStaticShellMetadata(
-      prerenderedRoutes,
-      prerenderablePathSegments,
-      partialFallbacksEnabled
-    )
+    assignStaticShellMetadata(prerenderedRoutes, prerenderablePathSegments)
   }
 
   return { fallbackMode, prerenderedRoutes }

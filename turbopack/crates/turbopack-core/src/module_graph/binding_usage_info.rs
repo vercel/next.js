@@ -144,7 +144,7 @@ pub async fn compute_binding_usage_info(
             None
         };
 
-        let entries = graph_ref.graphs.iter().flat_map(|g| g.entry_modules());
+        let entries = graph_ref.all_chunk_group_entry_modules();
 
         let visit_count = graph_ref.traverse_edges_fixed_point_with_priority(
             entries.map(|m| (m, 0)),
@@ -272,8 +272,8 @@ pub async fn compute_binding_usage_info(
 
         #[cfg(debug_assertions)]
         {
-            use once_cell::sync::Lazy;
-            static PRINT_UNUSED_REFERENCES: Lazy<bool> = Lazy::new(|| {
+            use std::sync::LazyLock;
+            static PRINT_UNUSED_REFERENCES: LazyLock<bool> = LazyLock::new(|| {
                 std::env::var_os("TURBOPACK_PRINT_UNUSED_REFERENCES")
                     .is_some_and(|v| v == "1" || v == "true")
             });
@@ -293,7 +293,7 @@ pub async fn compute_binding_usage_info(
                 );
             }
 
-            static PRINT_USED_EXPORTS: Lazy<bool> = Lazy::new(|| {
+            static PRINT_USED_EXPORTS: LazyLock<bool> = LazyLock::new(|| {
                 std::env::var_os("TURBOPACK_PRINT_USED_EXPORTS")
                     .is_some_and(|v| v == "1" || v == "true")
             });

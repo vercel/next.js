@@ -1,6 +1,4 @@
-import { nextTestSetup } from 'e2e-utils'
-
-const isReact18 = parseInt(process.env.NEXT_TEST_REACT_VERSION) === 18
+import { isReact18, nextTestSetup } from 'e2e-utils'
 
 describe('custom server', () => {
   const { next } = nextTestSetup({

@@ -1,0 +1,344 @@
+import { retry } from 'next-test-utils'
+import { join } from 'path'
+import {
+  createNextApp,
+  projectFilesShouldExist,
+  resolveNextTgzFilename,
+  useTempDir,
+} from './utils'
+
+describe('create-next-app prompts', () => {
+  let nextTgzFilename: string
+
+  beforeAll(() => {
+    nextTgzFilename = resolveNextTgzFilename()
+  })
+
+  it('should prompt user for choice if directory name is absent', async () => {
+    await useTempDir(async (cwd) => {
+      const projectName = 'no-dir-name'
+      const childProcess = createNextApp(
+        [
+          '--ts',
+          '--app',
+          '--eslint',
+          '--no-src-dir',
+          '--no-tailwind',
+          '--no-import-alias',
+          '--no-react-compiler',
+          '--no-agents-md',
+        ],
+        {
+          cwd,
+        },
+        nextTgzFilename
+      )
+
+      await new Promise<void>((resolve) => {
+        childProcess.on('exit', async (exitCode) => {
+          expect(exitCode).toBe(0)
+          projectFilesShouldExist({
+            cwd,
+            projectName,
+            files: ['package.json'],
+          })
+          resolve()
+        })
+
+        // enter project name
+        childProcess.stdin.write(`${projectName}\n`)
+      })
+
+      const pkg = require(join(cwd, projectName, 'package.json'))
+      expect(pkg.name).toBe(projectName)
+    })
+  })
+
+  it('should use default for --ts when other flags are provided', async () => {
+    await useTempDir(async (cwd) => {
+      const projectName = 'ts-js'
+      const childProcess = createNextApp(
+        [
+          projectName,
+          '--app',
+          '--eslint',
+          '--no-tailwind',
+          '--no-src-dir',
+          '--no-import-alias',
+          '--no-react-compiler',
+          '--no-agents-md',
+        ],
+        {
+          cwd,
+        },
+        nextTgzFilename
+      )
+
+      // No stdin interaction needed - defaults are used automatically
+      await new Promise<void>((resolve) => {
+        childProcess.on('exit', async (exitCode) => {
+          expect(exitCode).toBe(0)
+          // Default is TypeScript
+          projectFilesShouldExist({
+            cwd,
+            projectName,
+            files: ['tsconfig.json'],
+          })
+          resolve()
+        })
+      })
+    })
+  })
+
+  it('should use default for --tailwind when other flags are provided', async () => {
+    await useTempDir(async (cwd) => {
+      const projectName = 'tw'
+      const childProcess = createNextApp(
+        [
+          projectName,
+          '--ts',
+          '--app',
+          '--eslint',
+          '--no-src-dir',
+          '--no-import-alias',
+          '--no-react-compiler',
+          '--no-agents-md',
+        ],
+        {
+          cwd,
+        },
+        nextTgzFilename
+      )
+
+      // No stdin interaction needed - defaults are used automatically
+      await new Promise<void>((resolve) => {
+        childProcess.on('exit', async (exitCode) => {
+          expect(exitCode).toBe(0)
+          // Default is Tailwind enabled
+          projectFilesShouldExist({
+            cwd,
+            projectName,
+            files: ['postcss.config.mjs'],
+          })
+          resolve()
+        })
+      })
+    })
+  })
+
+  it('should use default import alias when other flags are provided', async () => {
+    await useTempDir(async (cwd) => {
+      const projectName = 'import-alias'
+      const childProcess = createNextApp(
+        [
+          projectName,
+          '--ts',
+          '--app',
+          '--eslint',
+          '--no-tailwind',
+          '--no-src-dir',
+          '--no-react-compiler',
+          '--no-agents-md',
+        ],
+        {
+          cwd,
+        },
+        nextTgzFilename
+      )
+
+      // No stdin interaction needed - default import alias @/* is used
+      await new Promise<void>((resolve) => {
+        childProcess.on('exit', async (exitCode) => {
+          expect(exitCode).toBe(0)
+          resolve()
+        })
+      })
+
+      const tsConfig = require(join(cwd, projectName, 'tsconfig.json'))
+      expect(tsConfig.compilerOptions.paths).toMatchInlineSnapshot(`
+        {
+          "@/*": [
+            "./*",
+          ],
+        }
+      `)
+    })
+  })
+
+  it('should not prompt user for choice and use defaults if --yes is defined', async () => {
+    await useTempDir(async (cwd) => {
+      const projectName = 'yes-we-can'
+      const childProcess = createNextApp(
+        [projectName, '--yes'],
+        {
+          cwd,
+        },
+        nextTgzFilename
+      )
+
+      await new Promise<void>((resolve) => {
+        childProcess.on('exit', async (exitCode) => {
+          expect(exitCode).toBe(0)
+          projectFilesShouldExist({
+            cwd,
+            projectName,
+            files: [
+              'app',
+              'package.json',
+              'postcss.config.mjs',
+              'tsconfig.json',
+              'AGENTS.md',
+              'CLAUDE.md',
+            ],
+          })
+          resolve()
+        })
+      })
+
+      const pkg = require(join(cwd, projectName, 'package.json'))
+      expect(pkg.name).toBe(projectName)
+      const tsConfig = require(join(cwd, projectName, 'tsconfig.json'))
+      expect(tsConfig.compilerOptions.paths).toMatchInlineSnapshot(`
+        {
+          "@/*": [
+            "./*",
+          ],
+        }
+      `)
+    })
+  })
+
+  it('should use recommended defaults when user selects that option', async () => {
+    await useTempDir(async (cwd) => {
+      const projectName = 'recommended-defaults'
+      const childProcess = createNextApp(
+        [projectName],
+        {
+          cwd,
+        },
+        nextTgzFilename
+      )
+
+      await new Promise<void>((resolve) => {
+        childProcess.on('exit', async (exitCode) => {
+          expect(exitCode).toBe(0)
+          projectFilesShouldExist({
+            cwd,
+            projectName,
+            files: [
+              'app',
+              'package.json',
+              'postcss.config.mjs', // tailwind
+              'tsconfig.json', // typescript
+              'AGENTS.md', // agent files
+              'CLAUDE.md',
+            ],
+          })
+          resolve()
+        })
+
+        // Select "Yes, use recommended defaults" (default option, just press enter)
+        childProcess.stdin.write('\n')
+      })
+
+      const pkg = require(join(cwd, projectName, 'package.json'))
+      expect(pkg.name).toBe(projectName)
+    })
+  })
+
+  it('should show reuse previous settings option when preferences exist', async () => {
+    const Conf = require('next/dist/compiled/conf')
+
+    await useTempDir(async (cwd) => {
+      // Manually set preferences to simulate a previous run
+      const conf = new Conf({ projectName: 'create-next-app' })
+      conf.set('preferences', {
+        typescript: false,
+        eslint: true,
+        linter: 'eslint',
+        tailwind: false,
+        app: false,
+        srcDir: false,
+        importAlias: '@/*',
+        customizeImportAlias: false,
+        reactCompiler: false,
+      })
+
+      const projectName = 'reuse-prefs-project'
+      const childProcess = createNextApp(
+        [projectName],
+        {
+          cwd,
+        },
+        nextTgzFilename,
+        false // Don't clear preferences
+      )
+
+      await new Promise<void>(async (resolve) => {
+        let output = ''
+        childProcess.stdout.on('data', (data) => {
+          output += data
+          process.stdout.write(data)
+        })
+
+        // Select "reuse previous settings" (cursor down once, then enter)
+        childProcess.stdin.write('\u001b[B\n')
+
+        await retry(async () => {
+          expect(output).toMatch(/No, reuse previous settings/)
+        })
+
+        childProcess.on('exit', async (exitCode) => {
+          expect(exitCode).toBe(0)
+          projectFilesShouldExist({
+            cwd,
+            projectName,
+            files: [
+              'pages', // pages router (not app)
+              'package.json',
+              'jsconfig.json', // javascript
+            ],
+          })
+          resolve()
+        })
+      })
+
+      const pkg = require(join(cwd, projectName, 'package.json'))
+      expect(pkg.name).toBe(projectName)
+    })
+  })
+
+  it('should prompt user to confirm reset preferences', async () => {
+    await useTempDir(async (cwd) => {
+      const childProcess = createNextApp(
+        ['--reset'],
+        {
+          cwd,
+        },
+        nextTgzFilename
+      )
+
+      await new Promise<void>(async (resolve) => {
+        childProcess.on('exit', async (exitCode) => {
+          expect(exitCode).toBe(0)
+          resolve()
+        })
+        let output = ''
+        childProcess.stdout.on('data', (data) => {
+          output += data
+          process.stdout.write(data)
+        })
+        await retry(async () => {
+          expect(output).toMatch(
+            /Would you like to reset the saved preferences/
+          )
+        })
+        // cursor forward, choose 'Yes' for reset preferences
+        childProcess.stdin.write('\u001b[C\n')
+        await retry(async () => {
+          expect(output).toMatch(/The preferences have been reset successfully/)
+        })
+      })
+    })
+  })
+})

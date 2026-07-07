@@ -55,8 +55,11 @@ impl Module for RawWebAssemblyModuleAsset {
         Ok(self
             .source
             .ident()
+            .owned()
+            .await?
             .with_modifier(rcstr!("wasm raw"))
-            .with_layer(self.asset_context.into_trait_ref().await?.layer()))
+            .with_layer(self.asset_context.into_trait_ref().await?.layer())
+            .into_vc())
     }
 
     #[turbo_tasks::function]

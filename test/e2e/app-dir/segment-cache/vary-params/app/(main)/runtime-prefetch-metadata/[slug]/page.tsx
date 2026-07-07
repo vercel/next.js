@@ -10,12 +10,12 @@ import { connection } from 'next/server'
  * - Head segment should be re-fetched (metadata accesses slug)
  * - Body segment should be cached (body does NOT access slug)
  */
-export const unstable_instant: {
-  samples: Array<{ params: { slug: string } }>
+export const instant: {
+  unstable_samples: Array<{ params: { slug: string } }>
 } = {
-  samples: [{ params: { slug: 'aaa' } }, { params: { slug: 'bbb' } }],
+  unstable_samples: [{ params: { slug: 'aaa' } }, { params: { slug: 'bbb' } }],
 }
-export const unstable_prefetch = 'force-runtime'
+export const prefetch = 'allow-runtime'
 
 type Params = { slug: string }
 

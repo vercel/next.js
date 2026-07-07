@@ -2,14 +2,15 @@ import type { Instant } from 'next'
 import { cookies } from 'next/headers'
 import assert from 'node:assert/strict'
 
-export const unstable_instant: Instant = {
-  samples: [
+export const instant: Instant = {
+  level: 'experimental-error',
+  unstable_samples: [
     {
       cookies: [{ name: 'testCookie', value: 'testValue' }],
     },
   ],
 }
-export const unstable_prefetch = 'force-runtime'
+export const prefetch = 'allow-runtime'
 
 export default async function Page() {
   return (

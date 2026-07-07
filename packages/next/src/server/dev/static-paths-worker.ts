@@ -30,7 +30,6 @@ import { parseNormalizedAppRoute } from '../../shared/lib/router/routes/app'
 
 type RuntimeConfig = {
   pprConfig: ExperimentalPPRConfig | undefined
-  partialFallbacks: boolean
   configFileName: string
   cacheComponents: boolean
 }
@@ -57,6 +56,7 @@ export async function loadStaticPaths({
   cacheLifeProfiles,
   nextConfigOutput,
   buildId,
+  deploymentId,
   authInterrupts,
   useCacheTimeout,
   staticPageGenerationTimeout,
@@ -77,11 +77,10 @@ export async function loadStaticPaths({
   requestHeaders: IncrementalCache['requestHeaders']
   cacheHandler?: string
   cacheHandlers?: NextConfigComplete['cacheHandlers']
-  cacheLifeProfiles?: {
-    [profile: string]: import('../../server/use-cache/cache-life').CacheLife
-  }
+  cacheLifeProfiles: import('../config-shared').ResolvedCacheLifeProfiles
   nextConfigOutput: 'standalone' | 'export' | undefined
   buildId: string
+  deploymentId: string
   authInterrupts: boolean
   useCacheTimeout: number
   staticPageGenerationTimeout: number
@@ -152,8 +151,8 @@ export async function loadStaticPaths({
       ComponentMod: components.ComponentMod,
       nextConfigOutput,
       isRoutePPREnabled,
-      partialFallbacksEnabled: config.partialFallbacks,
       buildId,
+      deploymentId,
       authInterrupts,
       useCacheTimeout,
       staticPageGenerationTimeout,

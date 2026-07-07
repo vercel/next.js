@@ -1,3 +1,6 @@
+import { Suspense } from 'react'
+import { connection } from 'next/server'
+
 type Params = { slug: string }
 
 /**
@@ -7,6 +10,13 @@ type Params = { slug: string }
  * When the slug changes:
  * - Head segment should be re-fetched (metadata accesses slug)
  * - Body segment should be cached (body does NOT access slug)
+ *
+ * The body contains a self-contained dynamic marker (`<DynamicContent />`
+ * inside Suspense). This is the documented mitigation for dynamic
+ * `generateMetadata` on an otherwise-static body — it makes the body partially
+ * dynamic via PPR, which is what we actually want here: the body doesn't depend
+ * on `slug`, so the static portion of the prefetch is still cacheable across
+ * slug changes.
  */
 export async function generateStaticParams(): Promise<Params[]> {
   return [{ slug: 'aaa' }, { slug: 'bbb' }, { slug: 'ccc' }]
@@ -26,6 +36,14 @@ export default function MetadataPage() {
   return (
     <div id="metadata-page">
       <div data-content="true">{`Static page body`}</div>
+      <Suspense fallback={<div>Loading...</div>}>
+        <DynamicContent />
+      </Suspense>
     </div>
   )
+}
+
+async function DynamicContent() {
+  await connection()
+  return <div data-dynamic-content="true">Dynamic content loaded</div>
 }
