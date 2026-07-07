@@ -13,7 +13,9 @@ description: >
 
 Enable Partial Prefetching and walk the app until every link reuses a shared prefetch. This skill sequences the work; per-insight recipes live in the dev overlay fix cards and their docs pages. The [Adopting Partial Prefetching guide](https://nextjs.org/docs/app/guides/adopting-partial-prefetching) is the canonical reference for the concepts this skill applies.
 
-The one thing that shapes everything below: **these insights surface only in `next dev`, at navigation time, in the dev overlay's Insights tab.** Nothing fails the build. There is no build-only fallback loop for this skill — the work is a click-through sweep of the running app. If you can't drive a browser, stop and tell the user what you can't verify.
+The one thing that shapes everything below: **these insights surface only in `next dev`, in the dev overlay's Insights tab.** Nothing fails the build. There is no build-only fallback loop for this skill — the work is a sweep of the running app in the browser. If you can't drive a browser, stop and tell the user what you can't verify.
+
+Talk to the user in what they'll see — PRs, features, and how the app behaves after — never the insight slugs or step labels. Before you start, tell them briefly what Partial Prefetching changes: a `<Link>` loads a shared App Shell, and `prefetch={true}` no longer pulls dynamic data ahead of the click.
 
 ## requires
 
@@ -31,15 +33,7 @@ The one thing that shapes everything below: **these insights surface only in `ne
 
 ## background
 
-Partial Prefetching changes what `<Link>` downloads for a route. By default a link loads the route's App Shell — one shared shell per route, reused by every link to it regardless of params. `<Link prefetch={true}>` adds the cached page content, and stops prefetching dynamic data entirely.
-
-Two insights drive the work, and they fire on different pages:
-
-1. **[`instant-link-prefetch-partial`](https://nextjs.org/docs/messages/instant-link-prefetch-partial)** fires on the page that _renders_ a `<Link prefetch={true}>` whose target hasn't adopted Partial Prefetching. It's the audit signal for step 1. It fires when the link actually prefetches, so the page holding the link must be visited with the link in the viewport.
-
-2. **[`instant-shell-url-data`](https://nextjs.org/docs/messages/instant-shell-url-data)** ("URL data outside of Suspense") fires on the _target_ route when its shared prefetch reads `params` or `searchParams` outside `<Suspense>`: the read blocks shell extraction, so navigations to the route may not be instant. It fires when the route is validated: on initial load and on navigation to it, regardless of any link's `prefetch` prop.
-
-What counts as URL data: only `params` and `searchParams`. `cookies()` and `headers()` vary per session, not per link, so they don't affect prefetch sharing. `generateStaticParams` doesn't help — a statically-known param still belongs to one URL. A read inside `generateMetadata` surfaces as its own variant ([URL data in `generateMetadata()`](https://nextjs.org/docs/messages/blocking-prerender-metadata-runtime)); a read inside `generateViewport` surfaces as the runtime-viewport prerender error instead, since viewport can't stream out of the shell.
+Partial Prefetching changes what `<Link>` downloads for a route: by default a link loads the route's App Shell — one shared shell per route, reused by every link to it regardless of params — and `<Link prefetch={true}>` adds the cached page content on top. Adopting it means making sure every route can produce that shared shell.
 
 ## working surfaces
 
@@ -49,48 +43,40 @@ What counts as URL data: only `params` and `searchParams`. `cookies()` and `head
 
 Every insight has a docs page — open it. Fetch the linked page for every distinct insight you encounter; the inline message is a summary, the page is the recipe.
 
-## step 1: audit `<Link prefetch={true}>` with the flag off
+## step 1: audit `<Link prefetch={true}>` (before enabling)
 
-Do this **before** enabling anything. Enabling the global flag first marks every route as adopted, which stops the `link-prefetch-partial` warning from firing, and the per-link signal is lost (the guide calls this out).
+Do this with the global flag **off** — enabling it marks every route adopted and stops the [`link-prefetch-partial`](https://nextjs.org/docs/messages/instant-link-prefetch-partial) warning from firing, so the audit has to come first.
 
-1. Enumerate the links across the whole source tree, not just `app/` — links often live in `src/components` or shared UI packages: `grep -rn "prefetch={true}\|prefetch$" --include='*.tsx' --include='*.jsx' .` (also catch the bare `prefetch` prop). Watch for wrapper components that forward props to `next/link` — a `prefetch={true}` on a custom `<Link>` wrapper counts.
-2. Visit each page that renders one, with the link scrolled into view, and collect the insights from the overlay and the dev log.
-3. Decide per link using the guide's table:
-   - Target fully static → drop `prefetch={true}`; the default already loads the whole page.
-   - Target has cached content worth shipping early → keep it.
-   - Target needs request data on arrival → keep it, and consider `export const prefetch = 'allow-runtime'` on the target ([runtime prefetching](https://nextjs.org/docs/app/guides/runtime-prefetching)). `'allow-runtime'` is an enhancement, not a way to clear the warning — the adoption opt-in is `'partial'`.
+Enumerate the links across the whole source tree, not just `app/` — they often live in `src/components` or shared UI packages: `grep -rn "prefetch={true}\|prefetch$" --include='*.tsx' --include='*.jsx' .` (catch the bare `prefetch` prop and `next/link` wrappers too). Then, for each one:
 
-If the grep finds nothing, note it and go straight to [step 2](#step-2-enable-and-sweep-the-routes) — there's no audit to discuss.
+1. **Click it** in `next dev`. The warning fires at navigation time, not when the link prefetches, so a link sitting in the viewport won't trip it — you have to navigate through it.
+2. **Decide what's worth prefetching**, using the guide's table:
+   - Destination fully static → drop `prefetch={true}`; the default `<Link>` already loads the whole page.
+   - Destination has cached content worth shipping ahead of the click → keep `prefetch={true}`.
+   - Destination needs request data on arrival → keep it, optionally with `export const prefetch = 'allow-runtime'` ([runtime prefetching](https://nextjs.org/docs/app/guides/runtime-prefetching)) — an enhancement, not a way to clear the warning.
+3. **Mark the destination adopted**: add `export const prefetch = 'partial'` to its route. That clears the warning for every link pointing at it.
 
-Check in with the user with the list of links and your per-link recommendation before editing. These are product decisions (what's worth prefetching), not mechanical fixes — and they're visual decisions, so show the pages while you ask. The `next-dev-loop` session runs the browser headed, so the user can watch: for each link you're asking about, drive to the page that renders it, then click through to the target, so they see what would ship ahead of the navigation and what wouldn't. Fall back to screenshots per link only when a headed browser isn't possible, and say so.
+These are product decisions (what's worth prefetching), not mechanical fixes — check in with the user, and show the pages while you ask: drive to the page that renders the link and click through to the destination so they see what would ship ahead of the navigation. If the grep finds no `<Link prefetch={true}>`, note it and move on.
 
-## step 2: enable and sweep the routes
+## step 2: enable, then sweep for shell insights (after enabling)
 
-Two shapes, same loop:
+Once every audited destination has `prefetch = 'partial'`:
 
-- **Whole app**: set `partialPrefetching: true` in `next.config.ts` (alongside `cacheComponents: true`).
-- **Incremental**: add `export const prefetch = 'partial'` to one route's page at a time; links to that route load the App Shell even without the global flag. Once every route in scope is opted in, flip the flag and delete the per-route exports.
+1. **Enable the flag globally**: set `partialPrefetching: true` in `next.config.ts` (alongside `cacheComponents: true`). Every route is adopted now, so every link is good.
+2. **Strip the per-route `prefetch = 'partial'` exports** — redundant under the global flag. Script it (a codemod or a find-and-remove), don't hand-edit each file.
+3. **Load every route** in `next dev` to collect its shell insights. Build the queue from a concrete source (the last `next build` route table, or the `app/` tree) and keep it as a todo list. It doesn't have to be feature by feature — just finish every route.
 
-Then sweep. The work queue is every route reachable by a link — build it from a concrete source (the route table from the last `next build`, or the `app/` tree) and keep it as a todo list, so the sweep is reproducible instead of improvised:
+The shell check only runs with Partial Prefetching on and fires at navigation time, so a direct load counts. Watch the Insights tab and the dev log for `Next.js encountered … data` lines. All three shapes can surface, even inside an existing `<Suspense>`, and you can't predict which: [`URL data`](https://nextjs.org/docs/messages/instant-shell-url-data) (`params`/`searchParams`), [`runtime data`](https://nextjs.org/docs/messages/blocking-prerender-runtime) (`cookies()`/`headers()`), or [`uncached data`](https://nextjs.org/docs/messages/blocking-prerender-dynamic) (an uncached `fetch`/DB call). Open each insight's docs page and follow the fix there.
 
-- Visit each route directly (initial-load validation) **and** navigate to it through its links (navigation validation). Both paths validate; navigating is what users actually do, so don't skip it.
-- Watch the Insights tab and the dev log for `encountered URL data`.
-- A route that redirects never validates — mark it unswept, not clean.
-- The first visit per route pays a compile in dev (long on webpack, or with heavy pages). Warm the route before judging it, and don't mistake a cold compile for a hang.
-- Per insight, apply the fix from its docs page. The shape is always the same: keep the URL-independent part of the route outside the boundary, pass the `params`/`searchParams` promise into a `<Suspense>`-wrapped child, and await it only there. Don't await above the boundary.
-- For the `generateMetadata` variant: switch to a static `metadata` export, or accept the metadata blocking and mark the route dynamic per its fix cards.
-- `export const instant = false` opts a route out of all instant-navigation validation. That's a deliberate, documented decision (the route genuinely can't provide an App Shell), not a way to clear the list — same rule as the Cache Components skill.
-
-Re-check pages that render links to a route you changed: fixing a target route can surface the next insight on the page linking to it.
+Ambiguous calls are user check-ins, not agent judgment: when you're unsure which fix fits, or whether a route should stay opted out, show the route in the headed browser and ask. Don't narrate the refactor with comments — the `<Suspense>` boundaries speak for themselves.
 
 ## step 3: verify
 
-- Silence is only success if the signal can fire. If nothing surfaced anywhere (overlay or dev log) across the whole sweep, verify the setup before reporting all clean: the flag is on, the version is 16.3 or later, and the dev server was restarted after the config change.
-- Insights tab empty (or every remaining entry is a documented `instant = false` decision) after sweeping every route both ways.
-- The shells are real: for each route you touched, confirm in the browser that the first paint after a navigation shows the intended shared content, not an empty shell or a stuck fallback. A `<Suspense>` around the whole page body passes validation with an empty shell, which defeats the point.
-- `next build` still passes (it should never have broken — this skill's changes are Suspense placement and config).
+- Insights tab empty (or every remaining entry is a deliberate, documented decision) and the dev log quiet, after loading every route. If nothing surfaced at all, confirm the signal can fire before calling it clean: `partialPrefetching` is on, the version is 16.3 or later, and the dev server was restarted after the config change.
+- The shells are real: for each route you changed, confirm the first paint after a navigation shows the intended shared content, not an empty shell or a stuck fallback. A `<Suspense>` around the whole page body passes validation with an empty shell, which defeats the point.
+- `next build` still passes.
 
-Check in with the user per feature, in their language: which links now share a prefetch, what streams in after navigation, what stayed opted out and why. Show, don't tell — click the link in the headed browser while they watch, so they see the shared shell paint instantly and the URL-specific region stream in. Throttle the network in the browser if it's too fast to observe. Attach before/after screenshots only when a live browser isn't possible.
+Check in with the user in their language — no insight slugs or step labels: which links now share a prefetch, what streams in after navigation, and what stayed opted out and why. Show, don't tell — drive a link live in the headed browser so they see the shared shell paint instantly and the URL-specific region stream in. Attach before/after screenshots only when a live browser isn't possible.
 
 ## further reading
 
