@@ -380,6 +380,10 @@ function gesturePush(href: string, options?: NavigateOptions): void {
   }
 }
 
+// Tracks the newest HMR refresh generation so that a newer refresh can abort
+// the request of the one it supersedes. Development only.
+let activeHmrRefreshController: AbortController | null = null
+
 /**
  * The app router that is exposed through `useRouter`. These are public API
  * methods. Internal Next.js code should call the lower level methods directly
@@ -486,9 +490,19 @@ export const publicAppRouterInstance: AppRouterInstance = {
       // Reset the known routes table so that route predictions are cleared
       // when routes change during development.
       resetKnownRoutes()
+      let signal: AbortSignal | undefined
+      if (process.env.__NEXT_SERVER_COMPONENTS_HMR_CANCELLATION) {
+        // Abort the superseded generation before scheduling the new one, so its
+        // request is torn down as early as possible. Halting (not rejecting)
+        // makes the abort safe regardless of order.
+        activeHmrRefreshController?.abort()
+        activeHmrRefreshController = new AbortController()
+        signal = activeHmrRefreshController.signal
+      }
       startTransition(() => {
         dispatchAppRouterAction({
           type: ACTION_HMR_REFRESH,
+          signal,
         })
       })
     }
