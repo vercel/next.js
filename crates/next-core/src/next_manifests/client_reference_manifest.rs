@@ -98,14 +98,13 @@ pub struct ManifestNodeEntry {
 /// `__turbopack_load_by_url__`.
 ///
 /// Most chunks are a plain URL string. A *merged* chunk (one that bundles several component
-/// chunks) is instead emitted as an object carrying its URL (`u`) alongside its component chunk
-/// paths (`c`). This us to dynamically choose to load the whole chunk or individual components of
-/// it, as neeeded.
+/// chunks) is instead emitted as a `[url, componentChunkPaths]` array. This us to dynamically
+/// choose to load the whole chunk or individual components of it, as neeeded.
 #[derive(Serialize, Debug, Clone)]
 #[serde(untagged)]
 pub enum ClientChunk {
     Path(RcStr),
-    Merged { u: RcStr, c: Vec<RcStr> },
+    Merged(RcStr, Vec<RcStr>),
 }
 
 #[turbo_tasks::value(shared)]
@@ -324,10 +323,7 @@ async fn build_manifest(
                         // URL so the browser runtime can split it during navigation.
                         Ok(
                             match client_chunk_component_paths(chunk, &client_relative_path).await? {
-                                Some(components) => ClientChunk::Merged {
-                                    u: url,
-                                    c: components,
-                                },
+                                Some(components) => ClientChunk::Merged(url, components),
                                 None => ClientChunk::Path(url),
                             },
                         )

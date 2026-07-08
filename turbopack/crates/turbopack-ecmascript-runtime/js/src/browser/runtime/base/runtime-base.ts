@@ -88,7 +88,7 @@ const availableModuleChunks: Map<ChunkPath, Promise<any> | true> = new Map()
 // Registry mapping a merged chunk's path to its constituent component chunk paths.
 const chunkComponents: Map<ChunkPath, ChunkPath[]> = new Map()
 
-type ChunkUrlOrMerged = ChunkUrl | { u: ChunkUrl; c: ChunkPath[] }
+type ChunkUrlOrMerged = ChunkUrl | [ChunkUrl, ChunkPath[]]
 
 // Memoizes the composite promise returned for a merged chunk loaded by URL, keyed by URL.
 const splitChunkPromises: Map<ChunkUrl, Promise<any>> = new Map()
@@ -211,22 +211,21 @@ function loadChunkByUrlInternal(
   sourceData: SourceData,
   chunkEntry: ChunkUrlOrMerged
 ): Promise<any> {
-  // A merged chunk arrives as an object `{ u, c }` carrying its component chunk paths. Register
+  // A merged chunk arrives as a `[url, componentChunkPaths]` array. Register
   // the components so a by-URL load of this merged chunk — now or from a later navigation — can
   // be split, and so `registerChunk` can mark them available when the whole chunk loads.
   let chunkUrl: ChunkUrl
   let components: ChunkPath[] | undefined
-  if (typeof chunkEntry === 'object') {
-    chunkUrl = chunkEntry.u
-    components = chunkEntry.c
-  } else {
+  if (typeof chunkEntry === 'string') {
     chunkUrl = chunkEntry
+  } else {
+    ;[chunkUrl, components] = chunkEntry
   }
   const chunkPath = chunkUrlToPath(chunkUrl)
   if (components !== undefined) {
     chunkComponents.set(chunkPath, components)
   } else {
-    // A plain URL may still be a merged chunk we already registered from its `{ u, c }`.
+    // A plain URL may still be a merged chunk we already registered from its array.
     components = chunkComponents.get(chunkPath)
   }
 
@@ -271,7 +270,7 @@ function chunkUrlToPath(chunkUrl: ChunkUrl): ChunkPath {
  * component chunks as available so a later by-URL load of a *different* merged chunk that
  * shares a component skips re-downloading it. Called from `registerChunk`.
  */
- 
+
 function markChunkComponentsAvailable(chunk: ChunkPath | ChunkScript) {
   if (chunkComponents.size === 0) return
   const components = chunkComponents.get(getPathFromScript(chunk))
