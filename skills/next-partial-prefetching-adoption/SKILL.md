@@ -65,7 +65,16 @@ These are product decisions (what's worth prefetching), not mechanical fixes —
 Once every audited destination has `prefetch = 'partial'`:
 
 1. **Enable the flag globally**: set `partialPrefetching: true` in `next.config.ts` (alongside `cacheComponents: true`). Every route is adopted now, so every link is good.
-2. **Strip the per-route `prefetch = 'partial'` exports** — redundant under the global flag. Run the first-party codemod: `npx @next/codemod@latest remove-partial-prefetch .`. It removes only `export const prefetch = 'partial'` and leaves other values (a deliberate `prefetch = 'allow-runtime'`) in place, so it's safer than a text find-and-replace. Don't hand-edit each file.
+2. **Strip the per-route `prefetch = 'partial'` exports** — redundant under the global flag. Run the first-party `remove-partial-prefetch` codemod rather than a text find-and-replace: it removes only `export const prefetch = 'partial'` and leaves any other value (a deliberate `prefetch = 'allow-runtime'`) in place.
+
+   Use the `@canary` channel, not `@latest`. The `remove-partial-prefetch` transform isn't in the stable `@next/codemod` release yet; `@next/codemod@latest` errors with `Invalid transform choice`.
+
+   ```bash
+   npx @next/codemod@canary remove-partial-prefetch ./app
+   ```
+
+   The codemod refuses to run on a dirty working tree. Commit or stash unrelated work first, or pass `--force` to let its edits land alongside your WIP. If the codemod isn't available (older `@next/codemod`, sandboxed environment, offline run), reproduce it by hand: remove `export const prefetch = 'partial'` from every `app/**/{page,layout}.{js,jsx,ts,tsx}`, and leave any other `prefetch` value in place. Don't hand-edit when the codemod can run.
+
 3. **Load every route** in `next dev` to collect its shell insights. Build the queue from a concrete source (the last `next build` route table, or the `app/` tree) and keep it as a todo list. It doesn't have to be feature by feature — just finish every route.
 
 The shell check only runs with Partial Prefetching on and fires at navigation time, so a direct load counts. Watch the Insights tab and the dev log for `Next.js encountered … data` lines. All three shapes can surface, even inside an existing `<Suspense>`, and you can't predict which: [`URL data`](https://nextjs.org/docs/messages/instant-shell-url-data) (`params`/`searchParams`), [`runtime data`](https://nextjs.org/docs/messages/blocking-prerender-runtime) (`cookies()`/`headers()`), or [`uncached data`](https://nextjs.org/docs/messages/blocking-prerender-dynamic) (an uncached `fetch`/DB call). Open each insight's docs page and follow the fix there.
@@ -74,7 +83,7 @@ Ambiguous calls are user check-ins, not agent judgment: when you're unsure which
 
 ## step 3: verify
 
-- Insights tab empty (or every remaining entry is a deliberate, documented decision) and the dev log quiet, after loading every route. If nothing surfaced at all, confirm the signal can fire before calling it clean: `partialPrefetching` is on, the version is 16.3 or later, and the dev server was restarted after the config change.
+- Insights tab empty (or every remaining entry is a deliberate, documented decision) and the dev log quiet, after loading every route. **An empty sweep is the expected outcome when Cache Components adoption finished cleanly** — the prereq already forced every `params`/`searchParams`/`cookies()` read behind `<Suspense>` (surfaced there as `blocking-prerender-*` errors), so there's nothing left for this step to flag. That's success, not a missing signal. If nothing surfaced and you want to confirm the signal can still fire, check `partialPrefetching` is on, the version is 16.3 or later, and the dev server was restarted after the config change; or move one URL read back outside `<Suspense>` and watch it fire, then revert.
 - The App Shells are real: for each route you changed, confirm the first paint after a navigation shows the intended shared content, not an empty shell or a stuck fallback. A `<Suspense>` around the whole page body passes validation with an empty shell, which defeats the point.
 - `next build` still passes.
 

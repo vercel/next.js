@@ -93,7 +93,7 @@ A `<Link>` pointing at a route with `prefetch = 'partial'` loads the App Shell o
 
 > **Good to know**: Adopting per-route first also preserves the dev-only `<Link prefetch={true}>` warning, which points at `<Link prefetch={true}>` calls whose destinations haven't adopted yet. Enabling the global flag first marks every route as adopted, which stops the warning from firing and removes the signal for the [audit below](#auditing-existing-link-prefetchtrue-calls).
 
-Once every route in scope has `prefetch = 'partial'`, enable the config and remove the per-route exports:
+Once every route in scope has `prefetch = 'partial'`, enable the config:
 
 ```ts filename="next.config.ts" highlight={5}
 import type { NextConfig } from 'next'
@@ -105,6 +105,14 @@ const nextConfig: NextConfig = {
 
 export default nextConfig
 ```
+
+The per-route `prefetch = 'partial'` exports are now redundant, since the global flag adopts every route. Remove them in one pass with the [`remove-partial-prefetch`](/docs/app/guides/upgrading/codemods#remove-partial-prefetch) codemod, which strips `export const prefetch = 'partial'` from every `page` and `layout`:
+
+```bash filename="Terminal"
+npx @next/codemod@canary remove-partial-prefetch ./app
+```
+
+It removes only the `'partial'` value and leaves other values such as `prefetch = 'allow-runtime'` in place.
 
 ## Auditing existing `<Link prefetch={true}>` calls
 
