@@ -61,12 +61,15 @@ describe('runWithConcurrency', () => {
     expect(started).toEqual([0, 1])
   })
 
-  it('rejects invalid maxConcurrency values', async () => {
-    const worker = jest.fn(async (item: number) => item)
+  it.each([0, -1, 1.5, Number.NaN, Number.POSITIVE_INFINITY])(
+    'rejects an invalid maxConcurrency value of %p',
+    async (maxConcurrency) => {
+      const worker = jest.fn(async (item: number) => item)
 
-    await expect(runWithConcurrency([0, 1], 0, worker)).rejects.toThrow(
-      'maxConcurrency must be a positive integer'
-    )
-    expect(worker).not.toHaveBeenCalled()
-  })
+      await expect(
+        runWithConcurrency([0, 1], maxConcurrency, worker)
+      ).rejects.toThrow('maxConcurrency must be a positive integer')
+      expect(worker).not.toHaveBeenCalled()
+    }
+  )
 })

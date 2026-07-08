@@ -1,6 +1,10 @@
 /**
  * Maps over `items` while limiting the number of concurrently running tasks.
  * Results are returned in the same order as the input items.
+ *
+ * After the first rejection is observed, no new tasks are started. Tasks that
+ * are already running are not cancelled, and the returned promise rejects
+ * without waiting for them to finish.
  */
 export async function runWithConcurrency<T, R>(
   items: readonly T[],
