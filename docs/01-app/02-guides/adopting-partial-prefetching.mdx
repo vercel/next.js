@@ -91,7 +91,7 @@ export default function Page() {
 
 A `<Link>` pointing at a route with `prefetch = 'partial'` loads the App Shell only, even when `partialPrefetching` is not set in `next.config.ts`.
 
-> **Good to know**: Adopting per-route first also preserves the dev-only `<Link prefetch={true}>` warning, which points at `<Link prefetch={true}>` calls whose destinations haven't adopted yet. Enabling the global flag first marks every route as adopted, which stops the warning from firing and removes the signal for the [audit below](#auditing-existing-link-prefetchtrue-calls).
+> **Good to know**: Adopting per-route first also preserves the dev-only `<Link prefetch={true}>` warning, which points at `<Link prefetch={true}>` calls whose destinations haven't adopted yet. Enabling the global flag first marks every route as adopted, which stops the warning from surfacing and removes the signal for the [audit below](#auditing-existing-link-prefetchtrue-calls).
 
 Once every route in scope has `prefetch = 'partial'`, enable the config:
 

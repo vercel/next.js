@@ -45,11 +45,11 @@ Every insight has a docs page — open it. Fetch the linked page for every disti
 
 ## step 1: audit `<Link prefetch={true}>` (before enabling)
 
-> **New project, or links you just wrote yourself?** There's nothing to audit — you already made the keep-or-drop call as you added each link. Enable `partialPrefetching: true` globally, add `prefetch={true}` only where a destination's cached content is worth shipping ahead of the click, and go straight to the [shell sweep](#step-2-enable-then-sweep-for-shell-insights-after-enabling). The audit below is for adopting an **existing** app: it surfaces legacy `prefetch={true}` calls whose destinations predate Partial Prefetching, which enabling the flag would otherwise mark adopted silently.
+> **New project, or links you wrote yourself?** There's nothing to audit — you already made the keep-or-drop call as you added each link. Enable `partialPrefetching: true` globally, add `prefetch={true}` only where a destination's cached content is worth shipping ahead of the click, and go straight to the [shell sweep](#step-2-enable-then-sweep-for-shell-insights-after-enabling). The audit below is for adopting an **existing** app: it surfaces legacy `prefetch={true}` calls whose destinations predate Partial Prefetching, which enabling the flag would otherwise mark adopted silently.
 
-Do this with the global flag **off** — enabling it marks every route adopted and stops the [`link-prefetch-partial`](https://nextjs.org/docs/messages/instant-link-prefetch-partial) warning from firing, so the audit has to come first.
+Do this with the global flag **off** — enabling it marks every route adopted and stops the [`link-prefetch-partial`](https://nextjs.org/docs/messages/instant-link-prefetch-partial) warning from surfacing, so the audit has to come first.
 
-Enumerate the links across the whole source tree, not just `app/` — they often live in `src/components` or shared UI packages: `grep -rn "prefetch={true}\|prefetch$" --include='*.tsx' --include='*.jsx' .` (catch the bare `prefetch` prop and `next/link` wrappers too). Then, for each one:
+Enumerate the links across the whole source tree, not only `app/` — they often live in `src/components` or shared UI packages: `grep -rn "prefetch={true}\|prefetch$" --include='*.tsx' --include='*.jsx' .` (catch the bare `prefetch` prop and `next/link` wrappers too). Then, for each one:
 
 1. **Click it** in `next dev`. The warning fires at navigation time, not when the link prefetches, so a link sitting in the viewport won't trip it — you have to navigate through it.
 2. **Decide what's worth prefetching**, using the guide's table:
@@ -75,7 +75,7 @@ Once every audited destination has `prefetch = 'partial'`:
 
    The codemod refuses to run on a dirty working tree. Commit or stash unrelated work first, or pass `--force` to let its edits land alongside your WIP. If the codemod isn't available (older `@next/codemod`, sandboxed environment, offline run), reproduce it by hand: remove `export const prefetch = 'partial'` from every `app/**/{page,layout}.{js,jsx,ts,tsx}`, and leave any other `prefetch` value in place. Don't hand-edit when the codemod can run.
 
-3. **Load every route** in `next dev` to collect its shell insights. Build the queue from a concrete source (the last `next build` route table, or the `app/` tree) and keep it as a todo list. It doesn't have to be feature by feature — just finish every route.
+3. **Load every route** in `next dev` to collect its shell insights. Build the queue from a concrete source (the last `next build` route table, or the `app/` tree) and keep it as a todo list. It doesn't have to be feature by feature — finish every route.
 
 The shell check only runs with Partial Prefetching on and fires at navigation time, so a direct load counts. Watch the Insights tab and the dev log for `Next.js encountered … data` lines. All three shapes can surface, even inside an existing `<Suspense>`, and you can't predict which: [`URL data`](https://nextjs.org/docs/messages/instant-shell-url-data) (`params`/`searchParams`), [`runtime data`](https://nextjs.org/docs/messages/blocking-prerender-runtime) (`cookies()`/`headers()`), or [`uncached data`](https://nextjs.org/docs/messages/blocking-prerender-dynamic) (an uncached `fetch`/DB call). Open each insight's docs page and follow the fix there.
 
