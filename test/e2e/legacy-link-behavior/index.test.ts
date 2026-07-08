@@ -1,5 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import { retry } from 'next-test-utils'
+import { retry, waitForNoErrorToast } from 'next-test-utils'
 
 describe('Link with legacyBehavior', () => {
   const { next, isNextDev, skipped } = nextTestSetup({
@@ -14,7 +14,7 @@ describe('Link with legacyBehavior', () => {
   describe('if the child is an <a> tag', () => {
     it('forwards the href attribute', async () => {
       const $ = await next.render$('/')
-      const $a = $('a')
+      const $a = $('a[href="/about"]')
 
       expect($a.text()).toBe('About')
       expect($a.attr('href')).toBe('/about')
@@ -22,7 +22,7 @@ describe('Link with legacyBehavior', () => {
 
     it('navigates correctly', async () => {
       const browser = await next.browser('/')
-      await browser.elementByCss('a').click()
+      await browser.elementByCss('a[href="/about"]').click()
       const title = await browser.elementByCss('#about-page').text()
 
       expect(title).toBe('About Page')
@@ -31,7 +31,7 @@ describe('Link with legacyBehavior', () => {
 
   it('works if the child is a number', async () => {
     const browser = await next.browser('/child-is-a-number')
-    await browser.elementByCss('a').click()
+    await browser.elementByCss('a[href="/about"]').click()
     const title = await browser.elementByCss('h1').text()
 
     expect(title).toBe('About Page')
@@ -39,7 +39,7 @@ describe('Link with legacyBehavior', () => {
 
   it('works if the child is a string', async () => {
     const browser = await next.browser('/child-is-a-string')
-    await browser.elementByCss('a').click()
+    await browser.elementByCss('a[href="/about"]').click()
     const title = await browser.elementByCss('h1').text()
 
     expect(title).toBe('About Page')
@@ -78,15 +78,16 @@ describe('Link with legacyBehavior', () => {
   describe('passHref', () => {
     it('forwards the href attribute', async () => {
       const $ = await next.render$('/passHref')
-      const $a = $('a')
-
+      const $a = $('a[href="/about"]')
       expect($a.text()).toBe('About')
       expect($a.attr('href')).toBe('/about')
     })
 
     it('navigates correctly', async () => {
       const browser = await next.browser('/passHref')
-      await browser.elementByCss('a').click()
+      await waitForNoErrorToast(browser)
+
+      await browser.elementByCss('a[href="/about"]').click()
       const title = await browser.elementByCss('h1').text()
 
       expect(title).toBe('About Page')
