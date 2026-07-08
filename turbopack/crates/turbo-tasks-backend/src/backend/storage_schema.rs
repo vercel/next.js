@@ -520,9 +520,6 @@ pub enum UnevictableReason {
     Modified,
     /// The task is transient
     Transient,
-    /// The task is pinned against GC ([`TaskFlags::pinned`]); it must stay resident so the
-    /// transient, session-only pin flag can never be lost by eviction.
-    Pinned,
     // Keep `NothingToEvict` last: `COUNT` is derived from its discriminant.
     NothingToEvict,
 }
@@ -534,7 +531,6 @@ impl UnevictableReason {
         UnevictableReason::InProgress,
         UnevictableReason::Modified,
         UnevictableReason::Transient,
-        UnevictableReason::Pinned,
         UnevictableReason::NothingToEvict,
     ];
 
@@ -554,7 +550,6 @@ impl UnevictableReason {
             UnevictableReason::InProgress => "skipped_in_progress",
             UnevictableReason::Modified => "skipped_modified",
             UnevictableReason::Transient => "skipped_transient",
-            UnevictableReason::Pinned => "skipped_pinned",
             UnevictableReason::NothingToEvict => "skipped_nothing_to_evict",
         }
     }
@@ -602,16 +597,17 @@ impl TaskStorage {
             Some(arc) if arc.count() == 1 => KeyEvictability::AlreadyEvicted,
             Some(_) => KeyEvictability::Evictable,
         };
-        // Tasks with a live transient reference (a `prevent_gc` pin, a detached handle, or a
-        // transient parent — see `transient_ref_count`) must stay fully resident: the count is a
-        // transient, session-only field, so evicting the task would silently lose it and expose the
-        // still-referenced task to collection.
-        if self.gc_transient_ref_count() > 0 {
-            return (
-                key_evictability,
-                ValueEvictability::Unevictable(UnevictableReason::Pinned),
-            );
-        }
+        // A task with a live transient reference (a `prevent_gc` pin, a detached handle, or a
+        // transient parent — see `transient_ref_count`) is NOT forced fully resident. It falls
+        // through to the normal Meta/Data evictability below: `drop_partial` retains non-default
+        // *transient* fields, so `transient_ref_count` survives as residue and the map entry is
+        // kept (see `DropPartialOutcome::HasResidue`), while the Meta/Data it no longer
+        // needs are reclaimed. Losing the count to eviction (which would expose the
+        // still-referenced task to collection) can't happen. After such a partial eviction
+        // the task's Meta is gone, so it is not immediately GC-collectible even once
+        // unpinned — `is_gc_collectible` requires Meta resident — which is safe
+        // (under-collection; a later access restores Meta and a later pass collects it).
+        //
         // All these flags imply that the task is currently being used in some way
         // either literally executing, or about to
         if self.get_in_progress().is_some()

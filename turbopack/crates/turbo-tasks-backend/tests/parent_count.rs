@@ -415,8 +415,10 @@ async fn gc_does_not_collect_pinned_task() {
         "a pinned task must not be collected even when disconnected"
     );
 
-    // A snapshot + evict must not lose the (transient) pin: pinned tasks are unevictable, so the
-    // flag survives and a subsequent GC still collects nothing.
+    // A snapshot + evict must not lose the (transient) pin. A pinned task is no longer forced fully
+    // resident — its Meta/Data may be partially evicted — but the session-only
+    // `transient_ref_count` is retained as residue (the map entry is kept), so the task stays
+    // uncollectible and a subsequent GC still collects nothing.
     tt2.backend().snapshot_and_evict_for_testing(&tt2);
     assert_eq!(
         tt2.backend().gc_for_testing(&tt2).0,
