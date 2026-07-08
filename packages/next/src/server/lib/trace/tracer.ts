@@ -337,10 +337,10 @@ class NextTracerImpl implements NextTracer {
     const [type, fnOrOptions, fnOrEmpty] = args
     const tracingEnabled =
       Boolean(NEXT_OTEL_PERFORMANCE_PREFIX) || this.isOpenTelemetryEnabled()
-    const localSpanStoreEnabled =
-      getLocalSpanRecorder()?.isLocalSpanStoreEnabled() ?? false
+    const localSpanRecordingEnabled =
+      getLocalSpanRecorder()?.isLocalSpanRecordingEnabled() ?? false
 
-    if (!tracingEnabled && !localSpanStoreEnabled) {
+    if (!tracingEnabled && !localSpanRecordingEnabled) {
       return typeof fnOrOptions === 'function' ? fnOrOptions() : fnOrEmpty()
     }
 
@@ -403,7 +403,7 @@ class NextTracerImpl implements NextTracer {
         options,
         spanContext,
         tracingEnabled,
-        localSpanStoreEnabled,
+        localSpanRecordingEnabled,
         (span: Span) => {
           let startTime: number | undefined
           if (
@@ -503,7 +503,7 @@ class NextTracerImpl implements NextTracer {
     options: TracerSpanOptions,
     parentContext: Context,
     tracingEnabled: boolean,
-    localSpanStoreEnabled: boolean,
+    localSpanRecordingEnabled: boolean,
     fn: (span: Span) => T
   ): T {
     if (tracingEnabled) {
@@ -512,7 +512,7 @@ class NextTracerImpl implements NextTracer {
         options,
         (span: Span) =>
           fn(
-            localSpanStoreEnabled
+            localSpanRecordingEnabled
               ? this.createLocalRecordingSpan(
                   spanName,
                   options,
@@ -608,10 +608,10 @@ class NextTracerImpl implements NextTracer {
     const parentContext =
       this.getSpanContext(options?.parentSpan ?? this.getActiveScopeSpan()) ??
       context.active()
-    const localSpanStoreEnabled =
-      getLocalSpanRecorder()?.isLocalSpanStoreEnabled() ?? false
+    const localSpanRecordingEnabled =
+      getLocalSpanRecorder()?.isLocalSpanRecordingEnabled() ?? false
 
-    if (!localSpanStoreEnabled) {
+    if (!localSpanRecordingEnabled) {
       return this.getTracerInstance().startSpan(type, options, parentContext)
     }
 

@@ -18,14 +18,21 @@ import {
   trace,
 } from '@opentelemetry/api'
 
-import { clearSpanStoreForTest, getSpanRecords } from './span-store'
+import { setSpanRecorderForTest, type SpanStoreRecord } from './span-store'
 import { registerLocalSpanRecorder } from './local-span-recorder'
 import { AppRenderSpan, NodeSpan } from './constants'
 import { SpanKind, SpanStatusCode, getTracer } from './tracer'
 
 const customContextKey = createContextKey('next.tracer.test.custom-context')
-const originalLocalSpans = process.env.NEXT_OTEL_LOCAL_SPANS
+const originalRequestInsights = process.env.__NEXT_REQUEST_INSIGHTS
 const originalDevServer = process.env.__NEXT_DEV_SERVER
+const spanRecords: SpanStoreRecord[] = []
+
+function getSpanRecords(filter: { name?: string } = {}): SpanStoreRecord[] {
+  return spanRecords.filter(
+    (span) => filter.name === undefined || span.name === filter.name
+  )
+}
 
 const getter: TextMapGetter<Record<string, string | undefined>> = {
   keys: (carrier) => Object.keys(carrier),
@@ -144,17 +151,19 @@ describe('withPropagatedContext', () => {
   })
 })
 
-describe('local span store sink', () => {
+describe('local span recording', () => {
   beforeEach(() => {
     process.env.__NEXT_DEV_SERVER = '1'
+    delete process.env.__NEXT_REQUEST_INSIGHTS
+    setSpanRecorderForTest((span) => spanRecords.push(span))
     registerLocalSpanRecorder()
   })
 
   afterEach(() => {
-    if (originalLocalSpans === undefined) {
-      delete process.env.NEXT_OTEL_LOCAL_SPANS
+    if (originalRequestInsights === undefined) {
+      delete process.env.__NEXT_REQUEST_INSIGHTS
     } else {
-      process.env.NEXT_OTEL_LOCAL_SPANS = originalLocalSpans
+      process.env.__NEXT_REQUEST_INSIGHTS = originalRequestInsights
     }
     if (originalDevServer === undefined) {
       delete process.env.__NEXT_DEV_SERVER
@@ -162,11 +171,12 @@ describe('local span store sink', () => {
       process.env.__NEXT_DEV_SERVER = originalDevServer
     }
     trace.disable()
-    clearSpanStoreForTest()
+    setSpanRecorderForTest(undefined)
+    spanRecords.length = 0
   })
 
   it('does not mirror spans by default', () => {
-    delete process.env.NEXT_OTEL_LOCAL_SPANS
+    setSpanRecorderForTest(undefined)
 
     const result = getTracer().trace(NodeSpan.runHandler, () => 'result')
 
@@ -176,7 +186,6 @@ describe('local span store sink', () => {
 
   it('bypasses local span handling outside the dev server', () => {
     delete process.env.__NEXT_DEV_SERVER
-    process.env.NEXT_OTEL_LOCAL_SPANS = '1'
     let receivedSpan: unknown = 'not-called'
 
     const result = getTracer().trace(NodeSpan.runHandler, (span) => {
@@ -190,8 +199,6 @@ describe('local span store sink', () => {
   })
 
   it('records sync trace calls without an OTel provider', () => {
-    process.env.NEXT_OTEL_LOCAL_SPANS = '1'
-
     const result = getTracer().trace(
       NodeSpan.runHandler,
       {
@@ -222,8 +229,6 @@ describe('local span store sink', () => {
   })
 
   it('records app render fetch spans without an OTel provider', async () => {
-    process.env.NEXT_OTEL_LOCAL_SPANS = '1'
-
     const result = await getTracer().trace(
       AppRenderSpan.fetch,
       {
@@ -257,8 +262,6 @@ describe('local span store sink', () => {
   })
 
   it('mirrors span mutations made through the OTel span API', () => {
-    process.env.NEXT_OTEL_LOCAL_SPANS = '1'
-
     const result = getTracer().trace(
       NodeSpan.runHandler,
       { spanName: 'test.mutated' },
@@ -297,8 +300,6 @@ describe('local span store sink', () => {
   })
 
   it('mirrors span status without a thrown error', () => {
-    process.env.NEXT_OTEL_LOCAL_SPANS = '1'
-
     const result = getTracer().trace(
       NodeSpan.runHandler,
       { spanName: 'test.status' },
@@ -324,8 +325,6 @@ describe('local span store sink', () => {
   })
 
   it('records async trace calls when the returned promise settles', async () => {
-    process.env.NEXT_OTEL_LOCAL_SPANS = '1'
-
     const result = await getTracer().trace(
       NodeSpan.runHandler,
       { spanName: 'test.async' },
@@ -346,8 +345,6 @@ describe('local span store sink', () => {
   })
 
   it('records callback trace calls when done is called', () => {
-    process.env.NEXT_OTEL_LOCAL_SPANS = '1'
-
     const result = getTracer().trace(
       NodeSpan.runHandler,
       { spanName: 'test.callback' },
@@ -368,8 +365,6 @@ describe('local span store sink', () => {
   })
 
   it('records callback trace calls consistently with an OTel provider', () => {
-    process.env.NEXT_OTEL_LOCAL_SPANS = '1'
-
     const delegateSpan = trace.wrapSpanContext({
       traceId: '0123456789abcdef0123456789abcdef',
       spanId: '0123456789abcdef',
@@ -411,8 +406,6 @@ describe('local span store sink', () => {
   })
 
   it('records direct spans with active local parent identity', () => {
-    process.env.NEXT_OTEL_LOCAL_SPANS = '1'
-
     const parentSpan = getTracer().startSpan(NodeSpan.runHandler, {
       attributes: { 'next.page': 'parent' },
     })
@@ -454,8 +447,6 @@ describe('local span store sink', () => {
   })
 
   it('records thrown errors before rethrowing', () => {
-    process.env.NEXT_OTEL_LOCAL_SPANS = '1'
-
     expect(() =>
       getTracer().trace(NodeSpan.runHandler, { spanName: 'test.error' }, () => {
         throw new Error('boom')
@@ -475,10 +466,11 @@ describe('local span store sink', () => {
   })
 
   it('groups local spans by existing async storage without adding extra attributes', () => {
-    process.env.NEXT_OTEL_LOCAL_SPANS = '1'
-
     jest.isolateModules(() => {
       const previousAsyncLocalStorage = (globalThis as any).AsyncLocalStorage
+      let setIsolatedSpanRecorderForTest:
+        | typeof setSpanRecorderForTest
+        | undefined
       try {
         const { AsyncLocalStorage } =
           require('node:async_hooks') as typeof import('node:async_hooks')
@@ -488,8 +480,9 @@ describe('local span store sink', () => {
           require('../../app-render/work-async-storage.external') as typeof import('../../app-render/work-async-storage.external')
         const { workUnitAsyncStorage } =
           require('../../app-render/work-unit-async-storage.external') as typeof import('../../app-render/work-unit-async-storage.external')
-        const { getSpanRecords: getIsolatedSpanRecords } =
-          require('./span-store') as typeof import('./span-store')
+        ;({ setSpanRecorderForTest: setIsolatedSpanRecorderForTest } =
+          require('./span-store') as typeof import('./span-store'))
+        setIsolatedSpanRecorderForTest((span) => spanRecords.push(span))
         const { registerLocalSpanRecorder: registerIsolatedLocalSpanRecorder } =
           require('./local-span-recorder') as typeof import('./local-span-recorder')
         registerIsolatedLocalSpanRecorder()
@@ -530,7 +523,7 @@ describe('local span store sink', () => {
           })
         )
 
-        const records = getIsolatedSpanRecords()
+        const records = getSpanRecords()
         const traceIds = new Set(records.map((record) => record.traceId))
         const outerRecord = records.find(
           (record) => record.name === 'test.als.outer'
@@ -562,6 +555,7 @@ describe('local span store sink', () => {
           )
         ).toBe(false)
       } finally {
+        setIsolatedSpanRecorderForTest?.(undefined)
         if (previousAsyncLocalStorage === undefined) {
           delete (globalThis as any).AsyncLocalStorage
         } else {

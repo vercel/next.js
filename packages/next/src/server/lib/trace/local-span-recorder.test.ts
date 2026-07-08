@@ -6,10 +6,10 @@ import { runInNewContext } from 'node:vm'
 import { setFlagsFromString } from 'node:v8'
 import { SpanStatusCode, trace } from 'next/dist/compiled/@opentelemetry/api'
 import { createLocalSpan } from './local-span-recorder'
-import { clearSpanStoreForTest, getSpanRecords } from './span-store'
+import { setSpanRecorderForTest, type SpanStoreRecord } from './span-store'
 
-const originalLocalSpans = process.env.NEXT_OTEL_LOCAL_SPANS
 const originalDevServer = process.env.__NEXT_DEV_SERVER
+const spanRecords: SpanStoreRecord[] = []
 
 setFlagsFromString('--expose-gc')
 const forceGarbageCollection = runInNewContext('gc') as () => void
@@ -17,24 +17,20 @@ const forceGarbageCollection = runInNewContext('gc') as () => void
 describe('local recording span', () => {
   beforeEach(() => {
     process.env.__NEXT_DEV_SERVER = '1'
+    setSpanRecorderForTest((span) => spanRecords.push(span))
   })
 
   afterEach(() => {
-    if (originalLocalSpans === undefined) {
-      delete process.env.NEXT_OTEL_LOCAL_SPANS
-    } else {
-      process.env.NEXT_OTEL_LOCAL_SPANS = originalLocalSpans
-    }
     if (originalDevServer === undefined) {
       delete process.env.__NEXT_DEV_SERVER
     } else {
       process.env.__NEXT_DEV_SERVER = originalDevServer
     }
-    clearSpanStoreForTest()
+    setSpanRecorderForTest(undefined)
+    spanRecords.length = 0
   })
 
   it('records a snapshot exactly once when the span ends', () => {
-    process.env.NEXT_OTEL_LOCAL_SPANS = '1'
     const span = createLocalSpan({
       name: 'test.local-span',
       traceId: '0123456789abcdef0123456789abcdef',
@@ -46,14 +42,14 @@ describe('local recording span', () => {
 
     span.setAttribute('next.route', '/dashboard')
     expect(span.isRecording()).toBe(true)
-    expect(getSpanRecords()).toEqual([])
+    expect(spanRecords).toEqual([])
 
     span.end()
     span.setAttribute('next.after_end', true)
     span.end()
 
     expect(span.isRecording()).toBe(false)
-    expect(getSpanRecords()).toEqual([
+    expect(spanRecords).toEqual([
       expect.objectContaining({
         name: 'test.local-span',
         traceId: '0123456789abcdef0123456789abcdef',
@@ -69,7 +65,6 @@ describe('local recording span', () => {
   })
 
   it('ignores undefined values when setting attributes', () => {
-    process.env.NEXT_OTEL_LOCAL_SPANS = '1'
     const span = createLocalSpan({
       name: 'test.local-span.attributes',
       attributes: { 'next.phase': 'render' },
@@ -81,7 +76,7 @@ describe('local recording span', () => {
     })
     span.end()
 
-    expect(getSpanRecords()).toEqual([
+    expect(spanRecords).toEqual([
       expect.objectContaining({
         attributes: {
           'next.phase': 'render',
@@ -92,7 +87,6 @@ describe('local recording span', () => {
   })
 
   it('captures status, exception, and event mutations before ending', () => {
-    process.env.NEXT_OTEL_LOCAL_SPANS = '1'
     const span = createLocalSpan({ name: 'test.local-span.error' })
 
     span.addEvent('test.event', { 'next.phase': 'render' })
@@ -100,7 +94,7 @@ describe('local recording span', () => {
     span.setStatus({ code: SpanStatusCode.ERROR, message: 'failed' })
     span.end()
 
-    expect(getSpanRecords()).toEqual([
+    expect(spanRecords).toEqual([
       expect.objectContaining({
         name: 'test.local-span.error',
         status: 'error',
@@ -126,10 +120,9 @@ describe('local recording span', () => {
   })
 
   it('releases heavy references after ending while the span remains reachable', async () => {
-    process.env.NEXT_OTEL_LOCAL_SPANS = '1'
     const { span, delegateRef, attributeRef } = createEndedSpanWithReferences()
 
-    clearSpanStoreForTest()
+    spanRecords.length = 0
     await expectCollected(delegateRef)
     await expectCollected(attributeRef)
 

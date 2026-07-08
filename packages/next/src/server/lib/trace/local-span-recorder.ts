@@ -6,14 +6,14 @@ import type {
 import type { AsyncLocalStorage } from 'async_hooks'
 import { SpanStatusCode } from 'next/dist/compiled/@opentelemetry/api'
 import {
-  isLocalSpanStoreEnabled,
+  isLocalSpanRecordingEnabled,
   recordSpan,
   type SpanStoreAttributes,
   type SpanStoreEvent,
   type SpanStoreLink,
 } from './span-store'
 
-export { isLocalSpanStoreEnabled } from './span-store'
+export { isLocalSpanRecordingEnabled } from './span-store'
 
 const TRACE_ID_HEX_LENGTH = 32
 const SPAN_ID_HEX_LENGTH = 16
@@ -75,7 +75,7 @@ export type LocalSpanRecorder = {
   createLocalSpan: typeof createLocalSpan
   getActiveLocalSpan: typeof getActiveLocalSpan
   isLocalRecordingSpan: typeof isLocalRecordingSpan
-  isLocalSpanStoreEnabled: typeof isLocalSpanStoreEnabled
+  isLocalSpanRecordingEnabled: typeof isLocalSpanRecordingEnabled
   withLocalSpan: typeof withLocalSpan
 }
 
@@ -89,7 +89,7 @@ export function registerLocalSpanRecorder(): void {
     createLocalSpan,
     getActiveLocalSpan,
     isLocalRecordingSpan,
-    isLocalSpanStoreEnabled,
+    isLocalSpanRecordingEnabled,
     withLocalSpan,
   }
 }

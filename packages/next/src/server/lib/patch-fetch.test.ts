@@ -4,10 +4,13 @@ import type { WorkStore } from '../app-render/work-async-storage.external'
 import type { IncrementalCache } from './incremental-cache'
 import { createPatchedFetcher } from './patch-fetch'
 import { registerLocalSpanRecorder } from './trace/local-span-recorder'
-import { clearSpanStoreForTest, getSpanRecords } from './trace/span-store'
+import {
+  setSpanRecorderForTest,
+  type SpanStoreRecord,
+} from './trace/span-store'
 
-const originalLocalSpans = process.env.NEXT_OTEL_LOCAL_SPANS
 const originalDevServer = process.env.__NEXT_DEV_SERVER
+const spanRecords: SpanStoreRecord[] = []
 
 describe('createPatchedFetcher', () => {
   beforeEach(() => {
@@ -16,17 +19,13 @@ describe('createPatchedFetcher', () => {
   })
 
   afterEach(() => {
-    if (originalLocalSpans === undefined) {
-      delete process.env.NEXT_OTEL_LOCAL_SPANS
-    } else {
-      process.env.NEXT_OTEL_LOCAL_SPANS = originalLocalSpans
-    }
     if (originalDevServer === undefined) {
       delete process.env.__NEXT_DEV_SERVER
     } else {
       process.env.__NEXT_DEV_SERVER = originalDevServer
     }
-    clearSpanStoreForTest()
+    setSpanRecorderForTest(undefined)
+    spanRecords.length = 0
   })
 
   it('should not buffer a streamed response', async () => {
@@ -120,7 +119,7 @@ describe('createPatchedFetcher', () => {
   }, 1000)
 
   it('records fetch outcome attributes on local AppRender.fetch spans', async () => {
-    process.env.NEXT_OTEL_LOCAL_SPANS = '1'
+    setSpanRecorderForTest((span) => spanRecords.push(span))
 
     const mockFetch: jest.MockedFunction<typeof fetch> = jest.fn()
     mockFetch.mockResolvedValue(new Response('ok', { status: 201 }))
@@ -145,7 +144,9 @@ describe('createPatchedFetcher', () => {
     })
 
     expect(
-      getSpanRecords({ name: 'fetch GET https://example.com/api' })
+      spanRecords.filter(
+        (span) => span.name === 'fetch GET https://example.com/api'
+      )
     ).toEqual([
       expect.objectContaining({
         name: 'fetch GET https://example.com/api',

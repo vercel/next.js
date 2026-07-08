@@ -4,9 +4,8 @@ import {
   recordRequestInsightFetch,
   subscribeRequestInsights,
 } from './request-insights'
-import { clearSpanStoreForTest, recordSpan } from './span-store'
+import { recordSpan } from './span-store'
 
-const originalLocalSpans = process.env.NEXT_OTEL_LOCAL_SPANS
 const originalRequestInsights = process.env.__NEXT_REQUEST_INSIGHTS
 const originalDevServer = process.env.__NEXT_DEV_SERVER
 
@@ -24,10 +23,8 @@ describe('request insights', () => {
   })
 
   afterEach(() => {
-    restoreEnv('NEXT_OTEL_LOCAL_SPANS', originalLocalSpans)
     restoreEnv('__NEXT_REQUEST_INSIGHTS', originalRequestInsights)
     restoreEnv('__NEXT_DEV_SERVER', originalDevServer)
-    clearSpanStoreForTest()
     clearRequestInsightsForTest()
   })
 
