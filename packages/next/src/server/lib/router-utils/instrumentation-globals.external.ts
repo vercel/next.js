@@ -56,13 +56,6 @@ async function registerInstrumentation(projectDir: string, distDir: string) {
   }
   const instrumentation = await instrumentationModulePromise
   if (instrumentation?.register) {
-    // `register()` runs once per server instance and must complete before the
-    // server can handle requests, so it is a major contributor to cold-start
-    // latency. It is also where the user typically installs their OpenTelemetry
-    // provider, which means no live span can wrap it — the tracer is a no-op
-    // until `register()` returns. To make this time visible anyway, we record
-    // the duration and emit a span with a backdated start time once the
-    // provider (if any) is available.
     const startTime = Date.now()
     let error: unknown
     try {
@@ -75,8 +68,6 @@ async function registerInstrumentation(projectDir: string, distDir: string) {
     } finally {
       // Emitted after `register()` so a provider installed inside the hook is
       // in place. The span is backdated to cover the full hook duration.
-      // Use the readable name as the OTel span name (matching `next.span_name`
-      // and the sibling module-loading spans), keeping the enum as the type.
       const spanName = 'instrumentation register'
       const span = getTracer().startSpan(spanName as SpanTypes, {
         startTime,

@@ -2088,11 +2088,8 @@ async function expectTrace(
   await retry(async () => {
     const traces = collector.getSpans().filter(
       (span) =>
-        // The instrumentation `register()` span is a lifecycle span emitted
-        // once at server startup with no request context (its own root trace).
-        // It would otherwise pollute the root set of whichever request trace's
-        // collector happens to be connected when the server first prepares, so
-        // exclude it from request-trace assertions.
+        // Drop the register span which only runs once and would otherwise pollute the first trace
+        // collected from the server
         span.attributes?.['next.span_type'] !== 'Instrumentation.register'
     )
 
