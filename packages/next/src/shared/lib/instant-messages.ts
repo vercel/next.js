@@ -21,7 +21,7 @@ export function createUnrenderedSegmentError(
 export function createLinkPrefetchPartialError(pathname: string): Error {
   return new Error(
     `Route "${pathname}": Next.js encountered a legacy full prefetch.\n\n` +
-      `This route hasn't adopted Partial Prefetching, leading to slower, more expensive prefetches.\n\n` +
+      `This will lead to slower, more expensive prefetches.\n\n` +
       `Ways to fix this:\n` +
       `  - [upgrade] Opt into Partial Prefetching by exporting \`const prefetch = 'partial'\` from the page or layout, or by setting \`partialPrefetching: true\` in next.config to opt the whole app in\n` +
       `    https://nextjs.org/docs/messages/instant-link-prefetch-partial#opt-into-partial-prefetching\n` +

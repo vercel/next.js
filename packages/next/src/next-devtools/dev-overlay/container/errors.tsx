@@ -191,7 +191,6 @@ type UnrenderedSegmentErrorDetails = {
 
 type LinkPrefetchPartialErrorDetails = {
   type: 'link-prefetch-partial'
-  pathname: string
 }
 
 const noErrorDetails: ErrorDetails = {
@@ -531,11 +530,8 @@ export function getLinkPrefetchPartialErrorDetails(
   if (!message.includes('Next.js encountered a legacy full prefetch')) {
     return null
   }
-  const routeMatch = /^Route "([^"]+)":/.exec(message)
-  if (!routeMatch) return null
   return {
     type: 'link-prefetch-partial',
-    pathname: routeMatch[1],
   }
 }
 

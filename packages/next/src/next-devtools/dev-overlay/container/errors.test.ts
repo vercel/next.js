@@ -574,18 +574,17 @@ describe('getLinkPrefetchPartialErrorDetails', () => {
   function createLinkPrefetchPartialError(pathname: string): Error {
     return new Error(
       `Route "${pathname}": Next.js encountered a legacy full prefetch.\n\n` +
-        `This route hasn't adopted Partial Prefetching, leading to slower, more expensive prefetches.`
+        `This will lead to slower, more expensive prefetches.`
     )
   }
 
-  it('parses the pathname', () => {
+  it('detects the insight', () => {
     expect(
       getLinkPrefetchPartialErrorDetails(
         createLinkPrefetchPartialError('/dashboard')
       )
     ).toEqual({
       type: 'link-prefetch-partial',
-      pathname: '/dashboard',
     })
   })
 
@@ -593,16 +592,6 @@ describe('getLinkPrefetchPartialErrorDetails', () => {
     expect(getLinkPrefetchPartialErrorDetails(new Error('regular bug'))).toBe(
       null
     )
-  })
-
-  it('returns null when the headline matches but the prefix is wrong', () => {
-    expect(
-      getLinkPrefetchPartialErrorDetails(
-        new Error(
-          'Some preamble: Route "/x": Next.js encountered a legacy full prefetch.'
-        )
-      )
-    ).toBe(null)
   })
 })
 

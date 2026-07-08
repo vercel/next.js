@@ -698,7 +698,7 @@ export const EXPLANATIONS: Record<GuidanceKind, string> = {
   'unrendered-segment':
     'This segment was dropped from rendering. Issues that would prevent instant navigation will go undetected.',
   'link-prefetch-partial':
-    "This route hasn't adopted Partial Prefetching, leading to slower, more expensive prefetches.",
+    'This will lead to slower, more expensive prefetches.',
 }
 
 export const BLOCKING_ROUTE_NAVIGATION_EXPLANATION =

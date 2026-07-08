@@ -34,7 +34,7 @@ describe('prefetch-true-partial-warning', () => {
 
     await expect(browser).toDisplayCollapsedRedbox(`
      {
-       "code": "E1413",
+       "code": "E1414",
        "description": "Next.js encountered a legacy full prefetch.",
        "environmentLabel": null,
        "label": "Instant",
