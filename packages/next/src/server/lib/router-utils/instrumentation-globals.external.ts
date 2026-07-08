@@ -8,7 +8,7 @@ import type {
 import { interopDefault } from '../../../lib/interop-default'
 import { afterRegistration as extendInstrumentationAfterRegistration } from './instrumentation-node-extensions'
 import { getTracer, SpanStatusCode } from '../trace/tracer'
-import { InstrumentationSpan } from '../trace/constants'
+import { InstrumentationSpan, type SpanTypes } from '../trace/constants'
 
 let cachedInstrumentationModule: InstrumentationModule
 
@@ -75,10 +75,13 @@ async function registerInstrumentation(projectDir: string, distDir: string) {
     } finally {
       // Emitted after `register()` so a provider installed inside the hook is
       // in place. The span is backdated to cover the full hook duration.
-      const span = getTracer().startSpan(InstrumentationSpan.register, {
+      // Use the readable name as the OTel span name (matching `next.span_name`
+      // and the sibling module-loading spans), keeping the enum as the type.
+      const spanName = 'instrumentation register'
+      const span = getTracer().startSpan(spanName as SpanTypes, {
         startTime,
         attributes: {
-          'next.span_name': 'instrumentation register',
+          'next.span_name': spanName,
           'next.span_type': InstrumentationSpan.register,
         },
       })
