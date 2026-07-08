@@ -78,6 +78,7 @@ use crate::{
     utils::{
         dash_map_raw_entry::{RawEntry, get_shard, raw_entry_in_shard, raw_get_in_shard},
         shard_amount::compute_shard_amount,
+        stopwatch::Stopwatch,
     },
 };
 
@@ -85,16 +86,6 @@ use crate::{
 /// If the number of dependent tasks exceeds this threshold,
 /// the operation will be parallelized.
 const DEPENDENT_TASKS_DIRTY_PARALLELIZATION_THRESHOLD: usize = 10000;
-
-/// Configurable idle timeout for snapshot persistence.
-/// Defaults to 2 seconds if not set or if the value is invalid.
-static IDLE_TIMEOUT: LazyLock<Duration> = LazyLock::new(|| {
-    std::env::var("TURBO_ENGINE_SNAPSHOT_IDLE_TIMEOUT_MILLIS")
-        .ok()
-        .and_then(|v| v.parse::<u64>().ok())
-        .map(Duration::from_millis)
-        .unwrap_or(Duration::from_secs(2))
-});
 
 /// Priority used to re-schedule a task that became stale during execution.
 ///
@@ -2819,6 +2810,31 @@ impl TurboTasksBackend {
                 TurboTasksBackendJob::Snapshot => {
                     debug_assert!(self.should_persist());
 
+                    /// Configurable idle timeout for snapshot persistence.
+                    /// Defaults to 2 seconds if not set or if the value is invalid.
+                    static IDLE_TIMEOUT: LazyLock<Duration> = LazyLock::new(|| {
+                        std::env::var("TURBO_ENGINE_SNAPSHOT_IDLE_TIMEOUT_MILLIS")
+                            .ok()
+                            .and_then(|v| v.parse::<u64>().ok())
+                            .map(Duration::from_millis)
+                            .unwrap_or(Duration::from_secs(2))
+                    });
+
+                    /// Minimum accumulated compilation (non-idle) time since the last persisted
+                    /// snapshot before a periodic snapshot is worth its fixed
+                    /// overhead/ Persistence exists to save work on the next run, and
+                    /// accumulated compilation time is a good proxy for how
+                    /// much work a snapshot would save. Snapshots triggered by
+                    /// shutdown or tests bypass this.
+                    /// Defaults to 1s
+                    static MIN_SNAPSHOT_ACTIVE_TIME: LazyLock<Duration> = LazyLock::new(|| {
+                        std::env::var("TURBO_ENGINE_SNAPSHOT_MIN_ACTIVE_TIME_MILLIS")
+                            .ok()
+                            .and_then(|v| v.parse::<u64>().ok())
+                            .map(Duration::from_millis)
+                            .unwrap_or(Duration::from_secs(1))
+                    });
+
                     let mut last_snapshot = self.start_time;
                     let mut idle_start_listener = self.idle_start_event.listen();
                     let mut idle_end_listener = self.idle_end_event.listen();
@@ -2827,6 +2843,11 @@ impl TurboTasksBackend {
                     let mut fresh_idle = true;
                     let mut evicted = false;
                     let mut is_first = true;
+                    // Accumulated compilation (non-idle) time since the last persisted
+                    // snapshot. Runs while not idle, stops while idle. Used to skip periodic
+                    // snapshots that wouldn't save enough work to justify their fixed
+                    // overhead. Reset after each completed snapshot attempt.
+                    let mut active_time = Stopwatch::new();
                     'outer: loop {
                         const FIRST_SNAPSHOT_WAIT: Duration = Duration::from_secs(300);
                         const SNAPSHOT_INTERVAL: Duration = Duration::from_secs(120);
@@ -2836,6 +2857,12 @@ impl TurboTasksBackend {
                         } else {
                             (SNAPSHOT_INTERVAL, SnapshotReason::RegularSnapshotInterval)
                         };
+
+                        // Begin (or continue) timing if we're not idle. Transitions below
+                        // keep this in sync via the idle events.
+                        if !turbo_tasks.is_idle() {
+                            active_time.start();
+                        }
 
                         let until = last_snapshot + time;
                         if until > Instant::now() {
@@ -2854,10 +2881,14 @@ impl TurboTasksBackend {
                                         return;
                                     },
                                     _ = &mut idle_start_listener => {
+                                        // Became idle: stop accumulating active time.
+                                        active_time.stop();
                                         idle_time = Instant::now() + idle_timeout;
                                         idle_start_listener = self.idle_start_event.listen()
                                     },
                                     _ = &mut idle_end_listener => {
+                                        // Became active: resume accumulating active time.
+                                        active_time.start();
                                         idle_time = far_future();
                                         idle_end_listener = self.idle_end_event.listen()
                                     },
@@ -2872,6 +2903,25 @@ impl TurboTasksBackend {
                                     },
                                 }
                             }
+                        }
+
+                        // Persistence exists to save work; accumulated compilation time is
+                        // the proxy for how much work a snapshot would save. Skip periodic
+                        // snapshots below the threshold. Shutdown (Stop) and tests must always
+                        // flush, but they don't run through this loop (Stop is handled in
+                        // stop(), Test in snapshot_and_evict_for_testing), so every reason
+                        // reaching here is subject to the threshold.
+                        if active_time.elapsed() < *MIN_SNAPSHOT_ACTIVE_TIME {
+                            // Not enough compilation time accumulated — skip the (potentially
+                            // expensive) snapshot. Advance scheduling state as if we had run,
+                            // but keep active_time running so it carries toward the next cycle.
+                            // Clear fresh_idle (as a no-data snapshot would) so we don't re-arm
+                            // the short idle timeout every cycle and spin while idle; a new
+                            // active period (idle_end) re-triggers timing and progress.
+                            fresh_idle = false;
+                            is_first = false;
+                            last_snapshot = Instant::now();
+                            continue 'outer;
                         }
 
                         // Create a root span shared by both the snapshot/persist
@@ -2892,6 +2942,14 @@ impl TurboTasksBackend {
                                 fresh_idle = new_data;
                                 is_first = false;
                                 last_snapshot = snapshot_start;
+                                // A completed snapshot attempt means the accumulated
+                                // compilation time has been accounted for: either it produced
+                                // work we just persisted (new_data), or it produced nothing to
+                                // persist — in which case that time amounted to no savable
+                                // state. Either way, reset so stale time doesn't carry into the
+                                // next cycle. If still timing an active period, reset() keeps it
+                                // running from now so time before this snapshot isn't counted.
+                                active_time.reset();
 
                                 // Polls the idle-end event without blocking. Returns
                                 // `true` and refreshes the listener if idle has ended,
