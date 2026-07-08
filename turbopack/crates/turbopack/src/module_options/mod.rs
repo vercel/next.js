@@ -243,7 +243,6 @@ impl ModuleOptions {
                     enable_typeof_window_inlining,
                     enable_exports_info_inlining,
                     enable_import_as_bytes,
-                    enable_import_as_text,
                     source_maps: ecmascript_source_maps,
                     inline_helpers,
                     infer_module_side_effects,
@@ -413,20 +412,18 @@ impl ModuleOptions {
             ));
         }
 
-        if enable_import_as_text {
-            rules.push(ModuleRule::new(
-                RuleCondition::ReferenceType(ReferenceTypeCondition::EcmaScriptModules(Some(
-                    EcmaScriptModulesReferenceSubType::ImportWithType("text".into()),
-                ))),
-                if is_tracing {
-                    vec![ModuleRuleEffect::ModuleType(ModuleType::Raw)]
-                } else {
-                    vec![ModuleRuleEffect::SourceTransforms(ResolvedVc::cell(vec![
-                        ResolvedVc::upcast(TextSourceTransform::new().to_resolved().await?),
-                    ]))]
-                },
-            ));
-        }
+        rules.push(ModuleRule::new(
+            RuleCondition::ReferenceType(ReferenceTypeCondition::EcmaScriptModules(Some(
+                EcmaScriptModulesReferenceSubType::ImportWithType("text".into()),
+            ))),
+            if is_tracing {
+                vec![ModuleRuleEffect::ModuleType(ModuleType::Raw)]
+            } else {
+                vec![ModuleRuleEffect::SourceTransforms(ResolvedVc::cell(vec![
+                    ResolvedVc::upcast(TextSourceTransform::new().to_resolved().await?),
+                ]))]
+            },
+        ));
 
         if let Some(webpack_loaders_options) = enable_webpack_loaders {
             let webpack_loaders_options = webpack_loaders_options.await?;

@@ -760,11 +760,6 @@ export interface ExperimentalConfig {
   turbopackImportTypeBytes?: boolean
 
   /**
-   * Enable support for `with {type: "text"}` for ESM imports.
-   */
-  turbopackImportTypeText?: boolean
-
-  /**
    * Enable scope hoisting. Defaults to true in build mode. Always disabled in development mode.
    */
   turbopackScopeHoisting?: boolean
