@@ -1,4 +1,5 @@
 //@ts-check
+// no-op change
 
 const path = require('path')
 const _glob = require('glob')
