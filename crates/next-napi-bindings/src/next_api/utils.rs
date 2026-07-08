@@ -68,15 +68,7 @@ impl<T> DetachedVc<T> {
 
 impl<T> Clone for DetachedVc<T> {
     fn clone(&self) -> Self {
-        // Each live handle holds its own pin; balanced by this clone's `Drop`.
-        self.turbopack_ctx
-            .turbo_tasks()
-            .pin_task_for_gc(self.task_id());
-
-        Self {
-            turbopack_ctx: self.turbopack_ctx.clone(),
-            vc: self.vc,
-        }
+        Self::new(self.turbopack_ctx.clone(), self.vc)
     }
 }
 

@@ -6,13 +6,10 @@ use turbo_tasks::{
     util::{good_chunk_size, into_chunks},
 };
 
-use crate::backend::{
-    TaskDataCategory,
-    operation::{
-        AggregationUpdateJob, AggregationUpdateQueue, ChildExecuteContext, ExecuteContext,
-        Operation, TaskGuard, aggregation_update::InnerOfUppersHasNewFollowersJob,
-        get_aggregation_number, get_uppers, is_aggregating_node,
-    },
+use crate::backend::operation::{
+    AggregationUpdateJob, AggregationUpdateQueue, ChildExecuteContext, ExecuteContext, Operation,
+    TaskGuard, aggregation_update::InnerOfUppersHasNewFollowersJob, get_aggregation_number,
+    get_uppers, is_aggregating_node,
 };
 
 pub fn connect_children(
@@ -54,26 +51,24 @@ pub fn connect_children(
 
     // Maintain the child-side parent reference count now that the parent guard is released. Each
     // newly-connected persistent child gains a parent: a persistent parent bumps the durable
-    // `parent_count` (rides the `AggregationUpdateQueue` so it is crash-consistent — captured
-    // mid-snapshot, replayed on restart; see `AggregationUpdateJob::AdjustParentCount`), while a
-    // transient parent bumps the session-only `transient_ref_count` (transient parents vanish on
-    // restart and re-establish their edges by re-execution, so their contribution must not
-    // persist). Transient children are never collected, so their counts are irrelevant.
+    // `parent_count` (crash-consistent — captured mid-snapshot, replayed on restart), while a
+    // transient parent bumps the session-only `transient_ref_count` (not persisted — transient
+    // parents re-establish their edges by re-executing on restart). Both ride the
+    // `AggregationUpdateQueue`; the handler applies to the right counter. Transient children are
+    // never collected, so their counts are irrelevant.
     if !persistent_new_children.is_empty() {
-        if parent_task_id.is_transient() {
-            for &child in &persistent_new_children {
-                let mut child_task = ctx.task(child, TaskDataCategory::Meta);
-                child_task.update_and_get_transient_ref_count(1);
+        let job = if parent_task_id.is_transient() {
+            AggregationUpdateJob::AdjustTransientRefCount {
+                task_ids: persistent_new_children,
+                delta: 1,
             }
         } else {
-            AggregationUpdateQueue::run(
-                AggregationUpdateJob::AdjustParentCount {
-                    task_ids: persistent_new_children,
-                    delta: 1,
-                },
-                ctx,
-            );
-        }
+            AggregationUpdateJob::AdjustParentCount {
+                task_ids: persistent_new_children,
+                delta: 1,
+            }
+        };
+        AggregationUpdateQueue::run(job, ctx);
     }
 
     fn process_new_children(

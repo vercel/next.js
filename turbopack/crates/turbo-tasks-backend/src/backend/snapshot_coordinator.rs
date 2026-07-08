@@ -105,6 +105,12 @@ impl<O> SnapshotCoordinator<O> {
         (self.in_progress_operations.load(Ordering::Acquire) & REQUEST_BITS) != 0
     }
 
+    /// Whether a GC phase is currently held (the `GC_REQUESTED_BIT` is set). Used by the GC-only
+    /// execute context to `debug_assert` it is running under the exclusion it requires.
+    pub fn gc_in_progress(&self) -> bool {
+        (self.in_progress_operations.load(Ordering::Acquire) & GC_REQUESTED_BIT) != 0
+    }
+
     /// Begin an operation. Returns a guard that decrements on drop.
     ///
     /// If a snapshot or GC pass is in flight, blocks until it finishes before returning the guard.

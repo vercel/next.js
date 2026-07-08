@@ -9,7 +9,7 @@ use crate::{
     backend::{
         TaskDataCategory,
         operation::{
-            AggregatedDataUpdate, ExecuteContext, Operation, TaskGuard,
+            AggregatedDataUpdate, ExecuteContext, Operation,
             aggregation_update::{
                 AggregationUpdateJob, AggregationUpdateQueue, InnerOfUppersLostFollowersJob,
                 get_aggregation_number, get_uppers, is_aggregating_node,
@@ -97,12 +97,10 @@ impl CleanupOldEdgesOperation {
                                 });
                                 let mut task = ctx.task(task_id, TaskDataCategory::All);
                                 // Track which persistent children were *actually* removed (the edge
-                                // was present) so we decrement the child-side parent count exactly
-                                // once per real edge removal. Gating on the `remove_children`
-                                // return makes the decrement
-                                // replay-safe: a resumed CleanupOldEdges
-                                // re-removes the same edges, and edges already gone (returning
-                                // false) are skipped.
+                                // was present) so we adjust the child-side count exactly once per
+                                // real edge removal. Gating on the `remove_children` return makes
+                                // this replay-safe: a resumed CleanupOldEdges re-removes the same
+                                // edges, and edges already gone (returning false) are skipped.
                                 let mut removed_persistent_children: SmallVec<[TaskId; 4]> =
                                     SmallVec::new();
                                 for child_id in children.iter() {
@@ -110,23 +108,29 @@ impl CleanupOldEdgesOperation {
                                         removed_persistent_children.push(*child_id);
                                     }
                                 }
-                                // A persistent parent losing a child drops that child's durable
-                                // `parent_count`; push it on the durable queue for
-                                // crash-consistency
-                                // (the transient-parent case is handled after `task` is dropped, to
-                                // avoid holding two task guards at once). Empty job is skipped.
-                                if !removed_persistent_children.is_empty()
-                                    && !task_id.is_transient()
-                                {
-                                    queue.push(AggregationUpdateJob::AdjustParentCount {
-                                        task_ids: removed_persistent_children.clone(),
-                                        delta: -1,
-                                    });
+                                // Each removed persistent child loses a parent. A persistent parent
+                                // drops the child's durable `parent_count` (queued so it is
+                                // crash-consistent); a transient parent drops the session-only
+                                // `transient_ref_count` (skipped during serialization, never
+                                // replayed). Both ride the queue via the same job family, so the
+                                // handler — not this site — adjusts the right counter and takes the
+                                // child guards (avoiding a second guard while `task` is still
+                                // held).
+                                if !removed_persistent_children.is_empty() {
+                                    let job = if task_id.is_transient() {
+                                        AggregationUpdateJob::AdjustTransientRefCount {
+                                            task_ids: removed_persistent_children,
+                                            delta: -1,
+                                        }
+                                    } else {
+                                        AggregationUpdateJob::AdjustParentCount {
+                                            task_ids: removed_persistent_children,
+                                            delta: -1,
+                                        }
+                                    };
+                                    queue.push(job);
                                 }
                                 if is_aggregating_node(get_aggregation_number(&task)) {
-                                    // Drop the parent guard before the transient block below opens
-                                    // child guards (holding two task guards trips the concurrent-
-                                    // lock detector). The non-aggregating branch drops it too.
                                     drop(task);
                                     queue.push(AggregationUpdateJob::InnerOfUpperLostFollowers {
                                         upper_id: task_id,
@@ -153,18 +157,6 @@ impl CleanupOldEdgesOperation {
                                         }
                                         .into(),
                                     );
-                                }
-                                // Transient parent → drop the session-only `transient_ref_count`
-                                // on each removed persistent child. Done here, after the parent
-                                // guard `task` has been dropped in both branches above, so we never
-                                // hold two task guards at once. Transient counts are not persisted,
-                                // so they don't need the durable queue.
-                                if task_id.is_transient() {
-                                    for child in removed_persistent_children {
-                                        let mut child_task =
-                                            ctx.task(child, TaskDataCategory::Meta);
-                                        child_task.update_and_get_transient_ref_count(-1);
-                                    }
                                 }
                             }
                             OutdatedEdge::Collectible(collectible, count) => {

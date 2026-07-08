@@ -97,7 +97,7 @@ pub trait ExecuteContext<'e>: Sized {
     /// Record that `task_id`'s persistent `parent_count` reached 0, making it a garbage-collection
     /// candidate. This only notes candidacy (a cheap side-set write); the actual teardown/removal
     /// happens later under the GC phase's exclusion, where candidacy is re-validated.
-    fn note_gc_candidate(&self, task_id: TaskId);
+    fn add_gc_candidate(&self, task_id: TaskId);
     fn turbo_tasks(&self) -> Arc<dyn TurboTasksCallApi>;
     /// Look up a TaskId from the backing storage for a given task type.
     ///
@@ -199,6 +199,10 @@ impl<'e> ExecuteContextImpl<'e> {
         backend: &'e TurboTasksBackend,
         turbo_tasks: &'e TurboTasks<TurboTasksBackend>,
     ) -> Self {
+        debug_assert!(
+            backend.snapshot_coord.gc_in_progress(),
+            "new_for_gc called outside a held GC phase"
+        );
         Self {
             backend,
             turbo_tasks,
@@ -989,8 +993,8 @@ impl<'e> ExecuteContext<'e> for ExecuteContextImpl<'e> {
         self.backend.should_track_activeness()
     }
 
-    fn note_gc_candidate(&self, task_id: TaskId) {
-        self.backend.note_gc_candidate(task_id);
+    fn add_gc_candidate(&self, task_id: TaskId) {
+        self.backend.add_gc_candidate(task_id);
     }
 
     fn turbo_tasks(&self) -> Arc<dyn TurboTasksCallApi> {

@@ -331,7 +331,7 @@ impl TurboTasksBackend {
     /// 0). Only non-transient tasks are tracked — transient tasks are never collected. Candidacy is
     /// re-validated under exclusion before the task is actually collected, so a false positive here
     /// (e.g. the count is bumped back up by a concurrent re-connect) is harmless.
-    fn note_gc_candidate(&self, task_id: TaskId) {
+    fn add_gc_candidate(&self, task_id: TaskId) {
         if task_id.is_transient() {
             return;
         }
@@ -383,13 +383,14 @@ impl TurboTasksBackend {
         let mut retain: Vec<TaskId> = Vec::new();
 
         // Sequential worklist drain. This runs under the GC phase (execution is excluded) so it
-        // could in principle be parallelized, but `gc_delete_one` restores Data on demand, which
-        // uses `block_in_place`; fanning the worklist out with `scope_and_block` nests
-        // `block_in_place` inside `block_in_place` and deadlocks on a thread-limited runtime (e.g.
-        // the 2-worker-thread test runtime, or a low-core CI runner). Collection is O(garbage), not
-        // O(total), so a pass is short; if latency ever proves a problem, parallelize by running
-        // the whole pass inside `spawn_blocking` (per the `scope_and_block` guidance) rather than
-        // spawning from within this already-blocking context.
+        // could in principle be parallelized, but fanning the worklist out with `scope_and_block`
+        // deadlocks on a thread-limited runtime: `scope_and_block` spawns `available_parallelism()
+        // - 1` worker tasks that block on a Condvar waiting for work, and on a runtime with few
+        // worker threads (e.g. the 2-worker-thread test runtime, or a low-core CI runner) those
+        // blocked workers starve the very tasks that would feed them. Collection is O(garbage), not
+        // O(total), so a pass is short; if latency ever proves a problem, revisit parallelization
+        // (see the `scope_and_block` guidance) — likely by making `scope_and_block` robust on
+        // thread-limited runtimes, which would benefit the snapshot path too.
         while let Some(task_id) = worklist.pop() {
             match self.gc_process_one(task_id, turbo_tasks) {
                 GcOutcome::Collected {
@@ -1311,21 +1312,29 @@ impl TurboTasksBackend {
         // continuous exclusion* as the snapshot (the atomic `into_snapshot` hand-off), so nothing
         // could have resurrected a collected task.
         let (mut snapshot_phase, mut deletes) = if *GC_ENABLED {
-            let _gc_span = tracing::info_span!(parent: parent_span.clone(), "gc").entered();
+            // `collected` is recorded on the span (below) once the pass finishes.
+            let gc_span =
+                tracing::info_span!(parent: parent_span.clone(), "gc", collected = tracing::field::Empty)
+                    .entered();
             let gc_phase = self.snapshot_coord.begin_gc();
             let (collected, deletes) = self.gc_collect(turbo_tasks);
-            if collected > 0 {
-                tracing::info!(collected, "gc pass collected tasks");
-            }
-            let _span = tracing::info_span!("blocking").entered();
+            gc_span.record("collected", collected);
+            // `into_snapshot` blocks until all in-flight operations have drained before the
+            // snapshot can begin.
+            let _span = tracing::info_span!("await operations settle").entered();
             (gc_phase.into_snapshot(), deletes)
         } else {
-            let _span = tracing::info_span!("blocking").entered();
+            // `begin_snapshot` blocks until all in-flight operations have drained.
+            let _span = tracing::info_span!("await operations settle").entered();
             (self.snapshot_coord.begin_snapshot(), Vec::new())
         };
-        // Also commit any tombstones from the test-only `gc_for_testing` hook, which runs GC as a
-        // *separate* exclusion window (not joined to this snapshot). Because of that gap we
-        // re-validate below (after the drain stabilizes the map) as a cheap belt-and-suspenders.
+        // Also commit any tombstones from the test-only `gc_for_testing` hook. That hook runs its
+        // GC pass in a *separate* exclusion window that has already ended by the time we get here,
+        // so a task it collected could in principle have been resurrected (re-created via a cache
+        // hit) before this snapshot began. The `deletes.retain(...)` re-validation below — after
+        // `start_snapshot` freezes the map — drops the tombstone for any such resurrected task.
+        // (The production path can't hit this: its GC runs under the same continuous exclusion as
+        // the snapshot, so nothing runs in between.)
         deletes.extend(external_deletes);
         let start = Instant::now();
         // SystemTime for wall-clock timestamps in trace events (milliseconds
@@ -1338,8 +1347,11 @@ impl TurboTasksBackend {
         // Checking after start_snapshot ensures no concurrent increments can race.
         let (snapshot_guard, has_modifications) = self.storage.start_snapshot();
 
-        // Belt-and-suspenders: drop the tombstone for any task that is resident again (would only
-        // happen via the non-atomic `gc_for_testing` path; the production path can't resurrect).
+        // Now that `start_snapshot` has frozen the map, drop the tombstone for any task that is
+        // resident again — i.e. was resurrected after an out-of-band `gc_for_testing` pass
+        // collected it (see the note above the `deletes.extend`). Tombstoning a live task
+        // would delete a task the snapshot is about to persist. The production path never
+        // resurrects, so this is a no-op there.
         if !deletes.is_empty() {
             deletes.retain(|d| self.storage.with_task(d.task_id, |_| ()).is_none());
         }
