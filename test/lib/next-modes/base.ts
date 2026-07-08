@@ -260,7 +260,7 @@ export class NextInstance {
           '@types/react': '19.2.2',
           '@types/react-dom': '19.2.1',
           typescript: '6.0.3',
-          '@types/node': '26.1.1',
+          '@types/node': '26.1.0',
           ...this.dependencies,
           ...this.packageJson?.dependencies,
         }
