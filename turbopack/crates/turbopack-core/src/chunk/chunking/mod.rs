@@ -426,15 +426,18 @@ fn build_chunk(
     )
 }
 
+/// The chunk items and batch groups that make up one component chunk of a merged chunk.
+type ComponentChunkItems<'l> = (
+    Vec<&'l ChunkItemOrBatchWithInfo>,
+    Vec<ResolvedVc<ChunkItemBatchGroup>>,
+);
+
 /// Creates a chunk with the given `chunk_items. `key` should be unique.
 #[tracing::instrument(level = Level::TRACE, skip_all, fields(key = display(key)))]
 async fn make_chunk(
     chunk_items: Vec<&'_ ChunkItemOrBatchWithInfo>,
     batch_groups: Vec<ResolvedVc<ChunkItemBatchGroup>>,
-    components: Vec<(
-        Vec<&'_ ChunkItemOrBatchWithInfo>,
-        Vec<ResolvedVc<ChunkItemBatchGroup>>,
-    )>,
+    components: Vec<ComponentChunkItems<'_>>,
     key: &mut String,
     split_context: &mut SplitContext<'_>,
 ) -> Result<()> {

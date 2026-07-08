@@ -11,7 +11,7 @@ use crate::{
     chunk::{
         ChunkItemBatchGroup, ChunkItemBatchWithAsyncModuleInfo, ChunkItemWithAsyncModuleInfo,
         ChunkingConfig,
-        chunking::{ChunkItemOrBatchWithInfo, SplitContext, make_chunk},
+        chunking::{ChunkItemOrBatchWithInfo, ComponentChunkItems, SplitContext, make_chunk},
     },
     module_graph::{
         ModuleGraph,
@@ -168,7 +168,7 @@ pub async fn make_production_chunks(
                             components: vec![ChunkComponent {
                                 size,
                                 chunk_items: chunk_items.clone(),
-                                batch_groups: batch_group.clone().into_iter().collect(),
+                                batch_groups: batch_group.into_iter().collect(),
                             }],
                             chunk_items,
                             batch_groups: batch_group.into_iter().collect(),
@@ -751,20 +751,12 @@ impl PartialEq for MergeCandidate<'_> {
 fn split_into_component_chunks<'l>(
     components: Vec<ChunkComponent<'l>>,
     min_component_chunk_size: usize,
-) -> Option<
-    Vec<(
-        Vec<&'l ChunkItemOrBatchWithInfo>,
-        Vec<ResolvedVc<ChunkItemBatchGroup>>,
-    )>,
-> {
+) -> Option<Vec<ComponentChunkItems<'l>>> {
     // A single original part can't benefit from splitting.
     if components.len() <= 1 {
         return None;
     }
-    let mut component_chunks: Vec<(
-        Vec<&'l ChunkItemOrBatchWithInfo>,
-        Vec<ResolvedVc<ChunkItemBatchGroup>>,
-    )> = Vec::new();
+    let mut component_chunks: Vec<ComponentChunkItems<'l>> = Vec::new();
     let mut remainder_items: Vec<&'l ChunkItemOrBatchWithInfo> = Vec::new();
     let mut remainder_batch_groups = FxIndexSet::default();
     for part in components {
