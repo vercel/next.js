@@ -35,9 +35,14 @@ function isTargetPrefetch(j: JSCodeshift, decl: any): boolean {
 
 export default function transformer(file: FileInfo, _api: API) {
   // Run on App Router page/layout/route files, except for test environment.
+  // `(^|[/\\])app` matches both an absolute path and a relative `app/...` path
+  // (what `npx @next/codemod ... ./app` passes), so top-level app files aren't
+  // silently skipped.
   if (
     process.env.NODE_ENV !== 'test' &&
-    !/[/\\]app[/\\](?:.*[/\\])?(page|layout|route)(\.[^/\\]*)?$/.test(file.path)
+    !/(^|[/\\])app[/\\](?:.*[/\\])?(page|layout|route)(\.[^/\\]*)?$/.test(
+      file.path
+    )
   ) {
     return file.source
   }
