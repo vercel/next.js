@@ -4109,21 +4109,36 @@ impl Backend for TurboTasksBackend {
         // Once the backend is stopping, GC bookkeeping is irrelevant (the whole task map is torn
         // down in `stop()`), so pin/unpin become no-ops. This also makes them safe against handles
         // finalized during shutdown — e.g. a `DetachedVc` handed to JS across NAPI is dropped
-        // (which unpins) during Node worker teardown, *after* `stop()` has dropped the map; without
-        // this gate that unpin would resurrect a blank entry and underflow `transient_ref_count`.
+        // (which unpins) during Node worker teardown, *after* `stop()` has dropped the map.
         if self.stopping.load(Ordering::Acquire) {
             return;
         }
+        // Take an operation guard so pin cannot interleave with a GC pass: it runs strictly before
+        // or strictly after a collection, never concurrently with `is_gc_collectible` / task
+        // removal. This is deadlock-free because neither pin caller holds a guard already —
+        // `prevent_gc` runs in the unguarded user-future region, and `DetachedVc` pins from a NAPI
+        // thread — and the GC pass itself never calls pin/unpin.
+        let _guard = self.start_operation();
         // A pin is an in-session reference from outside the tracked graph (an explicit
-        // `prevent_gc`, or a detached handle like `DetachedVc` holding the task's
-        // `OperationVc` across NAPI). It is counted the same way a transient parent's edge
-        // is: bump `transient_ref_count`. While that count is > 0 the task is uncollectible
-        // (see `is_gc_collectible`) and unevictable (see `evictability`, so the transient
-        // count can't be lost). Counting (rather than a bool flag) makes nested/cloned pins
-        // correct — each pin is balanced by its own unpin.
-        self.storage
-            .access_mut(task)
-            .gc_increment_transient_ref_count();
+        // `prevent_gc`, or a detached handle like `DetachedVc` holding the task's `OperationVc`
+        // across NAPI). It is counted the same way a transient parent's edge is: bump
+        // `transient_ref_count`. While that count is > 0 the task is uncollectible (see
+        // `is_gc_collectible`) and unevictable (see `evictability`, so the transient count can't be
+        // lost). Counting (rather than a bool flag) makes nested/cloned pins correct — each pin is
+        // balanced by its own unpin.
+        //
+        // Use the non-inserting `with_task_mut`: a pin always targets a live reference, so the task
+        // must be resident. A missing entry means the caller pinned an already-collected task (a
+        // "zombie `OperationVc`") — a bug we surface via debug_assert rather than paper over by
+        // resurrecting a blank entry (which would leave an orphaned zombie in the map).
+        let existed = self
+            .storage
+            .with_task_mut(task, |t| t.gc_increment_transient_ref_count());
+        debug_assert!(
+            existed.is_some(),
+            "pin_task_for_gc: task {task} has no resident entry (pinned an already-collected \
+             task?)"
+        );
     }
 
     fn unpin_task_for_gc(&self, task: TaskId, _turbo_tasks: &TurboTasks<Self>) {
@@ -4132,9 +4147,15 @@ impl Backend for TurboTasksBackend {
         if self.stopping.load(Ordering::Acquire) {
             return;
         }
-        self.storage
-            .access_mut(task)
-            .gc_decrement_transient_ref_count();
+        let _guard = self.start_operation();
+        let existed = self
+            .storage
+            .with_task_mut(task, |t| t.gc_decrement_transient_ref_count());
+        debug_assert!(
+            existed.is_some(),
+            "unpin_task_for_gc: task {task} has no resident entry (unpinned an already-collected \
+             task?)"
+        );
     }
 
     fn connect_task(

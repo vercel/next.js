@@ -526,6 +526,20 @@ impl Storage {
         Some(f(task.value()))
     }
 
+    /// Mutable access to a resident task **without** inserting a blank entry for a missing key
+    /// (unlike [`Storage::access_mut`], which resurrects a blank `TaskStorage`). Returns `None` if
+    /// the task is not resident. The closure runs while a shard write lock is held, so it must be
+    /// cheap and must not re-enter the map. Used by GC pin/unpin, where a missing entry means the
+    /// caller is referencing an already-collected task and inserting a blank would be a bug.
+    pub fn with_task_mut<R>(
+        &self,
+        key: TaskId,
+        f: impl FnOnce(&mut TaskStorage) -> R,
+    ) -> Option<R> {
+        let mut task = self.map.get_mut(&key)?;
+        Some(f(task.value_mut()))
+    }
+
     /// The number of **persistent** (non-transient) tasks resident in the map. GC only collects
     /// persistent tasks (transient tasks are never collected), so this is the metric that must
     /// return to a flat baseline across re-rooting; the raw `resident_task_count` also includes
