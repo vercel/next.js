@@ -11,7 +11,7 @@ description: >
 
 # next-partial-prefetching-adoption
 
-Enable Partial Prefetching and walk the app until every link reuses a shared prefetch. This skill sequences the work; per-insight recipes live in the dev overlay fix cards and their docs pages. The [Adopting Partial Prefetching guide](https://nextjs.org/docs/app/guides/adopting-partial-prefetching) is the canonical reference for the concepts this skill applies.
+Enable Partial Prefetching and walk the app until every link reuses a shared App Shell. This skill sequences the work; per-insight recipes live in the dev overlay fix cards and their docs pages. The [Adopting Partial Prefetching guide](https://nextjs.org/docs/app/guides/adopting-partial-prefetching) is the canonical reference for the concepts this skill applies.
 
 The one thing that shapes everything below: **these insights surface only in `next dev`, in the dev overlay's Insights tab.** Nothing fails the build. There is no build-only fallback loop for this skill — the work is a sweep of the running app in the browser. If you can't drive a browser, stop and tell the user what you can't verify.
 
@@ -33,7 +33,7 @@ Talk to the user in what they'll see — PRs, features, and how the app behaves 
 
 ## background
 
-Partial Prefetching changes what `<Link>` downloads for a route: by default a link loads the route's App Shell — one shared shell per route, reused by every link to it regardless of params — and `<Link prefetch={true}>` adds the cached page content on top. Adopting it means making sure every route can produce that shared shell.
+Partial Prefetching changes what `<Link>` downloads for a route: by default a link loads the route's App Shell — one per route, reused by every link to it regardless of params — and `<Link prefetch={true}>` adds the cached page content on top. Adopting it means making sure every route can produce that App Shell.
 
 ## working surfaces
 
@@ -75,13 +75,13 @@ Ambiguous calls are user check-ins, not agent judgment: when you're unsure which
 ## step 3: verify
 
 - Insights tab empty (or every remaining entry is a deliberate, documented decision) and the dev log quiet, after loading every route. If nothing surfaced at all, confirm the signal can fire before calling it clean: `partialPrefetching` is on, the version is 16.3 or later, and the dev server was restarted after the config change.
-- The shells are real: for each route you changed, confirm the first paint after a navigation shows the intended shared content, not an empty shell or a stuck fallback. A `<Suspense>` around the whole page body passes validation with an empty shell, which defeats the point.
+- The App Shells are real: for each route you changed, confirm the first paint after a navigation shows the intended shared content, not an empty shell or a stuck fallback. A `<Suspense>` around the whole page body passes validation with an empty shell, which defeats the point.
 - `next build` still passes.
 
-Check in with the user in their language — no insight slugs or step labels: which links now share a prefetch, what streams in after navigation, and what stayed opted out and why. Show, don't tell — drive a link live in the headed browser so they see the shared shell paint instantly and the URL-specific region stream in. Attach before/after screenshots only when a live browser isn't possible.
+Check in with the user in their language — no insight slugs or step labels: which links now share a prefetch, what streams in after navigation, and what stayed opted out and why. Show, don't tell — drive a link live in the headed browser so they see the shared App Shell paint instantly and the URL-specific region stream in. Attach before/after screenshots only when a live browser isn't possible.
 
 ## further reading
 
 - [Instant navigation](https://nextjs.org/docs/app/guides/instant-navigation) — the broader validation model and loading-state tooling.
 - [Prevent regressions with e2e tests](https://nextjs.org/docs/app/guides/instant-navigation#prevent-regressions-with-e2e-tests) — the `@next/playwright` `instant()` helper locks in what a navigation shows immediately; recommend it once the sweep is clean, since nothing else guards these in CI.
-- [`next-cache-components-optimizer`](https://github.com/vercel/next.js/tree/canary/skills/next-cache-components-optimizer) — grows each route's static shell so the shared prefetch carries more.
+- [`next-cache-components-optimizer`](https://github.com/vercel/next.js/tree/canary/skills/next-cache-components-optimizer) — grows each route's static shell so the App Shell carries more.
