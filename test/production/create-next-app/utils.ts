@@ -169,12 +169,17 @@ export async function tryNextDev({
       expect(await res.text()).toContain('Hello world!')
     } else {
       const responseText = await res.text()
+      // The filename in the intro line is wrapped in a `<code>` element, so
+      // strip HTML tags and collapse whitespace before matching the copy.
+      const textContent = responseText
+        .replace(/<[^>]+>/g, '')
+        .replace(/\s+/g, ' ')
       const hasAppRouterText =
-        responseText.includes('To get started, edit the page.tsx file.') ||
-        responseText.includes('To get started, edit the page.js file.')
+        textContent.includes('To get started, edit the page.tsx file.') ||
+        textContent.includes('To get started, edit the page.js file.')
       const hasPagesRouterText =
-        responseText.includes('To get started, edit the index.tsx file.') ||
-        responseText.includes('To get started, edit the index.js file.')
+        textContent.includes('To get started, edit the index.tsx file.') ||
+        textContent.includes('To get started, edit the index.js file.')
       expect(hasAppRouterText || hasPagesRouterText).toBe(true)
     }
     expect(res.status).toBe(200)
