@@ -800,7 +800,7 @@ pub struct AppPageNapiRoute {
     pub original_name: Option<RcStr>,
 
     pub html_endpoint: Option<External<ExternalEndpoint>>,
-    pub rsc_endpoint: Option<External<ExternalEndpoint>>,
+    pub rsc_hmr_endpoint: Option<External<ExternalEndpoint>>,
 }
 
 #[napi(object)]
@@ -819,7 +819,7 @@ pub struct NapiRoute {
     // Different representations of the endpoint
     pub endpoint: Option<External<ExternalEndpoint>>,
     pub html_endpoint: Option<External<ExternalEndpoint>>,
-    pub rsc_endpoint: Option<External<ExternalEndpoint>>,
+    pub rsc_hmr_endpoint: Option<External<ExternalEndpoint>>,
     pub data_endpoint: Option<External<ExternalEndpoint>>,
 }
 
@@ -861,7 +861,7 @@ impl NapiRoute {
                         .map(|page_route| AppPageNapiRoute {
                             original_name: Some(page_route.original_name),
                             html_endpoint: convert_endpoint(page_route.html_endpoint),
-                            rsc_endpoint: convert_endpoint(page_route.rsc_endpoint),
+                            rsc_hmr_endpoint: convert_endpoint(page_route.rsc_hmr_endpoint),
                         })
                         .collect(),
                 ),

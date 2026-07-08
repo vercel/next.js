@@ -1061,10 +1061,10 @@ pub fn app_entry_point_to_route(
                         }
                         .resolved_cell(),
                     ),
-                    rsc_endpoint: ResolvedVc::upcast(
+                    rsc_hmr_endpoint: ResolvedVc::upcast(
                         AppEndpoint {
                             ty: AppEndpointType::Page {
-                                ty: AppPageEndpointType::Rsc,
+                                ty: AppPageEndpointType::RscHmr,
                                 loader_tree,
                             },
                             app_project,
@@ -1109,7 +1109,7 @@ pub fn app_entry_point_to_route(
 #[derive(Copy, Clone, PartialEq, Eq, Debug, TraceRawVcs, NonLocalValue, Encode, Decode)]
 enum AppPageEndpointType {
     Html,
-    Rsc,
+    RscHmr,
 }
 
 #[derive(Clone, PartialEq, Eq, Debug, TraceRawVcs, NonLocalValue, Encode, Decode)]
@@ -2048,10 +2048,10 @@ impl Endpoint for AppEndpoint {
                 tracing::info_span!("app endpoint HTML", name = page_name)
             }
             AppEndpointType::Page {
-                ty: AppPageEndpointType::Rsc,
+                ty: AppPageEndpointType::RscHmr,
                 ..
             } => {
-                tracing::info_span!("app endpoint RSC", name = page_name)
+                tracing::info_span!("app endpoint RSC HMR", name = page_name)
             }
             AppEndpointType::Route { .. } => {
                 tracing::info_span!("app endpoint route", name = page_name)
