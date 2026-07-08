@@ -53,7 +53,8 @@ describe('build-output-prerender', () => {
              - Cache Components enabled
              - Experiments (use with caution):
                ⨯ appNewScrollHandler (disabled by \`__NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER\`)
-               · staticGenerationMaxConcurrency: 1"
+               · staticGenerationMaxConcurrency: 1
+               ✓ strictRouteTypes (enabled by \`__NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES\`)"
             `)
           } else if (isRspack) {
             expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
@@ -71,7 +72,8 @@ describe('build-output-prerender', () => {
              - Cache Components enabled
              - Experiments (use with caution):
                ⨯ appNewScrollHandler (disabled by \`__NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER\`)
-               · staticGenerationMaxConcurrency: 1"
+               · staticGenerationMaxConcurrency: 1
+               ✓ strictRouteTypes (enabled by \`__NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES\`)"
             `)
           }
         }
@@ -197,6 +199,7 @@ describe('build-output-prerender', () => {
                ⨯ prerenderEarlyExit (disabled by \`--debug-prerender\`)
                ✓ serverSourceMaps (enabled by \`--debug-prerender\`)
                · staticGenerationMaxConcurrency: 1
+               ✓ strictRouteTypes (enabled by \`__NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES\`)
                ⨯ turbopackMinify (disabled by \`--debug-prerender\`)"
             `)
           } else if (isRspack) {
@@ -225,7 +228,8 @@ describe('build-output-prerender', () => {
                ⨯ prerenderEarlyExit (disabled by \`--debug-prerender\`)
                ⨯ serverMinification (disabled by \`--debug-prerender\`)
                ✓ serverSourceMaps (enabled by \`--debug-prerender\`)
-               · staticGenerationMaxConcurrency: 1"
+               · staticGenerationMaxConcurrency: 1
+               ✓ strictRouteTypes (enabled by \`__NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES\`)"
             `)
           }
         }
@@ -378,7 +382,8 @@ describe('build-output-prerender', () => {
              "▲ Next.js x.y.z (Turbopack)
              ✓ Running next.config took N
              - Experiments (use with caution):
-               ⨯ appNewScrollHandler (disabled by \`__NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER\`)"
+               ⨯ appNewScrollHandler (disabled by \`__NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER\`)
+               ✓ strictRouteTypes (enabled by \`__NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES\`)"
             `)
           } else if (isRspack) {
             expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
@@ -392,7 +397,8 @@ describe('build-output-prerender', () => {
              "▲ Next.js x.y.z (webpack)
              ✓ Running next.config took N
              - Experiments (use with caution):
-               ⨯ appNewScrollHandler (disabled by \`__NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER\`)"
+               ⨯ appNewScrollHandler (disabled by \`__NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER\`)
+               ✓ strictRouteTypes (enabled by \`__NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES\`)"
             `)
           }
         }
@@ -462,6 +468,7 @@ describe('build-output-prerender', () => {
                ⨯ appNewScrollHandler (disabled by \`__NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER\`)
                ⨯ prerenderEarlyExit (disabled by \`--debug-prerender\`)
                ✓ serverSourceMaps (enabled by \`--debug-prerender\`)
+               ✓ strictRouteTypes (enabled by \`__NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES\`)
                ⨯ turbopackMinify (disabled by \`--debug-prerender\`)"
             `)
           } else if (isRspack) {
@@ -486,7 +493,8 @@ describe('build-output-prerender', () => {
                ⨯ appNewScrollHandler (disabled by \`__NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER\`)
                ⨯ prerenderEarlyExit (disabled by \`--debug-prerender\`)
                ⨯ serverMinification (disabled by \`--debug-prerender\`)
-               ✓ serverSourceMaps (enabled by \`--debug-prerender\`)"
+               ✓ serverSourceMaps (enabled by \`--debug-prerender\`)
+               ✓ strictRouteTypes (enabled by \`__NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES\`)"
             `)
           }
         }
