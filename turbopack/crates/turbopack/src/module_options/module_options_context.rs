@@ -275,9 +275,6 @@ pub struct EcmascriptOptionsContext {
     /// Whether to enable `import bytes from 'module' with { type: "bytes" }` syntax.
     pub enable_import_as_bytes: bool,
 
-    /// Whether to enable `import text from 'module' with { type: "text" }` syntax.
-    pub enable_import_as_text: bool,
-
     // TODO should this be a part of Environment instead?
     pub inline_helpers: bool,
 

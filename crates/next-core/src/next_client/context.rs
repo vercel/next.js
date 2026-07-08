@@ -364,7 +364,6 @@ pub async fn get_client_module_options_context(
             esm_url_rewrite_behavior: Some(UrlRewriteBehavior::Relative),
             enable_typeof_window_inlining: Some(TypeofWindow::Object),
             enable_import_as_bytes: *next_config.turbopack_import_type_bytes().await?,
-            enable_import_as_text: *next_config.turbopack_import_type_text().await?,
             source_maps,
             infer_module_side_effects: *next_config.turbopack_infer_module_side_effects().await?,
             preset_env_config,

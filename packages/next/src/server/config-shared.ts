@@ -766,10 +766,11 @@ export interface ExperimentalConfig {
    *
    * - `false`: disable eviction.
    * - `'full'`: after every snapshot, drop as much memory as possible.
+   * - `'auto'`: evict after a snapshot when we expect to save a lot of memory or the system is under pressure
    *
-   * Defaults to `'full'`
+   * Defaults to `'auto'`
    */
-  turbopackMemoryEviction?: false | 'full'
+  turbopackMemoryEviction?: false | 'full' | 'auto'
 
   /**
    * Selects the backend used by Turbopack for Node.js evaluation, e.g. webpack
@@ -793,11 +794,6 @@ export interface ExperimentalConfig {
    * Enable support for `with {type: "bytes"}` for ESM imports.
    */
   turbopackImportTypeBytes?: boolean
-
-  /**
-   * Enable support for `with {type: "text"}` for ESM imports.
-   */
-  turbopackImportTypeText?: boolean
 
   /**
    * Enable scope hoisting. Defaults to true in build mode. Always disabled in development mode.

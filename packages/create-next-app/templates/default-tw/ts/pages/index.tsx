@@ -18,7 +18,7 @@ export default function Home() {
     >
       <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
         <Image
-          className="dark:invert"
+          className="dark:invert h-5 w-[100px]"
           src="/next.svg"
           alt="Next.js logo"
           width={100}
@@ -55,7 +55,7 @@ export default function Home() {
             rel="noopener noreferrer"
           >
             <Image
-              className="dark:invert"
+              className="dark:invert h-[14px] w-4"
               src="/vercel.svg"
               alt="Vercel logomark"
               width={16}
