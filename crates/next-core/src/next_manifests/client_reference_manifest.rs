@@ -98,13 +98,14 @@ pub struct ManifestNodeEntry {
 /// `__turbopack_load_by_url__`.
 ///
 /// Most chunks are a plain URL string. A *merged* chunk (one that bundles several component
-/// chunks) is instead emitted as a `[url, componentChunkPaths]` array. This us to dynamically
-/// choose to load the whole chunk or individual components of it, as neeeded.
+/// chunks) is instead emitted as a `[url, componentChunkPaths, componentChunkSizes]` array. This
+/// us to dynamically choose to load the whole chunk or individual components of it, as neeeded.
+/// The sizes (bytes of the emitted files) feed the runtime's split-vs-whole cost heuristic.
 #[derive(Serialize, Debug, Clone)]
 #[serde(untagged)]
 pub enum ClientChunk {
     Path(RcStr),
-    Merged(RcStr, Vec<RcStr>),
+    Merged(RcStr, Vec<RcStr>, Vec<u64>),
 }
 
 #[turbo_tasks::value(shared)]
@@ -322,11 +323,12 @@ async fn build_manifest(
                         // If this is a merged chunk, emit its component chunk paths alongside the
                         // URL so the browser runtime can split it during navigation.
                         let components =
-                            client_chunk_component_paths(chunk, &client_relative_path).await?;
+                            client_chunk_components(chunk, &client_relative_path).await?;
                         Ok(if components.is_empty() {
                             ClientChunk::Path(url)
                         } else {
-                            ClientChunk::Merged(url, components)
+                            let (paths, sizes) = components.into_iter().unzip();
+                            ClientChunk::Merged(url, paths, sizes)
                         })
                     })
                     .try_join()
@@ -562,10 +564,10 @@ impl From<&TurbopackModuleId> for ModuleId {
     }
 }
 
-async fn client_chunk_component_paths(
+async fn client_chunk_components(
     chunk: ResolvedVc<Box<dyn OutputAsset>>,
     client_relative_path: &FileSystemPath,
-) -> Result<Vec<RcStr>> {
+) -> Result<Vec<(RcStr, u64)>> {
     let Some(output_chunk) = ResolvedVc::try_sidecast::<Box<dyn OutputChunk>>(chunk) else {
         return Ok(Vec::new());
     };
@@ -573,16 +575,22 @@ async fn client_chunk_component_paths(
         return Ok(Vec::new());
     };
     let component_assets = component_chunks.await?;
-    let mut component_paths = Vec::with_capacity(component_assets.len());
+    let mut components = Vec::with_capacity(component_assets.len());
     for component in component_assets.iter() {
         let component_path = component.path().await?;
         if let Some(rel) = client_relative_path.get_path_to(&component_path)
             && rel.ends_with(".js")
         {
-            component_paths.push(RcStr::from(rel));
+            let size = component
+                .content()
+                .file_content()
+                .await?
+                .as_content()
+                .map_or(0, |file| file.content().len() as u64);
+            components.push((RcStr::from(rel), size));
         }
     }
-    Ok(component_paths)
+    Ok(components)
 }
 
 /// See next.js/packages/next/src/lib/client-reference.ts
