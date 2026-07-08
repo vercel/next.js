@@ -5,6 +5,7 @@ import { bold, purple, strikethrough } from '../../lib/picocolors'
 import type { ConfiguredExperimentalFeature } from '../config'
 import { experimentalSchema } from '../config-schema'
 import { detectAgent } from '../../telemetry/detect-agent'
+import { bundlerName, getBundlerFromEnv } from '../../lib/bundler'
 import {
   hasAgentRulesInstalled,
   writeAgentFiles,
@@ -29,22 +30,9 @@ export function logStartInfo({
   envInfo?: string[]
   logBundler: boolean
 }) {
-  let versionSuffix = ''
-  const parts = []
-
-  if (logBundler) {
-    if (process.env.TURBOPACK) {
-      parts.push('Turbopack')
-    } else if (process.env.NEXT_RSPACK) {
-      parts.push('Rspack')
-    } else {
-      parts.push('webpack')
-    }
-  }
-
-  if (parts.length > 0) {
-    versionSuffix = ` (${parts.join(', ')})`
-  }
+  const versionSuffix = logBundler
+    ? ` (${bundlerName(getBundlerFromEnv())})`
+    : ''
 
   Log.bootstrap(
     `${bold(

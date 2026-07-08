@@ -10,6 +10,7 @@ import '../require-hook'
 import url from 'url'
 import path from 'path'
 import loadConfig, { type ConfiguredExperimentalFeature } from '../config'
+import { finalizeBundlerFromConfig, getBundlerFromEnv } from '../../lib/bundler'
 import { serveStatic } from '../serve-static'
 import setupDebug from 'next/dist/compiled/debug'
 import * as Log from '../../build/output/log'
@@ -99,6 +100,9 @@ export async function initialize(opts: {
     process.env.NODE_ENV = opts.dev ? 'development' : 'production'
   }
 
+  // Capture the bundler before loading the config
+  const bundlerBeforeConfig = opts.dev ? getBundlerFromEnv() : undefined
+
   let experimentalFeatures: ConfiguredExperimentalFeature[] = []
   const config = await loadConfig(
     opts.dev ? PHASE_DEVELOPMENT_SERVER : PHASE_PRODUCTION_SERVER,
@@ -112,6 +116,10 @@ export async function initialize(opts: {
       },
     }
   )
+
+  if (bundlerBeforeConfig !== undefined) {
+    finalizeBundlerFromConfig(bundlerBeforeConfig)
+  }
 
   let compress: ReturnType<typeof setupCompression> | undefined
 
