@@ -8491,7 +8491,12 @@ async function prerenderToStream(
       })
 
       let htmlStream: AnyStream = prelude
-      if (resultIsPartial) {
+      // An empty prelude with a postponed state means the whole document is
+      // deferred, e.g. because the page only suspends in client components
+      // with no Suspense boundary below the root. Even if the React Server
+      // prerender was fully static, the HTML has to be completed with a
+      // resume render at request time, so it's treated as dynamic HTML.
+      if (resultIsPartial || (postponed != null && preludeIsEmpty)) {
         if (postponed != null) {
           metadata.postponed = await getDynamicHTMLPostponedState(
             postponed,
