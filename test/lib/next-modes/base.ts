@@ -259,8 +259,8 @@ export class NextInstance {
           'react-dom': reactVersion,
           '@types/react': '19.2.2',
           '@types/react-dom': '19.2.1',
-          typescript: 'latest',
-          '@types/node': 'latest',
+          typescript: '6.0.3',
+          '@types/node': '26.1.0',
           ...this.dependencies,
           ...this.packageJson?.dependencies,
         }
