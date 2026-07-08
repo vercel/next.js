@@ -360,7 +360,7 @@ export const instantRuntimeDataErrors: ReadyRuntimeError[] = [
     runtime: true,
     error: Object.assign(
       new Error(
-        'Route "/01-cookies-body": Next.js encountered runtime data during prerendering.\n\n`cookies()`, `headers()`, `params`, or `searchParams` accessed outside of `<Suspense>` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.\n\nWays to fix this:\n  - [stream] Provide a placeholder with `<Suspense fallback={...}>` around the data access\n  - [cache] If the runtime data is `params` and they\'re known, prerender them with `generateStaticParams`\n  - [block] Set `export const instant = false` to silence this warning and allow a blocking route\n\nLearn more: https://nextjs.org/docs/messages/blocking-route'
+        'Route "/01-cookies-body": Next.js encountered runtime data during prerendering.\n\n`cookies()`, `headers()`, `params`, or `searchParams` accessed outside of `<Suspense>` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.\n\nWays to fix this:\n  - [stream] Provide a placeholder with `<Suspense fallback={...}>` around the data access\n  - [cache] If the runtime data is `params` and they\'re known, prerender them with `generateStaticParams`\n  - [block] Set `export const instant = false` to allow a blocking route\n\nLearn more: https://nextjs.org/docs/messages/blocking-route'
       ),
       { __NEXT_ERROR_CODE: 'E1221' }
     ),
@@ -388,7 +388,7 @@ export const instantUncachedDataErrors: ReadyRuntimeError[] = [
     runtime: true,
     error: Object.assign(
       new Error(
-        'Route "/06-uncached-fetch-body": Next.js encountered uncached data during prerendering.\n\n`fetch(...)` or `connection()` accessed outside of `<Suspense>` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.\n\nWays to fix this:\n  - [cache] Cache the data access with `"use cache"`\n  - [stream] Provide a placeholder with `<Suspense fallback={...}>` around the data access\n  - [block] Set `export const instant = false` to silence this warning and allow a blocking route\n\nLearn more: https://nextjs.org/docs/messages/blocking-route'
+        'Route "/06-uncached-fetch-body": Next.js encountered uncached data during prerendering.\n\n`fetch(...)` or `connection()` accessed outside of `<Suspense>` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.\n\nWays to fix this:\n  - [cache] Cache the data access with `"use cache"`\n  - [stream] Provide a placeholder with `<Suspense fallback={...}>` around the data access\n  - [block] Set `export const instant = false` to allow a blocking route\n\nLearn more: https://nextjs.org/docs/messages/blocking-route'
       ),
       { __NEXT_ERROR_CODE: 'E1220' }
     ),
@@ -416,7 +416,7 @@ export const instantViewportErrors: ReadyRuntimeError[] = [
     runtime: true,
     error: Object.assign(
       new Error(
-        'Route "/14-cookies-in-viewport": Next.js encountered runtime data in `generateViewport()`.\n\n`cookies()`, `headers()`, `params`, or `searchParams` in `generateViewport()` prevents the page from being prerendered, leading to a slower user experience.\n\nWays to fix this:\n  - [static] Use a static viewport export instead of `generateViewport()`\n  - [block] Set `export const instant = false` to silence this warning and allow a blocking route\n\nLearn more: https://nextjs.org/docs/messages/blocking-prerender-viewport-runtime'
+        'Route "/14-cookies-in-viewport": Next.js encountered runtime data in `generateViewport()`.\n\n`cookies()`, `headers()`, `params`, or `searchParams` in `generateViewport()` prevents the page from being prerendered, leading to a slower user experience.\n\nWays to fix this:\n  - [static] Use a static viewport export instead of `generateViewport()`\n  - [block] Set `export const instant = false` to allow a blocking route\n\nLearn more: https://nextjs.org/docs/messages/blocking-prerender-viewport-runtime'
       ),
       { __NEXT_ERROR_CODE: 'E1208' }
     ),
@@ -447,7 +447,7 @@ export const instantViewportUncachedErrors: ReadyRuntimeError[] = [
     runtime: true,
     error: Object.assign(
       new Error(
-        'Route "/15-fetch-in-viewport": Next.js encountered uncached data in `generateViewport()`.\n\n`fetch(...)` or `connection()` in `generateViewport()` prevents the page from being prerendered, leading to a slower user experience.\n\nWays to fix this:\n  - [cache] Cache the viewport data with `"use cache"` in `generateViewport()`\n  - [block] Set `export const instant = false` to silence this warning and allow a blocking route\n\nLearn more: https://nextjs.org/docs/messages/blocking-prerender-viewport-dynamic'
+        'Route "/15-fetch-in-viewport": Next.js encountered uncached data in `generateViewport()`.\n\n`fetch(...)` or `connection()` in `generateViewport()` prevents the page from being prerendered, leading to a slower user experience.\n\nWays to fix this:\n  - [cache] Cache the viewport data with `"use cache"` in `generateViewport()`\n  - [block] Set `export const instant = false` to allow a blocking route\n\nLearn more: https://nextjs.org/docs/messages/blocking-prerender-viewport-dynamic'
       ),
       { __NEXT_ERROR_CODE: 'E1210' }
     ),
@@ -672,7 +672,7 @@ export const mixedIssueAndInsightErrors: ReadyRuntimeError[] = [
     runtime: true,
     error: Object.assign(
       new Error(
-        'Route "/nav-cookies-under-suspense": Next.js encountered runtime data during prerendering or a navigation.\n\n`cookies()`, `headers()`, `params`, or `searchParams` accessed outside of `<Suspense>` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.\n\nWays to fix this:\n  - [stream] Provide a placeholder with `<Suspense fallback={...}>` around the data access\n  - [cache] If the runtime data is `params` and they\'re known, prerender them with `generateStaticParams`\n  - [block] Set `export const instant = false` to silence this warning and allow a blocking route\n\nLearn more: https://nextjs.org/docs/messages/blocking-route'
+        'Route "/nav-cookies-under-suspense": Next.js encountered runtime data during prerendering or a navigation.\n\n`cookies()`, `headers()`, `params`, or `searchParams` accessed outside of `<Suspense>` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.\n\nWays to fix this:\n  - [stream] Provide a placeholder with `<Suspense fallback={...}>` around the data access\n  - [cache] If the runtime data is `params` and they\'re known, prerender them with `generateStaticParams`\n  - [block] Set `export const instant = false` to allow a blocking route\n\nLearn more: https://nextjs.org/docs/messages/blocking-route'
       ),
       { __NEXT_ERROR_CODE: 'E1247' }
     ),
@@ -697,7 +697,7 @@ export const mixedIssueAndInsightErrors: ReadyRuntimeError[] = [
     runtime: true,
     error: Object.assign(
       new Error(
-        'Route "/nav-fetch-under-suspense": Next.js encountered uncached data during prerendering or a navigation.\n\n`fetch(...)` or `connection()` accessed outside of `<Suspense>` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.\n\nWays to fix this:\n  - [cache] Cache the data access with `"use cache"`\n  - [stream] Provide a placeholder with `<Suspense fallback={...}>` around the data access\n  - [block] Set `export const instant = false` to silence this warning and allow a blocking route\n\nLearn more: https://nextjs.org/docs/messages/blocking-route'
+        'Route "/nav-fetch-under-suspense": Next.js encountered uncached data during prerendering or a navigation.\n\n`fetch(...)` or `connection()` accessed outside of `<Suspense>` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.\n\nWays to fix this:\n  - [cache] Cache the data access with `"use cache"`\n  - [stream] Provide a placeholder with `<Suspense fallback={...}>` around the data access\n  - [block] Set `export const instant = false` to allow a blocking route\n\nLearn more: https://nextjs.org/docs/messages/blocking-route'
       ),
       { __NEXT_ERROR_CODE: 'E1246' }
     ),

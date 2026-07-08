@@ -1334,7 +1334,7 @@
             Variable(
                 (
                     "res",
-                    #5,
+                    #6,
                 ),
             ),
             Constant(
@@ -1490,7 +1490,7 @@
         obj: Variable(
             (
                 "res",
-                #5,
+                #6,
             ),
         ),
         prop: Constant(
@@ -1644,7 +1644,7 @@
         obj: Variable(
             (
                 "res",
-                #5,
+                #6,
             ),
         ),
         prop: Constant(
@@ -1804,7 +1804,7 @@
             Variable(
                 (
                     "res",
-                    #5,
+                    #6,
                 ),
             ),
             Constant(
@@ -1862,7 +1862,7 @@
                             Variable(
                                 (
                                     "hello",
-                                    #5,
+                                    #6,
                                 ),
                             ),
                         ),

@@ -107,7 +107,7 @@ function CopyPromptButton({
         const info = await generateErrorInfo()
         return info ? `${fixHeader}\n\n${info}` : fixHeader
       }}
-      actionLabel="Copy as prompt"
+      actionLabel="Copy prompt"
       successLabel="Copied"
       icon={<CopyPromptIcon />}
       showLabel
@@ -116,7 +116,7 @@ function CopyPromptButton({
   ) : (
     <CopyButton
       content={fixHeader}
-      actionLabel="Copy as prompt"
+      actionLabel="Copy prompt"
       successLabel="Copied"
       icon={<CopyPromptIcon />}
       showLabel
@@ -381,9 +381,10 @@ export const INSTANT_GUIDANCE_STYLES = css`
   }
 
   [data-nextjs-card-grid] {
+    --copy-prompt-offset: 10px;
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-    gap: 12px;
+    gap: calc(12px + var(--copy-prompt-offset)) 12px;
   }
 
   [data-nextjs-fix-card] {
@@ -601,12 +602,13 @@ export const INSTANT_GUIDANCE_STYLES = css`
     font-family: var(--font-stack-sans);
     font-size: var(--size-11);
     font-weight: 500;
-    gap: 4px;
+    gap: 6px;
     height: auto;
-    padding: 3px 8px 3px 7px;
+    line-height: 1;
+    padding: 5px 10px;
     position: absolute;
     right: 10px;
-    top: -10px;
+    top: calc(-1 * var(--copy-prompt-offset));
     transition:
       background 120ms ease,
       border-color 120ms ease,

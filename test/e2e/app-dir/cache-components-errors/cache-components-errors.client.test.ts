@@ -81,7 +81,7 @@ describe('Cache Components Errors - Client Components', () => {
 
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E1373",
+             "code": "E1401",
              "description": "Next.js encountered uncached data during prerendering.",
              "environmentLabel": "Server",
              "label": "Blocking Route",
@@ -120,7 +120,7 @@ describe('Cache Components Errors - Client Components', () => {
                    https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
                  - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
                    https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
-                 - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
+                 - [block] Set \`export const instant = false\` to allow a blocking route
                    https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
                    at Client (app/client-awaited-io/client.tsx:6:19)
                    at Page (app/client-awaited-io/page.tsx:5:10)
@@ -148,7 +148,7 @@ describe('Cache Components Errors - Client Components', () => {
                    https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
                  - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
                    https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
-                 - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
+                 - [block] Set \`export const instant = false\` to allow a blocking route
                    https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
                    at <unknown> (app/client-awaited-io/client.tsx:5:26)
                    at body (<anonymous>)
@@ -179,7 +179,7 @@ describe('Cache Components Errors - Client Components', () => {
                    https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
                  - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
                    https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
-                 - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
+                 - [block] Set \`export const instant = false\` to allow a blocking route
                    https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
                    at Client (webpack:///app/client-awaited-io/client.tsx:6:19)
                    at Page (webpack:///app/client-awaited-io/page.tsx:5:10)
@@ -207,7 +207,7 @@ describe('Cache Components Errors - Client Components', () => {
                    https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
                  - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
                    https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
-                 - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
+                 - [block] Set \`export const instant = false\` to allow a blocking route
                    https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
                    at a (<next-dist-dir>)
                    at b (<next-dist-dir>)
@@ -254,7 +254,7 @@ describe('Cache Components Errors - Client Components', () => {
 
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E1316",
+             "code": "E1405",
              "description": "Next.js encountered URL data useSearchParams() in a Client Component outside of Suspense.",
              "environmentLabel": "Server",
              "label": "Blocking Route",
@@ -291,7 +291,7 @@ describe('Cache Components Errors - Client Components', () => {
                Ways to fix this:
                  - [stream] Wrap the component in \`<Suspense fallback={...}>\` so the hook value streams in after prerendering
                    https://nextjs.org/docs/messages/blocking-prerender-client-hook#wrap-in-or-move-into-suspense
-                 - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
+                 - [block] Set \`export const instant = false\` to allow a blocking route
                    https://nextjs.org/docs/messages/blocking-prerender-client-hook#allow-blocking-route
                    at Client (app/client-use-search-params/client.tsx:6:18)
                    at Page (app/client-use-search-params/page.tsx:4:10)
@@ -319,7 +319,7 @@ describe('Cache Components Errors - Client Components', () => {
                Ways to fix this:
                  - [stream] Wrap the component in \`<Suspense fallback={...}>\` so the hook value streams in after prerendering
                    https://nextjs.org/docs/messages/blocking-prerender-client-hook#wrap-in-or-move-into-suspense
-                 - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
+                 - [block] Set \`export const instant = false\` to allow a blocking route
                    https://nextjs.org/docs/messages/blocking-prerender-client-hook#allow-blocking-route
                    at <unknown> (app/client-use-search-params/client.tsx:6:3)
                    at body (<anonymous>)
@@ -353,7 +353,7 @@ describe('Cache Components Errors - Client Components', () => {
                Ways to fix this:
                  - [stream] Wrap the component in \`<Suspense fallback={...}>\` so the hook value streams in after prerendering
                    https://nextjs.org/docs/messages/blocking-prerender-client-hook#wrap-in-or-move-into-suspense
-                 - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
+                 - [block] Set \`export const instant = false\` to allow a blocking route
                    https://nextjs.org/docs/messages/blocking-prerender-client-hook#allow-blocking-route
                    at a (<next-dist-dir>)
                    at b (<next-dist-dir>)
@@ -403,7 +403,7 @@ describe('Cache Components Errors - Client Components', () => {
 
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E1316",
+             "code": "E1405",
              "description": "Next.js encountered URL data usePathname() in a Client Component outside of Suspense.",
              "environmentLabel": "Server",
              "label": "Blocking Route",
@@ -440,7 +440,7 @@ describe('Cache Components Errors - Client Components', () => {
                Ways to fix this:
                  - [stream] Wrap the component in \`<Suspense fallback={...}>\` so the hook value streams in after prerendering
                    https://nextjs.org/docs/messages/blocking-prerender-client-hook#wrap-in-or-move-into-suspense
-                 - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
+                 - [block] Set \`export const instant = false\` to allow a blocking route
                    https://nextjs.org/docs/messages/blocking-prerender-client-hook#allow-blocking-route
                    at Client (app/client-use-pathname/[id]/client.tsx:6:14)
                    at Page (app/client-use-pathname/[id]/page.tsx:4:10)
@@ -468,7 +468,7 @@ describe('Cache Components Errors - Client Components', () => {
                Ways to fix this:
                  - [stream] Wrap the component in \`<Suspense fallback={...}>\` so the hook value streams in after prerendering
                    https://nextjs.org/docs/messages/blocking-prerender-client-hook#wrap-in-or-move-into-suspense
-                 - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
+                 - [block] Set \`export const instant = false\` to allow a blocking route
                    https://nextjs.org/docs/messages/blocking-prerender-client-hook#allow-blocking-route
                    at <unknown> (app/client-use-pathname/[id]/client.tsx:6:3)
                    at body (<anonymous>)
@@ -502,7 +502,7 @@ describe('Cache Components Errors - Client Components', () => {
                Ways to fix this:
                  - [stream] Wrap the component in \`<Suspense fallback={...}>\` so the hook value streams in after prerendering
                    https://nextjs.org/docs/messages/blocking-prerender-client-hook#wrap-in-or-move-into-suspense
-                 - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
+                 - [block] Set \`export const instant = false\` to allow a blocking route
                    https://nextjs.org/docs/messages/blocking-prerender-client-hook#allow-blocking-route
                    at a (<next-dist-dir>)
                    at b (<next-dist-dir>)

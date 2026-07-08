@@ -367,7 +367,13 @@ jobs:
 
       - name: Install Playwright browsers
         if: ${{ inputs.skipInstallBuild != 'yes' && inputs.needsPlaywright != 'no' }}
-        run: pnpm playwright install --with-deps --only-shell ${{ inputs.browser }}
+        env:
+          PLAYWRIGHT_BROWSERS: ${{ inputs.browser }}
+          WITH_DEPS: ${{ inputs.browser != 'chromium' && '--with-deps' || '' }}
+        run: |
+          # PLAYWRIGHT_BROWSERS can be a space-separated list, should expand
+          # into multiple arguments
+          pnpm playwright install --only-shell $WITH_DEPS $PLAYWRIGHT_BROWSERS
 
       - name: Download pre-built test timings
         if: ${{ inputs.testTimingsArtifact != '' }}

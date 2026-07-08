@@ -3,10 +3,13 @@ import {
   createDynamicBodyError,
   createRuntimeBodyErrorInNavigation,
   createDynamicBodyErrorInNavigation,
+  createLinkBodyErrorInNavigation,
   createRuntimeMetadataError,
   createDynamicMetadataError,
+  createLinkMetadataError,
   createRuntimeViewportError,
   createDynamicViewportError,
+  createLinkViewportError,
 } from '../../../../server/app-render/blocking-route-messages'
 import { createLinkPrefetchPartialError } from '../../../../shared/lib/instant-messages'
 import {
@@ -57,6 +60,12 @@ describe('instant-guidance-data card ordering', () => {
       'dynamic',
     ],
     [
+      'blocking-route link',
+      createLinkBodyErrorInNavigation('/x').message,
+      'blocking-route',
+      'link',
+    ],
+    [
       'metadata runtime',
       createRuntimeMetadataError('/x').message,
       'metadata',
@@ -69,6 +78,12 @@ describe('instant-guidance-data card ordering', () => {
       'dynamic',
     ],
     [
+      'metadata link',
+      createLinkMetadataError('/x').message,
+      'metadata',
+      'link',
+    ],
+    [
       'viewport runtime',
       createRuntimeViewportError('/x').message,
       'viewport',
@@ -79,6 +94,12 @@ describe('instant-guidance-data card ordering', () => {
       createDynamicViewportError('/x').message,
       'viewport',
       'dynamic',
+    ],
+    [
+      'viewport link',
+      createLinkViewportError('/x').message,
+      'viewport',
+      'link',
     ],
     [
       'link-prefetch-partial',
@@ -113,6 +134,12 @@ describe('instant-guidance-data card links', () => {
       'dynamic',
     ],
     [
+      'blocking-route link',
+      createLinkBodyErrorInNavigation('/x').message,
+      'blocking-route',
+      'link',
+    ],
+    [
       'metadata runtime',
       createRuntimeMetadataError('/x').message,
       'metadata',
@@ -125,6 +152,12 @@ describe('instant-guidance-data card links', () => {
       'dynamic',
     ],
     [
+      'metadata link',
+      createLinkMetadataError('/x').message,
+      'metadata',
+      'link',
+    ],
+    [
       'viewport runtime',
       createRuntimeViewportError('/x').message,
       'viewport',
@@ -135,6 +168,12 @@ describe('instant-guidance-data card links', () => {
       createDynamicViewportError('/x').message,
       'viewport',
       'dynamic',
+    ],
+    [
+      'viewport link',
+      createLinkViewportError('/x').message,
+      'viewport',
+      'link',
     ],
     [
       'link-prefetch-partial',
@@ -154,11 +193,14 @@ describe('instant-guidance-data card links', () => {
     const variants: Array<[GuidanceKind, GuidanceVariant]> = [
       ['blocking-route', 'runtime'],
       ['blocking-route', 'dynamic'],
+      ['blocking-route', 'link'],
       ['client-hook', 'runtime'],
       ['metadata', 'runtime'],
       ['metadata', 'dynamic'],
+      ['metadata', 'link'],
       ['viewport', 'runtime'],
       ['viewport', 'dynamic'],
+      ['viewport', 'link'],
       ['unrendered-segment', 'runtime'],
       ['link-prefetch-partial', 'runtime'],
     ]
@@ -178,13 +220,16 @@ describe('instant-guidance-data card invariants', () => {
       ['blocking-route', 'runtime'],
       ['blocking-route', 'dynamic'],
       ['blocking-route', 'dynamic', 'connection'],
+      ['blocking-route', 'link'],
       ['client-hook', 'runtime'],
       ['metadata', 'runtime'],
       ['metadata', 'dynamic'],
       ['metadata', 'dynamic', 'connection'],
+      ['metadata', 'link'],
       ['viewport', 'runtime'],
       ['viewport', 'dynamic'],
       ['viewport', 'dynamic', 'connection'],
+      ['viewport', 'link'],
       ['unrendered-segment', 'runtime'],
       ['link-prefetch-partial', 'runtime'],
     ]
@@ -245,11 +290,14 @@ describe('instant-guidance-data dispatcher', () => {
     const variants: Array<[GuidanceKind, GuidanceVariant]> = [
       ['blocking-route', 'runtime'],
       ['blocking-route', 'dynamic'],
+      ['blocking-route', 'link'],
       ['client-hook', 'runtime'],
       ['metadata', 'runtime'],
       ['metadata', 'dynamic'],
+      ['metadata', 'link'],
       ['viewport', 'runtime'],
       ['viewport', 'dynamic'],
+      ['viewport', 'link'],
       ['unrendered-segment', 'runtime'],
       ['link-prefetch-partial', 'runtime'],
     ]
