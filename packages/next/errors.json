@@ -1413,5 +1413,6 @@
   "1412": "Invalid \"cacheLife.%s.%s\" provided, expected a finite number of seconds or Infinity, received %s",
   "1413": "Invalid \\`cacheLife()\\` option \"stale\" provided, expected a finite number of seconds or Infinity, received %s.",
   "1414": "The %s option must be a number of seconds.",
-  "1415": "Unknown cacheLife option %s"
+  "1415": "Unknown cacheLife option %s",
+  "1416": "Invalid \"%s\" provided, expected a finite number of seconds or Infinity, received %s"
 }

@@ -16,7 +16,7 @@ type CacheLifeProfileContext =
   | { kind: 'inline' }
   | { kind: 'config'; profileName: string }
 
-export function normalizeCacheLifeValue(
+function normalizeCacheLifeValue(
   key: keyof CacheLife,
   value: unknown,
   context: CacheLifeProfileContext
