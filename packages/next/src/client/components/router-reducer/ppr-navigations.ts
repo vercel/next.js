@@ -149,7 +149,7 @@ export type NavigationRequestAccumulation = {
    * transition being navigated to (`null` when the navigation is untracked,
    * e.g. hydration, a server-action redirect, or a retry), threaded through
    * the segment walk so a fresh segment the cache could NOT serve marks it
-   * as a cache miss (see finishSegmentCacheNode). The question is
+   * as a cache miss (see createCacheNodeForSegment). The question is
    * deliberately "did the cache have bytes to render right now" — a shell
    * that is entirely a dynamic hole counts — NOT whether those bytes paint
    * or how long the commit takes, which keeps the check synchronous and
@@ -963,27 +963,6 @@ function reuseSharedCacheNode(
   )
 }
 
-// Every return from createCacheNodeForSegment funnels through this helper so
-// that no code path can produce a fresh segment's cache node without
-// answering the instrumentation question: did the cache have bytes to render
-// for this segment right now? `renderedFromCache` is deliberately generous —
-// a partial shell counts even when it is entirely a dynamic hole — because
-// `cacheHit` attributes cache coverage, not paint time: whether those bytes
-// commit instantly or suspend on streaming content is read from the commit
-// event's start→commit latency instead. A new return path fails to compile
-// without answering.
-function finishSegmentCacheNode(
-  accumulation: NavigationRequestAccumulation,
-  renderedFromCache: boolean,
-  cacheNode: CacheNode,
-  needsDynamicRequest: boolean
-): { cacheNode: CacheNode; needsDynamicRequest: boolean } {
-  if (!renderedFromCache) {
-    markRouterTransitionAsCacheMiss(accumulation.instrumentationTransition)
-  }
-  return { cacheNode, needsDynamicRequest }
-}
-
 function createCacheNodeForSegment(
   now: number,
   tree: RouteTree,
@@ -1035,19 +1014,16 @@ function createCacheNodeForSegment(
         // fresh navigation, so we use the caller-supplied bfcacheId — the
         // BFCacheEntry's id is only restored on history-traversal
         // navigations.
-        return finishSegmentCacheNode(
-          accumulation,
-          // A BFCache hit is rendered state we already had.
-          true,
-          createCacheNode(
+        return {
+          cacheNode: createCacheNode(
             bfcacheEntry.rsc,
             bfcacheEntry.prefetchRsc,
             bfcacheEntry.head,
             bfcacheEntry.prefetchHead,
             bfcacheId
           ),
-          false
-        )
+          needsDynamicRequest: false,
+        }
       }
       break
     }
@@ -1092,13 +1068,16 @@ function createCacheNodeForSegment(
           bfcacheId
         )
       }
-      return finishSegmentCacheNode(
-        accumulation,
-        // Seeded from the document already in hand.
-        true,
-        createCacheNode(rsc, prefetchRsc, head, prefetchHead, bfcacheId),
-        false
-      )
+      return {
+        cacheNode: createCacheNode(
+          rsc,
+          prefetchRsc,
+          head,
+          prefetchHead,
+          bfcacheId
+        ),
+        needsDynamicRequest: false,
+      }
     }
     case FreshnessPolicy.HistoryTraversal:
       const bfcacheEntry = readFromBFCache(tree.varyPath)
@@ -1120,19 +1099,16 @@ function createCacheNodeForSegment(
         // Restore the bfcacheId from the cached entry so that back/forward
         // navigations preserve the original id, regardless of whether
         // `cacheComponents` Activity preservation is enabled.
-        return finishSegmentCacheNode(
-          accumulation,
-          // A BFCache hit is rendered state we already had.
-          true,
-          createCacheNode(
+        return {
+          cacheNode: createCacheNode(
             bfcacheEntry.rsc,
             dropPrefetchRsc ? null : bfcacheEntry.prefetchRsc,
             bfcacheEntry.head,
             dropPrefetchRsc ? null : bfcacheEntry.prefetchHead,
             bfcacheEntry.bfcacheId
           ),
-          false
-        )
+          needsDynamicRequest: false,
+        }
       }
       break
     case FreshnessPolicy.RefreshAll:
@@ -1147,15 +1123,15 @@ function createCacheNodeForSegment(
 
   let cachedRsc: React.ReactNode | null = null
   let isCachedRscPartial: boolean = true
-  // Instrumentation classification for the final return below: the cache
-  // served this segment iff its entry is Fulfilled with bytes — partiality
-  // does not matter (even a shell that is entirely a dynamic hole counts as
-  // rendered-from-cache; whether it paints instantly or suspends on the
-  // stream is deliberately not this flag's question). Pending (the prefetch
-  // arrived too late), Empty, Rejected, and a missing entry mean the cache
-  // had nothing to render right now. Every fresh segment (layouts, pages,
-  // parallel slots) passes through here, so one unserved segment marks the
-  // whole navigation.
+  // Instrumentation classification for the cache-miss mark before the final
+  // return: the cache served this segment iff its entry is Fulfilled with
+  // bytes — partiality does not matter (even a shell that is entirely a
+  // dynamic hole counts as rendered-from-cache; whether it paints instantly
+  // or suspends on the stream is deliberately not this flag's question).
+  // Pending (the prefetch arrived too late), Empty, Rejected, and a missing
+  // entry mean the cache had nothing to render right now. Every fresh
+  // segment (layouts, pages, parallel slots) passes through here, so one
+  // unserved segment marks the whole navigation.
   let renderedFromCache = false
 
   const segmentEntry = readSegmentCacheEntryForNavigation(
@@ -1379,24 +1355,27 @@ function createCacheNodeForSegment(
     }
   }
 
-  return finishSegmentCacheNode(
-    accumulation,
-    // Seed segments (a server response already in hand) belong to
-    // navigations marked at the route level or untracked, so the
-    // `seedRsc !== null` short-circuit covers them. Otherwise the cache
-    // served this segment only if both the segment bytes AND — for a page —
-    // the head were cached. From the client's perspective the head is just
-    // another segment, so a head the cache could not serve is a miss even
-    // though it streams in non-blocking and never stalls the commit: it
-    // means the head was not prefetched, which is exactly the kind of gap
-    // cacheHit exists to surface.
-    seedRsc !== null || (renderedFromCache && renderedHeadFromCache),
-    createCacheNode(rsc, prefetchRsc, head, prefetchHead, bfcacheId),
+  // Instrumentation: the cache served this segment only if it had bytes for
+  // both the segment AND — for a page — the head. Seed segments (a server
+  // response already in hand) are exempt: they belong to navigations marked
+  // at the route level or untracked. From the client's perspective the head
+  // is just another segment, so a head the cache could not serve is a miss
+  // even though it streams in non-blocking and never stalls the commit: it
+  // means the head was not prefetched, which is exactly the kind of gap
+  // cacheHit exists to surface. (The BFCache and hydration returns above
+  // never mark — that is rendered state we already had.)
+  if (seedRsc === null && !(renderedFromCache && renderedHeadFromCache)) {
+    markRouterTransitionAsCacheMiss(accumulation.instrumentationTransition)
+  }
+
+  return {
+    cacheNode: createCacheNode(rsc, prefetchRsc, head, prefetchHead, bfcacheId),
     // TODO: We should store this field on the CacheNode itself. I think we can
     // probably unify NavigationTask, CacheNode, and DeferredRsc into a
     // single type. Or at least CacheNode and DeferredRsc.
-    doesSegmentNeedDynamicRequest || doesHeadNeedDynamicRequest
-  )
+    needsDynamicRequest:
+      doesSegmentNeedDynamicRequest || doesHeadNeedDynamicRequest,
+  }
 }
 
 function createCacheNode(
