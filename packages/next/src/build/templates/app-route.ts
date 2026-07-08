@@ -42,7 +42,6 @@ import {
   type ResponseCacheEntry,
   type ResponseGenerator,
 } from '../../server/response-cache'
-import { MockedResponse } from '../../server/lib/mock-request'
 import type { WebSocketUpgradeTransport } from '../../server/websocket-upgrade'
 import { isWebSocketUpgradeResponse } from '../../server/web/spec-extension/response'
 import {
@@ -95,13 +94,18 @@ type WriteRawHttpError =
   typeof import('../../server/websocket-upgrade').writeRawHttpError
 type WriteRawHttpResponse =
   typeof import('../../server/websocket-upgrade').writeRawHttpResponse
+type MockedResponseConstructor =
+  typeof import('../../server/lib/mock-request').MockedResponse
 
 let writeRawHttpError: WriteRawHttpError
 let writeRawHttpResponse: WriteRawHttpResponse
 let webSocketUpgradeTransport: WebSocketUpgradeTransport | undefined
+let MockedResponse: MockedResponseConstructor
 if (process.env.__NEXT_EXPERIMENTAL_WEBSOCKET_ROUTE_HANDLERS) {
   const websocketUpgrade =
     require('../../server/websocket-upgrade') as typeof import('../../server/websocket-upgrade')
+  const mockRequest =
+    require('../../server/lib/mock-request') as typeof import('../../server/lib/mock-request')
 
   writeRawHttpError = websocketUpgrade.writeRawHttpError
   writeRawHttpResponse = websocketUpgrade.writeRawHttpResponse
@@ -111,6 +115,7 @@ if (process.env.__NEXT_EXPERIMENTAL_WEBSOCKET_ROUTE_HANDLERS) {
     unregisterPeer: (peer) =>
       unregisterWebSocketPeer('VAR_DEFINITION_BUNDLE_PATH', peer),
   })
+  MockedResponse = mockRequest.MockedResponse
 } else {
   writeRawHttpError = async function writeRawHttpErrorUnsupported(
     _req: IncomingMessage,
@@ -132,6 +137,13 @@ if (process.env.__NEXT_EXPERIMENTAL_WEBSOCKET_ROUTE_HANDLERS) {
     }
   }
   webSocketUpgradeTransport = undefined
+  MockedResponse = class MockedResponseUnsupported {
+    constructor() {
+      throw new Error(
+        'WebSocket Route Handlers are unavailable because experimental.webSocketRouteHandlers is not enabled.'
+      )
+    }
+  } as unknown as MockedResponseConstructor
 }
 
 // Pull out the exports that we need to expose from the module. This should
