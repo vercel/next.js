@@ -266,6 +266,24 @@ export type AppRouterState = {
   previousNextUrl: string | null
 
   debugInfo: Array<unknown> | null
+
+  /**
+   * INSTRUMENTATION ONLY — the tracked transition this state is the
+   * destination of, for the instrumentation-client router transition hooks.
+   * `null` when the state is not a tracked destination: the lifecycle flag
+   * is off, the state predates any navigation (initial state), or the state
+   * left the SPA (MPA fallback). Destination-setting reducers
+   * (navigate/restore) stamp the transition threaded on their action;
+   * destination-preserving reducers (refresh, server patch, HMR refresh, a
+   * non-redirect server action) carry the base state's transition forward,
+   * since their derived state re-derives the same destination and may
+   * commit in its place.
+   *
+   * Consumed read-only by HistoryUpdater, which reports `commit` for the
+   * transition carried by the state it applies. Nothing in the router may
+   * otherwise depend on this field.
+   */
+  instrumentationTransition: PendingRouterTransition | null
 }
 
 export type ReadonlyReducerState = Readonly<AppRouterState>

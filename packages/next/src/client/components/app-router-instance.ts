@@ -414,7 +414,9 @@ function gesturePush(href: string, options?: NavigateOptions): void {
       state.nextUrl,
       freshnessPolicy,
       scrollBehavior,
-      'push'
+      'push',
+      // Untracked: see the TODO below.
+      null
     )
     // TODO: Figure out transition tracking for gesture navigations. They are
     // optimistic forks dispatched through useOptimistic rather than the

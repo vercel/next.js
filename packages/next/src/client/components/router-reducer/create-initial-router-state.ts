@@ -270,6 +270,8 @@ export function createInitialRouterState({
       null,
     previousNextUrl: null,
     debugInfo: null,
+    // The initial state is not the destination of any tracked transition.
+    instrumentationTransition: null,
   }
 
   return initialState
