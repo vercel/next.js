@@ -25,7 +25,7 @@ kind: insight
 
 During a [client-side navigation](https://preview.nextjs.org/docs/app/glossary#client-side-navigation), a [`<Link prefetch={true}>`](https://preview.nextjs.org/docs/app/api-reference/components/link) navigated to a route that has not enabled [Partial Prefetching](https://preview.nextjs.org/docs/app/glossary#partial-prefetching). With [Cache Components](https://preview.nextjs.org/docs/app/api-reference/config/next-config-js/cacheComponents) enabled, `prefetch={true}` is a legacy "full" prefetch that pulls down the route's dynamic data along with its [App Shell](https://preview.nextjs.org/docs/app/glossary#app-shell). This will lead to slower, more expensive prefetches.
 
-Routes that opt into Partial Prefetching skip the dynamic data at prefetch time, leaving you free to choose when it loads: at navigation via [streaming](https://preview.nextjs.org/docs/app/glossary#streaming), ahead of time via [runtime prefetching](https://preview.nextjs.org/docs/app/guides/runtime-prefetching), or not at all. The check fires at navigation time, not prefetch time, so existing apps that have just enabled Cache Components are not flooded with warnings for every `<Link prefetch={true}>` on the page.
+Routes that opt into Partial Prefetching skip the dynamic data at prefetch time, leaving you free to choose when it loads: at navigation via [streaming](https://preview.nextjs.org/docs/app/glossary#streaming), ahead of time via [runtime prefetching](https://preview.nextjs.org/docs/app/guides/runtime-prefetching), or not at all. The check fires at navigation time, not prefetch time, so existing apps that have recently enabled Cache Components are not flooded with warnings for every `<Link prefetch={true}>` on the page.
 
 ## Ways to fix this
 
@@ -130,7 +130,7 @@ The link no longer forces a full prefetch. The user gets the cached parts of the
 
 ## Disable validation on this route
 
-Choose this fix when you need the legacy full prefetch behavior and cannot adopt Partial Prefetching for the target route. Setting [`instant`](https://preview.nextjs.org/docs/app/api-reference/file-conventions/route-segment-config/instant) to `false` on the target route opts it out of instant-navigation validation and silences the warning.
+Choose this fix when you need the legacy full prefetch behavior and cannot adopt Partial Prefetching for the target route. Setting [`instant`](https://preview.nextjs.org/docs/app/api-reference/file-conventions/route-segment-config/instant) to `false` on the target route opts it out of instant-navigation validation.
 
 ### Patterns
 
@@ -148,17 +148,17 @@ export default function DashboardPage() {
 
 ### Trade-off
 
-The link continues to do a full prefetch, including dynamic data, and the warning is silenced.
+The link continues to do a full prefetch, including dynamic data, and the warning is no longer reported.
 
 ### Gotchas
 
-- `instant = false` disables all instant-navigation checks for the route, not only this one. [Blocking-route](/docs/messages/blocking-prerender-runtime) and [unrendered-segment](/docs/messages/instant-unrendered-segment) warnings, and other Insights for the route are silenced too.
+- `instant = false` disables all instant-navigation checks for the route, not only this one. That includes [Blocking-route](/docs/messages/blocking-prerender-runtime) and [unrendered-segment](/docs/messages/instant-unrendered-segment) warnings, and other Insights for the route.
 
 ## Verifying the fix
 
-After applying a fix, reload the route to confirm the [static shell](https://preview.nextjs.org/docs/app/glossary#static-shell) renders real content. A [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary placed around the whole page body can pass validation with an empty shell, which defeats the point of an instant navigation.
+After applying a fix, navigate to the route and confirm the insight no longer appears in the dev overlay and the page immediately paints meaningful UI, with any `<Suspense>` fallbacks covering only the regions that stream in. A [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary around the whole page body can pass validation with an empty shell, which defeats the point of an instant navigation.
 
-In [`next dev`](https://preview.nextjs.org/docs/app/api-reference/cli/next#next-dev-options), the error overlay points at the failing component with file paths and line numbers. When working from a build instead, the default [`next build`](https://preview.nextjs.org/docs/app/api-reference/cli/next#next-build-options) output is more abbreviated; run `next build --debug-prerender` for full user-frame stack traces and `next build --debug-build-paths /dashboard /settings` to iterate on specific routes.
+Depending on your [validation level](https://preview.nextjs.org/docs/app/api-reference/file-conventions/route-segment-config/instant#configuring-validation-defaults), this may only surface in development.
 
 ## Don't want this validation?
 
@@ -184,4 +184,5 @@ See [Ensuring instant navigations](https://preview.nextjs.org/docs/app/guides/in
 - [`Date.now()` in a Client Component](/docs/messages/blocking-prerender-current-time-client)
 - [Crypto APIs while prerendering](/docs/messages/blocking-prerender-crypto)
 - [Crypto APIs in a Client Component](/docs/messages/blocking-prerender-crypto-client)
+- [URL data outside of Suspense](/docs/messages/instant-shell-url-data)
 - [Unrendered segment](/docs/messages/instant-unrendered-segment)
