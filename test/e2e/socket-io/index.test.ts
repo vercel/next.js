@@ -16,13 +16,19 @@ describe('socket-io', () => {
   })
 
   it('should support socket.io without falling back to polling', async () => {
-    let requestsCount = 0
+    let pollingRequestsCount = 0
 
     const browser1 = await next.browser('/')
     const browser2 = await next.browser('/', {
       beforePageLoad(page) {
-        page.on('request', () => {
-          requestsCount++
+        page.on('request', (request) => {
+          const url = new URL(request.url())
+          if (
+            url.pathname.startsWith('/api/my_awesome_socket') &&
+            url.searchParams.get('transport') === 'polling'
+          ) {
+            pollingRequestsCount++
+          }
         })
       },
     })
@@ -45,8 +51,8 @@ describe('socket-io', () => {
       10000
     )
 
-    expect(requestsCount).toBeGreaterThan(0)
-    const currentRequestsCount = requestsCount
+    expect(pollingRequestsCount).toBeGreaterThan(0)
+    const currentPollingRequestsCount = pollingRequestsCount
 
     await input1.fill('123456')
     await retry(
@@ -55,6 +61,6 @@ describe('socket-io', () => {
     )
 
     // There should be no new requests (polling) and using the existing WS connection
-    expect(requestsCount).toBe(currentRequestsCount)
+    expect(pollingRequestsCount).toBe(currentPollingRequestsCount)
   })
 })
