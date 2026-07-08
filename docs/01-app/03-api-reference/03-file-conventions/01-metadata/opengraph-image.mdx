@@ -416,7 +416,7 @@ export default async function Image({ params }) {
 
 These examples use the Node.js runtime to fetch a local image from the file system and pass it to the `<img>` `src` attribute, either as a base64 string or an `ArrayBuffer`. Place the local asset relative to the project root, not the example source file.
 
-The asset doesn't depend on request data, so read it once at module scope. See [Asynchronous I/O at module scope](/docs/app/getting-started/caching#asynchronous-io-at-module-scope).
+The asset doesn't depend on request data, so read it once at module scope. See [I/O and computations](/docs/app/getting-started/caching#io-and-computations).
 
 ```tsx filename="app/opengraph-image.tsx" switcher
 import { ImageResponse } from 'next/og'
