@@ -1,6 +1,6 @@
 import { nextTestSetup } from 'e2e-utils'
 
-describe('Invalid Prerender Catchall Params', () => {
+describe('Invalid Prerender Array Element Params', () => {
   const { next, skipped } = nextTestSetup({
     files: __dirname,
     skipStart: true,
@@ -9,11 +9,11 @@ describe('Invalid Prerender Catchall Params', () => {
   if (skipped) return
 
   describe('production mode', () => {
-    it('should fail the build', async () => {
+    it('should fail the build with array element type error', async () => {
       const out = await next.build()
       expect(out.cliOutput).toMatch(`Build error occurred`)
       expect(out.cliOutput).toMatch(
-        'Parameter "slug" from getStaticPaths for /[...slug] must be an array, but received string ("hello")'
+        'Parameter "slug[1]" from getStaticPaths for /[...slug] must be a string, but received number (123)'
       )
     })
   })
