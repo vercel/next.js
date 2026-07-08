@@ -2,7 +2,7 @@ import cheerio from 'cheerio'
 import { nextTestSetup } from 'e2e-utils'
 import { splitResponseWithPPRSentinel } from 'e2e-utils/ppr'
 
-const isAdapterTest = Boolean(process.env.NEXT_ENABLE_ADAPTER)
+const isAdapterTest = process.env.NEXT_ENABLE_ADAPTER === '1'
 
 describe('partial-fallback-root-blocking', () => {
   const { next, isNextDev, isNextDeploy } = nextTestSetup({

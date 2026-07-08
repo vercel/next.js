@@ -325,7 +325,7 @@ export class NextDeployInstance extends NextInstance {
     }
 
     const vercelFlags: string[] = []
-    const NEXT_ENABLE_ADAPTER = process.env.NEXT_ENABLE_ADAPTER
+    const NEXT_ENABLE_ADAPTER = process.env.NEXT_ENABLE_ADAPTER === '1'
     const IS_TURBOPACK_TEST = process.env.IS_TURBOPACK_TEST
 
     const TEST_TEAM_NAME = NEXT_ENABLE_ADAPTER
@@ -432,7 +432,7 @@ export class NextDeployInstance extends NextInstance {
     if (process.env.IS_WEBPACK_TEST) {
       additionalEnv.push(`IS_WEBPACK_TEST=1`)
     }
-    if (process.env.NEXT_ENABLE_ADAPTER) {
+    if (NEXT_ENABLE_ADAPTER) {
       additionalEnv.push(`NEXT_ENABLE_ADAPTER=1`)
     } else {
       additionalEnv.push(`NEXT_ENABLE_ADAPTER=0`)
