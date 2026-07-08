@@ -107,6 +107,7 @@ export function restoreReducer(
     renderedSearch,
     task.node,
     task.route,
-    restoredNextUrl
+    restoredNextUrl,
+    action.instrumentationTransition
   )
 }

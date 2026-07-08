@@ -106,6 +106,11 @@ export function refreshDynamicData(
     // mismatch occurs, the retry handler will traverse the known route tree
     // to find and mark the entry.
     null,
-    signal
+    signal,
+    // Refreshes re-derive the current destination, so the derived state
+    // carries the base state's transition forward: if that transition is
+    // still pending (React hasn't committed its navigation yet), the
+    // derived state may commit in its place.
+    state.instrumentationTransition
   )
 }

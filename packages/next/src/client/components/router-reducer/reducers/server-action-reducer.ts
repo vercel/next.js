@@ -520,7 +520,16 @@ export function serverActionReducer(
           // known route tree to mark the entry as having a dynamic rewrite.
           null,
           // Not an HMR refresh, so there's no request generation to cancel.
-          undefined
+          undefined,
+          // Server-action navigations are not tracked transitions (see the
+          // TODO in settleRouterTransition). But a revalidation (no
+          // redirect) re-derives the current destination, so its state
+          // carries the base state's transition forward and may commit in
+          // its place — same as a refresh. A redirect produces a
+          // destination no tracked transition targeted: `null`.
+          redirectLocation === undefined
+            ? state.instrumentationTransition
+            : null
         )
       }
 
@@ -536,7 +545,10 @@ export function serverActionReducer(
         nextUrl,
         freshnessPolicy,
         scrollBehavior,
-        navigateType
+        navigateType,
+        // Same as the seeded branch above: carry the base state's
+        // transition through a revalidation, none through a redirect.
+        redirectLocation === undefined ? state.instrumentationTransition : null
       )
     },
     (e: any) => {

@@ -71,6 +71,11 @@ export function serverPatchReducer(
     // marked as having a dynamic rewrite when the mismatch was detected.
     null,
     // Not an HMR refresh, so there's no request generation to cancel.
-    undefined
+    undefined,
+    // Retries re-derive the current destination, so the derived state
+    // carries the base state's transition forward: if that transition is
+    // still pending (React hasn't committed its navigation yet), the
+    // derived state may commit in its place.
+    state.instrumentationTransition
   )
 }

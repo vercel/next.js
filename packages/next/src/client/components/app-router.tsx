@@ -101,8 +101,9 @@ function HistoryUpdater({
     // For the instrumentation-client router transition hooks
     // (`unstable_onRouterTransitionCommit`/`unstable_onRouterTransitionAbort`):
     // report the commit at the moment the navigation is applied to the
-    // browser. Matches the pending transition by tree identity; a no-op if
-    // this state isn't a tracked transition or was already committed.
+    // browser, for the transition carried by the state
+    // (`instrumentationTransition`); a no-op if this state isn't a tracked
+    // transition or its transition was already committed.
     commitRouterTransition(appRouterState)
     setLastCommittedTree(tree)
   }, [appRouterState])
