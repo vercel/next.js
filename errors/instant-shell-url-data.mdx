@@ -43,9 +43,9 @@ The check runs when you load the route and when you navigate to it. The App Shel
     ]}
   />
   <FixCard
-    group="ignore"
-    title="Disable validation on this route"
-    href="#disable-validation-on-this-route"
+    group="block"
+    title="Allow blocking route"
+    href="#allow-blocking-route"
     snippets={[
       { text: '// page.tsx or layout.tsx' },
       { text: 'export const instant = false', highlight: true },
@@ -128,15 +128,15 @@ The shared parts of the route are prefetched, and the URL-dependent region strea
 - Making the route static with [`generateStaticParams`](https://preview.nextjs.org/docs/app/api-reference/functions/generate-static-params) does not resolve this error. A static param is still specific to one URL, so it can't be part of a prefetch shared across links.
 - The `params` and `searchParams` props are promises. Passing the promise down without awaiting it keeps the rest of the route in the shared prefetch. Awaiting it above the boundary pulls the URL data back in.
 
-## Disable validation on this route
+## Allow blocking route
 
-Choose this fix when the route can't provide an App Shell and you accept that navigations to it may not be instant. Setting [`instant`](https://preview.nextjs.org/docs/app/api-reference/file-conventions/route-segment-config/instant) to `false` opts the route out of instant-navigation validation.
+Choose this fix when the route genuinely can't provide a shared App Shell — it needs the URL data high in the tree to decide what to render — and you accept that navigations to it won't be instant. Setting [`instant`](https://preview.nextjs.org/docs/app/api-reference/file-conventions/route-segment-config/instant) to `false` marks the segment as allowed to block: it renders per navigation instead of reusing a shared prefetch.
 
 ### Patterns
 
 #### Opt the page out
 
-Add the export to the page that reads the URL data. Only that route opts out of validation.
+Add the export to the page that reads the URL data. Only that route blocks.
 
 ```jsx filename="app/dashboard/page.js"
 export const instant = false
@@ -151,7 +151,7 @@ Learn more: [Ensuring instant navigations](https://preview.nextjs.org/docs/app/g
 
 #### Opt the layout out
 
-When a shared layout reads the URL data, set [`instant`](https://preview.nextjs.org/docs/app/api-reference/file-conventions/route-segment-config/instant) to `false` on the layout. That layout segment opts out while descendant segments remain independently validated.
+When a shared layout reads the URL data, set [`instant`](https://preview.nextjs.org/docs/app/api-reference/file-conventions/route-segment-config/instant) to `false` on the layout. This allows that layout segment to block while descendant segments remain independently validated.
 
 ```jsx filename="app/dashboard/layout.js"
 export const instant = false
@@ -168,17 +168,17 @@ Use either pattern when:
 - The route genuinely needs the URL data high in the tree to decide what to render, so there's no shared part worth prefetching.
 - You're adopting Partial Prefetching incrementally and want to defer this route without changing how it renders today.
 
-For this error, disabling validation is rarely the right answer. The route reads a small piece of URL data, and a [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary around that read keeps the rest of the route in the shared prefetch. Choose [Wrap in or move into Suspense](#wrap-in-or-move-into-suspense) when feasible.
+For this error, allowing the route to block is rarely the right answer. The route reads a small piece of URL data, and a [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary around that read keeps the rest of the route in the shared prefetch. Choose [Wrap in or move into Suspense](#wrap-in-or-move-into-suspense) when feasible.
 
 ### Trade-off
 
-Without an App Shell, navigations to this route may not be instant. Use this only when the route genuinely can't provide one.
+Navigations to this route are not instant. Without an App Shell, it renders per navigation instead of reusing a shared prefetch. Use this only when the route genuinely can't provide one.
 
 ### Gotchas
 
-- Setting [`instant`](https://preview.nextjs.org/docs/app/api-reference/file-conventions/route-segment-config/instant) to `false` opts out only the segment that exports it. Descendant segments remain validated by their own config or the global default.
-- This export does not disable [Partial Prefetching](https://preview.nextjs.org/docs/app/glossary#partial-prefetching) or prefetching. It only disables instant-navigation validation for the segment.
-- `instant = false` disables all instant-navigation checks for the route, not only this one. That includes [runtime data during prerendering](/docs/messages/blocking-prerender-runtime) errors and [unrendered segment](/docs/messages/instant-unrendered-segment) warnings for the route.
+- Setting [`instant`](https://preview.nextjs.org/docs/app/api-reference/file-conventions/route-segment-config/instant) to `false` opts only the segment that exports it out. Descendant segments are still validated by the global default.
+- Allowing the route to block does not disable [Partial Prefetching](https://preview.nextjs.org/docs/app/glossary#partial-prefetching) or prefetching. It only exempts the segment from instant-navigation validation.
+- `instant = false` allows the route to block for all instant-navigation checks, not only this one. That includes [runtime data during prerendering](/docs/messages/blocking-prerender-runtime) errors and [unrendered segment](/docs/messages/instant-unrendered-segment) warnings for the route.
 
 ## Verifying the fix
 

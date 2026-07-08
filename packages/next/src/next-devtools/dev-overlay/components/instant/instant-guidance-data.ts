@@ -86,10 +86,10 @@ const linkCards: FixCard[] = [
     copyable: true,
   },
   {
-    id: 'disable-validation-on-this-route',
-    title: 'Disable validation on this route',
-    group: 'ignore',
-    link: 'https://nextjs.org/docs/messages/instant-shell-url-data#disable-validation-on-this-route',
+    id: 'allow-blocking-route',
+    title: 'Allow blocking route',
+    group: 'block',
+    link: 'https://nextjs.org/docs/messages/instant-shell-url-data#allow-blocking-route',
     snippets: [
       { text: '// page.tsx or layout.tsx' },
       { text: 'export const instant = false', highlight: true },
