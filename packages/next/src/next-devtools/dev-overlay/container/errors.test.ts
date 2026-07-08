@@ -573,8 +573,8 @@ describe('getUnrenderedSegmentErrorDetails', () => {
 describe('getLinkPrefetchPartialErrorDetails', () => {
   function createLinkPrefetchPartialError(pathname: string): Error {
     return new Error(
-      `Next.js encountered a legacy full prefetch for "${pathname}".\n\n` +
-        `\`<Link prefetch={true}>\` points at a route that hasn't adopted Partial Prefetching, so its prefetch can't be shared across links, leading to slower, more expensive prefetches.`
+      `Route "${pathname}": Next.js encountered a legacy full prefetch.\n\n` +
+        `This route hasn't adopted Partial Prefetching, leading to slower, more expensive prefetches.`
     )
   }
 
@@ -599,7 +599,7 @@ describe('getLinkPrefetchPartialErrorDetails', () => {
     expect(
       getLinkPrefetchPartialErrorDetails(
         new Error(
-          'Some preamble: Next.js encountered a legacy full prefetch for "/x".'
+          'Some preamble: Route "/x": Next.js encountered a legacy full prefetch.'
         )
       )
     ).toBe(null)
@@ -633,7 +633,7 @@ describe('isInstantNavigationError', () => {
 
   it('returns true for link-prefetch-partial warnings', () => {
     const error = new Error(
-      `Next.js encountered a legacy full prefetch for "/dashboard".`
+      `Route "/dashboard": Next.js encountered a legacy full prefetch.`
     )
     expect(isInstantNavigationError(error)).toBe(true)
   })

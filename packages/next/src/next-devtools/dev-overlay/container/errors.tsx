@@ -528,12 +528,14 @@ export function getLinkPrefetchPartialErrorDetails(
 ): LinkPrefetchPartialErrorDetails | null {
   const message = error.message
   if (typeof message !== 'string') return null
-  const match =
-    /^Next\.js encountered a legacy full prefetch for "([^"]+)"\./.exec(message)
-  if (!match) return null
+  if (!message.includes('Next.js encountered a legacy full prefetch')) {
+    return null
+  }
+  const routeMatch = /^Route "([^"]+)":/.exec(message)
+  if (!routeMatch) return null
   return {
     type: 'link-prefetch-partial',
-    pathname: match[1],
+    pathname: routeMatch[1],
   }
 }
 
