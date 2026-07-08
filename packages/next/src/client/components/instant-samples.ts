@@ -1,13 +1,13 @@
-import type { Params } from '../../request/params'
-import type { ReadonlyURLSearchParams } from '../../../client/components/readonly-url-search-params'
-import { workUnitAsyncStorage } from '../work-unit-async-storage.external'
-import { workAsyncStorage } from '../work-async-storage.external'
+import type { Params } from '../../server/request/params'
+import type { ReadonlyURLSearchParams } from './readonly-url-search-params'
+import { workUnitAsyncStorage } from '../../server/app-render/work-unit-async-storage.external'
+import { workAsyncStorage } from '../../server/app-render/work-async-storage.external'
 import {
   createExhaustiveParamsProxy,
   createExhaustiveURLSearchParamsProxy,
   trackMissingSampleErrorAndThrow,
-} from './instant-samples'
-import { InstantValidationError } from './instant-validation-error'
+} from '../../server/app-render/instant-validation/instant-samples'
+import { InstantValidationError } from '../../server/app-render/instant-validation/instant-validation-error'
 
 export function instrumentParamsForClientValidation<TPArams extends Params>(
   underlyingParams: TPArams
