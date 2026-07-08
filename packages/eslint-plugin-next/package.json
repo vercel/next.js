@@ -19,7 +19,8 @@
   "devDependencies": {
     "@types/eslint": "9.6.1",
     "@types/estree": "1.0.8",
-    "eslint": "9.37.0"
+    "eslint": "9.37.0",
+    "typescript": "7.0.1-rc"
   },
   "scripts": {
     "dev": "pnpm build",

@@ -31,6 +31,7 @@
   "devDependencies": {
     "@vercel/ncc": "0.38.4",
     "dotenv": "16.3.1",
-    "dotenv-expand": "10.0.0"
+    "dotenv-expand": "10.0.0",
+    "typescript": "7.0.1-rc"
   }
 }

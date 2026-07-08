@@ -26,6 +26,7 @@
   },
   "devDependencies": {
     "react-refresh": "0.12.0",
+    "typescript": "7.0.1-rc",
     "webpack": "^4 || ^5"
   }
 }

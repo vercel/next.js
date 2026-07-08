@@ -1,6 +1,7 @@
 {
   "compilerOptions": {
     "noEmit": true,
+    "skipLibCheck": true,
     "strict": false,
     "allowJs": true,
     "esModuleInterop": true,
