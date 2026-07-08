@@ -2027,6 +2027,26 @@ async function loadConfigImpl(
     }
 
     if (
+      userConfig.experimental?.lightningCss &&
+      bundler !== Bundler.Turbopack
+    ) {
+      curLog.warn(
+        `experimental.lightningCss currently only applies to Turbopack. ` +
+          `It has no effect with the webpack bundler.`
+      )
+    }
+
+    if (
+      userConfig.experimental?.lightningCss?.features &&
+      userConfig.experimental?.lightningCssFeatures
+    ) {
+      curLog.warn(
+        `Both experimental.lightningCss.features and experimental.lightningCssFeatures are set. ` +
+          `experimental.lightningCss.features takes precedence; lightningCssFeatures is ignored.`
+      )
+    }
+
+    if (
       phase !== PHASE_PRODUCTION_SERVER &&
       userConfig.experimental?.useLightningcss
     ) {

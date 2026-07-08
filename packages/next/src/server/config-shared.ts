@@ -432,6 +432,40 @@ export interface LightningCssFeatures {
 }
 
 /**
+ * Passthrough configuration for lightningcss CSS modules, mirroring the subset
+ * of lightningcss' CSS-modules options that Next.js exposes.
+ */
+export interface LightningCssModulesConfig {
+  /**
+   * Custom class-name pattern for CSS modules, using lightningcss placeholder
+   * syntax. Recognized placeholders: `[name]`, `[local]`, `[hash]`,
+   * `[content-hash]`. Any other text is treated as a literal.
+   *
+   * @example '[name]__[hash]__[local]'
+   */
+  pattern?: string
+  /**
+   * Whether to rename dashed identifiers (e.g. CSS custom properties).
+   */
+  dashedIdents?: boolean
+}
+
+export interface LightningCssConfig {
+  /**
+   * Which CSS features lightningcss should always transpile (`include`) or
+   * never transpile (`exclude`), regardless of browser targets.
+   *
+   * When set, this takes precedence over the top-level
+   * `experimental.lightningCssFeatures`.
+   */
+  features?: LightningCssFeatures
+  /**
+   * CSS-modules configuration (class-name renaming).
+   */
+  cssModules?: LightningCssModulesConfig
+}
+
+/**
  * Accepted shapes for `experimental.cssChunking`. See [`ExperimentalConfig.cssChunking`] for the
  * accepted values; use [`resolveCssChunkingMode`] to normalize the value at runtime.
  */
@@ -1117,9 +1151,21 @@ export interface ExperimentalConfig {
   /**
    * Configure which CSS features lightningcss should always transpile
    * (include) or never transpile (exclude), regardless of browser targets.
-   * Requires `useLightningcss: true`.
+   * Requires `useLightningcss: true` (webpack only; Turbopack applies it
+   * regardless).
+   *
+   * Superseded by `experimental.lightningCss.features`, which takes precedence
+   * when both are set. Kept for backwards compatibility.
    */
   lightningCssFeatures?: LightningCssFeatures
+
+  /**
+   * Passthrough configuration for lightningcss.
+   *
+   * Currently only applies to Turbopack, where lightningcss is always used to
+   * process CSS (independent of `useLightningcss`).
+   */
+  lightningCss?: LightningCssConfig
 
   /**
    * Enables view transitions by using the {@link https://react.dev/reference/react/ViewTransition ViewTransition} Component.

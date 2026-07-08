@@ -257,7 +257,7 @@ impl ModuleOptions {
                     enable_raw_css,
                     source_maps: css_source_maps,
                     ref module_css_condition,
-                    lightningcss_features,
+                    ref lightningcss,
                     ..
                 },
             ref static_url_tag,
@@ -512,7 +512,7 @@ impl ModuleOptions {
                                     postprocess,
                                     ecmascript_options_vc,
                                     environment,
-                                    lightningcss_features,
+                                    lightningcss.clone(),
                                 )
                                 .await?,
                         )
@@ -843,7 +843,7 @@ impl ModuleOptions {
                     vec![ModuleRuleEffect::ModuleType(ModuleType::Css {
                         ty: CssModuleType::Module,
                         environment,
-                        lightningcss_features,
+                        lightningcss: lightningcss.clone(),
                     })],
                 ),
                 ModuleRule::new(
@@ -854,7 +854,7 @@ impl ModuleOptions {
                     vec![ModuleRuleEffect::ModuleType(ModuleType::Css {
                         ty: CssModuleType::Default,
                         environment,
-                        lightningcss_features,
+                        lightningcss: lightningcss.clone(),
                     })],
                 ),
             ]);
@@ -918,7 +918,7 @@ impl ModuleOptions {
                     vec![ModuleRuleEffect::ModuleType(ModuleType::Css {
                         ty: CssModuleType::Module,
                         environment,
-                        lightningcss_features,
+                        lightningcss: lightningcss.clone(),
                     })],
                 ),
                 // Ecmascript CSS Modules referencing the actual CSS module to include it
@@ -932,7 +932,7 @@ impl ModuleOptions {
                     vec![ModuleRuleEffect::ModuleType(ModuleType::Css {
                         ty: CssModuleType::Module,
                         environment,
-                        lightningcss_features,
+                        lightningcss: lightningcss.clone(),
                     })],
                 ),
                 // Ecmascript CSS Modules referencing the actual CSS module to list the classes
@@ -946,7 +946,7 @@ impl ModuleOptions {
                     vec![ModuleRuleEffect::ModuleType(ModuleType::Css {
                         ty: CssModuleType::Module,
                         environment,
-                        lightningcss_features,
+                        lightningcss: lightningcss.clone(),
                     })],
                 ),
                 ModuleRule::new(
@@ -961,7 +961,7 @@ impl ModuleOptions {
                     vec![ModuleRuleEffect::ModuleType(ModuleType::Css {
                         ty: CssModuleType::Default,
                         environment,
-                        lightningcss_features,
+                        lightningcss: lightningcss.clone(),
                     })],
                 ),
             ]);

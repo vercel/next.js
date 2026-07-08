@@ -1415,6 +1415,8 @@ pub struct ExperimentalConfig {
     // turbopack_file_system_cache_for_dev: Option<bool>,
     // turbopack_file_system_cache_for_build: Option<bool>,
     lightning_css_features: Option<LightningCssFeatures>,
+    /// Passthrough configuration for lightningcss (Turbopack only for now).
+    lightning_css: Option<LightningCss>,
 }
 
 #[derive(
@@ -1451,6 +1453,52 @@ pub struct SubResourceIntegrity {
 pub struct LightningCssFeatures {
     pub include: Option<Vec<RcStr>>,
     pub exclude: Option<Vec<RcStr>>,
+}
+
+/// Passthrough configuration for lightningcss, mirroring the subset of
+/// lightningcss options that Next.js exposes via `experimental.lightningCss`.
+#[derive(
+    Clone,
+    Debug,
+    Default,
+    PartialEq,
+    Eq,
+    Deserialize,
+    TraceRawVcs,
+    NonLocalValue,
+    OperationValue,
+    Encode,
+    Decode,
+)]
+#[serde(rename_all = "camelCase")]
+pub struct LightningCss {
+    /// Feature `include`/`exclude` lists. Takes precedence over the top-level
+    /// `experimental.lightningCssFeatures` when set.
+    pub features: Option<LightningCssFeatures>,
+    /// CSS-modules configuration (class-name renaming).
+    pub css_modules: Option<LightningCssModules>,
+}
+
+/// User-facing subset of lightningcss' `css_modules::Config`.
+#[derive(
+    Clone,
+    Debug,
+    Default,
+    PartialEq,
+    Eq,
+    Deserialize,
+    TraceRawVcs,
+    NonLocalValue,
+    OperationValue,
+    Encode,
+    Decode,
+)]
+#[serde(rename_all = "camelCase")]
+pub struct LightningCssModules {
+    /// Custom class-name pattern, e.g. `[name]__[hash]__[local]`.
+    pub pattern: Option<RcStr>,
+    /// Whether to rename dashed identifiers (e.g. CSS custom properties).
+    pub dashed_idents: Option<bool>,
 }
 
 #[derive(
@@ -2550,18 +2598,50 @@ impl NextConfig {
     }
 
     #[turbo_tasks::function]
-    pub fn lightningcss_feature_flags(
-        &self,
-    ) -> Result<Vc<turbopack_css::LightningCssFeatureFlags>> {
-        Ok(turbopack_css::LightningCssFeatureFlags {
-            include: lightningcss_features_field_mask(
-                &self.experimental.lightning_css_features,
-                |f| f.include.as_ref(),
-            )?,
-            exclude: lightningcss_features_field_mask(
-                &self.experimental.lightning_css_features,
-                |f| f.exclude.as_ref(),
-            )?,
+    pub fn lightningcss_options(&self) -> Result<Vc<turbopack_css::LightningCssOptions>> {
+        // `lightningCss.features` takes precedence over the legacy top-level
+        // `lightningCssFeatures`; the whole block wins when set.
+        let features_config = self
+            .experimental
+            .lightning_css
+            .as_ref()
+            .and_then(|c| c.features.as_ref())
+            .or(self.experimental.lightning_css_features.as_ref());
+
+        let features = turbopack_css::LightningCssFeatureFlags {
+            include: lightningcss_features_field_mask(features_config, |f| f.include.as_ref())?,
+            exclude: lightningcss_features_field_mask(features_config, |f| f.exclude.as_ref())?,
+        };
+
+        let css_modules = match self
+            .experimental
+            .lightning_css
+            .as_ref()
+            .and_then(|c| c.css_modules.as_ref())
+        {
+            Some(css_modules) => {
+                if let Some(pattern) = css_modules.pattern.as_deref() {
+                    // Validate the pattern eagerly so an invalid value fails the
+                    // build once, with a clear message, rather than emitting a
+                    // warning per CSS-module file at parse time.
+                    lightningcss::css_modules::Pattern::parse(pattern).map_err(|err| {
+                        anyhow::anyhow!(
+                            "Invalid `experimental.lightningCss.cssModules.pattern` \
+                             ({pattern:?}): {err}"
+                        )
+                    })?;
+                }
+                turbopack_css::LightningCssModulesOptions {
+                    pattern: css_modules.pattern.clone(),
+                    dashed_idents: css_modules.dashed_idents.unwrap_or(false),
+                }
+            }
+            None => turbopack_css::LightningCssModulesOptions::default(),
+        };
+
+        Ok(turbopack_css::LightningCssOptions {
+            features,
+            css_modules,
         }
         .cell())
     }
@@ -2775,11 +2855,10 @@ impl JsConfig {
 /// Extract either the `include` or `exclude` field from `LightningCssFeatures`
 /// and convert the feature names to a bitmask.
 fn lightningcss_features_field_mask(
-    features: &Option<LightningCssFeatures>,
+    features: Option<&LightningCssFeatures>,
     field: impl FnOnce(&LightningCssFeatures) -> Option<&Vec<RcStr>>,
 ) -> Result<u32> {
     features
-        .as_ref()
         .and_then(field)
         .map(|names| lightningcss_feature_names_to_mask(names))
         .unwrap_or(Ok(0))
