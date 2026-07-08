@@ -352,6 +352,7 @@ Use skills for conditional, deep workflows. Keep baseline iteration/build/test p
 - `$flags` - feature-flag wiring across config/schema/define-env/runtime env
 - `$dce-edge` - DCE-safe `require()` patterns and edge/runtime constraints
 - `$react-vendoring` - `entry-base.ts` boundaries and vendored React type/runtime rules
+- `$react-sync` - build a local React checkout and sync it into Next.js for testing
 - `$runtime-debug` - runtime-bundle/module-resolution regression reproduction and verification
 - `$authoring-skills` - how to create and maintain skills in `.agents/skills/`
 
