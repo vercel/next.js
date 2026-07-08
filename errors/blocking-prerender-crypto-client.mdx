@@ -85,11 +85,11 @@ export function CorrelationId() {
 }
 ```
 
-Learn more: [Streaming with Suspense](https://preview.nextjs.org/docs/app/guides/streaming).
+Learn more: [Streaming](https://preview.nextjs.org/docs/app/guides/streaming).
 
 ### Trade-off
 
-The component shows the fallback during SSR and the first paint. For above-the-fold UI this can be visible. Pick a fallback that matches the final layout so the page doesn't visibly jump when the component hydrates. See [CLS-safe skeleton fallback guidance](https://preview.nextjs.org/docs/app/guides/streaming#cls-cumulative-layout-shift).
+The component shows the fallback during SSR and the first paint. For above-the-fold UI this can be visible. Pick a fallback that matches the final layout so it doesn't cause a layout shift when the component hydrates. See [minimizing layout shift](https://preview.nextjs.org/docs/app/guides/streaming#cls-cumulative-layout-shift).
 
 ### Gotchas
 
@@ -229,13 +229,13 @@ export default function Page() {
 }
 ```
 
-Learn more: [`io()`](https://preview.nextjs.org/docs/app/api-reference/functions/io).
+Learn more: [`io`](https://preview.nextjs.org/docs/app/api-reference/functions/io).
 
 ## Verifying the fix
 
-After applying a fix, reload the route to confirm the [static shell](https://preview.nextjs.org/docs/app/glossary#static-shell) renders real content. A [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary placed around the whole page body can pass validation with an empty shell, which defeats the point of an instant navigation.
+After applying a fix, reload the route and confirm the page immediately paints meaningful UI, with any `<Suspense>` fallbacks covering only the regions that stream in. A [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary placed around the whole page body can pass validation with an empty shell, which defeats the point of an instant navigation.
 
-In [`next dev`](https://preview.nextjs.org/docs/app/api-reference/cli/next#next-dev-options), the error overlay points at the failing component with file paths and line numbers. When working from a build instead, the default [`next build`](https://preview.nextjs.org/docs/app/api-reference/cli/next#next-build-options) output is more abbreviated; run `next build --debug-prerender` for full user-frame stack traces and `next build --debug-build-paths /dashboard /settings` to iterate on specific routes.
+In [`next dev`](https://preview.nextjs.org/docs/app/api-reference/cli/next#next-dev-options), the error overlay points at the failing component with file paths and line numbers. When working from a build instead, the default [`next build`](https://preview.nextjs.org/docs/app/api-reference/cli/next#next-build-options) output is more abbreviated. Run `next build --debug-prerender` for full user-frame stack traces and `next build --debug-build-paths /dashboard /settings` to iterate on specific routes.
 
 ## Why `instant = false` doesn't clear this error
 
@@ -255,5 +255,6 @@ This error fires from the prerender, not from instant-navigation validation. `cr
 - [`Date.now()` while prerendering](/docs/messages/blocking-prerender-current-time)
 - [`Date.now()` in a Client Component](/docs/messages/blocking-prerender-current-time-client)
 - [Crypto APIs while prerendering](/docs/messages/blocking-prerender-crypto)
-- [Partial Prefetch link with dynamic data](/docs/messages/instant-link-prefetch-partial)
+- [Dynamic data during prefetching](/docs/messages/instant-link-prefetch-partial)
+- [URL data outside of Suspense](/docs/messages/instant-shell-url-data)
 - [Unrendered segment](/docs/messages/instant-unrendered-segment)

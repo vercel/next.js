@@ -34,7 +34,10 @@ import {
   type GuidanceKind,
   type GuidanceVariant,
 } from '../components/instant/instant-guidance'
-import { BLOCKING_ROUTE_NAVIGATION_EXPLANATION } from '../components/instant/instant-guidance-data'
+import {
+  BLOCKING_ROUTE_NAVIGATION_EXPLANATION,
+  BLOCKING_ROUTE_LINK_EXPLANATION,
+} from '../components/instant/instant-guidance-data'
 import { UnrenderedSegmentInfo } from '../components/instant/unrendered-segment-info'
 import { CodeFrame } from '../components/code-frame/code-frame'
 import { ErrorOverlayCallStack } from '../components/errors/error-overlay-call-stack/error-overlay-call-stack'
@@ -350,9 +353,11 @@ function InstantRuntimeError({
 }
 
 export function getGuidanceVariant(message: string): GuidanceVariant {
-  // Discriminates between `createRuntimeBodyError` and `createDynamicBodyError`
+  // Discriminates between `createLinkBodyErrorInNavigation`,
+  // `createRuntimeBodyError`, and `createDynamicBodyError` (and their
+  // in-navigation variants).
   if (
-    message.includes('encountered link data') &&
+    message.includes('encountered URL data') &&
     !message.includes('encountered uncached data')
   ) {
     return 'link'
@@ -437,7 +442,8 @@ export function getBlockingRouteErrorDetails(
 
   const isBlockingPageLoadError =
     message.includes('/blocking-prerender-runtime#') ||
-    message.includes('/blocking-prerender-dynamic#')
+    message.includes('/blocking-prerender-dynamic#') ||
+    message.includes('/instant-shell-url-data#')
   if (isBlockingPageLoadError) {
     return {
       type: 'blocking-route',
@@ -860,9 +866,7 @@ export function Errors({
           errorType={errorType}
           errorMessage={
             errorDetails.variant === 'link'
-              ? errorDetails.inNavigation
-                ? 'Next.js encountered link data during a navigation.'
-                : 'Next.js encountered link data during prerendering.'
+              ? 'Next.js encountered URL data outside of Suspense.'
               : errorDetails.variant === 'runtime'
                 ? errorDetails.inNavigation
                   ? 'Next.js encountered runtime data during a navigation.'
@@ -876,9 +880,11 @@ export function Errors({
               kind="blocking-route"
               variant={errorDetails.variant}
               explanation={
-                errorDetails.inNavigation
-                  ? BLOCKING_ROUTE_NAVIGATION_EXPLANATION
-                  : undefined
+                errorDetails.variant === 'link'
+                  ? BLOCKING_ROUTE_LINK_EXPLANATION
+                  : errorDetails.inNavigation
+                    ? BLOCKING_ROUTE_NAVIGATION_EXPLANATION
+                    : undefined
               }
             />
           }
@@ -959,8 +965,7 @@ export function Errors({
           errorMessage={
             errorDetails.variant === 'link' ? (
               <>
-                Next.js encountered link data in <code>generateMetadata()</code>
-                .
+                Next.js encountered URL data in <code>generateMetadata()</code>.
               </>
             ) : errorDetails.variant === 'runtime' ? (
               <>
@@ -1016,8 +1021,7 @@ export function Errors({
           errorMessage={
             errorDetails.variant === 'link' ? (
               <>
-                Next.js encountered link data in <code>generateViewport()</code>
-                .
+                Next.js encountered URL data in <code>generateViewport()</code>.
               </>
             ) : errorDetails.variant === 'runtime' ? (
               <>

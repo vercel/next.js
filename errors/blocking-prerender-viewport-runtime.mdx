@@ -133,15 +133,15 @@ Navigations to this route are not instant. The user waits for the full server re
 ### Gotchas
 
 - Setting [`instant`](https://preview.nextjs.org/docs/app/api-reference/file-conventions/route-segment-config/instant) to `false` opts only the segment that exports it out. Descendant segments are still validated by the global default.
-- This export does not disable [prerendering](https://preview.nextjs.org/docs/app/glossary#prerendering). The route still prerenders if it can. It only silences the instant-navigation validation error.
+- This export does not disable [prerendering](https://preview.nextjs.org/docs/app/glossary#prerendering). The route still prerenders if it can. It only disables instant-navigation validation for the route.
 - If the dynamic viewport is the only reason the route blocks, consider whether a static default covers most users. A static `themeColor` with a client-side correction after hydration may give a better experience than blocking the entire navigation.
-- Framework-synthesized routes (`/_not-found`, `/_global-error`) inherit the root layout's `generateViewport` and must be statically prerendered. [`instant = false`](https://preview.nextjs.org/docs/app/api-reference/file-conventions/route-segment-config/instant) silences the validation error but does not let those routes through, so the build still fails when they prerender. If your root layout's `generateViewport` depends on request data, [Use static viewport](#use-static-viewport) instead, or move to [`global-not-found.js`](/docs/app/api-reference/file-conventions/not-found#global-not-foundjs-experimental), which bypasses the root layout entirely and avoids inheriting its `generateViewport`.
+- Framework-synthesized routes (`/_not-found`, `/_global-error`) inherit the root layout's `generateViewport` and must be statically prerendered. [`instant = false`](https://preview.nextjs.org/docs/app/api-reference/file-conventions/route-segment-config/instant) opts the route out of validation but does not let those routes through, so the build still fails when they prerender. If your root layout's `generateViewport` depends on request data, [Use static viewport](#use-static-viewport) instead, or move to [`global-not-found.js`](/docs/app/api-reference/file-conventions/not-found#global-not-foundjs-experimental), which bypasses the root layout entirely and avoids inheriting its `generateViewport`.
 
 ## Verifying the fix
 
-After applying a fix, reload the route to confirm the [static shell](https://preview.nextjs.org/docs/app/glossary#static-shell) renders real content. A [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary placed around the whole page body can pass validation with an empty shell, which defeats the point of an instant navigation.
+After applying a fix, reload the route and confirm the page immediately paints meaningful UI, with any `<Suspense>` fallbacks covering only the regions that stream in. A [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary placed around the whole page body can pass validation with an empty shell, which defeats the point of an instant navigation.
 
-In [`next dev`](https://preview.nextjs.org/docs/app/api-reference/cli/next#next-dev-options), the error overlay points at the failing component with file paths and line numbers. When working from a build instead, the default [`next build`](https://preview.nextjs.org/docs/app/api-reference/cli/next#next-build-options) output is more abbreviated; run `next build --debug-prerender` for full user-frame stack traces and `next build --debug-build-paths /dashboard /settings` to iterate on specific routes.
+In [`next dev`](https://preview.nextjs.org/docs/app/api-reference/cli/next#next-dev-options), the error overlay points at the failing component with file paths and line numbers. When working from a build instead, the default [`next build`](https://preview.nextjs.org/docs/app/api-reference/cli/next#next-build-options) output is more abbreviated. Run `next build --debug-prerender` for full user-frame stack traces and `next build --debug-build-paths /dashboard /settings` to iterate on specific routes.
 
 ## Don't want this validation?
 
@@ -166,5 +166,6 @@ See [Ensuring instant navigations](https://preview.nextjs.org/docs/app/guides/in
 - [`Date.now()` in a Client Component](/docs/messages/blocking-prerender-current-time-client)
 - [Crypto APIs while prerendering](/docs/messages/blocking-prerender-crypto)
 - [Crypto APIs in a Client Component](/docs/messages/blocking-prerender-crypto-client)
-- [Partial Prefetch link with dynamic data](/docs/messages/instant-link-prefetch-partial)
+- [Dynamic data during prefetching](/docs/messages/instant-link-prefetch-partial)
+- [URL data outside of Suspense](/docs/messages/instant-shell-url-data)
 - [Unrendered segment](/docs/messages/instant-unrendered-segment)

@@ -1,6 +1,7 @@
 import {
   createDynamicBodyError,
   createDynamicBodyErrorInNavigation,
+  createLinkBodyErrorInNavigation,
   createRuntimeBodyError,
   createRuntimeBodyErrorInNavigation,
 } from '../../server/app-render/blocking-route-messages'
@@ -21,6 +22,14 @@ describe('getInstantErrorRoute', () => {
     expect(
       getInstantErrorRoute(
         createDynamicBodyErrorInNavigation(DYNAMIC_ROUTE_TEMPLATE)
+      )
+    ).toBe(DYNAMIC_ROUTE_TEMPLATE)
+  })
+
+  it('returns the route for an in-navigation URL-data prefetch error', () => {
+    expect(
+      getInstantErrorRoute(
+        createLinkBodyErrorInNavigation(DYNAMIC_ROUTE_TEMPLATE)
       )
     ).toBe(DYNAMIC_ROUTE_TEMPLATE)
   })

@@ -273,6 +273,10 @@ The process of removing unused code from your JavaScript bundles during the buil
 
 # U
 
+## URL data
+
+Data that identifies a specific URL, such as the pathname and query parameters. In the App Router this means [`params`](/docs/app/api-reference/file-conventions/page#params-optional) and [`searchParams`](/docs/app/api-reference/file-conventions/page#searchparams-optional), and the client hooks that read them like [`usePathname`](/docs/app/api-reference/functions/use-pathname) and [`useSearchParams`](/docs/app/api-reference/functions/use-search-params). URL data varies per link, not per session, so it can't be part of a shared [App Shell](#app-shell).
+
 ## `"use cache"` Directive
 
 A directive that marks a component or function as cacheable. It can be placed at the top of a file to indicate that all exports in the file are cacheable, or inline at the top of a function or component to mark that specific scope as cacheable. Learn more in the [`"use cache"` reference](/docs/app/api-reference/directives/use-cache).

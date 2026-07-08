@@ -77,11 +77,10 @@ const linkCards: FixCard[] = [
     id: 'wrap-in-or-move-into-suspense',
     title: 'Wrap in or move into Suspense',
     group: 'stream',
-    // TODO(app-shells): doc links
-    link: 'https://nextjs.org/docs/messages/blocking-prerender-runtime#wrap-in-or-move-into-suspense',
+    link: 'https://nextjs.org/docs/messages/instant-shell-url-data#wrap-in-or-move-into-suspense',
     snippets: [
       { text: '<Suspense fallback={…}>', highlight: true },
-      { text: '  <DataChild />' },
+      { text: '  <Details params={params} />' },
       { text: '</Suspense>', highlight: true },
     ],
     copyable: true,
@@ -90,8 +89,7 @@ const linkCards: FixCard[] = [
     id: 'allow-blocking-route',
     title: 'Allow blocking route',
     group: 'block',
-    // TODO(app-shells): doc links
-    link: 'https://nextjs.org/docs/messages/blocking-prerender-runtime#allow-blocking-route',
+    link: 'https://nextjs.org/docs/messages/instant-shell-url-data#allow-blocking-route',
     snippets: [
       { text: '// page.tsx or layout.tsx' },
       { text: 'export const instant = false', highlight: true },
@@ -295,8 +293,7 @@ const metadataRuntimeCards: FixCard[] = [
   },
 ]
 
-// TODO(app-shells): docs anchors for link data errors
-// TODO(app-shells): make sure these suggestions make sense
+// URL data in `generateMetadata()` shares the same fixes as runtime data.
 const metadataLinkCards = metadataRuntimeCards
 
 const metadataDynamicCards: FixCard[] = [
@@ -351,8 +348,7 @@ const viewportRuntimeCards: FixCard[] = [
   },
 ]
 
-// TODO(app-shells): docs anchors for link data errors
-// TODO(app-shells): make sure these suggestions make sense
+// URL data in `generateViewport()` shares the same fixes as runtime data.
 const viewportLinkCards = viewportRuntimeCards
 
 const viewportDynamicCards: FixCard[] = [
@@ -707,6 +703,9 @@ export const EXPLANATIONS: Record<GuidanceKind, string> = {
 
 export const BLOCKING_ROUTE_NAVIGATION_EXPLANATION =
   'This prevents the navigation from being instant, leading to a slower user experience.'
+
+export const BLOCKING_ROUTE_LINK_EXPLANATION =
+  'This may prevent the navigation from being instant, leading to a slower user experience.'
 
 const syncCardsByCause: Record<string, FixCard[]> = {
   'Math.random()': syncMathCards,
