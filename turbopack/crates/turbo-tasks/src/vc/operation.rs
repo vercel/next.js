@@ -137,6 +137,7 @@ impl<T: ?Sized> OperationVc<T> {
     }
 
     /// Returns the `RawVc` corresponding to this `OperationVc`.
+    /// inverse of [`RawVc::as_task_output`]
     fn into_raw(vc: Self) -> RawVc {
         RawVc::task_output(vc.task)
     }
@@ -232,7 +233,7 @@ where
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("OperationVc")
-            .field("node", &Self::into_raw(*self))
+            .field("task", self.task)
             .finish()
     }
 }
