@@ -13,8 +13,6 @@ const state = globalThis as typeof globalThis & {
   wsErrors?: number
 }
 
-export const dynamic = 'force-dynamic'
-
 export function GET(request: Request) {
   const url = new URL(request.url)
   const executionKey = url.searchParams.get('execution-key') || 'default'

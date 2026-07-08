@@ -43,11 +43,7 @@ import {
   type ResponseGenerator,
 } from '../../server/response-cache'
 import { MockedResponse } from '../../server/lib/mock-request'
-import {
-  createWebSocketUpgradeTransport,
-  writeRawHttpError,
-  writeRawHttpResponse,
-} from '../../server/websocket-upgrade'
+import type { WebSocketUpgradeTransport } from '../../server/websocket-upgrade'
 import { isWebSocketUpgradeResponse } from '../../server/web/spec-extension/response'
 import {
   registerWebSocketPeer,
@@ -95,17 +91,46 @@ const routeModule = new AppRouteRouteModule({
     : {}),
 })
 
-let webSocketUpgradeTransport:
-  | ReturnType<typeof createWebSocketUpgradeTransport>
-  | undefined
+type WriteRawHttpError =
+  typeof import('../../server/websocket-upgrade').writeRawHttpError
+type WriteRawHttpResponse =
+  typeof import('../../server/websocket-upgrade').writeRawHttpResponse
+
+let writeRawHttpError: WriteRawHttpError
+let writeRawHttpResponse: WriteRawHttpResponse
+let webSocketUpgradeTransport: WebSocketUpgradeTransport | undefined
 if (process.env.__NEXT_EXPERIMENTAL_WEBSOCKET_ROUTE_HANDLERS) {
-  webSocketUpgradeTransport = createWebSocketUpgradeTransport({
+  const websocketUpgrade =
+    require('../../server/websocket-upgrade') as typeof import('../../server/websocket-upgrade')
+
+  writeRawHttpError = websocketUpgrade.writeRawHttpError
+  writeRawHttpResponse = websocketUpgrade.writeRawHttpResponse
+  webSocketUpgradeTransport = websocketUpgrade.createWebSocketUpgradeTransport({
     registerPeer: (peer) =>
       registerWebSocketPeer('VAR_DEFINITION_BUNDLE_PATH', peer),
     unregisterPeer: (peer) =>
       unregisterWebSocketPeer('VAR_DEFINITION_BUNDLE_PATH', peer),
   })
 } else {
+  writeRawHttpError = async function writeRawHttpErrorUnsupported(
+    _req: IncomingMessage,
+    socket: Duplex,
+    _status: number,
+    _message: string
+  ): Promise<void> {
+    if (!socket.destroyed && !socket.writableEnded) {
+      socket.end()
+    }
+  }
+  writeRawHttpResponse = async function writeRawHttpResponseUnsupported(
+    _req: IncomingMessage,
+    socket: Duplex,
+    _response: Response
+  ): Promise<void> {
+    if (!socket.destroyed && !socket.writableEnded) {
+      socket.end()
+    }
+  }
   webSocketUpgradeTransport = undefined
 }
 

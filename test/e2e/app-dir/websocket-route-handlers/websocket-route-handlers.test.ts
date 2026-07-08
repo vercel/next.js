@@ -310,8 +310,8 @@ describe('WebSocket Route Handlers', () => {
     )
     await next.patchFile('app/ws/route.ts', (content) =>
       content.replace(
-        "export const dynamic = 'force-dynamic'",
-        "export const dynamic = 'force-dynamic' // updated"
+        'const response = NextResponse.upgrade(hooks)',
+        'const response = NextResponse.upgrade(hooks) // updated'
       )
     )
     expect(await closed).toBe(1012)
