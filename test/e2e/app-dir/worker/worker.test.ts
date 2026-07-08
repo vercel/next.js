@@ -12,7 +12,7 @@ describe('app dir - workers', () => {
   })
 
   function beforePageLoad(page: Page) {
-    // TODO Webpack doesn't pass the ?dpl query param for the worker chunk request.
+    // TODO Webpack doesn't pass a ?dpl query param for worker chunk requests.
     if (isTurbopack && (isNextDeploy || isNextStart)) {
       page.on('request', (request) => {
         const url = request.url()
