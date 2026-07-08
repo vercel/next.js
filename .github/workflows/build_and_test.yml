@@ -117,6 +117,7 @@ jobs:
       skipInstallBuild: 'yes'
       stepName: 'build-native'
       uploadNativeArtifact: true
+      runs_on_labels: '["ubuntu-latest-32-core-arm-oss"]'
     secrets: inherit
 
   build-native-windows:
@@ -139,6 +140,7 @@ jobs:
       needsPlaywright: 'no'
       skipNativeBuild: 'yes'
       stepName: 'build-next'
+      runs_on_labels: '["ubuntu-latest-32-core-arm-oss"]'
     secrets: inherit
 
   fetch-test-timings:
