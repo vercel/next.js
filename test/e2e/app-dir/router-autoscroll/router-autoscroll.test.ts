@@ -2,7 +2,7 @@ import { nextTestSetup, type Playwright } from 'e2e-utils'
 import { check, assertNoConsoleErrors, retry } from 'next-test-utils'
 
 const enableNewScrollHandler =
-  process.env.__NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER === 'true'
+  process.env.__NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER !== 'false'
 
 describe('router autoscrolling on navigation', () => {
   const { next, isNextDev } = nextTestSetup({

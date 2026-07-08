@@ -1,6 +1,6 @@
 import { isNextDeploy, nextTestSetup } from 'e2e-utils'
 import fs from 'fs-extra'
-import { join } from 'path'
+import path from 'path'
 
 describe('app dir - next-image', () => {
   const { next } = nextTestSetup({
@@ -10,7 +10,7 @@ describe('app dir - next-image', () => {
   describe('ssr content', () => {
     if (!isNextDeploy) {
       it('should handle HEAD requests for uncached images', async () => {
-        const imagesDir = join(next.testDir, '.next/cache/images')
+        const imagesDir = path.join(next.testDir, '.next/cache/images')
         await fs.remove(imagesDir).catch(() => {})
 
         const $ = await next.render$('/')

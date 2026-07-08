@@ -381,9 +381,10 @@ export const INSTANT_GUIDANCE_STYLES = css`
   }
 
   [data-nextjs-card-grid] {
+    --copy-prompt-offset: 10px;
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-    gap: 12px;
+    gap: calc(12px + var(--copy-prompt-offset)) 12px;
   }
 
   [data-nextjs-fix-card] {
@@ -607,7 +608,7 @@ export const INSTANT_GUIDANCE_STYLES = css`
     padding: 5px 10px;
     position: absolute;
     right: 10px;
-    top: -10px;
+    top: calc(-1 * var(--copy-prompt-offset));
     transition:
       background 120ms ease,
       border-color 120ms ease,

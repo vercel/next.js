@@ -212,6 +212,16 @@ describe('getBlockingRouteErrorDetails', () => {
     })
   })
 
+  it('classifies createLinkBodyErrorInNavigation as blocking-route + link + inNavigation', () => {
+    expect(
+      getBlockingRouteErrorDetails(createLinkBodyErrorInNavigation(ROUTE))
+    ).toEqual({
+      type: 'blocking-route',
+      variant: 'link',
+      inNavigation: true,
+    })
+  })
+
   it('classifies createDynamicOrRuntimeBodyError as blocking-route + dynamic (SSR-only)', () => {
     // The "either" factory has no clear runtime signal — falls into the
     // dynamic branch by `isRuntimeVariant`. Documents current behavior.
@@ -609,6 +619,9 @@ describe('isInstantNavigationError', () => {
     ).toBe(true)
     expect(
       isInstantNavigationError(createDynamicBodyErrorInNavigation(ROUTE))
+    ).toBe(true)
+    expect(
+      isInstantNavigationError(createLinkBodyErrorInNavigation(ROUTE))
     ).toBe(true)
   })
 

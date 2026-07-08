@@ -1,4 +1,4 @@
-import { PHASE_PRODUCTION_BUILD } from '../api/constants'
+import { PHASE_INFO, PHASE_PRODUCTION_BUILD } from '../api/constants'
 
 describe('loadConfig', () => {
   let loadConfig: typeof import('./config').default
@@ -231,6 +231,15 @@ describe('loadConfig', () => {
       expect(result.cacheHandlers?.['abc']).toBeDefined()
       expect(result.cacheHandlers?.['valid-handler']).toBeDefined()
       expect(result.cacheHandlers?.['abc-def']).toBeDefined()
+    })
+  })
+
+  describe('experimental.cssChunking bundler validation', () => {
+    it('should not validate `cssChunking` during `next info`', async () => {
+      const result = await loadConfig(PHASE_INFO, __dirname, {
+        customConfig: { experimental: { cssChunking: 'graph' } },
+      })
+      expect(result.experimental.cssChunking).toBe('graph')
     })
   })
 })
