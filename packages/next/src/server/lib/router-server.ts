@@ -523,17 +523,24 @@ export async function initialize(opts: {
           return
         }
 
-        if (
-          !res.getHeader('cache-control') &&
-          matchedOutput.type === 'nextStaticFolder'
-        ) {
-          if (opts.dev && !isNextFont(parsedUrl.pathname)) {
-            res.setHeader('Cache-Control', 'no-cache, must-revalidate')
-          } else {
-            res.setHeader(
-              'Cache-Control',
-              'public, max-age=31536000, immutable'
-            )
+        if (matchedOutput.type === 'nextStaticFolder') {
+          if (!res.getHeader('cache-control')) {
+            if (opts.dev && !isNextFont(parsedUrl.pathname)) {
+              res.setHeader('Cache-Control', 'no-cache, must-revalidate')
+            } else {
+              res.setHeader(
+                'Cache-Control',
+                'public, max-age=31536000, immutable'
+              )
+            }
+          }
+          // Workers created from `/_next/static/*` chunks (e.g. Turbopack's
+          // `worker-entrypoint.js`) must carry a valid Cross-Origin-Resource-Policy
+          // so that documents opting into `Cross-Origin-Embedder-Policy: require-corp`
+          // can still load them. Setting `same-origin` is safe because these are
+          // first-party build artifacts.
+          if (!res.getHeader('cross-origin-resource-policy')) {
+            res.setHeader('Cross-Origin-Resource-Policy', 'same-origin')
           }
         }
         if (!(req.method === 'GET' || req.method === 'HEAD')) {
