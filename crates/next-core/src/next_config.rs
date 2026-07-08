@@ -1292,6 +1292,7 @@ pub struct ExperimentalConfig {
     durable_use_cache_entries: Option<bool>,
     runtime_server_deployment_id: Option<bool>,
     supports_immutable_assets: Option<bool>,
+    expose_testing_api_in_production_build: Option<bool>,
 
     /// A salt to mix into chunk and asset content hashes. Empty string means
     /// no salt.
@@ -2330,6 +2331,15 @@ impl NextConfig {
     #[turbo_tasks::function]
     pub fn enable_blocking_ssr(&self) -> Vc<bool> {
         Vc::cell(self.experimental.blocking_ssr.unwrap_or(false))
+    }
+
+    #[turbo_tasks::function]
+    pub fn enable_expose_testing_api_in_production_build(&self) -> Vc<bool> {
+        Vc::cell(
+            self.experimental
+                .expose_testing_api_in_production_build
+                .unwrap_or(false),
+        )
     }
 
     #[turbo_tasks::function]
