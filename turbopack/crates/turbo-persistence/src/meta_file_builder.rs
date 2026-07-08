@@ -1,11 +1,11 @@
 use std::{
-    fs::File,
     io::{self, BufWriter, Write},
     path::Path,
 };
 
 use anyhow::{Context, Result};
 use byteorder::{BE, WriteBytesExt};
+use fs_err::File;
 use qfilter::Filter;
 use zerocopy::IntoBytes;
 

@@ -364,7 +364,7 @@ export interface AppPageNapiRoute {
   /** The relative path from project_path to the route file */
   originalName?: RcStr
   htmlEndpoint?: ExternalObject<ExternalEndpoint>
-  rscEndpoint?: ExternalObject<ExternalEndpoint>
+  rscHmrEndpoint?: ExternalObject<ExternalEndpoint>
 }
 export interface NapiRoute {
   /** The router path */
@@ -376,7 +376,7 @@ export interface NapiRoute {
   pages?: Array<AppPageNapiRoute>
   endpoint?: ExternalObject<ExternalEndpoint>
   htmlEndpoint?: ExternalObject<ExternalEndpoint>
-  rscEndpoint?: ExternalObject<ExternalEndpoint>
+  rscHmrEndpoint?: ExternalObject<ExternalEndpoint>
   dataEndpoint?: ExternalObject<ExternalEndpoint>
 }
 export interface NapiMiddleware {

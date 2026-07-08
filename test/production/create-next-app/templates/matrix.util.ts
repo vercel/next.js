@@ -9,9 +9,22 @@ const isTurbopack = shouldUseTurbopack()
 // test a generous timeout.
 const PER_TEST_TIMEOUT_MS = 5 * 60 * 1000
 
-describe.each(['app', 'pages'] as const)(
-  'CNA options matrix - %s',
-  (pagesOrApp) => {
+// The full matrix takes ~15 minutes to run serially, which makes it one of
+// the slowest files in CI. To keep shard times balanced, it's split into one
+// `matrix-*.test.ts` entry file per (pagesOrApp, shard) pair, each calling
+// this function. The entry files for a given `pagesOrApp` must all use the
+// same `totalShards` and cover every `shard` from 1 to `totalShards`, or
+// combinations will be silently skipped.
+export function runMatrixTests({
+  pagesOrApp,
+  shard,
+  totalShards,
+}: {
+  pagesOrApp: 'app' | 'pages'
+  shard: number
+  totalShards: number
+}) {
+  describe(`CNA options matrix - ${pagesOrApp}`, () => {
     let nextTgzFilename: string
 
     beforeAll(() => {
@@ -59,10 +72,15 @@ describe.each(['app', 'pages'] as const)(
     }
 
     const flagCombinations = getCombinations(Object.values(allFlagValues))
-    const testCases = flagCombinations.map((flags) => ({
-      name: flags.join(' '),
-      flags,
-    }))
+    // Round-robin instead of contiguous slices: combinations are generated in
+    // a systematic order, so contiguous slices would concentrate a single
+    // flag's variants (and their cost differences) into one shard.
+    const testCases = flagCombinations
+      .filter((_, index) => index % totalShards === shard - 1)
+      .map((flags) => ({
+        name: flags.join(' '),
+        flags,
+      }))
 
     let id = 0
     it.each(testCases)(
@@ -103,5 +121,5 @@ describe.each(['app', 'pages'] as const)(
       },
       PER_TEST_TIMEOUT_MS
     )
-  }
-)
+  })
+}

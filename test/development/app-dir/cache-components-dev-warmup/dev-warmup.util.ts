@@ -2,22 +2,29 @@ import { nextTestSetup, type Playwright } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 import * as nodePath from 'node:path'
 
-const partialPrefetching = !!process.env.__NEXT_PARTIAL_PREFETCHING
+// This suite restarts the dev server before every test, which makes it one of
+// the slowest files in CI. To keep shard times balanced, it's split into one
+// `*.test.ts` entry file per (fixture, load mode, partial prefetching)
+// combination, each calling this function. Keep the entry files in sync when
+// adding a new dimension.
+export function runDevWarmupTests({
+  hasRuntimePrefetch,
+  isInitialLoad,
+}: {
+  hasRuntimePrefetch: boolean
+  isInitialLoad: boolean
+}) {
+  const partialPrefetching = !!process.env.__NEXT_PARTIAL_PREFETCHING
 
-describe.each([
-  {
-    description: 'without runtime prefetch configs',
-    hasRuntimePrefetch: false,
-    fixturePath: 'fixtures/without-prefetch-config',
-  },
-  {
-    description: 'with runtime prefetch configs',
-    hasRuntimePrefetch: true,
-    fixturePath: 'fixtures/with-prefetch-config',
-  },
-])(
-  'cache-components-dev-warmup - $description',
-  ({ fixturePath, hasRuntimePrefetch }) => {
+  const description = hasRuntimePrefetch
+    ? 'with runtime prefetch configs'
+    : 'without runtime prefetch configs'
+
+  const fixturePath = hasRuntimePrefetch
+    ? 'fixtures/with-prefetch-config'
+    : 'fixtures/without-prefetch-config'
+
+  describe(`cache-components-dev-warmup - ${description}`, () => {
     const { next, isTurbopack } = nextTestSetup({
       files: nodePath.join(__dirname, fixturePath),
     })
@@ -218,10 +225,7 @@ describe.each([
 
     const RUNTIME_ENV = hasRuntimePrefetch ? 'Prefetch' : 'Prefetchable'
 
-    describe.each([
-      { description: 'initial load', isInitialLoad: true },
-      { description: 'navigation', isInitialLoad: false },
-    ])('$description', ({ isInitialLoad }) => {
+    describe(isInitialLoad ? 'initial load' : 'navigation', () => {
       // Static
       const STATIC_LINK_DATA = isInitialLoad
         ? 'Prerender'
@@ -497,5 +501,5 @@ describe.each([
         })
       }
     })
-  }
-)
+  })
+}

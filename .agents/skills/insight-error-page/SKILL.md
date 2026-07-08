@@ -48,11 +48,9 @@ title: <literal dev-overlay headline, no period, strip Route "..." prefix>
 kind: insight
 ---
 
-<1-paragraph framing: what triggered the insight, name the APIs, link to Cache Components and instant navigation>
+<the Instant Navigations callout div — the styled box linking the blog post and the Ensuring instant navigations guide; copy it from any existing insight page>
 
-<Cross-link to sibling pages (parallel API families + client/server counterpart)>
-
-> **Good to know**: In [`next dev`](/docs/app/api-reference/cli/next#next-dev-options), the error overlay points at the failing component. Run `next build --debug-prerender` to get the full list of blocking routes with stack traces. When iterating on specific routes, use `next build --debug-build-paths /dashboard /settings` to rebuild only those pages.
+<Framing, 2-3 paragraphs. Paragraph 1 opens "During <phase>, <event>" in past tense (e.g. "During prerendering, a Server Component called ..."), names the APIs, and states the mechanism or consequence. Never open a paragraph with inline code — lead with a word ("The `params` prop ..."). Later paragraphs carry the teaching and cross-link sibling pages (parallel API families + client/server counterpart) using the "For X, see Y" formula.>
 
 ## Ways to fix this
 
@@ -73,8 +71,13 @@ kind: insight
 
 (optional: ## Other options — for useful patterns that don't map to a framework fix card but are still relevant. Examples: bridging to a different error page's fix ("Cache the value in a Server Component" on a client page, linking to the server page), upstream content from `errors/<slug>.mdx` that doesn't fit the card structure, alternative APIs that sidestep the problem entirely. Each option gets its own `###` heading with framing prose, a code snippet, and a "Learn more" link to the page that covers it in full.)
 
+## Verifying the fix
+  (canonical two paragraphs — see "Verifying the fix" rule below)
+
 ## Don't want this validation?
-  (canonical opt-out block — see "Don't want this validation?" rule below)
+  (canonical opt-out block — see "Don't want this validation?" rule below.
+   Exception: sync-IO pages replace this with "## Why `instant = false` doesn't clear this error",
+   because the opt-out cannot suppress sync-IO aborts.)
 
 ## Related Insights
   (full list of every other insight-kind error page, current page omitted)
@@ -84,13 +87,17 @@ kind: insight
 
 ### Frontmatter
 
-- `title` = literal dev-overlay headline, no period. Get this from the factory function in the framework (e.g. `sync-io-messages.ts`). Strip the `Route "..."` prefix.
+- `title` = the dev-overlay display headline, no period. That is the string the overlay shows (see the headline strings in `errors.tsx` / the factory in e.g. `sync-io-messages.ts`), with the `Route "..."` prefix stripped and any inline expression genericized (the client-hook overlay shows `` `useSearchParams()` `` inline; its docs title says "in a Client Component" instead).
 - `kind: insight` — always present.
 
-### Good to Know
+### Verifying the fix
 
-- **Always the same canonical block** across all insight pages (the `--debug-prerender` tip). Never put page-specific content here.
-- Useful page-specific tips go in Gotchas under the relevant fix section.
+Every page has a `## Verifying the fix` section before the opt-out block. No page has a top-level Good to know; page-specific tips go in Gotchas under the relevant fix section. Two canonical paragraphs:
+
+1. The observable check: "After applying a fix, reload the route and confirm the page immediately paints meaningful UI, with any `<Suspense>` fallbacks covering only the regions that stream in." (navigation insights say "navigate to the route and confirm the insight no longer appears in the dev overlay and ..." instead of "reload the route"). Followed by the empty-shell caveat sentence: a boundary around the whole page body can pass validation with an empty shell.
+2. The tooling paragraph: dev overlay points at the failing component; from a build, the output is more abbreviated. Run `next build --debug-prerender` for full user-frame stack traces and `next build --debug-build-paths /dashboard /settings` to iterate on specific routes. Copy the exact wording from an existing page.
+
+State the check as what the reader sees in the browser, not as framework artifacts ("the static shell renders real content" was retired for this reason — a fallback is expected after a correct fix; the check is that it covers only the streamed region).
 
 ### `<FixCard>` cards
 
@@ -162,14 +169,14 @@ After the pattern snippets, include a "Use either pattern when:" bulleted list (
 **Gotchas** (mandatory bullets, in this order):
 
 - Setting `instant` to `false` opts out only the segment that exports it. Descendant segments remain validated by their own config or the global default.
-- This export does not disable prerendering. The route still prerenders if it can. It only silences the instant-navigation validation error.
+- This export does not disable prerendering. The route still prerenders if it can. It only disables instant-navigation validation for the route.
 - Page-specific gotchas (for example, viewport pages add framework-synthesized routes gotcha) come after the two canonical bullets.
 
 **Never** add a gotcha that says `Confirm with the user that ...` in user-facing body prose. The page is what the user reads — write for them, not for the agent. Guardrails the agent should apply belong in the actual code-shape guidance under the `### Patterns` heading (which the agent reads via the docs link in the copied prompt).
 
 ### Don't want this validation?
 
-Every insight page ends (just before `## Related Insights`) with the canonical opt-out block. It teaches the reader how to silence validation per-segment, subtree-wide, and app-wide, since instant-navigation validation runs by default in Cache Components apps. Copy verbatim:
+Every insight page ends (just before `## Related Insights`) with the canonical opt-out block — except the six sync-IO pages (random/current-time/crypto and their `-client` variants), which replace it with `## Why \`instant = false\` doesn't clear this error`, because the sync-IO abort happens in the prerender path and the opt-out cannot suppress it. It teaches the reader how to opt out of validation per-segment, subtree-wide, and app-wide, since instant-navigation validation runs by default in Cache Components apps. Copy verbatim:
 
 ```mdx
 ## Don't want this validation?
@@ -191,14 +198,18 @@ See [Ensuring instant navigations](/docs/app/guides/instant-navigation) for the 
 - No filler: `In this guide ...`, `As mentioned above ...`, `Let's take a look at ...`, `It's worth noting ...`
 - Active voice + direct address: "You wrap the component" not "the component is wrapped"
 - No "Default." labels on patterns (removed during review — patterns don't have a default)
+- No semicolons in prose — split into two sentences, or use ", and" for an elliptical contrast
+- Never open a paragraph or sentence with inline code — lead with a word ("The `params` prop ...")
+- Code in headings is fine only when it names a real API with its exact casing (`await connection()`, `cacheLife`); concepts stay prose ("Opt the page out")
+- `Learn more:` link text = the target page's exact title for guides ("Streaming", "Ensuring instant navigations"), the bare code name matching the doc title for API references ([`connection`], [`io`], [`searchParams`] — no parens); third-party APIs keep their canonical spelling ([`performance.now()`])
 
 ## Audit checklist
 
 When auditing an existing page, check every item:
 
-- [ ] `title` = literal dev-overlay headline (from factory function), no period
+- [ ] `title` = overlay display headline, no period, inline expressions genericized
 - [ ] `kind: insight` in frontmatter
-- [ ] Good to Know = the canonical `--debug-prerender` block (no page-specific content)
+- [ ] No top-level Good to know; `## Verifying the fix` present with the two canonical paragraphs (observable check + `--debug-prerender` tooling)
 - [ ] All cards wrapped in a single `<FixCardGrid>`
 - [ ] One `<FixCard />` per framework card, in framework order
 - [ ] Every `<FixCard />` `title` = card title verbatim
@@ -216,13 +227,15 @@ When auditing an existing page, check every item:
 - [ ] `useState(() => Math.random())` warned against in Gotchas
 - [ ] All API references inline-linked throughout
 - [ ] Sibling pages cross-linked in framing paragraph (inline body links carry the bulk of API references)
-- [ ] `## Don't want this validation?` section present, verbatim per the canonical block
+- [ ] `## Don't want this validation?` present, verbatim per the canonical block (sync-IO pages instead have `## Why \`instant = false\` doesn't clear this error`)
 - [ ] `## Related Insights` section present, listing every other insight-kind error page (current page omitted)
 - [ ] Upstream `errors/<slug>.mdx` content preserved (relocated to Gotchas or Other options if needed)
 - [ ] Terminology matches canonical docs (verified, not assumed)
 - [ ] Vercel technical writing style applied (no banned words, active voice, sentence-case headings)
 - [ ] Framework card `link` URLs point to the correct heading auto-slugs (if not, flag as a framework follow-up)
 - [ ] Short-lived caches subsection present under cache fixes (when applicable)
+- [ ] No prose semicolons; no paragraph opens with inline code
+- [ ] `Learn more:` texts follow the title/bare-API convention and every target is the best page for the pattern
 
 ## File locations
 

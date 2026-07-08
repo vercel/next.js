@@ -1196,7 +1196,7 @@ export interface ExperimentalConfig {
   serverComponentsHmrCache?: boolean
 
   /**
-   * Cancels the render and validation work for a Server Component HMR refresh
+   * Cancels the render and validation work for a Server Components HMR refresh
    * once a newer refresh supersedes it. Development only.
    */
   serverComponentsHmrCancellation?: boolean
