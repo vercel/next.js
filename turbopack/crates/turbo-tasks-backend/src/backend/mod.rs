@@ -550,15 +550,16 @@ impl TurboTasksBackend {
         // ids above so the caller can decrement their parent_count.
         self.storage.remove_task(task_id);
 
-        // `surviving_task_ids` is left empty: it would carry any *other* live persistent task whose
-        // task type xxh3-collides with this one (the whole hash bucket is tombstoned). An 8-byte
-        // collision between two simultaneously-live tasks is astronomically rare (~2^32 tasks for
-        // one expected collision); if it ever occurred the survivor's mapping would be dropped and
-        // it would be transparently re-created on next lookup — a performance cost, not corruption.
+        // Tombstoning the on-disk `TaskCache` erases the *whole* hash bucket, so any live task
+        // whose type xxh3-collides with this one must be re-inserted. Those survivors are
+        // resolved at apply time in `save_snapshot` (which reads the authoritative on-disk
+        // bucket) rather than computed here — the in-memory `task_cache` is lazily
+        // populated and keyed by the full task type, not the hash, so it can't reliably
+        // enumerate hash-siblings. Collisions between two live tasks are astronomically
+        // rare, so this survivor path almost never fires.
         let deletion = TaskDeletion {
             task_id,
             task_type_hash,
-            surviving_task_ids: Vec::new(),
         };
         (children, deletion)
     }

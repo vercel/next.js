@@ -6,6 +6,7 @@ use std::{
 };
 
 use anyhow::{Context, Result};
+use rustc_hash::FxHashMap;
 use smallvec::SmallVec;
 use turbo_bincode::{new_turbo_bincode_decoder, turbo_bincode_decode, turbo_bincode_encode};
 use turbo_persistence::CommitStats;
@@ -20,7 +21,8 @@ use crate::{
     GitVersionInfo,
     backend::{AnyOperation, SpecificTaskDataCategory, storage_schema::TaskStorage},
     backing_storage::{
-        SnapshotItem, SnapshotMeta, TaskDeletion, compute_task_type_hash_from_components,
+        SnapshotItem, SnapshotMeta, TaskDeletion, TaskTypeHash,
+        compute_task_type_hash_from_components,
     },
     database::{
         db_invalidation::{StartupCacheState, check_db_invalidation_and_cleanup, invalidate_db},
@@ -309,24 +311,52 @@ impl TurboBackingStorage {
             // list is small relative to the snapshot and ordering matters more than parallelism.
             if !deletes.is_empty() {
                 let _span = tracing::trace_span!("delete tasks", count = deletes.len()).entered();
-                for TaskDeletion {
-                    task_id,
-                    task_type_hash,
-                    surviving_task_ids,
-                } in &deletes
-                {
-                    let key = IntKey::new(**task_id);
+
+                // Group the deleted ids by their TaskCache hash bucket. TaskCache is MultiValue and
+                // a tombstone erases the *whole* bucket, so for each distinct hash we must
+                // re-insert every id still living in that bucket (any type that
+                // xxh3-collides with a deleted one). Normally each hash maps to
+                // exactly the single id being deleted, so the survivor set is
+                // empty.
+                let mut deleted_by_hash: FxHashMap<TaskTypeHash, SmallVec<[TaskId; 4]>> =
+                    FxHashMap::default();
+                for deletion in &deletes {
+                    // TaskMeta/TaskData are SingleValue: tombstone the id key directly.
+                    let key = IntKey::new(*deletion.task_id);
                     let key = key.as_ref();
                     batch.delete(KeySpace::TaskMeta, WriteBuffer::Borrowed(key))?;
                     batch.delete(KeySpace::TaskData, WriteBuffer::Borrowed(key))?;
-                    // TaskCache is MultiValue: tombstone the whole hash bucket, then re-insert any
-                    // colliding live survivors (almost always none).
+                    deleted_by_hash
+                        .entry(deletion.task_type_hash)
+                        .or_default()
+                        .push(deletion.task_id);
+                }
+
+                for (task_type_hash, deleted_ids) in deleted_by_hash {
+                    // Read the authoritative on-disk bucket so we can keep every id we are NOT
+                    // deleting. (A survivor that is a *new* task added in this same commit is
+                    // covered by its own put above — new tasks aren't on disk yet, so they can't
+                    // appear here and won't be double-inserted.)
+                    let bucket = self
+                        .inner
+                        .database
+                        .get_multiple(KeySpace::TaskCache, &task_type_hash)
+                        .with_context(|| {
+                            format!("Reading TaskCache bucket {task_type_hash:?} for GC re-insert")
+                        })?;
+
+                    // Tombstone the whole bucket, then re-insert the survivors (almost always
+                    // none).
                     batch.delete(
                         KeySpace::TaskCache,
                         WriteBuffer::Borrowed(&task_type_hash[..]),
                     )?;
-                    for survivor in surviving_task_ids {
-                        let survivor_key = IntKey::new(**survivor);
+                    for bytes in bucket {
+                        let id = TaskId::try_from(as_u32(bytes)?)?;
+                        if deleted_ids.contains(&id) {
+                            continue;
+                        }
+                        let survivor_key = IntKey::new(*id);
                         batch.put(
                             KeySpace::TaskCache,
                             WriteBuffer::Borrowed(&task_type_hash[..]),
@@ -814,6 +844,56 @@ mod tests {
 
         run_case(true).await?;
         run_case(false).await?;
+        Ok(())
+    }
+
+    /// End-to-end coverage of the survivor path through `save_snapshot`: a `TaskDeletion` must
+    /// tombstone the deleted id's whole `TaskCache` bucket **and** automatically re-insert a
+    /// colliding survivor that exists *only on disk* — i.e. the survivor is resolved by reading the
+    /// on-disk bucket at apply time, not carried on the `TaskDeletion` (the old design) or read
+    /// from the in-memory task cache (which wouldn't know about a disk-only entry).
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_save_snapshot_reinserts_disk_only_survivor() -> Result<()> {
+        let tempdir = tempfile::tempdir()?;
+        let path = tempdir.path();
+
+        let collision_hash: u64 = 0xC0FFEE;
+        let deleted_id = TaskId::try_from(111u32).unwrap();
+        let survivor_id = TaskId::try_from(222u32).unwrap();
+
+        let db = TurboKeyValueDatabase::new(path.to_path_buf(), false, true, false)?;
+        // Both ids live in the bucket purely on disk; nothing is in an in-memory task cache.
+        write_task_cache_entry(&db, collision_hash, deleted_id)?;
+        write_task_cache_entry(&db, collision_hash, survivor_id)?;
+
+        let storage = TurboBackingStorage::new_in_memory(db);
+
+        // Snapshot with no task data, just the one deletion.
+        storage.save_snapshot(
+            Vec::new(),
+            Vec::<Vec<SnapshotItem>>::new(),
+            vec![TaskDeletion {
+                task_id: deleted_id,
+                task_type_hash: collision_hash.to_le_bytes(),
+            }],
+        )?;
+
+        // The deleted id is gone; the disk-only survivor was re-inserted automatically.
+        let results = storage
+            .inner
+            .database
+            .get_multiple(KeySpace::TaskCache, &collision_hash.to_le_bytes())?;
+        let found_ids: Vec<TaskId> = results
+            .into_iter()
+            .map(|bytes| TaskId::try_from(as_u32(bytes).unwrap()).unwrap())
+            .collect();
+        assert_eq!(
+            found_ids,
+            vec![survivor_id],
+            "save_snapshot should tombstone the deleted id and re-insert the disk-only survivor"
+        );
+
+        storage.inner.database.shutdown()?;
         Ok(())
     }
 }

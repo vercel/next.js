@@ -24,17 +24,18 @@ pub struct SnapshotItem {
 ///
 /// `TaskMeta` and `TaskData` are `SingleValue` families, so the task id key is tombstoned directly.
 /// `TaskCache` is `MultiValue` keyed by the 8-byte task-type hash, where a tombstone erases the
-/// whole hash bucket; `surviving_task_ids` therefore carries any *other* live task ids that share
-/// this task's hash (via an xxh3 collision) so they can be re-inserted after the tombstone. This is
-/// almost always empty — 8-byte hash collisions are astronomically rare.
+/// *whole* hash bucket. If another live task's type xxh3-collides with this one it shares the
+/// bucket, so the apply path must re-insert those survivors after the tombstone. Rather than carry
+/// them on this struct, the survivors are resolved at apply time in `save_snapshot`, which reads
+/// the authoritative on-disk bucket (`get_multiple`) and re-puts everything except the ids being
+/// deleted — the in-memory task cache is not a reliable source (it is lazily populated and keyed by
+/// the full task type, not the hash). Collisions between two simultaneously-live tasks are
+/// astronomically rare (~2^32 tasks for one expected collision), so this path almost never fires.
 pub struct TaskDeletion {
     pub task_id: TaskId,
     /// The deleted task's persistent task-type hash (its `TaskCache` key). Always present because
     /// only persistent (non-transient) tasks are collected, and those always have a task type.
     pub task_type_hash: TaskTypeHash,
-    /// Live task ids sharing `task_type_hash` that must be re-inserted into `TaskCache` after the
-    /// whole-bucket tombstone. Almost always empty.
-    pub surviving_task_ids: Vec<TaskId>,
 }
 
 /// Computes a deterministic 64-bit hash of a CachedTaskType for use as a TaskCache key.
