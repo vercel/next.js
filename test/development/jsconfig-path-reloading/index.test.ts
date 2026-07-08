@@ -32,7 +32,6 @@ describe('jsconfig-path-reloading', () => {
             }),
       },
       dependencies: {
-        typescript: 'latest',
         '@types/react': 'latest',
         '@types/node': 'latest',
       },

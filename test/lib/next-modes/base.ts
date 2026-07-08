@@ -73,8 +73,12 @@ type OmitFirstArgument<F> = F extends (
 // prettier-ignore
 const nextjsReactPeerVersion = "19.2.7";
 
-const ROOT_PACKAGE_MANAGER: string =
-  require('../../../package.json').packageManager
+const ROOT_PACKAGE_JSON: {
+  packageManager: string
+  devDependencies: { typescript: string }
+} = require('../../../package.json')
+const ROOT_PACKAGE_MANAGER = ROOT_PACKAGE_JSON.packageManager
+const ROOT_TYPESCRIPT_VERSION = ROOT_PACKAGE_JSON.devDependencies.typescript
 
 export class NextInstance {
   protected files: ResolvedFileConfig
@@ -259,7 +263,7 @@ export class NextInstance {
           'react-dom': reactVersion,
           '@types/react': '19.2.2',
           '@types/react-dom': '19.2.1',
-          typescript: 'latest',
+          typescript: ROOT_TYPESCRIPT_VERSION,
           '@types/node': 'latest',
           ...this.dependencies,
           ...this.packageJson?.dependencies,

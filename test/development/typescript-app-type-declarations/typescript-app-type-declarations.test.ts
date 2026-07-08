@@ -62,7 +62,6 @@ describe('typescript-app-type-declarations', () => {
       'next-env.d.ts': nextEnvDts,
     },
     dependencies: {
-      typescript: 'latest',
       '@types/react': 'latest',
       '@types/node': 'latest',
     },
