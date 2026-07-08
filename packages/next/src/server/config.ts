@@ -1414,8 +1414,11 @@ function assignDefaultsAndValidate(
   if (result.cacheLife) {
     const userCacheLifeProfiles: NonNullable<NextConfig['cacheLife']> =
       result.cacheLife
+    // The default profiles are cloned because the backfill below mutates the
+    // default profile, and multiple next() instances in the same process must
+    // not observe each other's config through the shared objects.
     const cacheLifeProfiles: NonNullable<NextConfig['cacheLife']> = {
-      ...defaultConfig.cacheLife,
+      ...structuredClone(defaultConfig.cacheLife),
       ...userCacheLifeProfiles,
     }
     result.cacheLife = cacheLifeProfiles
