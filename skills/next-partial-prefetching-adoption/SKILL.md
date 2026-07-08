@@ -65,7 +65,7 @@ These are product decisions (what's worth prefetching), not mechanical fixes —
 Once every audited destination has `prefetch = 'partial'`:
 
 1. **Enable the flag globally**: set `partialPrefetching: true` in `next.config.ts` (alongside `cacheComponents: true`). Every route is adopted now, so every link is good.
-2. **Strip the per-route `prefetch = 'partial'` exports** — redundant under the global flag. Script it (a codemod or a find-and-remove), don't hand-edit each file.
+2. **Strip the per-route `prefetch = 'partial'` exports** — redundant under the global flag. Run the first-party codemod: `npx @next/codemod@latest remove-partial-prefetch .`. It removes only `export const prefetch = 'partial'` and leaves other values (a deliberate `prefetch = 'allow-runtime'`) in place, so it's safer than a text find-and-replace. Don't hand-edit each file.
 3. **Load every route** in `next dev` to collect its shell insights. Build the queue from a concrete source (the last `next build` route table, or the `app/` tree) and keep it as a todo list. It doesn't have to be feature by feature — just finish every route.
 
 The shell check only runs with Partial Prefetching on and fires at navigation time, so a direct load counts. Watch the Insights tab and the dev log for `Next.js encountered … data` lines. All three shapes can surface, even inside an existing `<Suspense>`, and you can't predict which: [`URL data`](https://nextjs.org/docs/messages/instant-shell-url-data) (`params`/`searchParams`), [`runtime data`](https://nextjs.org/docs/messages/blocking-prerender-runtime) (`cookies()`/`headers()`), or [`uncached data`](https://nextjs.org/docs/messages/blocking-prerender-dynamic) (an uncached `fetch`/DB call). Open each insight's docs page and follow the fix there.
