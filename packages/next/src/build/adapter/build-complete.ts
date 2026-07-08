@@ -1380,7 +1380,7 @@ export async function handleBuildComplete({
         }
 
         if (renderingMode === RenderingMode.PARTIALLY_STATIC) {
-          // Dynamic RSC requests cannot be cached, so we explicity set it
+          // Dynamic RSC requests cannot be cached, so we explicitly set it
           // here to ensure that the response is not cached by the browser.
           dataInitialHeaders['cache-control'] =
             'private, no-store, no-cache, max-age=0, must-revalidate'
@@ -1691,7 +1691,7 @@ export async function handleBuildComplete({
           }
 
           if (renderingMode === RenderingMode.PARTIALLY_STATIC) {
-            // Dynamic RSC requests cannot be cached, so we explicity set it
+            // Dynamic RSC requests cannot be cached, so we explicitly set it
             // here to ensure that the response is not cached by the browser.
             dataInitialHeaders['cache-control'] =
               'private, no-store, no-cache, max-age=0, must-revalidate'
