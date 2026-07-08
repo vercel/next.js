@@ -108,7 +108,7 @@ export default nextConfig
 
 ## Auditing existing `<Link prefetch={true}>` calls
 
-When `partialPrefetching` is enabled, `<Link prefetch={true}>` now prefetches the App Shell plus cached content, but not dynamic data. Review each existing usage and decide whether the prop is still providing value. In [`next dev`](/docs/app/api-reference/cli/next#next-dev-options), the dev overlay surfaces a [**link-prefetch-partial** insight](/docs/messages/instant-link-prefetch-partial) for each call that points at a route without Partial Prefetching, so you can work through them one at a time.
+When `partialPrefetching` is enabled, `<Link prefetch={true}>` now prefetches the App Shell plus cached content, but not dynamic data. Review each existing usage and decide whether the prop is still providing value. In [`next dev`](/docs/app/api-reference/cli/next#next-dev-options), the dev overlay surfaces a [dynamic data during prefetching](/docs/messages/instant-link-prefetch-partial) insight for each call that points at a route without Partial Prefetching, so you can work through them one at a time.
 
 | Destination                                                                                 | Recommendation                                                                                                                                                                       |
 | ------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -138,7 +138,7 @@ After:
 
 The App Shell is shared across every link to a route, so it can't contain data that belongs to a single URL. [`params`](/docs/app/api-reference/file-conventions/page#params-optional) and [`searchParams`](/docs/app/api-reference/file-conventions/page#searchparams-optional) are [URL data](/docs/app/glossary#url-data): reading them outside of a [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary ties the App Shell to the link's URL, and the navigation waits on the network instead of being instant.
 
-In [`next dev`](/docs/app/api-reference/cli/next#next-dev-options), the dev overlay surfaces an [**instant-shell-url-data** insight](/docs/messages/instant-shell-url-data) for each route that reads URL data this way, so you can work through them one at a time.
+In [`next dev`](/docs/app/api-reference/cli/next#next-dev-options), the dev overlay surfaces a [URL data outside of Suspense](/docs/messages/instant-shell-url-data) insight for each route that reads URL data this way, so you can work through them one at a time.
 
 The fix is to keep the URL-independent parts of the route outside the boundary and move the `params` or `searchParams` read into a child wrapped in `<Suspense>`. Pass the promise down without awaiting it:
 
