@@ -1,4 +1,5 @@
 import type { API, FileInfo, JSCodeshift } from 'jscodeshift'
+import type { VariableDeclaration } from 'jscodeshift'
 import { createParserFromPath } from '../lib/parser'
 
 // Route Segment Config name and the only value this codemod strips.
@@ -33,16 +34,30 @@ function isTargetPrefetch(j: JSCodeshift, decl: any): boolean {
   )
 }
 
+// Drop only the `prefetch = 'partial'` declarator, leaving any sibling
+// declarators (e.g. `export const runtime = 'edge', prefetch = 'partial'`)
+// intact. Returns the number of declarators left so the caller can remove the
+// whole statement when it becomes empty.
+function stripTargetDeclarators(
+  j: JSCodeshift,
+  declaration: VariableDeclaration
+): number {
+  declaration.declarations = declaration.declarations.filter(
+    (decl) => !isTargetPrefetch(j, decl)
+  )
+  return declaration.declarations.length
+}
+
 export default function transformer(file: FileInfo, _api: API) {
-  // Run on App Router page/layout/route files, except for test environment.
+  // Run on App Router page/layout files, except for test environment. The
+  // `prefetch` Route Segment Config only applies to pages and layouts, so
+  // route handlers are intentionally excluded.
   // `(^|[/\\])app` matches both an absolute path and a relative `app/...` path
   // (what `npx @next/codemod ... ./app` passes), so top-level app files aren't
   // silently skipped.
   if (
     process.env.NODE_ENV !== 'test' &&
-    !/(^|[/\\])app[/\\](?:.*[/\\])?(page|layout|route)(\.[^/\\]*)?$/.test(
-      file.path
-    )
+    !/(^|[/\\])app[/\\](?:.*[/\\])?(page|layout)(\.[^/\\]*)?$/.test(file.path)
   ) {
     return file.source
   }
@@ -52,29 +67,34 @@ export default function transformer(file: FileInfo, _api: API) {
 
   let hasChanges = false
 
-  // Remove `export const prefetch = 'partial'`
-  const directExports = root
+  // `export const prefetch = 'partial'` (possibly alongside other configs in
+  // the same statement).
+  root
     .find(j.ExportNamedDeclaration, {
       declaration: { type: 'VariableDeclaration' },
     })
     .filter((path) => {
       const declaration = path.node.declaration
-      if (!j.VariableDeclaration.check(declaration)) {
-        return false
+      return (
+        j.VariableDeclaration.check(declaration) &&
+        declaration.declarations.some((decl) => isTargetPrefetch(j, decl))
+      )
+    })
+    .forEach((path) => {
+      const declaration = path.node.declaration as VariableDeclaration
+      const remaining = stripTargetDeclarators(j, declaration)
+      // Remove the whole export only when nothing else was declared with it.
+      if (remaining === 0) {
+        j(path).remove()
       }
-      return declaration.declarations.some((decl) => isTargetPrefetch(j, decl))
+      hasChanges = true
     })
 
-  if (directExports.size() > 0) {
-    directExports.remove()
-    hasChanges = true
-  }
-
-  // Remove bare `const prefetch = 'partial'` declarations (paired with
-  // `export { prefetch }`). Track that we removed it so we only drop the
+  // Bare `const prefetch = 'partial'` declarations (paired with
+  // `export { prefetch }`). Track that we removed one so we only drop the
   // matching export specifier below.
   let removedBareDeclaration = false
-  const variableDeclarations = root
+  root
     .find(j.VariableDeclaration)
     .filter((path) => {
       // `export const prefetch` is handled above; skip it here.
@@ -83,41 +103,42 @@ export default function transformer(file: FileInfo, _api: API) {
       }
       return path.node.declarations.some((decl) => isTargetPrefetch(j, decl))
     })
-
-  if (variableDeclarations.size() > 0) {
-    variableDeclarations.remove()
-    removedBareDeclaration = true
-    hasChanges = true
-  }
+    .forEach((path) => {
+      const remaining = stripTargetDeclarators(j, path.node)
+      if (remaining === 0) {
+        j(path).remove()
+      }
+      removedBareDeclaration = true
+      hasChanges = true
+    })
 
   // Handle `export { prefetch }` and `export { prefetch, other }`, but only
   // when the paired declaration was the `'partial'` one we removed above.
   if (removedBareDeclaration) {
-    const namedExports = root
+    root
       .find(j.ExportNamedDeclaration)
       .filter((path) => Boolean(path.node.specifiers?.length))
+      .forEach((path) => {
+        const specifiers = path.node.specifiers
+        if (!specifiers) return
 
-    namedExports.forEach((path) => {
-      const specifiers = path.node.specifiers
-      if (!specifiers) return
+        const filteredSpecifiers = specifiers.filter((spec) => {
+          if (j.ExportSpecifier.check(spec) && j.Identifier.check(spec.local)) {
+            return spec.local.name !== CONFIG_NAME
+          }
+          return true
+        })
 
-      const filteredSpecifiers = specifiers.filter((spec) => {
-        if (j.ExportSpecifier.check(spec) && j.Identifier.check(spec.local)) {
-          return spec.local.name !== CONFIG_NAME
+        if (filteredSpecifiers.length !== specifiers.length) {
+          hasChanges = true
+
+          if (filteredSpecifiers.length === 0) {
+            j(path).remove()
+          } else {
+            path.node.specifiers = filteredSpecifiers
+          }
         }
-        return true
       })
-
-      if (filteredSpecifiers.length !== specifiers.length) {
-        hasChanges = true
-
-        if (filteredSpecifiers.length === 0) {
-          j(path).remove()
-        } else {
-          path.node.specifiers = filteredSpecifiers
-        }
-      }
-    })
   }
 
   if (hasChanges) {
