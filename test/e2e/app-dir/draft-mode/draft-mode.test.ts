@@ -55,6 +55,17 @@ describe('app dir - draft mode', () => {
       expect(Cookie).toBeDefined()
     })
 
+    it('should allow overriding cookie attributes on enable', async () => {
+      const res = await next.fetch(`${basePath}enable-with-options`)
+      const h = res.headers.get('set-cookie') || ''
+      const cookie =
+        h
+          .split(/,(?=[^ ]*=)/)
+          .find((c) => c.trim().startsWith('__prerender_bypass')) || ''
+      expect(cookie.toLowerCase()).toContain('samesite=none')
+      expect(cookie.toLowerCase()).toContain('secure')
+    })
+
     it('should have set-cookie header with redirect location', async () => {
       const res = await next.fetch(`${basePath}enable-and-redirect`, {
         redirect: 'manual',
