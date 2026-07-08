@@ -13,15 +13,16 @@ related:
     - app/api-reference/directives/use-cache-private
     - app/getting-started/caching
     - app/guides/instant-navigation
+    - app/guides/prefetching
 ---
 
 Prefetching downloads a route's JavaScript, CSS, and RSC payload before the user navigates to it, so the router can render the next route without waiting for a round trip.
 
 The regular App Router prefetches a route all or nothing: the full route when it's static, and nothing for a dynamic route without a [`loading.js`](/docs/app/api-reference/file-conventions/loading).
 
-[Cache Components](/docs/app/getting-started/caching) takes a different approach and prefetches an [**App Shell**](/docs/app/glossary#app-shell) for every route. The shell contains the route's static output, and for a route that reads [`cookies()`](/docs/app/api-reference/functions/cookies) or [`headers()`](/docs/app/api-reference/functions/headers) (session data), it can also contain UI gated behind that session data.
+[Cache Components](/docs/app/getting-started/caching) takes a different approach and produces an [**App Shell**](/docs/app/glossary#app-shell) for every route. The shell contains the route's static output, and for a route that reads [`cookies()`](/docs/app/api-reference/functions/cookies) or [`headers()`](/docs/app/api-reference/functions/headers) (session data), it can also contain UI gated behind that session data.
 
-Prefetching one reusable shell per route, rather than a separate prefetch per link, is [**Partial Prefetching**](/docs/app/api-reference/config/next-config-js/partialPrefetching). Any number of links to the same route share that shell, so extra links to it are effectively free, and each route is fetched as its [`<Link>`](/docs/app/api-reference/components/link) enters the viewport.
+Prefetching one reusable shell per route, rather than a separate prefetch per link, is [**Partial Prefetching**](/docs/app/api-reference/config/next-config-js/partialPrefetching). Any number of links to the same route share that one shell, fetched once as a [`<Link>`](/docs/app/api-reference/components/link) enters the viewport and reused for the rest.
 
 The shell cannot carry data that varies per link: [`searchParams`](/docs/app/api-reference/file-conventions/page#searchparams-optional) and [`params`](/docs/app/api-reference/file-conventions/page#params-optional), the route's URL data. **Runtime prefetching** resolves that URL data at prefetch time, ready before the click rather than streaming in after it.
 
@@ -42,9 +43,28 @@ It also assumes your route is already structured for instant navigation. If it i
 
 ## What runtime prefetching does
 
-Runtime prefetching takes two opt-ins: the destination route sets [`prefetch = 'allow-runtime'`](/docs/app/api-reference/file-conventions/route-segment-config/prefetch#allow-runtime), and links to it use `<Link prefetch={true}>`.
+Runtime prefetching takes two opt-ins: links to the route use `<Link prefetch={true}>`, and the destination route sets [`prefetch = 'allow-runtime'`](/docs/app/api-reference/file-conventions/route-segment-config/prefetch#allow-runtime).
 
-A user on `/` sees links to `/search?q=react` and `/search?q=next`. The destination renders a static heading and a `<Results>` list whose contents depend on the query. Each query is cached, computed once and reused.
+A user on `/` sees links to `/search?q=react` and `/search?q=next`, each opting in with `prefetch={true}`:
+
+```tsx filename="app/page.tsx"
+import Link from 'next/link'
+
+export default function Home() {
+  return (
+    <nav>
+      <Link href="/search?q=react" prefetch={true}>
+        React
+      </Link>
+      <Link href="/search?q=next" prefetch={true}>
+        Next.js
+      </Link>
+    </nav>
+  )
+}
+```
+
+The destination renders a static heading and a `<Results>` list whose contents depend on the query. Each query is cached, computed once and reused.
 
 ```tsx filename="app/search/page.tsx"
 import { Suspense } from 'react'
@@ -83,7 +103,7 @@ With [`prefetch = 'allow-runtime'`](/docs/app/api-reference/file-conventions/rou
 
 The prerender advances through anything static or cached, then stops at uncached reads and falls back to the surrounding `<Suspense>` boundary. That boundary is already in place from structuring the route for instant navigation.
 
-The result is a **runtime prerender**: more of the page is rendered before the user clicks, with fewer loading states.
+More of the page is rendered before the user clicks, with fewer loading states.
 
 Generating it costs **a server invocation per prefetchable link**, so it is opt-in per route.
 
@@ -93,9 +113,9 @@ Like `searchParams`, `params` needs a `<Suspense>` boundary, even when the value
 
 ## Session data resolves in the shell
 
-Runtime prefetching is for URL data. Session data is handled separately: a route that reads `cookies()` or `headers()` gets an App Shell variant that includes its session data, cached per session on the client. That content is ready on navigation without `allow-runtime`.
+Runtime prefetching is for URL data. Session data is handled separately: a route that reads `cookies()` or `headers()` gets an App Shell that includes its session data, cached per session on the client. That content is ready on navigation without `allow-runtime`.
 
-The wrinkle is derived data. Take a dashboard nav that reads a cookie, then looks up content based on it:
+Derived data needs one more step. Take a dashboard nav that reads a cookie, then looks up content based on it:
 
 ```tsx filename="app/dashboard/layout.tsx"
 import { Suspense } from 'react'
@@ -114,7 +134,10 @@ export default function DashboardLayout({
 }
 ```
 
-The cookie itself is session data, which the session shell already knows. But the lookup it drives is a data read, and for that to land in the shell instead of streaming in after navigation, it needs a cache lifetime. Because `"use cache"` can't read `cookies()` inside the cached function, two patterns bridge it: **extract and pass** when the lookup result is shared across many sessions, and `"use cache: private"` when it is tied to one.
+The cookie itself is session data, which the App Shell already knows. But the lookup it drives is a data read, and for that to land in the shell instead of streaming in after navigation, it needs a cache lifetime. Because `"use cache"` can't read `cookies()` inside the cached function, two patterns bridge it:
+
+- **Extract and pass** when the lookup result is shared across many sessions.
+- **`"use cache: private"`** when it is tied to one.
 
 ### Extract and pass
 
@@ -143,9 +166,9 @@ async function getTopics(team: string | undefined) {
 }
 ```
 
-On a direct visit, `<UserNav>` renders once the lookup resolves, with the fallback covering it until then. On navigation, the per-session App Shell has already resolved it, because the team cookie is session data the shell can read. Because sessions on the same team share the cache entry, traffic to the underlying data scales with team count, not session count.
+On a direct visit, `<UserNav>` shows its fallback until the lookup resolves. On navigation, the App Shell has already resolved it, because the team cookie is session data the shell can read. Because sessions on the same team share the cache entry, traffic to the underlying data scales with team count, not session count.
 
-Anything without a caching directive still streams in after navigation. A shell is not a full server render. It advances only as far as the caching structure allows, whether that is the shared shell, the per-session shell, or a runtime prerender.
+Anything without a caching directive still streams in after navigation. A shell holds only what can be prepared ahead of the navigation, not the whole page. It advances only as far as the caching structure allows.
 
 ### `"use cache: private"`
 
@@ -174,24 +197,24 @@ Everything inside the scope shares the same lifetime. Colocate `"use cache: priv
 
 Use it on routes where:
 
-- A useful chunk of the page depends on URL data: the full URL, `searchParams`, or `params` not resolved by [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params)
-- That chunk has a known cache lifetime (it can be expressed with `"use cache"` or `"use cache: private"`)
+- Part of the component tree depends on URL data: the full URL, `searchParams`, or `params` not resolved by [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params)
+- That part of the tree has a known cache lifetime (it can be expressed with `"use cache"` or `"use cache: private"`)
 - The traffic justifies the per-link server invocation
 
 Skip it when the prefetch can't produce a better UI than the App Shell. Each visible `<Link>` to a route with `'allow-runtime'` wakes a server, and that cost only pays off if more of the page is ready before the click:
 
-- The route has little or no URL-data dependency. The App Shell, including its per-session variant, already gets you instant.
+- The route has little or no URL-data dependency. The App Shell already makes the navigation instant.
 - The dependent content has to be fresh on every request. The prerender stops at the same `<Suspense>` fallback, so the user sees the same UI either way.
 - The route is rarely navigated to. You pay per visible link, regardless of click-through.
 
-A per-link runtime prefetch is best-effort. It only helps the navigations where it fires before the click and completes before the click. On a slow connection, on a feed of many links, or on a direct visit, it may not exist yet when the user navigates, and the navigation falls back to the App Shell. The shell is the reliable floor. Runtime prefetching is the upgrade when it lands in time.
+A per-link runtime prefetch is best-effort. It only helps the navigations where it completes before the click. On a slow connection, on a feed of many links, or on a direct visit, it may not be ready when the user navigates, and the navigation falls back to the App Shell. That shell is the reliable baseline, and runtime prefetching only layers on top when it arrives in time.
 
-|         | App Shell                                   | Per-link runtime prefetch (`allow-runtime`) |
-| ------- | ------------------------------------------- | ------------------------------------------- |
-| Scope   | One per route                               | One per visible `<Link prefetch={true}>`    |
-| Content | Route's rendered output minus per-link data | Same, plus per-link URL data resolved       |
-| Cost    | Bounded by route count                      | Bounded by visible-link count               |
-| Role    | Every route's instant floor                 | Upgrade: more rendered before click         |
+|         | App Shell                                   | Per-link runtime prefetch with `allow-runtime` |
+| ------- | ------------------------------------------- | ---------------------------------------------- |
+| Scope   | One per route                               | One per visible `<Link prefetch={true}>`       |
+| Content | Route's rendered output minus per-link data | Same, plus per-link URL data resolved          |
+| Cost    | Bounded by route count                      | Bounded by visible-link count                  |
+| Role    | Every route's instant floor                 | Upgrade: more rendered before click            |
 
 ## Next steps
 
