@@ -171,7 +171,7 @@ type EsmBindings = Array<
 /**
  * Adds the getters to the exports object.
  */
-function esm(exports: Exports, bindings: EsmBindings) {
+function esm(exports: Exports, bindings: EsmBindings, dynamic?: boolean) {
   defineProp(exports, '__esModule', { value: true })
   if (toStringTag) defineProp(exports, toStringTag, { value: 'Module' })
   let i = 0
@@ -205,7 +205,14 @@ function esm(exports: Exports, bindings: EsmBindings) {
       }
     }
   }
-  Object.seal(exports)
+  // The properties defined above are already non-configurable and
+  // non-writable, so the namespace's existing exports are effectively
+  // immutable. Sealing additionally makes the object non-extensible, matching
+  // real ESM-namespace semantics. Modules with dynamic re-exports
+  // (`export *` from a CommonJS module) must stay extensible so the dynamic
+  // export proxy can surface keys discovered at runtime, so skip the seal for
+  // them.
+  if (!dynamic) Object.seal(exports)
 }
 
 /**
@@ -214,7 +221,8 @@ function esm(exports: Exports, bindings: EsmBindings) {
 function esmExport(
   this: TurbopackBaseContext<Module>,
   bindings: EsmBindings,
-  id: ModuleId | undefined
+  id: ModuleId | undefined,
+  dynamic?: boolean
 ) {
   let module: Module
   let exports: Module['exports']
@@ -226,7 +234,7 @@ function esmExport(
     exports = this.e
   }
   module.namespaceObject = exports
-  esm(exports, bindings)
+  esm(exports, bindings, dynamic)
 }
 contextPrototype.s = esmExport
 
@@ -240,6 +248,22 @@ function ensureDynamicExports(
 
   if (!reexportedObjects) {
     REEXPORTED_OBJECTS.set(module, (reexportedObjects = []))
+    // Returns the re-exported object that provides `prop` as an own property,
+    // or `undefined` if none does. The traps share this logic so they always
+    // agree on which keys are synthesized from `reexportedObjects`. `default`
+    // is never re-exported by `export *`, so it is never synthesized.
+    const reexportOwning = (prop: PropertyKey) => {
+      if (prop !== 'default') {
+        for (const obj of reexportedObjects!) {
+          if (hasOwnProperty.call(obj, prop)) return obj
+        }
+      }
+      return undefined
+    }
+    // Modules with dynamic re-exports are not sealed by `esm()`, so the
+    // target beneath the namespace stays extensible. That is what lets the
+    // `ownKeys` and `getOwnPropertyDescriptor` traps legally report keys that
+    // exist on `reexportedObjects` but not on the target itself.
     module.exports = module.namespaceObject = new Proxy(exports, {
       get(target, prop) {
         if (
@@ -249,12 +273,44 @@ function ensureDynamicExports(
         ) {
           return Reflect.get(target, prop)
         }
-        for (const obj of reexportedObjects!) {
-          const value = Reflect.get(obj, prop)
-          if (value !== undefined) return value
-        }
-        return undefined
+        const obj = reexportOwning(prop)
+        return obj && Reflect.get(obj, prop)
       },
+      // The namespace is read-only, like a real esm namespace object. The
+      // re-exported modules can still mutate their own exports (exposed live
+      // via `get`), but mutating the namespace itself is rejected. Refusing
+      // here, rather than forwarding to the extensible target, also prevents an
+      // assignment/definition from shadowing a dynamic re-export. It also
+      // prevents delete from removing a static export.
+      set() {
+        return false
+      },
+      defineProperty() {
+        return false
+      },
+      deleteProperty() {
+        return false
+      },
+      // The `has` trap ensures that `'exportName' in starImports` will reflect
+      // the truth of whether a key is exported.
+      has(target, prop) {
+        if (Reflect.has(target, prop)) return true
+        if (prop === 'default' || prop === '__esModule') return false
+        return reexportOwning(prop) !== undefined
+      },
+      // ownKeys and getOwnPropertyDescriptor together make the keys enumerable.
+      // If a value is returned from `ownKeys` but its property descriptor is
+      // not enumerable, it will not be visible to iterator methods.
+      // Collectively, they allow code like the following:
+      //
+      // ```
+      // // module.js re-exports dynamic CJS exports
+      // export * from './legacyModule.cjs'
+      //
+      // // from another JS file, reference the re-exported dynamic values
+      // import * as Namespace from './module.js'
+      // Object.keys(Namespace)
+      // ```
       ownKeys(target) {
         const keys = Reflect.ownKeys(target)
         for (const obj of reexportedObjects!) {
@@ -263,6 +319,22 @@ function ensureDynamicExports(
           }
         }
         return keys
+      },
+      getOwnPropertyDescriptor(target, prop) {
+        const own = Reflect.getOwnPropertyDescriptor(target, prop)
+        if (own || prop === 'default' || prop === '__esModule') return own
+        const obj = reexportOwning(prop)
+        if (obj) {
+          // Synthetic keys don't exist on the target, so they MUST be
+          // reported as configurable. However the set/delete traps above will
+          // prevent them from actually being changed
+          return {
+            enumerable: true,
+            configurable: true,
+            get: () => Reflect.get(obj, prop),
+          }
+        }
+        return undefined
       },
     })
   }

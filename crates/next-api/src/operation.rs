@@ -93,9 +93,9 @@ fn pick_route(entrypoints: OperationVc<Entrypoints>, key: RcStr, route: &Route) 
                         entrypoints,
                         EndpointSelector::RouteAppPageHtml(key.clone(), i),
                     ),
-                    rsc_endpoint: pick_endpoint(
+                    rsc_hmr_endpoint: pick_endpoint(
                         entrypoints,
-                        EndpointSelector::RouteAppPageRsc(key.clone(), i),
+                        EndpointSelector::RouteAppPageRscHmr(key.clone(), i),
                     ),
                 })
                 .collect(),
@@ -117,7 +117,7 @@ enum EndpointSelector {
     RoutePageData(RcStr),
     RoutePageApi(RcStr),
     RouteAppPageHtml(RcStr, usize),
-    RouteAppPageRsc(RcStr, usize),
+    RouteAppPageRscHmr(RcStr, usize),
     RouteAppRoute(RcStr),
     InstrumentationNodeJs,
     InstrumentationEdge,
@@ -176,9 +176,9 @@ async fn pick_endpoint(
                 None
             }
         }
-        EndpointSelector::RouteAppPageRsc(name, i) => {
+        EndpointSelector::RouteAppPageRscHmr(name, i) => {
             if let Some(Route::AppPage(pages)) = endpoints.routes.get(&name) {
-                pages.get(i).as_ref().map(|p| p.rsc_endpoint)
+                pages.get(i).as_ref().map(|p| p.rsc_hmr_endpoint)
             } else {
                 None
             }
@@ -230,5 +230,5 @@ pub enum RouteOperation {
 pub struct AppPageRouteOperation {
     pub original_name: RcStr,
     pub html_endpoint: OperationVc<OptionEndpoint>,
-    pub rsc_endpoint: OperationVc<OptionEndpoint>,
+    pub rsc_hmr_endpoint: OperationVc<OptionEndpoint>,
 }
