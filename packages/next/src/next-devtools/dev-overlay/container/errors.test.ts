@@ -573,8 +573,8 @@ describe('getUnrenderedSegmentErrorDetails', () => {
 describe('getLinkPrefetchPartialErrorDetails', () => {
   function createLinkPrefetchPartialError(pathname: string): Error {
     return new Error(
-      `Next.js encountered dynamic data during prefetching for "${pathname}".\n\n` +
-        `This will lead to slower, more expensive prefetches.`
+      `Next.js encountered a legacy full prefetch for "${pathname}".\n\n` +
+        `\`<Link prefetch={true}>\` points at a route that hasn't adopted Partial Prefetching, so its prefetch can't be shared across links, leading to slower, more expensive prefetches.`
     )
   }
 
@@ -599,7 +599,7 @@ describe('getLinkPrefetchPartialErrorDetails', () => {
     expect(
       getLinkPrefetchPartialErrorDetails(
         new Error(
-          'Some preamble: Next.js encountered dynamic data during prefetching for "/x".'
+          'Some preamble: Next.js encountered a legacy full prefetch for "/x".'
         )
       )
     ).toBe(null)
@@ -633,7 +633,7 @@ describe('isInstantNavigationError', () => {
 
   it('returns true for link-prefetch-partial warnings', () => {
     const error = new Error(
-      `Next.js encountered dynamic data during prefetching for "/dashboard".`
+      `Next.js encountered a legacy full prefetch for "/dashboard".`
     )
     expect(isInstantNavigationError(error)).toBe(true)
   })

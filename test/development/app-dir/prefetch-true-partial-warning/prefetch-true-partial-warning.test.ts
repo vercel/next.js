@@ -6,7 +6,7 @@ describe('prefetch-true-partial-warning', () => {
   })
 
   // A stable substring of the dev warning emitted from navigation.ts.
-  const WARNING = 'Next.js encountered dynamic data during prefetching'
+  const WARNING = 'Next.js encountered a legacy full prefetch'
 
   async function navigateViaAccordion(
     browser: Awaited<ReturnType<typeof next.browser>>,
@@ -34,8 +34,8 @@ describe('prefetch-true-partial-warning', () => {
 
     await expect(browser).toDisplayCollapsedRedbox(`
      {
-       "code": "E1394",
-       "description": "Next.js encountered dynamic data during prefetching.",
+       "code": "E1410",
+       "description": "Next.js encountered a legacy full prefetch.",
        "environmentLabel": null,
        "label": "Instant",
        "source": "components/link-accordion.tsx (25:9) @ LinkAccordion

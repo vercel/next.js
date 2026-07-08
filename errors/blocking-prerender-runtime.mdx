@@ -27,6 +27,8 @@ During [prerendering](https://preview.nextjs.org/docs/app/glossary#prerendering)
 
 Uncached data accesses ([`fetch()`](https://developer.mozilla.org/en-US/docs/Web/API/Window/fetch), database calls, [`await connection()`](https://preview.nextjs.org/docs/app/api-reference/functions/connection)) have different fixes. See [Next.js encountered uncached data during prerendering](/docs/messages/blocking-prerender-dynamic).
 
+> **Good to know**: With [Partial Prefetching](https://preview.nextjs.org/docs/app/api-reference/config/next-config-js/partialPrefetching) enabled, a `params` or `searchParams` read outside `<Suspense>` also surfaces at navigation time as [URL data outside of Suspense](/docs/messages/instant-shell-url-data). The same fix clears both.
+
 This error can also appear during a client-side navigation when the data access sits inside a [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary from a parent layout but that boundary is too high. It wraps the entire segment instead of only the dynamic part, so the navigation still blocks. Push the boundary closer to the data access so the rest of the segment stays in the [static shell](https://preview.nextjs.org/docs/app/glossary#static-shell). See [Choosing where to place the boundary](#choosing-where-to-place-the-boundary).
 
 ## Ways to fix this
@@ -275,6 +277,6 @@ See [Ensuring instant navigations](https://preview.nextjs.org/docs/app/guides/in
 - [`Date.now()` in a Client Component](/docs/messages/blocking-prerender-current-time-client)
 - [Crypto APIs while prerendering](/docs/messages/blocking-prerender-crypto)
 - [Crypto APIs in a Client Component](/docs/messages/blocking-prerender-crypto-client)
-- [Dynamic data during prefetching](/docs/messages/instant-link-prefetch-partial)
+- [Legacy full prefetch](/docs/messages/instant-link-prefetch-partial)
 - [URL data outside of Suspense](/docs/messages/instant-shell-url-data)
 - [Unrendered segment](/docs/messages/instant-unrendered-segment)
