@@ -26,7 +26,7 @@ describe('tsconfig-path-reloading', () => {
     addAfterStart?: boolean
     testBaseUrl: boolean
   }) {
-    const typescriptVersion = testBaseUrl ? '5.9.3' : 'latest'
+    const typescriptVersion = testBaseUrl ? '5.9.3' : '6.0.3'
 
     const { next } = nextTestSetup({
       files: {
