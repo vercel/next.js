@@ -195,35 +195,33 @@ export interface AdapterOutput {
     groupId: number
 
     /**
-     * hasPostponed signals whether the build-time prerender of a PPR app
-     * page postponed (React suspended on dynamic data). `false` means it
-     * prerendered without postponing; `undefined` means the signal does
-     * not apply (pages router, route handlers, blocking templates).
+     * route is the source route matcher this prerender belongs to, aligned
+     * with the route on the filesystem — it keeps dynamic segments (e.g.
+     * `/blog/[slug]` for the prerendered path `/blog/first`). On a dynamic
+     * route, the prerender whose `pathname` equals `route` is the fallback
+     * template entry; all others are concrete prerendered paths.
      */
-    hasPostponed?: boolean
+    route: string
 
     /**
-     * hasFallback signals whether a dynamic route template has a static
-     * fallback shell generated during build. `false` means the template
-     * is blocking or omitted; `undefined` means the concept does not
-     * apply (concrete prerenders).
+     * resuming signals whether serving this prerender involves per-request
+     * compute: the build-time prerender of a PPR app page postponed (React
+     * suspended on dynamic data) and must resume on the server. `false`
+     * means it prerendered fully static at build time; `undefined` means
+     * the signal does not apply (pages router, route handlers, blocking
+     * templates).
      */
-    hasFallback?: boolean
+    resuming?: boolean
 
     /**
      * htmlSize is the byte size of the prerendered HTML shell for app
      * pages. `0` means an empty shell (everything postponed). It is only
      * set on the HTML prerender output; RSC/data/segment outputs leave it
      * `undefined`, as do pages router and route handler outputs.
+     * `htmlSize > 0 && resuming === false` means the prerender was complete
+     * (fully static) at build time.
      */
     htmlSize?: number
-
-    /**
-     * isDynamicRoute signals whether this prerender originates from a
-     * dynamic route template (`dynamicRoutes` in the prerender manifest)
-     * rather than a concrete prerendered path (`routes`).
-     */
-    isDynamicRoute?: boolean
 
     pprChain?: {
       headers: Record<string, string>
@@ -1206,11 +1204,10 @@ export async function handleBuildComplete({
               parentOutputId: initialOutput.parentOutputId,
               groupId: initialOutput.groupId,
 
-              hasPostponed: initialOutput.hasPostponed,
-              hasFallback: initialOutput.hasFallback,
+              route: initialOutput.route,
               // htmlSize is intentionally omitted: segment outputs are RSC
               // payloads, not HTML shells
-              isDynamicRoute: initialOutput.isDynamicRoute,
+              resuming: initialOutput.resuming,
 
               config: {
                 ...initialOutput.config,
@@ -1450,13 +1447,11 @@ export async function handleBuildComplete({
               : getParentOutput(srcRoute, route).id,
           groupId: prerenderGroupId,
 
-          hasPostponed:
+          route: srcRoute,
+          resuming:
             renderingMode === RenderingMode.PARTIALLY_STATIC && isAppPage
               ? Boolean(meta.postponed)
               : undefined,
-          // fallback shells are a dynamic route template concept
-          hasFallback: undefined,
-          isDynamicRoute: false,
 
           pprChain:
             isAppPage && renderingMode === RenderingMode.PARTIALLY_STATIC
@@ -1699,7 +1694,8 @@ export async function handleBuildComplete({
           parentOutputId: parentOutput.id,
           groupId: prerenderGroupId,
 
-          hasPostponed:
+          route: srcRoute,
+          resuming:
             renderingMode === RenderingMode.PARTIALLY_STATIC &&
             isAppPage &&
             // blocking templates (manifest fallback `null`) don't prerender a
@@ -1707,8 +1703,6 @@ export async function handleBuildComplete({
             fallback !== null
               ? Boolean(meta.postponed)
               : undefined,
-          hasFallback: typeof fallback === 'string',
-          isDynamicRoute: true,
 
           pprChain:
             isAppPage && renderingMode === RenderingMode.PARTIALLY_STATIC

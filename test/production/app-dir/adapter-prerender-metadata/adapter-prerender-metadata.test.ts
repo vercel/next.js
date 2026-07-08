@@ -22,13 +22,14 @@ describe('adapter-prerender-metadata', () => {
     )
 
     expect(staticPage).toBeDefined()
-    // concrete prerender from prerenderManifest.routes
-    expect(staticPage.isDynamicRoute).toBe(false)
-    // fallback concept doesn't apply to concrete prerenders
-    expect(staticPage.hasFallback).toBeUndefined()
-    // cacheComponents => PARTIALLY_STATIC; nothing postponed => false, not undefined
-    expect(staticPage.hasPostponed).toBe(false)
-    // full static shell on disk
+    // route is the source route matcher; for a non-dynamic page it equals
+    // the pathname
+    expect(staticPage.route).toBe('/static')
+    // cacheComponents => PARTIALLY_STATIC; fully prerendered => no resume
+    // needed, so false, not undefined
+    expect(staticPage.resuming).toBe(false)
+    // full static shell on disk; htmlSize > 0 && resuming === false derives
+    // "complete"
     expect(staticPage.htmlSize).toBeGreaterThan(0)
   })
 
@@ -39,17 +40,29 @@ describe('adapter-prerender-metadata', () => {
     )
 
     expect(template).toBeDefined()
-    // template from prerenderManifest.dynamicRoutes
-    expect(template.isDynamicRoute).toBe(true)
-    // static fallback shell was generated (manifest fallback is a string)
-    expect(template.hasFallback).toBe(true)
-    // the fallback shell postponed on params/dynamic content
-    expect(template.hasPostponed).toBe(true)
+    // the fallback template entry is the prerender whose pathname equals
+    // its route matcher
+    expect(template.route).toBe('/blog/[slug]')
+    // the fallback shell postponed on params/dynamic content, so serving
+    // it resumes on the server
+    expect(template.resuming).toBe(true)
     // the fallback shell exists on disk
     expect(template.htmlSize).toBeGreaterThan(0)
   })
 
-  it('emits hasPostponed for app pages that postponed during build', async () => {
+  it('marks concrete prerenders of a dynamic route with the route matcher', async () => {
+    const prerenders = await getPrerenders()
+    const concrete = prerenders.find(
+      (output) => output.pathname === '/blog/first'
+    )
+
+    expect(concrete).toBeDefined()
+    // concrete prerendered path: pathname differs from the route matcher
+    expect(concrete.route).toBe('/blog/[slug]')
+    expect(concrete.pathname).not.toBe(concrete.route)
+  })
+
+  it('emits resuming for app pages that postponed during build', async () => {
     const prerenders = await getPrerenders()
     const pprShell = prerenders.find(
       (output) => output.pathname === '/ppr-shell'
@@ -59,16 +72,15 @@ describe('adapter-prerender-metadata', () => {
     )
 
     expect(pprShell).toBeDefined()
-    expect(pprShell.hasPostponed).toBe(true)
-    expect(pprShell.isDynamicRoute).toBe(false)
-    expect(pprShell.hasFallback).toBeUndefined()
+    expect(pprShell.resuming).toBe(true)
+    expect(pprShell.route).toBe('/ppr-shell')
     expect(pprShell.htmlSize).toBeGreaterThan(0)
 
     // even when the whole page postpones (loading.tsx boundary), the shell
     // still contains the root layout HTML under cacheComponents, so
     // htmlSize is > 0 rather than 0
     expect(pagePostponed).toBeDefined()
-    expect(pagePostponed.hasPostponed).toBe(true)
+    expect(pagePostponed.resuming).toBe(true)
     expect(pagePostponed.htmlSize).toBeGreaterThan(0)
   })
 
@@ -82,26 +94,23 @@ describe('adapter-prerender-metadata', () => {
       (output) => output.pathname === '/omitted/[id]'
     )
 
-    // concrete pages-router prerender: template/fallback classification
-    // applies, PPR signals don't
+    // concrete pages-router prerender: PPR signals don't apply
     expect(gsp).toBeDefined()
-    expect(gsp.isDynamicRoute).toBe(false)
-    expect(gsp.hasFallback).toBeUndefined()
-    expect(gsp.hasPostponed).toBeUndefined()
+    expect(gsp.route).toBe('/gsp')
+    expect(gsp.resuming).toBeUndefined()
     expect(gsp.htmlSize).toBeUndefined()
 
-    // fallback: 'blocking' template — no static fallback shell
+    // fallback: 'blocking' template — pathname === route marks it as the
+    // template entry; no PPR signals
     expect(blockingTemplate).toBeDefined()
-    expect(blockingTemplate.isDynamicRoute).toBe(true)
-    expect(blockingTemplate.hasFallback).toBe(false)
-    expect(blockingTemplate.hasPostponed).toBeUndefined()
+    expect(blockingTemplate.route).toBe('/blocking/[id]')
+    expect(blockingTemplate.resuming).toBeUndefined()
     expect(blockingTemplate.htmlSize).toBeUndefined()
 
     // fallback: false (omitted) template
     expect(omittedTemplate).toBeDefined()
-    expect(omittedTemplate.isDynamicRoute).toBe(true)
-    expect(omittedTemplate.hasFallback).toBe(false)
-    expect(omittedTemplate.hasPostponed).toBeUndefined()
+    expect(omittedTemplate.route).toBe('/omitted/[id]')
+    expect(omittedTemplate.resuming).toBeUndefined()
     expect(omittedTemplate.htmlSize).toBeUndefined()
   })
 
@@ -113,9 +122,8 @@ describe('adapter-prerender-metadata', () => {
       (output) => output.pathname === '/static.rsc'
     )
     expect(staticRsc).toBeDefined()
-    expect(staticRsc.isDynamicRoute).toBe(false)
-    expect(staticRsc.hasPostponed).toBe(false)
-    expect(staticRsc.hasFallback).toBeUndefined()
+    expect(staticRsc.route).toBe('/static')
+    expect(staticRsc.resuming).toBe(false)
     expect(staticRsc.htmlSize).toBeUndefined()
 
     // RSC output of a fallback template (spread from initialOutput)
@@ -123,9 +131,8 @@ describe('adapter-prerender-metadata', () => {
       (output) => output.pathname === '/blog/[slug].rsc'
     )
     expect(templateRsc).toBeDefined()
-    expect(templateRsc.isDynamicRoute).toBe(true)
-    expect(templateRsc.hasFallback).toBe(true)
-    expect(templateRsc.hasPostponed).toBe(true)
+    expect(templateRsc.route).toBe('/blog/[slug]')
+    expect(templateRsc.resuming).toBe(true)
     expect(templateRsc.htmlSize).toBeUndefined()
 
     // segment prerenders (built as fresh literals in handleAppMeta) must
@@ -135,9 +142,8 @@ describe('adapter-prerender-metadata', () => {
     )
     expect(segments.length).toBeGreaterThan(0)
     for (const segment of segments) {
-      expect(segment.isDynamicRoute).toBe(true)
-      expect(segment.hasFallback).toBe(true)
-      expect(segment.hasPostponed).toBe(true)
+      expect(segment.route).toBe('/blog/[slug]')
+      expect(segment.resuming).toBe(true)
       expect(segment.htmlSize).toBeUndefined()
     }
   })
