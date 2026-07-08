@@ -55,7 +55,7 @@ Reads that do not depend on one another could be started at the same time instea
 
 > **Good to know:** Running independent reads at the same time is concurrency, not parallelism. These reads are I/O-bound, so each `await` mostly waits on a network or database response, and a single thread can keep several requests in flight at once. They overlap their waiting instead of taking turns.
 
-The Performance panel can save the recording as JSON, where every span carries its own start and duration, the same data the [`react-performance-tracks`](#automate-the-loop-with-a-skill) skill parses to find the waterfall.
+The Performance panel can save the recording as JSON, where every span carries its own start and duration, the same data the [`next-performance-profiling`](#automate-the-loop-with-a-skill) skill parses to find the waterfall.
 
 <details>
   <summary>Read the Server Components track as data</summary>
@@ -338,7 +338,7 @@ Every step above is the same loop: one capture, one track, recognize the pattern
 
 [`agent-browser`](https://www.npmjs.com/package/agent-browser) drives a real Chrome with React DevTools from the command line. It runs the same captures you did by hand (start and stop a performance trace, read the Suspense boundary classifier, record a render profile) and returns them as JSON an agent can parse.
 
-This repository ships a [`react-performance-tracks`](https://github.com/vercel/next.js/tree/canary/skills/react-performance-tracks) skill that runs this loop for an agent. It builds on [`next-dev-loop`](https://github.com/vercel/next.js/tree/canary/skills/next-dev-loop), which opens the browser and connects to `/_next/mcp`.
+This repository ships a [`next-performance-profiling`](https://github.com/vercel/next.js/tree/canary/skills/next-performance-profiling) skill that runs this loop for an agent. It builds on [`next-dev-loop`](https://github.com/vercel/next.js/tree/canary/skills/next-dev-loop), which opens the browser and connects to `/_next/mcp`.
 
 Loaded against a running app, the skill:
 
@@ -353,7 +353,7 @@ Point an agent at a running app with the skill loaded and it runs the same diagn
 
 ```txt
 Profile the /dashboard and /explorer routes for performance problems using the
-react-performance-tracks skill. For each issue, report the symptom, the track it
+next-performance-profiling skill. For each issue, report the symptom, the track it
 appeared on, and the fix.
 ```
 

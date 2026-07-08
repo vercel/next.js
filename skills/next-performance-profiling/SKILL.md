@@ -1,5 +1,5 @@
 ---
-name: react-performance-tracks
+name: next-performance-profiling
 description: >
   Diagnose React performance problems in a running Next.js app by capturing and
   reading the React Performance Tracks and the React DevTools Suspense view. Use
@@ -9,14 +9,14 @@ description: >
   rather than guessing from the source.
 ---
 
-# react-performance-tracks
+# next-performance-profiling
 
 Find a React performance problem by measuring it. React 19.2 emits Performance Tracks (Scheduler ⚛, Components ⚛, Server Components ⚛) into the browser's performance timeline, and React DevTools adds a Suspense view showing fallback to content reveals. This skill is the loop for capturing those signals and naming the fix. The worked numbers live in the companion guide and demo (see [references](#references)); this file is the method.
 
 ## requires
 
 - React **19.2+** in development or a profiling build (the tracks are dev-only).
-- A live browser session with React DevTools enabled. Opening it, sessions, `--restore`, and `/_next/mcp` are the `next-dev-loop` skill's job. **Run its preflight first;** this skill picks up once the commands below work.
+- A live browser session with React DevTools enabled, which is the [`next-dev-loop`](https://github.com/vercel/next.js/tree/canary/skills/next-dev-loop) skill's job: it opens the browser, restores the session, enables React DevTools, and connects `/_next/mcp`. **Load and run `next-dev-loop` first.** This skill picks up once its preflight passes. Install it if your agent does not have it: `npx skills add https://github.com/vercel/next.js/tree/canary/skills/next-dev-loop`.
 - `agent-browser` **>= 0.31** for the `react` and `trace` subcommands. Read flags from the React and Performance sections of `agent-browser --help` (a per-subcommand `--help` only prints the global help). Every `react` command needs `--json`. Agents run headless; omit `--headed`.
 
 Commands this skill drives: `vitals <url> --json` (first triage), `react suspense --json`, `react renders start` / `stop --json`, and `trace start` / `trace stop <path>` (equivalent to `profiler`; both carry the `blink.user_timing` category the tracks live in).
