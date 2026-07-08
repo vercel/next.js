@@ -1,7 +1,7 @@
+import { headers } from 'next/headers'
 import { NextResponse } from 'next/server'
 
-export const dynamic = 'force-dynamic'
-
-export function GET() {
+export async function GET() {
+  await headers()
   return NextResponse.upgrade({})
 }
