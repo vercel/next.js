@@ -129,7 +129,7 @@ The hooks receive:
 - `navigationType: 'push' | 'replace' | 'traverse'` - The type of navigation
 - `event.id` - An opaque ID shared by every event for this transition
 - `event.timestamp` - A framework-captured Unix timestamp in milliseconds
-- `event.cacheHit` (commit only) - Whether the router's caches could serve the whole destination (the route tree plus every fresh segment) at dispatch. A partial shell counts, even one that is entirely a dynamic hole: this measures cache coverage, not paint time. It is `false` when the navigation had to reach the network first — the route was not prefetched, a segment's prefetch was pending or evicted, or the commit rode a refresh/retry response. Pair it with the start→commit latency: a `false` is prefetch-fixable, while a slow `cacheHit: true` is waiting on streaming content that prefetching cannot remove. (In development nothing is prefetched, so most navigations report `false`.)
+- `event.cacheHit` (commit only) - Whether the router's cache could serve the whole destination at dispatch. `false` marks navigations that prefetching could have made faster; in development nothing is prefetched, so most navigations report `false`
 - `event.replacedBy` (abort only) - The `id` of the transition whose commit replaced this one
 
 The `start` event also carries `event.from` describing the route the navigation left, and the `commit` event carries `event.to`, describing the route that was committed. Both share the `RouterTransitionRoute` type:
