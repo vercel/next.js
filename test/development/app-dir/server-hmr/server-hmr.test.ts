@@ -173,7 +173,6 @@ describe('server-hmr', () => {
           .text()
         expect(newDepEvalTime).toBe(initialDepEvalTime)
 
-        // Restore
         await next.patchFile('app/new-import/page.tsx', (content) => {
           return content
             .replace(
@@ -241,7 +240,6 @@ describe('server-hmr', () => {
           .text()
         expect(newDepEvalTime).toBe(initialDepEvalTime)
 
-        // Restore
         await next.patchFile('app/dynamic-import/lazy.ts', (content) =>
           content.replace('lazy-v1', 'lazy-v0')
         )
@@ -295,7 +293,6 @@ describe('server-hmr', () => {
           .text()
         expect(newDepEvalTime).toBe(initialDepEvalTime)
 
-        // Restore
         await next.patchFile('app/dynamic-import/lazy.ts', (content) =>
           content.replace(
             "import { lazyNewModuleValue } from './lazy-new-module'\n\nexport const lazyValue = lazyNewModuleValue",
@@ -356,7 +353,6 @@ describe('server-hmr', () => {
           .text()
         expect(newDepEvalTime).toBe(initialDepEvalTime)
 
-        // Restore
         await next.patchFile('app/client-component-hmr/page.tsx', (content) => {
           return content
             .replace(
@@ -390,7 +386,6 @@ describe('server-hmr', () => {
           .elementByCss('#dep-eval-time')
           .text()
 
-        // First change: add client component
         await next.patchFile('app/client-component-hmr/page.tsx', (content) => {
           return content
             .replace(
@@ -408,7 +403,6 @@ describe('server-hmr', () => {
           expect(text).toBe('first')
         })
 
-        // Second change: modify the client component text
         await next.patchFile('app/client-component-hmr/page.tsx', (content) => {
           return content.replace(
             '<ClientGreeting text="first" />',
@@ -428,7 +422,6 @@ describe('server-hmr', () => {
           .text()
         expect(newDepEvalTime).toBe(initialDepEvalTime)
 
-        // Restore
         await next.patchFile('app/client-component-hmr/page.tsx', (content) => {
           return content
             .replace(

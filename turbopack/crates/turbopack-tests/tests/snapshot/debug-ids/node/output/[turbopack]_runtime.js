@@ -1705,8 +1705,9 @@ function initializeServerHmr(moduleFactories, devModuleCache) {
 function applyEcmascriptMergedUpdate(instruction, moduleFactories, devModuleCache) {
     const { entries = {}, chunks = {} } = instruction;
     const evalModuleEntry = (entry)=>{
+        const code = entry.map ? inlineSourcemaps(entry) : entry.code;
         // eslint-disable-next-line no-eval
-        return (0, eval)(entry.map ? inlineSourcemaps(entry) : entry.code);
+        return (0, eval)(`(require) => ${code}`)(require);
     };
     const { added, modified } = computeChangedModules(entries, chunks, undefined // no chunkModulesMap for Node.js
     );
