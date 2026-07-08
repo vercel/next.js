@@ -1201,6 +1201,7 @@ export default async function build(
       logExperimentalInfo({
         experimentalFeatures,
         cacheComponents: !!config.cacheComponents,
+        partialPrefetching: config.partialPrefetching,
       })
 
       const typeCheckingOptions: Parameters<typeof startTypeChecking>[0] = {
