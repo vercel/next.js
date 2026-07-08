@@ -54,6 +54,7 @@ import { isStaticGenBailoutError } from '../client/components/static-generation-
 import type { PagesRenderContext, PagesSharedContext } from '../server/render'
 import type { AppSharedContext } from '../server/app-render/app-render'
 import { MultiFileWriter } from '../lib/multi-file-writer'
+import { runWithConcurrency } from '../lib/run-with-concurrency'
 import { createRenderResumeDataCache } from '../server/resume-data-cache/resume-data-cache'
 import { installGlobalBehaviors } from '../server/node-environment-extensions/global-behaviors'
 ;(globalThis as any).__NEXT_DATA__ = {
@@ -398,16 +399,17 @@ export async function exportPages(
 
   const maxConcurrency =
     nextConfig.experimental.staticGenerationMaxConcurrency ?? 8
-  const results: ExportPagesResult = []
+  const configuredMaxAttempts =
+    nextConfig.experimental.staticGenerationRetryCount ?? 1
 
   const exportPageWithRetry = async (
-    exportPath: ExportPathEntry,
-    maxAttempts: number
-  ) => {
+    exportPath: ExportPathEntry
+  ): Promise<ExportPagesResult[number]> => {
     const { page, path } = exportPath
     const pageKey = page !== path ? `${page}: ${path}` : path
     let attempt = 0
     let result
+    let maxAttempts = configuredMaxAttempts
 
     const hasDebuggerAttached =
       // Also tests for `inspect-brk`
@@ -521,22 +523,7 @@ export async function exportPages(
     return { result, path, page, pageKey }
   }
 
-  for (let i = 0; i < exportPaths.length; i += maxConcurrency) {
-    const subset = exportPaths.slice(i, i + maxConcurrency)
-
-    const subsetResults = await Promise.all(
-      subset.map((exportPath) =>
-        exportPageWithRetry(
-          exportPath,
-          nextConfig.experimental.staticGenerationRetryCount ?? 1
-        )
-      )
-    )
-
-    results.push(...subsetResults)
-  }
-
-  return results
+  return runWithConcurrency(exportPaths, maxConcurrency, exportPageWithRetry)
 }
 
 async function exportPage(
