@@ -77,6 +77,7 @@ pnpm bench:render-pipeline \
 Default stress routes currently include:
 
 - `/`
+- `/attributes`
 - `/streaming/light`
 - `/streaming/medium`
 - `/streaming/heavy`

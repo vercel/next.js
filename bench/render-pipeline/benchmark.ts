@@ -91,6 +91,7 @@ function parseRoutes(rawRoutes: string | undefined): string[] {
   if (!rawRoutes) {
     return [
       '/',
+      '/attributes',
       '/streaming/light',
       '/streaming/medium',
       '/streaming/heavy',

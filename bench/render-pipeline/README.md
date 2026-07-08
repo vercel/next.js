@@ -98,6 +98,7 @@ Omit `--artifact-dir` to analyze the latest run automatically.
 
 Default routes:
 - `/`
+- `/attributes` (attribute and inline-style serialization)
 - `/streaming/light`
 - `/streaming/medium`
 - `/streaming/heavy`
