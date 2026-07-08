@@ -372,7 +372,11 @@ function updateCacheNodeOnNavigation(
   ) {
     // Reuse the existing CacheNode
     const dropPrefetchRsc = false
-    newCacheNode = reuseSharedCacheNode(dropPrefetchRsc, oldCacheNode)
+    newCacheNode = reuseSharedCacheNode(
+      dropPrefetchRsc,
+      oldCacheNode,
+      restrictToShell
+    )
     needsDynamicRequest = false
   } else {
     // If this is part of a refresh, ignore the existing CacheNode and create a
@@ -920,18 +924,32 @@ function reuseActiveSegmentInDefaultSlot(
 
 function reuseSharedCacheNode(
   dropPrefetchRsc: boolean,
-  existingCacheNode: CacheNode
+  existingCacheNode: CacheNode,
+  renderPrefetchShell: boolean = false
 ): CacheNode {
   // Clone the CacheNode that was already present in the previous tree.
   // Carry forward the scrollRef so scroll intent from a prior navigation
   // survives tree rebuilds (e.g. push + refresh in the same batch).
   // Carry forward the bfcacheId so shared-layout segments retain stable
   // identity across navigations.
+  const rsc =
+    renderPrefetchShell && existingCacheNode.prefetchRsc !== null
+      ? existingCacheNode.prefetchRsc
+      : existingCacheNode.rsc
+  const head =
+    renderPrefetchShell && existingCacheNode.prefetchHead !== null
+      ? existingCacheNode.prefetchHead
+      : existingCacheNode.head
+
   return createCacheNode(
-    existingCacheNode.rsc,
-    dropPrefetchRsc ? null : existingCacheNode.prefetchRsc,
-    existingCacheNode.head,
-    dropPrefetchRsc ? null : existingCacheNode.prefetchHead,
+    rsc,
+    dropPrefetchRsc || renderPrefetchShell
+      ? null
+      : existingCacheNode.prefetchRsc,
+    head,
+    dropPrefetchRsc || renderPrefetchShell
+      ? null
+      : existingCacheNode.prefetchHead,
     existingCacheNode.bfcacheId,
     existingCacheNode.scrollRef
   )
@@ -1171,20 +1189,28 @@ function createCacheNodeForSegment(
     doesSegmentNeedDynamicRequest = false
   } else {
     if (isCachedRscPartial) {
-      // The cached data contains dynamic holes, or it's missing entirely. We'll
-      // show the partial state immediately (if available), and stream in the
-      // final data.
-      //
-      // Create a pending promise that we can later write to when the
-      // data arrives from the server.
-      prefetchRsc = cachedRsc
-      rsc = createDeferredRsc()
+      if (restrictToShell && cachedRsc !== null) {
+        // Instant Navigation Testing API: while paused, commit the shell as the
+        // renderable value. Dynamic data is fetched after the lock is released.
+        prefetchRsc = null
+        rsc = cachedRsc
+      } else {
+        // The cached data contains dynamic holes, or it's missing entirely.
+        // We'll show the partial state immediately (if available), and stream in
+        // the final data.
+        //
+        // Create a pending promise that we can later write to when the
+        // data arrives from the server.
+        prefetchRsc = cachedRsc
+        rsc = createDeferredRsc()
+      }
     } else {
       // The data is fully cached.
       prefetchRsc = null
       rsc = cachedRsc
     }
-    doesSegmentNeedDynamicRequest = isCachedRscPartial
+    doesSegmentNeedDynamicRequest =
+      isCachedRscPartial && (!restrictToShell || cachedRsc === null)
   }
 
   // If this is a page segment, we need to do the same for the head. This
@@ -1262,13 +1288,19 @@ function createCacheNodeForSegment(
       doesHeadNeedDynamicRequest = false
     } else {
       if (isCachedHeadPartial) {
-        prefetchHead = cachedHead
-        head = createDeferredRsc()
+        if (restrictToShell && cachedHead !== null) {
+          prefetchHead = null
+          head = cachedHead
+        } else {
+          prefetchHead = cachedHead
+          head = createDeferredRsc()
+        }
       } else {
         prefetchHead = null
         head = cachedHead
       }
-      doesHeadNeedDynamicRequest = isCachedHeadPartial
+      doesHeadNeedDynamicRequest =
+        isCachedHeadPartial && (!restrictToShell || cachedHead === null)
     }
   }
 
