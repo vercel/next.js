@@ -431,30 +431,21 @@ impl TurboTasksBackend {
         let mut ctx = self.execute_context_gc(turbo_tasks);
 
         // Single access: decide collectibility and, if collectible, capture the edges needed to
-        // tear the task down. `ctx.task(.., All)` restores the task if it was evicted, so the
-        // `is_restored(Meta)` guard inside `is_gc_collectible` is satisfied here by construction;
-        // it remains load-bearing on the raw `&TaskStorage` path (a candidate whose Meta was
-        // evicted between passes would otherwise read a bogus parent_count of 0).
+        // tear the task down. Reading through the guard (`ctx.task(.., All)`, which restores the
+        // task if it was evicted) means `is_gc_collectible`'s Meta reads go through `check_access`,
+        // so the "Meta restored" precondition is enforced by the standard guard machinery rather
+        // than a hand-rolled `is_restored` check.
         let plan = {
             let task = ctx.task(task_id, TaskDataCategory::All);
-            let s = task.typed();
-            if !s.is_gc_collectible() {
+            if !task.is_gc_collectible() {
                 // Not collectible: keep retrying only while it is still parentless; otherwise a
                 // concurrent re-connect revived it and it is no longer garbage.
-                return if s.gc_parent_count() == 0 {
+                return if task.get_parent_count().copied().unwrap_or(0) == 0 {
                     GcOutcome::Retain(task_id)
                 } else {
                     GcOutcome::Skip
                 };
             }
-
-            // A collectible task has no aggregation edges left (`is_gc_collectible` checks this);
-            // this assert documents the invariant and surfaces any case that would need aggregation
-            // teardown rather than silently corrupting the graph.
-            debug_assert!(
-                task.iter_upper().next().is_none() && task.iter_followers().next().is_none(),
-                "gc_delete: task {task_id} still has aggregation edges; teardown needed"
-            );
 
             GcDeletePlan {
                 children: task.iter_children().collect(),
