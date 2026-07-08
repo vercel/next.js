@@ -21,7 +21,7 @@ use turbo_tasks::{
     message_queue::{CompilationEvent, Severity},
 };
 use turbo_tasks_backend::{
-    BackendOptions, GitVersionInfo, StartupCacheState, TurboTasksBackend,
+    BackendOptions, EvictionMode, GitVersionInfo, StartupCacheState, TurboTasksBackend,
     db_invalidation::invalidation_reasons, noop_backing_storage, turbo_backing_storage,
 };
 
@@ -35,7 +35,7 @@ pub type NextTurboTasks = Arc<TurboTasks<TurboTasksBackend>>;
 /// It should not be passed to a [`turbo_tasks::function`]. For serializable information about the
 /// project, use the [`next_api::project::Project`] type instead.
 ///
-/// This type is a wrapper around an [`Arc`] and is therefore cheaply clonable. It is [`Send`] and
+/// This type is a wrapper around an [`Arc`] and is therefore cheaply cloneable. It is [`Send`] and
 /// [`Sync`].
 #[derive(Clone)]
 pub struct NextTurbopackContext {
@@ -224,22 +224,29 @@ pub fn git_version_info(describe: &str) -> GitVersionInfo<'_> {
 
 /// Turbopack's memory eviction strategy for the persistent cache, mirroring the
 /// `experimental.turbopackMemoryEviction` config option.
+///
+/// This is a napi-facing mirror of [`EvictionMode`] (the backend crate can't
+/// depend on napi). Keep the variants in sync; the `From` impl below is
+/// exhaustive, so adding a variant to one enum forces updating the other.
 #[napi(string_enum = "lowercase")]
 #[derive(Debug, PartialEq, Eq)]
 pub enum MemoryEvictionMode {
     /// Never evict.
     Off,
+    /// Evict after a snapshot only once enough memory has been allocated since
+    /// the last eviction to justify the cost of restoring evicted tasks.
+    Auto,
     /// After every snapshot, evict all evictable tasks from memory, reloading
     /// them from disk on demand.
     Full,
 }
 
-impl MemoryEvictionMode {
-    /// Whether this mode evicts evictable tasks after each snapshot.
-    fn evicts_after_snapshot(self) -> bool {
-        match self {
-            Self::Off => false,
-            Self::Full => true,
+impl From<MemoryEvictionMode> for EvictionMode {
+    fn from(mode: MemoryEvictionMode) -> Self {
+        match mode {
+            MemoryEvictionMode::Off => EvictionMode::Off,
+            MemoryEvictionMode::Auto => EvictionMode::Auto,
+            MemoryEvictionMode::Full => EvictionMode::Full,
         }
     }
 }
@@ -254,7 +261,6 @@ pub fn create_turbo_tasks(
     skip_compaction: bool,
     turbopack_memory_eviction: MemoryEvictionMode,
 ) -> Result<NextTurboTasks> {
-    let evict_after_snapshot = turbopack_memory_eviction.evicts_after_snapshot();
     Ok(if persistent_caching {
         let describe = cache_describe(next_version);
         let version_info = git_version_info(&describe);
@@ -276,7 +282,7 @@ pub fn create_turbo_tasks(
                 }),
                 dependency_tracking,
                 num_workers: Some(tokio::runtime::Handle::current().metrics().num_workers()),
-                evict_after_snapshot,
+                eviction_mode: EvictionMode::from(turbopack_memory_eviction),
                 ..Default::default()
             },
             backing_storage,

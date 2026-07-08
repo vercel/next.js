@@ -1,5 +1,6 @@
 mod cell_data;
 mod counter_map;
+mod eviction;
 mod operation;
 mod snapshot_coordinator;
 mod storage;
@@ -50,8 +51,11 @@ use turbo_tasks::{
 };
 #[cfg(feature = "task_dirty_cause")]
 use turbo_tasks::{FunctionId, TaskDirtyCause};
+use turbo_tasks_malloc::TurboMalloc;
 
+use self::eviction::EvictionControl;
 pub use self::{
+    eviction::EvictionMode,
     operation::AnyOperation,
     storage::{EvictionCounts, SpecificTaskDataCategory, TaskDataCategory},
 };
@@ -138,10 +142,10 @@ pub struct BackendOptions {
     /// Avoid big preallocations for faster startup. Should only be used for testing purposes.
     pub small_preallocation: bool,
 
-    /// When enabled, evict all evictable tasks from in-memory storage after every snapshot.
+    /// Strategy for evicting evictable tasks from in-memory storage after a snapshot.
     /// This reclaims memory by clearing persisted data that can be re-loaded from disk on demand.
     /// This is an EXPERIMENTAL FEATURE under development
-    pub evict_after_snapshot: bool,
+    pub eviction_mode: EvictionMode,
 }
 
 impl Default for BackendOptions {
@@ -152,7 +156,7 @@ impl Default for BackendOptions {
             storage_mode: Some(StorageMode::ReadWrite),
             num_workers: None,
             small_preallocation: false,
-            evict_after_snapshot: false,
+            eviction_mode: EvictionMode::Off,
         }
     }
 }
@@ -295,10 +299,6 @@ impl TurboTasksBackend {
             self.options.storage_mode,
             Some(StorageMode::ReadWrite) | Some(StorageMode::ReadWriteOnShutdown)
         )
-    }
-
-    fn should_evict(&self) -> bool {
-        self.options.evict_after_snapshot && self.should_persist()
     }
 
     /// Perform a snapshot and then evict all evictable tasks from memory.
@@ -2841,8 +2841,10 @@ impl TurboTasksBackend {
                     // Whether to immediately set an idle timeout if possible.
                     // Set to false if we don't persist anything in a cycle.
                     let mut fresh_idle = true;
-                    let mut evicted = false;
                     let mut is_first = true;
+                    // Owns the eviction policy (mode + threshold state); decides each
+                    // cycle whether an eviction sweep is worthwhile.
+                    let mut eviction_control = EvictionControl::new(self.options.eviction_mode);
                     // Accumulated compilation (non-idle) time since the last persisted
                     // snapshot. Runs while not idle, stops while idle. Used to skip periodic
                     // snapshots that wouldn't save enough work to justify their fixed
@@ -2970,30 +2972,27 @@ impl TurboTasksBackend {
                                 // Like compaction, this runs after snapshot_and_persist
                                 // as a separate concern.
                                 //
-                                // TODO: improve eviction policy — current approach is a full sweep
-                                // after every snapshot. Better strategies to consider:
-                                //   - Memory pressure signals: only evict when RSS exceeds a
-                                //     threshold rather than unconditionally.
+                                // TODO: improve the eviction policy further. Better
+                                // strategies to consider:
                                 //   - Recency data: track last-access time per task and evict
                                 //     least-recently-used entries first rather than all at once.
                                 //   - Eviction intensity: partial sweeps (evict a fraction of
                                 //     eligible tasks per cycle) to reduce latency spikes.
-                                // Evict when there is new data to persist (the common
-                                // case) or on the very first snapshot after startup
-                                // (data was already on disk from a prior run, so
-                                // new_data may be false but in-memory state can still
-                                // be evicted).
-                                let mut ran_eviction = false;
-                                if self.should_evict() && (new_data || !evicted) {
-                                    if check_idle_ended!() {
-                                        // need to start all the way over so we catch the next
-                                        // signal
-                                        continue 'outer;
-                                    }
-                                    evicted = true;
-                                    ran_eviction = true;
+                                // `eviction_control` owns the mode + threshold decision. On a
+                                // skipped cycle its baseline and `ran_eviction` stay untouched
+                                // so growth accumulates toward the next cycle.
+                                let ran_eviction = if eviction_control.should_evict(new_data) {
+                                    // NOTE: we do not check for idle here, eviction is fast and
+                                    // when enabled we should expect it to reclaim substantial
+                                    // memory so racing with execution is as likely to save time as
+                                    // cost it.
                                     self.storage.evict_after_snapshot(background_span.id());
-                                }
+                                    // Sample the post-eviction floor as the new baseline.
+                                    eviction_control.record_eviction();
+                                    true
+                                } else {
+                                    false
+                                };
 
                                 // Compact while idle (up to limit), regardless of
                                 // whether the snapshot had new data.
@@ -3033,15 +3032,14 @@ impl TurboTasksBackend {
                                         }
                                     }
                                 }
-                                if check_idle_ended!() {
-                                    continue 'outer;
-                                }
                                 // After running snapshotting/eviction/compaction we have churned a
                                 // _lot_ of memory if we are still
                                 // idle tell `mimalloc` that now would be a good time to release
                                 // memory back to the OS
-                                if new_data || ran_compaction || ran_eviction {
-                                    turbo_tasks_malloc::TurboMalloc::collect(true);
+                                if !check_idle_ended!()
+                                    && (new_data || ran_compaction || ran_eviction)
+                                {
+                                    TurboMalloc::collect(true);
                                 }
                             }
                         }
