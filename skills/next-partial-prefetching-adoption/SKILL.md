@@ -38,12 +38,14 @@ Partial Prefetching changes what `<Link>` downloads for a route: by default a li
 ## working surfaces
 
 - **The dev server terminal — your primary record.** Each validated route's insights are logged as `Error: Route "...": Next.js encountered ...` lines with the `https://nextjs.org/docs/messages/<slug>` link. Tail the dev log during the sweep; it's the greppable record of what fired where, and it works the same on Turbopack and webpack.
-- **The dev overlay Insights tab.** Insights are the amber, non-blocking tab. The precondition is no blocking-prerender errors — those replace the insight on their route (see requires). An unrelated Issue (a hydration error, a console error) doesn't block the sweep; don't stall on it. The overlay pill shows the count; each insight has fix cards linking its docs page. The overlay renders inside a shadow root (`nextjs-portal`), so accessibility-tree snapshots don't see it — evaluate into `shadowRoot` when you need to read or click it programmatically.
+- **The dev overlay Insights tab.** Insights are the amber, non-blocking tab. It appears only once an insight has fired, so a route that surfaces nothing shows no tab at all — that's the clean state, not a missing feature. Don't hunt for the tab on a quiet route; confirm clean from the dev log above, which is the reliable signal. The precondition is no blocking-prerender errors — those replace the insight on their route (see requires). An unrelated Issue (a hydration error, a console error) doesn't block the sweep; don't stall on it. When the tab is present, the overlay pill shows the count and each insight has fix cards linking its docs page. The overlay renders inside a shadow root (`nextjs-portal`), so accessibility-tree snapshots don't see it — evaluate into `shadowRoot` when you need to read or click it programmatically.
 - **`next-dev-loop`** to drive navigations and read the overlay. Prefer it over hand-rolled browser automation for the same reasons as in the Cache Components skill (webpack apps: see requires).
 
 Every insight has a docs page — open it. Fetch the linked page for every distinct insight you encounter; the inline message is a summary, the page is the recipe.
 
 ## step 1: audit `<Link prefetch={true}>` (before enabling)
+
+> **New project, or links you just wrote yourself?** There's nothing to audit — you already made the keep-or-drop call as you added each link. Enable `partialPrefetching: true` globally, add `prefetch={true}` only where a destination's cached content is worth shipping ahead of the click, and go straight to the [shell sweep](#step-2-enable-then-sweep-for-shell-insights-after-enabling). The audit below is for adopting an **existing** app: it surfaces legacy `prefetch={true}` calls whose destinations predate Partial Prefetching, which enabling the flag would otherwise mark adopted silently.
 
 Do this with the global flag **off** — enabling it marks every route adopted and stops the [`link-prefetch-partial`](https://nextjs.org/docs/messages/instant-link-prefetch-partial) warning from firing, so the audit has to come first.
 
@@ -56,7 +58,7 @@ Enumerate the links across the whole source tree, not just `app/` — they often
    - Destination needs request data on arrival → keep it, optionally with `export const prefetch = 'allow-runtime'` ([runtime prefetching](https://nextjs.org/docs/app/guides/runtime-prefetching)) — an enhancement, not a way to clear the warning.
 3. **Mark the destination adopted**: add `export const prefetch = 'partial'` to its route. That clears the warning for every link pointing at it.
 
-These are product decisions (what's worth prefetching), not mechanical fixes — check in with the user, and show the pages while you ask: drive to the page that renders the link and click through to the destination so they see what would ship ahead of the navigation. If the grep finds no `<Link prefetch={true}>`, note it and move on.
+These are product decisions (what's worth prefetching), not mechanical fixes — check in with the user, and show the pages while you ask: drive to the page that renders the link and click through to the destination so they see what would ship ahead of the navigation. If there's no user to ask (a dashboard or non-interactive run), apply the table's clear calls — drop on fully static destinations, keep where request data is needed on arrival — and default to keeping `prefetch={true}` on the judgment calls, documenting each choice. That mirrors how the Cache Components skill defaults its strategy when no one's there to decide. If the grep finds no `<Link prefetch={true}>`, note it and move on.
 
 ## step 2: enable, then sweep for shell insights (after enabling)
 
