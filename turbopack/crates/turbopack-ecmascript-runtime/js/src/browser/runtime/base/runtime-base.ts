@@ -133,12 +133,7 @@ async function loadChunkInternal(
     sourceType,
     sourceData,
     componentChunks,
-    () =>
-      loadChunkByUrlWhole(
-        sourceType,
-        sourceData,
-        getChunkRelativeUrl(chunkData.path)
-      )
+    getChunkRelativeUrl(chunkData.path)
   )
 
   for (const included of includedList) {
@@ -155,13 +150,13 @@ async function loadChunkInternal(
 /**
  * Loads a chunk's component chunks individually when at least one is already available
  * in memory (avoiding re-downloading the ones we have), otherwise loads the whole chunk
- * via `loadWhole` and records its component chunks as available.
+ * from `chunkUrl` and records its component chunks as available.
  */
 function loadComponentChunksOrWhole(
   sourceType: SourceType,
   sourceData: SourceData,
   componentChunks: ChunkPath[],
-  loadWhole: () => Promise<unknown>
+  chunkUrl: ChunkUrl
 ): Promise<unknown> {
   const componentChunkPromises = componentChunks
     .map((componentChunk) => availableModuleChunks.get(componentChunk))
@@ -182,7 +177,7 @@ function loadComponentChunksOrWhole(
 
   // No component chunk is available in memory, so splitting would save nothing. Load the
   // whole chunk in a single request and record its component chunks as available.
-  const promise = loadWhole()
+  const promise = loadChunkByUrlWhole(sourceType, sourceData, chunkUrl)
   for (const componentChunk of componentChunks) {
     if (!availableModuleChunks.has(componentChunk)) {
       availableModuleChunks.set(componentChunk, promise)
@@ -231,14 +226,14 @@ function loadChunkByUrlInternal(
 
   // If we have component chunks for this merged chunk, load only the ones we don't already have
   // instead of the whole merged chunk.
-  if (components !== undefined && components.length > 0) {
+  if (components !== undefined) {
     let promise = splitChunkPromises.get(chunkUrl)
     if (promise === undefined) {
       promise = loadComponentChunksOrWhole(
         sourceType,
         sourceData,
         components,
-        () => loadChunkByUrlWhole(sourceType, sourceData, chunkUrl)
+        chunkUrl
       )
       splitChunkPromises.set(chunkUrl, promise)
     }

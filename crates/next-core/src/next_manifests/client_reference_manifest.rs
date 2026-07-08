@@ -321,12 +321,13 @@ async fn build_manifest(
                         ));
                         // If this is a merged chunk, emit its component chunk paths alongside the
                         // URL so the browser runtime can split it during navigation.
-                        Ok(
-                            match client_chunk_component_paths(chunk, &client_relative_path).await? {
-                                Some(components) => ClientChunk::Merged(url, components),
-                                None => ClientChunk::Path(url),
-                            },
-                        )
+                        let components =
+                            client_chunk_component_paths(chunk, &client_relative_path).await?;
+                        Ok(if components.is_empty() {
+                            ClientChunk::Path(url)
+                        } else {
+                            ClientChunk::Merged(url, components)
+                        })
                     })
                     .try_join()
                     .await?;
@@ -501,7 +502,6 @@ async fn build_manifest(
                     } else if !mode.is_production()
                         || !client_reference_chunk_paths.contains(&path)
                     {
-                        // TODO: is this safe???
                         entry_js_files.insert(path);
                     }
                 }
@@ -565,17 +565,14 @@ impl From<&TurbopackModuleId> for ModuleId {
 async fn client_chunk_component_paths(
     chunk: ResolvedVc<Box<dyn OutputAsset>>,
     client_relative_path: &FileSystemPath,
-) -> Result<Option<Vec<RcStr>>> {
+) -> Result<Vec<RcStr>> {
     let Some(output_chunk) = ResolvedVc::try_sidecast::<Box<dyn OutputChunk>>(chunk) else {
-        return Ok(None);
+        return Ok(Vec::new());
     };
     let Some(component_chunks) = output_chunk.runtime_info().await?.module_chunks else {
-        return Ok(None);
+        return Ok(Vec::new());
     };
     let component_assets = component_chunks.await?;
-    if component_assets.is_empty() {
-        return Ok(None);
-    }
     let mut component_paths = Vec::with_capacity(component_assets.len());
     for component in component_assets.iter() {
         let component_path = component.path().await?;
@@ -585,10 +582,7 @@ async fn client_chunk_component_paths(
             component_paths.push(RcStr::from(rel));
         }
     }
-    if component_paths.is_empty() {
-        return Ok(None);
-    }
-    Ok(Some(component_paths))
+    Ok(component_paths)
 }
 
 /// See next.js/packages/next/src/lib/client-reference.ts
