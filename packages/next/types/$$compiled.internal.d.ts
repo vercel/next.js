@@ -240,7 +240,6 @@ declare module 'react-server-dom-webpack/server.node' {
           ) => boolean)
         | undefined
       onError?: (error: unknown) => void
-      signal?: AbortSignal
       // React's Node API expects debugChannel to be a Node.js Writable
       // (has .write()), Duplex (has .read()), or WebSocket (has .send()).
       // This differs from the web API which expects { readable?, writable? }.

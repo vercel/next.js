@@ -51,12 +51,12 @@ describe('cache-components-dev-streaming', () => {
         .text()
     ).toBe('Loading...')
 
-    // Eventually, the private cache content should be streamed in.
-    await retry(async () => {
-      expect(
-        await browser.elementByCssInstant('#private').text()
-      ).toBeDateString()
-    })
+    // Eventually, the private cache content streams in. Waiting for the element
+    // (without waiting for "load") is enough; the boundary reveals `#private`
+    // atomically with its final content, so no retry is needed.
+    expect(
+      await browser.elementByCss('#private', { waitUntil: false }).text()
+    ).toBeDateString()
   })
 
   it('streams dynamic content immediately while a sibling cache is still filling', async () => {
@@ -70,27 +70,25 @@ describe('cache-components-dev-streaming', () => {
     // away, in parallel with the sibling's long-running cache fill, rather than
     // being withheld until the cache finishes filling.
     //
-    // Use instant checks throughout: `elementByCss`/`elementById` also wait for
-    // the page "load" event, which (with `waitUntil: 'commit'`) only fires once
-    // the slow cache has filled, which would advance past the very window this
-    // test inspects.
-    await retry(async () => {
-      expect(await browser.elementByCssInstant('#dynamic').text()).toBe(
-        'dynamic content'
-      )
-    })
+    // Read with `waitUntil: false` so we don't wait for the page "load" event,
+    // which (with `waitUntil: 'commit'`) only fires once the slow cache has
+    // filled, advancing past the very window this test inspects.
+    expect(
+      await browser.elementByCss('#dynamic', { waitUntil: false }).text()
+    ).toBe('dynamic content')
 
     // The slow cache is still filling at this point, so its fallback is shown
     // and its content hasn't streamed in yet.
     expect(await browser.hasElementByCss('#cached-fallback')).toBe(true)
     expect(await browser.hasElementByCss('#cached')).toBe(false)
 
-    // Eventually the cache fills and its content streams in.
-    await retry(async () => {
-      expect(
-        await browser.elementByCssInstant('#cached').text()
-      ).toBeDateString()
-    }, 10000)
+    // Eventually the cache fills and its content streams in. The fill takes
+    // ~5s, so allow a longer wait than the default 5s selector timeout.
+    expect(
+      await browser
+        .elementByCss('#cached', { waitUntil: false, timeout: 10000 })
+        .text()
+    ).toBeDateString()
   })
 
   it('does not show a Suspense fallback for runtime-prefetchable content on a client navigation', async () => {
@@ -108,14 +106,12 @@ describe('cache-components-dev-streaming', () => {
     await browser.elementByCss('a[href="/runtime-prefetch"]').click()
 
     // Wait for the navigation to fully settle.
-    await retry(async () => {
-      expect(await browser.elementByCssInstant('#runtime').text()).toBe(
-        'runtime content'
-      )
-      expect(await browser.elementByCssInstant('#dynamic').text()).toBe(
-        'dynamic content'
-      )
-    })
+    expect(
+      await browser.elementByCss('#runtime', { waitUntil: false }).text()
+    ).toBe('runtime content')
+    expect(
+      await browser.elementByCss('#dynamic', { waitUntil: false }).text()
+    ).toBe('dynamic content')
 
     const appearanceCounts = await fallbackObserver.getResult()
     // The runtime-prefetchable content was resolved before the response started
@@ -186,6 +182,91 @@ describe('cache-components-dev-streaming', () => {
     const appearanceCounts = await fallbackObserver.getResult()
     expect(appearanceCounts).toEqual({
       'private-fallback': 0,
+    })
+  })
+
+  it('shows the short-expire-cache fallback on a cold client navigation but not on a warm one', async () => {
+    // A public `'use cache'` with an explicit short `expire` (`cacheLife({
+    // expire: 0 })`) is a runtime-prefetch route here, so its cached content
+    // belongs to the runtime shell stage. On a warm navigation the dev minimum
+    // retention keeps the entry available, and the client defers revealing the
+    // response until the shell has flushed, so the content arrives with the
+    // shell and the fallback isn't shown - just like a private cache.
+    const browser = await next.browser('/')
+
+    // Cold navigation: the cache misses and fills in the background, so the
+    // fallback is shown until the content streams in.
+    await browser.elementByCss('a[href="/use-cache-expire-zero/nav"]').click()
+    expect(await browser.elementByCss('#expire-zero-fallback').text()).toBe(
+      'Loading...'
+    )
+    expect(await browser.elementByCss('#expire-zero').text()).toBeDateString()
+
+    // Wait for the background write to settle so the next navigation hits the
+    // warm entry instead of racing a pending write.
+    await waitFor(2000)
+
+    // Hard-reload home so the warm navigation below starts from a fresh page.
+    await browser.loadPage(new URL('/', next.url).href)
+
+    // Warm navigation: record whether the fallback ever enters the DOM. It
+    // shouldn't, since the retained entry is delivered with the shell. (The
+    // client-side reveal race that this delivery relies on is covered by the
+    // private-cache test above, so we don't repeat its stress loop here.)
+    const fallbackObserver = observeNodeAppearances(browser, [
+      'expire-zero-fallback',
+    ])
+
+    await fallbackObserver.observe()
+
+    await browser.elementByCss('a[href="/use-cache-expire-zero/nav"]').click()
+    expect(await browser.elementByCss('#expire-zero').text()).toBeDateString()
+
+    const appearanceCounts = await fallbackObserver.getResult()
+    expect(appearanceCounts).toEqual({
+      'expire-zero-fallback': 0,
+    })
+  })
+
+  it('serves a short-expire cache warm on reload and converges to a fresh value', async () => {
+    const browser = await next.browser('/use-cache-expire-zero/reload', {
+      waitHydration: false,
+      // Do not wait for "load"; inspect the page as it streams in.
+      waitUntil: 'commit',
+    })
+
+    // Cold load: the cache misses, so the fallback streams first, and the
+    // generated value streams in once generation completes. The value is a
+    // dynamic hole (real `expire: 0`), so it streams in after the shell.
+    expect(
+      await browser
+        .elementByCss('#expire-zero-fallback', { waitUntil: false })
+        .text()
+    ).toBe('Loading...')
+    const coldValue = await browser
+      .elementByCss('#expire-zero', { waitUntil: false })
+      .text()
+    expect(coldValue).toBeDateString()
+
+    // Warm reload: the dev minimum retention keeps the short-expire entry, so
+    // the reload serves the previously cached value fast instead of
+    // regenerating it. A background revalidation regenerates a fresh entry for
+    // the next reload (asserted below). We wait for the streamed-in element
+    // without waiting for "load", so no retry is needed.
+    await browser.refresh({ waitUntil: 'commit' })
+    expect(
+      await browser.elementByCss('#expire-zero', { waitUntil: false }).text()
+    ).toBe(coldValue)
+
+    // That warm reload re-warmed a fresh entry in the background, so a later
+    // reload converges to the new value. Read after "load" here (a plain
+    // refresh) since we want the settled value, not the streaming inspection
+    // above.
+    await retry(async () => {
+      await browser.refresh()
+      expect(await browser.elementById('expire-zero').text()).not.toBe(
+        coldValue
+      )
     })
   })
 
@@ -306,14 +387,12 @@ describe('cache-components-dev-streaming', () => {
         .click()
 
       // Wait for the navigation to fully settle.
-      await retry(async () => {
-        expect(await browser.elementByCssInstant('#session-data').text()).toBe(
-          'session content'
-        )
-        expect(await browser.elementByCssInstant('#dynamic-data').text()).toBe(
-          'dynamic content'
-        )
-      })
+      expect(
+        await browser.elementByCss('#session-data', { waitUntil: false }).text()
+      ).toBe('session content')
+      expect(
+        await browser.elementByCss('#dynamic-data', { waitUntil: false }).text()
+      ).toBe('dynamic content')
 
       const appearanceCounts = await fallbackObserver.getResult()
       // The runtime shell was resolved before the response started
@@ -348,14 +427,14 @@ describe('cache-components-dev-streaming', () => {
           .click()
 
         // Wait for the navigation to fully settle.
-        await retry(async () => {
-          expect(await browser.elementByCssInstant('#link-data').text()).toBe(
-            'link content'
-          )
-          expect(
-            await browser.elementByCssInstant('#dynamic-data').text()
-          ).toBe('dynamic content')
-        })
+        expect(
+          await browser.elementByCss('#link-data', { waitUntil: false }).text()
+        ).toBe('link content')
+        expect(
+          await browser
+            .elementByCss('#dynamic-data', { waitUntil: false })
+            .text()
+        ).toBe('dynamic content')
 
         const appearanceCounts = await fallbackObserver.getResult()
         expect(appearanceCounts).toEqual({

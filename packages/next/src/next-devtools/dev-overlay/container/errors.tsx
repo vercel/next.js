@@ -353,7 +353,9 @@ function InstantRuntimeError({
 }
 
 export function getGuidanceVariant(message: string): GuidanceVariant {
-  // Discriminates between `createRuntimeBodyError` and `createDynamicBodyError`
+  // Discriminates between `createLinkBodyErrorInNavigation`,
+  // `createRuntimeBodyError`, and `createDynamicBodyError` (and their
+  // in-navigation variants).
   if (
     message.includes('encountered URL data') &&
     !message.includes('encountered uncached data')
@@ -414,7 +416,6 @@ export function isSyncIOClientError(message: string): boolean {
 export function isBlockingRouteInNavError(message: string): boolean {
   return (
     message.includes('or a navigation') ||
-    message.includes('encountered URL data during prefetching') ||
     message.includes('Could not validate `instant`') ||
     message.includes(
       'Could not validate that a segment in your UI has instant navigation'
@@ -439,17 +440,10 @@ export function getBlockingRouteErrorDetails(
     }
   }
 
-  if (message.includes('encountered URL data during prefetching')) {
-    return {
-      type: 'blocking-route',
-      variant: 'link',
-      inNavigation: true,
-    }
-  }
-
   const isBlockingPageLoadError =
     message.includes('/blocking-prerender-runtime#') ||
-    message.includes('/blocking-prerender-dynamic#')
+    message.includes('/blocking-prerender-dynamic#') ||
+    message.includes('/instant-shell-url-data#')
   if (isBlockingPageLoadError) {
     return {
       type: 'blocking-route',
@@ -872,9 +866,7 @@ export function Errors({
           errorType={errorType}
           errorMessage={
             errorDetails.variant === 'link'
-              ? errorDetails.inNavigation
-                ? 'Next.js encountered URL data during prefetching.'
-                : 'Next.js encountered URL data during prerendering.'
+              ? 'Next.js encountered URL data outside of Suspense.'
               : errorDetails.variant === 'runtime'
                 ? errorDetails.inNavigation
                   ? 'Next.js encountered runtime data during a navigation.'

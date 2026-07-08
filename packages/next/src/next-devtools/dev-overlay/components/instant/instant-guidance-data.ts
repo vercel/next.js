@@ -77,7 +77,7 @@ const linkCards: FixCard[] = [
     id: 'wrap-in-or-move-into-suspense',
     title: 'Wrap in or move into Suspense',
     group: 'stream',
-    link: 'https://nextjs.org/docs/messages/instant-shell-link-data#wrap-in-or-move-into-suspense',
+    link: 'https://nextjs.org/docs/messages/instant-shell-url-data#wrap-in-or-move-into-suspense',
     snippets: [
       { text: '<Suspense fallback={…}>', highlight: true },
       { text: '  <Details params={params} />' },
@@ -86,10 +86,10 @@ const linkCards: FixCard[] = [
     copyable: true,
   },
   {
-    id: 'disable-validation-on-this-route',
-    title: 'Disable validation on this route',
-    group: 'ignore',
-    link: 'https://nextjs.org/docs/messages/instant-shell-link-data#disable-validation-on-this-route',
+    id: 'allow-blocking-route',
+    title: 'Allow blocking route',
+    group: 'block',
+    link: 'https://nextjs.org/docs/messages/instant-shell-url-data#allow-blocking-route',
     snippets: [
       { text: '// page.tsx or layout.tsx' },
       { text: 'export const instant = false', highlight: true },
@@ -705,7 +705,7 @@ export const BLOCKING_ROUTE_NAVIGATION_EXPLANATION =
   'This prevents the navigation from being instant, leading to a slower user experience.'
 
 export const BLOCKING_ROUTE_LINK_EXPLANATION =
-  "This ties the route's prefetch to a single URL, so it can't be shared across links, leading to slower, more expensive prefetches."
+  'This may prevent the navigation from being instant, leading to a slower user experience.'
 
 const syncCardsByCause: Record<string, FixCard[]> = {
   'Math.random()': syncMathCards,

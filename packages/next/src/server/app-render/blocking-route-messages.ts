@@ -38,13 +38,13 @@ export function createRuntimeBodyErrorInNavigation(route: string): Error {
 
 export function createLinkBodyErrorInNavigation(route: string): Error {
   return new Error(
-    `Route "${route}": Next.js encountered URL data during prefetching.\n\n` +
-      `\`params\` or \`searchParams\` accessed outside of \`<Suspense>\` ties this route's prefetch to a single URL, so it can't be shared across links, leading to slower, more expensive prefetches.\n\n` +
+    `Route "${route}": Next.js encountered URL data during prerendering or a navigation.\n\n` +
+      `\`params\` or \`searchParams\` accessed outside of \`<Suspense>\` may prevent the navigation from being instant, leading to a slower user experience.\n\n` +
       `Ways to fix this:\n` +
-      `  - [stream] Wrap the \`params\`/\`searchParams\` read in \`<Suspense fallback={...}>\` so the route's prefetch stays shared across links\n` +
-      `    https://nextjs.org/docs/messages/instant-shell-link-data#wrap-in-or-move-into-suspense\n` +
-      `  - [ignore] Set \`export const instant = false\` to opt the route out of instant-navigation validation\n` +
-      `    https://nextjs.org/docs/messages/instant-shell-link-data#disable-validation-on-this-route`
+      `  - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access\n` +
+      `    https://nextjs.org/docs/messages/instant-shell-url-data#wrap-in-or-move-into-suspense\n` +
+      `  - [block] Set \`export const instant = false\` to allow a blocking route\n` +
+      `    https://nextjs.org/docs/messages/instant-shell-url-data#allow-blocking-route`
   )
 }
 

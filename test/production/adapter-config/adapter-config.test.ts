@@ -90,6 +90,73 @@ describe('adapter-config', () => {
     expect(staticOutputs.length).toBeGreaterThan(0)
     expect(prerenderOutputs.length).toBeGreaterThan(0)
 
+    const expectedRouteConfigs = [
+      {
+        pathname: '/docs/node-app',
+        type: 'APP_PAGE',
+        runtime: 'nodejs',
+        maxDuration: 10,
+      },
+      {
+        pathname: '/docs/edge-app',
+        type: 'APP_PAGE',
+        runtime: 'edge',
+        maxDuration: 20,
+      },
+      {
+        pathname: '/docs/node-route',
+        type: 'APP_ROUTE',
+        runtime: 'nodejs',
+        maxDuration: 30,
+      },
+      {
+        pathname: '/docs/edge-route',
+        type: 'APP_ROUTE',
+        runtime: 'edge',
+        maxDuration: 40,
+      },
+      {
+        pathname: '/docs/node-pages',
+        type: 'PAGES',
+        runtime: 'nodejs',
+        maxDuration: 50,
+      },
+      {
+        pathname: '/docs/edge-pages',
+        type: 'PAGES',
+        runtime: 'edge',
+        maxDuration: 60,
+      },
+      {
+        pathname: '/docs/api/node-pages',
+        type: 'PAGES_API',
+        runtime: 'nodejs',
+        maxDuration: 70,
+      },
+      {
+        pathname: '/docs/api/edge-pages',
+        type: 'PAGES_API',
+        runtime: 'edge',
+        maxDuration: 80,
+      },
+    ] as const
+
+    for (const {
+      pathname,
+      type,
+      runtime,
+      maxDuration,
+    } of expectedRouteConfigs) {
+      expect(combinedRouteOutputs).toContainEqual(
+        expect.objectContaining({
+          pathname,
+          type,
+          runtime,
+          config: expect.objectContaining({ maxDuration }),
+        })
+      )
+    }
+
     for (const output of staticOutputs) {
       expect(output.id).toBeTruthy()
 
