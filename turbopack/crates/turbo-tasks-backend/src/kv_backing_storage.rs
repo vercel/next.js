@@ -332,6 +332,8 @@ impl TurboBackingStorage {
                         .push(deletion.task_id);
                 }
 
+                // TODO: this would be a good usecase for a batch_get_multiple, that would optimize
+                // reading
                 for (task_type_hash, deleted_ids) in deleted_by_hash {
                     // Read the authoritative on-disk bucket so we can keep every id we are NOT
                     // deleting. (A survivor that is a *new* task added in this same commit is

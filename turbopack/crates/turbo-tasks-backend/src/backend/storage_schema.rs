@@ -932,9 +932,17 @@ impl TaskStorage {
     /// restoring), have `Meta` resident (so `parent_count`/`upper`/`followers`/`children` are
     /// readable), and hold no aggregation edges (`upper`/`followers`).
     ///
+    /// The `is_restored(Meta)` check is load-bearing, not redundant: `parent_count`, `upper`, and
+    /// `followers` are lazy Meta fields that read as *absent* (i.e. 0 / empty) when Meta has been
+    /// evicted to disk-only. A candidate can be re-examined a pass *after* an eviction dropped its
+    /// Meta, at which point every signal here would falsely say "collectible". Requiring Meta
+    /// resident is what distinguishes "genuinely parentless, edge-free" from "we don't currently
+    /// know". When collectibility is decided through a restoring `ctx.task(id, All)` guard the
+    /// check is satisfied by construction; it is the real gate on the raw `&TaskStorage` path.
+    ///
     /// Note it does NOT require `Data` resident: the collectibility decision only reads Meta
-    /// fields, and `gc_delete_one` restores `Data` on demand (via `ctx.task(id, All)`) to scrub
-    /// the forward-dependency reverse sets, which are Data-category. This lets GC collect
+    /// fields, and `gc_scrub_and_remove` restores `Data` on demand (via `ctx.task(id, Data)`) to
+    /// scrub the forward-dependency reverse sets, which are Data-category. This lets GC collect
     /// garbage that has been evicted to disk-only Data, not just fully-resident garbage.
     ///
     /// The aggregation-edges check is conservative: a disconnected task is normally stripped of its
@@ -943,12 +951,13 @@ impl TaskStorage {
     /// activeness), we decline to collect and let a later pass take it once the edges clear.
     /// Under-collecting is always safe.
     pub fn is_gc_collectible(&self) -> bool {
-        self.gc_parent_count() == 0
+        // None of the other checks make sense without this
+        self.flags.is_restored(TaskDataCategory::Meta)
+            && self.gc_parent_count() == 0
             && self.gc_transient_ref_count() == 0
             && !self.is_gc_root()
             && !self.flags.meta_restoring()
             && !self.flags.data_restoring()
-            && self.flags.is_restored(TaskDataCategory::Meta)
             && self.upper().is_empty()
             && self.followers().is_none_or(|f| f.is_empty())
     }

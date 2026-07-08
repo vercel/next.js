@@ -263,6 +263,20 @@ enum GcOutcome {
     Skip,
 }
 
+/// The edges captured from a collectible task under its single [`ExecuteContext`] guard, so the
+/// guard can be dropped before [`TurboTasksBackend::gc_scrub_and_remove`] opens the *target* tasks'
+/// guards (holding two task locks at once trips the concurrent-lock detector). `children` drive the
+/// cascade; the `*_deps` are the forward dependencies whose reverse side must be scrubbed;
+/// `persistent_task_type` yields the on-disk `TaskCache` key.
+struct GcDeletePlan {
+    children: Vec<TaskId>,
+    output_deps: Vec<TaskId>,
+    cell_deps: Vec<CellRef>,
+    cell_deps_hashed: Vec<(CellRef, u64)>,
+    collectibles_deps: Vec<CollectiblesRef>,
+    persistent_task_type: Option<CachedTaskTypeArc>,
+}
+
 impl TurboTasksBackend {
     /// Invalidates the persistent storage so that it will be deleted the next time a turbopack
     /// instance is created with the filesystem cache enabled.
@@ -338,26 +352,6 @@ impl TurboTasksBackend {
         self.gc_candidates.lock().insert(task_id);
     }
 
-    /// Whether `task_id` is currently collectible: resident, non-transient, no persistent or
-    /// transient parents, quiescent, and holding no aggregation edges. Used to (re-)validate a
-    /// candidate under the GC phase before tearing it down, and to decide whether a child whose
-    /// count just hit 0 during the cascade should itself be collected.
-    fn gc_is_collectible(&self, task_id: TaskId) -> bool {
-        if task_id.is_transient() {
-            return false;
-        }
-        self.storage
-            .with_task(task_id, |t| t.is_gc_collectible())
-            .unwrap_or(false)
-    }
-
-    /// The persistent `parent_count` of a resident task (0 if absent or not resident).
-    fn gc_parent_count(&self, task_id: TaskId) -> u32 {
-        self.storage
-            .with_task(task_id, |t| t.gc_parent_count())
-            .unwrap_or(0)
-    }
-
     /// Runs a garbage-collection pass under the coordinator's GC phase. Drains the candidate set
     /// (tasks observed reaching `parent_count == 0`), re-validates each under the exclusion, and
     /// tears down the ones that are still collectible: scrubbing their reverse-dependency edges,
@@ -418,24 +412,64 @@ impl TurboTasksBackend {
     /// collectible tears the task down (scrub reverse-dep edges + remove from map + produce a
     /// tombstone) and decrements each child's `parent_count`, returning the children that reached
     /// 0. See [`GcOutcome`] for the cases.
+    ///
+    /// The whole decision + teardown reuses a single [`ExecuteContext`]: the task is accessed once
+    /// (one guard) to both decide collectibility and capture its edges into a [`GcDeletePlan`], and
+    /// the same context is threaded through the scrub and the cascade. Under the GC phase there is
+    /// no concurrency, so taking the write guard (via `ctx.task`) rather than a read-only
+    /// `with_task` is free.
     fn gc_process_one(
         &self,
         task_id: TaskId,
         turbo_tasks: &TurboTasks<TurboTasksBackend>,
     ) -> GcOutcome {
-        if !self.gc_is_collectible(task_id) {
-            // Not collectible: keep retrying only while it is still parentless (and persistent);
-            // otherwise a concurrent re-connect revived it and it is no longer garbage.
-            return if self.gc_parent_count(task_id) == 0 && !task_id.is_transient() {
-                GcOutcome::Retain(task_id)
-            } else {
-                GcOutcome::Skip
-            };
+        // Transient-ness is a property of the id, not the storage — check it before touching the
+        // map (transient tasks are never collected).
+        if task_id.is_transient() {
+            return GcOutcome::Skip;
         }
-        let (children, deletion) = self.gc_delete_one(task_id, turbo_tasks);
-
-        // Cascade: each child loses a persistent parent; collect those that reach 0.
         let mut ctx = self.execute_context_gc(turbo_tasks);
+
+        // Single access: decide collectibility and, if collectible, capture the edges needed to
+        // tear the task down. `ctx.task(.., All)` restores the task if it was evicted, so the
+        // `is_restored(Meta)` guard inside `is_gc_collectible` is satisfied here by construction;
+        // it remains load-bearing on the raw `&TaskStorage` path (a candidate whose Meta was
+        // evicted between passes would otherwise read a bogus parent_count of 0).
+        let plan = {
+            let task = ctx.task(task_id, TaskDataCategory::All);
+            let s = task.typed();
+            if !s.is_gc_collectible() {
+                // Not collectible: keep retrying only while it is still parentless; otherwise a
+                // concurrent re-connect revived it and it is no longer garbage.
+                return if s.gc_parent_count() == 0 {
+                    GcOutcome::Retain(task_id)
+                } else {
+                    GcOutcome::Skip
+                };
+            }
+
+            // A collectible task has no aggregation edges left (`is_gc_collectible` checks this);
+            // this assert documents the invariant and surfaces any case that would need aggregation
+            // teardown rather than silently corrupting the graph.
+            debug_assert!(
+                task.iter_upper().next().is_none() && task.iter_followers().next().is_none(),
+                "gc_delete: task {task_id} still has aggregation edges; teardown needed"
+            );
+
+            GcDeletePlan {
+                children: task.iter_children().collect(),
+                output_deps: task.iter_output_dependencies().collect(),
+                cell_deps: task.iter_cell_dependencies().collect(),
+                cell_deps_hashed: task.iter_cell_dependencies_hashed().collect(),
+                collectibles_deps: task.iter_collectibles_dependencies().collect(),
+                persistent_task_type: task.get_persistent_task_type().cloned(),
+            }
+        };
+
+        let (children, deletion) = self.gc_scrub_and_remove(task_id, plan, &mut ctx);
+
+        // Cascade: each child loses a persistent parent; collect those that reach 0. Reuses the
+        // same context.
         let mut newly_garbage = Vec::new();
         for child in children {
             if child.is_transient() {
@@ -454,46 +488,28 @@ impl TurboTasksBackend {
         }
     }
 
-    /// Scrubs all references from `task_id` off its dependency targets, removes it from the
-    /// task_cache and the map, and returns its `children` (so the caller can decrement their
+    /// Scrubs all references captured in `plan` off `task_id`'s dependency targets, removes it from
+    /// the task_cache and the map, and returns its `children` (so the caller can decrement their
     /// parent_count for the cascade) together with a [`TaskDeletion`] tombstone for the next
     /// commit.
     ///
-    /// Must be called while holding the GC phase; uses [`Self::execute_context_gc`] (no operation
-    /// guard) to avoid deadlocking on the GC request bit.
-    fn gc_delete_one(
+    /// The task's own guard has already been dropped by [`Self::gc_process_one`] (its edges live in
+    /// `plan`), so this only opens the *target* tasks' guards — never two task locks at once.
+    /// Reuses the caller's [`ExecuteContext`]; must be called while holding the GC phase.
+    fn gc_scrub_and_remove(
         &self,
         task_id: TaskId,
-        turbo_tasks: &TurboTasks<TurboTasksBackend>,
+        plan: GcDeletePlan,
+        ctx: &mut impl ExecuteContext<'_>,
     ) -> (Vec<TaskId>, TaskDeletion) {
-        let mut ctx = self.execute_context_gc(turbo_tasks);
-
-        // Snapshot the task's edges into owned buffers, then drop its guard before touching targets
-        // (avoids holding two task locks in an unchecked order).
-        let children: Vec<TaskId>;
-        let output_deps: Vec<TaskId>;
-        let cell_deps: Vec<CellRef>;
-        let cell_deps_hashed: Vec<(CellRef, u64)>;
-        let collectibles_deps: Vec<CollectiblesRef>;
-        let persistent_task_type;
-        {
-            let task = ctx.task(task_id, TaskDataCategory::All);
-            children = task.iter_children().collect();
-            output_deps = task.iter_output_dependencies().collect();
-            cell_deps = task.iter_cell_dependencies().collect();
-            cell_deps_hashed = task.iter_cell_dependencies_hashed().collect();
-            collectibles_deps = task.iter_collectibles_dependencies().collect();
-
-            // A collectible task has no aggregation edges left (is_gc_collectible checks this), so
-            // this assert documents the invariant and surfaces any case that would need aggregation
-            // teardown rather than silently corrupting the graph.
-            debug_assert!(
-                task.iter_upper().next().is_none() && task.iter_followers().next().is_none(),
-                "gc_delete: task {task_id} still has aggregation edges; teardown needed"
-            );
-
-            persistent_task_type = task.get_persistent_task_type().cloned();
-        }
+        let GcDeletePlan {
+            children,
+            output_deps,
+            cell_deps,
+            cell_deps_hashed,
+            collectibles_deps,
+            persistent_task_type,
+        } = plan;
 
         // Scrub the reverse side of each forward dependency on the target task (mirrors
         // CleanupOldEdgesOperation).
