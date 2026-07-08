@@ -290,7 +290,7 @@ describe('Dynamic Optional Routing - build validation', () => {
     )
     await next.build()
     expect(next.cliOutput).toMatch(
-      'A required parameter (slug) was not provided as an array received undefined in getStaticPaths for /invalid/[[...slug]]'
+      'Parameter "slug" from getStaticPaths for /invalid/[[...slug]] must be an array, but received undefined (undefined)'
     )
     // Clean up
     await next.deleteFile('pages/invalid/[[...slug]].js')
