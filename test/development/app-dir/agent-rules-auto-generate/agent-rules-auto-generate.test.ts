@@ -1,8 +1,21 @@
 import { nextTestSetup } from 'e2e-utils'
 import fs from 'fs'
+import os from 'os'
 import path from 'path'
+import { writeAgentFiles } from 'next/dist/server/lib/generate-agent-files'
 
 const AGENT_RULES_MARKER = '<!-- BEGIN:nextjs-agent-rules -->'
+
+/**
+ * The canonical block as the version under test generates it,
+ * obtained by running the real generator into a temp dir — the test
+ * never hardcodes the wording.
+ */
+function currentAgentRulesBlock(): string {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-rules-'))
+  writeAgentFiles(dir)
+  return fs.readFileSync(path.join(dir, 'AGENTS.md'), 'utf-8').trimEnd()
+}
 
 describe('agent-rules auto-generate on next dev (agent detected)', () => {
   const { next } = nextTestSetup({
@@ -81,28 +94,56 @@ describe('agent-rules auto-generate on next dev (agentRules: false)', () => {
   })
 })
 
-describe('agent-rules auto-generate on next dev (AGENTS.md already has marker)', () => {
+describe('agent-rules auto-generate on next dev (AGENTS.md has an outdated managed block)', () => {
   const { next } = nextTestSetup({
     files: __dirname,
     env: { CLAUDECODE: '1' },
     skipStart: true,
   })
 
+  // A block written by a different Next.js version — the content
+  // between the markers should be upgraded in place while everything
+  // around it is preserved. Uses synthetic body text so this test does
+  // not depend on any particular shipped wording.
+  const OUTDATED_BLOCK = `${AGENT_RULES_MARKER}
+# Stale heading from an older Next.js
+
+Stale body from an older Next.js.
+<!-- END:nextjs-agent-rules -->`
+
   beforeAll(async () => {
-    // Pre-populate AGENTS.md WITH the managed marker before the dev
-    // server starts, so the auto-gen sees it as already installed.
-    await next.patchFile('AGENTS.md', `${AGENT_RULES_MARKER}\n`)
+    await next.patchFile(
+      'AGENTS.md',
+      `# Team rules\n\nUse tabs, not spaces.\n\n${OUTDATED_BLOCK}\n`
+    )
     await next.start()
   })
 
-  it('leaves the file untouched and does not create CLAUDE.md', async () => {
+  it('refreshes the block in place and preserves surrounding content', async () => {
     await next.fetch('/')
     const content = fs.readFileSync(
       path.join(next.testDir, 'AGENTS.md'),
       'utf-8'
     )
-    expect(content).toBe(`${AGENT_RULES_MARKER}\n`)
+    expect(content).toContain('Use tabs, not spaces.')
+    expect(content).not.toContain('Stale body from an older Next.js.')
+    expect(content).toContain(currentAgentRulesBlock())
+    // Exactly one managed block — upgraded, not duplicated.
+    expect(content.split(AGENT_RULES_MARKER).length - 1).toBe(1)
     expect(fs.existsSync(path.join(next.testDir, 'CLAUDE.md'))).toBe(false)
+  })
+
+  it('is idempotent across dev server restarts', async () => {
+    await next.fetch('/')
+    const before = fs.readFileSync(
+      path.join(next.testDir, 'AGENTS.md'),
+      'utf-8'
+    )
+    await next.stop()
+    await next.start()
+    await next.fetch('/')
+    const after = fs.readFileSync(path.join(next.testDir, 'AGENTS.md'), 'utf-8')
+    expect(after).toBe(before)
   })
 })
 

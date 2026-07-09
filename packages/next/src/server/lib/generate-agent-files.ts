@@ -41,16 +41,33 @@ export interface AgentFilesResult {
 }
 
 /**
- * Returns true when `AGENTS.md` or `CLAUDE.md` at `dir` contains the
- * managed agent-rules marker.
+ * Returns the managed block (markers included) found in `content`, or
+ * `null` when the markers are absent or malformed.
  */
-export function hasAgentRulesInstalled(dir: string): boolean {
-  const agentsContent = tryReadFile(path.join(dir, 'AGENTS.md'))
-  if (agentsContent?.includes(AGENT_RULES_START_MARKER)) return true
+function extractAgentRulesBlock(content: string): string | null {
+  const start = content.indexOf(AGENT_RULES_START_MARKER)
+  if (start === -1) return null
+  const end = content.indexOf(AGENT_RULES_END_MARKER, start)
+  if (end === -1) return null
+  return content.slice(start, end + AGENT_RULES_END_MARKER.length)
+}
 
-  const claudeContent = tryReadFile(path.join(dir, 'CLAUDE.md'))
-  if (claudeContent?.includes(AGENT_RULES_START_MARKER)) return true
-
+/**
+ * Returns true when `AGENTS.md` or `CLAUDE.md` at `dir` already
+ * contains the current agent-rules block. A block from an earlier
+ * Next.js version (older wording, legacy markers) returns false so
+ * callers know to upsert the current one over it.
+ */
+export function hasCurrentAgentRules(dir: string): boolean {
+  const block = buildAgentRulesBlock()
+  for (const file of ['AGENTS.md', 'CLAUDE.md']) {
+    const content = tryReadFile(path.join(dir, file))
+    if (!content) continue
+    const installed = extractAgentRulesBlock(content)
+    if (installed !== null && normalizeEol(installed, '\n') === block) {
+      return true
+    }
+  }
   return false
 }
 
@@ -58,6 +75,8 @@ export function hasAgentRulesInstalled(dir: string): boolean {
  * Write the agent-rules block into `projectDir`, respecting whichever
  * file the user already uses:
  *
+ *   - A file already hosting the managed block → upsert into it, so
+ *     upgrades rewrite the block in place instead of adding a copy.
  *   - `AGENTS.md` exists → upsert into it, leave `CLAUDE.md` alone.
  *   - `CLAUDE.md` exists (but not `AGENTS.md`) → upsert into it.
  *   - Neither exists → create both (`AGENTS.md` + `CLAUDE.md` with
@@ -74,7 +93,14 @@ export function writeAgentFiles(projectDir: string): AgentFilesResult {
   const agentsMdExists = fs.existsSync(agentsMdPath)
   const claudeMdExists = fs.existsSync(claudeMdPath)
 
-  if (agentsMdExists) {
+  const claudeMdHostsBlock =
+    claudeMdExists &&
+    (tryReadFile(claudeMdPath)?.includes(AGENT_RULES_START_MARKER) ?? false)
+  const agentsMdHostsBlock =
+    agentsMdExists &&
+    (tryReadFile(agentsMdPath)?.includes(AGENT_RULES_START_MARKER) ?? false)
+
+  if (agentsMdExists && (agentsMdHostsBlock || !claudeMdHostsBlock)) {
     return {
       agentsMd: upsertFile(agentsMdPath, block),
       claudeMd: 'skipped',

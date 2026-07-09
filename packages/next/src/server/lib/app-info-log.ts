@@ -7,7 +7,7 @@ import { experimentalSchema } from '../config-schema'
 import { detectAgent } from '../../telemetry/detect-agent'
 import { bundlerName, getBundlerFromEnv } from '../../lib/bundler'
 import {
-  hasAgentRulesInstalled,
+  hasCurrentAgentRules,
   writeAgentFiles,
   type AgentFilesResult,
 } from './generate-agent-files'
@@ -117,17 +117,18 @@ export function logExperimentalInfo({
 
 /**
  * When `next dev` detects an AI coding agent but the managed
- * agent-rules block is missing from AGENTS.md / CLAUDE.md,
- * auto-generate the files so the agent has access to version-matched
- * docs. Returns the write result when files were generated, or `null`
- * when no action was needed.
+ * agent-rules block is missing from AGENTS.md / CLAUDE.md — or an
+ * outdated version of it is installed — auto-generate or refresh the
+ * files so the agent has access to version-matched docs. Returns the
+ * write result when files were touched, or `null` when no action was
+ * needed.
  *
  * Callers gate this on `config.agentRules !== false` — opt-out is
  * declarative in next.config, not inside this function.
  */
 export function ensureAgentRulesForDev(dir: string): AgentFilesResult | null {
   if (detectAgent() === null) return null
-  if (hasAgentRulesInstalled(dir)) return null
+  if (hasCurrentAgentRules(dir)) return null
 
   return writeAgentFiles(dir)
 }
