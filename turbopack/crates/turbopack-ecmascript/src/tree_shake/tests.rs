@@ -4,11 +4,14 @@ use anyhow::Error;
 use serde::Deserialize;
 use swc_core::{
     atoms::{Wtf8Atom, atom},
-    common::{Mark, SourceMap, SyntaxContext, comments::SingleThreadedComments, util::take::Take},
+    common::{
+        FileName, Mark, SourceMap, SyntaxContext, comments::SingleThreadedComments,
+        util::take::Take,
+    },
     ecma::{
         ast::{EsVersion, Id, Module},
         codegen::text_writer::JsWriter,
-        parser::{EsSyntax, parse_file_as_module},
+        parser::{EsSyntax, Syntax, parse_file_as_module, parse_file_as_program},
         visit::VisitMutWith,
     },
     testing::{self, NormalizedOutput, fixture},
@@ -16,12 +19,14 @@ use swc_core::{
 use turbo_tasks::FxIndexSet;
 
 use super::{
-    Analyzer, Key,
+    Analyzer, Key, cjs_script_to_module,
     graph::{
-        DepGraph, Dependency, InternedGraph, ItemId, ItemIdGroupKind, Mode, SplitModuleResult,
+        DepGraph, Dependency, InternedGraph, ItemData, ItemId, ItemIdGroupKind, Mode,
+        SplitModuleResult,
     },
     merge::Merger,
 };
+use crate::references::exports::cjs::analyze_cjs_exports;
 
 #[fixture("tests/tree-shaker/analyzer/**/input.js")]
 fn test_fixture(input: PathBuf) {
@@ -71,7 +76,13 @@ fn run(input: PathBuf) {
         ));
 
         let mut g = DepGraph::default();
-        let (item_ids, mut items) = g.init(&module, &comments, unresolved_ctxt, top_level_ctxt);
+        let (item_ids, mut items) = g.init(
+            &module,
+            &comments,
+            unresolved_ctxt,
+            top_level_ctxt,
+            Default::default(),
+        );
 
         let mut s = String::new();
 
@@ -369,4 +380,257 @@ fn render_item_id(id: &ItemId) -> Option<String> {
         ItemId::Group(ItemIdGroupKind::Export(_, name)) => Some(format!("export {name}")),
         _ => None,
     }
+}
+
+/// A safe CommonJS module, wrapped as a `Module` and analyzed with its CJS
+/// exports map, should flow through the tree-shaker and yield one
+/// `Key::Export` entrypoint per named export — proving the export map links
+/// end-to-end.
+#[test]
+fn cjs_normalized_module_produces_export_parts() {
+    testing::run_test(false, |cm, _handler| {
+        let fm = cm.new_source_file(
+            FileName::Anon.into(),
+            "exports.foo = 1; exports.bar = 2;".to_string(),
+        );
+        let comments = SingleThreadedComments::default();
+        let mut program = parse_file_as_program(
+            &fm,
+            Syntax::Es(EsSyntax::default()),
+            EsVersion::latest(),
+            Some(&comments),
+            &mut vec![],
+        )
+        .unwrap();
+
+        let unresolved_mark = Mark::new();
+        let top_level_mark = Mark::new();
+        let unresolved_ctxt = SyntaxContext::empty().apply_mark(unresolved_mark);
+        let top_level_ctxt = SyntaxContext::empty().apply_mark(top_level_mark);
+        program.visit_mut_with(&mut swc_core::ecma::transforms::base::resolver(
+            unresolved_mark,
+            top_level_mark,
+            false,
+        ));
+
+        let analysis = analyze_cjs_exports(&program, unresolved_mark);
+        assert!(!analysis.is_unsafe, "expected an analyzable CJS module");
+        let module = cjs_script_to_module(&program).expect("a CJS script should wrap as a module");
+
+        let (mut g, items) = Analyzer::analyze(
+            &module,
+            &comments,
+            unresolved_ctxt,
+            top_level_ctxt,
+            analysis.exports,
+        );
+        g.handle_weak(Mode::Production);
+        let result = g.split_module(&[], &items);
+
+        assert!(
+            result.entrypoints.contains_key(&Key::Export("foo".into())),
+            "expected an Export(\"foo\") entrypoint, got {:?}",
+            result.entrypoints
+        );
+        assert!(
+            result.entrypoints.contains_key(&Key::Export("bar".into())),
+            "expected an Export(\"bar\") entrypoint, got {:?}",
+            result.entrypoints
+        );
+
+        // The two independent exports must land in *different* parts, and each
+        // part must contain only its own export's code — proving an unused
+        // export's code is not pulled into another export's part (i.e. it can be
+        // dropped when only the sibling is imported).
+        let foo_idx = *result.entrypoints.get(&Key::Export("foo".into())).unwrap() as usize;
+        let bar_idx = *result.entrypoints.get(&Key::Export("bar".into())).unwrap() as usize;
+        assert_ne!(foo_idx, bar_idx, "foo and bar should be in separate parts");
+
+        let foo_part = print(&cm, &[&result.modules[foo_idx]]);
+        let bar_part = print(&cm, &[&result.modules[bar_idx]]);
+
+        assert!(
+            foo_part.contains("foo") && !foo_part.contains("bar"),
+            "foo part is not disjoint from bar:\n{foo_part}"
+        );
+        assert!(
+            bar_part.contains("bar") && !bar_part.contains("foo"),
+            "bar part is not disjoint from foo:\n{bar_part}"
+        );
+
+        // The whole-module reconstruction (`EcmascriptModuleCjsFacadeModule`)
+        // imports from the `Key::Exports` part — it must exist for a CJS split.
+        assert!(
+            result.entrypoints.contains_key(&Key::Exports),
+            "expected an Exports entrypoint, got {:?}",
+            result.entrypoints
+        );
+
+        Ok(())
+    })
+    .unwrap();
+}
+
+/// Parse `code` as a CommonJS script, wrap it as a `Module`, and run the
+/// tree-shaker analysis with its CJS exports map. Returns the dependency
+/// graph and per-item data. Mirrors the harness in
+/// `cjs_normalized_module_produces_export_parts`.
+fn analyze_cjs_source(
+    cm: &Arc<SourceMap>,
+    code: &str,
+) -> (DepGraph, rustc_hash::FxHashMap<ItemId, ItemData>) {
+    let fm = cm.new_source_file(FileName::Anon.into(), code.to_string());
+    let comments = SingleThreadedComments::default();
+    let mut program = parse_file_as_program(
+        &fm,
+        Syntax::Es(EsSyntax::default()),
+        EsVersion::latest(),
+        Some(&comments),
+        &mut vec![],
+    )
+    .unwrap();
+
+    let unresolved_mark = Mark::new();
+    let top_level_mark = Mark::new();
+    let unresolved_ctxt = SyntaxContext::empty().apply_mark(unresolved_mark);
+    let top_level_ctxt = SyntaxContext::empty().apply_mark(top_level_mark);
+    program.visit_mut_with(&mut swc_core::ecma::transforms::base::resolver(
+        unresolved_mark,
+        top_level_mark,
+        false,
+    ));
+
+    let analysis = analyze_cjs_exports(&program, unresolved_mark);
+    assert!(!analysis.is_unsafe, "expected an analyzable CJS module");
+    let module = cjs_script_to_module(&program).expect("a CJS script should wrap as a module");
+    Analyzer::analyze(
+        &module,
+        &comments,
+        unresolved_ctxt,
+        top_level_ctxt,
+        analysis.exports,
+    )
+}
+
+/// Locate the synthesized `const __TURBOPACK_cjs_export__<name> = …` item for a
+/// CommonJS named export and report whether it's pinned as a module-evaluation
+/// side effect. Returns `None` if no such synthesized item exists.
+fn cjs_export_side_effects(
+    items: &rustc_hash::FxHashMap<ItemId, ItemData>,
+    export_name: &str,
+) -> Option<bool> {
+    let target = format!("__TURBOPACK_cjs_export__{export_name}");
+    items.values().find_map(|data| {
+        data.var_decls
+            .iter()
+            .any(|id| id.0.as_str() == target)
+            .then_some(data.side_effects)
+    })
+}
+
+/// An impure export RHS (`exports.x = sideEffect()`) must keep the synthesized
+/// export const pinned as a module-evaluation side effect, while pure RHS forms
+/// (a literal, a function expression) must not be side effects — so they stay
+/// droppable when the export is unused.
+#[test]
+fn cjs_impure_export_rhs_is_pinned_as_side_effect() {
+    testing::run_test(false, |cm, _handler| {
+        let (_g, items) = analyze_cjs_source(
+            &cm,
+            "exports.x = sideEffect(); exports.y = 1; exports.z = function () {};",
+        );
+
+        assert_eq!(
+            cjs_export_side_effects(&items, "x"),
+            Some(true),
+            "impure RHS (sideEffect()) must be pinned as a module-evaluation side effect",
+        );
+        assert_eq!(
+            cjs_export_side_effects(&items, "y"),
+            Some(false),
+            "pure literal RHS must not be a module-evaluation side effect",
+        );
+        assert_eq!(
+            cjs_export_side_effects(&items, "z"),
+            Some(false),
+            "pure function-expression RHS must not be a module-evaluation side effect",
+        );
+
+        Ok(())
+    })
+    .unwrap();
+}
+
+/// A bare statement interleaved between exports (`exports.a = 1; sideEffect();
+/// exports.b = 2;`) must be retained as a module-evaluation side effect, and
+/// both surrounding pure exports must remain individually addressable
+/// entrypoints — preserving evaluation-order semantics.
+#[test]
+fn cjs_interleaved_side_effect_is_retained() {
+    testing::run_test(false, |cm, _handler| {
+        let (mut g, items) = analyze_cjs_source(&cm, "exports.a = 1; sideEffect(); exports.b = 2;");
+
+        // The recognized `exports.a`/`exports.b` writes are synthesized into
+        // `const` var declarations, so the only remaining bare expression
+        // statement item is `sideEffect()`. It must be marked side-effectful so
+        // it is retained during module evaluation.
+        let interleaved = items
+            .values()
+            .find(|data| {
+                matches!(
+                    &data.content,
+                    swc_core::ecma::ast::ModuleItem::Stmt(swc_core::ecma::ast::Stmt::Expr(_))
+                )
+            })
+            .expect("the interleaved sideEffect() statement item must exist");
+        assert!(
+            interleaved.side_effects,
+            "the interleaved sideEffect() statement must be retained as a side effect",
+        );
+
+        // Both pure exports remain individually addressable entrypoints.
+        g.handle_weak(Mode::Production);
+        let result = g.split_module(&[], &items);
+        assert!(
+            result.entrypoints.contains_key(&Key::Export("a".into())),
+            "expected an Export(\"a\") entrypoint, got {:?}",
+            result.entrypoints
+        );
+        assert!(
+            result.entrypoints.contains_key(&Key::Export("b".into())),
+            "expected an Export(\"b\") entrypoint, got {:?}",
+            result.entrypoints
+        );
+
+        // The surrounding pure exports are themselves not side effects.
+        assert_eq!(cjs_export_side_effects(&items, "a"), Some(false));
+        assert_eq!(cjs_export_side_effects(&items, "b"), Some(false));
+
+        Ok(())
+    })
+    .unwrap();
+}
+
+/// Pure, unused exports (`exports.foo = 1; exports.bar = 2;`) must not force
+/// module evaluation: neither synthesized export const is a module-evaluation
+/// side effect, so both can be dropped when unused.
+#[test]
+fn cjs_pure_unused_exports_are_not_module_evaluation_side_effects() {
+    testing::run_test(false, |cm, _handler| {
+        let (_g, items) = analyze_cjs_source(&cm, "exports.foo = 1; exports.bar = 2;");
+
+        assert_eq!(
+            cjs_export_side_effects(&items, "foo"),
+            Some(false),
+            "a pure export const must not be a module-evaluation side effect",
+        );
+        assert_eq!(
+            cjs_export_side_effects(&items, "bar"),
+            Some(false),
+            "a pure export const must not be a module-evaluation side effect",
+        );
+
+        Ok(())
+    })
+    .unwrap();
 }

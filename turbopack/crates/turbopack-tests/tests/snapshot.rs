@@ -106,6 +106,8 @@ struct SnapshotOptions {
     chunk_loading_global: String,
     #[serde(default)]
     enable_rust_react_compiler: bool,
+    #[serde(default)]
+    cjs_tree_shaking: bool,
 }
 
 #[derive(Debug, Deserialize, Default)]
@@ -141,6 +143,7 @@ impl Default for SnapshotOptions {
             source_map_source_type: SourceMapSourceType::default(),
             chunk_loading_global: default_chunk_loading_global(),
             enable_rust_react_compiler: false,
+            cjs_tree_shaking: false,
         }
     }
 }
@@ -411,6 +414,7 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
                 enable_rust_react_compiler: options
                     .enable_rust_react_compiler
                     .then_some(ReactCompilerCompilationMode::Infer),
+                cjs_tree_shaking: options.cjs_tree_shaking,
                 ..Default::default()
             },
             environment: Some(env),

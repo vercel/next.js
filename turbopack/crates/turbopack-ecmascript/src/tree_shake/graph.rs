@@ -35,7 +35,9 @@ use super::{
 };
 use crate::{
     magic_identifier::{self, MAGIC_IDENTIFIER_DEFAULT_EXPORT_ATOM},
+    references::exports::cjs::CjsExportFormat,
     tree_shake::optimizations::GraphOptimizer,
+    utils::unparen,
 };
 
 /// The id of an item
@@ -868,13 +870,153 @@ impl DepGraph {
         comments: &dyn Comments,
         unresolved_ctxt: SyntaxContext,
         top_level_ctxt: SyntaxContext,
+        // For a statically-analyzable CommonJS module (structurally wrapped as
+        // a `Module`), the analyzer's per-statement export map: recognized
+        // top-level export writes and `__esModule` marker statements, keyed by
+        // statement index (see `analyze_cjs_exports`). Empty for ESM modules.
+        mut cjs_exports: FxHashMap<usize, CjsExportFormat>,
     ) -> (Vec<ItemId>, FxHashMap<ItemId, ItemData>) {
         let top_level_vars = collect_top_level_decls(module);
         let mut exports = vec![];
         let mut items = FxHashMap::default();
         let mut ids = vec![];
 
+        struct CjsExportWrites {
+            pairs: Vec<(Atom, Expr)>,
+            from_object_literal: bool,
+        }
+
+        let is_static_cjs = !cjs_exports.is_empty();
+
         for (index, item) in module.body.iter().enumerate() {
+            if is_static_cjs {
+                // If the CJS analyzer recognized this statement (by its index) as an
+                // export write or the `__esModule` marker, handle it here; otherwise
+                // fall through to the normal item handling below.
+                //
+                // The `__esModule` marker statement is dropped.
+                //
+                // Each recognized export write becomes, per name, a synthesized
+                // `const __TURBOPACK_cjs_export__NAME = EXPR` item (the value) plus
+                // an `export { __TURBOPACK_cjs_export__NAME as NAME }` item — the
+                // latter created from the `exports` list by the shared loop at the
+                // end of `init`, exactly as for an ESM `export const`:
+                //
+                //     exports.foo = 1               →  const __TURBOPACK_cjs_export__foo = 1
+                //                                      export { __TURBOPACK_cjs_export__foo as foo
+                // }
+                //
+                //     module.exports = { a, b: 2 }  →  const __TURBOPACK_cjs_export__a = a
+                //                                      export { __TURBOPACK_cjs_export__a as a }
+                //                                      const __TURBOPACK_cjs_export__b = 2
+                //                                      export { __TURBOPACK_cjs_export__b as b }
+                let exports_to_synthesize = match cjs_exports.remove(&index) {
+                    Some(CjsExportFormat::EsModuleMarker) => continue,
+                    Some(CjsExportFormat::Named(name)) => {
+                        // The export map is built from these same statements, so
+                        // the shape is guaranteed.
+                        let rhs = if let ModuleItem::Stmt(Stmt::Expr(ExprStmt { expr, .. })) = item
+                            && let Expr::Assign(assign) = unparen(expr)
+                        {
+                            (*assign.right).clone()
+                        } else {
+                            unreachable!("CJS exports map entry does not match its statement")
+                        };
+                        Some(CjsExportWrites {
+                            pairs: vec![(name, rhs)],
+                            from_object_literal: false,
+                        })
+                    }
+                    Some(CjsExportFormat::ObjectLiteral(pairs)) => Some(CjsExportWrites {
+                        pairs,
+                        from_object_literal: true,
+                    }),
+                    Some(CjsExportFormat::Unsafe) | None => None,
+                };
+                if let Some(CjsExportWrites {
+                    pairs,
+                    from_object_literal,
+                }) = exports_to_synthesize
+                {
+                    for (pos, (export_name, value)) in pairs.into_iter().enumerate() {
+                        // Find the variables the value uses: read/written now, and
+                        // captured by its closures.
+                        let mut vars = ids_used_by_ignoring_nested(
+                            &value,
+                            unresolved_ctxt,
+                            top_level_ctxt,
+                            &top_level_vars,
+                        );
+                        let captured_ids = ids_captured_by(
+                            &value,
+                            unresolved_ctxt,
+                            top_level_ctxt,
+                            &top_level_vars,
+                        );
+
+                        // Name the binding that holds this export's value.
+                        let local = Ident::new(
+                            format!("__TURBOPACK_cjs_export__{export_name}").into(),
+                            DUMMY_SP,
+                            top_level_ctxt,
+                        );
+                        vars.write.insert(local.to_id());
+
+                        // A pure value makes the write droppable when the name is
+                        // unused; an impure one keeps it as a module-evaluation
+                        // side effect so it always runs.
+                        let side_effects = vars.found_unresolved
+                            || value.may_have_side_effects(ExprCtx {
+                                unresolved_ctxt,
+                                is_unresolved_ref_safe: false,
+                                in_strict: false,
+                                remaining_depth: 4,
+                            });
+
+                        // Build the `const __TURBOPACK_cjs_export__NAME = value` item.
+                        let data = ItemData {
+                            var_decls: [local.to_id()].into_iter().collect(),
+                            read_vars: vars.read,
+                            eventual_read_vars: captured_ids.read,
+                            write_vars: vars.write,
+                            eventual_write_vars: captured_ids.write,
+                            content: ModuleItem::Stmt(Stmt::Decl(Decl::Var(Box::new(VarDecl {
+                                span: DUMMY_SP,
+                                kind: VarDeclKind::Const,
+                                decls: vec![VarDeclarator {
+                                    span: DUMMY_SP,
+                                    name: local.clone().into(),
+                                    init: Some(Box::new(value)),
+                                    definite: false,
+                                }],
+                                ..Default::default()
+                            })))),
+                            side_effects,
+                            ..Default::default()
+                        };
+
+                        // Add it to the graph under a unique id.
+                        let id = ItemId::Item {
+                            index,
+                            // Distinct `VarDeclarator(pos)` kinds keep item ids
+                            // unique for the multiple properties of one
+                            // `module.exports = { … }` statement.
+                            kind: if from_object_literal {
+                                ItemIdItemKind::VarDeclarator(pos as u32)
+                            } else {
+                                ItemIdItemKind::Normal
+                            },
+                        };
+                        ids.push(id.clone());
+                        items.insert(id, data);
+
+                        // Register the binding as export `export_name`.
+                        exports.push((local.to_id(), export_name));
+                    }
+                    continue;
+                }
+            }
+
             // Fill exports
             if let ModuleItem::ModuleDecl(item) = item {
                 match item {

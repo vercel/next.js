@@ -185,6 +185,11 @@ async fn apply_module_type(
             }
 
             let module = builder.build().to_resolved().await?;
+            // Use the module's own (path-scoped) tree shaking mode rather than the
+            // context-wide one: `ModuleOptions::new` may have switched to a different
+            // options context for this path (e.g. foreign code in node_modules), and
+            // part selection must match the mode the module is analyzed with.
+            let tree_shaking_mode = options.await?.tree_shaking_mode;
             if matches!(reference_type, ReferenceType::Runtime) {
                 ResolvedVc::upcast(module)
             } else {
@@ -227,6 +232,14 @@ async fn apply_module_type(
                                         )
                                         .await?
                                     }
+                                    // A ModuleFragments importer may request the exports of a
+                                    // module that itself uses reexports-only tree shaking (e.g.
+                                    // user code importing foreign code when the two use different
+                                    // modes). The module is not split into fragments, so its
+                                    // exports are the facade, like a part-less reference.
+                                    ModulePart::Exports => Vc::upcast(
+                                        EcmascriptModuleFacadeModule::new(Vc::upcast(*module)),
+                                    ),
                                     _ => bail!(
                                         "Invalid module part \"{}\" for reexports only tree \
                                          shaking mode",
