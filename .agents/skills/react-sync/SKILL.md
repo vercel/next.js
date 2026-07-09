@@ -45,14 +45,6 @@ Use this skill when syncing a local React checkout into this Next.js checkout.
    checkouts. Rebuild Next.js when required, then run the focused test command
    matching the changed behavior.
 
-## Build variants
-
-The script builds stable first and moves its `node_modules` to
-`build/oss-stable`. It then performs an experimental partial build and moves
-its `node_modules` to `build/oss-experimental`. Do not replace it with a
-generic React build: Next.js needs both release channels and the listed server,
-client, compiler, scheduler, webpack, and Turbopack bundles.
-
 ## Related Skills
 
 - `$react-vendoring` - vendored React runtime and type boundaries after syncing.
