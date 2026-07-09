@@ -162,6 +162,7 @@ pub async fn get_client_resolve_options_context(
         .await?;
     let next_client_resolved_map =
         get_next_client_resolved_map(project_path.clone(), project_path.clone(), *mode.await?)
+            .await?
             .to_resolved()
             .await?;
     let mut custom_conditions: Vec<_> = mode.await?.custom_resolve_conditions().collect();
@@ -363,7 +364,6 @@ pub async fn get_client_module_options_context(
             esm_url_rewrite_behavior: Some(UrlRewriteBehavior::Relative),
             enable_typeof_window_inlining: Some(TypeofWindow::Object),
             enable_import_as_bytes: *next_config.turbopack_import_type_bytes().await?,
-            enable_import_as_text: *next_config.turbopack_import_type_text().await?,
             source_maps,
             infer_module_side_effects: *next_config.turbopack_infer_module_side_effects().await?,
             preset_env_config,
@@ -481,6 +481,9 @@ pub struct ClientChunkingContextOptions {
     pub cross_origin: Vc<CrossOrigin>,
     pub chunk_loading_global: Vc<Option<RcStr>>,
     pub style_groups_algorithm: StyleGroupsAlgorithm,
+    pub chunking_first_page_load_priority: Option<u32>,
+    pub chunking_priority_boost_percent: Option<u32>,
+    pub chunking_request_cost: Option<u64>,
 }
 
 /// Next.js' chunk-load retry policy for the Turbopack browser runtime.
@@ -519,6 +522,9 @@ pub async fn get_client_chunking_context(
         cross_origin,
         chunk_loading_global,
         style_groups_algorithm,
+        chunking_first_page_load_priority,
+        chunking_priority_boost_percent,
+        chunking_request_cost,
     } = options;
 
     let next_mode = mode.await?;
@@ -583,6 +589,9 @@ pub async fn get_client_chunking_context(
                     min_chunk_size: 50_000,
                     max_chunk_count_per_group: 40,
                     max_merge_chunk_size: 200_000,
+                    first_page_load_priority: chunking_first_page_load_priority,
+                    priority_boost_percent: chunking_priority_boost_percent,
+                    request_cost: chunking_request_cost,
                     ..Default::default()
                 },
             )
@@ -597,6 +606,64 @@ pub async fn get_client_chunking_context(
             .chunk_content_hashing(ContentHashing::Direct { length: 13 })
             .module_merging(*scope_hoisting.await?);
     }
+
+    Ok(Vc::upcast(builder.build()))
+}
+
+#[turbo_tasks::task_input(contains_unresolved_vcs)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash, TraceRawVcs, Encode, Decode)]
+pub struct ServiceWorkerChunkingContextOptions {
+    pub mode: Vc<NextMode>,
+    pub root_path: FileSystemPath,
+    pub output_root: FileSystemPath,
+    pub output_root_to_root_path: RcStr,
+    pub environment: Vc<Environment>,
+    pub minify: Vc<bool>,
+    pub source_maps: Vc<SourceMapsType>,
+    pub no_mangling: Vc<bool>,
+    pub hash_salt: ResolvedVc<RcStr>,
+}
+
+#[turbo_tasks::function]
+pub async fn get_service_worker_chunking_context(
+    options: ServiceWorkerChunkingContextOptions,
+) -> Result<Vc<Box<dyn ChunkingContext>>> {
+    let ServiceWorkerChunkingContextOptions {
+        mode,
+        root_path,
+        output_root,
+        output_root_to_root_path,
+        environment,
+        minify,
+        source_maps,
+        no_mangling,
+        hash_salt,
+    } = options;
+
+    let next_mode = mode.await?;
+    let builder = BrowserChunkingContext::builder(
+        root_path,
+        output_root.clone(),
+        output_root_to_root_path,
+        output_root.clone(),
+        output_root.join("chunks")?,
+        output_root.join("media")?,
+        environment.to_resolved().await?,
+        next_mode.runtime_type(),
+    )
+    .current_chunk_method(CurrentChunkMethod::StringLiteral)
+    .asset_suffix(AssetSuffix::None.resolved_cell())
+    .minify_type(if *minify.await? {
+        MinifyType::Minify {
+            mangle: (!*no_mangling.await?).then_some(MangleType::OptimalSize),
+        }
+    } else {
+        MinifyType::NoMinify
+    })
+    .source_maps(*source_maps.await?)
+    .hash_salt(hash_salt)
+    .single_chunk()
+    .await?;
 
     Ok(Vc::upcast(builder.build()))
 }

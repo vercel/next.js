@@ -26,7 +26,7 @@ use turbopack_core::{
     module::Module,
     module_graph::{
         GraphEntries, ModuleGraph,
-        chunk_group_info::{ChunkGroup, ChunkGroupEntry},
+        chunk_group_info::{ChunkGroup, ChunkGroupEntry, EntryHeuristics},
     },
     output::{OutputAsset, OutputAssets},
     reference_type::{InnerAssets, ReferenceType},
@@ -422,15 +422,19 @@ pub struct EvaluateEntries {
 impl EvaluateEntries {
     #[turbo_tasks::function]
     pub async fn graph_entries(self: Vc<Self>) -> Result<Vc<GraphEntries>> {
-        Ok(GraphEntries::from_chunk_groups(vec![ChunkGroupEntry::Entry(
-            self.await?
-                .entries
-                .iter()
-                .cloned()
-                .map(ResolvedVc::upcast)
-                .collect(),
-        )])
-        .cell())
+        Ok(
+            GraphEntries::from_chunk_groups(vec![ChunkGroupEntry::Entry {
+                modules: self
+                    .await?
+                    .entries
+                    .iter()
+                    .cloned()
+                    .map(ResolvedVc::upcast)
+                    .collect(),
+                heuristics: EntryHeuristics::default(),
+            }])
+            .cell(),
+        )
     }
 }
 

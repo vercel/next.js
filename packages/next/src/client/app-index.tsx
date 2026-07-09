@@ -217,6 +217,8 @@ if (
   typeof window !== 'undefined'
 ) {
   const { createDebugChannel } =
+    // TODO(browser-variant): migrate to a .ts/.browser.ts split so the browser bundle drops the server branch; see scripts/generate-browser-variant-aliases.mjs
+    // ast-grep-ignore: no-typeof-window-require-tsx
     require('./dev/debug-channel') as typeof import('./dev/debug-channel')
 
   debugChannel = createDebugChannel(undefined)

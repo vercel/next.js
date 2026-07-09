@@ -1,6 +1,7 @@
-import { isNextDev, isNextStart, nextTestSetup } from 'e2e-utils'
+import { FileRef, isNextDev, isNextStart, nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 import { NEXT_RSC_UNION_QUERY } from 'next/dist/client/components/app-router-headers'
+import path from 'path'
 
 import { SavedSpan } from './constants'
 import { type Collector, connectCollector } from './collector'
@@ -12,16 +13,22 @@ const EXTERNAL = {
 
 const COLLECTOR_PORT = 9001
 
-describe.each(
-  [
-    { name: 'default' },
-    isNextStart && {
-      name: 'direct entrypoints',
-      useDirectEntrypointHandler: true,
-    },
-  ].filter(Boolean)
-)('opentelemetry - $name', ({ useDirectEntrypointHandler }) => {
-  const { next, skipped, isNextDev } = nextTestSetup({
+function setup({ useDirectEntrypointHandler, useNodeMiddleware }) {
+  let collector: Collector
+
+  function getCollector(): Collector {
+    return collector
+  }
+
+  beforeEach(async () => {
+    collector = await connectCollector({ port: COLLECTOR_PORT })
+  })
+
+  afterEach(async () => {
+    await collector.shutdown()
+  })
+
+  let next = nextTestSetup({
     files: __dirname,
     skipDeployment: true,
     dependencies: require('./package.json').dependencies,
@@ -47,25 +54,37 @@ describe.each(
             NODE_ENV: 'production',
           },
         }),
+    overrideFiles: useNodeMiddleware
+      ? {
+          'middleware.ts': new FileRef(
+            path.join(__dirname, 'middleware-node.ts')
+          ),
+        }
+      : undefined,
+  })
+  return { next, getCollector }
+}
+
+describe.each(
+  [
+    { name: 'default' },
+    isNextStart && {
+      name: 'direct entrypoints',
+      useDirectEntrypointHandler: true,
+    },
+  ].filter(Boolean)
+)('opentelemetry - $name', ({ useDirectEntrypointHandler }) => {
+  const {
+    next: { next, skipped, isNextDev },
+    getCollector,
+  } = setup({
+    useDirectEntrypointHandler,
+    useNodeMiddleware: false,
   })
 
   if (skipped) {
     return
   }
-
-  let collector: Collector
-
-  function getCollector(): Collector {
-    return collector
-  }
-
-  beforeEach(async () => {
-    collector = await connectCollector({ port: COLLECTOR_PORT })
-  })
-
-  afterEach(async () => {
-    await collector.shutdown()
-  })
 
   // Edge runtime is currently not implemented in custom-entrypoint-server.ts
   const itEdge = useDirectEntrypointHandler ? it.skip : it
@@ -521,6 +540,57 @@ describe.each(
             ])
           })
 
+          it('should record status code for failing handler', async () => {
+            await next.fetch('/api/app/param/error', env.fetchInit)
+
+            await expectTrace(getCollector(), [
+              {
+                name: 'GET /api/app/[param]/error',
+                attributes: {
+                  'http.method': 'GET',
+                  'http.route': '/api/app/[param]/error',
+                  'http.status_code': 500,
+                  'http.target': '/api/app/param/error',
+                  'next.route': '/api/app/[param]/error',
+                  'next.span_name': 'GET /api/app/[param]/error',
+                  'next.span_type': 'BaseServer.handleRequest',
+                },
+                kind: 1,
+                status: { code: 2 },
+                traceId: env.span.traceId,
+                parentId: env.span.rootParentId,
+                spans: [
+                  {
+                    name: 'executing api route (app) /api/app/[param]/error',
+                    attributes: {
+                      'next.route': '/api/app/[param]/error',
+                      'next.span_name':
+                        'executing api route (app) /api/app/[param]/error',
+                      'next.span_type': 'AppRouteRouteHandlers.runHandler',
+                    },
+                    kind: 0,
+                    status: { code: 2, message: 'foobar' },
+                  },
+                  ...(useDirectEntrypointHandler
+                    ? []
+                    : [
+                        {
+                          name: 'resolve page components',
+                          attributes: {
+                            'next.route': '/api/app/[param]/error',
+                            'next.span_name': 'resolve page components',
+                            'next.span_type':
+                              'NextNodeServer.findPageComponents',
+                          },
+                          kind: 0,
+                          status: { code: 0 },
+                        },
+                      ]),
+                ],
+              },
+            ])
+          })
+
           itEdge(
             'should handle route handlers in app router on edge',
             async () => {
@@ -549,41 +619,29 @@ describe.each(
             }
           )
 
-          itEdge('should trace middleware', async () => {
-            await next.fetch('/behind-middleware', env.fetchInit)
+          itEdge('should handle failing handler on edge', async () => {
+            await next.fetch('/api/app/param/error/edge', env.fetchInit)
 
-            await expectTrace(getCollector(), [
-              {
-                runtime: 'edge',
-                traceId: env.span.traceId,
-                parentId: env.span.rootParentId,
-                name: 'middleware GET',
-                attributes: {
-                  'http.method': 'GET',
-                  'http.target': '/behind-middleware',
-                  'next.span_name': 'middleware GET',
-                  'next.span_type': 'Middleware.execute',
+            await expectTrace(
+              getCollector(),
+              [
+                {
+                  runtime: 'edge',
+                  traceId: env.span.traceId,
+                  parentId: env.span.rootParentId,
+                  name: 'executing api route (app) /api/app/[param]/error/edge',
+                  attributes: {
+                    'next.route': '/api/app/[param]/error/edge',
+                    'next.span_name':
+                      'executing api route (app) /api/app/[param]/error/edge',
+                    'next.span_type': 'AppRouteRouteHandlers.runHandler',
+                  },
+                  kind: 0,
+                  status: { code: 2 },
                 },
-                status: { code: 0 },
-                spans: [],
-              },
-
-              {
-                runtime: 'nodejs',
-                traceId: env.span.traceId,
-                parentId: env.span.rootParentId,
-                name: 'GET /behind-middleware',
-                attributes: {
-                  'http.method': 'GET',
-                  'http.route': '/behind-middleware',
-                  'http.status_code': 200,
-                  'http.target': '/behind-middleware',
-                  'next.route': '/behind-middleware',
-                  'next.span_name': 'GET /behind-middleware',
-                  'next.span_type': 'BaseServer.handleRequest',
-                },
-              },
-            ])
+              ],
+              true
+            )
           })
 
           it('should handle error in RSC', async () => {
@@ -1304,10 +1362,196 @@ describe.each(
               true
             )
           })
+
+          it('should handle failing api routes in pages', async () => {
+            await next.fetch('/api/pages/param/error', env.fetchInit)
+
+            await expectTrace(getCollector(), [
+              {
+                name: 'GET /api/pages/[param]/error',
+                attributes: {
+                  'http.method': 'GET',
+                  'http.route': '/api/pages/[param]/error',
+                  'http.status_code': 500,
+                  'http.target': '/api/pages/param/error',
+                  'next.route': '/api/pages/[param]/error',
+                  'next.span_name': 'GET /api/pages/[param]/error',
+                  'next.span_type': 'BaseServer.handleRequest',
+                },
+                kind: 1,
+                status: { code: 2 },
+                traceId: env.span.traceId,
+                parentId: env.span.rootParentId,
+                spans: [
+                  {
+                    name: 'executing api route (pages) /api/pages/[param]/error',
+                    attributes: {
+                      'next.span_name':
+                        'executing api route (pages) /api/pages/[param]/error',
+                      'next.span_type': 'Node.runHandler',
+                    },
+                    kind: 0,
+                    // TODO this difference is odd
+                    status: { code: isNextDev ? 2 : 0 },
+                  },
+                  ...(isNextDev
+                    ? [
+                        {
+                          name: 'render route (pages) /_error',
+                          attributes: {
+                            'next.route': '/_error',
+                            'next.span_name': 'render route (pages) /_error',
+                            'next.span_type': 'Render.renderDocument',
+                          },
+                          kind: 0,
+                          status: { code: 0 },
+                        },
+
+                        {
+                          name: 'resolve page components',
+                          attributes: {
+                            'next.route': '/_error',
+                            'next.span_name': 'resolve page components',
+                            'next.span_type':
+                              'NextNodeServer.findPageComponents',
+                          },
+                          kind: 0,
+                          status: { code: 0 },
+                        },
+                      ]
+                    : []),
+                ],
+              },
+            ])
+          })
+
+          itEdge(
+            'should handle failing api routes in pages on edge',
+            async () => {
+              await next.fetch('/api/pages/param/error-edge', env.fetchInit)
+
+              await expectTrace(
+                getCollector(),
+                [
+                  {
+                    runtime: 'edge',
+                    traceId: env.span.traceId,
+                    parentId: env.span.rootParentId,
+                    name: 'executing api route (pages) /api/pages/[param]/error-edge',
+                    attributes: {
+                      'next.span_name':
+                        'executing api route (pages) /api/pages/[param]/error-edge',
+                      'next.span_type': 'Node.runHandler',
+                    },
+                    kind: 0,
+                    status: { code: 2 },
+                  },
+                ],
+                true
+              )
+            }
+          )
         })
       }
     )
   }
+})
+
+describe.each(
+  [
+    { name: 'default', useDirectEntrypointHandler: false },
+    isNextStart && {
+      name: 'direct entrypoints',
+      useDirectEntrypointHandler: true,
+    },
+  ].filter(Boolean)
+)('opentelemetry - middleware $name', ({ useDirectEntrypointHandler }) => {
+  describe.each(['edge', 'nodejs'])('%s runtime', (runtime) => {
+    const {
+      next: { next, skipped },
+      getCollector,
+    } = setup({
+      useDirectEntrypointHandler,
+      useNodeMiddleware: runtime === 'nodejs',
+    })
+
+    if (skipped) {
+      return
+    }
+
+    if (useDirectEntrypointHandler && runtime === 'edge') {
+      it.skip('direct entrypoint handler is not implemented for edge runtime', () => {})
+      return
+    }
+
+    for (const env of [
+      {
+        name: 'root context',
+        fetchInit: undefined,
+        span: {
+          traceId: '[trace-id]',
+          rootParentId: undefined,
+        },
+      },
+      {
+        name: 'incoming context propagation',
+        fetchInit: {
+          headers: {
+            traceparent: `00-${EXTERNAL.traceId}-${EXTERNAL.spanId}-01`,
+          },
+        },
+        span: {
+          traceId: EXTERNAL.traceId,
+          rootParentId: EXTERNAL.spanId,
+        },
+      },
+    ]) {
+      ;(process.env.__NEXT_CACHE_COMPONENTS ? describe.skip : describe)(
+        env.name,
+        () => {
+          it('should trace middleware', async () => {
+            await next.fetch('/behind-middleware', env.fetchInit)
+            let expected = [
+              {
+                runtime: runtime,
+                traceId: env.span.traceId,
+                parentId: env.span.rootParentId,
+                name: 'middleware GET',
+                attributes: {
+                  'http.method': 'GET',
+                  'http.target': '/behind-middleware',
+                  'next.span_name': 'middleware GET',
+                  'next.span_type': 'Middleware.execute',
+                },
+                status: { code: 0 },
+                spans: [],
+              },
+              {
+                runtime: 'nodejs',
+                traceId: env.span.traceId,
+                parentId: env.span.rootParentId,
+                name: 'GET /behind-middleware',
+                attributes: {
+                  'http.method': 'GET',
+                  'http.route': '/behind-middleware',
+                  'http.status_code': 200,
+                  'http.target': '/behind-middleware',
+                  'next.route': '/behind-middleware',
+                  'next.span_name': 'GET /behind-middleware',
+                  'next.span_type': 'BaseServer.handleRequest',
+                },
+              },
+            ]
+            if (runtime === 'nodejs') {
+              // TODO unclear why this is reversed for Node.js runtime
+              expected.reverse()
+            }
+            await expectTrace(getCollector(), expected)
+          })
+        }
+      )
+    }
+  })
 })
 ;(process.env.__NEXT_CACHE_COMPONENTS ? describe.skip : describe)(
   'opentelemetry NEXT_OTEL_VERBOSE=1',

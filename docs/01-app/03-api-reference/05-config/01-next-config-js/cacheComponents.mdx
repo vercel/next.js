@@ -25,6 +25,8 @@ const nextConfig: NextConfig = {
 export default nextConfig
 ```
 
+> **Good to know**: Cache Components requires the Node.js runtime. Migrate any routes that set the deprecated `runtime = 'edge'` export, and note that other server-side JavaScript runtimes are not guaranteed to work. See [Migrating to Cache Components](/docs/app/guides/migrating-to-cache-components#runtime--edge).
+
 When `cacheComponents` is enabled, you can use the following cache functions and configurations:
 
 - The [`use cache` directive](/docs/app/api-reference/directives/use-cache)
