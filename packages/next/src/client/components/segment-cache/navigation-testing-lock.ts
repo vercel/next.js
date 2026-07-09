@@ -138,7 +138,10 @@ export type NavigationLockState = {
 let lockState: NavigationLockState | null = null
 
 export function getPreLockFetch(): typeof fetch | null {
-  return lockState !== null ? lockState.fetch : null
+  if (process.env.__NEXT_EXPOSE_TESTING_API && lockState !== null) {
+    return lockState.fetch
+  }
+  return null
 }
 
 /**
@@ -297,7 +300,7 @@ function releaseLock(): void {
  * NOTE: This override only affects environments where the Instant Navigation
  * Testing API is enabled. It has no impact on live production behavior.
  */
-export function globalFetchOverride(
+function globalFetchOverride(
   input: RequestInfo | URL,
   init?: RequestInit
 ): Promise<Response> {

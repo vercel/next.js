@@ -479,23 +479,12 @@ async function handleStatsWorkflow({ github, workflowRun, pr, phase }) {
     return
   }
 
-  if (workflowRun.conclusion === 'cancelled') {
-    const sha = pr.headSha || workflowRun.head_sha
-    const body = [
-      STATS_COMMENT_MARKER,
-      '## Stats cancelled',
-      '',
-      `Commit: ${sha}`,
-      `[View workflow run](${workflowRun.html_url})`,
-      '',
-    ].join('\n')
-
-    await github.upsertIssueComment(pr.number, STATS_COMMENT_MARKER, body, [
-      '## Stats from current PR',
-    ])
-    return
-  }
-
+  // Look for a stats block before reacting to the run conclusion. A single
+  // bundler timing out cancels its job and marks the whole run "cancelled", but
+  // the aggregate still emits stats for the bundlers that finished. Treating a
+  // cancelled run as "no data" up front would discard that partial comment, so
+  // we post whatever the aggregate produced first and only fall back to a
+  // cancelled/skipped notice when there is genuinely no block.
   const jobs = await github.listJobsForRunAttempt(
     workflowRun.id,
     workflowRun.run_attempt || 1
@@ -503,7 +492,15 @@ async function handleStatsWorkflow({ github, workflowRun, pr, phase }) {
   const candidates = jobs.filter((job) => /aggregate stats/i.test(job.name))
 
   for (const job of candidates) {
-    const logs = await github.downloadJobLogs(job.id)
+    let logs
+    try {
+      logs = await github.downloadJobLogs(job.id)
+    } catch (err) {
+      // A cancelled or skipped aggregate job may have no retrievable logs.
+      console.log(`Failed to download logs for job ${job.id}`, err)
+      continue
+    }
+
     const stats = extractDelimitedBlock(
       logs,
       '--stats start--',
@@ -531,11 +528,32 @@ async function handleStatsWorkflow({ github, workflowRun, pr, phase }) {
     return
   }
 
+  const sha = pr.headSha || workflowRun.head_sha
+
+  // No stats block. A cancelled conclusion here means the whole run was
+  // cancelled (superseded, or every bundler cancelled) rather than an
+  // individual bundler, since a partial run would have produced a block above.
+  if (workflowRun.conclusion === 'cancelled') {
+    console.log('No stats block found and the run was cancelled.')
+    const body = [
+      STATS_COMMENT_MARKER,
+      '## Stats cancelled',
+      '',
+      `Commit: ${sha}`,
+      `[View workflow run](${workflowRun.html_url})`,
+      '',
+    ].join('\n')
+
+    await github.upsertIssueComment(pr.number, STATS_COMMENT_MARKER, body, [
+      '## Stats from current PR',
+    ])
+    return
+  }
+
   console.log(
     'No stats block found in the completed stats workflow. Assuming stats were skipped.'
   )
 
-  const sha = pr.headSha || workflowRun.head_sha
   const body = [
     STATS_COMMENT_MARKER,
     '## Stats skipped',
