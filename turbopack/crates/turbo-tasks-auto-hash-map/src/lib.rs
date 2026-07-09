@@ -1,6 +1,8 @@
+pub mod inline_vec;
 pub mod map;
 pub mod set;
 
+pub use inline_vec::InlineVec;
 pub use map::AutoMap;
 pub use set::AutoSet;
 
