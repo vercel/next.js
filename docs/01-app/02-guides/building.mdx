@@ -16,6 +16,22 @@ related:
 
 Run `next build` to compile your app for production: optimized bundles, prerendered pages, and a route table that shows how each URL is served (fully static, partial prerender with streaming, dynamic on demand, or a combination).
 
+```bash package="pnpm"
+pnpm build
+```
+
+```bash package="npm"
+npm run build
+```
+
+```bash package="yarn"
+yarn build
+```
+
+```bash package="bun"
+bun run build
+```
+
 ## What `next build` does
 
 `next build` runs in these phases:
@@ -160,7 +176,7 @@ When there are more paths than fit in the preview, Next.js prints a short list a
 
 > **Good to know**: The shell for unlisted params is available from Next.js 16.3. Earlier versions wait for a full server render before sending the response for unlisted params.
 
-Routes that use [`cacheLife`](/docs/app/api-reference/functions/cacheLife) also show `Revalidate` and `Expire` columns. These cached, revalidating routes are covered in [Incremental Static Regeneration with Cache Components](/docs/app/guides/incremental-static-regeneration-cache-components):
+Cached routes also show `Revalidate` and `Expire` columns. This applies even without an explicit [`cacheLife`](/docs/app/api-reference/functions/cacheLife) call, since cached content uses the [`default` profile](/docs/app/api-reference/functions/cacheLife#preset-cache-profiles). These cached, revalidating routes are covered in [Incremental Static Regeneration with Cache Components](/docs/app/guides/incremental-static-regeneration-cache-components):
 
 ```bash filename="Terminal"
 Route (app)                Revalidate  Expire
