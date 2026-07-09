@@ -83,6 +83,7 @@ use crate::{
     },
     project::Project,
     route::{Endpoint, EndpointOutput, EndpointOutputPaths, ModuleGraphs, Route, Routes},
+    service_worker::service_worker_output_assets,
     sri_manifest::get_sri_manifest_asset,
 };
 
@@ -1323,6 +1324,18 @@ impl PageEndpoint {
                 let client_chunk_group = self.client_chunk_group();
                 client_assets.extend(client_chunk_group.all_assets().await?.iter().copied());
                 let client_chunks = *client_chunk_group.await?.assets;
+
+                // Compile any service workers registered via `navigator.serviceWorker.register(new
+                // URL(...), { scope })` reachable from this page's client graph.
+                client_assets.extend(
+                    service_worker_output_assets(
+                        this.pages_project.project(),
+                        self.client_module_graph(),
+                    )
+                    .await?
+                    .iter()
+                    .copied(),
+                );
 
                 let build_manifest = self.build_manifest(client_chunks).to_resolved().await?;
                 let page_loader = self.page_loader(client_chunks).to_resolved().await?;
