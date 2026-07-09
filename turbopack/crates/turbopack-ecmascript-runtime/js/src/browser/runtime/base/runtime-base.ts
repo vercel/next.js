@@ -22,6 +22,9 @@ declare var TURBOPACK_NEXT_CHUNK_URLS: ChunkUrl[] | undefined
 declare var CHUNK_BASE_PATH: string
 declare var ASSET_SUFFIX: string
 declare var CROSS_ORIGIN: 'anonymous' | 'use-credentials' | null
+declare var CHUNK_LOAD_RETRY_MAX_ATTEMPTS: number
+declare var CHUNK_LOAD_RETRY_BASE_DELAY_MS: number
+declare var CHUNK_LOAD_RETRY_MAX_JITTER_MS: number
 
 interface TurbopackBrowserBaseContext<M> extends TurbopackBaseContext<M> {
   R: ResolvePathFromModule

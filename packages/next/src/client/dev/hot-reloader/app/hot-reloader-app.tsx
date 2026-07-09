@@ -37,6 +37,7 @@ import {
   type GlobalErrorState,
 } from '../../../components/app-router-instance'
 import { InvariantError } from '../../../../shared/lib/invariant-error'
+import { markErrorAsAlreadyLoggedOnServer } from '../../../../next-devtools/shared/forward-logs-shared'
 import { getOrCreateDebugChannelReadableWriterPair } from '../../debug-channel'
 // TODO: Explicitly import from client.browser (doesn't work with Webpack).
 // eslint-disable-next-line import/no-extraneous-dependencies
@@ -541,6 +542,10 @@ export function processMessage(
                 configurable: true,
               })
             }
+            // These errors originated on the server and were already logged
+            // there. Mark them so the browser-to-terminal log forwarding
+            // doesn't replay them back to the CLI as duplicates.
+            markErrorAsAlreadyLoggedOnServer(error)
             console.error(error)
           }
         },

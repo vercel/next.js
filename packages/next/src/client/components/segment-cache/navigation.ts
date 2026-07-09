@@ -46,6 +46,7 @@ import { ScrollBehavior } from '../router-reducer/router-reducer-types'
 import { computeChangedPath } from '../router-reducer/compute-changed-path'
 import { isJavaScriptURLString } from '../../lib/javascript-url'
 import { UnknownDynamicStaleTime, computeDynamicStaleAt } from './bfcache'
+import { createLinkPrefetchPartialError } from '../../../shared/lib/instant-messages'
 
 /**
  * Navigate to a new URL, using the Segment Cache to construct a response.
@@ -73,7 +74,7 @@ export function navigate(
   // prefetch task has been initiated before proceeding with the navigation.
   // This guarantees that segment data requests are at least pending, even
   // for routes that already have a cached route tree. Without this, the
-  // static shell might be incomplete because some segments were never
+  // shell might be incomplete because some segments were never
   // requested.
   if (process.env.__NEXT_EXPOSE_TESTING_API) {
     const { isNavigationLocked } =
@@ -238,7 +239,8 @@ export function navigateToKnownRoute(
   // In these cases, if a mismatch occurs, we still mark the route as having a
   // dynamic rewrite by traversing the known route tree (see
   // dispatchRetryDueToTreeMismatch).
-  routeCacheEntry: FulfilledRouteCacheEntry | null
+  routeCacheEntry: FulfilledRouteCacheEntry | null,
+  signal: AbortSignal | undefined
 ): AppRouterState {
   // A version of navigate() that accepts the target route tree as an argument
   // rather than reading it from the prefetch cache.
@@ -255,21 +257,20 @@ export function navigateToKnownRoute(
     // where we don't prefetch, the warning only appears when you actually
     // navigate to the route — existing apps with many `prefetch={true}` links
     // aren't flooded with warnings the moment they enable Cache Components.
+    //
+    // The warning is suppressed if any segment on the target route exports
+    // `instant = false`, which is the explicit API for opting a route out of
+    // this validation.
     const link = getLinkForCurrentNavigation()
     if (
       link !== null &&
       link.fetchStrategy === FetchStrategy.Full &&
       (navigationSeed.routeTree.prefetchHints &
-        PrefetchHint.SubtreeHasPartialPrefetching) ===
+        (PrefetchHint.SubtreeHasPartialPrefetching |
+          PrefetchHint.SubtreeHasInstantFalse)) ===
         0
     ) {
-      const error = new Error(
-        `A <Link prefetch={true}> navigated to "${url.pathname}", but Partial ` +
-          `Prefetching is not enabled for that route, so its dynamic data was ` +
-          `included in the prefetch. Enable Partial Prefetching app-wide by ` +
-          `setting \`partialPrefetching: true\` in next.config, or per-route by ` +
-          `exporting \`const prefetch = 'partial'\` from the page or layout.`
-      )
+      const error = createLinkPrefetchPartialError(url.pathname)
       const ownerStack = 'ownerStack' in link ? link.ownerStack : undefined
       if (ownerStack === undefined) {
         console.error(
@@ -288,6 +289,21 @@ export function navigateToKnownRoute(
       console.error(error)
     }
   }
+
+  // Instant Navigation Testing API: when the lock is held, restrict segment
+  // reads to shell entries if the target route would only have prefetched
+  // its shell.
+  let restrictToShell = false
+  if (process.env.__NEXT_EXPOSE_TESTING_API) {
+    const { shouldRestrictNavigationToShell } =
+      require('./navigation-testing-lock') as typeof import('./navigation-testing-lock')
+    const link = getLinkForCurrentNavigation()
+    restrictToShell = shouldRestrictNavigationToShell(
+      navigationSeed.routeTree.prefetchHints,
+      link !== null ? link.fetchStrategy : FetchStrategy.PPR
+    )
+  }
+
   const accumulation: NavigationRequestAccumulation = {
     separateRefreshUrls: null,
     scrollRef: null,
@@ -324,7 +340,8 @@ export function navigateToKnownRoute(
     navigationSeed.head,
     navigationSeed.dynamicStaleAt,
     isSamePageNavigation,
-    accumulation
+    accumulation,
+    restrictToShell
   )
   if (task !== null) {
     if (freshnessPolicy !== FreshnessPolicy.Gesture) {
@@ -336,7 +353,8 @@ export function navigateToKnownRoute(
         accumulation,
         routeCacheEntry,
         navigateType,
-        navigationLock
+        navigationLock,
+        signal
       )
     }
     return completeSoftNavigation(
@@ -399,7 +417,9 @@ function navigateUsingPrefetchedRouteTree(
     navigateType,
     navigationLock,
     null,
-    route
+    route,
+    // Not an HMR refresh, so there's no request generation to cancel.
+    undefined
   )
 }
 
@@ -537,6 +557,7 @@ async function navigateToUnknownRoute(
             staticStageResponse.f,
             buildId,
             staticStageResponse.h,
+            staticStageResponse.r ?? null,
             staleAt,
             currentFlightRouterState,
             renderedSearch,
@@ -565,6 +586,7 @@ async function navigateToUnknownRoute(
               processed.buildId,
               processed.isResponsePartial,
               processed.headVaryParams,
+              processed.rootVaryParamsIterable,
               processed.staleAt,
               processed.navigationSeed,
               null
@@ -613,7 +635,9 @@ async function navigateToUnknownRoute(
     // came directly from the server. If a mismatch occurs during dynamic data
     // fetch, the retry handler will traverse the known route tree to mark the
     // entry as having a dynamic rewrite.
-    null
+    null,
+    // Not an HMR refresh, so there's no request generation to cancel.
+    undefined
   )
 }
 
@@ -1053,16 +1077,25 @@ async function ensurePrefetchThenNavigate(
 
   const cacheKey = createCacheKey(url.href, nextUrl)
 
-  await new Promise<void>((resolve) => {
-    schedulePrefetchTask(
-      cacheKey,
-      currentFlightRouterState,
-      fetchStrategy,
-      PrefetchPriority.Default,
-      null, // onInvalidate
-      resolve // _onComplete callback
-    )
-  })
+  // Create this navigation's "wait for prefetch to fulfill" state and schedule
+  // the prefetch as a locked-navigation prefetch. The prefetch's promise
+  // resolves once it has spawned every request and all of them have fulfilled,
+  // so the navigation below reads present data rather than a still-in-flight
+  // entry.
+  const { beginNavigationLockPrefetch } =
+    require('./navigation-testing-lock') as typeof import('./navigation-testing-lock')
+  const navigationLockPrefetch = beginNavigationLockPrefetch()
+  schedulePrefetchTask(
+    cacheKey,
+    currentFlightRouterState,
+    fetchStrategy,
+    PrefetchPriority.Default,
+    null, // onInvalidate
+    navigationLockPrefetch
+  )
+  if (navigationLockPrefetch !== null) {
+    await navigationLockPrefetch.promise
+  }
 
   // Prefetch is complete. Proceed with the normal navigation flow, which
   // will now find the route in the cache.

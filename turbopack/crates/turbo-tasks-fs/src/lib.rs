@@ -13,7 +13,6 @@
 #![allow(clippy::needless_return)] // tokio macro-generated code doesn't respect this
 #![allow(clippy::mutable_key_type)]
 
-pub mod attach;
 pub mod embed;
 pub mod glob;
 mod globset;
@@ -76,7 +75,6 @@ use turbo_unix_path::{
 };
 
 use crate::{
-    attach::AttachedFileSystem,
     glob::Glob,
     invalidation::Write,
     invalidator_map::InvalidatorMap,
@@ -939,7 +937,7 @@ impl FileSystem for DiskFileSystem {
         // require recomputing the content on cache restore — avoiding unnecessary downstream
         // recomputation.
         let content = content.persist().to_resolved().await?;
-        let content_hash = u128::from_le_bytes(hash_xxh3_hash128(&*content.await?));
+        let content_hash = hash_xxh3_hash128(&*content.await?);
 
         #[turbo_tasks::value(eq = "manual", cell = "new")]
         struct WriteEffect {
@@ -1164,7 +1162,7 @@ impl FileSystem for DiskFileSystem {
         }
         let full_path = this.to_sys_path(&fs_path);
 
-        let content_hash = u128::from_le_bytes(hash_xxh3_hash128(&*target.await?));
+        let content_hash = hash_xxh3_hash128(&*target.await?);
 
         #[turbo_tasks::value(eq = "manual", cell = "new")]
         struct WriteLinkEffect {
@@ -2840,20 +2838,13 @@ impl FileSystem for NullFileSystem {
     }
 }
 
-pub async fn to_sys_path(mut path: FileSystemPath) -> Result<Option<PathBuf>> {
-    loop {
-        if let Some(fs) = ResolvedVc::try_downcast_type::<AttachedFileSystem>(path.fs) {
-            path = fs.get_inner_fs_path(path).owned().await?;
-            continue;
-        }
-
-        if let Some(fs) = ResolvedVc::try_downcast_type::<DiskFileSystem>(path.fs) {
-            let sys_path = fs.await?.to_sys_path(&path);
-            return Ok(Some(sys_path));
-        }
-
-        return Ok(None);
+pub async fn to_sys_path(path: FileSystemPath) -> Result<Option<PathBuf>> {
+    if let Some(fs) = ResolvedVc::try_downcast_type::<DiskFileSystem>(path.fs) {
+        let sys_path = fs.await?.to_sys_path(&path);
+        return Ok(Some(sys_path));
     }
+
+    Ok(None)
 }
 
 #[turbo_tasks::function]

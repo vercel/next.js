@@ -49,6 +49,7 @@ import {
 import type { SegmentNodeState } from './userspace/app/segment-explorer-node'
 import type { DevToolsConfig } from './dev-overlay/shared'
 import type { SegmentTrieData } from '../shared/lib/mcp-page-metadata-types'
+import { EventQueue } from './dev-overlay/event-queue'
 
 export interface Dispatcher {
   onBuildOk(): void
@@ -80,8 +81,7 @@ export interface Dispatcher {
 }
 
 type Dispatch = ReturnType<typeof useErrorOverlayReducer>[1]
-let maybeDispatch: Dispatch | null = null
-const queue: Array<(dispatch: Dispatch) => void> = []
+const eventQueue = new EventQueue<Dispatch>()
 
 function loadDevOverlayUX() {
   const { DevOverlay, FontStyles } =
@@ -131,13 +131,9 @@ function createQueuable<Args extends any[]>(
   queueableFunction: (dispatch: Dispatch, ...args: Args) => void
 ) {
   return (...args: Args) => {
-    if (maybeDispatch) {
-      queueableFunction(maybeDispatch, ...args)
-    } else {
-      queue.push((dispatch: Dispatch) => {
-        queueableFunction(dispatch, ...args)
-      })
-    }
+    eventQueue.enqueue((dispatch) => {
+      queueableFunction(dispatch, ...args)
+    })
   }
 }
 
@@ -239,17 +235,6 @@ export const dispatcher: Dispatcher = {
   }),
 }
 
-function replayQueuedEvents(dispatch: NonNullable<typeof maybeDispatch>) {
-  try {
-    for (const queuedFunction of queue) {
-      queuedFunction(dispatch)
-    }
-  } finally {
-    // TODO: What to do with failed events?
-    queue.length = 0
-  }
-}
-
 function DevOverlayRoot({
   enableCacheIndicator,
   getOwnerStack,
@@ -291,17 +276,15 @@ function DevOverlayRoot({
   }, [shadowRoot, state.theme])
 
   useInsertionEffect(() => {
-    maybeDispatch = dispatch
-
     // Can't schedule updates from useInsertionEffect, so we need to defer.
     // Could move this into a passive Effect but we don't want replaying when
     // we reconnect.
     const replayTimeout = setTimeout(() => {
-      replayQueuedEvents(dispatch)
+      eventQueue.connect(dispatch)
     })
 
     return () => {
-      maybeDispatch = null
+      eventQueue.disconnect(dispatch)
       clearTimeout(replayTimeout)
     }
   }, [])

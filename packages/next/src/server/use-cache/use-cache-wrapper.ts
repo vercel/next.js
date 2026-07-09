@@ -34,7 +34,6 @@ import {
   getCacheSignal,
   isHmrRefresh,
   getServerComponentsHmrCache,
-  getStagedRenderingController,
 } from '../app-render/work-unit-async-storage.external'
 
 import {
@@ -42,8 +41,6 @@ import {
   makeDevtoolsIOAwarePromise,
   makeHangingPromise,
   getSessionDataStage,
-  getRuntimeLinkDataStage,
-  getStaticLinkDataStage,
 } from '../dynamic-rendering-utils'
 
 import type { ClientReferenceManifest } from '../../build/webpack/plugins/flight-manifest-plugin'
@@ -62,10 +59,17 @@ import {
 } from '../app-render/create-error-handler'
 import { createDigestWithErrorCode } from '../../lib/error-telemetry-utils'
 import stringHash from 'next/dist/compiled/string-hash'
-import { DYNAMIC_EXPIRE, DYNAMIC_STALE } from './constants'
+import { MIN_PRERENDERABLE_EXPIRE, MIN_PREFETCHABLE_STALE } from './constants'
 import { NEXT_CACHE_ROOT_PARAM_TAG_ID } from '../../lib/constants'
-import type { CacheHandler } from '../lib/cache-handlers/types'
-import { getCacheHandler, getPrivateCacheHandler } from './handlers'
+import {
+  getCacheHandler,
+  getDevTieredCacheHandler,
+  getPrivateCacheHandler,
+  isCustomCacheHandler,
+  isMemoryCacheDisabled,
+} from './handlers'
+import type { CacheReadWriteHandler } from './tiered-cache-handler'
+import { cloneCacheEntry } from './clone-cache-entry'
 import {
   NEXT_HMR_REFRESH_HASH_COOKIE,
   NEXT_INSTANT_TEST_COOKIE,
@@ -499,7 +503,7 @@ function saveSharedCacheEntryToResumeDataCache(
 }
 
 function saveToCacheHandler(
-  cacheHandler: CacheHandler,
+  cacheHandler: CacheReadWriteHandler,
   workStore: WorkStore,
   id: string,
   cacheHandlerKeyBase: string,
@@ -756,21 +760,6 @@ function captureOuterOwnerStack(
   return capturedOwnerStack + (parentOuterOwnerStack || '') || undefined
 }
 
-function assertDefaultCacheLife(
-  defaultCacheLife: CacheLife | undefined
-): asserts defaultCacheLife is Required<CacheLife> {
-  if (
-    !defaultCacheLife ||
-    defaultCacheLife.revalidate == null ||
-    defaultCacheLife.expire == null ||
-    defaultCacheLife.stale == null
-  ) {
-    throw new InvariantError(
-      'A default cacheLife profile must always be provided.'
-    )
-  }
-}
-
 // The maximum time we allow a `'use cache'` entry to fill. After this, we
 // assume the fill is stalled — either on hanging input to the cached function,
 // or on hanging I/O inside of it — and de-opt with an error.
@@ -802,11 +791,7 @@ function generateCacheEntryWithCacheContext(
   timeoutError: UseCacheTimeoutError,
   deadlockError: UseCacheDeadlockError | undefined
 ) {
-  if (!workStore.cacheLifeProfiles) {
-    throw new InvariantError('cacheLifeProfiles should always be provided.')
-  }
-  const defaultCacheLife = workStore.cacheLifeProfiles['default']
-  assertDefaultCacheLife(defaultCacheLife)
+  const defaultCacheLife = workStore.cacheLifeProfiles.default
 
   // Initialize the Store for this Cache entry.
   const cacheStore = createUseCacheStore(
@@ -903,7 +888,8 @@ function propagateCacheEntryMetadata(
         // cause points at the immediate dynamic child.
         if (
           cacheContext.dynamicNestedCacheError !== undefined &&
-          (metadata.revalidate === 0 || metadata.expire < DYNAMIC_EXPIRE)
+          (metadata.revalidate === 0 ||
+            metadata.expire < MIN_PRERENDERABLE_EXPIRE)
         ) {
           cacheContext.outerWorkUnitStore.dynamicNestedCacheError ??=
             cacheContext.dynamicNestedCacheError
@@ -1076,26 +1062,40 @@ async function collectResult(
 
   const collectedTags = innerCacheStore.tags
 
-  // In development, private caches are forced to `revalidate: 0` and an
-  // `expire` of `DYNAMIC_EXPIRE` (5 minutes), the shortest expire not treated
-  // as dynamically shortened. The zero revalidate makes every read serve
-  // stale-while-revalidate (re-warming a fresh entry in the background) so warm
-  // reloads stay fast. The expire bounds how long an entry lingers in the dev
-  // in-memory cache.
   const isPrivateCacheInDev = Boolean(
     process.env.__NEXT_DEV_SERVER && cacheContext.kind === 'private'
   )
 
+  // In development, force a dynamic cache life (`revalidate: 0`, `expire:
+  // MIN_PRERENDERABLE_EXPIRE`) for private caches, which have no real backing
+  // handler. The zero revalidate makes every read serve stale-while-revalidate
+  // (regenerating a fresh entry in the background), and
+  // `MIN_PRERENDERABLE_EXPIRE` (5 minutes) caps how long an entry lingers in
+  // the dedicated in-memory private handler. It is the shortest `expire` that
+  // isn't treated as dynamic; a smaller `expire` would exclude the entry from
+  // prerenders. Two other cases deliberately do NOT force this and keep their
+  // resolved cache life, relying instead on the dev handler's minimum retention
+  // and a dev revalidation (see the cache-hit path below) to keep reloads fast
+  // and fresh. The size-0 case (`cacheMaxMemorySize: 0`) keeps its life so the
+  // entry can be considered prerenderable instead of being misread as a dynamic
+  // hole. An explicit short-`expire` public cache (e.g. `cacheLife({ expire: 0
+  // })`) keeps its life so it stays correctly excluded from static prerenders
+  // via its real `expire` while a reload still hits the cache; forcing
+  // `revalidate: 0` here would instead corrupt the cache life propagated to an
+  // enclosing cache and trigger the nested-dynamic error. A cache backed by a
+  // custom handler keeps its real cache life too, since that handler owns it.
+  const forceDynamicCacheLifeInDev = isPrivateCacheInDev
+
   // If cacheLife() was used to set an explicit revalidate/expire/stale time we
   // use that. Otherwise, we use the lowest of all inner fetch(),
   // unstable_cache() or nested "use cache", if they're lower than our default.
-  const collectedRevalidate = isPrivateCacheInDev
+  const collectedRevalidate = forceDynamicCacheLifeInDev
     ? 0
     : innerCacheStore.explicitRevalidate !== undefined
       ? innerCacheStore.explicitRevalidate
       : innerCacheStore.revalidate
-  const collectedExpire = isPrivateCacheInDev
-    ? DYNAMIC_EXPIRE
+  const collectedExpire = forceDynamicCacheLifeInDev
+    ? MIN_PRERENDERABLE_EXPIRE
     : innerCacheStore.explicitExpire !== undefined
       ? innerCacheStore.explicitExpire
       : innerCacheStore.expire
@@ -1514,20 +1514,6 @@ async function generateCacheEntryImpl(
   }
 }
 
-function cloneCacheEntry(entry: CacheEntry): [CacheEntry, CacheEntry] {
-  const [streamA, streamB] = entry.value.tee()
-  entry.value = streamA
-  const clonedEntry: CacheEntry = {
-    value: streamB,
-    timestamp: entry.timestamp,
-    revalidate: entry.revalidate,
-    expire: entry.expire,
-    stale: entry.stale,
-    tags: entry.tags,
-  }
-  return [entry, clonedEntry]
-}
-
 function cloneCacheResult(
   result: CollectedCacheResult
 ): [CollectedCacheResult, CollectedCacheResult] {
@@ -1635,19 +1621,40 @@ export async function cache(
   // Probe re-executions (the dev-server's hang-detection worker) short-circuit
   // further down before any handler is consulted, so we skip handler selection
   // entirely and the worker can boot without registering handlers at all.
-  let cacheHandler: CacheHandler | undefined
+  let cacheHandler: CacheReadWriteHandler | undefined
   if (workStore.useCacheProbeMode === undefined) {
     if (isPrivate) {
       // Private caches normally go to the Resume Data Cache (RDC), not a cache
       // handler. In development we additionally persist them in a dedicated
-      // built-in in-memory handler so that warm reloads are fast.
+      // built-in in-memory handler so that reloads are fast.
       if (process.env.__NEXT_DEV_SERVER) {
         cacheHandler = getPrivateCacheHandler()
       }
     } else {
-      cacheHandler = getCacheHandler(kind)
-      if (!cacheHandler) {
+      const handler = getCacheHandler(kind)
+      if (!handler) {
         throw new Error('Unknown cache handler: ' + kind)
+      }
+
+      // In development, a user-configured (custom) handler may be slow or
+      // remote, so we read through a tiered handler that puts a built-in
+      // in-memory front in front of it to keep cache hits microtask-fast.
+      // Built-in handlers (the default handler, and its size-0 replacement) are
+      // already in-memory and used directly.
+      if (process.env.__NEXT_DEV_SERVER && isCustomCacheHandler(kind)) {
+        // A custom kind always has a dev tiered handler: it is created in the
+        // same `setCacheHandler` call that makes `isCustomCacheHandler` true.
+        const tieredCacheHandler = getDevTieredCacheHandler(kind)
+
+        if (!tieredCacheHandler) {
+          throw new InvariantError(
+            `Expected a dev tiered cache handler for kind "${kind}".`
+          )
+        }
+
+        cacheHandler = tieredCacheHandler
+      } else {
+        cacheHandler = handler
       }
     }
   }
@@ -2167,7 +2174,7 @@ export async function cache(
 
   let stream: undefined | ReadableStream = undefined
 
-  // Set when a short-lived warm hit ends its cache read up front (dev only) so
+  // Set when a short-lived cache hit ends its cache read up front (dev only) so
   // the static-shell boundary doesn't count it as a phantom miss. Once set, the
   // cache signal read is balanced, so serving must use a plain stream and skip
   // any trailing cacheSignal.endRead() call.
@@ -2234,8 +2241,24 @@ export async function cache(
       if (rdcResult !== undefined) {
         if (
           rdcResult.entry.revalidate === 0 ||
-          rdcResult.entry.expire < DYNAMIC_EXPIRE
+          rdcResult.entry.expire < MIN_PRERENDERABLE_EXPIRE
         ) {
+          // The nested-cache error only makes sense when a dynamic nested cache
+          // actually shortened an outer cache that has no explicit `cacheLife`
+          // (`dynamicNestedCacheError` is set), and only when the app's default
+          // profile is itself prerenderable. If the default profile is already
+          // dynamic (`revalidate: 0` or an `expire` under the prerenderable
+          // minimum), every cache is omitted from prerenders by default, so
+          // there is no silent degradation to warn about. A short life from the
+          // default profile, or from a dev private cache's self-imposed
+          // `revalidate: 0` (which never carries a nested error), therefore
+          // stays a dynamic hole rather than erroring.
+          const defaultCacheLife = workStore.cacheLifeProfiles.default
+          const shouldReportNestedCacheError =
+            rdcResult.dynamicNestedCacheError !== undefined &&
+            defaultCacheLife.revalidate !== 0 &&
+            defaultCacheLife.expire >= MIN_PRERENDERABLE_EXPIRE
+
           switch (workUnitStore.type) {
             case 'prerender':
               // In a Dynamic I/O prerender, if the cache entry has
@@ -2245,7 +2268,10 @@ export async function cache(
               // a dynamic hole that can be filled in during the resume with
               // a potentially cached entry.
               if (rdcResult.entry.revalidate === 0) {
-                if (rdcResult.hasExplicitRevalidate === false) {
+                if (
+                  rdcResult.hasExplicitRevalidate === false &&
+                  shouldReportNestedCacheError
+                ) {
                   throw wrapAsInvalidDynamicUsageError(
                     new Error(nestedCacheZeroRevalidateErrorMessage, {
                       cause: rdcResult.dynamicNestedCacheError,
@@ -2258,7 +2284,10 @@ export async function cache(
                   'from static shell due to revalidate: 0'
                 )
               } else {
-                if (rdcResult.hasExplicitExpire === false) {
+                if (
+                  rdcResult.hasExplicitExpire === false &&
+                  shouldReportNestedCacheError
+                ) {
                   throw wrapAsInvalidDynamicUsageError(
                     new Error(nestedCacheShortExpireErrorMessage, {
                       cause: rdcResult.dynamicNestedCacheError,
@@ -2295,17 +2324,14 @@ export async function cache(
             }
             case 'request': {
               if (process.env.NODE_ENV === 'development') {
-                // These throws force the user to make an explicit cache life
-                // decision on an outer cache that an inner cache would
-                // otherwise silently shorten. A dev private cache's
-                // `revalidate` is forced to 0 by us (not by a nested cache), so
-                // it's excluded from the first throw to avoid a false positive.
-                // Its forced `expire` is exactly DYNAMIC_EXPIRE, so it never
-                // trips the second throw and needs no exclusion there.
+                // These throws force an explicit cache life decision on an
+                // outer cache that a nested cache would otherwise silently
+                // shorten (see `shouldReportNestedCacheError` above). Otherwise
+                // the short-lived entry is deferred as a dynamic hole below.
                 if (
-                  cacheContext.kind !== 'private' &&
                   rdcResult.entry.revalidate === 0 &&
-                  rdcResult.hasExplicitRevalidate === false
+                  rdcResult.hasExplicitRevalidate === false &&
+                  shouldReportNestedCacheError
                 ) {
                   throw wrapAsInvalidDynamicUsageError(
                     new Error(nestedCacheZeroRevalidateErrorMessage, {
@@ -2314,8 +2340,9 @@ export async function cache(
                   )
                 }
                 if (
-                  rdcResult.entry.expire < DYNAMIC_EXPIRE &&
-                  rdcResult.hasExplicitExpire === false
+                  rdcResult.entry.expire < MIN_PRERENDERABLE_EXPIRE &&
+                  rdcResult.hasExplicitExpire === false &&
+                  shouldReportNestedCacheError
                 ) {
                   throw wrapAsInvalidDynamicUsageError(
                     new Error(nestedCacheShortExpireErrorMessage, {
@@ -2358,7 +2385,7 @@ export async function cache(
           }
         }
 
-        if (rdcResult.entry.stale < DYNAMIC_STALE) {
+        if (rdcResult.entry.stale < MIN_PREFETCHABLE_STALE) {
           switch (workUnitStore.type) {
             case 'prerender':
             case 'prerender-runtime':
@@ -2409,51 +2436,6 @@ export async function cache(
               break
             default:
               workUnitStore satisfies never
-          }
-        }
-
-        // If we're doing staged rendering with shells and the cache accessed root params,
-        // we should exclude it from the shell, because root params are also excluded.
-        const stagedRendering = getStagedRenderingController(workUnitStore)
-        if (
-          process.env.__NEXT_APP_SHELLS &&
-          stagedRendering &&
-          rootParams &&
-          rdcResult.readRootParamNames &&
-          rdcResult.readRootParamNames.size > 0
-        ) {
-          switch (workUnitStore.type) {
-            case 'prerender': {
-              await stagedRendering.waitForStage(
-                getStaticLinkDataStage(stagedRendering)
-              )
-              break
-            }
-            case 'prerender-runtime': {
-              // If we're rendering with shells, this is when params should resolve
-              await stagedRendering.waitForStage(
-                getRuntimeLinkDataStage(stagedRendering)
-              )
-              break
-            }
-            case 'request': {
-              // For a staged dynamic request, assume we're recovering a static shell --
-              // If a session shell is needed, we do it in a separate render
-              await stagedRendering.waitForStage(
-                getStaticLinkDataStage(stagedRendering)
-              )
-              break
-            }
-            case 'cache':
-            case 'private-cache':
-            case 'prerender-legacy':
-            case 'prerender-ppr':
-            case 'generate-static-params': {
-              break
-            }
-            default: {
-              workUnitStore satisfies never
-            }
           }
         }
       }
@@ -2851,7 +2833,7 @@ export async function cache(
         const currentTime = performance.timeOrigin + performance.now()
         if (
           entry !== undefined &&
-          (entry.revalidate === 0 || entry.expire < DYNAMIC_EXPIRE)
+          (entry.revalidate === 0 || entry.expire < MIN_PRERENDERABLE_EXPIRE)
         ) {
           switch (workUnitStore.type) {
             case 'prerender':
@@ -2928,7 +2910,7 @@ export async function cache(
           }
         }
 
-        if (entry !== undefined && entry.stale < DYNAMIC_STALE) {
+        if (entry !== undefined && entry.stale < MIN_PREFETCHABLE_STALE) {
           switch (workUnitStore.type) {
             case 'request': {
               // A short stale time excludes the entry from prerenders.
@@ -2969,7 +2951,19 @@ export async function cache(
 
         if (
           entry === undefined ||
-          currentTime > entry.timestamp + entry.expire * 1000 ||
+          // In dev, the built-in default handler retains a short-`expire` entry
+          // for at least `MIN_PRERENDERABLE_EXPIRE`, both when used directly
+          // and when fronting a custom cache handler. Apply that same minimum
+          // here so the retained entry is served and re-warmed in the
+          // background (below), rather than blocking to regenerate it on every
+          // read. The entry's real `expire` is untouched, so staging still
+          // treats it as dynamic.
+          currentTime >
+            entry.timestamp +
+              (process.env.__NEXT_DEV_SERVER
+                ? Math.max(entry.expire, MIN_PRERENDERABLE_EXPIRE)
+                : entry.expire) *
+                1000 ||
           (workStore.isStaticGeneration &&
             currentTime > entry.timestamp + entry.revalidate * 1000)
         ) {
@@ -3156,10 +3150,46 @@ export async function cache(
             entry: sharedCacheEntry,
           })
 
-          if (currentTime > entry.timestamp + entry.revalidate * 1000) {
-            // If this is stale, and we're not in a prerender (i.e. this is
-            // dynamic render), then we should warm up the cache with a fresh
-            // revalidated entry.
+          // Trigger a background revalidation when the entry is stale (past its
+          // `revalidate`), so the next read gets a fresh value without blocking
+          // this one. Development additionally re-warms on every dynamic
+          // request render in two cases where the dev in-memory entry would
+          // otherwise read back as fresh, so a subsequent reload still shows a
+          // fresh value. The first is with the in-memory cache disabled
+          // (`cacheMaxMemorySize: 0`), where built-in entries keep their
+          // resolved (potentially non-dynamic) cache life. The second is a
+          // short-`expire` entry (an explicit dynamic or client-only cache,
+          // e.g. `cacheLife({ expire: 0 })`), which is retained for at least
+          // `MIN_PRERENDERABLE_EXPIRE` so it is served from the cache; this
+          // also covers custom handlers, re-executing and writing through to
+          // the backing.
+          let shouldTriggerBackgroundRevalidation =
+            currentTime > entry.timestamp + entry.revalidate * 1000
+          if (
+            !shouldTriggerBackgroundRevalidation &&
+            process.env.__NEXT_DEV_SERVER &&
+            (entry.expire < MIN_PRERENDERABLE_EXPIRE ||
+              (isMemoryCacheDisabled() && !isCustomCacheHandler(kind)))
+          ) {
+            switch (workUnitStore.type) {
+              case 'request':
+                shouldTriggerBackgroundRevalidation = true
+                break
+              case 'cache':
+              case 'private-cache':
+              case 'prerender':
+              case 'prerender-runtime':
+              case 'prerender-ppr':
+              case 'prerender-legacy':
+              case 'unstable-cache':
+              case 'generate-static-params':
+                break
+              default:
+                workUnitStore satisfies never
+            }
+          }
+
+          if (shouldTriggerBackgroundRevalidation) {
             const revalidateCacheHandlerKey = cacheHandlerKey
             const revalidatePromise = generateCacheEntry(
               workStore,

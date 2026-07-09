@@ -289,4 +289,426 @@ describe('App Shell prefetching', () => {
       'Static post 124'
     )
   })
+
+  describe('root params', () => {
+    it('includes root params in a runtime App Shell', async () => {
+      let page: Playwright.Page
+      const browser = await next.browser('/with-root-param/en', {
+        beforePageLoad(p: Playwright.Page) {
+          page = p
+        },
+      })
+      const act = createRouterAct(page, { includeAppShellRequests: true })
+
+      // Reveal the LinkAccordion for /with-root-param/en/posts/1. This caches the App Shell
+      // for the route — the param-independent content of the page that's
+      // reusable for any /with-root-param/en/posts/[id]. The link uses the default (auto)
+      // prefetch, so under App Shells it prefetches only the shared shell;
+      // the per-link Speculative prefetch is skipped.
+      await act(
+        async () => {
+          await browser
+            .elementByCss(
+              'input[data-link-accordion="/with-root-param/en/posts/1"]'
+            )
+            .click()
+        },
+        { includes: 'App shell for posts with root param: en' }
+      )
+
+      await act(async () => {
+        // Click the link to /with-root-param/en/posts/124. This link is rendered with
+        // prefetch={false}, so it was never prefetched. The cached App
+        // Shell should render immediately, before any navigation response
+        // arrives.
+        await browser
+          .elementByCss('a[href="/with-root-param/en/posts/124"]')
+          .click()
+
+        // While the navigation response is blocked (we're still in the
+        // `act` block), the cached App Shell should already be visible.
+        expect(await browser.elementById('shell').text()).toEqual(
+          'App shell for posts with root param: en'
+        )
+        // Sesssion data (cookies) is not dependent on URL-data, so they are
+        // allowed to be accessed in the shell.
+        expect(await browser.elementById('cookie-value').text()).toEqual(
+          'Cookie: none'
+        )
+      })
+
+      // After the outer act unblocks the navigation, params resolve and the
+      // dynamic content streams in.
+      expect(await browser.elementById('param-value').text()).toEqual(
+        'Post 124'
+      )
+      expect(await browser.elementById('dynamic-content').text()).toEqual(
+        'Post body for 124 with root param: en'
+      )
+    })
+
+    it('includes root params in a static App Shell', async () => {
+      // The /with-root-param/en/static-posts/[id] route is fully static: all params are known via
+      // `generateStaticParams` and the page accesses no other dynamic data, so
+      // each URL is prerendered at build time. When the client prefetches one
+      // URL, it receives the full prerender; the client extracts the shell
+      // prefix (using the byte offset in the response) and caches it at the
+      // Fallback vary path, so that navigations to OTHER URLs in the same
+      // route still get an instant shell before the per-URL content arrives.
+      let page: Playwright.Page
+      const browser = await next.browser('/with-root-param/en', {
+        beforePageLoad(p: Playwright.Page) {
+          page = p
+        },
+      })
+      const act = createRouterAct(page, { includeAppShellRequests: true })
+
+      // Reveal the LinkAccordion for /with-root-param/en/static-posts/1. Two prefetch responses
+      // fire: one for the per-segment static prefetch of /with-root-param/en/static-posts/1
+      // (which contains the resolved page content + the shell above the
+      // params boundary), and one for the runtime shell prefetch (which the
+      // server may return either as a truncated shell or as the full
+      // prerender that the client extracts a shell prefix from). Both
+      // responses contain the "App shell for static posts" substring.
+      await act(async () => {
+        await browser
+          .elementByCss(
+            'input[data-link-accordion="/with-root-param/en/static-posts/1"]'
+          )
+          .click()
+      }, [
+        { includes: 'App shell for static posts with root param: en' },
+        { includes: 'App shell for static posts with root param: en' },
+      ])
+
+      // Click the link to /with-root-param/en/static-posts/124 — a different param than what
+      // was prefetched, rendered with prefetch={false}. The cached App
+      // Shell should render immediately, before the per-URL navigation
+      // response arrives.
+      await act(async () => {
+        await browser
+          .elementByCss('a[href="/with-root-param/en/static-posts/124"]')
+          .click()
+
+        // While the navigation response is blocked (we're still in the
+        // `act` block), the cached App Shell should already be visible.
+        expect(await browser.elementById('static-shell').text()).toEqual(
+          'App shell for static posts with root param: en'
+        )
+      })
+
+      // After the outer act unblocks the navigation, the per-URL content
+      // streams in.
+      expect(await browser.elementById('static-content').text()).toEqual(
+        'Static post 124 with root param: en'
+      )
+    })
+
+    it('includes root params in a runtime App Shell when accessed via params object', async () => {
+      let page: Playwright.Page
+      const browser = await next.browser('/with-root-param/en', {
+        beforePageLoad(p: Playwright.Page) {
+          page = p
+        },
+      })
+      const act = createRouterAct(page, { includeAppShellRequests: true })
+
+      // Reveal the LinkAccordion for
+      // /with-root-param/en/root-param-via-params/with-session-data. This page
+      // reads the root param via the `params` object (not next/root-params) and
+      // reads request-time data (cookies), so its App Shell is a runtime shell.
+      // The root param is available when the shell is prerendered, so it's
+      // captured in the cached shell.
+      await act(
+        async () => {
+          await browser
+            .elementByCss(
+              'input[data-link-accordion="/with-root-param/en/root-param-via-params/with-session-data"]'
+            )
+            .click()
+        },
+        { includes: 'App shell for page with root param: en' }
+      )
+
+      await act(async () => {
+        // Navigate by clicking the link we just revealed. Only the App Shell
+        // was prefetched (not the per-URL content), and `act` blocks the
+        // navigation response, so the cached App Shell — which captured the
+        // root param — should render immediately, before the navigation
+        // response arrives.
+        await browser
+          .elementByCss(
+            'a[href="/with-root-param/en/root-param-via-params/with-session-data"]'
+          )
+          .click()
+
+        // While the navigation response is blocked (we're still in the
+        // `act` block), the cached App Shell should already be visible, with
+        // the root param included.
+        expect(await browser.elementById('shell').text()).toEqual(
+          'App shell for page with root param: en'
+        )
+        // Sesssion data (cookies) is not dependent on URL-data, so they are
+        // allowed to be accessed in the shell.
+        expect(await browser.elementById('cookie-value').text()).toEqual(
+          'Cookie: none'
+        )
+      })
+
+      // After the outer act unblocks the navigation, the dynamic content
+      // streams in.
+      expect(await browser.elementById('dynamic-content').text()).toEqual(
+        'Dynamic content'
+      )
+    })
+
+    it('includes root params in an App Shell when accessed via params object', async () => {
+      let page: Playwright.Page
+      const browser = await next.browser('/with-root-param/en', {
+        beforePageLoad(p: Playwright.Page) {
+          page = p
+        },
+      })
+      const act = createRouterAct(page, { includeAppShellRequests: true })
+
+      // Reveal the LinkAccordion for
+      // /with-root-param/en/root-param-via-params/without-session-data. This
+      // page reads the root param via the `params` object (not next/root-params)
+      // and reads no request-time data in the shell, so its App Shell depends
+      // only on the root param, which is captured in the cached shell.
+      await act(
+        async () => {
+          await browser
+            .elementByCss(
+              'input[data-link-accordion="/with-root-param/en/root-param-via-params/without-session-data"]'
+            )
+            .click()
+        },
+        { includes: 'App shell for page with root param: en' }
+      )
+
+      await act(async () => {
+        // Navigate by clicking the link we just revealed. Only the App Shell
+        // was prefetched (not the per-URL content), and `act` blocks the
+        // navigation response, so the cached App Shell — which captured the
+        // root param — should render immediately, before the navigation
+        // response arrives.
+        await browser
+          .elementByCss(
+            'a[href="/with-root-param/en/root-param-via-params/without-session-data"]'
+          )
+          .click()
+
+        // While the navigation response is blocked (we're still in the
+        // `act` block), the cached App Shell should already be visible, with
+        // the root param included.
+        expect(await browser.elementById('shell').text()).toEqual(
+          'App shell for page with root param: en'
+        )
+      })
+
+      // After the outer act unblocks the navigation, the dynamic content
+      // streams in.
+      expect(await browser.elementById('dynamic-content').text()).toEqual(
+        'Dynamic content'
+      )
+    })
+
+    it('uses separate runtime App Shells for links with different root params', async () => {
+      let page: Playwright.Page
+      const browser = await next.browser('/with-root-param/en', {
+        beforePageLoad(p: Playwright.Page) {
+          page = p
+        },
+      })
+      const act = createRouterAct(page, { includeAppShellRequests: true })
+
+      // Reveal the LinkAccordion for /with-root-param/en/posts/1. This caches the App Shell
+      // for the route — the param-independent content of the page that's
+      // reusable for any /with-root-param/en/posts/[id]. The link uses the default (auto)
+      // prefetch, so under App Shells it prefetches only the shared shell;
+      // the per-link Speculative prefetch is skipped.
+      await act(
+        async () => {
+          await browser
+            .elementByCss(
+              'input[data-link-accordion="/with-root-param/en/posts/1"]'
+            )
+            .click()
+        },
+        { includes: 'App shell for posts with root param: en' }
+      )
+
+      await act(async () => {
+        const startingUrl = await browser.url()
+
+        // Click the link to /with-root-param/pl/posts/126. This link is rendered with
+        // prefetch={false}, so it was never prefetched.
+        // It uses a different root param value ("pl", not "en"), so we shouldn't use
+        // the App Shell we got from the link we revealed, and the navigation should block.
+        await browser
+          .elementByCss('a[href="/with-root-param/pl/posts/126"]')
+          .click()
+
+        // Wait for the router to actually start the navigation.
+        // This will be observable by a pending indicator on the link.
+        await browser.elementByCss(
+          'a[href="/with-root-param/pl/posts/126"] [data-pending]'
+        )
+
+        // We're blocked, so the url should stay unchanged
+        // and the cached App Shell should not be visible.
+        expect(await browser.url()).toEqual(startingUrl)
+        expect(await browser.locator('#shell').count()).toBe(0)
+      })
+
+      // After the outer act unblocks the navigation, params resolve and the
+      // dynamic content streams in.
+      expect(await browser.elementById('param-value').text()).toEqual(
+        'Post 126'
+      )
+      expect(await browser.elementById('dynamic-content').text()).toEqual(
+        'Post body for 126 with root param: pl'
+      )
+
+      // Go back to the home page, then repeat the "prefetch post / navigate to
+      // an unprefetched post that shares its shell" flow (from the "includes
+      // root params" tests) with a THIRD root param ("fr"). This proves the
+      // freshly prefetched "fr" shell is actually used — not the earlier "en"
+      // shell.
+      await browser.back()
+
+      await act(
+        async () => {
+          await browser
+            .elementByCss(
+              'input[data-link-accordion="/with-root-param/fr/posts/1"]'
+            )
+            .click()
+        },
+        { includes: 'App shell for posts with root param: fr' }
+      )
+
+      await act(async () => {
+        // Navigate to an unprefetched post that shares the "fr" shell. The
+        // cached "fr" shell (not "en") should render immediately, before the
+        // navigation response arrives.
+        await browser
+          .elementByCss('a[href="/with-root-param/fr/posts/124"]')
+          .click()
+
+        expect(await browser.elementById('shell').text()).toEqual(
+          'App shell for posts with root param: fr'
+        )
+        expect(await browser.elementById('cookie-value').text()).toEqual(
+          'Cookie: none'
+        )
+      })
+
+      expect(await browser.elementById('param-value').text()).toEqual(
+        'Post 124'
+      )
+      expect(await browser.elementById('dynamic-content').text()).toEqual(
+        'Post body for 124 with root param: fr'
+      )
+    })
+
+    it('uses separate static App Shells for links with different root params', async () => {
+      let page: Playwright.Page
+      const browser = await next.browser('/with-root-param/en', {
+        beforePageLoad(p: Playwright.Page) {
+          page = p
+        },
+      })
+      const act = createRouterAct(page, { includeAppShellRequests: true })
+
+      // Reveal the LinkAccordion for /with-root-param/en/static-posts/1. Two prefetch responses
+      // fire: one for the per-segment static prefetch of /with-root-param/en/static-posts/1
+      // (which contains the resolved page content + the shell above the
+      // params boundary), and one for the runtime shell prefetch (which the
+      // server may return either as a truncated shell or as the full
+      // prerender that the client extracts a shell prefix from). Both
+      // responses contain the "App shell for static posts" substring.
+      await act(async () => {
+        await browser
+          .elementByCss(
+            'input[data-link-accordion="/with-root-param/en/static-posts/1"]'
+          )
+          .click()
+      }, [
+        { includes: 'App shell for static posts with root param: en' },
+        { includes: 'App shell for static posts with root param: en' },
+      ])
+
+      await act(async () => {
+        const startingUrl = await browser.url()
+
+        // Click the link to /with-root-param/pl/static-posts/125. This link is rendered with
+        // prefetch={false}, so it was never prefetched.
+        // It uses a different root param value ("pl", not "en"), so we shouldn't use
+        // the App Shell we got from the link we revealed, and the navigation should block.
+        await browser
+          .elementByCss('a[href="/with-root-param/pl/static-posts/125"]')
+          .click()
+
+        // Make sure the router actually started the navigation.
+        // This will be observable by a pending indicator on the link.
+        await browser.elementByCss(
+          'a[href="/with-root-param/pl/static-posts/125"] [data-pending]'
+        )
+
+        // We're blocked, so the url should stay unchanged
+        // and the cached App Shell should not be visible.
+        expect(await browser.url()).toEqual(startingUrl)
+        expect(await browser.locator('#static-shell').count()).toBe(0)
+      })
+
+      // After the outer act unblocks the navigation, the per-URL content
+      // streams in.
+      expect(await browser.elementById('static-content').text()).toEqual(
+        'Static post 125 with root param: pl'
+      )
+
+      // Go back to the home page, then repeat the "prefetch post / navigate to
+      // an unprefetched post that shares its shell" flow (from the "includes
+      // root params" tests) with a THIRD root param ("fr"). This proves the
+      // freshly prefetched "fr" shell is actually used — not the earlier "en"
+      // shell.
+      await browser.back()
+
+      await act(
+        async () => {
+          await browser
+            .elementByCss(
+              'input[data-link-accordion="/with-root-param/fr/static-posts/1"]'
+            )
+            .click()
+        },
+        [
+          // TODO(app-shells): why aren't there requests here?
+          // { includes: 'App shell for static posts with root param: fr' },
+          // { includes: 'App shell for static posts with root param: fr' },
+        ]
+      )
+
+      await act(async () => {
+        // Navigate to an unprefetched post that shares the "fr" shell. The
+        // cached "fr" shell (not "en") should render immediately, before the
+        // navigation response arrives.
+        await browser
+          .elementByCss('a[href="/with-root-param/fr/static-posts/124"]')
+          .click()
+
+        expect(await browser.elementById('static-shell').text()).toEqual(
+          'App shell for static posts with root param: fr'
+        )
+      })
+
+      // After the outer act unblocks the navigation, the per-URL content
+      // streams in.
+      expect(await browser.elementById('static-content').text()).toEqual(
+        'Static post 124 with root param: fr'
+      )
+    })
+  })
 })

@@ -1,4 +1,4 @@
-import { PHASE_PRODUCTION_BUILD } from '../api/constants'
+import { PHASE_INFO, PHASE_PRODUCTION_BUILD } from '../api/constants'
 
 describe('loadConfig', () => {
   let loadConfig: typeof import('./config').default
@@ -190,6 +190,56 @@ describe('loadConfig', () => {
 
       expect(result.experimental.externalMiddlewareRewritesResolve).toBe(true)
       expect(result.experimental.externalProxyRewritesResolve).toBe(true)
+    })
+  })
+
+  describe('cacheHandlers validation', () => {
+    it('should reject invalid keys', async () => {
+      const invalidKeys = [
+        'abc123',
+        'abc_123',
+        'abc.def',
+        'handler!',
+        '123handler',
+        'handler123',
+      ]
+
+      for (const key of invalidKeys) {
+        await expect(
+          loadConfig(PHASE_PRODUCTION_BUILD, __dirname, {
+            customConfig: {
+              cacheHandlers: {
+                [key]: __filename,
+              },
+            },
+          })
+        ).rejects.toThrow(/key must only use characters a-z and -/)
+      }
+    })
+
+    it('should accept valid keys', async () => {
+      const result = await loadConfig(PHASE_PRODUCTION_BUILD, __dirname, {
+        customConfig: {
+          cacheHandlers: {
+            abc: __filename,
+            'valid-handler': __filename,
+            'abc-def': __filename,
+          },
+        },
+      })
+      expect(result.cacheHandlers).toBeDefined()
+      expect(result.cacheHandlers?.['abc']).toBeDefined()
+      expect(result.cacheHandlers?.['valid-handler']).toBeDefined()
+      expect(result.cacheHandlers?.['abc-def']).toBeDefined()
+    })
+  })
+
+  describe('experimental.cssChunking bundler validation', () => {
+    it('should not validate `cssChunking` during `next info`', async () => {
+      const result = await loadConfig(PHASE_INFO, __dirname, {
+        customConfig: { experimental: { cssChunking: 'graph' } },
+      })
+      expect(result.experimental.cssChunking).toBe('graph')
     })
   })
 })

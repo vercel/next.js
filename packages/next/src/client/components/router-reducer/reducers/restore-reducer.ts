@@ -73,7 +73,9 @@ export function restoreReducer(
     null,
     restoreSeed.dynamicStaleAt,
     false,
-    accumulation
+    accumulation,
+    // A history-traversal restore never restricts to the shell.
+    false
   )
 
   if (task === null) {
@@ -92,7 +94,9 @@ export function restoreReducer(
     null,
     // History traversal always uses 'replace'.
     'replace',
-    navigationLock
+    navigationLock,
+    // Not an HMR refresh, so there's no request generation to cancel.
+    undefined
   )
   return completeTraverseNavigation(
     state,

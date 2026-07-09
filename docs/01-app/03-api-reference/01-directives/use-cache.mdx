@@ -279,23 +279,16 @@ The `x-nextjs-stale-time` response header communicates cache lifetime from serve
 
 ## Revalidation
 
-By default, `use cache` uses the `default` profile with these settings:
+Cached functions revalidate based on the `revalidate` and `expire` times in their `cacheLife` profile, or on-demand through tags. These two approaches are not mutually exclusive and are often paired:
 
-- **stale**: 5 minutes (client-side)
-- **revalidate**: 15 minutes (server-side)
-- **expire**: Never expires by time
+- **[Time-based](#time-based-revalidation)**: refresh automatically after a set duration with [`cacheLife`](/docs/app/api-reference/functions/cacheLife).
+- **[On-demand](#on-demand-revalidation)**: invalidate after a mutation with [`cacheTag`](/docs/app/api-reference/functions/cacheTag) and [`revalidateTag`](/docs/app/api-reference/functions/revalidateTag) or [`updateTag`](/docs/app/api-reference/functions/updateTag).
 
-```tsx filename="lib/data.ts"
-async function getData() {
-  'use cache'
-  // Implicitly uses default profile
-  return fetch('/api/data')
-}
-```
+For example, a blog post that changes only when its author edits it can use a long `cacheLife` like `max` with a `cacheTag`, then invalidate on demand when the post is saved. A list of recent posts that updates throughout the day can use a shorter profile like `hours` to refresh on its own, without manual invalidation.
 
-### Customizing cache lifetime
+### Time-based revalidation
 
-Use the [`cacheLife`](/docs/app/api-reference/functions/cacheLife) function to customize cache duration:
+Set an explicit cache lifetime with [`cacheLife`](/docs/app/api-reference/functions/cacheLife) in every `use cache` scope. It makes the cache behavior clear at the call site, instead of depending on the `default` profile or surrounding caches.
 
 ```tsx filename="lib/data.ts"
 import { cacheLife } from 'next/cache'
@@ -303,6 +296,20 @@ import { cacheLife } from 'next/cache'
 async function getData() {
   'use cache'
   cacheLife('hours') // Use built-in 'hours' profile
+  return fetch('/api/data')
+}
+```
+
+If you omit `cacheLife`, the `default` profile applies and the lifetime is no longer explicit at the call site:
+
+- **stale**: 5 minutes (client-side)
+- **revalidate**: 15 minutes (server-side)
+- **expire**: never expires by time
+
+```tsx filename="lib/data.ts"
+async function getData() {
+  'use cache'
+  // Implicitly uses the 'default' profile
   return fetch('/api/data')
 }
 ```

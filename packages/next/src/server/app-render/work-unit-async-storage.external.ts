@@ -74,17 +74,21 @@ export interface RequestStore extends CommonWorkUnitStore {
   resumeDataCache: ResumeDataCache | null
 
   stale?: number
+
   stagedRendering?: StagedRenderingController | null
   asyncApiPromises?: AsyncApiPromises
+  needsSessionShell?: boolean // DEV-only
   cacheSignal?: CacheSignal | null
   fallbackParams?: OpaqueFallbackRouteParams | null
   varyParamsAccumulator?: ResponseVaryParamsAccumulator | null
 
-  // Only in build-time instant-validation
+  // Only in build-time instant-validation or when rendering
+  // a secondary stream for static shell validation
   // We mirror the controller/renderSignal from prerender stores to allow aborting the render
-  // in case we hit an error that makes it unnecessary to continue
   controller?: AbortController
   renderSignal?: AbortSignal
+
+  // Only in build-time instant-validation
   validationSamples?: InstantValidationSamples
   validationSampleTracking?: InstantValidationSampleTracking | null
 
@@ -362,8 +366,8 @@ export interface PublicUseCacheStore extends CommonUseCacheStore {
   readonly readRootParamNames: Set<string>
   /**
    * The first nested public `'use cache'` invocation with a dynamic cache life
-   * (`revalidate === 0` or `expire < DYNAMIC_EXPIRE`) that propagated up to
-   * this store. Used as `cause` for the nested-dynamic cache error so the
+   * (`revalidate === 0` or `expire < MIN_PRERENDERABLE_EXPIRE`) that propagated
+   * up to this store. Used as `cause` for the nested-dynamic cache error so the
    * redbox can point at the inner invocation site, not just the outer one.
    */
   dynamicNestedCacheError: Error | undefined
@@ -615,5 +619,29 @@ export function getCacheSignal(
       return null
     default:
       return workUnitStore satisfies never
+  }
+}
+
+export function getVaryParamsAccumulator(
+  workUnitStore: WorkUnitStore
+): ResponseVaryParamsAccumulator | null {
+  switch (workUnitStore.type) {
+    case 'prerender':
+    case 'prerender-runtime':
+    case 'request': {
+      return workUnitStore.varyParamsAccumulator ?? null
+    }
+    case 'prerender-ppr':
+    case 'prerender-legacy':
+    case 'cache':
+    case 'private-cache':
+    case 'prerender-client':
+    case 'validation-client':
+    case 'unstable-cache':
+    case 'generate-static-params':
+      return null
+    default:
+      workUnitStore satisfies never
+      return null
   }
 }

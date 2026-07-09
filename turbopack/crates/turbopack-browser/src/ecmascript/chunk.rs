@@ -77,7 +77,7 @@ impl OutputChunk for EcmascriptBrowserChunk {
 #[turbo_tasks::value_impl]
 impl EcmascriptBrowserChunk {
     #[turbo_tasks::function]
-    async fn own_content(self: Vc<Self>) -> Result<Vc<EcmascriptBrowserChunkContent>> {
+    pub(crate) async fn own_content(self: Vc<Self>) -> Result<Vc<EcmascriptBrowserChunkContent>> {
         let this = self.await?;
         Ok(EcmascriptBrowserChunkContent::new(
             *this.chunking_context,

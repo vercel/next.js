@@ -53,6 +53,7 @@ interface DefineEnv {
     | ProxyMatcher[]
     | BloomFilter
     | Partial<NextConfigComplete['images']>
+    | NextConfigComplete['cacheLife']
     | I18NDomains
     | I18NConfig
 }
@@ -179,6 +180,9 @@ export function getDefineEnv({
       config.experimental.cachedNavigations
     ),
     'process.env.__NEXT_INSTANT_NAV_TOGGLE': isCacheComponentsEnabled,
+    'process.env.__NEXT_EXPERIMENTAL_COLD_CACHE_BADGE': Boolean(
+      config.experimental.coldCacheBadge
+    ),
     'process.env.__NEXT_USE_CACHE': isUseCacheEnabled,
     'process.env.__NEXT_USE_NODE_STREAMS': isEdgeServer ? false : true,
 
@@ -240,6 +244,9 @@ export function getDefineEnv({
       clientRouterFilters?.dynamicFilter ?? false,
     'process.env.__NEXT_CLIENT_VALIDATE_RSC_REQUEST_HEADERS': Boolean(
       config.experimental.validateRSCRequestHeaders
+    ),
+    'process.env.__NEXT_SERVER_COMPONENTS_HMR_CANCELLATION': Boolean(
+      config.experimental.serverComponentsHmrCancellation
     ),
     'process.env.__NEXT_DYNAMIC_ON_HOVER': Boolean(
       config.experimental.dynamicOnHover
@@ -378,6 +385,8 @@ export function getDefineEnv({
       config.experimental.gestureTransition ?? false,
     'process.env.__NEXT_OPTIMISTIC_ROUTING':
       config.experimental.optimisticRouting ?? false,
+    'process.env.__NEXT_INSTRUMENTATION_CLIENT_ROUTER_TRANSITION_EVENTS':
+      config.experimental.instrumentationClientRouterTransitionEvents ?? false,
     'process.env.__NEXT_APP_SHELLS': config.experimental.appShells ?? false,
     'process.env.__NEXT_VARY_PARAMS': config.experimental.varyParams ?? false,
     'process.env.__NEXT_EXPOSE_TESTING_API':
