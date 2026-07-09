@@ -416,7 +416,7 @@ import { readFile } from 'node:fs/promises'
 const content = await readFile('./config.json', 'utf-8')
 const items = JSON.parse(content).items ?? []
 
-export default async function Page() {
+export default function Page() {
   return (
     <ul>
       {items.map((item) => (
