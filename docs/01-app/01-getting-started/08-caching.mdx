@@ -378,7 +378,7 @@ You don't need to memorize which operations behave this way. The dev overlay sur
 
 ## I/O and computations
 
-Unlike random values or timestamps, module imports, synchronous I/O, and pure computations produce the same result every time they run. Components using only these operations are prerendered automatically, and their output becomes part of the static HTML at build time.
+Unlike random values and timestamps, which can vary between renders, module imports, synchronous I/O, and pure computations produce the same result every time they run. Components using only these operations are prerendered automatically, and their output becomes part of the static HTML at build time.
 
 ```tsx filename="page.tsx"
 import fs from 'node:fs'
