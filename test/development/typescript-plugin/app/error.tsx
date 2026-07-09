@@ -5,13 +5,13 @@ import { useEffect } from 'react'
 export default function Error({
   error,
   reset,
-  unstable_retry,
-  //^^^ `reset` and `unstable_retry` are fine because they are the special
+  retry,
+  //^^^ `reset` and `retry` are fine because they are the special
   // framework-injected function props in an error file
 }: {
   error: Error & { digest?: string }
   reset: () => void
-  unstable_retry: () => void
+  retry: () => void
 }) {
   useEffect(() => {
     console.error(error)
@@ -21,7 +21,7 @@ export default function Error({
     <div>
       <h2>Something went wrong!</h2>
       <button onClick={() => reset()}>Try again</button>
-      <button onClick={() => unstable_retry()}>Retry</button>
+      <button onClick={() => retry()}>Retry</button>
     </div>
   )
 }

@@ -52,7 +52,7 @@ describe('Cache Components Fallback Validation', () => {
     if (isTurbopack) {
       await expect(browser).toDisplayCollapsedRedbox(`
        {
-         "code": "E1296",
+         "code": "E1400",
          "description": "Next.js encountered runtime data during prerendering.",
          "environmentLabel": "Server",
          "label": "Blocking Route",
@@ -67,7 +67,7 @@ describe('Cache Components Fallback Validation', () => {
     } else {
       await expect(browser).toDisplayCollapsedRedbox(`
        {
-         "code": "E1296",
+         "code": "E1400",
          "description": "Next.js encountered runtime data during prerendering.",
          "environmentLabel": "Server",
          "label": "Blocking Route",
@@ -85,7 +85,7 @@ describe('Cache Components Fallback Validation', () => {
     if (isTurbopack) {
       await expect(browser).toDisplayCollapsedRedbox(`
        {
-         "code": "E1296",
+         "code": "E1400",
          "description": "Next.js encountered runtime data during prerendering.",
          "environmentLabel": "Server",
          "label": "Blocking Route",
@@ -100,7 +100,7 @@ describe('Cache Components Fallback Validation', () => {
     } else {
       await expect(browser).toDisplayCollapsedRedbox(`
        {
-         "code": "E1296",
+         "code": "E1400",
          "description": "Next.js encountered runtime data during prerendering.",
          "environmentLabel": "Server",
          "label": "Blocking Route",
@@ -118,30 +118,30 @@ describe('Cache Components Fallback Validation', () => {
     if (isTurbopack) {
       await expect(browser).toDisplayCollapsedRedbox(`
        {
-         "code": "E1296",
+         "code": "E1400",
          "description": "Next.js encountered runtime data during prerendering.",
          "environmentLabel": "Server",
          "label": "Blocking Route",
-         "source": "app/partial/[top]/unwrapped/[bottom]/page.tsx (6:26) @ Page
-       > 6 |       Top: {(await props.params).top}, Bottom: {(await props.params).bottom}
-           |                          ^",
+         "source": "app/partial/[top]/unwrapped/layout.tsx (8:3) @ Layout
+       >  8 |   await params
+            |   ^",
          "stack": [
-           "Page app/partial/[top]/unwrapped/[bottom]/page.tsx (6:26)",
+           "Layout app/partial/[top]/unwrapped/layout.tsx (8:3)",
          ],
        }
       `)
     } else {
       await expect(browser).toDisplayCollapsedRedbox(`
        {
-         "code": "E1296",
+         "code": "E1400",
          "description": "Next.js encountered runtime data during prerendering.",
          "environmentLabel": "Server",
          "label": "Blocking Route",
-         "source": "app/partial/[top]/unwrapped/[bottom]/page.tsx (6:26) @ Page
-       > 6 |       Top: {(await props.params).top}, Bottom: {(await props.params).bottom}
-           |                          ^",
+         "source": "app/partial/[top]/unwrapped/layout.tsx (8:3) @ Layout
+       >  8 |   await params
+            |   ^",
          "stack": [
-           "Page app/partial/[top]/unwrapped/[bottom]/page.tsx (6:26)",
+           "Layout app/partial/[top]/unwrapped/layout.tsx (8:3)",
          ],
        }
       `)
@@ -155,7 +155,7 @@ describe('Cache Components Fallback Validation', () => {
     if (isTurbopack) {
       await expect(browser).toDisplayCollapsedRedbox(`
        {
-         "code": "E1296",
+         "code": "E1400",
          "description": "Next.js encountered runtime data during prerendering.",
          "environmentLabel": "Server",
          "label": "Blocking Route",
@@ -170,7 +170,7 @@ describe('Cache Components Fallback Validation', () => {
     } else {
       await expect(browser).toDisplayCollapsedRedbox(`
        {
-         "code": "E1296",
+         "code": "E1400",
          "description": "Next.js encountered runtime data during prerendering.",
          "environmentLabel": "Server",
          "label": "Blocking Route",
@@ -188,7 +188,7 @@ describe('Cache Components Fallback Validation', () => {
     if (isTurbopack) {
       await expect(browser).toDisplayCollapsedRedbox(`
        {
-         "code": "E1296",
+         "code": "E1400",
          "description": "Next.js encountered runtime data during prerendering.",
          "environmentLabel": "Server",
          "label": "Blocking Route",
@@ -203,7 +203,7 @@ describe('Cache Components Fallback Validation', () => {
     } else {
       await expect(browser).toDisplayCollapsedRedbox(`
        {
-         "code": "E1296",
+         "code": "E1400",
          "description": "Next.js encountered runtime data during prerendering.",
          "environmentLabel": "Server",
          "label": "Blocking Route",
@@ -221,7 +221,7 @@ describe('Cache Components Fallback Validation', () => {
     if (isTurbopack) {
       await expect(browser).toDisplayCollapsedRedbox(`
        {
-         "code": "E1296",
+         "code": "E1400",
          "description": "Next.js encountered runtime data during prerendering.",
          "environmentLabel": "Server",
          "label": "Blocking Route",
@@ -236,7 +236,7 @@ describe('Cache Components Fallback Validation', () => {
     } else {
       await expect(browser).toDisplayCollapsedRedbox(`
        {
-         "code": "E1296",
+         "code": "E1400",
          "description": "Next.js encountered runtime data during prerendering.",
          "environmentLabel": "Server",
          "label": "Blocking Route",
@@ -254,7 +254,7 @@ describe('Cache Components Fallback Validation', () => {
     if (isTurbopack) {
       await expect(browser).toDisplayCollapsedRedbox(`
        {
-         "code": "E1296",
+         "code": "E1400",
          "description": "Next.js encountered runtime data during prerendering.",
          "environmentLabel": "Server",
          "label": "Blocking Route",
@@ -269,7 +269,7 @@ describe('Cache Components Fallback Validation', () => {
     } else {
       await expect(browser).toDisplayCollapsedRedbox(`
        {
-         "code": "E1296",
+         "code": "E1400",
          "description": "Next.js encountered runtime data during prerendering.",
          "environmentLabel": "Server",
          "label": "Blocking Route",
@@ -287,7 +287,7 @@ describe('Cache Components Fallback Validation', () => {
     if (isTurbopack) {
       await expect(browser).toDisplayCollapsedRedbox(`
        {
-         "code": "E1296",
+         "code": "E1400",
          "description": "Next.js encountered runtime data during prerendering.",
          "environmentLabel": "Server",
          "label": "Blocking Route",
@@ -302,7 +302,7 @@ describe('Cache Components Fallback Validation', () => {
     } else {
       await expect(browser).toDisplayCollapsedRedbox(`
        {
-         "code": "E1296",
+         "code": "E1400",
          "description": "Next.js encountered runtime data during prerendering.",
          "environmentLabel": "Server",
          "label": "Blocking Route",
@@ -320,7 +320,7 @@ describe('Cache Components Fallback Validation', () => {
     if (isTurbopack) {
       await expect(browser).toDisplayCollapsedRedbox(`
        {
-         "code": "E1296",
+         "code": "E1400",
          "description": "Next.js encountered runtime data during prerendering.",
          "environmentLabel": "Server",
          "label": "Blocking Route",
@@ -335,7 +335,7 @@ describe('Cache Components Fallback Validation', () => {
     } else {
       await expect(browser).toDisplayCollapsedRedbox(`
        {
-         "code": "E1296",
+         "code": "E1400",
          "description": "Next.js encountered runtime data during prerendering.",
          "environmentLabel": "Server",
          "label": "Blocking Route",

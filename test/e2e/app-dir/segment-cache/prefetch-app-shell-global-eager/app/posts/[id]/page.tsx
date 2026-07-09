@@ -2,7 +2,7 @@ import { Suspense } from 'react'
 
 type Params = { id: string }
 
-// No per-segment `unstable_prefetch`. The route's prefetch config comes from
+// No per-segment `prefetch`. The route's prefetch config comes from
 // the global `partialPrefetching: 'unstable_eager'` in next.config, which makes
 // it eager — so the App Shells skip does NOT apply.
 export function generateStaticParams() {

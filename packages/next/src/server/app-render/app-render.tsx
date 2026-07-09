@@ -25,6 +25,7 @@ import type {
   PrerenderStoreModernRuntime,
   RequestStore,
   ValidationStoreClient,
+  WorkUnitStore,
 } from '../app-render/work-unit-async-storage.external'
 import type { NextParsedUrlQuery } from '../request-meta'
 import type { LoaderTree } from '../lib/app-dir-module'
@@ -64,6 +65,7 @@ import {
   createNodeInlinedDataStream,
 } from './stream-ops'
 import type { AnyStream } from './stream-ops'
+import { getInstantTestBootstrapScriptContent } from './instant-test-bootstrap'
 import { stripInternalQueries } from '../internal-utils'
 import {
   NEXT_HMR_REFRESH_HEADER,
@@ -172,7 +174,8 @@ import {
   getClientComponentLoaderMetrics,
   wrapClientComponentLoader,
 } from '../client-component-renderer-logger'
-import { isNodeNextRequest } from '../base-http/helpers'
+import { isNodeNextRequest, isNodeNextResponse } from '../base-http/helpers'
+import { signalFromNodeResponse } from '../web/spec-extension/adapters/next-request'
 import {
   parseRelativeUrl,
   type ParsedRelativeUrl,
@@ -212,7 +215,8 @@ import { CacheSignal } from './cache-signal'
 import {
   createResponseVaryParamsAccumulator,
   finishAccumulatingVaryParams,
-  getMetadataVaryParamsThenable,
+  getMetadataVaryParamsAccumulator,
+  getRootParamsVaryParamsAccumulator,
 } from './vary-params'
 import { getTracedMetadata } from '../lib/trace/utils'
 import { InvariantError } from '../../shared/lib/invariant-error'
@@ -263,6 +267,7 @@ import {
 } from './staged-rendering'
 import {
   anySegmentHasRuntimePrefetchEnabled,
+  anySegmentHasPartialPrefetchingEnabled,
   isPageAllowedToBlock,
   anySegmentNeedsInstantValidationInDev,
   anySegmentNeedsInstantValidationInBuild,
@@ -273,6 +278,7 @@ import {
   createWebDebugChannel,
   createNodeDebugChannel,
   type DebugChannelPair,
+  type NodeDebugChannelPair,
 } from './debug-channel-server'
 import { createNodeStreamWithLateRelease } from './instant-validation/stream-utils'
 
@@ -288,6 +294,8 @@ import { ResponseCookies } from '../web/spec-extension/cookies'
 import { isInstantValidationError } from './instant-validation/instant-validation-error'
 import { createPromiseWithResolvers } from '../../shared/lib/promise-with-resolvers'
 import { RENDER_STAGES_BY_DATA_KIND } from '../dynamic-rendering-utils'
+import type { ValidationPrefetchKind } from './instant-validation/instant-validation'
+import { hasNonRootStaticParams } from '../lib/params-utils'
 
 export type GetDynamicParamFromSegment = (
   // The LoaderTree to extract the dynamic param from
@@ -395,20 +403,23 @@ function parseRequestHeaders(
   headers: IncomingHttpHeaders,
   options: ParseRequestHeadersOptions
 ): ParsedRequestHeaders {
+  const isRSCRequest = isRSCRequestHeader(headers[RSC_HEADER])
+
   // runtime prefetch requests are *not* treated as prefetch requests
   // (TODO: this is confusing, we should refactor this to express this better)
-  const isPrefetchRequest = headers[NEXT_ROUTER_PREFETCH_HEADER] === '1'
+  const isPrefetchRequest =
+    isRSCRequest && headers[NEXT_ROUTER_PREFETCH_HEADER] === '1'
 
-  const isAppShellPrefetchRequest = headers[NEXT_ROUTER_PREFETCH_HEADER] === '3'
+  const isAppShellPrefetchRequest =
+    isRSCRequest && headers[NEXT_ROUTER_PREFETCH_HEADER] === '3'
 
   // App Shell prefetches are a subtype of runtime prefetch — same code path,
   // but with less resolved content (omitting link data)
   const isRuntimePrefetchRequest =
-    headers[NEXT_ROUTER_PREFETCH_HEADER] === '2' || isAppShellPrefetchRequest
+    isRSCRequest &&
+    (headers[NEXT_ROUTER_PREFETCH_HEADER] === '2' || isAppShellPrefetchRequest)
 
   const isHmrRefresh = headers[NEXT_HMR_REFRESH_HEADER] !== undefined
-
-  const isRSCRequest = isRSCRequestHeader(headers[RSC_HEADER])
 
   const shouldProvideFlightRouterState =
     isRSCRequest && (!isPrefetchRequest || !options.isRoutePPREnabled)
@@ -419,7 +430,7 @@ function parseRequestHeaders(
 
   // Checks if this is a prefetch of the Route Tree by the Segment Cache
   const isRouteTreePrefetchRequest =
-    headers[NEXT_ROUTER_SEGMENT_PREFETCH_HEADER] === '/_tree'
+    isRSCRequest && headers[NEXT_ROUTER_SEGMENT_PREFETCH_HEADER] === '/_tree'
 
   const csp =
     headers['content-security-policy'] ||
@@ -603,6 +614,7 @@ async function generateDynamicRSCPayload(
     staleTimeIterable?: AsyncIterable<number>
     staticStageByteLengthPromise?: Promise<number>
     shellByteLengthPromise?: Promise<number | null>
+    shellUsedSessionDataPromise?: Promise<boolean>
     runtimePrefetchStream?: ReadableStream<Uint8Array>
   }
 ): Promise<RSCPayload> {
@@ -737,7 +749,8 @@ async function generateDynamicRSCPayload(
       q: getRenderedSearch(query),
       i: !!couldBeIntercepted,
       S: workStore.isStaticGeneration,
-      h: getMetadataVaryParamsThenable(),
+      h: getMetadataVaryParamsAccumulator(),
+      r: getRootParamsVaryParamsAccumulator() ?? undefined,
     }
   )
 
@@ -750,6 +763,9 @@ async function generateDynamicRSCPayload(
   }
   if (options?.shellByteLengthPromise !== undefined) {
     baseResponse.a = options.shellByteLengthPromise
+  }
+  if (options?.shellUsedSessionDataPromise !== undefined) {
+    baseResponse.u = options.shellUsedSessionDataPromise
   }
 
   if (options?.runtimePrefetchStream !== undefined) {
@@ -828,6 +844,19 @@ async function generateDynamicFlightRenderResult(
     onFlightDataRenderError
   )
 
+  // With Server Components HMR cancellation enabled, a superseded HMR refresh
+  // aborts its own client fetch, which closes this response. We use that
+  // response-close to abort the discarded render. This is the
+  // non-Cache-Components dev RSC path; unlike the Cache Components staged path
+  // it has no detached validation, so the render is the only work to cancel.
+  const requestAbortSignal =
+    process.env.__NEXT_DEV_SERVER &&
+    renderOpts.experimental.serverComponentsHmrCancellation === true &&
+    requestStore.isHmrRefresh === true &&
+    isNodeNextResponse(ctx.res)
+      ? signalFromNodeResponse(ctx.res.originalResponse)
+      : undefined
+
   if (process.env.__NEXT_USE_NODE_STREAMS) {
     const debugChannel = setReactDebugChannel && createNodeDebugChannel()
 
@@ -855,6 +884,7 @@ async function generateDynamicFlightRenderResult(
         temporaryReferences: options?.temporaryReferences,
         filterStackFrame,
         debugChannel: debugChannel?.serverSide,
+        signal: requestAbortSignal,
       }
     )
 
@@ -890,6 +920,7 @@ async function generateDynamicFlightRenderResult(
         temporaryReferences: options?.temporaryReferences,
         filterStackFrame,
         debugChannel: debugChannel?.serverSide,
+        signal: requestAbortSignal,
       }
     )
 
@@ -899,178 +930,6 @@ async function generateDynamicFlightRenderResult(
       options?.waitUntil
     )
   }
-}
-
-/**
- * Production-only staged dynamic flight render for cache components. Uses
- * staged rendering to separate static (RDC-backed) from runtime/dynamic
- * content.
- */
-async function generateStagedDynamicFlightRenderResultWeb(
-  req: BaseNextRequest,
-  ctx: AppRenderContext,
-  requestStore: RequestStore
-): Promise<RenderResult> {
-  const { componentMod, workStore, renderOpts } = ctx
-  const { renderToReadableStream, routeModule } = componentMod
-  const { loaderTree } = routeModule.userland
-  const { onInstrumentationRequestError, experimental } = renderOpts
-  const { appShells } = experimental
-
-  function onFlightDataRenderError(err: DigestedError, silenceLog: boolean) {
-    return onInstrumentationRequestError?.(
-      err,
-      req,
-      createErrorContext(ctx, 'react-server-components-payload'),
-      silenceLog
-    )
-  }
-
-  const onError = createReactServerErrorHandler(
-    false,
-    false,
-    workStore.reactServerErrorsByDigest,
-    onFlightDataRenderError
-  )
-
-  const selectStaleTime = createSelectStaleTime(experimental)
-  const staleTimeIterable = new StaleTimeIterable()
-
-  const stageController = new StagedRenderingController({
-    abortSignal: null,
-    abandonController: null,
-    // TODO(cached-navs): this assumes that we checked during build that there's no sync IO.
-    // but it can happen e.g. after a revalidation or conditionally for a param that wasn't prerendered.
-    // we should change this to track sync IO, log an error and advance to dynamic.
-    shouldTrackSyncIO: false,
-    finalStage: null,
-  })
-
-  // Initialize stale time tracking on the request store.
-  requestStore.stale = INFINITE_CACHE
-  requestStore.stagedRendering = stageController
-  requestStore.varyParamsAccumulator = createResponseVaryParamsAccumulator()
-  requestStore.asyncApiPromises = createAsyncApiPromises(
-    stageController,
-    requestStore.cookies,
-    requestStore.mutableCookies,
-    requestStore.headers
-  )
-
-  trackStaleTime(
-    requestStore as { stale: number },
-    staleTimeIterable,
-    selectStaleTime
-  )
-
-  // Deferred promise for the static stage byte length. Flight serializes the
-  // resolved value into the stream so the client knows where the static
-  // prefix ends.
-  const shellByteLengthDeferred = appShells
-    ? createPromiseWithResolvers<number | null>()
-    : null
-  const staticStageByteLengthDeferred = createPromiseWithResolvers<number>()
-
-  // Check if this route has opted into runtime prefetching via
-  // unstable_instant. If so, we piggyback on the dynamic render to fill caches
-  // and then spawn a final runtime prerender whose result stream is embedded in
-  // the RSC payload. This is gated on the explicit opt-in because it adds extra
-  // server processing, increases the response payload size, and the runtime
-  // prefetch output should have been validated first.
-  const hasRuntimePrefetch =
-    await anySegmentHasRuntimePrefetchEnabled(loaderTree)
-
-  let runtimePrefetchStream: ReadableStream<Uint8Array> | undefined
-
-  if (hasRuntimePrefetch) {
-    // Create a mutable cache that gets filled during the dynamic render.
-    const prerenderResumeDataCache = createPrerenderResumeDataCache()
-    requestStore.resumeDataCache = prerenderResumeDataCache
-
-    const cacheSignal = new CacheSignal()
-    trackPendingModules(cacheSignal)
-    requestStore.cacheSignal = cacheSignal
-
-    // Create a deferred stream for the runtime prefetch result. Its readable
-    // side goes into the RSC payload (Flight serializes it lazily). The
-    // writable side receives the runtime prerender result once the dynamic
-    // render has filled all caches.
-    const runtimePrefetchTransform = new TransformStream<Uint8Array>()
-    runtimePrefetchStream = runtimePrefetchTransform.readable
-
-    // Wait for the dynamic render to fill caches, then run the final runtime
-    // prerender (fire-and-forget — does not block the response).
-    void cacheSignal
-      .cacheReady()
-      .then(() =>
-        spawnRuntimePrefetchWithFilledCaches(
-          runtimePrefetchTransform.writable,
-          ctx,
-          prerenderResumeDataCache,
-          requestStore,
-          onError
-        )
-      )
-  }
-
-  const rscPayload = await workUnitAsyncStorage.run(
-    requestStore,
-    generateDynamicRSCPayload,
-    ctx,
-    {
-      staleTimeIterable,
-      staticStageByteLengthPromise: staticStageByteLengthDeferred.promise,
-      shellByteLengthPromise: shellByteLengthDeferred?.promise,
-      runtimePrefetchStream,
-    }
-  )
-
-  const { clientModules } = getClientReferenceManifest()
-
-  const flightReadableStream = await runInSequentialTasks(
-    () => {
-      // NOTE: no early/late separation in this render
-      stageController.advanceStage(RenderStage.ShellStatic)
-
-      const stream = workUnitAsyncStorage.run(
-        requestStore,
-        renderToReadableStream,
-        rscPayload,
-        clientModules,
-        { onError, filterStackFrame }
-      )
-
-      const [dynamicStream, staticStream] = stream.tee()
-
-      void countShellAndStaticStageBytes(staticStream, stageController).then(
-        (byteLengths) => {
-          staticStageByteLengthDeferred.resolve(byteLengths[RenderStage.Static])
-          shellByteLengthDeferred?.resolve(byteLengths[RenderStage.ShellStatic])
-        }
-      )
-
-      return dynamicStream
-    },
-    () => {
-      stageController.advanceStage(RenderStage.Static)
-    },
-    () => {
-      // This is a separate task that doesn't advance a stage. It forces
-      // draining the immediate queue so that the stale time iterable and vary
-      // params accumulators are flushed before we advance to the dynamic stage.
-      staleTimeIterable.close()
-      if (requestStore.varyParamsAccumulator) {
-        finishAccumulatingVaryParams(requestStore.varyParamsAccumulator)
-      }
-    },
-    () => {
-      stageController.advanceStage(RenderStage.Dynamic)
-    }
-  )
-
-  return new FlightRenderResult(flightReadableStream, {
-    fetchMetrics: workStore.fetchMetrics,
-  })
 }
 
 /**
@@ -1140,18 +999,21 @@ async function generateStagedDynamicFlightRenderResultNode(
     : null
   const staticStageByteLengthDeferred = createPromiseWithResolvers<number>()
 
-  // Check if this route has opted into runtime prefetching via
-  // unstable_instant. If so, we piggyback on the dynamic render to fill caches
-  // and then spawn a final runtime prerender whose result stream is embedded in
-  // the RSC payload. This is gated on the explicit opt-in because it adds extra
-  // server processing, increases the response payload size, and the runtime
-  // prefetch output should have been validated first.
-  const hasRuntimePrefetch =
-    await anySegmentHasRuntimePrefetchEnabled(loaderTree)
-
   let runtimePrefetchStream: ReadableStream<Uint8Array> | undefined
 
-  if (hasRuntimePrefetch) {
+  // Check if this route should runtime-cache its navigation. This happens when
+  // Partial Prefetching is enabled for the route, either per segment (a
+  // `prefetch` of 'partial', 'unstable_eager', or 'allow-runtime') or globally
+  // (the `partialPrefetching` config), or when the `cachedNavigations:
+  // 'allow-runtime'` flag forces it for every route. If so, we piggyback on the
+  // dynamic render to fill caches and then spawn a final runtime prerender
+  // whose result stream is embedded in the RSC payload. This is gated because
+  // it adds extra server processing and increases the response payload size.
+  if (
+    experimental.cachedNavigations === 'allow-runtime' ||
+    Boolean(renderOpts.partialPrefetching) ||
+    (await anySegmentHasPartialPrefetchingEnabled(loaderTree))
+  ) {
     // Create a mutable cache that gets filled during the dynamic render.
     const prerenderResumeDataCache = createPrerenderResumeDataCache()
     requestStore.resumeDataCache = prerenderResumeDataCache
@@ -1269,6 +1131,7 @@ async function spawnRuntimePrefetchWithFilledCaches(
       ? // If appShells is on, we want to be able to rewind the result to a session shell.
         {
           type: 'rewindable-session-shell',
+          shellUsedSessionDataDeferred: createPromiseWithResolvers(),
           shellByteLengthDeferred: createPromiseWithResolvers(),
         }
       : // Otherwise, render everything without considering shells.
@@ -1283,6 +1146,10 @@ async function spawnRuntimePrefetchWithFilledCaches(
           mode.type === 'rewindable-session-shell'
             ? mode.shellByteLengthDeferred.promise
             : undefined,
+        shellUsedSessionDataPromise:
+          mode.type !== 'runtime-only'
+            ? mode.shellUsedSessionDataDeferred.promise
+            : undefined,
       }),
       prerenderResumeDataCache,
       rootParams,
@@ -1290,7 +1157,11 @@ async function spawnRuntimePrefetchWithFilledCaches(
       requestStore.cookies,
       requestStore.draftMode,
       onError,
-      staleTimeIterable
+      staleTimeIterable,
+      // This path is only reached on the production Cache Components + Cached
+      // Navigations renders (the staged Flight response and the HTML hydration
+      // payload), which set up no React debug channel.
+      undefined
     )
 
     await result.prelude.pipeTo(writable)
@@ -1310,69 +1181,6 @@ type RenderToReadableStreamServerOptions = NonNullable<
     (typeof import('react-server-dom-webpack/server.node'))['renderToReadableStream']
   >[2]
 >
-
-async function stagedRenderWithoutCachesInDevWeb(
-  ctx: AppRenderContext,
-  requestStore: RequestStore,
-  getPayload: (requestStore: RequestStore) => Promise<RSCPayload>,
-  options: Omit<RenderToReadableStreamServerOptions, 'environmentName'>
-) {
-  // We're rendering while bypassing caches,
-  // so we have no hope of showing a useful runtime stage.
-  // But we still want things like `params` to show up in devtools correctly,
-  // which relies on mechanisms we've set up for staged rendering,
-  // so we do a 2-task version (Static -> Dynamic) instead.
-
-  // We aren't filling caches so we don't need to abort this render, it'll
-  // stream in a single pass
-  const stageController = new StagedRenderingController({
-    abortSignal: null,
-    abandonController: null,
-    shouldTrackSyncIO: false, // do not track sync IO (we don't have reliable stages)
-    finalStage: null,
-  })
-
-  const environmentName = () => {
-    const currentStage = stageController.currentStage
-    return getEnvironmentNameForStageWithoutCaches(currentStage)
-  }
-
-  requestStore.stagedRendering = stageController
-  requestStore.asyncApiPromises = createAsyncApiPromises(
-    stageController,
-    requestStore.cookies,
-    requestStore.mutableCookies,
-    requestStore.headers
-  )
-
-  const { clientModules } = getClientReferenceManifest()
-  const rscPayload = await getPayload(requestStore)
-
-  return await runInSequentialTasks(
-    () => {
-      // NOTE: no early/late separation in this render
-      stageController.advanceStage(RenderStage.ShellStatic)
-
-      return workUnitAsyncStorage.run(
-        requestStore,
-        renderToWebFlightStream,
-        ctx.componentMod,
-        rscPayload,
-        clientModules,
-        {
-          ...options,
-          environmentName,
-        }
-      )
-    },
-    () => {
-      stageController.advanceStage(RenderStage.Static)
-    },
-    () => {
-      stageController.advanceStage(RenderStage.Dynamic)
-    }
-  )
-}
 
 async function stagedRenderWithoutCachesInDevNode(
   ctx: AppRenderContext,
@@ -1559,81 +1367,79 @@ async function generateDynamicFlightRenderResultWithStagesInDev(
       setCacheStatus('ready', htmlRequestId)
     }
 
-    const {
-      stream: serverStream,
-      accumulatedChunksPromise,
-      syncInterruptReason,
-      startTime,
-      staticStageEndTime,
-      runtimeStageEndTime,
-      debugChannel: returnedDebugChannel,
-      requestStore: finalRequestStore,
-    } = await (process.env.__NEXT_USE_NODE_STREAMS
-      ? renderWithRestartOnCacheMissInDevNode(
-          ctx,
-          initialRequestStore,
-          createRequestStore,
-          getPayload,
-          onError
-        )
-      : renderWithRestartOnCacheMissInDevWeb(
-          ctx,
-          initialRequestStore,
-          createRequestStore,
-          getPayload,
-          onError
-        ))
+    const prefetchMode = await getPrefetchingModeForPage(renderOpts, loaderTree)
 
-    if (shouldValidate) {
-      let validationDebugChannelClient: AnyStream | undefined = undefined
-      if (returnedDebugChannel) {
-        const [t1, t2] = teeStream(returnedDebugChannel.clientSide.readable)
-        returnedDebugChannel.clientSide.readable = t1
-        validationDebugChannelClient = t2
-      }
-      consoleAsyncStorage.run(
-        { dim: true },
-        spawnStaticShellValidationInDev,
-        accumulatedChunksPromise,
-        syncInterruptReason,
-        startTime,
-        staticStageEndTime,
-        runtimeStageEndTime,
-        ctx,
-        finalRequestStore,
-        fallbackParams,
-        validationDebugChannelClient,
-        didErrorObservably
-      )
+    // A client navigation into a runtime-prefetch route extends the shell
+    // through the runtime-prefetchable content: it has already settled on the
+    // client (via the prefetch) by the time it navigates, so it belongs in this
+    // response's shell. Everything else uses the static shell, like an initial
+    // load: plain navigations, and HMR refreshes (a fresh render of the current
+    // page, with no settled prefetch to draw on). Dynamic content always
+    // streams in after the shell.
+    let prefetchStage: StreamRevealStage
+
+    if (initialRequestStore.isHmrRefresh === true) {
+      prefetchStage = RenderStage.Static
     } else {
-      logValidationSkipped(ctx)
-
-      // The main render may record an invalid dynamic usage error on the work
-      // store, e.g. a `'use cache'` fill timeout, or a request API like
-      // `cookies()` being called inside a `'use cache'` scope. Even when we
-      // don't spawn the static shell validation, surface any recorded error
-      // through the dev overlay so client-side navigations see the same error
-      // as initial HTML loads, where the spawned validation forwards it. Wait
-      // for the full stream to finish accumulating so we also catch errors from
-      // the dynamic stage.
-      void accumulatedChunksPromise.then(() => {
-        const { invalidDynamicUsageError } = workStore
-        // Forward only if userland caught the rejection. If userland didn't
-        // catch, the rejection propagated into the React render and React's
-        // `serverComponentsErrorHandler` already stamped a digest on the error
-        // and emitted it as a Flight error chunk — surfacing it again here
-        // would duplicate the entry in the dev overlay.
-        if (
-          invalidDynamicUsageError &&
-          !(invalidDynamicUsageError as { digest?: unknown }).digest
-        ) {
-          logMessagesAndSendErrorsToBrowser([invalidDynamicUsageError], ctx)
-        }
-      })
+      if (prefetchMode === PrefetchingMode.Partial) {
+        // TODO(app-shells): model `partialPrefetching: "unstable_eager"`
+        // TODO(app-shells): if this navigation came from <Link prefetch={true} />,
+        // we should show the shell for a speculative prefetch
+        // (which can have more data than the app shell)
+        prefetchStage = RenderStage.ShellRuntime
+      } else {
+        prefetchStage = (await anySegmentHasRuntimePrefetchEnabled(loaderTree))
+          ? RenderStage.Runtime
+          : RenderStage.Static
+      }
     }
 
-    debugChannel = returnedDebugChannel
-    stream = serverStream
+    // With Server Components HMR cancellation enabled, a superseded HMR refresh
+    // aborts its own client fetch (see the client-side supersession logic),
+    // which closes this response. We use that response-close as the signal to
+    // stop the server work this refresh started that's now discarded: the
+    // streaming render below is aborted, and the detached validation is skipped
+    // (including aborting the background renders it uses to prepare its
+    // inputs). The render's in-flight `'use cache'` fills are left running,
+    // since they aren't tied to its controller. A superseding refresh can't
+    // reuse those fills today, because each edit changes the HMR hash baked
+    // into the cache key; that becomes useful only once those keys use
+    // implementation-derived hashes instead (see `use-cache-wrapper.ts`).
+    //
+    // The detached validation is Cache Components only: it runs only on this
+    // staged dev render, so there's nothing to skip on the non-Cache Components
+    // dev RSC path. That path (`generateDynamicFlightRenderResult`) aborts its
+    // superseded render the same way; it just has no validation to skip.
+    //
+    // TODO: The gate is `isHmrRefresh` for now because that's the only case we
+    // cancel today. The response-close signal itself is general, so this could
+    // later be relaxed to also cover a browser stop or a devtools "cancel
+    // render" button.
+    const requestAbortSignal =
+      renderOpts.experimental.serverComponentsHmrCancellation === true &&
+      initialRequestStore.isHmrRefresh === true &&
+      isNodeNextResponse(ctx.res)
+        ? signalFromNodeResponse(ctx.res.originalResponse)
+        : undefined
+
+    const result = await stagedRenderWithCachesInDev({
+      prefetchMode,
+      ctx,
+      requestStore: initialRequestStore,
+      createRequestStore,
+      getPayload,
+      onError,
+      shouldValidate,
+      fallbackRouteParams: fallbackParams,
+      getDevRenderDidError: () => didErrorObservably,
+      navigationKind: {
+        type: 'prefetched-client',
+        prefetchStage,
+      },
+      requestAbortSignal,
+    })
+    stream = result.stream
+    debugChannel = result.debugChannel
   } else {
     // We're either bypassing caches or we can't restart the render.
     // Do a dynamic render, but with (basic) environment labels.
@@ -1643,33 +1449,18 @@ async function generateDynamicFlightRenderResultWithStagesInDev(
       setCacheStatus('bypass', htmlRequestId)
     }
 
-    if (process.env.__NEXT_USE_NODE_STREAMS) {
-      debugChannel = setReactDebugChannel && createNodeDebugChannel()
+    debugChannel = setReactDebugChannel && createNodeDebugChannel()
 
-      stream = await stagedRenderWithoutCachesInDevNode(
-        ctx,
-        initialRequestStore,
-        getPayload,
-        {
-          onError: onError,
-          filterStackFrame,
-          debugChannel: debugChannel?.serverSide,
-        }
-      )
-    } else {
-      debugChannel = setReactDebugChannel && createWebDebugChannel()
-
-      stream = await stagedRenderWithoutCachesInDevWeb(
-        ctx,
-        initialRequestStore,
-        getPayload,
-        {
-          onError: onError,
-          filterStackFrame,
-          debugChannel: debugChannel?.serverSide,
-        }
-      )
-    }
+    stream = await stagedRenderWithoutCachesInDevNode(
+      ctx,
+      initialRequestStore,
+      getPayload,
+      {
+        onError: onError,
+        filterStackFrame,
+        debugChannel: debugChannel?.serverSide,
+      }
+    )
   }
 
   if (debugChannel && setReactDebugChannel) {
@@ -1687,9 +1478,12 @@ async function generateRuntimePrefetchResult(
   requestStore: RequestStore,
   isShellPrefetch: boolean
 ): Promise<RenderResult> {
-  const { workStore, renderOpts } = ctx
-  const { isBuildTimePrerendering = false, onInstrumentationRequestError } =
-    renderOpts
+  const { workStore, renderOpts, htmlRequestId, requestId } = ctx
+  const {
+    isBuildTimePrerendering = false,
+    onInstrumentationRequestError,
+    setReactDebugChannel,
+  } = renderOpts
   const { appShells } = renderOpts.experimental
 
   function onFlightDataRenderError(err: DigestedError, silenceLog: boolean) {
@@ -1738,12 +1532,23 @@ async function generateRuntimePrefetchResult(
 
   const mode: RuntimePrerenderMode = appShells
     ? isShellPrefetch
-      ? { type: 'session-shell-only' }
+      ? {
+          type: 'session-shell-only',
+          shellUsedSessionDataDeferred: createPromiseWithResolvers(),
+        }
       : {
           type: 'rewindable-session-shell',
+          shellUsedSessionDataDeferred: createPromiseWithResolvers(),
           shellByteLengthDeferred: createPromiseWithResolvers(),
         }
     : { type: 'runtime-only' }
+
+  const debugChannel = setReactDebugChannel
+    ? createWebDebugChannel()
+    : undefined
+  if (debugChannel && setReactDebugChannel) {
+    setReactDebugChannel(debugChannel.clientSide, htmlRequestId, requestId)
+  }
 
   const response = await finalRuntimeServerPrerender(
     mode,
@@ -1754,6 +1559,10 @@ async function generateRuntimePrefetchResult(
         mode.type === 'rewindable-session-shell'
           ? mode.shellByteLengthDeferred.promise
           : undefined,
+      shellUsedSessionDataPromise:
+        mode.type !== 'runtime-only'
+          ? mode.shellUsedSessionDataDeferred.promise
+          : undefined,
     }),
     prerenderResumeDataCache,
     rootParams,
@@ -1761,7 +1570,8 @@ async function generateRuntimePrefetchResult(
     requestStore.cookies,
     requestStore.draftMode,
     onError,
-    staleTimeIterable
+    staleTimeIterable,
+    debugChannel?.serverSide
   )
 
   applyMetadataFromPrerenderResult(response, metadata, workStore)
@@ -1927,9 +1737,13 @@ function prependIsPartialByteToChunks(
 
 type RuntimePrerenderMode =
   | { type: 'runtime-only' }
-  | { type: 'session-shell-only' }
+  | {
+      type: 'session-shell-only'
+      shellUsedSessionDataDeferred: PromiseWithResolvers<boolean>
+    }
   | {
       type: 'rewindable-session-shell'
+      shellUsedSessionDataDeferred: PromiseWithResolvers<boolean>
       shellByteLengthDeferred: PromiseWithResolvers<number | null>
     }
 
@@ -1943,7 +1757,8 @@ async function finalRuntimeServerPrerender(
   cookies: PrerenderStoreModernRuntime['cookies'],
   draftMode: PrerenderStoreModernRuntime['draftMode'],
   onError: (err: unknown) => string | undefined,
-  staleTimeIterable: StaleTimeIterable
+  staleTimeIterable: StaleTimeIterable,
+  debugChannel: RenderToReadableStreamServerOptions['debugChannel']
 ) {
   const { implicitTags, renderOpts } = ctx
   const { ComponentMod, experimental, isDebugDynamicAccesses } = renderOpts
@@ -2008,7 +1823,53 @@ async function finalRuntimeServerPrerender(
   const streamState = createStreamPendingState()
   const collectedChunks = createPrerenderChunksAccumulator()
   const stageByteLengths =
-    mode.type === 'rewindable-session-shell' ? createStageByteLengths() : null
+    mode.type === 'rewindable-session-shell' ||
+    mode.type === 'session-shell-only'
+      ? createStageByteLengths()
+      : null
+  const collectChunk = (chunk: Uint8Array) => {
+    collectPrerenderChunk(collectedChunks, finalServerController.signal, chunk)
+    if (stageByteLengths) {
+      increaseChunkByteLengths(
+        stageByteLengths,
+        finalStageController.currentStage,
+        chunk.byteLength
+      )
+    }
+  }
+
+  let didHandleUnexpectedAbort = false
+  /**
+   * @returns - whether or not the task should be skipped
+   * because the render was already aborted.
+   * */
+  const checkUnexpectedAbort = (): boolean => {
+    if (finalServerController.signal.aborted) {
+      // If the server controller is already aborted, then we must have encountered sync IO
+      if (!didHandleUnexpectedAbort) {
+        didHandleUnexpectedAbort = true
+        onUnexpectedAbort()
+      }
+      return true
+    }
+
+    // Not aborted.
+    return false
+  }
+
+  const onUnexpectedAbort = () => {
+    resultIsPartial = true
+
+    // FIXME(NAR-810): If we're already aborted due to Sync IO, there should be no need to
+    // finish the accumulators. However, it seems like in `--debug-prerender`
+    // the stream will stay open if we don't close the iterable here.
+    if (process.env.NODE_ENV === 'development') {
+      if (staleTimeIterable !== undefined) {
+        staleTimeIterable.close()
+      }
+      finishAccumulatingVaryParams(varyParamsAccumulator)
+    }
+  }
 
   await runInSequentialTasks(
     async () => {
@@ -2025,50 +1886,47 @@ async function finalRuntimeServerPrerender(
           filterStackFrame,
           onError,
           signal: finalServerController.signal,
+          debugChannel,
         }
       )
 
-      if (stageByteLengths) {
-        let countStream: typeof stream
-        ;[stream, countStream] = stream.tee()
-        void countStageBytesUntilAbortWeb(
-          stageByteLengths,
-          countStream,
-          finalStageController,
-          finalServerController.signal
-        ).catch(() => {})
-      }
-
       // Note: this await will only resolve after the last task (unless sync IO aborts the render earlier)
       // We await it here so that if the stream errors, it's not an unhandled rejection.
-      await collectPrerenderChunksWeb(
+      await iterateStreamingPrerenderChunks(
         stream,
-        collectedChunks,
-        streamState,
-        finalServerController.signal
+        finalServerController.signal,
+        collectChunk,
+        streamState
       )
     },
     () => {
+      if (checkUnexpectedAbort()) return
       // Resolve the promise holding back non-prefetchable segments so they can begin rendering.
       finalStageController.advanceStage(RenderStage.ShellStatic)
     },
     () => {
+      if (checkUnexpectedAbort()) return
       finalStageController.advanceStage(RenderStage.EarlyStatic)
     },
     () => {
+      if (checkUnexpectedAbort()) return
       finalStageController.advanceStage(RenderStage.Static)
     },
     () => {
+      if (checkUnexpectedAbort()) return
       // Resolve session data for runtime-prefetchable segments.
       // Sync IO is NOT allowed here.
       finalStageController.advanceStage(RenderStage.ShellEarlyRuntime)
     },
     () => {
+      if (checkUnexpectedAbort()) return
       // Resolve session data for non-prefetchable segments.
       // Sync IO is allowed here.
       finalStageController.advanceStage(RenderStage.ShellRuntime)
     },
     () => {
+      if (checkUnexpectedAbort()) return
+
       if (mode.type === 'session-shell-only') {
         // We're only rendering a shell, so we do not advance to stages where link data is resolved.
         return
@@ -2078,6 +1936,8 @@ async function finalRuntimeServerPrerender(
       finalStageController.advanceStage(RenderStage.EarlyRuntime)
     },
     () => {
+      if (checkUnexpectedAbort()) return
+
       if (mode.type === 'session-shell-only') {
         // We're only rendering a shell, so we do not advance to stages where link data is resolved.
         return
@@ -2087,24 +1947,25 @@ async function finalRuntimeServerPrerender(
       // TODO(app-shells): This is strange: we allow sync IO here, but we don't want sync IO in a fallback.
       finalStageController.advanceStage(RenderStage.Runtime)
     },
-    async () => {
-      if (finalServerController.signal.aborted) {
-        // If the server controller is already aborted we must have called
-        // something that required aborting the prerender synchronously such
-        // as with new Date()
-        resultIsPartial = true
+    () => {
+      if (checkUnexpectedAbort()) return
 
-        // FIXME(NAR-810): If we're already aborted due to Sync IO, there should be no need to
-        // finish the accumulators. However, it seems like in `--debug-prerender`
-        // the stream will stay open if we don't close the iterable here.
-        if (
-          process.env.NODE_ENV === 'development' &&
-          staleTimeIterable !== undefined
-        ) {
-          staleTimeIterable.close()
-        }
+      // Finish the accumulators. We need to wait for Flight to flush the result into the stream,
+      // which is scheduled in a (fast) immediate, so we do this in a separate task
+      // (fast immediates will be drained at the end of the task, so in the next task we know we're done flushing)
 
-        return
+      // Check if session data unblocked new content in the shell.
+      if (
+        (mode.type === 'rewindable-session-shell' ||
+          mode.type === 'session-shell-only') &&
+        stageByteLengths
+      ) {
+        const didSessionDataUnblockNewContent =
+          stageByteLengths[RenderStage.ShellRuntime] >
+          stageByteLengths[RenderStage.Static]
+        mode.shellUsedSessionDataDeferred.resolve(
+          didSessionDataUnblockNewContent
+        )
       }
 
       if (mode.type === 'rewindable-session-shell' && stageByteLengths) {
@@ -2123,16 +1984,16 @@ async function finalRuntimeServerPrerender(
 
       staleTimeIterable.close()
       finishAccumulatingVaryParams(varyParamsAccumulator)
-
-      // We're using a render, not a prerender, so React schedules rendering work in fast immediates,
-      // and we need to wait a fast immediate for the stale time/vary params chunks to flush.
-      await waitAtLeastOneReactRenderTask()
+    },
+    () => {
+      if (checkUnexpectedAbort()) return
 
       if (streamState.isPending) {
         // If the prerender is still pending then it must depend on dynamic data
         // (or, if this is a shell prefetch, link data)
         resultIsPartial = true
       }
+
       workUnitAsyncStorage.run(
         finalServerPrerenderStore,
         finalServerController.abort.bind(finalServerController)
@@ -2367,7 +2228,8 @@ async function getRSCPayload(
     // static pages do, because their per-segment prefetch responses are
     // generated during static generation (build or ISR).
     S: workStore.isStaticGeneration || ctx.renderOpts.cacheComponents,
-    h: getMetadataVaryParamsThenable(),
+    h: getMetadataVaryParamsAccumulator(),
+    r: getRootParamsVaryParamsAccumulator() ?? undefined,
     s: staleTimeIterable,
     a: shellByteLengthPromise,
     l: staticStageByteLengthPromise,
@@ -2526,7 +2388,8 @@ async function getErrorRSCPayload(
     // static pages do, because their per-segment prefetch responses are
     // generated during static generation (build or ISR).
     S: workStore.isStaticGeneration || ctx.renderOpts.cacheComponents,
-    h: getMetadataVaryParamsThenable(),
+    h: getMetadataVaryParamsAccumulator(),
+    r: getRootParamsVaryParamsAccumulator() ?? undefined,
   } satisfies InitialRSCPayload)
 }
 
@@ -2571,7 +2434,7 @@ function App<T>({
     location: null,
   })
 
-  const actionQueue = createMutableActionQueue(initialState, null)
+  const actionQueue = createMutableActionQueue(initialState)
 
   const { HeadManagerContext } =
     require('../../shared/lib/head-manager-context.shared-runtime') as typeof import('../../shared/lib/head-manager-context.shared-runtime')
@@ -2632,7 +2495,7 @@ function ErrorApp<T>({
     location: null,
   })
 
-  const actionQueue = createMutableActionQueue(initialState, null)
+  const actionQueue = createMutableActionQueue(initialState)
 
   return (
     <ImageConfigContext.Provider value={images ?? imageConfigDefault}>
@@ -3106,19 +2969,11 @@ async function renderToHTMLOrFlightImpl(
           )
         } else if (cacheComponents && cachedNavigations) {
           // MARK: RSC cacheComponents
-          if (process.env.__NEXT_USE_NODE_STREAMS) {
-            return generateStagedDynamicFlightRenderResultNode(
-              req,
-              ctx,
-              requestStore
-            )
-          } else {
-            return generateStagedDynamicFlightRenderResultWeb(
-              req,
-              ctx,
-              requestStore
-            )
-          }
+          return generateStagedDynamicFlightRenderResultNode(
+            req,
+            ctx,
+            requestStore
+          )
         } else {
           // MARK: RSC dynamic
           return generateDynamicFlightRenderResult(req, ctx, requestStore)
@@ -3210,7 +3065,7 @@ async function renderToHTMLOrFlightImpl(
     // duplicate the entry in the dev overlay.
     //
     // The cacheComponents paths forward this themselves via
-    // `spawnStaticShellValidationInDev` and the validation-skipped fallback in
+    // `runValidationInDev` and the validation-skipped fallback in
     // `generateDynamicFlightRenderResultWithStagesInDev`. Here we cover the
     // non-cacheComponents dev path where neither runs.
     if (
@@ -3498,9 +3353,19 @@ async function renderToStream(
   // bootstrap script is executed, which depends on it during hydration.
   // For MPA navigations (page reload, direct URL entry), the request ID
   // header is not present, so we generate a random one.
-  const bootstrapScriptContent = process.env.__NEXT_DEV_SERVER
+  let bootstrapScriptContent = process.env.__NEXT_DEV_SERVER
     ? `self.__next_r=${JSON.stringify(requestId ?? crypto.randomUUID())}`
     : undefined
+
+  // Instant Navigation Testing API: embed the cookie-guarded bootstrap so it
+  // runs before the client bootstrap module reads self.__next_instant_test as
+  // its hydration source. This mirrors the prerender path so a dynamically
+  // rendered document carries the same script as the cached static prelude.
+  if (ctx.renderOpts.experimental.exposeTestingApi) {
+    bootstrapScriptContent =
+      (bootstrapScriptContent ? `${bootstrapScriptContent};` : '') +
+      (await getInstantTestBootstrapScriptContent())
+  }
 
   // Create the "render route (app)" span manually so we can keep it open during streaming.
   // This is necessary because errors inside Suspense boundaries are reported asynchronously
@@ -3593,537 +3458,262 @@ async function renderToStream(
         // We only have a Prerender environment for projects opted into cacheComponents
         cacheComponents
       ) {
-        if (process.env.__NEXT_USE_NODE_STREAMS) {
-          // MARK: nodeStreams dev CacheComponents RSC
-          let debugChannelClientStream: ReplayableNodeStream | undefined
+        let debugChannelClientStream: ReplayableNodeStream | undefined
 
-          // eslint-disable-next-line @typescript-eslint/no-shadow
-          const getPayload = async (requestStore: RequestStore) => {
-            const payload: InitialRSCPayload & RSCPayloadDevProperties =
-              await workUnitAsyncStorage.run(
-                requestStore,
-                getRSCPayload,
-                tree,
-                ctx,
-                { is404: res.statusCode === 404 }
-              )
+        // eslint-disable-next-line @typescript-eslint/no-shadow
+        const getPayload = async (requestStore: RequestStore) => {
+          const payload: InitialRSCPayload & RSCPayloadDevProperties =
+            await workUnitAsyncStorage.run(
+              requestStore,
+              getRSCPayload,
+              tree,
+              ctx,
+              { is404: res.statusCode === 404 }
+            )
 
-            if (isBypassingCachesInDev(requestStore, workStore)) {
-              // Mark the RSC payload to indicate that caches were bypassed in dev.
-              // This lets the client know not to cache anything based on this render.
-              if (renderOpts.setCacheStatus) {
-                // we know this is available  when cacheComponents is enabled, but typeguard to be safe
-                renderOpts.setCacheStatus('bypass', htmlRequestId)
-              }
-              payload._bypassCachesInDev = createElement(
-                WarnForBypassCachesInDev,
-                {
-                  route: workStore.route,
-                }
-              )
+          if (isBypassingCachesInDev(requestStore, workStore)) {
+            // Mark the RSC payload to indicate that caches were bypassed in dev.
+            // This lets the client know not to cache anything based on this render.
+            if (renderOpts.setCacheStatus) {
+              // we know this is available  when cacheComponents is enabled, but typeguard to be safe
+              renderOpts.setCacheStatus('bypass', htmlRequestId)
             }
-
-            return payload
+            payload._bypassCachesInDev = createElement(
+              WarnForBypassCachesInDev,
+              {
+                route: workStore.route,
+              }
+            )
           }
 
-          if (
-            // We only do this flow if we can safely recreate the store from scratch
-            // (which is not the case for renders after an action)
-            createRequestStore &&
-            // We only do this flow if we're not bypassing caches in dev using
-            // "disable cache" in devtools, a hard refresh (cache-control: "no-cache"),
-            // or draft mode.
-            !isBypassingCachesInDev(requestStore, workStore)
-          ) {
-            const {
-              stream: serverStream,
-              accumulatedChunksPromise,
-              syncInterruptReason,
-              startTime,
-              staticStageEndTime,
-              runtimeStageEndTime,
-              debugChannel: returnedDebugChannel,
-              requestStore: finalRequestStore,
-            } = await renderWithRestartOnCacheMissInDevNode(
+          return payload
+        }
+
+        if (
+          // We only do this flow if we can safely recreate the store from scratch
+          // (which is not the case for renders after an action)
+          createRequestStore &&
+          // We only do this flow if we're not bypassing caches in dev using
+          // "disable cache" in devtools, a hard refresh (cache-control: "no-cache"),
+          // or draft mode.
+          !isBypassingCachesInDev(requestStore, workStore)
+        ) {
+          const loaderTree = ctx.componentMod.routeModule.userland.loaderTree
+          const prefetchMode = await getPrefetchingModeForPage(
+            renderOpts,
+            loaderTree
+          )
+
+          const { stream: serverStream, debugChannel: returnedDebugChannel } =
+            await stagedRenderWithCachesInDev({
+              prefetchMode,
               ctx,
               requestStore,
               createRequestStore,
               getPayload,
-              serverComponentsErrorHandler
-            )
+              onError: serverComponentsErrorHandler,
+              shouldValidate: true,
+              fallbackRouteParams: fallbackParams,
+              getDevRenderDidError: () => didErrorObservably,
+              // An initial HTML load serves the static shell; runtime and
+              // dynamic content stream in afterward.
+              navigationKind: {
+                type: 'initial-load',
+              },
+              // We currently only abort HMR refresh requests.
+              requestAbortSignal: undefined,
+            })
 
-            let validationDebugChannelClient: AnyStream | undefined = undefined
-            if (returnedDebugChannel) {
-              debugChannelClientStream = new ReplayableNodeStream(
-                returnedDebugChannel.clientSide.readable
-              )
-              validationDebugChannelClient =
-                debugChannelClientStream.createReplayStream()
-            }
+          reactServerResult = new ReactServerResult(serverStream)
 
-            consoleAsyncStorage.run(
-              { dim: true },
-              spawnStaticShellValidationInDev,
-              accumulatedChunksPromise,
-              syncInterruptReason,
-              startTime,
-              staticStageEndTime,
-              runtimeStageEndTime,
-              ctx,
-              finalRequestStore,
-              fallbackParams,
-              validationDebugChannelClient,
-              didErrorObservably
-            )
-
-            reactServerResult = new ReactServerResult(serverStream)
-            requestStore = finalRequestStore
-          } else {
-            logValidationSkipped(ctx)
-
-            // We're either bypassing caches or we can't restart the render.
-            // Do a dynamic render, but with (basic) environment labels.
-
-            const debugChannel =
-              setReactDebugChannel && createNodeDebugChannel()
-
-            const serverStream = await stagedRenderWithoutCachesInDevNode(
-              ctx,
-              requestStore,
-              getPayload,
-              {
-                onError: serverComponentsErrorHandler,
-                filterStackFrame,
-                debugChannel: debugChannel?.serverSide,
-              }
-            )
-            reactServerResult = new ReactServerResult(serverStream)
-
-            if (debugChannel) {
-              debugChannelClientStream = new ReplayableNodeStream(
-                debugChannel.clientSide.readable
-              )
-            }
-          }
-
-          if (debugChannelClientStream && setReactDebugChannel) {
-            reactDebugStream = debugChannelClientStream.createReplayStream()
-
-            setReactDebugChannel(
-              { readable: debugChannelClientStream.createReplayStream() },
-              htmlRequestId,
-              requestId
+          if (returnedDebugChannel) {
+            debugChannelClientStream = new ReplayableNodeStream(
+              returnedDebugChannel.clientSide.readable
             )
           }
         } else {
-          // MARK: webstreams dev CacheComponents RSC
-          let debugChannel: DebugChannelPair | undefined
+          logValidationSkipped(ctx)
 
-          // eslint-disable-next-line @typescript-eslint/no-shadow
-          const getPayload = async (requestStore: RequestStore) => {
-            const payload: InitialRSCPayload & RSCPayloadDevProperties =
-              await workUnitAsyncStorage.run(
-                requestStore,
-                getRSCPayload,
-                tree,
-                ctx,
-                { is404: res.statusCode === 404 }
-              )
+          // We're either bypassing caches or we can't restart the render.
+          // Do a dynamic render, but with (basic) environment labels.
 
-            if (isBypassingCachesInDev(requestStore, workStore)) {
-              // Mark the RSC payload to indicate that caches were bypassed in dev.
-              // This lets the client know not to cache anything based on this render.
-              if (renderOpts.setCacheStatus) {
-                // we know this is available  when cacheComponents is enabled, but typeguard to be safe
-                renderOpts.setCacheStatus('bypass', htmlRequestId)
-              }
-              payload._bypassCachesInDev = createElement(
-                WarnForBypassCachesInDev,
-                {
-                  route: workStore.route,
-                }
-              )
+          const debugChannel = setReactDebugChannel && createNodeDebugChannel()
+
+          const serverStream = await stagedRenderWithoutCachesInDevNode(
+            ctx,
+            requestStore,
+            getPayload,
+            {
+              onError: serverComponentsErrorHandler,
+              filterStackFrame,
+              debugChannel: debugChannel?.serverSide,
             }
+          )
+          reactServerResult = new ReactServerResult(serverStream)
 
-            return payload
-          }
-
-          if (
-            // We only do this flow if we can safely recreate the store from scratch
-            // (which is not the case for renders after an action)
-            createRequestStore &&
-            // We only do this flow if we're not bypassing caches in dev using
-            // "disable cache" in devtools, a hard refresh (cache-control: "no-cache"),
-            // or draft mode.
-            !isBypassingCachesInDev(requestStore, workStore)
-          ) {
-            const {
-              stream: serverStream,
-              accumulatedChunksPromise,
-              syncInterruptReason,
-              startTime,
-              staticStageEndTime,
-              runtimeStageEndTime,
-              debugChannel: returnedDebugChannel,
-              requestStore: finalRequestStore,
-            } = await renderWithRestartOnCacheMissInDevWeb(
-              ctx,
-              requestStore,
-              createRequestStore,
-              getPayload,
-              serverComponentsErrorHandler
-            )
-
-            let validationDebugChannelClient: AnyStream | undefined = undefined
-            if (returnedDebugChannel) {
-              const [t1, t2] = teeStream(
-                returnedDebugChannel.clientSide.readable
-              )
-              returnedDebugChannel.clientSide.readable = t1
-              validationDebugChannelClient = t2
-            }
-
-            consoleAsyncStorage.run(
-              { dim: true },
-              spawnStaticShellValidationInDev,
-              accumulatedChunksPromise,
-              syncInterruptReason,
-              startTime,
-              staticStageEndTime,
-              runtimeStageEndTime,
-              ctx,
-              finalRequestStore,
-              fallbackParams,
-              validationDebugChannelClient,
-              didErrorObservably
-            )
-
-            reactServerResult = new ReactServerResult(serverStream)
-            requestStore = finalRequestStore
-            debugChannel = returnedDebugChannel
-          } else {
-            logValidationSkipped(ctx)
-
-            // We're either bypassing caches or we can't restart the render.
-            // Do a dynamic render, but with (basic) environment labels.
-
-            debugChannel = setReactDebugChannel && createWebDebugChannel()
-
-            const serverStream = await stagedRenderWithoutCachesInDevWeb(
-              ctx,
-              requestStore,
-              getPayload,
-              {
-                onError: serverComponentsErrorHandler,
-                filterStackFrame,
-                debugChannel: debugChannel?.serverSide,
-              }
-            )
-            reactServerResult = new ReactServerResult(serverStream)
-          }
-
-          if (debugChannel && setReactDebugChannel) {
-            const [readableSsr, readableBrowser] = teeStream(
+          if (debugChannel) {
+            debugChannelClientStream = new ReplayableNodeStream(
               debugChannel.clientSide.readable
             )
-
-            reactDebugStream = readableSsr
-
-            setReactDebugChannel(
-              { readable: readableBrowser },
-              htmlRequestId,
-              requestId
-            )
           }
+        }
+
+        if (debugChannelClientStream && setReactDebugChannel) {
+          reactDebugStream = debugChannelClientStream.createReplayStream()
+
+          setReactDebugChannel(
+            { readable: debugChannelClientStream.createReplayStream() },
+            htmlRequestId,
+            requestId
+          )
         }
       } else if (cacheComponents && cachedNavigations) {
-        if (process.env.__NEXT_USE_NODE_STREAMS) {
-          // MARK: nodeStreams cacheComponents RSC
-          // Production Cache Components + Cached Navigations: use staged
-          // rendering so the RSC payload includes the static stage byte length
-          // (`l` field), enabling the client to cache the static subset during
-          // hydration.
+        // Production Cache Components + Cached Navigations: use staged
+        // rendering so the RSC payload includes the static stage byte length
+        // (`l` field), enabling the client to cache the static subset during
+        // hydration.
 
-          const selectStaleTime = createSelectStaleTime(experimental)
-          const staleTimeIterable = new StaleTimeIterable()
+        const selectStaleTime = createSelectStaleTime(experimental)
+        const staleTimeIterable = new StaleTimeIterable()
 
-          const stageController = new StagedRenderingController({
-            abortSignal: null,
-            abandonController: null,
-            // TODO(cached-navs): this assumes that we checked during build that there's no sync IO.
-            // but it can happen e.g. after a revalidation or conditionally for a param that wasn't prerendered.
-            // we should change this to track sync IO, log an error and advance to dynamic.
-            shouldTrackSyncIO: false,
-            finalStage: null,
-          })
+        const stageController = new StagedRenderingController({
+          abortSignal: null,
+          abandonController: null,
+          // TODO(cached-navs): this assumes that we checked during build that there's no sync IO.
+          // but it can happen e.g. after a revalidation or conditionally for a param that wasn't prerendered.
+          // we should change this to track sync IO, log an error and advance to dynamic.
+          shouldTrackSyncIO: false,
+          finalStage: null,
+        })
 
-          requestStore.stale = INFINITE_CACHE
-          requestStore.stagedRendering = stageController
-          requestStore.asyncApiPromises = createAsyncApiPromises(
-            stageController,
-            requestStore.cookies,
-            requestStore.mutableCookies,
-            requestStore.headers
-          )
-          requestStore.varyParamsAccumulator =
-            createResponseVaryParamsAccumulator()
+        requestStore.stale = INFINITE_CACHE
+        requestStore.stagedRendering = stageController
+        requestStore.asyncApiPromises = createAsyncApiPromises(
+          stageController,
+          requestStore.cookies,
+          requestStore.mutableCookies,
+          requestStore.headers
+        )
+        requestStore.varyParamsAccumulator =
+          createResponseVaryParamsAccumulator()
 
-          trackStaleTime(
-            requestStore as { stale: number },
-            staleTimeIterable,
-            selectStaleTime
-          )
+        trackStaleTime(
+          requestStore as { stale: number },
+          staleTimeIterable,
+          selectStaleTime
+        )
 
-          const shellByteLengthDeferred = appShells
-            ? createPromiseWithResolvers<number | null>()
-            : null
-          const staticStageByteLengthDeferred =
-            createPromiseWithResolvers<number>()
+        const shellByteLengthDeferred = appShells
+          ? createPromiseWithResolvers<number | null>()
+          : null
+        const staticStageByteLengthDeferred =
+          createPromiseWithResolvers<number>()
 
-          // If the route has runtime prefetching enabled, spawn a runtime
-          // prerender after the resume render fills caches. The result is
-          // embedded in the initial RSC payload so the client can cache
-          // runtime-prefetchable content during hydration.
-          const hasRuntimePrefetch =
-            await anySegmentHasRuntimePrefetchEnabled(tree)
+        let runtimePrefetchStream: ReadableStream<Uint8Array> | undefined
 
-          let runtimePrefetchStream: ReadableStream<Uint8Array> | undefined
+        // If the route should runtime-cache its navigation, spawn a runtime
+        // prerender after the resume render fills caches. The result is
+        // embedded in the initial RSC payload so the client can cache
+        // runtime-prefetchable content during hydration. This is enabled when
+        // Partial Prefetching is on for the route, either per segment (a
+        // `prefetch` of 'partial', 'unstable_eager', or 'allow-runtime') or
+        // globally (the `partialPrefetching` config), or when the
+        // `cachedNavigations: 'allow-runtime'` flag forces it for every route.
+        if (
+          cachedNavigations === 'allow-runtime' ||
+          Boolean(renderOpts.partialPrefetching) ||
+          (await anySegmentHasPartialPrefetchingEnabled(tree))
+        ) {
+          const prerenderResumeDataCache = createPrerenderResumeDataCache()
+          requestStore.resumeDataCache = prerenderResumeDataCache
 
-          if (hasRuntimePrefetch) {
-            const prerenderResumeDataCache = createPrerenderResumeDataCache()
-            requestStore.resumeDataCache = prerenderResumeDataCache
+          const cacheSignal = new CacheSignal()
+          trackPendingModules(cacheSignal)
+          requestStore.cacheSignal = cacheSignal
 
-            const cacheSignal = new CacheSignal()
-            trackPendingModules(cacheSignal)
-            requestStore.cacheSignal = cacheSignal
+          const runtimePrefetchTransform = new TransformStream<Uint8Array>()
+          runtimePrefetchStream = runtimePrefetchTransform.readable
 
-            const runtimePrefetchTransform = new TransformStream<Uint8Array>()
-            runtimePrefetchStream = runtimePrefetchTransform.readable
-
-            void cacheSignal
-              .cacheReady()
-              .then(() =>
-                spawnRuntimePrefetchWithFilledCaches(
-                  runtimePrefetchTransform.writable,
-                  ctx,
-                  prerenderResumeDataCache,
-                  requestStore,
-                  serverComponentsErrorHandler
-                )
-              )
-          }
-
-          const RSCPayload = await workUnitAsyncStorage.run(
-            requestStore,
-            getRSCPayload,
-            tree,
-            ctx,
-            {
-              is404: res.statusCode === 404,
-              staleTimeIterable,
-              shellByteLengthPromise: shellByteLengthDeferred?.promise,
-              staticStageByteLengthPromise:
-                staticStageByteLengthDeferred.promise,
-              runtimePrefetchStream,
-            }
-          )
-
-          const flightStream = await runInSequentialTasks(
-            () => {
-              // NOTE: no early/late separation in this render
-              stageController.advanceStage(RenderStage.ShellStatic)
-
-              const stream = workUnitAsyncStorage.run(
+          void cacheSignal
+            .cacheReady()
+            .then(() =>
+              spawnRuntimePrefetchWithFilledCaches(
+                runtimePrefetchTransform.writable,
+                ctx,
+                prerenderResumeDataCache,
                 requestStore,
-                renderToNodeFlightStream,
-                ctx.componentMod,
-                RSCPayload,
-                clientModules,
-                {
-                  onError: serverComponentsErrorHandler,
-                  filterStackFrame,
-                }
-              ) as Readable
-
-              const replayable = new ReplayableNodeStream(stream)
-              const dynamicStream = replayable.createReplayStream()
-              const staticStream = replayable.createReplayStream()
-
-              void countShellAndStaticStageBytes(
-                staticStream,
-                stageController
-              ).then((byteLengths) => {
-                staticStageByteLengthDeferred.resolve(
-                  byteLengths[RenderStage.Static]
-                )
-                shellByteLengthDeferred?.resolve(
-                  byteLengths[RenderStage.ShellStatic]
-                )
-              })
-
-              return dynamicStream
-            },
-            () => {
-              stageController.advanceStage(RenderStage.Static)
-            },
-            () => {
-              // This is a separate task that doesn't advance a stage. It forces
-              // draining the immediate queue so that the stale time iterable and vary
-              // params accumulators are flushed before we advance to the dynamic stage.
-              staleTimeIterable.close()
-              if (requestStore.varyParamsAccumulator) {
-                finishAccumulatingVaryParams(requestStore.varyParamsAccumulator)
-              }
-            },
-            () => {
-              stageController.advanceStage(RenderStage.Dynamic)
-            }
-          )
-
-          reactServerResult = new ReactServerResult(flightStream)
-        } else {
-          // MARK: webstreams cacheComponents RSC
-          // Production Cache Components + Cached Navigations: use staged
-          // rendering so the RSC payload includes the static stage byte length
-          // (`l` field), enabling the client to cache the static subset during
-          // hydration.
-          const { renderToReadableStream } = ctx.componentMod
-
-          const selectStaleTime = createSelectStaleTime(experimental)
-          const staleTimeIterable = new StaleTimeIterable()
-
-          const stageController = new StagedRenderingController({
-            abortSignal: null,
-            abandonController: null,
-            // TODO(cached-navs): this assumes that we checked during build that there's no sync IO.
-            // but it can happen e.g. after a revalidation or conditionally for a param that wasn't prerendered.
-            // we should change this to track sync IO, log an error and advance to dynamic.
-            shouldTrackSyncIO: false,
-            finalStage: null,
-          })
-
-          requestStore.stale = INFINITE_CACHE
-          requestStore.stagedRendering = stageController
-          requestStore.asyncApiPromises = createAsyncApiPromises(
-            stageController,
-            requestStore.cookies,
-            requestStore.mutableCookies,
-            requestStore.headers
-          )
-          requestStore.varyParamsAccumulator =
-            createResponseVaryParamsAccumulator()
-
-          trackStaleTime(
-            requestStore as { stale: number },
-            staleTimeIterable,
-            selectStaleTime
-          )
-
-          const shellByteLengthDeferred = appShells
-            ? createPromiseWithResolvers<number | null>()
-            : null
-          const staticStageByteLengthDeferred =
-            createPromiseWithResolvers<number>()
-
-          // If the route has runtime prefetching enabled, spawn a runtime
-          // prerender after the resume render fills caches. The result is
-          // embedded in the initial RSC payload so the client can cache
-          // runtime-prefetchable content during hydration.
-          const hasRuntimePrefetch =
-            await anySegmentHasRuntimePrefetchEnabled(tree)
-
-          let runtimePrefetchStream: ReadableStream<Uint8Array> | undefined
-
-          if (hasRuntimePrefetch) {
-            const prerenderResumeDataCache = createPrerenderResumeDataCache()
-            requestStore.resumeDataCache = prerenderResumeDataCache
-
-            const cacheSignal = new CacheSignal()
-            trackPendingModules(cacheSignal)
-            requestStore.cacheSignal = cacheSignal
-
-            const runtimePrefetchTransform = new TransformStream<Uint8Array>()
-            runtimePrefetchStream = runtimePrefetchTransform.readable
-
-            void cacheSignal
-              .cacheReady()
-              .then(() =>
-                spawnRuntimePrefetchWithFilledCaches(
-                  runtimePrefetchTransform.writable,
-                  ctx,
-                  prerenderResumeDataCache,
-                  requestStore,
-                  serverComponentsErrorHandler
-                )
+                serverComponentsErrorHandler
               )
-          }
-
-          const RSCPayload = await workUnitAsyncStorage.run(
-            requestStore,
-            getRSCPayload,
-            tree,
-            ctx,
-            {
-              is404: res.statusCode === 404,
-              staleTimeIterable,
-              shellByteLengthPromise: shellByteLengthDeferred?.promise,
-              staticStageByteLengthPromise:
-                staticStageByteLengthDeferred.promise,
-              runtimePrefetchStream,
-            }
-          )
-
-          const flightStream = await runInSequentialTasks(
-            () => {
-              // NOTE: no early/late separation in this render
-              stageController.advanceStage(RenderStage.ShellStatic)
-
-              const stream = workUnitAsyncStorage.run(
-                requestStore,
-                renderToReadableStream,
-                RSCPayload,
-                clientModules,
-                {
-                  onError: serverComponentsErrorHandler,
-                  filterStackFrame,
-                }
-              )
-
-              const [dynamicStream, staticStream] = stream.tee()
-
-              void countShellAndStaticStageBytes(
-                staticStream,
-                stageController
-              ).then((byteLengths) => {
-                staticStageByteLengthDeferred.resolve(
-                  byteLengths[RenderStage.Static]
-                )
-                shellByteLengthDeferred?.resolve(
-                  byteLengths[RenderStage.ShellStatic]
-                )
-              })
-
-              return dynamicStream
-            },
-            () => {
-              stageController.advanceStage(RenderStage.Static)
-            },
-            () => {
-              // This is a separate task that doesn't advance a stage. It forces
-              // draining the immediate queue so that the stale time iterable and vary
-              // params accumulators are flushed before we advance to the dynamic stage.
-              staleTimeIterable.close()
-              if (requestStore.varyParamsAccumulator) {
-                finishAccumulatingVaryParams(requestStore.varyParamsAccumulator)
-              }
-            },
-            () => {
-              stageController.advanceStage(RenderStage.Dynamic)
-            }
-          )
-
-          reactServerResult = new ReactServerResult(flightStream)
+            )
         }
+
+        const RSCPayload = await workUnitAsyncStorage.run(
+          requestStore,
+          getRSCPayload,
+          tree,
+          ctx,
+          {
+            is404: res.statusCode === 404,
+            staleTimeIterable,
+            shellByteLengthPromise: shellByteLengthDeferred?.promise,
+            staticStageByteLengthPromise: staticStageByteLengthDeferred.promise,
+            runtimePrefetchStream,
+          }
+        )
+
+        const flightStream = await runInSequentialTasks(
+          () => {
+            // NOTE: no early/late separation in this render
+            stageController.advanceStage(RenderStage.ShellStatic)
+
+            const stream = workUnitAsyncStorage.run(
+              requestStore,
+              renderToNodeFlightStream,
+              ctx.componentMod,
+              RSCPayload,
+              clientModules,
+              {
+                onError: serverComponentsErrorHandler,
+                filterStackFrame,
+              }
+            ) as Readable
+
+            const replayable = new ReplayableNodeStream(stream)
+            const dynamicStream = replayable.createReplayStream()
+            const staticStream = replayable.createReplayStream()
+
+            void countShellAndStaticStageBytes(
+              staticStream,
+              stageController
+            ).then((byteLengths) => {
+              staticStageByteLengthDeferred.resolve(
+                byteLengths[RenderStage.Static]
+              )
+              shellByteLengthDeferred?.resolve(
+                byteLengths[RenderStage.ShellStatic]
+              )
+            })
+
+            return dynamicStream
+          },
+          () => {
+            stageController.advanceStage(RenderStage.Static)
+          },
+          () => {
+            // This is a separate task that doesn't advance a stage. It forces
+            // draining the immediate queue so that the stale time iterable and vary
+            // params accumulators are flushed before we advance to the dynamic stage.
+            staleTimeIterable.close()
+            if (requestStore.varyParamsAccumulator) {
+              finishAccumulatingVaryParams(requestStore.varyParamsAccumulator)
+            }
+          },
+          () => {
+            stageController.advanceStage(RenderStage.Dynamic)
+          }
+        )
+
+        reactServerResult = new ReactServerResult(flightStream)
       } else {
         // MARK: nodeStreams RSC
         if (process.env.__NEXT_USE_NODE_STREAMS) {
@@ -4331,12 +3921,16 @@ async function renderToStream(
           formState,
         }
 
-        const { stream: htmlStream, allReady } = await workUnitAsyncStorage.run(
-          requestStore,
-          renderToNodeFizzStream,
-          appElement,
-          fizzOptions,
-          { waitForAllReady: generateStaticHTML }
+        const { stream: htmlStream, allReady } = await getTracer().trace(
+          AppRenderSpan.renderToNodeFizzStream,
+          () =>
+            workUnitAsyncStorage.run(
+              requestStore,
+              renderToNodeFizzStream,
+              appElement,
+              fizzOptions,
+              { waitForAllReady: generateStaticHTML }
+            )
         )
 
         // End the render span only after React completed rendering (including anything inside Suspense boundaries)
@@ -4769,313 +4363,594 @@ async function renderToStream(
   /* eslint-enable @next/internal/no-ambiguous-jsx */
 }
 
-async function renderWithRestartOnCacheMissInDevWeb(
-  ctx: AppRenderContext,
-  initialRequestStore: RequestStore,
-  createRequestStore: () => RequestStore,
-  getPayload: (requestStore: RequestStore) => Promise<RSCPayload>,
-  onError: (error: unknown) => void
-) {
-  const { htmlRequestId, renderOpts } = ctx
+/**
+ * The chunks and stage timings accumulated by a staged dev render once its
+ * stream has finished. Shared by `StagedDevRenderResult` (a render's own
+ * settled output) and `DevValidationInputs` (what validation consumes).
+ */
+interface StagedDevRenderArtifacts {
+  readonly accumulatedChunks: AccumulatedStreamChunks
+  readonly syncInterruptReason: Error | null
+  readonly startTime: number
+  readonly staticStageEndTime: number
+  readonly runtimeStageEndTime: number
+}
 
-  const { ComponentMod, setCacheStatus, setReactDebugChannel } = renderOpts
+/**
+ * Everything `runValidationInDev` needs to validate a render.
+ * These are sourced from whichever render is prod-representative: the streamed
+ * render when it neither missed caches nor hit sync IO, otherwise a validation
+ * render.
+ */
+interface DevValidationInputs extends StagedDevRenderArtifacts {
+  readonly requestStore: RequestStore
+  readonly debugChannelClient: AnyStream | undefined
+}
 
-  let startTime = -Infinity
+/**
+ * The result of a completed streamed/staged dev render: its artifacts plus
+ * whether it was prod-representative. Settled once the render's stream has fully
+ * finished.
+ */
+interface StagedDevRenderResult extends StagedDevRenderArtifacts {
+  readonly hadCacheMiss: boolean
+}
 
-  // If the render is restarted, we'll recreate a fresh request store
-  let requestStore: RequestStore = initialRequestStore
+/**
+ * Drops a validation debug channel branch we've decided not to read.
+ */
+function dropValidationDebugChannel(channel: AnyStream | undefined): void {
+  if (channel instanceof ReadableStream) {
+    channel.cancel()
+  } else {
+    channel?.destroy()
+  }
+}
 
-  const environmentName = () => {
-    const currentStage = requestStore.stagedRendering!.currentStage
-    return getEnvironmentNameForStage(currentStage)
+const alreadyForwardedDynamicUsageErrors = new WeakSet<Error>()
+
+/**
+ * Forwards an `invalidDynamicUsageError` recorded on the work store (e.g. a
+ * request API used inside `'use cache'`) to the dev overlay, so client
+ * navigations surface the same error as initial HTML loads do via validation.
+ *
+ * Returns whether an error was present, so callers can skip further validation.
+ * That's independent of whether it was forwarded: an error that already carries
+ * a digest is not forwarded again (it was emitted into the React render), but
+ * it's still present and already shown, so validation should still be skipped.
+ */
+function forwardInvalidDynamicUsageError(
+  invalidDynamicUsageError: Error | undefined,
+  ctx: AppRenderContext
+): boolean {
+  if (!invalidDynamicUsageError) {
+    return false
   }
 
-  //===============================================
-  // Initial render
-  //===============================================
+  // Forward only if userland caught the rejection. If userland didn't catch,
+  // the rejection propagated into the React render and React's
+  // `serverComponentsErrorHandler` already stamped a digest on the error and
+  // emitted it as a Flight error chunk, so surfacing it again here would
+  // duplicate the entry in the dev overlay.
+  if (
+    !(invalidDynamicUsageError as { digest?: unknown }).digest &&
+    !alreadyForwardedDynamicUsageErrors.has(invalidDynamicUsageError)
+  ) {
+    alreadyForwardedDynamicUsageErrors.add(invalidDynamicUsageError)
+    void logMessagesAndSendErrorsToBrowser([invalidDynamicUsageError], ctx)
+  }
 
-  // Try to render the page and see if there's any cache misses.
-  // If there are, wait for caches to finish and restart the render.
+  return true
+}
 
-  // This render might end up being used as a prospective render (if there's cache misses),
-  // so we need to set it up for filling caches.
+/**
+ * Runs Cache Components validation in the background once the streamed render
+ * has finished (the response has already streamed).
+ */
+function runDevValidationInBackground(
+  prefetchMode: PrefetchingMode,
+  navigationKind: DevNavigationKind,
+  resultPromise: Promise<StagedDevRenderResult>,
+  requestStore: RequestStore,
+  validationDebugChannel: AnyStream | undefined,
+  cacheSignal: CacheSignal,
+  ctx: AppRenderContext,
+  fallbackRouteParams: OpaqueFallbackRouteParams | null,
+  prerenderResumeDataCache: ReturnType<typeof createPrerenderResumeDataCache>,
+  getDevRenderDidError: () => boolean,
+  createRequestStore: () => RequestStore,
+  getPayload: (requestStore: RequestStore) => Promise<RSCPayload>,
+  onError: (error: unknown) => void,
+  requestAbortSignal: AbortSignal | undefined
+): void {
+  void consoleAsyncStorage
+    .run({ dim: true }, async () => {
+      const result = await resultPromise
+
+      // If the request was aborted while its render was in flight, skip
+      // validation entirely: the render's result is being discarded, so
+      // re-rendering and analyzing it would only waste server work. In-flight
+      // `'use cache'` fills are left running (we don't await `cacheReady`
+      // below).
+      if (requestAbortSignal?.aborted) {
+        logValidationAborted(ctx)
+        return
+      }
+
+      // Read whether the streamed render errored only now that it has fully
+      // settled.
+      const devRenderDidError = getDevRenderDidError()
+
+      // A cache-miss render records its `invalidDynamicUsageError` while
+      // filling, so its verdict isn't final until the fills settle. Wait for
+      // that (a no-op when the render didn't miss) before planning, which reads
+      // the work store.
+      if (result.hadCacheMiss) {
+        await cacheSignal.cacheReady()
+      }
+
+      // If the initial render recorded invalid dynamic usage errors
+      // (e.g. from caught errors inside "use cache"), we skip validation altogether.
+      if (
+        forwardInvalidDynamicUsageError(
+          ctx.workStore.invalidDynamicUsageError,
+          ctx
+        )
+      ) {
+        return
+      }
+
+      const lazyInputs = await prepareValidationInputs(
+        prefetchMode,
+        navigationKind,
+        result,
+        requestStore,
+        validationDebugChannel,
+        ctx,
+        prerenderResumeDataCache,
+        createRequestStore,
+        getPayload,
+        onError,
+        requestAbortSignal
+      )
+
+      // If we need to do multiple renders, do them in parallel.
+      // `runValidationInDev` currently needs `instantInputs` eagerly
+      // right before using `staticInputs` for static shell validation,
+      // so there's no point delaying one of the renders.
+      // We bail out (after logging an error during `resolveLazyDevValidationInputs`)
+      // if sync IO or invalid dynamic errors happen in either.
+      const [instantInputs, staticInputs] = await Promise.all([
+        lazyInputs.instantInputs
+          ? resolveLazyDevValidationInputs(lazyInputs.instantInputs, ctx)
+          : null,
+        resolveLazyDevValidationInputs(lazyInputs.staticInputs, ctx),
+      ])
+      if (
+        instantInputs === VALIDATION_BAILOUT ||
+        staticInputs === VALIDATION_BAILOUT
+      ) {
+        return
+      }
+
+      // The request may have been aborted while we prepared the validation
+      // inputs above (which can itself render). Skip validation before it
+      // begins rather than run it for a discarded request.
+      if (requestAbortSignal?.aborted) {
+        logValidationAborted(ctx)
+        return
+      }
+
+      return runValidationInDev(
+        prefetchMode,
+        instantInputs,
+        staticInputs,
+        ctx,
+        fallbackRouteParams,
+        devRenderDidError,
+        requestAbortSignal
+      )
+    })
+    // The catch keeps a failed render, or anything thrown inside validation,
+    // from surfacing as an unhandled rejection.
+    .catch((err) => {
+      // If this request was aborted, its render and detached validation are
+      // being torn down and their result discarded. We don't want to log these
+      // errors (including the abort signal reason itself).
+      if (requestAbortSignal?.aborted) {
+        return
+      }
+      console.error(
+        new InvariantError('An unexpected error occurred during validation', {
+          cause: err,
+        })
+      )
+    })
+}
+
+/**
+ * The inputs to use for dev validation.
+ * If an input needs additional rendering work (because it couldn't be
+ * reused from the main render), it'll be an async function that produces
+ * the actual input, which lets the consumer consume these lazily and/or
+ * control when they are evaluated.
+ * */
+type PrepareValidationInputsResult = {
+  /** `null` if Instant Validation isn't enabled for a route */
+  readonly instantInputs: null | DevValidationInputs | LazyDevValidationInputs
+  readonly staticInputs: DevValidationInputs | LazyDevValidationInputs
+}
+
+/**
+ * A lazily evaluated render that will produce validation inputs.
+ * If it encounters sync IO or another error, it'll resolve to a sentinel
+ * `VALIDATION_BAILOUT` value instead.
+ */
+type LazyDevValidationInputs = MemoizedThunk<
+  Promise<DevValidationInputs | ValidationBailout>
+>
+
+const VALIDATION_BAILOUT = Symbol('VALIDATION_BAILOUT')
+type ValidationBailout = typeof VALIDATION_BAILOUT
+
+function createLazyDevValidationInputs(
+  create: () => Promise<DevValidationInputs | ValidationBailout>
+): LazyDevValidationInputs {
+  return createMemoizedThunk(create)
+}
+
+/** A lazily evaluated value. Only runs once even when called multiple times. */
+type MemoizedThunk<T> = (() => T) & { MemoizedOnce: never }
+
+function createMemoizedThunk<T>(cb: () => T): MemoizedThunk<T> {
+  let cache: null | { value: T } = null
+  const wrapped = (): T => {
+    if (cache === null) {
+      cache = { value: cb() }
+    }
+    return cache.value
+  }
+  return wrapped as MemoizedThunk<T>
+}
+
+async function prepareValidationInputs(
+  prefetchMode: PrefetchingMode,
+  navigationKind: DevNavigationKind,
+  result: StagedDevRenderResult,
+  requestStore: RequestStore,
+  validationDebugChannel: AnyStream | undefined,
+  ctx: AppRenderContext,
+  prerenderResumeDataCache: ReturnType<typeof createPrerenderResumeDataCache>,
+  createRequestStore: () => RequestStore,
+  getPayload: (requestStore: RequestStore) => Promise<RSCPayload>,
+  onError: (error: unknown) => void,
+  requestAbortSignal: AbortSignal | undefined
+): Promise<PrepareValidationInputsResult> {
+  // Check if we can re-use the main render for validation.
+  let inputsFromNavigation: DevValidationInputs | null
+  if (!result.hadCacheMiss && result.syncInterruptReason === null) {
+    inputsFromNavigation = {
+      accumulatedChunks: result.accumulatedChunks,
+      syncInterruptReason: null,
+      startTime: result.startTime,
+      staticStageEndTime: result.staticStageEndTime,
+      runtimeStageEndTime: result.runtimeStageEndTime,
+      requestStore,
+      debugChannelClient: validationDebugChannel,
+    }
+  } else {
+    // Cache miss or sync IO. We can't re-use the main render.
+    dropValidationDebugChannel(validationDebugChannel)
+    inputsFromNavigation = null
+  }
+
+  if (prefetchMode === PrefetchingMode.Partial) {
+    return prepareValidationInputsInPartialPrefetching(
+      navigationKind,
+      requestStore,
+      ctx,
+      prerenderResumeDataCache,
+      createRequestStore,
+      getPayload,
+      onError,
+      inputsFromNavigation,
+      requestAbortSignal
+    )
+  } else {
+    return prepareValidationInputsInLegacyPrefetching(
+      ctx,
+      prerenderResumeDataCache,
+      createRequestStore,
+      getPayload,
+      onError,
+      inputsFromNavigation,
+      requestAbortSignal
+    )
+  }
+}
+
+async function prepareValidationInputsInPartialPrefetching(
+  navigationKind: DevNavigationKind,
+  requestStore: RequestStore,
+  ctx: AppRenderContext,
+  prerenderResumeDataCache: ReturnType<typeof createPrerenderResumeDataCache>,
+  createRequestStore: () => RequestStore,
+  getPayload: (requestStore: RequestStore) => Promise<RSCPayload>,
+  onError: (error: unknown) => void,
+  inputsFromNavigation: DevValidationInputs | null,
+  requestAbortSignal: AbortSignal | undefined
+): Promise<PrepareValidationInputsResult> {
+  const loaderTree = ctx.componentMod.routeModule.userland.loaderTree
+  const needsInstantValidation =
+    await anySegmentNeedsInstantValidationInDev(loaderTree)
+
+  // If we have static params that aren't root params, then the static stages are incompatible
+  // between the Static shell and the App Shell, and we can't use the same render for both.
+  const areStagesCompatible = !hasNonRootStaticParams(
+    ctx.interpolatedParams,
+    requestStore.rootParams,
+    requestStore.fallbackParams
+  )
+
+  const LAZY_FULL_RENDER = createLazyDevValidationInputs(async () => {
+    const shouldRenderWithAppShell = true
+    const inputs = await renderWithWarmCachesForValidationInDev(
+      ctx,
+      createRequestStore,
+      getPayload,
+      onError,
+      prerenderResumeDataCache,
+      shouldRenderWithAppShell,
+      requestAbortSignal
+    )
+    if (forwardErrorsFromWarmRender(inputs, ctx)) {
+      return VALIDATION_BAILOUT
+    }
+    return inputs
+  })
+
+  const LAZY_RUNTIME_PRERENDER = createLazyDevValidationInputs(async () => {
+    const inputs = await prerenderWithWarmCachesForStaticValidationInDev(
+      ctx,
+      createRequestStore,
+      getPayload,
+      onError,
+      prerenderResumeDataCache,
+      requestAbortSignal
+    )
+    if (forwardErrorsFromWarmRender(inputs, ctx)) {
+      return VALIDATION_BAILOUT
+    }
+    return inputs
+  })
+
+  if (inputsFromNavigation) {
+    // We can reuse the main render for at least one of the validation passes.
+    if (areStagesCompatible) {
+      // Stages are compatible across the static shell and the app shell.
+      // We reuse the main render for both.
+      const instantInputs = needsInstantValidation ? inputsFromNavigation : null
+      const staticInputs = inputsFromNavigation
+      return { instantInputs, staticInputs }
+    }
+
+    // Stages are incompatible across static and instant validation.
+
+    // If this navigation has an accurate app shell, we can use it for instant validation.
+    // However, static validation can't use this static stage, so we need to prerender it.
+    if (navigationHasAppShell(navigationKind)) {
+      const instantInputs = needsInstantValidation ? inputsFromNavigation : null
+      const staticInputs = LAZY_RUNTIME_PRERENDER
+      return { instantInputs, staticInputs }
+    }
+
+    // This navigation does not have an accurate app shell, so if we need instant validation, we need to render again.
+    // However, this means that it has an accurate static shell, so we can skip prerendering it.
+    const instantInputs = needsInstantValidation ? LAZY_FULL_RENDER : null
+    const staticInputs = inputsFromNavigation
+    return { instantInputs, staticInputs }
+  }
+
+  // We cannot reuse the main navigation, and need to render again.
+  // If stages are compatible and we'll rerender for instant validation,
+  // we can reuse the result for static validation.
+  const instantInputs = needsInstantValidation ? LAZY_FULL_RENDER : null
+  const staticInputs =
+    areStagesCompatible && instantInputs !== null
+      ? instantInputs
+      : LAZY_RUNTIME_PRERENDER
+
+  return { instantInputs, staticInputs }
+}
+
+async function prepareValidationInputsInLegacyPrefetching(
+  ctx: AppRenderContext,
+  prerenderResumeDataCache: ReturnType<typeof createPrerenderResumeDataCache>,
+  createRequestStore: () => RequestStore,
+  getPayload: (requestStore: RequestStore) => Promise<RSCPayload>,
+  onError: (error: unknown) => void,
+  inputsFromNavigation: DevValidationInputs | null,
+  requestAbortSignal: AbortSignal | undefined
+): Promise<PrepareValidationInputsResult> {
+  const loaderTree = ctx.componentMod.routeModule.userland.loaderTree
+  const needsInstantValidation =
+    await anySegmentNeedsInstantValidationInDev(loaderTree)
+
+  // We're not in partialPrefetching, so we can use the same inputs for both
+  // instant validation and static shell validation.
+  if (inputsFromNavigation) {
+    // The main render is reusable.
+    const instantInputs = needsInstantValidation ? inputsFromNavigation : null
+    const staticInputs = inputsFromNavigation
+    return { instantInputs, staticInputs }
+  }
+
+  const LAZY_FULL_RENDER = createLazyDevValidationInputs(async () => {
+    const shouldRenderWithAppShell = false
+    const inputs = await renderWithWarmCachesForValidationInDev(
+      ctx,
+      createRequestStore,
+      getPayload,
+      onError,
+      prerenderResumeDataCache,
+      shouldRenderWithAppShell,
+      requestAbortSignal
+    )
+    if (forwardErrorsFromWarmRender(inputs, ctx)) {
+      return VALIDATION_BAILOUT
+    }
+    return inputs
+  })
+
+  const LAZY_RUNTIME_PRERENDER = createLazyDevValidationInputs(async () => {
+    const inputs = await prerenderWithWarmCachesForStaticValidationInDev(
+      ctx,
+      createRequestStore,
+      getPayload,
+      onError,
+      prerenderResumeDataCache,
+      requestAbortSignal
+    )
+    if (forwardErrorsFromWarmRender(inputs, ctx)) {
+      return VALIDATION_BAILOUT
+    }
+    return inputs
+  })
+
+  // If instant validation is needed, we need to perform a full rerender.
+  // Otherwise, a prerender is enough.
+  if (needsInstantValidation) {
+    const instantInputs = LAZY_FULL_RENDER
+    const staticInputs = instantInputs
+    return { instantInputs, staticInputs }
+  } else {
+    const instantInputs = null
+    const staticInputs = LAZY_RUNTIME_PRERENDER
+    return { instantInputs, staticInputs }
+  }
+}
+
+async function resolveLazyDevValidationInputs(
+  resolvedOrLazyInputs: DevValidationInputs | LazyDevValidationInputs,
+  ctx: AppRenderContext
+): Promise<DevValidationInputs | ValidationBailout> {
+  let inputs: DevValidationInputs
+  if (typeof resolvedOrLazyInputs === 'function') {
+    const maybeInputs = await resolvedOrLazyInputs()
+    if (maybeInputs === VALIDATION_BAILOUT) {
+      return maybeInputs
+    }
+    inputs = maybeInputs
+  } else {
+    inputs = resolvedOrLazyInputs
+  }
+
+  const syncInterruptReason = inputs.syncInterruptReason
+  if (syncInterruptReason) {
+    await logMessagesAndSendErrorsToBrowser([syncInterruptReason], ctx)
+    return VALIDATION_BAILOUT
+  }
+  return inputs
+}
+
+function forwardErrorsFromWarmRender(
+  inputs: DevValidationInputs,
+  ctx: AppRenderContext
+) {
+  if (inputs.syncInterruptReason) {
+    dropValidationDebugChannel(inputs.debugChannelClient)
+    void logMessagesAndSendErrorsToBrowser([inputs.syncInterruptReason], ctx)
+    return true
+  }
+
+  // Unlike the cold streamed render, which fills the caches, the warm
+  // render reads them back. Reading a `use cache` entry can surface an
+  // invalid dynamic usage error that filling can't (e.g. a nested
+  // dynamic `use cache` cache life that propagated to a parent with no
+  // explicit `cacheLife`). Forward it and skip validation.
+  if (
+    forwardInvalidDynamicUsageError(ctx.workStore.invalidDynamicUsageError, ctx)
+  ) {
+    return true
+  }
+  return false
+}
+
+interface StagedDevRenderSetup {
+  readonly cacheSignal: CacheSignal
+  readonly prerenderResumeDataCache: ReturnType<
+    typeof createPrerenderResumeDataCache
+  >
+  readonly stageController: StagedRenderingController
+  readonly environmentName: () => string
+}
+
+enum PrefetchingMode {
+  LegacySpeculative = 1,
+  Partial = 2,
+}
+
+async function getPrefetchingModeForPage(
+  renderOpts: Pick<RenderOpts, 'partialPrefetching'>,
+  loaderTree: LoaderTree
+): Promise<PrefetchingMode> {
+  const debug =
+    process.env.NEXT_PRIVATE_DEBUG_VALIDATION === '1' ? console.log : undefined
+
+  // TODO(app-shells): support "unstable_eager"
+  if (renderOpts.partialPrefetching) {
+    debug?.('using prefetching mode Partial because of next.config.js')
+    return PrefetchingMode.Partial
+  }
+  if (await anySegmentHasPartialPrefetchingEnabled(loaderTree)) {
+    debug?.('using prefetching mode Partial because of segment config')
+    return PrefetchingMode.Partial
+  }
+
+  debug?.('using prefetching mode LegacySpeculative')
+  return PrefetchingMode.LegacySpeculative
+}
+
+/**
+ * Per-render setup shared by the streaming dev Cache Components renders: a
+ * cache signal (so caches fill in the background), a prerender resume data
+ * cache, async API promises, and a staged rendering controller, all wired into
+ * the request store.
+ */
+function setUpStagedDevRender(
+  navigationKind: DevNavigationKind,
+  requestStore: RequestStore
+): StagedDevRenderSetup {
+  const shouldRenderWithAppShell = navigationHasAppShell(navigationKind)
+
   const cacheSignal = new CacheSignal()
-
-  // If we encounter async modules that delay rendering, we'll also need to restart.
-  // TODO(restart-on-cache-miss): technically, we only need to wait for pending *server* modules here,
-  // but `trackPendingModules` doesn't distinguish between client and server.
   trackPendingModules(cacheSignal)
-
   const prerenderResumeDataCache = createPrerenderResumeDataCache()
-
-  const initialReactController = new AbortController()
-  const initialDataController = new AbortController() // Controls hanging promises we create
-  const initialAbandonController = new AbortController() // Controls whether this render is abandoned
-  const initialStageController = new StagedRenderingController({
-    abortSignal: initialDataController.signal,
-    abandonController: initialAbandonController,
+  const stageController = new StagedRenderingController({
+    abortSignal: null,
+    abandonController: null,
     shouldTrackSyncIO: true,
     finalStage: null,
   })
-
-  // Use a mutable resume data cache for the warmup. After the warmup we'll swap
-  // it out for a read-only resume data cache.
   requestStore.resumeDataCache = prerenderResumeDataCache
-  requestStore.stagedRendering = initialStageController
+  requestStore.stagedRendering = stageController
+  requestStore.needsSessionShell = shouldRenderWithAppShell
   requestStore.asyncApiPromises = createAsyncApiPromises(
-    initialStageController,
+    stageController,
     requestStore.cookies,
     requestStore.mutableCookies,
     requestStore.headers
   )
   requestStore.cacheSignal = cacheSignal
 
-  let debugChannel = setReactDebugChannel && createWebDebugChannel()
-  const { clientModules } = getClientReferenceManifest()
-
-  // Note: The stage controller starts out in the `Before` stage,
-  // where sync IO does not cause aborts, so it's okay if it happens before render.
-  const initialRscPayload = await getPayload(requestStore)
-
-  const advanceStageIfNoCacheMiss = (
-    stage: Parameters<StagedRenderingController['advanceStage']>[0]
-  ) => {
-    if (initialAbandonController.signal.aborted === true) {
-      return
-    } else if (cacheSignal.hasPendingReads()) {
-      initialAbandonController.abort()
-    } else {
-      initialStageController.advanceStage(stage)
-    }
-  }
-
-  const initialStreamResult = await runInSequentialTasks(
-    () => {
-      initialStageController.advanceStage(RenderStage.ShellEarlyStatic)
-      startTime = performance.now() + performance.timeOrigin
-
-      const streamPair = teeStream(
-        workUnitAsyncStorage.run(
-          requestStore,
-          renderToWebFlightStream,
-          ComponentMod,
-          initialRscPayload,
-          clientModules,
-          {
-            onError,
-            environmentName,
-            startTime,
-            filterStackFrame,
-            debugChannel: debugChannel?.serverSide,
-            signal: initialReactController.signal,
-          }
-        )
-      )
-
-      // If we abort the render, we want to reject the stage-dependent promises as well.
-      // Note that we want to install this listener after the render is started
-      // so that it runs after react is finished running its abort code.
-      initialReactController.signal.addEventListener(
-        'abort',
-        () => {
-          const { reason } = initialReactController.signal
-          initialDataController.abort(reason)
-        },
-        { once: true }
-      )
-
-      const stream = streamPair[0]
-      const accumulatedChunksPromise = accumulateStreamChunks(
-        streamPair[1],
-        initialStageController,
-        initialDataController.signal
-      )
-
-      initialDataController.signal.addEventListener(
-        'abort',
-        () => {
-          accumulatedChunksPromise.catch(() => {})
-          if (stream instanceof ReadableStream) {
-            stream.cancel()
-          } else {
-            stream.destroy()
-          }
-        },
-        { once: true }
-      )
-
-      return {
-        stream,
-        accumulatedChunksPromise,
-      }
-    },
-    () => {
-      advanceStageIfNoCacheMiss(RenderStage.ShellStatic)
-    },
-    () => {
-      advanceStageIfNoCacheMiss(RenderStage.EarlyStatic)
-    },
-    () => {
-      advanceStageIfNoCacheMiss(RenderStage.Static)
-    },
-    () => {
-      advanceStageIfNoCacheMiss(RenderStage.ShellEarlyRuntime)
-    },
-    () => {
-      advanceStageIfNoCacheMiss(RenderStage.ShellRuntime)
-    },
-    () => {
-      advanceStageIfNoCacheMiss(RenderStage.EarlyRuntime)
-    },
-    () => {
-      advanceStageIfNoCacheMiss(RenderStage.Runtime)
-    },
-    () => {
-      advanceStageIfNoCacheMiss(RenderStage.Dynamic)
-    }
-  )
-
-  if (initialStageController.currentStage !== RenderStage.Abandoned) {
-    // No cache misses. We can use the result as-is.
-    return {
-      stream: initialStreamResult.stream,
-      accumulatedChunksPromise: initialStreamResult.accumulatedChunksPromise,
-      syncInterruptReason: initialStageController.getSyncInterruptReason(),
-      startTime,
-      staticStageEndTime: initialStageController.getStaticStageEndTime(),
-      runtimeStageEndTime: initialStageController.getRuntimeStageEndTime(),
-      debugChannel,
-      requestStore,
-    }
-  }
-
-  if (process.env.__NEXT_DEV_SERVER && setCacheStatus) {
-    setCacheStatus('filling', htmlRequestId)
-  }
-
-  // Cache miss. We will use the initial render to fill caches, and discard its result.
-  // Then, we can render again with warm caches.
-
-  // TODO(restart-on-cache-miss):
-  // This might end up waiting for more caches than strictly necessary,
-  // because we can't abort the render yet, and we'll let runtime/dynamic APIs resolve.
-  // Ideally we'd only wait for caches that are needed in the static stage.
-  // This will be optimized in the future by not allowing runtime/dynamic APIs to resolve.
-
-  await cacheSignal.cacheReady()
-  workUnitAsyncStorage.run(
-    requestStore,
-    initialReactController.abort.bind(initialReactController)
-  )
-
-  //===============================================
-  // Final render (restarted)
-  //===============================================
-
-  // The initial render acted as a prospective render to warm the caches.
-  requestStore = createRequestStore()
-
-  const finalStageController = new StagedRenderingController({
-    // We are going to render this pass all the way through because we've already
-    // filled any caches so we won't be aborting this time.
-    abortSignal: null,
-    abandonController: null,
-    shouldTrackSyncIO: true,
-    finalStage: null,
-  })
-
-  // We've filled the caches, so now we can render as usual,
-  // without any cache-filling mechanics.
-  requestStore.resumeDataCache = createRenderResumeDataCache(
-    prerenderResumeDataCache
-  )
-  requestStore.stagedRendering = finalStageController
-  requestStore.cacheSignal = null
-  requestStore.asyncApiPromises = createAsyncApiPromises(
-    finalStageController,
-    requestStore.cookies,
-    requestStore.mutableCookies,
-    requestStore.headers
-  )
-
-  // The initial render already wrote to its debug channel.
-  // We're not using it, so we need to create a new one.
-  debugChannel = setReactDebugChannel && createWebDebugChannel()
-
-  // Note: The stage controller starts out in the `Before` stage,
-  // where sync IO does not cause aborts, so it's okay if it happens before render.
-  const finalRscPayload = await getPayload(requestStore)
-
-  const finalStreamResult = await runInSequentialTasks(
-    () => {
-      finalStageController.advanceStage(RenderStage.ShellEarlyStatic)
-      startTime = performance.now() + performance.timeOrigin
-
-      const streamPair = teeStream(
-        workUnitAsyncStorage.run(
-          requestStore,
-          renderToWebFlightStream,
-          ComponentMod,
-          finalRscPayload,
-          clientModules,
-          {
-            onError,
-            environmentName,
-            startTime,
-            filterStackFrame,
-            debugChannel: debugChannel?.serverSide,
-          }
-        )
-      )
-
-      return {
-        stream: streamPair[0],
-        accumulatedChunksPromise: accumulateStreamChunks(
-          streamPair[1],
-          finalStageController,
-          null
-        ),
-      }
-    },
-    () => {
-      finalStageController.advanceStage(RenderStage.ShellStatic)
-    },
-    () => {
-      finalStageController.advanceStage(RenderStage.EarlyStatic)
-    },
-    () => {
-      finalStageController.advanceStage(RenderStage.Static)
-    },
-    () => {
-      finalStageController.advanceStage(RenderStage.ShellEarlyRuntime)
-    },
-    () => {
-      finalStageController.advanceStage(RenderStage.ShellRuntime)
-    },
-    () => {
-      finalStageController.advanceStage(RenderStage.EarlyRuntime)
-    },
-    () => {
-      finalStageController.advanceStage(RenderStage.Runtime)
-    },
-    () => {
-      finalStageController.advanceStage(RenderStage.Dynamic)
-    }
-  )
-
-  if (process.env.__NEXT_DEV_SERVER && setCacheStatus) {
-    setCacheStatus('filled', htmlRequestId)
-  }
+  const environmentName = () =>
+    getEnvironmentNameForStage(stageController.currentStage)
 
   return {
-    stream: finalStreamResult.stream,
-    accumulatedChunksPromise: finalStreamResult.accumulatedChunksPromise,
-    syncInterruptReason: finalStageController.getSyncInterruptReason(),
-    startTime,
-    staticStageEndTime: finalStageController.getStaticStageEndTime(),
-    runtimeStageEndTime: finalStageController.getRuntimeStageEndTime(),
-    debugChannel,
-    requestStore,
+    cacheSignal,
+    prerenderResumeDataCache,
+    stageController,
+    environmentName,
   }
 }
 
@@ -5102,248 +4977,464 @@ function getEnvironmentNameForStage(stage: RenderStage) {
   }
 }
 
-async function renderWithRestartOnCacheMissInDevNode(
-  ctx: AppRenderContext,
-  initialRequestStore: RequestStore,
-  createRequestStore: () => RequestStore,
-  getPayload: (requestStore: RequestStore) => Promise<RSCPayload>,
+// The rendering context and reveal config that `stagedRenderWithCachesInDev`
+// forwards to `streamStagedRenderInDev`.
+interface StagedDevRenderOptions {
+  prefetchMode: PrefetchingMode
+  ctx: AppRenderContext
+  requestStore: RequestStore
   onError: (error: unknown) => void
-) {
-  const { htmlRequestId, renderOpts } = ctx
+  navigationKind: DevNavigationKind
+  // When this aborts, the staged dev render is torn down (its in-flight `'use
+  // cache'` fills keep running) and the detached validation is skipped.
+  // `undefined` runs both to completion.
+  requestAbortSignal: AbortSignal | undefined
+}
 
-  const { ComponentMod, setCacheStatus, setReactDebugChannel } = renderOpts
+type DevNavigationKind =
+  | { type: 'initial-load' }
+  | { type: 'prefetched-client'; prefetchStage: StreamRevealStage }
+
+type StreamRevealStage =
+  | RenderStage.Static
+  | RenderStage.ShellRuntime
+  | RenderStage.Runtime
+
+function navigationHasAppShell(navigationKind: DevNavigationKind): boolean {
+  // TODO(app-shells): when we implement `<Link prefetch={true}>/`prefetch = "unstable_eager"` in dev,
+  // this might need to be adjusted, because we'll use `Runtime` for the stage
+  return (
+    navigationKind.type === 'prefetched-client' &&
+    navigationKind.prefetchStage === RenderStage.ShellRuntime
+  )
+}
+
+interface StreamStagedRenderInDevOptions extends StagedDevRenderOptions {
+  rscPayload: RSCPayload
+  stageController: StagedRenderingController
+  cacheSignal: CacheSignal
+  environmentName: () => string
+  debugChannel: NodeDebugChannelPair | undefined
+}
+
+/**
+ * Streams a staged dev render to completion without ever abandoning it, so it
+ * streams progressively and fills caches as a side effect. Resolves as soon as
+ * the first task creates the stream, handing back the response `stream` and a
+ * `result` promise. The `result` settles once the full stream has finished, and
+ * reports whether any stage boundary still had pending cache reads (a cold load
+ * that streamed Suspense fallbacks for not-yet-cached content), the stage
+ * timings, and the accumulated chunks.
+ *
+ * The chunks are accumulated eagerly because detecting completion requires
+ * reading the whole stream anyway; the same accumulation feeds validation when
+ * the render turns out to be prod-representative.
+ */
+async function streamStagedRenderInDev({
+  ctx,
+  requestStore,
+  rscPayload,
+  stageController,
+  cacheSignal,
+  environmentName,
+  onError,
+  debugChannel,
+  navigationKind,
+  requestAbortSignal,
+}: StreamStagedRenderInDevOptions): Promise<{
+  stream: Readable
+  resultPromise: Promise<StagedDevRenderResult>
+}> {
+  let holdStreamUntilRevealed: boolean
+  let revealAfterStage: StreamRevealStage
+  switch (navigationKind.type) {
+    case 'initial-load': {
+      // Hold the stream until the shell content has flushed so the
+      // streamed HTML reflects the prerendered HTML shell
+      holdStreamUntilRevealed = true
+      revealAfterStage = RenderStage.Static
+      break
+    }
+    case 'prefetched-client': {
+      // This stream goes to the browser, which gates revealing the response on
+      // the payload's `_revealAfter`, so release it live and let the browser
+      // process chunks as they arrive instead of holding it server-side.
+      holdStreamUntilRevealed = false
+      revealAfterStage = navigationKind.prefetchStage
+      break
+    }
+  }
+
+  const { ComponentMod } = ctx.renderOpts
+  const { clientModules } = getClientReferenceManifest()
+
+  // The first task creates the stream; `streamReady` carries it (and its chunk
+  // accumulation) out of that task into the function body below.
+  const streamReady = createPromiseWithResolvers<{
+    stream: Readable
+    accumulatedChunksPromise: Promise<AccumulatedStreamChunks>
+  }>()
+
+  // `revealAfter` resolves once the `revealAfterStage` content has flushed (or
+  // earlier on a cache miss). When streaming live (a client navigation), it's
+  // surfaced through the Flight payload as `_revealAfter`: the client decodes
+  // it and defers resolving the response's deferred RSCs on it (see
+  // `ppr-navigations`), so a Suspense boundary's children aren't revealed
+  // before their row has been decoded, which would flush a premature fallback.
+  // React serializes the promise as a pending row whose resolution row is
+  // emitted only when we resolve it here, and that row follows the children's
+  // row in the payload, so the children are already decoded by the time the
+  // client unblocks. The HTML (Fizz) render can't gate like this, so we don't
+  // surface the promise on its payload and instead hold the whole stream on
+  // `revealAfter` for it (see `holdStreamUntilRevealed` below).
+  const revealAfter = createPromiseWithResolvers<void>()
+  if (!holdStreamUntilRevealed) {
+    ;(rscPayload as InitialRSCPayload | NavigationFlightResponse)._revealAfter =
+      revealAfter.promise
+  }
 
   let startTime = -Infinity
 
-  // If the render is restarted, we'll recreate a fresh request store
-  let requestStore: RequestStore = initialRequestStore
+  // Whether any stage boundary still had pending cache reads (or modules): i.e.
+  // the caches weren't filled yet and the render streamed Suspense fallbacks
+  // for content that would be cached in production.
+  let hadCacheMiss = false
 
-  const environmentName = () => {
-    const currentStage = requestStore.stagedRendering!.currentStage
-    return getEnvironmentNameForStage(currentStage)
+  // Whether the cold-cache status has already been reported for this render. It
+  // is reported at most once, and only for a read that's still pending while a
+  // shell stage is flushing (see `checkForCacheMiss`).
+  let reportedColdCache = false
+
+  // Runs at each stage boundary. Latches the running cache-miss verdict and
+  // returns it, so a boundary can reveal the shell as soon as a miss is seen
+  // (and so dev validation can later tell whether the streamed render is
+  // prod-representative). The first miss seen while a shell stage is still
+  // flushing also reports the cold-cache status.
+  const checkForCacheMiss = () => {
+    if (cacheSignal.hasPendingReads()) {
+      hadCacheMiss = true
+
+      // The cold-cache indicator reflects the shell only. A cache read still
+      // pending while a shell stage flushes (`currentStage <=
+      // revealAfterStage`, using the ordered `RenderStage` values) is part of
+      // the shell that production serves instantly, so a cold cache there is
+      // worth surfacing and we show the indicator. A cache miss after the shell
+      // stage is runtime or dynamic content that production reads/fills during
+      // the resume at runtime, so a cold cache there is expected and must not
+      // show the indicator.
+      if (
+        !reportedColdCache &&
+        stageController.currentStage <= revealAfterStage
+      ) {
+        // First in-shell cache miss this render: tell the dev overlay we're
+        // streaming with a cold cache now. The per-load `'ready'` reset clears
+        // it again on the next load.
+        ctx.renderOpts.setCacheStatus?.('cold', ctx.htmlRequestId)
+        reportedColdCache = true
+      }
+    }
+    return hadCacheMiss
   }
 
-  //===============================================
-  // Initial render
-  //===============================================
+  const checkCacheMissAndAdvance = (stage: AdvanceableRenderStage) => {
+    if (checkForCacheMiss()) {
+      revealAfter.resolve()
+    }
+    stageController.advanceStage(stage)
+  }
 
-  // Try to render the page and see if there's any cache misses.
-  // If there are, wait for caches to finish and restart the render.
-
-  // This render might end up being used as a prospective render (if there's cache misses),
-  // so we need to set it up for filling caches.
-  const cacheSignal = new CacheSignal()
-
-  // If we encounter async modules that delay rendering, we'll also need to restart.
-  // TODO(restart-on-cache-miss): technically, we only need to wait for pending *server* modules here,
-  // but `trackPendingModules` doesn't distinguish between client and server.
-  trackPendingModules(cacheSignal)
-
-  const prerenderResumeDataCache = createPrerenderResumeDataCache()
-
-  const initialReactController = new AbortController()
-  const initialDataController = new AbortController() // Controls hanging promises we create
-  const initialAbandonController = new AbortController() // Controls whether this render is abandoned
-  const initialStageController = new StagedRenderingController({
-    abortSignal: initialDataController.signal,
-    abandonController: initialAbandonController,
-    shouldTrackSyncIO: true,
-    finalStage: null,
-  })
-
-  // Use a mutable resume data cache for the warmup. After the warmup we'll swap
-  // it out for a read-only resume data cache.
-  requestStore.resumeDataCache = prerenderResumeDataCache
-  requestStore.stagedRendering = initialStageController
-  requestStore.asyncApiPromises = createAsyncApiPromises(
-    initialStageController,
-    requestStore.cookies,
-    requestStore.mutableCookies,
-    requestStore.headers
-  )
-  requestStore.cacheSignal = cacheSignal
-
-  let debugChannel = setReactDebugChannel && createNodeDebugChannel()
-  const { clientModules } = getClientReferenceManifest()
-
-  // Note: The stage controller starts out in the `Before` stage,
-  // where sync IO does not cause aborts, so it's okay if it happens before render.
-  const initialRscPayload = await getPayload(requestStore)
-
-  const advanceStageIfNoCacheMiss = (
-    stage: Parameters<StagedRenderingController['advanceStage']>[0]
-  ) => {
-    if (initialAbandonController.signal.aborted === true) {
-      return
-    } else if (cacheSignal.hasPendingReads()) {
-      initialAbandonController.abort()
-    } else {
-      initialStageController.advanceStage(stage)
+  const checkReveal = (stage: AdvanceableRenderStage) => {
+    if (checkForCacheMiss() || revealAfterStage === stage) {
+      revealAfter.resolve()
     }
   }
 
-  const initialStreamResult = await runInSequentialTasks(
+  const stagesAdvanced = runInSequentialTasks(
     () => {
-      initialStageController.advanceStage(RenderStage.ShellEarlyStatic)
+      stageController.advanceStage(RenderStage.ShellEarlyStatic)
       startTime = performance.now() + performance.timeOrigin
 
-      const sourceStream = workUnitAsyncStorage.run(
-        requestStore,
-        renderToNodeFlightStream,
-        ComponentMod,
-        initialRscPayload,
-        clientModules,
-        {
-          onError,
-          environmentName,
-          startTime,
-          filterStackFrame,
-          debugChannel: debugChannel?.serverSide,
-          signal: initialReactController.signal,
-        }
-      ) as Readable
-      const replayable = new ReplayableNodeStream(sourceStream)
-
-      // If we abort the render, we want to reject the stage-dependent promises as well.
-      // Note that we want to install this listener after the render is started
-      // so that it runs after react is finished running its abort code.
-      initialReactController.signal.addEventListener(
-        'abort',
-        () => {
-          const { reason } = initialReactController.signal
-          initialDataController.abort(reason)
-        },
-        { once: true }
+      const replayable = new ReplayableNodeStream(
+        workUnitAsyncStorage.run(
+          requestStore,
+          renderToNodeFlightStream,
+          ComponentMod,
+          rscPayload,
+          clientModules,
+          {
+            onError,
+            environmentName,
+            startTime,
+            filterStackFrame,
+            debugChannel: debugChannel?.serverSide,
+            signal: requestAbortSignal,
+          }
+        ) as Readable
       )
 
-      const stream = replayable.createReplayStream()
-      const accumulatedChunksPromise = accumulateStreamChunks(
-        replayable.createReplayStream(),
-        initialStageController,
-        initialDataController.signal
-      )
+      streamReady.resolve({
+        stream: replayable.createReplayStream(),
+        accumulatedChunksPromise: accumulateStreamChunks(
+          replayable.createReplayStream(),
+          stageController,
+          // Abort accumulation as soon as the signal aborts instead of waiting
+          // for the stream to close.
+          requestAbortSignal ?? null
+        ),
+      })
+    },
+    () => checkCacheMissAndAdvance(RenderStage.ShellStatic),
 
-      initialDataController.signal.addEventListener(
-        'abort',
-        () => {
-          accumulatedChunksPromise.catch(() => {})
-          stream.destroy()
-        },
-        { once: true }
-      )
+    () => checkCacheMissAndAdvance(RenderStage.EarlyStatic),
+    () => checkCacheMissAndAdvance(RenderStage.Static),
+    () => checkReveal(RenderStage.Static),
 
-      return {
-        stream,
-        accumulatedChunksPromise,
-      }
-    },
+    () => checkCacheMissAndAdvance(RenderStage.ShellEarlyRuntime),
+    () => checkCacheMissAndAdvance(RenderStage.ShellRuntime),
+    () => checkReveal(RenderStage.ShellRuntime),
+
+    () => checkCacheMissAndAdvance(RenderStage.EarlyRuntime),
+    () => checkCacheMissAndAdvance(RenderStage.Runtime),
+    () => checkReveal(RenderStage.Runtime),
+
     () => {
-      advanceStageIfNoCacheMiss(RenderStage.ShellStatic)
-    },
-    () => {
-      advanceStageIfNoCacheMiss(RenderStage.EarlyStatic)
-    },
-    () => {
-      advanceStageIfNoCacheMiss(RenderStage.Static)
-    },
-    () => {
-      advanceStageIfNoCacheMiss(RenderStage.ShellEarlyRuntime)
-    },
-    () => {
-      advanceStageIfNoCacheMiss(RenderStage.ShellRuntime)
-    },
-    () => {
-      advanceStageIfNoCacheMiss(RenderStage.EarlyRuntime)
-    },
-    () => {
-      advanceStageIfNoCacheMiss(RenderStage.Runtime)
-    },
-    () => {
-      advanceStageIfNoCacheMiss(RenderStage.Dynamic)
+      // Advance to the dynamic stage even while caches are still filling, so
+      // dynamic content streams to the browser right away instead of being
+      // withheld until the slowest cache fill completes. Streaming that content
+      // promptly is the whole point of the streaming dev render.
+      //
+      // The tradeoff is that dev no longer detects a `'use cache'` deadlock: a
+      // cache whose fill depends on Dynamic-stage IO used to be held here until
+      // it hit the fill timeout, but advancing now unblocks that IO so the
+      // cache fills instead. That detection only served to debug a build-time
+      // deadlock from within dev, and the streaming render no longer blocks the
+      // page on the fill, so we accept losing it here.
+      // TODO: Surface `'use cache'` deadlocks at build time instead, e.g. via
+      // `next build --debug-prerender`, so they can still be diagnosed.
+      stageController.advanceStage(RenderStage.Dynamic)
     }
   )
 
-  if (initialStageController.currentStage !== RenderStage.Abandoned) {
-    // No cache misses. We can use the result as-is.
-    return {
-      stream: initialStreamResult.stream,
-      accumulatedChunksPromise: initialStreamResult.accumulatedChunksPromise,
-      syncInterruptReason: initialStageController.getSyncInterruptReason(),
+  // If a task throws before the stream is created, surface it to the awaiter
+  // below via `streamReady`. Resolve (not reject) `revealAfter` so the client
+  // consumers that gate on the payload's `_revealAfter` unblock rather than
+  // seeing a rejection; the actual error still surfaces through the stream.
+  stagesAdvanced.catch((err) => {
+    streamReady.reject(err)
+    revealAfter.resolve()
+  })
+
+  const { stream, accumulatedChunksPromise } = await streamReady.promise
+
+  // For the HTML (Fizz) render, hold the stream until the shell-stage content
+  // has flushed (or until a cache miss reveals early) so the HTML reflects the
+  // prerendered shell that production streams rather than a premature fallback.
+  // The `_revealAfter` gate is client-side and doesn't apply to this render,
+  // which consumes the payload directly and would otherwise stream a boundary's
+  // fallback before its content arrived. A client navigation doesn't need the
+  // hold: it gates revealing the response on `_revealAfter` (whose resolution
+  // row follows the children's row in the stream), so we release the stream to
+  // it live and let the browser process chunks as they arrive instead of
+  // holding it server-side.
+  if (holdStreamUntilRevealed) {
+    await revealAfter.promise
+  }
+
+  // Advancing the stages only drives the pipeline forward; the render isn't
+  // actually complete until its stream has fully finished. The accumulation
+  // resolves at that point, so the result is read only once both it and the
+  // stages have settled (a late `syncInterruptReason` or
+  // `invalidDynamicUsageError` isn't final until the last stage has streamed).
+  const resultPromise = Promise.all([
+    stagesAdvanced,
+    accumulatedChunksPromise,
+  ]).then(
+    ([, accumulatedChunks]): StagedDevRenderResult => ({
+      hadCacheMiss,
+      syncInterruptReason: stageController.getSyncInterruptReason(),
       startTime,
-      staticStageEndTime: initialStageController.getStaticStageEndTime(),
-      runtimeStageEndTime: initialStageController.getRuntimeStageEndTime(),
-      debugChannel,
-      requestStore,
-    }
-  }
-
-  if (process.env.__NEXT_DEV_SERVER && setCacheStatus) {
-    setCacheStatus('filling', htmlRequestId)
-  }
-
-  // Cache miss. We will use the initial render to fill caches, and discard its result.
-  // Then, we can render again with warm caches.
-
-  // TODO(restart-on-cache-miss):
-  // This might end up waiting for more caches than strictly necessary,
-  // because we can't abort the render yet, and we'll let runtime/dynamic APIs resolve.
-  // Ideally we'd only wait for caches that are needed in the static stage.
-  // This will be optimized in the future by not allowing runtime/dynamic APIs to resolve.
-
-  await cacheSignal.cacheReady()
-  workUnitAsyncStorage.run(
-    requestStore,
-    initialReactController.abort.bind(initialReactController)
+      staticStageEndTime: stageController.getStaticStageEndTime(),
+      runtimeStageEndTime: stageController.getRuntimeStageEndTime(),
+      accumulatedChunks,
+    })
   )
 
-  //===============================================
-  // Final render (restarted)
-  //===============================================
+  return { stream, resultPromise }
+}
 
-  // The initial render acted as a prospective render to warm the caches.
-  requestStore = createRequestStore()
+async function renderWithWarmCachesForValidationInDev(
+  ctx: AppRenderContext,
+  createRequestStore: () => RequestStore,
+  getPayload: (requestStore: RequestStore) => Promise<RSCPayload>,
+  onError: (error: unknown) => void,
+  prerenderResumeDataCache: ReturnType<typeof createPrerenderResumeDataCache>,
+  shouldRenderWithAppShell: boolean,
+  requestAbortSignal: AbortSignal | undefined
+): Promise<DevValidationInputs> {
+  const { ComponentMod, setReactDebugChannel } = ctx.renderOpts
+  const { clientModules } = getClientReferenceManifest()
 
-  const finalStageController = new StagedRenderingController({
-    // We are going to render this pass all the way through because we've already
-    // filled any caches so we won't be aborting this time.
+  const stageController = new StagedRenderingController({
     abortSignal: null,
     abandonController: null,
     shouldTrackSyncIO: true,
     finalStage: null,
   })
 
-  // We've filled the caches, so now we can render as usual,
-  // without any cache-filling mechanics.
+  const requestStore = createRequestStore()
   requestStore.resumeDataCache = createRenderResumeDataCache(
     prerenderResumeDataCache
   )
-  requestStore.stagedRendering = finalStageController
+  requestStore.stagedRendering = stageController
+  requestStore.needsSessionShell = shouldRenderWithAppShell
   requestStore.cacheSignal = null
   requestStore.asyncApiPromises = createAsyncApiPromises(
-    finalStageController,
+    stageController,
     requestStore.cookies,
     requestStore.mutableCookies,
     requestStore.headers
   )
 
-  // The initial render already wrote to its debug channel.
-  // We're not using it, so we need to create a new one.
-  debugChannel = setReactDebugChannel && createNodeDebugChannel()
+  const debugChannel = setReactDebugChannel && createNodeDebugChannel()
+  const environmentName = () =>
+    getEnvironmentNameForStage(stageController.currentStage)
 
-  // Note: The stage controller starts out in the `Before` stage,
-  // where sync IO does not cause aborts, so it's okay if it happens before render.
-  const finalRscPayload = await getPayload(requestStore)
+  const rscPayload = await getPayload(requestStore)
 
-  const finalStreamResult = await runInSequentialTasks(
+  let startTime = -Infinity
+  const accumulatedChunks = await runInSequentialTasks(
     () => {
-      finalStageController.advanceStage(RenderStage.ShellEarlyStatic)
+      stageController.advanceStage(RenderStage.ShellEarlyStatic)
       startTime = performance.now() + performance.timeOrigin
 
-      const finalSourceStream = workUnitAsyncStorage.run(
+      const sourceStream = workUnitAsyncStorage.run(
         requestStore,
         renderToNodeFlightStream,
         ComponentMod,
-        finalRscPayload,
+        rscPayload,
+        clientModules,
+        {
+          onError,
+          environmentName,
+          startTime,
+          filterStackFrame,
+          debugChannel: debugChannel?.serverSide,
+          signal: requestAbortSignal,
+        }
+      ) as Readable
+
+      return accumulateStreamChunks(
+        sourceStream,
+        stageController,
+        requestAbortSignal ?? null
+      )
+    },
+    () => stageController.advanceStage(RenderStage.ShellStatic),
+    () => stageController.advanceStage(RenderStage.EarlyStatic),
+    () => stageController.advanceStage(RenderStage.Static),
+    () => stageController.advanceStage(RenderStage.ShellEarlyRuntime),
+    () => stageController.advanceStage(RenderStage.ShellRuntime),
+    () => stageController.advanceStage(RenderStage.EarlyRuntime),
+    () => stageController.advanceStage(RenderStage.Runtime),
+    () => stageController.advanceStage(RenderStage.Dynamic)
+  )
+
+  return {
+    accumulatedChunks,
+    syncInterruptReason: stageController.getSyncInterruptReason(),
+    startTime,
+    staticStageEndTime: stageController.getStaticStageEndTime(),
+    runtimeStageEndTime: stageController.getRuntimeStageEndTime(),
+    requestStore,
+    debugChannelClient: debugChannel?.clientSide.readable,
+  }
+}
+
+interface StagedRenderWithCachesInDevOptions extends StagedDevRenderOptions {
+  createRequestStore: () => RequestStore
+  getPayload: (requestStore: RequestStore) => Promise<RSCPayload>
+  shouldValidate: boolean
+  fallbackRouteParams: OpaqueFallbackRouteParams | null
+  getDevRenderDidError: () => boolean
+}
+
+async function prerenderWithWarmCachesForStaticValidationInDev(
+  ctx: AppRenderContext,
+  createRequestStore: () => RequestStore,
+  getPayload: (requestStore: RequestStore) => Promise<RSCPayload>,
+  onError: (error: unknown) => void,
+  prerenderResumeDataCache: ReturnType<typeof createPrerenderResumeDataCache>,
+  requestAbortSignal: AbortSignal | undefined
+): Promise<DevValidationInputs> {
+  const { ComponentMod, setReactDebugChannel } = ctx.renderOpts
+  const { clientModules } = getClientReferenceManifest()
+
+  // This render is for validation only, and won't be shown to the user,
+  // so we're only rendering until the runtime stage
+  // (we need static chunks and runtime chunks for discriminated errors)
+  const finalReactController = new AbortController()
+  const finalDataController = new AbortController()
+
+  if (requestAbortSignal) {
+    abortWhenSignalAborts(requestAbortSignal, finalReactController)
+  }
+
+  const stageController = new StagedRenderingController({
+    abortSignal: finalDataController.signal,
+    abandonController: null,
+    shouldTrackSyncIO: true,
+    finalStage: RenderStage.Runtime,
+  })
+
+  const requestStore = createRequestStore()
+  requestStore.resumeDataCache = createRenderResumeDataCache(
+    prerenderResumeDataCache
+  )
+  requestStore.stagedRendering = stageController
+  requestStore.needsSessionShell = false
+  requestStore.cacheSignal = null
+  requestStore.asyncApiPromises = createAsyncApiPromises(
+    stageController,
+    requestStore.cookies,
+    requestStore.mutableCookies,
+    requestStore.headers
+  )
+
+  // We abort upon reaching the runtime stage or on Sync IO.
+  // If sync IO occurs in a place where it's not allowed, then we have to fail validation,
+  // and we can abort the render immediately, without waiting for anything else..
+  requestStore.controller = finalReactController
+  requestStore.renderSignal = finalDataController.signal
+
+  const debugChannel = setReactDebugChannel && createNodeDebugChannel()
+  const environmentName = () =>
+    getEnvironmentNameForStage(stageController.currentStage)
+
+  const rscPayload = await getPayload(requestStore)
+
+  let startTime = -Infinity
+  const collectedChunksByStage = createStageChunksAccumulator()
+
+  const collectChunk = (chunk: Uint8Array) => {
+    // We abort the render before the dynamic stage.
+    // If we aborted, save the errored chunks as if they were emitted
+    // in the dynamic stage so that we can late-release them for debug info.
+    const stage = finalReactController.signal.aborted
+      ? RenderStage.Dynamic
+      : stageController.currentStage
+    collectStageChunk(collectedChunksByStage, stage, chunk)
+  }
+
+  await runInSequentialTasks(
+    async () => {
+      stageController.advanceStage(RenderStage.ShellEarlyStatic)
+      startTime = performance.now() + performance.timeOrigin
+
+      const sourceStream = workUnitAsyncStorage.run(
+        requestStore,
+        renderToNodeFlightStream,
+        ComponentMod,
+        rscPayload,
         clientModules,
         {
           onError,
@@ -5353,57 +5444,178 @@ async function renderWithRestartOnCacheMissInDevNode(
           debugChannel: debugChannel?.serverSide,
         }
       ) as Readable
-      const finalReplayable = new ReplayableNodeStream(finalSourceStream)
 
-      return {
-        stream: finalReplayable.createReplayStream(),
-        accumulatedChunksPromise: accumulateStreamChunks(
-          finalReplayable.createReplayStream(),
-          finalStageController,
-          null
-        ),
-      }
+      // Only reject hanging promises after react finished aborting.
+      abortWhenSignalAborts(finalReactController.signal, finalDataController)
+
+      // Note: this await will only resolve after the last task (unless sync IO aborts the render earlier)
+      await iterateStreamingPrerenderChunks(
+        sourceStream,
+        finalReactController.signal,
+        collectChunk
+      )
     },
+    () => stageController.advanceStage(RenderStage.ShellStatic),
+    () => stageController.advanceStage(RenderStage.EarlyStatic),
+    () => stageController.advanceStage(RenderStage.Static),
+    () => stageController.advanceStage(RenderStage.ShellEarlyRuntime),
+    () => stageController.advanceStage(RenderStage.ShellRuntime),
+    () => stageController.advanceStage(RenderStage.EarlyRuntime),
+    () => stageController.advanceStage(RenderStage.Runtime),
     () => {
-      finalStageController.advanceStage(RenderStage.ShellStatic)
-    },
-    () => {
-      finalStageController.advanceStage(RenderStage.EarlyStatic)
-    },
-    () => {
-      finalStageController.advanceStage(RenderStage.Static)
-    },
-    () => {
-      finalStageController.advanceStage(RenderStage.ShellEarlyRuntime)
-    },
-    () => {
-      finalStageController.advanceStage(RenderStage.ShellRuntime)
-    },
-    () => {
-      finalStageController.advanceStage(RenderStage.EarlyRuntime)
-    },
-    () => {
-      finalStageController.advanceStage(RenderStage.Runtime)
-    },
-    () => {
-      finalStageController.advanceStage(RenderStage.Dynamic)
+      // Do not advance to the dynamic stage, abort instead.
+      abortInRenderContext(requestStore, finalReactController)
     }
   )
 
-  if (process.env.__NEXT_DEV_SERVER && setCacheStatus) {
-    setCacheStatus('filled', htmlRequestId)
+  return {
+    accumulatedChunks: collectedChunksByStage,
+    syncInterruptReason: stageController.getSyncInterruptReason(),
+    startTime,
+    staticStageEndTime: stageController.getStaticStageEndTime(),
+    runtimeStageEndTime: stageController.getRuntimeStageEndTime(),
+    requestStore,
+    debugChannelClient: debugChannel?.clientSide.readable,
+  }
+}
+
+/** When the source signal aborts, abort the controller with its reason. */
+function abortWhenSignalAborts(
+  signal: AbortSignal,
+  controller: AbortController
+) {
+  if (signal.aborted) {
+    controller.abort(signal.reason)
+    return
+  }
+  signal.addEventListener(
+    'abort',
+    () => controller.abort(signal.reason),
+    ABORT_ONCE
+  )
+}
+
+const ABORT_ONCE = { once: true }
+
+/** Make sure that any userspace code that might run during abort has access
+ * to the workUnitStore that it was rendered in.
+ * This is mostly relevant to Fizz where a component suspended on a hanging use()
+ * might get rerendered during an abort for debug info reasons, but we defensively
+ * also do it in Flight just in case.
+ * x-ref: https://github.com/vercel/next.js/pull/94436
+ * */
+function abortInRenderContext(
+  workUnitStore: WorkUnitStore,
+  controller: AbortController,
+  reason?: unknown
+): void {
+  if (controller.signal.aborted) {
+    return
+  }
+  workUnitAsyncStorage.run(
+    workUnitStore,
+    reason
+      ? controller.abort.bind(controller, reason)
+      : controller.abort.bind(controller)
+  )
+}
+
+/**
+ * Sets up and streams a dev Cache Components render. Streams immediately and
+ * fills caches as a side effect, then runs a background follow-up once the
+ * render finishes. When `shouldValidate`, it spawns Cache Components validation
+ * (against the streamed render directly when it's prod-representative,
+ * otherwise against a separate warm-cache render); otherwise it just forwards
+ * any recorded invalid dynamic usage error to the dev overlay.
+ */
+async function stagedRenderWithCachesInDev({
+  prefetchMode,
+  ctx,
+  requestStore,
+  createRequestStore,
+  getPayload,
+  onError,
+  shouldValidate,
+  fallbackRouteParams,
+  getDevRenderDidError,
+  navigationKind,
+  requestAbortSignal,
+}: StagedRenderWithCachesInDevOptions): Promise<{
+  stream: Readable
+  debugChannel: NodeDebugChannelPair | undefined
+}> {
+  const { setReactDebugChannel } = ctx.renderOpts
+
+  const {
+    cacheSignal,
+    prerenderResumeDataCache,
+    stageController,
+    environmentName,
+  } = setUpStagedDevRender(navigationKind, requestStore)
+
+  let validationDebugChannel: AnyStream | undefined
+  const debugChannel = setReactDebugChannel && createNodeDebugChannel()
+  if (shouldValidate && debugChannel) {
+    const debugChannelReplay = new ReplayableNodeStream(
+      debugChannel.clientSide.readable
+    )
+    debugChannel.clientSide.readable = debugChannelReplay.createReplayStream()
+    validationDebugChannel = debugChannelReplay.createReplayStream()
   }
 
-  return {
-    stream: finalStreamResult.stream,
-    accumulatedChunksPromise: finalStreamResult.accumulatedChunksPromise,
-    syncInterruptReason: finalStageController.getSyncInterruptReason(),
-    startTime,
-    staticStageEndTime: finalStageController.getStaticStageEndTime(),
-    runtimeStageEndTime: finalStageController.getRuntimeStageEndTime(),
-    debugChannel,
+  // The stage controller starts in the `Before` stage, where sync IO doesn't
+  // abort, so it's fine if it happens while creating the payload.
+  const rscPayload = await getPayload(requestStore)
+
+  const { stream, resultPromise } = await streamStagedRenderInDev({
+    prefetchMode,
+    ctx,
     requestStore,
+    rscPayload,
+    stageController,
+    cacheSignal,
+    environmentName,
+    onError,
+    debugChannel,
+    navigationKind,
+    requestAbortSignal,
+  })
+
+  if (shouldValidate) {
+    runDevValidationInBackground(
+      prefetchMode,
+      navigationKind,
+      resultPromise,
+      requestStore,
+      validationDebugChannel,
+      cacheSignal,
+      ctx,
+      fallbackRouteParams,
+      prerenderResumeDataCache,
+      getDevRenderDidError,
+      createRequestStore,
+      getPayload,
+      onError,
+      requestAbortSignal
+    )
+  } else {
+    logValidationSkipped(ctx)
+
+    // We don't validate, but the render may still record an invalid dynamic
+    // usage error (e.g. a request API used inside `'use cache'`). `result`
+    // resolves once the full stream (incl. the dynamic stage) has finished, so
+    // any such error is final by then; forward it to the dev overlay.
+    resultPromise.then(
+      () =>
+        forwardInvalidDynamicUsageError(
+          ctx.workStore.invalidDynamicUsageError,
+          ctx
+        ),
+      () => {}
+    )
   }
+
+  return { stream, debugChannel }
 }
 
 interface AccumulatedStreamChunks {
@@ -5458,11 +5670,11 @@ async function accumulateStreamChunksInto(
     try {
       while (!cancelled) {
         const { done, value } = await reader.read()
-        if (done) {
+        if (done || cancelled) {
           cancel()
           break
         }
-        accumulateChunk(stageController.currentStage, accumulator, value)
+        collectStageChunk(accumulator, stageController.currentStage, value)
       }
     } catch (err) {
       // When we cancel the reader we may reject the read.
@@ -5489,7 +5701,7 @@ async function accumulateStreamChunksInto(
     try {
       for await (const value of nodeStream) {
         if (cancelled) break
-        accumulateChunk(stageController.currentStage, accumulator, value)
+        collectStageChunk(accumulator, stageController.currentStage, value)
       }
     } catch (err) {
       if (!cancelled) {
@@ -5499,9 +5711,9 @@ async function accumulateStreamChunksInto(
   }
 }
 
-function accumulateChunk(
-  stage: RenderStage,
+function collectStageChunk(
   accumulator: AccumulatedStreamChunks,
+  stage: RenderStage,
   value: Uint8Array
 ): void {
   switch (stage) {
@@ -5535,7 +5747,7 @@ function accumulateChunk(
 }
 
 async function countShellAndStaticStageBytes(
-  stream: AnyStream,
+  stream: Readable,
   stageController: StagedRenderingController
 ): Promise<
   Pick<StageByteLengths, RenderStage.ShellStatic | RenderStage.Static>
@@ -5547,21 +5759,12 @@ async function countShellAndStaticStageBytes(
   const endStage = getNextStage(RenderStage.Static)
   stageController.onStage(endStage, abortController.abort.bind(abortController))
 
-  if (stream instanceof ReadableStream) {
-    await countStageBytesUntilAbortWeb(
-      byteLengths,
-      stream,
-      stageController,
-      abortController.signal
-    )
-  } else {
-    await countStageBytesUntilAbortNode(
-      byteLengths,
-      stream,
-      stageController,
-      abortController.signal
-    )
-  }
+  await countStageBytesUntilAbortNode(
+    byteLengths,
+    stream,
+    stageController,
+    abortController.signal
+  )
   return byteLengths
 }
 
@@ -5573,30 +5776,6 @@ function createStageByteLengths(): StageByteLengths {
     result[stage] = 0
   }
   return result as StageByteLengths
-}
-
-async function countStageBytesUntilAbortWeb(
-  byteLengths: StageByteLengths,
-  stream: ReadableStream<Uint8Array>,
-  stageController: StagedRenderingController,
-  abortSignal: AbortSignal
-): Promise<void> {
-  const reader = stream.getReader()
-  abortSignal.addEventListener('abort', reader.cancel.bind(reader), {
-    once: true,
-  })
-
-  while (true) {
-    const { done, value } = await reader.read()
-    if (done || abortSignal.aborted) {
-      break
-    }
-    increaseChunkByteLengths(
-      byteLengths,
-      stageController.currentStage,
-      value.byteLength
-    )
-  }
 }
 
 async function countStageBytesUntilAbortNode(
@@ -5818,11 +5997,23 @@ function logValidationSkipped(ctx: AppRenderContext) {
   }
 }
 
-async function spawnStaticShellValidationInDev(
-  ...args: Parameters<typeof spawnStaticShellValidationInDevImpl>
+function logValidationAborted(ctx: AppRenderContext) {
+  if (process.env.__NEXT_TEST_MODE && process.env.NEXT_TEST_LOG_VALIDATION) {
+    const requestId = ctx.requestId
+    const url = ctx.url.href
+    console.log(
+      '<VALIDATION_MESSAGE>' +
+        JSON.stringify({ type: 'validation_aborted', requestId, url }) +
+        '</VALIDATION_MESSAGE>'
+    )
+  }
+}
+
+async function runValidationInDev(
+  ...args: Parameters<typeof runValidationInDevImpl>
 ) {
   if (process.env.__NEXT_TEST_MODE && process.env.NEXT_TEST_LOG_VALIDATION) {
-    const ctx: AppRenderContext = args[5]
+    const ctx: AppRenderContext = args[3]
     const requestId = ctx.requestId
     const url = ctx.url.href
     console.log(
@@ -5831,7 +6022,7 @@ async function spawnStaticShellValidationInDev(
         '</VALIDATION_MESSAGE>'
     )
     try {
-      return await spawnStaticShellValidationInDevImpl(...args)
+      return await runValidationInDevImpl(...args)
     } finally {
       console.log(
         '<VALIDATION_MESSAGE>' +
@@ -5840,7 +6031,7 @@ async function spawnStaticShellValidationInDev(
       )
     }
   } else {
-    return await spawnStaticShellValidationInDevImpl(...args)
+    return await runValidationInDevImpl(...args)
   }
 }
 
@@ -5850,69 +6041,18 @@ async function spawnStaticShellValidationInDev(
  * prerender semantics to prerenderToStream and should update it
  * in conjunction with any changes to that function.
  */
-async function spawnStaticShellValidationInDevImpl(
-  accumulatedChunksPromise: Promise<AccumulatedStreamChunks>,
-  syncInterruptReason: Error | null,
-  startTime: number,
-  staticStageEndTime: number,
-  runtimeStageEndTime: number,
+async function runValidationInDevImpl(
+  prefetchMode: PrefetchingMode,
+  instantInputs: DevValidationInputs | null,
+  staticInputs: DevValidationInputs,
   ctx: AppRenderContext,
-  requestStore: RequestStore,
   fallbackRouteParams: OpaqueFallbackRouteParams | null,
-  debugChannelClient: AnyStream | undefined,
-  devRenderDidError: boolean
+  devRenderDidError: boolean,
+  requestAbortSignal: AbortSignal | undefined
 ): Promise<void> {
-  const debug =
-    process.env.NEXT_PRIVATE_DEBUG_VALIDATION === '1' ? console.log : undefined
-
-  const {
-    componentMod: ComponentMod,
-    getDynamicParamFromSegment,
-    renderOpts,
-    workStore,
-  } = ctx
-
+  const { componentMod: ComponentMod, getDynamicParamFromSegment } = ctx
   const loaderTree = ComponentMod.routeModule.userland.loaderTree
-
-  const allowEmptyStaticShell =
-    (renderOpts.allowEmptyStaticShell ?? false) ||
-    (await isPageAllowedToBlock(loaderTree))
-
   const rootParams = getRootParams(loaderTree, getDynamicParamFromSegment)
-
-  const hmrRefreshHash = getHmrRefreshHash(requestStore)
-
-  const { invalidDynamicUsageError } = workStore
-  if (invalidDynamicUsageError) {
-    // We don't need to continue the prerender process if we already detected
-    // invalid dynamic usage in the initial prerender phase. Forward the error
-    // to the dev overlay only when userland caught the rejection. If userland
-    // didn't catch, the rejection propagated into the React render and React's
-    // `serverComponentsErrorHandler` already stamped a digest on the error and
-    // emitted it as a Flight error chunk — surfacing it again here would
-    // duplicate the entry in the dev overlay.
-    if (!(invalidDynamicUsageError as { digest?: unknown }).digest) {
-      return logMessagesAndSendErrorsToBrowser([invalidDynamicUsageError], ctx)
-    }
-    return
-  }
-
-  if (syncInterruptReason) {
-    return logMessagesAndSendErrorsToBrowser([syncInterruptReason], ctx)
-  }
-
-  let debugChunks: Uint8Array[] | null = null
-  if (debugChannelClient) {
-    debugChunks = []
-    ;(async () => {
-      for await (const c of debugChannelClient) {
-        debugChunks.push(c)
-      }
-    })()
-  }
-
-  const accumulatedChunks = await accumulatedChunksPromise
-  const { staticChunks, runtimeChunks, dynamicChunks } = accumulatedChunks
 
   const needsInstantValidation =
     await anySegmentNeedsInstantValidationInDev(loaderTree)
@@ -5921,24 +6061,150 @@ async function spawnStaticShellValidationInDevImpl(
   const validationSamples = null
   const validationSampleTracking = null
 
-  // First we warmup SSR with the runtime chunks. This ensures that when we do
-  // the full prerender pass with dynamic tracking module loading won't
-  // interrupt the prerender and can properly observe the entire content
-  await warmupClientModulesForStagedValidation(
-    // if we're going to be validating prefetches, we'll be rendering some segments in the dynamic stage.
-    // otherwise, for static shell validation, we only need to warm up to the runtime stage.
-    // we also need to use a different store type, because instant validation allows more APIs to resolve.
-    needsInstantValidation ? 'validation-client' : 'prerender-client',
-    needsInstantValidation ? dynamicChunks : runtimeChunks,
-    dynamicChunks,
-    rootParams,
-    fallbackRouteParams,
-    ctx,
-    validationSamples,
-    validationSampleTracking
-  )
+  //================================
+  // Client module warmup
+  //================================
+  {
+    // For warmup, we have to use the shared inputs if present -- the static inputs
+    // may not have a proper dynamic stage.
+    const { runtimeChunks, dynamicChunks } = (instantInputs ?? staticInputs)
+      .accumulatedChunks
+
+    // First we warmup SSR with the runtime chunks. This ensures that when we do
+    // the full prerender pass with dynamic tracking module loading won't
+    // interrupt the prerender and can properly observe the entire content
+    await warmupClientModulesForStagedValidation(
+      // if we're going to be validating prefetches, we'll be rendering some segments in the dynamic stage.
+      // otherwise, for static shell validation, we only need to warm up to the runtime stage.
+      // we also need to use a different store type, because instant validation allows more APIs to resolve.
+      needsInstantValidation ? 'validation-client' : 'prerender-client',
+      needsInstantValidation ? dynamicChunks : runtimeChunks,
+      dynamicChunks,
+      rootParams,
+      fallbackRouteParams,
+      ctx,
+      validationSamples,
+      validationSampleTracking
+    )
+  }
+
+  // instantInputs and staticInputs may be the same,
+  // so we have to make sure we only consume the debug channel once.
+  let cachedDebugChunks = new WeakMap<AnyStream, Uint8Array[]>()
+  const getDebugChunksOnce = async (
+    channel: AnyStream
+  ): Promise<Uint8Array[]> => {
+    let chunks = cachedDebugChunks.get(channel)
+    if (!chunks) {
+      cachedDebugChunks.set(
+        channel,
+        (chunks = await collectDebugChunksFromClientChannel(channel))
+      )
+    }
+    return chunks
+  }
+
+  //================================
+  // Static shell validation
+  //================================
+  {
+    // The request may have been aborted during the client module warmup above.
+    if (requestAbortSignal?.aborted) {
+      return
+    }
+
+    const inputs = staticInputs
+
+    const debugChunks = inputs.debugChannelClient
+      ? await getDebugChunksOnce(inputs.debugChannelClient)
+      : null
+    const hmrRefreshHash = getHmrRefreshHash(inputs.requestStore)
+
+    const result = await validateStaticShell(
+      inputs,
+      ctx,
+      rootParams,
+      fallbackRouteParams,
+      debugChunks,
+      hmrRefreshHash
+    )
+    // The request was aborted while this validation render ran, so its result
+    // is being discarded. Don't surface its validation errors: they're for a
+    // render that won't be shown.
+    if (requestAbortSignal?.aborted) {
+      return
+    }
+    if (result.length > 0) {
+      return logMessagesAndSendErrorsToBrowser(result, ctx)
+    }
+  }
+
+  //================================
+  // Instant validation
+  //================================
+  if (needsInstantValidation && instantInputs) {
+    const inputs = instantInputs
+
+    const debugChunks = inputs.debugChannelClient
+      ? await getDebugChunksOnce(inputs.debugChannelClient)
+      : null
+    const hmrRefreshHash = getHmrRefreshHash(inputs.requestStore)
+
+    const result = await validateInstantConfigs(
+      prefetchMode,
+      inputs.accumulatedChunks,
+      debugChunks,
+      inputs.startTime,
+      rootParams,
+      fallbackRouteParams,
+      ctx,
+      hmrRefreshHash,
+      validationSamples,
+      devRenderDidError
+    )
+
+    // The request was aborted while this render ran; don't surface its stale
+    // validation errors: they're for a render that won't be shown.
+    if (requestAbortSignal?.aborted) {
+      return
+    }
+    if (result.length > 0) {
+      return logMessagesAndSendErrorsToBrowser(result, ctx)
+    }
+  }
+}
+
+async function collectDebugChunksFromClientChannel(debugChannel: AnyStream) {
+  const debugChunks: Uint8Array[] = []
+  for await (const c of debugChannel) {
+    debugChunks.push(c)
+  }
+  return debugChunks
+}
+
+async function validateStaticShell(
+  inputs: DevValidationInputs,
+  ctx: AppRenderContext,
+  rootParams: Params,
+  fallbackRouteParams: OpaqueFallbackRouteParams | null,
+  debugChunks: Uint8Array[] | null,
+  hmrRefreshHash: string | undefined
+): Promise<unknown[]> {
+  const debug =
+    process.env.NEXT_PRIVATE_DEBUG_VALIDATION === '1' ? console.log : undefined
 
   debug?.(`Starting static shell validation...`)
+
+  const { componentMod: ComponentMod, renderOpts } = ctx
+
+  const loaderTree = ComponentMod.routeModule.userland.loaderTree
+
+  const { accumulatedChunks, staticStageEndTime, runtimeStageEndTime } = inputs
+  const { staticChunks, runtimeChunks, dynamicChunks } = accumulatedChunks
+
+  const allowEmptyStaticShell =
+    (renderOpts.allowEmptyStaticShell ?? false) ||
+    (await isPageAllowedToBlock(loaderTree))
 
   const runtimeResult = await validateStagedShell(
     runtimeChunks,
@@ -5957,7 +6223,7 @@ async function spawnStaticShellValidationInDevImpl(
     debug?.(`❌ Failed - ${runtimeResult.length} errors from runtime stage`)
     // We have something to report from the runtime validation
     // We can skip the rest
-    return logMessagesAndSendErrorsToBrowser(runtimeResult, ctx)
+    return runtimeResult
   }
 
   const staticResult = await validateStagedShell(
@@ -5977,27 +6243,10 @@ async function spawnStaticShellValidationInDevImpl(
     debug?.(`❌ Failed - ${staticResult.length} errors from static stage`)
     // We have something to report from the static validation
     // We can skip the rest
-    return logMessagesAndSendErrorsToBrowser(staticResult, ctx)
+    return staticResult
   }
   debug?.(`✅ Passed`)
-
-  if (needsInstantValidation) {
-    const instantConfigsResult = await validateInstantConfigs(
-      accumulatedChunks,
-      debugChunks,
-      startTime,
-      rootParams,
-      fallbackRouteParams,
-      ctx,
-      hmrRefreshHash,
-      validationSamples,
-      devRenderDidError
-    )
-
-    if (instantConfigsResult.length > 0) {
-      return logMessagesAndSendErrorsToBrowser(instantConfigsResult, ctx)
-    }
-  }
+  return []
 }
 
 async function warmupClientModulesForStagedValidation(
@@ -6339,10 +6588,11 @@ async function validateStagedShell(
  * shallowest. At each depth, builds a combined payload where segments
  * above the boundary use Dynamic stage (already mounted) and segments
  * below use Static/Runtime stage (being prefetched). If the new subtree
- * contains any `unstable_instant` configs, the payload is rendered to
+ * contains any `instant` configs, the payload is rendered to
  * detect dynamic holes without Suspense.
  */
 async function validateInstantConfigs(
+  prefetchMode: PrefetchingMode,
   accumulatedChunks: AccumulatedStreamChunks,
   debugChunks: null | Array<Uint8Array>,
   startTime: number,
@@ -6361,6 +6611,7 @@ async function validateInstantConfigs(
     createCombinedPayloadStream,
     collectStagedSegmentData,
     discoverValidationDepths,
+    ValidationPrefetchKind,
   } = ctx.componentMod.InstantValidation()!
 
   const { createValidationSampleTracking } =
@@ -6391,6 +6642,7 @@ async function validateInstantConfigs(
     renderFlightStream,
     {
       [RenderStage.Static]: accumulatedChunks.staticChunks,
+      [RenderStage.ShellRuntime]: accumulatedChunks.shellRuntimeChunks,
       [RenderStage.Runtime]: accumulatedChunks.runtimeChunks,
       [RenderStage.Dynamic]: accumulatedChunks.dynamicChunks,
     },
@@ -6405,13 +6657,20 @@ async function validateInstantConfigs(
   const isDebugChannelEnabled = !!ctx.renderOpts.setReactDebugChannel
 
   async function validateAtDepth(
+    prefetchKind: ValidationPrefetchKind,
     depth: number,
     groupDepthForValidation: number
   ): Promise<null | NavigationValidationResult> {
-    return validateAtDepthImpl(depth, groupDepthForValidation, null)
+    return validateAtDepthImpl(
+      prefetchKind,
+      depth,
+      groupDepthForValidation,
+      null
+    )
   }
 
   async function validateAtDepthImpl(
+    prefetchKind: ValidationPrefetchKind,
     depth: number,
     groupDepthForValidation: number,
     previousBoundaryState: null | ValidationBoundaryTracking
@@ -6429,6 +6688,7 @@ async function validateInstantConfigs(
     }
 
     const payloadResult = await createCombinedPayloadAtDepth(
+      prefetchKind,
       initialRscPayload,
       cache,
       loaderTree,
@@ -6496,6 +6756,22 @@ async function validateInstantConfigs(
       validationSampleTracking,
     }
 
+    let dynamicHoleKind: DynamicHoleKind
+    switch (prefetchKind) {
+      case ValidationPrefetchKind.Shell: {
+        dynamicHoleKind = payloadResult.hasAmbiguousErrors
+          ? DynamicHoleKind.Link
+          : DynamicHoleKind.Dynamic
+        break
+      }
+      case ValidationPrefetchKind.LegacySpeculative: {
+        dynamicHoleKind = payloadResult.hasAmbiguousErrors
+          ? DynamicHoleKind.Runtime
+          : DynamicHoleKind.Dynamic
+        break
+      }
+    }
+
     let result: NavigationValidationResult
     try {
       const { prelude: unprocessedPrelude } = await runInSequentialTasks(
@@ -6528,9 +6804,7 @@ async function validateInstantConfigs(
                       componentStack,
                       instantValidationState,
                       clientDynamicTracking,
-                      payloadResult.hasAmbiguousErrors
-                        ? DynamicHoleKind.Runtime
-                        : DynamicHoleKind.Dynamic,
+                      dynamicHoleKind,
                       boundaryState
                     )
                   }
@@ -6628,6 +6902,7 @@ async function validateInstantConfigs(
       // This is the first validation attempt. we prepared a payload where dynamic holes might be runtime data dependencies
       // or dynamic data dependencies. We do a followup validation using a payload with only Runtime segments to discriminate
       const dynamicOnlyResult = await validateAtDepthImpl(
+        prefetchKind,
         depth,
         groupDepthForValidation,
         boundaryState
@@ -6651,6 +6926,11 @@ async function validateInstantConfigs(
 
   let impairedValidation: null | Error | AggregateError = null
 
+  const prefetchKind =
+    prefetchMode === PrefetchingMode.Partial
+      ? ValidationPrefetchKind.Shell
+      : ValidationPrefetchKind.LegacySpeculative
+
   for (let depth = maxDepth - 1; depth >= 0; depth--) {
     const maxGroupDepth = groupDepthsByUrlDepth[depth]
 
@@ -6659,14 +6939,19 @@ async function validateInstantConfigs(
       currentGroupDepth >= 0;
       currentGroupDepth--
     ) {
+      const debugKind = ValidationPrefetchKind[prefetchKind]
       debug?.(
-        `Trying depth ${depth}` +
+        `Trying ${debugKind} at depth ${depth}` +
           (currentGroupDepth > 0
             ? ` + groupDepth ${currentGroupDepth}...`
             : '...')
       )
 
-      const result = await validateAtDepth(depth, currentGroupDepth)
+      const result = await validateAtDepth(
+        prefetchKind,
+        depth,
+        currentGroupDepth
+      )
 
       if (Array.isArray(result)) {
         const errors: Array<Error> = result
@@ -6674,12 +6959,14 @@ async function validateInstantConfigs(
         if (errors.length > 0) {
           // There were issues with producing an instant UI for this attempted navigation
           debug?.(
-            `  Depth ${depth}+${currentGroupDepth}: ❌ Failed (${errors.length} errors)`
+            `  ${debugKind} at depth ${depth}+${currentGroupDepth}: ❌ Failed (${errors.length} errors)`
           )
           return errors
         } else {
           // There is nothing blocking instant UI for this simluated navigation
-          debug?.(`  Depth ${depth}+${currentGroupDepth}: ✅ Passed`)
+          debug?.(
+            `  ${debugKind} at depth ${depth}+${currentGroupDepth}: ✅ Passed`
+          )
         }
       } else if (result === null) {
         // There was no validation to perform at this level
@@ -6724,6 +7011,7 @@ async function validateInstantConfigs(
  * - We don't need to tee the stream, we only care about accumulating chunks.
  */
 async function renderWithRestartOnCacheMissInValidation(
+  prefetchMode: PrefetchingMode,
   ctx: AppRenderContext,
   initialRequestStore: RequestStore,
   createRequestStore: () => RequestStore,
@@ -6740,6 +7028,8 @@ async function renderWithRestartOnCacheMissInValidation(
   requestStore: RequestStore
 }> {
   const { componentMod: ComponentMod } = ctx
+  const shouldRenderAppShell = prefetchMode === PrefetchingMode.Partial
+
   const { clientModules } = getClientReferenceManifest()
   const renderFlightStream = process.env.__NEXT_USE_NODE_STREAMS
     ? renderToNodeFlightStream
@@ -6774,6 +7064,7 @@ async function renderWithRestartOnCacheMissInValidation(
 
   requestStore.resumeDataCache = prerenderResumeDataCache
   requestStore.stagedRendering = initialStageController
+  requestStore.needsSessionShell = shouldRenderAppShell
   requestStore.cacheSignal = cacheSignal
   requestStore.asyncApiPromises = createAsyncApiPromises(
     initialStageController,
@@ -6902,6 +7193,7 @@ async function renderWithRestartOnCacheMissInValidation(
     prerenderResumeDataCache
   )
   requestStore.stagedRendering = finalStageController
+  requestStore.needsSessionShell = shouldRenderAppShell
   requestStore.cacheSignal = null
   requestStore.asyncApiPromises = createAsyncApiPromises(
     finalStageController,
@@ -7052,7 +7344,7 @@ async function validateInstantConfigsInBuild(
 }
 
 /**
- * Runs instant validation at build time using the `samples` from `unstable_instant`.
+ * Runs instant validation at build time using the `samples` from `instant`.
  *
  * For each sample, this creates a staged RSC render with a synthetic `RequestStore`
  * populated from sample data, then feeds the accumulated chunks to
@@ -7136,8 +7428,12 @@ async function validateInstantConfigInBuildWithSample(
   // based on the `sample` we're using.
 
   const { workStore: outerWorkStore } = outerCtx
-
   const loaderTree = outerCtx.componentMod.routeModule.userland.loaderTree
+  const prefetchMode = await getPrefetchingModeForPage(
+    outerCtx.renderOpts,
+    loaderTree
+  )
+
   const route = outerWorkStore.route
 
   const {
@@ -7312,6 +7608,7 @@ async function validateInstantConfigInBuildWithSample(
       stageController,
       requestStore: finalServerStore,
     } = await renderWithRestartOnCacheMissInValidation(
+      prefetchMode,
       validationCtx,
       createRequestStore(),
       createRequestStore,
@@ -7386,6 +7683,7 @@ async function validateInstantConfigInBuildWithSample(
     }
 
     return await validateInstantConfigs(
+      prefetchMode,
       accumulatedChunks,
       debugChunks,
       startTime,
@@ -7584,6 +7882,25 @@ async function prerenderToStream(
     nonce,
     page
   )
+
+  // Instant Navigation Testing API: when exposed, embed the cookie-guarded
+  // bootstrap into the prerendered prelude so the cached static shell carries
+  // it and it runs before the client bootstrap module reads
+  // self.__next_instant_test.
+  let bootstrapScriptContent = renderOpts.experimental.exposeTestingApi
+    ? await getInstantTestBootstrapScriptContent()
+    : undefined
+
+  // In development the static shell is served without a dynamic resume, so it
+  // must carry the debug-channel request id (self.__next_r) itself for
+  // app-index to initialize the HMR/debug channel. renderToStream provides this
+  // for dynamic renders; prepend it here so it runs before the bootstrap
+  // module.
+  if (process.env.__NEXT_DEV_SERVER && bootstrapScriptContent) {
+    bootstrapScriptContent =
+      `self.__next_r=${JSON.stringify(ctx.requestId ?? crypto.randomUUID())};` +
+      bootstrapScriptContent
+  }
 
   const { reactServerErrorsByDigest } = workStore
   // We don't report errors during prerendering through our instrumentation hooks
@@ -8078,7 +8395,57 @@ async function prerenderToStream(
 
       const streamState = createStreamPendingState()
       const collectedChunks = createPrerenderChunksAccumulator()
-      const collectedChunksByStage = createStageChunksAccumulator()
+      const collectedChunksByStage = appShells
+        ? createStageChunksAccumulator()
+        : null
+      const collectChunk = (chunk: Uint8Array) => {
+        collectPrerenderChunk(
+          collectedChunks,
+          finalServerReactController.signal,
+          chunk
+        )
+        if (collectedChunksByStage) {
+          collectStageChunk(
+            collectedChunksByStage,
+            finalStageController.currentStage,
+            chunk
+          )
+        }
+      }
+
+      let didHandleUnexpectedAbort = false
+      /**
+       * @returns - whether or not the task should be skipped
+       * because the render was already aborted.
+       * */
+      const checkUnexpectedAbort = (): boolean => {
+        if (finalServerReactController.signal.aborted) {
+          // If the server controller is already aborted, then we must have encountered sync IO
+          if (!didHandleUnexpectedAbort) {
+            didHandleUnexpectedAbort = true
+            onUnexpectedAbort()
+          }
+          return true
+        }
+
+        // Not aborted.
+        return false
+      }
+
+      const onUnexpectedAbort = () => {
+        resultIsPartial = true
+
+        // FIXME(NAR-810): If we're already aborted due to Sync IO, there should be no need to
+        // finish the accumulators. However, it seems like in `--debug-prerender`
+        // the stream will stay open if we don't close the iterables here.
+        if (process.env.NODE_ENV === 'development') {
+          if (staleTimeIterable !== undefined) {
+            staleTimeIterable.close()
+          }
+          finishAccumulatingVaryParams(varyParamsAccumulator)
+        }
+      }
+
       let debugEndTime: number | undefined = undefined
       let didLinkDataUnblockNewContent = false
 
@@ -8124,56 +8491,36 @@ async function prerenderToStream(
             { once: true }
           )
 
-          if (appShells) {
-            let teedStream: typeof stream
-            ;[stream, teedStream] = stream.tee()
-
-            void accumulateStreamChunksInto(
-              collectedChunksByStage,
-              teedStream,
-              finalStageController,
-              finalServerRenderController.signal
-            ).catch(() => {})
-          }
-
           // Note: this await will only resolve after the last task (unless sync IO aborts the render earlier)
           // We await it here so that if the stream errors, it's not an unhandled rejection.
-          await collectPrerenderChunksWeb(
+          await iterateStreamingPrerenderChunks(
             stream,
-            collectedChunks,
-            streamState,
-            finalServerReactController.signal
+            finalServerReactController.signal,
+            collectChunk,
+            streamState
           )
         },
         () => {
+          if (checkUnexpectedAbort()) return
           finalStageController.advanceStage(RenderStage.Static)
         },
-        async () => {
-          if (finalServerReactController.signal.aborted) {
-            // If the server controller is already aborted we must have called something
-            // that required aborting the prerender synchronously such as with new Date()
-            resultIsPartial = true
+        () => {
+          if (checkUnexpectedAbort()) return
 
-            // FIXME(NAR-810): If we're already aborted due to Sync IO, there should be no need to
-            // finish the accumulators. However, it seems like in `--debug-prerender`
-            // the stream will stay open if we don't close the iterable here.
-            if (
-              process.env.NODE_ENV === 'development' &&
-              staleTimeIterable !== undefined
-            ) {
-              staleTimeIterable.close()
-            }
-            return
-          }
+          // Finish the accumulators. We need to wait for Flight to flush the result into the stream,
+          // which is scheduled in a (fast) immediate, so we do this in a separate task
+          // (fast immediates will be drained at the end of the task, so in the next task we know we're done flushing)
 
           // If new chunks were emitted in the static stage
           // (after unblocking link data, i.e. static params)
           // then the prerender uses link data.
           // NOTE: we must capture this *before* resolving staleTime/varyParams,
           // which always emit new static chunks.
-          didLinkDataUnblockNewContent =
-            collectedChunksByStage.staticChunks.length >
-            collectedChunksByStage.shellStaticChunks.length
+          if (collectedChunksByStage) {
+            didLinkDataUnblockNewContent =
+              collectedChunksByStage.staticChunks.length >
+              collectedChunksByStage.shellStaticChunks.length
+          }
 
           // Now that the prerendering is complete, we know the final stale
           // time and vary params. Close the stale time iterable and resolve
@@ -8181,11 +8528,12 @@ async function prerenderToStream(
           // into the stream. The timing here is important: both were
           // included in the Flight payload, but they can only be serialized
           // at the very end, after all the components have finished.
-          finishAccumulatingVaryParams(varyParamsAccumulator)
           if (staleTimeIterable !== undefined) {
             staleTimeIterable.close()
           }
-          if (shellByteLengthDeferred) {
+          finishAccumulatingVaryParams(varyParamsAccumulator)
+
+          if (shellByteLengthDeferred && collectedChunksByStage) {
             shellByteLengthDeferred.resolve(
               didLinkDataUnblockNewContent
                 ? collectedChunksByStage.shellStaticChunks.reduce(
@@ -8195,10 +8543,9 @@ async function prerenderToStream(
                 : null
             )
           }
-
-          // We're using a render, not a prerender, so React schedules rendering work in fast immediates,
-          // and we need to wait a fast immediate for the above accumulators to flush.
-          await waitAtLeastOneReactRenderTask()
+        },
+        () => {
+          if (checkUnexpectedAbort()) return
 
           if (streamState.isPending) {
             // If prerenderIsPending then we have blocked for longer than a Task and we assume
@@ -8249,7 +8596,7 @@ async function prerenderToStream(
           ctx.pagePath,
           metadata
         )
-        if (appShells) {
+        if (appShells && collectedChunksByStage) {
           // If link data (static params) unblocked new content, then the shell has to be partial.
           // If not, then the shell prerender and the static prerender are the same except for staleTime/varyParams.
           const shellIsPartial = didLinkDataUnblockNewContent
@@ -8353,6 +8700,7 @@ async function prerenderToStream(
                 },
                 onHeaders: finalClientOnHeaders,
                 maxHeadersLength: reactMaxHeadersLength,
+                bootstrapScriptContent,
                 bootstrapScripts: [bootstrapScript],
               }
             )
@@ -8573,6 +8921,7 @@ async function prerenderToStream(
             onError: htmlRendererErrorHandler,
             onHeaders: pprOnHeaders,
             maxHeadersLength: reactMaxHeadersLength,
+            bootstrapScriptContent,
             bootstrapScripts: [bootstrapScript],
           }
         )
@@ -8795,6 +9144,7 @@ async function prerenderToStream(
         {
           onError: htmlRendererErrorHandler,
           nonce,
+          bootstrapScriptContent,
           bootstrapScripts: [bootstrapScript],
         },
         { waitForAllReady: true }
@@ -9420,43 +9770,96 @@ function createPrerenderChunksAccumulator(): PrerenderChunksAccumulator {
     allChunks: process.env.NODE_ENV === 'development' ? [] : null,
   }
 }
+
 type PrerenderChunksAccumulator = {
   prerenderChunks: Uint8Array[]
   allChunks: Uint8Array[] | null
 }
 
-async function collectPrerenderChunksWeb(
-  stream: ReadableStream<Uint8Array>,
+function collectPrerenderChunk(
   chunks: PrerenderChunksAccumulator,
-  streamState: StreamPendingState,
-  signal: AbortSignal
-): Promise<void> {
-  const reader = stream.getReader()
-  streamState.isPending = true
-
-  // In production, there's no debug info, so we don't need to capture
-  // anything emitted after the abort and can cancel immediately.
-  if (process.env.NODE_ENV !== 'development') {
-    signal.addEventListener(
-      'abort',
-      () => {
-        reader.cancel(signal.reason)
-      },
-      { once: true }
-    )
+  signal: AbortSignal,
+  chunk: Uint8Array
+) {
+  // The chunks emitted after an abort are not part of the prerender...
+  if (!signal.aborted) {
+    chunks.prerenderChunks.push(chunk)
   }
+  // ...but if they contain debug info, we still want to collect them
+  // to improve error messages.
+  chunks.allChunks?.push(chunk)
+}
 
-  while (true) {
-    const { done, value } = await reader.read()
-    if (done) {
+async function iterateStreamingPrerenderChunks(
+  stream: AnyStream,
+  signal: AbortSignal,
+  onChunk: (chunk: Uint8Array) => void,
+  streamState?: StreamPendingState
+): Promise<void> {
+  if (stream instanceof ReadableStream) {
+    const reader = stream.getReader()
+    if (streamState) {
+      streamState.isPending = true
+    }
+
+    // In production, there's no debug info, so we don't need to capture
+    // anything emitted after the abort and can cancel immediately.
+    if (process.env.NODE_ENV !== 'development') {
+      signal.addEventListener(
+        'abort',
+        () => {
+          reader.cancel(signal.reason)
+        },
+        { once: true }
+      )
+    }
+
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) {
+        break
+      }
+      onChunk(value)
+    }
+    if (streamState) {
       streamState.isPending = false
-      break
+    }
+  } else {
+    const nodeStream = stream as Readable
+    if (streamState) {
+      streamState.isPending = true
     }
 
-    if (!signal.aborted) {
-      chunks.prerenderChunks.push(value)
+    let cancelled = false
+
+    // In production, there's no debug info, so we don't need to capture
+    // anything emitted after the abort and can cancel immediately.
+    if (process.env.NODE_ENV !== 'development') {
+      signal.addEventListener(
+        'abort',
+        () => {
+          if (!cancelled) {
+            cancelled = true
+            nodeStream.destroy()
+          }
+        },
+        { once: true }
+      )
     }
-    chunks.allChunks?.push(value)
+
+    try {
+      for await (const value of nodeStream) {
+        if (cancelled) break
+        onChunk(value)
+      }
+    } catch (err) {
+      if (!cancelled) {
+        throw err
+      }
+    }
+    if (streamState) {
+      streamState.isPending = false
+    }
   }
 }
 
@@ -9612,6 +10015,25 @@ async function collectSegmentData(
     }
   }
 
+  // Whether this render is a fallback shell, i.e. it was prerendered with
+  // unknown (opaque) route params rather than concrete ones. The per-segment
+  // responses generated below are stamped with this so the client knows to
+  // retry the prefetch — a more complete version may become available once
+  // the server's background regeneration finishes.
+  //
+  // Only flag the shell when it could actually be upgraded
+  // (`isFallbackUpgradeable`): at least one fallback param is a candidate
+  // enumerated by `generateStaticParams`. A route with no `generateStaticParams`
+  // never upgrades, so flagging it would trigger pointless client retries.
+  const fallbackRouteParams =
+    'fallbackRouteParams' in prerenderStore
+      ? prerenderStore.fallbackRouteParams
+      : null
+  const isUpgradeableISRFallback =
+    fallbackRouteParams != null &&
+    fallbackRouteParams.size > 0 &&
+    renderOpts.isFallbackUpgradeable === true
+
   // Pass the resolved hints so collectSegmentData can union them into
   // the TreePrefetch. During the initial build the FlightRouterState in
   // the buffer doesn't have inlining hints yet (they were just computed
@@ -9624,7 +10046,8 @@ async function collectSegmentData(
     clientModules,
     serverConsumerManifest,
     Boolean(renderOpts.experimental.prefetchInlining),
-    hints
+    hints,
+    isUpgradeableISRFallback
   )
 }
 

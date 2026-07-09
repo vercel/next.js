@@ -354,6 +354,7 @@ Use skills for conditional, deep workflows. Keep baseline iteration/build/test p
 - `$react-vendoring` - `entry-base.ts` boundaries and vendored React type/runtime rules
 - `$react-sync` - build a local React checkout and sync it into Next.js for testing
 - `$runtime-debug` - runtime-bundle/module-resolution regression reproduction and verification
+- `$next-rspack` - @next/rspack-core and @next/rspack-binding maintenance (rspack/ directory)
 - `$authoring-skills` - how to create and maintain skills in `.agents/skills/`
 
 ## Context-Efficient Workflows
@@ -449,6 +450,7 @@ Core runtime/bundling rules (always apply; skills above expand on these with ver
 
 - cargo fmt uses ASCII order (uppercase before lowercase) - just run `cargo fmt`
 - **Internal compiler error (ICE)?** Delete incremental compilation artifacts and retry. Remove `*/incremental` directories from your cargo target directory (default `target/`, or check `CARGO_TARGET_DIR` env var)
+- Avoid adding new `super::` imports except in inline `mod` blocks (e.g. `mod tests { ... }`) — prefer `crate::`-rooted paths. This makes imports consistent and easier to grep for.
 
 ### Node.js Source Maps
 

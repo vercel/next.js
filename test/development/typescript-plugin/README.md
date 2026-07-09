@@ -17,7 +17,7 @@ The plugin only applies to VSCode so manual testing in VSCode is required.
 Ensure the current comments still describe the observed behavior.
 
 `app/error.tsx#Error` and `app/global-error.tsx#GlobalError` have `reset` and
-`unstable_retry` props that should be excluded from the serialization check.
+`retry` props that should be excluded from the serialization check.
 
 ### Client Boundary
 

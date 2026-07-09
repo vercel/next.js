@@ -36,6 +36,10 @@ pub enum WellKnownObjectKind {
     Generator,
     /// The `module.hot` object providing HMR API.
     ModuleHot,
+    /// The browser `navigator` global.
+    Navigator,
+    /// The `navigator.serviceWorker` container (`ServiceWorkerContainer`).
+    NavigatorServiceWorker,
 }
 
 impl WellKnownObjectKind {
@@ -137,13 +141,21 @@ impl WellKnownObjectKind {
             ),
             Self::ImportMeta => ("import.meta", "The import.meta object"),
             Self::ModuleHot => ("module.hot", "The module.hot HMR API"),
+            Self::Navigator => (
+                "navigator",
+                "The browser navigator global: https://developer.mozilla.org/en-US/docs/Web/API/Navigator",
+            ),
+            Self::NavigatorServiceWorker => (
+                "navigator.serviceWorker",
+                "The ServiceWorkerContainer: https://developer.mozilla.org/en-US/docs/Web/API/ServiceWorkerContainer",
+            ),
         }
     }
 }
 
 /// A list of well-known functions that have special meaning in the analysis.
 #[derive(Debug, Clone, Hash, PartialEq)]
-pub enum WellKnownFunctionKind {
+pub enum WellKnownFunctionKind<'a> {
     ArrayFilter,
     ArrayForEach,
     ArrayMap,
@@ -151,7 +163,7 @@ pub enum WellKnownFunctionKind {
     PathJoin,
     PathDirname,
     /// `0` is the current working directory.
-    PathResolve(Box<JsValue>),
+    PathResolve(&'a JsValue<'a>),
     Import,
     Require,
     /// `0` is the path to resolve from (relative to the current module).
@@ -187,6 +199,8 @@ pub enum WellKnownFunctionKind {
     SharedWorkerConstructor,
     // The worker_threads Worker class
     NodeWorkerConstructor,
+    /// `navigator.serviceWorker.register(scriptURL, options?)`
+    ServiceWorkerRegister,
     URLConstructor,
     /// `module.hot.accept(deps, callback, errorHandler)` — accept HMR updates for dependencies.
     ModuleHotAccept,
@@ -196,7 +210,7 @@ pub enum WellKnownFunctionKind {
     ImportMetaGlob,
 }
 
-impl WellKnownFunctionKind {
+impl WellKnownFunctionKind<'_> {
     pub fn as_define_name(&self) -> Option<&[&str]> {
         match self {
             Self::Import { .. } => Some(&["import"]),
@@ -357,6 +371,10 @@ impl WellKnownFunctionKind {
             Self::SharedWorkerConstructor => (
                 "SharedWorker".to_string(),
                 "The standard SharedWorker constructor: https://developer.mozilla.org/en-US/docs/Web/API/SharedWorker/SharedWorker",
+            ),
+            Self::ServiceWorkerRegister => (
+                "navigator.serviceWorker.register".to_string(),
+                "The ServiceWorkerContainer.register method: https://developer.mozilla.org/en-US/docs/Web/API/ServiceWorkerContainer/register",
             ),
             Self::URLConstructor => (
                 "URL".to_string(),

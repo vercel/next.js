@@ -1,5 +1,5 @@
-import { connection } from 'next/server'
 import { ReactNode, Suspense } from 'react'
+import { RootLayoutTimestamp } from '../shared'
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
@@ -21,17 +21,8 @@ export default function RootLayout({ children }: { children: ReactNode }) {
 function Header() {
   return (
     <header>
-      <a href="/">Home</a>{' '}
-      <Suspense fallback="...">
-        <div id="root-layout-timestamp">
-          <Now />
-        </div>
-      </Suspense>
+      <a href="/">Home</a>
+      <RootLayoutTimestamp />
     </header>
   )
-}
-
-async function Now() {
-  await connection()
-  return Date.now()
 }

@@ -7,9 +7,9 @@ use std::{
 
 pub use async_trait::async_trait;
 pub use bincode;
-pub use ctor;
-pub use inventory;
 use rustc_hash::FxHashMap;
+pub use scattered_collect;
+use scattered_collect::slice::ScatteredSlice;
 pub use shrink_to_fit;
 pub use tracing;
 
@@ -22,15 +22,15 @@ use crate::{
 pub use crate::{
     dyn_task_inputs::DynTaskInputs,
     global_name_for_method, global_name_for_scope, global_name_for_trait_method,
-    global_name_for_trait_method_impl, global_name_for_type, inventory_submit,
+    global_name_for_trait_method_impl, global_name_for_type,
     manager::{find_cell_by_id, find_cell_by_type, spawn_detached_for_testing},
     native_function::{
         ArgMeta, NativeFunction, VTABLE_DEFAULT, downcast_args_owned, downcast_args_ref,
         downcast_stack_args_owned,
     },
+    register_function, register_trait, register_value,
     registry::RegistryDef,
     task::function::{into_task_fn, into_task_fn_with_this},
-    turbo_register,
     value_type::{TraitVtablePrototype, build_trait_vtable, index_of_method_name},
 };
 
@@ -174,36 +174,19 @@ pub const fn strip_trailing_segments(s: &str, count: usize) -> &str {
 }
 
 /// A registry of all the impl vtables for a given VcValue trait.
-///
-/// `const`-constructed as a plain `static`. Populated in two phases:
-///
-/// 1. **ctor phase** (before `main`): `value_impl`-emitted `#[ctor::ctor]` functions push
-///    `(value_type, DynMetadata)` pairs into `pending`. `ValueType` ids are not yet assigned here —
-///    we just accumulate.
-/// 2. **`finalize` phase** (inside the `VALUES` `LazyLock` initializer, after ids are assigned):
-///    `pending` is drained into `inner`, keyed by `ValueTypeId`. Idempotent.
-///
-/// After finalize, the cast path is a single hashmap `.get()` keyed by `u16` — no `LazyLock`
-/// check, no `get_value_type(id)` indirection. The vtable pointer for each
-/// `impl Trait for Concrete` is materialized at compile time, so there's no runtime `transmute`
-/// or indirect fn-pointer call either.
 pub struct VTableRegistry<T>
 where
     T: Pointee<Metadata = DynMetadata<T>> + ?Sized,
 {
-    /// Accumulator written from ctors. `Some` until `finalize` runs, then `take`n and left
-    /// `None` so any post-finalize call to `register` panics rather than silently dropping
-    /// the registration. The `None` state also makes subsequent `finalize` calls cheap no-ops.
-    #[allow(clippy::type_complexity)]
-    pending: SyncUnsafeCell<Option<Vec<(&'static ValueType, DynMetadata<T>)>>>,
-    /// Built once by `finalize`, read-only thereafter. `None` until finalize runs.
+    /// Built once during `register_all_trait_methods`, read-only thereafter. `None` until that
+    /// runs.
     inner: SyncUnsafeCell<Option<FxHashMap<ValueTypeId, DynMetadata<T>>>>,
 }
 
-// SAFETY: writes to `pending` happen only from `#[ctor::ctor]` functions, which run serially on
-// the main thread before `main`. Writes to `inner` happen only from `finalize`, which runs once
-// inside the `VALUES` `LazyLock` initializer (synchronized by the `LazyLock`). Reads of `inner`
-// from `cast` are published by that same `LazyLock` — see the `cast` safety comment.
+// SAFETY: writes to `inner` happen only from `insert`, which is called only from
+// `register_all_trait_methods` (inside the `VALUES` `LazyLock` initializer, single-threaded and
+// synchronized by the `LazyLock`). Reads of `inner` from `cast` are published by that same
+// `LazyLock` — see the `cast` safety comment.
 unsafe impl<T> Sync for VTableRegistry<T> where T: Pointee<Metadata = DynMetadata<T>> + ?Sized {}
 
 impl<T> VTableRegistry<T>
@@ -212,63 +195,34 @@ where
 {
     pub const fn new() -> Self {
         Self {
-            pending: SyncUnsafeCell::new(Some(Vec::new())),
             inner: SyncUnsafeCell::new(None),
         }
     }
 
-    /// Queue an `impl Trait for Concrete` registration. Called from a `#[ctor::ctor]` function
-    /// at program load, before `ValueType` ids are assigned. The actual map is built later by
-    /// [`Self::finalize`].
+    /// Insert one `impl Trait for Concrete`'s vtable metadata, keyed by `ValueTypeId`. Called from
+    /// a [`TraitImplRecord::install_vtable`] thunk during `register_all_trait_methods`, after
+    /// `init_registry` has assigned ids.
     ///
-    /// Panics if called after `finalize`. Since all `value_impl` ctors run before `main` and
-    /// `finalize` runs lazily after `main`, this should be unreachable in normal use; the
-    /// panic guards against future changes that might violate that ordering.
-    pub fn register(&'static self, value_type: &'static ValueType, fat_ptr: *const T) {
-        // SAFETY: ctors run single-threaded at load; no concurrent readers or writers.
-        let pending = unsafe { &mut *self.pending.get() };
-        let Some(pending) = pending.as_mut() else {
-            panic!("VTableRegistry::register called after finalize for {value_type}");
-        };
-        pending.push((value_type, std::ptr::metadata(fat_ptr)));
-    }
-
-    /// Take `pending` into `inner`, resolving each `&'static ValueType` to its assigned
-    /// `ValueTypeId`. Must be called after `VALUES` ids are assigned (i.e. from inside the
-    /// `VALUES` `LazyLock` initializer). Idempotent: a second call is a no-op, which lets
-    /// `register_all_trait_methods` invoke `finalize_vtable_registry` once per impl without
-    /// having to dedup.
-    pub fn finalize(&'static self) {
-        // SAFETY: invoked from inside the `VALUES` `LazyLock` initializer (single-threaded
-        // section synchronized by the `LazyLock`). All ctors completed before `main`.
-        let pending = unsafe { &mut *self.pending.get() };
-        // `take` makes any later `register` call (which would otherwise be silently dropped)
-        // hit the `None` branch and panic; subsequent `finalize` calls also short-circuit here.
-        let Some(pending) = pending.take() else {
-            return;
-        };
+    /// The `DynMetadata` is produced by the caller via [`metadata`] (the null-fat-ptr trick) so
+    /// downstream crates that invoke `value_impl` don't need `#![feature(ptr_metadata)]` — they
+    /// pass the value through without ever naming the `DynMetadata` type.
+    pub fn insert(&'static self, id: ValueTypeId, metadata: DynMetadata<T>) {
+        // SAFETY: called only from `register_all_trait_methods` inside the `VALUES` `LazyLock`
+        // initializer — single-threaded, no concurrent readers or writers.
         let inner = unsafe { &mut *self.inner.get() };
-        debug_assert!(inner.is_none(), "inner already populated");
-        let mut map = FxHashMap::with_capacity_and_hasher(pending.len(), Default::default());
-        for (value_type, metadata) in pending {
-            // SAFETY: we're called from inside the `VALUES` `LazyLock` initializer, after
-            // `init_registry` has assigned ids. Calling `get_value_type_id` here would re-enter
-            // `LazyLock::force` and deadlock; read the id cell directly instead.
-            let id = unsafe { crate::registry::get_value_type_id_unchecked(value_type) };
-            let prev = map.insert(id, metadata);
-            debug_assert!(
-                prev.is_none(),
-                "multiple trait impls registered for {value_type}"
-            );
-        }
-        *inner = Some(map);
+        let map = inner.get_or_insert_with(FxHashMap::default);
+        let prev = map.insert(id, metadata);
+        debug_assert!(
+            prev.is_none(),
+            "multiple trait impls registered for value type id {id}"
+        );
     }
 
     pub(crate) fn cast(&self, id: ValueTypeId, raw: *const ()) -> *const T {
         // SAFETY: any caller in possession of a `ValueTypeId` must have already forced the
-        // `VALUES` `LazyLock` (that's the only way to obtain one). `finalize` ran inside that
-        // initializer, so its write to `inner` happens-before this read via the `LazyLock`'s
-        // acquire fence.
+        // `VALUES` `LazyLock` (that's the only way to obtain one). `register_all_trait_methods`
+        // ran inside that initializer, so its writes to `inner` happen-before this read via the
+        // `LazyLock`'s acquire fence.
         let inner = unsafe { &*self.inner.get() };
         let Some(metadata) = inner.as_ref().and_then(|map| map.get(&id)) else {
             panic!(
@@ -289,34 +243,26 @@ where
     }
 }
 
-pub struct CollectableTraitMethods {
+/// One `impl Trait for ConcreteType` registration, gathered at link time into
+/// [`TRAIT_IMPLS_SLICE`].
+pub struct TraitImplRecord {
     pub value_type: &'static ValueType,
     pub trait_type: &'static TraitType,
     pub methods: &'static [&'static NativeFunction],
-    /// Calls `<Box<dyn Trait>>::IMPL_VTABLES.finalize()` for the trait this entry corresponds
-    /// to. Invoked from `register_all_trait_methods` after `VALUES` ids are assigned. The same
-    /// trait's registry will be finalized once per impl, but `VTableRegistry::finalize` is
-    /// idempotent.
-    pub finalize_vtable_registry: fn(),
-}
-inventory::collect! {CollectableTraitMethods}
-
-/// Submit an item to the inventory.
-///
-/// This macro is a wrapper around `inventory::submit` that adds a `#[not(cfg(rust_analyzer))]`
-/// attribute to the item. This is to avoid warnings about unused items when using Rust Analyzer.
-#[doc(hidden)]
-#[macro_export]
-macro_rules! inventory_submit {
-    ($($item:tt)*) => {
-        #[cfg(not(rust_analyzer))]
-        $crate::macro_helpers::inventory_submit_inner! { $($item)* }
-    }
+    /// Installs this impl's Rust vtable `DynMetadata` into its trait's [`VTableRegistry`] (via
+    /// [`VTableRegistry::insert`]).
+    pub install_vtable: fn(ValueTypeId),
 }
 
-/// Exported so the above macro can reference it.
+// Link-time collection of every `impl Trait for Concrete`. Like the definition slices in
+// `registry`, this is populated by the linker — complete at process start, no constructors, no
+// ordering. It is iterated exactly once, in `register_all_trait_methods`.
+//
+// `pub` so the `value_impl`-emitted scatter (which expands in downstream crates) can name it as
+// `$crate::macro_helpers::TRAIT_IMPLS_SLICE`; the data is `#[doc(hidden)]`.
 #[doc(hidden)]
-pub use inventory::submit as inventory_submit_inner;
+#[scattered_collect::gather]
+pub static TRAIT_IMPLS_SLICE: ScatteredSlice<TraitImplRecord>;
 
 /// Use `type_name` to get globally unique identifier that's stable across multiple executions of
 /// the same Turbopack version, potentially allowing cache sharing across platforms/architectures.

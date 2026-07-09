@@ -13,6 +13,7 @@ export type PanelStateKind =
   | 'instant-navs'
   | 'turbo-info'
   | 'cache-disabled'
+  | 'cold-cache'
 
 export const PanelRouterContext = createContext<{
   panel: PanelStateKind | null

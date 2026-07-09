@@ -30,16 +30,14 @@ async function createFlightRouterStateFromLoaderTreeImpl(
     {},
   ]
 
-  // Load the layout or page module to check for unstable_instant/unstable_prefetch
-  // config. When a segment doesn't export unstable_prefetch, it defaults to
+  // Load the layout or page module to check its instant and prefetch
+  // configs. When a segment doesn't export prefetch, it defaults to
   // 'partial' if the app has opted into partial prefetching globally via the
   // `partialPrefetching` config in next.config.js.
   const mod = layout ? await layout[0]() : page ? await page[0]() : undefined
-  const instantConfig = mod
-    ? (mod as AppSegmentConfig).unstable_instant
-    : undefined
+  const instantConfig = mod ? (mod as AppSegmentConfig).instant : undefined
   const prefetchConfig =
-    (mod ? (mod as AppSegmentConfig).unstable_prefetch : undefined) ??
+    (mod ? (mod as AppSegmentConfig).prefetch : undefined) ??
     (partialPrefetching === 'unstable_eager'
       ? 'unstable_eager'
       : partialPrefetching
@@ -53,7 +51,7 @@ async function createFlightRouterStateFromLoaderTreeImpl(
   // compute the other hints below. In the future this should be a build
   // error, but for now we gracefully degrade.
   //
-  // TODO: Move more of the hints computation (IsRootLayout, instant config,
+  // TODO: Move more of the hints computation (IsRootLayoutOrAbove, instant config,
   // loading boundary detection) into the build-time measurement step in
   // collectPrefetchHints, so this function only needs to union the
   // precomputed bitmask rather than re-derive hints on every render.
@@ -91,10 +89,14 @@ async function createFlightRouterStateFromLoaderTreeImpl(
     }
   }
 
-  // Mark the first segment that has a layout as the "root" layout
-  if (!didFindRootLayout && typeof layout !== 'undefined') {
-    didFindRootLayout = true
-    prefetchHints |= PrefetchHint.IsRootLayout
+  // Mark every segment at or above the root layout (i.e. until we descend past
+  // the first segment that has a layout).
+  if (!didFindRootLayout) {
+    prefetchHints |= PrefetchHint.IsRootLayoutOrAbove
+    if (typeof layout !== 'undefined') {
+      // This segment is the root layout; its descendants are below it.
+      didFindRootLayout = true
+    }
   }
 
   const isInstant =
@@ -102,6 +104,11 @@ async function createFlightRouterStateFromLoaderTreeImpl(
     (typeof instantConfig === 'object' && instantConfig !== null)
   if (isInstant) {
     prefetchHints |= PrefetchHint.SubtreeHasPartialPrefetching
+  } else if (instantConfig === false) {
+    // The segment explicitly opts out of Partial Prefetching. We don't change
+    // the prefetch behavior, but we record it so the dev-time
+    // `<Link prefetch={true}>` warning can be suppressed for this route.
+    prefetchHints |= PrefetchHint.SubtreeHasInstantFalse
   }
 
   if (prefetchConfig === 'partial') {
@@ -115,19 +122,19 @@ async function createFlightRouterStateFromLoaderTreeImpl(
       PrefetchHint.SubtreeHasEagerPrefetch
   } else if (prefetchConfig === 'force-disabled') {
     prefetchHints |= PrefetchHint.PrefetchDisabled
-  } else if (prefetchConfig === 'force-runtime') {
+  } else if (prefetchConfig === 'allow-runtime') {
     prefetchHints |= PrefetchHint.HasRuntimePrefetch
   }
 
   // Mark the segment as "eager" unless its effective prefetch strategy is
-  // 'partial' or 'force-runtime'. A truthy unstable_instant is treated as
+  // 'partial' or 'allow-runtime'. A truthy instant is treated as
   // 'partial' (not eager). 'unstable_eager' already set the bit above. Under
   // App Shells, a subtree with no eager segment skips its Speculative prefetch
   // and relies on the shared app shell instead.
   if (
     !isInstant &&
     prefetchConfig !== 'partial' &&
-    prefetchConfig !== 'force-runtime'
+    prefetchConfig !== 'allow-runtime'
   ) {
     prefetchHints |= PrefetchHint.SubtreeHasEagerPrefetch
   }
@@ -179,9 +186,12 @@ export async function createFlightRouterStateFromLoaderTree(
   isStaticGeneration: boolean,
   isBuildTimePrerendering: boolean,
   getDynamicParamFromSegment: GetDynamicParamFromSegment,
-  searchParams: any
+  searchParams: any,
+  // Whether a root layout was already found above this loader tree slice, so a
+  // slice that starts below the root layout doesn't mark a sub-layout as the
+  // root layout.
+  didFindRootLayout: boolean = false
 ): Promise<FlightRouterState> {
-  const didFindRootLayout = false
   return createFlightRouterStateFromLoaderTreeImpl(
     loaderTree,
     hintTree,
@@ -204,13 +214,14 @@ export async function createRouteTreePrefetch(
   partialPrefetching: boolean | 'unstable_eager' | undefined,
   isStaticGeneration: boolean,
   isBuildTimePrerendering: boolean,
-  getDynamicParamFromSegment: GetDynamicParamFromSegment
+  getDynamicParamFromSegment: GetDynamicParamFromSegment,
+  // See note on createFlightRouterStateFromLoaderTree's didFindRootLayout.
+  didFindRootLayout: boolean = false
 ): Promise<FlightRouterState> {
   // Search params should not be added to page segment's cache key during a
   // route tree prefetch request, because they do not affect the structure of
   // the route. The client cache has its own logic to handle search params.
   const searchParams = {}
-  const didFindRootLayout = false
   return createFlightRouterStateFromLoaderTreeImpl(
     loaderTree,
     hintTree,

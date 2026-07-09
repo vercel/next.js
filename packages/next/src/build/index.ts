@@ -202,6 +202,7 @@ import { HTML_LIMITED_BOT_UA_RE_STRING } from '../shared/lib/router/utils/is-bot
 import type { UseCacheTrackerKey } from './webpack/plugins/telemetry-plugin/use-cache-tracker-utils'
 
 import { turbopackBuild } from './turbopack-build'
+import { formatWarningsHeader } from './print-build-errors'
 import { inlineStaticEnv } from '../lib/inline-static-env'
 import { populateStaticEnv } from '../lib/static-env'
 import { durationToString, hrtimeDurationToString } from './duration-to-string'
@@ -947,6 +948,21 @@ export default async function build(
 
   let loadedConfig: NextConfigComplete | undefined
   let staticWorker: StaticWorker
+
+  // Turbopack compile warnings are deferred until after static generation.
+  let deferredTurbopackWarnings: string[] | undefined
+  const flushTurbopackWarnings = () => {
+    if (deferredTurbopackWarnings && deferredTurbopackWarnings.length > 0) {
+      console.warn(
+        `${formatWarningsHeader(deferredTurbopackWarnings.length)}\n${deferredTurbopackWarnings.join('\n')}`
+      )
+    }
+    deferredTurbopackWarnings = undefined
+  }
+
+  // A failing static generation worker exits the process directly (`prerenderEarlyExit`), skipping the flush points below.
+  process.once('exit', () => flushTurbopackWarnings())
+
   try {
     const nextBuildSpan = trace('next-build', undefined, {
       buildMode: experimentalBuildMode,
@@ -968,6 +984,14 @@ export default async function build(
         .traceChild('load-dotenv')
         .traceFn(() => loadEnvConfig(dir, false, Log))
       NextBuildContext.loadedEnvFiles = loadedEnvFiles
+
+      // Log the version banner before loading the config just like `dev`
+      logStartInfo({
+        networkUrl: null,
+        appUrl: null,
+        envInfo: getEnvInfo(dir),
+        logBundler: true,
+      })
 
       const turborepoAccessTraceResult = new TurborepoAccessTraceResult()
       let experimentalFeatures: ConfiguredExperimentalFeature[] = []
@@ -1188,19 +1212,10 @@ export default async function build(
         telemetry.record(events)
       )
 
-      // Always log next version first then start rest jobs
-      const envInfo = getEnvInfo(dir)
-
-      logStartInfo({
-        networkUrl: null,
-        appUrl: null,
-        envInfo,
-        logBundler: true,
-      })
-
       logExperimentalInfo({
         experimentalFeatures,
         cacheComponents: !!config.cacheComponents,
+        partialPrefetching: config.partialPrefetching,
       })
 
       const typeCheckingOptions: Parameters<typeof startTypeChecking>[0] = {
@@ -1639,6 +1654,7 @@ export default async function build(
           const {
             duration: compilerDuration,
             shutdownPromise: p,
+            warnings,
             ...rest
           } = await turbopackBuild(
             process.env.NEXT_TURBOPACK_USE_WORKER === undefined ||
@@ -1646,6 +1662,7 @@ export default async function build(
             telemetry
           )
           shutdownPromise = p
+          deferredTurbopackWarnings = warnings
           traceMemoryUsage('Finished build', nextBuildSpan)
 
           buildTraceContext = rest.buildTraceContext
@@ -2972,6 +2989,10 @@ export default async function build(
                     _isAppDir: true,
                     _isRoutePPREnabled: isRoutePPREnabled,
                     _allowEmptyStaticShell: !route.throwOnEmptyStaticShell,
+                    // A fallback shell can only be upgraded if at least one of
+                    // its fallback params is a `generateStaticParams` candidate.
+                    _isFallbackUpgradeable:
+                      (route.remainingPrerenderableParams?.length ?? 0) > 0,
                   }
                 })
               })
@@ -3918,6 +3939,8 @@ export default async function build(
           .traceAsyncFn(() => writeManifest(routesManifestPath, routesManifest))
       }
 
+      flushTurbopackWarnings()
+
       const finalizingPageOptimizationStart = process.hrtime()
       const postBuildSpinner = createSpinner('Finalizing page optimization')
       let buildTracesSpinner
@@ -4195,7 +4218,8 @@ export default async function build(
               staticPages,
               serverPropsPages,
               nextVersion: process.env.__NEXT_VERSION as string,
-              tracingRoot: outputFileTracingRoot,
+              repoRoot: config.repoRoot,
+              outputFileTracingRoot,
               hasNodeMiddleware,
               hasInstrumentationHook,
               adapterPath,
@@ -4321,6 +4345,9 @@ export default async function build(
     }
     // Ensure we wait for lockfile patching if present
     await lockfilePatchPromise.cur
+
+    // Backstop for builds that never reach the post-static-generation flush.
+    flushTurbopackWarnings()
 
     // Flush telemetry before finishing (waits for async operations like setTimeout in debug mode)
     const telemetry: Telemetry | undefined = traceGlobals.get('telemetry')

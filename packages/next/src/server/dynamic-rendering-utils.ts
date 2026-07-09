@@ -41,34 +41,20 @@ export class ClientHookDynamicError extends Error {
 
   constructor(route: string, expression: string) {
     super(
-      `Route "${route}": A Client Component used \`${expression}\` outside of \`<Suspense>\`.\n\n` +
-        `This prevents the route from being prerendered because the value is only available at runtime.\n\n` +
+      `Route "${route}": Next.js encountered URL data \`${expression}\` in a Client Component outside of \`<Suspense>\`.\n\n` +
+        `This blocks prerendering because the value is only available at runtime.\n\n` +
         `Ways to fix this:\n` +
-        `  - [stream] Wrap the Client Component in \`<Suspense fallback={...}>\`\n` +
-        `    https://nextjs.org/docs/messages/next-prerender-client-hook#wrap-the-client-component-in-suspense`
-    )
-  }
-}
-
-export class ParamClientHookDynamicError extends Error {
-  public readonly digest = CLIENT_HOOK_DYNAMIC
-
-  constructor(route: string, expression: string) {
-    super(
-      `Route "${route}": A Client Component used \`${expression}\` outside of \`<Suspense>\`.\n\n` +
-        `This prevents the route from being prerendered because the value is only available at runtime.\n\n` +
-        `Ways to fix this:\n` +
-        `  - [stream] Wrap the Client Component in \`<Suspense fallback={...}>\`\n` +
-        `    https://nextjs.org/docs/messages/next-prerender-client-hook#wrap-the-client-component-in-suspense\n` +
-        `  - [prerender] If the dynamic params are known, prerender them with \`generateStaticParams\`\n` +
-        `    https://nextjs.org/docs/messages/next-prerender-client-hook#prerender-known-dynamic-params`
+        `  - [stream] Wrap the component in \`<Suspense fallback={...}>\` so the hook value streams in after prerendering\n` +
+        `    https://nextjs.org/docs/messages/blocking-prerender-client-hook#wrap-in-or-move-into-suspense\n` +
+        `  - [block] Set \`export const instant = false\` to allow a blocking route\n` +
+        `    https://nextjs.org/docs/messages/blocking-prerender-client-hook#allow-blocking-route`
     )
   }
 }
 
 export function isClientHookDynamicError(
   err: unknown
-): err is ClientHookDynamicError | ParamClientHookDynamicError {
+): err is ClientHookDynamicError {
   if (typeof err !== 'object' || err === null || !('digest' in err)) {
     return false
   }
@@ -99,7 +85,7 @@ export function makeHangingPromise<T>(
 
 export function makeClientHookHangingPromise<T>(
   signal: AbortSignal,
-  error: ClientHookDynamicError | ParamClientHookDynamicError
+  error: ClientHookDynamicError
 ): Promise<T> {
   return makeHangingPromiseWithError(signal, error)
 }

@@ -88,7 +88,7 @@ pub struct ImportMetaGlobOptions {
 /// - **`as` option** (deprecated in Vite 5 in favor of `query`) is not supported. Use `query:
 ///   '?raw'` or `query: '?url'` instead.
 pub fn parse_import_meta_glob(
-    args: &[JsValue],
+    args: &[JsValue<'_>],
     handler: &Handler,
     span: Span,
     diagnostic_id: DiagnosticId,

@@ -60,7 +60,7 @@ describe('instant validation - level warning', () => {
         const browser = await next.browser('/bare')
         await expect(browser).toDisplayCollapsedRedbox(`
          {
-           "code": "E1298",
+           "code": "E1398",
            "description": "Next.js encountered uncached data during a navigation.",
            "environmentLabel": "Server",
            "label": "Instant",
@@ -81,16 +81,16 @@ describe('instant validation - level warning', () => {
            "cause": [
              {
                "label": "Caused by: Instant Validation",
-               "source": "app/explicit-error/page.tsx (7:33) @ unstable_instant
-         >  7 | export const unstable_instant = { level: 'experimental-error' as const }
-              |                                 ^",
+               "source": "app/explicit-error/page.tsx (7:24) @ instant
+         >  7 | export const instant = { level: 'experimental-error' as const }
+              |                        ^",
                "stack": [
-                 "unstable_instant app/explicit-error/page.tsx (7:33)",
+                 "instant app/explicit-error/page.tsx (7:24)",
                  "Set.forEach <anonymous>",
                ],
              },
            ],
-           "code": "E1298",
+           "code": "E1398",
            "description": "Next.js encountered uncached data during a navigation.",
            "environmentLabel": "Server",
            "label": "Instant",
@@ -111,16 +111,16 @@ describe('instant validation - level warning', () => {
            "cause": [
              {
                "label": "Caused by: Instant Validation",
-               "source": "app/explicit-true/page.tsx (8:33) @ unstable_instant
-         >  8 | export const unstable_instant = true
-              |                                 ^",
+               "source": "app/explicit-true/page.tsx (8:24) @ instant
+         >  8 | export const instant = true
+              |                        ^",
                "stack": [
-                 "unstable_instant app/explicit-true/page.tsx (8:33)",
+                 "instant app/explicit-true/page.tsx (8:24)",
                  "Set.forEach <anonymous>",
                ],
              },
            ],
-           "code": "E1298",
+           "code": "E1398",
            "description": "Next.js encountered uncached data during a navigation.",
            "environmentLabel": "Server",
            "label": "Instant",
@@ -141,16 +141,16 @@ describe('instant validation - level warning', () => {
            "cause": [
              {
                "label": "Caused by: Instant Validation",
-               "source": "app/explicit-warning/page.tsx (8:33) @ unstable_instant
-         >  8 | export const unstable_instant = { level: 'warning' as const }
-              |                                 ^",
+               "source": "app/explicit-warning/page.tsx (8:24) @ instant
+         >  8 | export const instant = { level: 'warning' as const }
+              |                        ^",
                "stack": [
-                 "unstable_instant app/explicit-warning/page.tsx (8:33)",
+                 "instant app/explicit-warning/page.tsx (8:24)",
                  "Set.forEach <anonymous>",
                ],
              },
            ],
-           "code": "E1298",
+           "code": "E1398",
            "description": "Next.js encountered uncached data during a navigation.",
            "environmentLabel": "Server",
            "label": "Instant",
@@ -171,13 +171,13 @@ describe('instant validation - level warning', () => {
       })
 
       it('layered: bare page under layout-with-instant-false still validates', async () => {
-        // The intermediate layout exports `unstable_instant = false`, but
+        // The intermediate layout exports `instant = false`, but
         // that's per-segment — it doesn't shield descendants. The bare
         // page should still surface an instant redbox in dev.
         const browser = await next.browser('/layered')
         await expect(browser).toDisplayCollapsedRedbox(`
          {
-           "code": "E1298",
+           "code": "E1398",
            "description": "Next.js encountered uncached data during a navigation.",
            "environmentLabel": "Server",
            "label": "Instant",
@@ -207,11 +207,11 @@ describe('instant validation - level warning', () => {
          \`fetch(...)\` or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
 
          Ways to fix this:
-           - [cache] Cache the data access with \`"use cache"\`
-             https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
            - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
              https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
-           - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
+           - [cache] Cache the data access with \`"use cache"\` (does not apply to \`connection()\`)
+             https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
+           - [block] Set \`export const instant = false\` to allow a blocking route
              https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
              at a (<anonymous>)
              at body (<anonymous>)

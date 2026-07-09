@@ -26,6 +26,7 @@ import type {
   PrerenderStoreLegacy,
   PrerenderStoreModern,
   ValidationStoreClient,
+  PrerenderStoreModernServer,
 } from '../app-render/work-unit-async-storage.external'
 
 // Once postpone is in stable we should switch to importing the postpone export directly
@@ -43,7 +44,6 @@ import {
   ClientHookDynamicError,
   isClientHookDynamicError,
   makeClientHookHangingPromise,
-  ParamClientHookDynamicError,
 } from '../dynamic-rendering-utils'
 import {
   METADATA_BOUNDARY_NAME,
@@ -66,6 +66,9 @@ import {
   createDynamicOrRuntimeViewportError,
   createDynamicOrRuntimeMetadataError,
   logBuildDebugHint,
+  createLinkBodyErrorInNavigation,
+  createLinkMetadataError,
+  createLinkViewportError,
 } from './blocking-route-messages'
 import { InvariantError } from '../../shared/lib/invariant-error'
 import {
@@ -78,6 +81,7 @@ import {
   allRequiredBoundariesRendered,
 } from './instant-validation/boundary-tracking'
 import type { InstantValidationSampleTracking } from './instant-validation/instant-samples'
+import { createUnrenderedSegmentError } from '../../shared/lib/instant-messages'
 
 const hasPostpone = typeof React.unstable_postpone === 'function'
 
@@ -555,6 +559,12 @@ export function createRenderInBrowserAbortSignal(): AbortSignal {
  * case we need to abort the encoding of arguments since they'll never complete.
  */
 export function createHangingInputAbortSignal(
+  workUnitStore: PrerenderStoreModernServer
+): AbortSignal
+export function createHangingInputAbortSignal(
+  workUnitStore: WorkUnitStore
+): AbortSignal | undefined
+export function createHangingInputAbortSignal(
   workUnitStore: WorkUnitStore
 ): AbortSignal | undefined {
   switch (workUnitStore.type) {
@@ -639,7 +649,7 @@ export function useDynamicRouteParams(expression: string) {
           React.use(
             makeClientHookHangingPromise(
               workUnitStore.renderSignal,
-              new ParamClientHookDynamicError(workStore.route, expression)
+              new ClientHookDynamicError(workStore.route, expression)
             )
           )
         }
@@ -898,10 +908,12 @@ export function trackAllowedDynamicAccess(
 }
 
 export enum DynamicHoleKind {
+  /** We know that this hole is caused by link data. */
+  Link = 1,
   /** We know that this hole is caused by runtime data. */
-  Runtime = 1,
+  Runtime = 2,
   /** We know that this hole is caused by dynamic data. */
-  Dynamic = 2,
+  Dynamic = 3,
 }
 
 /** Stores dynamic reasons used during an SSR render in instant validation. */
@@ -960,9 +972,11 @@ export function trackDynamicHoleInNavigation(
 
   if (hasMetadataRegex.test(componentStack)) {
     const error = addErrorContext(
-      kind === DynamicHoleKind.Runtime
-        ? createRuntimeMetadataError(workStore.route)
-        : createDynamicMetadataError(workStore.route),
+      kind === DynamicHoleKind.Link
+        ? createLinkMetadataError(workStore.route)
+        : kind === DynamicHoleKind.Runtime
+          ? createRuntimeMetadataError(workStore.route)
+          : createDynamicMetadataError(workStore.route),
       componentStack,
       effectiveCreateInstantStack
     )
@@ -971,9 +985,11 @@ export function trackDynamicHoleInNavigation(
   }
   if (hasViewportRegex.test(componentStack)) {
     const error = addErrorContext(
-      kind === DynamicHoleKind.Runtime
-        ? createRuntimeViewportError(workStore.route)
-        : createDynamicViewportError(workStore.route),
+      kind === DynamicHoleKind.Link
+        ? createLinkViewportError(workStore.route)
+        : kind === DynamicHoleKind.Runtime
+          ? createRuntimeViewportError(workStore.route)
+          : createDynamicViewportError(workStore.route),
       componentStack,
       effectiveCreateInstantStack
     )
@@ -1001,7 +1017,7 @@ export function trackDynamicHoleInNavigation(
       // If shared parents blocked us from validating, we should only log
       // the errors from the innermost (segments), i.e. omit layouts whose
       // slots managed to render (because clearly they didn't block validation)
-      const message = `Route "${workStore.route}": Could not validate \`unstable_instant\` because a Client Component in a parent segment prevented the page from rendering.`
+      const message = `Route "${workStore.route}": Could not validate \`instant\` because a Client Component in a parent segment prevented the page from rendering.`
       const error = addErrorContext(
         new Error(message),
         componentStack,
@@ -1065,9 +1081,11 @@ export function trackDynamicHoleInNavigation(
   }
 
   const error = addErrorContext(
-    kind === DynamicHoleKind.Runtime
-      ? createRuntimeBodyErrorInNavigation(workStore.route)
-      : createDynamicBodyErrorInNavigation(workStore.route),
+    kind === DynamicHoleKind.Link
+      ? createLinkBodyErrorInNavigation(workStore.route)
+      : kind === DynamicHoleKind.Runtime
+        ? createRuntimeBodyErrorInNavigation(workStore.route)
+        : createDynamicBodyErrorInNavigation(workStore.route),
     componentStack,
     effectiveCreateInstantStack
   )
@@ -1117,7 +1135,7 @@ export function trackThrownErrorInNavigation(
         // invalid - fallthrough
       }
     }
-    const message = `Route "${workStore.route}": Could not validate \`unstable_instant\` because an error prevented the target segment from rendering.`
+    const message = `Route "${workStore.route}": Could not validate \`instant\` because an error prevented the target segment from rendering.`
     const error = addErrorContext(
       new Error(message, { cause: thrownValue }),
       componentStack,
@@ -1335,7 +1353,7 @@ export function throwIfDisallowedDynamic(
   }
 
   // Either flag expresses "this shell is allowed to be empty/blocking":
-  //   - `allowEmptyStaticShell` covers `unstable_instant = false` (user opt-in)
+  //   - `allowEmptyStaticShell` covers `instant = false` (user opt-in)
   //     and the build-phase fallback-shell case.
   //   - `hasSuspenseAboveBody` is the structural opt-in inside the user's root
   //     layout.
@@ -1401,7 +1419,7 @@ export function getStaticShellDisallowedDynamicReasons(
   }
 
   // Either flag expresses "this shell is allowed to be empty/blocking":
-  //   - `allowEmptyStaticShell` covers `unstable_instant = false` (user opt-in)
+  //   - `allowEmptyStaticShell` covers `instant = false` (user opt-in)
   //     and the build-phase fallback-shell case.
   //   - `hasSuspenseAboveBody` is the structural opt-in inside the user's root
   //     layout.
@@ -1532,28 +1550,14 @@ export function getNavigationDisallowedDynamicReasons(
         }
       }
       missingFiles.sort()
-      let message = `Route "${workStore.route}": Could not validate that a segment in your UI has instant navigation.`
-      if (missingFiles.length > 0) {
-        const label =
-          missingFiles.length === 1 ? 'Dropped segment' : 'Dropped segments'
-        message +=
-          `\n\nThis segment was dropped from rendering. Issues that would prevent instant navigation will go undetected.` +
-          `\n\n${label}:\n${missingFiles.map((p) => `  ${p}`).join('\n')}` +
-          `\n\nWays to fix this:` +
-          `\n  - [render] Render the dropped segment` +
-          `\n    https://nextjs.org/docs/messages/instant-unrendered-segment#render-the-dropped-segment` +
-          `\n  - [ignore] Set \`export const unstable_instant = false\` on the dropped segment to skip validation` +
-          `\n    https://nextjs.org/docs/messages/instant-unrendered-segment#skip-validation-on-the-segment`
-      }
-      const error = new Error(message)
-      return error
+      return createUnrenderedSegmentError(workStore.route, missingFiles)
     } else if (process.env.__NEXT_DEV_SERVER && devRenderDidError) {
       // Errors outside the boundary likely blocked it from rendering,
       // but they're already being reported to the user via the dev
       // render. Suppress the validation failure to avoid noise.
       return []
     } else if (thrownErrorsOutsideBoundary.length === 1) {
-      const message = `Route "${workStore.route}": Could not validate \`unstable_instant\` because the target segment was prevented from rendering, likely due to the following error.`
+      const message = `Route "${workStore.route}": Could not validate \`instant\` because the target segment was prevented from rendering, likely due to the following error.`
       const error = rootInstantStack !== null ? rootInstantStack() : new Error()
       error.name = 'Error'
       error.message = message
@@ -1562,7 +1566,7 @@ export function getNavigationDisallowedDynamicReasons(
         thrownErrorsOutsideBoundary[0] as Error,
       ])
     } else {
-      const message = `Route "${workStore.route}": Could not validate \`unstable_instant\` because the target segment was prevented from rendering, likely due to one of the following errors.`
+      const message = `Route "${workStore.route}": Could not validate \`instant\` because the target segment was prevented from rendering, likely due to one of the following errors.`
       const error = rootInstantStack !== null ? rootInstantStack() : new Error()
       error.name = 'Error'
       error.message = message

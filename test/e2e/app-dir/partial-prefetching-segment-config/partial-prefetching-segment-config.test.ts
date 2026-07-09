@@ -38,7 +38,7 @@ describe('partial prefetching segment config', () => {
     )
   })
 
-  it('does not prefetch dynamic data for a route with unstable_prefetch = "partial"', async () => {
+  it('does not prefetch dynamic data for a route with prefetch = "partial"', async () => {
     let page: Playwright.Page
     const browser = await next.browser('/', {
       beforePageLoad(p: Playwright.Page) {
@@ -49,7 +49,7 @@ describe('partial prefetching segment config', () => {
 
     // Reveal the link to trigger its prefetch. The Link has prefetch={true},
     // and the target route opts into partial prefetching via
-    // `export const unstable_prefetch = 'partial'`. So the prefetch should
+    // `export const prefetch = 'partial'`. So the prefetch should
     // include the static shell, but NOT the dynamic data — even though the
     // global config does not enable partial prefetching.
     await act(async () => {

@@ -166,7 +166,7 @@ enum NodeChunkUpdate {
     Partial {
         added: FxIndexMap<ModuleId, Vc<Code>>,
         modified: FxIndexMap<ModuleId, Vc<Code>>,
-        deleted: FxIndexMap<ModuleId, u64>,
+        deleted: FxIndexMap<ModuleId, u128>,
     },
 }
 

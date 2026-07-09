@@ -2775,7 +2775,7 @@
                 nonce: props.nonce,
                 type: props.type,
                 fetchPriority: props.fetchPriority,
-                referrerPolicy: props.refererPolicy
+                referrerPolicy: props.referrerPolicy
               })),
               0 <= (headers.remainingCapacity -= header.length + 2))
                 ? ((renderState.resets.image[key$jscomp$0] = PRELOAD_NO_CREDS),
@@ -4582,7 +4582,7 @@
       this.clientRenderedBoundaries = [];
       this.completedBoundaries = [];
       this.partialBoundaries = [];
-      this.trackedPostpones = null;
+      this.postponedState = this.trackedPostpones = null;
       this.onError = void 0 === onError ? defaultErrorHandler : onError;
       this.onAllReady = void 0 === onAllReady ? noop : onAllReady;
       this.onShellReady = void 0 === onShellReady ? noop : onShellReady;
@@ -5068,11 +5068,12 @@
     }
     function fatalError(request, error, errorInfo, debugTask) {
       errorInfo = request.onShellError;
-      var onFatalError = request.onFatalError;
+      var onFatalError = request.onFatalError,
+        shellComplete = 0 === request.pendingRootTasks;
       debugTask
-        ? (debugTask.run(errorInfo.bind(null, error)),
+        ? (shellComplete || debugTask.run(errorInfo.bind(null, error)),
           debugTask.run(onFatalError.bind(null, error)))
-        : (errorInfo(error), onFatalError(error));
+        : (shellComplete || errorInfo(error), onFatalError(error));
       null !== request.destination
         ? ((request.status = CLOSED), request.destination.destroy(error))
         : ((request.status = 12), (request.fatalError = error));
@@ -7565,7 +7566,6 @@
     function completeShell(request) {
       null === request.trackedPostpones && safelyEmitEarlyPreloads(request, !0);
       null === request.trackedPostpones && preparePreamble(request);
-      request.onShellError = noop;
       request = request.onShellReady;
       request();
     }
@@ -7890,33 +7890,35 @@
                       errorInfo$jscomp$1,
                       debugTask
                     );
-                  else if (
-                    (boundary$jscomp$0.pendingTasks--,
-                    boundary$jscomp$0.status !== CLIENT_RENDERED)
-                  ) {
-                    boundary$jscomp$0.status = CLIENT_RENDERED;
-                    encodeErrorForBoundary(
-                      boundary$jscomp$0,
-                      errorDigest$jscomp$0,
-                      x$jscomp$0,
-                      errorInfo$jscomp$1,
-                      !1
-                    );
-                    untrackBoundary(request, boundary$jscomp$0);
-                    var boundaryRow = boundary$jscomp$0.row;
-                    null !== boundaryRow &&
-                      (request.allPendingTasks++,
-                      0 === --boundaryRow.pendingTasks &&
-                        finishSuspenseListRow(request, boundaryRow),
-                      request.allPendingTasks--);
-                    boundary$jscomp$0.parentFlushed &&
-                      request.clientRenderedBoundaries.push(boundary$jscomp$0);
-                    0 === request.pendingRootTasks &&
-                      null === request.trackedPostpones &&
-                      null !== boundary$jscomp$0.preamble &&
-                      preparePreamble(request);
+                  else {
+                    boundary$jscomp$0.pendingTasks--;
+                    if (boundary$jscomp$0.status !== CLIENT_RENDERED) {
+                      boundary$jscomp$0.status = CLIENT_RENDERED;
+                      encodeErrorForBoundary(
+                        boundary$jscomp$0,
+                        errorDigest$jscomp$0,
+                        x$jscomp$0,
+                        errorInfo$jscomp$1,
+                        !1
+                      );
+                      untrackBoundary(request, boundary$jscomp$0);
+                      var boundaryRow = boundary$jscomp$0.row;
+                      null !== boundaryRow &&
+                        (request.allPendingTasks++,
+                        0 === --boundaryRow.pendingTasks &&
+                          finishSuspenseListRow(request, boundaryRow),
+                        request.allPendingTasks--);
+                      boundary$jscomp$0.parentFlushed &&
+                        request.clientRenderedBoundaries.push(
+                          boundary$jscomp$0
+                        );
+                      0 === request.pendingRootTasks &&
+                        null === request.trackedPostpones &&
+                        null !== boundary$jscomp$0.preamble &&
+                        preparePreamble(request);
+                    }
+                    0 === request.allPendingTasks && completeAll(request);
                   }
-                  0 === request.allPendingTasks && completeAll(request);
                 }
               } finally {
                 (request.currentTask = prevTask$jscomp$0),
@@ -8638,6 +8640,8 @@
         }
       } finally {
         (flushingPartialBoundaries = !1),
+          (i = request.postponedState),
+          null !== i && (i.nextSegmentId = request.nextSegmentId),
           0 === request.allPendingTasks &&
             0 === request.clientRenderedBoundaries.length &&
             0 === request.completedBoundaries.length &&
@@ -9740,7 +9744,7 @@
                 break;
               default:
                 if (resumableState.moduleUnknownResources.hasOwnProperty(as)) {
-                  var resources = resumableState.unknownResources[as];
+                  var resources = resumableState.moduleUnknownResources[as];
                   if (resources.hasOwnProperty(href)) return;
                 } else
                   (resources = {}),
@@ -10268,5 +10272,5 @@
         'The server used "renderToString" which does not support Suspense. If you intended for this Suspense boundary to render the fallback content on the server consider throwing an Error somewhere within the Suspense boundary. If you intended to have the server wait for the suspended component please switch to "renderToReadableStream" which supports Suspense on the server'
       );
     };
-    exports.version = "19.3.0-canary-43bcbf80-20260603";
+    exports.version = "19.3.0-canary-12a4baec-20260707";
   })();

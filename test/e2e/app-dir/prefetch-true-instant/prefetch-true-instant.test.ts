@@ -21,7 +21,7 @@ describe('prefetch={true} with instant route', () => {
     const act = createRouterAct(page)
 
     // Reveal the link to trigger a prefetch. Even though the Link has
-    // prefetch={true}, the route has unstable_instant defined, so the
+    // prefetch={true}, the route has instant defined, so the
     // prefetch should be downgraded — it should include cached content
     // but NOT dynamic content.
     await act(async () => {
@@ -83,7 +83,7 @@ describe('prefetch={true} with instant route', () => {
     })
     const act = createRouterAct(page)
 
-    // The layout has unstable_instant but the page does not. The
+    // The layout has instant but the page does not. The
     // SubtreeHasPartialPrefetching bit should propagate up from the layout,
     // so prefetch={true} on the Link should still be downgraded.
     await act(async () => {

@@ -5,8 +5,12 @@ use either::Either;
 use crate::analyzer::{JsValue, ModuleValue, ObjectPart, jsvalue::pretty_join};
 
 // Methods for explaining a value
-impl JsValue {
-    pub fn explain_args(args: &[JsValue], depth: usize, unknown_depth: usize) -> (String, String) {
+impl JsValue<'_> {
+    pub fn explain_args(
+        args: &[JsValue<'_>],
+        depth: usize,
+        unknown_depth: usize,
+    ) -> (String, String) {
         let mut hints = Vec::new();
         let args = args
             .iter()
@@ -336,6 +340,13 @@ impl JsValue {
                     "{}[{}]",
                     obj.explain_internal_inner(hints, indent_depth, depth, unknown_depth),
                     prop.explain_internal_inner(hints, indent_depth, depth, unknown_depth)
+                )
+            }
+            JsValue::In(_, left, right) => {
+                format!(
+                    "{} in {}",
+                    left.explain_internal_inner(hints, indent_depth, depth, unknown_depth),
+                    right.explain_internal_inner(hints, indent_depth, depth, unknown_depth)
                 )
             }
             JsValue::Module(ModuleValue {

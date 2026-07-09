@@ -98,7 +98,7 @@ describe('Cache Components Dev Errors', () => {
 
     await expect(browser).toDisplayCollapsedRedbox(`
      {
-       "code": "E1290",
+       "code": "E1401",
        "description": "Next.js encountered uncached data during prerendering.",
        "environmentLabel": "Server",
        "label": "Blocking Route",
@@ -133,7 +133,7 @@ describe('Cache Components Dev Errors', () => {
              "environmentLabel": null,
              "label": "Build Error",
              "source": "./app/page.tsx (1:14)
-           Route segment config "revalidate" is not compatible with \`nextConfig.cacheComponents\`. Please remove it.
+           Error: Route segment config "revalidate" is not compatible with \`nextConfig.cacheComponents\`. Please remove it.
            > 1 | export const revalidate = 10
                |              ^^^^^^^^^^",
              "stack": [],

@@ -51,9 +51,11 @@ fetch(`https://...`, { cache: 'force-cache' | 'no-store' })
 
 - **`auto no cache`** (default): Next.js fetches the resource from the remote server on every request in development, but will fetch once during `next build` because the route will be statically prerendered. If [Request-time APIs](/docs/app/glossary#request-time-apis) are detected on the route, Next.js will fetch the resource on every request.
 - **`no-store`**: Next.js fetches the resource from the remote server on every request, even if Request-time APIs are not detected on the route.
-- **`force-cache`**: Next.js looks for a matching request in its server-side cache.
+- **`force-cache`**: Next.js looks for a matching request in its server-side cache. A request matches on its URL, method, headers, and body, so requests that differ in any of these are cached separately.
   - If there is a match and it is fresh, it will be returned from the cache.
-  - If there is no match or a stale match, Next.js will fetch the resource from the remote server and update the cache with the downloaded resource.
+  - If there is no match or a stale match, Next.js fetches the resource from the remote server and updates the cache with the downloaded resource. Only responses with a `200` HTTP status code are stored.
+
+> **Good to know**: Caching is opt-in. Set `cache: 'force-cache'` to cache any request, including `POST` and requests that send `authorization` or `cookie` headers. [Draft Mode](/docs/app/guides/draft-mode) bypasses the cache entirely (no read or write).
 
 ### `options.next.revalidate`
 
@@ -83,7 +85,7 @@ Set the cache tags of a resource. Data can then be revalidated on-demand using [
 
 ## Memoization
 
-`fetch` requests using `GET` with the same URL and options are automatically [memoized](/docs/app/glossary#memoization) during a server render pass. If you call the same `fetch` in multiple Server Components, layouts, pages, `generateStaticParams` and `generateViewport`, Next.js executes it only once and shares the result.
+`fetch` requests using `GET` with the same URL and options are automatically [memoized](/docs/app/glossary#memoization) during a server render pass. If you call the same `fetch` in multiple Server Components, layouts, pages, `generateStaticParams` and `generateViewport`, Next.js executes it only once and shares the result. This is separate from persistent [caching](/docs/app/getting-started/caching): memoization lasts only for a single render pass, while cached responses persist across requests.
 
 To opt out, pass an [`AbortController`](https://developer.mozilla.org/en-US/docs/Web/API/AbortController) signal to `fetch`:
 

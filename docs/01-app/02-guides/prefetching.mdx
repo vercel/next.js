@@ -13,6 +13,8 @@ This guide will explain how prefetching works and show common implementation pat
 - [Extending or ejecting link](#extending-or-ejecting-link)
 - [Disabled prefetch](#disabled-prefetch)
 
+> **Using Cache Components?** With [`cacheComponents`](/docs/app/api-reference/config/next-config-js/cacheComponents) enabled, `<Link>` defaults to prefetching a per-route [App Shell](/docs/app/glossary#app-shell) rather than the full page. Set `prefetch={true}` on a `<Link>` to also prefetch the destination page's content. See [Adopting Partial Prefetching](/docs/app/guides/adopting-partial-prefetching) for the behavior change and the recommended adoption path.
+
 ## How does prefetching work?
 
 When navigating between routes, the browser requests assets for the page like HTML and JavaScript files. Prefetching is the process of fetching these resources _ahead_ of time, before you navigate to a new route.

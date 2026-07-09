@@ -26,7 +26,6 @@ import { workUnitAsyncStorage } from './work-unit-async-storage.external'
 import {
   createVaryParamsAccumulator,
   emptyVaryParamsAccumulator,
-  getVaryParamsThenable,
   type VaryParamsAccumulator,
 } from './vary-params'
 import type {
@@ -237,9 +236,9 @@ async function createComponentTreeInternal(
     : []
 
   const prefetchConfig = layoutOrPageMod
-    ? (layoutOrPageMod as AppSegmentConfig).unstable_prefetch
+    ? (layoutOrPageMod as AppSegmentConfig).prefetch
     : undefined
-  const hasRuntimePrefetch = prefetchConfig === 'force-runtime'
+  const hasRuntimePrefetch = prefetchConfig === 'allow-runtime'
   const isRuntimePrefetchable = hasRuntimePrefetch || parentRuntimePrefetchable
 
   const [Forbidden, forbiddenStyles] =
@@ -1362,6 +1361,8 @@ function createSeedData(
     parallelRoutes,
     null,
     isPossiblyPartialResponse,
-    varyParamsAccumulator ? getVaryParamsThenable(varyParamsAccumulator) : null,
+    // The accumulator is itself the AsyncIterable<string> that Flight
+    // serializes into the segment's seed data.
+    varyParamsAccumulator,
   ]
 }

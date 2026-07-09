@@ -78,7 +78,7 @@ impl EcmascriptBrowserEvaluateChunk {
     }
 
     #[turbo_tasks::function]
-    async fn code(self: Vc<Self>) -> Result<Vc<Code>> {
+    pub(crate) async fn code(self: Vc<Self>) -> Result<Vc<Code>> {
         let this = self.await?;
         let environment = this.chunking_context.environment();
 
@@ -192,7 +192,9 @@ impl EcmascriptBrowserEvaluateChunk {
                     source_maps,
                     this.chunking_context.chunk_loading_global(),
                     this.chunking_context.cross_origin(),
+                    this.chunking_context.chunk_load_retry(),
                     has_async_modules,
+                    this.chunking_context.chunk_loading(),
                 );
                 code.push_code(&*runtime_code.await?);
             }

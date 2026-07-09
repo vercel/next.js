@@ -1,5 +1,6 @@
 import { usePanelRouterContext, type PanelStateKind } from './context'
 import { ChevronRight, DevtoolMenu, IssueCount } from './dev-overlay-menu'
+import { getIssueBucketState } from './issue-bucket-state'
 import { DynamicPanel } from '../panel/dynamic-panel'
 import {
   learnMoreLink,
@@ -31,35 +32,62 @@ import { saveDevToolsConfig } from '../utils/save-devtools-config'
 import { InstantNavsPanel } from '../components/instant-navs/instant-navs-panel'
 import './panel-router.css'
 import { CacheDisabledBody } from '../components/errors/dev-tools-indicator/dev-tools-info/cache-disabled'
+import { ColdCacheBody } from '../components/errors/dev-tools-indicator/dev-tools-info/cold-cache'
 
 const MenuPanel = () => {
   const { setPanel, setSelectedIndex } = usePanelRouterContext()
   const { state, dispatch } = useDevOverlayContext()
-  const { totalErrorCount } = useRenderErrorContext()
+  const { normalErrorCount, instantErrorCount } = useRenderErrorContext()
   const isAppRouter = state.routerType === 'app'
+
+  const { hasNormal, hasInstant, hasAny } = getIssueBucketState(
+    normalErrorCount,
+    instantErrorCount
+  )
+
+  const titleParts: string[] = []
+  if (hasNormal) {
+    titleParts.push(
+      `${normalErrorCount} ${normalErrorCount === 1 ? 'issue' : 'issues'}`
+    )
+  }
+  if (hasInstant) {
+    titleParts.push(
+      `${instantErrorCount} ${instantErrorCount === 1 ? 'insight' : 'insights'}`
+    )
+  }
+  const label =
+    hasNormal && hasInstant
+      ? 'Issues · Insights'
+      : hasInstant
+        ? 'Insights'
+        : 'Issues'
 
   return (
     <DevtoolMenu
       items={[
-        totalErrorCount > 0 && {
-          title: `${totalErrorCount} ${totalErrorCount === 1 ? 'issue' : 'issues'} found. Click to view details in the dev overlay.`,
-          label: 'Issues',
-          value: <IssueCount>{totalErrorCount}</IssueCount>,
+        hasAny && {
+          title: `${titleParts.join(' · ')} found. Click to view details in the dev overlay.`,
+          label,
+          value: (
+            <span className="dev-tools-indicator-issue-counts">
+              {hasNormal && (
+                <IssueCount variant="issue">{normalErrorCount}</IssueCount>
+              )}
+              {hasInstant && (
+                <IssueCount variant="insight">{instantErrorCount}</IssueCount>
+              )}
+            </span>
+          ),
           onClick: () => {
             if (state.isErrorOverlayOpen) {
-              dispatch({
-                type: ACTION_ERROR_OVERLAY_CLOSE,
-              })
+              dispatch({ type: ACTION_ERROR_OVERLAY_CLOSE })
               setPanel(null)
               return
             }
             setPanel(null)
             setSelectedIndex(-1)
-            if (totalErrorCount > 0) {
-              dispatch({
-                type: ACTION_ERROR_OVERLAY_OPEN,
-              })
-            }
+            dispatch({ type: ACTION_ERROR_OVERLAY_OPEN })
           },
         },
         state.staticIndicator === 'disabled'
@@ -126,6 +154,16 @@ const MenuPanel = () => {
           onClick: () => setPanel('cache-disabled'),
           attributes: {
             'data-cache-disabled': true,
+          },
+        },
+        state.cacheIndicator === 'cold' && {
+          title:
+            'This load filled one or more caches while streaming, so it is not representative of production. Click to learn more.',
+          label: 'Cache',
+          value: 'Cold',
+          onClick: () => setPanel('cold-cache'),
+          attributes: {
+            'data-cold-cache': true,
           },
         },
         isAppRouter && {
@@ -334,6 +372,25 @@ export const PanelRouter = () => {
           >
             <div className="panel-content">
               <CacheDisabledBody />
+            </div>
+          </DynamicPanel>
+        </PanelRoute>
+      )}
+
+      {state.cacheIndicator === 'cold' && (
+        <PanelRoute name="cold-cache">
+          <DynamicPanel
+            sharePanelSizeGlobally={false}
+            sizeConfig={{
+              kind: 'fixed',
+              height: 400 / state.scale,
+              width: 480 / state.scale,
+            }}
+            closeOnClickOutside
+            header={<DevToolsHeader title="Cold cache" />}
+          >
+            <div className="panel-content">
+              <ColdCacheBody />
             </div>
           </DynamicPanel>
         </PanelRoute>

@@ -22,6 +22,9 @@ declare var TURBOPACK_NEXT_CHUNK_URLS: ChunkUrl[] | undefined
 declare var CHUNK_BASE_PATH: string
 declare var ASSET_SUFFIX: string
 declare var CROSS_ORIGIN: 'anonymous' | 'use-credentials' | null
+declare var CHUNK_LOAD_RETRY_MAX_ATTEMPTS: number
+declare var CHUNK_LOAD_RETRY_BASE_DELAY_MS: number
+declare var CHUNK_LOAD_RETRY_MAX_JITTER_MS: number
 
 interface TurbopackBrowserBaseContext<M> extends TurbopackBaseContext<M> {
   R: ResolvePathFromModule
@@ -67,19 +70,6 @@ interface RuntimeBackend {
    * Returns the same Promise for the same chunk URL.
    */
   loadChunkCached: (sourceType: SourceType, chunkUrl: ChunkUrl) => Promise<void>
-  loadWebAssembly: (
-    sourceType: SourceType,
-    sourceData: SourceData,
-    wasmChunkPath: ChunkPath,
-    edgeModule: () => WebAssembly.Module,
-    importsObj: WebAssembly.Imports
-  ) => Promise<Exports>
-  loadWebAssemblyModule: (
-    sourceType: SourceType,
-    sourceData: SourceData,
-    wasmChunkPath: ChunkPath,
-    edgeModule: () => WebAssembly.Module
-  ) => Promise<WebAssembly.Module>
 }
 
 interface DevRuntimeBackend {
@@ -413,33 +403,3 @@ function isJs(chunkUrlOrPath: ChunkUrl | ChunkPath): boolean {
 function isCss(chunkUrl: ChunkUrl): boolean {
   return endsWithExtension(chunkUrl, '.css')
 }
-
-function loadWebAssembly(
-  this: TurbopackBaseContext<Module>,
-  chunkPath: ChunkPath,
-  edgeModule: () => WebAssembly.Module,
-  importsObj: WebAssembly.Imports
-): Promise<Exports> {
-  return BACKEND.loadWebAssembly(
-    SourceType.Parent,
-    this.m.id,
-    chunkPath,
-    edgeModule,
-    importsObj
-  )
-}
-contextPrototype.w = loadWebAssembly
-
-function loadWebAssemblyModule(
-  this: TurbopackBaseContext<Module>,
-  chunkPath: ChunkPath,
-  edgeModule: () => WebAssembly.Module
-): Promise<WebAssembly.Module> {
-  return BACKEND.loadWebAssemblyModule(
-    SourceType.Parent,
-    this.m.id,
-    chunkPath,
-    edgeModule
-  )
-}
-contextPrototype.u = loadWebAssemblyModule

@@ -48,6 +48,11 @@ import {
   atLeastOneTask,
   waitAtLeastOneReactRenderTask,
 } from '../../lib/scheduler'
+import type {
+  FlightPayload,
+  FlightClientModules,
+  FlightRenderOptions,
+} from './stream-ops.web'
 
 // ---------------------------------------------------------------------------
 // Re-export shared types from the web module
@@ -536,21 +541,39 @@ export { renderToWebFlightStream } from './stream-ops.web'
 
 export function renderToNodeFlightStream(
   ComponentMod: FlightComponentMod,
-  payload: any,
-  clientModules: any,
-  opts: any
+  payload: FlightPayload,
+  clientModules: FlightClientModules,
+  opts: FlightRenderOptions
 ): AnyStream {
   if (!ComponentMod.renderToPipeableStream) {
     throw new Error('renderToPipeableStream is not implemented')
   }
 
+  // `renderToPipeableStream` has no `signal` option (unlike the Web
+  // `renderToReadableStream`), so pull `signal` out of the options and abort
+  // the returned pipeable ourselves when it fires. We drop the listener when
+  // the passthrough closes so a finished render's `pipeable` isn't retained by
+  // the request signal, which can outlive it.
+  const { signal, ...renderOptions } = opts ?? {}
+
   const pt = new PassThrough()
   const pipeable = ComponentMod.renderToPipeableStream!(
     payload,
     clientModules,
-    opts
+    renderOptions
   )
   pipeable.pipe(pt)
+
+  if (signal) {
+    if (signal.aborted) {
+      pipeable.abort(signal.reason)
+    } else {
+      const onAbort = () => pipeable.abort(signal.reason)
+      signal.addEventListener('abort', onAbort, { once: true })
+      pt.on('close', () => signal.removeEventListener('abort', onAbort))
+    }
+  }
+
   return pt
 }
 
@@ -589,7 +612,10 @@ export async function renderToNodeFizzStream(
     })
   )
 
-  await shellReady.promise
+  await getTracer().trace(
+    AppRenderSpan.waitShellReady,
+    () => shellReady.promise
+  )
 
   if (!deferPipe) {
     await waitAtLeastOneReactRenderTask()
@@ -612,18 +638,29 @@ export async function resumeToFizzStream(
   const run: <T>(fn: () => T) => T = runInContext ?? ((fn) => fn())
 
   const pt = new PassThrough()
+  const shellReady = new DetachedPromise<void>()
   const allReady = new DetachedPromise<void>()
 
   const pipeable = await run(() =>
     resumeToPipeableStream(element, postponedState, {
       ...streamOptions,
+      onShellReady() {
+        streamOptions?.onShellReady?.()
+        shellReady.resolve()
+      },
+      onShellError(error: unknown) {
+        streamOptions?.onShellError?.(error)
+        shellReady.reject(error)
+      },
       onAllReady() {
         streamOptions?.onAllReady?.()
         allReady.resolve()
       },
     })
   )
+
   pipeable.pipe(pt)
+  await shellReady.promise
 
   return {
     stream: pt,

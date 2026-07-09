@@ -18,7 +18,7 @@ describe('partial prefetching - deep subtree-hint propagation', () => {
   // even if the implementation details change.
   //
   // The route `/a/b/c` opts into Partial Prefetching on its leaf page via
-  // `export const unstable_prefetch = 'partial'`. The
+  // `export const prefetch = 'partial'`. The
   // `SubtreeHasPartialPrefetching` hint originates on that leaf and must
   // propagate up through the `/a/b` and `/a` layout segments to the ROOT of
   // the route tree, because the prefetch scheduler reads the hint at the root
