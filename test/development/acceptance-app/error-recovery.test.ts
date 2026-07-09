@@ -828,7 +828,7 @@ describe('Error recovery app', () => {
          "stack": [
            "Foo Foo.js (3:3)",
            "FunctionDefault index.js (4:10)",
-           "<FIXME-file-protocol>",
+           "Page app/page.js (4:10)",
          ],
        }
       `)
