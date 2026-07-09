@@ -57,10 +57,20 @@ if (handlers.size === 0) {
   ): void => {
     const registry: Map<string, HmrHandlerEntry> =
       globalThis.__turbopack_server_hmr_handlers__ ?? new Map()
-    const updateChunkPaths = Object.keys(update.instruction?.chunks ?? {})
+
+    // Chunk paths can appear either directly on the instruction (single-chunk
+    // updates) or nested inside `merged` entries (chunks covered by a
+    // merger). Collect both so routing isn't skipped just because a mergeable
+    // chunk's update only reports its paths inside `merged`.
+    const updateChunkPaths = new Set<string>([
+      ...Object.keys(update.instruction?.chunks ?? {}),
+      ...(update.instruction?.merged ?? []).flatMap((merged) =>
+        Object.keys(merged.chunks ?? {})
+      ),
+    ])
 
     const toCall: HmrHandlerEntry[] = []
-    if (updateChunkPaths.length === 0) {
+    if (updateChunkPaths.size === 0) {
       for (const entry of registry.values()) toCall.push(entry)
     } else {
       const seen = new Set<string>()

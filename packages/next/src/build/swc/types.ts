@@ -234,20 +234,28 @@ export type Update = IssuesUpdate | PartialUpdate
  * The runtime file cannot import from this ES module without triggering module semantics,
  * so we maintain a copy there. Please keep both definitions in sync.
  */
+export interface NodeJsEcmascriptMergedUpdate {
+  type: 'EcmascriptMergedUpdate'
+  entries?: Record<
+    string,
+    { code: string; url: string; map?: string | undefined }
+  >
+  chunks?: Record<
+    string,
+    | { type: 'added' | 'deleted'; modules?: string[] }
+    | { type: 'partial'; added?: string[]; deleted?: string[] }
+  >
+}
+
+export interface NodeJsChunkListUpdate {
+  type: 'ChunkListUpdate'
+  merged?: NodeJsEcmascriptMergedUpdate[]
+  chunks?: Record<string, { type: 'added' | 'deleted' | 'total' | 'partial' }>
+}
+
 export interface NodeJsPartialHmrUpdate extends BaseUpdate {
   type: 'partial'
-  instruction: {
-    type: 'EcmascriptMergedUpdate'
-    entries?: Record<
-      string,
-      { code: string; url: string; map?: string | undefined }
-    >
-    chunks?: Record<
-      string,
-      | { type: 'added' | 'deleted'; modules?: string[] }
-      | { type: 'partial'; added?: string[]; deleted?: string[] }
-    >
-  }
+  instruction: NodeJsEcmascriptMergedUpdate | NodeJsChunkListUpdate
 }
 
 export interface NodeJsRestartHmrUpdate {

@@ -96,10 +96,7 @@ use turbopack_node::worker_threads_backend;
 use turbopack_nodejs::NodeJsChunkingContext;
 
 use crate::{
-    aggregate_hmr::{
-        AggregateHmrVersion, DiffResult, diff_chunks_against, merge_ecmascript_merged_update,
-        merged_partial_update,
-    },
+    aggregate_hmr::{AggregateHmrVersion, ChunkListUpdateBuilder, DiffResult, diff_chunks_against},
     app::{AppProject, OptionAppProject},
     empty::EmptyEndpoint,
     entrypoints::Entrypoints,
@@ -2478,6 +2475,17 @@ impl Project {
         })
     }
 
+    #[turbo_tasks::function]
+    async fn aggregate_hmr_root_path(
+        self: Vc<Self>,
+        target: HmrTarget,
+    ) -> Result<Vc<FileSystemPath>> {
+        match target {
+            HmrTarget::Client => bail!("aggregate HMR is not implemented for the client"),
+            HmrTarget::Server => Ok(self.node_root().await?.join("server/app")?.cell()),
+        }
+    }
+
     /// Get HMR content by chunk_name for the specified target.
     #[turbo_tasks::function]
     async fn hmr_content(
@@ -2585,7 +2593,7 @@ impl Project {
             let Some(map) = this.await?.versioned_content_map else {
                 bail!("must be in dev mode to hmr")
             };
-            let root = this.hmr_root_path(target).owned().await?;
+            let root = this.aggregate_hmr_root_path(target).owned().await?;
             AggregateHmrVersion::from_map(*map, &root).await
         }
         let version_op = aggregate_hmr_version_operation(self, target);
@@ -2602,8 +2610,13 @@ impl Project {
     }
 
     /// Aggregate counterpart to [`Self::hmr_update`]: a single `Update` whose
-    /// `EcmascriptMergedUpdate` is the union of per-chunk diffs under
-    /// `target`'s root.
+    /// combined `ChunkListUpdate` is the union of the per-entry-chunk diffs
+    /// under `target`'s root.
+    ///
+    /// Each tracked entry chunk's own update is a `ChunkListUpdate` (carrying
+    /// the module deltas for its shared chunks via the merger) or a bare
+    /// `EcmascriptMergedUpdate`; both are folded into one `ChunkListUpdate` that
+    /// the runtime applies exactly as it would a single chunk list.
     ///
     /// All-or-nothing restart: any chunk needing `Total`/`Missing` escalates
     /// the whole batch to `Total` (the runtime can't partially restart). New
@@ -2622,7 +2635,7 @@ impl Project {
         let Some(map) = self.await?.versioned_content_map else {
             bail!("must be in dev mode to hmr")
         };
-        let root = self.hmr_root_path(target).owned().await?;
+        let root = self.aggregate_hmr_root_path(target).owned().await?;
         let chunks_versioned_content = map.hmr_chunks_in_path(&root).await?;
 
         // No chunks to diff yet (e.g. before any endpoints have been written).
@@ -2648,13 +2661,10 @@ impl Project {
         // the *next* change produces a real diff; returning `Total` instead would
         // force a needless full re-evaluation.
         if chunk_updates.is_empty() && !has_new_chunks {
-            return Ok(
-                merged_partial_update(to_ref, FxHashMap::default(), FxHashMap::default()).cell(),
-            );
+            return Ok(ChunkListUpdateBuilder::default().build(to_ref).cell());
         }
 
-        let mut combined_entries: FxHashMap<String, serde_json::Value> = FxHashMap::default();
-        let mut combined_chunks: FxHashMap<String, serde_json::Value> = FxHashMap::default();
+        let mut builder = ChunkListUpdateBuilder::default();
         for (_path, update) in chunk_updates {
             match &*update {
                 Update::None => {}
@@ -2662,20 +2672,16 @@ impl Project {
                     return Ok(Update::Total(TotalUpdate { to: to_ref }).cell());
                 }
                 Update::Partial(PartialUpdate { instruction, .. }) => {
-                    merge_ecmascript_merged_update(
-                        &mut combined_entries,
-                        &mut combined_chunks,
-                        instruction,
-                    );
+                    builder.add_instruction(instruction);
                 }
             }
         }
 
-        if combined_entries.is_empty() && combined_chunks.is_empty() && !has_new_chunks {
+        if builder.is_empty() && !has_new_chunks {
             return Ok(Update::None.cell());
         }
 
-        Ok(merged_partial_update(to_ref, combined_entries, combined_chunks).cell())
+        Ok(builder.build(to_ref).cell())
     }
 
     /// Gets a list of all HMR chunk names that can be subscribed to for the
