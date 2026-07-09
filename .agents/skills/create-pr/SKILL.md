@@ -5,7 +5,7 @@ description: >
   Use when the user asks to create a branch, commit current changes, open a
   PR or draft PR, publish a pull request, or recover from gh pr create / PR
   template issues. Covers .github/pull_request_template.md, --body formatting,
-  NEXT_JS_LLM_PR, codex/ branch names, and Codex app git directives.
+  codex/ branch names, and Codex app git directives.
 metadata:
   internal: true
 ---
@@ -88,7 +88,7 @@ Use this PR body format:
 - `<command that passed>`
 - Not run: `<command>` (`<reason>`)
 
-<!-- NEXT_JS_LLM_PR -->
+<!-- NEXT_JS_LLM -->
 ```
 
 The "what" should be explained from the end-user perspective or developer perspective. Only include implementation changes if they're not obvious from the diff.
