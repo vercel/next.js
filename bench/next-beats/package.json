@@ -1,0 +1,47 @@
+{
+  "name": "next-beats",
+  "version": "0.1.0",
+  "private": true,
+  "license": "MIT",
+  "scripts": {
+    "postinstall": "prisma generate",
+    "dev": "next dev",
+    "build": "prisma generate && next build",
+    "start": "next start",
+    "lint": "eslint .",
+    "prisma.push": "prisma db push",
+    "prisma.seed": "prisma db seed",
+    "prisma.reset": "prisma db push --force-reset && pnpm prisma.seed"
+  },
+  "dependencies": {
+    "@ariakit/react": "^0.4.28",
+    "@prisma/adapter-better-sqlite3": "^7.8.0",
+    "@prisma/client": "^7.8.0",
+    "better-sqlite3": "^12.11.1",
+    "clsx": "^2.1.1",
+    "dotenv": "^17.4.2",
+    "geist": "^1.7.0",
+    "lucide-react": "^1.8.0",
+    "next": "link:../../packages/next",
+    "next-themes": "^0.4.6",
+    "prisma": "^7.8.0",
+    "react": "19.2.4",
+    "react-dom": "19.2.4",
+    "server-only": "^0.0.1",
+    "sonner": "^2.0.7",
+    "tailwind-merge": "^3.5.0",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "babel-plugin-react-compiler": "^1.0.0",
+    "eslint": "^9",
+    "eslint-config-next": "16.3.0-canary.30",
+    "tailwindcss": "^4",
+    "tsx": "^4.22.2",
+    "typescript": "^5"
+  }
+}

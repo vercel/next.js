@@ -1,0 +1,276 @@
+@import 'tailwindcss';
+
+@theme {
+  --color-gray: #a1a1aa;
+  --color-muted: #71717a;
+  --color-divider-dark: #282828;
+  --color-divider: #e4e4e7;
+  --color-card-dark: #181818;
+  --color-card: #f4f4f5;
+  --color-surface-dark: #121212;
+  --color-surface: #fafafa;
+
+  --color-primary: #4f6ef7;
+  --color-primary-dark: #3d5bd9;
+  --color-primary-darker: #2c42a0;
+  --color-accent: #4f6ef7;
+  --color-accent-hover: #3d5bd9;
+  --color-accent-fade: #4f6ef722;
+
+  --color-success: #0fa958;
+  --color-danger: #e54848;
+  --color-warning: #f5a524;
+
+  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-geist-sans);
+
+  --tracking-tight: -0.02em;
+  --tracking-wide: 0.04em;
+  --breakpoint-3xl: 120rem;
+  --breakpoint-4xl: 140rem;
+
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+
+  --animate-pending: pending 1.2s ease-in-out 150ms infinite both;
+}
+
+@keyframes pending {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.4;
+  }
+}
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@layer base {
+  body {
+    @apply selection:bg-accent bg-surface dark:bg-surface-dark font-sans text-black antialiased selection:text-black dark:text-white;
+  }
+
+  h1 {
+    @apply font-sans text-2xl font-bold tracking-tight text-black dark:text-white;
+  }
+
+  h2 {
+    @apply font-sans text-xl font-bold tracking-tight text-black dark:text-white;
+  }
+
+  h3 {
+    @apply font-sans text-base font-bold tracking-tight text-black dark:text-white;
+  }
+
+  input,
+  textarea {
+    @apply border-divider placeholder-gray focus:border-accent focus:ring-accent/30 dark:border-divider-dark w-full rounded-full border bg-white px-4 py-2 text-sm text-black transition-colors focus:ring-2 focus:outline-none dark:bg-[#242424] dark:text-white;
+  }
+
+  label {
+    @apply text-gray mb-1.5 block text-xs font-medium tracking-wide;
+  }
+}
+
+.skeleton-animation {
+  background: rgba(150, 150, 150, 0.15);
+  background: linear-gradient(
+    to right,
+    rgba(130, 130, 130, 0.15) 8%,
+    rgba(170, 170, 170, 0.25) 18%,
+    rgba(150, 150, 150, 0.15) 33%
+  );
+  background-size: 800px 100px;
+  animation: wave-lines 2s infinite ease-out;
+}
+
+.skeleton-animation.skeleton-subtle {
+  background: rgba(0, 0, 0, 0.06);
+  background-size: unset;
+  animation: none;
+}
+
+@media (prefers-color-scheme: dark) {
+  .skeleton-animation.skeleton-subtle {
+    background: rgba(255, 255, 255, 0.06);
+  }
+}
+
+:is(.dark) .skeleton-animation.skeleton-subtle {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.skeleton-animation:not([class*='rounded-']) {
+  border-radius: var(--radius-sm);
+}
+
+@keyframes wave-lines {
+  0% {
+    background-position: -468px 0;
+  }
+  100% {
+    background-position: 468px 0;
+  }
+}
+
+/* Play button reveal on card hover. On touch devices the button shows
+   always — the hover-reveal pattern would otherwise eat the first tap. */
+.card-play-btn {
+  opacity: 1;
+  transform: translateY(0);
+  transition:
+    opacity 0.2s,
+    transform 0.2s;
+}
+@media (hover: hover) {
+  .card-play-btn {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  .group:hover .card-play-btn,
+  .card-play-btn[data-playing] {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ---- View Transition Recipes ---- */
+
+:root {
+  --duration-exit: 150ms;
+  --duration-enter: 210ms;
+  --duration-move: 250ms;
+}
+
+/* Fade */
+::view-transition-old(.fade-out) {
+  animation: var(--duration-exit) ease-in fade reverse;
+}
+::view-transition-new(.fade-in) {
+  animation: var(--duration-enter) ease-out var(--duration-exit) both fade;
+}
+
+@keyframes fade {
+  from {
+    filter: blur(3px);
+    opacity: 0;
+  }
+  to {
+    filter: blur(0);
+    opacity: 1;
+  }
+}
+
+/* Slide (Vertical) */
+::view-transition-old(.slide-down) {
+  animation:
+    var(--duration-exit) ease-out both fade reverse,
+    var(--duration-exit) ease-out both slide-y reverse;
+}
+::view-transition-new(.slide-up) {
+  animation:
+    var(--duration-enter) ease-in var(--duration-exit) both fade,
+    var(--duration-move) ease-in both slide-y;
+}
+@keyframes slide-y {
+  from {
+    transform: translateY(10px);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+/* Slide (Horizontal) */
+::view-transition-old(.slide-out-left) {
+  animation:
+    var(--duration-exit) ease-out both fade reverse,
+    var(--duration-exit) ease-out both slide-x reverse;
+}
+::view-transition-new(.slide-in-left) {
+  animation:
+    var(--duration-enter) ease-in var(--duration-exit) both fade,
+    var(--duration-move) ease-in both slide-x;
+}
+@keyframes slide-x {
+  from {
+    transform: translateX(12px);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+/* Reduced Motion */
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-old(*),
+  ::view-transition-new(*),
+  ::view-transition-group(*) {
+    animation-duration: 0s !important;
+    animation-delay: 0s !important;
+  }
+}
+
+/* Exclude persistent elements from view transition animations */
+::view-transition-group(mobile-nav),
+::view-transition-group(sidebar),
+::view-transition-group(player-bar),
+::view-transition-group(player-bar-desktop),
+::view-transition-group(theme-toggle),
+::view-transition-group(demo-toolbar) {
+  animation: none;
+  z-index: 100;
+}
+
+::view-transition-old(sidebar) {
+  display: none;
+}
+
+::view-transition-new(sidebar),
+::view-transition-old(mobile-nav),
+::view-transition-new(mobile-nav),
+::view-transition-old(player-bar),
+::view-transition-new(player-bar),
+::view-transition-old(player-bar-desktop),
+::view-transition-new(player-bar-desktop),
+::view-transition-old(theme-toggle),
+::view-transition-new(theme-toggle),
+::view-transition-old(demo-toolbar),
+::view-transition-new(demo-toolbar) {
+  animation: none;
+}
+
+/* ── Client Boundary Visualizer ── */
+
+/* ── Equalizer animation for now-playing indicator ── */
+@keyframes eq1 {
+  0%,
+  100% {
+    height: 3px;
+  }
+  50% {
+    height: 12px;
+  }
+}
+@keyframes eq2 {
+  0%,
+  100% {
+    height: 8px;
+  }
+  50% {
+    height: 4px;
+  }
+}
+@keyframes eq3 {
+  0%,
+  100% {
+    height: 5px;
+  }
+  50% {
+    height: 11px;
+  }
+}

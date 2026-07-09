@@ -1,0 +1,13 @@
+{
+  "description": "Representative routes for benchmarking next-beats. Each renders a PPR shell plus streamed, per-user dynamic content backed by SQLite queries.",
+  "routes": [
+    { "path": "/", "note": "Home / discover — most-played + recently-played grids" },
+    { "path": "/library", "note": "Largest page — full track grid" },
+    { "path": "/favorites", "note": "Per-user favorites feed" },
+    { "path": "/genre/electronic", "note": "Dynamic segment — genre browse + tracks" },
+    { "path": "/playlist", "note": "Playlist list" },
+    { "path": "/playlist/pl1", "note": "Dynamic segment — playlist detail with track list" },
+    { "path": "/track/t1", "note": "Dynamic segment — track detail + more-from-genre" },
+    { "path": "/search?q=async", "note": "Search results (dynamic, cached by query)" }
+  ]
+}

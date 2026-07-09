@@ -51,6 +51,7 @@ test/production/debug-build-path/fixtures/with-compile-error/app/broken/page.tsx
 
 bench/nested-deps/pages/**/*
 bench/nested-deps/components/**/*
+bench/next-beats/**/*
 
 **/convex/_generated/**
 **/.tina/__generated__/**

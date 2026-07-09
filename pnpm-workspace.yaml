@@ -11,6 +11,7 @@ publicHoistPattern:
   - '*eslint*'
 allowBuilds:
   '@ast-grep/cli': true
+  'better-sqlite3': true
 ignoredBuiltDependencies:
   - '@datadog/native-appsec'
   - '@datadog/native-metrics'
