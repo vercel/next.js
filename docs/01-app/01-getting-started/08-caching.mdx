@@ -403,12 +403,9 @@ export default async function Page() {
 
 > **Good to know:** This includes queries to embedded databases with synchronous APIs, such as `better-sqlite3` or Node.js's built-in [`node:sqlite`](https://nodejs.org/api/sqlite.html). If you need per-request data from a synchronous source, call [`connection()`](/docs/app/api-reference/functions/connection) before the query.
 
-Asynchronous I/O is the exception: even though the read returns the same result each time, an `await readFile(...)` inside a component defers the route to request time. Request-time rendering is expected when the response should be dynamic. To keep the route prerendered, you have two options:
+Some asynchronous APIs read local resources that don't depend on the incoming request, such as fonts or configuration files. When those resources are expected to be the same for every request, read them once at module scope instead of during rendering
 
-- Read the data once at module scope with a top-level `await`, so it runs when the module loads rather than during render.
-- Wrap the read in [`use cache`](/docs/app/api-reference/directives/use-cache), so Next.js includes the cached result in the static shell.
-
-Module scope fits data that never varies per request, such as a local file, because it avoids caching entirely:
+If the data should instead be computed during rendering and reused across requests, wrap the read in [`use cache`](/docs/app/api-reference/directives/use-cache). If the data depends on the incoming request or is expected to change over time, read it during request-time rendering.
 
 ```tsx filename="page.tsx"
 import { readFile } from 'node:fs/promises'
@@ -427,6 +424,7 @@ export default function Page() {
 }
 ```
 
+In this example, the configuration file is expected to be the same for every request, so it is read once at module scope. Calling `await readFile()` inside the component would be treated as uncached data that work must be either accessed within `use cache` or behind a `<Suspense>` boundary. Since this file does not depend on the request and is not expected to change, module scope is the simplest option.
 ## Prerendering
 
 At build time, Next.js renders your route's component tree. How each component is handled depends on the APIs it uses:
