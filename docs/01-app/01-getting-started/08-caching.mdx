@@ -382,9 +382,9 @@ You don't need to memorize which operations behave this way. The dev overlay sur
   />
 </FixCardGrid>
 
-## Synchronous I/O and pure computations
+## Predictable values
 
-Unlike random or time-based APIs, synchronous I/O, module imports, and pure computations are predictable: the same inputs produce the same outputs. Components using only these operations are prerendered automatically, and their output becomes part of the static HTML at build time.
+Unlike random values and timestamps, which can vary between renders, module imports, synchronous I/O, and pure computations produce the same result every time they run. Components using only these operations are prerendered automatically, and their output becomes part of the static HTML at build time.
 
 ```tsx filename="page.tsx"
 import fs from 'node:fs'
@@ -409,13 +409,36 @@ export default async function Page() {
 
 > **Good to know:** This includes queries to embedded databases with synchronous APIs, such as `better-sqlite3` or Node.js's built-in [`node:sqlite`](https://nodejs.org/api/sqlite.html). If you need per-request data from a synchronous source, call [`connection()`](/docs/app/api-reference/functions/connection) before the query.
 
+Some asynchronous APIs read local resources that don't depend on the incoming request, such as fonts or configuration files. When those resources are expected to be the same for every request, read them once at module scope instead of during rendering
+
+If the data should instead be computed during rendering and reused across requests, wrap the read in [`use cache`](/docs/app/api-reference/directives/use-cache). If the data depends on the incoming request or is expected to change over time, read it during request-time rendering.
+
+```tsx filename="page.tsx"
+import { readFile } from 'node:fs/promises'
+
+const content = await readFile('./config.json', 'utf-8')
+const items = JSON.parse(content).items ?? []
+
+export default function Page() {
+  return (
+    <ul>
+      {items.map((item) => (
+        <li key={item.id}>{item.value}</li>
+      ))}
+    </ul>
+  )
+}
+```
+
+In this example, the configuration file is expected to be the same for every request, so it is read once at module scope. Calling `await readFile()` inside the component would be treated as uncached data that must be either accessed within `use cache` or behind a `<Suspense>` boundary. Since this file does not depend on the request and is not expected to change, module scope is the simplest option.
+
 ## Prerendering
 
 At build time, Next.js renders your route's component tree. How each component is handled depends on the APIs it uses:
 
 - [`use cache`](#usage): the result is cached and included in the static shell, as long as its lifetime [isn't too short](/docs/app/api-reference/functions/cacheLife#prerendering-behavior)
 - [`<Suspense>`](#streaming-uncached-data): fallback UI is included in the static shell while the content streams at request time
-- [Synchronous I/O and pure computations](#synchronous-io-and-pure-computations): module imports, `fs.readFileSync`, and pure computations complete during prerender and are included in the static shell automatically
+- [Predictable values](#predictable-values): module imports, `fs.readFileSync`, and pure computations complete during prerender and are included in the static shell automatically
 - [Random values and timestamps](#random-values-and-timestamps): use `connection()` + `<Suspense>` to get a unique value per request, or `use cache` to share one across users
 
 This generates a static shell consisting of HTML for initial page loads and a serialized [RSC Payload](/docs/app/getting-started/server-and-client-components#on-the-server) for client-side navigation, ensuring the browser receives fully rendered content instantly whether users navigate directly to the URL or transition from another page. This rendering approach is called **Partial Prerendering (PPR)**, the default behavior with Cache Components.
