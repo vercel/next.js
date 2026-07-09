@@ -35,11 +35,13 @@ Use this skill when syncing a local React checkout into this Next.js checkout.
      pnpm sync-react --version <react-repo>
    ```
 
-   Keep the Corepack shim first on `PATH`. The repository pins its pnpm version
-   in `package.json`, and `sync-react` starts a nested `pnpm install`. Without
-   this override, a bundled or global pnpm can be selected for either command,
-   ignore the repository's pnpm configuration, and attempt to download local
-   workspace packages such as `@next/font` from npm.
+   Keep the directory containing the active Corepack shim first on `PATH`.
+   Codex can prepend a separate `pnpm` executable, and command lookup happens
+   before Corepack reads the repository's `packageManager` field. The prefix
+   makes both this command and `sync-react`'s nested `pnpm install` resolve
+   through Corepack to the repository-pinned pnpm version. Invoking only the
+   outer command with `corepack pnpm` is insufficient because the nested
+   command still resolves `pnpm` from `PATH`.
 
 3. Inspect the sync result before testing. Preserve unrelated changes in both
    checkouts. Rebuild Next.js when required, then run the focused test command
