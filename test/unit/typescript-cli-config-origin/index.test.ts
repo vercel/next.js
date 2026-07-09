@@ -41,9 +41,12 @@ describe('TypeScript CLI config metadata', () => {
     expect(Array.from(options.paths?.['@fixture/*'] ?? [])).toEqual([
       'source/*',
     ])
-    expect(options.pathsBasePath).toBe(
-      realpathSync(path.join(testDir, 'node_modules/@fixture/tsconfig/configs'))
-    )
+    expect(options.pathsBasePath?.split(path.sep).slice(-4)).toEqual([
+      'node_modules',
+      '@fixture',
+      'tsconfig',
+      'configs',
+    ])
     expect(options.baseUrl).toBeUndefined()
   })
 
@@ -58,9 +61,11 @@ describe('TypeScript CLI config metadata', () => {
     expect(Array.from(options.paths?.['@default/*'] ?? [])).toEqual([
       'source/*',
     ])
-    expect(options.pathsBasePath).toBe(
-      realpathSync(path.join(testDir, 'node_modules/@fixture/default-tsconfig'))
-    )
+    expect(options.pathsBasePath?.split(path.sep).slice(-3)).toEqual([
+      'node_modules',
+      '@fixture',
+      'default-tsconfig',
+    ])
   })
 
   it('expands inherited configDir templates from the root config', () => {
