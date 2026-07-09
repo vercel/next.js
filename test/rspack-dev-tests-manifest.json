@@ -215,7 +215,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/development/acceptance-app/rsc-build-errors.test.ts": {
+  "test/development/acceptance-app/rsc-build-errors-next-apis.test.ts": {
     "passed": [
       "Error overlay - RSC build errors importing 'next/cache' APIs in a client component cacheLife is not allowed",
       "Error overlay - RSC build errors importing 'next/cache' APIs in a client component cacheTag is not allowed",
@@ -225,35 +225,67 @@
       "Error overlay - RSC build errors importing 'next/cache' APIs in a client component unstable_noStore is allowed",
       "Error overlay - RSC build errors next/root-params importing 'next/root-params' in a client component",
       "Error overlay - RSC build errors next/root-params importing 'next/root-params' in a client component in a way that bypasses import analysis",
-      "Error overlay - RSC build errors next/root-params importing a non-existent getter from 'next/root-params'",
+      "Error overlay - RSC build errors next/root-params importing a non-existent getter from 'next/root-params'"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/development/acceptance-app/rsc-build-errors-poisoned-imports.test.ts": {
+    "passed": [
       "Error overlay - RSC build errors should allow to use and handle rsc poisoning client-only",
       "Error overlay - RSC build errors should allow to use and handle rsc poisoning server-only",
-      "Error overlay - RSC build errors should error for invalid undefined module retuning from next dynamic",
+      "Error overlay - RSC build errors should error when catchError from next/error is imported in instrumentation.js",
+      "Error overlay - RSC build errors should error when catchError from next/error is imported in middleware.js",
+      "Error overlay - RSC build errors should error when catchError from next/error is imported in proxy.js",
+      "Error overlay - RSC build errors should error when catchError from next/error is used in a server component"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/development/acceptance-app/rsc-build-errors-react-apis-1.test.ts": {
+    "passed": [
       "Error overlay - RSC build errors should error when Component from react is used in server component",
       "Error overlay - RSC build errors should error when PureComponent from react is used in server component",
       "Error overlay - RSC build errors should error when createContext from react is used in server component",
       "Error overlay - RSC build errors should error when createFactory from react is used in server component",
-      "Error overlay - RSC build errors should error when flushSync from react-dom is used in server component",
-      "Error overlay - RSC build errors should error when unstable_batchedUpdates from react-dom is used in server component",
-      "Error overlay - RSC build errors should error when catchError from next/error is imported in instrumentation.js",
-      "Error overlay - RSC build errors should error when catchError from next/error is imported in middleware.js",
-      "Error overlay - RSC build errors should error when catchError from next/error is imported in proxy.js",
-      "Error overlay - RSC build errors should error when catchError from next/error is used in a server component",
-      "Error overlay - RSC build errors should error when useActionState from react is used in server component",
       "Error overlay - RSC build errors should error when useDeferredValue from react is used in server component",
       "Error overlay - RSC build errors should error when useEffect from react is used in server component",
       "Error overlay - RSC build errors should error when useEffectEvent from react is used in server component",
+      "Error overlay - RSC build errors should error when useImperativeHandle from react is used in server component",
+      "Error overlay - RSC build errors should error when useInsertionEffect from react is used in server component"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/development/acceptance-app/rsc-build-errors-react-apis-2.test.ts": {
+    "passed": [
+      "Error overlay - RSC build errors should error when flushSync from react-dom is used in server component",
+      "Error overlay - RSC build errors should error when unstable_batchedUpdates from react-dom is used in server component",
+      "Error overlay - RSC build errors should error when useActionState from react is used in server component",
       "Error overlay - RSC build errors should error when useFormState from react-dom is used in server component",
       "Error overlay - RSC build errors should error when useFormStatus from react-dom is used in server component",
-      "Error overlay - RSC build errors should error when useImperativeHandle from react is used in server component",
-      "Error overlay - RSC build errors should error when useInsertionEffect from react is used in server component",
       "Error overlay - RSC build errors should error when useLayoutEffect from react is used in server component",
       "Error overlay - RSC build errors should error when useOptimistic from react is used in server component",
       "Error overlay - RSC build errors should error when useReducer from react is used in server component",
       "Error overlay - RSC build errors should error when useRef from react is used in server component",
       "Error overlay - RSC build errors should error when useState from react is used in server component",
       "Error overlay - RSC build errors should error when useSyncExternalStore from react is used in server component",
-      "Error overlay - RSC build errors should error when useTransition from react is used in server component",
+      "Error overlay - RSC build errors should error when useTransition from react is used in server component"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/development/acceptance-app/rsc-build-errors.test.ts": {
+    "passed": [
+      "Error overlay - RSC build errors should error for invalid undefined module retuning from next dynamic",
       "Error overlay - RSC build errors should freeze parent resolved metadata to avoid mutating in generateMetadata",
       "Error overlay - RSC build errors should throw an error when \"Component\" is imported in server components",
       "Error overlay - RSC build errors should throw an error when \"use client\" is on the top level but after other expressions",
