@@ -231,7 +231,7 @@ where
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("OperationVc")
-            .field("task", self.task)
+            .field("task", &self.task)
             .finish()
     }
 }
