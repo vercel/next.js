@@ -2355,17 +2355,11 @@ pub async fn get_source_map_rope(
             }
         };
 
-    let server_path = container
-        .project()
-        .node_root()
-        .await?
-        .join(&chunk_base_unix)?;
+    let node_root = container.project().node_root().await?;
+    let client_relative_path = container.project().client_relative_path().await?;
 
-    let client_path = container
-        .project()
-        .client_relative_path()
-        .await?
-        .join(&chunk_base_unix)?;
+    let server_path = node_root.join(&chunk_base_unix)?;
+    let client_path = client_relative_path.join(&chunk_base_unix)?;
 
     let mut map = container.get_source_map(server_path, module.clone());
 
@@ -2376,6 +2370,24 @@ pub async fn get_source_map_rope(
         // chunks.
         map = container.get_source_map(client_path, module);
         if !map.await?.is_content() {
+            // The chunk may have been superseded by a rename: when a sibling
+            // module in a chunk changes, the chunk's availability hash (and
+            // thus its filename) changes, so the old path is dropped from the
+            // `VersionedContentMap`. A module that was preserved across that
+            // update — its own code unchanged, so it was never re-evaluated —
+            // keeps running from, and reports stack frames into, the old chunk.
+            // The emitted `.map` sidecar of the old chunk is not deleted from
+            // the output directory, so read it directly to keep those frames
+            // source-mapped instead of losing the mapping to the renamed chunk.
+            let map_relative = format!("{chunk_base_unix}.map");
+            let server_map = node_root.join(&map_relative)?.read();
+            if server_map.await?.is_content() {
+                return Ok(server_map);
+            }
+            let client_map = client_relative_path.join(&map_relative)?.read();
+            if client_map.await?.is_content() {
+                return Ok(client_map);
+            }
             bail!("chunk/module '{}' is missing a sourcemap", source_url);
         }
     }
