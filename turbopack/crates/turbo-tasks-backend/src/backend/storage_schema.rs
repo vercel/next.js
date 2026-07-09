@@ -152,13 +152,12 @@ struct TaskStorageSchema {
     /// This replaces scan-based GC: a count can only drop to 0 while the parent is in memory (a
     /// parent re-executed and dropped the child), so collectibility is detectable at that moment
     /// with no DB scan.
-    // TODO(perf): this is a lazy field to avoid growing `TaskStorage` past its 128-byte budget
-    // (an inline `u32` pushes it to 136). `parent_count` is near-universal and mutated on every
-    // child-edge change, so it is a good candidate for inline storage; revisit once we can free 8
-    // inline bytes (which requires demoting `output_dependent` or `upper` to lazy — a hot-path
-    // tradeoff). Shrinking a collection's inline-capacity const does NOT help (AutoSet/CounterMap
-    // are 32 bytes regardless of `I`).
-    #[field(storage = "direct", category = "meta")]
+    // Stored inline (not lazy): `parent_count` is near-universal and mutated on every child-edge
+    // change, so a lazy-Vec scan per access is wasteful. `AutoSet`/`AutoMap` are backed by
+    // `InlineVec` whose size shrinks with the inline-capacity const, which brought `TaskStorage`
+    // down far enough to afford two inline `u32` counts within the size budget (see
+    // `test_schema_size`). `default` gives absent==0 semantics with a bare `u32` (no `Option`).
+    #[field(storage = "direct", category = "meta", inline, default)]
     parent_count: u32,
 
     /// Number of **transient** in-session references to this task that are not persistent parent
@@ -173,7 +172,7 @@ struct TaskStorageSchema {
     /// in-session (uncollectible) — it is still referenced, just not by a persistent parent. On
     /// restart these references are re-established (transient parents re-execute; detached handles
     /// are re-created), so the count is never persisted.
-    #[field(storage = "direct", category = "transient")]
+    #[field(storage = "direct", category = "transient", inline, default)]
     transient_ref_count: u32,
 
     // =========================================================================
@@ -1815,14 +1814,14 @@ mod tests {
     fn test_schema_size() {
         assert_eq!(
             size_of::<TaskStorage>(),
-            128,
-            "TaskStorage size changed! Run print_schema_sizes and update this test."
+            120,
+            "TaskStorage size changed! Update this test."
         );
         // `LazyField` is 40 B = 32 B largest payload + 8 B discriminant.
         assert_eq!(
             size_of::<LazyField>(),
             40,
-            "LazyField size changed! Run print_schema_sizes and update this test."
+            "LazyField size changed! Update this test."
         );
     }
 }
