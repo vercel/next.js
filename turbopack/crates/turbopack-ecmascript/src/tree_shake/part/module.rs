@@ -25,8 +25,8 @@ use crate::{
     },
     rename::module::EcmascriptModuleRenameModule,
     tree_shake::{
-        Key, SplitResult, get_part_id, part_of_module, side_effects::module::SideEffectsModule,
-        split_module,
+        Key, SplitResult, cjs_facade::EcmascriptModuleCjsFacadeModule, get_part_id, part_of_module,
+        side_effects::module::SideEffectsModule, split_module,
     },
 };
 
@@ -142,9 +142,23 @@ impl EcmascriptModulePartAsset {
         module: Vc<EcmascriptModuleAsset>,
         part: ModulePart,
     ) -> Result<Vc<Box<dyn EcmascriptChunkPlaceable>>> {
-        let SplitResult::Ok { entrypoints, .. } = &*split_module(module).await? else {
+        let SplitResult::Ok {
+            entrypoints,
+            is_cjs,
+            ..
+        } = &*split_module(module).await?
+        else {
             return Ok(Vc::upcast(module));
         };
+
+        // A whole-module consumer of a split CommonJS module must observe the
+        // re-assembled, mutable `module.exports` — the dedicated CJS facade
+        // module — not an ESM re-export. This covers both `import * as ns`
+        // (`Exports`) and the part-less `require()` / `import()` case, which
+        // `apply_module_type` routes here as `Facade` in `ModuleFragments` mode.
+        if *is_cjs && matches!(part, ModulePart::Exports | ModulePart::Facade) {
+            return Ok(Vc::upcast(EcmascriptModuleCjsFacadeModule::new(module)));
+        }
 
         match part {
             ModulePart::Evaluation => {

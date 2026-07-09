@@ -1,0 +1,7 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {"offset": {"line": 4, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/tree-shaking/cjs-exports-dce/input/index.js"],"sourcesContent":["import { used } from './lib'\n\nconsole.log(used)\n"],"names":["console","log"],"mappings":";AAAA;;AAEAA,QAAQC,GAAG,CAAC,uPAAI"}},
+    {"offset": {"line": 12, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/tree-shaking/cjs-exports-dce/input/lib.js"],"sourcesContent":["exports.used = 'used_sentinel'\nexports.unused = 'unused_sentinel'\n"],"names":[],"mappings":";;;;;;;qCAAe"}}]
+}

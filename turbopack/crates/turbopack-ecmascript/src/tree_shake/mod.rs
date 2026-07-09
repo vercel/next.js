@@ -27,6 +27,7 @@ use crate::{
     references::exports::cjs::{CjsExportFormat, analyze_cjs_exports},
 };
 
+pub mod cjs_facade;
 mod graph;
 pub mod merge;
 mod optimizations;

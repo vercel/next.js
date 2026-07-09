@@ -42,6 +42,7 @@ use crate::{
         unreachable::Unreachable,
         worker::{WorkerAssetReferenceCodeGen, WorkerGlobalsReplacementCodeGen},
     },
+    tree_shake::cjs_facade::CjsFacadeExportsCodeGen,
 };
 
 #[derive(Default)]
@@ -206,6 +207,7 @@ pub enum CodeGen {
     ServiceWorkerAssetReferenceCodeGen(ServiceWorkerAssetReferenceCodeGen),
     ModuleHotReferenceCodeGen(ModuleHotReferenceCodeGen),
     WorkerGlobalsReplacementCodeGen(WorkerGlobalsReplacementCodeGen),
+    CjsFacadeExports(CjsFacadeExportsCodeGen),
 }
 
 impl CodeGen {
@@ -244,6 +246,7 @@ impl CodeGen {
                 v.code_generation(ctx, scope_hoisting_context).await
             }
             Self::WorkerGlobalsReplacementCodeGen(v) => v.code_generation(ctx).await,
+            Self::CjsFacadeExports(v) => v.code_generation(ctx).await,
         }
     }
 }

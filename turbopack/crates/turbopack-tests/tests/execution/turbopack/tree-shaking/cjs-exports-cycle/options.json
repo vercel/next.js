@@ -1,0 +1,4 @@
+{
+  "treeShakingMode": "module-fragments",
+  "cjsTreeShaking": true
+}
