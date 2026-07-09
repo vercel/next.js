@@ -288,7 +288,7 @@ struct TaskStorageSchema {
         shrink_on_completion,
         drop_on_completion_if_immutable
     )]
-    cell_dependencies: AutoSet<CellRef, 2>,
+    cell_dependencies: AutoSet<CellRef, 3>,
 
     /// Cells this task depends on, narrowed to a hashed sub-value (`CellDependency::Hash`). Rare.
     #[field(
@@ -316,7 +316,7 @@ struct TaskStorageSchema {
 
     /// Outdated keyless cell dependencies to be cleaned up (transient).
     #[field(storage = "auto_set", category = "transient", shrink_on_completion)]
-    outdated_cell_dependencies: AutoSet<CellRef, 2>,
+    outdated_cell_dependencies: AutoSet<CellRef, 3>,
 
     /// Outdated hashed cell dependencies to be cleaned up (transient).
     #[field(storage = "auto_set", category = "transient", shrink_on_completion)]
@@ -338,7 +338,7 @@ struct TaskStorageSchema {
         filter_transient,
         drop_on_completion_if_immutable
     )]
-    cell_dependents: AutoSet<CellRef, 2>,
+    cell_dependents: AutoSet<CellRef, 3>,
 
     /// Tasks that depend on a hashed sub-value of this task's cells. Reverse of
     /// `cell_dependencies_hashed`.
