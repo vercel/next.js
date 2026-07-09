@@ -424,7 +424,7 @@ export default function Page() {
 }
 ```
 
-In this example, the configuration file is expected to be the same for every request, so it is read once at module scope. Calling `await readFile()` inside the component would be treated as uncached data that work must be either accessed within `use cache` or behind a `<Suspense>` boundary. Since this file does not depend on the request and is not expected to change, module scope is the simplest option.
+In this example, the configuration file is expected to be the same for every request, so it is read once at module scope. Calling `await readFile()` inside the component would be treated as uncached data that must be either accessed within `use cache` or behind a `<Suspense>` boundary. Since this file does not depend on the request and is not expected to change, module scope is the simplest option.
 
 ## Prerendering
 
