@@ -93,9 +93,7 @@ impl<T: ?Sized> Unpin for ResolveOperationVcFuture<T> {}
 /// [`ReadRef`]: crate::ReadRef
 #[must_use]
 #[derive(Serialize, Deserialize, Encode, Decode)]
-#[serde(transparent, bound = "")]
 #[bincode(bounds = "T: ?Sized")]
-#[repr(transparent)]
 pub struct OperationVc<T>
 where
     T: ?Sized,
