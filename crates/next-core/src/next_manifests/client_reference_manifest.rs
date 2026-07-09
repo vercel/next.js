@@ -476,6 +476,11 @@ async fn build_manifest(
                     .await?;
             // Inlining breaks HMR so it is always disabled in dev.
             let inlined_css = *next_config.inline_css().await? && mode.is_production();
+            // Component chunks are also exposed via `clientModules[].chunks`, so when the feature
+            // is on we drop them from `entryJSFiles` to avoid double-listing. When it's off the
+            // manifest must match the non-component-chunk output exactly.
+            let generate_component_chunks =
+                *next_config.turbopack_generate_component_chunks().await?;
 
             for (chunk, chunk_path) in client_chunks_with_path {
                 if let Some(path) = client_relative_path.get_path_to(&chunk_path) {
@@ -502,6 +507,7 @@ async fn build_manifest(
                             content,
                         });
                     } else if !mode.is_production()
+                        || !generate_component_chunks
                         || !client_reference_chunk_paths.contains(&path)
                     {
                         entry_js_files.insert(path);

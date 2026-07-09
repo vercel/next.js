@@ -195,6 +195,7 @@ impl EcmascriptBrowserEvaluateChunk {
                     this.chunking_context.chunk_load_retry(),
                     has_async_modules,
                     this.chunking_context.chunk_loading(),
+                    *this.chunking_context.generate_component_chunks().await?,
                 );
                 code.push_code(&*runtime_code.await?);
             }

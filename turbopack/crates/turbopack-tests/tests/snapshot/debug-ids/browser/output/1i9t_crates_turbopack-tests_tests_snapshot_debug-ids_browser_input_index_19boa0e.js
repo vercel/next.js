@@ -1,4 +1,4 @@
-;!function(){try { var e="undefined"!=typeof globalThis?globalThis:"undefined"!=typeof global?global:"undefined"!=typeof window?window:"undefined"!=typeof self?self:{},n=(new e.Error).stack;n&&((e._debugIds|| (e._debugIds={}))[n]="8552fc6d-519c-f986-7879-0de390152efa")}catch(e){}}();
+;!function(){try { var e="undefined"!=typeof globalThis?globalThis:"undefined"!=typeof global?global:"undefined"!=typeof window?window:"undefined"!=typeof self?self:{},n=(new e.Error).stack;n&&((e._debugIds|| (e._debugIds={}))[n]="21c8711a-74c9-45ea-6136-fc86666e7e65")}catch(e){}}();
 (globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push([
     "output/1i9t_crates_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_19boa0e.js",
     {"otherChunks":["output/1do3_crates_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_03ibyvs.js"],"runtimeModuleIds":["[project]/turbopack/crates/turbopack-tests/tests/snapshot/debug-ids/browser/input/index.js [test] (ecmascript)"]}
@@ -11,6 +11,7 @@ if (!Array.isArray(globalThis["TURBOPACK"])) {
 var CHUNK_BASE_PATH = "";
 var RELATIVE_ROOT_PATH = "../../../../../../..";
 var RUNTIME_PUBLIC_PATH = "";
+const SUPPORT_COMPONENT_CHUNKS = false;
 var ASSET_SUFFIX = "";
 var CROSS_ORIGIN = null;
 var CHUNK_LOAD_RETRY_MAX_ATTEMPTS = 1;
@@ -105,7 +106,7 @@ function createModuleWithDirection(id) {
 const BindingTag_Value = 0;
 /**
  * Adds the getters to the exports object.
- */ function esm(exports, bindings) {
+ */ function esm(exports, bindings, dynamic) {
     defineProp(exports, '__esModule', {
         value: true
     });
@@ -143,11 +144,18 @@ const BindingTag_Value = 0;
             }
         }
     }
-    Object.seal(exports);
+    // The properties defined above are already non-configurable and
+    // non-writable, so the namespace's existing exports are effectively
+    // immutable. Sealing additionally makes the object non-extensible, matching
+    // real ESM-namespace semantics. Modules with dynamic re-exports
+    // (`export *` from a CommonJS module) must stay extensible so the dynamic
+    // export proxy can surface keys discovered at runtime, so skip the seal for
+    // them.
+    if (!dynamic) Object.seal(exports);
 }
 /**
  * Makes the module an ESM with exports
- */ function esmExport(bindings, id) {
+ */ function esmExport(bindings, id, dynamic) {
     let module;
     let exports;
     if (id != null) {
@@ -158,24 +166,72 @@ const BindingTag_Value = 0;
         exports = this.e;
     }
     module.namespaceObject = exports;
-    esm(exports, bindings);
+    esm(exports, bindings, dynamic);
 }
 contextPrototype.s = esmExport;
 function ensureDynamicExports(module, exports) {
     let reexportedObjects = REEXPORTED_OBJECTS.get(module);
     if (!reexportedObjects) {
         REEXPORTED_OBJECTS.set(module, reexportedObjects = []);
+        // Returns the re-exported object that provides `prop` as an own property,
+        // or `undefined` if none does. The traps share this logic so they always
+        // agree on which keys are synthesized from `reexportedObjects`. `default`
+        // is never re-exported by `export *`, so it is never synthesized.
+        const reexportOwning = (prop)=>{
+            if (prop !== 'default') {
+                for (const obj of reexportedObjects){
+                    if (hasOwnProperty.call(obj, prop)) return obj;
+                }
+            }
+            return undefined;
+        };
+        // Modules with dynamic re-exports are not sealed by `esm()`, so the
+        // target beneath the namespace stays extensible. That is what lets the
+        // `ownKeys` and `getOwnPropertyDescriptor` traps legally report keys that
+        // exist on `reexportedObjects` but not on the target itself.
         module.exports = module.namespaceObject = new Proxy(exports, {
             get (target, prop) {
                 if (hasOwnProperty.call(target, prop) || prop === 'default' || prop === '__esModule') {
                     return Reflect.get(target, prop);
                 }
-                for (const obj of reexportedObjects){
-                    const value = Reflect.get(obj, prop);
-                    if (value !== undefined) return value;
-                }
-                return undefined;
+                const obj = reexportOwning(prop);
+                return obj && Reflect.get(obj, prop);
             },
+            // The namespace is read-only, like a real esm namespace object. The
+            // re-exported modules can still mutate their own exports (exposed live
+            // via `get`), but mutating the namespace itself is rejected. Refusing
+            // here, rather than forwarding to the extensible target, also prevents an
+            // assignment/definition from shadowing a dynamic re-export. It also
+            // prevents delete from removing a static export.
+            set () {
+                return false;
+            },
+            defineProperty () {
+                return false;
+            },
+            deleteProperty () {
+                return false;
+            },
+            // The `has` trap ensures that `'exportName' in starImports` will reflect
+            // the truth of whether a key is exported.
+            has (target, prop) {
+                if (Reflect.has(target, prop)) return true;
+                if (prop === 'default' || prop === '__esModule') return false;
+                return reexportOwning(prop) !== undefined;
+            },
+            // ownKeys and getOwnPropertyDescriptor together make the keys enumerable.
+            // If a value is returned from `ownKeys` but its property descriptor is
+            // not enumerable, it will not be visible to iterator methods.
+            // Collectively, they allow code like the following:
+            //
+            // ```
+            // // module.js re-exports dynamic CJS exports
+            // export * from './legacyModule.cjs'
+            //
+            // // from another JS file, reference the re-exported dynamic values
+            // import * as Namespace from './module.js'
+            // Object.keys(Namespace)
+            // ```
             ownKeys (target) {
                 const keys = Reflect.ownKeys(target);
                 for (const obj of reexportedObjects){
@@ -184,6 +240,22 @@ function ensureDynamicExports(module, exports) {
                     }
                 }
                 return keys;
+            },
+            getOwnPropertyDescriptor (target, prop) {
+                const own = Reflect.getOwnPropertyDescriptor(target, prop);
+                if (own || prop === 'default' || prop === '__esModule') return own;
+                const obj = reexportOwning(prop);
+                if (obj) {
+                    // Synthetic keys don't exist on the target, so they MUST be
+                    // reported as configurable. However the set/delete traps above will
+                    // prevent them from actually being changed
+                    return {
+                        enumerable: true,
+                        configurable: true,
+                        get: ()=>Reflect.get(obj, prop)
+                    };
+                }
+                return undefined;
             }
         });
     }
@@ -652,11 +724,16 @@ async function loadChunkInternal(sourceType, sourceData, chunkData) {
         await Promise.all(modulesPromises);
         return;
     }
-    const componentChunks = chunkData.moduleChunks || [];
-    // We already have this chunk's component list inline (chunkData.moduleChunks) and split on it
-    // here, so the whole-chunk fallback uses loadChunkByUrlWhole to skip loadChunkByUrlInternal's
-    // chunkComponents-registry lookup, which would just repeat the same split decision.
-    const promise = loadComponentChunksOrWhole(sourceType, sourceData, componentChunks, getChunkRelativeUrl(chunkData.path));
+    let promise;
+    if (SUPPORT_COMPONENT_CHUNKS) {
+        const componentChunks = chunkData.moduleChunks || [];
+        // We already have this chunk's component list inline (chunkData.moduleChunks) and split on it
+        // here, so the whole-chunk fallback uses loadChunkByUrlWhole to skip loadChunkByUrlInternal's
+        // chunkComponents-registry lookup, which would just repeat the same split decision.
+        promise = loadComponentChunksOrWhole(sourceType, sourceData, componentChunks, getChunkRelativeUrl(chunkData.path));
+    } else {
+        promise = loadChunkByUrlWhole(sourceType, sourceData, getChunkRelativeUrl(chunkData.path));
+    }
     for (const included of includedList){
         if (!availableModules.has(included)) {
             // It might be better to race old and new promises, but it's rare that the new promise will be faster than a request started earlier.
@@ -735,44 +812,50 @@ function loadChunkByUrl(chunkEntry) {
 browserContextPrototype.L = loadChunkByUrl;
 // Do not make this async. React relies on referential equality of the returned Promise.
 function loadChunkByUrlInternal(sourceType, sourceData, chunkEntry) {
-    // A merged chunk arrives as a `[url, componentChunkPaths, componentChunkSizes]` array. Register
-    // the components so a by-URL load of this merged chunk — now or from a later navigation — can
-    // be split, and so `registerChunk` can mark them available when the whole chunk loads.
-    let chunkUrl;
-    let components;
-    if (typeof chunkEntry === 'string') {
-        chunkUrl = chunkEntry;
-    } else {
-        let componentSizes;
-        [chunkUrl, components, componentSizes] = chunkEntry;
-        registerComponentChunkSizes(components, componentSizes);
-    }
-    const chunkPath = chunkUrlToPath(chunkUrl);
-    if (components !== undefined) {
-        chunkComponents.set(chunkPath, components);
-    } else {
-        // A plain URL may still be a merged chunk we already registered from its array.
-        components = chunkComponents.get(chunkPath);
-    }
-    // If we have component chunks for this merged chunk, load only the ones we don't already have
-    // instead of the whole merged chunk.
-    if (components !== undefined) {
-        let promise = splitChunkPromises.get(chunkUrl);
-        if (promise === undefined) {
-            promise = loadComponentChunksOrWhole(sourceType, sourceData, components, chunkUrl);
-            splitChunkPromises.set(chunkUrl, promise);
+    if (SUPPORT_COMPONENT_CHUNKS) {
+        // A merged chunk arrives as a `[url, componentChunkPaths, componentChunkSizes]` array. Register
+        // the components so a by-URL load of this merged chunk — now or from a later navigation — can
+        // be split, and so `registerChunk` can mark them available when the whole chunk loads.
+        let chunkUrl;
+        let components;
+        if (typeof chunkEntry === 'string') {
+            chunkUrl = chunkEntry;
+        } else {
+            let componentSizes;
+            [chunkUrl, components, componentSizes] = chunkEntry;
+            registerComponentChunkSizes(components, componentSizes);
         }
+        const chunkPath = chunkUrlToPath(chunkUrl);
+        if (components !== undefined) {
+            chunkComponents.set(chunkPath, components);
+        } else {
+            // A plain URL may still be a merged chunk we already registered from its array.
+            components = chunkComponents.get(chunkPath);
+        }
+        // If we have component chunks for this merged chunk, load only the ones we don't already have
+        // instead of the whole merged chunk.
+        if (components !== undefined) {
+            let promise = splitChunkPromises.get(chunkUrl);
+            if (promise === undefined) {
+                promise = loadComponentChunksOrWhole(sourceType, sourceData, components, chunkUrl);
+                splitChunkPromises.set(chunkUrl, promise);
+            }
+            return promise;
+        }
+        // This is a non-merged chunk. If its modules were already loaded — e.g. this chunk is a
+        // component of a merged chunk fetched on a previous navigation — reuse that load instead of
+        // re-downloading.
+        const existing = availableModuleChunks.get(chunkPath);
+        if (existing !== undefined) {
+            return existing === true ? loadedChunk : existing;
+        }
+        const promise = loadChunkByUrlWhole(sourceType, sourceData, chunkUrl);
+        availableModuleChunks.set(chunkPath, promise);
         return promise;
     }
-    // This is a non-merged chunk. If its modules were already loaded — e.g. this chunk is a component
-    // of a merged chunk fetched on a previous navigation — reuse that load instead of re-downloading.
-    const existing = availableModuleChunks.get(chunkPath);
-    if (existing !== undefined) {
-        return existing === true ? loadedChunk : existing;
-    }
-    const promise = loadChunkByUrlWhole(sourceType, sourceData, chunkUrl);
-    availableModuleChunks.set(chunkPath, promise);
-    return promise;
+    // Component chunks are disabled, so the chunking context never emits merged arrays and every
+    // entry is a plain chunk URL. Load it whole; the backend dedupes repeated URLs.
+    return loadChunkByUrlWhole(sourceType, sourceData, chunkEntry);
 }
 // Convert a chunk URL back to its ChunkPath (strip base path, query/hash, decode), to
 // match the keys stored in `chunkComponents`.
@@ -2006,7 +2089,9 @@ function handleApply(chunkListPath, update) {
 }
 function registerChunk(registration) {
     const chunk = getChunkFromRegistration(registration[0]);
-    markChunkComponentsAvailable(chunk);
+    if (SUPPORT_COMPONENT_CHUNKS) {
+        markChunkComponentsAvailable(chunk);
+    }
     let runtimeParams;
     // When bootstrapping we are passed a single runtimeParams object so we can distinguish purely based on length
     if (registration.length === 2) {
@@ -2379,5 +2464,5 @@ chunkListsToRegister.forEach(registerChunkList);
 })();
 
 
-//# debugId=8552fc6d-519c-f986-7879-0de390152efa
+//# debugId=21c8711a-74c9-45ea-6136-fc86666e7e65
 //# sourceMappingURL=1do3_crates_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_19boa0e.js.map

@@ -769,6 +769,10 @@ fn split_into_component_chunks<'l>(
             remainder_batch_groups.extend(part.batch_groups);
         }
     }
+
+    // TODO (@sampoder): handle the case where there are many the component chunks
+    // that are only slightly smaller than the min_component_chunk_size. this may
+    // mean that there is no benefit to component chunking.
     if !remainder_items.is_empty() {
         component_chunks.push((
             remainder_items,

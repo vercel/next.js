@@ -10,6 +10,7 @@ if (!Array.isArray(globalThis["TURBOPACK"])) {
 var CHUNK_BASE_PATH = "";
 var RELATIVE_ROOT_PATH = "../../../../../../..";
 var RUNTIME_PUBLIC_PATH = "";
+const SUPPORT_COMPONENT_CHUNKS = false;
 var ASSET_SUFFIX = "";
 var CROSS_ORIGIN = null;
 var CHUNK_LOAD_RETRY_MAX_ATTEMPTS = 1;
@@ -722,11 +723,16 @@ async function loadChunkInternal(sourceType, sourceData, chunkData) {
         await Promise.all(modulesPromises);
         return;
     }
-    const componentChunks = chunkData.moduleChunks || [];
-    // We already have this chunk's component list inline (chunkData.moduleChunks) and split on it
-    // here, so the whole-chunk fallback uses loadChunkByUrlWhole to skip loadChunkByUrlInternal's
-    // chunkComponents-registry lookup, which would just repeat the same split decision.
-    const promise = loadComponentChunksOrWhole(sourceType, sourceData, componentChunks, getChunkRelativeUrl(chunkData.path));
+    let promise;
+    if (SUPPORT_COMPONENT_CHUNKS) {
+        const componentChunks = chunkData.moduleChunks || [];
+        // We already have this chunk's component list inline (chunkData.moduleChunks) and split on it
+        // here, so the whole-chunk fallback uses loadChunkByUrlWhole to skip loadChunkByUrlInternal's
+        // chunkComponents-registry lookup, which would just repeat the same split decision.
+        promise = loadComponentChunksOrWhole(sourceType, sourceData, componentChunks, getChunkRelativeUrl(chunkData.path));
+    } else {
+        promise = loadChunkByUrlWhole(sourceType, sourceData, getChunkRelativeUrl(chunkData.path));
+    }
     for (const included of includedList){
         if (!availableModules.has(included)) {
             // It might be better to race old and new promises, but it's rare that the new promise will be faster than a request started earlier.
@@ -805,44 +811,50 @@ function loadChunkByUrl(chunkEntry) {
 browserContextPrototype.L = loadChunkByUrl;
 // Do not make this async. React relies on referential equality of the returned Promise.
 function loadChunkByUrlInternal(sourceType, sourceData, chunkEntry) {
-    // A merged chunk arrives as a `[url, componentChunkPaths, componentChunkSizes]` array. Register
-    // the components so a by-URL load of this merged chunk — now or from a later navigation — can
-    // be split, and so `registerChunk` can mark them available when the whole chunk loads.
-    let chunkUrl;
-    let components;
-    if (typeof chunkEntry === 'string') {
-        chunkUrl = chunkEntry;
-    } else {
-        let componentSizes;
-        [chunkUrl, components, componentSizes] = chunkEntry;
-        registerComponentChunkSizes(components, componentSizes);
-    }
-    const chunkPath = chunkUrlToPath(chunkUrl);
-    if (components !== undefined) {
-        chunkComponents.set(chunkPath, components);
-    } else {
-        // A plain URL may still be a merged chunk we already registered from its array.
-        components = chunkComponents.get(chunkPath);
-    }
-    // If we have component chunks for this merged chunk, load only the ones we don't already have
-    // instead of the whole merged chunk.
-    if (components !== undefined) {
-        let promise = splitChunkPromises.get(chunkUrl);
-        if (promise === undefined) {
-            promise = loadComponentChunksOrWhole(sourceType, sourceData, components, chunkUrl);
-            splitChunkPromises.set(chunkUrl, promise);
+    if (SUPPORT_COMPONENT_CHUNKS) {
+        // A merged chunk arrives as a `[url, componentChunkPaths, componentChunkSizes]` array. Register
+        // the components so a by-URL load of this merged chunk — now or from a later navigation — can
+        // be split, and so `registerChunk` can mark them available when the whole chunk loads.
+        let chunkUrl;
+        let components;
+        if (typeof chunkEntry === 'string') {
+            chunkUrl = chunkEntry;
+        } else {
+            let componentSizes;
+            [chunkUrl, components, componentSizes] = chunkEntry;
+            registerComponentChunkSizes(components, componentSizes);
         }
+        const chunkPath = chunkUrlToPath(chunkUrl);
+        if (components !== undefined) {
+            chunkComponents.set(chunkPath, components);
+        } else {
+            // A plain URL may still be a merged chunk we already registered from its array.
+            components = chunkComponents.get(chunkPath);
+        }
+        // If we have component chunks for this merged chunk, load only the ones we don't already have
+        // instead of the whole merged chunk.
+        if (components !== undefined) {
+            let promise = splitChunkPromises.get(chunkUrl);
+            if (promise === undefined) {
+                promise = loadComponentChunksOrWhole(sourceType, sourceData, components, chunkUrl);
+                splitChunkPromises.set(chunkUrl, promise);
+            }
+            return promise;
+        }
+        // This is a non-merged chunk. If its modules were already loaded — e.g. this chunk is a
+        // component of a merged chunk fetched on a previous navigation — reuse that load instead of
+        // re-downloading.
+        const existing = availableModuleChunks.get(chunkPath);
+        if (existing !== undefined) {
+            return existing === true ? loadedChunk : existing;
+        }
+        const promise = loadChunkByUrlWhole(sourceType, sourceData, chunkUrl);
+        availableModuleChunks.set(chunkPath, promise);
         return promise;
     }
-    // This is a non-merged chunk. If its modules were already loaded — e.g. this chunk is a component
-    // of a merged chunk fetched on a previous navigation — reuse that load instead of re-downloading.
-    const existing = availableModuleChunks.get(chunkPath);
-    if (existing !== undefined) {
-        return existing === true ? loadedChunk : existing;
-    }
-    const promise = loadChunkByUrlWhole(sourceType, sourceData, chunkUrl);
-    availableModuleChunks.set(chunkPath, promise);
-    return promise;
+    // Component chunks are disabled, so the chunking context never emits merged arrays and every
+    // entry is a plain chunk URL. Load it whole; the backend dedupes repeated URLs.
+    return loadChunkByUrlWhole(sourceType, sourceData, chunkEntry);
 }
 // Convert a chunk URL back to its ChunkPath (strip base path, query/hash, decode), to
 // match the keys stored in `chunkComponents`.
@@ -2076,7 +2088,9 @@ function handleApply(chunkListPath, update) {
 }
 function registerChunk(registration) {
     const chunk = getChunkFromRegistration(registration[0]);
-    markChunkComponentsAvailable(chunk);
+    if (SUPPORT_COMPONENT_CHUNKS) {
+        markChunkComponentsAvailable(chunk);
+    }
     let runtimeParams;
     // When bootstrapping we are passed a single runtimeParams object so we can distinguish purely based on length
     if (registration.length === 2) {
