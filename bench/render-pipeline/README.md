@@ -95,6 +95,8 @@ Omit `--artifact-dir` to analyze the latest run automatically.
 
 Default routes:
 - `/`
+- `/attributes` (attribute and inline-style serialization)
+- `/tailwind` (realistic utility-class-heavy dashboard)
 - `/streaming/light`
 - `/streaming/medium`
 - `/streaming/heavy`
