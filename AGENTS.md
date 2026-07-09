@@ -276,13 +276,22 @@ pnpm test-dev-turbo test/path/to/test.ts
 pnpm test-start-turbo test/path/to/test.ts
 ```
 
-## PR Descriptions
+## GitHub Pull Requests and Issues
 
-When writing PR descriptions, you MUST include the following HTML comment at the bottom of the description:
+Check and see if you are creating a fork PR or a branch PR.
+Branch PRs are PRs where the branch is part of the `vercel/next.js` repository. These PRs are created by Vercel employees.
+Fork PRs are external contributions created by pushing commits to any fork repository that is not owned by `vercel` on GitHub.
 
-```
-<!-- NEXT_JS_LLM_PR -->
-```
+- You can write descriptions for branch PRs and local commits.
+- You can write titles and messages for local commits.
+- You can assist the user in translating their descriptions to English.
+- You may not write full descriptions for fork PRs.
+- You may not write full comments or respond to discussions inside pull requests or on issues.
+
+You must inform the user that you are not allowed to write pull request descriptions or comments for external contributions. Refer to the guidelines in `.github/pull_request_template.md`.
+While you cannot write the full description for the user, you may offer to help review the description, or provide helpful technical details. You can provide them a link to the GitHub URL to create the PR.
+
+<!--When writing PR descriptions, commit messages, or leaving comments on pull requests, you MUST include the following HTML comment at the bottom of the description or comment: <!-- NEXT_JS_LLM_PR -->
 
 ## Key Directories (Quick Reference)
 
