@@ -84,7 +84,8 @@ We'll work in `app/products/[id]/page.tsx`:
 ```tsx filename="app/products/[id]/page.tsx" switcher
 export default async function Page(props: PageProps<'/products/[id]'>) {
   const { id } = await props.params
-  const product = await db.product.find(id)
+  const res = await fetch(`https://api.example.com/products/${id}`)
+  const product = await res.json()
   return <div>{product.name}</div>
 }
 ```
@@ -92,12 +93,13 @@ export default async function Page(props: PageProps<'/products/[id]'>) {
 ```jsx filename="app/products/[id]/page.js" switcher
 export default async function Page({ params }) {
   const { id } = await params
-  const product = await db.product.find(id)
+  const res = await fetch(`https://api.example.com/products/${id}`)
+  const product = await res.json()
   return <div>{product.name}</div>
 }
 ```
 
-Run `next build`. It fails with a prerender-blocking error because the uncached lookup runs outside a `<Suspense>` boundary:
+Run `next build`. It fails with a prerender-blocking error because the uncached `fetch` runs outside a `<Suspense>` boundary:
 
 ```bash filename="Terminal"
 Error: Route "/products/[id]": Next.js encountered uncached data during prerendering.
@@ -127,17 +129,17 @@ Sometimes the error cannot provide enough information, because production builds
 next build --debug-prerender
 ```
 
-That disables minification, turns on source maps for server bundles, and continues past the first failure, so remaining issues surface in one run. This helps with any error thrown during prerendering, not only blocking ones. The stack now points at the lookup in the page:
+That disables minification, turns on source maps for server bundles, and continues past the first failure, so remaining issues surface in one run. This helps with any error thrown during prerendering, not only blocking ones. The stack now points at the fetch in the page:
 
 ```bash filename="Terminal"
 Error: Route "/products/[id]": Next.js encountered uncached data during prerendering.
   ...
-    at Page (app/products/[id]/page.tsx:5:19)
-  3 | export default async function Page(props: PageProps<'/products/[id]'>) {
-  4 |   const { id } = await props.params
-> 5 |   const product = await db.product.find(id)
-    |                   ^
-  6 |   return <div>{product.name}</div>
+    at Page (app/products/[id]/page.tsx:3:15)
+  1 | export default async function Page(props: PageProps<'/products/[id]'>) {
+  2 |   const { id } = await props.params
+> 3 |   const res = await fetch(`https://api.example.com/products/${id}`)
+    |               ^
+  4 |   const product = await res.json()
 ```
 
 > **Warning**: Do not deploy builds produced with `--debug-prerender`. They skip optimizations you need in production.
@@ -193,26 +195,30 @@ The [dynamic segment](/docs/app/glossary#dynamic-route-segments) shows a single 
 
 ```tsx filename="app/products/[id]/page.tsx" switcher
 export async function generateStaticParams() {
-  const products = await db.product.findMany()
+  const res = await fetch('https://api.example.com/products')
+  const products = await res.json()
   return products.map((product) => ({ id: product.id }))
 }
 
 export default async function Page(props: PageProps<'/products/[id]'>) {
   const { id } = await props.params
-  const product = await db.product.find(id)
+  const res = await fetch(`https://api.example.com/products/${id}`)
+  const product = await res.json()
   return <div>{product.name}</div>
 }
 ```
 
 ```jsx filename="app/products/[id]/page.js" switcher
 export async function generateStaticParams() {
-  const products = await db.product.findMany()
+  const res = await fetch('https://api.example.com/products')
+  const products = await res.json()
   return products.map((product) => ({ id: product.id }))
 }
 
 export default async function Page({ params }) {
   const { id } = await params
-  const product = await db.product.find(id)
+  const res = await fetch(`https://api.example.com/products/${id}`)
+  const product = await res.json()
   return <div>{product.name}</div>
 }
 ```
@@ -243,13 +249,15 @@ The error's `[cache]` fix moves the lookup to build time. Add `use cache` so it 
 
 ```tsx filename="app/products/[id]/page.tsx" switcher
 export async function generateStaticParams() {
-  const products = await db.product.findMany()
+  const res = await fetch('https://api.example.com/products')
+  const products = await res.json()
   return products.map((product) => ({ id: product.id }))
 }
 
 async function getProduct(id: string) {
   'use cache'
-  return db.product.find(id)
+  const res = await fetch(`https://api.example.com/products/${id}`)
+  return res.json()
 }
 
 export default async function Page(props: PageProps<'/products/[id]'>) {
@@ -261,13 +269,15 @@ export default async function Page(props: PageProps<'/products/[id]'>) {
 
 ```jsx filename="app/products/[id]/page.js" switcher
 export async function generateStaticParams() {
-  const products = await db.product.findMany()
+  const res = await fetch('https://api.example.com/products')
+  const products = await res.json()
   return products.map((product) => ({ id: product.id }))
 }
 
 async function getProduct(id) {
   'use cache'
-  return db.product.find(id)
+  const res = await fetch(`https://api.example.com/products/${id}`)
+  return res.json()
 }
 
 export default async function Page({ params }) {
@@ -324,7 +334,8 @@ export const instant = false
 
 export default async function Page(props: PageProps<'/products/[id]'>) {
   const { id } = await props.params
-  const product = await db.product.find(id)
+  const res = await fetch(`https://api.example.com/products/${id}`)
+  const product = await res.json()
   return <div>{product.name}</div>
 }
 ```
@@ -334,7 +345,8 @@ export const instant = false
 
 export default async function Page({ params }) {
   const { id } = await params
-  const product = await db.product.find(id)
+  const res = await fetch(`https://api.example.com/products/${id}`)
+  const product = await res.json()
   return <div>{product.name}</div>
 }
 ```
