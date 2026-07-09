@@ -35,13 +35,14 @@ Use this skill when syncing a local React checkout into this Next.js checkout.
      pnpm sync-react --version <react-repo>
    ```
 
-   Keep the directory containing the active Corepack shim first on `PATH`.
-   Codex can prepend a separate `pnpm` executable, and command lookup happens
-   before Corepack reads the repository's `packageManager` field. The prefix
-   makes both this command and `sync-react`'s nested `pnpm install` resolve
-   through Corepack to the repository-pinned pnpm version. Invoking only the
-   outer command with `corepack pnpm` is insufficient because the nested
-   command still resolves `pnpm` from `PATH`.
+   Work around a Codex `PATH`-precedence bug by keeping the directory containing
+   the active Corepack shim first on `PATH`. Codex injects a separate bundled
+   `pnpm` executable ahead of the user's Corepack shim, and command lookup
+   happens before Corepack reads the repository's `packageManager` field. The
+   prefix makes both this command and `sync-react`'s nested `pnpm install`
+   resolve through Corepack to the repository-pinned pnpm version. Invoking
+   only the outer command with `corepack pnpm` is insufficient because the
+   nested command still resolves `pnpm` from `PATH`.
 
 3. Inspect the sync result before testing. Preserve unrelated changes in both
    checkouts. Rebuild Next.js when required, then run the focused test command
