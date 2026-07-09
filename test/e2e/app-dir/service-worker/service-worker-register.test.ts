@@ -2,7 +2,9 @@ import { nextTestSetup, type NextInstance } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 
 // Compiling `navigator.serviceWorker.register(new URL(...))` is a Turbopack-only feature.
-const describeTurbopack = process.env.IS_TURBOPACK_TEST ? describe : describe.skip
+const describeTurbopack = process.env.IS_TURBOPACK_TEST
+  ? describe
+  : describe.skip
 
 // The same behavior is exercised with and without a `basePath`: the worker is served under the
 // base path and both its script URL and registration scope are prefixed with it.
