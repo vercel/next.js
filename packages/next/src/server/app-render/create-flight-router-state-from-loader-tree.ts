@@ -7,7 +7,6 @@ import {
 } from '../../shared/lib/app-router-types'
 import type { GetDynamicParamFromSegment } from './app-render'
 import { addSearchParamsIfPageSegment } from '../../shared/lib/segment'
-import { trackPendingImport } from './module-loading/track-module-loading.external'
 import type { AppSegmentConfig } from '../../build/segment-config/app/app-segment-config'
 
 async function createFlightRouterStateFromLoaderTreeImpl(
@@ -35,11 +34,7 @@ async function createFlightRouterStateFromLoaderTreeImpl(
   // configs. When a segment doesn't export prefetch, it defaults to
   // 'partial' if the app has opted into partial prefetching globally via the
   // `partialPrefetching` config in next.config.js.
-  const mod = layout
-    ? await trackPendingImport(layout[0]())
-    : page
-      ? await trackPendingImport(page[0]())
-      : undefined
+  const mod = layout ? await layout[0]() : page ? await page[0]() : undefined
   const instantConfig = mod ? (mod as AppSegmentConfig).instant : undefined
   const prefetchConfig =
     (mod ? (mod as AppSegmentConfig).prefetch : undefined) ??

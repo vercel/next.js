@@ -1,5 +1,4 @@
 import { interopDefault } from './interop-default'
-import { trackPendingImport } from './module-loading/track-module-loading.external'
 import { getLinkAndScriptTags } from './get-css-inlined-link-tags'
 import type { AppRenderContext } from './app-render'
 import { getAssetQueryString } from './get-asset-query-string'
@@ -43,7 +42,7 @@ export async function createComponentStylesAndScripts({
     scriptIndex++
   }
 
-  const Comp = interopDefault(await trackPendingImport(getComponent()))
+  const Comp = interopDefault(await getComponent())
 
   return [Comp, styles, scripts.length ? scripts : null]
 }

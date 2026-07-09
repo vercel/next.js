@@ -114,11 +114,9 @@ export async function createStaticMetadataFromRoute(
           // WEBPACK_RESOURCE_QUERIES.metadata query here only for filtering out applying to image loader
         )}!${filepath}?${WEBPACK_RESOURCE_QUERIES.metadata}`
 
-        // The module is emitted as a loader (instead of a bound call) so that
-        // its evaluation can be tracked. See `MetadataImageEntry`.
-        const imageModule = `({ loadModule: () => import(/* webpackMode: "eager" */ ${JSON.stringify(
+        const imageModule = `(async (props) => (await instrumentModuleGetter(() => import(/* webpackMode: "eager" */ ${JSON.stringify(
           imageModuleImportSource
-        )}) })`
+        )}))()).default(props))`
         hasStaticMetadataFiles = true
         if (type === 'favicon') {
           staticImagesMetadata.icon.unshift(imageModule)

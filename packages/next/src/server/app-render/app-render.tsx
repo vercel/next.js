@@ -496,7 +496,7 @@ async function getDynamicStaleTime(tree: LoaderTree): Promise<number | null> {
 
   // Only pages (not layouts) can export unstable_dynamicStaleTime.
   if (typeof page !== 'undefined') {
-    const pageMod = await trackPendingImport(page[0]())
+    const pageMod = await page[0]()
     if (
       pageMod &&
       typeof (pageMod as AppSegmentConfig).unstable_dynamicStaleTime ===

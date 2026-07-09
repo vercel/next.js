@@ -7,10 +7,7 @@ import type {
   Viewport,
   WithStringifiedURLs,
 } from './types/metadata-interface'
-import type {
-  MetadataImageEntry,
-  MetadataImageModule,
-} from '../../build/webpack/loaders/metadata/types'
+import type { MetadataImageModule } from '../../build/webpack/loaders/metadata/types'
 import { getSegmentParam } from '../../shared/lib/router/utils/get-segment-param'
 import type { Twitter } from './types/twitter-types'
 import type { OpenGraph } from './types/opengraph-types'
@@ -71,8 +68,6 @@ import type {
   UseCachePageProps,
 } from '../../server/use-cache/use-cache-wrapper'
 import { createLazyResult } from '../../server/lib/lazy-result'
-import { interopDefault } from '../interop-default'
-import { trackPendingImport } from '../../server/app-render/module-loading/track-module-loading.external'
 
 type StaticIcons = Pick<ResolvedIcons, 'icon' | 'apple'>
 
@@ -575,17 +570,8 @@ async function collectStaticImagesFiles(
   if (!metadata?.[type]) return undefined
 
   const iconPromises = metadata[type as 'icon' | 'apple'].map(
-    async (entry: MetadataImageEntry): Promise<MetadataImageModule[]> => {
-      if (typeof entry === 'function') {
-        return entry(props)
-      }
-
-      const generate = interopDefault(
-        await trackPendingImport(entry.loadModule())
-      ) as (p: any) => Promise<MetadataImageModule[]>
-
-      return generate(props)
-    }
+    async (imageModule: (p: any) => Promise<MetadataImageModule[]>) =>
+      await imageModule(props)
   )
 
   return iconPromises?.length > 0
