@@ -1,4 +1,5 @@
 import type { IncomingMessage, ServerResponse } from 'http'
+import type { Socket } from 'net'
 import type { NextUrlWithParsedQuery } from '../../request-meta'
 
 import url from 'url'
@@ -19,14 +20,10 @@ export async function proxyRequest(
   parsedUrl.search = stringifyQuery(req as any, query)
 
   const target = url.format(parsedUrl)
-  // Keep in mind that a WHATWG URL's hostname and the parsedUrl's hostname
-  // are not strictly equal due to lowercasing, IDN translation, IPv4 and IPv6 normalization, etc.
-  // We just make sure this is a valid URL since http-proxy doesn't validate.
-  new URL(target)
-  const HttpProxy =
-    require('next/dist/compiled/http-proxy') as typeof import('next/dist/compiled/http-proxy')
+  const { ProxyServer } =
+    require('next/dist/compiled/httpxy') as typeof import('next/dist/compiled/httpxy')
 
-  const proxy = new HttpProxy({
+  const proxy = new ProxyServer({
     target,
     changeOrigin: true,
     ignorePath: true,
@@ -41,7 +38,7 @@ export async function proxyRequest(
 
   let finished = false
 
-  // http-proxy does not properly detect a client disconnect in newer
+  // httpxy does not properly detect a client disconnect in newer
   // versions of Node.js. This is caused because it only listens for the
   // `aborted` event on the our request object, but it also fully reads
   // and closes the request object. Node **will not** fire `aborted` when
@@ -108,7 +105,7 @@ export async function proxyRequest(
         }
       })
     })
-    proxy.ws(req, res, upgradeHead)
+    proxy.ws(req, res as Socket, {}, upgradeHead)
     detached.resolve(true)
   } else {
     proxy.on('proxyReq', (proxyReq) => {
