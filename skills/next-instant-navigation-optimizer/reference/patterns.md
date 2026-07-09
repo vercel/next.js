@@ -2,6 +2,8 @@
 
 Each pattern is **before → after**: keep as much as possible in the prerendered shell, and wrap only genuinely per-request work in a tight `<Suspense>` (or hoist it into `use cache`). Production shapes — parallel-route slots, deferring an auth gate, client slot-routers — are in `real-app-patterns.md`.
 
+These recipes grow both concrete URL-specific static shells and reusable App Shells. With Cache Components, an ungenerated URL may use the App Shell as its direct-visit/ISR fallback. Partial Prefetching separately makes that reusable shell the default Link prefetch baseline. The App Shell is independent of non-root params, search params, and the full URL. Supported root params may key shell variants, and cookies/headers may produce a session-specific App Shell. Do not assume every value in a concrete static shell also belongs to the App Shell.
+
 ---
 
 ## 1. Awaiting at the top → move the await into a Suspense child
@@ -102,13 +104,13 @@ async function UserMenu({
 }
 ```
 
-`{children}` and `<nav>` stay in the shell; only `<UserMenu>` streams.
+`{children}` and `<nav>` stay outside the deferred hard-load boundary; only `<UserMenu>` streams when the request data is unavailable to that prerender. Under Partial Prefetching, cookies and headers may resolve while producing a session-specific App Shell, so `<UserMenu>` can be part of that per-session client-cached shell.
 
 ---
 
 ## 3. Uncached fetch / DB read → choose `use cache` _or_ `<Suspense>`
 
-Decide per data source. Same-for-everyone & rarely-changing → cache it (it joins the shell). Per-request & must-be-fresh → leave it uncached behind a boundary.
+Decide per data source. Same-for-everyone & rarely-changing → cache it (it joins the concrete static shell). Per-request & must-be-fresh → leave it uncached behind a boundary. Cached content that depends on a concrete URL is not automatically part of the shared App Shell; a `prefetch={true}` link may fetch it in addition to the shell.
 
 ```tsx
 // ❌ before — both block the shell
@@ -134,12 +136,13 @@ async function getProduct(slug: string) {
 
 ---
 
-## 4. Dynamic params → `generateStaticParams` (shell) or `<Suspense>` (stream)
+## 4. Dynamic params → known-URL prerender or App Shell boundary
 
-If the set of params is enumerable, prerender them so `await params` resolves into the shell. Otherwise treat params as request-time and wrap consumers in `<Suspense>`.
+If the set of params is enumerable, prerender them so `await params` resolves into the concrete static shell for those known URLs. That helps direct visits and cached/full prefetches, but it does not put non-root param values in the reusable App Shell. When the reusable App Shell is the target — for a default Partial Prefetching Link or an ungenerated direct visit — keep param-independent UI outside a boundary and move the param consumer inside it even for generated values.
 
 ```tsx
-// ✅ option A — enumerate → params resolve into the shell, no Suspense needed for params
+// ✅ option A — optimize only the known-URL prerender
+// This does not make param-dependent UI part of the App Shell.
 export function generateStaticParams() {
   return [{ slug: 'shoes' }, { slug: 'hats' }]
 }
@@ -150,10 +153,11 @@ export default async function Page({ params }: PageProps<'/store/[slug]'>) {
 ```
 
 ```tsx
-// ✅ option B — not enumerable → params is request-time; await it inside a boundary (pattern #1)
+// ✅ option B — build a reusable App Shell; await params inside a boundary
+// Use pattern #1 whether or not generateStaticParams also lists known URLs.
 ```
 
-Root params (the dynamic segments the root layout sits inside, e.g. `app/[lang]/layout.tsx`) are readable from any Server Component via `next/root-params` without prop-drilling — but under Cache Components they must still be enumerated by `generateStaticParams` (at least one value per root param) to land in the shell, the same as any other dynamic param.
+Root params (the dynamic segments the root layout sits inside, e.g. `app/[lang]/layout.tsx`) are readable from any Server Component via `next/root-params` without prop-drilling — but under Cache Components they must still be enumerated by `generateStaticParams` (at least one value per root param) to land in the static shell. Unlike non-root params, supported root params may also key App Shell variants.
 
 ---
 
@@ -183,7 +187,7 @@ async function Results({
 }
 ```
 
-On a **client navigation** the router already has the URL, so a `useSearchParams()` consumer resolves synchronously and can appear in the prefetched shell — but you still need the boundary for the page-load path.
+On a **client navigation**, a full or runtime-prefetched result may include search-dependent content because the concrete URL is known. The shared App Shell does not: under Partial Prefetching, a default Link shows this boundary's fallback until the URL-specific result arrives. You still need the boundary for the page-load path too.
 
 ---
 
@@ -266,16 +270,26 @@ export default function Page() {
 
 ---
 
-## 8. Keep the LCP element in the shell
+## 8. Keep the stable LCP structure in the target shell
 
-Don't bury the main heading (the LCP element) inside a boundary — it can't paint until the boundary resolves.
+For a URL-specific prerender, cached param data can keep the concrete product heading outside a boundary. That does not make the product name part of the reusable App Shell. When the App Shell is the target, keep stable heading structure or a meaningful skeleton outside and isolate the param-specific value.
 
 ```tsx
-// ✅ LCP outside the boundary → paints in the shell
-<h1>{product.name}</h1>                 {/* shell (cache the name if needed) */}
+// ✅ known-URL prerender only: cached name paints in its concrete static shell
+<h1>{product.name}</h1>                 {/* static shell; cache the name if needed */}
 <Suspense fallback={<Reviews.Skeleton />}>
   <Reviews productId={id} />            {/* streams */}
 </Suspense>
+```
+
+```tsx
+// ✅ reusable App Shell: stable chrome paints; URL data resolves inside
+<h1>
+  Product
+  <Suspense fallback={<ProductName.Skeleton />}>
+    <ProductName params={params} />
+  </Suspense>
+</h1>
 ```
 
 ---
@@ -303,34 +317,30 @@ export default function StoreLayout({
 
 Prefer per-component boundaries inside the page (patterns #1–#5) over one big layout boundary — they keep more real content in the shell and stream independently.
 
-## 10. Can't push the read down? Runtime-prefetch the whole route
+## 10. Extend a useful App Shell with runtime prefetching
 
-Patterns 1–9 grow a **static shell** by moving dynamic reads behind boundaries. Some routes resist that: an ID minted per request (`createId()`), an auth/scope resolution the whole subtree needs, a page that is _all_ dynamic by nature. The read can't move, so there is no meaningful shell to commit and the soft nav stays RED. The escape hatch is **runtime prefetching** — don't prerender a shell, run the dynamic render _in the prefetch_ so the whole route is warm before the click and the soft nav commits the real content instantly.
+Patterns 1–9 establish a meaningful static shell or App Shell floor. Keep that floor: runtime prefetching is an optional upgrade for selected links whose users benefit from receiving eligible URL-specific content before the click. It is not a replacement for a shell, a hard-navigation fix, or the way to adopt Partial Prefetching (`prefetch = 'partial'` is the incremental adoption value).
 
-It has **two halves — both required**, and route config alone is RED:
+Runtime prefetching has **two halves — both required**:
 
 ```tsx
-// 1. The route opts in — on EVERY leaf (page/default) segment, parallel @slots
-//    included, or instant validation re-triggers on the segments that lack it
-//    (the same all-or-nothing coupling as an `instant = false` opt-out).
+// 1. The destination permits eligible runtime work during a full prefetch.
 export const prefetch = 'allow-runtime'
 
-// 2. The <Link> asks for a FULL prefetch — that is what spawns the runtime
-//    request. A default/auto prefetch only warms the static shell.
+// 2. This selected Link asks for more than the default App Shell.
 <Link href={href} prefetch={true}>…</Link>
-//    <Link prefetch> already issues the full prefetch on hover and on viewport
-//    entry, so prefer it. An imperative full prefetch via router.prefetch needs
-//    the non-exported PrefetchKind enum, so it has no clean public form.
 ```
 
-Under `instant()` the runtime entry is what commits, so the real content (not a skeleton) shows under the lock — that is the GREEN.
+With Partial Prefetching active, the default/auto Link still fetches only the App Shell. The full Link can additionally include cached page content plus eligible `params`, `searchParams`, and full-URL-dependent work. Cookies and headers may already be present in a session-specific App Shell. Fresh uncached reads and work gated by `connection()` stay behind their fallbacks.
 
-Gotchas (each cost real debugging time):
+Under `instant()`, the clicked full Link's richer entry may commit. A GREEN therefore proves that link's configured immediate UI, not that the underlying App Shell is useful. Keep a positive marker that belongs to the App Shell and choose the negative/deferred marker according to the phase-A1 contract.
 
-- **The full prefetch is mandatory.** With App Shells enabled an auto/PPR prefetch bails before the runtime spawn (`subtreeHasSpeculativePrefetch`); only `prefetch={true}` / `kind: 'full'` reaches it. If you set `prefetch = 'allow-runtime'` and it's still RED, the link is doing an auto prefetch.
-- **All leaf slots must agree.** `allow-runtime` on the content segment but `instant = false` (or nothing) on a sibling `@header`/`@sidebar` leaf leaves the route's runtime entry incomplete, so the lock falls back to the shell. Flip every leaf together.
-- **Prefetch the canonical URL.** A link whose href 307-redirects (a `/foo` that canonicalizes to `/`) can't be prefetched — the prefetch receives the redirect, not the tree. Point the link and the prefetch at the final URL.
-- **Don't blanket the full prefetch.** It fetches _all_ the target's dynamic data; issuing it on hover for every link (recents that point at whole chats) is wasteful. Scope `kind: 'full'` to the runtime-prefetch targets only.
-- **Marker must be a committed node, not RSC bytes.** The content is often a client component, so its text isn't in the prefetch response — assert a `data-testid` that renders when the client subtree commits, not a substring of the stream.
+Gotchas:
 
-Prefer a static shell (patterns 1–9) whenever the read can move: it's cheaper than a runtime prefetch and also covers hard load. Reach for runtime prefetching when the read genuinely can't move, or for a route that's all-dynamic by design.
+- **The full Link is required.** `allow-runtime` on the destination does not make a default/auto Link fetch beyond the App Shell.
+- **Adoption comes first.** A segment cannot export both values. Keep `prefetch = 'partial'` during incremental rollout. After enabling `partialPrefetching` app-wide, replace that now-redundant export with `prefetch = 'allow-runtime'` only on selected destinations.
+- **The cost is per link.** Each visible full-prefetch Link can wake the server. Use it only where the additional immediate content justifies that work.
+- **Uncached stays deferred.** Do not expect `connection()`, a must-be-fresh database read, or other uncached work to become prefetched merely because the route allows runtime prefetching.
+- **Marker must be a committed node, not RSC bytes.** The content is often a client component, so its text is not in the prefetch response — assert a `data-testid` that renders when the client subtree commits, not a substring of the stream.
+
+Prefer the App Shell whenever it is already a good loading experience. Add runtime prefetching only when a specific link has valuable eligible content beyond that floor.

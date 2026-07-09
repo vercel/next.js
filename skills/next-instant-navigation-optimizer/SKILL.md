@@ -2,15 +2,16 @@
 name: next-instant-navigation-optimizer
 description: >
   Drive a Next.js route to instant navigation by setting up an agentic loop,
-  under Cache Components / PPR, on initial load (hard navigation) and
-  client-side navigation (soft navigation). Encode the goal as a failing
-  @next/playwright instant() e2e and work it to green, one verified route at a
-  time; the shipped test then guards against regression. Use when asked to make
-  a route's navigation instant (its static shell commits immediately), fix a
-  route whose static shell isn't prerendered/served/prefetched, grow a route's
-  static shell or fix its slow first paint, diagnose which Suspense boundary
-  keeps a route out of its static shell, or write the instant() e2e guard for
-  one. Requires Next.js 16+ with cacheComponents; directs an upgrade if older.
+  under Cache Components / PPR, including Partial Prefetching, on initial load
+  (hard navigation) and client-side navigation (soft navigation). Encode the goal as
+  a failing @next/playwright instant() e2e and work it to green, one verified
+  route at a time; the shipped test then guards against regression. Use when
+  asked to make a route's navigation instant, grow its static shell or App
+  Shell, fix its slow first paint, diagnose which Suspense boundary keeps it
+  out of the immediate UI, enable the partialPrefetching config, add a route's
+  prefetch = 'partial' export, audit how an inbound Link prefetches it, or write
+  the instant() e2e guard. Requires Next.js 16+ with cacheComponents; Partial
+  Prefetching paths require 16.3+.
 ---
 
 # next-instant-navigation-optimizer
@@ -30,13 +31,14 @@ there.
 One thing here is fixed. The rest is yours. Read this before treating any
 command, platform, or env var below as a requirement.
 
-- **Invariant — the verification loop.** Maximizing the shell is worthless
-  unless you can prove it. The proof is an automated check: under a lock that
-  gates dynamic data, the static shell still commits. RED shows the gap, GREEN
-  shows it closed, the test ships as the regression guard. It must run on a
-  production-like build and must not be able to pass vacuously. Stand the loop
-  up once; every later optimization is then verifiable by construction. The
-  loop is the deliverable, not any one route.
+- **Invariant — the verification loop.** Maximizing the immediate UI is
+  worthless unless you can prove it. The proof is an automated check: under a
+  lock that gates data outside the active prefetch contract, the expected
+  static shell, App Shell, or extended prefetched UI still commits. RED shows
+  the gap, GREEN shows it closed, and the test ships as the regression guard.
+  It must run on a production-like build and must not be able to pass
+  vacuously. Stand the loop up once; every later optimization is then
+  verifiable by construction. The loop is the deliverable, not any one route.
 - **The mechanism — `@next/playwright` `instant()`.** This skill locks with
   Next.js's own `instant()`: a ruler, not a stopwatch (phase A). It ships with
   `next`, so it is not tied to any host. Keep it. Timing a navigation by hand
@@ -54,33 +56,67 @@ command, platform, or env var below as a requirement.
 A route reaches the user in two ways. Both must be instant:
 
 - **Initial load (hard navigation).** The browser requests the document. With
-  PPR, the server responds immediately with the route's prerendered **static
-  shell**; dynamic content streams in afterward. The loading state is the
-  shell itself: the layout UI, plus the loading skeletons (Suspense fallbacks,
-  `loading.tsx`) of the deferred parts.
+  PPR, the server responds with a concrete URL-specific **static shell** when
+  one was prerendered. With Cache Components, an ungenerated URL can instead
+  use the reusable **App Shell** as its direct-visit/ISR fallback, independent
+  of whether Partial Prefetching is enabled for links.
+  Dynamic content streams into either shell afterward. The loading state is
+  the layout UI plus the loading skeletons (Suspense fallbacks, `loading.tsx`)
+  of the deferred parts.
 - **Client-side navigation (soft navigation).** The router commits the
-  destination's prefetched static shell when the link is activated; only the
-  route segments that change re-render, and dynamic data streams in afterward.
-  The loading state is the prefetched shell, with the same loading skeletons.
+  destination's prefetched UI when the link is activated; only the route
+  segments that change re-render, and unresolved data streams in afterward.
+  Under Partial Prefetching, a default `<Link>` commits the route's reusable
+  **App Shell**. A link with `prefetch={true}` may commit additional cached or
+  runtime-prefetched content. The loading state is whatever that real link's
+  prefetch contract makes available, not necessarily the static document shell.
 
 The fix patterns are identical for both. The test differs only in how the
 navigation is driven (see "Driving the navigation in tests" below). The two
-shells can differ; guard the one you ship, both when both matter
+immediate UIs can differ; guard the one you ship, both when both matter
 (`reference/real-app-patterns.md`).
+
+## Know the prefetch contract before testing
+
+`instant()` follows the clicked link's configured fetch strategy. Record the
+contract before choosing a marker or interpreting RED/GREEN:
+
+| Destination and link                                                          | Real production prefetch                                  | UI available under `instant()`                                |
+| ----------------------------------------------------------------------------- | --------------------------------------------------------- | ------------------------------------------------------------- |
+| No Partial Prefetching + default/auto `<Link>`                                | Legacy cached-page prefetch                               | Corresponding cached-page UI                                  |
+| No Partial Prefetching + `<Link prefetch={true}>`                             | Legacy full prefetch, including dynamic data              | Corresponding full-prefetch UI                                |
+| Partial Prefetching + default/auto `<Link>`                                   | Shared per-route App Shell                                | App Shell                                                     |
+| Partial Prefetching + `<Link prefetch={true}>`                                | App Shell plus cached page content                        | App Shell plus cached page content                            |
+| Partial Prefetching + `prefetch = 'allow-runtime'` + `<Link prefetch={true}>` | Above, plus eligible per-link runtime data                | Above, plus eligible `params`/`searchParams`/full-URL content |
+| `prefetch = 'force-disabled'`                                                 | Skipped unless an ancestor runtime-prefetches the subtree | Absent unless carried by that ancestor response               |
+| `<Link prefetch={false}>`                                                     | No real production segment prefetch                       | A controlled navigation prefetch may still expose a shell     |
+
+Cookies and headers may already produce a session-specific App Shell; they do
+not by themselves require `allow-runtime`. With Partial Prefetching active,
+fresh uncached reads and work gated by `connection()` stay deferred. A legacy
+`prefetch={true}` contract can include dynamic data, so do not apply that rule
+to the legacy rows.
+
+Important: the testing lock initiates and awaits a controlled navigation
+prefetch even for `prefetch={false}`. Therefore a green `instant()` test proves
+what can commit under the lock, but does **not** by itself prove that the real
+link prefetched anything before the click. When the task includes Partial
+Prefetching adoption, separately establish the route/Link policy in phase A1;
+use network/protocol observation too if actual delivery is part of the goal.
 
 ## Goal
 
-Maximizing the static shell is the optimization objective: the most meaningful
-prerendered content commits immediately, and only genuinely per-request data
-streams in afterward. The shipped test deterministically encodes **present ∧
-instant**; **non-blank** is the additional bar the workflow enforces by
-judgment (D1/D2/E), because an `instant()` pass alone is satisfied by a blank
-`fallback={null}` shell (the empty-shell failure mode,
+Maximizing the useful immediate UI is the optimization objective: meaningful
+static or prefetched content commits immediately, and only content outside the
+chosen contract streams in afterward. The shipped test deterministically
+encodes **present ∧ instant**; **non-blank** is the additional bar the workflow
+enforces by judgment (D1/D2/E), because an `instant()` pass alone is satisfied
+by a blank `fallback={null}` shell (the empty-shell failure mode,
 `reference/real-app-patterns.md`).
 
-`instant()` is a ruler, not a stopwatch: assert that the shell appears under
-the lock; do not time it. A trustworthy verdict requires a production build
-(phase A).
+`instant()` is a ruler, not a stopwatch: assert that the expected immediate UI
+appears under the lock; do not time it. A trustworthy verdict requires a
+production build (phase A).
 
 The GREEN under the lock is the deterministic verdict; each gate keeps it
 trustworthy.
@@ -88,17 +124,18 @@ trustworthy.
 ## The workflow
 
 ```
-- [ ] P  PREREQS      Next.js 16+ with cacheComponents: true; upgrade first  → below
+- [ ] P  PREREQS      Next.js 16+ with cacheComponents; 16.3+ for Partial Prefetching
 - [ ] 0  SETUP        once per repo: discover + write instant-nav.rig.md     → rig-template.md
 - [ ] A  RIG          production build with the testing API exposed          → below
+- [ ] A1 CONTRACT     record destination config + the real Link's prefetch policy
 - [ ] B  BASELINE     unlocked: the marker renders for the test user         → test-template.md
-- [ ] C  RED          locked instant(): the shell does not commit            → test-template.md
-- [ ] C-gate          VERIFY-RED: stop until the RED is trustworthy          → reference/red-test-robustness.md
-- [ ] D  FIX          push each Suspense boundary down to the data it guards → reference/patterns.md
+- [ ] C  VERDICT      locked instant(): structural RED or policy-only GREEN  → test-template.md
+- [ ] C-gate          VERIFY-RED for the structural branch only              → reference/red-test-robustness.md
+- [ ] D  FIX          structural branch: push Suspense down; policy-only skips → reference/patterns.md
 - [ ]      D1 reuse the route's existing loading UI; do not hand-build skeletons
 - [ ]      D2 the shell matches the real render at every breakpoint  → reference/real-app-patterns.md
-- [ ] E  PARITY       the refactor changed only whether the route is instant
-- [ ] F  DIFFERENTIAL revert only the fix → RED; re-apply → GREEN            → reference/red-test-robustness.md
+- [ ] E  PARITY       preserve render/interaction behavior; record policy changes
+- [ ] F  EVIDENCE     structural RED/GREEN or policy before/after evidence    → reference/red-test-robustness.md
 - [ ] G  REVIEW       PR checklist (below)
 ```
 
@@ -112,6 +149,10 @@ The workflow depends on framework capabilities that ship with current Next.js:
 
 - **Next.js 16+ with `cacheComponents: true`** in `next.config.ts` — without
   Cache Components there is no static shell to optimize.
+- **Next.js 16.3+ for Partial Prefetching** — `partialPrefetching`, the
+  `prefetch` route segment config, App Shell link behavior, and the dev insight
+  used by phase A1 land there. The base static-shell workflow still works on
+  earlier Next.js 16 releases.
 - **`@next/playwright`** on the same release line as the project's `next` — it
   provides `instant()`. Verify with `npm ls next @next/playwright` (or the
   project's package manager) and align them if they differ. The matching
@@ -153,10 +194,13 @@ every platform:
    or GREEN.
 2. **The measured build must expose the testing API.** Otherwise `instant()`
    silently no-ops and the test passes vacuously (see
-   `reference/red-test-robustness.md`). The lock-engagement proof is the phase-C
-   RED itself — the unfixed target route is the known-blocking route, and its
-   RED under the lock shows the lock engages on this build (C-gate); the
-   self-validating variant in `test-template.md` is the in-band guarantee. Wire
+   `reference/red-test-robustness.md`). In the structural branch, the target's
+   verified phase-C RED proves lock engagement. In the policy-only branch, the
+   target stays GREEN, so run an existing known-blocking control test against
+   the same artifact; if the rig has none, use a temporary control route that
+   renders unlocked and stays absent under `instant()`, then remove it before
+   the PR. The positive-plus-negative variant in `test-template.md` strengthens
+   this evidence but does not replace the control/differential. Wire
    `experimental.exposeTestingApiInProductionBuild` to a condition that is
    true for every build you measure and never true in production:
 
@@ -181,10 +225,59 @@ artifact contains `HEAD` before trusting a verdict (a stale deploy reads as a
 false RED or GREEN); a local `next build && next start` needs none. The probe
 mechanism is in `rig-template.md` (question 6).
 
+## A1 — PREFETCH CONTRACT: identify the soft-navigation target
+
+Before phase B for a soft navigation, inspect and record all three inputs in
+the test's working notes and PR:
+
+1. the app-level `partialPrefetching` value;
+2. the destination page/layout chain's effective `prefetch` export, if any; and
+3. the actual inbound `<Link>`'s `prefetch` prop.
+
+Use the matrix in "Know the prefetch contract before testing" to state exactly
+what should be available under the lock and choose one marker that belongs to
+that UI plus, where possible, one marker that stays deferred. Drive the real
+link in the test; two links to the same destination may have different
+contracts.
+
+Treat `prefetch = 'force-disabled'` and `<Link prefetch={false}>` as explicit
+no-prefetch policy, not Partial Prefetching adoption. A controlled result may
+still expose an ancestor or shell, but it cannot establish real delivery for a
+link that intentionally skipped it. Record the full segment chain: a deeper
+`'force-disabled'` segment is still included when an ancestor's
+`'allow-runtime'` response already covers that subtree.
+
+When adopting this target route into Partial Prefetching, do not enable the
+global flag first. With the flag off, navigate through each existing inbound
+`<Link prefetch={true}>` in `next dev` and use the `link-prefetch-partial`
+insight to audit it. Drop `prefetch={true}` when the App Shell is enough; keep
+it only when cached page content is worth sending before the click. Opt the
+destination in incrementally with `export const prefetch = 'partial'`. This
+route-level loop stops there. Enable `partialPrefetching: true` globally and
+remove the redundant `'partial'` exports only after the whole app's links and
+routes have been audited, following the
+[Adopting Partial Prefetching guide](https://nextjs.org/docs/app/guides/adopting-partial-prefetching).
+The dev audit establishes the configured policy; the production `instant()`
+guard proves the resulting experience. If the task must prove that a browser
+actually issued the prefetch, add network/protocol observation separately.
+
+`prefetch = 'allow-runtime'` is a separate, explicit enhancement for selected
+full-prefetch links. It does not adopt a route into Partial Prefetching and is
+not a substitute for `'partial'`. A segment can export only one policy: keep
+`'partial'` during incremental adoption, then enable `partialPrefetching`
+app-wide and replace that now-redundant route export with `'allow-runtime'`
+only for destinations that justify runtime work.
+
+Adoption does not imply that the route needs a structural refactor. Capture the
+pre-adoption contract or dev insight, apply the route/app policy above, then let
+phase C classify the work: a missing or useless immediate UI enters the
+structural RED loop; an already useful App Shell takes the policy-only GREEN
+branch and keeps its structure.
+
 ## B — BASELINE (unlocked) — development scaffold, do not ship
 
 Drive the real navigation with no `instant()` lock and assert that the
-destination's `SHELL_MARKER` renders **as the test user** — the account the
+destination's marker renders **as the test user** — the account the
 e2e suite authenticates as (in CI, the CI account; locally, your e2e login
 fixture), with its flags, plan, role, and data. This establishes that the
 marker is real and reachable: not flag-gated, not redirected away, not a
@@ -193,26 +286,38 @@ that environment drift (the rig DRIFT list) is a common source of
 untrustworthy REDs. Scaffold and run command: **`test-template.md`**.
 **Delete this baseline before the PR.**
 
-## C — RED (locked) + the VERIFY-RED gate
+## C — LOCKED VERDICT: structural RED or policy-only GREEN
 
-Wrap the same navigation in `instant()`; assert the shell commits under the
-lock. A RED here is the gap. **This is the test that ships**
-(`test-template.md`).
+Wrap the same navigation in `instant()`; assert the phase-A1 immediate UI
+commits under the lock. For Partial Prefetching, also assert that a known
+URL-specific or uncached marker stays absent when the contract says it must be
+deferred. **This is the test that ships** (`test-template.md`). There are two
+valid outcomes:
 
-> **C-gate — do not start optimizing until the RED is verified trustworthy.** A
-> RED that is red for the wrong reason sends you optimizing a route that was
-> never broken.
+- **Structural branch — RED.** The expected immediate UI is absent or useless.
+  Verify that RED with the C-gate, then continue through D's shell-building
+  fixes and the structural differential in F.
+- **Policy-only adoption — GREEN.** The App Shell is already useful; only the
+  prefetch policy needed to change. Do not manufacture a structural RED or edit
+  Suspense boundaries. Keep the GREEN guard, skip D, and use the pre/post
+  config, route, Link, and dev-insight evidence from A1/F to prove adoption.
 
-The question that settles it: **does `SHELL_MARKER` render without the lock,
-as the test user?** Answer it by re-running phase B as the test user, not by
-adding assertions to the shipped test. The two-branch resolution (No → marker
-or environment bug; Yes → genuine gap, proceed to D), the full taxonomy of
-untrustworthy REDs, the checklist, and worked cases are in
+> **C-gate — structural branch only: do not start optimizing until the RED is
+> verified trustworthy.** A RED that is red for the wrong reason sends you
+> optimizing a route that was never broken. The policy-only branch does not
+> need or invent this RED.
+
+The question that settles whether a structural RED is trustworthy: **does
+`SHELL_MARKER` render without the lock, as the test user?** Answer it by
+re-running phase B as the test user, not by adding assertions to the shipped
+test. The resolution (No → marker or environment bug; Yes → genuine structural
+gap, proceed to D), the full taxonomy of untrustworthy REDs, the checklist, and
+worked cases are in
 **`reference/red-test-robustness.md`**. Read it now.
 
 ---
 
-## D — FIX: push each boundary down to the data it guards
+## D — FIX (structural branch): push each boundary down to the data it guards
 
 **The anti-pattern: one coarse boundary.** A single `<Suspense>` high in the
 tree with a page-level fallback has three costs:
@@ -301,23 +406,26 @@ widths — `await page.setViewportSize({ width: 1280, height: 800 })` then
 this gate is as machine-checkable as the others. Detail:
 `reference/real-app-patterns.md`.
 
-> **D-gate — phase D is complete when the locked test from phase C passes GREEN
-> under the lock on the production-build rig**, not when the code compiles. That
-> GREEN is the deterministic stop for the fix loop; proceed to E.
+> **D-gate — for the structural branch, phase D is complete when the locked test
+> from phase C passes GREEN under the lock on the production-build rig**, not
+> when the code compiles. That GREEN is the deterministic stop for the fix loop;
+> proceed to E. The policy-only branch skips D because it was already GREEN.
 
-**When the read can't be pushed down** — an ID minted per request, an
-all-dynamic page, a per-request auth/scope read the whole subtree needs — there
-is no shell to grow. Don't force one: opt the route into **runtime prefetching**
-(`prefetch = 'allow-runtime'` on every leaf segment + a _full_ prefetch on the
-link) so the prefetch runs the dynamic render ahead of the click and the soft
-nav commits the real content. Recipe and gotchas: `reference/patterns.md` #10.
+**When the App Shell is useful but a selected link should include more** — opt
+the destination into **runtime prefetching** after app-wide Partial Prefetching
+is active, and keep `prefetch={true}` on that link. This can add eligible
+URL-specific content beyond the App Shell, at the cost of per-link server work.
+It does not make `connection()` or fresh uncached data prefetchable, and must
+not hide a blank App Shell. Recipe and gotchas: `reference/patterns.md` #10.
 
-## E — PARITY: the refactor changed only whether the route is instant
+## E — PARITY: preserve render behavior and record the policy change
 
-The push-down is a mechanical transform, not a redesign. Afterward the route
-must render the same tree, data, ordering, empty and error states, redirects,
-and interactions as before — the only observable difference is that the shell
-now commits instantly. Verify:
+The structural branch's push-down is a mechanical transform, not a redesign;
+the policy-only branch has no component refactor. In both, the route must render
+the same tree, data, ordering, empty and error states, redirects, and
+interactions as before. Adopting Partial Prefetching is a separate, intentional
+transport-policy change: request count, prefetched payload, and whether legacy
+dynamic data is sent before the click may change exactly as A1 records. Verify:
 
 - **Same render output.** The moved `await`s compute and return the same
   values; after the stream, the route shows the same content as the base
@@ -329,37 +437,61 @@ now commits instantly. Verify:
 - **Client state survives.** Because the layout UI is hoisted into the stable
   shell rather than swapped on resolve, open menus, scroll position, focus,
   and input state persist across the stream.
+- **Prefetch behavior matches A1.** A default partially-prefetched link commits
+  the App Shell; a deliberate full/runtime-prefetch link includes only the
+  additional content approved in A1; `prefetch={false}` is never presented as
+  proof of Partial Prefetching delivery.
 
-If anything other than whether the route is instant changed, reduce the refactor.
+If rendered behavior changes, or the delivery behavior differs from the A1
+contract, reduce or correct the change.
 
-## F — DIFFERENTIAL
+## F — EVIDENCE FOR THE BRANCH YOU TOOK
 
-Revert only the fix → RED; re-apply → GREEN; link both runs
-(`reference/red-test-robustness.md`). On a deployed rig, confirm each run is live
-(LIVENESS, phase A) before trusting its color.
+- **Structural branch:** revert only the shell-building fix → RED; re-apply →
+  GREEN; link both runs (`reference/red-test-robustness.md`).
+- **Policy-only branch:** record the before/after A1 contract and the relevant
+  dev insight/config/route/Link evidence plus the phase-A lock control. The
+  `instant()` guard may correctly stay GREEN on both sides. Add network/protocol
+  evidence only when actual browser delivery is part of the acceptance
+  criteria.
+
+Do not use an `instant()` differential to claim real prefetch delivery: a
+`prefetch={false}` Link can stay GREEN under the controlled lock. On a deployed
+rig, confirm each measured run is live (LIVENESS, phase A) before trusting it.
 
 ## G — REVIEW (PR checklist)
 
-A green final state means nothing if the RED was never trustworthy. The
-test-trustworthiness items are the robustness checklist
-(`reference/red-test-robustness.md`); confirm them, then require these
-PR-specific items:
+A structural GREEN means nothing if its RED was never trustworthy. A
+policy-only GREEN means nothing if the contract change was never established.
+Use the applicable robustness checklist (`reference/red-test-robustness.md`),
+then require these PR-specific items:
 
-- [ ] **Differential shown** — RED without the fix, GREEN with it, runs linked.
+- [ ] **Branch evidence shown** — structural RED/GREEN runs, or policy-only A1
+      before/after evidence, is linked.
 - [ ] **Parity confirmed (E)** — same content, redirects, and state.
-- [ ] **Existing loading UI reused (D1)** — no new page-mirroring skeleton.
+- [ ] **Existing loading UI reused (D1)** — no new page-mirroring skeleton
+      (N/A for policy-only).
 - [ ] **Shell matches the real render at desktop and mobile widths (D2)**.
+- [ ] **Prefetch contract recorded (A1)** — config, route export, real Link
+      prop, expected immediate marker, and expected deferred marker (or its
+      recorded absence) agree.
+- [ ] **Policy and experience are not conflated** — `instant()` guards the
+      experience; the dev link/route audit establishes Partial Prefetching
+      policy. Claims about actual delivery have separate network evidence.
 
 **Stop condition for the whole workflow:** the locked test from C is GREEN on
-the rig, the differential (F) holds, and every item above is checked. Until all
-three hold, you are not done.
+the rig, the applicable branch evidence in F holds, and every item above is
+checked. A policy-only adoption finishes without a manufactured RED; a
+structural change still requires its RED/GREEN differential.
 
 ## Driving the navigation in tests
 
 - **Soft navigation** → drive a real `<Link>` click. **Initial load** → use
   `page.goto()` inside `instant()` with the `baseURL` option. Do not substitute
-  `goto` for a soft-nav verdict; the two shells can differ
+  `goto` for a soft-nav verdict; the two immediate UIs can differ
   (`test-template.md`, `reference/real-app-patterns.md`).
+- For a soft navigation, use the exact link inspected in A1. A default link and
+  a `prefetch={true}` link to the same URL can expose different immediate UI.
 - With parallel routes, only the slots that change re-render on a soft
   navigation; client-rendered navigation UI does not re-render at all. Do not
   chase a slot the navigation never touches
@@ -380,5 +512,5 @@ three hold, you are not done.
   `cookies()`/`headers()`, uncached fetch or database reads, dynamic params,
   `searchParams`, metadata, non-deterministic values, LCP placement).
 - `reference/real-app-patterns.md` — parallel routes, deferring an auth gate,
-  initial-load vs soft-navigation shells, the empty-shell failure mode, the
-  responsive-skeleton mismatch, edge cases.
+  URL-specific static shells vs App Shells vs link-prefetched UI, the
+  empty-shell failure mode, the responsive-skeleton mismatch, edge cases.
