@@ -464,6 +464,7 @@ pub struct ClientChunkingContextOptions {
     pub client_root_to_root_path: RcStr,
     pub client_static_folder_name: RcStr,
     pub asset_prefix: Vc<RcStr>,
+    pub service_worker_scope_base_path: Vc<Option<RcStr>>,
     pub environment: Vc<Environment>,
     pub module_id_strategy: Vc<ModuleIdStrategy>,
     pub export_usage: Vc<OptionBindingUsageInfo>,
@@ -505,6 +506,7 @@ pub async fn get_client_chunking_context(
         client_root_to_root_path,
         client_static_folder_name,
         asset_prefix,
+        service_worker_scope_base_path,
         environment,
         module_id_strategy,
         export_usage,
@@ -529,6 +531,7 @@ pub async fn get_client_chunking_context(
 
     let next_mode = mode.await?;
     let asset_prefix = asset_prefix.owned().await?;
+    let service_worker_scope_base_path = service_worker_scope_base_path.owned().await?;
     let cross_origin_loading = *cross_origin.await?;
     let mut builder = BrowserChunkingContext::builder(
         root_path,
@@ -545,6 +548,7 @@ pub async fn get_client_chunking_context(
         next_mode.runtime_type(),
     )
     .chunk_base_path(Some(asset_prefix.clone()))
+    .service_worker_scope_base_path(service_worker_scope_base_path)
     .asset_suffix(AssetSuffix::Inferred.resolved_cell())
     .minify_type(if *minify.await? {
         MinifyType::Minify {

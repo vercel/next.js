@@ -3053,7 +3053,27 @@ where
                                 // No `scope` key: register at the default scope.
                                 None => rcstr!("/"),
                                 Some(JsValue::Constant(JsConstantValue::Str(value))) => {
-                                    value.as_str().into()
+                                    let scope = value.as_str();
+                                    // The scope must be an absolute path (starting with `/`) so
+                                    // it can be prefixed with the host's base path and served
+                                    // from a stable, root-relative URL. Reject relative scopes
+                                    // rather than silently registering at the wrong scope.
+                                    if !scope.starts_with('/') {
+                                        let (args, hints) = explain_args(args);
+                                        handler.span_warn_with_code(
+                                            span,
+                                            &format!(
+                                                "navigator.serviceWorker.register({args}) has a \
+                                                 `scope` that does not start with `/`{hints}",
+                                            ),
+                                            DiagnosticId::Error(
+                                                errors::failed_to_analyze::ecmascript::NEW_WORKER
+                                                    .to_string(),
+                                            ),
+                                        );
+                                        return Ok(());
+                                    }
+                                    scope.into()
                                 }
                                 // A `scope` was provided but can't be analyzed statically;
                                 // don't silently register at the wrong scope.

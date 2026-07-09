@@ -1614,6 +1614,7 @@ impl Project {
                 .owned()
                 .await?,
             asset_prefix: self.next_config().computed_asset_prefix(),
+            service_worker_scope_base_path: self.next_config().base_path(),
             environment: self.client_compile_time_info().environment(),
             module_id_strategy: self.module_ids(),
             export_usage: self.export_usage(),
