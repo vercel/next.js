@@ -99,17 +99,17 @@ export default async function Page({ params }) {
 }
 ```
 
-Run `next build`. It fails with a prerender-blocking error because the uncached `fetch` runs outside a `<Suspense>` boundary:
+Run `next build`. It fails with a prerender-blocking error because the `params` read and the uncached `fetch` run outside a `<Suspense>` boundary:
 
 ```bash filename="Terminal"
-Error: Route "/products/[id]": Next.js encountered uncached data during prerendering.
+Error: Route "/products/[id]": Next.js encountered uncached or runtime data during prerendering.
 
-`fetch(...)` or `connection()` accessed outside of `<Suspense>` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
+`fetch(...)`, `cookies()`, `headers()`, `params`, `searchParams`, or `connection()` accessed outside of `<Suspense>` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
 
 Ways to fix this:
   - [stream] Provide a placeholder with `<Suspense fallback={...}>` around the data access
     https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
-  - [cache] Cache the data access with `"use cache"` (does not apply to `connection()`)
+  - [cache] For uncached data (`fetch`, database calls): cache the access with `"use cache"` (does not apply to `connection()`)
     https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
   - [block] Set `export const instant = false` to allow a blocking route
     https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
@@ -129,16 +129,16 @@ Sometimes the error cannot provide enough information, because production builds
 next build --debug-prerender
 ```
 
-That disables minification, turns on source maps for server bundles, and continues past the first failure, so remaining issues surface in one run. This helps with any error thrown during prerendering, not only blocking ones. The stack now points at the fetch in the page:
+That disables minification, turns on source maps for server bundles, and continues past the first failure, so remaining issues surface in one run. This helps with any error thrown during prerendering, not only blocking ones. The stack now points at the first blocked access in the page, the `params` read:
 
 ```bash filename="Terminal"
-Error: Route "/products/[id]": Next.js encountered uncached data during prerendering.
+Error: Route "/products/[id]": Next.js encountered uncached or runtime data during prerendering.
   ...
-    at Page (app/products/[id]/page.tsx:3:15)
+    at Page (app/products/[id]/page.tsx:2:24)
   1 | export default async function Page(props: PageProps<'/products/[id]'>) {
-  2 |   const { id } = await props.params
-> 3 |   const res = await fetch(`https://api.example.com/products/${id}`)
-    |               ^
+> 2 |   const { id } = await props.params
+    |                        ^
+  3 |   const res = await fetch(`https://api.example.com/products/${id}`)
   4 |   const product = await res.json()
 ```
 
@@ -187,7 +187,7 @@ If we were iterating on this route alone in a larger app, we could also scope ea
 next build --debug-build-paths="app/products/[id]/page.tsx"
 ```
 
-Next.js compiles and prerenders only the matching routes, and skips the rest of the app. The option accepts comma-separated paths and glob patterns, and combines with `--debug-prerender` while debugging. Our store only has a few routes, so we'll keep building the whole app.
+Next.js compiles and prerenders only the matching routes, and skips the rest of the app. The option accepts comma-separated paths and glob patterns, with a `!` prefix to exclude, and combines with `--debug-prerender` while debugging. Our store only has a few routes, so we'll keep building the whole app.
 
 ### Prerendered params
 
