@@ -258,7 +258,7 @@ impl ServiceWorkerAssetReferenceCodeGen {
         //     -> register("/_next/static/service-worker/sw.js", { scope: "/" })
         //   register(new URL("./sw", import.meta.url))            // base path "/base"
         //     -> register("/base/_next/static/service-worker/sw.js", { scope: "/base" })
-        let base_path = chunking_context.base_path().await?;
+        let base_path = chunking_context.service_worker_scope_base_path().await?;
         let base_path = base_path.trim_end_matches('/');
         let url = format!(
             "{base_path}/_next/static/service-worker/{}",

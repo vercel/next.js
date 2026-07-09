@@ -101,8 +101,11 @@ impl BrowserChunkingContextBuilder {
         self
     }
 
-    pub fn base_path(mut self, base_path: Option<RcStr>) -> Self {
-        self.chunking_context.base_path = base_path;
+    pub fn service_worker_scope_base_path(
+        mut self,
+        service_worker_scope_base_path: Option<RcStr>,
+    ) -> Self {
+        self.chunking_context.service_worker_scope_base_path = service_worker_scope_base_path;
         self
     }
 
@@ -322,7 +325,7 @@ pub struct BrowserChunkingContext {
     asset_base_paths: FxIndexMap<RcStr, RcStr>,
     /// This is the base path used to generate the service worker scope, it is
     /// not used for output subdirectory logic
-    base_path: Option<RcStr>,
+    service_worker_scope_base_path: Option<RcStr>,
     /// URL behavior overrides for different tags.
     #[bincode(with = "turbo_bincode::indexmap")]
     url_behaviors: FxIndexMap<RcStr, UrlBehavior>,
@@ -408,7 +411,7 @@ impl BrowserChunkingContext {
                 asset_suffix: None,
                 asset_base_path: None,
                 asset_base_paths: Default::default(),
-                base_path: None,
+                service_worker_scope_base_path: None,
                 url_behaviors: Default::default(),
                 default_url_behavior: None,
                 enable_hot_module_replacement: false,
@@ -688,8 +691,12 @@ impl ChunkingContext for BrowserChunkingContext {
     }
 
     #[turbo_tasks::function]
-    fn base_path(&self) -> Vc<RcStr> {
-        Vc::cell(self.base_path.clone().unwrap_or_default())
+    fn service_worker_scope_base_path(&self) -> Vc<RcStr> {
+        Vc::cell(
+            self.service_worker_scope_base_path
+                .clone()
+                .unwrap_or_default(),
+        )
     }
 
     #[turbo_tasks::function]

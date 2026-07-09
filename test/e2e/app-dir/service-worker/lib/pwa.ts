@@ -14,7 +14,8 @@ self.addEventListener('activate', (event) => {
 
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url)
-  if (url.pathname === '/sw-intercepted') {
+  // Match within any registration scope (e.g. `/sw-intercepted` or `/base/sw-intercepted`).
+  if (url.pathname.endsWith('/sw-intercepted')) {
     event.respondWith(
       new Response('intercepted-by-sw', {
         headers: { 'content-type': 'text/plain' },

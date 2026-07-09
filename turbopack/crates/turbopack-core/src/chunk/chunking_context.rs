@@ -366,7 +366,7 @@ pub trait ChunkingContext {
     fn asset_url(self: Vc<Self>, ident: FileSystemPath, tag: Option<RcStr>) -> Result<Vc<RcStr>>;
 
     #[turbo_tasks::function]
-    fn base_path(self: Vc<Self>) -> Vc<RcStr> {
+    fn service_worker_scope_base_path(self: Vc<Self>) -> Vc<RcStr> {
         Vc::cell(RcStr::default())
     }
 
