@@ -320,6 +320,8 @@ pub struct BrowserChunkingContext {
     /// them.
     #[bincode(with = "turbo_bincode::indexmap")]
     asset_base_paths: FxIndexMap<RcStr, RcStr>,
+    /// This is the base path used to generate the service worker scope, it is
+    /// not used for output subdirectory logic
     base_path: Option<RcStr>,
     /// URL behavior overrides for different tags.
     #[bincode(with = "turbo_bincode::indexmap")]
