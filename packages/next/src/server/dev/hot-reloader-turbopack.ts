@@ -111,6 +111,10 @@ import { printBuildErrors } from '../../build/print-build-errors'
 import { receiveBrowserLogsTurbopack } from './browser-logs/receive-logs'
 import { normalizePath } from '../../lib/normalize-path'
 import {
+  seedTurbopackCacheIfNeeded,
+  TurbopackCacheSeedMode,
+} from '../../lib/turbopack-cache-seed'
+import {
   devToolsConfigMiddleware,
   getDevToolsConfig,
 } from '../../next-devtools/server/devtools-config-middleware'
@@ -431,6 +435,15 @@ export async function createHotReloaderTurbopack(
     opts.nextConfig.turbopack?.root ||
     opts.nextConfig.outputFileTracingRoot ||
     projectPath
+
+  if (nextConfig.experimental.turbopackSeedCacheFromWorktree) {
+    seedTurbopackCacheIfNeeded({
+      projectDir: projectPath,
+      distDir,
+      mode: TurbopackCacheSeedMode.Dev,
+    })
+  }
+
   const project = await bindings.turbo.createProject(
     {
       rootPath,

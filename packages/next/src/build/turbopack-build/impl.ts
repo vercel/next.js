@@ -2,6 +2,10 @@
 import { saveCpuProfile } from '../../server/lib/cpu-profile'
 import path from 'path'
 import { validateTurboNextConfig } from '../../lib/turbopack-warning'
+import {
+  seedTurbopackCacheIfNeeded,
+  TurbopackCacheSeedMode,
+} from '../../lib/turbopack-cache-seed'
 import { NextBuildContext } from '../build-context'
 import { createDefineEnv, getBindingsSync } from '../swc'
 import { installBindings } from '../swc/install-bindings'
@@ -116,6 +120,14 @@ export async function turbopackBuild(telemetry: Telemetry): Promise<{
     isPersistentCachingEnabled: persistentCaching,
     deferredEntries: config.experimental.deferredEntries,
     nextVersion: process.env.__NEXT_VERSION as string,
+  }
+
+  if (config.experimental.turbopackSeedCacheFromWorktree) {
+    seedTurbopackCacheIfNeeded({
+      projectDir: dir,
+      distDir,
+      mode: TurbopackCacheSeedMode.Build,
+    })
   }
 
   const sharedTurboOptions = {

@@ -868,6 +868,15 @@ export interface ExperimentalConfig {
   turbopackFileSystemCacheForBuild?: boolean
 
   /**
+   * When running inside a git worktree, warm-start this worktree's Turbopack
+   * filesystem cache by seeding it from the main checkout's cache if the
+   * worktree doesn't have one yet. This is best-effort and never fails a build.
+   *
+   * Defaults to `false`.
+   */
+  turbopackSeedCacheFromWorktree?: boolean
+
+  /**
    * Enable source maps. Defaults to true.
    */
   turbopackSourceMaps?: boolean
