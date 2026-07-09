@@ -1,6 +1,6 @@
 use anyhow::{Result, bail};
 use swc_core::{
-    common::source_map::SmallPos,
+    common::{GLOBALS, source_map::SmallPos},
     ecma::ast::{Expr, Ident, ImportDecl, MemberProp, Program, Stmt},
 };
 use tracing::Instrument;
@@ -16,16 +16,19 @@ use crate::{
     EcmascriptModuleAsset, EcmascriptParsable, ModuleTypeResult, SpecifiedModuleType,
     TreeShakingMode,
     analyzer::imports::{ImportAnnotations, ImportedSymbol},
-    chunk::EcmascriptExports,
+    chunk::{EcmascriptExports, StaticCommonJsExports},
     parse::ParseResult,
     references::{
         TURBOPACK_HELPER_WTF8,
         esm::{EsmAssetReference, EsmExports},
+        exports::cjs::analyze_cjs_exports,
         type_issue::SpecifiedModuleTypeIssue,
     },
     runtime_functions::{TURBOPACK_EXPORT_NAMESPACE, TURBOPACK_EXPORT_VALUE},
     tree_shake::{part_of_module, split_module},
 };
+
+pub(crate) mod cjs;
 
 #[turbo_tasks::value]
 pub struct EcmascriptExportsAnalysis {
@@ -56,6 +59,7 @@ pub async fn compute_ecmascript_module_exports(
     let ParseResult::Ok {
         program,
         eval_context,
+        globals,
         ..
     } = &*parsed
     else {
@@ -222,7 +226,24 @@ pub async fn compute_ecmascript_module_exports(
                 }
             } else {
                 match detect_dynamic_export(program) {
-                    DetectedDynamicExportType::CommonJs => EcmascriptExports::CommonJs,
+                    DetectedDynamicExportType::CommonJs => {
+                        // `analyze_cjs_exports` compares syntax contexts, which reads
+                        // swc's hygiene data behind `GLOBALS`.
+                        let analysis = GLOBALS.set(globals, || {
+                            analyze_cjs_exports(program, eval_context.unresolved_mark)
+                        });
+                        if analysis.is_unsafe {
+                            EcmascriptExports::CommonJs
+                        } else {
+                            EcmascriptExports::StaticCommonJs(
+                                StaticCommonJsExports {
+                                    names: analysis.names.into_iter().collect(),
+                                    has_es_module: analysis.has_es_module,
+                                }
+                                .resolved_cell(),
+                            )
+                        }
+                    }
                     DetectedDynamicExportType::Namespace => EcmascriptExports::DynamicNamespace,
                     DetectedDynamicExportType::Value => EcmascriptExports::Value,
                     DetectedDynamicExportType::UsingModuleDeclarations => {

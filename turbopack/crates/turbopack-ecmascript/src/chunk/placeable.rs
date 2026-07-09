@@ -2,7 +2,7 @@ use anyhow::Result;
 use async_trait::async_trait;
 use either::Either;
 use itertools::Itertools;
-use turbo_rcstr::rcstr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{PrettyPrintError, ResolvedVc, TryJoinIterExt, Vc};
 use turbo_tasks_fs::{
     FileJsonContent, FileSystemPath,
@@ -264,6 +264,23 @@ pub async fn get_side_effect_free_declaration(
     Ok(SideEffectsDeclaration::None.cell())
 }
 
+/// The statically-analyzed named exports of a CommonJS module.
+///
+/// Produced by [`crate::analyzer::side_effects::analyze_cjs_exports`]. The name
+/// set is a superset-safe over-approximation of the runtime export set: it may
+/// include a name that is only conditionally assigned, but never omits one that
+/// is unconditionally assigned. It is only produced when per-export removal is
+/// provably sound; otherwise the module stays [`EcmascriptExports::CommonJs`].
+#[turbo_tasks::value(shared)]
+#[derive(Hash, Debug)]
+pub struct StaticCommonJsExports {
+    /// Statically known export names, in source order.
+    pub names: Vec<RcStr>,
+    /// Whether the module sets `exports.__esModule` (transpiled ESM; default
+    /// interop must be preserved).
+    pub has_es_module: bool,
+}
+
 #[turbo_tasks::value(shared)]
 pub enum EcmascriptExports {
     /// A module using ESM exports.
@@ -272,6 +289,10 @@ pub enum EcmascriptExports {
     DynamicNamespace,
     /// A module using CommonJS exports.
     CommonJs,
+    /// A CommonJS module whose named exports are statically analyzable. Behaves
+    /// like [`EcmascriptExports::CommonJs`] at runtime, but the known names are
+    /// available for tree-shaking.
+    StaticCommonJs(ResolvedVc<StaticCommonJsExports>),
     /// No exports at all, and falling back to CommonJS semantics.
     EmptyCommonJs,
     /// A value that is made available as both the CommonJS `exports` and the ESM default export.

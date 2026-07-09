@@ -84,6 +84,7 @@ pub async fn is_export_missing(
         EcmascriptExports::Unknown => return Ok(Vc::cell(false)),
         EcmascriptExports::Value => return Ok(Vc::cell(false)),
         EcmascriptExports::CommonJs => return Ok(Vc::cell(false)),
+        EcmascriptExports::StaticCommonJs(_) => return Ok(Vc::cell(false)),
         EcmascriptExports::EmptyCommonJs => return Ok(Vc::cell(export_name != "default")),
         EcmascriptExports::DynamicNamespace => return Ok(Vc::cell(false)),
         EcmascriptExports::EsmExports(exports) => *exports,
@@ -111,6 +112,7 @@ pub async fn is_export_missing(
         match &*exports {
             EcmascriptExports::Value
             | EcmascriptExports::CommonJs
+            | EcmascriptExports::StaticCommonJs(_)
             | EcmascriptExports::DynamicNamespace
             | EcmascriptExports::Unknown => {
                 return Ok(Vc::cell(false));
@@ -479,7 +481,7 @@ pub async fn expand_star_exports(
                 )
                 .await?
             }
-            EcmascriptExports::CommonJs => {
+            EcmascriptExports::CommonJs | EcmascriptExports::StaticCommonJs(_) => {
                 dynamic_exporting_modules.push(asset);
                 emit_star_exports_issue(
                     asset.ident(),

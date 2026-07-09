@@ -277,7 +277,7 @@ fn prop_is(prop: &MemberProp, name: &str) -> bool {
 /// binding — e.g. the real CommonJS `module`/`exports`/`require`, not a local
 /// shadow. Prevents `let exports = {}; exports.foo = 'a'` from being treated as
 /// a write to the global `exports`.
-fn is_global(identifier: &Ident, name: &str, unresolved_mark: Mark) -> bool {
+pub(crate) fn is_global(identifier: &Ident, name: &str, unresolved_mark: Mark) -> bool {
     identifier.ctxt.outer() == unresolved_mark && identifier.sym.as_ref() == name
 }
 
@@ -380,7 +380,7 @@ fn contains_getters_or_setters(expr: &Expr) -> bool {
 }
 
 /// `module.exports` (the real, unshadowed `module` binding).
-fn is_module_dot_exports(member: &MemberExpr, unresolved_mark: Mark) -> bool {
+pub(crate) fn is_module_dot_exports(member: &MemberExpr, unresolved_mark: Mark) -> bool {
     matches!(unparen(&member.obj), Expr::Ident(o) if is_global(o, "module", unresolved_mark))
         && prop_is(&member.prop, "exports")
 }
