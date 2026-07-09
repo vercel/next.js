@@ -21,7 +21,10 @@ pub(crate) use self::graph::{
     PartId, create_turbopack_part_id_assert, find_turbopack_part_id_in_asserts,
 };
 use crate::{
-    EcmascriptModuleAsset, EcmascriptParsable, analyzer::graph::EvalContext, parse::ParseResult,
+    EcmascriptModuleAsset, EcmascriptParsable,
+    analyzer::graph::EvalContext,
+    parse::ParseResult,
+    references::exports::cjs::{CjsExportFormat, analyze_cjs_exports},
 };
 
 mod graph;
@@ -34,6 +37,19 @@ mod tests;
 mod util;
 
 pub(crate) const TURBOPACK_PART_IMPORT_SOURCE: &str = "__TURBOPACK_PART__";
+
+/// Wraps a CommonJS `Program::Script` in a `Module` — each statement becomes a
+/// `ModuleItem::Stmt` — so it can flow through the (ESM-shaped) tree shaker.
+pub(crate) fn cjs_script_to_module(program: &Program) -> Option<Module> {
+    let Program::Script(script) = program else {
+        return None;
+    };
+    Some(Module {
+        span: script.span,
+        body: script.body.iter().cloned().map(ModuleItem::Stmt).collect(),
+        shebang: script.shebang.clone(),
+    })
+}
 
 pub struct Analyzer<'a> {
     g: &'a mut DepGraph,
@@ -71,9 +87,16 @@ impl Analyzer<'_> {
         comments: &dyn Comments,
         unresolved_ctxt: SyntaxContext,
         top_level_ctxt: SyntaxContext,
+        cjs_exports: FxHashMap<usize, CjsExportFormat>,
     ) -> (DepGraph, FxHashMap<ItemId, ItemData>) {
         let mut g = DepGraph::default();
-        let (item_ids, mut items) = g.init(module, comments, unresolved_ctxt, top_level_ctxt);
+        let (item_ids, mut items) = g.init(
+            module,
+            comments,
+            unresolved_ctxt,
+            top_level_ctxt,
+            cjs_exports,
+        );
 
         let mut analyzer = Analyzer {
             g: &mut g,
@@ -454,6 +477,17 @@ pub(crate) enum SplitResult {
 
         #[turbo_tasks(debug_ignore, trace_ignore)]
         star_reexports: Vec<ExportAll>,
+
+        /// Whether this split module is a statically-analyzable CommonJS module
+        /// (see `cjs_script_to_module`). Whole-module consumers must then
+        /// reconstruct a real `module.exports` instead of an ESM facade — e.g.
+        /// for a module exporting `foo`:
+        ///
+        /// ```js
+        /// import { foo as __TURBOPACK_cjs_facade__foo } from "…" with { __turbopack_part__: "exports" };
+        /// exports.foo = __TURBOPACK_cjs_facade__foo;
+        /// ```
+        is_cjs: bool,
     },
     Failed {
         parse_result: ResolvedVc<ParseResult>,
@@ -491,6 +525,8 @@ pub(super) async fn split_module(asset: Vc<EcmascriptModuleAsset>) -> Result<Vc<
         .cell());
     }
 
+    let cjs_tree_shaking = asset.await?.options.await?.cjs_tree_shaking;
+
     let parse_result = parsed.await?;
 
     match &*parse_result {
@@ -503,17 +539,48 @@ pub(super) async fn split_module(asset: Vc<EcmascriptModuleAsset>) -> Result<Vc<
             program_source,
             ..
         } => {
-            // If the script file is a common js file, we cannot split the module
-            if util::should_skip_tree_shaking(program) {
+            // CommonJS: if CJS tree-shaking is on and this is a safe, statically-analyzable
+            // CommonJS script with at least one export, wrap it as a `Module` so
+            // it can flow through the (ESM-shaped) tree-shaker; `DepGraph::init`
+            // then uses the analysis's export map to rewrite each export write
+            // into ESM syntax so it tree-shakes like a normal ESM export, e.g.
+            // `exports.foo = 1` becomes
+            // `const __TURBOPACK_cjs_export__foo = 1; export { __TURBOPACK_cjs_export__foo as foo
+            // }`. ESM modules — and CommonJS we can't safely split — yield `None`.
+            let (cjs_module, cjs_analysis) = if cjs_tree_shaking {
+                let analysis = GLOBALS.set(globals, || {
+                    analyze_cjs_exports(program, eval_context.unresolved_mark)
+                });
+                if !analysis.is_unsafe && !analysis.names.is_empty() {
+                    cjs_script_to_module(program).map(|module| (module, analysis))
+                } else {
+                    None
+                }
+            } else {
+                None
+            }
+            .unzip();
+            let is_cjs = cjs_module.is_some();
+
+            // Pick the `Module` to tree-shake
+            let module = if let Some(cjs_module) = &cjs_module {
+                // The wrapped CommonJS module from above.
+                cjs_module
+            } else if util::should_skip_tree_shaking(program) {
+                // Not splittable — a plain CommonJS script, or a module with no
+                // ESM exports. Emit it whole.
                 return Ok(SplitResult::Failed {
                     parse_result: parsed,
                 }
                 .cell());
-            }
-
-            let module = match program {
-                Program::Module(module) => module,
-                Program::Script(..) => unreachable!("CJS is already handled"),
+            } else {
+                // A real ESM module.
+                match program {
+                    Program::Module(module) => module,
+                    Program::Script(..) => {
+                        unreachable!("a splittable CommonJS script is handled above")
+                    }
+                }
             };
 
             // We copy directives like `use client` or `use server` to each module
@@ -538,6 +605,7 @@ pub(super) async fn split_module(asset: Vc<EcmascriptModuleAsset>) -> Result<Vc<
                     comments,
                     SyntaxContext::empty().apply_mark(eval_context.unresolved_mark),
                     SyntaxContext::empty().apply_mark(eval_context.top_level_mark),
+                    cjs_analysis.map(|a| a.exports).unwrap_or_default(),
                 )
             });
 
@@ -593,6 +661,7 @@ pub(super) async fn split_module(asset: Vc<EcmascriptModuleAsset>) -> Result<Vc<
                 deps: part_deps,
                 modules,
                 star_reexports,
+                is_cjs,
             }
             .cell())
         }
