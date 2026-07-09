@@ -16,7 +16,7 @@ use turbo_persistence::{CompactConfig, TurboPersistence};
 
 use crate::database::turbo::{self, TurboKeyValueDatabase};
 pub use crate::{
-    backend::{BackendOptions, StorageMode, TurboTasksBackend},
+    backend::{BackendOptions, EvictionMode, StorageMode, TurboTasksBackend},
     database::{
         db_invalidation,
         db_invalidation::StartupCacheState,

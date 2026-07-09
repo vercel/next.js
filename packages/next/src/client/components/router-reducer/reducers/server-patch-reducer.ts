@@ -69,6 +69,8 @@ export function serverPatchReducer(
     // Server patch (retry) navigations don't use route prediction. This is
     // typically a retry after a previous mismatch, so the route was already
     // marked as having a dynamic rewrite when the mismatch was detected.
-    null
+    null,
+    // Not an HMR refresh, so there's no request generation to cancel.
+    undefined
   )
 }

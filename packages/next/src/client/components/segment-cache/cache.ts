@@ -2989,18 +2989,21 @@ export function writeDynamicRenderResponseIntoCache(
 
     const head = flightDataEntry.head
     if (head !== null && metadataTree !== null) {
-      // When Cache Components is enabled, the server conservatively marks
-      // the head as partial during static generation (isPossiblyPartialHead
-      // in app-render.tsx), even for fully static pages where the head is
-      // actually complete. When the response is non-partial, we override
-      // this since the server confirmed no dynamic content exists.
+      // When Cache Components is enabled, the server's `isHeadPartial` flag
+      // (isPossiblyPartialHead in app-render.tsx) is unreliable: it's computed
+      // before the head is serialized, so it's conservatively `true` for every
+      // statically-generated PPR page — even pages whose head is actually
+      // complete — and it's `false` for runtime/dynamic responses whose head is
+      // actually partial (e.g. a route with an async `generateMetadata`). So we
+      // ignore it and derive the head's partiality from whether the response
+      // itself was partial, exactly as we do for segments (see
+      // `writeSeedDataIntoCache`). A non-partial response carries a complete
+      // head; a partial (postponed) one does not.
       //
-      // Without Cache Components, the server always sends the correct
-      // isHeadPartial value, so no override is needed.
-      const isHeadPartial =
-        !isResponsePartial && process.env.__NEXT_CACHE_COMPONENTS
-          ? false
-          : flightDataEntry.isHeadPartial
+      // Without Cache Components, the server sends the correct isHeadPartial.
+      const isHeadPartial = process.env.__NEXT_CACHE_COMPONENTS
+        ? isResponsePartial
+        : flightDataEntry.isHeadPartial
 
       fulfillEntrySpawnedByRuntimePrefetch(
         now,
