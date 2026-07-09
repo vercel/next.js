@@ -29,7 +29,7 @@ use turbopack_core::{
 };
 use turbopack_css::chunk::CssChunkType;
 use turbopack_ecmascript::{
-    AnalyzeMode, TypeofWindow,
+    AnalyzeMode, TreeShakingMode, TypeofWindow,
     chunk::EcmascriptChunkType,
     references::esm::UrlRewriteBehavior,
     transform::{PresetEnvConfig, ReactCompilerTarget},
@@ -275,9 +275,17 @@ pub async fn get_client_module_options_context(
     let enable_webpack_loaders =
         *webpack_loader_options(project_path.clone(), next_config, loader_conditions).await?;
 
-    let tree_shaking_mode_for_user_code = *next_config
-        .tree_shaking_mode_for_user_code(next_mode.is_development())
-        .await?;
+    // CJS tree shaking only engages in ModuleFragments mode, so enabling
+    // `turbopackCjsTreeShaking` implies ModuleFragments for client user code.
+    // Foreign code (node_modules, including Next's own `dist/esm` files) keeps
+    // keying off `turbopackTreeShaking` alone.
+    let tree_shaking_mode_for_user_code = if *next_config.turbopack_cjs_tree_shaking().await? {
+        Some(TreeShakingMode::ModuleFragments)
+    } else {
+        *next_config
+            .tree_shaking_mode_for_user_code(next_mode.is_development())
+            .await?
+    };
     let tree_shaking_mode_for_foreign_code = *next_config
         .tree_shaking_mode_for_foreign_code(next_mode.is_development())
         .await?;
@@ -366,6 +374,7 @@ pub async fn get_client_module_options_context(
             enable_import_as_bytes: *next_config.turbopack_import_type_bytes().await?,
             source_maps,
             infer_module_side_effects: *next_config.turbopack_infer_module_side_effects().await?,
+            cjs_tree_shaking: *next_config.turbopack_cjs_tree_shaking().await?,
             preset_env_config,
             ..Default::default()
         },
