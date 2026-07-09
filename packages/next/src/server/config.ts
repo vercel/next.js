@@ -45,6 +45,8 @@ import { dset } from '../shared/lib/dset'
 import { normalizeZodErrors } from '../shared/lib/zod'
 import { HTML_LIMITED_BOT_UA_RE_STRING } from '../shared/lib/router/utils/is-bot'
 import { findDir } from '../lib/find-pages-dir'
+import { INFINITE_CACHE } from '../lib/constants'
+import { validateAndNormalizeCacheLifeProfile } from './use-cache/cache-life-profile'
 import { resolveCacheHandlerPathToFilesystem } from '../lib/format-dynamic-import-path'
 import { interopDefault } from '../lib/interop-default'
 import { djb2Hash } from '../shared/lib/hash'
@@ -108,6 +110,23 @@ function normalizeNextConfigZodErrors(
   }
 
   return [warnings, fatalErrors]
+}
+
+// Infinity means "never", but turns into null when serialized as JSON (e.g.
+// for build workers or the prerender manifest), unlike INFINITE_CACHE.
+function normalizeInfiniteDuration(
+  value: number | undefined,
+  name: string
+): number | undefined {
+  if (value === undefined || Number.isFinite(value)) {
+    return value
+  }
+  if (value === Infinity) {
+    return INFINITE_CACHE
+  }
+  throw new Error(
+    `Invalid "${name}" provided, expected a finite number of seconds or Infinity, received ${value}`
+  )
 }
 
 export function warnOptionHasBeenDeprecated(
@@ -1379,10 +1398,42 @@ function assignDefaultsAndValidate(
     }
   }
 
+  result.expireTime = normalizeInfiniteDuration(result.expireTime, 'expireTime')
+  const staleTimes = result.experimental.staleTimes
+  if (staleTimes) {
+    staleTimes.dynamic = normalizeInfiniteDuration(
+      staleTimes.dynamic,
+      'experimental.staleTimes.dynamic'
+    )
+    staleTimes.static = normalizeInfiniteDuration(
+      staleTimes.static,
+      'experimental.staleTimes.static'
+    )
+  }
+
   if (result.cacheLife) {
-    result.cacheLife = {
-      ...defaultConfig.cacheLife,
-      ...result.cacheLife,
+    const userCacheLifeProfiles: NonNullable<NextConfig['cacheLife']> =
+      result.cacheLife
+    // The default profiles are cloned because the backfill below mutates the
+    // default profile, and multiple next() instances in the same process must
+    // not observe each other's config through the shared objects.
+    const cacheLifeProfiles: NonNullable<NextConfig['cacheLife']> = {
+      ...structuredClone(defaultConfig.cacheLife),
+      ...userCacheLifeProfiles,
+    }
+    result.cacheLife = cacheLifeProfiles
+
+    // Only validate values the user wrote themselves. Backfilling the
+    // default profile below can produce a revalidate that's larger than a
+    // user-provided expire (e.g. for `default: { expire: 0 }`), which is
+    // fine — the expire wins — but would fail validation.
+    for (const [profileName, profile] of Object.entries(
+      userCacheLifeProfiles
+    )) {
+      cacheLifeProfiles[profileName] = validateAndNormalizeCacheLifeProfile(
+        profile,
+        { kind: 'config', profileName }
+      )
     }
     const defaultDefault = defaultConfig.cacheLife?.['default']
     if (
