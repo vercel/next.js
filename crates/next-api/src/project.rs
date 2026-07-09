@@ -1637,6 +1637,7 @@ impl Project {
             chunking_first_page_load_priority: chunking_heuristics.first_page_load_priority,
             chunking_priority_boost_percent: chunking_heuristics.priority_boost_percent,
             chunking_request_cost: chunking_heuristics.request_cost,
+            generate_component_chunks: self.next_config().turbopack_generate_component_chunks(),
         }))
     }
 

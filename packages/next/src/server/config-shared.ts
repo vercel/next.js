@@ -777,6 +777,13 @@ export interface ExperimentalConfig {
   turbopackScopeHoisting?: boolean
 
   /**
+   * (`next --turbopack` only) Emit each merged production chunk's constituent component chunks
+   * alongside it, so the browser runtime can load only the ones it doesn't already have.
+   * Defaults to `false`. Only applies in build mode.
+   */
+  turbopackGenerateComponentChunks?: boolean
+
+  /**
    * (`next --turbopack` only) Traffic-related hints for the production chunker. These change the
    * assumptions Turbopack makes when making chunk merging decisions.
    */
