@@ -374,6 +374,7 @@ pub async fn get_client_module_options_context(
             enable_import_as_bytes: *next_config.turbopack_import_type_bytes().await?,
             source_maps,
             infer_module_side_effects: *next_config.turbopack_infer_module_side_effects().await?,
+            cjs_tree_shaking: *next_config.turbopack_cjs_tree_shaking().await?,
             preset_env_config,
             ..Default::default()
         },

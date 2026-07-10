@@ -700,6 +700,7 @@ async fn analyze_ecmascript_module_internal(
     });
 
     let is_esm = eval_context.is_esm(specified_type);
+
     let compile_time_info = compile_time_info_for_module_options(
         *raw_module.compile_time_info,
         is_esm,
@@ -822,6 +823,8 @@ async fn analyze_ecmascript_module_internal(
                 eval_context,
                 analyze_mode,
                 supports_block_scoping,
+                specified_type,
+                options.cjs_tree_shaking,
             ));
         });
         graph.unwrap()

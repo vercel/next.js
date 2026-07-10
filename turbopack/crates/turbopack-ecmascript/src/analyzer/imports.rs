@@ -524,6 +524,10 @@ impl ImportMap {
         }
     }
 
+    pub fn is_cjs(&self, specified_type: SpecifiedModuleType) -> bool {
+        !self.is_esm(specified_type)
+    }
+
     pub fn get_import<'a>(&self, arena: &'a Bump, id: &Id) -> Option<JsValue<'a>> {
         if let Some((i, i_sym)) = self.imports.get(id) {
             let r = &self.references[*i];
