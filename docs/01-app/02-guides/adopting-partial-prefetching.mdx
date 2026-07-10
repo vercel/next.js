@@ -2,7 +2,6 @@
 title: Adopting Partial Prefetching
 nav_title: Adopting Partial Prefetching
 description: Learn how to enable Partial Prefetching and what changes for `<Link>`.
-version: draft
 related:
   title: Next Steps
   description: Learn more about prefetching and instant navigations.
@@ -62,7 +61,22 @@ export default nextConfig
 
 Add `prefetch` to any `<Link>` whose destination's cached content is worth shipping ahead of the navigation. Leave it off for the rest:
 
-```tsx filename="app/page.tsx"
+```tsx filename="app/page.tsx" switcher
+import Link from 'next/link'
+
+export default function Page() {
+  return (
+    <nav>
+      <Link href="/products">Products</Link>
+      <Link href="/checkout" prefetch>
+        Checkout
+      </Link>
+    </nav>
+  )
+}
+```
+
+```jsx filename="app/page.js" switcher
 import Link from 'next/link'
 
 export default function Page() {
@@ -81,7 +95,15 @@ export default function Page() {
 
 If you can't enable `partialPrefetching` for the entire app at once, opt routes in one at a time with the [`prefetch`](/docs/app/api-reference/file-conventions/route-segment-config/prefetch) route segment config:
 
-```tsx filename="app/products/[slug]/page.tsx"
+```tsx filename="app/products/[slug]/page.tsx" switcher
+export const prefetch = 'partial'
+
+export default function Page() {
+  return <div>...</div>
+}
+```
+
+```jsx filename="app/products/[slug]/page.js" switcher
 export const prefetch = 'partial'
 
 export default function Page() {
@@ -130,7 +152,13 @@ The insight fires on every destination that hasn't adopted Partial Prefetching y
 
 Before:
 
-```tsx filename="app/nav.tsx"
+```tsx filename="app/nav.tsx" switcher
+<Link href="/about" prefetch={true}>About</Link>           {/* static page */}
+<Link href="/products" prefetch={true}>Products</Link>      {/* cached list */}
+<Link href="/dashboard" prefetch={true}>Dashboard</Link>    {/* reads cookies */}
+```
+
+```jsx filename="app/nav.js" switcher
 <Link href="/about" prefetch={true}>About</Link>           {/* static page */}
 <Link href="/products" prefetch={true}>Products</Link>      {/* cached list */}
 <Link href="/dashboard" prefetch={true}>Dashboard</Link>    {/* reads cookies */}
@@ -138,7 +166,13 @@ Before:
 
 After:
 
-```tsx filename="app/nav.tsx"
+```tsx filename="app/nav.tsx" switcher
+<Link href="/about">About</Link>                            {/* default is enough */}
+<Link href="/products" prefetch={true}>Products</Link>       {/* unchanged */}
+<Link href="/dashboard" prefetch={true}>Dashboard</Link>     {/* and add `prefetch = 'allow-runtime'` to /dashboard */}
+```
+
+```jsx filename="app/nav.js" switcher
 <Link href="/about">About</Link>                            {/* default is enough */}
 <Link href="/products" prefetch={true}>Products</Link>       {/* unchanged */}
 <Link href="/dashboard" prefetch={true}>Dashboard</Link>     {/* and add `prefetch = 'allow-runtime'` to /dashboard */}
@@ -152,7 +186,7 @@ In [`next dev`](/docs/app/api-reference/cli/next#next-dev-options), the dev over
 
 The fix is to keep the URL-independent parts of the route outside the boundary and move the `params` or `searchParams` read into a child wrapped in `<Suspense>`. Pass the promise down without awaiting it:
 
-```tsx filename="app/products/[slug]/page.tsx"
+```tsx filename="app/products/[slug]/page.tsx" switcher
 import { Suspense } from 'react'
 import { ProductDetails } from './product-details'
 
@@ -167,14 +201,37 @@ export default function Page({ params }: PageProps<'/products/[slug]'>) {
 }
 ```
 
+```jsx filename="app/products/[slug]/page.js" switcher
+import { Suspense } from 'react'
+import { ProductDetails } from './product-details'
+
+export default function Page({ params }) {
+  return (
+    <ProductLayout>
+      <Suspense fallback={<DetailsSkeleton />}>
+        <ProductDetails params={params} />
+      </Suspense>
+    </ProductLayout>
+  )
+}
+```
+
 The child awaits the promise inside the boundary:
 
-```tsx filename="app/products/[slug]/product-details.tsx"
+```tsx filename="app/products/[slug]/product-details.tsx" switcher
 export async function ProductDetails({
   params,
 }: {
   params: Promise<{ slug: string }>
 }) {
+  const { slug } = await params
+  const product = await getProduct(slug)
+  return <Details product={product} />
+}
+```
+
+```jsx filename="app/products/[slug]/product-details.js" switcher
+export async function ProductDetails({ params }) {
   const { slug } = await params
   const product = await getProduct(slug)
   return <Details product={product} />
