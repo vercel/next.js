@@ -244,6 +244,7 @@ export function createServerParamsForServerSegment(
         return createRuntimePrerenderParams(
           underlyingParams,
           optionalCatchAllParamName,
+          workStore,
           workUnitStore,
           varyParamsAccumulator
         )
@@ -431,6 +432,7 @@ function createStaticPrerenderParams(
 function createRuntimePrerenderParams(
   underlyingParams: Params,
   optionalCatchAllParamName: string | null,
+  workStore: WorkStore,
   workUnitStore: PrerenderStoreModernRuntime,
   varyParamsAccumulator: VaryParamsAccumulator | null
 ): Promise<Params> {
@@ -450,9 +452,14 @@ function createRuntimePrerenderParams(
 
   const { stagedRendering } = workUnitStore
   if (!stagedRendering) {
-    // If there's no staging, we're in a prospective runtime prerender,
-    // and it doesn't matter when params resolve.
-    return makeUntrackedParams(userspaceParams)
+    // If there's no staging, we're in a prospective runtime prerender.
+    if (workUnitStore.isSessionShell) {
+      // If we're warming up for a session shell, params should be hanging,
+      // because they'll be a hanging input in the final prerender.
+      return makeHangingParams(underlyingParams, workStore, workUnitStore)
+    } else {
+      return makeUntrackedParams(userspaceParams)
+    }
   }
 
   // We don't have fallbackParams in runtime prerenders, so we don't know
@@ -709,7 +716,7 @@ const fallbackParamsProxyHandler: ProxyHandler<Promise<Params>> = {
 function makeHangingParams(
   underlyingParams: Params,
   workStore: WorkStore,
-  prerenderStore: StaticPrerenderStoreModern
+  prerenderStore: StaticPrerenderStoreModern | PrerenderStoreModernRuntime
 ): Promise<Params> {
   const cachedParams = CachedParams.get(underlyingParams)
   if (cachedParams) {

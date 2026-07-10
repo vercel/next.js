@@ -142,6 +142,7 @@ export function createServerSearchParamsForServerPage(
       case 'prerender-runtime':
         return createRuntimePrerenderSearchParams(
           underlyingSearchParams,
+          workStore,
           workUnitStore,
           varyParamsAccumulator
         )
@@ -237,21 +238,32 @@ function createStaticPrerenderSearchParams(
 
 function createRuntimePrerenderSearchParams(
   underlyingSearchParams: SearchParams,
+  workStore: WorkStore,
   workUnitStore: PrerenderStoreModernRuntime,
   varyParamsAccumulator: VaryParamsAccumulator | null
 ): Promise<SearchParams> {
-  const underlyingSearchParamsWithVarying =
+  const userspaceSearchParams =
     varyParamsAccumulator !== null
       ? createVaryingSearchParams(varyParamsAccumulator, underlyingSearchParams)
       : underlyingSearchParams
 
-  const result = makeUntrackedSearchParams(underlyingSearchParamsWithVarying)
   const { stagedRendering } = workUnitStore
   if (!stagedRendering) {
-    return result
+    // If there's no staging, we're in a prospective runtime prerender.
+    if (workUnitStore.isSessionShell) {
+      // If we're warming up for a session shell, params should hang, because
+      // they'll be a hanging input in the final prerender.
+      return makeHangingSearchParams(workStore, workUnitStore)
+    } else {
+      return makeUntrackedSearchParams(userspaceSearchParams)
+    }
   }
   const searchParamsStage = RENDER_STAGES_BY_DATA_KIND.runtimeLinkData
-  return stagedRendering.waitForStage(searchParamsStage).then(() => result)
+  return stagedRendering.delayUntilStage(
+    searchParamsStage,
+    'searchParams',
+    userspaceSearchParams
+  )
 }
 
 function createRenderSearchParams(
@@ -357,7 +369,7 @@ const CachedSearchParamsForUseCache = new WeakMap<
 
 function makeHangingSearchParams(
   workStore: WorkStore,
-  prerenderStore: PrerenderStoreModern
+  prerenderStore: PrerenderStoreModern | PrerenderStoreModernRuntime
 ): Promise<SearchParams> {
   const cachedSearchParams = CachedSearchParams.get(prerenderStore)
   if (cachedSearchParams) {
