@@ -64,7 +64,7 @@ After a successful build, Next.js prints a route table with a symbol next to eac
 
 [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents) adds `◐` Partial Prerender and makes [Partial Prerendering](/docs/app/getting-started/caching#static-cached-and-streaming) the default rendering model. Each route is split into a static shell, prerendered at build time, and dynamic parts that stream in at request time. Routes sit on a spectrum from fully static (`○`) to partially prerendered (`◐`) and are no longer fully server-rendered: a route shows `ƒ` only when it has nothing to prerender, such as [Route Handlers](/docs/app/api-reference/file-conventions/route) that depend on the request, Proxy (Middleware), and dynamic [metadata](/docs/app/api-reference/functions/generate-metadata) like `icon` or `opengraph-image`.
 
-The symbol reflects what the route does at prerender time, not which validation configs (such as [`instant`](/docs/app/api-reference/file-conventions/route-segment-config/instant)) it exports.
+The symbol reflects what the route does at prerender time, not which validation configs (such as [`instant`](/docs/app/api-reference/file-conventions/route-segment-config/instant)) it exports. Without Cache Components, or on the Pages Router, prerendered pages can also show `●` (SSG).
 
 ## Example
 
@@ -138,10 +138,10 @@ That disables minification, turns on source maps for server bundles, and continu
 ```bash filename="Terminal"
 Error: Route "/products/[id]": Next.js encountered uncached or runtime data during prerendering.
   ...
-    at Page (app/products/[id]/page.tsx:2:24)
+    at Page (app/products/[id]/page.tsx:2:30)
   1 | export default async function Page(props: PageProps<'/products/[id]'>) {
 > 2 |   const { id } = await props.params
-    |                        ^
+    |                              ^
   3 |   const res = await fetch(`https://api.example.com/products/${id}`)
   4 |   const product = await res.json()
 ```
@@ -246,6 +246,8 @@ Route (app)
 > **Good to know**: `generateStaticParams` must return at least one param. An empty array causes a [build error](/docs/messages/empty-generate-static-params).
 
 The new rows show `◐`, not `○`. Listing the params tells Next.js which pages exist, but their content still comes from the uncached lookup, which only runs at request time. Each page serves the static shell and streams its content.
+
+> **Good to know**: Here the `fetch` runs during prerendering, so point it at a working endpoint or a fake async source that returns data. The `◐` rows appear only when the lookup is real uncached I/O; a synchronous in-memory value is treated as static and prerenders each param to `○` instead.
 
 ### Cached data
 
