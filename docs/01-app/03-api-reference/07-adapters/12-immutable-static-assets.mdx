@@ -1,0 +1,60 @@
+---
+title: Supporting Immutable Static Assets
+description: Support immutable static assets in an adapter
+---
+
+See [`config.supportsImmutableAssets`](/docs/app/api-reference/config/next-config-js/supportsImmutableAssets) for end-user-facing information about this feature.
+
+When `config.supportsImmutableAssets` is enabled, Next.js outputs immutable content-addressed static assets under the public path `/_next/static/immutable/*`. This prefix can be used to differentiate immutable static assets from non-immutable static assets at the CDN level.
+
+At runtime, these immutable static assets are requested without the `?dpl` query parameter and thus live in a shared namespace across deployments. You must ensure that these assets are immutable and will never be changed or deleted, even after a new deployment. Next.js may use a truncated shorter content hash as the filename, so `outputs.staticFiles[].immutableHash` contains the full content hash which can be used to validate that no hash collision occurred.
+
+You can use `config.experimental.outputHashSalt` to set a salt for the content hashes, if you want to rotate the hashes for any reason (e.g. after a detected hash collision).
+
+Note that you need to continue supporting non-immutable static assets (which may change between deployments and continue to be requested with the `?dpl` query parameter), e.g. for the `public` folder or for older Next.js versions.
+
+## Adapter Implementation
+
+You need to:
+
+1. In the `modifyConfig`, set the `config.supportsImmutableAssets` property to `true` (if it's not already set to `false` by the user) to signal that you support deploying immutable static assets, and
+2. In `onBuildComplete`, read the `outputs.staticFiles[].immutableHash` property to determine which static assets are immutable and have to be requested without the `?dpl` query parameter.
+
+```js filename="my-adapter.js"
+/** @type {import('next').NextAdapter} */
+const adapter = {
+  name: 'my-custom-adapter',
+
+  async modifyConfig(config, { phase }) {
+    if (phase === 'phase-production-build') {
+      config.supportsImmutableAssets =
+        // Default to true, but allow users to opt-out
+        config.supportsImmutableAssets ?? true
+
+      // Optionally, pass a salt for the content hashes
+      // config.experimental.outputHashSalt = getSaltForCurrentProject()
+    }
+    return config
+  },
+
+  async onBuildComplete({ outputs }) {
+    for (const output of outputs.staticFiles) {
+      if (output.immutableHash != null) {
+        // This has to be requestable at `output.pathname`
+        // even without the `?dpl` query parameter.
+        uploadOrVerifyImmutableStaticAsset(
+          output.filePath,
+          output.pathname,
+          output.immutableHash
+        )
+      } else {
+        // This is a non-immutable static asset and will be requested with
+        // the `?dpl` query parameter, scoped to the deployment.
+        uploadStaticAsset(output.filePath, output.pathname)
+      }
+    }
+
+    // Process other outputs....
+  },
+}
+```
