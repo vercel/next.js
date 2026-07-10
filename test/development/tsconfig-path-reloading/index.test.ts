@@ -36,7 +36,7 @@ describe('tsconfig-path-reloading', () => {
               }),
         },
         dependencies: {
-          typescript: 'latest',
+          typescript: '6.0.3',
           '@types/react': 'latest',
           '@types/node': 'latest',
         },
