@@ -1826,9 +1826,9 @@ export async function handleBuildComplete({
         if (!prerenderManifest.routes[errorDocPath]) {
           for (const currentDocPath of [
             errorDocPath,
-            ...(config.i18n?.locales?.map((locale) =>
-              path.posix.join('/', locale, errorDoc)
-            ) || []),
+            ...(config.i18n?.locales
+              ?.filter((locale) => locale !== config.i18n?.defaultLocale)
+              .map((locale) => path.posix.join('/', locale, errorDoc)) || []),
           ]) {
             const currentFilePath = path.join(
               pagesDistDir,
