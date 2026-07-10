@@ -22,7 +22,7 @@ import { InvariantError } from '../../shared/lib/invariant-error'
 import { ReflectAdapter } from '../web/spec-extension/adapters/reflect'
 import {
   applyOwnerStack,
-  getSessionDataStage,
+  RENDER_STAGES_BY_DATA_KIND,
 } from '../dynamic-rendering-utils'
 
 export function draftMode(): Promise<DraftMode> {
@@ -40,7 +40,7 @@ export function draftMode(): Promise<DraftMode> {
       const { stagedRendering } = workUnitStore
       if (stagedRendering) {
         return stagedRendering.delayUntilStage(
-          getSessionDataStage(stagedRendering),
+          RENDER_STAGES_BY_DATA_KIND.sessionData,
           'draftMode',
           new DraftMode(workUnitStore.draftMode)
         )

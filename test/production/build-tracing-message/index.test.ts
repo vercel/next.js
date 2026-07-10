@@ -15,14 +15,22 @@ import stripAnsi from 'strip-ansi'
         const { exitCode } = await next.build()
         expect(exitCode).toBe(0)
 
-        let output = next.cliOutput
+        const cliOutput = stripAnsi(next.cliOutput)
+
+        // Warnings are deferred until after static generation so that
+        // prerender errors are more prominent than compile warnings.
+        expect(
+          cliOutput.indexOf('Turbopack build encountered')
+        ).toBeGreaterThan(cliOutput.indexOf('✓ Compiled successfully'))
+
+        const output = cliOutput
           .slice(
-            next.cliOutput.indexOf('Turbopack build encountered'),
-            next.cliOutput.indexOf('✓ Compiled successfully')
+            cliOutput.indexOf('Turbopack build encountered'),
+            cliOutput.indexOf('Finalizing page optimization')
           )
           .trim()
 
-        expect(stripAnsi(output)).toMatchInlineSnapshot(`
+        expect(output).toMatchInlineSnapshot(`
        "Turbopack build encountered 1 warning:
        ./app/join-cwd.js:4:10
        Warning: Dynamic filesystem access causes tracing of the whole project
@@ -47,6 +55,84 @@ import stripAnsi from 'strip-ansi'
            ./app/join-cwd.js
            ./app/page.js"
       `)
+      })
+    })
+
+    describe('with a prerender error', () => {
+      const { next } = nextTestSetup({
+        files: __dirname,
+        skipStart: true,
+        overrideFiles: {
+          'app/boom/page.js': `export default function Page() {
+            throw new Error('boom during prerender')
+          }`,
+        },
+      })
+
+      it('should print warnings after prerender errors', async () => {
+        const { exitCode } = await next.build()
+        expect(exitCode).not.toBe(0)
+
+        const cliOutput = stripAnsi(next.cliOutput)
+
+        const prerenderErrorIndex = cliOutput.indexOf(
+          'Error occurred prerendering page "/boom"'
+        )
+        const exitingBuildIndex = cliOutput.indexOf(
+          'Export encountered an error on /boom/page: /boom, exiting the build.'
+        )
+        const warningIndex = cliOutput.indexOf(
+          'Turbopack build encountered 1 warning'
+        )
+
+        expect(prerenderErrorIndex).not.toBe(-1)
+        expect(exitingBuildIndex).not.toBe(-1)
+        expect(warningIndex).not.toBe(-1)
+
+        // The prerender error comes first, the deferred compile warnings
+        // after.
+        expect(warningIndex).toBeGreaterThan(prerenderErrorIndex)
+        expect(warningIndex).toBeGreaterThan(exitingBuildIndex)
+      })
+    })
+
+    describe('with a prerender error and prerenderEarlyExit disabled', () => {
+      const { next } = nextTestSetup({
+        files: __dirname,
+        skipStart: true,
+        overrideFiles: {
+          'app/boom/page.js': `export default function Page() {
+            throw new Error('boom during prerender')
+          }`,
+          'next.config.js': `/** @type {import('next').NextConfig} */
+          module.exports = {
+            experimental: { prerenderEarlyExit: false },
+          }`,
+        },
+      })
+
+      it('should print warnings after prerender errors and before the failure summary', async () => {
+        const { exitCode } = await next.build()
+        expect(exitCode).not.toBe(0)
+
+        const cliOutput = stripAnsi(next.cliOutput)
+
+        const prerenderErrorIndex = cliOutput.indexOf(
+          'Error occurred prerendering page "/boom"'
+        )
+        const warningIndex = cliOutput.indexOf(
+          'Turbopack build encountered 1 warning'
+        )
+        const exportErrorIndex = cliOutput.indexOf('Export encountered errors')
+
+        expect(prerenderErrorIndex).not.toBe(-1)
+        expect(warningIndex).not.toBe(-1)
+        expect(exportErrorIndex).not.toBe(-1)
+
+        // Prerender errors come first, then the deferred compile warnings,
+        // and the failure summary is printed last.
+        expect(warningIndex).toBeGreaterThan(prerenderErrorIndex)
+        expect(exportErrorIndex).toBeGreaterThan(warningIndex)
       })
     })
 

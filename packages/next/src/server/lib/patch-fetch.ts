@@ -55,7 +55,9 @@ export function validateRevalidate(
   try {
     let normalizedRevalidate: number | undefined = undefined
 
-    if (revalidateVal === false) {
+    if (revalidateVal === false || revalidateVal === Infinity) {
+      // Unlike Infinity, INFINITE_CACHE survives JSON serialization (e.g. in
+      // the fetch cache).
       normalizedRevalidate = INFINITE_CACHE
     } else if (
       typeof revalidateVal === 'number' &&
