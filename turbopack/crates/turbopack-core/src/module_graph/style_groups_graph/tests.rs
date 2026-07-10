@@ -657,6 +657,17 @@ fn linearize_breaks_ties_by_insertion_order() {
 }
 
 #[test]
+fn linearize_ties_keep_insertion_order_across_removals() {
+    // Four disconnected sinks, no shared groups: every step is a pure tie, so the result must be
+    // insertion order. This is the case that exposed the `swap_remove` scramble bug — with 3+
+    // simultaneous candidates, removing one used to move the last candidate into its slot and
+    // corrupt the "earliest remaining candidate" tie-break. Candidates now carry a stable index,
+    // so the order is preserved regardless of `swap_remove`.
+    let g = build_graph(4, |_| {});
+    assert_eq!(ids(&linearize(&g, &no_groups(4))), vec![0, 1, 2, 3]);
+}
+
+#[test]
 fn linearize_diamond_is_topo() {
     // 0 -> 1, 0 -> 2, 1 -> 3, 2 -> 3
     let g = build_graph(4, |g| {

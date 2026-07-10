@@ -10,6 +10,7 @@ use std::{
 
 use petgraph::graph::{DiGraph, EdgeIndex, NodeIndex};
 use rustc_hash::{FxHashMap, FxHashSet};
+use turbo_tasks::FxIndexMap;
 
 use super::subgraph_view::{ReadonlyGraph, SubgraphView};
 use crate::module::StyleType;
@@ -504,74 +505,76 @@ pub(super) fn make_acyclic<N>(graph: &mut DiGraph<N, u32>) {
 /// the lexicographic sequence `[shared(last), shared(last-1), shared(last-2), …]`, sorted
 /// descending — equivalent to choosing the candidate with the best `(Reverse(distance), shared)`
 /// metric, where `distance` is the first look-back position that produces a non-tie. Final ties
-/// (zero shared at all positions) fall back to the earliest remaining candidate (insertion order).
+/// (zero shared at all positions) fall back to the earliest remaining candidate — the one inserted
+/// first into `remaining_deps`, which mirrors `graph.nodes()` order.
 pub(super) fn linearize<'a, G>(graph: G, module_to_groups: &[Vec<usize>]) -> Vec<NodeIndex>
 where
     G: ReadonlyGraph<'a>,
 {
-    let mut remaining_deps: FxHashMap<NodeIndex, usize> = FxHashMap::default();
+    // `remaining_deps` is an insertion-ordered map (matching `graph.nodes()`), so each node's
+    // position is a stable "seniority" index. Candidates carry that index as their tie-break key,
+    // so the `swap_remove` below — which scrambles positions within `candidates` — cannot disturb
+    // the "earliest remaining candidate" tie-break.
+    let mut remaining_deps: FxIndexMap<NodeIndex, usize> = FxIndexMap::default();
     for n in graph.nodes() {
         remaining_deps.insert(n, graph.outgoing_edges(n).count());
     }
 
-    let mut candidates: Vec<NodeIndex> = remaining_deps
+    // Candidates are `(node, index in `remaining_deps`)`. Seeded in ascending index order because
+    // `FxIndexMap` iterates in insertion order.
+    let mut candidates: Vec<(NodeIndex, usize)> = remaining_deps
         .iter()
-        .filter_map(|(n, &c)| if c == 0 { Some(*n) } else { None })
+        .enumerate()
+        .filter_map(|(idx, (&n, &c))| (c == 0).then_some((n, idx)))
         .collect();
-    // Stable seed order: matches insertion order of `nodes()`, so the first pick — and any tie
-    // before a module has been placed — is deterministic.
-    {
-        let order: FxHashMap<NodeIndex, usize> =
-            graph.nodes().enumerate().map(|(i, n)| (n, i)).collect();
-        candidates.sort_by_key(|n| order[n]);
-    }
 
     let mut result: Vec<NodeIndex> = Vec::new();
     while !candidates.is_empty() {
-        // Find the best candidate using progressive look-back tie-breaking.
-        // `survivors` holds `(candidate index, shared count)` pairs; it starts with all candidates
-        // and is narrowed in place by comparing shared group counts at increasing look-back
-        // distances until either one candidate remains or `result` is exhausted.
-        let pick = if result.is_empty() {
-            0 // insertion order before anything is placed
-        } else {
-            let mut survivors: Vec<(usize, usize)> =
-                (0..candidates.len()).map(|i| (i, 0)).collect();
-            'outer: for depth in 0..result.len() {
-                let reference = result[result.len() - 1 - depth];
-                // Recompute the shared count for each surviving candidate at this depth, in place.
-                let mut max_shared = 0;
-                for entry in survivors.iter_mut() {
-                    let s = shared_chunk_groups(module_to_groups, candidates[entry.0], reference);
-                    entry.1 = s;
-                    max_shared = max_shared.max(s);
-                }
-                // Only filter when at least one candidate has a real match at this depth;
-                // otherwise all are equally far from `reference` and we try the next depth.
-                if max_shared > 0 {
-                    survivors.retain(|&(_, s)| s == max_shared);
-                    if survivors.len() == 1 {
-                        break 'outer;
-                    }
+        // Narrow the candidates with progressive look-back tie-breaking. `survivors` holds
+        // `(position in `candidates`, shared count)` and is narrowed in place by comparing shared
+        // group counts at increasing look-back distances until one candidate remains or `result`
+        // is exhausted.
+        let mut survivors: Vec<(usize, usize)> = (0..candidates.len()).map(|i| (i, 0)).collect();
+        'outer: for depth in 0..result.len() {
+            let reference = result[result.len() - 1 - depth];
+            // Recompute the shared count for each surviving candidate at this depth, in place.
+            let mut max_shared = 0;
+            for entry in survivors.iter_mut() {
+                let s = shared_chunk_groups(module_to_groups, candidates[entry.0].0, reference);
+                entry.1 = s;
+                max_shared = max_shared.max(s);
+            }
+            // Only filter when at least one candidate has a real match at this depth; otherwise all
+            // are equally far from `reference` and we try the next depth.
+            if max_shared > 0 {
+                survivors.retain(|&(_, s)| s == max_shared);
+                if survivors.len() == 1 {
+                    break 'outer;
                 }
             }
-            survivors[0].0 // insertion-order fallback among any remaining ties
-        };
-        let placed = candidates.swap_remove(pick);
+        }
+        // Final tie-break among equal-scoring survivors: the earliest remaining candidate, i.e. the
+        // one with the smallest `remaining_deps` index (stable regardless of `swap_remove`).
+        let pick = survivors
+            .iter()
+            .min_by_key(|&&(i, _)| candidates[i].1)
+            .map(|&(i, _)| i)
+            .unwrap();
+
+        let (placed, _) = candidates.swap_remove(pick);
         result.push(placed);
 
         // Unblock dependents. petgraph yields neighbours in reverse insertion order; flip it back
-        // so equal-share ties resolve in insertion order.
+        // so equal-score ties resolve in insertion order.
         let mut incoming: Vec<NodeIndex> = graph.incoming_edges(placed).collect();
         incoming.reverse();
         for dependent in incoming {
-            let Some(cur) = remaining_deps.get(&dependent).copied() else {
+            let Some((idx, _, cur)) = remaining_deps.get_full_mut(&dependent) else {
                 continue;
             };
-            let next = cur.saturating_sub(1);
-            remaining_deps.insert(dependent, next);
-            if next == 0 {
-                candidates.push(dependent);
+            *cur = cur.saturating_sub(1);
+            if *cur == 0 {
+                candidates.push((dependent, idx));
             }
         }
     }
