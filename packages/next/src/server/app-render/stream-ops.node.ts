@@ -37,6 +37,7 @@ import {
   htmlEscapeJsonString,
 } from '../../shared/lib/htmlescape'
 import { createInlinedDataReadableStream } from './use-flight-response'
+import type { SubresourceIntegrityAlgorithm } from '../../build/webpack/plugins/subresource-integrity-plugin'
 import {
   ReplayableNodeStream,
   type AnyStream as AnyStreamType,
@@ -924,22 +925,49 @@ export async function streamToString(stream: AnyStream): Promise<string> {
 export function createWebInlinedDataStream(
   source: AnyStream,
   nonce: string | undefined,
-  formState: unknown | null
+  formState: unknown | null,
+  sriAlgorithm?: SubresourceIntegrityAlgorithm
 ): AnyStream {
   const webSource = nodeReadableToWebReadableStream(source)
-  const webResult = createInlinedDataReadableStream(webSource, nonce, formState)
+  const webResult = createInlinedDataReadableStream(
+    webSource,
+    nonce,
+    formState,
+    sriAlgorithm
+  )
   return webToReadable(webResult)
+}
+
+/**
+ * Compute a Subresource Integrity hash of a script's text content.
+ *
+ * Per the W3C SRI specification (https://www.w3.org/TR/SRI/#the-integrity-attribute),
+ * the integrity value for an inline script is "algorithm-base64hash" where the hash
+ * is computed over the script element's text content (the bytes between <script> and
+ * </script>).
+ *
+ * This enables strict CSP without 'unsafe-inline': when every inline script carries
+ * an integrity attribute whose hash matches its content, browsers that support SRI
+ * for inline scripts will execute them even under a script-src policy that omits
+ * 'unsafe-inline'. See also: https://developer.mozilla.org/en-US/docs/Web/Security/Subresource_Integrity
+ */
+function computeInlineScriptIntegritySync(
+  scriptContent: string,
+  algorithm: SubresourceIntegrityAlgorithm
+): string {
+  const { createHash } = require('crypto') as typeof import('crypto')
+  const hash = createHash(algorithm)
+    .update(scriptContent, 'utf-8')
+    .digest('base64')
+  return `${algorithm}-${hash}`
 }
 
 export function createNodeInlinedDataStream(
   source: AnyStream,
   nonce: string | undefined,
-  formState: unknown | null
+  formState: unknown | null,
+  sriAlgorithm?: SubresourceIntegrityAlgorithm
 ): AnyStream {
-  const startScriptTag = nonce
-    ? `<script nonce="${htmlEscapeAttributeString(nonce)}">`
-    : '<script>'
-
   const dataStream = webToReadable(source)
   const pt = new PassThrough()
 
@@ -952,10 +980,20 @@ export function createNodeInlinedDataStream(
       JSON.stringify([INLINE_FLIGHT_PAYLOAD_FORM_STATE, formState])
     )})`
   }
-  pt.push(Buffer.from(`${startScriptTag}${scriptContents}</script>`))
+
+  const integrityAttr = sriAlgorithm
+    ? ` integrity="${htmlEscapeAttributeString(computeInlineScriptIntegritySync(scriptContents, sriAlgorithm))}"`
+    : ''
+  const nonceAttr = nonce ? ` nonce="${htmlEscapeAttributeString(nonce)}"` : ''
+
+  pt.push(
+    Buffer.from(
+      `<script${nonceAttr}${integrityAttr}>${scriptContents}</script>`
+    )
+  )
 
   // Pull from the flight data stream and wrap each chunk in a <script> tag
-  pullFlightData(dataStream, pt, startScriptTag)
+  pullFlightData(dataStream, pt, nonce, sriAlgorithm)
 
   return pt
 }
@@ -968,7 +1006,8 @@ const INLINE_FLIGHT_PAYLOAD_BINARY = 3
 async function pullFlightData(
   dataStream: Readable,
   output: PassThrough,
-  startScriptTag: string
+  nonce: string | undefined,
+  sriAlgorithm?: SubresourceIntegrityAlgorithm
 ): Promise<void> {
   function waitForReadableOrEnd(): Promise<void> {
     if (dataStream.readableLength > 0 || dataStream.readableEnded) {
@@ -1014,9 +1053,18 @@ async function pullFlightData(
             JSON.stringify([INLINE_FLIGHT_PAYLOAD_BINARY, base64])
           )
         }
+
+        const scriptContents = `self.__next_f.push(${htmlInlinedData})`
+        const integrityAttr = sriAlgorithm
+          ? ` integrity="${htmlEscapeAttributeString(computeInlineScriptIntegritySync(scriptContents, sriAlgorithm))}"`
+          : ''
+        const nonceAttr = nonce
+          ? ` nonce="${htmlEscapeAttributeString(nonce)}"`
+          : ''
+
         output.push(
           Buffer.from(
-            `${startScriptTag}self.__next_f.push(${htmlInlinedData})</script>`
+            `<script${nonceAttr}${integrityAttr}>${scriptContents}</script>`
           )
         )
         continue

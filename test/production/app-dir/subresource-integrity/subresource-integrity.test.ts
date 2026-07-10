@@ -233,6 +233,44 @@ describe('Subresource Integrity', () => {
         expect(scriptsWithIntegrity).toBeGreaterThanOrEqual(2)
       })
 
+      it('includes integrity attributes on inline flight scripts', async () => {
+        // pages router doesn't have inline flight scripts
+        if (runtime === 'pages') return
+
+        const res = await next.fetch(`/${runtime}`)
+        expect(res.ok).toBe(true)
+
+        const html = await res.text()
+        const $ = cheerio.load(html)
+
+        // Find all inline scripts (self.__next_f.push) - these are the Flight
+        // hydration data scripts that carry the RSC payload
+        const inlineScripts = $('script:not([src])')
+        expect(inlineScripts.length).toBeGreaterThan(0)
+
+        // Verify that inline scripts have integrity attributes
+        let scriptsWithIntegrity = 0
+        inlineScripts.each((i, el) => {
+          const integrity = el.attribs['integrity']
+          if (integrity) {
+            scriptsWithIntegrity++
+            // Verify the integrity format: algorithm-base64hash
+            expect(integrity).toMatch(/^sha256-[A-Za-z0-9+/]+=*$/)
+
+            // Verify the hash matches the script content
+            const scriptContent = $(el).text()
+            const hash = crypto
+              .createHash('sha256')
+              .update(scriptContent)
+              .digest('base64')
+            expect(integrity).toBe(`sha256-${hash}`)
+          }
+        })
+
+        // At least some inline scripts should have integrity attributes
+        expect(scriptsWithIntegrity).toBeGreaterThan(0)
+      })
+
       it('ignores malformed nonce values without failing the request', async () => {
         const policies = [
           `script-src 'nonce-"><script></script>"'`,

@@ -187,6 +187,7 @@ async function requestHandler(
         maxPostponedStateSizeBytes: parseMaxPostponedStateSize(
           nextConfig.experimental.maxPostponedStateSize
         ),
+        sriAlgorithm: nextConfig.experimental.sri?.algorithm,
         exposeTestingApi:
           pageRouteModule.isDev === true ||
           nextConfig.experimental.exposeTestingApiInProductionBuild === true,

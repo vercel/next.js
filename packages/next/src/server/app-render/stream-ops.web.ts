@@ -26,6 +26,7 @@ import {
   createDocumentClosingStream as webCreateDocumentClosingStream,
 } from '../stream-utils/node-web-streams-helper'
 import { createInlinedDataReadableStream } from './use-flight-response'
+import type { SubresourceIntegrityAlgorithm } from '../../build/webpack/plugins/subresource-integrity-plugin'
 import { processPrelude as webProcessPrelude } from './app-render-prerender-utils'
 import type { AnyStream as AnyStreamType } from './app-render-prerender-utils'
 
@@ -194,19 +195,22 @@ export async function processPrelude(
 export function createWebInlinedDataStream(
   source: AnyStream,
   nonce: string | undefined,
-  formState: unknown | null
+  formState: unknown | null,
+  sriAlgorithm?: SubresourceIntegrityAlgorithm
 ): AnyStream {
   return createInlinedDataReadableStream(
     source as ReadableStream<Uint8Array>,
     nonce,
-    formState
+    formState,
+    sriAlgorithm
   )
 }
 
 export function createNodeInlinedDataStream(
   _source: AnyStream,
   _nonce: string | undefined,
-  _formState: unknown | null
+  _formState: unknown | null,
+  _sriAlgorithm?: SubresourceIntegrityAlgorithm
 ): AnyStream {
   throw new Error('not implemented')
 }
