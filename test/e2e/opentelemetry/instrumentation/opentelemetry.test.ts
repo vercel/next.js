@@ -5,6 +5,7 @@ import path from 'path'
 
 import { SavedSpan } from './constants'
 import { type Collector, connectCollector } from './collector'
+import { InstrumentationSpan } from 'next/src/server/lib/trace/constants'
 
 const EXTERNAL = {
   traceId: 'ee75cd9e534ff5e9ed78b4a0c706f0f2',
@@ -2090,7 +2091,7 @@ async function expectTrace(
       (span) =>
         // Drop the register span which only runs once and would otherwise pollute the first trace
         // collected from the server
-        span.attributes?.['next.span_type'] !== 'Instrumentation.register'
+        span.attributes?.['next.span_type'] !== InstrumentationSpan.register
     )
 
     const tree: HierSavedSpan[] = []
