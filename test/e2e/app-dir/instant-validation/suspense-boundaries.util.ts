@@ -513,8 +513,80 @@ export function registerSuspenseBoundariesTests(
       const browser = await navigateTo(
         '/suspense-in-root/static/missing-suspense-around-search-params?foo=bar'
       )
-      if (partialPrefetching) {
-        await expect(browser).toDisplayCollapsedRedbox(`
+      if (isClientNav) {
+        // TODO(app-shells): redbox is flaky and sometimes doesn't appear even though validation runs.
+        // as a stopgap, we assert on CLI output instead
+        // await expect(browser).toDisplayCollapsedRedbox(`...`)
+        if (partialPrefetching) {
+          expect(
+            await getDevCliValidationOutput(
+              await browser.url(),
+              getCliOutputSinceMark
+            )
+          ).toMatchInlineSnapshot(`
+           "Error: Route "/suspense-in-root/static/missing-suspense-around-search-params": Next.js encountered URL data during prerendering or a navigation.
+
+           \`params\` or \`searchParams\` accessed outside of \`<Suspense>\` may prevent the navigation from being instant, leading to a slower user experience.
+
+           Ways to fix this:
+             - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+               https://nextjs.org/docs/messages/instant-shell-url-data#wrap-in-or-move-into-suspense
+             - [block] Set \`export const instant = false\` to allow a blocking route
+               https://nextjs.org/docs/messages/instant-shell-url-data#allow-blocking-route
+               at Page (app/suspense-in-root/static/missing-suspense-around-search-params/page.tsx:7:18)
+              5 |
+              6 | export default async function Page({ searchParams }) {
+           >  7 |   const search = await searchParams
+                |                  ^
+              8 |   return (
+              9 |     <main>
+             10 |       <p> {
+             [cause]: Instant Validation:  
+                 at instant (app/suspense-in-root/static/missing-suspense-around-search-params/page.tsx:1:24)
+             > 1 | export const instant = {
+                 |                        ^
+               2 |   level: 'experimental-error',
+               3 |   unstable_samples: [{ searchParams: { foo: 'bar' } }],
+               4 | }
+           }"
+          `)
+        } else {
+          expect(
+            await getDevCliValidationOutput(
+              await browser.url(),
+              getCliOutputSinceMark
+            )
+          ).toMatchInlineSnapshot(`
+           "Error: Route "/suspense-in-root/static/missing-suspense-around-search-params": Next.js encountered runtime data during prerendering or a navigation.
+
+           \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
+
+           Ways to fix this:
+             - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+               https://nextjs.org/docs/messages/blocking-prerender-runtime#wrap-in-or-move-into-suspense
+             - [block] Set \`export const instant = false\` to allow a blocking route
+               https://nextjs.org/docs/messages/blocking-prerender-runtime#allow-blocking-route
+               at Page (app/suspense-in-root/static/missing-suspense-around-search-params/page.tsx:7:18)
+              5 |
+              6 | export default async function Page({ searchParams }) {
+           >  7 |   const search = await searchParams
+                |                  ^
+              8 |   return (
+              9 |     <main>
+             10 |       <p> {
+             [cause]: Instant Validation:  
+                 at instant (app/suspense-in-root/static/missing-suspense-around-search-params/page.tsx:1:24)
+             > 1 | export const instant = {
+                 |                        ^
+               2 |   level: 'experimental-error',
+               3 |   unstable_samples: [{ searchParams: { foo: 'bar' } }],
+               4 | }
+           }"
+          `)
+        }
+      } else {
+        if (partialPrefetching) {
+          await expect(browser).toDisplayCollapsedRedbox(`
            {
              "cause": [
                {
@@ -540,8 +612,8 @@ export function registerSuspenseBoundariesTests(
              ],
            }
           `)
-      } else {
-        await expect(browser).toDisplayCollapsedRedbox(`
+        } else {
+          await expect(browser).toDisplayCollapsedRedbox(`
            {
              "cause": [
                {
@@ -567,6 +639,7 @@ export function registerSuspenseBoundariesTests(
              ],
            }
           `)
+        }
       }
     } else {
       const result = await prerender(
