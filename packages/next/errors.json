@@ -1414,5 +1414,8 @@
   "1413": "Invalid \\`cacheLife()\\` option \"stale\" provided, expected a finite number of seconds or Infinity, received %s.",
   "1414": "The %s option must be a number of seconds.",
   "1415": "Unknown cacheLife option %s",
-  "1416": "Invalid \"%s\" provided, expected a finite number of seconds or Infinity, received %s"
+  "1416": "Invalid \"%s\" provided, expected a finite number of seconds or Infinity, received %s",
+  "1417": "Could not parse output from TypeScript's --showConfig.",
+  "1418": "TypeScript %s does not provide the compiler API required by Next.js. Enable %s in your Next.js config to use the TypeScript CLI, or install TypeScript 6 instead.",
+  "1419": "TypeScript CLI interrupted by %s"
 }
