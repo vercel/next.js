@@ -19,6 +19,61 @@ use crate::module::StyleType;
 // create_graph
 // ---------------------------------------------------------------------------
 
+/// The index of a chunk group, as ordered by the caller of [`create_graph`].
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
+pub(super) struct ChunkGroupIndex(pub(super) usize);
+
+/// Per-module chunk-group membership: for each module id, the **ascending** list of chunk groups
+/// that contain it. The sorted invariant is what lets [`ModuleChunkGroups::shared`] intersect two
+/// modules' lists with a single linear merge; [`create_graph`] preserves it by appending groups in
+/// index order. Reading membership from here (rather than post-[`make_acyclic`] edge weights) keeps
+/// the co-occurrence signal lossless.
+pub(super) struct ModuleChunkGroups {
+    per_module: Vec<Vec<ChunkGroupIndex>>,
+}
+
+impl ModuleChunkGroups {
+    /// Number of chunk groups that contain both module `a` and module `b`. Runs in
+    /// O(min(|groups_a|, |groups_b|)) thanks to the ascending invariant.
+    pub(super) fn shared(&self, a: NodeIndex, b: NodeIndex) -> usize {
+        let a_groups = &self.per_module[a.index()];
+        let b_groups = &self.per_module[b.index()];
+        let mut count = 0;
+        let mut i = 0;
+        let mut j = 0;
+        while i < a_groups.len() && j < b_groups.len() {
+            match a_groups[i].cmp(&b_groups[j]) {
+                std::cmp::Ordering::Equal => {
+                    count += 1;
+                    i += 1;
+                    j += 1;
+                }
+                std::cmp::Ordering::Less => i += 1,
+                std::cmp::Ordering::Greater => j += 1,
+            }
+        }
+        count
+    }
+
+    /// Build directly from per-module group lists, each of which must already be ascending. For
+    /// tests and callers that assemble the lists themselves.
+    #[cfg(test)]
+    pub(super) fn from_sorted(per_module: Vec<Vec<usize>>) -> Self {
+        Self {
+            per_module: per_module
+                .into_iter()
+                .map(|groups| groups.into_iter().map(ChunkGroupIndex).collect())
+                .collect(),
+        }
+    }
+
+    /// The (ascending) chunk groups containing `module`. For tests/inspection.
+    #[cfg(test)]
+    pub(super) fn groups_of(&self, module: usize) -> &[ChunkGroupIndex] {
+        &self.per_module[module]
+    }
+}
+
 /// Build a directed weighted graph from `chunk_groups`.
 ///
 /// For each group `[m₀, m₁, ..., mₖ]` and every pair `(later, earlier)` with `later > earlier`
@@ -26,23 +81,24 @@ use crate::module::StyleType;
 /// `node_count` is the total number of distinct module ids referenced; node ids are dense in
 /// `0..node_count`.
 ///
-/// Also returns a `module_to_groups` index: for each module id, the list of chunk-group indices
-/// that contain it (in ascending order). Used by [`linearize`] to count shared chunk groups
-/// between two modules without reading potentially-lossy post-[`make_acyclic`] edge weights.
+/// Also returns the [`ModuleChunkGroups`] index, used by [`linearize`] to count shared chunk groups
+/// between two modules.
 pub(super) fn create_graph(
     chunk_groups: &[Vec<usize>],
     node_count: usize,
-) -> (DiGraph<usize, u32>, Vec<Vec<usize>>) {
+) -> (DiGraph<usize, u32>, ModuleChunkGroups) {
     let mut graph: DiGraph<usize, u32> = DiGraph::with_capacity(node_count, 0);
-    let mut module_to_groups: Vec<Vec<usize>> = vec![vec![]; node_count];
+    let mut per_module: Vec<Vec<ChunkGroupIndex>> = vec![Vec::new(); node_count];
     for i in 0..node_count {
         let idx = graph.add_node(i);
         debug_assert_eq!(idx.index(), i);
     }
     let mut edge_index: FxHashMap<(NodeIndex, NodeIndex), EdgeIndex> = FxHashMap::default();
     for (group_idx, group) in chunk_groups.iter().enumerate() {
+        // Appended in ascending `group_idx` order, preserving `ModuleChunkGroups`' sorted
+        // invariant.
         for &module_id in group {
-            module_to_groups[module_id].push(group_idx);
+            per_module[module_id].push(ChunkGroupIndex(group_idx));
         }
         for (i, &later_id) in group.iter().enumerate() {
             let later = NodeIndex::new(later_id);
@@ -61,35 +117,7 @@ pub(super) fn create_graph(
             }
         }
     }
-    (graph, module_to_groups)
-}
-
-/// Count the chunk groups that both module `a` and module `b` belong to.
-///
-/// `module_to_groups` maps each module id to its sorted list of chunk-group indices (built by
-/// [`create_graph`]). The merge runs in O(min(|groups_a|, |groups_b|)).
-pub(super) fn shared_chunk_groups(
-    module_to_groups: &[Vec<usize>],
-    a: NodeIndex,
-    b: NodeIndex,
-) -> usize {
-    let a_groups = &module_to_groups[a.index()];
-    let b_groups = &module_to_groups[b.index()];
-    let mut count = 0;
-    let mut i = 0;
-    let mut j = 0;
-    while i < a_groups.len() && j < b_groups.len() {
-        match a_groups[i].cmp(&b_groups[j]) {
-            std::cmp::Ordering::Equal => {
-                count += 1;
-                i += 1;
-                j += 1;
-            }
-            std::cmp::Ordering::Less => i += 1,
-            std::cmp::Ordering::Greater => j += 1,
-        }
-    }
-    count
+    (graph, ModuleChunkGroups { per_module })
 }
 
 // ---------------------------------------------------------------------------
@@ -494,10 +522,10 @@ pub(super) fn make_acyclic<N>(graph: &mut DiGraph<N, u32>) {
 /// that shares the most chunk groups with the previously placed module, so modules that load
 /// together end up adjacent in the global order.
 ///
-/// The shared-group count is read from `module_to_groups` (built by [`create_graph`]), which maps
-/// each module id to its sorted list of chunk-group indices. Reading from the original chunk-group
-/// data (not the post-[`make_acyclic`] graph) gives a lossless signal: [`make_acyclic`] deletes
-/// ~30% of edge weight on real inputs, and those deleted edges represent real co-occurrences.
+/// The shared-group count is read from [`ModuleChunkGroups`] (built by [`create_graph`]). Reading
+/// from the original chunk-group data (not the post-[`make_acyclic`] graph) gives a lossless
+/// signal: [`make_acyclic`] deletes ~30% of edge weight on real inputs, and those deleted edges
+/// represent real co-occurrences.
 ///
 /// **Tie-breaking** is done by looking further back through `result`: when multiple candidates
 /// share the same count with the last-placed module, the tie is broken by the count with the
@@ -507,7 +535,7 @@ pub(super) fn make_acyclic<N>(graph: &mut DiGraph<N, u32>) {
 /// metric, where `distance` is the first look-back position that produces a non-tie. Final ties
 /// (zero shared at all positions) fall back to the earliest remaining candidate — the one inserted
 /// first into `remaining_deps`, which mirrors `graph.nodes()` order.
-pub(super) fn linearize<'a, G>(graph: G, module_to_groups: &[Vec<usize>]) -> Vec<NodeIndex>
+pub(super) fn linearize<'a, G>(graph: G, module_chunk_groups: &ModuleChunkGroups) -> Vec<NodeIndex>
 where
     G: ReadonlyGraph<'a>,
 {
@@ -541,7 +569,7 @@ where
             // Recompute the shared count for each surviving candidate at this depth, in place.
             let mut max_shared = 0;
             for entry in survivors.iter_mut() {
-                let s = shared_chunk_groups(module_to_groups, candidates[entry.0].0, reference);
+                let s = module_chunk_groups.shared(candidates[entry.0].0, reference);
                 entry.1 = s;
                 max_shared = max_shared.max(s);
             }

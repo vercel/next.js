@@ -8,8 +8,9 @@ use rustc_hash::FxHashSet;
 
 use super::{
     algorithm::{
-        compute_chunked_chunk_groups, create_graph, find_short_cycle, linearize, make_acyclic,
-        shared_chunk_groups, split_into_chunks, strongly_connected_components,
+        ChunkGroupIndex, ModuleChunkGroups, compute_chunked_chunk_groups, create_graph,
+        find_short_cycle, linearize, make_acyclic, split_into_chunks,
+        strongly_connected_components,
     },
     subgraph_view::{ReadonlyGraph, SubgraphView},
 };
@@ -81,10 +82,10 @@ fn ids(v: &[NodeIndex]) -> Vec<usize> {
     v.iter().map(|n| n.index()).collect()
 }
 
-/// Empty module-to-groups map for `linearize` tests on small hand-built graphs. All
-/// `shared_chunk_groups` calls return 0, so the tie-break falls through to insertion order.
-fn no_groups(node_count: usize) -> Vec<Vec<usize>> {
-    vec![vec![]; node_count]
+/// Empty module-to-groups map for `linearize` tests on small hand-built graphs. Every `shared`
+/// call returns 0, so the tie-break falls through to insertion order.
+fn no_groups(node_count: usize) -> ModuleChunkGroups {
+    ModuleChunkGroups::from_sorted(vec![vec![]; node_count])
 }
 
 fn equal_size_inputs(node_count: usize) -> Vec<u64> {
@@ -301,28 +302,31 @@ fn create_graph_duplicated_module_in_a_group_creates_self_loop() {
 fn create_graph_builds_module_to_groups_index() {
     // module 0 is in groups 0 and 1; module 1 only in group 0; module 2 only in group 1.
     let (_, module_to_groups) = create_graph(&[vec![0, 1], vec![0, 2]], 3);
-    assert_eq!(module_to_groups[0], vec![0, 1]);
-    assert_eq!(module_to_groups[1], vec![0]);
-    assert_eq!(module_to_groups[2], vec![1]);
+    assert_eq!(
+        module_to_groups.groups_of(0),
+        &[ChunkGroupIndex(0), ChunkGroupIndex(1)]
+    );
+    assert_eq!(module_to_groups.groups_of(1), &[ChunkGroupIndex(0)]);
+    assert_eq!(module_to_groups.groups_of(2), &[ChunkGroupIndex(1)]);
 }
 
 // ---------------------------------------------------------------------------
-// shared_chunk_groups
+// ModuleChunkGroups::shared
 // ---------------------------------------------------------------------------
 
 #[test]
-fn shared_chunk_groups_counts_intersection() {
-    let module_to_groups = vec![
+fn shared_counts_chunk_group_intersection() {
+    let module_to_groups = ModuleChunkGroups::from_sorted(vec![
         vec![0, 1, 2, 4], // module 0
         vec![1, 2, 3],    // module 1
         vec![],           // module 2
-    ];
+    ]);
     // {0,1,2,4} ∩ {1,2,3} = {1,2}
-    assert_eq!(shared_chunk_groups(&module_to_groups, n(0), n(1)), 2);
+    assert_eq!(module_to_groups.shared(n(0), n(1)), 2);
     // nothing shared with a module in no groups
-    assert_eq!(shared_chunk_groups(&module_to_groups, n(0), n(2)), 0);
+    assert_eq!(module_to_groups.shared(n(0), n(2)), 0);
     // a module shares all of its own groups with itself
-    assert_eq!(shared_chunk_groups(&module_to_groups, n(0), n(0)), 4);
+    assert_eq!(module_to_groups.shared(n(0), n(0)), 4);
 }
 
 // ---------------------------------------------------------------------------
@@ -614,11 +618,11 @@ fn linearize_prefers_candidate_sharing_most_chunk_groups_with_last_placed() {
         g.add_edge(n(1), n(0), 1);
         g.add_edge(n(2), n(0), 1);
     });
-    let module_to_groups = vec![
+    let module_to_groups = ModuleChunkGroups::from_sorted(vec![
         vec![0, 1, 2], // module 0
         vec![0],       // module 1: shares 1 group ({0}) with module 0
         vec![0, 1],    // module 2: shares 2 groups ({0, 1}) with module 0
-    ];
+    ]);
     assert_eq!(ids(&linearize(&g, &module_to_groups)), vec![0, 2, 1]);
 }
 
@@ -634,12 +638,12 @@ fn linearize_breaks_last_placed_ties_by_earlier_placements() {
         g.add_edge(n(3), n(1), 1); // 3 depends on 1
     });
     // Each module's group list is ascending, as `create_graph` produces.
-    let module_to_groups = vec![
+    let module_to_groups = ModuleChunkGroups::from_sorted(vec![
         vec![0, 1],    // module 0
         vec![2],       // module 1 (irrelevant sharing)
         vec![0, 2],    // module 2: shared(2,1)=1 ({2}); shared(2,0)=1 ({0})
         vec![0, 1, 2], // module 3: shared(3,1)=1 ({2}); shared(3,0)=2 ({0,1})
-    ];
+    ]);
     // pick after [0,1]: depth 0 (last=1) -> shared(2,1)=shared(3,1)=1 (tie);
     //                   depth 1 (ref=0)  -> shared(2,0)=1, shared(3,0)=2 -> 3 wins.
     assert_eq!(ids(&linearize(&g, &module_to_groups)), vec![0, 1, 3, 2]);
