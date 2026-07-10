@@ -101,11 +101,11 @@ The route's dynamic data isn't included in the prefetch. The user sees the App S
 
 ### Next steps
 
-Opting in stops at the App Shell. To also prefetch cached parts of the route, set `prefetch={true}` on the link. If the cached content depends on request data (cookies, headers, search params), opt the route into [runtime prefetching](https://preview.nextjs.org/docs/app/guides/runtime-prefetching). The [prefetching guide](https://preview.nextjs.org/docs/app/guides/prefetching) covers the link-level options end to end.
+Opting in prefetches the App Shell, which already includes the route's static and cached content. To also prefetch the per-link runtime data (`params`, `searchParams`, and the full URL) and the cached content behind it, opt the route into [runtime prefetching](https://preview.nextjs.org/docs/app/guides/runtime-prefetching) with `prefetch = 'allow-runtime'`. The [prefetching guide](https://preview.nextjs.org/docs/app/guides/prefetching) covers the link-level options end to end.
 
 ## Use the default prefetch
 
-Choose this fix when you set `prefetch={true}` to warm up a frequently-visited route and you can accept fetching the dynamic data on navigation. Remove the prop and the link uses the default prefetch strategy, which under Cache Components prefetches the cached page render and skips the dynamic data.
+Choose this fix when you set `prefetch={true}` to warm up a frequently-visited route and you can accept fetching the dynamic data on navigation. Remove the prop and the link uses the default prefetch strategy, which under Cache Components prefetches the App Shell (the route's static and cached content) and skips the dynamic data.
 
 ### Patterns
 
@@ -121,7 +121,7 @@ export default function Nav() {
 
 ### Trade-off
 
-The link no longer forces a full prefetch. The user gets the cached parts of the route when the link enters the viewport, and the dynamic data is fetched at navigation time. This is the default behavior under Cache Components.
+The link no longer forces a full prefetch. The user gets the App Shell (static and cached content) when the link enters the viewport, and the dynamic data is fetched at navigation time. This is the default behavior under Cache Components.
 
 ### Gotchas
 

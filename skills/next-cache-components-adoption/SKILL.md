@@ -89,7 +89,7 @@ In preference order:
 
 3. **Build-only.** If you can't run a dev server at all, the build is your only signal. `○ (Static)` routes with no `<Suspense>` are fully verified by the build (nothing streamed to test). `◐ (Partial Prerender)` routes are only shell-verified — flag them when you report back.
 
-4. **No tooling at all.** Ask the user to run the dev server (or build) and report what they see, or commit what you've finished and hand off.
+4. **No tooling at all.** Ask the user to run the dev server (or build) and report what they see, or commit the milestone you've reached and hand off.
 
 ## step 1: choose a strategy
 

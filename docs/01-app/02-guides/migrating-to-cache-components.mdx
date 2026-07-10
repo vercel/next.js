@@ -39,7 +39,13 @@ Adopt Cache Components in this project using the next-cache-components-adoption 
 
 ## Or migrate by hand
 
-Start by removing the route segment configs (`dynamic`, `revalidate`, `fetchCache`), then follow the validation insights and errors. Each one names the code to fix, most often uncached data to cache with [`use cache`](/docs/app/api-reference/directives/use-cache) or runtime data to wrap in [`<Suspense>`](https://react.dev/reference/react/Suspense). If a route needs more work than you want to take on right now, you can [opt it out of validation](#opting-out-of-validation) and come back to it later. To migrate gradually rather than all at once, see [Adopting incrementally](#adopting-incrementally).
+Migrating an existing app by hand follows a few steps, in order:
+
+1. [Enable Cache Components](#enable-cache-components) in `next.config.ts`.
+2. Replace the route segment configs it flags (`dynamic`, `revalidate`, `fetchCache`) with their Cache Components equivalents. The per-key sections below cover each.
+3. [Follow the validation insights and errors](#following-validation), caching uncached data with [`use cache`](/docs/app/api-reference/directives/use-cache) or wrapping runtime data in [`<Suspense>`](https://react.dev/reference/react/Suspense).
+
+If a route needs more work than you want to take on right now, [opt it out of validation](#opting-out-of-validation) and come back to it later. To migrate gradually rather than all at once, see [Adopting incrementally](#adopting-incrementally).
 
 Your existing `fetch` and `unstable_cache` caching keeps working as a separate layer, so let the insights and errors guide what to change.
 
