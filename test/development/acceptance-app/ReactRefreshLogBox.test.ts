@@ -36,15 +36,9 @@ describe('ReactRefreshLogBox app', () => {
     )
     await browser.elementByCss('a').click()
 
-    if (isTurbopack) {
-      await expect(browser).toDisplayRedbox(
-        `"Expected Redbox but found no visible one."`
-      )
-    } else {
-      await expect(browser).toDisplayRedbox(
-        `"Expected Redbox but found no visible one."`
-      )
-    }
+    await expect(browser).toDisplayRedbox(
+      `"Expected Redbox but found no visible one."`
+    )
   })
 
   // https://github.com/pmmmwh/react-refresh-webpack-plugin/pull/3#issuecomment-554137807
@@ -215,15 +209,9 @@ describe('ReactRefreshLogBox app', () => {
       `export default function FunctionDefault() { throw new Error('no'); }`
     )
 
-    if (isTurbopack) {
-      await expect(browser).toDisplayRedbox(
-        `"Expected Redbox but found no visible one."`
-      )
-    } else {
-      await expect(browser).toDisplayRedbox(
-        `"Expected Redbox but found no visible one."`
-      )
-    }
+    await expect(browser).toDisplayRedbox(
+      `"Expected Redbox but found no visible one."`
+    )
   })
 
   // TODO: investigate why this fails when running outside of the Next.js
@@ -615,42 +603,22 @@ describe('ReactRefreshLogBox app', () => {
 
     await browser.elementByCss('button').click()
 
-    // TODO(veil): Why Owner Stack location different?
-    if (isTurbopack) {
-      await expect(browser).toDisplayCollapsedRedbox(`
-       {
-         "description": "end https://nextjs.org",
-         "environmentLabel": null,
-         "label": "Runtime Error",
-         "source": "index.js (5:11) @ Index.useCallback[boom]
-       > 5 |     throw new Error('end https://nextjs.org')
-           |           ^",
-         "stack": [
-           "Index.useCallback[boom] index.js (5:11)",
-           "button <anonymous>",
-           "Index index.js (9:7)",
-           "Page app/page.js (4:10)",
-         ],
-       }
-      `)
-    } else {
-      await expect(browser).toDisplayCollapsedRedbox(`
-       {
-         "description": "end https://nextjs.org",
-         "environmentLabel": null,
-         "label": "Runtime Error",
-         "source": "index.js (5:11) @ Index.useCallback[boom]
-       > 5 |     throw new Error('end https://nextjs.org')
-           |           ^",
-         "stack": [
-           "Index.useCallback[boom] index.js (5:11)",
-           "button <anonymous>",
-           "Index index.js (9:7)",
-           "Page app/page.js (4:10)",
-         ],
-       }
-      `)
-    }
+    await expect(browser).toDisplayCollapsedRedbox(`
+     {
+       "description": "end https://nextjs.org",
+       "environmentLabel": null,
+       "label": "Runtime Error",
+       "source": "index.js (5:11) @ Index.useCallback[boom]
+     > 5 |     throw new Error('end https://nextjs.org')
+         |           ^",
+       "stack": [
+         "Index.useCallback[boom] index.js (5:11)",
+         "button <anonymous>",
+         "Index index.js (9:7)",
+         "Page app/page.js (4:10)",
+       ],
+     }
+    `)
 
     expect(
       await session.evaluate(
@@ -694,42 +662,22 @@ describe('ReactRefreshLogBox app', () => {
 
     await browser.elementByCss('button').click()
 
-    // TODO(veil): Why Owner Stack location different?
-    if (isTurbopack) {
-      await expect(browser).toDisplayRedbox(`
-       {
-         "description": "https://nextjs.org start",
-         "environmentLabel": null,
-         "label": "Runtime Error",
-         "source": "index.js (5:11) @ Index.useCallback[boom]
-       > 5 |     throw new Error('https://nextjs.org start')
-           |           ^",
-         "stack": [
-           "Index.useCallback[boom] index.js (5:11)",
-           "button <anonymous>",
-           "Index index.js (9:7)",
-           "Page app/page.js (4:10)",
-         ],
-       }
-      `)
-    } else {
-      await expect(browser).toDisplayRedbox(`
-       {
-         "description": "https://nextjs.org start",
-         "environmentLabel": null,
-         "label": "Runtime Error",
-         "source": "index.js (5:11) @ Index.useCallback[boom]
-       > 5 |     throw new Error('https://nextjs.org start')
-           |           ^",
-         "stack": [
-           "Index.useCallback[boom] index.js (5:11)",
-           "button <anonymous>",
-           "Index index.js (9:7)",
-           "Page app/page.js (4:10)",
-         ],
-       }
-      `)
-    }
+    await expect(browser).toDisplayRedbox(`
+     {
+       "description": "https://nextjs.org start",
+       "environmentLabel": null,
+       "label": "Runtime Error",
+       "source": "index.js (5:11) @ Index.useCallback[boom]
+     > 5 |     throw new Error('https://nextjs.org start')
+         |           ^",
+       "stack": [
+         "Index.useCallback[boom] index.js (5:11)",
+         "button <anonymous>",
+         "Index index.js (9:7)",
+         "Page app/page.js (4:10)",
+       ],
+     }
+    `)
     expect(
       await session.evaluate(
         () =>
@@ -772,42 +720,22 @@ describe('ReactRefreshLogBox app', () => {
 
     await browser.elementByCss('button').click()
 
-    // TODO(veil): Why Owner Stack location different?
-    if (isTurbopack) {
-      await expect(browser).toDisplayRedbox(`
-       {
-         "description": "middle https://nextjs.org end",
-         "environmentLabel": null,
-         "label": "Runtime Error",
-         "source": "index.js (5:11) @ Index.useCallback[boom]
-       > 5 |     throw new Error('middle https://nextjs.org end')
-           |           ^",
-         "stack": [
-           "Index.useCallback[boom] index.js (5:11)",
-           "button <anonymous>",
-           "Index index.js (9:7)",
-           "Page app/page.js (4:10)",
-         ],
-       }
-      `)
-    } else {
-      await expect(browser).toDisplayRedbox(`
-       {
-         "description": "middle https://nextjs.org end",
-         "environmentLabel": null,
-         "label": "Runtime Error",
-         "source": "index.js (5:11) @ Index.useCallback[boom]
-       > 5 |     throw new Error('middle https://nextjs.org end')
-           |           ^",
-         "stack": [
-           "Index.useCallback[boom] index.js (5:11)",
-           "button <anonymous>",
-           "Index index.js (9:7)",
-           "Page app/page.js (4:10)",
-         ],
-       }
-      `)
-    }
+    await expect(browser).toDisplayRedbox(`
+     {
+       "description": "middle https://nextjs.org end",
+       "environmentLabel": null,
+       "label": "Runtime Error",
+       "source": "index.js (5:11) @ Index.useCallback[boom]
+     > 5 |     throw new Error('middle https://nextjs.org end')
+         |           ^",
+       "stack": [
+         "Index.useCallback[boom] index.js (5:11)",
+         "button <anonymous>",
+         "Index index.js (9:7)",
+         "Page app/page.js (4:10)",
+       ],
+     }
+    `)
     expect(
       await session.evaluate(
         () =>
@@ -850,42 +778,22 @@ describe('ReactRefreshLogBox app', () => {
 
     await browser.elementByCss('button').click()
 
-    // TODO(veil): Why Owner Stack location different?
-    if (isTurbopack) {
-      await expect(browser).toDisplayRedbox(`
-       {
-         "description": "multiple https://nextjs.org links http://example.com",
-         "environmentLabel": null,
-         "label": "Runtime Error",
-         "source": "index.js (5:11) @ Index.useCallback[boom]
-       > 5 |     throw new Error('multiple https://nextjs.org links http://example.com')
-           |           ^",
-         "stack": [
-           "Index.useCallback[boom] index.js (5:11)",
-           "button <anonymous>",
-           "Index index.js (9:7)",
-           "Page app/page.js (4:10)",
-         ],
-       }
-      `)
-    } else {
-      await expect(browser).toDisplayRedbox(`
-       {
-         "description": "multiple https://nextjs.org links http://example.com",
-         "environmentLabel": null,
-         "label": "Runtime Error",
-         "source": "index.js (5:11) @ Index.useCallback[boom]
-       > 5 |     throw new Error('multiple https://nextjs.org links http://example.com')
-           |           ^",
-         "stack": [
-           "Index.useCallback[boom] index.js (5:11)",
-           "button <anonymous>",
-           "Index index.js (9:7)",
-           "Page app/page.js (4:10)",
-         ],
-       }
-      `)
-    }
+    await expect(browser).toDisplayRedbox(`
+     {
+       "description": "multiple https://nextjs.org links http://example.com",
+       "environmentLabel": null,
+       "label": "Runtime Error",
+       "source": "index.js (5:11) @ Index.useCallback[boom]
+     > 5 |     throw new Error('multiple https://nextjs.org links http://example.com')
+         |           ^",
+       "stack": [
+         "Index.useCallback[boom] index.js (5:11)",
+         "button <anonymous>",
+         "Index index.js (9:7)",
+         "Page app/page.js (4:10)",
+       ],
+     }
+    `)
     expect(
       await session.evaluate(
         () =>
@@ -1152,38 +1060,20 @@ describe('ReactRefreshLogBox app', () => {
     )
 
     // Render error should "win" and show up in fullscreen
-    // TODO(veil): Why Owner Stack location different?
-    if (isTurbopack) {
-      await expect(browser).toDisplayRedbox(`
-       {
-         "description": "Component error",
-         "environmentLabel": null,
-         "label": "Runtime Error",
-         "source": "index.js (2:44) @ Index
-       > 2 |   if (typeof window !== 'undefined') throw new Error('Component error')
-           |                                            ^",
-         "stack": [
-           "Index index.js (2:44)",
-           "Page app/page.js (4:10)",
-         ],
-       }
-      `)
-    } else {
-      await expect(browser).toDisplayRedbox(`
-       {
-         "description": "Component error",
-         "environmentLabel": null,
-         "label": "Runtime Error",
-         "source": "index.js (2:44) @ Index
-       > 2 |   if (typeof window !== 'undefined') throw new Error('Component error')
-           |                                            ^",
-         "stack": [
-           "Index index.js (2:44)",
-           "Page app/page.js (4:10)",
-         ],
-       }
-      `)
-    }
+    await expect(browser).toDisplayRedbox(`
+     {
+       "description": "Component error",
+       "environmentLabel": null,
+       "label": "Runtime Error",
+       "source": "index.js (2:44) @ Index
+     > 2 |   if (typeof window !== 'undefined') throw new Error('Component error')
+         |                                            ^",
+       "stack": [
+         "Index index.js (2:44)",
+         "Page app/page.js (4:10)",
+       ],
+     }
+    `)
   })
 
   test('Call stack for client error', async () => {
