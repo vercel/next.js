@@ -228,11 +228,62 @@ Reload again. The Suspense view now shows three reveal events at different times
 
 Splitting has two things to get right. Keep everything that does not need the slow data (headings, layout, chrome) outside the boundaries, so only the data-dependent parts ever show a fallback. And size each fallback to match the content it replaces, so a reveal swaps in place instead of shifting the page as sections pop in.
 
-Rendering more of the page as a static shell takes this further, leaving even less behind a fallback, see [Next steps](#next-steps).
+<details>
+  <summary>Nesting boundaries does not serialize them</summary>
+
+```tsx
+import { setTimeout } from 'node:timers/promises'
+
+async function RandomRoll({ delay }: { delay: number }) {
+  await setTimeout(delay) // stand-in for a slow read
+  return <pre>{Math.random().toString(36).slice(2)}</pre>
+}
+
+function Rolls() {
+  return (
+    <Suspense fallback={<p>Rolling...</p>}>
+      <RandomRoll delay={1000} />
+      <Suspense fallback={<p>Still rolling...</p>}>
+        <RandomRoll delay={2000} />
+      </Suspense>
+    </Suspense>
+  )
+}
+```
+
+Both `RandomRoll` reads start together. On the **Server Components** track they run in parallel and the pair finishes at 2s, not 3s, even though one boundary sits inside the other. A `<Suspense>` orders when its content is revealed, not when its data is fetched. Nest boundaries for a staggered reveal, not to sequence the work behind them.
+
+</details>
 
 {/* TODO: screenshot, Suspense view: three staggered reveals (after) */}
 
-{/* TODO: introduce Cache Components as a model that makes both problems above (the data waterfall and the single-boundary reveal) easier to reason about */}
+### Cache Components helps with both
+
+[Cache Components](/docs/app/getting-started/caching) lets one page mix static and dynamic content. In the demo the teams a user belongs to rarely change, so `getTeams` does not need to run on every request. Caching it for days is reasonable, as it almost never changes within that window, while a `cacheTag` allows an on-demand refresh when necessary:
+
+```tsx filename="lib/api.ts"
+import { cacheLife, cacheTag } from 'next/cache'
+
+async function getTeams(teamIds: string[]) {
+  'use cache'
+  cacheLife('days')
+  cacheTag('teams')
+  // served from cache until a team edit calls revalidateTag('teams')
+}
+```
+
+The same reasoning covers the other reads: cache what changes rarely, tag it so a mutation can refresh it, and keep genuinely live data dynamic. `WhoIsOnline` is real-time, so it stays behind `<Suspense>` and streams per request while the cached sections render instantly:
+
+```tsx filename="app/dashboard/page.tsx"
+{/* cached: in the static shell, no fallback */}
+<Stats />                                
+<Suspense fallback={<WhoIsOnlineSkeleton />}>
+  {/* live: streams per request */}
+  <WhoIsOnline teamIds={user.teamIds} />
+</Suspense>
+```
+
+Each read you cache is one less waterfall and one less fallback at request time. That is a production change, though: the development tracks this guide reads still run the work, so the win shows up in a deployed build, not here.
 
 ### Step 3: Catch a blocking keystroke
 
@@ -359,7 +410,7 @@ appeared on, and the fix.
 
 ## Next steps
 
-The fixes in this guide are runtime fixes: they reorder or defer the work the server does on every request. The larger win is often to stop doing that work per request at all. With [Cache Components](/docs/app/getting-started/caching), you cache the parts of a page that do not change per request so they render into the static shell, leaving only genuinely dynamic data to stream. Profiling still tells you what to cache first: the reads that show up as the longest spans on the Server Components track are the best candidates.
+Profiling and [Cache Components](/docs/app/getting-started/caching) pull in the same direction. The tracks tell you what to cache first: the reads that show up as the longest spans on the Server Components track are the best candidates, and caching them shrinks what the tracks have to show next time.
 
 - [Parallelize data fetching](/docs/app/getting-started/fetching-data#parallel-data-fetching)
 - [Stream content with sibling Suspense boundaries](/docs/app/guides/streaming#parallel-streaming-with-sibling-boundaries)
