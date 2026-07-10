@@ -515,7 +515,8 @@ where
     // position is a stable "seniority" index. Candidates carry that index as their tie-break key,
     // so the `swap_remove` below — which scrambles positions within `candidates` — cannot disturb
     // the "earliest remaining candidate" tie-break.
-    let mut remaining_deps: FxIndexMap<NodeIndex, usize> = FxIndexMap::default();
+    let mut remaining_deps: FxIndexMap<NodeIndex, usize> =
+        FxIndexMap::with_capacity_and_hasher(graph.node_count(), Default::default());
     for n in graph.nodes() {
         remaining_deps.insert(n, graph.outgoing_edges(n).count());
     }
