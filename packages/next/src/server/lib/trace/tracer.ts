@@ -267,7 +267,7 @@ class NextTracerImpl implements NextTracer {
    * roots (or parent to incoming propagated context). Used for in-process
    * Node.js middleware so its span is a sibling of the request span, matching
    * edge middleware which runs in a detached sandbox.
-   */
+  */
   public runWithDetachedContext<T>(fn: () => T): T {
     if (!NEXT_OTEL_PERFORMANCE_PREFIX && !this.isOpenTelemetryEnabled()) {
       return fn()
