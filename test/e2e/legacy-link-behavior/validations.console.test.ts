@@ -1,5 +1,6 @@
 import { isNextDev, nextTestSetup } from 'e2e-utils'
 import { waitForNoRedbox } from 'next-test-utils'
+import { getDeterministicOutput } from '../app-dir/cache-components-errors/utils'
 
 const partialPrefetching = !!process.env.__NEXT_PARTIAL_PREFETCHING
 
@@ -9,7 +10,7 @@ describe('Validations for <Link legacyBehavior>', () => {
     skipDeployment: true,
   })
   if (skipped) return
-  let previousOutputIndex
+  let previousOutputIndex = 0
 
   beforeEach(() => {
     previousOutputIndex = next.cliOutput.length
@@ -63,16 +64,18 @@ describe('Validations for <Link legacyBehavior>', () => {
           if (partialPrefetching) {
             // In Partial Prefetching, we do a second render to produce the embedded
             // runtime prefetch stream, which results in a second log.
-            expect(newConsoleOutput()).toMatchInlineSnapshot(`
+            expect(
+              getDeterministicOutput(newConsoleOutput(), { isMinified: true })
+            ).toMatchInlineSnapshot(`
              "Using a Server Component as a direct child of \`<Link legacyBehavior>\` is not supported. If you need legacyBehavior, wrap your Server Component in a Client Component that renders the Link's \`<a>\` tag.
-             Using a Server Component as a direct child of \`<Link legacyBehavior>\` is not supported. If you need legacyBehavior, wrap your Server Component in a Client Component that renders the Link's \`<a>\` tag.
-             "
+             Using a Server Component as a direct child of \`<Link legacyBehavior>\` is not supported. If you need legacyBehavior, wrap your Server Component in a Client Component that renders the Link's \`<a>\` tag."
             `)
           } else {
-            expect(newConsoleOutput()).toMatchInlineSnapshot(`
-             "Using a Server Component as a direct child of \`<Link legacyBehavior>\` is not supported. If you need legacyBehavior, wrap your Server Component in a Client Component that renders the Link's \`<a>\` tag.
-             "
-            `)
+            expect(
+              getDeterministicOutput(newConsoleOutput(), { isMinified: true })
+            ).toMatchInlineSnapshot(
+              `"Using a Server Component as a direct child of \`<Link legacyBehavior>\` is not supported. If you need legacyBehavior, wrap your Server Component in a Client Component that renders the Link's \`<a>\` tag."`
+            )
           }
         }
       })
@@ -124,16 +127,56 @@ describe('Validations for <Link legacyBehavior>', () => {
         }
       })
 
-      it('does not warn or throw if you pass a client component', async () => {
-        const browser = await next.browser(
-          '/validations/rsc-that-renders-link/client'
-        )
+      describe('does not warn or throw if you pass a client component', () => {
+        it('with no prefetch config', async () => {
+          const browser = await next.browser(
+            '/validations/rsc-that-renders-link/client/default'
+          )
+          if (isNextDev) {
+            await waitForNoRedbox(browser)
+          } else {
+            expect(newConsoleOutput()).toEqual('')
+          }
+        })
 
-        if (isNextDev) {
-          await waitForNoRedbox(browser)
-        } else {
-          expect(newConsoleOutput()).toEqual('')
-        }
+        it('with runtime prefetch', async () => {
+          const browser = await next.browser(
+            '/validations/rsc-that-renders-link/client/runtime'
+          )
+
+          if (isNextDev) {
+            // FIXME(NAR-876): false positive due to debug info blocking the child
+            // await waitForNoRedbox(browser)
+
+            await expect(browser).toDisplayRedbox(`
+             {
+               "code": "E863",
+               "description": "\`<Link legacyBehavior>\` received a direct child that is either a Server Component, or JSX that was loaded with React.lazy(). This is not supported. Either remove legacyBehavior, or make the direct child a Client Component that renders the Link's \`<a>\` tag.",
+               "environmentLabel": null,
+               "label": "Runtime Error",
+               "source": "app/validations/rsc-that-renders-link/client/runtime/page.tsx (9:7) @ Page
+             >  9 |       <Link href="/about" legacyBehavior passHref>
+                  |       ^",
+               "stack": [
+                 "Page app/validations/rsc-that-renders-link/client/runtime/page.tsx (9:7)",
+               ],
+             }
+            `)
+          } else {
+            expect(newConsoleOutput()).toEqual('')
+          }
+        })
+
+        it('in dynamic code', async () => {
+          const browser = await next.browser(
+            '/validations/rsc-that-renders-link/client/dynamic'
+          )
+          if (isNextDev) {
+            await waitForNoRedbox(browser)
+          } else {
+            expect(newConsoleOutput()).toEqual('')
+          }
+        })
       })
 
       it('does not warn or throw if you pass a server component into a client component', async () => {
@@ -241,28 +284,112 @@ describe('Validations for <Link legacyBehavior>', () => {
         }
       })
 
-      it('does not warn or throw if you pass a client component', async () => {
-        const browser = await next.browser(
-          '/validations/rsc-that-renders-client/client'
-        )
+      describe('does not warn or throw if you pass a client component', () => {
+        it('with no prefetch config', async () => {
+          const browser = await next.browser(
+            '/validations/rsc-that-renders-client/client/default'
+          )
+          if (isNextDev) {
+            await waitForNoRedbox(browser)
+          } else {
+            expect(newConsoleOutput()).toEqual('')
+          }
+        })
 
-        if (isNextDev) {
-          await waitForNoRedbox(browser)
-        } else {
-          expect(newConsoleOutput()).toEqual('')
-        }
+        it('with runtime prefetch', async () => {
+          const browser = await next.browser(
+            '/validations/rsc-that-renders-client/client/runtime'
+          )
+
+          if (isNextDev) {
+            // FIXME(NAR-876): false positive due to debug info blocking the child
+            // await waitForNoRedbox(browser)
+
+            await expect(browser).toDisplayRedbox(`
+             {
+               "code": "E863",
+               "description": "\`<Link legacyBehavior>\` received a direct child that is either a Server Component, or JSX that was loaded with React.lazy(). This is not supported. Either remove legacyBehavior, or make the direct child a Client Component that renders the Link's \`<a>\` tag.",
+               "environmentLabel": null,
+               "label": "Runtime Error",
+               "source": "app/validations/rsc-that-renders-client/client-link.tsx (7:10) @ ClientLink
+             > 7 |   return <Link legacyBehavior passHref {...props} />
+                 |          ^",
+               "stack": [
+                 "ClientLink app/validations/rsc-that-renders-client/client-link.tsx (7:10)",
+                 "Page app/validations/rsc-that-renders-client/client/runtime/page.tsx (9:7)",
+               ],
+             }
+            `)
+          } else {
+            expect(newConsoleOutput()).toEqual('')
+          }
+        })
+
+        it('in dynamic code', async () => {
+          const browser = await next.browser(
+            '/validations/rsc-that-renders-client/client/dynamic'
+          )
+          if (isNextDev) {
+            await waitForNoRedbox(browser)
+          } else {
+            expect(newConsoleOutput()).toEqual('')
+          }
+        })
       })
 
-      it('does not warn or throw if you pass a server component into a client component', async () => {
-        const browser = await next.browser(
-          '/validations/rsc-that-renders-client/client-with-rsc-child'
-        )
+      describe('does not warn or throw if you pass a server component into a client component', () => {
+        it('with no prefetch config', async () => {
+          const browser = await next.browser(
+            '/validations/rsc-that-renders-client/client-with-rsc-child/default'
+          )
 
-        if (isNextDev) {
-          await waitForNoRedbox(browser)
-        } else {
-          expect(newConsoleOutput()).toEqual('')
-        }
+          if (isNextDev) {
+            await waitForNoRedbox(browser)
+          } else {
+            expect(newConsoleOutput()).toEqual('')
+          }
+        })
+
+        it('with runtime prefetch', async () => {
+          const browser = await next.browser(
+            '/validations/rsc-that-renders-client/client-with-rsc-child/runtime'
+          )
+
+          if (isNextDev) {
+            // FIXME(NAR-876): false positive due to debug info blocking the child
+            // await waitForNoRedbox(browser)
+
+            await expect(browser).toDisplayRedbox(`
+             {
+               "code": "E863",
+               "description": "\`<Link legacyBehavior>\` received a direct child that is either a Server Component, or JSX that was loaded with React.lazy(). This is not supported. Either remove legacyBehavior, or make the direct child a Client Component that renders the Link's \`<a>\` tag.",
+               "environmentLabel": null,
+               "label": "Runtime Error",
+               "source": "app/validations/rsc-that-renders-client/client-link.tsx (7:10) @ ClientLink
+             > 7 |   return <Link legacyBehavior passHref {...props} />
+                 |          ^",
+               "stack": [
+                 "ClientLink app/validations/rsc-that-renders-client/client-link.tsx (7:10)",
+                 "Page app/validations/rsc-that-renders-client/client-with-rsc-child/runtime/page.tsx (9:7)",
+               ],
+             }
+            `)
+          } else {
+            expect(newConsoleOutput()).toEqual('')
+          }
+        })
+
+        it('in dynamic code', async () => {
+          const browser = await next.browser(
+            '/validations/rsc-that-renders-client/client-with-rsc-child/dynamic'
+          )
+
+          if (isNextDev) {
+            await waitForNoRedbox(browser)
+          } else {
+            expect(newConsoleOutput()).toEqual('')
+          }
+        })
       })
     })
   })

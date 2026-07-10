@@ -1,5 +1,5 @@
-import { ClientLink } from '../client-link'
-import ClientA from './_client'
+import { ClientLink } from '../../client-link'
+import ClientA from '../_client'
 
 export default function Page() {
   return (

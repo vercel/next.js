@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { ClientComponent } from './_client'
+import { ClientComponent } from '../_client'
 
 export default function Page() {
   return (

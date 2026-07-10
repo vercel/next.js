@@ -1,11 +1,11 @@
 import Link from 'next/link'
-import { ClientComponent } from './_client'
+import CustomComponent from '../_client'
 
 export default function Page() {
   return (
     <>
       <Link href="/about" legacyBehavior passHref>
-        <ClientComponent>About</ClientComponent>
+        <CustomComponent>About</CustomComponent>
       </Link>
     </>
   )
