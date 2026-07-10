@@ -61,6 +61,7 @@ import {
   isChromeDevtoolsWorkspaceUrl,
 } from './chrome-devtools-workspace'
 import { getNextConfigRuntime, type NextConfigComplete } from '../config-shared'
+import { ensureInstrumentationRegistered } from './router-utils/instrumentation-globals.external'
 
 const debug = setupDebug('next:router-server:main')
 const isNextFont = (pathname: string | null) =>
@@ -125,6 +126,10 @@ export async function initialize(opts: {
 
   if (config?.compress !== false) {
     compress = setupCompression()
+  }
+
+  if (!opts.dev && config) {
+    await ensureInstrumentationRegistered(opts.dir, config.distDir)
   }
 
   const fsChecker = await setupFsCheck({
