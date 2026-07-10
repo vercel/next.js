@@ -792,23 +792,21 @@ where
             where
                 M: MapAccess<'de>,
             {
-                if let Some(size) = m.size_hint() {
-                    if size < MAX_LIST_SIZE {
-                        let mut list = InlineVec::with_capacity(size);
-                        while let Some((k, v)) = m.next_entry()? {
-                            list.push((k, v));
-                        }
-                        return Ok(AutoMap::List(list));
-                    } else {
-                        let mut map =
-                            Box::new(HashMap::with_capacity_and_hasher(size, H::default()));
-                        while let Some((k, v)) = m.next_entry()? {
-                            map.insert(k, v);
-                        }
-                        return Ok(AutoMap::Map(map));
-                    }
-                }
-                let mut map = AutoMap::with_hasher();
+                // `size_hint` is only advisory: a deserializer may return a value
+                // that under- or over-counts the entries actually yielded (some
+                // self-describing/streaming formats can't know the count up front).
+                // Use it only to pre-reserve capacity, and let `insert` decide the
+                // `List` vs `Map` variant based on the real count so we never push
+                // past `MAX_LIST_SIZE` into an `InlineVec`.
+                let size = m.size_hint().unwrap_or(0);
+                let mut map = if size < MAX_LIST_SIZE {
+                    AutoMap::with_hasher()
+                } else {
+                    AutoMap::Map(Box::new(HashMap::with_capacity_and_hasher(
+                        size,
+                        H::default(),
+                    )))
+                };
                 while let Some((k, v)) = m.next_entry()? {
                     map.insert(k, v);
                 }
