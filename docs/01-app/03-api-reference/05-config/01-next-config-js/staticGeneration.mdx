@@ -14,6 +14,7 @@ const nextConfig: NextConfig = {
     staticGenerationRetryCount: 1,
     staticGenerationMaxConcurrency: 8,
     staticGenerationMinPagesPerWorker: 25,
+    staticGenerationRollingConcurrency: false,
   },
 }
 
@@ -26,6 +27,7 @@ const nextConfig = {
     staticGenerationRetryCount: 1,
     staticGenerationMaxConcurrency: 8,
     staticGenerationMinPagesPerWorker: 25,
+    staticGenerationRollingConcurrency: false,
   },
 }
 
@@ -39,3 +41,4 @@ The following options are available:
 - `staticGenerationRetryCount`: The number of times to retry a failed page generation before failing the build.
 - `staticGenerationMaxConcurrency`: The maximum number of pages to be processed per worker.
 - `staticGenerationMinPagesPerWorker`: The minimum number of pages to be processed before starting a new worker.
+- `staticGenerationRollingConcurrency`: Start exporting the next page as soon as a concurrency slot frees up, instead of waiting for the whole batch of `staticGenerationMaxConcurrency` pages to finish.

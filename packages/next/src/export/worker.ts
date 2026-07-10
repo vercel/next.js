@@ -54,7 +54,11 @@ import { isStaticGenBailoutError } from '../client/components/static-generation-
 import type { PagesRenderContext, PagesSharedContext } from '../server/render'
 import type { AppSharedContext } from '../server/app-render/app-render'
 import { MultiFileWriter } from '../lib/multi-file-writer'
-import { runWithConcurrency } from '../lib/run-with-concurrency'
+import {
+  runInBatches,
+  runWithConcurrency,
+  type RunWithConcurrencyFn,
+} from '../lib/run-with-concurrency'
 import { createRenderResumeDataCache } from '../server/resume-data-cache/resume-data-cache'
 import { installGlobalBehaviors } from '../server/node-environment-extensions/global-behaviors'
 ;(globalThis as any).__NEXT_DATA__ = {
@@ -523,7 +527,12 @@ export async function exportPages(
     return { result, path, page, pageKey }
   }
 
-  return runWithConcurrency(exportPaths, maxConcurrency, exportPageWithRetry)
+  const runTasks: RunWithConcurrencyFn = nextConfig.experimental
+    .staticGenerationRollingConcurrency
+    ? runWithConcurrency
+    : runInBatches
+
+  return runTasks(exportPaths, maxConcurrency, exportPageWithRetry)
 }
 
 async function exportPage(

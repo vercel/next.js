@@ -439,6 +439,7 @@ export const experimentalSchema = {
   staticGenerationRetryCount: z.number().int().optional(),
   staticGenerationMaxConcurrency: z.number().int().positive().optional(),
   staticGenerationMinPagesPerWorker: z.number().int().optional(),
+  staticGenerationRollingConcurrency: z.boolean().optional(),
   typedEnv: z.boolean().optional(),
   serverComponentsHmrCache: z.boolean().optional(),
   serverComponentsHmrCancellation: z.boolean().optional(),

@@ -1199,6 +1199,13 @@ export interface ExperimentalConfig {
   staticGenerationMinPagesPerWorker?: number
 
   /**
+   * Uses rolling concurrency during static generation: the next page starts
+   * exporting as soon as a concurrency slot frees up, instead of waiting for
+   * the whole batch of `staticGenerationMaxConcurrency` pages to finish.
+   */
+  staticGenerationRollingConcurrency?: boolean
+
+  /**
    * Allows previously fetched data to be re-used when editing server components.
    */
   serverComponentsHmrCache?: boolean
@@ -2176,6 +2183,7 @@ export const defaultConfig = Object.freeze({
     serverComponentsHmrCancellation: false,
     staticGenerationMaxConcurrency: 8,
     staticGenerationMinPagesPerWorker: 25,
+    staticGenerationRollingConcurrency: false,
     transitionIndicator: false,
     gestureTransition: false,
     inlineCss: false,
