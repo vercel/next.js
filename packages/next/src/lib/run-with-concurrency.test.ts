@@ -36,9 +36,10 @@ describe('runWithConcurrency', () => {
     ])
   })
 
-  it('stops starting new items after a worker rejects', async () => {
+  it('stops starting new items after a worker rejects and waits for in-flight items', async () => {
     const firstItemGate = new DetachedPromise<void>()
     const started: number[] = []
+    const finished: number[] = []
     const error = new Error('unexpected failure')
 
     const result = runWithConcurrency([0, 1, 2], 2, async (item) => {
@@ -50,14 +51,28 @@ describe('runWithConcurrency', () => {
         throw error
       }
 
+      finished.push(item)
       return item
     })
 
-    await expect(result).rejects.toBe(error)
+    let settled = false
+    result.then(
+      () => {
+        settled = true
+      },
+      () => {
+        settled = true
+      }
+    )
+
+    await waitForNextTurn()
     expect(started).toEqual([0, 1])
+    // Item 0 is still running, so the returned promise must not settle yet.
+    expect(settled).toBe(false)
 
     firstItemGate.resolve()
-    await waitForNextTurn()
+    await expect(result).rejects.toBe(error)
+    expect(finished).toEqual([0])
     expect(started).toEqual([0, 1])
   })
 

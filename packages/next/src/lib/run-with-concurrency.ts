@@ -3,8 +3,8 @@
  * Results are returned in the same order as the input items.
  *
  * After the first rejection is observed, no new tasks are started. Tasks that
- * are already running are not cancelled, and the returned promise rejects
- * without waiting for them to finish.
+ * are already running are not cancelled; the returned promise waits for them
+ * to settle and then rejects with the first error.
  */
 export async function runWithConcurrency<T, R>(
   items: readonly T[],
@@ -28,6 +28,7 @@ export async function runWithConcurrency<T, R>(
 
   let nextIndex = 0
   let stopped = false
+  let firstError: unknown
 
   async function runWorker(): Promise<void> {
     while (!stopped) {
@@ -42,8 +43,11 @@ export async function runWithConcurrency<T, R>(
       } catch (error) {
         // Other workers can finish their current task, but must not start new
         // work after an unexpected failure.
-        stopped = true
-        throw error
+        if (!stopped) {
+          stopped = true
+          firstError = error
+        }
+        return
       }
     }
   }
@@ -54,6 +58,13 @@ export async function runWithConcurrency<T, R>(
     workers.push(runWorker())
   }
 
+  // Workers never reject; they record the first error and stop instead, so
+  // this waits for all in-flight tasks to settle.
   await Promise.all(workers)
+
+  if (stopped) {
+    throw firstError
+  }
+
   return results as R[]
 }
