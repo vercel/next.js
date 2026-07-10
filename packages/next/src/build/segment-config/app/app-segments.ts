@@ -25,15 +25,6 @@ type GenerateStaticParams = (options: { params?: Params }) => Promise<Params[]>
  * Parses the app config and attaches it to the segment.
  */
 function attach(segment: AppSegment, userland: unknown, route: string) {
-  if (userland instanceof Promise) {
-    // Reading exports off a pending module would silently drop
-    // `generateStaticParams` and the segment config. (Not a thenable check —
-    // a module may legitimately export a function named `then`.)
-    throw new InvariantError(
-      `The userland module for route "${route}" must be awaited before collecting segments.`
-    )
-  }
-
   // If the userland is not an object, then we can't do anything with it.
   if (typeof userland !== 'object' || userland === null) {
     return
