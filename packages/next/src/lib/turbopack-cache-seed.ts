@@ -1,52 +1,106 @@
 import fs from 'fs'
 import path from 'path'
 import * as Log from '../build/output/log'
-import { getGitWorktreeInfo } from './git-worktree'
-
-export enum TurbopackCacheSeedMode {
-  Build,
-  Dev,
-}
+import { getTurbopackCacheVersion } from '../build/swc'
+import {
+  getGitWorktreeInfo,
+  listLinkedWorktreeRoots,
+  type GitWorktreeInfo,
+} from './git-worktree'
 
 export function seedTurbopackCacheIfNeeded({
   projectDir,
   distDir,
-  mode,
 }: {
   projectDir: string
   distDir: string
-  mode: TurbopackCacheSeedMode
 }): void {
-  // Only worktrees can seed from a sibling; no-op for the main checkout or outside a git repo.
+  const version = getTurbopackCacheVersion()
+  if (!version) return
+
   const worktreeInfo = getGitWorktreeInfo(projectDir)
   if (!worktreeInfo) return
 
   const cacheDir = path.join(distDir, 'cache', 'turbopack')
-  try {
-    if (dirHasEntries(cacheDir)) return
+  if (dirHasEntries(cacheDir)) return
 
-    // So I made the call to only copy from the main project directory.
-    // You could instead look at all the "sibling" worktrees
-    // and copy from them. But this feels a bit arbitrary.
-    // Which do you pick? Do you do some comparison of the branches?
-    // It also felt like siblings are exploring different possibility with
-    // perhaps the main repo being the place all the initial work happened.
-    // This is speculative and I'm not suure how best to figure out if this
-    // is the right heuristic other than maybe user feedback? Or recording stats?
-    const mainRepoRoot = worktreeInfo.mainRepoRoot
-    const mainCacheDir = path.join(
-      mainRepoRoot,
-      '.next',
-      mode === TurbopackCacheSeedMode.Dev ? 'dev' : '',
-      'cache',
-      'turbopack'
+  let sourceVersionDir: string | undefined
+  try {
+    sourceVersionDir = findSeedSource(
+      worktreeInfo,
+      projectDir,
+      distDir,
+      version
     )
-    seedCacheDir(mainCacheDir, cacheDir)
   } catch {
-    // Best-effort: never fail a build because seeding didn't work.
+    return
+  }
+  if (!sourceVersionDir) return
+
+  const targetVersionDir = path.join(cacheDir, version)
+  const tmpDir = `${targetVersionDir}.seeding`
+  // Making sure we don't copy partial data if process interrupted
+  // There is a potential race condition here
+  // if someone wrote to the cache while we were seeding it
+  // but with the immutable design and all that, I'm not super worried
+  try {
+    fs.mkdirSync(cacheDir, { recursive: true })
+    fs.rmSync(tmpDir, { recursive: true, force: true })
+    seedCacheDir(sourceVersionDir, tmpDir)
+    fs.renameSync(tmpDir, targetVersionDir)
+  } catch {
+    fs.rmSync(tmpDir, { recursive: true, force: true })
     Log.warn(
-      `Failed to seed Turbopack cache from main checkout at ${worktreeInfo.mainRepoRoot} to ${cacheDir}.`
+      `Failed to seed Turbopack cache from ${sourceVersionDir} to ${targetVersionDir}.`
     )
+  }
+}
+
+function findSeedSource(
+  worktreeInfo: GitWorktreeInfo,
+  projectDir: string,
+  distDir: string,
+  version: string
+): string | undefined {
+  const projectRelToWorktree = path.relative(
+    worktreeInfo.worktreeRoot,
+    projectDir
+  )
+  const distRelToProject = path.relative(projectDir, distDir)
+  const currentWorktree = path.resolve(worktreeInfo.worktreeRoot)
+
+  // We are going to find the best candidate worktree
+  // based on the newest mtime of the CURRENT file in the cache directory.
+  // We only look at our version
+
+  let best: { versionDir: string; mtimeMs: number } | undefined
+  for (const root of [
+    worktreeInfo.mainRepoRoot,
+    ...listLinkedWorktreeRoots(worktreeInfo.mainRepoRoot),
+  ]) {
+    if (path.resolve(root) === currentWorktree) continue
+    const versionDir = path.join(
+      root,
+      projectRelToWorktree,
+      distRelToProject,
+      'cache',
+      'turbopack',
+      version
+    )
+    const mtimeMs = currentMtimeMs(versionDir)
+    if (mtimeMs === undefined) continue
+    if (!best || mtimeMs > best.mtimeMs) {
+      best = { versionDir, mtimeMs }
+    }
+  }
+  return best?.versionDir
+}
+
+function currentMtimeMs(versionDir: string): number | undefined {
+  try {
+    return fs.statSync(path.join(versionDir, 'CURRENT')).mtimeMs
+  } catch {
+    return undefined
   }
 }
 
@@ -58,7 +112,7 @@ function dirHasEntries(dir: string): boolean {
   }
 }
 
-const IMMUTABLE_CACHE_FILE = /\.(sst|blob|meta)$/
+const IMMUTABLE_CACHE_FILE = /\.(sst|blob|meta|del)$/
 
 function seedCacheDir(src: string, dst: string): void {
   const stat = fs.lstatSync(src)
@@ -72,7 +126,7 @@ function seedCacheDir(src: string, dst: string): void {
   } else if (IMMUTABLE_CACHE_FILE.test(src)) {
     fs.linkSync(src, dst)
   } else {
-    // Mutable/unknown (CURRENT, LOG, …) — copy so it gets its own inode.
+    // Mutable/unknown (CURRENT, LOG, …) - copy so it gets its own inode.
     fs.copyFileSync(src, dst)
   }
 }

@@ -1,5 +1,5 @@
-import { readFileSync } from 'fs'
-import { dirname, resolve } from 'path'
+import { readFileSync, readdirSync } from 'fs'
+import { dirname, join, resolve } from 'path'
 import findUp from 'next/dist/compiled/find-up'
 
 function getGitProjectRoot(dotGitFile: string): string | undefined {
@@ -34,4 +34,26 @@ export function getGitWorktreeInfo(cwd: string): GitWorktreeInfo | undefined {
     mainRepoRoot: projectRoot,
     isChild: dirname(found).startsWith(projectRoot),
   }
+}
+
+export function listLinkedWorktreeRoots(mainRepoRoot: string): string[] {
+  const worktreesDir = join(mainRepoRoot, '.git', 'worktrees')
+  let names: string[]
+  try {
+    names = readdirSync(worktreesDir)
+  } catch {
+    return []
+  }
+
+  const roots: string[] = []
+  for (const name of names) {
+    try {
+      const gitdir = readFileSync(
+        join(worktreesDir, name, 'gitdir'),
+        'utf8'
+      ).trim()
+      if (gitdir) roots.push(dirname(gitdir))
+    } catch {}
+  }
+  return roots
 }

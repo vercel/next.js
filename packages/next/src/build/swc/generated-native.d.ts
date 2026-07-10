@@ -770,6 +770,7 @@ export interface NapiRewrite {
   missing?: Array<NapiRouteHas>
 }
 export declare function getTargetTriple(): string
+export declare function turbopackCacheVersion(nextVersion: string): string
 /**
  * Initialize tracing subscriber to emit traces. This configures subscribers
  * for Trace Event Format <https://docs.google.com/document/d/1CvAClvFfyA5R-PhYUmn5OOQtYMH4h6I0nSsKchNAySU/preview>.
