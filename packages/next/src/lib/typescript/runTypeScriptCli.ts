@@ -136,6 +136,7 @@ export function runTypeScriptCli({
       // The native compiler ignores SIGTERM and SIGINT, so send a kill signal.
       // Target the whole process group so the signal reaches the native compiler whether
       // it is a grandchild or a direct child.
+      // https://github.com/microsoft/typescript-go/pull/4592 should improve this in the long run
       if (process.platform === 'win32') {
         spawnSync('taskkill', ['/pid', String(child.pid), '/T', '/F'], {
           stdio: 'ignore',
