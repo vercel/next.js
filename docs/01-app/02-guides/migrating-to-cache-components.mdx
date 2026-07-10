@@ -22,7 +22,7 @@ The migration is driven by **instant navigation validation**. With Cache Compone
 
 The [`next-cache-components-adoption`](https://github.com/vercel/next.js/tree/canary/skills/next-cache-components-adoption) skill drives this migration with a coding agent, one feature at a time, checking in at every feature boundary. It supports two modes:
 
-- **Incremental.** Opens a single mechanical PR that opts every route out of validation, then ships each feature as a follow-up PR.
+- **Incremental.** Opens a single mechanical PR that opts every route out of validation, then ships each feature as a follow-up PR. This automates the [Adopting incrementally](#adopting-incrementally) flow below.
 - **Direct.** Adopts every route in place on one branch.
 
 Install the skill:
@@ -39,7 +39,7 @@ Adopt Cache Components in this project using the next-cache-components-adoption 
 
 ## Or migrate by hand
 
-Start by removing the route segment configs (`dynamic`, `revalidate`, `fetchCache`), then follow the validation insights and errors. Each one names the code to fix, most often uncached data to cache with [`use cache`](/docs/app/api-reference/directives/use-cache) or runtime data to wrap in [`<Suspense>`](https://react.dev/reference/react/Suspense). If a route needs more work than you want to take on right now, you can [opt it out of validation](#opting-out-of-validation) and come back to it later.
+Start by removing the route segment configs (`dynamic`, `revalidate`, `fetchCache`), then follow the validation insights and errors. Each one names the code to fix, most often uncached data to cache with [`use cache`](/docs/app/api-reference/directives/use-cache) or runtime data to wrap in [`<Suspense>`](https://react.dev/reference/react/Suspense). If a route needs more work than you want to take on right now, you can [opt it out of validation](#opting-out-of-validation) and come back to it later. To migrate gradually rather than all at once, see [Adopting incrementally](#adopting-incrementally).
 
 Your existing `fetch` and `unstable_cache` caching keeps working as a separate layer, so let the insights and errors guide what to change.
 
@@ -69,6 +69,64 @@ export default nextConfig
 > **Good to know:** If you were using `experimental.dynamicIO` or `experimental.useCache`, `cacheComponents` replaces them. See the [version 16 upgrade guide](/docs/app/guides/upgrading/version-16#experimentaldynamicio-and-experimentalusecache).
 
 After enabling the flag, route segments that still export `dynamic`, `revalidate`, or `fetchCache` will error. Start by replacing those configs. The sections below explain what to do for each one.
+
+## Following validation
+
+Cache Components validates your routes in development and surfaces errors and insights in the dev overlay. Some look like this, naming the affected component and pointing at a fix:
+
+<FixCardGrid>
+  <FixCard
+    group="cache"
+    title="Cache the component or data"
+    href="/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data"
+    snippets={[
+      { text: 'async function Posts() {' },
+      { text: '  "use cache"', highlight: true },
+      { text: '  return <List items={…} />' },
+      { text: '}' },
+    ]}
+  />
+  <FixCard
+    group="stream"
+    title="Wrap in or move into Suspense"
+    href="/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense"
+    snippets={[
+      { text: '<Suspense fallback={…}>', highlight: true },
+      { text: '  <DataChild />' },
+      { text: '</Suspense>', highlight: true },
+    ]}
+  />
+</FixCardGrid>
+
+Each card is clickable and opens a page with patterns, code samples, and trade-offs. Work through the insights and errors until they're gone. For the full validation workflow, the DevTools, and CI testing, see the [instant navigation guide](/docs/app/guides/instant-navigation).
+
+Insights don't show up in the HTTP response. An offending route still returns `200` with rendered HTML in dev. The insight only appears in the dev overlay, the dev-server log, or the [MCP `get_errors` tool](/docs/app/guides/mcp). To see them, read the overlay (or query the MCP).
+
+## Opting out of validation
+
+A validation insight or error tells you a route won't render instantly. Resolve it by following the recommendation: cache the data with [`use cache`](/docs/app/api-reference/directives/use-cache) or wrap it in [`<Suspense>`](https://react.dev/reference/react/Suspense). If you're not ready to address it yet, set the [`instant`](/docs/app/api-reference/file-conventions/route-segment-config/instant) config to `false` on the segment that raised it (a layout, page, or parallel slot), then come back to it later.
+
+```tsx filename="app/dashboard/layout.tsx"
+export const instant = false
+```
+
+> **Good to know**: `instant = false` marks a segment as _allowed to block_. It does not force the route to be dynamic, so a genuinely prerenderable route still ships a static shell. It also does not clear synchronous IO build errors: calls like `new Date()`, `Math.random()`, and `crypto.randomUUID()` still fail the prerender. See [Adopting incrementally](#adopting-incrementally).
+
+## Adopting incrementally
+
+You don't have to migrate every route at once. `instant = false` lets you get the whole app building and running first, then convert routes one at a time:
+
+1. **Enable the flag and remove the route segment configs** (`dynamic`, `revalidate`, `fetchCache`). Routes that still render instantly need no further work.
+2. **Opt out the routes that aren't ready.** Where an insight or error appears, set `instant = false` on the segment that raised it. To do this in one pass across the whole app, run the [`cache-components-instant-false`](/docs/app/guides/upgrading/codemods#cache-components-instant-false) codemod, which adds the opt-out to every `page`, `layout`, and `default` that doesn't already declare `instant`:
+
+   ```bash filename="Terminal"
+   npx @next/codemod@canary cache-components-instant-false ./app
+   ```
+
+   The app keeps building and serving, now with validation deferred for the opted-out routes.
+
+3. **Fix synchronous IO. It can't be deferred.** Calls like `new Date()`, `Date.now()`, `Math.random()`, and `crypto.randomUUID()` during prerender throw a build error that `instant = false` does not clear, so a route that uses them won't build until you address it, opt-out or not. Move the call out of the prerendered shell so it runs at request time: wrap the part that needs it in [`<Suspense>`](https://react.dev/reference/react/Suspense) and call [`connection()`](/docs/app/api-reference/functions/connection) before the call, or move it into a Client Component.
+4. **Convert one route at a time.** Remove `instant = false` from a route, then resolve its insights by caching data with [`use cache`](/docs/app/api-reference/directives/use-cache) or wrapping runtime data in [`<Suspense>`](https://react.dev/reference/react/Suspense). Repeat until no routes opt out.
 
 ## `dynamic = "force-dynamic"`
 
@@ -235,47 +293,6 @@ export default async function Page() {
   return <div>...</div>
 }
 ```
-
-## Following validation
-
-Cache Components validates your routes in development and surfaces errors and insights in the dev overlay. Some look like this, naming the affected component and pointing at a fix:
-
-<FixCardGrid>
-  <FixCard
-    group="cache"
-    title="Cache the component or data"
-    href="/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data"
-    snippets={[
-      { text: 'async function Posts() {' },
-      { text: '  "use cache"', highlight: true },
-      { text: '  return <List items={…} />' },
-    ]}
-  />
-  <FixCard
-    group="stream"
-    title="Wrap in or move into Suspense"
-    href="/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense"
-    snippets={[
-      { text: '<Suspense fallback={…}>', highlight: true },
-      { text: '  <DataChild />' },
-      { text: '</Suspense>', highlight: true },
-    ]}
-  />
-</FixCardGrid>
-
-Each card is clickable and opens a page with patterns, code samples, and trade-offs. Work through the insights and errors until they're gone. For the full validation workflow, the DevTools, and CI testing, see the [instant navigation guide](/docs/app/guides/instant-navigation).
-
-Insights don't show up in the HTTP response. An offending route still returns `200` with rendered HTML in dev. The insight only appears in the dev overlay, the dev-server log, or the [MCP `get_errors` tool](/docs/app/guides/mcp). To see them, read the overlay (or query the MCP).
-
-## Opting out of validation
-
-A validation insight or error tells you a route won't render instantly. Resolve it by following the recommendation: cache the data with [`use cache`](/docs/app/api-reference/directives/use-cache) or wrap it in [`<Suspense>`](https://react.dev/reference/react/Suspense). If you're not ready to address it yet, set the [`instant`](/docs/app/api-reference/file-conventions/route-segment-config/instant) config to `false` on the segment that raised it (a layout, page, or parallel slot), then come back to it later.
-
-```tsx filename="app/dashboard/layout.tsx"
-export const instant = false
-```
-
-> **Good to know**: `instant = false` marks a segment as _allowed to block_. It does not force the route to be dynamic, so a genuinely prerenderable route still ships a static shell. It also does not clear synchronous-IO build errors: calls like `new Date()`, `Math.random()`, and `crypto.randomUUID()` still fail the prerender. Fix those with the cards Next.js shows for each error.
 
 ## `fetch` cache options
 
