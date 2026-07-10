@@ -58,7 +58,7 @@ Or the bundler merged another stylesheet into a shared chunk that your route loa
 
 ## Balancing requests and grouping
 
-`graph` mode groups CSS into shared chunks to cut requests. Turn it on with the string form, which uses the default tuning:
+The `graph` strategy groups CSS into shared chunks to cut requests. Turn it on with the string form, which uses the default tuning:
 
 ```tsx filename="next.config.ts" switcher
 import type { NextConfig } from 'next'
@@ -119,21 +119,29 @@ module.exports = nextConfig
 - **`requestCost`** (default `100000`): the estimated cost, in bytes, of each additional CSS request. Larger values bias toward fewer, larger shared chunks, and fewer requests overall.
 - **`weightDistribution`** (default `0.1`): controls how a shared chunk's cost is distributed across the routes that load it, weighted by how much CSS each route imports. `0` weights every route equally; higher values give more weight to routes that import less CSS, so the algorithm ships them less unused CSS at the expense of more requests overall.
 
-### Example
+### How `graph` decides what to merge
 
-Merging CSS into shared chunks is what the default (`true`) already does; `graph` just lets you control where it draws the line between merging and splitting. Take two routes that share a stylesheet:
+Merging CSS into shared chunks is what the default (`true`) already does; `graph` just lets you control where it draws the line between merging and splitting.
+
+Take two routes that share a stylesheet:
 
 ```txt
 /a → [shared.css, only-a.css]
 /b → [shared.css]
 ```
 
-Here, `/b` never imports `only-a.css`. Merging `only-a.css` into the same chunk as `shared.css` lets `/a` load all its CSS in one request instead of two, but the price is that `/b`, which loads that shared chunk, now downloads `only-a.css` even though it never imported it. Splitting `only-a.css` into its own chunk spares `/b` those bytes, at the cost of `/a` making two requests. The default makes this decision with a fixed heuristic.
+Here, `/b` never imports `only-a.css`, so there is one decision to make: keep `only-a.css` in the shared chunk, or give it its own.
 
-In `graph` mode, that decision becomes the `requestCost` option: how much un-imported CSS one route will carry so another route can save a request. It keeps `only-a.css` merged while `only-a.css` is well under `requestCost`, and splits it out once it grows large enough to outweigh the extra request. What matters is the size of the un-imported CSS a merge would push onto a route, more than the size of the shared chunk it joins. With the default of about 100 KB, small stylesheets stay merged and only a substantial amount earns its own request.
+Keeping it merged lets `/a` load all its CSS in a single request. The cost is that `/b`, which also loads that shared chunk, now downloads `only-a.css` even though it never imported it.
+
+Splitting it out spares `/b` those bytes, but now `/a` has to make two requests. The default picks between these with a fixed heuristic.
+
+The `requestCost` option is how `graph` prices that trade: the amount of un-imported CSS worth one extra request. It keeps `only-a.css` merged while `only-a.css` stays well under `requestCost`, and splits it out once it grows large enough to outweigh the request.
+
+What drives the decision is the size of the un-imported CSS a merge would push onto a route, much more than the size of the shared chunk it joins. With the default `requestCost` of about 100 KB, `only-a.css` would have to exceed roughly that size before it earns its own chunk, so small stylesheets stay merged.
 
 <details>
-  <summary>How the graph algorithm groups CSS</summary>
+  <summary>Graph algorithm overview</summary>
 
 At a high level, the algorithm works with individual CSS files. It starts from the ordered list of CSS each route imports:
 
