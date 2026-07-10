@@ -10,8 +10,8 @@ import isError from '../lib/is-error'
 import { hrtimeDurationToString } from './duration-to-string'
 
 /**
- * typescript will be loaded in "next/lib/verify-typescript-setup" and
- * then passed to "next/lib/typescript/runTypeCheck" as a parameter.
+ * TypeScript setup and type checking run in a worker so the compiler's memory
+ * can be released before the rest of the build continues.
  *
  * Since it is impossible to pass a function from main thread to a worker,
  * instead of running "next/lib/typescript/runTypeCheck" in a worker,
@@ -31,7 +31,8 @@ function verifyAndRunTypeScript(
   hasPagesDir: boolean,
   appDir: string | undefined,
   pagesDir: string | undefined,
-  debugBuildPaths: { app: string[]; pages: string[] } | undefined
+  debugBuildPaths: { app: string[]; pages: string[] } | undefined,
+  useTypeScriptCli: boolean
 ) {
   let impl: typeof import('../lib/verify-typescript-setup').verifyAndRunTypeScript
   let typeCheckWorker:
@@ -47,7 +48,9 @@ function verifyAndRunTypeScript(
         debuggerPortOffset: -1,
         isolatedMemory: false,
         numWorkers: 1,
-        enableWorkerThreads,
+        // CLI mode must use a child-process worker so terminating the worker
+        // produces a process lifecycle event that can be forwarded to `tsc`.
+        enableWorkerThreads: useTypeScriptCli ? false : enableWorkerThreads,
         maxRetries: 0,
       }
     ) as typeof typeCheckWorker
@@ -74,6 +77,7 @@ function verifyAndRunTypeScript(
     appDir,
     pagesDir,
     debugBuildPaths,
+    useTypeScriptCli,
   })
     .then((result) => {
       typeCheckWorker?.end()
@@ -106,6 +110,7 @@ export async function startTypeChecking({
   debugBuildPaths: { app: string[]; pages: string[] } | undefined
 }) {
   const ignoreTypeScriptErrors = Boolean(config.typescript.ignoreBuildErrors)
+  const useTypeScriptCli = Boolean(config.experimental.useTypeScriptCli)
 
   if (ignoreTypeScriptErrors) {
     Log.info('Skipping validation of types')
@@ -119,7 +124,14 @@ export async function startTypeChecking({
   }
 
   if (typeCheckingSpinnerPrefixText) {
-    typeCheckingSpinner = createSpinner(typeCheckingSpinnerPrefixText)
+    if (useTypeScriptCli) {
+      // The CLI writes directly to stdout/stderr, bypassing the console hooks
+      // that pause an active spinner. Keep its diagnostics byte-for-byte and
+      // on their own lines by logging a static status line instead.
+      Log.info(`${typeCheckingSpinnerPrefixText} ...`)
+    } else {
+      typeCheckingSpinner = createSpinner(typeCheckingSpinnerPrefixText)
+    }
   }
 
   const typeCheckAndLintStart = process.hrtime()
@@ -142,7 +154,8 @@ export async function startTypeChecking({
           !!pagesDir,
           appDir,
           pagesDir,
-          debugBuildPaths
+          debugBuildPaths,
+          useTypeScriptCli
         ).then((resolved) => {
           const checkEnd = process.hrtime(typeCheckAndLintStart)
           return [resolved, checkEnd] as const
@@ -165,6 +178,7 @@ export async function startTypeChecking({
           inputFilesCount: verifyResult.result?.inputFilesCount,
           totalFilesCount: verifyResult.result?.totalFilesCount,
           incremental: verifyResult.result?.incremental,
+          typeCheckMode: verifyResult.typeCheckMode,
         })
       )
     }

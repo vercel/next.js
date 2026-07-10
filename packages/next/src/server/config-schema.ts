@@ -406,6 +406,7 @@ export const experimentalSchema = {
   optimizePackageImports: z.array(z.string()).optional(),
   optimizeServerReact: z.boolean().optional(),
   strictRouteTypes: z.boolean().optional(),
+  useTypeScriptCli: z.boolean().optional(),
   clientTraceMetadata: z.array(z.string()).optional(),
   serverMinification: z.boolean().optional(),
   serverSourceMaps: z.boolean().optional(),

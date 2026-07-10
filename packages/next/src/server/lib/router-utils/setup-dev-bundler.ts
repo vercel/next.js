@@ -165,6 +165,7 @@ async function verifyTypeScript(opts: SetupOpts) {
     hasPagesDir: !!opts.pagesDir,
     appDir: opts.appDir,
     pagesDir: opts.pagesDir,
+    useTypeScriptCli: Boolean(opts.nextConfig.experimental.useTypeScriptCli),
   })
 
   if (verifyResult.version) {
