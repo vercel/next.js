@@ -564,11 +564,9 @@ where
         let (placed, _) = candidates.swap_remove(pick);
         result.push(placed);
 
-        // Unblock dependents. petgraph yields neighbours in reverse insertion order; flip it back
-        // so equal-score ties resolve in insertion order.
-        let mut incoming: Vec<NodeIndex> = graph.incoming_edges(placed).collect();
-        incoming.reverse();
-        for dependent in incoming {
+        // Unblock dependents. The order they are pushed is irrelevant: candidate ties are broken
+        // by the stable `remaining_deps` index, not by position in `candidates`.
+        for dependent in graph.incoming_edges(placed) {
             let Some((idx, _, cur)) = remaining_deps.get_full_mut(&dependent) else {
                 continue;
             };
