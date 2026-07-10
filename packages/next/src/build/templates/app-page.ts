@@ -1799,18 +1799,47 @@ export async function handler(
           delete headers[NEXT_CACHE_TAGS_HEADER]
         }
 
+        // Some headers (e.g. `Location`, `x-nextjs-stale-time`) are set on the
+        // response during the render phase and also stored in the cached
+        // metadata. Re-applying them here with `appendHeader` produces
+        // duplicate values such as `Location: /dest, /dest` once a proxy merges
+        // them, which breaks the redirect (#82117). Only append headers that
+        // are allowed to appear multiple times; for any other header, append it
+        // only when it isn't already present so a value set during render is
+        // never duplicated. This mirrors the allowlist used in
+        // `server/send-response.ts`.
+        const headersWithMultipleValuesAllowed = new Set([
+          'set-cookie',
+          'www-authenticate',
+          'proxy-authenticate',
+          'vary',
+        ])
+
         for (let [key, value] of Object.entries(headers)) {
           if (typeof value === 'undefined') continue
 
+          // Append when the header may hold multiple values, or when it isn't
+          // already on the response. Otherwise skip it: the value present on
+          // the response was captured from this same render, so re-adding it
+          // would only duplicate it.
+          const canAppend =
+            headersWithMultipleValuesAllowed.has(key.toLowerCase()) ||
+            typeof res.getHeader(key) === 'undefined'
+
           if (Array.isArray(value)) {
-            for (const v of value) {
-              res.appendHeader(key, v)
+            if (canAppend) {
+              for (const v of value) {
+                res.appendHeader(key, v)
+              }
             }
-          } else if (typeof value === 'number') {
-            value = value.toString()
-            res.appendHeader(key, value)
           } else {
-            res.appendHeader(key, value)
+            if (typeof value === 'number') {
+              value = value.toString()
+            }
+
+            if (canAppend) {
+              res.appendHeader(key, value)
+            }
           }
         }
       }
