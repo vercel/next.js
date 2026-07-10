@@ -1,5 +1,5 @@
 ---
-name: next-instant-navigation-optimizer
+name: next-cache-components-optimizer
 description: >
   Drive a Next.js route to instant navigation by setting up an agentic loop,
   under Cache Components / PPR, on initial load (hard navigation) and
@@ -13,7 +13,7 @@ description: >
   one. Requires Next.js 16+ with cacheComponents; directs an upgrade if older.
 ---
 
-# next-instant-navigation-optimizer
+# next-cache-components-optimizer
 
 Set up an agentic optimization loop that drives a Next.js route from "not
 instant" to "instant" and keeps it there. The loop is test-driven: encode the
