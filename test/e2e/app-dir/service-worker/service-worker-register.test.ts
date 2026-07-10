@@ -66,6 +66,8 @@ function runTests(next: NextInstance, basePath: string) {
   it('preserves the options object passed to register()', async () => {
     // The codegen pins `{ scope }` but must merge it into the user's options rather than
     // replacing them, or options like `updateViaCache` / `type: 'module'` are silently dropped.
+    // `registration.updateViaCache` reflects the passed option, so it reads back `'none'` only if
+    // the user's options survived codegen (the default is `'imports'`).
     const browser = await next.browser(home)
     await retry(async () => {
       expect(await browser.elementByCss('#sw-controller').text()).toBe(
@@ -73,29 +75,9 @@ function runTests(next: NextInstance, basePath: string) {
       )
     })
 
-    const scripts: string[] = await browser.eval(`
-      Array.from(
-        new Set(
-          performance
-            .getEntriesByType('resource')
-            .map((r) => r.name)
-            .filter((n) => n.includes('/_next/static/') && n.endsWith('.js'))
-        )
-      )
-    `)
-    expect(scripts.length).toBeGreaterThan(0)
-
-    let preserved = false
-    for (const src of scripts) {
-      const res = await next.fetch(new URL(src).pathname)
-      if (res.status !== 200) continue
-      const text = await res.text()
-      if (/updateViaCache\s*:\s*["']none["']/.test(text)) {
-        preserved = true
-        break
-      }
-    }
-    expect(preserved).toBe(true)
+    expect(await browser.elementByCss('#sw-update-via-cache').text()).toBe(
+      'none'
+    )
   })
 
   it('intercepts fetches within scope', async () => {
