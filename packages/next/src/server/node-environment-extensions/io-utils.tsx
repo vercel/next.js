@@ -9,6 +9,7 @@ import {
   createSyncIORuntimeError,
   type SyncIOApiType,
 } from '../app-render/sync-io-messages'
+import { InvariantError } from '../../shared/lib/invariant-error'
 
 export function io(expression: string, type: SyncIOApiType) {
   const workUnitStore = workUnitAsyncStorage.getStore()
@@ -56,21 +57,36 @@ export function io(expression: string, type: SyncIOApiType) {
       const stageController = workUnitStore.stagedRendering
       if (stageController && stageController.shouldTrackSyncInterrupt()) {
         let syncIOError: Error
-        if (
-          stageController.currentStage === RenderStage.Static ||
-          stageController.currentStage === RenderStage.EarlyStatic
-        ) {
-          syncIOError = createSyncIOError(workStore.route, expression, type)
-        } else {
-          // We're in the Runtime stage.
-          // We only error for Sync IO in the Runtime stage if the route has a runtime prefetch config.
-          // This check is implemented in `stageController.canSyncInterrupt()` --
-          // if runtime prefetching isn't enabled, then we won't get here.
-          syncIOError = createSyncIORuntimeError(
-            workStore.route,
-            expression,
-            type
-          )
+        // NOTE: keep stages where we can interrupt in sync with
+        // `shouldTrackSyncInterrupt`/`syncInterruptCurrentStageWithReason`
+        switch (stageController.currentStage) {
+          case RenderStage.ShellEarlyStatic:
+          case RenderStage.ShellStatic:
+          case RenderStage.EarlyStatic:
+          case RenderStage.Static: {
+            syncIOError = createSyncIOError(workStore.route, expression, type)
+            break
+          }
+          case RenderStage.ShellEarlyRuntime:
+          case RenderStage.EarlyRuntime: {
+            // We only error for Sync IO in the Runtime stage if the segment has a runtime prefetch config.
+            // Only Runtime prefetchable segments are rendered in the "early" runtime stages.
+            syncIOError = createSyncIORuntimeError(
+              workStore.route,
+              expression,
+              type
+            )
+            break
+          }
+          case RenderStage.Before:
+          case RenderStage.ShellRuntime:
+          case RenderStage.Runtime:
+          case RenderStage.Dynamic:
+          case RenderStage.Abandoned: {
+            throw new InvariantError(
+              `shouldTrackSyncInterrupt allowed a sync IO interrupt in an unexpected stage: ${RenderStage[stageController.currentStage]}`
+            )
+          }
         }
 
         syncIOError = applyOwnerStack(syncIOError)

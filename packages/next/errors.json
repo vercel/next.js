@@ -1417,5 +1417,6 @@
   "1416": "Invalid \"%s\" provided, expected a finite number of seconds or Infinity, received %s",
   "1417": "Could not parse output from TypeScript's --showConfig.",
   "1418": "TypeScript %s does not provide the compiler API required by Next.js. Enable %s in your Next.js config to use the TypeScript CLI, or install TypeScript 6 instead.",
-  "1419": "TypeScript CLI interrupted by %s"
+  "1419": "TypeScript CLI interrupted by %s",
+  "1420": "shouldTrackSyncInterrupt allowed a sync IO interrupt in an unexpected stage: %s"
 }
