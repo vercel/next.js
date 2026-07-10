@@ -113,7 +113,7 @@ export default function Page() {
 
 A `<Link>` pointing at a route with `prefetch = 'partial'` loads the App Shell only, even when `partialPrefetching` is not set in `next.config.ts`.
 
-> **Good to know**: Adopting per-route first also preserves the dev-only `<Link prefetch={true}>` warning, which points at `<Link prefetch={true}>` calls whose destinations haven't adopted yet. Enabling the global flag first marks every route as adopted, which stops the warning from surfacing and removes the signal for the [audit below](#auditing-existing-link-prefetchtrue-calls).
+> **Good to know**: Adopting per-route first also preserves the dev-only `<Link prefetch={true}>` insight, which points at `<Link prefetch={true}>` calls whose destinations haven't adopted yet. Enabling the global flag first marks every route as adopted, which stops the insight from surfacing and removes the signal for the [audit below](#auditing-existing-link-prefetchtrue-calls).
 
 Once every route in scope has `prefetch = 'partial'`, enable the config:
 
@@ -140,7 +140,7 @@ It removes only the `'partial'` value and leaves other values such as `prefetch 
 
 When `partialPrefetching` is enabled, `<Link prefetch={true}>` now prefetches the App Shell plus cached content, but not dynamic data. Review each existing usage and decide whether the prop is still providing value. In [`next dev`](/docs/app/api-reference/cli/next#next-dev-options), the dev overlay surfaces a [dynamic data during prefetching](/docs/messages/instant-link-prefetch-partial) insight for each call that points at a route without Partial Prefetching, so you can work through them one at a time.
 
-The insight fires on every destination that hasn't adopted Partial Prefetching yet, including the ones you'll keep `prefetch={true}` on. It flags adoption, not whether the prop is worth keeping. Marking the destination with `export const prefetch = 'partial'` clears the insight for every link to it. The table below is the separate decision of whether `prefetch={true}` still earns its place.
+The insight fires on every destination that hasn't adopted Partial Prefetching yet, including the ones you'll keep `prefetch={true}` on. It flags adoption, not whether the prop is worth keeping. Marking the destination with `export const prefetch = 'partial'` clears the insight for every link to it. The table below covers the separate decision of whether `prefetch={true}` still earns its place.
 
 | Destination                                                                                 | Recommendation                                                                                                                                                                       |
 | ------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -148,7 +148,7 @@ The insight fires on every destination that hasn't adopted Partial Prefetching y
 | Has cached content worth shipping ahead of the click                                        | Keep `prefetch={true}`. The cached parts come with the App Shell.                                                                                                                    |
 | Reads request data (`cookies()`, `headers()`, `searchParams`) the user will need on arrival | Keep `prefetch={true}`. Optionally enhance it with [runtime prefetching](/docs/app/guides/runtime-prefetching) (`prefetch = 'allow-runtime'`) so the request data is prefetched too. |
 
-> **Good to know**: `prefetch = 'allow-runtime'` is an _enhancement_ that adds runtime prefetching of request data. It is not a way to clear the dev `<Link prefetch={true}>` warning. That warning means the link does a legacy full prefetch of a route that hasn't adopted Partial Prefetching. The per-route opt-in for Partial Prefetching is `prefetch = 'partial'`, which is separate from `'allow-runtime'`.
+> **Good to know**: `prefetch = 'allow-runtime'` is an _enhancement_ that adds runtime prefetching of request data. It is not a way to clear the dev `<Link prefetch={true}>` insight. That insight means the link does a legacy full prefetch of a route that hasn't adopted Partial Prefetching. The per-route opt-in for Partial Prefetching is `prefetch = 'partial'`, which is separate from `'allow-runtime'`.
 
 Before:
 
@@ -221,9 +221,7 @@ The child awaits the promise inside the boundary:
 ```tsx filename="app/products/[slug]/product-details.tsx" switcher
 export async function ProductDetails({
   params,
-}: {
-  params: Promise<{ slug: string }>
-}) {
+}: Pick<PageProps<'/products/[slug]'>, 'params'>) {
   const { slug } = await params
   const product = await getProduct(slug)
   return <Details product={product} />
