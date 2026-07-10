@@ -21,13 +21,7 @@ export function instrumentModuleGetter<TModule>(
         require('./track-module-loading.external') as typeof import('./track-module-loading.external')
 
       const exportsOrPromise = getter()
-
-      // Not a thenable check — a module may legitimately export a function
-      // named `then`. An async module yields a real promise.
-      if (exportsOrPromise instanceof Promise) {
-        trackPendingImport(exportsOrPromise)
-      }
-
+      trackPendingImport(exportsOrPromise)
       return exportsOrPromise
     }
   }
