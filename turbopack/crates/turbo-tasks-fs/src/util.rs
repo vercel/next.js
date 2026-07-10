@@ -1,10 +1,11 @@
 use std::{
     io::{self, ErrorKind},
-    path::{Path, PathBuf},
+    path::Path,
 };
 
 use anyhow::{Context, Result, anyhow};
 use turbo_tasks::ResolvedVc;
+use url::Url;
 
 use crate::{DiskFileSystem, FileSystemPath};
 
@@ -31,36 +32,10 @@ pub async fn uri_from_file(root: FileSystemPath, path: Option<&str>) -> Result<S
         None => root,
     };
 
-    Ok(uri_from_path_buf(root_fs.to_sys_path(&path)))
-}
-
-#[cfg(not(target_os = "windows"))]
-pub fn uri_from_path_buf(sys_path: PathBuf) -> String {
-    use turbo_unix_path::sys_to_unix;
-    let sys_path = sys_path.to_string_lossy();
-
-    format!(
-        "file://{}",
-        sys_to_unix(&sys_path)
-            .split('/')
-            .map(|s| urlencoding::encode(s))
-            .collect::<Vec<_>>()
-            .join("/")
-    )
-}
-
-#[cfg(target_os = "windows")]
-pub fn uri_from_path_buf(sys_path: PathBuf) -> String {
-    let raw_path = sys_path.to_string_lossy().to_string();
-    let normalized_path = raw_path.replace('\\', "/");
-
-    let mut segments = normalized_path.split('/');
-
-    let first = segments.next().unwrap_or_default(); // e.g., "C:"
-    let encoded_path = std::iter::once(first.to_string()) // keep "C:" intact
-        .chain(segments.map(|s| urlencoding::encode(s).into_owned()))
-        .collect::<Vec<_>>()
-        .join("/");
-
-    format!("file:///{}", encoded_path)
+    // `to_sys_path` returns a win32 path on Windows. `Url::from_file_path` can also handle
+    // verbatim (`\\?\`-prefixed) disk and UNC paths, in case that conversion failed.
+    let sys_path = root_fs.to_sys_path(&path);
+    Ok(String::from(Url::from_file_path(&sys_path).map_err(
+        |_| anyhow!("path {sys_path:?} cannot be converted to a file:// URI"),
+    )?))
 }

@@ -5,11 +5,10 @@
 
 mod util;
 
-use std::{env, path::PathBuf};
+use std::{env, fs::canonicalize, path::PathBuf};
 
 use anyhow::{Context, Result};
 use bincode::{Decode, Encode};
-use dunce::canonicalize;
 use serde::Deserialize;
 use tracing_subscriber::{Registry, layer::SubscriberExt, util::SubscriberInitExt};
 use turbo_rcstr::{RcStr, rcstr};
