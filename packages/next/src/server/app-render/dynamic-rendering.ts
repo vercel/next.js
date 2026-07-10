@@ -185,9 +185,13 @@ export function markCurrentScopeAsDynamic(
       case 'private-cache':
         // A private cache scope is already dynamic by definition.
         return
+      case 'request':
+        if (workUnitStore.draftMode?.isEnabled) {
+          return
+        }
+        break
       case 'prerender-legacy':
       case 'prerender-ppr':
-      case 'request':
       case 'generate-static-params':
         break
       default:
@@ -217,8 +221,6 @@ export function markCurrentScopeAsDynamic(
       case 'prerender-legacy':
         workUnitStore.revalidate = 0
 
-        // We aren't prerendering, but we are generating a static page. We need
-        // to bail out of static generation.
         const err = new DynamicServerError(
           `Route ${store.route} couldn't be rendered statically because it used ${expression}. See more info here: https://nextjs.org/docs/messages/dynamic-server-error`
         )
@@ -274,13 +276,8 @@ export function trackDynamicDataInDynamicRender(workUnitStore: WorkUnitStore) {
   switch (workUnitStore.type) {
     case 'cache':
     case 'unstable-cache':
-      // Inside cache scopes, marking a scope as dynamic has no effect,
-      // because the outer cache scope creates a cache boundary. This is
-      // subtly different from reading a dynamic data source, which is
-      // forbidden inside a cache scope.
       return
     case 'private-cache':
-      // A private cache scope is already dynamic by definition.
       return
     case 'prerender':
     case 'prerender-runtime':
@@ -291,6 +288,9 @@ export function trackDynamicDataInDynamicRender(workUnitStore: WorkUnitStore) {
     case 'generate-static-params':
       break
     case 'request':
+      if (workUnitStore.draftMode?.isEnabled) {
+        return
+      }
       if (process.env.NODE_ENV !== 'production') {
         workUnitStore.usedDynamic = true
       }
@@ -299,7 +299,6 @@ export function trackDynamicDataInDynamicRender(workUnitStore: WorkUnitStore) {
       workUnitStore satisfies never
   }
 }
-
 function abortOnSynchronousDynamicDataAccess(
   route: string,
   expression: string,

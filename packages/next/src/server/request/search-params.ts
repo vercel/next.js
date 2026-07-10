@@ -297,8 +297,6 @@ function createRenderSearchParams(
   // No staged rendering = no cacheComponents, or cacheComponents prod without cachedNavigations
 
   if (workStore.forceStatic) {
-    // When using forceStatic we override all other logic and always just return an empty
-    // dictionary object.
     return Promise.resolve({})
   }
 
@@ -312,9 +310,54 @@ function createRenderSearchParams(
       requestStore
     )
   } else {
-    return makeUntrackedSearchParams(underlyingSearchParams)
-  }
-}
+    if (workStore.isDraftMode) {
+      const params: SearchParams = {}
+      if (requestStore.url.search) {
+        const searchParams = new URLSearchParams(requestStore.url.search)
+        for (const [key, value] of searchParams.entries()) {
+          if (params[key]) {
+            if (Array.isArray(params[key])) {
+              ;(params[key] as string[]).push(value)
+            } else {
+              params[key] = [params[key] as string, value]
+            }
+          } else {
+            params[key] = value
+          }
+        }
+      }
+
+      if (requestStore.asyncApiPromises) {
+        const searchParamsPromise = (
+          isRuntimePrefetchable
+            ? requestStore.asyncApiPromises.earlySharedSearchParamsParent
+            : requestStore.asyncApiPromises.sharedSearchParamsParent
+        ).then(() => params)
+        return searchParamsPromise
+      }
+      return Promise.resolve().then(() => params)
+    }
+
+    if (process.env.NODE_ENV === 'development') {
+      return makeUntrackedSearchParamsWithDevWarnings(
+        underlyingSearchParams,
+        workStore,
+        requestStore,
+        isRuntimePrefetchable
+      )
+    } else if (requestStore.asyncApiPromises) {
+      if (requestStore.validationSamples) {
+        const { createExhaustiveSearchParamsProxy } =
+          require('../app-render/instant-validation/instant-samples') as typeof import('../app-render/instant-validation/instant-samples')
+        const declaredKeys = new Set(
+          Object.keys(requestStore.validationSamples.searchParams ?? {})
+        )
+        underlyingSearchParams = createExhaustiveSearchParamsProxy(
+          underlyingSearchParams,
+          declaredKeys,
+          workStore.route
+        )
+      }
 
 function createStagedRenderSearchParams(
   workStore: WorkStore,

@@ -2713,6 +2713,108 @@ async function renderToHTMLOrFlightImpl(
 
   const { isStaticGeneration } = workStore
 
+  // ============================================
+  // 🔧 FIX: Draft Mode + dynamic APIs on static pages (Vercel Production)
+  // ============================================
+
+  const draftModeCookie = req.cookies?.['__prerender_bypass']
+  const isDraftModeEnabled =
+    (typeof draftModeCookie === 'string' && draftModeCookie.length > 0) ||
+    req.headers['x-nextjs-draft-mode'] === '1'
+
+  if (isDraftModeEnabled && isStaticGeneration) {
+    type MutableWorkStore = {
+      -readonly [K in keyof WorkStore]: WorkStore[K]
+    }
+    const mutableWorkStore = workStore as MutableWorkStore
+    mutableWorkStore.isStaticGeneration = false
+    mutableWorkStore.forceDynamic = true
+    mutableWorkStore.isDraftMode = true
+
+    const workUnitStore = workUnitAsyncStorage.getStore()
+    if (workUnitStore) {
+      switch (workUnitStore.type) {
+        case 'prerender':
+        case 'prerender-ppr':
+        case 'prerender-legacy':
+        case 'prerender-runtime':
+        case 'prerender-client':
+        case 'validation-client': {
+          const mutablePrerender = workUnitStore as unknown as {
+            revalidate: number
+            expire: number
+            stale: number
+            dynamicTracking?: {
+              dynamicAccesses: Array<{ expression: string; stack?: string }>
+            }
+          }
+
+          mutablePrerender.revalidate = 0
+          mutablePrerender.expire = 0
+          mutablePrerender.stale = 0
+
+          if (mutablePrerender.dynamicTracking) {
+            mutablePrerender.dynamicTracking.dynamicAccesses.push({
+              expression: 'draftMode.enable()',
+              stack: new Error().stack,
+            })
+          }
+          break
+        }
+
+        case 'request': {
+          const mutableRequest = workUnitStore as unknown as {
+            usedDynamic: boolean
+          }
+          mutableRequest.usedDynamic = true
+          break
+        }
+
+        case 'cache':
+        case 'private-cache':
+        case 'unstable-cache':
+        case 'generate-static-params':
+          break
+
+        default:
+          const _exhaustiveCheck: never = workUnitStore
+          break
+      }
+    }
+
+    const urlParts = req.url?.split('?')
+    if (urlParts && urlParts[1]) {
+      const newQuery: NextParsedUrlQuery = {}
+      urlParts[1].split('&').forEach((param) => {
+        const [key, value] = param.split('=')
+        if (key && value !== undefined) {
+          const decodedKey = decodeURIComponent(key)
+          const decodedValue = decodeURIComponent(value)
+          if (newQuery[decodedKey]) {
+            if (Array.isArray(newQuery[decodedKey])) {
+              ;(newQuery[decodedKey] as string[]).push(decodedValue)
+            } else {
+              newQuery[decodedKey] = [
+                newQuery[decodedKey] as string,
+                decodedValue,
+              ]
+            }
+          } else {
+            newQuery[decodedKey] = decodedValue
+          }
+        }
+      })
+      query = newQuery
+    }
+
+    if (process.env.NODE_ENV === 'development') {
+      console.log(
+        `[Next.js] Draft Mode enabled for ${pagePath}, switching to dynamic render.`
+      )
+    }
+  }
+  // ============================================
+
   let requestId: string
   let htmlRequestId: string
 
