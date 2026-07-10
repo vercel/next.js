@@ -58,7 +58,32 @@ Or the bundler merged another stylesheet into a shared chunk that your route loa
 
 ## Balancing requests and grouping
 
-When using `graph` mode, CSS is grouped into shared chunks to cut requests. You can shift that balance by passing an object with two factors:
+`graph` mode groups CSS into shared chunks to cut requests. Turn it on with the string form, which uses the default tuning:
+
+```tsx filename="next.config.ts" switcher
+import type { NextConfig } from 'next'
+
+const nextConfig = {
+  experimental: {
+    cssChunking: 'graph',
+  },
+} satisfies NextConfig
+
+export default nextConfig
+```
+
+```js filename="next.config.js" switcher
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  experimental: {
+    cssChunking: 'graph',
+  },
+}
+
+module.exports = nextConfig
+```
+
+To shift that balance, pass an object instead. Both `requestCost` and `weightDistribution` are optional, so include only the one you want to change:
 
 ```tsx filename="next.config.ts" switcher
 import type { NextConfig } from 'next'
