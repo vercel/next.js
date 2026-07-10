@@ -111,6 +111,18 @@ describe('runInBatches', () => {
     ])
   })
 
+  it('handles a final partial batch', async () => {
+    const started: number[] = []
+
+    const result = runInBatches([0, 1, 2, 3, 4], 2, async (item) => {
+      started.push(item)
+      return item * 10
+    })
+
+    await expect(result).resolves.toEqual([0, 10, 20, 30, 40])
+    expect(started).toEqual([0, 1, 2, 3, 4])
+  })
+
   it('stops starting new batches after a rejection and waits for in-flight items', async () => {
     const firstItemGate = new DetachedPromise<void>()
     const started: number[] = []
