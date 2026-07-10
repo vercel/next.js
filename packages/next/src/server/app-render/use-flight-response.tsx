@@ -227,18 +227,24 @@ export function createInlinedDataReadableStream(
   const flightReader = flightStream.getReader()
   const decoder = new TextDecoder('utf-8', { fatal: true })
 
+  let initialInstructionsWritten = false
+
   const readable = new ReadableStream({
     type: 'bytes',
-    start(controller) {
-      try {
-        writeInitialInstructions(controller, formState, nonce, sriAlgorithm)
-      } catch (error) {
-        // during encoding or enqueueing forward the error downstream
-        controller.error(error)
-      }
-    },
+    start() {},
     async pull(controller) {
       try {
+        if (!initialInstructionsWritten) {
+          initialInstructionsWritten = true
+          await writeInitialInstructions(
+            controller,
+            formState,
+            nonce,
+            sriAlgorithm
+          )
+          return
+        }
+
         const { done, value } = await flightReader.read()
 
         if (value) {
