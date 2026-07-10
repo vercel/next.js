@@ -115,8 +115,29 @@ describe('Link with legacyBehavior', () => {
         await expectHrefToBeForwardedInSSR('/passHref/default')
       })
 
-      it('navigates correctly', async () => {
-        await expectLinkClickToNavigate('/passHref/default')
+      it('navigates correctly (failing)', async () => {
+        if (isNextDev) {
+          // FIXME(NAR-876): false positive due to debug info blocking the child
+          // await expectLinkClickToNavigate('/passHref/default')
+
+          const browser = await next.browser('/passHref/default')
+          await expect(browser).toDisplayRedbox(`
+           {
+             "code": "E863",
+             "description": "\`<Link legacyBehavior>\` received a direct child that is either a Server Component, or JSX that was loaded with React.lazy(). This is not supported. Either remove legacyBehavior, or make the direct child a Client Component that renders the Link's \`<a>\` tag.",
+             "environmentLabel": null,
+             "label": "Runtime Error",
+             "source": "app/passHref/default/page.tsx (7:7) @ Page
+           >  7 |       <Link href="/about" legacyBehavior passHref>
+                |       ^",
+             "stack": [
+               "Page app/passHref/default/page.tsx (7:7)",
+             ],
+           }
+          `)
+        } else {
+          await expectLinkClickToNavigate('/passHref/default')
+        }
       })
     })
 

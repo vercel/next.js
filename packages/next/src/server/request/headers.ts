@@ -11,7 +11,6 @@ import {
   workUnitAsyncStorage,
   type PrerenderStoreModern,
   type RequestStore,
-  isInEarlyRenderStage,
 } from '../app-render/work-unit-async-storage.external'
 import {
   postponeWithTracking,
@@ -22,13 +21,12 @@ import { StaticGenBailoutError } from '../../client/components/static-generation
 import {
   makeDevtoolsIOAwarePromise,
   makeHangingPromise,
-  getSessionDataStage,
+  RENDER_STAGES_BY_DATA_KIND,
 } from '../dynamic-rendering-utils'
 import { createDedupedByCallsiteServerErrorLoggerDev } from '../create-deduped-by-callsite-server-error-logger'
 import { isRequestApiAllowedInCurrentPhase } from './utils'
 import { applyOwnerStack } from '../dynamic-rendering-utils'
 import { InvariantError } from '../../shared/lib/invariant-error'
-import { RenderStage } from '../app-render/staged-rendering'
 
 /**
  * This function allows you to read the HTTP incoming request headers in
@@ -131,7 +129,7 @@ export function headers(): Promise<ReadonlyHeaders> {
           const { stagedRendering } = workUnitStore
           if (stagedRendering) {
             return stagedRendering.delayUntilStage(
-              getSessionDataStage(stagedRendering),
+              RENDER_STAGES_BY_DATA_KIND.sessionData,
               'headers',
               workUnitStore.headers
             )
@@ -156,9 +154,7 @@ export function headers(): Promise<ReadonlyHeaders> {
               workUnitStore
             )
           } else if (workUnitStore.asyncApiPromises) {
-            return isInEarlyRenderStage(workUnitStore)
-              ? workUnitStore.asyncApiPromises.earlyHeaders
-              : workUnitStore.asyncApiPromises.headers
+            return workUnitStore.asyncApiPromises.headers
           } else {
             return makeUntrackedHeaders(workUnitStore.headers)
           }
@@ -215,10 +211,10 @@ function makeUntrackedHeadersWithDevWarnings(
   requestStore: RequestStore
 ): Promise<ReadonlyHeaders> {
   if (requestStore.asyncApiPromises) {
-    const promise = isInEarlyRenderStage(requestStore)
-      ? requestStore.asyncApiPromises.earlyHeaders
-      : requestStore.asyncApiPromises.headers
-    return instrumentHeadersPromiseWithDevWarnings(promise, route)
+    return instrumentHeadersPromiseWithDevWarnings(
+      requestStore.asyncApiPromises.headers,
+      route
+    )
   }
 
   const cachedHeaders = CachedHeaders.get(underlyingHeaders)
@@ -229,7 +225,7 @@ function makeUntrackedHeadersWithDevWarnings(
   const promise = makeDevtoolsIOAwarePromise(
     underlyingHeaders,
     requestStore,
-    RenderStage.Runtime
+    RENDER_STAGES_BY_DATA_KIND.sessionData
   )
 
   const proxiedPromise = instrumentHeadersPromiseWithDevWarnings(promise, route)

@@ -217,31 +217,31 @@ export function registerHeadAndReportingTests(
         )
         // TODO(instant-validation): why aren't we pointing to `await connection()` here?
         await expect(browser).toDisplayCollapsedRedbox(`
-           {
-             "cause": [
-               {
-                 "label": "Caused by: Instant Validation",
-                 "source": "app/suspense-in-root/head/invalid-dynamic-viewport-in-blocking-inside-static/layout.tsx (3:24) @ instant
-           > 3 | export const instant = { level: 'experimental-error' }
-               |                        ^",
-                 "stack": [
-                   "instant app/suspense-in-root/head/invalid-dynamic-viewport-in-blocking-inside-static/layout.tsx (3:24)",
-                   "Set.forEach <anonymous>",
-                 ],
-               },
-             ],
-             "code": "E1395",
-             "description": "Next.js encountered uncached data in generateViewport().",
-             "environmentLabel": "Server",
-             "label": "Blocking Route",
-             "source": "app/suspense-in-root/head/invalid-dynamic-viewport-in-blocking-inside-static/page.tsx (6:23) @ Module.generateViewport
-           > 6 | export async function generateViewport(): Promise<Viewport> {
-               |                       ^",
-             "stack": [
-               "Module.generateViewport app/suspense-in-root/head/invalid-dynamic-viewport-in-blocking-inside-static/page.tsx (6:23)",
-             ],
-           }
-          `)
+         {
+           "cause": [
+             {
+               "label": "Caused by: Instant Validation",
+               "source": "app/suspense-in-root/head/invalid-dynamic-viewport-in-blocking-inside-static/layout.tsx (3:24) @ instant
+         > 3 | export const instant = { level: 'experimental-error' }
+             |                        ^",
+               "stack": [
+                 "instant app/suspense-in-root/head/invalid-dynamic-viewport-in-blocking-inside-static/layout.tsx (3:24)",
+                 "Set.forEach <anonymous>",
+               ],
+             },
+           ],
+           "code": "E1395",
+           "description": "Next.js encountered uncached data in generateViewport().",
+           "environmentLabel": "Server",
+           "label": "Blocking Route",
+           "source": "app/suspense-in-root/head/invalid-dynamic-viewport-in-blocking-inside-static/page.tsx (7:19) @ Module.generateViewport
+         >  7 |   await connection()
+              |                   ^",
+           "stack": [
+             "Module.generateViewport app/suspense-in-root/head/invalid-dynamic-viewport-in-blocking-inside-static/page.tsx (7:19)",
+           ],
+         }
+        `)
       } else {
         const result = await prerender(
           '/suspense-in-root/head/invalid-dynamic-viewport-in-blocking-inside-static'
@@ -780,33 +780,31 @@ export function registerHeadAndReportingTests(
           )
 
           await expect(browser).toDisplayCollapsedRedbox(`
-             {
-               "cause": [
-                 {
-                   "label": "Caused by: Instant Validation",
-                   "source": "app/shells/(default)/invalid-static-with-gsp-metadata/[slug]/page.tsx (3:33) @ instant
-             > 3 | export const instant: Instant = {
-                 |                                 ^",
-                   "stack": [
-                     "instant app/shells/(default)/invalid-static-with-gsp-metadata/[slug]/page.tsx (3:33)",
-                     "Set.forEach <anonymous>",
-                   ],
-                 },
-               ],
-               "code": "E1407",
-               "description": "Next.js encountered URL data in generateMetadata().",
-               "environmentLabel": "Server",
-               "label": "Blocking Route",
-               "source": "app/shells/(default)/invalid-static-with-gsp-metadata/[slug]/page.tsx (3:33) @ instant
-             > 3 | export const instant: Instant = {
-                 |                                 ^",
-               "stack": [
-                 "Suspense <anonymous>",
-                 "div <anonymous>",
-                 "MetadataWrapper [Prerender] <anonymous>",
-               ],
-             }
-            `)
+           {
+             "cause": [
+               {
+                 "label": "Caused by: Instant Validation",
+                 "source": "app/shells/(default)/invalid-static-with-gsp-metadata/[slug]/page.tsx (3:33) @ instant
+           > 3 | export const instant: Instant = {
+               |                                 ^",
+                 "stack": [
+                   "instant app/shells/(default)/invalid-static-with-gsp-metadata/[slug]/page.tsx (3:33)",
+                   "Set.forEach <anonymous>",
+                 ],
+               },
+             ],
+             "code": "E1407",
+             "description": "Next.js encountered URL data in generateMetadata().",
+             "environmentLabel": "Server",
+             "label": "Blocking Route",
+             "source": "app/shells/(default)/invalid-static-with-gsp-metadata/[slug]/page.tsx (19:3) @ Module.generateMetadata
+           > 19 |   await params
+                |   ^",
+             "stack": [
+               "Module.generateMetadata app/shells/(default)/invalid-static-with-gsp-metadata/[slug]/page.tsx (19:3)",
+             ],
+           }
+          `)
         } else {
           const result = await prerender(
             '/shells/(default)/invalid-static-with-gsp-metadata/[slug]'

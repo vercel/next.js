@@ -2,7 +2,6 @@ import { cookies } from 'next/headers'
 import { Suspense } from 'react'
 
 export const instant = { level: 'experimental-error' }
-export const prefetch = 'allow-runtime'
 
 export async function generateMetadata() {
   await cookies()
@@ -12,16 +11,16 @@ export async function generateMetadata() {
   }
 }
 
-async function Runtime() {
+async function SessionData() {
   await cookies()
-  return <p>Runtime content</p>
+  return <p>Session data</p>
 }
 
 export default function Page() {
   return (
     <main>
       <Suspense fallback={<p>Loading...</p>}>
-        <Runtime />
+        <SessionData />
       </Suspense>
     </main>
   )

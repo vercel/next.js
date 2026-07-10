@@ -40,7 +40,7 @@ import {
   applyOwnerStack,
   makeDevtoolsIOAwarePromise,
   makeHangingPromise,
-  getSessionDataStage,
+  RENDER_STAGES_BY_DATA_KIND,
 } from '../dynamic-rendering-utils'
 
 import type { ClientReferenceManifest } from '../../build/webpack/plugins/flight-manifest-plugin'
@@ -1853,14 +1853,12 @@ export async function cache(
     switch (outerWorkUnitStore.type) {
       case 'prerender-runtime': {
         // In a runtime prerender, we have to make sure that APIs that would hang during a static prerender
-        // are resolved with a delay, in the appropriate runtime stage. Private caches read from
-        // Segments not using runtime prefetch resolve at EarlyRuntime,
-        // while runtime-prefetchable segments resolve at Runtime.
+        // are resolved with a delay, in the appropriate runtime stage. Private caches resolve in EarlyRuntime,
         const stagedRendering = outerWorkUnitStore.stagedRendering
         if (stagedRendering) {
           await stagedRendering.waitForStage(
             // TODO(app-shells): exclude private caches with a short staletime from shells
-            getSessionDataStage(stagedRendering)
+            RENDER_STAGES_BY_DATA_KIND.sessionData
           )
         }
         break
@@ -1868,14 +1866,13 @@ export async function cache(
       case 'request': {
         if (process.env.NODE_ENV === 'development') {
           // Similar to runtime prerenders, private caches should not resolve in the static stage
-          // of a dev request, so we delay them. We pick the appropriate runtime stage based on
-          // whether we're in the early or late stages.
-          const stagedRendering = outerWorkUnitStore.stagedRendering
-          const stage = stagedRendering
-            ? // TODO(app-shells): exclude private caches with a short staletime
-              getSessionDataStage(stagedRendering)
-            : RenderStage.Runtime
-          await makeDevtoolsIOAwarePromise(undefined, outerWorkUnitStore, stage)
+          // of a dev request, so we delay them.
+          await makeDevtoolsIOAwarePromise(
+            undefined,
+            outerWorkUnitStore,
+            // TODO(app-shells): exclude private caches with a short staletime
+            RENDER_STAGES_BY_DATA_KIND.sessionData
+          )
         }
         break
       }
@@ -2317,7 +2314,7 @@ export async function cache(
               if (stagedRendering) {
                 await stagedRendering.waitForStage(
                   // TODO(app-shells): exclude caches with a short staletime
-                  getSessionDataStage(stagedRendering)
+                  RENDER_STAGES_BY_DATA_KIND.sessionData
                 )
               }
               break
@@ -2361,14 +2358,10 @@ export async function cache(
                   cacheSignalReadEnded = true
                 }
 
-                const stagedRendering = workUnitStore.stagedRendering
-                const stage = stagedRendering
-                  ? getSessionDataStage(stagedRendering)
-                  : RenderStage.Runtime
                 await makeDevtoolsIOAwarePromise(
                   undefined,
                   workUnitStore,
-                  stage
+                  RENDER_STAGES_BY_DATA_KIND.sessionData
                 )
               }
               break
@@ -2885,14 +2878,10 @@ export async function cache(
                   cacheSignalReadEnded = true
                 }
 
-                const stagedRendering = workUnitStore.stagedRendering
-                const stage = stagedRendering
-                  ? getSessionDataStage(stagedRendering)
-                  : RenderStage.Runtime
                 await makeDevtoolsIOAwarePromise(
                   undefined,
                   workUnitStore,
-                  stage
+                  RENDER_STAGES_BY_DATA_KIND.sessionData
                 )
               }
               break

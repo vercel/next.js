@@ -51,7 +51,7 @@ export function runDevWarmupTests({
     ) {
       // Match logs that contain the message, with any environment.
       const logPattern = new RegExp(
-        `^(?=.*\\b${message}\\b)(?=.*\\b(Cache|Prerender|Prefetch|Prefetchable|Server)\\b).*`
+        `^(?=.*\\b${message}\\b)(?=.*\\b(Cache|Prerender|Prefetch|Server)\\b).*`
       )
       const logMessages = logs.map((log) => log.message)
       const messages = logMessages.filter((message) => logPattern.test(message))
@@ -223,17 +223,15 @@ export function runDevWarmupTests({
       }
     }
 
-    const RUNTIME_ENV = hasRuntimePrefetch ? 'Prefetch' : 'Prefetchable'
-
     describe(isInitialLoad ? 'initial load' : 'navigation', () => {
       // Static
       const STATIC_LINK_DATA = isInitialLoad
         ? 'Prerender'
         : // If we're rendering an App Shell, static params are deferred until the runtime stage.
           partialPrefetching || hasRuntimePrefetch
-          ? RUNTIME_ENV
+          ? 'Prefetch'
           : 'Prerender'
-      const RUNTIME_LINK_DATA = RUNTIME_ENV
+      const RUNTIME_LINK_DATA = 'Prefetch'
 
       describe('cached data resolves in the correct phase', () => {
         it('cached data + cached fetch', async () => {
@@ -267,12 +265,12 @@ export function runDevWarmupTests({
 
             // Private caches are dynamic holes in static prerenders,
             // so they shouldn't resolve in the static stage.
-            assertLog(logs, 'after private cache read - page', RUNTIME_ENV)
-            assertLog(logs, 'after private cache read - layout', RUNTIME_ENV)
+            assertLog(logs, 'after private cache read - page', 'Prefetch')
+            assertLog(logs, 'after private cache read - layout', 'Prefetch')
             assertLog(
               logs,
               'after successive private cache reads - page',
-              RUNTIME_ENV
+              'Prefetch'
             )
 
             assertLog(logs, 'after uncached fetch - layout', 'Server')
@@ -296,12 +294,8 @@ export function runDevWarmupTests({
 
             // Short lived caches are dynamic holes in static prerenders,
             // so they shouldn't resolve in the static stage.
-            assertLog(logs, 'after short-lived cache read - page', RUNTIME_ENV)
-            assertLog(
-              logs,
-              'after short-lived cache read - layout',
-              RUNTIME_ENV
-            )
+            assertLog(logs, 'after short-lived cache read - page', 'Prefetch')
+            assertLog(logs, 'after short-lived cache read - layout', 'Prefetch')
 
             assertLog(logs, 'after uncached fetch - layout', 'Server')
             assertLog(logs, 'after uncached fetch - page', 'Server')
@@ -368,10 +362,10 @@ export function runDevWarmupTests({
           assertLog(logs, 'after cache read - page', 'Prerender')
 
           // TODO: we should only label this as "Prefetch" if there's a prefetch config.
-          assertLog(logs, `after cookies`, RUNTIME_ENV)
-          assertLog(logs, `after headers`, RUNTIME_ENV)
-          assertLog(logs, `after params`, RUNTIME_ENV)
-          assertLog(logs, `after searchParams`, RUNTIME_ENV)
+          assertLog(logs, `after cookies`, 'Prefetch')
+          assertLog(logs, `after headers`, 'Prefetch')
+          assertLog(logs, `after params`, 'Prefetch')
+          assertLog(logs, `after searchParams`, 'Prefetch')
 
           assertLog(logs, 'after connection', 'Server')
         }
@@ -481,15 +475,16 @@ export function runDevWarmupTests({
             const logs = await browser.log()
 
             assertLog(logs, 'after first cache', 'Prerender')
-            assertLog(logs, 'after cookies', RUNTIME_ENV)
-            if (hasRuntimePrefetch) {
-              // if runtime prefetching is on, sync IO in the runtime stage errors and advances to Server.
+            assertLog(logs, 'after cookies', 'Prefetch')
+            if (hasRuntimePrefetch || partialPrefetching) {
+              // in partialPrefetching (either via allow-runtime or global flag),
+              // sync IO in the runtime stage errors and advances to Server.
               assertLog(logs, 'after sync io', 'Server')
               assertLog(logs, 'after cache read - page', 'Server')
             } else {
               // if runtime prefetching is not on, sync IO in the runtime stage does nothing.
-              assertLog(logs, 'after sync io', RUNTIME_ENV)
-              assertLog(logs, 'after cache read - page', RUNTIME_ENV)
+              assertLog(logs, 'after sync io', 'Prefetch')
+              assertLog(logs, 'after cache read - page', 'Prefetch')
             }
           }
 
