@@ -188,6 +188,8 @@ The first visit to `/shoes/basketball-shoes`. Neither param was prerendered. Nex
 
 After the first visit, Next.js renders these routes in the background with the now-known params. The next visitor to the same URLs gets the upgraded result.
 
+> **Good to know**: The App Shell for unlisted params is served from Next.js 16.3. Earlier versions wait for a full server render before sending the response.
+
 ### What the upgrade produces
 
 After the first visit, Next.js renders the page in the background with the known params and tries to push the static boundary as far down the component tree as possible:
@@ -197,6 +199,12 @@ After the first visit, Next.js renders the page in the background with the known
 - Params are resolved in route order. A param value not returned by `generateStaticParams` stays unresolved and prevents any deeper params from upgrading.
 
 > **Good to know**: Prefetching also triggers upgrades. When a [`<Link>`](/docs/app/api-reference/components/link) enters the viewport or [`router.prefetch`](/docs/app/api-reference/functions/use-router) is called, Next.js can upgrade the App Shell in the background, so the next visitor gets the more specific version even before anyone actually navigates to the page.
+
+## Choosing what to prerender
+
+Not every route needs to be prerendered. Every page you prerender increases build work and produces output that has to be stored and deployed. Many routes may never be visited before your next deployment, making that work unnecessary.
+
+Instead, use [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params) to prerender the routes that benefit most from being ready ahead of time, such as popular pages or predictable content. Less frequently visited routes are generated on demand and upgraded after their first visit, so you don't spend build time and storage on pages that may never be requested.
 
 ## Coming from the Pages Router
 
