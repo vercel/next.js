@@ -224,7 +224,7 @@ class NextTracerImpl implements NextTracer {
     return trace.getTracer('next.js', '0.0.1')
   }
 
-  private isTracingEnabled(): boolean {
+  private isOpenTelemetryEnabled(): boolean {
     const activeSpan = trace.getSpan(context.active())
     if (activeSpan?.isRecording()) {
       return true
@@ -269,7 +269,7 @@ class NextTracerImpl implements NextTracer {
    * edge middleware which runs in a detached sandbox.
    */
   public runWithDetachedContext<T>(fn: () => T): T {
-    if (!NEXT_OTEL_PERFORMANCE_PREFIX && !this.isTracingEnabled()) {
+    if (!NEXT_OTEL_PERFORMANCE_PREFIX && !this.isOpenTelemetryEnabled()) {
       return fn()
     }
     return context.with(ROOT_CONTEXT, fn)
@@ -285,7 +285,7 @@ class NextTracerImpl implements NextTracer {
 
     if (
       !NEXT_OTEL_PERFORMANCE_PREFIX &&
-      !this.isTracingEnabled() &&
+      !this.isOpenTelemetryEnabled() &&
       !trace.getSpanContext(activeContext)
     ) {
       return fn()
@@ -336,7 +336,7 @@ class NextTracerImpl implements NextTracer {
   public trace<T>(...args: Array<any>) {
     const [type, fnOrOptions, fnOrEmpty] = args
     const tracingEnabled =
-      Boolean(NEXT_OTEL_PERFORMANCE_PREFIX) || this.isTracingEnabled()
+      Boolean(NEXT_OTEL_PERFORMANCE_PREFIX) || this.isOpenTelemetryEnabled()
     const localSpanStoreEnabled =
       getLocalSpanRecorder()?.isLocalSpanStoreEnabled() ?? false
 
@@ -615,7 +615,7 @@ class NextTracerImpl implements NextTracer {
       return this.getTracerInstance().startSpan(type, options, parentContext)
     }
 
-    const delegateSpan = this.isTracingEnabled()
+    const delegateSpan = this.isOpenTelemetryEnabled()
       ? this.getTracerInstance().startSpan(type, options, parentContext)
       : undefined
 
