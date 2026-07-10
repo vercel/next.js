@@ -2072,16 +2072,6 @@ export async function handleBuildComplete({
         buildRouteFromHeader(route)
       )
 
-      let dedupe = new Set()
-      for (let f of outputs.staticFiles) {
-        if (dedupe.has(f.pathname)) {
-          throw new Error(
-            `Duplicate static file pathname detected: ${JSON.stringify(f)}`
-          )
-        }
-        dedupe.add(f.pathname)
-      }
-
       await adapterMod.onBuildComplete({
         routing: {
           beforeMiddleware: [...headers, ...redirects],
