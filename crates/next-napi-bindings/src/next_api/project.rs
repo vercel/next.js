@@ -510,6 +510,9 @@ pub fn project_new(
 
         let subscriber = subscriber.with(FilterLayer::try_new(&trace).unwrap());
 
+        // For the default `.next-profiles` location the JS CLI already created
+        // this directory (with its `.gitignore`) before invoking the binding; this
+        // is a safety net and also covers a `NEXT_TURBOPACK_TRACING_PATH` override.
         std::fs::create_dir_all(&trace_dir)
             .with_context(|| {
                 format!(
@@ -797,7 +800,7 @@ pub struct AppPageNapiRoute {
     pub original_name: Option<RcStr>,
 
     pub html_endpoint: Option<External<ExternalEndpoint>>,
-    pub rsc_endpoint: Option<External<ExternalEndpoint>>,
+    pub rsc_hmr_endpoint: Option<External<ExternalEndpoint>>,
 }
 
 #[napi(object)]
@@ -816,7 +819,7 @@ pub struct NapiRoute {
     // Different representations of the endpoint
     pub endpoint: Option<External<ExternalEndpoint>>,
     pub html_endpoint: Option<External<ExternalEndpoint>>,
-    pub rsc_endpoint: Option<External<ExternalEndpoint>>,
+    pub rsc_hmr_endpoint: Option<External<ExternalEndpoint>>,
     pub data_endpoint: Option<External<ExternalEndpoint>>,
 }
 
@@ -858,7 +861,7 @@ impl NapiRoute {
                         .map(|page_route| AppPageNapiRoute {
                             original_name: Some(page_route.original_name),
                             html_endpoint: convert_endpoint(page_route.html_endpoint),
-                            rsc_endpoint: convert_endpoint(page_route.rsc_endpoint),
+                            rsc_hmr_endpoint: convert_endpoint(page_route.rsc_hmr_endpoint),
                         })
                         .collect(),
                 ),
@@ -1344,7 +1347,7 @@ pub async fn project_write_all_entrypoints_to_disk(
     let phase_build_paths = if has_deferred_entrypoints {
         Some(
             tt.run(async move {
-                #[turbo_tasks::value]
+                #[turbo_tasks::value(serialization = "skip")]
                 struct DeferredEntrypointInfo(ReadRef<Entrypoints>, ReadRef<Vec<RcStr>>);
 
                 #[turbo_tasks::function(operation, root)]
@@ -1362,7 +1365,6 @@ pub async fn project_write_all_entrypoints_to_disk(
                 let DeferredEntrypointInfo(entrypoints, deferred_entries) =
                     &*deferred_entrypoint_info_operation(container)
                         .read_strongly_consistent()
-                        .final_read_hint()
                         .await?;
 
                 Ok(compute_deferred_phase_build_paths(
@@ -1708,7 +1710,6 @@ pub async fn project_entrypoints(
                 effects: _,
             } = &*entrypoints_with_issues_op
                 .read_strongly_consistent()
-                .final_read_hint()
                 .await?;
 
             Ok((entrypoints.clone(), issues.clone()))
@@ -1815,10 +1816,7 @@ async fn hmr_update_with_issues_operation(
     // consumers in `hot-reloader-turbopack.ts` (`subscribeToServerHmr` and
     // `subscribeToClientHmrEvents`) rely on this read *throwing* on build-graph
     // failures to trigger their recovery paths
-    let update = update_op
-        .read_strongly_consistent()
-        .final_read_hint()
-        .await?;
+    let update = update_op.read_strongly_consistent().await?;
     let filter = project.issue_filter().await?;
     let issues = get_issues(update_op, &filter).await?;
     let effects = Arc::new(take_effects(update_op).await?);
@@ -2487,6 +2485,16 @@ async fn get_all_compilation_issues_inner_operation(
     Ok(Vc::cell(()))
 }
 
+#[turbo_tasks::function(operation, root)]
+async fn get_all_compilation_issues_operation(
+    container: ResolvedVc<ProjectContainer>,
+) -> Result<Vc<OperationResult>> {
+    let inner_op = get_all_compilation_issues_inner_operation(container);
+    let filter = container.project().issue_filter().await?;
+    let (_, issues, effects) = strongly_consistent_catch_collectables(inner_op, &filter).await?;
+    Ok(OperationResult { issues, effects }.cell())
+}
+
 /// Returns the build-feature-usage telemetry summary for this project — the set of
 /// `(featureName, invocationCount)` pairs reported to the Next.js telemetry service.
 ///
@@ -2528,24 +2536,13 @@ pub async fn project_feature_usage(
 pub async fn project_get_all_compilation_issues(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
 ) -> napi::Result<TurbopackResult<()>> {
-    #[turbo_tasks::function(operation, root)]
-    async fn get_all_compilation_issues_operation(
-        container: ResolvedVc<ProjectContainer>,
-    ) -> Result<Vc<OperationResult>> {
-        let inner_op = get_all_compilation_issues_inner_operation(container);
-        let filter = container.project().issue_filter().await?;
-        let (_, issues, effects) =
-            strongly_consistent_catch_collectables(inner_op, &filter).await?;
-        Ok(OperationResult { issues, effects }.cell())
-    }
     let container = project.container;
     let issues = project
         .turbopack_ctx
         .turbo_tasks()
         .run_once(async move {
             let op = get_all_compilation_issues_operation(container);
-            let OperationResult { issues, effects: _ } =
-                &*op.read_strongly_consistent().final_read_hint().await?;
+            let OperationResult { issues, effects: _ } = &*op.read_strongly_consistent().await?;
             Ok(issues.clone())
         })
         .await

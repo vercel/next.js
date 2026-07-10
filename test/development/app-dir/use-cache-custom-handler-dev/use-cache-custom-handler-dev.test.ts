@@ -40,6 +40,38 @@ describe('use-cache-custom-handler-dev', () => {
     expect(await browser.hasElementByCss('[data-cold-cache-badge]')).toBe(false)
   })
 
+  it('serves a short-expire value warm through a custom handler and re-warms it on each reload', async () => {
+    const browser = await next.browser('/expire-zero', {
+      waitHydration: false,
+      // Do not wait for "load"; inspect the page as it streams in.
+      waitUntil: 'commit',
+    })
+
+    // Cold load: the custom handler misses, the value generates and is written
+    // through to both the backing handler and the dev-only in-memory front. We
+    // wait for the streamed-in element without waiting for "load".
+    const coldValue = await browser
+      .elementByCss('#value', { waitUntil: false })
+      .text()
+    expect(coldValue).toBeDateString()
+
+    // Warm reload: served fast from the front, whose minimum retention keeps
+    // the short-`expire` entry. The custom handler's slow `get` isn't on the
+    // critical path, and the short `expire` no longer evicts the front entry on
+    // every read, so the same cached value shows.
+    await browser.refresh({ waitUntil: 'commit' })
+    expect(
+      await browser.elementByCss('#value', { waitUntil: false }).text()
+    ).toBe(coldValue)
+
+    // Each warm reload re-executes the cache function and writes through to the
+    // backing, so reloads converge to a fresh value.
+    await retry(async () => {
+      await browser.refresh()
+      expect(await browser.elementById('value').text()).not.toBe(coldValue)
+    })
+  })
+
   it('stops serving a front-cached entry after the backing cache is purged out-of-band', async () => {
     const browser = await next.browser('/purged')
 

@@ -16,6 +16,7 @@ pub mod node;
 pub mod pattern_mapping;
 pub mod raw;
 pub mod require_context;
+pub mod service_worker;
 pub mod type_issue;
 pub mod typescript;
 pub mod unreachable;
@@ -40,6 +41,7 @@ use num_traits::Zero;
 use parking_lot::Mutex;
 use regex::Regex;
 use rustc_hash::{FxHashMap, FxHashSet};
+use service_worker::ServiceWorkerAssetReference;
 use swc_core::{
     atoms::{Atom, Wtf8Atom, atom},
     common::{
@@ -99,8 +101,8 @@ use crate::{
     ModuleTypeResult, TreeShakingMode, TypeofWindow,
     analyzer::{
         Bump, BumpVec, ConstantNumber, ConstantString, ConstantValue as JsConstantValue, JsValue,
-        JsValueUrlKind, ObjectPart, RequireContextValue, ThreadLocal, WellKnownFunctionKind,
-        WellKnownObjectKind,
+        JsValueUrlKind, Modified, ObjectPart, RequireContextValue, ThreadLocal,
+        WellKnownFunctionKind, WellKnownObjectKind,
         builtin::{early_replace_builtin, replace_builtin},
         graph::{ConditionalKind, Effect, EffectArg, VarGraph, create_graph},
         imports::{ImportAnnotations, ImportAttributes, ImportMap},
@@ -1266,6 +1268,27 @@ async fn analyze_ecmascript_module_internal(
 
                     handle_member(&ast_path, obj, prop, span, &analysis_state, &mut analysis)
                         .await?;
+                }
+                Effect::In {
+                    mut left,
+                    mut right,
+                    ast_path,
+                    span: _,
+                } => {
+                    debug_assert!(
+                        analyze_mode.is_code_gen(),
+                        "unexpected Effect::In in tracing mode"
+                    );
+
+                    // Intentionally not awaited because `handle_member` reads this only when needed
+                    let right =
+                        analysis_state.link_value(take(&mut *right), ImportAttributes::empty_ref());
+
+                    let left = analysis_state
+                        .link_value(take(&mut *left), ImportAttributes::empty_ref())
+                        .await?;
+
+                    handle_in(&ast_path, right, left, &analysis_state, &mut analysis).await?;
                 }
                 Effect::ImportedBinding {
                     esm_reference_index,
@@ -2989,6 +3012,105 @@ where
                 }
             }
         }
+        WellKnownFunctionKind::ServiceWorkerRegister => {
+            let args = linked_args().await?;
+            if let Some(url @ JsValue::Url(_, JsValueUrlKind::Relative)) = args.first() {
+                let pat = js_value_to_pattern(url);
+                if !pat.has_constant_parts() {
+                    let (args, hints) = explain_args(args);
+                    handler.span_warn_with_code(
+                        span,
+                        &format!(
+                            "navigator.serviceWorker.register({args}) is very dynamic{hints}",
+                        ),
+                        DiagnosticId::Lint(
+                            errors::failed_to_analyze::ecmascript::NEW_WORKER.to_string(),
+                        ),
+                    );
+                    if ignore_dynamic_requests {
+                        return Ok(());
+                    }
+                }
+
+                if *compile_time_info.environment().rendering().await? == Rendering::Client {
+                    let error_mode = if in_try {
+                        ResolveErrorMode::Warn
+                    } else {
+                        ResolveErrorMode::Error
+                    };
+                    // A static `scope` option selects the served file name (one worker per
+                    // scope). Defaults to "/" (served at /sw.js).
+                    let scope: RcStr = match args.get(1) {
+                        Some(JsValue::Object { parts, .. }) => {
+                            let scope_value = parts.iter().find_map(|part| match part {
+                                ObjectPart::KeyValue(
+                                    JsValue::Constant(JsConstantValue::Str(key)),
+                                    value,
+                                ) if key.as_str() == "scope" => Some(value),
+                                _ => None,
+                            });
+                            match scope_value {
+                                // No `scope` key: register at the default scope.
+                                None => rcstr!("/"),
+                                Some(JsValue::Constant(JsConstantValue::Str(value))) => {
+                                    let scope = value.as_str();
+                                    // The scope must be an absolute path (starting with `/`) so
+                                    // it can be prefixed with the host's base path and served
+                                    // from a stable, root-relative URL. Reject relative scopes
+                                    // rather than silently registering at the wrong scope.
+                                    if !scope.starts_with('/') {
+                                        let (args, hints) = explain_args(args);
+                                        handler.span_warn_with_code(
+                                            span,
+                                            &format!(
+                                                "navigator.serviceWorker.register({args}) has a \
+                                                 `scope` that does not start with `/`{hints}",
+                                            ),
+                                            DiagnosticId::Error(
+                                                errors::failed_to_analyze::ecmascript::NEW_WORKER
+                                                    .to_string(),
+                                            ),
+                                        );
+                                        return Ok(());
+                                    }
+                                    scope.into()
+                                }
+                                // A `scope` was provided but can't be analyzed statically;
+                                // don't silently register at the wrong scope.
+                                Some(_) => {
+                                    let (args, hints) = explain_args(args);
+                                    handler.span_warn_with_code(
+                                        span,
+                                        &format!(
+                                            "navigator.serviceWorker.register({args}) has a \
+                                             `scope` that is not statically analyze-able{hints}",
+                                        ),
+                                        DiagnosticId::Error(
+                                            errors::failed_to_analyze::ecmascript::NEW_WORKER
+                                                .to_string(),
+                                        ),
+                                    );
+                                    return Ok(());
+                                }
+                            }
+                        }
+                        // No options argument: register at the default scope.
+                        _ => rcstr!("/"),
+                    };
+                    analysis.add_reference_code_gen(
+                        ServiceWorkerAssetReference::new(
+                            origin,
+                            Request::parse(pat).to_resolved().await?,
+                            scope,
+                            issue_source(source, span),
+                            error_mode,
+                        ),
+                        ast_path.to_vec().into(),
+                    );
+                }
+            }
+            return Ok(());
+        }
         _ => {}
     };
     Ok(())
@@ -3025,7 +3147,7 @@ async fn handle_member<'a>(
         let has_member = state.free_var_references_members.contains_key(prop).await?;
         let is_prop_cache = prop == "cache";
 
-        // This isn't pretty, but we cannot await the future twice in the two branches below.
+        // This isn't pretty, but this avoids awaiting the future twice in the two branches below.
         let obj = if has_member || is_prop_cache {
             Some(link_obj.await?)
         } else {
@@ -3053,6 +3175,58 @@ async fn handle_member<'a>(
                 obj.as_ref().unwrap()
         {
             analysis.add_code_gen(CjsRequireCacheAccess::new(ast_path.to_vec().into()));
+        }
+    }
+
+    Ok(())
+}
+
+async fn handle_in<'a>(
+    ast_path: &[AstParentKind],
+    link_right: impl Future<Output = Result<JsValue<'a>>> + Send + Sync,
+    left: JsValue<'a>,
+    state: &AnalysisState<'a>,
+    analysis: &mut AnalyzeEcmascriptModuleResultBuilder,
+) -> Result<()> {
+    if let Some(left) = left.as_str() {
+        let has_member = state.free_var_references_members.contains_key(left).await?;
+        let is_left_cache = left == "cache";
+
+        // This isn't pretty, but this avoids awaiting the future twice in the two branches below.
+        let right = if has_member || is_left_cache {
+            Some(link_right.await?)
+        } else {
+            None
+        };
+
+        if has_member {
+            let right = right.as_ref().unwrap();
+            if let Some((mut name, false)) = right.get_definable_name(Some(&state.var_graph)) {
+                name.0.push(DefinableNameSegmentRef::Name(left));
+                if state
+                    .compile_time_info_ref
+                    .free_var_references
+                    .get(&name)
+                    .await?
+                    .is_some()
+                {
+                    analysis.add_code_gen(ConstantValueCodeGen::new(
+                        CompileTimeDefineValue::Bool(true),
+                        ast_path.to_vec().into(),
+                    ));
+                    return Ok(());
+                }
+            }
+        }
+
+        if is_left_cache
+            && let JsValue::WellKnownFunction(WellKnownFunctionKind::Require) =
+                right.as_ref().unwrap()
+        {
+            analysis.add_code_gen(ConstantValueCodeGen::new(
+                CompileTimeDefineValue::Bool(true),
+                ast_path.to_vec().into(),
+            ));
         }
     }
 
@@ -3457,7 +3631,7 @@ fn require_resolve(path: FileSystemPath) -> String {
 async fn early_value_visitor<'a>(
     _arena: &'a ThreadLocal<Bump>,
     mut v: JsValue<'a>,
-) -> Result<(JsValue<'a>, bool)> {
+) -> Result<(JsValue<'a>, Modified)> {
     let modified = early_replace_builtin(&mut v);
     Ok((v, modified))
 }
@@ -3472,7 +3646,7 @@ async fn value_visitor<'a>(
     var_graph: &VarGraph<'a>,
     attributes: &ImportAttributes,
     allow_project_root_tracing: bool,
-) -> Result<(JsValue<'a>, bool)> {
+) -> Result<(JsValue<'a>, Modified)> {
     let (mut v, modified) = value_visitor_inner(
         arena,
         origin,
@@ -3499,16 +3673,27 @@ async fn value_visitor_inner<'a>(
     var_graph: &VarGraph<'a>,
     attributes: &ImportAttributes,
     allow_project_root_tracing: bool,
-) -> Result<(JsValue<'a>, bool)> {
-    let ImportAttributes { ignore, .. } = *attributes;
+) -> Result<(JsValue<'a>, Modified)> {
+    if let JsValue::In(_, left, right) = &v
+        && let Some(left) = left.as_str()
+        && let Some((mut name, _)) = right.get_definable_name(Some(var_graph))
+    {
+        name.0.push(DefinableNameSegmentRef::Name(left));
+        if compile_time_info_ref.defines.contains_key(&name).await? {
+            return Ok((JsValue::Constant(JsConstantValue::True), Modified::Yes));
+        }
+    }
+
     if let Some((name, _)) = v.get_definable_name(Some(var_graph))
         && let Some(value) = compile_time_info_ref.defines.get(&name).await?
     {
         return Ok((
             JsValue::from_compile_time_define_value_in(arena.get_or_default(), &value)?,
-            true,
+            Modified::Yes,
         ));
     }
+
+    let ImportAttributes { ignore, .. } = *attributes;
     let value = match v {
         JsValue::Call(_, call)
             if matches!(
@@ -3610,10 +3795,10 @@ async fn value_visitor_inner<'a>(
             if ignore {
                 return Ok((
                     JsValue::unknown(v, true, rcstr!("ignored well known function")),
-                    true,
+                    Modified::Yes,
                 ));
             } else {
-                return Ok((v, false));
+                return Ok((v, Modified::No));
             }
         }
         JsValue::FreeVar(ref kind) => match &**kind {
@@ -3649,7 +3834,8 @@ async fn value_visitor_inner<'a>(
             "process" => JsValue::WellKnownObject(WellKnownObjectKind::NodeProcessModule),
             "Object" => JsValue::WellKnownObject(WellKnownObjectKind::GlobalObject),
             "Buffer" => JsValue::WellKnownObject(WellKnownObjectKind::NodeBuffer),
-            _ => return Ok((v, false)),
+            "navigator" => JsValue::WellKnownObject(WellKnownObjectKind::Navigator),
+            _ => return Ok((v, Modified::No)),
         },
         JsValue::Module(ref mv) => compile_time_info
             .environment()
@@ -3668,12 +3854,16 @@ async fn value_visitor_inner<'a>(
         _ => {
             let (mut v, mut modified) =
                 replace_well_known(arena, v, compile_time_info, allow_project_root_tracing).await?;
-            modified = replace_builtin(arena.get_or_default(), &mut v) || modified;
-            modified = modified || v.make_nested_operations_unknown();
+            if replace_builtin(arena.get_or_default(), &mut v).is_modified() {
+                modified = Modified::Yes;
+            }
+            if !modified.is_modified() {
+                modified = Modified::from(v.make_nested_operations_unknown());
+            }
             return Ok((v, modified));
         }
     };
-    Ok((value, true))
+    Ok((value, Modified::Yes))
 }
 
 async fn require_resolve_visitor<'a>(

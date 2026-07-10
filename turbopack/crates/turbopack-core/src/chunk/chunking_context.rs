@@ -13,7 +13,7 @@ use crate::{
         ChunkItem, ChunkType, ChunkableModule, availability_info::AvailabilityInfo,
         chunk_id_strategy::ModuleIdStrategy,
     },
-    environment::Environment,
+    environment::{ChunkLoading, Environment},
     ident::AssetIdent,
     module::Module,
     module_graph::{
@@ -260,6 +260,18 @@ pub struct ChunkingConfig {
     /// type.
     pub style_groups_algorithm: StyleGroupsAlgorithm,
 
+    /// First-page-load priority as an integer percentage (`0..=100`), or `None` to use the
+    /// default. Used by the production chunker's merge heuristics.
+    pub first_page_load_priority: Option<u32>,
+
+    /// Priority boost as an integer percentage (e.g. `150` for a 1.5x boost), or `None` to use the
+    /// default. Used by the production chunker's merge heuristics.
+    pub priority_boost_percent: Option<u32>,
+
+    /// Estimated request cost in bytes, or `None` to use the default. Used by the production
+    /// chunker's merge heuristics.
+    pub request_cost: Option<u64>,
+
     #[allow(dead_code)]
     pub placeholder_for_future_extensions: (),
 }
@@ -320,6 +332,11 @@ pub trait ChunkingContext {
     #[turbo_tasks::function]
     fn chunk_root_path(self: Vc<Self>) -> Vc<FileSystemPath>;
 
+    #[turbo_tasks::function]
+    fn chunk_loading(self: Vc<Self>) -> Vc<ChunkLoading> {
+        self.environment().chunk_loading()
+    }
+
     // TODO(alexkirsz) Remove this from the chunking context. This should be at the
     // discretion of chunking context implementors. However, we currently use this
     // in a couple of places in `turbopack-css`, so we need to remove that
@@ -347,6 +364,11 @@ pub trait ChunkingContext {
     /// different usages of the same asset (e.g. different base paths).
     #[turbo_tasks::function]
     fn asset_url(self: Vc<Self>, ident: FileSystemPath, tag: Option<RcStr>) -> Result<Vc<RcStr>>;
+
+    #[turbo_tasks::function]
+    fn service_worker_scope_base_path(self: Vc<Self>) -> Vc<RcStr> {
+        Vc::cell(RcStr::default())
+    }
 
     #[turbo_tasks::function]
     fn asset_path(

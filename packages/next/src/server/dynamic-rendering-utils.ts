@@ -1,9 +1,6 @@
-import { InvariantError } from '../shared/lib/invariant-error'
 import {
-  isEarlyRenderStage,
   RenderStage,
   type AdvanceableRenderStage,
-  type StagedRenderingController,
 } from './app-render/staged-rendering'
 import type { RequestStore } from './app-render/work-unit-async-storage.external'
 import { workUnitAsyncStorage } from './app-render/work-unit-async-storage.external'
@@ -46,29 +43,7 @@ export class ClientHookDynamicError extends Error {
         `Ways to fix this:\n` +
         `  - [stream] Wrap the component in \`<Suspense fallback={...}>\` so the hook value streams in after prerendering\n` +
         `    https://nextjs.org/docs/messages/blocking-prerender-client-hook#wrap-in-or-move-into-suspense\n` +
-        `  - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route\n` +
-        `    https://nextjs.org/docs/messages/blocking-prerender-client-hook#allow-blocking-route`
-    )
-  }
-}
-
-export class ParamClientHookDynamicError extends Error {
-  public readonly digest = CLIENT_HOOK_DYNAMIC
-
-  constructor(route: string, expression: string) {
-    const cacheBullet =
-      expression === 'useParams()'
-        ? `  - [cache] For known params, prerender them with \`generateStaticParams\`\n` +
-          `    https://nextjs.org/docs/messages/blocking-prerender-client-hook#for-known-params-prerender\n`
-        : ''
-    super(
-      `Route "${route}": Next.js encountered URL data \`${expression}\` in a Client Component outside of \`<Suspense>\`.\n\n` +
-        `This blocks prerendering because the value is only available at runtime.\n\n` +
-        `Ways to fix this:\n` +
-        `  - [stream] Wrap the component in \`<Suspense fallback={...}>\` so the hook value streams in after prerendering\n` +
-        `    https://nextjs.org/docs/messages/blocking-prerender-client-hook#wrap-in-or-move-into-suspense\n` +
-        cacheBullet +
-        `  - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route\n` +
+        `  - [block] Set \`export const instant = false\` to allow a blocking route\n` +
         `    https://nextjs.org/docs/messages/blocking-prerender-client-hook#allow-blocking-route`
     )
   }
@@ -76,7 +51,7 @@ export class ParamClientHookDynamicError extends Error {
 
 export function isClientHookDynamicError(
   err: unknown
-): err is ClientHookDynamicError | ParamClientHookDynamicError {
+): err is ClientHookDynamicError {
   if (typeof err !== 'object' || err === null || !('digest' in err)) {
     return false
   }
@@ -107,7 +82,7 @@ export function makeHangingPromise<T>(
 
 export function makeClientHookHangingPromise<T>(
   signal: AbortSignal,
-  error: ClientHookDynamicError | ParamClientHookDynamicError
+  error: ClientHookDynamicError
 ): Promise<T> {
   return makeHangingPromiseWithError(signal, error)
 }
@@ -187,66 +162,9 @@ export function makeDevtoolsIOAwarePromise<T>(
 }
 
 export const RENDER_STAGES_BY_DATA_KIND = {
-  // NOTE: keep in sync with getSessionDataStage
-  sessionData: {
-    early: RenderStage.ShellEarlyRuntime as const,
-    late: RenderStage.ShellRuntime as const,
-  },
-  // NOTE: keep in sync with getStaticLinkDataStage
-  staticLinkData: {
-    early: RenderStage.EarlyStatic as const,
-    late: RenderStage.Static as const,
-  },
-  // NOTE: keep in sync with getRuntimeLinkDataStage
-  runtimeLinkData: {
-    early: RenderStage.EarlyRuntime as const,
-    late: RenderStage.Runtime as const,
-  },
-}
-
-export function getSessionDataStage(
-  stagedRendering: StagedRenderingController
-) {
-  const { currentStage } = stagedRendering
-  if (currentStage === RenderStage.Before) {
-    throw new InvariantError(
-      'Cannot determine late/early stage before starting the render'
-    )
-  }
-  // NOTE: keep in sync with RENDER_STAGES_BY_DATA_KIND
-  return isEarlyRenderStage(currentStage)
-    ? RenderStage.ShellEarlyRuntime
-    : RenderStage.ShellRuntime
-}
-
-export function getStaticLinkDataStage(
-  stagedRendering: StagedRenderingController
-) {
-  const { currentStage } = stagedRendering
-  if (currentStage === RenderStage.Before) {
-    throw new InvariantError(
-      'Cannot determine late/early stage before starting the render'
-    )
-  }
-  // NOTE: keep in sync with RENDER_STAGES_BY_DATA_KIND
-  return isEarlyRenderStage(currentStage)
-    ? RenderStage.EarlyStatic
-    : RenderStage.Static
-}
-
-export function getRuntimeLinkDataStage(
-  stagedRendering: StagedRenderingController
-) {
-  const { currentStage } = stagedRendering
-  if (currentStage === RenderStage.Before) {
-    throw new InvariantError(
-      'Cannot determine late/early stage before starting the render'
-    )
-  }
-  // NOTE: keep in sync with RENDER_STAGES_BY_DATA_KIND
-  return isEarlyRenderStage(currentStage)
-    ? RenderStage.EarlyRuntime
-    : RenderStage.Runtime
+  sessionData: RenderStage.ShellRuntime as const,
+  staticLinkData: RenderStage.Static as const,
+  runtimeLinkData: RenderStage.Runtime as const,
 }
 
 export function applyOwnerStack(error: Error): Error {

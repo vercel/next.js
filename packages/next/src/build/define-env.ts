@@ -53,6 +53,7 @@ interface DefineEnv {
     | ProxyMatcher[]
     | BloomFilter
     | Partial<NextConfigComplete['images']>
+    | NextConfigComplete['cacheLife']
     | I18NDomains
     | I18NConfig
 }
@@ -179,6 +180,9 @@ export function getDefineEnv({
       config.experimental.cachedNavigations
     ),
     'process.env.__NEXT_INSTANT_NAV_TOGGLE': isCacheComponentsEnabled,
+    'process.env.__NEXT_EXPERIMENTAL_COLD_CACHE_BADGE': Boolean(
+      config.experimental.coldCacheBadge
+    ),
     'process.env.__NEXT_USE_CACHE': isUseCacheEnabled,
     'process.env.__NEXT_USE_NODE_STREAMS': isEdgeServer ? false : true,
 
@@ -240,6 +244,9 @@ export function getDefineEnv({
       clientRouterFilters?.dynamicFilter ?? false,
     'process.env.__NEXT_CLIENT_VALIDATE_RSC_REQUEST_HEADERS': Boolean(
       config.experimental.validateRSCRequestHeaders
+    ),
+    'process.env.__NEXT_SERVER_COMPONENTS_HMR_CANCELLATION': Boolean(
+      config.experimental.serverComponentsHmrCancellation
     ),
     'process.env.__NEXT_DYNAMIC_ON_HOVER': Boolean(
       config.experimental.dynamicOnHover

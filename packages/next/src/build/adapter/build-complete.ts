@@ -54,6 +54,7 @@ import { defaultOverrides } from '../../server/require-hook'
 import { generateRoutesManifest } from '../generate-routes-manifest'
 import { Bundler } from '../../lib/bundler'
 import { resolveCacheHandlerPathToFilesystem } from '../../lib/format-dynamic-import-path'
+import { isAPIRoute } from '../../lib/is-api-route'
 
 interface SharedRouteFields {
   /**
@@ -656,7 +657,8 @@ export async function handleBuildComplete({
           ? normalizeAppPath(route)
           : route === '/index'
             ? '/'
-            : route
+            : route.replace(/\/index$/, '')
+        const functionConfig = functionsConfigManifest.functions[pathname] || {}
         const edgeEntrypointRelativePath = page.entrypoint
         const edgeEntrypointPath = path.join(
           distDir,
@@ -682,6 +684,7 @@ export async function handleBuildComplete({
           // Computing assetsHash for edge functions isn't implemented for now
           wasmAssets: {},
           config: {
+            maxDuration: functionConfig.maxDuration,
             env: page.env,
             preferredRegion: page.regions,
           },
@@ -1871,7 +1874,7 @@ export async function handleBuildComplete({
     ]
 
     for (const route of routesManifest.dynamicRoutes) {
-      const shouldLocalize = config.i18n
+      const shouldLocalize = Boolean(config.i18n) && !isAPIRoute(route.page)
 
       const routeRegex = getNamedRouteRegex(route.page, {
         prefixRouteKeys: true,
