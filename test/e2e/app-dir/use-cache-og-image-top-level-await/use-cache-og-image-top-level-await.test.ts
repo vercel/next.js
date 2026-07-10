@@ -1,13 +1,11 @@
-import { readdir } from 'node:fs/promises'
 import { nextTestSetup } from 'e2e-utils'
 
 describe('use-cache-og-image-top-level-await', () => {
   const { next, isNextStart, skipped } = nextTestSetup({
     files: __dirname,
     skipStart: true,
-    // The gates are inert in a deployment build (there's no way to interact
-    // with it), and without them nothing distinguishes broken from fixed
-    // behavior.
+    // The prerendered output can't be observed in a deployment, and without
+    // it nothing distinguishes broken from fixed behavior.
     skipDeployment: true,
   })
 
@@ -16,66 +14,33 @@ describe('use-cache-og-image-top-level-await', () => {
   }
 
   if (isNextStart) {
-    it(
-      'should prerender a page whose opengraph image uses a top-level await',
-      async () => {
-        let buildSettled = false
-        const buildPromise = next
-          .build({ env: { NEXT_TEST_MODULE_GATES: '1' } })
-          .finally(() => {
-            buildSettled = true
-          })
+    beforeAll(async () => {
+      await next.build({ args: ['--experimental-build-mode', 'compile'] })
+    })
 
-        // Open each gate only after its module evaluation has been waiting for
-        // a while, so that all other work of the build has settled by then. In
-        // a correct build, the prerender waits for the pending module
-        // evaluation, no matter how long the gate stays closed. In a broken
-        // build, the prerender concludes without the module evaluation ever
-        // finishing, and fails on its own.
-        const deadline = Date.now() + 5 * 60 * 1000
-        const firstSeen = new Map<string, number>()
-        const opened: string[] = []
-        while (!buildSettled) {
-          if (Date.now() > deadline) {
-            throw new Error(
-              `Build did not settle. ` +
-                `Gates opened: [${opened.join(', ')}], ` +
-                `gates waiting: [${[...firstSeen.keys()].join(', ')}]`
-            )
-          }
-          for (const file of await readdir(next.testDir)) {
-            const gate = file.match(/^(.+)\.gate-waiting$/)?.[1]
-            if (gate && !firstSeen.has(gate)) {
-              firstSeen.set(gate, Date.now())
-            }
-          }
-          for (const [gate, seenAt] of firstSeen) {
-            if (Date.now() - seenAt > 2000) {
-              firstSeen.delete(gate)
-              opened.push(gate)
-              await next.patchFile(`${gate}.gate-open`, '')
-            }
-          }
-          await new Promise((resolve) => setTimeout(resolve, 250))
-        }
+    it('should prerender a page whose opengraph image uses a top-level await', async () => {
+      const { exitCode, cliOutput } = await next.build({
+        args: [
+          '--experimental-build-mode',
+          'generate',
+          '--debug-build-paths',
+          'app/[slug]/page.tsx,app/[slug]/opengraph-image.tsx',
+        ],
+      })
 
-        const { exitCode, cliOutput } = await buildPromise
+      expect(cliOutput).not.toContain(
+        'Unexpected cache miss after cache warming phase'
+      )
+      expect(cliOutput).not.toContain(
+        'Next.js encountered uncached or runtime data in `generateMetadata()`'
+      )
+      expect(exitCode).toBe(0)
 
-        expect(cliOutput).not.toContain(
-          'Unexpected cache miss after cache warming phase'
-        )
-        expect(cliOutput).not.toContain(
-          'Next.js encountered uncached or runtime data in `generateMetadata()`'
-        )
-        expect(exitCode).toBe(0)
-
-        // The image route uses generateStaticParams, so the build is expected
-        // to prerender it for each param.
-        expect(cliOutput).toMatch(/● \/first-post\/opengraph-image/)
-        expect(cliOutput).toMatch(/● \/second-post\/opengraph-image/)
-      },
-      10 * 60 * 1000
-    )
+      // The image route uses generateStaticParams, so the build is expected
+      // to prerender it for each param.
+      expect(cliOutput).toMatch(/● \/first-post\/opengraph-image/)
+      expect(cliOutput).toMatch(/● \/second-post\/opengraph-image/)
+    })
   } else {
     beforeAll(async () => {
       await next.start()
