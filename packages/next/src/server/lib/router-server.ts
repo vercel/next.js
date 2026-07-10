@@ -7,6 +7,7 @@ import type { NextUrlWithParsedQuery, RequestMeta } from '../request-meta'
 import '../node-environment'
 import '../require-hook'
 
+import { existsSync, mkdirSync, writeFileSync } from 'fs'
 import url from 'url'
 import path from 'path'
 import loadConfig, { type ConfiguredExperimentalFeature } from '../config'
@@ -61,6 +62,7 @@ import {
   isChromeDevtoolsWorkspaceUrl,
 } from './chrome-devtools-workspace'
 import { getNextConfigRuntime, type NextConfigComplete } from '../config-shared'
+import { RESTART_EXIT_CODE } from './utils'
 
 const debug = setupDebug('next:router-server:main')
 const isNextFont = (pathname: string | null) =>
@@ -146,6 +148,15 @@ export async function initialize(opts: {
 
   let originalFetch = globalThis.fetch
 
+  // distDirRoot is the user-visible directory (e.g. .next), while
+  // config.distDir may be .next/dev in development mode.
+  const distDirRoot =
+    (config as NextConfigComplete).distDirRoot || config.distDir
+  // Marker file used to detect distDir deletion. Bundlers may recreate
+  // the directory structure immediately, so we check a marker file that
+  // only gets written once at server start.
+  let distDirMarker = ''
+
   if (opts.dev) {
     const { Telemetry } =
       require('../../telemetry/storage') as typeof import('../../telemetry/storage')
@@ -226,6 +237,28 @@ export async function initialize(opts: {
       service: devBundlerService,
       config: developmentConfig,
     }
+
+    // Poll for distDir deletion so we can restart the dev server instead of
+    // serving broken pages with cryptic ENOENT errors.
+    // We use polling because fs.watch is unreliable for detecting directory
+    // deletion across platforms (on Linux the inotify watch is destroyed with
+    // the directory; on macOS kqueue may not fire at all).
+    // We check a marker file rather than the directory itself, because
+    // bundlers may recreate the directory structure almost immediately
+    // after deletion.
+    distDirMarker = path.join(opts.dir, config.distDir, 'server-marker')
+    mkdirSync(path.dirname(distDirMarker), { recursive: true })
+    writeFileSync(distDirMarker, '')
+    const distDirPollInterval = setInterval(() => {
+      if (!existsSync(distDirMarker)) {
+        clearInterval(distDirPollInterval)
+        Log.warn(
+          `The ${distDirRoot} directory was removed while the dev server was running. Restarting...`
+        )
+        process.exit(RESTART_EXIT_CODE)
+      }
+    }, 500)
+    distDirPollInterval.unref()
   }
 
   renderServer.instance =
@@ -710,6 +743,14 @@ export async function initialize(opts: {
     try {
       await handleRequest(0)
     } catch (err) {
+      // If the distDir was deleted, restart instead of showing a 500 error.
+      if (distDirMarker && !existsSync(distDirMarker)) {
+        Log.warn(
+          `The ${distDirRoot} directory was removed while the dev server was running. Restarting...`
+        )
+        return process.exit(RESTART_EXIT_CODE)
+      }
+
       try {
         let invokePath = '/500'
         let invokeStatus = '500'
