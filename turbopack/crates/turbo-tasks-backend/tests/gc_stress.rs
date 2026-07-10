@@ -194,3 +194,90 @@ async fn gc_re_rooting_stays_flat() {
 
     tt.stop_and_wait().await;
 }
+
+const FANOUT: u32 = 5000;
+
+/// A root that reads `FANOUT` leaves *directly*, so it accumulates ~`FANOUT` children in one task
+/// (and, via reading each leaf's cell, a large forward-dependency set). Keyed by generation so
+/// bumping it disconnects the entire previous fan-out at once.
+#[turbo_tasks::function(operation, root)]
+async fn huge_root(generation: ResolvedVc<Generation>) -> Result<Vc<u32>> {
+    let generation = *generation.await?.get();
+    let mut sum = 0u32;
+    for index in 0..FANOUT {
+        sum = sum.wrapping_add(*leaf(generation, index).await?);
+    }
+    Ok(Vc::cell(sum))
+}
+
+/// Exercises the *per-task* fan-out of the parallel collector (the chunked `Decrement`/`Scrub*`
+/// jobs): a single collected task has thousands of children and forward dependencies, which must be
+/// torn down across worker threads in bounded chunks rather than by one serial job. Collecting the
+/// disconnected generation's `huge_root` (≈FANOUT children) + its FANOUT leaves must fully reclaim
+/// the subtree, and the graph must still recompute afterwards.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn gc_collects_wide_fanout_task() {
+    let (tt, _persistence_dir) = create_tt("gc_collects_wide_fanout_task");
+    let tt2 = tt.clone();
+
+    // Build generation 0 (huge_root + FANOUT leaves), then flip to generation 1 which disconnects
+    // the entire generation-0 fan-out.
+    let result = turbo_tasks::run_once(tt.clone(), async move {
+        unmark_top_level_task_may_leak_eventually_consistent_state();
+        let generation_op = create_generation();
+        let generation_vc = generation_op.resolve().strongly_consistent().await?;
+        let generation = generation_op.read_strongly_consistent().await?;
+
+        let output = huge_root(generation_vc);
+        output.read_strongly_consistent().await?;
+
+        // Disconnect the whole generation-0 fan-out in one shot.
+        generation.set(1);
+        output.read_strongly_consistent().await?;
+        anyhow::Ok(())
+    })
+    .await;
+    result.unwrap();
+
+    // Baseline after building + reading generation 1 (once, to settle), then collect the
+    // disconnected generation-0 subtree.
+    let baseline = tt2.backend().resident_persistent_task_count_for_testing();
+    let (collected, deletes) = tt2.backend().gc_for_testing(&tt2);
+    tt2.backend()
+        .snapshot_and_evict_with_deletes_for_testing(&tt2, deletes);
+    let after = tt2.backend().resident_persistent_task_count_for_testing();
+
+    println!(
+        "wide-fanout: baseline={baseline} collected={collected} after={after} (fanout={FANOUT})"
+    );
+    // Collecting one wide-fanout generation tears down ~FANOUT+1 tasks (huge_root + its leaves)
+    // spread across worker threads via the chunked jobs. Assert the pass collected the bulk of a
+    // full generation (allowing slack for tasks that settle across passes), proving the per-task
+    // fan-out actually reclaims the whole subtree rather than pinning/starving.
+    assert!(
+        collected >= (FANOUT as usize) / 2,
+        "wide-fanout GC collected too little ({collected}); expected >= {} — per-task fan-out is \
+         not tearing down the whole subtree",
+        FANOUT / 2
+    );
+
+    // The live graph must still compute correctly after the wide teardown.
+    let tt3 = tt.clone();
+    let result = turbo_tasks::run_once(tt.clone(), async move {
+        unmark_top_level_task_may_leak_eventually_consistent_state();
+        let generation_op = create_generation();
+        let generation_vc = generation_op.resolve().strongly_consistent().await?;
+        let output = huge_root(generation_vc);
+        // generation is 1; sum = sum of leaf(1, i) for i in 0..FANOUT.
+        let expected: u32 = (0..FANOUT)
+            .map(|i| 1u32.wrapping_mul(1000).wrapping_add(i))
+            .fold(0u32, |a, b| a.wrapping_add(b));
+        assert_eq!(*output.read_strongly_consistent().await?, expected);
+        let _ = &tt3;
+        anyhow::Ok(())
+    })
+    .await;
+    result.unwrap();
+
+    tt.stop_and_wait().await;
+}
