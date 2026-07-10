@@ -55,7 +55,10 @@ export function createMetadataComponents({
   MetadataOutlet: React.ComponentType
 } {
   const searchParams = createServerSearchParamsForMetadata(parsedQuery)
-  const pathnameForMetadata = createServerPathnameForMetadata(pathname)
+  const pathnameForMetadata = createServerPathnameForMetadata(
+    pathname,
+    interpolatedParams
+  )
 
   async function Viewport() {
     const tags = await getResolvedViewport(

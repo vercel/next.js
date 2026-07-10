@@ -12,6 +12,7 @@ import {
   throwInvariantForMissingStore,
   workUnitAsyncStorage,
   type PrerenderStoreLegacy,
+  type PrerenderStoreModernRuntime,
   type PrerenderStoreModernServer,
   type PrerenderStorePPR,
 } from '../app-render/work-unit-async-storage.external'
@@ -20,9 +21,12 @@ import {
   RENDER_STAGES_BY_DATA_KIND,
 } from '../dynamic-rendering-utils'
 import { InvariantError } from '../../shared/lib/invariant-error'
+import type { Params } from './params'
+import { allParamsAreRootParams, isEmptyParams } from '../lib/params-utils'
 
 export function createServerPathnameForMetadata(
-  underlyingPathname: string
+  underlyingPathname: string,
+  params: Params
 ): Promise<string> {
   const workStore = workAsyncStorage.getStore()
   if (!workStore) {
@@ -56,31 +60,12 @@ export function createServerPathnameForMetadata(
           'createServerPathnameForMetadata should not be called inside generateStaticParams.'
         )
       case 'prerender-runtime': {
-        // TODO(app-shells): whether or not this is included in the shell
-        // should depend on whether this route has params.
-        // if there's no params, it can be included.
-        // for now, we defensively exclude it to match the earlier pessimistic
-        // behavior of always resolving in the runtime stage
-        // (i.e. assuming that we have non-static params in the pathname)
-        const { stagedRendering } = workUnitStore
-        if (stagedRendering) {
-          const pathnameStage = RENDER_STAGES_BY_DATA_KIND.runtimeLinkData
-          return stagedRendering.delayUntilStage(
-            pathnameStage,
-            undefined,
-            underlyingPathname
-          )
-        } else {
-          if (workUnitStore.isSessionShell) {
-            return makeHangingPromise<string>(
-              workUnitStore.renderSignal,
-              workStore.route,
-              '`pathname`'
-            )
-          } else {
-            return createRenderPathname(underlyingPathname)
-          }
-        }
+        return createRuntimePrerenderPathname(
+          underlyingPathname,
+          params,
+          workStore,
+          workUnitStore
+        )
       }
       case 'request':
         // TODO(app-shells): this should be delayed if there's non-static params
@@ -127,6 +112,44 @@ function createPrerenderPathname(
 
   // We don't have any fallback params so we have an entirely static safe params object
   return Promise.resolve(underlyingPathname)
+}
+
+function createRuntimePrerenderPathname(
+  underlyingPathname: string,
+  params: Params,
+  workStore: WorkStore,
+  workUnitStore: PrerenderStoreModernRuntime
+): Promise<string> {
+  const { stagedRendering, rootParams } = workUnitStore
+
+  // If there's no params or they're all root params, then this is not link data
+  // (i.e. is allowed in the shell stage) and we don't need to delay it.
+  if (isEmptyParams(params) || allParamsAreRootParams(params, rootParams)) {
+    return createRenderPathname(underlyingPathname)
+  }
+
+  if (stagedRendering) {
+    // Final prerender.
+    const pathnameStage = RENDER_STAGES_BY_DATA_KIND.runtimeLinkData
+    return stagedRendering.delayUntilStage(
+      pathnameStage,
+      undefined,
+      underlyingPathname
+    )
+  }
+
+  // Prospective prerender.
+  if (workUnitStore.isSessionShell) {
+    // These will be hanging in the final prerender.
+    return makeHangingPromise<string>(
+      workUnitStore.renderSignal,
+      workStore.route,
+      '`pathname`'
+    )
+  } else {
+    // These will resolve in the Runtime stage of the final prerender.
+    return createRenderPathname(underlyingPathname)
+  }
 }
 
 function makeErroringPathname<T>(
