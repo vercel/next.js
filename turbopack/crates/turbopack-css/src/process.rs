@@ -4,7 +4,9 @@ use anyhow::{Result, bail};
 use async_trait::async_trait;
 use lightningcss::{
     css_modules::{CssModuleExport, Pattern, Segment},
-    stylesheet::{MinifyOptions, ParserOptions, PrinterOptions, StyleSheet, ToCssResult},
+    stylesheet::{
+        MinifyOptions, ParserFlags, ParserOptions, PrinterOptions, StyleSheet, ToCssResult,
+    },
     targets::{BrowserslistConfig, Features, Targets},
     traits::ToCss,
     values::url::Url,
@@ -450,7 +452,19 @@ async fn process_content(
         }
     }
 
+    // `@custom-media` is draft syntax and behind a parser flag.
+    //
+    // See: https://lightningcss.dev/transpilation.html#custom-media-queries
+    let mut flags = ParserFlags::empty();
+    let include_features = Features::from_bits_truncate(feature_flags.include)
+        & !Features::from_bits_truncate(feature_flags.exclude);
+    flags.set(
+        ParserFlags::CUSTOM_MEDIA,
+        include_features.contains(Features::CustomMediaQueries),
+    );
+
     let config = ParserOptions {
+        flags,
         css_modules: match ty {
             CssModuleType::Module => Some(lightningcss::css_modules::Config {
                 pattern: Pattern {
