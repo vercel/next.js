@@ -31,6 +31,7 @@ import {
 } from '../../server/base-http/node' with { 'turbopack-transition': 'next-server-utility' }
 import { checkIsAppPPREnabled } from '../../server/lib/experimental/ppr' with { 'turbopack-transition': 'next-server-utility' }
 import { isRSCRequestHeader } from '../../server/lib/is-rsc-request' with { 'turbopack-transition': 'next-server-utility' }
+import { mergeVary } from '../../server/lib/vary' with { 'turbopack-transition': 'next-server-utility' }
 import {
   getFallbackRouteParams,
   getPlaceholderFallbackRouteParams,
@@ -713,7 +714,10 @@ export async function handler(
       resolvedPathname,
       interceptionRoutePatterns
     )
-    res.setHeader('Vary', varyHeader)
+    // Merge with any existing `Vary` value (for example one set by middleware)
+    // instead of overwriting it, so middleware `Vary` entries survive and CDN
+    // cache keying stays correct (#85999).
+    res.setHeader('Vary', mergeVary(res.getHeader('Vary'), varyHeader))
     let parentSpan: Span | undefined
     const invokeRouteModule = async (
       span: Span | undefined,

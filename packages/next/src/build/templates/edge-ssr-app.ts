@@ -26,6 +26,7 @@ import type {
 import type { AppPageRenderResultMetadata } from '../../server/render-result'
 import type RenderResult from '../../server/render-result'
 import { getIsPossibleServerAction } from '../../server/lib/server-action-request-meta'
+import { mergeVary } from '../../server/lib/vary'
 import { getBotType } from '../../shared/lib/router/utils/is-bot'
 import { interopDefault } from '../../lib/interop-default'
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
@@ -249,7 +250,9 @@ async function requestHandler(
     headers.set('x-edge-runtime', '1')
 
     if (varyHeader) {
-      headers.set('Vary', varyHeader)
+      // Merge instead of overwrite so any `Vary` already set (for example by
+      // middleware) survives alongside the RSC values (#85999).
+      headers.set('Vary', mergeVary(headers.get('Vary'), varyHeader))
     }
 
     // Add existing headers
@@ -258,7 +261,12 @@ async function requestHandler(
       ...metadata.headers,
     })) {
       if (value !== undefined) {
-        if (Array.isArray(value)) {
+        if (key.toLowerCase() === 'vary') {
+          // Merge rather than overwrite the `Vary` set above. The spread of
+          // baseRes + metadata headers would otherwise shadow it and drop the
+          // middleware/RSC values (#85999).
+          headers.set('Vary', mergeVary(headers.get('Vary'), value))
+        } else if (Array.isArray(value)) {
           // Handle multiple header values
           for (const v of value) {
             headers.append(key, String(v))
