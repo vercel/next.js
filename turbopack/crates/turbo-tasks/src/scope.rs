@@ -19,9 +19,16 @@ use tracing::{Span, info_span};
 
 use crate::{TurboTasksApi, manager::try_turbo_tasks, turbo_tasks_scope};
 
-enum WorkQueueJob {
-    Job(usize, Box<dyn FnOnce() + Send + 'static>),
-    End,
+/// A job placed on the work queue: its result-slot index and the closure to run.
+type WorkQueueJob = (usize, Box<dyn FnOnce() + Send + 'static>);
+
+struct WorkQueue {
+    /// Jobs that have not yet been picked up by a drainer.
+    jobs: VecDeque<WorkQueueJob>,
+    /// Set once no more jobs will be enqueued. A drainer that finds the queue empty exits when
+    /// this is set, or parks otherwise. Guarded by the same lock as `jobs`, so the "empty + not
+    /// closed → park" and "close + notify" sequences are serialized and cannot lose a wakeup.
+    closed: bool,
 }
 
 struct ScopeInner {
@@ -31,7 +38,7 @@ struct ScopeInner {
     /// The usize value is the index of the task.
     panic: Mutex<Option<(Box<dyn Any + Send + 'static>, usize)>>,
     /// The work queue for spawned jobs that have not yet been picked up by a worker task.
-    work_queue: Mutex<VecDeque<WorkQueueJob>>,
+    work_queue: Mutex<WorkQueue>,
     /// A condition variable to notify worker tasks of new work or end of work.
     work_queue_condition_var: Condvar,
 }
@@ -88,8 +95,8 @@ impl ScopeInner {
         }
     }
 
-    /// Pulls jobs from the shared work queue and runs them until the `End` sentinel, recording any
-    /// panic. Both the opportunistic helper worker tasks and the calling thread (via
+    /// Pulls jobs from the shared work queue and runs them until the queue is closed and drained,
+    /// recording any panic. Both the opportunistic helper worker tasks and the calling thread (via
     /// `end_and_help_complete`) run this. Helpers are a pure optimization: whether zero or all of
     /// them ever get scheduled, the calling thread drains the whole queue by itself, so liveness
     /// never depends on a helper being scheduled.
@@ -101,40 +108,38 @@ impl ScopeInner {
         }
     }
 
-    fn pick_job_from_work_queue(&self) -> Option<(usize, Box<dyn FnOnce() + Send + 'static>)> {
+    fn pick_job_from_work_queue(&self) -> Option<WorkQueueJob> {
         let mut work_queue = self.work_queue.lock();
-        let job = loop {
-            if let Some(job) = work_queue.pop_front() {
-                break job;
-            } else {
-                self.work_queue_condition_var.wait(&mut work_queue);
-            };
-        };
-        match job {
-            WorkQueueJob::Job(index, job) => {
+        loop {
+            if let Some(job) = work_queue.jobs.pop_front() {
                 // If work remains, wake another helper. `parking_lot` notifications are not
                 // latched, so a `notify_one` at enqueue time is lost if no helper was parked yet
                 // (e.g. it was busy running a previous job). Handing off the surplus wakeup here
                 // ensures idle helpers still get pulled in, preserving parallelism.
-                if !work_queue.is_empty() {
+                if !work_queue.jobs.is_empty() {
                     self.work_queue_condition_var.notify_one();
                 }
-                drop(work_queue);
-                Some((index, job))
-            }
-            WorkQueueJob::End => {
-                // Reinsert so other workers can find it
-                work_queue.push_front(WorkQueueJob::End);
-                drop(work_queue);
-                self.work_queue_condition_var.notify_all();
-                None
+                return Some(job);
+            } else if work_queue.closed {
+                // No more jobs will ever be enqueued: this drainer is done.
+                return None;
+            } else {
+                // Empty but not closed: wait for a job to arrive or for the queue to be closed.
+                self.work_queue_condition_var.wait(&mut work_queue);
             }
         }
     }
 
     fn end_and_help_complete(&self) {
-        // Mark the end of work, then drain whatever remains inline.
-        self.work_queue.lock().push_back(WorkQueueJob::End);
+        // Close the queue and wake every parked drainer once; each will drain any remaining jobs
+        // and then observe `closed` and exit. Closing under the queue lock (paired with `wait`
+        // releasing it atomically) means a drainer cannot park after we close without seeing it.
+        {
+            let mut work_queue = self.work_queue.lock();
+            work_queue.closed = true;
+        }
+        self.work_queue_condition_var.notify_all();
+        // Drain whatever remains inline.
         self.run_jobs();
     }
 }
@@ -180,7 +185,12 @@ impl<'scope, 'env: 'scope, R: Send + 'env> Scope<'scope, 'env, R> {
                 main_thread: thread::current(),
                 remaining_tasks: AtomicUsize::new(0),
                 panic: Mutex::new(None),
-                work_queue: Mutex::new(VecDeque::with_capacity(results.len())),
+                work_queue: Mutex::new(WorkQueue {
+                    // Presize to the job count so `push_back` never reallocates while holding the
+                    // queue lock during the enqueue loop.
+                    jobs: VecDeque::with_capacity(results.len()),
+                    closed: false,
+                }),
                 work_queue_condition_var: Condvar::new(),
             }),
             handle,
@@ -227,24 +237,24 @@ impl<'scope, 'env: 'scope, R: Send + 'env> Scope<'scope, 'env, R> {
         // SAFETY: We just called `Box::into_raw`.
         let f = unsafe { Box::from_raw(f) };
 
-        let span = self.span.clone();
-
         self.inner.remaining_tasks.fetch_add(1, Ordering::Relaxed);
 
         // Every job goes on the shared work queue, this way work is never assigned to a task that
         // might never run.  Because we block synchronously on the main thread it is possible that
         // our spawned tasks cannot find threads to run on this ensures all the work is available to
         // all threads including the main_thread.
-        self.inner
-            .work_queue
-            .lock()
-            .push_back(WorkQueueJob::Job(index, f));
+        self.inner.work_queue.lock().jobs.push_back((index, f));
+        // This isn't needed for liveness, but optimizes behavior when we have limited threads
+        // available.
         self.inner.work_queue_condition_var.notify_one();
 
         // Spawn a tokio worker for each task (except the last spawn call which will be handled by
-        // this thread)
+        // this thread). Helpers all run the identical `run_jobs` loop pulling from the shared
+        // queue, so nothing here is job-specific; we only clone the span for the workers we
+        // actually spawn.
         if index < self.worker_tasks {
             let inner = self.inner.clone();
+            let span = self.span.clone();
             self.handle.spawn(async move {
                 let _span = span.entered();
                 inner.run_jobs();
