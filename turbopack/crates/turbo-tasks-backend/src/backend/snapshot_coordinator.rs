@@ -25,6 +25,7 @@ use std::sync::{
 
 use parking_lot::{Condvar, Mutex};
 use rustc_hash::FxHashSet;
+use tracing::info_span;
 
 use crate::{backend::AnyOperation, utils::ptr_eq_arc::PtrEqArc};
 
@@ -233,7 +234,9 @@ impl<O> SnapshotCoordinator<O> {
         if (active & !REQUEST_BITS) != 0 {
             // Some operations are in flight. Wait for them to drain or
             // suspend. The predicate is Acquire-loaded so we synchronize
-            // with the AcqRel decrement that woke us.
+            // with the AcqRel decrement that woke us. This can block for a while under load, so it
+            // gets its own span for latency attribution.
+            let _span = info_span!("snapshot: await operations settle").entered();
             self.operations_drained.wait_while(&mut state, |_| {
                 (self.in_progress_operations.load(Ordering::Acquire) & !REQUEST_BITS) != 0
             });
@@ -285,7 +288,10 @@ impl<O> SnapshotCoordinator<O> {
             "GC bit was already set when begin_gc ran: {active:#x}"
         );
         if (active & !REQUEST_BITS) != 0 {
-            // Some operations are in flight. Wait for them to drain or suspend.
+            // Some operations are in flight. Wait for them to drain or suspend. This can block for
+            // a while under load (until every in-flight operation reaches a suspend
+            // point or finishes), so it gets its own span for latency attribution.
+            let _span = info_span!("gc: await operations settle").entered();
             self.operations_drained.wait_while(&mut state, |_| {
                 (self.in_progress_operations.load(Ordering::Acquire) & !REQUEST_BITS) != 0
             });

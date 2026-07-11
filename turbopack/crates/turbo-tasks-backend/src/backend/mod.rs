@@ -1002,14 +1002,8 @@ impl TurboTasksBackend {
         // a time. Held for the entire snapshot lifecycle.
         let _snapshot_in_progress = self.snapshot_in_progress.lock();
 
-        // Garbage-collection pass runs immediately before the snapshot, under the same held
-        // `snapshot_in_progress` lock: it tears down tasks whose persistent parent_count reached 0
-        // (removing them from the map) and returns their on-disk tombstones, which this snapshot
-        // then commits atomically. Doing it here — rather than as a separate background step —
-        // means a collected task is neither re-persisted nor left on disk: it is tombstoned in the
-        // very commit that would otherwise have re-written it, and the tombstone is re-validated
-        // against the post-drain map below so a task resurrected in the brief window between the GC
-        // phase and the snapshot drain is not wrongly tombstoned. Opt-in via TURBO_ENGINE_GC.
+        // Garbage-collection pass runs immediately before the snapshot, so we can compute keys to
+        // tombstone in the database and apply it during the snapshot. Opt-in via TURBO_ENGINE_GC.
         // Run the GC pass and transition to the snapshot **atomically**, without ever releasing
         // operation exclusion in between. `begin_gc` drains all operations; `gc_collect` tears down
         // collectible tasks and cascades `parent_count` decrements to their children; then
@@ -1024,20 +1018,20 @@ impl TurboTasksBackend {
         // continuous exclusion* as the snapshot (the atomic `into_snapshot` hand-off), so nothing
         // could have resurrected a collected task.
         let (mut snapshot_phase, mut deletes) = if gc::gc_enabled() {
-            // `collected` is recorded on the span (below) once the pass finishes.
+            // `collected` is recorded on the span (below) once the pass finishes. `begin_gc` blocks
+            // until in-flight operations drain (spanned inside the coordinator); `into_snapshot`
+            // then hands exclusion straight to the snapshot phase without releasing it (no further
+            // drain — no operation can have started).
             let gc_span =
                 tracing::info_span!(parent: parent_span.clone(), "gc", collected = tracing::field::Empty)
                     .entered();
             let gc_phase = self.snapshot_coord.begin_gc();
             let (collected, deletes) = self.gc_collect(turbo_tasks);
             gc_span.record("collected", collected);
-            // `into_snapshot` blocks until all in-flight operations have drained before the
-            // snapshot can begin.
-            let _span = tracing::info_span!("await operations settle").entered();
             (gc_phase.into_snapshot(), deletes)
         } else {
-            // `begin_snapshot` blocks until all in-flight operations have drained.
-            let _span = tracing::info_span!("await operations settle").entered();
+            // `begin_snapshot` blocks until in-flight operations drain (spanned inside the
+            // coordinator).
             (self.snapshot_coord.begin_snapshot(), Vec::new())
         };
         // Also commit any tombstones from the test-only `gc_for_testing` hook. That hook runs its
