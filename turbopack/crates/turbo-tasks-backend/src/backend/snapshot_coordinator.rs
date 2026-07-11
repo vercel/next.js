@@ -200,58 +200,82 @@ impl<O> SnapshotCoordinator<O> {
         suspend_point_cold(self, suspend);
     }
 
-    /// Begin a snapshot. Sets the snapshot bit, blocks until all in-flight
-    /// operations have drained or suspended, and returns a [`SnapshotPhase`]
-    /// guard that releases the bit on drop.
+    /// Shared core of [`begin_snapshot`](Self::begin_snapshot) and [`begin_gc`](Self::begin_gc):
+    /// asserts no snapshot or GC is already in flight, sets the requesting flag + request bit, and
+    /// blocks until every in-flight operation has drained or suspended. Returns the still-held
+    /// state lock so the caller can read `suspended_operations` (snapshot) before releasing it.
     ///
-    /// Concurrent callers panic via the debug assertion. Production callers
-    /// must serialize themselves (see `snapshot_in_progress` lock in
-    /// `mod.rs`); the coordinator does not own that mutex because some
-    /// callers want to interleave additional work between phases.
-    pub fn begin_snapshot(&self) -> SnapshotPhase<'_, O> {
+    /// `what` ("snapshot" / "gc") only labels the assertion messages and the drain span. Snapshot
+    /// and GC are mutually exclusive; production callers serialize them via the
+    /// `snapshot_in_progress` mutex in `mod.rs` (the coordinator doesn't own that mutex —
+    /// callers interleave work between phases). The mutual-exclusion asserts are promoted from
+    /// debug_assert because silently ignoring a violation leads straight to a stuck counter and
+    /// a hung process.
+    fn begin_exclusion(
+        &self,
+        what: Exclusion,
+        set_requested: impl FnOnce(&mut State<O>),
+    ) -> parking_lot::MutexGuard<'_, State<O>> {
+        let request_bit = what.request_bit();
         let mut state = self.state.lock();
-        // Protocol violation: callers must serialize snapshots (and serialize snapshot vs GC)
-        // themselves. Promoted from debug_assert: silently ignoring this leads directly to a stuck
-        // counter and a hung process.
         assert!(
-            !state.snapshot_requested,
-            "begin_snapshot called while another snapshot was already in flight"
+            !state.snapshot_requested && !state.gc_requested,
+            "{} called while a {} was already in flight (snapshot and GC must be serialized)",
+            what.begin_fn(),
+            if state.snapshot_requested {
+                "snapshot"
+            } else {
+                "GC pass"
+            }
         );
-        assert!(
-            !state.gc_requested,
-            "begin_snapshot called while a GC pass was in flight (must be serialized)"
-        );
-        state.snapshot_requested = true;
-        // AcqRel so the writes leading up to setting the bit are visible to
-        // the operation hot path's Acquire load in `exclusion_pending`.
+        set_requested(&mut state);
+        // AcqRel so the writes leading up to setting the bit are visible to the operation hot
+        // path's Acquire load in `exclusion_pending`.
         let active = self
             .in_progress_operations
-            .fetch_or(SNAPSHOT_REQUESTED_BIT, Ordering::AcqRel);
+            .fetch_or(request_bit, Ordering::AcqRel);
         assert!(
-            (active & SNAPSHOT_REQUESTED_BIT) == 0,
-            "snapshot bit was already set when begin_snapshot ran: {active:#x}"
+            (active & request_bit) == 0,
+            "{} request bit was already set when {} ran: {active:#x}",
+            what.label(),
+            what.begin_fn()
         );
         if (active & !REQUEST_BITS) != 0 {
-            // Some operations are in flight. Wait for them to drain or
-            // suspend. The predicate is Acquire-loaded so we synchronize
-            // with the AcqRel decrement that woke us. This can block for a while under load, so it
-            // gets its own span for latency attribution.
-            let _span = info_span!("snapshot: await operations settle").entered();
+            // Some operations are in flight. Wait for them to drain or suspend. The predicate is
+            // Acquire-loaded so we synchronize with the AcqRel decrement that woke us. This can
+            // block for a while under load (until every in-flight operation reaches a suspend point
+            // or finishes), so it gets its own span for latency attribution.
+            let num_operations = active & !REQUEST_BITS;
+            let _span = match what {
+                Exclusion::Snapshot => {
+                    info_span!("snapshot: await operations settle", num_operations)
+                }
+                Exclusion::Gc => info_span!("gc: await operations settle", num_operations),
+            }
+            .entered();
             self.operations_drained.wait_while(&mut state, |_| {
                 (self.in_progress_operations.load(Ordering::Acquire) & !REQUEST_BITS) != 0
             });
         }
-        // Snapshot ranges that follow can read the suspended_operations
-        // list; we leave the mutex held until the caller drops the phase.
+        state
+    }
+
+    /// Begin a snapshot. Sets the snapshot bit, blocks until all in-flight
+    /// operations have drained or suspended, and returns a [`SnapshotPhase`]
+    /// guard that releases the bit on drop.
+    ///
+    /// Concurrent callers panic (see [`begin_exclusion`](Self::begin_exclusion)).
+    pub fn begin_snapshot(&self) -> SnapshotPhase<'_, O> {
+        let state = self.begin_exclusion(Exclusion::Snapshot, |s| s.snapshot_requested = true);
+        // Snapshot ranges that follow can read the suspended_operations list; we read it while
+        // still holding the lock, then release so the snapshotter does the heavy work
+        // without it. Operations attempting to start during this window observe the bit set
+        // and either suspend or wait on `exclusion_completed`.
         let suspended_operations: Vec<Arc<O>> = state
             .suspended_operations
             .iter()
             .map(|op| op.arc().clone())
             .collect();
-        // Release the mutex now — the snapshotter does the heavy work
-        // without holding it. Operations attempting to start during this
-        // window observe the bit set and either suspend or wait on
-        // `snapshot_completed`.
         drop(state);
         SnapshotPhase {
             coord: self,
@@ -264,40 +288,44 @@ impl<O> SnapshotCoordinator<O> {
     /// the guard is held, no operation can be running, so the collector may mutate the task graph
     /// without racing.
     ///
-    /// Concurrent callers panic via the assertion. Production callers must serialize GC against
-    /// both other GC passes and snapshots (see the `snapshot_in_progress` lock in `mod.rs`); the
-    /// coordinator does not own that mutex.
+    /// Concurrent callers panic (see [`begin_exclusion`](Self::begin_exclusion)).
     pub fn begin_gc(&self) -> GcPhase<'_, O> {
-        let mut state = self.state.lock();
-        assert!(
-            !state.gc_requested,
-            "begin_gc called while another GC pass was already in flight"
-        );
-        assert!(
-            !state.snapshot_requested,
-            "begin_gc called while a snapshot was in flight (must be serialized)"
-        );
-        state.gc_requested = true;
-        // AcqRel so writes leading up to setting the bit are visible to the operation hot path's
-        // Acquire load in `exclusion_pending`.
-        let active = self
-            .in_progress_operations
-            .fetch_or(GC_REQUESTED_BIT, Ordering::AcqRel);
-        assert!(
-            (active & GC_REQUESTED_BIT) == 0,
-            "GC bit was already set when begin_gc ran: {active:#x}"
-        );
-        if (active & !REQUEST_BITS) != 0 {
-            // Some operations are in flight. Wait for them to drain or suspend. This can block for
-            // a while under load (until every in-flight operation reaches a suspend
-            // point or finishes), so it gets its own span for latency attribution.
-            let _span = info_span!("gc: await operations settle").entered();
-            self.operations_drained.wait_while(&mut state, |_| {
-                (self.in_progress_operations.load(Ordering::Acquire) & !REQUEST_BITS) != 0
-            });
-        }
+        let state = self.begin_exclusion(Exclusion::Gc, |s| s.gc_requested = true);
         drop(state);
         GcPhase { coord: self }
+    }
+}
+
+/// Which kind of exclusion [`SnapshotCoordinator::begin_exclusion`] is starting. Selects the
+/// request bit and the labels used in assertion messages and the drain span.
+#[derive(Clone, Copy)]
+enum Exclusion {
+    Snapshot,
+    Gc,
+}
+
+impl Exclusion {
+    fn request_bit(self) -> usize {
+        match self {
+            Exclusion::Snapshot => SNAPSHOT_REQUESTED_BIT,
+            Exclusion::Gc => GC_REQUESTED_BIT,
+        }
+    }
+
+    /// Human label for the exclusion kind (used in the "bit already set" assert).
+    fn label(self) -> &'static str {
+        match self {
+            Exclusion::Snapshot => "snapshot",
+            Exclusion::Gc => "GC",
+        }
+    }
+
+    /// Name of the public entry point, for assertion messages.
+    fn begin_fn(self) -> &'static str {
+        match self {
+            Exclusion::Snapshot => "begin_snapshot",
+            Exclusion::Gc => "begin_gc",
+        }
     }
 }
 
