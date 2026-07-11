@@ -8,7 +8,7 @@ use anyhow::Result;
 use turbo_tasks::{
     ResolvedVc, State, TurboTasks, Vc, unmark_top_level_task_may_leak_eventually_consistent_state,
 };
-use turbo_tasks_backend::{BackendOptions, GitVersionInfo, TurboTasksBackend};
+use turbo_tasks_backend::{BackendOptions, EvictionMode, GitVersionInfo, TurboTasksBackend};
 
 fn create_test_persistence_dir(name: &str) -> tempfile::TempDir {
     let parent = std::path::PathBuf::from(format!("{}/.cache", env!("CARGO_TARGET_TMPDIR")));
@@ -26,7 +26,7 @@ fn create_tt(name: &str) -> (Arc<TurboTasks<TurboTasksBackend>>, tempfile::TempD
             num_workers: Some(2),
             small_preallocation: true,
             storage_mode: Some(turbo_tasks_backend::StorageMode::ReadWriteOnShutdown),
-            evict_after_snapshot: true,
+            eviction_mode: EvictionMode::Full,
             ..Default::default()
         },
         turbo_tasks_backend::turbo_backing_storage(
