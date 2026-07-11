@@ -1721,7 +1721,7 @@ mod tests {
             128,
             "TaskStorage size changed! Run print_schema_sizes and update this test."
         );
-        // `LazyField` is 48 B = 40 B largest payload + 8 B discriminant.
+        // `LazyField` is 40 B = 32 B largest payload + 8 B discriminant.
         assert_eq!(
             size_of::<LazyField>(),
             40,
