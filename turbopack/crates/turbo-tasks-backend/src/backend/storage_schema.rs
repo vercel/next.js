@@ -25,7 +25,7 @@ use std::{
 use parking_lot::Mutex;
 use rustc_hash::FxHasher;
 use turbo_tasks::{
-    CellId, SharedReference, TaskExecutionReason, TaskId, TinyVec, TraitTypeId, ValueTypeId,
+    CellId, SharedReference, TaskExecutionReason, TaskId, TraitTypeId, ValueTypeId,
     backend::{CachedTaskTypeArc, CellHash, TransientTaskType},
     event::Event,
     task_storage,
@@ -39,6 +39,7 @@ use crate::{
     },
 };
 
+type TinyVec<T, const MAX: usize> = auto_hash_map::TinyVec<T, 0, MAX>;
 type AutoSet<K, const I: usize> = auto_hash_map::AutoSet<K, BuildHasherDefault<FxHasher>, I>;
 
 /// Auto-map storage for key-value pairs.

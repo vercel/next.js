@@ -424,11 +424,3 @@ pub use turbo_tasks_macros::value_impl;
 pub use turbo_tasks_macros::task_storage;
 
 pub type TaskIdSet = AutoSet<TaskId, BuildHasherDefault<FxHasher>, 2>;
-
-/// A compact, bounded vector with a 2-byte header (16 B on 64-bit vs 24 B for
-/// `Vec`). Backs `TaskStorage`'s lazy-fields collection; the `#[task_storage]`
-/// macro emits `TinyVec<LazyField, N>` where `N` is the lazy-field count.
-///
-/// This is [`auto_hash_map::TinyVec`] with no inline storage (`INLINE = 0`) —
-/// a pure heap vector. `MAX` is the hard element cap (`<= 254`).
-pub type TinyVec<T, const MAX: usize> = auto_hash_map::TinyVec<T, 0, MAX>;

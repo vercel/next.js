@@ -1381,11 +1381,7 @@ fn generate_typed_storage_struct(grouped_fields: &GroupedFields) -> TokenStream 
     };
 
     let lazy_field = if has_lazy {
-        // `TinyVec<LazyField, N>` caps at `N` elements; `TinyVec::ASSERT` already
-        // enforces `N < u8::MAX` at monomorphization, so an over-large schema
-        // fails to compile without an explicit bound check here.
         let max_lazy: usize = grouped_fields.all_lazy().count();
-
         quote! {
             #[doc = "Lazily-allocated fields stored in a compact TinyVec for memory efficiency"]
             lazy: TinyVec<LazyField, #max_lazy>,

@@ -792,12 +792,8 @@ where
             where
                 M: MapAccess<'de>,
             {
-                // `size_hint` is only advisory: a deserializer may return a value
-                // that under- or over-counts the entries actually yielded (some
-                // self-describing/streaming formats can't know the count up front).
-                // Use it only to pre-reserve capacity, and let `insert` decide the
-                // `List` vs `Map` variant based on the real count so we never push
-                // past `MAX_LIST_SIZE` into a `TinyVec`.
+                // `size_hint` is only advisory, so use it to reserve map capacity when large, when
+                // small just grow like normal
                 let size = m.size_hint().unwrap_or(0);
                 let mut map = if size < MAX_LIST_SIZE {
                     AutoMap::with_hasher()
