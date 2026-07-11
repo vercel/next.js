@@ -133,11 +133,7 @@ impl ScopeInner {
     }
 
     fn end_and_help_complete(&self) {
-        // Mark the end of work, then drain whatever remains inline. Pushing `End` first guarantees
-        // `help` never blocks on the condvar (the queue is non-empty), and the `End` handling in
-        // `pick_job_from_work_queue` wakes any parked helpers. This is what makes the calling
-        // thread able to complete the whole scope by itself, regardless of whether any
-        // helper ran.
+        // Mark the end of work, then drain whatever remains inline.
         self.work_queue.lock().push_back(WorkQueueJob::End);
         self.run_jobs();
     }
@@ -151,12 +147,7 @@ pub struct Scope<'scope, 'env: 'scope, R: Send + 'env> {
     index: AtomicUsize,
     inner: Arc<ScopeInner>,
     handle: Handle,
-    /// Max number of opportunistic helper worker tasks to spawn: the tokio runtime's worker count
-    /// minus the main thread. Helper workers run synchronous code and hold their tokio core
-    /// without yielding, so spawning more than there are worker threads would be pointless
-    /// (they can't run concurrently) and, historically, deadlock-prone. Helpers are now a pure
-    /// optimization — the main thread can drain the whole queue by itself — so this only sizes
-    /// the parallelism, never correctness.
+    /// Max number of opportunistic helper worker tasks to spawn
     worker_tasks: usize,
     turbo_tasks: Option<Arc<dyn TurboTasksApi>>,
     span: Span,
@@ -175,14 +166,13 @@ impl<'scope, 'env: 'scope, R: Send + 'env> Scope<'scope, 'env, R> {
     /// The caller must ensure `Scope` is dropped and not forgotten.
     unsafe fn new(results: &'scope [Mutex<Option<R>>]) -> Self {
         let handle = Handle::current();
-        // Size helpers to the actual runtime worker count minus the main thread. A helper runs
-        // synchronous code and holds its tokio core without yielding, so spawning more than there
-        // are worker threads can never add concurrency. This is the true ceiling: the
-        // `TURBO_TASKS_AVAILABLE_PARALLELISM` override already flows in through `num_workers()`
-        // because the runtime's worker thread count is derived from it. `num_workers()` is O(1) and
-        // returns 1 for a current-thread runtime (=> 0 helpers => everything drains inline on the
-        // main thread). Liveness never depends on this value — it only sizes the parallelism.
-        let worker_tasks = handle.metrics().num_workers().saturating_sub(1);
+        // The calling thread is itself a drainer, so we only need helpers to cover the remaining
+        // work.
+        let worker_tasks = handle
+            .metrics()
+            .num_workers()
+            .min(results.len())
+            .saturating_sub(1);
         Self {
             results,
             index: AtomicUsize::new(0),
@@ -190,7 +180,7 @@ impl<'scope, 'env: 'scope, R: Send + 'env> Scope<'scope, 'env, R> {
                 main_thread: thread::current(),
                 remaining_tasks: AtomicUsize::new(0),
                 panic: Mutex::new(None),
-                work_queue: Mutex::new(VecDeque::new()),
+                work_queue: Mutex::new(VecDeque::with_capacity(results.len())),
                 work_queue_condition_var: Condvar::new(),
             }),
             handle,
@@ -241,21 +231,19 @@ impl<'scope, 'env: 'scope, R: Send + 'env> Scope<'scope, 'env, R> {
 
         self.inner.remaining_tasks.fetch_add(1, Ordering::Relaxed);
 
-        // Every job goes on the shared work queue. The main thread (in Drop via
-        // `end_and_help_complete`) drains the entire queue by itself if no helper ever runs, so
-        // liveness never depends on a spawned helper being scheduled — this is what makes the
-        // primitive robust on thread-limited or otherwise-contended runtimes.
+        // Every job goes on the shared work queue, this way work is never assigned to a task that
+        // might never run.  Because we block synchronously on the main thread it is possible that
+        // our spawned tasks cannot find threads to run on this ensures all the work is available to
+        // all threads including the main_thread.
         self.inner
             .work_queue
             .lock()
             .push_back(WorkQueueJob::Job(index, f));
         self.inner.work_queue_condition_var.notify_one();
 
-        // Opportunistically spawn a helper worker task to add parallelism, up to `worker_tasks`.
-        // Helpers pull from the same shared queue; they are never assigned a specific job (that
-        // would double-run it). Index 0 is the main thread's share, so helpers cover indices
-        // `1..=worker_tasks`.
-        if (1..=self.worker_tasks).contains(&index) {
+        // Spawn a tokio worker for each task (except the last spawn call which will be handled by
+        // this thread)
+        if index < self.worker_tasks {
             let inner = self.inner.clone();
             self.handle.spawn(async move {
                 let _span = span.entered();
