@@ -190,11 +190,10 @@ impl<'e> ExecuteContextImpl<'e> {
     /// Constructs a context that does NOT take an operation guard, for use by the garbage
     /// collector while it holds the coordinator's GC phase.
     ///
-    /// The GC phase already excludes all concurrent operations and task execution, so taking an
-    /// operation guard here would be redundant — and would in fact deadlock, because
-    /// [`start_operation`](TurboTasksBackend::start_operation) blocks on the GC request bit that
-    /// the caller itself set. Only call this while a
-    /// [`GcPhase`](crate::backend::snapshot_coordinator::GcPhase) is held.
+    /// The GC phase excludes all concurrent operations and task execution, so taking an
+    /// operation guard here would fact deadlock.
+    ///
+    /// Should only be used by the garbage collector implementation
     pub(super) fn new_for_gc(
         backend: &'e TurboTasksBackend,
         turbo_tasks: &'e TurboTasks<TurboTasksBackend>,
@@ -1172,32 +1171,21 @@ pub trait TaskGuard: Debug + TaskStorageAccessors {
     /// Whether a GC pass may collect this task: it is non-transient, has no persistent or transient
     /// parents, is quiescent (not active, not in progress), and holds no aggregation edges
     /// (`upper`/`followers`).
-    ///
-    /// Reading the Meta fields through the guard's accessors makes the Meta-restored precondition
-    /// enforced by the standard `check_access` machinery — there is no separate `is_restored(Meta)`
-    /// check. That precondition matters because `parent_count`/`upper`/`followers` are lazy Meta
-    /// fields that read as absent (0 / empty) when Meta has been evicted to disk-only; a candidate
-    /// re-examined a pass after its Meta was evicted would otherwise look falsely collectible. GC
-    /// always opens the task with `TaskDataCategory::All`, so the guard has Meta restored.
-    ///
-    /// The aggregation-edges check is conservative: a disconnected task is normally stripped of its
-    /// aggregation edges by `CleanupOldEdges`, but a re-executing aggregation node can transiently
-    /// retain them; rather than tear down the aggregation overlay here (a miscount corrupts
-    /// activeness) we decline to collect and let a later pass take it once the edges clear.
-    /// Under-collecting is always safe. It does NOT require `Data` resident — only Meta fields are
-    /// read; `gc_scrub_and_remove` restores `Data` on demand to scrub the reverse-dep sets.
     fn is_gc_collectible(&self) -> bool {
         // Transient-ness is a property of the id, not the storage; transient tasks are never
         // collected.
         !self.id().is_transient()
-            && self.get_parent_count().copied().unwrap_or(0) == 0
-            && self.get_transient_ref_count().copied().unwrap_or(0) == 0
-            // GC root: active (a root/once task, positive active counter, or active-until-clean) or
-            // in progress (about to connect children).
-            && self.get_activeness().is_none()
-            && self.get_in_progress().is_none()
-            && self.iter_upper().next().is_none()
-            && self.iter_followers().next().is_none()
+        // The main check
+        && self.get_parent_count().copied().unwrap_or(0) == 0
+        && self.get_transient_ref_count().copied().unwrap_or(0) == 0
+        // GC root: active (a root/once task, positive active counter, or active-until-clean) or
+        // in progress (about to connect children).
+        && self.get_activeness().is_none()
+        && self.get_in_progress().is_none()
+        // The aggregation-edges check is conservative: a disconnected task is typically removed
+        // from the aggregation graph, but this may take a while and race with GC, so just back off.
+        && self.iter_upper().next().is_none()
+        && self.iter_followers().next().is_none()
     }
 
     fn invalidate_serialization(&mut self);

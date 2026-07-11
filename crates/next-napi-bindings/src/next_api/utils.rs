@@ -42,11 +42,8 @@ use crate::next_api::turbopack_ctx::NextTurbopackContext;
 /// passed to a [`turbo_tasks::function`].
 //
 /// A `DetachedVc` holds its operation's task alive against garbage collection for as long as the
-/// handle (or any clone) exists: it is a reference that escapes the tracked task graph, so no
-/// persistent parent lists the task as a child and GC would otherwise collect it. Each live
-/// `DetachedVc` counts as one transient reference (pin) on the task; the pin is released when the
-/// last clone is dropped. An `OperationVc` is statically a `TaskOutput`, so the pinned `TaskId` is
-/// recovered synchronously from the `RawVc`.
+/// handle exists: it is a reference that escapes the tracked task graph, so no
+/// persistent parent lists the task as a child and GC would otherwise collect it.
 pub struct DetachedVc<T> {
     turbopack_ctx: NextTurbopackContext,
     /// The Vc. Must be unresolved, otherwise you are referencing an inactive operation.

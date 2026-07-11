@@ -1513,18 +1513,15 @@ impl TurboTasksBackend {
         // snapshot (no task creation runs concurrently with stop). Drop it before persisting to
         // lower peak memory during the serialization/write.
         self.storage.drop_task_cache();
-        if self.should_persist() {
-            // The stop snapshot runs a final GC pass internally (see `snapshot_and_persist`), so
-            // builds emit tombstones for disconnected tasks in the final commit — keeping the
-            // persisted DB tight for the next build.
-            if let Err(err) = self.snapshot_and_persist(
+        if self.should_persist()
+            && let Err(err) = self.snapshot_and_persist(
                 Span::current().into(),
                 SnapshotReason::Stop,
                 turbo_tasks,
                 Vec::new(),
-            ) {
-                eprintln!("Persisting failed during shutdown: {err:?}");
-            }
+            )
+        {
+            eprintln!("Persisting failed during shutdown: {err:?}");
         }
         self.storage.drop_contents();
         if let Err(err) = self.backing_storage.shutdown() {
@@ -3812,7 +3809,6 @@ impl Backend for TurboTasksBackend {
     }
 
     fn pin_task_for_gc(&self, task: TaskId, _turbo_tasks: &TurboTasks<Self>) {
-        // GC pin/unpin bookkeeping lives in the `gc` module (see `gc_pin`).
         self.gc_pin(task);
     }
 

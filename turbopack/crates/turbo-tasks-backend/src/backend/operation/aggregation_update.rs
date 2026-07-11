@@ -280,21 +280,9 @@ pub enum AggregationUpdateJob {
         lost_follower_ids: TaskIdVec,
         retry: u16,
     },
-    /// Adjust the persistent `parent_count` of each task in `task_ids` by `delta` (+1 when a
-    /// persistent parent connects them as children, -1 when a persistent parent disconnects them).
-    /// This is a **persisted** job (unlike the transient active-count jobs below): it rides the
-    /// durable `AggregationUpdateQueue`, so a snapshot captures it mid-flight and it is replayed to
-    /// completion on restart — keeping `parent_count` consistent across crashes. When a task's
-    /// count reaches 0 it becomes eligible for collection (tombstoned at snapshot, dropped at
-    /// eviction).
+    /// Adjust the persistent `parent_count` of each task in `task_ids` by `delta`
     AdjustParentCount { task_ids: TaskIdVec, delta: i32 },
-    /// Adjust the session-only `transient_ref_count` of each task in `task_ids` by `delta` (+1 when
-    /// a *transient* parent connects them as children, -1 when it disconnects them). This is the
-    /// transient sibling of [`AdjustParentCount`]: a transient parent vanishes on restart and
-    /// re-establishes its edges by re-executing, so its contribution must **not** persist. Hence
-    /// this variant is skipped during serialization (converted to [`Noop`], see `encode_jobs`) — it
-    /// is never replayed. Reaching 0 here does not make a task a GC candidate (only losing a
-    /// *persistent* parent does).
+    /// Adjust the session-only `transient_ref_count` of each task in `task_ids` by `delta`
     AdjustTransientRefCount {
         #[bincode(skip, default = "unreachable_decode")]
         task_ids: TaskIdVec,
@@ -1478,23 +1466,24 @@ impl AggregationUpdateQueue {
                     // actual teardown/removal cannot run in this concurrently-executing operation
                     // (it would race a concurrent re-connect and cross-task edge scrub). It runs
                     // later under the GC phase's exclusion, which re-validates candidacy.
-                    for task_id in task_ids {
-                        let mut task = ctx.task(task_id, TaskDataCategory::Meta);
+                    ctx.for_each_task_meta(task_ids, "AdjustTransientRefCount", |mut task, ctx| {
                         let new_count = task.update_and_get_parent_count(delta);
-                        drop(task);
                         if new_count == 0 {
-                            ctx.add_gc_candidate(task_id);
+                            ctx.add_gc_candidate(task.id());
                         }
-                    }
+                    });
                 }
                 AggregationUpdateJob::AdjustTransientRefCount { task_ids, delta } => {
                     // Session-only sibling of AdjustParentCount for edges from a transient parent.
                     // Not persisted/replayed, and reaching 0 is not a collection trigger (only
                     // losing a persistent parent is).
-                    for task_id in task_ids {
-                        let mut task = ctx.task(task_id, TaskDataCategory::Meta);
-                        task.update_and_get_transient_ref_count(delta);
-                    }
+                    ctx.for_each_task_meta(
+                        task_ids,
+                        "AdjustTransientRefCount",
+                        |mut task, _ctx| {
+                            task.update_and_get_transient_ref_count(delta);
+                        },
+                    );
                 }
                 AggregationUpdateJob::DecreaseActiveCount { task } => {
                     self.decrease_active_count(ctx, task);
