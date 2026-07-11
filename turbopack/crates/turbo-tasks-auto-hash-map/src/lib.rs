@@ -1,10 +1,10 @@
-pub mod inline_vec;
 pub mod map;
 pub mod set;
+pub mod tiny_vec;
 
-pub use inline_vec::InlineVec;
 pub use map::AutoMap;
 pub use set::AutoSet;
+pub use tiny_vec::TinyVec;
 
 // Values based on data from https://github.com/yegor256/micromap#benchmark
 

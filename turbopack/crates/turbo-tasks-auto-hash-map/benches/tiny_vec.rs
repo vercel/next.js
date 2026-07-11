@@ -12,8 +12,8 @@
 
 use std::hint::black_box;
 
+use auto_hash_map::TinyVec;
 use criterion::{BenchmarkId, Criterion, criterion_group, criterion_main};
-use turbo_tasks::TinyVec;
 
 #[global_allocator]
 static ALLOC: turbo_tasks_malloc::TurboMalloc = turbo_tasks_malloc::TurboMalloc;
