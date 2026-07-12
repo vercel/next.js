@@ -90,34 +90,66 @@ export default function transformer(file: FileInfo, _api: API) {
       hasChanges = true
     })
 
-  // Bare `const prefetch = 'partial'` declarations (paired with
-  // `export { prefetch }`). Track that we removed one so we only drop the
-  // matching export specifier below.
+  // Bare `const prefetch = 'partial'` declarations are only Route Segment
+  // Configs when the file also exports them via a local `export { prefetch }`.
+  // Re-exports (`export { prefetch } from '...'`) bind another module's value,
+  // so they don't count.
+  const hasLocalPrefetchExportSpecifier =
+    root
+      .find(j.ExportNamedDeclaration)
+      .filter((path) => {
+        if (path.node.source) {
+          return false
+        }
+        return Boolean(
+          path.node.specifiers?.some(
+            (spec) =>
+              j.ExportSpecifier.check(spec) &&
+              j.Identifier.check(spec.local) &&
+              spec.local.name === CONFIG_NAME
+          )
+        )
+      })
+      .size() > 0
+
+  // Track that we removed a bare declaration so we only drop the matching
+  // export specifier below.
   let removedBareDeclaration = false
-  root
-    .find(j.VariableDeclaration)
-    .filter((path) => {
-      // `export const prefetch` is handled above; skip it here.
-      if (j.ExportNamedDeclaration.check(path.parent.node)) {
-        return false
-      }
-      return path.node.declarations.some((decl) => isTargetPrefetch(j, decl))
-    })
-    .forEach((path) => {
-      const remaining = stripTargetDeclarators(j, path.node)
-      if (remaining === 0) {
-        j(path).remove()
-      }
-      removedBareDeclaration = true
-      hasChanges = true
-    })
+  if (hasLocalPrefetchExportSpecifier) {
+    root
+      .find(j.VariableDeclaration)
+      .filter((path) => {
+        // `export const prefetch` is handled above; skip it here.
+        if (j.ExportNamedDeclaration.check(path.parent.node)) {
+          return false
+        }
+        // Only top-level declarations can be the exported config. A local
+        // `const prefetch` inside a function or block is unrelated code.
+        if (!j.Program.check(path.parent.node)) {
+          return false
+        }
+        return path.node.declarations.some((decl) => isTargetPrefetch(j, decl))
+      })
+      .forEach((path) => {
+        const remaining = stripTargetDeclarators(j, path.node)
+        if (remaining === 0) {
+          j(path).remove()
+        }
+        removedBareDeclaration = true
+        hasChanges = true
+      })
+  }
 
   // Handle `export { prefetch }` and `export { prefetch, other }`, but only
   // when the paired declaration was the `'partial'` one we removed above.
   if (removedBareDeclaration) {
     root
       .find(j.ExportNamedDeclaration)
-      .filter((path) => Boolean(path.node.specifiers?.length))
+      // Skip re-exports (`export { prefetch } from '...'`): their specifiers
+      // reference another module's binding, not the declaration we removed.
+      .filter(
+        (path) => !path.node.source && Boolean(path.node.specifiers?.length)
+      )
       .forEach((path) => {
         const specifiers = path.node.specifiers
         if (!specifiers) return

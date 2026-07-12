@@ -15,7 +15,7 @@ Enable Partial Prefetching and walk the app until every link reuses a shared App
 
 The one thing that shapes everything below: **these insights surface only in `next dev`, in the dev overlay's Insights tab.** Nothing fails the build. There is no build-only fallback loop for this skill — the work is a sweep of the running app in the browser. If you can't drive a browser, stop and tell the user what you can't verify, or commit the milestone you've reached and hand off.
 
-Talk to the user in what they'll see — PRs, features, and how the app behaves after — never the insight slugs or step labels. Before you start, tell them briefly what Partial Prefetching changes: a `<Link>` loads a shared App Shell, and `prefetch={true}` no longer prefetches everything the old full prefetch did.
+Talk to the user in terms of what they'll see — PRs, features, and how the app behaves after — never the insight slugs or step labels. Before you start, tell them briefly what Partial Prefetching changes: a `<Link>` loads a shared App Shell, and `prefetch={true}` no longer prefetches everything the old full prefetch did.
 
 ## requires
 
@@ -49,22 +49,24 @@ Every insight has a docs page — open it. Fetch the linked page for every disti
 
 Do this with the global flag **off** — enabling it marks every route adopted and stops the [`link-prefetch-partial`](https://nextjs.org/docs/messages/instant-link-prefetch-partial) insight from surfacing, so the audit has to come first.
 
-Enumerate the links across the whole source tree, not only `app/` — they often live in `src/components` or shared UI packages: `grep -rn "prefetch={true}\|prefetch$" --include='*.tsx' --include='*.jsx' .` (catch the bare `prefetch` prop and `next/link` wrappers too). Then, for each one:
+Enumerate the links across the whole source tree, not only `app/` — they often live in `src/components` or shared UI packages: `grep -rnE '\bprefetch\b' --include='*.tsx' --include='*.jsx' .`, then keep the `prefetch={true}` and bare `prefetch` prop matches (a bare prop is `true`) and drop `prefetch={false}` and other values. If nothing matches, check for a custom link wrapper before calling the audit empty — grep for `from 'next/link'`, and if a wrapper sets `prefetch={true}` internally or forwards it under another prop name, audit its call sites the same way. If there's still nothing, say so in your report and move on to [step 2](#step-2-enable-the-flag).
+
+Then, for each one:
 
 1. **Click it** in `next dev`. The insight fires at navigation time, not when the link prefetches, so a link sitting in the viewport won't trip it — you have to navigate through it.
-2. **Preserve what that prefetch delivered.** The guide's [audit table](https://nextjs.org/docs/app/guides/adopting-partial-prefetching#auditing-existing-link-prefetchtrue-calls) is the canonical decision — fetch it and apply the matching row rather than re-deriving it. This is where the `use cache` additions happen — uncached content the prefetch delivered gets cached now so it joins the App Shell, subject to the freshness batching below. Content that depends on URL data (`params`, `searchParams`) is the exception and gets a marker in the next item instead.
-3. **Adopt the destination.** Add `export const prefetch = 'partial'`, which clears the insight for every link pointing at it. Where a destination's prefetch delivered URL-dependent content (`params`, `searchParams`), also keep `prefetch={true}` and leave a `TODO(runtime-prefetch)` marker above the export, always with that exact prefix so you can grep them back later. Don't decide that now, and don't cache the data behind it yet — you'll assess both with the user in step 5.
+2. **Preserve what that prefetch delivered.** The guide's [audit table](https://nextjs.org/docs/app/guides/adopting-partial-prefetching#auditing-existing-link-prefetchtrue-calls) is the canonical decision — fetch it and apply the matching row rather than re-deriving it. Caching uncached content is the judgment call in that table: trace where the data comes from and what freshness and revalidation it needs, per the [`use cache`](https://nextjs.org/docs/app/api-reference/directives/use-cache) docs, and ask the user when the answer isn't clear-cut. Content that depends on URL data (`params`, `searchParams`) gets a marker in the next item instead.
+3. **Adopt the destination.** Add `export const prefetch = 'partial'`. That clears the insight for every link pointing at it. If the route reads URL data (`params`, `searchParams`), it's a runtime-prefetch candidate for step 5 — keep `prefetch={true}` on its links and mark the route:
 
    ```tsx
    // TODO(runtime-prefetch): assess with the user (prefetch = 'allow-runtime')
    export const prefetch = 'partial'
    ```
 
-The adoption and prop changes are mechanical — do them without stopping. Caching is the one judgment call, since `use cache` changes freshness. Cache the guide table's clear-cut cases as you go, and collect the freshness-sensitive ones (personalized or real-time content) into one batch for the user at the end of the audit. Skip the check-in if the batch is empty. With no user to ask, flag them instead of deciding. If the grep finds no `<Link prefetch={true}>`, note it and move on.
+   Use that exact prefix so step 5 can grep them back. Don't cache or decide anything for these routes now.
 
 ## step 2: enable the flag
 
-Once every audited destination has `prefetch = 'partial'`, enable it globally.
+Once every audited destination has `prefetch = 'partial'`, finish in two moves.
 
 1. **Enable the flag globally.** Set `partialPrefetching: true` in `next.config.ts` (alongside `cacheComponents: true`). Every route is adopted now, so every link is good.
 2. **Strip the redundant `prefetch = 'partial'` exports.** Run the first-party `remove-partial-prefetch` codemod rather than a text find-and-replace. It removes only `export const prefetch = 'partial'` and leaves any other value (a deliberate `prefetch = 'allow-runtime'`) in place, along with your `TODO(runtime-prefetch)` markers, which wait for step 5.
@@ -79,7 +81,7 @@ Once every audited destination has `prefetch = 'partial'`, enable it globally.
 
 ## step 3: sweep for URL-data insights (after enabling)
 
-This is a separate, dev-only pass, and it can wait: the shell check runs only with Partial Prefetching on, fires at navigation time, and never blocks the build, so you can make it any time after enabling. Load every route in `next dev` to collect its shell insights. Build the queue from a concrete source (the last `next build` route table, or the `app/` tree) and keep it as a todo list. It doesn't have to be feature by feature — finish every route.
+This is a dev-only second pass. The shell check runs only with the flag on, fires at navigation time, and never blocks the build, so it can happen any time after step 2. The work is one loop — build a route queue from a concrete source (the last `next build` route table, or the `app/` tree), keep it as a todo list, and load every route in `next dev` until the queue is empty.
 
 Watch the Insights tab and the dev log for `Next.js encountered … data` lines. The signal this step adds is [`URL data`](https://nextjs.org/docs/messages/instant-shell-url-data): a `params` or `searchParams` read outside `<Suspense>` ties the shared shell to one URL. It can surface even inside an existing `<Suspense>` when the boundary sits above the read. Open its docs page and follow the fix there.
 
@@ -89,19 +91,24 @@ These fixes rarely involve the user — each insight names the offending read an
 
 ## step 4: verify
 
-- Insights tab empty (or every remaining entry is a deliberate, documented decision) and the dev log quiet, after loading every route. **An empty sweep is the expected outcome when Cache Components adoption finished cleanly** — the prereq already forced every `params`/`searchParams`/`cookies()` read behind `<Suspense>` (surfaced there as `blocking-prerender-*` errors), so there's nothing left for this step to flag. That's success, not a missing signal. If nothing surfaced and you want to confirm the signal can still fire, check `partialPrefetching` is on, the version is 16.3 or later, and the dev server was restarted after the config change; or move one URL read back outside `<Suspense>` and watch it fire, then revert.
+Checklist before checking in with the user:
+
+- **An empty sweep is the expected outcome when Cache Components adoption finished cleanly** — the prereq already forced every `params`/`searchParams`/`cookies()` read behind `<Suspense>` (surfaced there as `blocking-prerender-*` errors), so a quiet log is success, not a missing signal. Any entry still in the Insights tab is a deliberate, documented decision. To confirm the signal can still fire, check `partialPrefetching` is on, the version is 16.3 or later, and the dev server was restarted after the config change — or move one URL read back outside `<Suspense>`, watch validation fire, then revert. Expect the probe to surface the Cache Components `blocking-prerender-runtime` error rather than the URL-data insight (the upstream check catches the read first) — either one proves the pipeline is alive.
 - The App Shells are real: for each route you changed, confirm the first paint after a navigation shows the intended shared content, not an empty shell or a stuck fallback. A `<Suspense>` around the whole page body passes validation with an empty shell, which defeats the point.
 - `next build` still passes.
 
-Then check in, in the user's language, with no insight slugs or step labels. Drive a link live in the headed browser so they see the shared App Shell paint instantly and the URL-specific region stream in — cover which links now share a prefetch, what streams in after navigation, and what stayed opted out and why. Attach before/after screenshots only when a live browser isn't possible.
+Then check in with the user. Speak their language — no insight slugs or step labels.
 
-Adoption is complete here, and runtime prefetching is a separate optimization on top. The question: "Want to commit this (or open the PR) before we look at which routes should also prefetch their URL-dependent content?" Wait for the answer — the two read best as their own changes.
+- What you did: which links you audited, which destinations you adopted, and what each link now prefetches.
+- What changed: dropped props, `use cache` boundaries added, and which routes carry a `TODO(runtime-prefetch)` marker for later.
+- Show, don't tell: drive a link live in the headed browser so they see the shared App Shell paint instantly and the URL-specific region stream in. Attach before/after screenshots only when a live browser isn't possible.
+- The question: "Want to commit this (or open the PR) before we look at which routes should also prefetch their URL-dependent content?" Wait for the answer — adoption and runtime prefetching read best as their own changes.
 
 ## step 5: runtime prefetching (optional)
 
-The audit marked the candidates instead of deciding them. Grep for `TODO(runtime-prefetch)` and walk the list with the user in one pass: for each route, do they want the URL-dependent content prefetched ahead of the click, or is streaming in after navigation fine? A runtime prefetch costs a server invocation per visible link — the guide's [when to reach for it](https://nextjs.org/docs/app/guides/runtime-prefetching#when-to-reach-for-runtime-prefetching) section is the checklist for this conversation. Don't make the call alone — but make it once, here, not route by route.
+The audit marked the candidates instead of deciding them. Grep for `TODO(runtime-prefetch)` and walk the list with the user in one conversation. The question per route is whether they want the URL-dependent content prefetched ahead of the click, or streaming in after navigation is fine. A runtime prefetch costs a server invocation per visible link — the guide's [when to reach for it](https://nextjs.org/docs/app/guides/runtime-prefetching#when-to-reach-for-runtime-prefetching) section is the checklist. Don't make these calls alone.
 
-Where the answer is yes, follow the [runtime prefetching guide](https://nextjs.org/docs/app/guides/runtime-prefetching) — switch the route to `prefetch = 'allow-runtime'` and cache the content behind the read using the guide's patterns (`use cache` with the runtime value passed in, or `use cache: private` for per-user data). Where it's no, delete the marker and leave the route on the default. Either way no `TODO(runtime-prefetch)` marker survives this step. Confirm the opted-in routes in `next dev`, and keep this as its own commit or PR.
+Where the answer is yes, follow the [runtime prefetching guide](https://nextjs.org/docs/app/guides/runtime-prefetching) — add `export const prefetch = 'allow-runtime'` to the route (the codemod in step 2 already stripped the `'partial'` export) and cache the content behind the read using the guide's patterns (`use cache` with the runtime value passed in, or `use cache: private` for per-user data). Where it's no, delete the marker and leave the route on the default. Either way no `TODO(runtime-prefetch)` marker survives this step. Confirm the opted-in routes in `next dev`, and keep this as its own commit or PR.
 
 ## further reading
 

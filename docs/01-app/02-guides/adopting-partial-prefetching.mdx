@@ -16,6 +16,8 @@ related:
 
 To prefetch more than the App Shell, a route can opt into [runtime prefetching](/docs/app/guides/runtime-prefetching) with [`prefetch = 'allow-runtime'`](/docs/app/api-reference/file-conventions/route-segment-config/prefetch#allow-runtime). The prefetch then also resolves the per-link runtime data (`params`, `searchParams`, and the full URL) and the cached content behind it.
 
+Adopting an existing app is driven by [instant navigation](/docs/app/guides/instant-navigation) insights. Next.js surfaces them in development, naming the link or route to change, and this guide works through them in order.
+
 > **Good to know**: Partial Prefetching only works when [`cacheComponents`](/docs/app/api-reference/config/next-config-js/cacheComponents) is enabled.
 
 ## What changes for `<Link>`
@@ -60,6 +62,32 @@ Neither insight blocks the build, and each links a fix card. If a route isn't re
 Do this with the global flag still off. Enabling it marks every route adopted and silences this insight, so the audit comes first.
 
 Open `next dev` and click each `<Link prefetch={true}>` in your app. The insight fires at navigation time, not when the link renders, and names the destination. With the flag off, `prefetch={true}` there still does the legacy full prefetch (the App Shell plus the route's dynamic data), which is slow and expensive.
+
+It appears in the dev overlay, pointing at its fixes:
+
+<FixCardGrid>
+  <FixCard
+    group="upgrade"
+    title="Opt into Partial Prefetching"
+    href="/docs/messages/instant-link-prefetch-partial#opt-into-partial-prefetching"
+    snippets={[
+      { text: '// page.tsx or layout.tsx' },
+      { text: "export const prefetch = 'partial'", highlight: true },
+    ]}
+  />
+  <FixCard
+    group="disable"
+    title="Use the default prefetch"
+    href="/docs/messages/instant-link-prefetch-partial#use-the-default-prefetch"
+    snippets={[
+      { text: '<Link href="/dashboard">', highlight: true },
+      { text: '  Dashboard' },
+      { text: '</Link>' },
+    ]}
+  />
+</FixCardGrid>
+
+Each card is clickable and opens a page with patterns, code samples, and trade-offs.
 
 Clear the insight by adopting the destination. Export [`prefetch = 'partial'`](/docs/app/api-reference/file-conventions/route-segment-config/prefetch) from its page or layout to opt the route into Partial Prefetching without the global flag, so its links load the App Shell.
 
