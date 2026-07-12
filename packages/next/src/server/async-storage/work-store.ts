@@ -137,6 +137,8 @@ export function createWorkStore({
     isBuildTimePrerendering: renderOpts.isBuildTimePrerendering,
     fetchCache: renderOpts.fetchCache,
     isOnDemandRevalidate: renderOpts.isOnDemandRevalidate,
+    requestId: undefined,
+    htmlRequestId: undefined,
 
     isDraftMode: renderOpts.isDraftMode,
 

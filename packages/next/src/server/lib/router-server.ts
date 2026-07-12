@@ -10,6 +10,7 @@ import '../require-hook'
 import url from 'url'
 import path from 'path'
 import loadConfig, { type ConfiguredExperimentalFeature } from '../config'
+import { finalizeBundlerFromConfig, getBundlerFromEnv } from '../../lib/bundler'
 import { serveStatic } from '../serve-static'
 import setupDebug from 'next/dist/compiled/debug'
 import * as Log from '../../build/output/log'
@@ -60,6 +61,10 @@ import {
   isChromeDevtoolsWorkspaceUrl,
 } from './chrome-devtools-workspace'
 import { getNextConfigRuntime, type NextConfigComplete } from '../config-shared'
+import {
+  getRequestInsightsSnapshot,
+  isRequestInsightsEnabled,
+} from './trace/request-insights'
 
 const debug = setupDebug('next:router-server:main')
 const isNextFont = (pathname: string | null) =>
@@ -99,6 +104,9 @@ export async function initialize(opts: {
     process.env.NODE_ENV = opts.dev ? 'development' : 'production'
   }
 
+  // Capture the bundler before loading the config
+  const bundlerBeforeConfig = opts.dev ? getBundlerFromEnv() : undefined
+
   let experimentalFeatures: ConfiguredExperimentalFeature[] = []
   const config = await loadConfig(
     opts.dev ? PHASE_DEVELOPMENT_SERVER : PHASE_PRODUCTION_SERVER,
@@ -112,6 +120,10 @@ export async function initialize(opts: {
       },
     }
   )
+
+  if (bundlerBeforeConfig !== undefined) {
+    finalizeBundlerFromConfig(bundlerBeforeConfig)
+  }
 
   let compress: ReturnType<typeof setupCompression> | undefined
 
@@ -229,6 +241,48 @@ export async function initialize(opts: {
     // internal headers should not be honored by the request handler
     if (!process.env.NEXT_PRIVATE_TEST_HEADERS) {
       filterInternalHeaders(req.headers)
+    }
+
+    if (opts.dev && req.url) {
+      if (config.experimental.requestInsights) {
+        process.env.__NEXT_REQUEST_INSIGHTS = 'true'
+      }
+
+      const urlParts = req.url.split('?', 1)
+      const pathname = removePathPrefix(urlParts[0] || '', config.basePath)
+
+      if (pathname === '/__nextjs_request_insights') {
+        if (
+          development &&
+          blockCrossSiteDEV(
+            req,
+            res,
+            development.config.allowedDevOrigins,
+            opts.hostname
+          )
+        ) {
+          return
+        }
+
+        res.setHeader('Content-Type', 'application/json; charset=utf-8')
+        if (
+          !config.experimental.requestInsights &&
+          !isRequestInsightsEnabled()
+        ) {
+          res.statusCode = 404
+          res.end(
+            JSON.stringify({
+              error:
+                'Request Insights is not enabled. Set experimental.requestInsights = true and restart next dev.',
+            })
+          )
+          return
+        }
+
+        res.statusCode = 200
+        res.end(JSON.stringify(getRequestInsightsSnapshot()))
+        return
+      }
     }
 
     if (
@@ -527,7 +581,10 @@ export async function initialize(opts: {
           !res.getHeader('cache-control') &&
           matchedOutput.type === 'nextStaticFolder'
         ) {
-          if (opts.dev && !isNextFont(parsedUrl.pathname)) {
+          if (matchedOutput.itemPath.startsWith('/service-worker/')) {
+            res.setHeader('Cache-Control', 'public, max-age=0, must-revalidate')
+            res.setHeader('Service-Worker-Allowed', config.basePath || '/')
+          } else if (opts.dev && !isNextFont(parsedUrl.pathname)) {
             res.setHeader('Cache-Control', 'no-cache, must-revalidate')
           } else {
             res.setHeader(

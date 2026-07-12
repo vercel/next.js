@@ -566,6 +566,12 @@ export interface ExperimentalConfig {
    * Do not enable in user-facing production deployments.
    */
   exposeTestingApiInProductionBuild?: boolean
+  /**
+   * Show Request Insights in the dev tools indicator. Request Insights records
+   * the local framework spans needed to explain App Router request, render,
+   * fetch, and cache behavior without requiring an external OTEL collector.
+   */
+  requestInsights?: boolean
   extensionAlias?: Record<string, any>
   allowedRevalidateHeaderKeys?: string[]
   fetchCacheKeyPrefix?: string
@@ -711,6 +717,12 @@ export interface ExperimentalConfig {
   strictRouteTypes?: boolean
 
   /**
+   * Runs the project-local TypeScript CLI instead of using TypeScript's
+   * programmatic API for build-time type checking and config loading.
+   */
+  useTypeScriptCli?: boolean
+
+  /**
    * Displays an indicator when a React Transition has no other indicator rendered.
    * This includes displaying an indicator on client-side navigations.
    */
@@ -730,10 +742,11 @@ export interface ExperimentalConfig {
    *
    * - `false`: disable eviction.
    * - `'full'`: after every snapshot, drop as much memory as possible.
+   * - `'auto'`: evict after a snapshot when we expect to save a lot of memory or the system is under pressure
    *
-   * Defaults to `'full'`
+   * Defaults to `'auto'`
    */
-  turbopackMemoryEviction?: false | 'full'
+  turbopackMemoryEviction?: false | 'full' | 'auto'
 
   /**
    * Selects the backend used by Turbopack for Node.js evaluation, e.g. webpack
@@ -757,11 +770,6 @@ export interface ExperimentalConfig {
    * Enable support for `with {type: "bytes"}` for ESM imports.
    */
   turbopackImportTypeBytes?: boolean
-
-  /**
-   * Enable support for `with {type: "text"}` for ESM imports.
-   */
-  turbopackImportTypeText?: boolean
 
   /**
    * Enable scope hoisting. Defaults to true in build mode. Always disabled in development mode.
@@ -1196,7 +1204,7 @@ export interface ExperimentalConfig {
   serverComponentsHmrCache?: boolean
 
   /**
-   * Cancels the render and validation work for a Server Component HMR refresh
+   * Cancels the render and validation work for a Server Components HMR refresh
    * once a newer refresh supersedes it. Development only.
    */
   serverComponentsHmrCancellation?: boolean
@@ -2087,7 +2095,7 @@ export const defaultConfig = Object.freeze({
   },
   adapterPath: process.env.NEXT_ADAPTER_PATH || undefined,
   experimental: {
-    appNewScrollHandler: false,
+    appNewScrollHandler: true,
     coldCacheBadge: false,
     useSkewCookie: false,
     cssChunking: true,
@@ -2138,6 +2146,7 @@ export const defaultConfig = Object.freeze({
     fullySpecified: false,
     swcTraceProfiling: false,
     forceSwcTransforms: false,
+    requestInsights: false,
     swcPlugins: undefined,
     largePageDataBytes: 128 * 1000, // 128KB by default
     disablePostcssPresetEnv: undefined,
@@ -2152,6 +2161,7 @@ export const defaultConfig = Object.freeze({
     webpackMemoryOptimizations: false,
     optimizeServerReact: true,
     strictRouteTypes: false,
+    useTypeScriptCli: false,
     viewTransition: false,
     removeUncaughtErrorAndRejectionListeners: false,
     validateRSCRequestHeaders: true,
@@ -2300,6 +2310,7 @@ export interface NextConfigRuntime {
     | 'exposeTestingApiInProductionBuild'
     | 'supportsImmutableAssets'
     | 'instantInsights'
+    | 'requestInsights'
   > & {
     // Pick on @internal fields generates invalid .d.ts files
     /** @internal */
@@ -2370,6 +2381,7 @@ export function getNextConfigRuntime(
     exposeTestingApiInProductionBuild: ex.exposeTestingApiInProductionBuild,
     supportsImmutableAssets: ex.supportsImmutableAssets,
     instantInsights: ex.instantInsights,
+    requestInsights: ex.requestInsights,
 
     trustHostHeader: ex.trustHostHeader,
     isExperimentalCompile: ex.isExperimentalCompile,

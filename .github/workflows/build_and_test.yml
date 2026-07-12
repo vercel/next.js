@@ -119,18 +119,6 @@ jobs:
       uploadNativeArtifact: true
     secrets: inherit
 
-  build-native-x64:
-    name: build-native-x64
-    uses: ./.github/workflows/build_reusable.yml
-    needs: ['changes']
-    if: ${{ needs.changes.outputs.docs-only == 'false' }}
-    with:
-      skipInstallBuild: 'yes'
-      stepName: 'build-native-x64'
-      runs_on_labels: '["ubuntu-latest-16-core-oss"]'
-      uploadNativeArtifact: true
-    secrets: inherit
-
   build-native-windows:
     name: build-native-windows
     uses: ./.github/workflows/build_reusable.yml
@@ -406,6 +394,7 @@ jobs:
         export NEXT_TEST_MODE=dev
         export NEXT_TEST_REACT_VERSION="${{ matrix.react }}"
         export __NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES=true
+        export __NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER=false
         export RUST_BACKTRACE=1
 
         node run-tests.js \
@@ -448,6 +437,7 @@ jobs:
         export NEXT_TEST_MODE=start
         export NEXT_TEST_REACT_VERSION="${{ matrix.react }}"
         export __NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES=true
+        export __NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER=false
         export RUST_BACKTRACE=1
 
         node run-tests.js --timings --require-timings -g ${{ matrix.group }} --type production
@@ -484,6 +474,7 @@ jobs:
         export NEXT_TEST_MODE=dev
         export NEXT_TEST_REACT_VERSION="${{ matrix.react }}"
         export __NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES=true
+        export __NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER=false
 
         # rspack flags
         export NEXT_RSPACK=1
@@ -530,6 +521,7 @@ jobs:
         export NEXT_TEST_MODE=start
         export NEXT_TEST_REACT_VERSION="${{ matrix.react }}"
         export __NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES=true
+        export __NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER=false
 
         # rspack flags
         export NEXT_RSPACK=1
@@ -692,6 +684,7 @@ jobs:
     with:
       afterBuild: |
         export __NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES=true
+        export __NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER=false
         node scripts/test-new-tests.mjs \
           --flake-detection \
           --mode dev \
@@ -718,6 +711,7 @@ jobs:
     with:
       afterBuild: |
         export __NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES=true
+        export __NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER=false
         node scripts/test-new-tests.mjs \
           --flake-detection \
           --mode start \
@@ -747,6 +741,8 @@ jobs:
         export NEXT_ENABLE_ADAPTER=1
         export NEXT_E2E_TEST_TIMEOUT=240000
         export __NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES=true
+        export __NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER=false
+        export IS_TURBOPACK_TEST=1
         node scripts/test-new-tests.mjs \
           --mode deploy \
           --group ${{ matrix.group }} \
@@ -778,10 +774,10 @@ jobs:
       afterBuild: |
         export __NEXT_CACHE_COMPONENTS=true
         export __NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS=true
-        export __NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER=true
         export NEXT_ENABLE_ADAPTER=1
         export NEXT_EXTERNAL_TESTS_FILTERS="test/deploy-tests-manifest.json,test/cache-components-tests-manifest.json"
         export NEXT_E2E_TEST_TIMEOUT=240000
+        export IS_TURBOPACK_TEST=1
         node scripts/test-new-tests.mjs \
           --mode deploy \
           --group ${{ matrix.group }} \
@@ -796,7 +792,7 @@ jobs:
       [
         'optimize-ci',
         'changes',
-        'build-native-x64',
+        'build-native',
         'build-next',
         'fetch-test-timings',
       ]
@@ -818,6 +814,7 @@ jobs:
         export NEXT_TEST_MODE=dev
         export NEXT_TEST_REACT_VERSION="${{ matrix.react }}"
         export __NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES=true
+        export __NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER=false
 
         node run-tests.js \
           --timings \
@@ -826,7 +823,7 @@ jobs:
           --type development
       testTimingsArtifact: 'test-timings'
       stepName: 'test-dev-react-${{ matrix.react }}-${{ matrix.group }}'
-      runs_on_labels: '["ubuntu-latest-16-core-oss"]'
+      runs_on_labels: '["ubuntu-latest-16-core-arm-oss"]'
     secrets: inherit
 
   test-dev-windows:
@@ -839,6 +836,7 @@ jobs:
       afterBuild: |
         export NEXT_TEST_MODE=dev
         export __NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES=true
+        export __NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER=false
         export IS_TURBOPACK_TEST=1
         export TURBOPACK_DEV=1
 
@@ -862,6 +860,7 @@ jobs:
       afterBuild: |
         export NEXT_TEST_MODE=start
         export __NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES=true
+        export __NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER=false
         export IS_TURBOPACK_TEST=1
         export TURBOPACK_BUILD=1
 
@@ -886,6 +885,7 @@ jobs:
       afterBuild: |
         export NEXT_TEST_MODE=start
         export __NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES=true
+        export __NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER=false
         export IS_TURBOPACK_TEST=1
         export TURBOPACK_BUILD=1
 
@@ -905,7 +905,7 @@ jobs:
       [
         'optimize-ci',
         'changes',
-        'build-native-x64',
+        'build-native',
         'build-next',
         'fetch-test-timings',
       ]
@@ -927,11 +927,12 @@ jobs:
         export NEXT_TEST_MODE=start
         export NEXT_TEST_REACT_VERSION="${{ matrix.react }}"
         export __NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES=true
+        export __NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER=false
 
         node run-tests.js --timings --require-timings -g ${{ matrix.group }} --type production
       testTimingsArtifact: 'test-timings'
       stepName: 'test-prod-react-${{ matrix.react }}-${{ matrix.group }}'
-      runs_on_labels: '["ubuntu-latest-16-core-oss"]'
+      runs_on_labels: '["ubuntu-latest-16-core-arm-oss"]'
     secrets: inherit
 
   test-firefox-safari:
@@ -946,6 +947,7 @@ jobs:
         # these all run without concurrency because they're heavier
         export TEST_CONCURRENCY=1
         export IS_TURBOPACK_TEST=1
+        export __NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER=false
         TURBOPACK_BUILD=1 NEXT_TEST_MODE=start BROWSER_NAME=firefox node run-tests.js \
           test/production/pages-dir/production/test/index.test.ts \
           test/production/chunk-load-failure/chunk-load-failure.test.ts
@@ -990,7 +992,6 @@ jobs:
       afterBuild: |
         export __NEXT_CACHE_COMPONENTS=true
         export __NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS=true
-        export __NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER=true
         export __NEXT_EXPERIMENTAL_SERVER_COMPONENTS_HMR_CANCELLATION=true
         export NEXT_EXTERNAL_TESTS_FILTERS="test/cache-components-tests-manifest.json"
         export NEXT_TEST_MODE=dev
@@ -1027,7 +1028,6 @@ jobs:
       afterBuild: |
         export __NEXT_CACHE_COMPONENTS=true
         export __NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS=true
-        export __NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER=true
         export __NEXT_EXPERIMENTAL_SERVER_COMPONENTS_HMR_CANCELLATION=true
         export NEXT_EXTERNAL_TESTS_FILTERS="test/cache-components-tests-manifest.json"
         export NEXT_TEST_MODE=start
@@ -1055,7 +1055,6 @@ jobs:
       - optimize-ci
       - changes
       - build-native
-      - build-native-x64
       - build-next
       - fetch-test-timings
       - lint

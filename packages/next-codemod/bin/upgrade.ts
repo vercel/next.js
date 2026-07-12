@@ -18,6 +18,7 @@ import {
 } from '../lib/handle-package'
 import { runTransform } from './transform'
 import { onCancel, TRANSFORMER_INQUIRER_CHOICES } from '../lib/utils'
+import { refreshAgentRulesBlock } from '../lib/agents-md'
 import { BadInput } from './shared'
 
 type PackageManager = 'pnpm' | 'npm' | 'yarn' | 'bun'
@@ -474,6 +475,16 @@ export async function runUpgrade(
   console.log() // new line
   if (codemods.length > 0) {
     console.log(`${pc.green('✔')} Codemods have been applied successfully.`)
+  }
+
+  try {
+    if (refreshAgentRulesBlock(cwd) === 'refreshed') {
+      console.log(
+        `${pc.green('✔')} Refreshed the managed agent-rules block in AGENTS.md / CLAUDE.md to match the upgraded Next.js.`
+      )
+    }
+  } catch {
+    // The block refresh is best-effort — never fail the upgrade over it.
   }
 
   warnDependenciesOutOfRange(appPackageJson, versionMapping)

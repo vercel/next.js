@@ -158,7 +158,7 @@ export default async function Image() {
 
 ### Custom fonts
 
-You can use custom fonts in your `ImageResponse` by providing a `fonts` array in the options.
+You can use custom fonts in your `ImageResponse` by providing a `fonts` array in the options. The font doesn't depend on request data, so read it once at module scope. See [Predictable values](/docs/app/getting-started/caching#predictable-values).
 
 ```tsx filename="app/opengraph-image.tsx"
 import { ImageResponse } from 'next/og'
@@ -174,9 +174,6 @@ export const size = {
 
 export const contentType = 'image/png'
 
-// Load the font once at module scope. process.cwd() is the Next.js project
-// directory. Reading it inside the component would be treated as dynamic I/O
-// under Cache Components and opt the route out of static generation.
 const interSemiBold = await readFile(
   join(process.cwd(), 'assets/Inter-SemiBold.ttf')
 )
