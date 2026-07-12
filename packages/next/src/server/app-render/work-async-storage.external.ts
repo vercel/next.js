@@ -118,6 +118,14 @@ export interface WorkStore {
   isPrefetchRequest?: boolean
 
   /**
+   * Dev-only request identity used by local request insights. requestId
+   * identifies one server request, while htmlRequestId groups requests that
+   * originated from the same browser page.
+   */
+  requestId?: string
+  htmlRequestId?: string
+
+  /**
    * This only exists because it's needed in use-cache-wrapper
    */
   deploymentId: string
