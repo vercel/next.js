@@ -17,14 +17,14 @@ const DEFAULT_FETCH_LIMIT = 5
 const DEV_SERVER_DISCOVERY_TIMEOUT_MS = 1000
 const DEV_SERVER_DISCOVERY_RETRY_MS = 50
 
-export type NextDiagnoseOptions = {
+export type NextRequestInsightsOptions = {
   url?: string
   json?: boolean
   limit?: number
 }
 
-export async function nextDiagnose(
-  options: NextDiagnoseOptions,
+export async function nextRequestInsights(
+  options: NextRequestInsightsOptions,
   directory?: string
 ) {
   const devServerUrl = options.url

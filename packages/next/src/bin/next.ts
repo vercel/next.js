@@ -33,7 +33,7 @@ import type { NextBuildOptions } from '../cli/next-build.js'
 import type { NextTypegenOptions } from '../cli/next-typegen.js'
 import type { NextPostBuildOptions } from '../cli/next-post-build.js'
 import { ensureProfilesDir } from '../lib/profiles-dir'
-import type { NextDiagnoseOptions } from '../cli/next-diagnose.js'
+import type { NextRequestInsightsOptions } from '../cli/next-request-insights.js'
 
 /**
  * Create `.next-profiles` (with its `.gitignore`) when profiling/tracing is
@@ -610,7 +610,7 @@ program
   .usage('[directory] [options]')
 
 program
-  .command('experimental-diagnose')
+  .command('experimental-request-insights')
   .description(
     'Inspect experimental Request Insights from a running Next.js dev server.'
   )
@@ -631,9 +631,9 @@ program
       'Maximum number of recent request summaries to print.'
     ).argParser(parseValidPositiveInteger)
   )
-  .action((directory: string, options: NextDiagnoseOptions) => {
-    return import('../cli/next-diagnose.js').then((mod) =>
-      mod.nextDiagnose(options, directory)
+  .action((directory: string, options: NextRequestInsightsOptions) => {
+    return import('../cli/next-request-insights.js').then((mod) =>
+      mod.nextRequestInsights(options, directory)
     )
   })
   .usage('[directory] [options]')

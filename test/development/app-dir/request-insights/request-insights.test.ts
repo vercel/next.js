@@ -18,7 +18,7 @@ type RequestInsight = {
   }>
 }
 
-describe('request-insights-diagnose', () => {
+describe('request insights', () => {
   const { next } = nextTestSetup({
     files: __dirname,
   })
@@ -56,7 +56,7 @@ describe('request-insights-diagnose', () => {
     try {
       const address = server.address() as AddressInfo
       const result = await next.runCommand([
-        'experimental-diagnose',
+        'experimental-request-insights',
         '--url',
         `http://127.0.0.1:${address.port}`,
         ...args,
@@ -70,7 +70,7 @@ describe('request-insights-diagnose', () => {
   }
 
   it('discovers the running dev server from the project lockfile', async () => {
-    const result = await next.runCommand(['experimental-diagnose'])
+    const result = await next.runCommand(['experimental-request-insights'])
 
     if (result.code !== 0) {
       throw new Error(result.cliOutput)
