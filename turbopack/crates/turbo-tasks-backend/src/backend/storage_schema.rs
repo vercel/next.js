@@ -84,7 +84,7 @@ struct TaskStorageSchema {
         filter_transient,
         drop_on_completion_if_immutable
     )]
-    output_dependent: AutoSet<TaskId, 6>,
+    output_dependent: AutoSet<TaskId, 4>,
 
     /// The task's output value.
     /// Filtered during serialization to skip transient outputs (referencing transient tasks).
@@ -1814,7 +1814,7 @@ mod tests {
     fn test_schema_size() {
         assert_eq!(
             size_of::<TaskStorage>(),
-            120,
+            128,
             "TaskStorage size changed! Update this test."
         );
         // `LazyField` is 40 B = 32 B largest payload + 8 B discriminant.
