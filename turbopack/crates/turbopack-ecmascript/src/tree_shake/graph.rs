@@ -713,10 +713,6 @@ impl DepGraph {
                 }
             }
 
-            if chunk.body.is_empty() {
-                continue;
-            }
-
             modules.push(chunk);
         }
 
