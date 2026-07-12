@@ -160,9 +160,15 @@ function timestamp(): number {
  * `pendingTransitions` immediately, so that it is reported as aborted if a
  * newer navigation commits before this one produces a destination tree.
  *
- * The `from` route describes the route being left; it is read from the
- * current AppRouterState here (rather than passed in) since this is the only
- * transition hook that needs it.
+ * The `from` route describes the route being left; the dispatch site passes
+ * the current AppRouterState in (rather than this module reading it from
+ * app-router-instance) so that this module never references
+ * app-router-instance: even a lazy `require` is traced statically by
+ * bundlers, and this module is reachable from `next/navigation` (via
+ * `unstable_RouterTransitionEndMarker`), which is bundled in contexts —
+ * instrumentation-client, the react-server layer — where the router reducer
+ * graph behind app-router-instance (react-server-dom-webpack etc.) must not
+ * be pulled in and may not even resolve.
  *
  * Returns the pending transition when the lifecycle is active — the caller
  * puts the object on the dispatched action so the queue can settle it
@@ -171,7 +177,8 @@ function timestamp(): number {
  */
 export function startRouterTransition(
   url: string,
-  type: RouterTransitionType
+  type: RouterTransitionType,
+  state: AppRouterState | null
 ): PendingRouterTransition | null {
   // Positive flag check so the instrumentation-only path is removed by DCE when disabled.
   if (process.env.__NEXT_INSTRUMENTATION_CLIENT_ROUTER_TRANSITION_EVENTS) {
@@ -179,12 +186,6 @@ export function startRouterTransition(
       return null
     }
 
-    // Lazy require to avoid a static import cycle: app-router-instance
-    // imports this module to emit `start` when dispatching. (Same pattern as
-    // links.ts.)
-    const { getCurrentAppRouterState } =
-      require('./app-router-instance') as typeof import('./app-router-instance')
-    const state = getCurrentAppRouterState()
     if (state === null) {
       // Navigations can only be dispatched after hydration creates the action
       // queue, so this shouldn't happen; degrade to the legacy hook shape

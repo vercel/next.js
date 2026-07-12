@@ -337,8 +337,14 @@ export function dispatchNavigateAction(
   // queued, so the hook runs outside React's render phase. (A user hook that
   // throws during the reducer would otherwise break error isolation between
   // hooks.) The transition object is threaded on the action so the reducer can
-  // attach the destination tree to it once it exists.
-  const instrumentationTransition = startRouterTransition(href, navigateType)
+  // attach the destination tree to it once it exists. The current state is
+  // passed in because router-transition must not import this module back
+  // (see startRouterTransition).
+  const instrumentationTransition = startRouterTransition(
+    href,
+    navigateType,
+    getCurrentAppRouterState()
+  )
 
   dispatchAppRouterAction({
     type: ACTION_NAVIGATE,
@@ -355,7 +361,11 @@ export function dispatchTraverseAction(
   href: string,
   historyState: AppHistoryState | undefined
 ) {
-  const instrumentationTransition = startRouterTransition(href, 'traverse')
+  const instrumentationTransition = startRouterTransition(
+    href,
+    'traverse',
+    getCurrentAppRouterState()
+  )
   dispatchAppRouterAction({
     type: ACTION_RESTORE,
     url: new URL(href),
