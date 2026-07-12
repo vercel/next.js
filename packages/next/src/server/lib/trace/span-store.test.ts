@@ -1,20 +1,17 @@
-import { runInNewContext } from 'node:vm'
-import { setFlagsFromString } from 'node:v8'
 import {
-  clearSpanStoreForTest,
-  getSpanRecords,
-  InMemorySpanStore,
-  isLocalSpanStoreEnabled,
+  clearRequestInsightsForTest,
+  getRequestInsightsSnapshot,
+} from './request-insights'
+import {
+  isLocalSpanRecordingEnabled,
   isRequestInsightsEnabled,
   recordSpan,
+  setSpanRecorderForTest,
+  type SpanStoreRecord,
 } from './span-store'
 
-const originalLocalSpans = process.env.NEXT_OTEL_LOCAL_SPANS
 const originalRequestInsights = process.env.__NEXT_REQUEST_INSIGHTS
 const originalDevServer = process.env.__NEXT_DEV_SERVER
-
-setFlagsFromString('--expose-gc')
-const forceGarbageCollection = runInNewContext('gc') as () => void
 
 function restoreEnv(name: string, value: string | undefined) {
   if (value === undefined) {
@@ -24,183 +21,86 @@ function restoreEnv(name: string, value: string | undefined) {
   }
 }
 
-describe('span store', () => {
+describe('span recording', () => {
   beforeEach(() => {
     process.env.__NEXT_DEV_SERVER = '1'
+    delete process.env.__NEXT_REQUEST_INSIGHTS
   })
 
   afterEach(() => {
-    restoreEnv('NEXT_OTEL_LOCAL_SPANS', originalLocalSpans)
     restoreEnv('__NEXT_REQUEST_INSIGHTS', originalRequestInsights)
     restoreEnv('__NEXT_DEV_SERVER', originalDevServer)
-    clearSpanStoreForTest()
+    setSpanRecorderForTest(undefined)
+    clearRequestInsightsForTest()
   })
 
-  it('keeps bounded in-memory records with OTel-compatible identity fields and links', () => {
-    const traceStore = new InMemorySpanStore({ maxRecords: 2 })
+  it('records completed spans only when there is a consumer', () => {
+    const records: SpanStoreRecord[] = []
 
-    traceStore.record({
-      name: 'next.cache_component.produce',
-      traceId: '00000000000000000000000000000001',
-      spanId: '0000000000000001',
-      route: '/products/[id]',
-      attributes: {
-        'next.phase': 'build',
-        'next.artifact.kind': 'ppr-shell',
-      },
-    })
+    expect(isLocalSpanRecordingEnabled()).toBe(false)
+    recordSpan({ name: 'test.unconsumed' })
+    expect(records).toEqual([])
 
-    traceStore.record({
-      name: 'next.cache_component.consume',
-      traceId: '00000000000000000000000000000002',
-      spanId: '0000000000000002',
-      requestId: 'req_1',
-      route: '/products/[id]',
-      attributes: {
-        'next.phase': 'request',
-        'next.cache.status': 'hit',
-        'next.artifact.kind': 'ppr-shell',
-      },
-      events: [
-        {
-          name: 'next.cache.lookup',
-          timestamp: 1,
-          attributes: {
-            'next.cache.status': 'hit',
-          },
-        },
-      ],
-      links: [
-        {
-          traceId: '00000000000000000000000000000001',
-          spanId: '0000000000000001',
-          attributes: {
-            'next.link.reason': 'artifact.reuse',
-          },
-        },
-      ],
-    })
-
-    traceStore.record({
-      name: 'next.cache_component.consume',
-      requestId: 'req_2',
-      route: '/cart',
-      attributes: {
-        'next.cache.status': 'miss',
-      },
-    })
-
-    expect(traceStore.getRecords()).toHaveLength(2)
-    expect(traceStore.getRecords({ requestId: 'req_1' })).toEqual([
-      expect.objectContaining({
-        name: 'next.cache_component.consume',
-        requestId: 'req_1',
-        route: '/products/[id]',
-        attributes: expect.objectContaining({
-          'next.cache.status': 'hit',
-        }),
-        links: [
-          {
-            traceId: '00000000000000000000000000000001',
-            spanId: '0000000000000001',
-            attributes: {
-              'next.link.reason': 'artifact.reuse',
-            },
-          },
-        ],
-        events: [
-          {
-            name: 'next.cache.lookup',
-            timestamp: 1,
-            attributes: {
-              'next.cache.status': 'hit',
-            },
-          },
-        ],
-      }),
-    ])
-  })
-
-  it('releases attribute payloads from evicted records', async () => {
-    const { traceStore, attributeRef } = createStoreWithEvictedAttribute()
-
-    expect(traceStore.getRecords()).toEqual([
-      expect.objectContaining({ name: 'second' }),
-    ])
-
-    await expectCollected(attributeRef)
-  })
-
-  it('records to the global in-memory store only when local span capture is enabled', () => {
-    delete process.env.NEXT_OTEL_LOCAL_SPANS
-
+    setSpanRecorderForTest((span) => records.push(span))
+    expect(isLocalSpanRecordingEnabled()).toBe(true)
     recordSpan({
-      name: 'next.cache_component.consume',
-      requestId: 'req_1',
-    })
-
-    expect(getSpanRecords()).toEqual([])
-
-    process.env.NEXT_OTEL_LOCAL_SPANS = '1'
-    recordSpan({
-      name: 'next.cache_component.consume',
-      requestId: 'req_1',
+      name: 'test.consumed',
       attributes: {
-        'next.cache.status': 'hit',
+        'next.phase': 'render',
       },
     })
 
-    expect(getSpanRecords({ requestId: 'req_1' })).toEqual([
+    expect(records).toEqual([
       expect.objectContaining({
-        name: 'next.cache_component.consume',
-        requestId: 'req_1',
+        name: 'test.consumed',
+        timestamp: expect.any(Number),
         attributes: {
-          'next.cache.status': 'hit',
+          'next.phase': 'render',
         },
       }),
     ])
   })
 
-  it('does not enable local span capture outside the dev server', () => {
-    delete process.env.__NEXT_DEV_SERVER
-    process.env.NEXT_OTEL_LOCAL_SPANS = '1'
+  it('forwards request spans directly to request insights', () => {
     process.env.__NEXT_REQUEST_INSIGHTS = 'true'
 
-    expect(isLocalSpanStoreEnabled()).toBe(false)
-
-    recordSpan({ name: 'test.production' })
-    expect(getSpanRecords()).toEqual([])
-  })
-
-  it('shares local records across separate module instances in the same process', () => {
-    process.env.NEXT_OTEL_LOCAL_SPANS = '1'
-
-    jest.isolateModules(() => {
-      const { recordSpan: recordSpanFromIsolatedModule } =
-        require('./span-store') as typeof import('./span-store')
-
-      recordSpanFromIsolatedModule({
-        name: 'fetch GET https://example.vercel.sh/',
-        spanId: '0000000000000001',
-        traceId: '00000000000000000000000000000001',
-        attributes: {
-          'next.span_type': 'AppRender.fetch',
-          'http.url': 'https://example.vercel.sh/',
-        },
-      })
+    recordSpan({
+      name: 'render route (app) /dashboard',
+      startTime: 100,
+      durationMs: 25,
+      status: 'ok',
+      requestId: 'req_1',
+      route: '/dashboard',
     })
 
-    expect(getSpanRecords()).toEqual([
-      expect.objectContaining({
-        name: 'fetch GET https://example.vercel.sh/',
-        spanId: '0000000000000001',
-        traceId: '00000000000000000000000000000001',
-        attributes: expect.objectContaining({
-          'next.span_type': 'AppRender.fetch',
-          'http.url': 'https://example.vercel.sh/',
+    expect(getRequestInsightsSnapshot()).toEqual({
+      requests: [
+        expect.objectContaining({
+          requestId: 'req_1',
+          route: '/dashboard',
+          spans: [
+            expect.objectContaining({
+              name: 'render route (app) /dashboard',
+              startTime: 100,
+              durationMs: 25,
+            }),
+          ],
         }),
-      }),
-    ])
+      ],
+    })
+  })
+
+  it('does not record spans outside the dev server', () => {
+    const recorder = jest.fn()
+    delete process.env.__NEXT_DEV_SERVER
+    process.env.__NEXT_REQUEST_INSIGHTS = 'true'
+    setSpanRecorderForTest(recorder)
+
+    expect(isLocalSpanRecordingEnabled()).toBe(false)
+
+    recordSpan({ name: 'test.production', requestId: 'req_2' })
+    expect(recorder).not.toHaveBeenCalled()
+    expect(getRequestInsightsSnapshot()).toEqual({ requests: [] })
   })
 
   it('treats boolean define-env request insights values as enabled', () => {
@@ -209,26 +109,3 @@ describe('span store', () => {
     expect(isRequestInsightsEnabled()).toBe(true)
   })
 })
-
-function createStoreWithEvictedAttribute() {
-  const traceStore = new InMemorySpanStore({ maxRecords: 1 })
-  const attributeValue = ['retained-value']
-  const attributeRef = new WeakRef(attributeValue)
-
-  traceStore.record({
-    name: 'first',
-    attributes: { 'next.test.payload': attributeValue },
-  })
-  traceStore.record({ name: 'second' })
-
-  return { traceStore, attributeRef }
-}
-
-async function expectCollected(ref: WeakRef<object>): Promise<void> {
-  for (let attempt = 0; attempt < 10; attempt++) {
-    forceGarbageCollection()
-    await new Promise<void>((resolve) => setImmediate(resolve))
-  }
-
-  expect(ref.deref()).toBeUndefined()
-}
