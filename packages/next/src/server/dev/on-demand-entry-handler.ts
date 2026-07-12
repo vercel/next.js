@@ -14,7 +14,7 @@ import { EventEmitter } from 'events'
 import { findPageFile, createValidFileMatcher } from '../lib/find-page-file'
 import { runDependingOnPageType, isDeferredEntry } from '../../build/entries'
 import { getStaticInfoIncludingLayouts } from '../../build/get-static-info-including-layouts'
-import { collectAppFiles } from '../../build/route-discovery'
+import { hasAppRoutes } from '../../build/route-discovery'
 import { join, posix } from 'path'
 import { normalizePathSep } from '../../shared/lib/page-path/normalize-path-sep'
 import { normalizePagePath } from '../../shared/lib/page-path/normalize-page-path'
@@ -485,8 +485,7 @@ export async function findPagePathData(
       // (e.g. living alongside a Pages Router app with no real usage)
       // shouldn't hijack 404 handling away from `pages/404`.
       const validFileMatcher = createValidFileMatcher(extensions, appDir)
-      const { appPaths } = await collectAppFiles(appDir, validFileMatcher)
-      if (appPaths.length > 0) {
+      if (await hasAppRoutes(appDir, validFileMatcher)) {
         return {
           filename: require.resolve(
             'next/dist/client/components/builtin/global-not-found'
