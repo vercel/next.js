@@ -183,6 +183,8 @@ export function getDefineEnv({
     'process.env.__NEXT_EXPERIMENTAL_COLD_CACHE_BADGE': Boolean(
       config.experimental.coldCacheBadge
     ),
+    'process.env.__NEXT_REQUEST_INSIGHTS':
+      dev && !!config.experimental.requestInsights,
     'process.env.__NEXT_USE_CACHE': isUseCacheEnabled,
     'process.env.__NEXT_USE_NODE_STREAMS': isEdgeServer ? false : true,
 

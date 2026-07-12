@@ -322,6 +322,8 @@ export function processMessage(
         dispatcher.onDevIndicator(message.devIndicator)
       if ('devToolsConfig' in message)
         dispatcher.onDevToolsConfig(message.devToolsConfig)
+      if ('requestInsights' in message && message.requestInsights)
+        dispatcher.onRequestInsightsSnapshot(message.requestInsights)
 
       const hasErrors = Boolean(errors && errors.length)
       // Compilation with errors (e.g. syntax error or missing modules).
@@ -474,6 +476,10 @@ export function processMessage(
     }
     case HMR_MESSAGE_SENT_TO_BROWSER.DEVTOOLS_CONFIG: {
       dispatcher.onDevToolsConfig(message.data)
+      return
+    }
+    case HMR_MESSAGE_SENT_TO_BROWSER.REQUEST_INSIGHTS_UPDATE: {
+      dispatcher.onRequestInsightsUpdate(message.insight)
       return
     }
     case HMR_MESSAGE_SENT_TO_BROWSER.REACT_DEBUG_CHUNK: {
