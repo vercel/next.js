@@ -558,6 +558,33 @@ impl Storage {
         persistent
     }
 
+    /// Collects the ids of resident, non-transient tasks whose storage passes the cheap
+    /// [`TaskStorage::gc_maybe_collectible`] pre-filter. GC calls this to seed a collection pass by
+    /// scanning the resident map (each `TaskStorage` is a handful of field reads under a shard read
+    /// lock, the same shape as the eviction scan), then re-validates each candidate authoritatively
+    /// under a guard. The scan only sees resident tasks; disk-only garbage is collected after it is
+    /// next restored.
+    ///
+    /// Parallelized across shards like [`Self::evict_after_snapshot`]: one job per shard scans it
+    /// under its own read lock and returns that shard's candidates, which are flattened into a
+    /// single list.
+    pub fn gc_collectible_candidates(&self) -> Vec<TaskId> {
+        let per_shard: Vec<Vec<TaskId>> = parallel::map_collect(self.map.shards(), |shard| {
+            let shard = shard.read();
+            let mut candidates = Vec::new();
+            // SAFETY: we hold the shard read lock for the duration of iteration.
+            for bucket in unsafe { shard.iter() } {
+                // SAFETY: the read lock guard outlives the bucket reference.
+                let (task_id, shared_value) = unsafe { bucket.as_ref() };
+                if !task_id.is_transient() && shared_value.get().gc_maybe_collectible() {
+                    candidates.push(*task_id);
+                }
+            }
+            candidates
+        });
+        per_shard.into_iter().flatten().collect()
+    }
+
     /// Removes a task entry from the map entirely. Used by GC after a garbage task's edges have
     /// been scrubbed. Returns the removed storage (dropped by the caller), or `None` if it was
     /// already gone.

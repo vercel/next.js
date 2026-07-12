@@ -1461,16 +1461,14 @@ impl AggregationUpdateQueue {
                     // snapshot captures it mid-flight and it replays to completion on restart,
                     // keeping the count crash-consistent.
                     //
-                    // When a count reaches 0 the task has no persistent parent and becomes a GC
-                    // candidate. We only *note* candidacy here (a cheap side-set write) — the
-                    // actual teardown/removal cannot run in this concurrently-executing operation
-                    // (it would race a concurrent re-connect and cross-task edge scrub). It runs
-                    // later under the GC phase's exclusion, which re-validates candidacy.
-                    ctx.for_each_task_meta(task_ids, "AdjustTransientRefCount", |mut task, ctx| {
-                        let new_count = task.update_and_get_parent_count(delta);
-                        if new_count == 0 {
-                            ctx.add_gc_candidate(task.id());
-                        }
+                    // A count reaching 0 means the task has no persistent parent and may be
+                    // collectible — but we don't record it anywhere: the GC pass finds collectible
+                    // tasks by scanning the resident map (see `gc_collect`), deriving
+                    // collectibility from the durable `parent_count` directly
+                    // rather than a side-set that would have to be kept in sync
+                    // and persisted across sessions.
+                    ctx.for_each_task_meta(task_ids, "AdjustParentCount", |mut task, _ctx| {
+                        task.update_and_get_parent_count(delta);
                     });
                 }
                 AggregationUpdateJob::AdjustTransientRefCount { task_ids, delta } => {

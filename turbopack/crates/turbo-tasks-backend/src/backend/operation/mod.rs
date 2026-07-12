@@ -94,10 +94,6 @@ pub trait ExecuteContext<'e>: Sized {
         T: Clone + Into<AnyOperation>;
     fn should_track_dependencies(&self) -> bool;
     fn should_track_activeness(&self) -> bool;
-    /// Record that `task_id`'s persistent `parent_count` reached 0, making it a garbage-collection
-    /// candidate. This only notes candidacy (a cheap side-set write); the actual teardown/removal
-    /// happens later under the GC phase's exclusion, where candidacy is re-validated.
-    fn add_gc_candidate(&self, task_id: TaskId);
     fn turbo_tasks(&self) -> Arc<dyn TurboTasksCallApi>;
     /// Look up a TaskId from the backing storage for a given task type.
     ///
@@ -992,10 +988,6 @@ impl<'e> ExecuteContext<'e> for ExecuteContextImpl<'e> {
         self.backend.should_track_activeness()
     }
 
-    fn add_gc_candidate(&self, task_id: TaskId) {
-        self.backend.add_gc_candidate(task_id);
-    }
-
     fn turbo_tasks(&self) -> Arc<dyn TurboTasksCallApi> {
         self.turbo_tasks.pin()
     }
@@ -1145,11 +1137,7 @@ pub trait TaskGuard: Debug + TaskStorageAccessors {
         let new_value = current
             .checked_add_signed(delta)
             .expect("parent_count underflow: decremented below the number of persistent parents");
-        if new_value == 0 {
-            self.take_parent_count();
-        } else {
-            self.set_parent_count(new_value);
-        }
+        self.set_parent_count(new_value);
         new_value
     }
 
@@ -1160,32 +1148,27 @@ pub trait TaskGuard: Debug + TaskStorageAccessors {
         let new_value = current
             .checked_add_signed(delta)
             .expect("transient_ref_count underflow");
-        if new_value == 0 {
-            self.take_transient_ref_count();
-        } else {
-            self.set_transient_ref_count(new_value);
-        }
+        self.set_transient_ref_count(new_value);
         new_value
     }
 
     /// Whether a GC pass may collect this task: it is non-transient, has no persistent or transient
     /// parents, is quiescent (not active, not in progress), and holds no aggregation edges
     /// (`upper`/`followers`).
+    ///
+    /// The storage-only checks live in [`TaskStorage::gc_maybe_collectible`] so GC's resident-map
+    /// scan can reuse them without a guard; this authoritative form adds the transient-*id* check
+    /// and enforces Meta-restoration (`check_access`) — the storage fields it reads are lazy
+    /// Meta fields that read as absent (0/empty) when Meta was evicted, so a task with evicted
+    /// Meta must not be judged collectible from stale absence. GC always opens the task with
+    /// `All` before calling this, so the check passes.
     fn is_gc_collectible(&self) -> bool {
         // Transient-ness is a property of the id, not the storage; transient tasks are never
         // collected.
-        !self.id().is_transient()
-        // The main check
-        && self.get_parent_count().copied().unwrap_or(0) == 0
-        && self.get_transient_ref_count().copied().unwrap_or(0) == 0
-        // GC root: active (a root/once task, positive active counter, or active-until-clean) or
-        // in progress (about to connect children).
-        && self.get_activeness().is_none()
-        && self.get_in_progress().is_none()
-        // The aggregation-edges check is conservative: a disconnected task is typically removed
-        // from the aggregation graph, but this may take a while and race with GC, so just back off.
-        && self.iter_upper().next().is_none()
-        && self.iter_followers().next().is_none()
+        !self.id().is_transient() && {
+            self.check_access(crate::backend::storage::SpecificTaskDataCategory::Meta);
+            self.typed().gc_maybe_collectible()
+        }
     }
 
     fn invalidate_serialization(&mut self);

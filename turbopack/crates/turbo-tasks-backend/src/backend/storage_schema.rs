@@ -886,6 +886,35 @@ impl TaskStorage {
         self.get_transient_ref_count().copied().unwrap_or(0)
     }
 
+    /// The storage-only part of GC collectibility: `Meta` is resident, no persistent or transient
+    /// parents, quiescent (not active, not in progress), and no aggregation edges
+    /// (`upper`/`followers`). Does NOT include the transient-*id* check (a `TaskStorage` has no id)
+    /// — the caller must also confirm `!task_id.is_transient()`. [`TaskGuard::is_gc_collectible`]
+    /// is the authoritative predicate; it adds the id check and delegates here. GC uses this
+    /// bare form to cheaply pre-filter the resident map (see `gc_collect`) without opening a
+    /// guard per task.
+    ///
+    /// **The `is_restored(Meta)` gate is load-bearing.** `parent_count` and the aggregation-edge
+    /// fields are Meta-category, so a task whose `Meta` has been evicted (`drop_partial`) reads
+    /// them as their defaults — `parent_count == 0`, empty `upper`/`followers` — which would
+    /// look collectible even though the task's *persisted* Meta may say otherwise (a nonzero
+    /// parent count, live edges). This raw predicate has no guard to restore Meta from disk, so
+    /// it must refuse to judge an unrestored task and leave it for a pass after it is next
+    /// restored. (`is_gc_collectible` reaches here through a restoring `ctx.task(.., All)`
+    /// guard, so the gate is trivially satisfied on that path.)
+    ///
+    /// The aggregation-edges check is conservative: a disconnected task is typically removed from
+    /// the aggregation graph, but that can lag and race GC, so we back off rather than collect.
+    pub fn gc_maybe_collectible(&self) -> bool {
+        self.flags.is_restored(TaskDataCategory::Meta)
+            && self.gc_parent_count() == 0
+            && self.gc_transient_ref_count() == 0
+            && self.get_activeness().is_none()
+            && self.get_in_progress().is_none()
+            && self.upper().is_empty()
+            && self.followers().is_none_or(|f| f.is_empty())
+    }
+
     /// Increments the transient reference count (a pin / detached-handle / transient-parent edge)
     /// and returns the new value. `transient_ref_count` is a transient field, so no modification
     /// tracking is needed.

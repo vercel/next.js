@@ -214,13 +214,6 @@ pub struct TurboTasksBackend {
     /// `stop_and_wait`).
     snapshot_in_progress: Mutex<()>,
 
-    /// Tasks observed reaching `parent_count == 0` (no persistent parent) during operation
-    /// execution — candidates for garbage collection. Populated cheaply (a side-set write) in the
-    /// `AdjustParentCount` handler; the actual teardown/removal happens later under the GC phase's
-    /// exclusion (see `gc_collect`), where candidacy is re-validated (a concurrent re-connect may
-    /// have revived the task). Never collected directly from here.
-    gc_candidates: Mutex<FxHashSet<TaskId>>,
-
     stopping: AtomicBool,
     stopping_event: Event,
     idle_start_event: Event,
@@ -269,7 +262,6 @@ impl TurboTasksBackend {
             storage: Storage::new(shard_amount, small_preallocation),
             snapshot_coord: SnapshotCoordinator::new(),
             snapshot_in_progress: Mutex::new(()),
-            gc_candidates: Mutex::new(FxHashSet::default()),
             stopping: AtomicBool::new(false),
             stopping_event: Event::new(|| || "TurboTasksBackend::stopping_event".to_string()),
             idle_start_event: Event::new(|| || "TurboTasksBackend::idle_start_event".to_string()),

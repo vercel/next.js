@@ -9,9 +9,9 @@
 //!
 //! This module holds the GC-specific logic (the job types, the pool driver, per-job teardown, and
 //! the pin/unpin bookkeeping) as an `impl TurboTasksBackend`; it is a child of the `backend` module
-//! so it reaches the backend's private state (`gc_candidates`, `storage`, `snapshot_coord`) and the
-//! GC-only `execute_context_gc` directly. Callers (`snapshot_and_persist`, `stop`, the background
-//! job loop, the `Backend` trait's `pin_task_for_gc`/`unpin_task_for_gc`) live in `mod.rs`.
+//! so it reaches the backend's private state (`storage`, `snapshot_coord`) and the GC-only
+//! `execute_context_gc` directly. Callers (`snapshot_and_persist`, `stop`, the background job loop,
+//! the `Backend` trait's `pin_task_for_gc`/`unpin_task_for_gc`) live in `mod.rs`.
 
 use std::sync::{
     LazyLock,
@@ -129,23 +129,12 @@ impl TurboTasksBackend {
         ExecuteContextImpl::new_for_gc(self, turbo_tasks)
     }
 
-    /// Records `task_id` as a garbage-collection candidate (its persistent `parent_count` reached
-    /// 0). Only non-transient tasks are tracked — transient tasks are never collected. Candidacy is
-    /// re-validated under exclusion before the task is actually collected, so a false positive here
-    /// (e.g. the count is bumped back up by a concurrent re-connect) is harmless.
-    pub(crate) fn add_gc_candidate(&self, task_id: TaskId) {
-        if task_id.is_transient() {
-            return;
-        }
-        self.gc_candidates.lock().insert(task_id);
-    }
-
-    /// Runs a garbage-collection pass under the coordinator's GC phase. Drains the candidate set
-    /// (tasks observed reaching `parent_count == 0`), re-validates each under the exclusion, and
-    /// tears down the ones that are still collectible: scrubbing their reverse-dependency edges,
-    /// decrementing their children's `parent_count` (cascading to any child that reaches 0),
-    /// removing them from the in-memory map + task_cache, and buffering an on-disk tombstone for
-    /// the next persistence commit.
+    /// Runs a garbage-collection pass under the coordinator's GC phase. Scans the resident map for
+    /// collectible tasks (no persistent parent, quiescent, no aggregation edges), re-validates each
+    /// under the exclusion, and tears down the ones that are still collectible: scrubbing their
+    /// reverse-dependency edges, decrementing their children's `parent_count` (cascading to any
+    /// child that reaches 0), removing them from the in-memory map + task_cache, and buffering an
+    /// on-disk tombstone for the next persistence commit.
     ///
     /// The pass is fully parallel and self-feeding via [`scope_self_feeding`]: work is a pool of
     /// [`GcJob`]s (collect a task; decrement a chunk of children; scrub a chunk of reverse-dep
@@ -185,37 +174,43 @@ impl TurboTasksBackend {
         &self,
         turbo_tasks: &TurboTasks<TurboTasksBackend>,
     ) -> (usize, Vec<TaskDeletion>) {
-        // Seed the pool from the candidates observed since the last pass. Re-validation happens per
-        // task in `Collect` (a candidate may have been revived by a concurrent re-connect before
-        // the GC phase was acquired).
+        // Seed the pool by scanning the resident map for tasks that pass the cheap
+        // `gc_maybe_collectible` pre-filter (a handful of field reads per task under a shard read
+        // lock — the same shape as the eviction scan, which proved this is fast). We scan rather
+        // than maintain an incremental candidate set: correctness derives entirely from each task's
+        // durable `parent_count`, so there's nothing to persist across sessions and nothing to keep
+        // in sync (a scan can't miss a task the way a hand-maintained side-set could). `Collect`
+        // re-validates each candidate authoritatively under a guard. The scan only sees resident
+        // tasks; disk-only garbage is collected after it is next restored.
+        //
+        // TODO(perf): recycle the task ids of collected tasks. `persisted_task_id_factory`
+        // (`IdFactoryWithReuse`) can hand out freed ids, and the persisted `next_free_task_id`
+        // high-water mark only grows today, so the id space grows unboundedly across churn even
+        // though the task set stays flat. Reuse must happen only AFTER the `save_snapshot` that
+        // tombstoned the id has committed (a crash before commit leaves the task on disk — reusing
+        // its id would alias it), and must be guarded against resurrection: between removal and
+        // commit a `get_or_create_task` for the same type could re-mint the id, and the id must not
+        // be handed out while any live `OperationVc`/`DetachedVc` still references it. Feed the
+        // recycled ids into `persisted_task_id_factory` so the high-water mark can stop growing.
         let seeds: Vec<GcJob> = self
-            .gc_candidates
-            .lock()
-            .drain()
+            .storage
+            .gc_collectible_candidates()
+            .into_iter()
             .map(GcJob::Collect)
             .collect();
         if seeds.is_empty() {
             return (0, Vec::new());
         }
 
-        // Shared accumulators. Touched only on the (comparatively rare) collect/retain outcomes,
-        // not on every decrement or scrub, so the mutexes are not a hot path.
+        // Shared accumulators. Touched only on the (comparatively rare) collect outcome, not on
+        // every decrement or scrub, so the mutex/atomic are not a hot path.
         let deletions = Mutex::new(Vec::new());
         let collected = AtomicUsize::new(0);
-        // Candidates that are still parentless but not *yet* collectible (e.g. residual transient
-        // activeness) are re-retained for a later pass.
-        let retain = Mutex::new(Vec::new());
 
         scope_self_feeding(seeds, |spawner, job| {
-            self.gc_run_job(job, spawner, turbo_tasks, &deletions, &collected, &retain);
+            self.gc_run_job(job, spawner, turbo_tasks, &deletions, &collected);
         });
 
-        // Re-queue candidates that were still parentless but not collectible this pass, so a later
-        // pass retries once their transient activeness clears.
-        let retain = retain.into_inner();
-        if !retain.is_empty() {
-            self.gc_candidates.lock().extend(retain);
-        }
         (collected.into_inner(), deletions.into_inner())
     }
 
@@ -229,42 +224,44 @@ impl TurboTasksBackend {
         turbo_tasks: &TurboTasks<TurboTasksBackend>,
         deletions: &Mutex<Vec<TaskDeletion>>,
         collected: &AtomicUsize,
-        retain: &Mutex<Vec<TaskId>>,
     ) {
         match job {
             GcJob::Collect(task_id) => {
-                // Transient-ness is a property of the id, not the storage — check it before
-                // touching the map (transient tasks are never collected).
-                if task_id.is_transient() {
-                    return;
-                }
                 let mut ctx = self.execute_context_gc(turbo_tasks);
 
-                // Single access: decide collectibility and, if collectible, capture the edges
-                // needed to tear the task down. Reading through the guard
-                // (`ctx.task(.., All)`, which restores the task if it was evicted)
-                // means `is_gc_collectible`'s Meta reads go through `check_access`,
-                // so the "Meta restored" precondition is enforced by the
-                // standard guard machinery rather than a hand-rolled `is_restored` check.
-                let plan = {
-                    let task = ctx.task(task_id, TaskDataCategory::All);
-                    if !task.is_gc_collectible() {
-                        // Not collectible: keep retrying only while it is still parentless;
-                        // otherwise a concurrent re-connect revived it and it is no longer garbage.
-                        if task.get_parent_count().copied().unwrap_or(0) == 0 {
-                            retain.lock().push(task_id);
-                        }
-                        return;
-                    }
-                    GcDeletePlan {
-                        children: task.iter_children().collect(),
-                        output_deps: task.iter_output_dependencies().collect(),
-                        cell_deps: task.iter_cell_dependencies().collect(),
-                        cell_deps_hashed: task.iter_cell_dependencies_hashed().collect(),
-                        collectibles_deps: task.iter_collectibles_dependencies().collect(),
-                        persistent_task_type: task.get_persistent_task_type().cloned(),
-                    }
+                // A `Collect` is only ever created for a task that is already collectible, and
+                // nothing can invalidate that before it runs, so this is an asserted invariant, not
+                // a filter:
+                // - seed collects come from the scan, which only matches Meta-resident tasks
+                //   passing `gc_maybe_collectible` (the Meta-resident gate is what makes the raw
+                //   scan agree with the guarded predicate — an evicted-Meta task reads its fields
+                //   as defaults);
+                // - cascade collects are spawned by `Decrement` only after it confirms
+                //   `is_gc_collectible` under the child's guard.
+                // The GC phase holds throughout the pass: no operation can re-connect or pin the
+                // task (both take an operation guard, excluded here), no other GC job touches a
+                // now-parentless task, and eviction runs only after the pass — so a task's
+                // collectibility (and Meta residency) cannot change between spawn and here.
+                //
+                // `All` restores Data so the plan below can read the Data-category dep sets.
+                let task = ctx.task(task_id, TaskDataCategory::All);
+                debug_assert!(
+                    task.is_gc_collectible(),
+                    "gc: Collect({task_id}) for a non-collectible task — the seed scan's \
+                     Meta-resident `gc_maybe_collectible` filter and Decrement's pre-spawn check \
+                     should guarantee collectibility under the GC phase"
+                );
+                // Snapshot the edges into owned buffers, then drop the guard before the teardown
+                // opens the target tasks' guards.
+                let plan = GcDeletePlan {
+                    children: task.iter_children().collect(),
+                    output_deps: task.iter_output_dependencies().collect(),
+                    cell_deps: task.iter_cell_dependencies().collect(),
+                    cell_deps_hashed: task.iter_cell_dependencies_hashed().collect(),
+                    collectibles_deps: task.iter_collectibles_dependencies().collect(),
+                    persistent_task_type: task.get_persistent_task_type().cloned(),
                 };
+                drop(task);
 
                 let deletion = self.gc_remove_task(task_id, &plan, &mut ctx);
                 deletions.lock().push(deletion);
@@ -305,16 +302,26 @@ impl TurboTasksBackend {
             GcJob::Decrement(children) => {
                 let mut ctx = self.execute_context_gc(turbo_tasks);
                 for child in children {
-                    // Transient children are never collected and carry no persistent parent_count.
+                    // A collected task's `children` set (unfiltered `iter_children`) can include
+                    // transient children, which carry no persistent `parent_count` — skip them.
                     if child.is_transient() {
                         continue;
                     }
                     let mut child_task = ctx.task(child, TaskDataCategory::Meta);
                     let new_count = child_task.update_and_get_parent_count(-1);
+                    // Only spawn a `Collect` for a child that is *actually* collectible now, not
+                    // merely at `parent_count == 0`: a count-0 task can still be pinned, in
+                    // progress, a root, or hold aggregation edges. Checking
+                    // here (under the child's guard we already hold) is what
+                    // lets `Collect` treat its input as guaranteed-collectible.
+                    // Exactly one decrementer observes the RMW hit 0 (entry lock), so at most one
+                    // `Collect` is spawned per child; and under the GC phase nothing can make the
+                    // child non-collectible between here and the `Collect` running (no operation
+                    // can re-connect or pin it, and no other GC job touches a
+                    // now-parentless task).
+                    let collectible = new_count == 0 && child_task.is_gc_collectible();
                     drop(child_task);
-                    // Exactly one decrementer sees 0 (RMW under the entry lock), so `child` is
-                    // spawned as a collect target exactly once.
-                    if new_count == 0 {
+                    if collectible {
                         spawner.spawn(GcJob::Collect(child));
                     }
                 }
