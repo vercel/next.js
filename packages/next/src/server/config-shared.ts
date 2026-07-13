@@ -806,6 +806,19 @@ export interface ExperimentalConfig {
    */
   turbopackChunking?: {
     /**
+     * Groups of pages commonly visited together, each defined by a list of regular
+     * expressions matched against the route pathname.
+     *
+     * @example
+     * ```js
+     * clusters: [
+     *   [/^\/dashboard/, /^\/dashboard\/settings/],
+     *   [/^\/blog/, /^\/blog\/[^/]+$/],
+     * ]
+     * ```
+     */
+    clusters?: RegExp[][]
+    /**
      * This is a number between `0..1`, when higher, we weight the benefits of
      * merging chunks for a signal page load higher. If you don't know a good
      * number for this, your bounce rate is a good approximate for this value.
