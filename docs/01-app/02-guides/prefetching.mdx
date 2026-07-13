@@ -205,13 +205,15 @@ Next.js maintains a small task queue, which prefetches in the following order:
 
 The scheduler prioritizes likely navigations while minimizing unused downloads.
 
-### Partial Prerendering (PPR)
+### Cache Components
 
-When PPR is enabled, a page is divided into a [static shell](/docs/app/guides/streaming#the-static-shell) and a streamed dynamic section:
+With [Cache Components](/docs/app/getting-started/caching) enabled, the prefetching strategy uses an [App Shell](/docs/app/glossary#app-shell) to make client navigations instant:
 
-- The shell, which can be prefetched, streams immediately
-- Uncached data streams when ready
-- Data invalidations (`revalidateTag`, `revalidatePath`) silently refresh associated prefetches
+- The App Shell holds the route's static and session output.
+- Uncached data streams in when ready.
+- Data invalidations (`revalidateTag`, `revalidatePath`) silently refresh associated prefetches.
+
+A link can also resolve its URL data (`searchParams`, `params`) at prefetch time. See [Runtime prefetching](/docs/app/guides/runtime-prefetching).
 
 ## Troubleshooting
 

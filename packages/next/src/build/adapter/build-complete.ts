@@ -776,6 +776,8 @@ export async function handleBuildComplete({
 
       const rscFallbackPath = path.join(distDir, 'server', 'rsc-fallback.json')
 
+      const emittedStaticFilePathnames = new Set<string>()
+
       if (appPageKeys && appPageKeys.length > 0 && pageKeys.length > 0) {
         await fs.writeFile(rscFallbackPath, '{}')
       }
@@ -812,6 +814,7 @@ export async function handleBuildComplete({
               } satisfies AdapterOutput['STATIC_FILE']
 
               outputs.staticFiles.push(localeOutput)
+              emittedStaticFilePathnames.add(localeOutput.pathname)
 
               if (appPageKeys && appPageKeys.length > 0) {
                 outputs.staticFiles.push({
@@ -833,6 +836,7 @@ export async function handleBuildComplete({
             } satisfies AdapterOutput['STATIC_FILE']
 
             outputs.staticFiles.push(staticOutput)
+            emittedStaticFilePathnames.add(staticOutput.pathname)
 
             if (appPageKeys && appPageKeys.length > 0) {
               outputs.staticFiles.push({
@@ -844,8 +848,12 @@ export async function handleBuildComplete({
               })
             }
           }
-          // if was a static file output don't create page output as well
-          continue
+          if (page !== '/404') {
+            // If it was a static file output don't create page output as well.
+            // However, don't skip the 404 output to be able to add it to other Pages routes so that
+            // they can render 404s at runtime.
+            continue
+          }
         }
 
         const { assets, assetsHashes } = await handleTraceFiles(
@@ -1826,10 +1834,16 @@ export async function handleBuildComplete({
         if (!prerenderManifest.routes[errorDocPath]) {
           for (const currentDocPath of [
             errorDocPath,
-            ...(config.i18n?.locales?.map((locale) =>
-              path.posix.join('/', locale, errorDoc)
-            ) || []),
+            ...(config.i18n?.locales
+              ?.filter((locale) => locale !== config.i18n?.defaultLocale)
+              .map((locale) => path.posix.join('/', locale, errorDoc)) || []),
           ]) {
+            // skip if this static file was already emitted for an
+            // auto-static-optimized page above to avoid duplicate entries
+            if (emittedStaticFilePathnames.has(currentDocPath)) {
+              continue
+            }
+
             const currentFilePath = path.join(
               pagesDistDir,
               `${currentDocPath}.html`
