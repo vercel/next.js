@@ -500,6 +500,7 @@ impl ModuleOptions {
                                     rule.rename_as.clone(),
                                     resolve_options_context,
                                     matches!(ecmascript_source_maps, SourceMapsType::Full),
+                                    config_tracing_module_context(*execution_context),
                                 )
                                 .to_resolved()
                                 .await?,

@@ -70,7 +70,7 @@ use turbopack_static::{css::StaticUrlCssModule, ecma::StaticUrlJsModule};
 use turbopack_wasm::{module_asset::WebAssemblyModuleAsset, source::WebAssemblySource};
 
 use crate::{
-    evaluate_context::node_evaluate_asset_context,
+    evaluate_context::{config_tracing_module_context, node_evaluate_asset_context},
     module_options::{
         CssOptionsContext, CustomModuleType, EcmascriptOptionsContext, TypescriptTransformOptions,
         package_import_map_from_context, package_import_map_from_import_mapping,
@@ -732,6 +732,7 @@ async fn process_default_internal(
             rename_as.clone(),
             *resolve_options_context,
             source_maps,
+            config_tracing_module_context(*execution_context),
         )
         .to_resolved()
         .await?;
