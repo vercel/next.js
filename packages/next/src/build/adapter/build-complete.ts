@@ -2086,27 +2086,29 @@ export async function handleBuildComplete({
         buildRouteFromHeader(route)
       )
 
-      function validate(o: SharedRouteFields[]) {
-        for (const output of o) {
-          if (output.runtime === 'edge') continue
+      if (bundler === Bundler.Turbopack) {
+        function validate(o: SharedRouteFields[]) {
+          for (const output of o) {
+            if (output.runtime === 'edge') continue
 
-          let assets = new Set(Object.keys(output.assets))
-          let hashes = new Set(Object.keys(output.assetsHashes))
-          for (const v of assets) {
-            if (!hashes.has(v)) {
-              throw new Error(
-                `Missing hash for asset ${v} in output ${output.pathname}`
-              )
+            let assets = new Set(Object.keys(output.assets))
+            let hashes = new Set(Object.keys(output.assetsHashes))
+            for (const v of assets) {
+              if (!hashes.has(v)) {
+                throw new Error(
+                  `Missing hash for asset ${v} in output ${output.pathname}`
+                )
+              }
             }
           }
         }
-      }
 
-      validate(outputs.appPages)
-      validate(outputs.appRoutes)
-      validate(outputs.pages)
-      validate(outputs.pagesApi)
-      if (outputs.middleware) validate([outputs.middleware])
+        validate(outputs.appPages)
+        validate(outputs.appRoutes)
+        validate(outputs.pages)
+        validate(outputs.pagesApi)
+        if (outputs.middleware) validate([outputs.middleware])
+      }
 
       await adapterMod.onBuildComplete({
         routing: {
