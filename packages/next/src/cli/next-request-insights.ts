@@ -163,11 +163,24 @@ function isRequestInsight(request: unknown): request is RequestInsight {
 }
 
 function normalizeDevServerUrl(value: string): URL {
+  const normalizedValue = value.includes('://') ? value : `http://${value}`
+  let url: URL
+
   try {
-    return new URL(value)
+    url = new URL(normalizedValue)
   } catch {
-    return new URL(`http://${value}`)
+    return exitWithError(
+      `Invalid dev server URL "${value}". Pass a valid HTTP or HTTPS URL.`
+    )
   }
+
+  if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+    return exitWithError(
+      `Invalid dev server URL "${value}". Pass a valid HTTP or HTTPS URL.`
+    )
+  }
+
+  return url
 }
 
 function formatDuration(durationMs: number | undefined): string {

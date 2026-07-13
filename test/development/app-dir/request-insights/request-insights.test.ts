@@ -100,6 +100,22 @@ describe('request insights', () => {
     expect(result.stdout).not.toContain('https://example.com/fetch-5')
   })
 
+  it.each(['https://[', 'ftp://localhost:3000'])(
+    'rejects invalid dev server URL %s',
+    async (url) => {
+      const result = await next.runCommand([
+        'experimental-request-insights',
+        '--url',
+        url,
+      ])
+
+      expect(result.code).toBe(1)
+      expect(result.stderr).toContain(
+        `Invalid dev server URL "${url}". Pass a valid HTTP or HTTPS URL.`
+      )
+    }
+  )
+
   it.each([
     { body: { requests: null }, args: ['--json'] },
     { body: { requests: [{ fetches: null }] }, args: [] },
