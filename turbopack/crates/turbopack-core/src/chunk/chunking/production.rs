@@ -234,14 +234,15 @@ pub async fn make_production_chunks(
                     .min(1_000_000) as i64;
 
                 // Default `P(N = 1)`: the probability that we request exactly 1 chunk group.
-                // An integer percentage (0..=100). `firstPageLoadPriority` maps directly to
-                // it; the default is 67 (~2/3).
-                let default_p1 = first_page_load_priority.map_or(67, |percent| percent as i64);
+                // `firstPageLoadPriority` (a config percentage) maps to it; the default is 0.67
+                // (~2/3).
+                let default_p1 =
+                    first_page_load_priority.map_or(0.67, |percent| percent as f64 / 100.0);
 
-                // `priorityBoost` as an integer percentage to multiply `P(N = 1)` by for priority
-                // routes; the default is 150 (a 1.5x boost).
-                let priority_boost_percent =
-                    priority_boost_percent.map_or(150, |percent| percent as i64);
+                // `priorityBoost` multiplier applied to `P(N = 1)` for priority routes; the default
+                // is 1.5 (a 1.5x boost).
+                let priority_boost =
+                    priority_boost_percent.map_or(1.5, |percent| percent as f64 / 100.0);
 
                 let mut iterations = 0;
                 while chunks_to_merge.len() > 1 {
@@ -476,27 +477,36 @@ pub async fn make_production_chunks(
                             }
 
                             let p1 = if is_priority_route {
-                                ((default_p1 * priority_boost_percent) / 100).min(100)
+                                (default_p1 * priority_boost).min(1.0)
                             } else {
                                 default_p1
                             };
+                            let p2 = 1.0 - p1;
 
-                            let p2 = 100 - p1;
+                            let c_req = c_req as f64;
+                            let o = o_groups as f64;
+                            let groups = groups as f64;
+                            let rem_g = rem_g as f64;
 
-                            // pre_dw = PROB_SCALE * d * (rem_g * groups) / o_groups
-                            let pre_dw = p1 * rem_g * c_req
-                                + p2 * ((o_groups - 1) * c_req
-                                    - 2 * (a_rem * a_size + b_rem * b_size));
+                            let d1 = o / groups * c_req;
+                            let d2 = o
+                                * ((o - 1.0) * c_req
+                                    - 2.0
+                                        * (a_rem as f64 * a_size as f64
+                                            + b_rem as f64 * b_size as f64))
+                                / (groups * rem_g);
+
+                            let value = p1 * d1 + p2 * d2;
                             // It need to have some runtime benefit of merging the chunks
-                            if pre_dw < 0 {
+                            if value < 0.0 {
                                 continue;
                             }
-                            let value = pre_dw * o_groups / (rem_g * groups);
 
                             if let Some((best_i1, best_i2, best_overlap, best_value)) =
                                 best_combination.as_mut()
                             {
-                                if (overlap.cmp(best_overlap)).then_with(|| value.cmp(best_value))
+                                if (overlap.cmp(best_overlap))
+                                    .then_with(|| value.total_cmp(best_value))
                                     == std::cmp::Ordering::Greater
                                 {
                                     *best_i1 = i;
