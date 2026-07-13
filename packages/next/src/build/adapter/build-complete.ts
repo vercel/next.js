@@ -848,8 +848,12 @@ export async function handleBuildComplete({
               })
             }
           }
-          // if was a static file output don't create page output as well
-          continue
+          if (page !== '/404') {
+            // If it was a static file output don't create page output as well.
+            // However, don't skip the 404 output to be able to add it to other Pages routes so that
+            // they can render 404s at runtime.
+            continue
+          }
         }
 
         const { assets, assetsHashes } = await handleTraceFiles(
