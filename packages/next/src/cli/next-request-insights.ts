@@ -28,7 +28,7 @@ export async function nextRequestInsights(
   directory?: string
 ) {
   const devServerUrl = options.url
-    ? normalizeDevServerUrl(options.url)
+    ? parseDevServerUrl(options.url)
     : await discoverDevServerUrl(directory)
   const endpoint = new URL(REQUEST_INSIGHTS_DEV_ENDPOINT, devServerUrl)
 
@@ -111,7 +111,7 @@ async function discoverDevServerUrl(directory?: string): Promise<URL> {
       : undefined
 
     if (serverInfo && typeof serverInfo.appUrl === 'string') {
-      return normalizeDevServerUrl(serverInfo.appUrl)
+      return parseDevServerUrl(serverInfo.appUrl)
     }
 
     await new Promise((resolve) =>
@@ -162,12 +162,11 @@ function isRequestInsight(request: unknown): request is RequestInsight {
   )
 }
 
-function normalizeDevServerUrl(value: string): URL {
-  const normalizedValue = value.includes('://') ? value : `http://${value}`
+function parseDevServerUrl(value: string): URL {
   let url: URL
 
   try {
-    url = new URL(normalizedValue)
+    url = new URL(value)
   } catch {
     return exitWithError(
       `Invalid dev server URL "${value}". Pass a valid HTTP or HTTPS URL.`

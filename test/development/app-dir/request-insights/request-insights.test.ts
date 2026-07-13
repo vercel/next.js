@@ -100,7 +100,7 @@ describe('request insights', () => {
     expect(result.stdout).not.toContain('https://example.com/fetch-5')
   })
 
-  it.each(['https://[', 'ftp://localhost:3000'])(
+  it.each(['localhost:3000', 'https://[', 'ftp://localhost:3000'])(
     'rejects invalid dev server URL %s',
     async (url) => {
       const result = await next.runCommand([

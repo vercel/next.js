@@ -622,7 +622,7 @@ program
   )
   .option(
     '--url <url>',
-    'Override automatic discovery with the URL of the running Next.js dev server.'
+    'Override automatic discovery with the complete HTTP(S) URL of the running Next.js dev server.'
   )
   .option('--json', 'Print raw request insight JSON.')
   .addOption(
