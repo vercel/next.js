@@ -49,6 +49,7 @@ import { ReactLoadablePlugin } from './webpack/plugins/react-loadable-plugin'
 import { WellKnownErrorsPlugin } from './webpack/plugins/wellknown-errors-plugin'
 import { regexLikeCss } from './webpack/config/blocks/css'
 import { CopyFilePlugin } from './webpack/plugins/copy-file-plugin'
+import { needsPolyfill } from './polyfills/needs-polyfill'
 import { ClientReferenceManifestPlugin } from './webpack/plugins/flight-manifest-plugin'
 import { FlightClientEntryPlugin as NextFlightClientEntryPlugin } from './webpack/plugins/flight-client-entry-plugin'
 import { RspackFlightClientEntryPlugin } from './webpack/plugins/rspack-flight-client-entry-plugin'
@@ -2173,7 +2174,24 @@ export default async function getBaseWebpackConfig(
         ? new RspackProfilingPlugin({ runWebpackSpan })
         : new ProfilingPlugin({ runWebpackSpan, rootDir: dir }),
       new WellKnownErrorsPlugin(),
+      // When the project's browserslist targets all support the polyfilled
+      // APIs natively, replace the polyfill module with an empty noop to
+      // save ~14 KiB from the client bundle and silence the Lighthouse
+      // "Legacy JavaScript" audit.
+      // See https://github.com/vercel/next.js/issues/86785
       isClient &&
+        supportedBrowsers &&
+        !needsPolyfill(supportedBrowsers) &&
+        new bundler.NormalModuleReplacementPlugin(
+          /[/\\]polyfill-module(?:\.js)?$/,
+          require.resolve('./polyfills/noop')
+        ),
+      // Skip the nomodule polyfill bundle when all target browsers
+      // support ES modules and the polyfilled APIs natively.
+      // The nomodule script is only loaded by browsers that don't
+      // support <script type="module"> (essentially IE 11).
+      isClient &&
+        (!supportedBrowsers || needsPolyfill(supportedBrowsers)) &&
         new CopyFilePlugin({
           // file path to build output of `@next/polyfill-nomodule`
           filePath: require.resolve('./polyfills/polyfill-nomodule'),
