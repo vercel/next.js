@@ -368,7 +368,7 @@ To organize routes without affecting the URL, create a group to keep related rou
   height="930"
 />
 
-Even though routes inside `(marketing)` and `(shop)` share the same URL hierarchy, you can create a different layout for each group by adding a `layout.js` file inside their folders. This `layout.js` nests inside the top-level `app/layout.js` like any other layout, it does not replace it. To remove the top-level layout entirely and give each group its own root layout instead, see [Creating multiple root layouts](#creating-multiple-root-layouts) below.
+Even though routes inside `(marketing)` and `(shop)` share the same URL hierarchy, you can create a different layout for each group by adding a `layout.js` file inside their folders. These layouts nest within the existing app layout.
 
 <Image
   alt="Route Groups with Multiple Layouts"
