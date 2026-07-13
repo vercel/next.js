@@ -39,66 +39,36 @@ describe('react-dom/server in React Server environment', () => {
     )
 
     await waitForNoRedbox(browser)
-    if (isTurbopack) {
-      expect(await browser.elementByCss('main').text()).toMatchInlineSnapshot(`
-        "{
-          "default": [
-            "renderToReadableStream",
-            "renderToStaticMarkup",
-            "renderToString",
-            "resume",
-            "version"
-          ],
-          "named": [
-            "default",
-            "renderToReadableStream",
-            "renderToStaticMarkup",
-            "renderToString",
-            "resume",
-            "version"
-          ]
-        }"
-      `)
-    } else {
-      expect(await browser.elementByCss('main').text()).toMatchInlineSnapshot(`
-        "{
-          "default": [
-            "renderToReadableStream",
-            "renderToStaticMarkup",
-            "renderToString",
-            "resume",
-            "version"
-          ],
-          "named": [
-            "default",
-            "renderToReadableStream",
-            "renderToStaticMarkup",
-            "renderToString",
-            "resume",
-            "version"
-          ]
-        }"
-      `)
-    }
+    expect(await browser.elementByCss('main').text()).toMatchInlineSnapshot(`
+      "{
+        "default": [
+          "renderToReadableStream",
+          "renderToStaticMarkup",
+          "renderToString",
+          "resume",
+          "version"
+        ],
+        "named": [
+          "default",
+          "renderToReadableStream",
+          "renderToStaticMarkup",
+          "renderToString",
+          "resume",
+          "version"
+        ]
+      }"
+    `)
+
     const redbox = {
       description: await getRedboxDescription(browser),
       source: await getRedboxSource(browser),
     }
-    if (isTurbopack) {
-      expect(redbox).toMatchInlineSnapshot(`
-        {
-          "description": null,
-          "source": null,
-        }
-      `)
-    } else {
-      expect(redbox).toMatchInlineSnapshot(`
-        {
-          "description": null,
-          "source": null,
-        }
-      `)
-    }
+    expect(redbox).toMatchInlineSnapshot(`
+      {
+        "description": null,
+        "source": null,
+      }
+    `)
   })
 
   it('explicit react-dom/server.edge usage in app code', async () => {
@@ -156,21 +126,12 @@ describe('react-dom/server in React Server environment', () => {
       description: await getRedboxDescription(browser),
       source: await getRedboxSource(browser),
     }
-    if (isTurbopack) {
-      expect(redbox).toMatchInlineSnapshot(`
-        {
-          "description": null,
-          "source": null,
-        }
-      `)
-    } else {
-      expect(redbox).toMatchInlineSnapshot(`
-        {
-          "description": null,
-          "source": null,
-        }
-      `)
-    }
+    expect(redbox).toMatchInlineSnapshot(`
+      {
+        "description": null,
+        "source": null,
+      }
+    `)
   })
 
   it('implicit react-dom/server.edge usage in app code', async () => {
@@ -510,21 +471,12 @@ describe('react-dom/server in React Server environment', () => {
       description: await getRedboxDescription(browser),
       source: await getRedboxSource(browser),
     }
-    if (isTurbopack) {
-      expect(redbox).toMatchInlineSnapshot(`
-        {
-          "description": null,
-          "source": null,
-        }
-      `)
-    } else {
-      expect(redbox).toMatchInlineSnapshot(`
-        {
-          "description": null,
-          "source": null,
-        }
-      `)
-    }
+    expect(redbox).toMatchInlineSnapshot(`
+      {
+        "description": null,
+        "source": null,
+      }
+    `)
   })
 
   it('implicit react-dom/server.edge usage in library code', async () => {
@@ -533,70 +485,38 @@ describe('react-dom/server in React Server environment', () => {
     )
 
     await waitForNoRedbox(browser)
-    if (isTurbopack) {
-      expect(await browser.elementByCss('main').text()).toMatchInlineSnapshot(`
-        "{
-          "default": {
-            "default": [
-              "renderToReadableStream",
-              "renderToStaticMarkup",
-              "renderToString",
-              "resume",
-              "version"
-            ],
-            "named": [
-              "default",
-              "renderToReadableStream",
-              "renderToStaticMarkup",
-              "renderToString",
-              "resume",
-              "version"
-            ]
-          }
-        }"
-      `)
-    } else {
-      expect(await browser.elementByCss('main').text()).toMatchInlineSnapshot(`
-        "{
-          "default": {
-            "default": [
-              "renderToReadableStream",
-              "renderToStaticMarkup",
-              "renderToString",
-              "resume",
-              "version"
-            ],
-            "named": [
-              "default",
-              "renderToReadableStream",
-              "renderToStaticMarkup",
-              "renderToString",
-              "resume",
-              "version"
-            ]
-          }
-        }"
-      `)
-    }
+    expect(await browser.elementByCss('main').text()).toMatchInlineSnapshot(`
+      "{
+        "default": {
+          "default": [
+            "renderToReadableStream",
+            "renderToStaticMarkup",
+            "renderToString",
+            "resume",
+            "version"
+          ],
+          "named": [
+            "default",
+            "renderToReadableStream",
+            "renderToStaticMarkup",
+            "renderToString",
+            "resume",
+            "version"
+          ]
+        }
+      }"
+    `)
+
     const redbox = {
       description: await getRedboxDescription(browser),
       source: await getRedboxSource(browser),
     }
-    if (isTurbopack) {
-      expect(redbox).toMatchInlineSnapshot(`
-        {
-          "description": null,
-          "source": null,
-        }
-      `)
-    } else {
-      expect(redbox).toMatchInlineSnapshot(`
-        {
-          "description": null,
-          "source": null,
-        }
-      `)
-    }
+    expect(redbox).toMatchInlineSnapshot(`
+      {
+        "description": null,
+        "source": null,
+      }
+    `)
   })
 
   it('explicit react-dom/server.node usage in library code', async () => {

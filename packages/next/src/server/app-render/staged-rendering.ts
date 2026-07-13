@@ -4,14 +4,10 @@ import { createPromiseWithResolvers } from '../../shared/lib/promise-with-resolv
 export enum RenderStage {
   Before = 1,
   //
-  ShellEarlyStatic = 10,
   ShellStatic = 11,
-  EarlyStatic = 12,
   Static = 13,
   //
-  ShellEarlyRuntime = 20,
   ShellRuntime = 21,
-  EarlyRuntime = 22,
   Runtime = 23,
   //
   Dynamic = 30,
@@ -25,20 +21,14 @@ export type AdvanceableRenderStage = Exclude<
 >
 
 export const RENDER_STAGE_ADVANCE_ORDER: AdvanceableRenderStage[] = [
-  RenderStage.ShellEarlyStatic,
   RenderStage.ShellStatic,
-  RenderStage.EarlyStatic,
   RenderStage.Static,
   //
-  RenderStage.ShellEarlyRuntime,
   RenderStage.ShellRuntime,
-  RenderStage.EarlyRuntime,
   RenderStage.Runtime,
   //
   RenderStage.Dynamic,
 ]
-
-export const FIRST_LATE_RENDER_STAGE = RenderStage.ShellStatic
 
 export function getNextStage(
   stage: Exclude<AdvanceableRenderStage, RenderStage.Dynamic>
@@ -54,37 +44,19 @@ export function isAdvanceableRenderStage(
   return RenderStage.Before < stage && stage <= RenderStage.Dynamic
 }
 
-export function isEarlyRenderStage(
-  stage: Exclude<RenderStage, RenderStage.Before>
-): boolean {
-  switch (stage) {
-    case RenderStage.ShellEarlyStatic:
-    case RenderStage.EarlyStatic:
-    case RenderStage.ShellEarlyRuntime:
-    case RenderStage.EarlyRuntime: {
-      return true
-    }
-    case RenderStage.ShellStatic:
-    case RenderStage.Static:
-    case RenderStage.ShellRuntime:
-    case RenderStage.Runtime: {
-      return false
-    }
-    case RenderStage.Dynamic:
-    case RenderStage.Abandoned: {
-      return false
-    }
-    default: {
-      stage satisfies never
-      throw new InvariantError(`Invalid render stage: ${stage}`)
-    }
-  }
+export enum SyncIOMode {
+  /** Sync IO does not error in any stage. */
+  Untracked = 1,
+  /** Before `partialPrefetching`: Sync IO errors in static stages, and is allowed otherwise. */
+  AllowedInRuntimeOrDynamic = 2,
+  /** After `partialPrefetching`: Sync IO errors in all stages other than dynamic. */
+  AllowedInDynamic = 3,
 }
 
 export class StagedRenderingController {
   private abortSignal: AbortSignal | null
   private abandonController: AbortController | null
-  private shouldTrackSyncIO: boolean
+  private syncIOMode: SyncIOMode
   public readonly finalStage: AdvanceableRenderStage | null
 
   currentStage: RenderStage = RenderStage.Before
@@ -92,14 +64,10 @@ export class StagedRenderingController {
   syncInterruptReason: Error | null = null
 
   triggers: Record<AdvanceableRenderStage, StageTrigger> = {
-    [RenderStage.ShellEarlyStatic]: createStageTrigger(),
     [RenderStage.ShellStatic]: createStageTrigger(),
-    [RenderStage.EarlyStatic]: createStageTrigger(),
     [RenderStage.Static]: createStageTrigger(),
     //
-    [RenderStage.ShellEarlyRuntime]: createStageTrigger(),
     [RenderStage.ShellRuntime]: createStageTrigger(),
-    [RenderStage.EarlyRuntime]: createStageTrigger(),
     [RenderStage.Runtime]: createStageTrigger(),
     //
     [RenderStage.Dynamic]: createStageTrigger(),
@@ -108,17 +76,17 @@ export class StagedRenderingController {
   constructor({
     abortSignal,
     abandonController,
-    shouldTrackSyncIO,
+    syncIO,
     finalStage,
   }: {
     abortSignal: AbortSignal | null
     abandonController: AbortController | null
-    shouldTrackSyncIO: boolean
+    syncIO: SyncIOMode
     finalStage: AdvanceableRenderStage | null
   }) {
     this.abortSignal = abortSignal
     this.abandonController = abandonController
-    this.shouldTrackSyncIO = shouldTrackSyncIO
+    this.syncIOMode = syncIO
     this.finalStage = finalStage
 
     if (abortSignal) {
@@ -152,7 +120,7 @@ export class StagedRenderingController {
   }
 
   shouldTrackSyncInterrupt(): boolean {
-    if (!this.shouldTrackSyncIO) {
+    if (this.syncIOMode === SyncIOMode.Untracked) {
       return false
     }
 
@@ -160,21 +128,22 @@ export class StagedRenderingController {
       case RenderStage.Before:
         // If we haven't started the render yet, it can't be interrupted.
         return false
-      case RenderStage.ShellEarlyStatic:
       case RenderStage.ShellStatic:
-      case RenderStage.EarlyStatic:
       case RenderStage.Static:
         return true
-      case RenderStage.ShellEarlyRuntime:
-      case RenderStage.EarlyRuntime:
-        // EarlyRuntime is for runtime-prefetchable segments. Sync IO
-        // should error because it would abort a runtime prefetch.
-        return true
       case RenderStage.ShellRuntime:
-      case RenderStage.Runtime:
-        // Runtime is for non-prefetchable segments. Sync IO is fine there
-        // because in practice this segment will never be runtime prefetched
-        return false
+      case RenderStage.Runtime: {
+        switch (this.syncIOMode) {
+          case SyncIOMode.AllowedInRuntimeOrDynamic: {
+            // Before `partialPrefetching`: Sync IO only errors in static stages.
+            return false
+          }
+          case SyncIOMode.AllowedInDynamic: {
+            return true
+          }
+        }
+        // NOT a fallthrough, but eslint doesn't understand that
+      }
       case RenderStage.Dynamic:
       case RenderStage.Abandoned:
         return false
