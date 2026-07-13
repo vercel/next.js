@@ -7,7 +7,7 @@ use std::{
 use anyhow::{Context, Result, anyhow};
 use futures_util::TryFutureExt;
 use napi::{
-    Env, Status, Unknown as JsUnknown,
+    Env, Status, Unknown,
     bindgen_prelude::{
         Buffer, External, ExternalRef, Function, FunctionRef, JsObjectValue, JsValue, Object,
         ToNapiValue,
@@ -412,7 +412,7 @@ impl<T: ToNapiValue> ToNapiValue for TurbopackResult<T> {
         let env_wrapper = Env::from_raw(env);
 
         let result_raw = unsafe { T::to_napi_value(env, val.result)? };
-        let result = unsafe { JsUnknown::from_raw_unchecked(env, result_raw) };
+        let result = unsafe { Unknown::from_raw_unchecked(env, result_raw) };
 
         // When the result is an object, extend it in place with the `issues`
         // property. Otherwise, produce a fresh object holding only `issues`.
@@ -435,11 +435,11 @@ pub fn subscribe<
 >(
     ctx: NextTurbopackContext,
     env: &Env,
-    func: &FunctionRef<JsUnknown<'static>, ()>,
+    func: &FunctionRef<V, ()>,
     handler: impl 'static + Sync + Send + Clone + Fn() -> F,
     mapper: impl 'static + Sync + Send + FnMut(ThreadsafeCallContext<T>) -> napi::Result<V>,
 ) -> napi::Result<External<RootTask>> {
-    let js_func: Function<'_, JsUnknown<'static>, ()> = func.borrow_back(env)?;
+    let js_func: Function<'_, V, ()> = func.borrow_back(env)?;
     let func: ThreadsafeFunction<T, (), V, Status, true> = js_func
         .build_threadsafe_function::<T>()
         .callee_handled::<true>()
