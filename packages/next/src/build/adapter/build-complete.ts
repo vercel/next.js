@@ -1046,7 +1046,8 @@ export async function handleBuildComplete({
               existingOutput.assetsHashes,
               path.relative(repoRoot, pageFile),
               pageFile,
-              bundler
+              bundler,
+              config.experimental.outputHashSalt || ''
             )
             continue
           }
@@ -2170,6 +2171,7 @@ async function getSharedNodeAssets({
   const pagesSharedNodeAssetsHashes: Record<string, string> = {}
   const appPagesSharedNodeAssets: Record<string, string> = {}
   const appPagesSharedNodeAssetsHashes: Record<string, string> = {}
+  const salt = config.experimental.outputHashSalt || ''
 
   const moduleTypes = ['app-page', 'pages'] as const
 
@@ -2201,7 +2203,8 @@ async function getSharedNodeAssets({
           pagesSharedNodeAssetsHashes,
           rootRelativeFilePath,
           path.join(repoRoot, rootRelativeFilePath),
-          bundler
+          bundler,
+          salt
         )
       } else {
         await pushAsset(
@@ -2209,7 +2212,8 @@ async function getSharedNodeAssets({
           appPagesSharedNodeAssetsHashes,
           rootRelativeFilePath,
           path.join(repoRoot, rootRelativeFilePath),
-          bundler
+          bundler,
+          salt
         )
       }
     }
@@ -2226,7 +2230,8 @@ async function getSharedNodeAssets({
     sharedNodeAssetsHashes,
     path.relative(repoRoot, setupNodeStubPath),
     require.resolve('next/dist/build/adapter/setup-node-env.external'),
-    bundler
+    bundler,
+    salt
   )
 
   // Turbopack handles this automatically and these files are listed in the nft.json files.
@@ -2315,7 +2320,8 @@ async function getSharedNodeAssets({
         sharedNodeAssetsHashes,
         path.relative(repoRoot, absoluteFilePath),
         absoluteFilePath,
-        bundler
+        bundler,
+        salt
       )
     }
   }
@@ -2338,6 +2344,7 @@ async function getSharedNodeAssets({
       fileOutputPath,
       path.join(distDir, 'server', 'instrumentation.js'),
       bundler,
+      salt,
       instrumentationEntryHash
     )
   }
@@ -2352,7 +2359,8 @@ async function getSharedNodeAssets({
       sharedNodeAssetsHashes,
       fileOutputPath,
       filePath,
-      bundler
+      bundler,
+      salt
     )
   }
 
@@ -2372,13 +2380,14 @@ async function pushAsset(
   targetFilePath: string,
   sourceFilePath: string,
   bundler: Bundler,
+  salt: string,
   hashOverride?: string
 ) {
   if (!(targetFilePath in assets)) {
     assets[targetFilePath] = sourceFilePath
     if (bundler === Bundler.Turbopack) {
       assetsHashes[targetFilePath] =
-        hashOverride ?? (await hashFile(sourceFilePath))
+        hashOverride ?? (await hashFile(salt, sourceFilePath))
     }
   }
 }
@@ -2411,8 +2420,9 @@ async function loadNFT(
   return { entryHash }
 }
 
-async function hashFile(filePath: string): Promise<string> {
+async function hashFile(salt: string, filePath: string): Promise<string> {
   const hash = crypto.createHash('sha256')
+  hash.update(salt)
   try {
     // Try symlink first, since readFile just transparently resolves those (or fails if it's a
     // directory symlink).
