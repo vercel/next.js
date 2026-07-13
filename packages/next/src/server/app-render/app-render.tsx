@@ -2707,6 +2707,8 @@ async function renderToHTMLOrFlightImpl(
   // is the request for the HTML document, so we use the request ID also as the
   // HTML request ID.
   htmlRequestId = parsedRequestHeaders.htmlRequestId || requestId
+  workStore.requestId = requestId
+  workStore.htmlRequestId = htmlRequestId
 
   const getDynamicParamFromSegment = makeGetDynamicParamFromSegment(
     interpolatedParams,
@@ -7376,6 +7378,8 @@ async function validateInstantConfigInBuildWithSample(
     isBuildTimePrerendering: false,
     fetchCache: outerWorkStore.fetchCache,
     isOnDemandRevalidate: false,
+    requestId: outerWorkStore.requestId,
+    htmlRequestId: outerWorkStore.htmlRequestId,
 
     isDraftMode: false,
 

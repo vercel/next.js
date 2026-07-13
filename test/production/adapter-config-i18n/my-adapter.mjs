@@ -3,7 +3,7 @@ import fs from 'fs/promises'
 // @ts-check
 /** @type {import('next').NextAdapter} */
 const adapter = {
-  name: 'i18n-api-test-adapter',
+  name: 'i18n-test-adapter',
   async onBuildComplete(ctx) {
     await fs.writeFile('build-complete.json', JSON.stringify(ctx, null, 2))
   },
