@@ -29,6 +29,7 @@ import { resetKnownRoutes } from './segment-cache/optimistic-routes'
 import { FreshnessPolicy } from './router-reducer/ppr-navigations'
 import { addBasePath } from '../add-base-path'
 import { isExternalURL } from './app-router-utils'
+import { createHrefFromUrl } from './router-reducer/create-href-from-url'
 import type {
   AppRouterInstance,
   NavigateOptions,
@@ -361,14 +362,20 @@ export function dispatchTraverseAction(
   href: string,
   historyState: AppHistoryState | undefined
 ) {
+  const url = new URL(href)
+  // A traversal has no caller-provided destination string (the popstate
+  // handler only has the absolute `location.href`), so report the canonical
+  // relative form — pathname + search + hash, the shape navigations
+  // conventionally receive — instead of leaking the absolute URL and making
+  // the hooks' `url` argument shape depend on the navigation type.
   const instrumentationTransition = startRouterTransition(
-    href,
+    createHrefFromUrl(url),
     'traverse',
     getCurrentAppRouterState()
   )
   dispatchAppRouterAction({
     type: ACTION_RESTORE,
-    url: new URL(href),
+    url,
     historyState,
     instrumentationTransition,
   })

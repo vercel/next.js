@@ -1,6 +1,12 @@
 'use client'
 
-import { createContext, useContext, useInsertionEffect, useRef } from 'react'
+import {
+  createContext,
+  useContext,
+  useInsertionEffect,
+  useLayoutEffect,
+  useRef,
+} from 'react'
 import {
   reportRouterTransitionEnd,
   type PendingRouterTransition,
@@ -11,13 +17,11 @@ import {
  * (`AppRouterState.instrumentationTransition`) to end markers. Provided by
  * AppRouter (only when the experimental lifecycle flag is on), so the value
  * is fixed during the render that produces each React commit. That
- * render-time binding is what makes attribution independent of effect
- * order: a marker mounting in the very commit that applies a navigation
- * read that navigation's transition when it rendered, whether its insertion
- * effect runs before or after HistoryUpdater's; and a marker revealed by
- * streamed content later attributes to whatever navigation's state was
- * current when React retried its Suspense boundary — the page the user is
- * actually on.
+ * render-time binding is what makes attribution exact: a marker mounting in
+ * the very commit that applies a navigation read that navigation's
+ * transition when it rendered, and a marker revealed by streamed content
+ * later attributes to whatever navigation's state was current when React
+ * retried its Suspense boundary — the page the user is actually on.
  */
 export const RouterTransitionEndContext =
   createContext<PendingRouterTransition | null>(null)
@@ -38,29 +42,49 @@ export const RouterTransitionEndContext =
  *
  *     import { unstable_RouterTransitionEndMarker as RouterTransitionEndMarker } from 'next/navigation'
  *
- * Reporting is once per navigation, on mount: whichever marker shows first
- * ends the transition, and additional markers (parallel routes, an
- * alternative marker inside `error.js`) are no-ops after it. A marker that
- * stays mounted across a navigation (e.g. in a shared layout) does not
+ * Reporting is once per navigation, when the marker shows: whichever marker
+ * shows first ends the transition, and additional markers (parallel routes,
+ * an alternative marker inside `error.js`) are no-ops after it. "Shows"
+ * means committed to the screen — a fresh mount, or an `<Activity>` reveal
+ * when the router re-shows a preserved page (cacheComponents keeps visited
+ * pages hidden in Activity boundaries, so a back/forward traversal reveals
+ * the same marker instance instead of mounting a new one). A marker that
+ * stays on screen across a navigation (e.g. in a shared layout) does not
  * re-report — nothing new was shown — which is why markers belong in
  * page-level content. Routes that render no marker simply produce no `end`
  * event.
  */
 function RouterTransitionEndMarker(): null {
   const transition = useContext(RouterTransitionEndContext)
-  // Reporting is keyed to this marker instance's mount: `transition` is in
-  // the effect's dependencies only because it is read inside, so the ref
-  // latch keeps the effect from re-reporting when a navigation swaps the
-  // context value under a still-mounted marker. (Cross-marker and
-  // StrictMode-replay dedupe live in the transition's own phase latch; this
-  // ref only pins "mount" semantics.)
-  const didReport = useRef(false)
+  // The reporting effect below deliberately has no dependencies, so it reads
+  // the transition through a ref kept current on every render — by the time
+  // any effect runs for a commit, the ref holds the transition of the router
+  // state that produced that commit.
+  const latestTransition = useRef(transition)
   useInsertionEffect(() => {
-    if (!didReport.current) {
-      didReport.current = true
-      reportRouterTransitionEnd(transition)
-    }
+    latestTransition.current = transition
   }, [transition])
+  // "Showing" is a layout effect on purpose, and with no dependencies on
+  // purpose:
+  //
+  // - Layout effects are disconnected when an <Activity> hides the marker's
+  //   page and reconnected when it is revealed, so the effect re-fires when a
+  //   traversal re-shows a preserved page — the reveal IS the page loading,
+  //   even though nothing remounted. (Insertion effects do not participate
+  //   in Activity's disconnect/reconnect cycle, so they would miss reveals.)
+  // - No dependencies means a navigation that merely swaps the context value
+  //   under a marker that stayed on screen does not re-fire the effect —
+  //   nothing new was shown. (Cross-marker, StrictMode-replay, and
+  //   reveal-of-an-already-ended-transition dedupe all live in the
+  //   transition's own phase latch.)
+  //
+  // Ordering: within a React commit, every insertion effect runs before any
+  // layout effect, so HistoryUpdater has already emitted `commit` for the
+  // state this marker rendered under — `end` is always reported after
+  // `commit`.
+  useLayoutEffect(() => {
+    reportRouterTransitionEnd(latestTransition.current)
+  }, [])
   return null
 }
 

@@ -456,6 +456,75 @@ describe('Instrumentation Client Hook', () => {
       expect(end.event.id).not.toBe(commits[0].event.id)
     })
 
+    it('reports end when a traversal re-shows a marked route, and none for an unmarked one', async () => {
+      const browser = await next.browser('/')
+      await browser.waitForIdleNetwork()
+
+      // Visit the marked page (end #1), then an unmarked page: two pushes.
+      await browser.elementByCss('a[href="/end-marker"]').click()
+      await browser.elementById('end-marker-page')
+      await retry(async () => {
+        const snapshot = await getTransitionEvents(browser)
+        expect(snapshot.filter((e) => e.phase === 'end')).toHaveLength(1)
+      })
+      await browser.elementByCss('a[href="/some-page"]').click()
+      await browser.elementById('some-page')
+      await waitForCommitCount(browser, 2)
+
+      // Traverse back to the marked page. Under cacheComponents the page was
+      // preserved in a hidden <Activity> boundary, so nothing remounts — the
+      // reveal itself must report the traversal's `end`. (Element waits can't
+      // fence this step: the hidden page's DOM is still attached, so the
+      // marker element is findable before the traversal commits.)
+      await browser.back()
+      const events = await retry(async () => {
+        const snapshot = await getTransitionEvents(browser)
+        expect(snapshot.filter((e) => e.phase === 'end')).toHaveLength(2)
+        return snapshot
+      })
+
+      const traverseCommit = lastCommit(events)
+      expect(traverseCommit.navigateType).toBe('traverse')
+      expect(traverseCommit.event.to.canonicalUrl).toBe('/end-marker')
+      const ends = events.filter((e) => e.phase === 'end')
+      // The traversal's own `end`, after its `commit` — not a late report
+      // against the push that first mounted the marker, and nothing for the
+      // unmarked page's push.
+      expect(ends[1].event.id).toBe(traverseCommit.event.id)
+      expect(events.indexOf(ends[1])).toBeGreaterThan(
+        events.indexOf(traverseCommit)
+      )
+      expect(ends[1].event.timestamp).toBeGreaterThanOrEqual(
+        traverseCommit.event.timestamp
+      )
+      const somePageCommit = events.filter((e) => e.phase === 'commit')[1]
+      expect(ends.some((e) => e.event.id === somePageCommit.event.id)).toBe(
+        false
+      )
+    })
+
+    it('reports the canonical relative URL on every navigation type, including traversals', async () => {
+      const browser = await next.browser('/')
+
+      await browser.elementByCss('a[href="/some-page"]').click()
+      await browser.elementById('some-page')
+      await waitForCommitCount(browser, 1)
+      await browser.back()
+      const events = await waitForCommitCount(browser, 2)
+
+      // The hooks' `url` argument is the canonical relative href for pushes
+      // and traversals alike: a traversal must not leak the absolute
+      // `location.href` the popstate handler works with.
+      const push = events.find((e) => e.phase === 'start')
+      expect(push.navigateType).toBe('push')
+      expect(push.rawUrl).toBe('/some-page')
+      const traverseEvents = events.filter((e) => e.navigateType === 'traverse')
+      expect(traverseEvents.length).toBeGreaterThanOrEqual(2)
+      for (const event of traverseEvents) {
+        expect(event.rawUrl).toBe('/')
+      }
+    })
+
     it('describes routes across group, dynamic, catch-all, rewritten, hash, query, and intercepted URLs', async () => {
       // One journey through every route-description shape the describe logic
       // handles; each leg waits for its commit and asserts on the newest

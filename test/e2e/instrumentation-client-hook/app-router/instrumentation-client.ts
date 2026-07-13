@@ -15,6 +15,9 @@ function record(
   ;(window as any).__ROUTER_TRANSITION_EVENTS.push({
     phase,
     url: new URL(href, window.location.href).pathname,
+    // The href argument exactly as the hook received it, for asserting the
+    // url shape contract (canonical relative form on every navigation type).
+    rawUrl: href,
     navigateType,
     event,
   })

@@ -60,10 +60,14 @@ export type PendingRouterTransition = {
   phase: 'pending' | 'committed' | 'ended'
   /**
    * Set when an `unstable_RouterTransitionEndMarker` showed before `commit`
-   * was emitted — its insertion effect ran in the same React commit that
-   * applies the navigation, possibly before HistoryUpdater's. The commit
-   * emission consumes it to report `end` right after `commit`, with the same
-   * timestamp: the marker and the navigation committed in the same instant.
+   * was emitted; the commit emission consumes it to report `end` right after
+   * `commit`, with the same timestamp. Defensive: the marker reports from a
+   * layout effect and HistoryUpdater emits `commit` from an insertion
+   * effect, and within a React commit every insertion effect runs before any
+   * layout effect — so under the current ordering this can never be set. It
+   * exists so a marker showing ahead of its commit degrades to a correctly
+   * ordered event pair instead of an `end` before its `commit` (or a lost
+   * `end`) if that ordering assumption is ever broken.
    */
   markerDidShow: boolean
   /**
@@ -462,10 +466,10 @@ function sweepReplacedRouterTransitions(): void {
  * re-renders of an already-committed state, and for derived states
  * (refreshes) that carry a transition another state already committed.
  *
- * If an `unstable_RouterTransitionEndMarker` showed inside this same React
- * commit — its insertion effect can run before HistoryUpdater's — `end` is
- * emitted here too, right after `commit`, so consumers always observe the
- * events in lifecycle order.
+ * If an `unstable_RouterTransitionEndMarker` somehow showed before this ran
+ * (`markerDidShow`, a defensive path — see its doc), `end` is emitted here
+ * too, right after `commit`, so consumers always observe the events in
+ * lifecycle order.
  */
 export function commitRouterTransition(state: AppRouterState): void {
   if (process.env.__NEXT_INSTRUMENTATION_CLIENT_ROUTER_TRANSITION_EVENTS) {
@@ -540,19 +544,19 @@ export function commitRouterTransition(state: AppRouterState): void {
 }
 
 /**
- * Called from `unstable_RouterTransitionEndMarker`'s insertion effect when
- * the marker is committed to the screen: the destination declared "the page
- * has loaded". The transition is the one carried by the router state the
- * marker rendered under (read from context at render time, so a marker
- * mounting in the very commit that applies the navigation still attributes
- * to the right transition regardless of effect order — see
- * `RouterTransitionEndContext`).
+ * Called from `unstable_RouterTransitionEndMarker`'s layout effect when the
+ * marker is committed to the screen — a fresh mount or an `<Activity>`
+ * reveal: the destination declared "the page has loaded". The transition is
+ * the one carried by the router state the marker rendered under (read from
+ * context at render time — see `RouterTransitionEndContext`), and layout
+ * effects run after the insertion effect where HistoryUpdater emits
+ * `commit`, so the transition has normally already committed here.
  *
  * The phase latch means only the first marker to show reports the `end` for
  * a transition: later markers, StrictMode's replayed effects, and markers
- * mounting under a state whose transition already ended are all no-ops. A
- * marker that shows before the transition's `commit` was emitted (same
- * React commit, marker effect first) only records that it showed; the
+ * showing under a state whose transition already ended are all no-ops. A
+ * marker that shows before the transition's `commit` was emitted (a
+ * defensive path — see `markerDidShow`) only records that it showed; the
  * commit emission reports `end` right after `commit`.
  */
 export function reportRouterTransitionEnd(
