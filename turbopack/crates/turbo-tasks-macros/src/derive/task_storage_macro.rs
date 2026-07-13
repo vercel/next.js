@@ -407,6 +407,7 @@ impl FieldInfo {
 enum StorageType {
     Direct,
     AutoSet,
+    List,
     AutoMap,
     CounterMap,
     Flag,
@@ -493,6 +494,7 @@ fn parse_field_storage_attributes(field: &syn::Field) -> FieldInfo {
                                 storage_type = Some(match lit_str.value().as_str() {
                                     "direct" => StorageType::Direct,
                                     "auto_set" => StorageType::AutoSet,
+                                    "list" => StorageType::List,
                                     "auto_map" => StorageType::AutoMap,
                                     "counter_map" => StorageType::CounterMap,
                                     "flag" => StorageType::Flag,
@@ -657,7 +659,7 @@ fn parse_field_storage_attributes(field: &syn::Field) -> FieldInfo {
     // lazy vec), but shrink_on_completion is meaningless for non-collection types.
     let is_collection = matches!(
         storage_type,
-        StorageType::AutoSet | StorageType::AutoMap | StorageType::CounterMap
+        StorageType::AutoSet | StorageType::List | StorageType::AutoMap | StorageType::CounterMap
     );
     if !is_collection {
         if shrink_on_completion {
@@ -900,19 +902,17 @@ fn gen_restore_inline_field(field: &FieldInfo) -> TokenStream {
                 }
             }
         }
-        StorageType::AutoSet => {
-            quote! {
-                if self.#field_name.is_empty() {
-                    self.#field_name = source.#field_name;
-                } else {
-                    self.#field_name.merge_restore(source.#field_name);
-                }
-            }
-        }
-        StorageType::CounterMap | StorageType::AutoMap => {
-            // CounterMap / AutoMap: transient residue (if any) is keyed by
-            // transient task ids; source entries are keyed by persistent ids.
-            // These key spaces are disjoint, so `extend` merges cleanly.
+        StorageType::AutoSet
+        | StorageType::List
+        | StorageType::CounterMap
+        | StorageType::AutoMap => {
+            // Collection storage: keep any transient residue already in `self` and fold the
+            // persisted `source` into it via `merge_restore`. The merge introduces no duplicate or
+            // double-count because the residue and the source occupy disjoint key spaces (residue
+            // is keyed by transient task ids, which are filtered out of the persisted source):
+            // - AutoSet unions (and would dedup anyway);
+            // - List appends (safe precisely because the key spaces are disjoint);
+            // - CounterMap / AutoMap extend by key.
             quote! {
                 if self.#field_name.is_empty() {
                     self.#field_name = source.#field_name;
@@ -1452,7 +1452,10 @@ fn generate_field_accessors(field: &FieldInfo) -> TokenStream {
 
     match field.storage_type {
         StorageType::Direct => generate_direct_field_accessors(field),
-        StorageType::AutoSet | StorageType::AutoMap | StorageType::CounterMap => {
+        StorageType::AutoSet
+        | StorageType::List
+        | StorageType::AutoMap
+        | StorageType::CounterMap => {
             generate_collection_field_accessors(field, field_name, field_type)
         }
         StorageType::Flag => {
@@ -1750,6 +1753,38 @@ fn generate_trait_accessor_methods(field: &FieldInfo) -> TokenStream {
             quote! {
                 #base_accessor
                 #set_ops
+            }
+        }
+        StorageType::List => {
+            // For List types, generate a read-only accessor plus list mutation methods
+            // (push/remove/iter/len/is_empty/set/extend). No `contains` accessor.
+            let ref_name = field.ref_ident();
+
+            let (return_type, doc_comment) = if is_option {
+                (
+                    quote! { Option<&#field_type> },
+                    "/// Get a reference to the list (may be None if not allocated, read-only)",
+                )
+            } else {
+                (
+                    quote! { &#field_type },
+                    "/// Get a reference to the list (read-only)",
+                )
+            };
+
+            let base_accessor = quote! {
+                #[doc = #doc_comment]
+                fn #ref_name(&self) -> #return_type {
+                    #check_access
+                    #ref_expr
+                }
+            };
+
+            let list_ops = generate_list_ops(field);
+
+            quote! {
+                #base_accessor
+                #list_ops
             }
         }
         StorageType::CounterMap => {
@@ -2369,6 +2404,275 @@ fn generate_autoset_ops(field: &FieldInfo) -> TokenStream {
     }
 }
 
+/// Generate List operations for a field (works for both inline and lazy storage).
+///
+/// A List is an unordered `SmallVec`-backed collection that does NOT deduplicate. It is used for
+/// reverse dependency edges, whose uniqueness is guaranteed by the caller (the forward edge gates
+/// the reverse insert). Therefore:
+/// - `push_{field}` appends unconditionally and returns `()` (no membership check in release). A
+///   `#[cfg(debug_assertions)]` linear scan asserts the no-duplicate invariant so any ungated
+///   insert is caught in debug/test builds.
+/// - `remove_{field}` does a linear `position` + `swap_remove`, returning whether it was present.
+/// - There is **no** `contains` accessor (nothing queries membership).
+/// - `extend_{field}` appends all items without a dedup pre-check.
+fn generate_list_ops(field: &FieldInfo) -> TokenStream {
+    let field_type = &field.field_type;
+
+    let Some(element_type) = extract_list_element_type(field_type) else {
+        return quote! {};
+    };
+
+    let check_access = field.check_access_call();
+    let track_modification = field.track_modification_call();
+    let mut_expr = field.collection_mut_expr();
+    let ref_expr = field.collection_ref_expr();
+
+    let take_expr = field.direct_take_expr();
+    let is_option = field.is_option_ref();
+
+    let push_name = field.prefixed_ident("push");
+    let extend_name = field.prefixed_ident("extend");
+    let remove_name = field.prefixed_ident("remove");
+    let set_name = field.prefixed_ident("set");
+    let iter_name = field.iter_ident();
+    let len_name = field.len_ident();
+    let is_empty_name = field.is_empty_ident();
+
+    let iter_body = if is_option {
+        quote! { #ref_expr.into_iter().flat_map(|list| list.iter().copied()) }
+    } else {
+        quote! { #ref_expr.iter().copied() }
+    };
+
+    let len_body = if is_option {
+        quote! { #ref_expr.map_or(0, |list| list.len()) }
+    } else {
+        quote! { #ref_expr.len() }
+    };
+
+    let is_empty_body = if is_option {
+        quote! { #ref_expr.is_none_or(|list| list.is_empty()) }
+    } else {
+        quote! { #ref_expr.is_empty() }
+    };
+
+    // Debug-only duplicate guard. The list relies on the caller (the forward edge) for uniqueness;
+    // this assertion continuously verifies that invariant in debug/test builds at zero release
+    // cost. It is the equivalent of the AutoSet membership check, but as a check rather than a
+    // dedup.
+    let dup_guard = if is_option {
+        quote! {
+            debug_assert!(
+                #ref_expr.is_none_or(|list| !list.iter().any(|existing| existing == &item)),
+                concat!("duplicate push into list field ", stringify!(#push_name)),
+            );
+        }
+    } else {
+        quote! {
+            debug_assert!(
+                !#ref_expr.iter().any(|existing| existing == &item),
+                concat!("duplicate push into list field ", stringify!(#push_name)),
+            );
+        }
+    };
+
+    let remove_body;
+    let push_body;
+    let set_body;
+    let extend_body;
+
+    if field.is_transient() {
+        remove_body = quote! {
+            if let Some(__idx) = #mut_expr.iter().position(|existing| existing == item) {
+                #mut_expr.swap_remove(__idx);
+                true
+            } else {
+                false
+            }
+        };
+        push_body = quote! {
+            #dup_guard
+            #mut_expr.push(item);
+        };
+        set_body = if is_option {
+            let unwraper = field.lazy_unwrap_closure();
+            let matches = field.lazy_matches_closure();
+            let ctor = field.lazy_constructor(quote! {list});
+            quote! {
+                let list = list;
+                self.typed_mut().set_lazy(#matches, #unwraper, #ctor)
+            }
+        } else {
+            quote! {
+                let old = #take_expr;
+                *#mut_expr = list;
+                Some(old)
+            }
+        };
+        extend_body = quote! {
+            #mut_expr.extend(items);
+        };
+    } else {
+        // Remove: only track modification if the item was actually present.
+        remove_body = if is_option {
+            let extractor = field.lazy_extractor_closure();
+            quote! {
+                let Some((idx, val)) = self.typed().find_lazy_ref(#extractor) else {
+                    return false;
+                };
+                let Some(__pos) = val.iter().position(|existing| existing == item) else {
+                    return false;
+                };
+                #track_modification
+                self.typed_mut().lazy_at_mut(idx, #extractor).swap_remove(__pos);
+                true
+            }
+        } else {
+            quote! {
+                let Some(__pos) = #ref_expr.iter().position(|existing| existing == item) else {
+                    return false;
+                };
+                #track_modification
+                #mut_expr.swap_remove(__pos);
+                true
+            }
+        };
+
+        // Push: append unconditionally (no dedup). The debug-only guard verifies uniqueness.
+        push_body = if is_option {
+            let extractor = field.lazy_extractor_closure();
+            let ctor = field.lazy_constructor(quote! { list });
+            quote! {
+                if let Some((idx, _existing)) = self.typed().find_lazy_ref(#extractor) {
+                    #dup_guard
+                    #track_modification
+                    self.typed_mut().lazy_at_mut(idx, #extractor).push(item);
+                } else {
+                    #track_modification
+                    let mut list = <#field_type as Default>::default();
+                    list.push(item);
+                    self.typed_mut().lazy.push(#ctor);
+                }
+            }
+        } else {
+            quote! {
+                #dup_guard
+                #track_modification
+                #mut_expr.push(item);
+            }
+        };
+
+        if is_option {
+            let extractor = field.lazy_extractor_closure();
+            let unwraper = field.lazy_unwrap_closure();
+            let ctor = field.lazy_constructor(quote! {list});
+            set_body = quote! {
+                if let Some((idx, old_ref)) = self.typed().find_lazy_ref(#extractor) {
+                    if old_ref == &list {
+                        return None;
+                    }
+                    #track_modification
+                    let old = std::mem::replace(&mut self.typed_mut().lazy[idx], #ctor);
+                    Some((#unwraper)(old))
+                } else {
+                    #track_modification
+                    self.typed_mut().lazy.push(#ctor);
+                    None
+                }
+            };
+        } else {
+            set_body = quote! {
+                if #ref_expr == &list {
+                    return None;
+                }
+                #track_modification
+                let old = #take_expr;
+                *#mut_expr = list;
+                Some(old)
+            };
+        }
+
+        // Extend: append all items (no dedup). Track modification only if at least one item is
+        // added.
+        extend_body = if is_option {
+            let extractor = field.lazy_extractor_closure();
+            let ctor = field.lazy_constructor(quote! { list });
+            quote! {
+                let mut iter = items.into_iter().peekable();
+                if iter.peek().is_none() {
+                    return;
+                }
+                if let Some((idx, _existing)) = self.typed().find_lazy_ref(#extractor) {
+                    #track_modification
+                    self.typed_mut().lazy_at_mut(idx, #extractor).extend(iter);
+                } else {
+                    #track_modification
+                    let list: #field_type = iter.collect();
+                    self.typed_mut().lazy.push(#ctor);
+                }
+            }
+        } else {
+            quote! {
+                let mut iter = items.into_iter().peekable();
+                if iter.peek().is_none() {
+                    return;
+                }
+                #track_modification
+                #mut_expr.extend(iter);
+            }
+        };
+    }
+
+    quote! {
+        #[doc = "Append an item to the list."]
+        #[doc = "Does NOT deduplicate: the caller must guarantee uniqueness (a debug assertion"]
+        #[doc = "checks this). Use this only for collections whose uniqueness is enforced elsewhere."]
+        fn #push_name(&mut self, item: #element_type) {
+            #check_access
+            #push_body
+        }
+
+        #[doc = "Append multiple items to the list from an iterator (no deduplication)."]
+        #[doc = "Only tracks modification if at least one item is added."]
+        fn #extend_name(&mut self, items: impl IntoIterator<Item = #element_type>) {
+            #check_access
+            #extend_body
+        }
+
+        #[doc = "Remove an item from the list via a linear search + swap-remove."]
+        #[doc = "Returns true if the item was present and removed, false if it wasn't present."]
+        fn #remove_name(&mut self, item: &#element_type) -> bool {
+            #check_access
+            #remove_body
+        }
+
+        #[doc = "Replace the entire list, returning the old list if present."]
+        #[doc = "Only tracks modification if the list actually changes."]
+        fn #set_name(&mut self, list: #field_type) -> Option<#field_type> {
+            #check_access
+            #set_body
+        }
+
+        #[doc = "Iterate over all items in the list"]
+        fn #iter_name(&self) -> impl Iterator<Item = #element_type> + '_ {
+            #check_access
+            #iter_body
+        }
+
+        #[doc = "Get the number of items in the list"]
+        fn #len_name(&self) -> usize {
+            #check_access
+            #len_body
+        }
+
+        #[doc = "Check if the list is empty"]
+        fn #is_empty_name(&self) -> bool {
+            #check_access
+            #is_empty_body
+        }
+    }
+}
+
 /// Generate CounterMap operations for a field (works for both inline and lazy storage).
 ///
 /// Uses `FieldInfo` helpers to generate the correct access patterns:
@@ -2973,7 +3277,10 @@ fn generate_cleanup_after_execution(grouped_fields: &GroupedFields) -> TokenStre
 
         let is_collection = matches!(
             field.storage_type,
-            StorageType::AutoSet | StorageType::AutoMap | StorageType::CounterMap
+            StorageType::AutoSet
+                | StorageType::List
+                | StorageType::AutoMap
+                | StorageType::CounterMap
         );
 
         // Each arm returns bool: true = keep, false = remove
@@ -3089,7 +3396,10 @@ fn generate_drop_method(grouped_fields: &GroupedFields) -> TokenStream {
     fn category_inline_check(field: &FieldInfo) -> TokenStream {
         let field_name = &field.field_name;
         match field.storage_type {
-            StorageType::AutoMap | StorageType::AutoSet | StorageType::CounterMap => quote! {
+            StorageType::AutoMap
+            | StorageType::AutoSet
+            | StorageType::List
+            | StorageType::CounterMap => quote! {
                 self.#field_name.is_empty()
             },
             StorageType::Direct => quote! {
@@ -3337,6 +3647,21 @@ fn extract_set_element_type(ty: &Type) -> Option<TokenStream> {
     None
 }
 
+/// Extract the element type T from a `list`-storage field. The schema uses a `List<T, I>` alias
+/// (over `SmallVec<[T; I]>`) whose first generic argument is the element type — the same shape as
+/// `AutoSet<K, I>`, so the extraction logic matches.
+fn extract_list_element_type(ty: &Type) -> Option<TokenStream> {
+    if let Type::Path(type_path) = ty
+        && let Some(segment) = type_path.path.segments.last()
+        && (segment.ident == "List" || segment.ident == "SmallVec")
+        && let syn::PathArguments::AngleBracketed(args) = &segment.arguments
+        && let Some(syn::GenericArgument::Type(inner)) = args.args.first()
+    {
+        return Some(quote! { #inner });
+    }
+    None
+}
+
 /// Extract key and value types from a map type (e.g., AutoMap<K, V> or CounterMap<K, V>)
 fn extract_map_types(ty: &Type, expected_name: &str) -> Option<(TokenStream, TokenStream)> {
     let (key_type, value_type) = extract_map_types_raw(ty, expected_name)?;
@@ -3575,7 +3900,11 @@ fn generate_filter_predicate(field: &FieldInfo) -> Option<(TokenStream, FilterPr
             quote! { |v| !v.is_transient() },
             FilterPredicateType::Option,
         )),
-        StorageType::AutoSet => Some((quote! { |k| !k.is_transient() }, FilterPredicateType::Set)),
+        StorageType::AutoSet | StorageType::List => {
+            // Both iterate elements and filter by transience; the `Set` encode arm
+            // (collect-filtered → encode length → encode each) works for a list too.
+            Some((quote! { |k| !k.is_transient() }, FilterPredicateType::Set))
+        }
         StorageType::CounterMap => Some((
             quote! { |(k, _)| !k.is_transient() },
             FilterPredicateType::CounterMap,

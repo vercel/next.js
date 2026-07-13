@@ -24,6 +24,7 @@ use std::{
 
 use parking_lot::Mutex;
 use rustc_hash::FxHasher;
+use smallvec::SmallVec;
 use turbo_tasks::{
     CellId, SharedReference, TaskExecutionReason, TaskId, TinyVec, TraitTypeId, ValueTypeId,
     backend::{CachedTaskTypeArc, CellHash, TransientTaskType},
@@ -40,6 +41,14 @@ use crate::{
 };
 
 type AutoSet<K, const I: usize> = auto_hash_map::AutoSet<K, BuildHasherDefault<FxHasher>, I>;
+
+/// Unordered list storage (`storage = "list"`). Backed by a `SmallVec` with `I` inline elements.
+///
+/// Unlike [`AutoSet`] it does NOT deduplicate — `push` always appends and `remove` is a linear
+/// `position` + `swap_remove`. Used for reverse dependency edges, whose uniqueness is guaranteed by
+/// the caller (the forward edge gates the reverse insert), so the hash-set overhead is unnecessary.
+/// A debug-only assertion in the generated `push_*` accessor checks the no-duplicate invariant.
+type List<T, const I: usize> = SmallVec<[T; I]>;
 
 /// Auto-map storage for key-value pairs.
 ///
@@ -75,15 +84,24 @@ struct TaskStorageSchema {
     aggregation_number: AggregationNumber,
 
     /// Tasks that depend on this task's output.
-
+    ///
+    /// Stored as an unordered [`List`] rather than a set: every insert is gated on the reader's
+    /// forward `output_dependencies` edge being newly added, so no duplicate is ever pushed.
+    ///
+    /// 6 inline elements: `List<TaskId, 6>` is 32 B (same as `4` or `5` would round to under the
+    /// `SmallVec` union layout's 16 B floor — `6 * 4 B = 24 B` inline payload + 8 B tag), and
+    /// keeps the whole boxed `TaskStorage` at 128 B, which is mimalloc's size class anyway.
+    /// Since `TaskStorage` is always heap-allocated, shrinking below 128 B saves nothing — so
+    /// spend the slack on inline dependent capacity to avoid heap spills for tasks with up to
+    /// 6 dependents.
     #[field(
-        storage = "auto_set",
+        storage = "list",
         category = "data",
         inline,
         filter_transient,
         drop_on_completion_if_immutable
     )]
-    output_dependent: AutoSet<TaskId, 4>,
+    output_dependent: List<TaskId, 6>,
 
     /// The task's output value.
     /// Filtered during serialization to skip transient outputs (referencing transient tasks).
@@ -297,24 +315,28 @@ struct TaskStorageSchema {
     // =========================================================================
     /// Tasks that depend on this task's cells as a whole (keyless). Reverse of
     /// `cell_dependencies`. In a `cell_dependents` entry the `CellRef.task` field holds the
-    /// DEPENDENT task's id and `CellRef.cell` is this task's cell (see `CellDependency` docs).
+    /// DEPENDENT task's id and `CellRef.cell` is this task's cell.
+    ///
+    /// Stored as an unordered [`List`] rather than a set: every insert is gated on the reader's
+    /// forward `cell_dependencies` edge being newly added, so no duplicate is ever pushed.
     #[field(
-        storage = "auto_set",
+        storage = "list",
         category = "data",
         filter_transient,
         drop_on_completion_if_immutable
     )]
-    cell_dependents: AutoSet<CellRef, 2>,
+    cell_dependents: List<CellRef, 2>,
 
     /// Tasks that depend on a hashed sub-value of this task's cells. Reverse of
-    /// `cell_dependencies_hashed`.
+    /// `cell_dependencies_hashed`. Gated like `cell_dependents`, so stored as an unordered
+    /// [`List`].
     #[field(
-        storage = "auto_set",
+        storage = "list",
         category = "data",
         filter_transient,
         drop_on_completion_if_immutable
     )]
-    cell_dependents_hashed: AutoSet<(CellRef, u64), 1>,
+    cell_dependents_hashed: List<(CellRef, u64), 1>,
 
     /// Tasks that depend on collectibles of a specific type from this task.
     /// Maps TraitTypeId -> Set<TaskId>
@@ -912,6 +934,15 @@ where
         self.extend(items)
     }
 }
+impl<V, const I: usize> MergeRestore for List<V, I> {
+    type Item = V;
+    /// Appends without deduplication. Safe because the transient residue (in `self`) and the
+    /// disk-restored `items` are keyed by disjoint task-id spaces — transient residue is filtered
+    /// out of the persisted source — so no duplicate can arise from the merge.
+    fn merge_restore(&mut self, items: impl IntoIterator<Item = Self::Item>) {
+        self.extend(items)
+    }
+}
 
 /// Outcome of a `drop_partial` call: did residue (transient entries that
 /// can't be reconstructed from disk) survive the drop?
@@ -948,6 +979,20 @@ impl<T: IsTransient> DropPartial for Option<T> {
 
 impl<T: IsTransient + Hash + Eq, const I: usize> DropPartial for AutoSet<T, I> {
     fn drop_partial(&mut self) -> DropPartialOutcome {
+        self.retain(|t| t.is_transient());
+        if self.is_empty() {
+            DropPartialOutcome::Empty
+        } else {
+            self.shrink_to_fit();
+            DropPartialOutcome::HasResidue
+        }
+    }
+}
+
+impl<T: IsTransient, const I: usize> DropPartial for List<T, I> {
+    fn drop_partial(&mut self) -> DropPartialOutcome {
+        // `SmallVec::retain` passes `&mut T`; only the transient residue (entries that can't be
+        // reconstructed from disk) is kept.
         self.retain(|t| t.is_transient());
         if self.is_empty() {
             DropPartialOutcome::Empty
@@ -1016,9 +1061,7 @@ mod tests {
         storage.upper_mut().insert(TaskId::new(5).unwrap(), 3);
         assert_eq!(storage.upper().get(&TaskId::new(5).unwrap()), Some(&3));
 
-        storage
-            .output_dependent_mut()
-            .insert(TaskId::new(5).unwrap());
+        storage.output_dependent_mut().push(TaskId::new(5).unwrap());
         assert!(
             storage
                 .output_dependent()
@@ -1261,10 +1304,10 @@ mod tests {
         // Set inline data field via accessor methods
         original
             .output_dependent_mut()
-            .insert(TaskId::new(10).unwrap());
+            .push(TaskId::new(10).unwrap());
         original
             .output_dependent_mut()
-            .insert(TaskId::new(20).unwrap());
+            .push(TaskId::new(20).unwrap());
 
         // Set lazy data fields (persisted)
         original
@@ -1410,9 +1453,9 @@ mod tests {
         let mut storage = TaskStorage::new();
 
         // Mix persistent and transient references in a filter_transient data field.
-        storage.output_dependent_mut().insert(persistent_task(1));
-        storage.output_dependent_mut().insert(persistent_task(2));
-        storage.output_dependent_mut().insert(transient_task(3));
+        storage.output_dependent_mut().push(persistent_task(1));
+        storage.output_dependent_mut().push(persistent_task(2));
+        storage.output_dependent_mut().push(transient_task(3));
 
         // Lazy filter_transient data field.
         storage.cell_dependencies_mut().insert(CellRef {
@@ -1444,8 +1487,8 @@ mod tests {
         // Simulate a restore from disk: source has the persistent entries only
         // (transient ones would have been filtered during encode).
         let mut source = TaskStorage::new();
-        source.output_dependent_mut().insert(persistent_task(1));
-        source.output_dependent_mut().insert(persistent_task(2));
+        source.output_dependent_mut().push(persistent_task(1));
+        source.output_dependent_mut().push(persistent_task(2));
 
         storage.restore_data_from(source);
 
@@ -1509,8 +1552,8 @@ mod tests {
     fn drop_partial_resets_fields_without_transients() {
         let mut storage = TaskStorage::new();
 
-        storage.output_dependent_mut().insert(persistent_task(1));
-        storage.output_dependent_mut().insert(persistent_task(2));
+        storage.output_dependent_mut().push(persistent_task(1));
+        storage.output_dependent_mut().push(persistent_task(2));
         storage.flags.set_data_restored(true);
         storage.flags.set_meta_restored(true);
 
@@ -1523,6 +1566,40 @@ mod tests {
         );
 
         assert!(storage.output_dependent().is_empty());
+    }
+
+    /// A `list`-storage field (`output_dependent`) is backed by a `SmallVec`: it appends in order
+    /// and a serialize→deserialize round-trip preserves every distinct entry. (The trait
+    /// `push_*`/`remove_*`/`iter_*` accessors used by the read/cleanup paths are exercised
+    /// end-to-end by the integration suite; here we just confirm the storage field itself is a
+    /// list with the expected element layout and round-trips.)
+    #[test]
+    fn list_field_appends_and_roundtrips() {
+        let mut storage = TaskStorage::new();
+        storage.output_dependent_mut().push(persistent_task(1));
+        storage.output_dependent_mut().push(persistent_task(2));
+        storage.output_dependent_mut().push(persistent_task(3));
+        assert_eq!(storage.output_dependent().len(), 3);
+        // Insertion order is preserved (unlike a hash set).
+        assert_eq!(
+            storage.output_dependent().as_slice(),
+            &[persistent_task(1), persistent_task(2), persistent_task(3)]
+        );
+
+        let mut buffer = turbo_bincode::TurboBincodeBuffer::new();
+        {
+            let mut encoder = new_encoder(&mut buffer);
+            storage.encode_data(&mut encoder).expect("encode failed");
+        }
+        let mut decoded = TaskStorage::new();
+        {
+            let mut decoder = new_decoder(&buffer);
+            decoded.decode_data(&mut decoder).expect("decode failed");
+        }
+        assert_eq!(
+            decoded.output_dependent().as_slice(),
+            &[persistent_task(1), persistent_task(2), persistent_task(3)]
+        );
     }
 
     /// Regression: `drop_partial(true, true)` must clear persisted flag bits
@@ -1716,6 +1793,9 @@ mod tests {
     #[test]
     #[cfg(target_pointer_width = "64")]
     fn test_schema_size() {
+        // 128 B = mimalloc's size class for a boxed `TaskStorage`. The inline `output_dependent`
+        // list is sized (`List<TaskId, 6>`) to fill this class exactly: dropping below 128 B saves
+        // nothing at the allocator, so the slack buys inline dependent capacity instead.
         assert_eq!(
             size_of::<TaskStorage>(),
             128,
