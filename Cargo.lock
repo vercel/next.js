@@ -668,7 +668,7 @@ dependencies = [
  "swc",
  "swc_common",
  "swc_ecma_ast",
- "swc_ecma_transforms 58.0.0",
+ "swc_ecma_transforms",
  "swc_ecma_visit",
  "wasm-bindgen",
  "wasm-bindgen-futures",
@@ -4748,9 +4748,9 @@ dependencies = [
 
 [[package]]
 name = "modularize_imports"
-version = "12.0.0"
+version = "13.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c35fe8cde072a5561c7cbe48b011b91694451a6f65a86f824624601dc119823d"
+checksum = "12b161b65ea60230af7349f4d392f699a656b9c1df80141edf17f5805dca8fc0"
 dependencies = [
  "convert_case",
  "handlebars",
@@ -6452,9 +6452,9 @@ dependencies = [
 
 [[package]]
 name = "react_remove_properties"
-version = "12.0.0"
+version = "13.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d22b3980eb1ac312990876d1de477266585dbfb085325dc83031cc642548d349"
+checksum = "a87612eed516c894ea7bbca2718b36118feaeb141a343381af2bfd081e1f52f9"
 dependencies = [
  "serde",
  "swc_atoms",
@@ -6579,9 +6579,9 @@ checksum = "c707298afce11da2efef2f600116fa93ffa7a032b5d7b628aa17711ec81383ca"
 
 [[package]]
 name = "remove_console"
-version = "12.0.0"
+version = "13.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "954b8a32e68f78310d6933a8276e25b72bdf503a0a12f0f8356f7bcb07de84e6"
+checksum = "b6efa34f38290100599db567aafeed1e38682027359cb32cbe6d32bdf9667ec1"
 dependencies = [
  "serde",
  "swc_atoms",
@@ -7695,9 +7695,9 @@ checksum = "7da8b5736845d9f2fcb837ea5d9e2628564b3b043a70948a3f0b778838c5fb4f"
 
 [[package]]
 name = "styled_components"
-version = "12.0.0"
+version = "13.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4a28894159e377892877b8bbbd6aed90f78a74d7b89f848df3a49d8ed5a46cb5"
+checksum = "6b35af2a35889354fe102f520286468507985ca08d35f6ab58bb924390dbe04d"
 dependencies = [
  "Inflector",
  "once_cell",
@@ -7714,9 +7714,9 @@ dependencies = [
 
 [[package]]
 name = "styled_jsx"
-version = "12.0.0"
+version = "13.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "75310ea20b65df816daa25f3e950b661dd9a1260d2e0581aaae953239cd199ef"
+checksum = "fea1c314b0111531259ba459e1607b04c8d99adf0983ae5ed4231bfdd7721715"
 dependencies = [
  "anyhow",
  "lightningcss",
@@ -7788,7 +7788,7 @@ dependencies = [
  "swc_ecma_minifier",
  "swc_ecma_parser",
  "swc_ecma_preset_env",
- "swc_ecma_transforms 58.0.0",
+ "swc_ecma_transforms",
  "swc_ecma_transforms_base",
  "swc_ecma_transforms_compat",
  "swc_ecma_transforms_module",
@@ -8485,7 +8485,7 @@ dependencies = [
  "swc_common",
  "swc_ecma_ast",
  "swc_ecma_transformer",
- "swc_ecma_transforms 58.0.0",
+ "swc_ecma_transforms",
  "swc_ecma_utils",
  "swc_ecma_visit",
 ]
@@ -8607,19 +8607,6 @@ dependencies = [
  "swc_ecma_utils",
  "swc_ecma_visit",
  "tracing",
-]
-
-[[package]]
-name = "swc_ecma_transforms"
-version = "57.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8582ac0454abff7b50350341eb082d18abd048f60538946ee050f5a4c267bc30"
-dependencies = [
- "par-core",
- "swc_common",
- "swc_ecma_ast",
- "swc_ecma_transforms_base",
- "swc_ecma_utils",
 ]
 
 [[package]]
@@ -8892,9 +8879,9 @@ dependencies = [
 
 [[package]]
 name = "swc_emotion"
-version = "12.0.0"
+version = "13.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "db369b091925d2c701ae01dc8da2ad8f641e0f65d2fab3f28c199e83af3c463e"
+checksum = "a1cbac28abaa73f64caeb5556c8f95119c274bb679e8a280f016f3044e7f7229"
 dependencies = [
  "base64 0.22.1",
  "byteorder",
@@ -8908,7 +8895,7 @@ dependencies = [
  "swc_common",
  "swc_ecma_ast",
  "swc_ecma_codegen",
- "swc_ecma_transforms 57.0.0",
+ "swc_ecma_transforms",
  "swc_ecma_utils",
  "swc_ecma_visit",
  "swc_sourcemap",
@@ -9039,9 +9026,9 @@ dependencies = [
 
 [[package]]
 name = "swc_relay"
-version = "12.0.0"
+version = "13.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ea5db7b9ce28707d275ea6dda8010ff4a1232514b164d8b2ac8260c0f381dc2a"
+checksum = "044b1174c8c4e2bf5a0f5f91c9b1e5e4d86ad3a4537adb9df949ac2568c93ede"
 dependencies = [
  "once_cell",
  "regex",
