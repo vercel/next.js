@@ -48,6 +48,33 @@ function stripTargetDeclarators(
   return declaration.declarations.length
 }
 
+// Removing a statement also removes the comments attached above it — which
+// may be a user's note or a deliberate `// TODO(...)` marker. Reattach the
+// leading comments to the next statement (or the previous one when the
+// removed statement is last) so they survive the removal.
+function preserveLeadingComments(path: any) {
+  const comments = path.node.comments?.filter((comment: any) => comment.leading)
+  if (!comments?.length) {
+    return
+  }
+  const body = path.parent.node.body
+  if (!Array.isArray(body)) {
+    return
+  }
+  const index = body.indexOf(path.node)
+  const next = body[index + 1]
+  const prev = body[index - 1]
+  if (next) {
+    next.comments = [...comments, ...(next.comments ?? [])]
+  } else if (prev) {
+    for (const comment of comments) {
+      comment.leading = false
+      comment.trailing = true
+    }
+    prev.comments = [...(prev.comments ?? []), ...comments]
+  }
+}
+
 export default function transformer(file: FileInfo, _api: API) {
   // Run on App Router page/layout files, except for test environment. The
   // `prefetch` Route Segment Config only applies to pages and layouts, so
@@ -85,6 +112,7 @@ export default function transformer(file: FileInfo, _api: API) {
       const remaining = stripTargetDeclarators(j, declaration)
       // Remove the whole export only when nothing else was declared with it.
       if (remaining === 0) {
+        preserveLeadingComments(path)
         j(path).remove()
       }
       hasChanges = true
@@ -133,6 +161,7 @@ export default function transformer(file: FileInfo, _api: API) {
       .forEach((path) => {
         const remaining = stripTargetDeclarators(j, path.node)
         if (remaining === 0) {
+          preserveLeadingComments(path)
           j(path).remove()
         }
         removedBareDeclaration = true
@@ -165,6 +194,7 @@ export default function transformer(file: FileInfo, _api: API) {
           hasChanges = true
 
           if (filteredSpecifiers.length === 0) {
+            preserveLeadingComments(path)
             j(path).remove()
           } else {
             path.node.specifiers = filteredSpecifiers

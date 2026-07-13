@@ -47,15 +47,19 @@ Every insight has a docs page — open it. Fetch the linked page for every disti
 
 > **New project, or links you wrote yourself?** There's nothing to audit — you already made the keep-or-drop call as you added each link. Enable `partialPrefetching: true` and add `prefetch={true}` per the guide's [new-project note](https://nextjs.org/docs/app/guides/adopting-partial-prefetching#enable-partial-prefetching), then go straight to the [URL-data sweep](#step-3-sweep-for-url-data-insights-after-enabling). The audit below is for adopting an **existing** app: it surfaces legacy `prefetch={true}` calls whose destinations predate Partial Prefetching, which enabling the flag would otherwise mark adopted silently.
 
-Do this with the global flag **off** — enabling it marks every route adopted and stops the [`link-prefetch-partial`](https://nextjs.org/docs/messages/instant-link-prefetch-partial) insight from surfacing, so the audit has to come first.
+Work the audit with the global flag **off**, adopting each destination with `export const prefetch = 'partial'` — enabling the flag first would mark every route adopted and silence the [`link-prefetch-partial`](https://nextjs.org/docs/messages/instant-link-prefetch-partial) insight this audit runs on. Ask the user how to ship it, in the language of PRs:
+
+- **One branch** — the whole audit in one change, with the flag enabled and the codemod run at the end (step 2).
+- **Route by route** — each adopted destination ships as its own PR. The insight keeps firing for the destinations you haven't reached, a live worklist, and step 2 comes after the last one.
+
+The work is identical either way — only the commit boundaries differ. Default by app size: one branch for a handful of links, route by route when the audit is big enough that reviewers need smaller diffs. Note the choice in your report.
 
 Enumerate the links across the whole source tree, not only `app/` — they often live in `src/components` or shared UI packages: `grep -rnE '\bprefetch\b' --include='*.tsx' --include='*.jsx' .`, then keep the `prefetch={true}` and bare `prefetch` prop matches (a bare prop is `true`) and drop `prefetch={false}` and other values. If nothing matches, check for a custom link wrapper before calling the audit empty — grep for `from 'next/link'`, and if a wrapper sets `prefetch={true}` internally or forwards it under another prop name, audit its call sites the same way. If there's still nothing, say so in your report and move on to [step 2](#step-2-enable-the-flag).
 
 Then, for each one:
 
 1. **Click it** in `next dev`. The insight fires at navigation time, not when the link prefetches, so a link sitting in the viewport won't trip it — you have to navigate through it.
-2. **Preserve what that prefetch delivered.** The guide's [audit table](https://nextjs.org/docs/app/guides/adopting-partial-prefetching#auditing-existing-link-prefetchtrue-calls) is the canonical decision — fetch it and apply the matching row rather than re-deriving it. Caching uncached content is the judgment call in that table: trace where the data comes from and what freshness and revalidation it needs, per the [`use cache`](https://nextjs.org/docs/app/api-reference/directives/use-cache) docs, and ask the user when the answer isn't clear-cut. Content that depends on URL data (`params`, `searchParams`) gets a marker in the next item instead.
-3. **Adopt the destination.** Add `export const prefetch = 'partial'`. That clears the insight for every link pointing at it. If the route reads URL data (`params`, `searchParams`), it's a runtime-prefetch candidate for step 5 — keep `prefetch={true}` on its links and mark the route:
+2. **Adopt the destination.** Add `export const prefetch = 'partial'`. That clears the insight for every link pointing at it. If the route reads URL data (`params`, `searchParams`), it's a runtime-prefetch candidate for step 5 — keep `prefetch={true}` on its links and mark the route:
 
    ```tsx
    // TODO(runtime-prefetch): assess with the user (prefetch = 'allow-runtime')
@@ -63,6 +67,8 @@ Then, for each one:
    ```
 
    Use that exact prefix so step 5 can grep them back. Don't cache or decide anything for these routes now.
+
+3. **Preserve what that prefetch delivered.** The guide's [audit table](https://nextjs.org/docs/app/guides/adopting-partial-prefetching#auditing-link-prefetchtrue-calls) is the canonical decision — fetch it and apply the matching row rather than re-deriving it. Caching uncached content is the judgment call in that table: trace where the data comes from and what freshness and revalidation it needs, per the [`use cache`](https://nextjs.org/docs/app/api-reference/directives/use-cache) docs, and ask the user when the answer isn't clear-cut. The URL-data routes you marked in the previous item wait for step 5.
 
 ## step 2: enable the flag
 
@@ -77,7 +83,7 @@ Once every audited destination has `prefetch = 'partial'`, finish in two moves.
    npx @next/codemod@canary remove-partial-prefetch ./app
    ```
 
-   The codemod refuses to run on a dirty working tree. Commit or stash unrelated work first, or pass `--force` to let its edits land alongside your WIP. If the codemod isn't available (older `@next/codemod`, sandboxed environment, offline run), reproduce it by hand by removing `export const prefetch = 'partial'` from every `app/**/{page,layout}.{js,jsx,ts,tsx}` and leaving any other `prefetch` value in place. Don't hand-edit when the codemod can run.
+   The codemod refuses to run on a dirty working tree. Commit or stash unrelated work first, or pass `--force` to let its edits land alongside your WIP. If the codemod isn't available (older `@next/codemod`, sandboxed environment, offline run), reproduce it by hand by removing `export const prefetch = 'partial'` from every `app/**/{page,layout}.{js,jsx,ts,tsx}` — leave any other `prefetch` value in place, and leave the `TODO(runtime-prefetch)` markers where they are. Don't hand-edit when the codemod can run.
 
 ## step 3: sweep for URL-data insights (after enabling)
 
@@ -101,14 +107,16 @@ Then check in with the user. Speak their language — no insight slugs or step l
 
 - What you did: which links you audited, which destinations you adopted, and what each link now prefetches.
 - What changed: dropped props, `use cache` boundaries added, and which routes carry a `TODO(runtime-prefetch)` marker for later.
-- Show, don't tell: drive a link live in the headed browser so they see the shared App Shell paint instantly and the URL-specific region stream in. Attach before/after screenshots only when a live browser isn't possible.
-- The question: "Want to commit this (or open the PR) before we look at which routes should also prefetch their URL-dependent content?" Wait for the answer — adoption and runtime prefetching read best as their own changes.
+- Demo against a production run. Prefetching is limited in development, so `next dev` won't show the result — run `next build` and `next start`, and hand the user that URL.
+- Show, don't tell: drive one link live in the headed browser against the production server, so they see the shared App Shell paint instantly and the URL-specific region stream in. Attach before/after screenshots only when a live browser isn't possible.
+- Give them the click-through: a table of each changed route — the link to click, and what to expect after the click (what paints instantly, what streams in) — so they can verify each result themselves.
+- The question: "Want to commit this (or open the PR) before we look at which routes should also prefetch their URL-specific content?" Wait for the answer — adoption and runtime prefetching read best as their own changes.
 
 ## step 5: runtime prefetching (optional)
 
 The audit marked the candidates instead of deciding them. Grep for `TODO(runtime-prefetch)` and walk the list with the user in one conversation. The question per route is whether they want the URL-dependent content prefetched ahead of the click, or streaming in after navigation is fine. A runtime prefetch costs a server invocation per visible link — the guide's [when to reach for it](https://nextjs.org/docs/app/guides/runtime-prefetching#when-to-reach-for-runtime-prefetching) section is the checklist. Don't make these calls alone.
 
-Where the answer is yes, follow the [runtime prefetching guide](https://nextjs.org/docs/app/guides/runtime-prefetching) — add `export const prefetch = 'allow-runtime'` to the route (the codemod in step 2 already stripped the `'partial'` export) and cache the content behind the read using the guide's patterns (`use cache` with the runtime value passed in, or `use cache: private` for per-user data). Where it's no, delete the marker and leave the route on the default. Either way no `TODO(runtime-prefetch)` marker survives this step. Confirm the opted-in routes in `next dev`, and keep this as its own commit or PR.
+Where the answer is yes, follow the [runtime prefetching guide](https://nextjs.org/docs/app/guides/runtime-prefetching) — add `export const prefetch = 'allow-runtime'` to the route (the codemod in step 2 already stripped the `'partial'` export) and cache the content behind the read using the guide's patterns (`use cache` with the runtime value passed in, or `use cache: private` for per-user data). Where it's no, delete the marker and leave the route on the default. Either way no `TODO(runtime-prefetch)` marker survives this step. Confirm the opted-in routes against a production run (`next build` and `next start` — the runtime prefetch fires there, not in `next dev`), give the user the same click-through for them, and keep this as its own commit or PR.
 
 ## further reading
 

@@ -210,6 +210,7 @@ Then check in with the user. Same rule as the pre-step: speak their language. Do
 - What you did: which routes you touched, and the user-visible result per route (e.g. "the post page now streams the article body behind a skeleton while the layout stays static").
 - What changed: opt-outs removed, fallbacks added, caching boundaries introduced.
 - Show, don't tell. The `next-dev-loop` session runs the browser headed, so drive the route live for the user so they see the static shell → fallback → final content sequence in real time. If you can't drive a live browser, attach the before/after screenshots you captured instead.
+- Give them the click-through: a short table of the feature's routes — the URL to open and what to look for (what renders instantly, which fallbacks appear, what streams in) — so they can verify each one themselves.
 - The question: "Want to open this feature as a PR and move on to the next, or stop here?" Wait for the answer.
 
 **Trivial features can skip the check-in.** If adopting a feature only meant removing its `// TODO: Cache Components adoption` opt-out (no `<Suspense>` added, no `'use cache'` introduced, no render order change), the user sees nothing different. Move on to the next feature without stopping; mention it in passing the next time you do check in.
