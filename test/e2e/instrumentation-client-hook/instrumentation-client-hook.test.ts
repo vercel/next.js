@@ -503,6 +503,51 @@ describe('Instrumentation Client Hook', () => {
       )
     })
 
+    it('reports no end for a hash-only navigation on a marked page: nothing newly shows', async () => {
+      const browser = await next.browser('/')
+      await browser.waitForIdleNetwork()
+
+      // Land on the marked page (end #1).
+      await browser.elementByCss('a[href="/end-marker"]').click()
+      await browser.elementById('end-marker-page')
+      await retry(async () => {
+        expect(
+          (await getTransitionEvents(browser)).filter((e) => e.phase === 'end')
+        ).toHaveLength(1)
+      })
+
+      // A hash-only push on the marked page: the committed tree is the tree
+      // already on screen, so its marker never leaves the screen and nothing
+      // newly shows — the navigation commits but no marker declares a load.
+      await browser.elementById('push-end-marker-hash').click()
+      await waitForCommitCount(browser, 2)
+
+      // Fence: leave and re-enter the marked page. Its `end` bounds the
+      // negative wait — once it arrives, the hash navigation (which committed
+      // two navigations earlier) can no longer produce one.
+      await browser.elementByCss('a[href="/some-page"]').click()
+      await browser.elementById('some-page')
+      await waitForCommitCount(browser, 3)
+      await browser.elementByCss('a[href="/end-marker"]').click()
+      const events = await retry(async () => {
+        const snapshot = await getTransitionEvents(browser)
+        expect(snapshot.filter((e) => e.phase === 'end')).toHaveLength(2)
+        return snapshot
+      })
+
+      const commits = events.filter((e) => e.phase === 'commit')
+      expect(commits).toHaveLength(4)
+      const hashCommit = commits[1]
+      expect(hashCommit.event.to.canonicalUrl).toBe('/end-marker#section')
+      // Both ends belong to the full navigations onto the marked page —
+      // neither to the hash-only one.
+      const ends = events.filter((e) => e.phase === 'end')
+      expect(ends.map((e) => e.event.id)).toEqual([
+        commits[0].event.id,
+        commits[3].event.id,
+      ])
+    })
+
     it('reports the canonical relative URL on every navigation type, including traversals', async () => {
       const browser = await next.browser('/')
 

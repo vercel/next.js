@@ -11,6 +11,12 @@ export function TestControls() {
         Push hash
       </button>
       <button
+        id="push-end-marker-hash"
+        onClick={() => router.push('/end-marker#section')}
+      >
+        Push end-marker hash
+      </button>
+      <button
         id="push-no-prefetch"
         onClick={() => {
           // A programmatic push with no <Link> in the viewport: nothing was
