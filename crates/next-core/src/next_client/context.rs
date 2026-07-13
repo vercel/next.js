@@ -160,11 +160,19 @@ pub async fn get_client_resolve_options_context(
     let next_client_fallback_import_map = get_next_client_fallback_import_map(ty.clone())
         .to_resolved()
         .await?;
-    let next_client_resolved_map =
-        get_next_client_resolved_map(project_path.clone(), project_path.clone(), *mode.await?)
-            .await?
-            .to_resolved()
+    let expose_testing_api = mode.await?.is_development()
+        || *next_config
+            .enable_expose_testing_api_in_production_build()
             .await?;
+    let next_client_resolved_map = get_next_client_resolved_map(
+        project_path.clone(),
+        project_path.clone(),
+        *mode.await?,
+        expose_testing_api,
+    )
+    .await?
+    .to_resolved()
+    .await?;
     let mut custom_conditions: Vec<_> = mode.await?.custom_resolve_conditions().collect();
 
     if *next_config.enable_cache_components().await? {
