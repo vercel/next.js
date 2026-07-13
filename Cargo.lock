@@ -655,9 +655,9 @@ dependencies = [
 
 [[package]]
 name = "binding_macros"
-version = "70.0.0"
+version = "71.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6efb4654ab0be731c3ea4a900b26dcb95020299d590e8cb06e2eb77d21e2e9bd"
+checksum = "35cf94eaabb4ed2bef224f6a77859fef91777e41532f919bc182d452dcd741ba"
 dependencies = [
  "anyhow",
  "console_error_panic_hook",
@@ -668,7 +668,7 @@ dependencies = [
  "swc",
  "swc_common",
  "swc_ecma_ast",
- "swc_ecma_transforms",
+ "swc_ecma_transforms 58.0.0",
  "swc_ecma_visit",
  "wasm-bindgen",
  "wasm-bindgen-futures",
@@ -4565,7 +4565,7 @@ dependencies = [
 [[package]]
 name = "mdxjs"
 version = "1.0.4"
-source = "git+https://github.com/vercel-labs/mdxjs-rs-turbopack.git?branch=turbopack#cec541273844be7c28a3a6da213b105b34cebca6"
+source = "git+https://github.com/vercel-labs/mdxjs-rs-turbopack.git?branch=turbopack#2e10298f906a17e15bb383a2930b40741bd30e7e"
 dependencies = [
  "markdown",
  "rustc-hash 2.1.1",
@@ -7758,9 +7758,9 @@ checksum = "804f44ed3c63152de6a9f90acbea1a110441de43006ea51bcce8f436196a288b"
 
 [[package]]
 name = "swc"
-version = "70.0.0"
+version = "71.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1a5d74164468c1bc8cc1ab46df40d9575396fbb94a8c39ee67ed2afad37b6485"
+checksum = "2f8a080d5ca03104a8beecb901ee7e1bfe3e511e4960acf8667664d45f973f7e"
 dependencies = [
  "anyhow",
  "base64 0.22.1",
@@ -7788,7 +7788,7 @@ dependencies = [
  "swc_ecma_minifier",
  "swc_ecma_parser",
  "swc_ecma_preset_env",
- "swc_ecma_transforms",
+ "swc_ecma_transforms 58.0.0",
  "swc_ecma_transforms_base",
  "swc_ecma_transforms_compat",
  "swc_ecma_transforms_module",
@@ -7954,9 +7954,9 @@ dependencies = [
 
 [[package]]
 name = "swc_core"
-version = "72.0.0"
+version = "73.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bcb4f8cfebf7587501a5c1d93957f1208ba9aa212aa00f5b0a97f4adf2c0b056"
+checksum = "f32ff8b6aad9a785a5861489a62576262e22d702fbc2f2c134e69278b7e934a3"
 dependencies = [
  "binding_macros",
  "par-core",
@@ -8411,9 +8411,9 @@ dependencies = [
 
 [[package]]
 name = "swc_ecma_minifier"
-version = "57.0.0"
+version = "57.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f3e36813c68afd2fa6b921387e6e26327f6ce86063daff2014fd0edd6d52fbb4"
+checksum = "d3fe5390a3c4891658f8a76a19e4af1c797b559c28414e2da9f95b3429c6f71c"
 dependencies = [
  "arrayvec 0.7.6",
  "bitflags 2.9.1",
@@ -8467,9 +8467,9 @@ dependencies = [
 
 [[package]]
 name = "swc_ecma_preset_env"
-version = "58.0.0"
+version = "59.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d7e28e11f6efa306ba0843c281815d81fc0a7c3a7a073e3c76dc4be2080e6451"
+checksum = "952e8170a41290d82e440ee893b6f486f51f9cad4781df49b94dc20de0947bfe"
 dependencies = [
  "anyhow",
  "foldhash 0.1.5",
@@ -8485,7 +8485,7 @@ dependencies = [
  "swc_common",
  "swc_ecma_ast",
  "swc_ecma_transformer",
- "swc_ecma_transforms",
+ "swc_ecma_transforms 58.0.0",
  "swc_ecma_utils",
  "swc_ecma_visit",
 ]
@@ -8619,6 +8619,19 @@ dependencies = [
  "swc_common",
  "swc_ecma_ast",
  "swc_ecma_transforms_base",
+ "swc_ecma_utils",
+]
+
+[[package]]
+name = "swc_ecma_transforms"
+version = "58.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3d7f5d48ae85e24af2a95f57864b5ade0abc78dfbdfa6ee8cb115c727fe26960"
+dependencies = [
+ "par-core",
+ "swc_common",
+ "swc_ecma_ast",
+ "swc_ecma_transforms_base",
  "swc_ecma_transforms_compat",
  "swc_ecma_transforms_module",
  "swc_ecma_transforms_optimization",
@@ -8705,9 +8718,9 @@ dependencies = [
 
 [[package]]
 name = "swc_ecma_transforms_module"
-version = "50.0.0"
+version = "51.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "56ef805d03fee6bd5c600128da304d7c4c32701c4faba6375970ef8105d4e2b2"
+checksum = "970cf9c87f2e42bf9726af04765a312104273c0eef04fc562974484d09f3c8e0"
 dependencies = [
  "Inflector",
  "anyhow",
@@ -8895,7 +8908,7 @@ dependencies = [
  "swc_common",
  "swc_ecma_ast",
  "swc_ecma_codegen",
- "swc_ecma_transforms",
+ "swc_ecma_transforms 57.0.0",
  "swc_ecma_utils",
  "swc_ecma_visit",
  "swc_sourcemap",
