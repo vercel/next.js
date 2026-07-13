@@ -45,9 +45,7 @@ Every insight has a docs page — open it. Fetch the linked page for every disti
 
 ## step 1: audit `<Link prefetch={true}>` (before enabling)
 
-> **New project, or links you wrote yourself?** There's nothing to audit — you already made the keep-or-drop call as you added each link. Enable `partialPrefetching: true` and add `prefetch={true}` per the guide's [new-project note](https://nextjs.org/docs/app/guides/adopting-partial-prefetching#enable-partial-prefetching), then go straight to the [URL-data sweep](#step-3-sweep-for-url-data-insights-after-enabling). The audit below is for adopting an **existing** app: it surfaces legacy `prefetch={true}` calls whose destinations predate Partial Prefetching, which enabling the flag would otherwise mark adopted silently.
-
-Work the audit with the global flag **off**, adopting each destination with `export const prefetch = 'partial'` — enabling the flag first would mark every route adopted and silence the [`link-prefetch-partial`](https://nextjs.org/docs/messages/instant-link-prefetch-partial) insight this audit runs on. Ask the user how to ship it, in the language of PRs:
+If `partialPrefetching: true` is already set in `next.config.ts`, the app is adopted — skip to [step 3](#step-3-sweep-for-url-data-insights-after-enabling). Otherwise work the audit with the global flag **off**, adopting each destination with `export const prefetch = 'partial'` — enabling the flag first would mark every route adopted and silence the [`link-prefetch-partial`](https://nextjs.org/docs/messages/instant-link-prefetch-partial) insight this audit runs on. Ask the user how to ship it, in the language of PRs:
 
 - **One branch** — the whole audit in one change, with the flag enabled and the codemod run at the end (step 2).
 - **Route by route** — each adopted destination ships as its own PR. The insight keeps firing for the destinations you haven't reached, a live worklist, and step 2 comes after the last one.
