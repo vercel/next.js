@@ -2167,5 +2167,10 @@ async function expectTrace(
     })
 
     expect(filteredTree).toMatchObject(match)
-  })
+    // Some spans (notably `NextNodeServer.clientComponentLoading`) end outside
+    // the request's synchronous span tree and are exported to the collector via
+    // an individual HTTP POST when they end. Under CI load that span can end and
+    // arrive slightly after the rest of the trace, so use a window a bit larger
+    // than the 3s default to let all spans arrive before matching.
+  }, 6_000)
 }
