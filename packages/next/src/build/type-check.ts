@@ -37,14 +37,14 @@ function verifyAndRunTypeScript(
   let impl: typeof import('../lib/verify-typescript-setup').verifyAndRunTypeScript
   let typeCheckWorker:
     | (Worker & {
-        verifyAndRunTypeScript: typeof impl
+        verifyAndRunTypeScriptInWorker: typeof impl
       })
     | undefined
   if (shouldRunTypeCheck && !useTypeScriptCli) {
     typeCheckWorker = new Worker(
       require.resolve('../lib/verify-typescript-setup'),
       {
-        exposedMethods: ['verifyAndRunTypeScript'],
+        exposedMethods: ['verifyAndRunTypeScriptInWorker'],
         debuggerPortOffset: -1,
         isolatedMemory: false,
         numWorkers: 1,
@@ -52,7 +52,7 @@ function verifyAndRunTypeScript(
         maxRetries: 0,
       }
     ) as typeof typeCheckWorker
-    impl = typeCheckWorker!.verifyAndRunTypeScript
+    impl = typeCheckWorker!.verifyAndRunTypeScriptInWorker
   } else {
     // No worker: either we are not type-checking (just writing setup files), or
     // the CLI checker runs `tsc` in-process. Avoid the worker overhead.
