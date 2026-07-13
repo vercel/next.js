@@ -119,26 +119,39 @@ export default function transformer(file: FileInfo, _api: API) {
     })
 
   // Bare `const prefetch = 'partial'` declarations are only Route Segment
-  // Configs when the file also exports them via a local `export { prefetch }`.
-  // Re-exports (`export { prefetch } from '...'`) bind another module's value,
-  // so they don't count.
-  const hasLocalPrefetchExportSpecifier =
-    root
-      .find(j.ExportNamedDeclaration)
-      .filter((path) => {
-        if (path.node.source) {
-          return false
+  // Configs when the file also exports them as `prefetch` via a local
+  // `export { prefetch }`. Re-exports (`export { prefetch } from '...'`) bind
+  // another module's value, and aliased exports export a different name
+  // (`export { prefetch as other }`) or a different binding
+  // (`export { other as prefetch }`), so neither counts. When an aliased
+  // export shares the `prefetch` binding, removing the declaration would
+  // break it, so the whole file is left untouched.
+  let hasPlainPrefetchExportSpecifier = false
+  let hasAliasedPrefetchBinding = false
+  root
+    .find(j.ExportNamedDeclaration)
+    .filter((path) => !path.node.source)
+    .forEach((path) => {
+      for (const spec of path.node.specifiers ?? []) {
+        if (
+          !j.ExportSpecifier.check(spec) ||
+          !j.Identifier.check(spec.local) ||
+          spec.local.name !== CONFIG_NAME
+        ) {
+          continue
         }
-        return Boolean(
-          path.node.specifiers?.some(
-            (spec) =>
-              j.ExportSpecifier.check(spec) &&
-              j.Identifier.check(spec.local) &&
-              spec.local.name === CONFIG_NAME
-          )
-        )
-      })
-      .size() > 0
+        if (
+          j.Identifier.check(spec.exported) &&
+          spec.exported.name === CONFIG_NAME
+        ) {
+          hasPlainPrefetchExportSpecifier = true
+        } else {
+          hasAliasedPrefetchBinding = true
+        }
+      }
+    })
+  const hasLocalPrefetchExportSpecifier =
+    hasPlainPrefetchExportSpecifier && !hasAliasedPrefetchBinding
 
   // Track that we removed a bare declaration so we only drop the matching
   // export specifier below.
@@ -184,8 +197,18 @@ export default function transformer(file: FileInfo, _api: API) {
         if (!specifiers) return
 
         const filteredSpecifiers = specifiers.filter((spec) => {
-          if (j.ExportSpecifier.check(spec) && j.Identifier.check(spec.local)) {
-            return spec.local.name !== CONFIG_NAME
+          // Remove only the plain `export { prefetch }` specifier. Aliased
+          // specifiers export a different name or bind a different value, so
+          // they aren't the Route Segment Config.
+          if (
+            j.ExportSpecifier.check(spec) &&
+            j.Identifier.check(spec.local) &&
+            j.Identifier.check(spec.exported)
+          ) {
+            return !(
+              spec.local.name === CONFIG_NAME &&
+              spec.exported.name === CONFIG_NAME
+            )
           }
           return true
         })
