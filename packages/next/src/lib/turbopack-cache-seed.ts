@@ -15,6 +15,11 @@ export function seedTurbopackCacheIfNeeded({
   projectDir: string
   distDir: string
 }): void {
+  // This gets the version assuming that nothing is dirty.
+  // If things are dirty, turbopack would write things
+  // in a different location. There are other circumstances
+  // as well. This only matters for people developing turbopack
+  // see handle_db_versioning in turbotask backend for more details.
   const version = getTurbopackCacheVersion()
   if (!version) return
 
@@ -22,7 +27,8 @@ export function seedTurbopackCacheIfNeeded({
   if (!worktreeInfo) return
 
   const cacheDir = path.join(distDir, 'cache', 'turbopack')
-  if (dirHasEntries(cacheDir)) return
+  const targetVersionDir = path.join(cacheDir, version)
+  if (dirHasEntries(targetVersionDir)) return
 
   let sourceVersionDir: string | undefined
   try {
@@ -37,7 +43,6 @@ export function seedTurbopackCacheIfNeeded({
   }
   if (!sourceVersionDir) return
 
-  const targetVersionDir = path.join(cacheDir, version)
   const tmpDir = `${targetVersionDir}.seeding`
   // Making sure we don't copy partial data if process interrupted
   // There is a potential race condition here
@@ -121,8 +126,6 @@ function seedCacheDir(src: string, dst: string): void {
     for (const name of fs.readdirSync(src)) {
       seedCacheDir(path.join(src, name), path.join(dst, name))
     }
-  } else if (stat.isSymbolicLink()) {
-    fs.symlinkSync(fs.readlinkSync(src), dst)
   } else if (IMMUTABLE_CACHE_FILE.test(src)) {
     fs.linkSync(src, dst)
   } else {
