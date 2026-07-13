@@ -77,15 +77,15 @@ After enabling the flag, every `<Link>` prefetches its destination's App Shell, 
 
 Each `<Link prefetch={true}>` used to prefetch its destination's dynamic content along with the page. With the flag on it loads the App Shell like every other link, which can be thinner than the old full prefetch. Go through each one and decide what the destination should still prefetch:
 
-> **Good to know**: `cookies()` and `headers()` don't tie a prefetch to a URL. They vary per session, not per link, so the App Shell still carries session content. Only `params` and `searchParams` are [URL data](/docs/app/glossary#url-data), which varies per link and can't join the shared App Shell.
+> **Good to know**: `cookies()` and `headers()` don't tie a prefetch to a URL. They vary per session, not per link, so the App Shell still carries session content. Only `params` and `searchParams` are [URL data](/docs/app/glossary#url-data), which varies per link and can't be included in the shared App Shell.
 
-| Destination                                                                                                                                            | Recommendation                                                                                                                                                                                                      |
-| ------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Fully static, or content already cached                                                                                                                | The output is already in the App Shell. Remove the now-redundant `prefetch={true}`.                                                                                                                                 |
-| Delivered uncached content you want kept ahead of the click                                                                                            | Cache it with [`use cache`](/docs/app/api-reference/directives/use-cache) so it joins the App Shell, then remove `prefetch={true}`.                                                                                 |
-| Delivered content that depends on [`cookies()`](/docs/app/api-reference/functions/cookies) or [`headers()`](/docs/app/api-reference/functions/headers) | The App Shell is cached per session, so this content can join it. Pass the session value as an argument into a [`use cache`](/docs/app/api-reference/directives/use-cache) function, then remove `prefetch={true}`. |
-| Reads [URL data](/docs/app/glossary#url-data) (`params`, `searchParams`), or has cached content that depends on it                                     | URL data varies per link, so this content can't join the shared App Shell and streams in after navigation. Keep `prefetch={true}` to [prefetch it later](#prefetching-url-data).                                    |
-| Delivers real-time content that must stay fresh per request                                                                                            | A prefetch would be stale by the click, so there is nothing to preserve. Remove `prefetch={true}` and let it stream in after navigation.                                                                            |
+| Destination                                                                       | Recommendation                                                                   |
+| --------------------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
+| [Fully static, or content already cached](#static-or-cached-content)              | Remove the now-redundant `prefetch={true}`.                                      |
+| [Delivered uncached content you want kept ahead of the click](#uncached-content)  | Cache it with `use cache`, then remove `prefetch={true}`.                        |
+| [Delivered content that depends on `cookies()` or `headers()`](#session-content)  | Cache the lookup behind the session value, then remove `prefetch={true}`.        |
+| [Reads URL data, or has cached content that depends on it](#url-data)             | Keep `prefetch={true}`, and prefetch the content later with runtime prefetching. |
+| [Delivers real-time content that must stay fresh per request](#real-time-content) | Remove `prefetch={true}` and let the content stream in.                          |
 
 ### Static or cached content
 
@@ -100,7 +100,7 @@ The output is already in the App Shell. Remove the now-redundant `prefetch={true
 
 ### Uncached content
 
-Cache it with `use cache` so it joins the App Shell, then remove `prefetch={true}` from the links:
+Cache it with `use cache` so it gets included in the App Shell, then remove `prefetch={true}` from the links:
 
 ```tsx filename="app/products/page.tsx" switcher
 // Before
@@ -146,7 +146,7 @@ export default async function Page() {
 
 ### Session content
 
-Content behind `cookies()` or `headers()` joins the per-session App Shell once cached. Read the session value outside the cached function and pass it in, then remove `prefetch={true}` from the links:
+Content behind [`cookies()`](/docs/app/api-reference/functions/cookies) or [`headers()`](/docs/app/api-reference/functions/headers) varies per session, not per link, and the App Shell for a session-reading route is cached per session, so cached session content still gets included. Read the session value outside the cached function and pass it in, then remove `prefetch={true}` from the links:
 
 ```tsx filename="app/dashboard/page.tsx" switcher
 // Before
@@ -238,11 +238,11 @@ export default function Page() {
 
 ### URL data
 
-Content that reads `params` or `searchParams` streams in after navigation from behind its `<Suspense>` boundary. The links keep `prefetch={true}`, and [Prefetching URL data](#prefetching-url-data) covers prefetching the content ahead of the click.
+[URL data](/docs/app/glossary#url-data) (`params`, `searchParams`) varies per link, so content that depends on it can't be included in the shared App Shell and streams in after navigation from behind its `<Suspense>` boundary. The links keep `prefetch={true}`, and [Prefetching URL data](#prefetching-url-data) covers prefetching the content ahead of the click.
 
 ### Real-time content
 
-A prefetch would be stale by the click. Remove `prefetch={true}` and let the content stream in from behind its `<Suspense>` boundary.
+A prefetch of real-time content would be stale by the click, so there is nothing to preserve. Remove `prefetch={true}` and let the content stream in from behind its `<Suspense>` boundary.
 
 ## Adopting incrementally
 
@@ -433,7 +433,7 @@ Everything outside the boundary stays in the shared App Shell, and only the URL-
 
 ## Prefetching URL data
 
-Content that depends on [URL data](/docs/app/glossary#url-data) (`params`, `searchParams`) can't join the shared App Shell, so it streams in after navigation. [Runtime prefetching](/docs/app/guides/runtime-prefetching) resolves it ahead of the click for links with `prefetch={true}`, at the cost of a server invocation per visible link. To opt a route in, cache the content behind the read with [`use cache`](/docs/app/api-reference/directives/use-cache) so it can resolve at prefetch time, then add [`prefetch = 'allow-runtime'`](/docs/app/api-reference/file-conventions/route-segment-config/prefetch#allow-runtime). For a search page that reads `searchParams`:
+Content that depends on [URL data](/docs/app/glossary#url-data) (`params`, `searchParams`) can't be included in the shared App Shell, so it streams in after navigation. [Runtime prefetching](/docs/app/guides/runtime-prefetching) resolves it ahead of the click for links with `prefetch={true}`, at the cost of a server invocation per visible link. To opt a route in, cache the content behind the read with [`use cache`](/docs/app/api-reference/directives/use-cache) so it can resolve at prefetch time, then add [`prefetch = 'allow-runtime'`](/docs/app/api-reference/file-conventions/route-segment-config/prefetch#allow-runtime). For a search page that reads `searchParams`:
 
 ```tsx filename="app/search/page.tsx" switcher
 // Before - the results stream in after navigation
