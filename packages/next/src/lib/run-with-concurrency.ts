@@ -34,12 +34,11 @@ export async function runWithConcurrency<T, R>(
     return []
   }
 
-  // Fill the array up front so that out-of-order completions do not make it
-  // sparse. Every entry is replaced before this function returns.
-  const results: Array<R | undefined> = []
-  for (let i = 0; i < items.length; i++) {
-    results.push(undefined)
-  }
+  // Workers finish out of order and write to `results[index]` directly, so
+  // create the array at its final length instead of pushing. On the success
+  // path every slot is overwritten with a real result, which is what makes
+  // the `as R[]` cast at the end safe.
+  const results: Array<R | undefined> = new Array(items.length).fill(undefined)
 
   let nextIndex = 0
   let stopped = false

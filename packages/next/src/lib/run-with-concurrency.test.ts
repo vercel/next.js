@@ -72,6 +72,9 @@ describe('runWithConcurrency', () => {
 
     firstItemGate.resolve()
     await expect(result).rejects.toBe(error)
+    // No extra turn is needed before these assertions: the promise only
+    // settles after every worker has returned, and only workers call the
+    // callback, so `started` and `finished` cannot change anymore.
     expect(finished).toEqual([0])
     expect(started).toEqual([0, 1])
   })
@@ -159,6 +162,9 @@ describe('runInBatches', () => {
 
     firstItemGate.resolve()
     await expect(result).rejects.toBe(error)
+    // No extra turn is needed before these assertions: the promise only
+    // settles after every worker has returned, and only workers call the
+    // callback, so `started` and `finished` cannot change anymore.
     expect(finished).toEqual([0])
     expect(started).toEqual([0, 1])
   })
