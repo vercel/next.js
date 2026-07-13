@@ -69,9 +69,8 @@ import { FILES } from './files'
           'build-complete.json'
         )
 
-        next.env.NEXT_HASH_SALT = 'something-else'
-
         await next.stop()
+        next.env.NEXT_HASH_SALT = 'something-else'
         await next.build()
 
         const {
@@ -104,7 +103,11 @@ import { FILES } from './files'
             const hash1 = function1[file]
             const hash2 = function2[file]
             expect(hash1).toBeString()
-            expect(hash1).not.toEqual(hash2)
+            if (hash1 === hash2) {
+              throw new Error(
+                `Hash for ${pathname} file ${file} did not change with NEXT_HASH_SALT: ${hash1}`
+              )
+            }
           }
         }
       })
