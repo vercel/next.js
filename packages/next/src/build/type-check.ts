@@ -37,27 +37,25 @@ function verifyAndRunTypeScript(
   let impl: typeof import('../lib/verify-typescript-setup').verifyAndRunTypeScript
   let typeCheckWorker:
     | (Worker & {
-        verifyAndRunTypeScript: typeof impl
+        verifyAndRunTypeScriptInWorker: typeof impl
       })
     | undefined
-  if (shouldRunTypeCheck) {
+  if (shouldRunTypeCheck && !useTypeScriptCli) {
     typeCheckWorker = new Worker(
       require.resolve('../lib/verify-typescript-setup'),
       {
-        exposedMethods: ['verifyAndRunTypeScript'],
+        exposedMethods: ['verifyAndRunTypeScriptInWorker'],
         debuggerPortOffset: -1,
         isolatedMemory: false,
         numWorkers: 1,
-        // CLI mode must use a child-process worker so terminating the worker
-        // produces a process lifecycle event that can be forwarded to `tsc`.
-        enableWorkerThreads: useTypeScriptCli ? false : enableWorkerThreads,
+        enableWorkerThreads,
         maxRetries: 0,
       }
     ) as typeof typeCheckWorker
-    impl = typeCheckWorker!.verifyAndRunTypeScript
+    impl = typeCheckWorker!.verifyAndRunTypeScriptInWorker
   } else {
-    // When not running typecheck, just run the implementation in-process without spawning a worker,
-    // to avoid the overhead of the worker.
+    // No worker: either we are not type-checking (just writing setup files), or
+    // the CLI checker runs `tsc` in-process. Avoid the worker overhead.
     impl = (
       require('../lib/verify-typescript-setup') as typeof import('../lib/verify-typescript-setup')
     ).verifyAndRunTypeScript
@@ -84,8 +82,10 @@ function verifyAndRunTypeScript(
       return result
     })
     .catch(() => {
-      // The error is already logged in the worker, we simply exit the main thread to prevent the
-      // `Jest worker encountered 1 child process exceptions, exceeding retry limit` from showing up
+      // The error is already logged (in the worker for the API checker, or
+      // directly for the in-process CLI checker); we simply exit to prevent the
+      // `Jest worker encountered 1 child process exceptions, exceeding retry
+      // limit` message from showing up.
       process.exit(1)
     })
 }

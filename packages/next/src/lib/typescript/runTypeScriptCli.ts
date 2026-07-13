@@ -127,45 +127,44 @@ export function runTypeScriptCli({
     }
 
     let terminationRequested = false
-    const terminateChild = (signal: NodeJS.Signals = 'SIGTERM') => {
-      if (terminationRequested || child.killed) {
+    const terminateChild = () => {
+      if (terminationRequested || child.killed || child.pid === undefined) {
         return
       }
       terminationRequested = true
 
-      if (process.platform === 'win32' && child.pid) {
+      // The native compiler ignores SIGTERM and SIGINT, so send a kill signal.
+      // Target the whole process group so the signal reaches the native compiler whether
+      // it is a grandchild or a direct child.
+      // https://github.com/microsoft/typescript-go/pull/4592 should improve this in the long run
+      if (process.platform === 'win32') {
         spawnSync('taskkill', ['/pid', String(child.pid), '/T', '/F'], {
           stdio: 'ignore',
           windowsHide: true,
         })
-      } else if (child.pid) {
+      } else {
         try {
-          process.kill(-child.pid, signal)
+          // https://www.youtube.com/watch?v=Fow7iUaKrq4
+          process.kill(-child.pid, 'SIGKILL')
         } catch {
           // The process may have exited between the lifecycle event and kill.
         }
-      } else {
-        child.kill(signal)
       }
     }
     const terminateOnExit = () => terminateChild()
     process.once('exit', terminateOnExit)
 
-    let receivedSignal: NodeJS.Signals | undefined
-    const signalHandlers = new Map<NodeJS.Signals, () => void>()
-    const createSignalHandler = (signal: NodeJS.Signals) => () => {
-      receivedSignal ??= signal
-      terminateChild(signal)
+    const handler = () => {
+      terminateChild()
+      process.exit(1)
     }
     for (const signal of terminationSignals) {
-      const handler = createSignalHandler(signal)
-      signalHandlers.set(signal, handler)
       process.once(signal, handler)
     }
 
     const cleanup = () => {
       process.off('exit', terminateOnExit)
-      for (const [signal, handler] of signalHandlers) {
+      for (const signal of terminationSignals) {
         process.off(signal, handler)
       }
     }
@@ -177,28 +176,6 @@ export function runTypeScriptCli({
       }
       settled = true
       cleanup()
-
-      if (receivedSignal) {
-        const signal = receivedSignal
-        try {
-          // Installing a signal handler replaces Node.js' default termination.
-          // Re-send the signal after the child exits so this process preserves
-          // the original exit semantics instead of treating cancellation as a
-          // successful type check.
-          process.kill(process.pid, signal)
-        } catch (error) {
-          reject(error)
-          return
-        }
-
-        // If another listener consumes the re-sent signal, still fail instead
-        // of leaving the type-check promise pending indefinitely.
-        setImmediate(() => {
-          reject(new Error(`TypeScript CLI interrupted by ${signal}`))
-        })
-        return
-      }
-
       settle()
     }
 
