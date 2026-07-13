@@ -11,7 +11,7 @@ use std::{
 
 use anyhow::Result;
 use napi::{
-    Env, Status, Unknown as JsUnknown,
+    Env, Status, Unknown,
     bindgen_prelude::{FunctionRef, Promise},
     threadsafe_function::ThreadsafeFunction,
 };
@@ -151,7 +151,7 @@ pub struct NapiNextTurbopackCallbacksJsObject {
     /// there's a runtime conversion error. This should never happen, but if it does, the function
     /// can throw it instead.
     #[napi(ts_type = "(conversionError: Error | null, opts: TurbopackInternalErrorOpts) => never")]
-    pub throw_turbopack_internal_error: FunctionRef<JsUnknown<'static>, ()>,
+    pub throw_turbopack_internal_error: FunctionRef<Unknown<'static>, ()>,
 
     /// Called before deferred entries are processed in a production build.
     #[napi(ts_type = "() => Promise<void>")]
