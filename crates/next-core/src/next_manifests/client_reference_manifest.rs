@@ -447,19 +447,21 @@ async fn build_manifest(
                 }
             }
 
-            entry_manifest.client_modules.module_exports.insert(
-                get_client_reference_module_key(&server_path, "*"),
-                ManifestNodeEntry {
-                    name: rcstr!("*"),
-                    id: (&client_chunk_item_id).into(),
-                    chunks: client_chunks_paths,
-                    // This should of course be client_is_async, but SSR can become
-                    // async due to ESM externals, and
-                    // the ssr_manifest_node is currently ignored
-                    // by React.
-                    r#async: client_is_async || ssr_is_async,
-                },
-            );
+            if ssr_chunking_context.is_some() || rsc_chunking_context.is_some() {
+                entry_manifest.client_modules.module_exports.insert(
+                    get_client_reference_module_key(&server_path, "*"),
+                    ManifestNodeEntry {
+                        name: rcstr!("*"),
+                        id: (&client_chunk_item_id).into(),
+                        chunks: client_chunks_paths,
+                        // This should of course be client_is_async, but SSR can become
+                        // async due to ESM externals, and
+                        // the ssr_manifest_node is currently ignored
+                        // by React.
+                        r#async: client_is_async || ssr_is_async,
+                    },
+                );
+            }
         }
 
         // per layout segment chunks need to be emitted into the manifest too

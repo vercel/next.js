@@ -99,6 +99,7 @@ use crate::{
     entrypoints::Entrypoints,
     instrumentation::InstrumentationEndpoint,
     middleware::MiddlewareEndpoint,
+    output_mode::{OptionOutputModeState, OutputModeState},
     pages::PagesProject,
     route::{
         Endpoint, EndpointGroup, EndpointGroupEntry, EndpointGroupKey, EndpointGroups, Endpoints,
@@ -466,6 +467,7 @@ pub struct ProjectContainer {
     name: RcStr,
     options_state: State<Option<ProjectOptions>>,
     versioned_content_map: Option<ResolvedVc<VersionedContentMap>>,
+    output_mode_state: Option<ResolvedVc<OutputModeState>>,
 }
 
 #[turbo_tasks::value_impl]
@@ -478,6 +480,13 @@ impl ProjectContainer {
             // is assumed to be operating over a static snapshot
             versioned_content_map: if dev {
                 Some(VersionedContentMap::new())
+            } else {
+                None
+            },
+            // only dev serves pages on demand, so only dev can defer the
+            // Client Component SSR output of a page
+            output_mode_state: if dev {
+                Some(OutputModeState::new())
             } else {
                 None
             },
@@ -866,6 +875,7 @@ impl ProjectContainer {
                 NextMode::Build.resolved_cell()
             },
             versioned_content_map: self.versioned_content_map,
+            output_mode_state: self.output_mode_state,
             build_id,
             encryption_key,
             preview_props,
@@ -950,6 +960,11 @@ pub struct Project {
     mode: ResolvedVc<NextMode>,
 
     versioned_content_map: Option<ResolvedVc<VersionedContentMap>>,
+
+    /// Tracks which app pages must emit full HTML output in development. Like
+    /// [`Project::versioned_content_map`], this is the same cell across
+    /// `Project` re-creations, so the state survives options changes.
+    output_mode_state: Option<ResolvedVc<OutputModeState>>,
 
     build_id: RcStr,
 
@@ -1055,6 +1070,11 @@ impl Project {
     #[turbo_tasks::function]
     pub fn pages_project(self: Vc<Self>) -> Vc<PagesProject> {
         PagesProject::new(self)
+    }
+
+    #[turbo_tasks::function]
+    pub fn output_mode_state(&self) -> Vc<OptionOutputModeState> {
+        Vc::cell(self.output_mode_state)
     }
 
     #[turbo_tasks::function]
