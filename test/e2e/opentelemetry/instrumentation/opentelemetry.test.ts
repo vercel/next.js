@@ -1919,6 +1919,19 @@ if (isNextStart) {
       await collector.shutdown()
     })
 
+    it('records spans from a tracer acquired before instrumentation registration', async () => {
+      const response = await next.fetch('/api/app/param/module-scope-tracer')
+      expect(response.status).toBe(200)
+
+      await retry(async () => {
+        expect(
+          collector
+            .getSpans()
+            .some((span) => span.name === 'module-scope-tracer')
+        ).toBe(true)
+      })
+    })
+
     const directEntrypointCases = [
       { pathname: '/app/param/rsc-fetch', route: '/app/[param]/rsc-fetch' },
       { pathname: '/api/app/param/data', route: '/api/app/[param]/data' },

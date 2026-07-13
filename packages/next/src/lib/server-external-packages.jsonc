@@ -13,6 +13,7 @@
   "@mikro-orm/knex",
   "@node-rs/argon2",
   "@node-rs/bcrypt",
+  "@opentelemetry/api",
   "@prisma/client",
   "@react-pdf/renderer",
   // Native Node.js addons

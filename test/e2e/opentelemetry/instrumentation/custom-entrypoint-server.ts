@@ -8,9 +8,9 @@ import { register } from './instrumentation-custom-server'
 
 const withoutParentSpan = process.argv.includes('--without-parent-span')
 
-if (!withoutParentSpan) {
-  register()
-}
+;(globalThis as typeof globalThis & { __nextTestTraceApi?: typeof trace })[
+  '__nextTestTraceApi'
+] = trace
 
 type EntrypointHandler = (
   req: IncomingMessage,
@@ -36,11 +36,22 @@ function loadEntrypointHandler<T>(handler: string): T {
   return mod.handler
 }
 
+require('next/dist/server/node-environment')
+
+// Load one route before registration to cover modules that acquire a tracer at
+// module scope. The tracer must become live when the provider is registered.
+const preloadedModuleScopeTracerHandler =
+  loadEntrypointHandler<EntrypointHandler>(
+    'app/api/app/[param]/module-scope-tracer/route.js'
+  )
+
+if (!withoutParentSpan) {
+  register()
+}
+
 async function main() {
   const port = await getPort()
   const hostname = 'localhost'
-
-  require('next/dist/server/node-environment')
 
   const handlers: [RegExp, string][] = [
     [/^\/api\/app\/param\/data$/, 'app/api/app/[param]/data/route.js'],
@@ -99,7 +110,10 @@ async function main() {
   createServer((req, res) => {
     const method = req.method || 'GET'
     const pathname = parse(req.url || '/', false).pathname || '/'
-    const handler = resolveHandler<EntrypointHandler>(handlers, pathname)
+    const handler =
+      pathname === '/api/app/param/module-scope-tracer'
+        ? preloadedModuleScopeTracerHandler
+        : resolveHandler<EntrypointHandler>(handlers, pathname)
     const middlewareHandler = resolveHandler<MiddlewareHandler>(
       middlewareHandlers,
       pathname
