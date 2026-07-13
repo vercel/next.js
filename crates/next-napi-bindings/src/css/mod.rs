@@ -1,13 +1,10 @@
-use napi::{Env, bindgen_prelude::Object};
+use napi::{Env, Unknown, bindgen_prelude::Object};
 use napi_derive::napi;
 use next_core::next_config::lightningcss_feature_names_to_mask;
 
 #[napi(js_name = "lightningCssTransform")]
 #[allow(dead_code)]
-pub fn transform<'env>(
-    env: &'env Env,
-    opts: Object<'_>,
-) -> napi::Result<napi::bindgen_prelude::Unknown<'env>> {
+pub fn transform<'env>(env: &'env Env, opts: Object<'_>) -> napi::Result<Unknown<'env>> {
     turbopack_lightningcss_napi::transform(env, opts)
 }
 
@@ -16,7 +13,7 @@ pub fn transform<'env>(
 pub fn transform_style_attribute<'env>(
     env: &'env Env,
     opts: Object<'_>,
-) -> napi::Result<napi::bindgen_prelude::Unknown<'env>> {
+) -> napi::Result<Unknown<'env>> {
     turbopack_lightningcss_napi::transform_style_attribute(env, opts)
 }
 
