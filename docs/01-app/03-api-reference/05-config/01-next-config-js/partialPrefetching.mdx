@@ -50,7 +50,7 @@ With `partialPrefetching: true`, Next.js prefetches one reusable [App Shell](/do
 
 The pattern is similar to per-route code splitting in single-page apps: one artifact per route, shared by every link that points to it.
 
-> **Good to know**: Routes that read `cookies()` or `headers()` produce an App Shell that includes session data. The framework auto-detects this, and the shell is cached per session on the client, not shared across users.
+> **Good to know**: Routes that read `cookies()` or `headers()` produce an App Shell that includes session data. The framework auto-detects this and caches the shell per session on the client.
 
 A link can ask for more than the App Shell with [`<Link prefetch={true}>`](/docs/app/api-reference/components/link#prefetch). If the destination opts into [`prefetch = 'allow-runtime'`](/docs/app/api-reference/file-conventions/route-segment-config/prefetch#allow-runtime), the prefetch also resolves per-link runtime data like `params`, `searchParams`, and the full URL.
 
