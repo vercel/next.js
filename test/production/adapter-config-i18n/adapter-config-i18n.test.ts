@@ -1,7 +1,7 @@
 import { nextTestSetup } from 'e2e-utils'
 import type { NextAdapter } from 'next'
 
-describe('adapter config with i18n API routes', () => {
+describe('adapter config with i18n routes', () => {
   const { next } = nextTestSetup({
     files: __dirname,
   })
@@ -31,6 +31,22 @@ describe('adapter config with i18n API routes', () => {
     expect(pageRoute?.sourceRegex).toContain('nextLocale')
     expect(pageRoute?.destination).toBe(
       '/$nextLocale/blog/[slug]?nxtPslug=$nxtPslug'
+    )
+  })
+
+  it('does not emit outputs multiple times for a given pathname', async () => {
+    const { outputs }: Parameters<NextAdapter['onBuildComplete']>[0] =
+      await next.readJSON('build-complete.json')
+
+    const pathnameSet = (f) => new Set(f.map((o) => o.pathname))
+
+    expect(pathnameSet(outputs.pages).size).toBe(outputs.pages.length)
+    expect(pathnameSet(outputs.appPages).size).toBe(outputs.appPages.length)
+    expect(pathnameSet(outputs.pagesApi).size).toBe(outputs.pagesApi.length)
+    expect(pathnameSet(outputs.appRoutes).size).toBe(outputs.appRoutes.length)
+    expect(pathnameSet(outputs.prerenders).size).toBe(outputs.prerenders.length)
+    expect(pathnameSet(outputs.staticFiles).size).toBe(
+      outputs.staticFiles.length
     )
   })
 })
