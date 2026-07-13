@@ -3,8 +3,8 @@ use std::{ops::Deref, sync::Arc};
 use anyhow::Result;
 use futures_util::TryFutureExt;
 use napi::{
-    Env, Unknown as JsUnknown,
-    bindgen_prelude::{External, ExternalRef, PromiseRaw},
+    Env,
+    bindgen_prelude::{External, FunctionRef},
 };
 use napi_derive::napi;
 use next_api::{
@@ -148,55 +148,47 @@ async fn get_written_endpoint_with_issues_operation(
     .cell())
 }
 
+#[tracing::instrument(level = "info", name = "write endpoint to disk", skip_all)]
 #[napi]
-pub fn endpoint_write_to_disk<'env>(
-    env: &'env Env,
+pub async fn endpoint_write_to_disk(
     #[napi(ts_arg_type = "{ __napiType: \"Endpoint\" }")] endpoint: &External<ExternalEndpoint>,
-) -> napi::Result<PromiseRaw<'env, TurbopackResult<NapiWrittenEndpoint>>> {
+) -> napi::Result<TurbopackResult<NapiWrittenEndpoint>> {
     let ctx = endpoint.turbopack_ctx().clone();
     let endpoint_op = ****endpoint;
-    env.spawn_future(
-        async move {
-            let (written, issues) = ctx
-                .turbo_tasks()
-                .run(async move {
-                    let written_entrypoint_with_issues_op =
-                        get_written_endpoint_with_issues_operation(endpoint_op);
-                    let read = read_strongly_consistent_and_apply_effects(
-                        written_entrypoint_with_issues_op,
-                        |v| &v.effects,
-                    )
-                    .await?;
-                    let WrittenEndpointWithIssues {
-                        written, issues, ..
-                    } = &*read;
+    let (written, issues) = ctx
+        .turbo_tasks()
+        .run(async move {
+            let written_entrypoint_with_issues_op =
+                get_written_endpoint_with_issues_operation(endpoint_op);
+            let read = read_strongly_consistent_and_apply_effects(
+                written_entrypoint_with_issues_op,
+                |v| &v.effects,
+            )
+            .await?;
+            let WrittenEndpointWithIssues {
+                written, issues, ..
+            } = &*read;
 
-                    Ok((written.clone(), issues.clone()))
-                })
-                .or_else(|e| ctx.throw_turbopack_internal_result(&e.into()))
-                .await?;
-            Ok(TurbopackResult {
-                result: NapiWrittenEndpoint::from(written.map(ReadRef::into_owned)),
-                issues: issues.iter().map(|i| NapiIssue::from(&**i)).collect(),
-            })
-        }
-        .instrument(tracing::info_span!("write endpoint to disk")),
-    )
+            Ok((written.clone(), issues.clone()))
+        })
+        .or_else(|e| ctx.throw_turbopack_internal_result(&e.into()))
+        .await?;
+    Ok(TurbopackResult {
+        result: NapiWrittenEndpoint::from(written.map(ReadRef::into_owned)),
+        issues: issues.iter().map(|i| NapiIssue::from(&**i)).collect(),
+    })
 }
 
 #[tracing::instrument(level = "info", name = "get server-side endpoint changes", skip_all)]
 #[napi(ts_return_type = "{ __napiType: \"RootTask\" }")]
 pub fn endpoint_server_changed_subscribe(
     env: Env,
-    #[napi(ts_arg_type = "{ __napiType: \"Endpoint\" }")] endpoint: ExternalRef<ExternalEndpoint>,
+    #[napi(ts_arg_type = "{ __napiType: \"Endpoint\" }")] endpoint: &External<ExternalEndpoint>,
     issues: bool,
-    #[napi(ts_arg_type = "(...args: any[]) => any")] func: napi::bindgen_prelude::FunctionRef<
-        JsUnknown<'static>,
-        (),
-    >,
+    #[napi(ts_arg_type = "(...args: any[]) => any")] func: FunctionRef<TurbopackResult<()>, ()>,
 ) -> napi::Result<External<RootTask>> {
     let turbopack_ctx = endpoint.turbopack_ctx().clone();
-    let endpoint = ***endpoint;
+    let endpoint = ****endpoint;
     subscribe(
         turbopack_ctx,
         &env,
@@ -276,14 +268,11 @@ async fn subscribe_issues_and_diags_operation(
 #[napi(ts_return_type = "{ __napiType: \"RootTask\" }")]
 pub fn endpoint_client_changed_subscribe(
     env: Env,
-    #[napi(ts_arg_type = "{ __napiType: \"Endpoint\" }")] endpoint: ExternalRef<ExternalEndpoint>,
-    #[napi(ts_arg_type = "(...args: any[]) => any")] func: napi::bindgen_prelude::FunctionRef<
-        JsUnknown<'static>,
-        (),
-    >,
+    #[napi(ts_arg_type = "{ __napiType: \"Endpoint\" }")] endpoint: &External<ExternalEndpoint>,
+    #[napi(ts_arg_type = "(...args: any[]) => any")] func: FunctionRef<TurbopackResult<()>, ()>,
 ) -> napi::Result<External<RootTask>> {
     let turbopack_ctx = endpoint.turbopack_ctx().clone();
-    let endpoint_op = ***endpoint;
+    let endpoint_op = ****endpoint;
     subscribe(
         turbopack_ctx,
         &env,
