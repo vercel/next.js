@@ -28,11 +28,11 @@ React DevTools also adds a **Suspense** view that marks when each `<Suspense>` b
 
 ## Profiling
 
-The examples profile a small demo dashboard, one problem per step, each following the same loop: record the app, read one track, recognize the pattern, apply the fix, then record again to confirm the shape changed.
+The examples profile a small demo dashboard, one problem per step, each following the same loop: record the app, read one track, recognize the pattern, apply the fix, then record again to confirm the fix worked.
 
-The demo is tiny, so each pattern is easy to see. Real apps bury the same patterns in more code, but the workflow is the same.
+The demo is structured so each pattern is easy to see. Real apps bury the same patterns in more code, but the workflow is the same.
 
-Follow along with the demo: [performance-profiling-playground](https://github.com/OWNER/REPO)
+Follow along with the demo: [performance-profiling-playground](https://github.com/OWNER/REPO), clone the repository, install dependencies and start the dev server.
 {/* TODO: set the demo repository URL */}
 
 ### Step 1: Find a server-data waterfall
@@ -49,13 +49,13 @@ export default async function DashboardPage() {
 }
 ```
 
-Record a page load in the Performance panel and open the **Server Components** track. Observe the three spans: `getTeams` starts only when `getUser` resolves, and `getNotifications` only when `getTeams` does. Each `await` pauses the page render until it resolves. This is a **data waterfall**.
+Record a page load in the Performance panel and open the **Server Components** track. Observe the three spans: `getTeams` starts only when `getUser` resolves, and `getNotifications` only when `getTeams` does. Each `await` has to resolve before the page can render any components. This is a **data waterfall**.
 
 Reads that do not depend on one another could be started at the same time instead, which would cut the total down to just the slowest read.
 
 > **Good to know:** Running independent reads at the same time is concurrency, not parallelism. These reads are I/O-bound, so each `await` mostly waits on a network or database response, and a single thread can keep several requests in flight at once. They overlap their waiting instead of taking turns.
 
-The Performance panel can save the recording as JSON, where every span carries its own start and duration, the same data the [`next-performance-profiling`](#automate-the-loop-with-a-skill) skill parses to find the waterfall.
+The Performance panel can save the recording as JSON, where every span carries its own start and duration, so the tracks can be read programmatically, not only on screen.
 
 <details>
   <summary>Read the Server Components track as data</summary>
@@ -144,15 +144,15 @@ See [Parallel data fetching](/docs/app/getting-started/fetching-data#parallel-da
 
 > **Good to know:** `Promise.all` rejects as a unit: one failed read fails the whole page, the same all-or-nothing risk as the sequential version. Use [`Promise.allSettled`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise/allSettled) when each read should resolve or fail on its own. A rejected `Promise.all` also does not cancel the other reads, which keep running, so abort them with an [`AbortController`](https://developer.mozilla.org/en-US/docs/Web/API/AbortController) if a failure leaves the page unusable.
 
-Record again. The waterfall is gone: the reads now start together instead of one after another, so the group finishes in the time of its slowest member.
+Record again. The waterfall is gone: the reads now start together instead of one after another, so the group finishes in the time of its slowest member. The shell now finishes at `getUser` plus the slower of the two overlapping reads, not the sum of all three.
 
 {/* TODO: screenshot, Server Components track after parallelizing (after) */}
 
-Notice that after the fix the track shows `getUser` then `getTeams`, with no `getNotifications` span even though it still ran. The track draws only the read on the critical path, and when reads run at once that is the slowest one. Here `getNotifications` (250ms) finishes while `getTeams` (300ms) is still going, so `getTeams` sets the timing and gets the span. Even so, `getNotifications` runs and its result is still used, though it was not what held the render up.
+Notice that after the fix the track shows `getUser` then `getTeams`, with no `getNotifications` span even though it still ran. In this app `getNotifications` finishes in 250ms while `getTeams` takes 300ms, so `getTeams` is the one holding up the render, and the span takes its name.
 
-So do not verify a parallel fix by counting spans. Check the timing instead: the shell now finishes at `getUser` plus the slower of the two overlapping reads, not the sum of all three.
+Often the better structure is to move each read into the component that uses it, so the read starts when that component renders instead of blocking the page up front. 
 
-Often the better structure is to move each read into the component that uses it, so the read starts when that component renders instead of blocking the page up front. The demo does this for its content sections: `ActivityFeed` awaits its own data, so it can sit behind its own boundary and stream independently.
+The demo does this for its content sections: `ActivityFeed` awaits its own data, so it can sit behind its own boundary and stream independently.
 
 ```tsx filename="app/dashboard/components/activity-feed.tsx"
 export async function ActivityFeed({ teamIds }: { teamIds: string[] }) {
@@ -224,9 +224,12 @@ The problem is that **one boundary wraps several pieces that load at different s
 
 See [Parallel streaming with sibling boundaries](/docs/app/guides/streaming#parallel-streaming-with-sibling-boundaries).
 
-Reload again. The Suspense view now shows three reveal events at different times. The `Stats` and `ActivityFeed` sections paint as soon as their own data is ready, and only `WhoIsOnline`'s region keeps its fallback until it resolves.
+Reload again. The Suspense view now shows three reveal events at different times. The `Stats` and `ActivityFeed` sections paint as soon as their own data is ready, and only the `WhoIsOnline` region keeps its fallback until it resolves.
 
-Splitting has two things to get right. Keep everything that does not need the slow data (headings, layout, chrome) outside the boundaries, so only the data-dependent parts ever show a fallback. And size each fallback to match the content it replaces, so a reveal swaps in place instead of shifting the page as sections pop in.
+Splitting has two things to get right,
+
+- keep everything that does not need the slow data (headings, layout, chrome) outside the boundaries, so only the data-dependent parts ever show a fallback, and
+- size each fallback to match the content it replaces, so a reveal swaps in place instead of shifting the page as sections pop in.
 
 <details>
   <summary>Nesting boundaries does not serialize them</summary>
@@ -257,6 +260,10 @@ Both `RandomRoll` reads start together. On the **Server Components** track they 
 
 {/* TODO: screenshot, Suspense view: three staggered reveals (after) */}
 
+One reveal is now several. Content shows sooner, but a page that fills in piece by piece can read as busier, even slower, than the single reveal it replaced. That is what the two rules above prevent: chrome stays in the static frame and fallbacks hold their space, so the reveals do not reshuffle the layout.
+
+The more of the page that is already there on load, the less has to stream behind a fallback at all.
+
 ### Cache Components helps with both
 
 [Cache Components](/docs/app/getting-started/caching) lets one page mix static and dynamic content. In the demo the teams a user belongs to rarely change, so `getTeams` does not need to run on every request. Caching it for days is reasonable, as it almost never changes within that window, while a `cacheTag` allows an on-demand refresh when necessary:
@@ -272,7 +279,7 @@ async function getTeams(teamIds: string[]) {
 }
 ```
 
-The same reasoning covers the other reads: cache what changes rarely, tag it so a mutation can refresh it, and keep genuinely live data dynamic. `WhoIsOnline` is real-time, so it stays behind `<Suspense>` and streams per request while the cached sections render instantly:
+The same reasoning covers the other reads: cache the ones that change rarely, and keep genuinely live data dynamic. `Stats` reads `getStats`, so caching that read the same way puts `Stats` in the static shell with no fallback. `WhoIsOnline` is real-time, so you do not cache it. It keeps its `<Suspense>` boundary from the last step and streams per request:
 
 ```tsx filename="app/dashboard/page.tsx"
 {/* cached: in the static shell, no fallback */}
@@ -283,7 +290,9 @@ The same reasoning covers the other reads: cache what changes rarely, tag it so 
 </Suspense>
 ```
 
-Each read you cache is one less waterfall and one less fallback at request time. That is a production change, though: the development tracks this guide reads still run the work, so the win shows up in a deployed build, not here.
+Each read you cache is one less waterfall and one less fallback at request time. That answers the tradeoff Step 2 ended on: the cached sections are part of the static shell, on the page from the first byte with no reveal, so only the live data streams. You are back to a couple of dynamic holes instead of a page full of staggered reveals, and revalidation keeps the cached parts current.
+
+> **Good to know:** In development the cache starts cold, so a `use cache` read still runs on the first render and the tracks show the waterfall.
 
 ### Step 3: Catch a blocking keystroke
 
