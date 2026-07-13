@@ -31,6 +31,7 @@ import { parseUrl as parseUrlUtil } from '../../shared/lib/router/utils/parse-ur
 import {
   PHASE_PRODUCTION_SERVER,
   PHASE_DEVELOPMENT_SERVER,
+  REQUEST_INSIGHTS_DEV_ENDPOINT,
   UNDERSCORE_NOT_FOUND_ROUTE,
 } from '../../shared/lib/constants'
 import { RedirectStatusCode } from '../../client/components/redirect-status-code'
@@ -251,7 +252,7 @@ export async function initialize(opts: {
       const urlParts = req.url.split('?', 1)
       const pathname = removePathPrefix(urlParts[0] || '', config.basePath)
 
-      if (pathname === '/__nextjs_request_insights') {
+      if (pathname === REQUEST_INSIGHTS_DEV_ENDPOINT) {
         if (
           development &&
           blockCrossSiteDEV(
