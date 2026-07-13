@@ -13,8 +13,8 @@ use bincode::{Decode, Encode};
 use flate2::write::GzEncoder;
 use futures_util::TryFutureExt;
 use napi::{
-    Env, Status, Unknown as JsUnknown,
-    bindgen_prelude::{External, PromiseRaw, within_runtime_if_available},
+    Env, Status, Unknown,
+    bindgen_prelude::{External, FunctionRef, PromiseRaw, within_runtime_if_available},
     threadsafe_function::{ThreadsafeFunction, ThreadsafeFunctionCallMode},
 };
 use napi_derive::napi;
@@ -424,7 +424,7 @@ pub fn project_new<'env>(
     mut options: NapiProjectOptions,
     turbo_engine_options: NapiTurboEngineOptions,
     napi_callbacks: NapiNextTurbopackCallbacksJsObject,
-) -> napi::Result<napi::bindgen_prelude::PromiseRaw<'env, External<ProjectInstance>>> {
+) -> napi::Result<PromiseRaw<'env, External<ProjectInstance>>> {
     let napi_callbacks = NapiNextTurbopackCallbacks::from_js(env, napi_callbacks)?;
     let (exit, exit_receiver) = ExitHandler::new_receiver();
 
@@ -741,46 +741,38 @@ async fn benchmark_file_io(turbo_tasks: &NextTurboTasks, dir: &Path) -> Result<(
     Ok(())
 }
 
+#[tracing::instrument(level = "info", name = "update project", skip_all)]
 #[napi]
-pub fn project_update<'env>(
-    env: &'env Env,
+pub async fn project_update(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: &External<ProjectInstance>,
     options: NapiPartialProjectOptions,
-) -> napi::Result<PromiseRaw<'env, ()>> {
+) -> napi::Result<()> {
     let ctx = project.turbopack_ctx.clone();
     let container = project.container;
     let options = options.into();
-    env.spawn_future(
-        async move {
-            ctx.turbo_tasks()
-                .run(async move { container.update(options).await })
-                .or_else(|e| ctx.throw_turbopack_internal_result(&e.into()))
-                .await
-        }
-        .instrument(tracing::info_span!("update project")),
-    )
+    ctx.turbo_tasks()
+        .run(async move { container.update(options).await })
+        .or_else(|e| ctx.throw_turbopack_internal_result(&e.into()))
+        .await
 }
 
 /// Invalidates the filesystem cache so that it will be deleted next time that a turbopack project
 /// is created with filesystem cache enabled.
 #[napi]
-pub fn project_invalidate_file_system_cache<'env>(
-    env: &'env Env,
+pub async fn project_invalidate_file_system_cache(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: &External<ProjectInstance>,
-) -> napi::Result<PromiseRaw<'env, ()>> {
+) -> napi::Result<()> {
     let ctx = project.turbopack_ctx.clone();
-    env.spawn_future(async move {
-        tokio::task::spawn_blocking(move || {
-            // TODO: Let the JS caller specify a reason? We need to limit the reasons to ones we
-            // know how to generate a message for on the Rust side of the FFI.
-            ctx.turbo_tasks()
-                .backend()
-                .invalidate_storage(invalidation_reasons::USER_REQUEST)
-        })
-        .await
-        .context("panicked while invalidating filesystem cache")??;
-        Ok::<_, napi::Error>(())
+    tokio::task::spawn_blocking(move || {
+        // TODO: Let the JS caller specify a reason? We need to limit the reasons to ones we
+        // know how to generate a message for on the Rust side of the FFI.
+        ctx.turbo_tasks()
+            .backend()
+            .invalidate_storage(invalidation_reasons::USER_REQUEST)
     })
+    .await
+    .context("panicked while invalidating filesystem cache")??;
+    Ok::<_, napi::Error>(())
 }
 
 /// Runs exit handlers for the project registered using the [`ExitHandler`] API.
@@ -788,15 +780,12 @@ pub fn project_invalidate_file_system_cache<'env>(
 /// This is called by `project_shutdown`, so if you're calling that API, you shouldn't call this
 /// one.
 #[napi]
-pub fn project_on_exit<'env>(
-    env: &'env Env,
+pub async fn project_on_exit(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: &External<ProjectInstance>,
-) -> napi::Result<PromiseRaw<'env, ()>> {
+) -> napi::Result<()> {
     let exit_receiver = project.exit_receiver.clone();
-    env.spawn_future(async move {
-        run_exit_handlers(exit_receiver).await;
-        Ok::<_, napi::Error>(())
-    })
+    run_exit_handlers(exit_receiver).await;
+    Ok::<_, napi::Error>(())
 }
 
 /// Takes the [`ExitReceiver`] out of the shared slot and runs the registered exit handlers.
@@ -820,21 +809,16 @@ async fn run_exit_handlers(exit_receiver: Arc<std::sync::Mutex<Option<ExitReceiv
 /// This is used in builds where it's important that we completely persist turbo-tasks to disk, but
 /// it's skipped in the development server (`project_on_exit` is used instead with a short timeout),
 /// where we prioritize fast exit and user responsiveness over all else.
+#[tracing::instrument(level = "info", name = "shutdown project", skip_all)]
 #[napi]
-pub fn project_shutdown<'env>(
-    env: &'env Env,
+pub async fn project_shutdown(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: &External<ProjectInstance>,
-) -> napi::Result<PromiseRaw<'env, ()>> {
+) -> napi::Result<()> {
     let tt = project.turbopack_ctx.turbo_tasks().clone();
     let exit_receiver = project.exit_receiver.clone();
-    env.spawn_future(
-        async move {
-            tt.stop_and_wait().await;
-            run_exit_handlers(exit_receiver).await;
-            Ok::<_, napi::Error>(())
-        }
-        .instrument(tracing::info_span!("shutdown project")),
-    )
+    tt.stop_and_wait().await;
+    run_exit_handlers(exit_receiver).await;
+    Ok::<_, napi::Error>(())
 }
 
 #[napi(object, object_from_js = false)]
@@ -1347,18 +1331,15 @@ async fn app_route_filter_for_write_phase(
     ))
 }
 
+#[tracing::instrument(level = "info", name = "write all entrypoints to disk", skip_all)]
 #[napi(ts_return_type = "Promise<TurbopackResult<Partial<NapiEntrypoints>>>")]
-pub fn project_write_all_entrypoints_to_disk<'env>(
-    env: &'env Env,
+pub async fn project_write_all_entrypoints_to_disk(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: &External<ProjectInstance>,
     app_dir_only: bool,
-) -> napi::Result<PromiseRaw<'env, TurbopackResult<Option<NapiEntrypoints>>>> {
+) -> napi::Result<TurbopackResult<Option<NapiEntrypoints>>> {
     let ctx = project.turbopack_ctx.clone();
     let container = project.container;
-    env.spawn_future(
-        async move { project_write_all_entrypoints_to_disk_inner(ctx, container, app_dir_only).await }
-            .instrument(tracing::info_span!("write all entrypoints to disk")),
-    )
+    project_write_all_entrypoints_to_disk_inner(ctx, container, app_dir_only).await
 }
 
 async fn project_write_all_entrypoints_to_disk_inner(
@@ -1746,49 +1727,41 @@ async fn output_assets_operation(
     ))
 }
 
+#[tracing::instrument(level = "info", name = "get entrypoints", skip_all)]
 #[napi(ts_return_type = "Promise<TurbopackResult<Partial<NapiEntrypoints>>>")]
-pub fn project_entrypoints<'env>(
-    env: &'env Env,
+pub async fn project_entrypoints(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: &External<ProjectInstance>,
-) -> napi::Result<PromiseRaw<'env, TurbopackResult<Option<NapiEntrypoints>>>> {
+) -> napi::Result<TurbopackResult<Option<NapiEntrypoints>>> {
     let ctx = project.turbopack_ctx.clone();
     let container = project.container;
-    env.spawn_future(
-        async move {
-            let (entrypoints, issues) = ctx
-                .turbo_tasks()
-                .run_once(async move {
-                    let entrypoints_with_issues_op =
-                        get_entrypoints_with_issues_operation(container);
+    let (entrypoints, issues) = ctx
+        .turbo_tasks()
+        .run_once(async move {
+            let entrypoints_with_issues_op = get_entrypoints_with_issues_operation(container);
 
-                    // Read and compile the files
-                    let EntrypointsWithIssues {
-                        entrypoints,
-                        issues,
-                        effects: _,
-                    } = &*entrypoints_with_issues_op
-                        .read_strongly_consistent()
-                        .await?;
+            // Read and compile the files
+            let EntrypointsWithIssues {
+                entrypoints,
+                issues,
+                effects: _,
+            } = &*entrypoints_with_issues_op
+                .read_strongly_consistent()
+                .await?;
 
-                    Ok((entrypoints.clone(), issues.clone()))
-                })
-                .await
-                .map_err(|e| napi::Error::from_reason(PrettyPrintError(&e).to_string()))?;
+            Ok((entrypoints.clone(), issues.clone()))
+        })
+        .await
+        .map_err(|e| napi::Error::from_reason(PrettyPrintError(&e).to_string()))?;
 
-            let result = match entrypoints {
-                Some(entrypoints) => {
-                    Some(NapiEntrypoints::from_entrypoints_op(&entrypoints, &ctx)?)
-                }
-                None => None,
-            };
+    let result = match entrypoints {
+        Some(entrypoints) => Some(NapiEntrypoints::from_entrypoints_op(&entrypoints, &ctx)?),
+        None => None,
+    };
 
-            Ok(TurbopackResult {
-                result,
-                issues: issues.iter().map(|i| NapiIssue::from(&**i)).collect(),
-            })
-        }
-        .instrument(tracing::info_span!("get entrypoints")),
-    )
+    Ok(TurbopackResult {
+        result,
+        issues: issues.iter().map(|i| NapiIssue::from(&**i)).collect(),
+    })
 }
 
 #[tracing::instrument(level = "info", name = "subscribe to entrypoints", skip_all)]
@@ -1796,8 +1769,8 @@ pub fn project_entrypoints<'env>(
 pub fn project_entrypoints_subscribe(
     env: Env,
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: &External<ProjectInstance>,
-    #[napi(ts_arg_type = "(...args: any[]) => any")] func: napi::bindgen_prelude::FunctionRef<
-        JsUnknown<'static>,
+    #[napi(ts_arg_type = "(...args: any[]) => any")] func: FunctionRef<
+        TurbopackResult<Option<NapiEntrypoints>>,
         (),
     >,
 ) -> napi::Result<External<RootTask>> {
@@ -2028,8 +2001,8 @@ pub fn project_hmr_events(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: &External<ProjectInstance>,
     chunk_name: RcStr,
     target: String,
-    #[napi(ts_arg_type = "(...args: any[]) => any")] func: napi::bindgen_prelude::FunctionRef<
-        JsUnknown<'static>,
+    #[napi(ts_arg_type = "(...args: any[]) => any")] func: FunctionRef<
+        TurbopackResult<Unknown<'static>>,
         (),
     >,
 ) -> napi::Result<External<RootTask>> {
@@ -2122,7 +2095,7 @@ pub fn project_hmr_events(
 }
 
 #[napi(object, object_from_js = false)]
-struct HmrChunkNames {
+pub struct HmrChunkNames {
     pub chunk_names: Vec<RcStr>,
 }
 
@@ -2171,8 +2144,8 @@ pub fn project_hmr_chunk_names_subscribe(
     env: Env,
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: &External<ProjectInstance>,
     target: String,
-    #[napi(ts_arg_type = "(...args: any[]) => any")] func: napi::bindgen_prelude::FunctionRef<
-        JsUnknown<'static>,
+    #[napi(ts_arg_type = "(...args: any[]) => any")] func: FunctionRef<
+        TurbopackResult<HmrChunkNames>,
         (),
     >,
 ) -> napi::Result<External<RootTask>> {
@@ -2274,10 +2247,7 @@ pub fn project_update_info_subscribe(
     env: Env,
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: &External<ProjectInstance>,
     aggregation_ms: u32,
-    #[napi(ts_arg_type = "(...args: any[]) => any")] func: napi::bindgen_prelude::FunctionRef<
-        JsUnknown<'static>,
-        (),
-    >,
+    #[napi(ts_arg_type = "(...args: any[]) => any")] func: FunctionRef<Unknown<'static>, ()>,
 ) -> napi::Result<()> {
     let func: ThreadsafeFunction<UpdateMessage, (), NapiUpdateMessage, Status, true> = func
         .borrow_back(&env)?
@@ -2288,8 +2258,6 @@ pub fn project_update_info_subscribe(
             Ok(NapiUpdateMessage::from(message))
         })?;
     let tt = project.turbopack_ctx.turbo_tasks().clone();
-    // Unlike napi v2, v3 does not enter the tokio runtime context on the JS thread, so
-    // `tokio::spawn` from a sync `#[napi]` fn panics without this wrapper.
     within_runtime_if_available(|| {
         tokio::spawn(async move {
             loop {
@@ -2355,10 +2323,7 @@ impl From<Arc<dyn CompilationEvent>> for NapiCompilationEvent {
 pub fn project_compilation_events_subscribe(
     env: Env,
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: &External<ProjectInstance>,
-    #[napi(ts_arg_type = "(...args: any[]) => any")] func: napi::bindgen_prelude::FunctionRef<
-        JsUnknown<'static>,
-        (),
-    >,
+    #[napi(ts_arg_type = "(...args: any[]) => any")] func: FunctionRef<Unknown<'static>, ()>,
     event_types: Option<Vec<String>>,
 ) -> napi::Result<()> {
     let tsfn: ThreadsafeFunction<
@@ -2374,8 +2339,6 @@ pub fn project_compilation_events_subscribe(
         .build_callback(|ctx| Ok(NapiCompilationEvent::from(ctx.value)))?;
 
     let tt = project.turbopack_ctx.turbo_tasks().clone();
-    // Unlike napi v2, v3 does not enter the tokio runtime context on the JS thread, so
-    // `tokio::spawn` from a sync `#[napi]` fn panics without this wrapper.
     within_runtime_if_available(|| {
         tokio::spawn(async move {
             let mut receiver = tt.subscribe_to_compilation_events(event_types);
@@ -2663,83 +2626,73 @@ async fn project_trace_source_operation(
     })))
 }
 
+#[tracing::instrument(level = "info", name = "apply SourceMap to stack frame", skip_all)]
 #[napi(ts_return_type = "Promise<StackFrame | null>")]
-pub fn project_trace_source<'env>(
-    env: &'env Env,
+pub async fn project_trace_source(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: &External<ProjectInstance>,
     frame: StackFrame,
     current_directory_file_url: String,
-) -> napi::Result<PromiseRaw<'env, Option<StackFrame>>> {
+) -> napi::Result<Option<StackFrame>> {
     let ctx = project.turbopack_ctx.clone();
     let container = project.container;
     // Normalization canonicalizes (an untracked read), so it must happen here, outside of the
     // cached turbo-tasks functions below.
     let (frame_file_path_sys, frame_module) = parse_and_canonicalize_source_url(&frame.file)
         .map_err(|e| napi::Error::from_reason(PrettyPrintError(&e).to_string()))?;
-    env.spawn_future(
-        async move {
-            ctx.turbo_tasks()
-                .run(async move {
-                    let traced_frame = project_trace_source_operation(
-                        container,
-                        frame,
-                        frame_file_path_sys,
-                        frame_module,
-                        RcStr::from(current_directory_file_url),
-                    )
-                    .read_strongly_consistent()
-                    .await?;
-                    Ok(ReadRef::into_owned(traced_frame))
-                })
-                // HACK: Don't use `TurbopackInternalError`, this function is race-condition prone
-                // (the source files may have changed or been deleted), so these probably aren't
-                // internal errors? Ideally we should differentiate.
-                .await
-                .map_err(|e| napi::Error::from_reason(PrettyPrintError(&e.into()).to_string()))
-        }
-        .instrument(tracing::info_span!("apply SourceMap to stack frame")),
-    )
+    ctx.turbo_tasks()
+        .run(async move {
+            let traced_frame = project_trace_source_operation(
+                container,
+                frame,
+                frame_file_path_sys,
+                frame_module,
+                RcStr::from(current_directory_file_url),
+            )
+            .read_strongly_consistent()
+            .await?;
+            Ok(ReadRef::into_owned(traced_frame))
+        })
+        // HACK: Don't use `TurbopackInternalError`, this function is race-condition prone
+        // (the source files may have changed or been deleted), so these probably aren't
+        // internal errors? Ideally we should differentiate.
+        .await
+        .map_err(|e| napi::Error::from_reason(PrettyPrintError(&e.into()).to_string()))
 }
 
+#[tracing::instrument(level = "info", name = "get source content for asset", skip_all)]
 #[napi(ts_return_type = "Promise<string | null>")]
-pub fn project_get_source_for_asset<'env>(
-    env: &'env Env,
+pub async fn project_get_source_for_asset(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: &External<ProjectInstance>,
     file_path: RcStr,
-) -> napi::Result<PromiseRaw<'env, Option<String>>> {
+) -> napi::Result<Option<String>> {
     let ctx = project.turbopack_ctx.clone();
     let container = project.container;
-    env.spawn_future(
-        async move {
-            ctx.turbo_tasks()
-                .run(async move {
-                    #[turbo_tasks::function(operation, root)]
-                    async fn source_content_operation(
-                        container: ResolvedVc<ProjectContainer>,
-                        file_path: RcStr,
-                    ) -> Result<Vc<FileContent>> {
-                        let project_path = container.project().project_path().await?;
-                        Ok(project_path.fs().root().await?.join(&file_path)?.read())
-                    }
+    ctx.turbo_tasks()
+        .run(async move {
+            #[turbo_tasks::function(operation, root)]
+            async fn source_content_operation(
+                container: ResolvedVc<ProjectContainer>,
+                file_path: RcStr,
+            ) -> Result<Vc<FileContent>> {
+                let project_path = container.project().project_path().await?;
+                Ok(project_path.fs().root().await?.join(&file_path)?.read())
+            }
 
-                    let source_content = &*source_content_operation(container, file_path.clone())
-                        .read_strongly_consistent()
-                        .await?;
+            let source_content = &*source_content_operation(container, file_path.clone())
+                .read_strongly_consistent()
+                .await?;
 
-                    let FileContent::Content(source_content) = source_content else {
-                        bail!("Cannot find source for asset {}", file_path);
-                    };
+            let FileContent::Content(source_content) = source_content else {
+                bail!("Cannot find source for asset {}", file_path);
+            };
 
-                    Ok(Some(source_content.content().to_str()?.into_owned()))
-                })
-                // HACK: Don't use `TurbopackInternalError`, this function is race-condition prone
-                // (the source files may have changed or been deleted), so these probably aren't
-                // internal errors? Ideally we should differentiate.
-                .await
-                .map_err(|e| napi::Error::from_reason(PrettyPrintError(&e.into()).to_string()))
-        }
-        .instrument(tracing::info_span!("get source content for asset")),
-    )
+            Ok(Some(source_content.content().to_str()?.into_owned()))
+        })
+        // HACK: Don't use `TurbopackInternalError`, this function is race-condition prone
+        // (the source files may have changed or been deleted), so these probably aren't
+        // internal errors? Ideally we should differentiate.
+        .await
+        .map_err(|e| napi::Error::from_reason(PrettyPrintError(&e.into()).to_string()))
 }
 
 async fn project_get_source_map_inner(
@@ -2765,22 +2718,19 @@ async fn project_get_source_map_inner(
         .map_err(|e| napi::Error::from_reason(PrettyPrintError(&e.into()).to_string()))
 }
 
+#[tracing::instrument(level = "info", name = "get SourceMap for asset", skip_all)]
 #[napi(ts_return_type = "Promise<string | null>")]
-pub fn project_get_source_map<'env>(
-    env: &'env Env,
+pub async fn project_get_source_map(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: &External<ProjectInstance>,
     source_map_url: RcStr,
-) -> napi::Result<PromiseRaw<'env, Option<String>>> {
+) -> napi::Result<Option<String>> {
     let ctx = project.turbopack_ctx.clone();
     let container = project.container;
     // Normalization canonicalizes (an untracked read), so it must happen here, outside of the
     // cached turbo-tasks functions below.
     let (file_path_sys, module) = parse_and_canonicalize_source_url(&source_map_url)
         .map_err(|e| napi::Error::from_reason(PrettyPrintError(&e).to_string()))?;
-    env.spawn_future(
-        async move { project_get_source_map_inner(ctx, container, file_path_sys, module).await }
-            .instrument(tracing::info_span!("get SourceMap for asset")),
-    )
+    project_get_source_map_inner(ctx, container, file_path_sys, module).await
 }
 
 #[napi]
@@ -2799,33 +2749,28 @@ pub fn project_get_source_map_sync(
 }
 
 #[napi]
-pub fn project_write_analyze_data<'env>(
-    env: &'env Env,
+pub async fn project_write_analyze_data(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: &External<ProjectInstance>,
     app_dir_only: bool,
-) -> napi::Result<PromiseRaw<'env, TurbopackResult<()>>> {
+) -> napi::Result<TurbopackResult<()>> {
     let ctx = project.turbopack_ctx.clone();
     let container = project.container;
-    env.spawn_future(async move {
-        let issues = ctx
-            .turbo_tasks()
-            .run_once(async move {
-                let analyze_data_op =
-                    write_analyze_data_with_issues_operation(container, app_dir_only);
-                // Write the files to disk
-                let read =
-                    read_strongly_consistent_and_apply_effects(analyze_data_op, |v| &v.effects)
-                        .await?;
-                let WriteAnalyzeResult { issues, .. } = &*read;
-                Ok(issues.clone())
-            })
-            .await
-            .map_err(|e| napi::Error::from_reason(PrettyPrintError(&e).to_string()))?;
-
-        Ok(TurbopackResult {
-            result: (),
-            issues: issues.iter().map(|i| NapiIssue::from(&**i)).collect(),
+    let issues = ctx
+        .turbo_tasks()
+        .run_once(async move {
+            let analyze_data_op = write_analyze_data_with_issues_operation(container, app_dir_only);
+            // Write the files to disk
+            let read =
+                read_strongly_consistent_and_apply_effects(analyze_data_op, |v| &v.effects).await?;
+            let WriteAnalyzeResult { issues, .. } = &*read;
+            Ok(issues.clone())
         })
+        .await
+        .map_err(|e| napi::Error::from_reason(PrettyPrintError(&e).to_string()))?;
+
+    Ok(TurbopackResult {
+        result: (),
+        issues: issues.iter().map(|i| NapiIssue::from(&**i)).collect(),
     })
 }
 
@@ -2862,68 +2807,57 @@ async fn get_all_compilation_issues_operation(
 /// Intended to be called once at the end of a build, after `writeAllEntrypointsToDisk`. The
 /// summary is computed by walking the whole-app module graph and is cached by turbo-tasks, so the
 /// call is cheap when the graph is already materialized.
+#[tracing::instrument(level = "info", name = "get project feature usage", skip_all)]
 #[napi]
-pub fn project_feature_usage<'env>(
-    env: &'env Env,
+pub async fn project_feature_usage(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: &External<ProjectInstance>,
-) -> napi::Result<PromiseRaw<'env, Vec<NapiUsedFeature>>> {
+) -> napi::Result<Vec<NapiUsedFeature>> {
     let ctx = project.turbopack_ctx.clone();
     let container = project.container;
-    env.spawn_future(
-        async move {
-            let summary = ctx
-                .turbo_tasks()
-                .run_once(async move {
-                    #[turbo_tasks::function(operation, root)]
-                    async fn project_feature_usage_operation(
-                        container: ResolvedVc<ProjectContainer>,
-                    ) -> Result<Vc<ProjectFeatureUsageSummary>> {
-                        Ok(container.project().project_feature_usage())
-                    }
-                    project_feature_usage_operation(container)
-                        .read_strongly_consistent()
-                        .await
-                })
+    let summary = ctx
+        .turbo_tasks()
+        .run_once(async move {
+            #[turbo_tasks::function(operation, root)]
+            async fn project_feature_usage_operation(
+                container: ResolvedVc<ProjectContainer>,
+            ) -> Result<Vc<ProjectFeatureUsageSummary>> {
+                Ok(container.project().project_feature_usage())
+            }
+            project_feature_usage_operation(container)
+                .read_strongly_consistent()
                 .await
-                .map_err(|e| napi::Error::from_reason(PrettyPrintError(&e).to_string()))?;
+        })
+        .await
+        .map_err(|e| napi::Error::from_reason(PrettyPrintError(&e).to_string()))?;
 
-            Ok(summary
-                .features
-                .iter()
-                .map(|(name, count)| NapiUsedFeature::new(name.clone(), *count))
-                .collect())
-        }
-        .instrument(tracing::info_span!("get project feature usage")),
-    )
+    Ok(summary
+        .features
+        .iter()
+        .map(|(name, count)| NapiUsedFeature::new(name.clone(), *count))
+        .collect())
 }
 
+#[tracing::instrument(level = "info", name = "get all compilation issues", skip_all)]
 #[napi]
-pub fn project_get_all_compilation_issues<'env>(
-    env: &'env Env,
+pub async fn project_get_all_compilation_issues(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: &External<ProjectInstance>,
-) -> napi::Result<PromiseRaw<'env, TurbopackResult<()>>> {
+) -> napi::Result<TurbopackResult<()>> {
     let ctx = project.turbopack_ctx.clone();
     let container = project.container;
-    env.spawn_future(
-        async move {
-            let issues = ctx
-                .turbo_tasks()
-                .run_once(async move {
-                    let op = get_all_compilation_issues_operation(container);
-                    let OperationResult { issues, effects: _ } =
-                        &*op.read_strongly_consistent().await?;
-                    Ok(issues.clone())
-                })
-                .await
-                .map_err(|e| napi::Error::from_reason(PrettyPrintError(&e).to_string()))?;
+    let issues = ctx
+        .turbo_tasks()
+        .run_once(async move {
+            let op = get_all_compilation_issues_operation(container);
+            let OperationResult { issues, effects: _ } = &*op.read_strongly_consistent().await?;
+            Ok(issues.clone())
+        })
+        .await
+        .map_err(|e| napi::Error::from_reason(PrettyPrintError(&e).to_string()))?;
 
-            Ok(TurbopackResult {
-                result: (),
-                issues: issues.iter().map(|i| NapiIssue::from(&**i)).collect(),
-            })
-        }
-        .instrument(tracing::info_span!("get all compilation issues")),
-    )
+    Ok(TurbopackResult {
+        result: (),
+        issues: issues.iter().map(|i| NapiIssue::from(&**i)).collect(),
+    })
 }
 
 /// Opens the Turbopack persistent cache database at the given path and performs a full compaction.
