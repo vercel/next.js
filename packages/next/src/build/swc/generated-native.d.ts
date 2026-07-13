@@ -5,8 +5,7 @@ import type { TurbopackResult } from './types'
 export type TurboTasks = { readonly __tag: unique symbol }
 export type ExternalEndpoint = { readonly __tag: unique symbol }
 export type NextTurboTasks = { readonly __tag: unique symbol }
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-export type RefCell<T = unknown> = { readonly __tag: unique symbol }
+export type RefCell<_T = unknown> = { readonly __tag: unique symbol }
 export type FlushGuard = { readonly __tag: unique symbol }
 export type NapiRouteHas = {
   type: string
