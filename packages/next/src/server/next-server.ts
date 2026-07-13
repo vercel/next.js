@@ -1118,10 +1118,10 @@ export default class NextNodeServer extends BaseServer<
 
       const options: MatchOptions = {
         i18n: this.i18nProvider?.fromRequest(req, pathname),
-        // Only actual navigations compile the SSR-free `rscEndpoint` — never
+        // Only actual navigations compile the SSR-free output — never
         // prefetches. With cache components, a prefetch triggers a dev
         // validation render that consumes the Flight payload through
-        // `ssrModuleMapping`, which the SSR-free variant doesn't emit.
+        // `ssrModuleMapping`, which the SSR-free output doesn't emit.
         rscOnly:
           !!getRequestMeta(req, 'isRSCRequest') &&
           !getRequestMeta(req, 'isPrefetchRSCRequest'),

@@ -152,7 +152,6 @@ export async function handleRouteType({
   entrypoints,
   manifestLoader,
   readyIds,
-  rscOnly,
   devRewrites,
   productionRewrites,
   hooks,
@@ -171,8 +170,6 @@ export async function handleRouteType({
   logErrors: boolean
 
   readyIds?: ReadyIds // dev
-
-  rscOnly?: boolean
 
   // hooks.subscribeToChanges may be omitted to skip HMR subscriptions for
   // one-shot compilations (e.g. the compile_route MCP tool).
@@ -349,10 +346,7 @@ export async function handleRouteType({
     case 'app-page': {
       const key = getEntryKey('app', 'server', page)
 
-      const endpoint =
-        rscOnly && route.rscEndpoint ? route.rscEndpoint : route.htmlEndpoint
-
-      const writtenEndpoint = await endpoint.writeToDisk()
+      const writtenEndpoint = await route.htmlEndpoint.writeToDisk()
       hooks?.handleWrittenEndpoint(key, writtenEndpoint, false)
 
       if (dev) {

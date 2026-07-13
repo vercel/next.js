@@ -801,7 +801,6 @@ pub struct AppPageNapiRoute {
 
     pub html_endpoint: Option<External<ExternalEndpoint>>,
     pub rsc_hmr_endpoint: Option<External<ExternalEndpoint>>,
-    pub rsc_endpoint: Option<External<ExternalEndpoint>>,
 }
 
 #[napi(object)]
@@ -863,7 +862,6 @@ impl NapiRoute {
                             original_name: Some(page_route.original_name),
                             html_endpoint: convert_endpoint(page_route.html_endpoint),
                             rsc_hmr_endpoint: convert_endpoint(page_route.rsc_hmr_endpoint),
-                            rsc_endpoint: convert_endpoint(page_route.rsc_endpoint),
                         })
                         .collect(),
                 ),

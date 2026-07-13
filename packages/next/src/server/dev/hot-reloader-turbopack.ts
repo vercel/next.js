@@ -481,11 +481,6 @@ export async function createHotReloaderTurbopack(
   const changeSubscriptions: ChangeSubscriptions = new Map()
   const serverPathState = new Map<string, string>()
   const readyIds: ReadyIds = new Set()
-  // App pages (keyed by normalized route) that have been compiled as HTML. Once a
-  // route is built for a document render, we never downgrade it to the SSR-free
-  // `rscEndpoint`, since that variant emits an empty `ssrModuleMapping` and would
-  // clobber the shared client-reference manifest that later SSR renders depend on.
-  const htmlBuiltAppPages: Set<string> = new Set()
   let currentEntriesHandlingResolve: ((value?: unknown) => void) | undefined
   let currentEntriesHandling = new Promise(
     (resolve) => (currentEntriesHandlingResolve = resolve)
@@ -1661,7 +1656,6 @@ export async function createHotReloaderTurbopack(
       definition,
       isApp,
       url: requestUrl,
-      rscOnly,
       subscribeToChanges = true,
     }) {
       // When there is no route definition this is an internal file not a route the user added.
@@ -1797,11 +1791,6 @@ export async function createHotReloaderTurbopack(
             throw new Error(`mis-matched route type: isApp && page for ${page}`)
           }
 
-          // Only serve the SSR-free `rscEndpoint` if this route has never been
-          // compiled as HTML. Otherwise fall back to `htmlEndpoint` so we don't
-          // overwrite its (SSR-capable) client-reference manifest.
-          const effectiveRscOnly = rscOnly && !htmlBuiltAppPages.has(page)
-
           const finishBuilding = startBuilding(pathname, requestUrl, false)
           try {
             await handleRouteType({
@@ -1813,7 +1802,6 @@ export async function createHotReloaderTurbopack(
               entrypoints: currentEntrypoints,
               manifestLoader,
               readyIds,
-              rscOnly: effectiveRscOnly,
               devRewrites: opts.fsChecker.rewrites,
               productionRewrites: undefined,
               logErrors: true,
@@ -1833,11 +1821,6 @@ export async function createHotReloaderTurbopack(
                 },
               },
             })
-            // Record that this app route now has an HTML (SSR-capable) build on
-            // disk, so subsequent RSC-only requests won't downgrade it.
-            if (!effectiveRscOnly && route.type === 'app-page') {
-              htmlBuiltAppPages.add(page)
-            }
           } finally {
             finishBuilding()
             // Remove non-deferred entry from building set

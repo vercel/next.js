@@ -369,7 +369,6 @@ export type Route =
         originalName: string
         htmlEndpoint: Endpoint
         rscHmrEndpoint: Endpoint
-        rscEndpoint: Endpoint
       }[]
     }
   | {
@@ -516,7 +515,6 @@ export type AppRoute =
       type: 'app-page'
       htmlEndpoint: Endpoint
       rscHmrEndpoint: Endpoint
-      rscEndpoint: Endpoint
     }
   | {
       type: 'app-route'

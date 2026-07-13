@@ -2679,7 +2679,7 @@ export default abstract class Server<
 
     const options: MatchOptions = {
       i18n: this.i18nProvider?.fromRequest(req, pathname),
-      // Only actual navigations compile the SSR-free `rscEndpoint` — never
+      // Only actual navigations compile the SSR-free output — never
       // prefetches. See `handleCatchallRenderRequest` in `next-server.ts`.
       rscOnly:
         !!getRequestMeta(ctx.req, 'isRSCRequest') &&
