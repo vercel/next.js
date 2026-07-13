@@ -214,6 +214,27 @@ const clientTraceDataSetter: TextMapSetter<ClientTraceDataEntry[]> = {
   },
 }
 
+// Resolves the span name and injects the standard `next.span_name` /
+// `next.span_type` attributes. Shared by `trace` and `startSpan` so both
+// paths label spans identically.
+function resolveSpanOptions(
+  type: SpanTypes,
+  options: TracerSpanOptions
+): { spanName: string; options: TracerSpanOptions } {
+  const spanName = options.spanName ?? type
+  return {
+    spanName,
+    options: {
+      ...options,
+      attributes: {
+        'next.span_name': spanName,
+        'next.span_type': type,
+        ...options.attributes,
+      },
+    },
+  }
+}
+
 class NextTracerImpl implements NextTracer {
   /**
    * Returns an instance to the trace with configured name.
@@ -313,27 +334,6 @@ class NextTracerImpl implements NextTracer {
     return context.with(remoteContext, fn)
   }
 
-  // Resolves the span name and injects the standard `next.span_name` /
-  // `next.span_type` attributes. Shared by `trace` and `startSpan` so both
-  // paths label spans identically.
-  private resolveSpanOptions(
-    type: SpanTypes,
-    options: TracerSpanOptions
-  ): { spanName: string; options: TracerSpanOptions } {
-    const spanName = options.spanName ?? type
-    return {
-      spanName,
-      options: {
-        ...options,
-        attributes: {
-          'next.span_name': spanName,
-          'next.span_type': type,
-          ...options.attributes,
-        },
-      },
-    }
-  }
-
   // Trace, wrap implementation is inspired by datadog trace implementation
   // (https://datadoghq.dev/dd-trace-js/interfaces/tracer.html#trace).
   public trace<T>(
@@ -391,14 +391,14 @@ class NextTracerImpl implements NextTracer {
       return fn()
     }
 
-    const { spanName, options: resolvedOptions } = this.resolveSpanOptions(
+    const { spanName, options: resolvedOptions } = resolveSpanOptions(
       type,
       options
     )
 
     // Trying to get active scoped span to assign parent. If option specifies parent span manually, will try to use it.
     let spanContext = this.getSpanContext(
-      options?.parentSpan ?? this.getActiveScopeSpan()
+      resolvedOptions?.parentSpan ?? this.getActiveScopeSpan()
     )
 
     if (!spanContext) {
@@ -624,7 +624,7 @@ class NextTracerImpl implements NextTracer {
     const [type, options]: [SpanTypes, TracerSpanOptions | undefined] =
       args as any
 
-    const { spanName, options: resolvedOptions } = this.resolveSpanOptions(
+    const { spanName, options: resolvedOptions } = resolveSpanOptions(
       type,
       options ?? {}
     )
