@@ -156,6 +156,7 @@ pub async fn compute_binding_usage_info(
                     return Ok(GraphTraversalAction::Continue);
                 };
 
+                let mut propagated_export_usage = ref_data.binding_usage.export.clone();
                 if remove_unused_imports {
                     // If this is an evaluation reference and the target has no side effects
                     // then we can drop it. NOTE: many `imports` create parallel Evaluation
@@ -220,12 +221,56 @@ pub async fn compute_binding_usage_info(
                             unused_references.remove(&ref_data.reference);
                             // Continue, has to always be included
                         }
+                        ImportUsage::StarReexport => {
+                            let source_used_exports = used_exports
+                                .get(&parent)
+                                .context("parent module must have usage info")?;
+                            match source_used_exports {
+                                ModuleExportUsageInfo::Evaluation => {
+                                    // parent has no exports used, skip
+                                    #[cfg(debug_assertions)]
+                                    debug_unused_references_name.insert((
+                                        parent,
+                                        ref_data.binding_usage.export.clone(),
+                                        target,
+                                    ));
+                                    unused_references_edges.insert(edge);
+                                    unused_references.insert(ref_data.reference);
+
+                                    return Ok(GraphTraversalAction::Skip);
+                                }
+                                ModuleExportUsageInfo::Exports(exports) => {
+                                    // Propagate the specific exports used by the parent
+                                    propagated_export_usage = ExportUsage::PartialNamespaceObject(
+                                        exports.iter().cloned().collect(),
+                                    );
+                                    #[cfg(debug_assertions)]
+                                    debug_unused_references_name.remove(&(
+                                        parent,
+                                        ref_data.binding_usage.export.clone(),
+                                        target,
+                                    ));
+                                    unused_references_edges.remove(&edge);
+                                    unused_references.remove(&ref_data.reference);
+                                }
+                                ModuleExportUsageInfo::All => {
+                                    #[cfg(debug_assertions)]
+                                    debug_unused_references_name.remove(&(
+                                        parent,
+                                        ref_data.binding_usage.export.clone(),
+                                        target,
+                                    ));
+                                    unused_references_edges.remove(&edge);
+                                    unused_references.remove(&ref_data.reference);
+                                }
+                            }
+                        }
                     }
                 }
 
                 let entry = used_exports.entry(target);
                 let is_first_visit = matches!(entry, Entry::Vacant(_));
-                if entry.or_default().add(&ref_data.binding_usage.export) || is_first_visit {
+                if entry.or_default().add(&propagated_export_usage) || is_first_visit {
                     // First visit, or the used exports changed. This can cause more imports to get
                     // used downstream.
                     Ok(GraphTraversalAction::Continue)
