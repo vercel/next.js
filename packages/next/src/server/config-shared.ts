@@ -15,8 +15,21 @@ import type { ExperimentalPPRConfig } from './lib/experimental/ppr'
 import { INFINITE_CACHE } from '../lib/constants'
 import type { FallbackRouteParam } from '../build/static-paths/types'
 import type { MemoryEvictionMode } from '../build/swc/types'
+import type { CacheLife } from './use-cache/cache-life'
 import { isStableBuild } from '../shared/lib/errors/canary-only-config-error'
 import { isCI } from './ci-info'
+
+/**
+ * The `cacheLife` profiles after config normalization. `config.ts` always
+ * backfills the `default` profile so that its `stale`, `revalidate`, and
+ * `expire` are all defined, which is why `default` is `Required<CacheLife>`
+ * here while other profiles may still be partial. Runtime `"use cache"` code
+ * can therefore read `cacheLifeProfiles.default` without re-validating it.
+ */
+export interface ResolvedCacheLifeProfiles {
+  default: Required<CacheLife>
+  [profile: string]: CacheLife
+}
 
 /**
  * Resolved form of the prefetchInlining config after normalization in
@@ -26,11 +39,17 @@ export type PrefetchInliningConfig =
   | false
   | { maxSize: number; maxBundleSize: number }
 
-export type NextConfigComplete = Required<Omit<NextConfig, 'configFile'>> & {
+export type NextConfigComplete = Required<
+  Omit<NextConfig, 'configFile' | 'cacheLife'>
+> & {
   images: Required<ImageConfigComplete>
   typescript: TypeScriptConfig
   configFile: string | undefined
   configFileName: string
+  // Normalized by config.ts: the `default` profile is backfilled to be complete
+  // (see `ResolvedCacheLifeProfiles`), unlike the optional/partial user input.
+  // Omitted from the base so this is a clean replacement, not an intersection.
+  cacheLife: ResolvedCacheLifeProfiles
   // override NextConfigComplete.experimental.htmlLimitedBots to string
   // because it's not defined in NextConfigComplete.experimental
   htmlLimitedBots: string | undefined
@@ -547,6 +566,12 @@ export interface ExperimentalConfig {
    * Do not enable in user-facing production deployments.
    */
   exposeTestingApiInProductionBuild?: boolean
+  /**
+   * Show Request Insights in the dev tools indicator. Request Insights records
+   * the local framework spans needed to explain App Router request, render,
+   * fetch, and cache behavior without requiring an external OTEL collector.
+   */
+  requestInsights?: boolean
   extensionAlias?: Record<string, any>
   allowedRevalidateHeaderKeys?: string[]
   fetchCacheKeyPrefix?: string
@@ -692,6 +717,12 @@ export interface ExperimentalConfig {
   strictRouteTypes?: boolean
 
   /**
+   * Runs the project-local TypeScript CLI instead of using TypeScript's
+   * programmatic API for build-time type checking and config loading.
+   */
+  useTypeScriptCli?: boolean
+
+  /**
    * Displays an indicator when a React Transition has no other indicator rendered.
    * This includes displaying an indicator on client-side navigations.
    */
@@ -711,10 +742,11 @@ export interface ExperimentalConfig {
    *
    * - `false`: disable eviction.
    * - `'full'`: after every snapshot, drop as much memory as possible.
+   * - `'auto'`: evict after a snapshot when we expect to save a lot of memory or the system is under pressure
    *
-   * Defaults to `'full'`
+   * Defaults to `'auto'`
    */
-  turbopackMemoryEviction?: false | 'full'
+  turbopackMemoryEviction?: false | 'full' | 'auto'
 
   /**
    * Selects the backend used by Turbopack for Node.js evaluation, e.g. webpack
@@ -738,11 +770,6 @@ export interface ExperimentalConfig {
    * Enable support for `with {type: "bytes"}` for ESM imports.
    */
   turbopackImportTypeBytes?: boolean
-
-  /**
-   * Enable support for `with {type: "text"}` for ESM imports.
-   */
-  turbopackImportTypeText?: boolean
 
   /**
    * Enable scope hoisting. Defaults to true in build mode. Always disabled in development mode.
@@ -1175,6 +1202,12 @@ export interface ExperimentalConfig {
    * Allows previously fetched data to be re-used when editing server components.
    */
   serverComponentsHmrCache?: boolean
+
+  /**
+   * Cancels the render and validation work for a Server Components HMR refresh
+   * once a newer refresh supersedes it. Development only.
+   */
+  serverComponentsHmrCancellation?: boolean
 
   /**
    * Render <style> tags inline in the HTML for imported CSS assets.
@@ -2062,7 +2095,7 @@ export const defaultConfig = Object.freeze({
   },
   adapterPath: process.env.NEXT_ADAPTER_PATH || undefined,
   experimental: {
-    appNewScrollHandler: false,
+    appNewScrollHandler: true,
     coldCacheBadge: false,
     useSkewCookie: false,
     cssChunking: true,
@@ -2113,6 +2146,7 @@ export const defaultConfig = Object.freeze({
     fullySpecified: false,
     swcTraceProfiling: false,
     forceSwcTransforms: false,
+    requestInsights: false,
     swcPlugins: undefined,
     largePageDataBytes: 128 * 1000, // 128KB by default
     disablePostcssPresetEnv: undefined,
@@ -2127,6 +2161,7 @@ export const defaultConfig = Object.freeze({
     webpackMemoryOptimizations: false,
     optimizeServerReact: true,
     strictRouteTypes: false,
+    useTypeScriptCli: false,
     viewTransition: false,
     removeUncaughtErrorAndRejectionListeners: false,
     validateRSCRequestHeaders: true,
@@ -2138,6 +2173,7 @@ export const defaultConfig = Object.freeze({
     reactDebugChannel: true,
     staticGenerationRetryCount: undefined,
     serverComponentsHmrCache: true,
+    serverComponentsHmrCancellation: false,
     staticGenerationMaxConcurrency: 8,
     staticGenerationMinPagesPerWorker: 25,
     transitionIndicator: false,
@@ -2251,6 +2287,7 @@ export interface NextConfigRuntime {
     | 'disableOptimizedLoading'
     | 'largePageDataBytes'
     | 'serverComponentsHmrCache'
+    | 'serverComponentsHmrCancellation'
     | 'caseSensitiveRoutes'
     | 'validateRSCRequestHeaders'
     | 'sri'
@@ -2273,6 +2310,7 @@ export interface NextConfigRuntime {
     | 'exposeTestingApiInProductionBuild'
     | 'supportsImmutableAssets'
     | 'instantInsights'
+    | 'requestInsights'
   > & {
     // Pick on @internal fields generates invalid .d.ts files
     /** @internal */
@@ -2319,6 +2357,7 @@ export function getNextConfigRuntime(
     disableOptimizedLoading: ex.disableOptimizedLoading,
     largePageDataBytes: ex.largePageDataBytes,
     serverComponentsHmrCache: ex.serverComponentsHmrCache,
+    serverComponentsHmrCancellation: ex.serverComponentsHmrCancellation,
     caseSensitiveRoutes: ex.caseSensitiveRoutes,
     validateRSCRequestHeaders: ex.validateRSCRequestHeaders,
     sri: ex.sri,
@@ -2342,6 +2381,7 @@ export function getNextConfigRuntime(
     exposeTestingApiInProductionBuild: ex.exposeTestingApiInProductionBuild,
     supportsImmutableAssets: ex.supportsImmutableAssets,
     instantInsights: ex.instantInsights,
+    requestInsights: ex.requestInsights,
 
     trustHostHeader: ex.trustHostHeader,
     isExperimentalCompile: ex.isExperimentalCompile,

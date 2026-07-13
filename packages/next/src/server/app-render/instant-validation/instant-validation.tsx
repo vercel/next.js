@@ -228,7 +228,6 @@ export async function collectStagedSegmentData(
   fullPageChunks: StageChunks,
   fullPageDebugChunks: Uint8Array[] | null,
   startTime: number,
-  hasRuntimePrefetch: boolean,
   clientReferenceManifest: ClientReferenceManifest,
   createDebugChannel: () => DebugChannelPair | undefined
 ) {
@@ -256,7 +255,7 @@ export async function collectStagedSegmentData(
         return 'Prerender'
       case RenderStage.ShellRuntime: // TODO(app-shells) - proper environmentName
       case RenderStage.Runtime:
-        return hasRuntimePrefetch ? 'Prefetch' : 'Prefetchable'
+        return 'Prefetch'
       case RenderStage.Dynamic:
         return 'Server'
       default:

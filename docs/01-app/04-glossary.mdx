@@ -12,7 +12,7 @@ The Next.js router introduced in version 13, built on top of React Server Compon
 
 ## App Shell
 
-A per-route prerender containing the parts of a page that don't depend on URL-specific data. Routes that read `cookies()` or `headers()` produce a session-personalized variant, cached per session on the client. Used as the prefetch payload during client navigations, the loading state during [runtime prefetching](/docs/app/guides/runtime-prefetching), and the fallback for [ISR with Cache Components](/docs/app/guides/incremental-static-regeneration-cache-components).
+A per-route prerender containing the parts of a page that don't depend on URL data. Routes that read `cookies()` or `headers()` produce one that also includes session data, cached per session on the client. Used as the prefetch payload during client navigations, the loading state during [runtime prefetching](/docs/app/guides/runtime-prefetching), and the fallback for [ISR with Cache Components](/docs/app/guides/incremental-static-regeneration-cache-components).
 
 # B
 
@@ -272,6 +272,10 @@ A fast, Rust-based bundler built for Next.js. Turbopack is the default bundler f
 The process of removing unused code from your JavaScript bundles during the build process. Next.js automatically tree-shakes your code to reduce bundle sizes. Learn more in the [Package Bundling guide](/docs/app/guides/package-bundling).
 
 # U
+
+## URL data
+
+Data that identifies a specific URL, such as the pathname and query parameters. In the App Router this means [`params`](/docs/app/api-reference/file-conventions/page#params-optional) and [`searchParams`](/docs/app/api-reference/file-conventions/page#searchparams-optional), and the client hooks that read them like [`usePathname`](/docs/app/api-reference/functions/use-pathname) and [`useSearchParams`](/docs/app/api-reference/functions/use-search-params). URL data varies per link, not per session, so it can't be part of a shared [App Shell](#app-shell).
 
 ## `"use cache"` Directive
 
