@@ -852,6 +852,7 @@ export function createStaticWorker(
     enableSourceMaps: config.enablePrerenderSourceMaps,
     // remove --max-old-space-size flag as it can cause memory issues.
     isolatedMemory: true,
+    maxOldSpaceSize: config.experimental.staticWorkerMaxOldSpaceSize,
     enableWorkerThreads: config.experimental.workerThreads,
     exposedMethods: staticWorkerExposedMethods,
     forkOptions: {
