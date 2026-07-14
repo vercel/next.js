@@ -16,6 +16,19 @@ esac
 tmpdir="$(mktemp -d)"
 trap 'rm -rf "$tmpdir"' EXIT
 
+# When the preview-builds npm mirror is auth-protected, fetching its tarballs
+# needs credentials (see `writeMirrorNpmrcIfNecessary` in
+# test/lib/next-modes/next-deploy.ts, which does the same for the remote
+# install). Point npm at an npmrc with a read token scoped to the mirror so
+# `npm pack` can authenticate; registry fetches are unaffected.
+if [[ -n "${PREVIEW_BUILDS_READ_TOKEN:-}" ]]; then
+  base_url="${NEXT_TEST_PREVIEW_BUILDS_BASE_URL:-https://vercel-packages.vercel.app/next}"
+  registry_key="//${base_url#*://}"
+  registry_key="${registry_key%/}/"
+  echo "${registry_key}:_authToken=${PREVIEW_BUILDS_READ_TOKEN}" > "$tmpdir/npmrc"
+  export NPM_CONFIG_USERCONFIG="$tmpdir/npmrc"
+fi
+
 # Extracts the published tarball for $1 into a fresh directory, moves its
 # dist/ to $2, and leaves the extracted package dir path in $extracted_pkg.
 hydrate() {
@@ -33,7 +46,13 @@ hydrate() {
 
 hydrate "$next_spec" packages/next/dist
 
-# `@next/env` is a workspace dependency of `next`; resolve the exact version
-# from the packed `next` package so it also works for tarball URLs.
-next_env_version="$(node -e "console.log(require(process.argv[1]).dependencies['@next/env'])" "$extracted_pkg/package.json")"
-hydrate "@next/env@$next_env_version" packages/next-env/dist
+# `@next/env` is a workspace dependency of `next`; resolve it from the packed
+# `next` package. Published versions pin an exact version, while preview
+# tarballs (scripts/create-preview-tarballs.js) rewrite the dependency to a
+# tarball URL on the preview-builds mirror.
+next_env_dep="$(node -e "console.log(require(process.argv[1]).dependencies['@next/env'])" "$extracted_pkg/package.json")"
+case "$next_env_dep" in
+  http*) next_env_spec="$next_env_dep" ;;
+  *) next_env_spec="@next/env@$next_env_dep" ;;
+esac
+hydrate "$next_env_spec" packages/next-env/dist
