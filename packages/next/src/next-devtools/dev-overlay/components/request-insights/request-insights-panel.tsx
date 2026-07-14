@@ -353,7 +353,7 @@ function getRequestOverview(request: RequestInsight) {
         ? 'No cache data'
         : knownCacheCount === 0
           ? 'Cache status unknown'
-          : `Cache ${cacheCounts.hit} hit, ${cacheCounts.skip} skip${
+          : `Cache ${cacheCounts.hit} hit, ${cacheCounts.miss} miss, ${cacheCounts.skip} skip${
               cacheCounts.unknown ? `, ${cacheCounts.unknown} unknown` : ''
             }`,
     spanSummary: `${request.spans.length} span${request.spans.length === 1 ? '' : 's'}`,
