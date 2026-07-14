@@ -2,10 +2,8 @@ import path from 'node:path'
 
 import { CompileError } from '../compile-error'
 import type { TypeCheckResult } from './runTypeCheck'
-import {
-  getTypeScriptConfigurationCli,
-  runTypeScriptCli,
-} from './runTypeScriptCli'
+import { runTypeScriptCli } from './runTypeScriptCli'
+import { loadTsConfigOptions } from './loadTsConfig'
 
 export async function runTypeCheckCli({
   baseDir,
@@ -24,14 +22,10 @@ export async function runTypeCheckCli({
    */
   onFirstOutput?: () => void
 }): Promise<TypeCheckResult> {
-  const configuration = await getTypeScriptConfigurationCli({
-    baseDir,
-    tsConfigPath,
-    tscPath,
-  })
+  // Read from the tsconfig directly to avoid the overhead of launching a subprocess.
+  const compilerOptions = loadTsConfigOptions(tsConfigPath)
   const incremental = Boolean(
-    configuration.compilerOptions.incremental ||
-      configuration.compilerOptions.composite
+    compilerOptions.incremental || compilerOptions.composite
   )
   const args = [
     '--project',
