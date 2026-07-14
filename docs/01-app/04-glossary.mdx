@@ -162,7 +162,7 @@ A pattern that allows simultaneously or conditionally rendering multiple pages w
 
 ## Partial Prefetching
 
-A prefetching strategy for [Cache Components](#cache-components) routes where `<Link>` loads a per-route [App Shell](#app-shell) by default. The page's cached content is downloaded only when the link sets `prefetch={true}`, and uncached reads stay behind their `<Suspense>` boundaries until navigation completes. Enable with [`partialPrefetching: true`](/docs/app/api-reference/config/next-config-js/partialPrefetching) in `next.config.ts`. Learn more in the [Adopting Partial Prefetching guide](/docs/app/guides/adopting-partial-prefetching).
+A prefetching strategy for [Cache Components](#cache-components) routes where a `<Link>` prefetches a per-route [App Shell](#app-shell) by default instead of the full page. Enable it with [`partialPrefetching: true`](/docs/app/api-reference/config/next-config-js/partialPrefetching) in `next.config.ts`. Learn more in the [Adopting Partial Prefetching guide](/docs/app/guides/adopting-partial-prefetching).
 
 ## Partial Prerendering (PPR)
 
@@ -221,7 +221,7 @@ A part of the URL path (between two slashes) defined by a folder in the `app` di
 
 ## RSC Payload
 
-The React Server Component Payload—a compact binary representation of the rendered React Server Components tree. Contains the rendered result of Server Components, placeholders for Client Components, and props passed between them. Learn more in [Server and Client Components](/docs/app/getting-started/server-and-client-components#how-do-server-and-client-components-work-in-nextjs).
+The React Server Component Payload is a compact binary representation of the rendered React Server Components tree. It contains the rendered result of Server Components, placeholders for Client Components, and props passed between them. Learn more in [Server and Client Components](/docs/app/getting-started/server-and-client-components#how-do-server-and-client-components-work-in-nextjs).
 
 # S
 

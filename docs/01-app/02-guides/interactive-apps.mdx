@@ -736,7 +736,7 @@ Every Server Function follows the same shape: run the write, then call `updateTa
 
 > **Good to know:** Partial Prefetching ships in Next.js 16.3 and later with [`partialPrefetching: true`](/docs/app/api-reference/config/next-config-js/partialPrefetching) set in `next.config.ts`. See the [Adopting Partial Prefetching guide](/docs/app/guides/adopting-partial-prefetching) for the migration path, plus the [Runtime Prefetching](/docs/app/guides/runtime-prefetching) and [Instant Navigation](/docs/app/guides/instant-navigation) guides for the full picture.
 
-Under [Partial Prefetching](/docs/app/guides/adopting-partial-prefetching), [`<Link>`](/docs/app/api-reference/components/link) prefetches the destination's [App Shell](/docs/app/glossary#app-shell) by default. Setting `prefetch={true}` extends the prefetch to include the destination's cached content.
+Under [Partial Prefetching](/docs/app/guides/adopting-partial-prefetching), [`<Link>`](/docs/app/api-reference/components/link) prefetches the destination's [App Shell](/docs/app/glossary#app-shell) (static and cached content) by default. Pulling content that depends on request data ahead of the click means opting the route into runtime prefetching.
 
 If the destination's cached reads depend on request data (cookies, headers, `searchParams`, or `params` not resolved by [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params)), opt the route into [runtime prefetching](/docs/app/guides/runtime-prefetching) with the [`prefetch`](/docs/app/api-reference/file-conventions/route-segment-config/prefetch) segment export so those reads resolve at prefetch time:
 

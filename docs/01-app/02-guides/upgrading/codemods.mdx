@@ -90,6 +90,22 @@ This codemod adds `export const instant = false` to every `app/**/{page,layout,d
 
 See the [Migrating to Cache Components](/docs/app/guides/migrating-to-cache-components) guide for the full adoption path.
 
+#### Remove `prefetch = 'partial'` Route Segment Config after enabling Partial Prefetching
+
+##### `remove-partial-prefetch`
+
+```bash filename="Terminal"
+npx @next/codemod@canary remove-partial-prefetch ./app
+```
+
+This codemod removes `export const prefetch = 'partial'` from `app/**/{page,layout}` files, so you can enable [`partialPrefetching`](/docs/app/api-reference/config/next-config-js/partialPrefetching) globally and then drop the now-redundant per-route opt-ins. It removes only the `'partial'` value and leaves other values such as `prefetch = 'allow-runtime'` in place.
+
+```diff filename="app/products/[slug]/page.tsx"
+- export const prefetch = 'partial'
+```
+
+See the [Adopting Partial Prefetching](/docs/app/guides/adopting-partial-prefetching) guide for the full adoption path.
+
 ### 16.0
 
 #### Remove `experimental_ppr` Route Segment Config from App Router pages and layouts
