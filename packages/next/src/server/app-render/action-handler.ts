@@ -1457,14 +1457,30 @@ const ACTION_ID_EXPECTED_LENGTH = 42
  * It pre-parses the FormData to ensure that any action IDs referred to are actual action IDs for
  * this Next.js application.
  */
-function getValidatedMPAActionId(
+export function getValidatedMPAActionId(
   mpaFormData: FormData,
   serverModuleMap: ServerModuleMap
 ): string | null {
+  const actionDescriptors = new Map<string, FormDataEntryValue | null>()
+  for (const [key, value] of mpaFormData) {
+    if (
+      key.startsWith($ACTION_) &&
+      !key.startsWith($ACTION_ID_) &&
+      !key.startsWith($ACTION_REF_) &&
+      key.endsWith(':0')
+    ) {
+      // A descriptor must have exactly one root row. Use null as a duplicate
+      // sentinel so descriptor lookup stays O(1) for adversarial forms with
+      // many action references.
+      actionDescriptors.set(key, actionDescriptors.has(key) ? null : value)
+    }
+  }
+
   let actionId: string | null = null
+  const seenActions = new Set<string>()
   // Before we attempt to decode the payload for a possible MPA action, assert that all
   // action IDs are valid IDs. If not we should disregard the payload
-  for (let key of mpaFormData.keys()) {
+  for (const key of mpaFormData.keys()) {
     if (!key.startsWith($ACTION_)) {
       // not a relevant field
       continue
@@ -1472,6 +1488,11 @@ function getValidatedMPAActionId(
 
     if (key.startsWith($ACTION_ID_)) {
       // No Bound args case
+      if (seenActions.has(key)) {
+        continue
+      }
+      seenActions.add(key)
+
       if (isInvalidActionIdFieldName(key, serverModuleMap)) {
         return null
       }
@@ -1479,13 +1500,14 @@ function getValidatedMPAActionId(
       actionId = key.slice($ACTION_ID_.length)
     } else if (key.startsWith($ACTION_REF_)) {
       // Bound args case
+      if (seenActions.has(key)) {
+        continue
+      }
+      seenActions.add(key)
+
       const actionDescriptorField =
         $ACTION_ + key.slice($ACTION_REF_.length) + ':0'
-      const actionFields = mpaFormData.getAll(actionDescriptorField)
-      if (actionFields.length !== 1) {
-        return null
-      }
-      const actionField = actionFields[0]
+      const actionField = actionDescriptors.get(actionDescriptorField)
       if (typeof actionField !== 'string') {
         return null
       }
