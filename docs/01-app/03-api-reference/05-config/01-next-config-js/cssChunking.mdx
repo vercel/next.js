@@ -138,7 +138,7 @@ Splitting it out spares `/b` those bytes, but now `/a` has to make two requests.
 
 The `requestCost` option is how `graph` prices that trade: the amount of un-imported CSS worth one extra request. It keeps `only-a.css` merged while `only-a.css` stays well under `requestCost`, and splits it out once it grows large enough to outweigh the request.
 
-What drives the decision is the size of the un-imported CSS a merge would push onto a route, much more than the size of the shared chunk it joins. With the default `requestCost` of about 100 KB, `only-a.css` would have to exceed roughly that size before it earns its own chunk, so small stylesheets stay merged.
+What drives the decision is the size of the un-imported CSS a merge would push onto a route, much more than the size of the shared chunk it joins. With the default `requestCost` of about 20 KB, `only-a.css` would have to exceed roughly that size before it earns its own chunk, so small stylesheets stay merged.
 
 <details>
   <summary>Graph algorithm overview</summary>
