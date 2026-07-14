@@ -412,10 +412,8 @@ impl From<NapiDefineEnv> for DefineEnv {
 pub struct ProjectInstance {
     turbopack_ctx: NextTurbopackContext,
     container: ResolvedVc<ProjectContainer>,
-    // `Arc` so the `'static` futures spawned by `project_on_exit`/`project_shutdown` can own a
-    // handle to it (the `External<ProjectInstance>` itself is `!Send`). Never locked across an
-    // await point.
-    exit_receiver: Arc<std::sync::Mutex<Option<ExitReceiver>>>,
+    // Never locked across an await point.
+    exit_receiver: std::sync::Mutex<Option<ExitReceiver>>,
 }
 
 #[napi(ts_return_type = "Promise<{ __napiType: \"Project\" }>")]
@@ -658,7 +656,7 @@ pub fn project_new<'env>(
             Ok(External::new(ProjectInstance {
                 turbopack_ctx,
                 container,
-                exit_receiver: Arc::new(std::sync::Mutex::new(Some(exit_receiver))),
+                exit_receiver: std::sync::Mutex::new(Some(exit_receiver)),
             }))
         }
         .instrument(tracing::info_span!("create project")),
@@ -747,9 +745,9 @@ pub async fn project_update(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: &External<ProjectInstance>,
     options: NapiPartialProjectOptions,
 ) -> napi::Result<()> {
-    let ctx = project.turbopack_ctx.clone();
-    let container = project.container;
+    let ctx = &project.turbopack_ctx;
     let options = options.into();
+    let container = project.container;
     ctx.turbo_tasks()
         .run(async move { container.update(options).await })
         .or_else(|e| ctx.throw_turbopack_internal_result(&e.into()))
@@ -772,7 +770,7 @@ pub async fn project_invalidate_file_system_cache(
     })
     .await
     .context("panicked while invalidating filesystem cache")??;
-    Ok::<_, napi::Error>(())
+    Ok(())
 }
 
 /// Runs exit handlers for the project registered using the [`ExitHandler`] API.
@@ -783,9 +781,8 @@ pub async fn project_invalidate_file_system_cache(
 pub async fn project_on_exit(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: &External<ProjectInstance>,
 ) -> napi::Result<()> {
-    let exit_receiver = project.exit_receiver.clone();
-    run_exit_handlers(exit_receiver).await;
-    Ok::<_, napi::Error>(())
+    run_exit_handlers(&project.exit_receiver).await;
+    Ok(())
 }
 
 /// Takes the [`ExitReceiver`] out of the shared slot and runs the registered exit handlers.
@@ -793,7 +790,7 @@ pub async fn project_on_exit(
 /// The receiver is taken only once the caller is ready to run the handlers, so an earlier failure
 /// (e.g. a panic in `stop_and_wait` during `project_shutdown`) leaves it in place for a fallback
 /// `project_on_exit` call.
-async fn run_exit_handlers(exit_receiver: Arc<std::sync::Mutex<Option<ExitReceiver>>>) {
+async fn run_exit_handlers(exit_receiver: &std::sync::Mutex<Option<ExitReceiver>>) {
     let exit_receiver = exit_receiver
         .lock()
         .expect("panicked while holding the exit receiver")
@@ -814,11 +811,10 @@ async fn run_exit_handlers(exit_receiver: Arc<std::sync::Mutex<Option<ExitReceiv
 pub async fn project_shutdown(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: &External<ProjectInstance>,
 ) -> napi::Result<()> {
-    let tt = project.turbopack_ctx.turbo_tasks().clone();
-    let exit_receiver = project.exit_receiver.clone();
+    let tt = project.turbopack_ctx.turbo_tasks();
     tt.stop_and_wait().await;
-    run_exit_handlers(exit_receiver).await;
-    Ok::<_, napi::Error>(())
+    run_exit_handlers(&project.exit_receiver).await;
+    Ok(())
 }
 
 #[napi(object, object_from_js = false)]
@@ -1337,17 +1333,8 @@ pub async fn project_write_all_entrypoints_to_disk(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: &External<ProjectInstance>,
     app_dir_only: bool,
 ) -> napi::Result<TurbopackResult<Option<NapiEntrypoints>>> {
-    let ctx = project.turbopack_ctx.clone();
+    let ctx = &project.turbopack_ctx;
     let container = project.container;
-    project_write_all_entrypoints_to_disk_inner(ctx, container, app_dir_only).await
-}
-
-async fn project_write_all_entrypoints_to_disk_inner(
-    ctx: NextTurbopackContext,
-    container: ResolvedVc<ProjectContainer>,
-    app_dir_only: bool,
-) -> napi::Result<TurbopackResult<Option<NapiEntrypoints>>> {
-    let ctx = &ctx;
     let tt = ctx.turbo_tasks();
 
     #[turbo_tasks::function(operation, root)]
