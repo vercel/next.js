@@ -6,6 +6,8 @@ import type {
 import { extractPathFromFlightRouterState } from '../compute-changed-path'
 import {
   FreshnessPolicy,
+  getCurrentNavigationLock,
+  rearmNavigationLockAfterTraversal,
   resetNavigationLockToPending,
   spawnDynamicRequests,
   startPPRNavigation,
@@ -109,11 +111,9 @@ export function restoreReducer(
     // Not an HMR refresh, so there's no request generation to cancel.
     undefined
   )
-  // Instant Navigation Testing API: a traversal resets the lock to a fresh
-  // pending scope — releasing any data withheld by prior forward navigations and
-  // returning the panel to "awaiting" — without ending the testing session.
-  // No-op when the testing API is disabled or no lock is held.
-  resetNavigationLockToPending()
+  // After spawnDynamicRequests so the requests spawned above hold the
+  // released scope's lock and their gated writes flush immediately.
+  rearmNavigationLockAfterTraversal()
   return completeTraverseNavigation(
     state,
     restoredUrl,
