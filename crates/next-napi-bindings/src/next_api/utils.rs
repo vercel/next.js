@@ -408,8 +408,6 @@ impl<T: ToNapiValue> ToNapiValue for TurbopackResult<T> {
         env: napi::sys::napi_env,
         val: Self,
     ) -> napi::Result<napi::sys::napi_value> {
-        let env_wrapper = Env::from_raw(env);
-
         let result_raw = unsafe { T::to_napi_value(env, val.result)? };
         let result = unsafe { Unknown::from_raw_unchecked(env, result_raw) };
 
@@ -418,7 +416,7 @@ impl<T: ToNapiValue> ToNapiValue for TurbopackResult<T> {
         let mut obj = if matches!(result.get_type()?, napi::ValueType::Object) {
             Object::from_raw(env, result_raw)
         } else {
-            Object::new(&env_wrapper)?
+            Object::new(&Env::from_raw(env))?
         };
 
         obj.set_named_property("issues", val.issues)?;
