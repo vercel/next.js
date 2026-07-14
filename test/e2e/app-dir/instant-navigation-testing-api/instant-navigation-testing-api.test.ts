@@ -643,6 +643,32 @@ describe('instant-navigation-testing-api', () => {
     })
   })
 
+  // A Client Component reading useSearchParams() suspends the prerender (the
+  // static shell contains the Suspense fallback), but the value resolves
+  // client-side from the URL. So unlike server `searchParams`, the value
+  // becomes visible without releasing the instant lock.
+  describe('client component useSearchParams is visible in instant shell', () => {
+    it('renders search param values on initial visit without releasing the lock', async () => {
+      const page = await openPage(next, '/')
+
+      await instant(page, async () => {
+        await page.goto(
+          new URL('/use-search-params-page?foo=bar', next.url).href
+        )
+
+        const title = page.locator('[data-testid="use-search-params-title"]')
+        await title.waitFor({ state: 'visible' })
+
+        // The value renders client-side while the instant lock is held
+        const content = page.locator(
+          '[data-testid="use-search-params-content"]'
+        )
+        await content.waitFor({ state: 'visible' })
+        expect(await content.textContent()).toContain('foo: bar')
+      })
+    })
+  })
+
   describe('statically generated params are included in instant shell', () => {
     it('includes statically generated param values in instant shell during client navigation', async () => {
       const page = await openPage(next, '/')
