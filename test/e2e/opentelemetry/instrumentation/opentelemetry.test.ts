@@ -118,9 +118,9 @@ describe.each(
       () => {
         describe('app router', () => {
           if (env.name === 'root context') {
-            itServerAction('should trace Server Action execution', async () => {
+            itServerAction('should trace inline Server Action', async () => {
               const browser = await next.browser('/app/param/server-action')
-              await browser.elementById('run-server-action').click()
+              await browser.elementById('run-inline-server-action').click()
 
               await retry(async () => {
                 const span = getCollector()
@@ -143,6 +143,41 @@ describe.each(
                         ? {
                             'next.server_action.file':
                               'app/app/[param]/server-action/page.tsx',
+                          }
+                        : {}),
+                    }),
+                    status: { code: 0 },
+                  })
+                )
+              })
+            })
+
+            itServerAction('should trace exported Server Action', async () => {
+              const browser = await next.browser('/app/param/server-action')
+              await browser.elementById('run-exported-server-action').click()
+
+              await retry(async () => {
+                const span = getCollector()
+                  .getSpans()
+                  .find(
+                    (candidate) =>
+                      candidate.attributes?.['next.server_action.name'] ===
+                      'exportedServerAction'
+                  )
+
+                expect(span).toEqual(
+                  expect.objectContaining({
+                    name: 'AppRender.executeServerAction',
+                    attributes: expect.objectContaining({
+                      'next.span_name':
+                        'run Server Action exportedServerAction',
+                      'next.span_type': 'AppRender.executeServerAction',
+                      'next.span.category': 'application',
+                      'next.server_action.name': 'exportedServerAction',
+                      ...(isNextDev
+                        ? {
+                            'next.server_action.file':
+                              'app/app/[param]/server-action/actions.ts',
                           }
                         : {}),
                     }),
