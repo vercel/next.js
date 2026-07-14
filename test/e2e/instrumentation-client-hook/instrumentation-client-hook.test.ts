@@ -407,6 +407,40 @@ describe('Instrumentation Client Hook', () => {
       expect(end.event.timestamp - commit.event.timestamp).toBeGreaterThan(100)
     })
 
+    it('reports end when shallow routing happens while the destination is still streaming', async () => {
+      const browser = await next.browser('/')
+
+      // Navigate to the slow-streaming marked page: the navigation commits
+      // with the fallback and the marker's content streams for ~3s.
+      await browser.elementById('push-streaming-slow').click()
+      const commit = lastCommit(await waitForCommitCount(browser, 1))
+
+      // Shallow-update the URL the way the docs recommend
+      // (history.pushState with app-owned state) while the content is still
+      // streaming. The restore this dispatches derives a state from the
+      // navigation's — it must carry the navigation's transition forward, or
+      // the marker reveals under a null context and the `end` is dropped.
+      await browser.elementById('shallow-tweak-streaming-slow').click()
+      await retry(async () => {
+        expect(await browser.eval('window.location.search')).toBe('?tab=2')
+      })
+
+      await browser.elementById('streaming-slow-content')
+      const events = await retry(async () => {
+        const snapshot = await getTransitionEvents(browser)
+        expect(snapshot.filter((e) => e.phase === 'end')).toHaveLength(1)
+        return snapshot
+      })
+      const end = events.find((e) => e.phase === 'end')
+      expect(end.event.id).toBe(commit.event.id)
+      expect(end.event.timestamp).toBeGreaterThan(commit.event.timestamp)
+      // The shallow update is not a navigation: it must not corrupt the rest
+      // of the lifecycle either — no extra start/commit, no bogus abort.
+      expect(events.filter((e) => e.phase === 'start')).toHaveLength(1)
+      expect(events.filter((e) => e.phase === 'commit')).toHaveLength(1)
+      expect(events.filter((e) => e.phase === 'abort')).toHaveLength(0)
+    })
+
     it('reports end in the same commit when the marker is part of the committed content', async () => {
       const browser = await next.browser('/')
 

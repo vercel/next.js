@@ -41,6 +41,7 @@ import {
 import { useNavFailureHandler } from './nav-failure-handler'
 import {
   dispatchTraverseAction,
+  getCurrentAppRouterState,
   publicAppRouterInstance,
   type AppRouterActionQueue,
   type GlobalErrorState,
@@ -344,9 +345,16 @@ function Router({
           historyState: appHistoryState,
           // TODO: Consider tracking perf for shallow routing. For now a
           // shallow history update is not a tracked transition — no `start`
-          // is emitted for it, so there is no pending transition to thread
-          // through, and it never reports a commit.
-          instrumentationTransition: null,
+          // is emitted for it and it never reports its own commit. But the
+          // produced state derives from the current one, so the current
+          // state's transition must be carried forward, exactly like a
+          // refresh (see settleRouterTransition's destination-preserving
+          // class): stamping null would swap RouterTransitionEndContext away
+          // from a navigation whose content is still streaming — its marker
+          // would reveal reading null and the navigation's `end` would be
+          // silently dropped.
+          instrumentationTransition:
+            getCurrentAppRouterState()?.instrumentationTransition ?? null,
         })
       })
     }
