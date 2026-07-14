@@ -252,7 +252,15 @@ impl SourceMapGenConfig for InlineSourcesContentConfig {
     fn file_name_to_source(&self, f: &FileName) -> String {
         match f {
             FileName::Custom(s) => {
-                format!("{SOURCE_URL_PROTOCOL}///{s}")
+                // format! here is suboptimal and allocates over and over again.
+                // On a random test next test project this one spot accounted for 
+                // 10% of allocations, hence the more verbose approach.
+                let proto: &str = &SOURCE_URL_PROTOCOL;
+                let mut out = String::with_capacity(proto.len() + 3 + s.len());
+                out.push_str(proto);
+                out.push_str("///");
+                out.push_str(s);
+                out
             }
             _ => f.to_string(),
         }
