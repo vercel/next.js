@@ -222,7 +222,7 @@ impl NapiNextTurbopackCallbacks {
                     .build_threadsafe_function::<()>()
                     .callee_handled::<true>()
                     .weak::<true>()
-                    .build_callback(|_| Ok::<(), _>(()))?;
+                    .build_callback(|_| Ok(()))?;
                 Ok::<_, napi::Error>(f)
             })
             .transpose()?;
@@ -308,7 +308,7 @@ pub fn create_turbo_tasks(
         )?;
         let tt = TurboTasks::new(TurboTasksBackend::new(
             BackendOptions {
-                storage_mode: Some(if std::env::var("TURBO_ENGINE_READ_ONLY").is_ok() {
+                storage_mode: Some(if env::var("TURBO_ENGINE_READ_ONLY").is_ok() {
                     turbo_tasks_backend::StorageMode::ReadOnly
                 } else if is_ci || is_short_session {
                     turbo_tasks_backend::StorageMode::ReadWriteOnShutdown
@@ -454,7 +454,7 @@ pub fn log_internal_error_and_inform(internal_error: &anyhow::Error) {
         .open(PANIC_LOG.as_path())
         .unwrap_or_else(|_| panic!("Failed to open {}", PANIC_LOG.to_string_lossy()));
 
-    let internal_error_str: String = PrettyPrintError(internal_error).to_string();
+    let internal_error_str = PrettyPrintError(internal_error).to_string();
     writeln!(log_file, "{}\n{}", LOG_DIVIDER, internal_error_str).unwrap();
 
     let title = format!(
