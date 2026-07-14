@@ -106,7 +106,7 @@ impl NextTurbopackContext {
                 }))
                 .await
             {
-                Ok(_) => panic!("throwTurbopackInternalError must throw an error"),
+                Ok(()) => panic!("throwTurbopackInternalError must throw an error"),
                 Err(err) => err,
             }
         }
