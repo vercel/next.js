@@ -51,8 +51,7 @@ use crate::{get_compiler, util::MapErr};
 
 /// The JS-facing result of a SWC transform.
 ///
-/// Optional fields are omitted from the resulting object when `None`, matching
-/// the previous manual object construction.
+/// Optional fields are omitted from the resulting object when `None`.
 #[napi(object)]
 pub struct TransformOutputResult {
     pub code: String,
