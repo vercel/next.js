@@ -3,7 +3,7 @@ use std::{
     fs::{canonicalize, create_dir_all},
     io::Write,
     path::{Path, PathBuf},
-    sync::{Arc, LazyLock},
+    sync::{Arc, LazyLock, Mutex},
     thread,
     time::Duration,
 };
@@ -413,7 +413,7 @@ pub struct ProjectInstance {
     turbopack_ctx: NextTurbopackContext,
     container: ResolvedVc<ProjectContainer>,
     // Never locked across an await point.
-    exit_receiver: std::sync::Mutex<Option<ExitReceiver>>,
+    exit_receiver: Mutex<Option<ExitReceiver>>,
 }
 
 #[napi(ts_return_type = "Promise<{ __napiType: \"Project\" }>")]
@@ -656,7 +656,7 @@ pub fn project_new<'env>(
             Ok(External::new(ProjectInstance {
                 turbopack_ctx,
                 container,
-                exit_receiver: std::sync::Mutex::new(Some(exit_receiver)),
+                exit_receiver: Mutex::new(Some(exit_receiver)),
             }))
         }
         .instrument(tracing::info_span!("create project")),
@@ -790,7 +790,7 @@ pub async fn project_on_exit(
 /// The receiver is taken only once the caller is ready to run the handlers, so an earlier failure
 /// (e.g. a panic in `stop_and_wait` during `project_shutdown`) leaves it in place for a fallback
 /// `project_on_exit` call.
-async fn run_exit_handlers(exit_receiver: &std::sync::Mutex<Option<ExitReceiver>>) {
+async fn run_exit_handlers(exit_receiver: &Mutex<Option<ExitReceiver>>) {
     let exit_receiver = exit_receiver
         .lock()
         .expect("panicked while holding the exit receiver")

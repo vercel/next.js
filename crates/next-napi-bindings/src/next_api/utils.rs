@@ -9,8 +9,7 @@ use futures_util::TryFutureExt;
 use napi::{
     Env, Status, Unknown,
     bindgen_prelude::{
-        Buffer, External, ExternalRef, Function, FunctionRef, JsObjectValue, JsValue, Object,
-        ToNapiValue,
+        Buffer, External, ExternalRef, FunctionRef, JsObjectValue, JsValue, Object, ToNapiValue,
     },
     threadsafe_function::{ThreadsafeCallContext, ThreadsafeFunction, ThreadsafeFunctionCallMode},
 };
@@ -439,7 +438,7 @@ pub fn subscribe<
     handler: impl 'static + Sync + Send + Clone + Fn() -> F,
     mapper: impl 'static + Sync + Send + FnMut(ThreadsafeCallContext<T>) -> napi::Result<V>,
 ) -> napi::Result<External<RootTask>> {
-    let js_func: Function<'_, V, ()> = func.borrow_back(env)?;
+    let js_func = func.borrow_back(env)?;
     let func: ThreadsafeFunction<T, (), V, Status, true> = js_func
         .build_threadsafe_function::<T>()
         .callee_handled::<true>()

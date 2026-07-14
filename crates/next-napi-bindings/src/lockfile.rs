@@ -152,7 +152,7 @@ pub fn lockfile_unlock<'env>(
 fn take_lockfile_inner(lockfile: &JsLockfile) -> Option<LockfileInner> {
     lockfile
         .lock()
-        .expect("poisoned: another thread panicked during `lockfile_unlock_sync`?")
+        .expect("poisoned: another thread panicked while unlocking this lockfile")
         .take()
 }
 
