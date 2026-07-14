@@ -7,7 +7,7 @@ See [`config.supportsImmutableAssets`](/docs/app/api-reference/config/next-confi
 
 When `config.supportsImmutableAssets` is enabled, Next.js outputs immutable content-addressed static assets under the public path `/_next/static/immutable/*`. This prefix can be used to differentiate immutable static assets from non-immutable static assets at the CDN level.
 
-At runtime, these immutable static assets are requested without the `?dpl` query parameter and thus live in a shared namespace across deployments. You must ensure that these assets are immutable and will never be changed or deleted, even after a new deployment. Next.js may use a truncated shorter content hash as the filename, so `outputs.staticFiles[].immutableHash` contains the full content hash which can be used to validate that no hash collision occurred.
+At runtime, these immutable static assets are requested without the `?dpl` query parameter and thus live in a shared namespace across deployments. You must ensure that these assets are immutable and not changed (even after a new deployment) or deleted (for as long as there are active deployments using them) . Next.js may use a truncated shorter content hash as the filename, so `outputs.staticFiles[].immutableHash` contains the full content hash which can be used to validate that no hash collision occurred.
 
 You can use `config.experimental.outputHashSalt` to set a salt for the content hashes, if you want to rotate the hashes for any reason (e.g. after a detected hash collision).
 
