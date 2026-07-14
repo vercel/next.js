@@ -25,8 +25,9 @@ export async function getVersionInfo(): Promise<VersionInfo> {
       !res ||
       !res.ok ||
       res.headers?.get?.('content-type') !== 'application/json'
-    )
+    ) {
       return { installed, staleness: 'unknown' }
+    }
 
     const { latest, canary } = await res.json()
 
