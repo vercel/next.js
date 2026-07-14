@@ -16,23 +16,19 @@ export async function getVersionInfo(): Promise<VersionInfo> {
     try {
       const registry = getRegistry()
       // use NPM registry regardless user using Yarn
-      res = await fetch(`${registry}-/package/next/dist-tags`).then(
-        async (response) => {
-          if (!response || !response.ok) {
-            return { installed, staleness: 'unknown' }
-          }
-
-          return await response.json()
-        }
-      )
+      res = await fetch(`${registry}-/package/next/dist-tags`)
     } catch {
       // ignore fetch errors
     }
 
-    if (!res || ('staleness' in res && res['staleness'] === 'unknown'))
+    if (
+      !res ||
+      !res.ok ||
+      res.headers?.get('content-type') !== 'application/json'
+    )
       return { installed, staleness: 'unknown' }
 
-    const { latest, canary } = res
+    const { latest, canary } = await res.json()
 
     return parseVersionInfo({ installed, latest, canary })
   } catch (e: any) {
