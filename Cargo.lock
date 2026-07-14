@@ -404,11 +404,12 @@ name = "auto-hash-map"
 version = "0.1.0"
 dependencies = [
  "bincode 2.0.1",
+ "codspeed-criterion-compat",
  "hashbrown 0.14.5",
  "rustc-hash 2.1.1",
  "serde",
  "shrink-to-fit",
- "smallvec",
+ "turbo-tasks-malloc",
 ]
 
 [[package]]
