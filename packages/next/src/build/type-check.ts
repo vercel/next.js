@@ -151,10 +151,10 @@ export async function startTypeChecking({
           pagesDir,
           debugBuildPaths,
           useTypeScriptCli,
-          // Stop the spinner before the CLI checker writes its diagnostics
-          // (which it does directly to stdout/stderr, bypassing the console
-          // hooks that would otherwise pause the spinner).
-          () => typeCheckingSpinner?.stop()
+          // Stop the spinner before as soon as the subprocess reports output.
+          useTypeScriptCli && typeCheckingSpinner
+            ? () => typeCheckingSpinner.stop()
+            : undefined
         ).then((resolved) => {
           const checkEnd = process.hrtime(typeCheckAndLintStart)
           return [resolved, checkEnd] as const

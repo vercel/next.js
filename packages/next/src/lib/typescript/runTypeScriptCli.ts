@@ -142,12 +142,9 @@ export function runTypeScriptCli({
         stderr += chunk
       })
     } else {
-      let sawOutput = false
       const forward = (dest: NodeJS.WriteStream, chunk: string) => {
-        if (!sawOutput) {
-          sawOutput = true
-          onFirstOutput?.()
-        }
+        onFirstOutput?.()
+        onFirstOutput = undefined // ensure we don't call it again
         dest.write(chunk)
       }
 
