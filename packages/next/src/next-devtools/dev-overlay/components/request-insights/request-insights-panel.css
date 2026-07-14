@@ -77,16 +77,21 @@
   white-space: nowrap;
 }
 
-.request-insights-page-load {
+.request-insights-badge {
   flex-shrink: 0;
   border-radius: 999px;
   padding: 1px 5px;
-  background: var(--color-blue-100);
-  color: var(--color-blue-900);
+  background: var(--color-gray-200);
+  color: var(--color-gray-900);
   font-size: var(--size-10);
   font-weight: 600;
   line-height: 16px;
   white-space: nowrap;
+}
+
+.request-insights-badge[data-kind='page-load'] {
+  background: var(--color-blue-100);
+  color: var(--color-blue-900);
 }
 
 .request-insights-duration,

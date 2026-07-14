@@ -275,6 +275,49 @@ describe('request insights trace viewer', () => {
     ])
   })
 
+  it('shows Server Action execution in the default trace', () => {
+    const request = createRequest({
+      spans: [
+        {
+          name: 'POST /messages',
+          spanId: 'request',
+          startTime: 100,
+          durationMs: 250,
+          attributes: { 'next.span_type': 'BaseServer.handleRequest' },
+        },
+        {
+          name: 'run Server Action saveMessage',
+          spanId: 'action',
+          parentSpanId: 'request',
+          startTime: 110,
+          durationMs: 200,
+          attributes: {
+            'next.span.category': 'application',
+            'next.span_name': 'run Server Action saveMessage',
+            'next.span_type': 'AppRender.executeServerAction',
+            'next.server_action.name': 'saveMessage',
+            'next.server_action.file': 'app/actions.ts',
+          },
+        },
+      ],
+    })
+
+    expect(
+      getTraceItems(request, false).map(({ label, category, depth }) => ({
+        label,
+        category,
+        depth,
+      }))
+    ).toEqual([
+      { label: 'POST /messages', category: 'nextjs', depth: 0 },
+      {
+        label: 'run Server Action saveMessage',
+        category: 'application',
+        depth: 1,
+      },
+    ])
+  })
+
   it('gives every displayed span a human readable name', () => {
     const request = createRequest({
       spans: [

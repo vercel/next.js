@@ -69,6 +69,10 @@ function RequestRow({
   selected: boolean
   onSelect: () => void
 }) {
+  const title = request.serverAction
+    ? `ƒ ${request.serverAction.name}`
+    : (request.route ?? request.url ?? 'Unknown route')
+
   return (
     <button
       className="request-insights-row"
@@ -79,11 +83,14 @@ function RequestRow({
     >
       <span className="request-insights-status" data-status={request.status} />
       <span className="request-insights-route">
-        <span className="request-insights-route-label">
-          {request.route ?? request.url ?? 'Unknown route'}
-        </span>
+        <span className="request-insights-route-label">{title}</span>
+        {request.serverAction ? (
+          <span className="request-insights-badge">Server Action</span>
+        ) : null}
         {pageLoad ? (
-          <span className="request-insights-page-load">Page load</span>
+          <span className="request-insights-badge" data-kind="page-load">
+            Page load
+          </span>
         ) : null}
       </span>
       <span className="request-insights-duration">
@@ -109,15 +116,16 @@ function RequestDetails({ request }: { request: RequestInsight }) {
   )
   const overview = useMemo(() => getRequestOverview(request), [request])
   const diagnosis = getDiagnosis(request, traceItems)
+  const title = request.serverAction
+    ? `ƒ ${request.serverAction.name}`
+    : (request.route ?? request.url ?? request.requestId)
 
   return (
     <div className="request-insights-details">
       <div className="request-insights-summary">
         <div className="request-insights-heading">
           <div className="request-insights-title-row">
-            <div className="request-insights-title">
-              {request.route ?? request.url ?? request.requestId}
-            </div>
+            <div className="request-insights-title">{title}</div>
             <CopyButton
               actionLabel="Copy request JSON"
               className="request-insights-copy"
@@ -162,6 +170,8 @@ function RequestOverview({
       <span>Method {overview.method}</span>
       <span>Status {overview.statusLabel}</span>
       <span>{overview.kind}</span>
+      {overview.route ? <span>Route {overview.route}</span> : null}
+      {overview.source ? <span>Source {overview.source}</span> : null}
       <span>{overview.fetchSummary}</span>
       <span>{overview.cacheSummary}</span>
       <span>{overview.spanSummary}</span>
@@ -344,7 +354,13 @@ function getRequestOverview(request: RequestInsight) {
     method,
     statusCode,
     statusLabel: statusCode ?? request.status,
-    kind: isRsc ? 'RSC request' : 'HTML request',
+    kind: request.serverAction
+      ? 'Server Action'
+      : isRsc
+        ? 'RSC request'
+        : 'HTML request',
+    route: request.serverAction ? (request.route ?? request.url) : undefined,
+    source: request.serverAction?.file,
     fetchSummary: request.fetches.length
       ? `${request.fetches.length} fetch${request.fetches.length === 1 ? '' : 'es'}`
       : 'No fetches',
