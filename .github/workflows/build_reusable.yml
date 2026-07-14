@@ -11,6 +11,15 @@ on:
         required: false
         description: 'whether to skip pnpm install && pnpm build'
         type: string
+      hydrateNextDistVersion:
+        required: false
+        description: >
+          When set, skip `pnpm build` and populate packages/next/dist from the
+          published `next` tarball (version, dist-tag, or tarball URL) instead.
+          Only valid for jobs whose tests never run the local Next.js build
+          (e.g. deploy tests).
+        type: string
+        default: ''
       skipNativeBuild:
         required: false
         description: 'whether to skip building native modules'
@@ -363,7 +372,13 @@ jobs:
         run: pnpm install --recursive
 
       - run: ANALYZE=1 pnpm build
-        if: ${{ inputs.skipInstallBuild != 'yes' }}
+        if: ${{ inputs.skipInstallBuild != 'yes' && inputs.hydrateNextDistVersion == '' }}
+
+      - name: Hydrate next dist from published tarball
+        if: ${{ inputs.hydrateNextDistVersion != '' }}
+        env:
+          NEXT_DIST_VERSION: ${{ inputs.hydrateNextDistVersion }}
+        run: bash scripts/hydrate-next-dist.sh "$NEXT_DIST_VERSION"
 
       - name: Install Playwright browsers
         if: ${{ inputs.skipInstallBuild != 'yes' && inputs.needsPlaywright != 'no' }}
