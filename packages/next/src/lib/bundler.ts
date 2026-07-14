@@ -1,8 +1,34 @@
+import * as Log from '../build/output/log'
+
 /// Utilties for configuring the bundler to use.
 export enum Bundler {
   Turbopack,
   Webpack,
   Rspack,
+}
+
+export function bundlerName(bundler: Bundler): string {
+  switch (bundler) {
+    case Bundler.Turbopack:
+      return 'Turbopack'
+    case Bundler.Webpack:
+      return 'webpack'
+    case Bundler.Rspack:
+      return 'Rspack'
+  }
+}
+
+/**
+ * Derive the currently configured bundler from the environment.
+ */
+export function getBundlerFromEnv(): Bundler {
+  if (process.env.NEXT_RSPACK) {
+    return Bundler.Rspack
+  }
+  if (process.env.TURBOPACK) {
+    return Bundler.Turbopack
+  }
+  return Bundler.Webpack
 }
 /**
  * Parse the bundler arguments and potentially sets the `TURBOPACK` environment variable.
@@ -95,6 +121,11 @@ Edit your command or your package.json script to configure only one bundler.`
 export function finalizeBundlerFromConfig(fromOptions: Bundler) {
   // Reading the next config can set NEXT_RSPACK environment variables.
   if (process.env.NEXT_RSPACK) {
+    if (fromOptions !== Bundler.Rspack) {
+      Log.event(
+        `Switching bundler from ${bundlerName(fromOptions)} to Rspack based on config`
+      )
+    }
     return Bundler.Rspack
   }
   return fromOptions

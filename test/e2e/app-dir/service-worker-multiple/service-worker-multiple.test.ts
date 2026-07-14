@@ -8,6 +8,7 @@ import { retry } from 'next-test-utils'
     const { next, skipped, isNextDev } = nextTestSetup({
       files: __dirname,
       skipStart: true,
+      // This test asserts a build failure.
       skipDeployment: true,
     })
 

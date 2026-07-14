@@ -10,6 +10,7 @@ use std::{
 
 use petgraph::graph::{DiGraph, EdgeIndex, NodeIndex};
 use rustc_hash::{FxHashMap, FxHashSet};
+use turbo_tasks::FxIndexMap;
 
 use super::subgraph_view::{ReadonlyGraph, SubgraphView};
 use crate::module::StyleType;
@@ -18,20 +19,87 @@ use crate::module::StyleType;
 // create_graph
 // ---------------------------------------------------------------------------
 
+/// The index of a chunk group, as ordered by the caller of [`create_graph`].
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
+pub(super) struct ChunkGroupIndex(pub(super) usize);
+
+/// Per-module chunk-group membership: for each module id, the **ascending** list of chunk groups
+/// that contain it. The sorted invariant is what lets [`ModuleChunkGroups::shared`] intersect two
+/// modules' lists with a single linear merge; [`create_graph`] preserves it by appending groups in
+/// index order. Reading membership from here (rather than post-[`make_acyclic`] edge weights) keeps
+/// the co-occurrence signal lossless.
+pub(super) struct ModuleChunkGroups {
+    per_module: Vec<Vec<ChunkGroupIndex>>,
+}
+
+impl ModuleChunkGroups {
+    /// Number of chunk groups that contain both module `a` and module `b`. Runs in
+    /// O(min(|groups_a|, |groups_b|)) thanks to the ascending invariant.
+    pub(super) fn shared(&self, a: NodeIndex, b: NodeIndex) -> usize {
+        let a_groups = &self.per_module[a.index()];
+        let b_groups = &self.per_module[b.index()];
+        let mut count = 0;
+        let mut i = 0;
+        let mut j = 0;
+        while i < a_groups.len() && j < b_groups.len() {
+            match a_groups[i].cmp(&b_groups[j]) {
+                std::cmp::Ordering::Equal => {
+                    count += 1;
+                    i += 1;
+                    j += 1;
+                }
+                std::cmp::Ordering::Less => i += 1,
+                std::cmp::Ordering::Greater => j += 1,
+            }
+        }
+        count
+    }
+
+    /// Build directly from per-module group lists, each of which must already be ascending. For
+    /// tests and callers that assemble the lists themselves.
+    #[cfg(test)]
+    pub(super) fn from_sorted(per_module: Vec<Vec<usize>>) -> Self {
+        Self {
+            per_module: per_module
+                .into_iter()
+                .map(|groups| groups.into_iter().map(ChunkGroupIndex).collect())
+                .collect(),
+        }
+    }
+
+    /// The (ascending) chunk groups containing `module`. For tests/inspection.
+    #[cfg(test)]
+    pub(super) fn groups_of(&self, module: usize) -> &[ChunkGroupIndex] {
+        &self.per_module[module]
+    }
+}
+
 /// Build a directed weighted graph from `chunk_groups`.
 ///
 /// For each group `[m₀, m₁, ..., mₖ]` and every pair `(later, earlier)` with `later > earlier`
 /// inside the group, an edge `later → earlier` is added (weight 1). Repeated edges accumulate.
 /// `node_count` is the total number of distinct module ids referenced; node ids are dense in
 /// `0..node_count`.
-pub(super) fn create_graph(chunk_groups: &[Vec<usize>], node_count: usize) -> DiGraph<usize, u32> {
+///
+/// Also returns the [`ModuleChunkGroups`] index, used by [`linearize`] to count shared chunk groups
+/// between two modules.
+pub(super) fn create_graph(
+    chunk_groups: &[Vec<usize>],
+    node_count: usize,
+) -> (DiGraph<usize, u32>, ModuleChunkGroups) {
     let mut graph: DiGraph<usize, u32> = DiGraph::with_capacity(node_count, 0);
+    let mut per_module: Vec<Vec<ChunkGroupIndex>> = vec![Vec::new(); node_count];
     for i in 0..node_count {
         let idx = graph.add_node(i);
         debug_assert_eq!(idx.index(), i);
     }
     let mut edge_index: FxHashMap<(NodeIndex, NodeIndex), EdgeIndex> = FxHashMap::default();
-    for group in chunk_groups {
+    for (group_idx, group) in chunk_groups.iter().enumerate() {
+        // Appended in ascending `group_idx` order, preserving `ModuleChunkGroups`' sorted
+        // invariant.
+        for &module_id in group {
+            per_module[module_id].push(ChunkGroupIndex(group_idx));
+        }
         for (i, &later_id) in group.iter().enumerate() {
             let later = NodeIndex::new(later_id);
             for &earlier_id in &group[..i] {
@@ -49,7 +117,7 @@ pub(super) fn create_graph(chunk_groups: &[Vec<usize>], node_count: usize) -> Di
             }
         }
     }
-    graph
+    (graph, ModuleChunkGroups { per_module })
 }
 
 // ---------------------------------------------------------------------------
@@ -450,55 +518,91 @@ pub(super) fn make_acyclic<N>(graph: &mut DiGraph<N, u32>) {
 // linearize
 // ---------------------------------------------------------------------------
 
-/// Topologically sort `graph` (Kahn). Tie-break: when multiple dependents become unblocked at
-/// once, the heaviest edge wins; insertion order breaks ties at equal weight.
-pub(super) fn linearize<'a, G>(graph: G) -> Vec<NodeIndex>
+/// Topologically sort `graph` (Kahn). Among the currently unblocked candidates, prefer the one
+/// that shares the most chunk groups with the previously placed module, so modules that load
+/// together end up adjacent in the global order.
+///
+/// The shared-group count is read from [`ModuleChunkGroups`] (built by [`create_graph`]). Reading
+/// from the original chunk-group data (not the post-[`make_acyclic`] graph) gives a lossless
+/// signal: [`make_acyclic`] deletes ~30% of edge weight on real inputs, and those deleted edges
+/// represent real co-occurrences.
+///
+/// **Tie-breaking** is done by looking further back through `result`: when multiple candidates
+/// share the same count with the last-placed module, the tie is broken by the count with the
+/// second-to-last module, then the third-to-last, and so on. Formally, the per-candidate key is
+/// the lexicographic sequence `[shared(last), shared(last-1), shared(last-2), …]`, sorted
+/// descending — equivalent to choosing the candidate with the best `(Reverse(distance), shared)`
+/// metric, where `distance` is the first look-back position that produces a non-tie. Final ties
+/// (zero shared at all positions) fall back to the earliest remaining candidate — the one inserted
+/// first into `remaining_deps`, which mirrors `graph.nodes()` order.
+pub(super) fn linearize<'a, G>(graph: G, module_chunk_groups: &ModuleChunkGroups) -> Vec<NodeIndex>
 where
     G: ReadonlyGraph<'a>,
 {
-    let mut remaining_deps: FxHashMap<NodeIndex, usize> = FxHashMap::default();
+    // `remaining_deps` is an insertion-ordered map (matching `graph.nodes()`), so each node's
+    // position is a stable "seniority" index. Candidates carry that index as their tie-break key,
+    // so the `swap_remove` below — which scrambles positions within `candidates` — cannot disturb
+    // the "earliest remaining candidate" tie-break.
+    let mut remaining_deps: FxIndexMap<NodeIndex, usize> =
+        FxIndexMap::with_capacity_and_hasher(graph.node_count(), Default::default());
     for n in graph.nodes() {
         remaining_deps.insert(n, graph.outgoing_edges(n).count());
     }
 
-    let mut candidates: Vec<NodeIndex> = remaining_deps
+    // Candidates are `(node, index in `remaining_deps`)`. Seeded in ascending index order because
+    // `FxIndexMap` iterates in insertion order.
+    let mut candidates: Vec<(NodeIndex, usize)> = remaining_deps
         .iter()
-        .filter_map(|(n, &c)| if c == 0 { Some(*n) } else { None })
+        .enumerate()
+        .filter_map(|(idx, (&n, &c))| (c == 0).then_some((n, idx)))
         .collect();
-    // Stable seed order: matches insertion order of `nodes()`.
-    {
-        let order: FxHashMap<NodeIndex, usize> =
-            graph.nodes().enumerate().map(|(i, n)| (n, i)).collect();
-        candidates.sort_by_key(|n| std::cmp::Reverse(order[n]));
-    }
 
     let mut result: Vec<NodeIndex> = Vec::new();
-    while let Some(placed) = candidates.pop() {
-        result.push(placed);
-
-        // petgraph iterates neighbours in reverse insertion order; flip it back so the
-        // tie-break below sees them in insertion order — matching the PoC.
-        let mut incoming: Vec<(NodeIndex, u32)> =
-            graph.incoming_edges_with_weight(placed).collect();
-        incoming.reverse();
-
-        let mut new_candidates: Vec<(NodeIndex, u32, usize)> = Vec::new();
-        for (dependent, weight) in incoming {
-            let Some(cur) = remaining_deps.get(&dependent).copied() else {
-                continue;
-            };
-            let next = cur.saturating_sub(1);
-            remaining_deps.insert(dependent, next);
-            if next == 0 {
-                let idx = new_candidates.len();
-                new_candidates.push((dependent, weight, idx));
+    while !candidates.is_empty() {
+        // Narrow the candidates with progressive look-back tie-breaking. `survivors` holds
+        // `(position in `candidates`, shared count)` and is narrowed in place by comparing shared
+        // group counts at increasing look-back distances until one candidate remains or `result`
+        // is exhausted.
+        let mut survivors: Vec<(usize, usize)> = (0..candidates.len()).map(|i| (i, 0)).collect();
+        'outer: for depth in 0..result.len() {
+            let reference = result[result.len() - 1 - depth];
+            // Recompute the shared count for each surviving candidate at this depth, in place.
+            let mut max_shared = 0;
+            for entry in survivors.iter_mut() {
+                let s = module_chunk_groups.shared(candidates[entry.0].0, reference);
+                entry.1 = s;
+                max_shared = max_shared.max(s);
+            }
+            // Only filter when at least one candidate has a real match at this depth; otherwise all
+            // are equally far from `reference` and we try the next depth.
+            if max_shared > 0 {
+                survivors.retain(|&(_, s)| s == max_shared);
+                if survivors.len() == 1 {
+                    break 'outer;
+                }
             }
         }
-        // Weight ascending; ties broken by reverse insertion order so the earliest-encountered
-        // dependent ends up on top of the stack and pops first.
-        new_candidates.sort_by(|a, b| a.1.cmp(&b.1).then(b.2.cmp(&a.2)));
-        for (dep, _, _) in new_candidates {
-            candidates.push(dep);
+        // Final tie-break among equal-scoring survivors: the earliest remaining candidate, i.e. the
+        // one with the smallest `remaining_deps` index (stable regardless of `swap_remove`).
+        let pick = survivors
+            .iter()
+            .min_by_key(|&&(i, _)| candidates[i].1)
+            .map(|&(i, _)| i)
+            .unwrap();
+
+        let (placed, _) = candidates.swap_remove(pick);
+        result.push(placed);
+
+        // Unblock dependents. The order they are pushed is irrelevant: candidate ties are broken
+        // by the stable `remaining_deps` index, not by position in `candidates`.
+        for dependent in graph.incoming_edges(placed) {
+            let Some((idx, _, cur)) = remaining_deps.get_full_mut(&dependent) else {
+                continue;
+            };
+            *cur = cur.saturating_sub(1);
+            if *cur == 0 {
+                candidates.push((dependent, idx));
+            }
         }
     }
 

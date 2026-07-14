@@ -568,6 +568,7 @@ pub async fn get_next_client_resolved_map(
     context_path: FileSystemPath,
     root: FileSystemPath,
     _mode: NextMode,
+    expose_testing_api: bool,
 ) -> Result<Vc<ResolvedMap>> {
     // In the browser bundle, swap every module that has a `.browser` sibling (see
     // BROWSER_VARIANT_MODULES, generated from the filesystem) for that sibling. The default
@@ -579,7 +580,7 @@ pub async fn get_next_client_resolved_map(
     // filesystem root so it matches wherever `next` resolves from (node_modules, pnpm store,
     // or monorepo `packages/next`).
     let fs_root = root.root().owned().await?;
-    let mut glob_mappings = Vec::with_capacity(BROWSER_VARIANT_MODULES.len());
+    let mut glob_mappings = Vec::with_capacity(BROWSER_VARIANT_MODULES.len() + 1);
     for module in BROWSER_VARIANT_MODULES {
         glob_mappings.push((
             fs_root.clone(),
@@ -595,6 +596,30 @@ pub async fn get_next_client_resolved_map(
             ),
         ));
     }
+
+    // When the Instant Navigation Testing API is disabled (production build
+    // without `experimental.exposeTestingApiInProductionBuild`), swap the
+    // navigation lock implementation for an inert shim so the testing
+    // machinery does not ship in the browser bundle. This mirrors the webpack
+    // alias in `create-compiler-aliases.ts`.
+    if !expose_testing_api {
+        glob_mappings.push((
+            fs_root,
+            Glob::new(
+                rcstr!("**/next/dist/client/components/segment-cache/navigation-testing-lock.js"),
+                GlobOptions::default(),
+            )
+            .to_resolved()
+            .await?,
+            request_to_import_mapping(
+                context_path.clone(),
+                rcstr!(
+                    "next/dist/client/components/segment-cache/navigation-testing-lock.disabled"
+                ),
+            ),
+        ));
+    }
+
     Ok(ResolvedMap {
         by_glob: glob_mappings,
     }
