@@ -881,6 +881,7 @@ export async function renderToHTMLImpl(
         {
           spanName: `getStaticProps ${pathname}`,
           attributes: {
+            'next.span.category': 'application',
             'next.route': pathname,
           },
         },
@@ -1101,6 +1102,7 @@ export async function renderToHTMLImpl(
         {
           spanName: `getServerSideProps ${pathname}`,
           attributes: {
+            'next.span.category': 'application',
             'next.route': pathname,
           },
         },

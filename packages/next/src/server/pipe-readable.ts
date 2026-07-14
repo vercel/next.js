@@ -8,6 +8,7 @@ import {
 import { DetachedPromise } from '../lib/detached-promise'
 import { getTracer } from './lib/trace/tracer'
 import { NextNodeServerSpan } from './lib/trace/constants'
+import { getRequestInsightsIdentity } from './lib/trace/request-insights-identity'
 import { getClientComponentLoaderMetrics } from './client-component-renderer-logger'
 
 export function isAbortError(e: any): e is Error & { name: 'AbortError' } {
@@ -61,9 +62,7 @@ function createWriterFromResponse(
               `${process.env.NEXT_OTEL_PERFORMANCE_PREFIX}:next-client-component-loading`,
               {
                 start: metrics.clientComponentLoadStart,
-                end:
-                  metrics.clientComponentLoadStart +
-                  metrics.clientComponentLoadTimes,
+                end: metrics.clientComponentLoadEnd,
               }
             )
           }
@@ -156,10 +155,19 @@ export async function pipeNodeReadableToNodeResponse(
     if (errored || destroyed) return
 
     let started = false
-
+    let waitForFirstResponseChunkSpan =
+      getRequestInsightsIdentity() || process.env.NEXT_OTEL_VERBOSE === '1'
+        ? getTracer().startSpan(NextNodeServerSpan.waitForFirstResponseChunk, {
+            attributes: {
+              'next.span_type': NextNodeServerSpan.waitForFirstResponseChunk,
+            },
+          })
+        : undefined
     const finished = new DetachedPromise<void>()
 
     res.once('close', () => {
+      waitForFirstResponseChunkSpan?.end()
+      waitForFirstResponseChunkSpan = undefined
       readable.destroy()
       finished.resolve()
     })
@@ -167,6 +175,8 @@ export async function pipeNodeReadableToNodeResponse(
     readable.on('data', (chunk: Buffer) => {
       if (!started) {
         started = true
+        waitForFirstResponseChunkSpan?.end()
+        waitForFirstResponseChunkSpan = undefined
 
         if (
           'performance' in globalThis &&
@@ -178,9 +188,7 @@ export async function pipeNodeReadableToNodeResponse(
               `${process.env.NEXT_OTEL_PERFORMANCE_PREFIX}:next-client-component-loading`,
               {
                 start: metrics.clientComponentLoadStart,
-                end:
-                  metrics.clientComponentLoadStart +
-                  metrics.clientComponentLoadTimes,
+                end: metrics.clientComponentLoadEnd,
               }
             )
           }
@@ -211,6 +219,8 @@ export async function pipeNodeReadableToNodeResponse(
     })
 
     readable.on('end', async () => {
+      waitForFirstResponseChunkSpan?.end()
+      waitForFirstResponseChunkSpan = undefined
       if (waitUntilForEnd) {
         await waitUntilForEnd
       }
@@ -223,6 +233,8 @@ export async function pipeNodeReadableToNodeResponse(
     })
 
     readable.on('error', (err) => {
+      waitForFirstResponseChunkSpan?.end()
+      waitForFirstResponseChunkSpan = undefined
       if (isAbortError(err)) {
         finished.resolve()
         return

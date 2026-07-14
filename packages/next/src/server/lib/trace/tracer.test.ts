@@ -20,7 +20,12 @@ import {
 
 import { setSpanRecorderForTest, type SpanStoreRecord } from './span-store'
 import { registerLocalSpanRecorder } from './local-span-recorder'
-import { AppRenderSpan, NodeSpan } from './constants'
+import {
+  AppRenderSpan,
+  BaseServerSpan,
+  LoadComponentsSpan,
+  NodeSpan,
+} from './constants'
 import { SpanKind, SpanStatusCode, getTracer } from './tracer'
 
 const customContextKey = createContextKey('next.tracer.test.custom-context')
@@ -184,6 +189,22 @@ describe('local span recording', () => {
     expect(getSpanRecords()).toEqual([])
   })
 
+  it('records verbose spans locally for request insights', () => {
+    process.env.__NEXT_REQUEST_INSIGHTS = 'true'
+
+    getTracer().trace(BaseServerSpan.render, () => undefined)
+    const wrappedLoadComponents = getTracer().wrap(
+      LoadComponentsSpan.loadComponents,
+      () => undefined
+    )
+    wrappedLoadComponents()
+
+    expect(getSpanRecords()).toEqual([
+      expect.objectContaining({ name: BaseServerSpan.render }),
+      expect.objectContaining({ name: LoadComponentsSpan.loadComponents }),
+    ])
+  })
+
   it('bypasses local span handling outside the dev server', () => {
     delete process.env.__NEXT_DEV_SERVER
     let receivedSpan: unknown = 'not-called'
@@ -221,6 +242,7 @@ describe('local span recording', () => {
         durationMs: expect.any(Number),
         attributes: expect.objectContaining({
           'next.route': '/products/[id]',
+          'next.span.category': 'nextjs',
           'next.span_name': 'test.sync',
           'next.span_type': NodeSpan.runHandler,
         }),
@@ -235,6 +257,7 @@ describe('local span recording', () => {
         kind: SpanKind.CLIENT,
         spanName: 'fetch GET https://example.vercel.sh/',
         attributes: {
+          'next.span.category': 'application',
           'http.url': 'https://example.vercel.sh/',
           'http.method': 'GET',
           'net.peer.name': 'example.vercel.sh',
@@ -253,6 +276,7 @@ describe('local span recording', () => {
         attributes: expect.objectContaining({
           'next.span_name': 'fetch GET https://example.vercel.sh/',
           'next.span_type': AppRenderSpan.fetch,
+          'next.span.category': 'application',
           'http.url': 'https://example.vercel.sh/',
           'http.method': 'GET',
           'net.peer.name': 'example.vercel.sh',
@@ -415,7 +439,10 @@ describe('local span recording', () => {
       expect(getTracer().getActiveScopeSpan()).toBe(parentSpan)
 
       const childSpan = getTracer().startSpan(AppRenderSpan.fetch, {
-        attributes: { 'next.page': 'child' },
+        attributes: {
+          'next.page': 'child',
+          'next.span.category': 'application',
+        },
       })
       childSpanId = childSpan.spanContext().spanId
       childSpan.end()
@@ -434,6 +461,9 @@ describe('local span recording', () => {
       expect.objectContaining({
         name: NodeSpan.runHandler,
         parentSpanId: undefined,
+        attributes: expect.objectContaining({
+          'next.span.category': 'nextjs',
+        }),
       })
     )
     expect(childRecord).toEqual(
@@ -442,6 +472,9 @@ describe('local span recording', () => {
         spanId: childSpanId,
         traceId: parentRecord?.traceId,
         parentSpanId: parentRecord?.spanId,
+        attributes: expect.objectContaining({
+          'next.span.category': 'application',
+        }),
       })
     )
   })

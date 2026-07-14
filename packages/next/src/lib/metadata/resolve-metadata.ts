@@ -508,6 +508,7 @@ function getDefinedViewport(
           {
             spanName: `generateViewport ${route}`,
             attributes: {
+              'next.span.category': 'application',
               'next.page': route,
             },
           },
@@ -535,6 +536,7 @@ function getDefinedMetadata(
           {
             spanName: `generateMetadata ${route}`,
             attributes: {
+              'next.span.category': 'application',
               'next.page': route,
             },
           },

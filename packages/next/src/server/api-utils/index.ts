@@ -30,6 +30,9 @@ export function wrapApiHandler<T extends (...args: any[]) => any>(
       NodeSpan.runHandler,
       {
         spanName: `executing api route (pages) ${page}`,
+        attributes: {
+          'next.span.category': 'application',
+        },
       },
       () => handler(...args)
     )

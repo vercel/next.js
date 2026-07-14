@@ -28,6 +28,9 @@ import {
 import { createInlinedDataReadableStream } from './use-flight-response'
 import { processPrelude as webProcessPrelude } from './app-render-prerender-utils'
 import type { AnyStream as AnyStreamType } from './app-render-prerender-utils'
+import { getTracer } from '../lib/trace/tracer'
+import { AppRenderSpan } from '../lib/trace/constants'
+import { getRequestInsightsIdentity } from '../lib/trace/request-insights-identity'
 
 // ---------------------------------------------------------------------------
 // Shared types
@@ -252,7 +255,42 @@ export function renderToWebFlightStream(
   clientModules: FlightClientModules,
   opts: FlightRenderOptions
 ): AnyStream {
-  return ComponentMod.renderToReadableStream(payload, clientModules, opts)
+  if (!getRequestInsightsIdentity() && process.env.NEXT_OTEL_VERBOSE !== '1') {
+    return ComponentMod.renderToReadableStream(payload, clientModules, opts)
+  }
+
+  return getTracer().trace(
+    AppRenderSpan.renderRSCResponse,
+    {},
+    (_span, done) => {
+      const stream = ComponentMod.renderToReadableStream(
+        payload,
+        clientModules,
+        opts
+      )
+      const tracked = new TransformStream<Uint8Array, Uint8Array>()
+      let finished = false
+
+      const finish = (reason?: unknown) => {
+        if (finished) return
+        finished = true
+        done?.(
+          reason === undefined
+            ? undefined
+            : reason instanceof Error
+              ? reason
+              : new Error('RSC render stream cancelled')
+        )
+      }
+
+      stream.pipeTo(tracked.writable).then(
+        () => finish(),
+        (reason) => finish(reason)
+      )
+
+      return tracked.readable
+    }
+  )
 }
 
 export async function streamToString(stream: AnyStream): Promise<string> {

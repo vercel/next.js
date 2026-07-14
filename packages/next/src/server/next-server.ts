@@ -98,6 +98,7 @@ import type { PagesAPIRouteMatch } from './route-matches/pages-api-route-match'
 import type { MatchOptions } from './route-matcher-managers/route-matcher-manager'
 import { BubbledError, getTracer } from './lib/trace/tracer'
 import { NextNodeServerSpan } from './lib/trace/constants'
+import { isRequestInsightsEnabled } from './lib/trace/span-store'
 import { nodeFs } from './lib/node-fs-methods'
 import { getRouteRegex } from '../shared/lib/router/utils/route-regex'
 import { pipeToNodeResponse } from './pipe-readable'
@@ -1083,46 +1084,81 @@ export default class NextNodeServer extends BaseServer<
     parsedUrl
   ) => {
     let { pathname, query } = parsedUrl
+    const shouldTraceDetailedRequest =
+      isRequestInsightsEnabled() || process.env.NEXT_OTEL_VERBOSE === '1'
+    let routePreparationSpan = shouldTraceDetailedRequest
+      ? getTracer().startSpan(NextNodeServerSpan.prepareRoute, {
+          attributes: {
+            'next.span_type': NextNodeServerSpan.prepareRoute,
+          },
+        })
+      : undefined
     if (!pathname) {
+      routePreparationSpan?.end()
       throw new Error('Invariant: pathname is undefined')
     }
 
-    // When in minimal mode we do not bubble the fallback as the
-    // router-server is not present to handle the error
-    addRequestMeta(req, 'bubbleNoFallback', this.minimalMode ? undefined : true)
-
-    // This is needed to expose render404 and nextConfig
-    // for environments without router-server
-    if (!routerServerGlobal[RouterServerContextSymbol]) {
-      routerServerGlobal[RouterServerContextSymbol] = {}
-    }
-    const relativeProjectDir = relative(process.cwd(), this.dir)
-    const existingServerContext =
-      routerServerGlobal[RouterServerContextSymbol][relativeProjectDir]
-
-    if (!existingServerContext) {
-      routerServerGlobal[RouterServerContextSymbol][relativeProjectDir] = {
-        render404: this.render404.bind(this),
-      }
-    }
-    routerServerGlobal[RouterServerContextSymbol][
-      relativeProjectDir
-    ].nextConfig = this.nextConfig
-    routerServerGlobal[RouterServerContextSymbol][
-      relativeProjectDir
-    ].isWrappedByNextServer = true
-
+    let options: MatchOptions
     try {
+      // When in minimal mode we do not bubble the fallback as the
+      // router-server is not present to handle the error
+      addRequestMeta(
+        req,
+        'bubbleNoFallback',
+        this.minimalMode ? undefined : true
+      )
+
+      // This is needed to expose render404 and nextConfig
+      // for environments without router-server
+      if (!routerServerGlobal[RouterServerContextSymbol]) {
+        routerServerGlobal[RouterServerContextSymbol] = {}
+      }
+      const relativeProjectDir = relative(process.cwd(), this.dir)
+      const existingServerContext =
+        routerServerGlobal[RouterServerContextSymbol][relativeProjectDir]
+
+      if (!existingServerContext) {
+        routerServerGlobal[RouterServerContextSymbol][relativeProjectDir] = {
+          render404: this.render404.bind(this),
+        }
+      }
+      routerServerGlobal[RouterServerContextSymbol][
+        relativeProjectDir
+      ].nextConfig = this.nextConfig
+      routerServerGlobal[RouterServerContextSymbol][
+        relativeProjectDir
+      ].isWrappedByNextServer = true
+
       // next.js core assumes page path without trailing slash
       pathname = removeTrailingSlash(pathname)
 
-      const options: MatchOptions = {
+      options = {
         i18n: this.i18nProvider?.fromRequest(req, pathname),
       }
-      const match = await this.matchers.match(pathname, options)
+    } finally {
+      routePreparationSpan?.end()
+      routePreparationSpan = undefined
+    }
 
+    let routeResolutionSpan
+    try {
+      const match = shouldTraceDetailedRequest
+        ? await getTracer().trace(NextNodeServerSpan.matchRoute, {}, () =>
+            this.matchers.match(pathname, options)
+          )
+        : await this.matchers.match(pathname, options)
+
+      routeResolutionSpan = shouldTraceDetailedRequest
+        ? getTracer().startSpan(NextNodeServerSpan.resolveRoute, {
+            attributes: {
+              'next.span_type': NextNodeServerSpan.resolveRoute,
+            },
+          })
+        : undefined
       // If we don't have a match, try to render it anyways.
       if (!match) {
+        routeResolutionSpan?.end()
+        routeResolutionSpan = undefined
         await this.render(req, res, pathname, query, parsedUrl, true)
 
         return true
@@ -1139,6 +1175,8 @@ export default class NextNodeServer extends BaseServer<
         if (edgeFunctionsPage !== match.definition.page) continue
 
         if (this.nextConfig.output === 'export') {
+          routeResolutionSpan?.end()
+          routeResolutionSpan = undefined
           await this.render404(req, res, parsedUrl)
           return true
         }
@@ -1147,6 +1185,8 @@ export default class NextNodeServer extends BaseServer<
         // If we handled the request, we can return early.
         // For api routes edge runtime
         try {
+          routeResolutionSpan?.end()
+          routeResolutionSpan = undefined
           const handled = await this.runEdgeFunction({
             req,
             res,
@@ -1157,6 +1197,13 @@ export default class NextNodeServer extends BaseServer<
             appPaths: null,
           })
           if (handled) return true
+          routeResolutionSpan = shouldTraceDetailedRequest
+            ? getTracer().startSpan(NextNodeServerSpan.resolveRoute, {
+                attributes: {
+                  'next.span_type': NextNodeServerSpan.resolveRoute,
+                },
+              })
+            : undefined
         } catch (apiError) {
           const silenceLog = false
           await this.instrumentationOnRequestError(
@@ -1180,18 +1227,34 @@ export default class NextNodeServer extends BaseServer<
       // TODO: move this behavior into a route handler.
       if (isPagesAPIRouteMatch(match)) {
         if (this.nextConfig.output === 'export') {
+          routeResolutionSpan?.end()
+          routeResolutionSpan = undefined
           await this.render404(req, res, parsedUrl)
           return true
         }
 
+        routeResolutionSpan?.end()
+        routeResolutionSpan = undefined
         const handled = await this.handleApiRequest(req, res, query, match)
         if (handled) return true
+
+        routeResolutionSpan = shouldTraceDetailedRequest
+          ? getTracer().startSpan(NextNodeServerSpan.resolveRoute, {
+              attributes: {
+                'next.span_type': NextNodeServerSpan.resolveRoute,
+              },
+            })
+          : undefined
       }
 
+      routeResolutionSpan?.end()
+      routeResolutionSpan = undefined
       await this.render(req, res, pathname, query, parsedUrl, true)
 
       return true
     } catch (err: any) {
+      routeResolutionSpan?.end()
+      routeResolutionSpan = undefined
       if (err instanceof NoFallbackError) {
         throw err
       }

@@ -343,7 +343,7 @@ export function renderToInitialFizzStream({
   element: React.ReactElement
   streamOptions?: Parameters<typeof ReactDOMServer.renderToReadableStream>[1]
 }): Promise<ReactDOMServerReadableStream> {
-  return getTracer().trace(AppRenderSpan.renderToReadableStream, async () =>
+  return getTracer().trace(AppRenderSpan.renderToReadableStream, {}, async () =>
     ReactDOMServer.renderToReadableStream(element, streamOptions)
   )
 }

@@ -322,6 +322,11 @@ export interface RequestMeta {
   devRequestTimingInternalsEnd?: bigint
 
   /**
+   * DEV only: The epoch timestamp when App Render initialization started.
+   */
+  appRenderInitializationStart?: number
+
+  /**
    * DEV only: The duration of getStaticPaths/generateStaticParams in process.hrtime.bigint()
    */
   devGenerateStaticParamsDuration?: bigint
