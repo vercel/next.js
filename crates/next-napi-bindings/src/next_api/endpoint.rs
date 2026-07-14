@@ -153,7 +153,7 @@ async fn get_written_endpoint_with_issues_operation(
 pub async fn endpoint_write_to_disk(
     #[napi(ts_arg_type = "{ __napiType: \"Endpoint\" }")] endpoint: &External<ExternalEndpoint>,
 ) -> napi::Result<TurbopackResult<NapiWrittenEndpoint>> {
-    let ctx = endpoint.turbopack_ctx().clone();
+    let ctx = endpoint.turbopack_ctx();
     let endpoint_op = ****endpoint;
     let (written, issues) = ctx
         .turbo_tasks()

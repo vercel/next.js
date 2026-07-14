@@ -155,8 +155,7 @@ impl Task for FinderTask {
         })
     }
 
-    fn resolve(&mut self, env: Env, result: Self::Output) -> napi::Result<Self::JsValue> {
-        let _ = env;
+    fn resolve(&mut self, _env: Env, result: Self::Output) -> napi::Result<Self::JsValue> {
         Ok(result.into_iter().map(|name| name.to_string()).collect())
     }
 }
