@@ -2,7 +2,6 @@ use std::{
     borrow::Cow,
     collections::HashSet,
     fmt::Display,
-    fs::{self, File, OpenOptions, ReadDir},
     io::{BufWriter, Write},
     mem::take,
     ops::RangeInclusive,
@@ -16,6 +15,7 @@ use std::{
 use anyhow::{Context, Result, bail};
 use byteorder::{BE, ReadBytesExt, WriteBytesExt};
 use dashmap::DashSet;
+use fs_err::{self as fs, File, OpenOptions, ReadDir};
 use jiff::Timestamp;
 use memmap2::Mmap;
 use nohash_hasher::BuildNoHashHasher;
@@ -159,21 +159,50 @@ impl WriteOperationGuard<'_> {
     }
 }
 
+/// Durably and atomically updates the `CURRENT` file in the database directory `path` to point at
+/// `seq`.
+///
+/// The write is made atomic by writing `seq` to a temporary `CURRENT.next` file, flushing it, and
+/// then `rename`ing it over `CURRENT`. A `rename` within a directory is atomic on POSIX and
+/// replaces the destination on Windows, so a concurrent or crashing writer can never observe a
+/// torn `CURRENT` (in-place overwrites, by contrast, can leave a partially-written value on a
+/// crash mid-write). After the rename we fsync the directory so the new `CURRENT` → inode mapping
+/// survives a crash.
+fn commit_current(path: &Path, seq: u32) -> Result<()> {
+    let next_path = path.join("CURRENT.next");
+    let mut next_file = File::create(&next_path)?;
+    next_file.write_u32::<BE>(seq)?;
+    next_file.sync_data()?;
+    drop(next_file);
+
+    fs::rename(&next_path, path.join("CURRENT"))?;
+
+    // Fsync the directory. This is the single durability barrier for a commit: by the time we get
+    // here every file created earlier in the commit (SST/meta/blob and any `.del` file) already
+    // exists, so this one fsync flushes *all* of their directory entries together with the CURRENT
+    // rename. Because the file *contents* were already `sync_data`'d before this call and the
+    // rename is the last directory mutation, a crash can never leave a durable CURRENT pointing at
+    // files whose directory entries were lost. Callers therefore do not need a separate directory
+    // fsync before invoking this.
+    //
+    // Skipped on Windows: `sync_data` on a directory handle fails with ERROR_ACCESS_DENIED (the
+    // handle `File::open` returns for a directory has no write access).Apparently metadata changes
+    // are always atomic on windows so this is simply unneeded.
+    #[cfg(not(windows))]
+    File::open(path)
+        .and_then(|dir| dir.sync_data())
+        .context("Failed to sync database directory after updating CURRENT")?;
+    Ok(())
+}
+
 /// Deletes all files in `path` whose numeric stem is greater than `seq_before`.
 ///
 /// Called on rollback to clean up any SST, meta, blob, or del files written during a
 /// failed write operation or compaction.
 fn delete_orphan_files(path: &Path, seq_before: u32) -> Result<()> {
-    // Restore CURRENT to seq_before first. The failure may have happened mid-write
-    // to CURRENT, leaving it partially written. Writing seq_before makes the
-    // on-disk state consistent before we start deleting orphan files.
-    let mut current_file = OpenOptions::new()
-        .write(true)
-        .truncate(false)
-        .read(false)
-        .open(path.join("CURRENT"))?;
-    current_file.write_u32::<BE>(seq_before)?;
-    current_file.sync_all()?;
+    // Restore CURRENT to seq_before first, so the on-disk state is consistent before we start
+    // deleting the orphan files that a failed write/compaction left behind.
+    commit_current(path, seq_before).context("Unable to restore CURRENT file")?;
 
     for entry in fs::read_dir(path)? {
         let entry = entry?;
@@ -424,7 +453,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                     if read_only {
                         bail!("Failed to open database");
                     }
-                    self.init_directory()
+                    commit_current(&self.path, 0)
                         .context("Initializing persistence directory failed")?;
                 }
                 Ok(())
@@ -444,15 +473,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
     /// Creates the directory and initializes it.
     fn create_and_init_directory(&mut self) -> Result<()> {
         fs::create_dir_all(&self.path)?;
-        self.init_directory()
-    }
-
-    /// Initializes the directory by creating the CURRENT file.
-    fn init_directory(&mut self) -> Result<()> {
-        let mut current = File::create(self.path.join("CURRENT"))?;
-        current.write_u32::<BE>(0)?;
-        current.flush()?;
-        Ok(())
+        commit_current(&self.path, 0)
     }
 
     /// Loads an existing database directory and performs cleanup if necessary.
@@ -476,6 +497,15 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
             let entry = entry?;
             let path = entry.path();
             if let Some(ext) = path.extension().and_then(|s| s.to_str()) {
+                // A leftover `CURRENT.next` means a crash interrupted a `commit_current` before
+                // the rename onto `CURRENT` completed. The current `CURRENT` (already read above)
+                // is authoritative, so the stale temp file is just deleted.
+                if path.file_stem().and_then(|s| s.to_str()) == Some("CURRENT") {
+                    if !read_only {
+                        fs::remove_file(&path)?;
+                    }
+                    continue;
+                }
                 let seq: u32 = path
                     .file_stem()
                     .context("File has no file stem")?
@@ -576,9 +606,8 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
     #[tracing::instrument(level = "info", name = "reading database blob", skip_all)]
     fn read_blob(&self, seq: u32) -> Result<ArcBytes> {
         let path = self.path.join(format!("{seq:08}.blob"));
-        let file = File::open(&path)
-            .with_context(|| format!("Failed to open blob file {}", path.display()))?;
-        let mmap = unsafe { Mmap::map(&file) }.with_context(|| {
+        let file = File::open(&path)?;
+        let mmap = unsafe { Mmap::map(file.file()) }.with_context(|| {
             format!(
                 "Failed to mmap blob file {} ({} bytes)",
                 path.display(),
@@ -876,15 +905,10 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
             sst_filter.apply_filter(meta_file);
         }
 
-        // Sync the directory to ensure the new directory entries (file name → inode mappings)
-        // are durable before we update CURRENT. Without this, a crash could leave CURRENT pointing
-        // to files whose directory entries were lost even though their data was flushed.
-        // Skipped on Windows: `sync_data` calls `FlushFileBuffers`, which needs a handle with
-        // write access and always fails with ERROR_ACCESS_DENIED on the read-only handle that
-        // `File::open` returns for a directory. Other storage engines (LevelDB, SQLite) also
-        // skip directory syncing on Windows.
-        #[cfg(not(windows))]
-        File::open(&self.path)?.sync_data()?;
+        // Note: the file *contents* were made durable by the `sync_data()` calls above. The
+        // directory entries (file name → inode mappings) are made durable by the single directory
+        // fsync inside `commit_current` below, which also commits the CURRENT rename. See
+        // `commit_current` for why one trailing fsync is sufficient.
         drop(sync_span);
 
         let new_meta_info = new_meta_files
@@ -1013,18 +1037,13 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                 for seq in blob_seq_numbers_to_delete.iter() {
                     buf.write_u32::<BE>(*seq)?;
                 }
-                let mut file = File::create(self.path.join(format!("{seq:08}.del")))?;
+                let del_path = self.path.join(format!("{seq:08}.del"));
+                let mut file = File::create(&del_path)?;
                 file.write_all(&buf)?;
                 file.sync_data()?;
             }
 
-            let mut current_file = OpenOptions::new()
-                .write(true)
-                .truncate(false)
-                .read(false)
-                .open(self.path.join("CURRENT"))?;
-            current_file.write_u32::<BE>(seq)?;
-            current_file.sync_data()?;
+            commit_current(&self.path, seq).context("Committing CURRENT file failed")?;
 
             // ── Point of no return ──────────────────────────────────────────
             //

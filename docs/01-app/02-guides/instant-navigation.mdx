@@ -50,7 +50,7 @@ With Cache Components, **caching directives** (`"use cache"` and its variants) a
 
 > **Good to know:** A fallback may access `cookies()`, `headers()`, or the full URL. At build time, the fallback itself suspends, and a `<Suspense>` boundary further up the tree is needed. With [runtime prefetching](/docs/app/guides/runtime-prefetching), the information is available and such a fallback becomes part of the instant UI. Cached values like timestamps or data fetches can sit directly inside the fallback.
 
-Next.js can also generate an [**App Shell**](/docs/app/glossary#app-shell) per route: a fallback that renders instantly during client navigations when nothing else is ready. See [App Shells](/docs/app/guides/runtime-prefetching#app-shells) for how to enable them and how they pair with runtime prefetching.
+Next.js can also generate an [**App Shell**](/docs/app/glossary#app-shell) per route: a fallback that renders instantly during client navigations when nothing else is ready. [Runtime prefetching](/docs/app/guides/runtime-prefetching) builds on it, resolving a link's URL data on top.
 
 ### Tune what `<Link>` prefetches
 

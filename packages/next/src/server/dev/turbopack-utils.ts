@@ -355,7 +355,7 @@ export async function handleRouteType({
         hooks?.subscribeToChanges(
           key,
           /** includeIssues=*/ true,
-          route.rscEndpoint,
+          route.rscHmrEndpoint,
           (change, hash) => {
             if (change.issues.some((issue) => issue.severity === 'error')) {
               // Ignore any updates that has errors

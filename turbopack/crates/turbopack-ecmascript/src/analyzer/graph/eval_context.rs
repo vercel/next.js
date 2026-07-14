@@ -4,7 +4,7 @@ use anyhow::{Ok, Result};
 use rustc_hash::FxHashSet;
 use swc_core::{
     base::try_with_handler,
-    common::{GLOBALS, Mark, SourceMap, SyntaxContext, comments::Comments, sync::Lrc},
+    common::{GLOBALS, Mark, SourceMap, Spanned, SyntaxContext, comments::Comments, sync::Lrc},
     ecma::{ast::*, atoms::atom},
 };
 use turbo_rcstr::{RcStr, rcstr};
@@ -142,6 +142,23 @@ impl EvalContext {
     }
 
     pub fn eval<'a>(&self, arena: &'a Bump, e: &Expr) -> JsValue<'a> {
+        let value = self.eval_inner(arena, e);
+        // A `turbopackIgnore` comment on this expression opts it out of static
+        // analysis. Downgrade it to an unknown so the opt-out lives on the value
+        // itself and bubbles up to any consumer (e.g. an enclosing
+        // `fs.readFileSync(...)`, or through a variable). A dynamic (unknown) path
+        // isn't rooted at the project directory, so tracing skips it instead of
+        // pulling in the whole project. The attribute is keyed to the annotated
+        // call's callee position, so only that exact expression matches — nested
+        // subexpressions are unaffected.
+        if self.imports.get_attributes(e.span()).ignore {
+            JsValue::unknown(value, true, rcstr!("turbopackIgnore"))
+        } else {
+            value
+        }
+    }
+
+    fn eval_inner<'a>(&self, arena: &'a Bump, e: &Expr) -> JsValue<'a> {
         debug_assert!(
             GLOBALS.is_set(),
             "Eval requires globals from its parsed result"

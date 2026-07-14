@@ -5,8 +5,9 @@ import { bold, purple, strikethrough } from '../../lib/picocolors'
 import type { ConfiguredExperimentalFeature } from '../config'
 import { experimentalSchema } from '../config-schema'
 import { getAgentName } from '../../telemetry/agent-name'
+import { bundlerName, getBundlerFromEnv } from '../../lib/bundler'
 import {
-  hasAgentRulesInstalled,
+  hasCurrentAgentRules,
   writeAgentFiles,
   type AgentFilesResult,
 } from './generate-agent-files'
@@ -29,22 +30,9 @@ export function logStartInfo({
   envInfo?: string[]
   logBundler: boolean
 }) {
-  let versionSuffix = ''
-  const parts = []
-
-  if (logBundler) {
-    if (process.env.TURBOPACK) {
-      parts.push('Turbopack')
-    } else if (process.env.NEXT_RSPACK) {
-      parts.push('Rspack')
-    } else {
-      parts.push('webpack')
-    }
-  }
-
-  if (parts.length > 0) {
-    versionSuffix = ` (${parts.join(', ')})`
-  }
+  const versionSuffix = logBundler
+    ? ` (${bundlerName(getBundlerFromEnv())})`
+    : ''
 
   Log.bootstrap(
     `${bold(
@@ -129,10 +117,11 @@ export function logExperimentalInfo({
 
 /**
  * When `next dev` detects an AI coding agent but the managed
- * agent-rules block is missing from AGENTS.md / CLAUDE.md,
- * auto-generate the files so the agent has access to version-matched
- * docs. Returns the write result when files were generated, or `null`
- * when no action was needed.
+ * agent-rules block is missing from AGENTS.md / CLAUDE.md — or an
+ * outdated version of it is installed — auto-generate or refresh the
+ * files so the agent has access to version-matched docs. Returns the
+ * write result when files were touched, or `null` when no action was
+ * needed.
  *
  * Callers gate this on `config.agentRules !== false` — opt-out is
  * declarative in next.config, not inside this function.
@@ -141,7 +130,7 @@ export async function ensureAgentRulesForDev(
   dir: string
 ): Promise<AgentFilesResult | null> {
   if ((await getAgentName()) === null) return null
-  if (hasAgentRulesInstalled(dir)) return null
+  if (hasCurrentAgentRules(dir)) return null
 
   return writeAgentFiles(dir)
 }
