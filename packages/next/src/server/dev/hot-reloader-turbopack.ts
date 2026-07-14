@@ -104,6 +104,7 @@ import { devIndicatorServerState } from './dev-indicator-server-state'
 import { getDisableDevIndicatorMiddleware } from '../../next-devtools/server/dev-indicator-middleware'
 import { getRestartDevServerMiddleware } from '../../next-devtools/server/restart-dev-server-middleware'
 import { backgroundLogCompilationEvents } from '../../shared/lib/turbopack/compilation-events'
+import { DeferredEmit } from '../../shared/lib/turbopack/deferred-emit'
 import { getSupportedBrowsers } from '../../build/get-supported-browsers'
 import { printBuildErrors } from '../../build/print-build-errors'
 import { receiveBrowserLogsTurbopack } from './browser-logs/receive-logs'
@@ -712,6 +713,12 @@ export async function createHotReloaderTurbopack(
   // advance it at all when no client is connected.
   let hmrHash = 0
 
+  // HACK: Defer sending `building` messages. Turbopack emits a compile pass for every
+  // foreground-job cycle, including empty no-op recompiles scheduled by
+  // request/render activity that changed no files. This allows us to prevent
+  // sending them if we quickly get a `built` message after a `building` message.
+  const pendingBuilding = new DeferredEmit()
+
   const clientsWithoutHtmlRequestId = new Set<ws>()
   const clientsByHtmlRequestId = new Map<string, ws>()
   const cacheStatusesByHtmlRequestId = new Map<string, ServerCacheStatus>()
@@ -792,6 +799,7 @@ export async function createHotReloaderTurbopack(
   const sendEnqueuedMessagesDebounce = debounce(sendEnqueuedMessages, 2)
 
   const sendHmr: SendHmr = (id: string, message: HmrMessageSentToBrowser) => {
+    pendingBuilding.flush()
     for (const client of [
       ...clientsWithoutHtmlRequestId,
       ...clientsByHtmlRequestId.values(),
@@ -809,6 +817,7 @@ export async function createHotReloaderTurbopack(
     //   They are currently not handled on the client at all, so might as well not send them for now.
     payload.diagnostics = []
     payload.issues = []
+    pendingBuilding.flush()
 
     for (const client of [
       ...clientsWithoutHtmlRequestId,
@@ -1903,11 +1912,14 @@ export async function createHotReloaderTurbopack(
   })
 
   async function handleProjectUpdates() {
+    const BUILDING_MESSAGE_DEFER_MS = 100
     for await (const updateMessage of project.updateInfoSubscribe(30)) {
       switch (updateMessage.updateType) {
         case 'start': {
           updateInProgress = true
-          hotReloader.send({ type: HMR_MESSAGE_SENT_TO_BROWSER.BUILDING })
+          pendingBuilding.schedule(BUILDING_MESSAGE_DEFER_MS, () => {
+            hotReloader.send({ type: HMR_MESSAGE_SENT_TO_BROWSER.BUILDING })
+          })
           // Mark that HMR has started and we need to call the callback after it settles
           // This ensures onBeforeDeferredEntries will be called again during HMR
           if (hasDeferredEntriesConfig) {
@@ -1919,6 +1931,7 @@ export async function createHotReloaderTurbopack(
         }
         case 'end': {
           updateInProgress = false
+          pendingBuilding.cancel()
           if (pendingServerComponentChanges) {
             pendingServerComponentChanges = false
             sendServerComponentChanges()
