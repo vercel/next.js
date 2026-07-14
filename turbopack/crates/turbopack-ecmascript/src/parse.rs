@@ -253,7 +253,7 @@ impl SourceMapGenConfig for InlineSourcesContentConfig {
         match f {
             FileName::Custom(s) => {
                 // format! here is suboptimal and allocates over and over again.
-                // On a random test next test project this one spot accounted for 
+                // On a random test next test project this one spot accounted for
                 // 10% of allocations, hence the more verbose approach.
                 let proto: &str = &SOURCE_URL_PROTOCOL;
                 let mut out = String::with_capacity(proto.len() + 3 + s.len());
