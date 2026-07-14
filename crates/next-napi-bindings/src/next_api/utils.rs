@@ -63,6 +63,8 @@ impl<T> DetachedVc<T> {
     }
 }
 
+// Manual clone and Drop routines are required for proper reference counting to prevent GC
+
 impl<T> Clone for DetachedVc<T> {
     fn clone(&self) -> Self {
         Self::new(self.turbopack_ctx.clone(), self.vc)

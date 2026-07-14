@@ -1183,11 +1183,8 @@ pub trait TaskGuard: Debug + TaskStorageAccessors {
         new_value
     }
 
-    /// Adjust the count of **persistent** parents referencing this task by `delta` (+1 when a
-    /// persistent parent connects it as a child, -1 when one disconnects it) and return the new
-    /// value. A value of 0 means no persistent parent lists this task — a prerequisite for
-    /// collection. Panics in debug on underflow (a decrement below 0 means the count drifted from
-    /// the true number of `children`-edge references — the invariant this field must uphold).
+    /// Adjust the count of **persistent** parents referencing this task by `delta` and return the
+    /// new value. Panics in on underflow/overflow
     fn update_and_get_parent_count(&mut self, delta: i32) -> u32 {
         let current = self.get_parent_count().copied().unwrap_or(0);
         let new_value = current
