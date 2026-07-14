@@ -35,13 +35,11 @@ use std::{
     mem::{ManuallyDrop, MaybeUninit},
     num::NonZeroU8,
     ops::{Deref, DerefMut},
-    ptr::{self, NonNull},
+    ptr::{self, NonNull, drop_in_place, slice_from_raw_parts_mut},
     slice::{Iter, IterMut},
 };
 
 use shrink_to_fit::ShrinkToFit;
-
-use crate::MAX_LIST_SIZE;
 
 union Data<T, const INLINE: usize> {
     inline: ManuallyDrop<[MaybeUninit<T>; INLINE]>,
@@ -49,8 +47,9 @@ union Data<T, const INLINE: usize> {
     heap: NonNull<T>,
 }
 
+const MAX_TINY_VEC_SIZE: usize = (u8::MAX - 1) as usize;
 /// Bounded small-vector with an optional inline buffer; see the module docs.
-pub struct TinyVec<T, const INLINE: usize = 0, const MAX: usize = MAX_LIST_SIZE> {
+pub struct TinyVec<T, const INLINE: usize, const MAX: usize = MAX_TINY_VEC_SIZE> {
     /// `actual_len + 1`. Always in `1..=MAX+1`; never `0` (the niche).
     len: NonZeroU8,
     /// Current capacity. `INLINE` while inline, `> INLINE` (and `<= MAX`) while
@@ -74,7 +73,7 @@ impl<T, const INLINE: usize, const MAX: usize> TinyVec<T, INLINE, MAX> {
             "TinyVec inline capacity INLINE must be <= MAX"
         );
         assert!(
-            MAX < u8::MAX as usize,
+            MAX <= MAX_TINY_VEC_SIZE,
             "TinyVec MAX must fit in NonZeroU8 with the +1 offset",
         );
     };
@@ -317,7 +316,7 @@ impl<T, const INLINE: usize, const MAX: usize> TinyVec<T, INLINE, MAX> {
         let len = self.len();
         // SAFETY: first `len` elements are initialized; drop them and reset.
         unsafe {
-            ptr::drop_in_place(std::ptr::slice_from_raw_parts_mut(self.as_mut_ptr(), len));
+            drop_in_place(slice_from_raw_parts_mut(self.as_mut_ptr(), len));
         }
         self.set_len(0);
     }
@@ -418,89 +417,6 @@ impl<T, const INLINE: usize, const MAX: usize> TinyVec<T, INLINE, MAX> {
         self.data = Data { heap: new_heap };
         self.cap = target as u8;
     }
-
-    /// Retains only the elements for which `f` returns `true`, in place.
-    ///
-    /// Implemented as an in-place slice compaction (a read/write cursor over
-    /// `as_mut_slice`) so it works uniformly for inline and heap storage — it
-    /// never reallocates and never spills. Panic-safe: if `f` or an element's
-    /// `Drop` panics, every element is accounted for exactly once (no leak, no
-    /// double-free) via a guard that fixes up `len` during unwinding.
-    pub fn retain_mut(&mut self, mut f: impl FnMut(&mut T) -> bool) {
-        let original_len = self.len();
-        if original_len == 0 {
-            return;
-        }
-        // Set len to 0 up front; the guard restores the correct surviving length
-        // whether we finish normally or unwind. This mirrors the strategy in
-        // `Vec::retain`/`retain_mut`.
-        self.set_len(0);
-
-        // On drop (normal or panic), shift any not-yet-processed tail down to
-        // sit right after the survivors, then publish the final length. The
-        // element pointer is derived from `v` on each use rather than cached:
-        // for inline storage the buffer lives *inside* `*v`, so a stale raw
-        // pointer taken before `v` was reborrowed into this guard would be
-        // invalidated under Stacked/Tree Borrows.
-        struct Guard<'a, T, const INLINE: usize, const MAX: usize> {
-            v: &'a mut TinyVec<T, INLINE, MAX>,
-            processed: usize, // elements examined so far
-            kept: usize,      // survivors, packed at the front
-            original_len: usize,
-        }
-        impl<T, const INLINE: usize, const MAX: usize> Drop for Guard<'_, T, INLINE, MAX> {
-            fn drop(&mut self) {
-                let tail = self.original_len - self.processed;
-                if tail > 0 {
-                    let ptr = self.v.as_mut_ptr();
-                    // SAFETY: `[processed, original_len)` are initialized and not
-                    // yet dropped; move them to sit after the `kept` survivors.
-                    unsafe {
-                        ptr::copy(ptr.add(self.processed), ptr.add(self.kept), tail);
-                    }
-                }
-                self.v.set_len(self.kept + tail);
-            }
-        }
-
-        let mut g = Guard {
-            v: self,
-            processed: 0,
-            kept: 0,
-            original_len,
-        };
-
-        while g.processed < g.original_len {
-            let cur = g.processed;
-            let ptr = g.v.as_mut_ptr();
-            // SAFETY: element `cur` is initialized and unprocessed.
-            let elem = unsafe { &mut *ptr.add(cur) };
-            let keep = f(elem);
-            // Mark `cur` consumed *before* we move or drop it, so a panic in the
-            // move or in the element's `Drop` excludes it from the guard's
-            // tail-shift (no double-free of a half-dropped element).
-            g.processed += 1;
-            if keep {
-                if g.kept != cur {
-                    // SAFETY: move the survivor down into the packed prefix. The
-                    // source slot becomes logically uninitialized (moved-from).
-                    unsafe {
-                        let v = ptr::read(ptr.add(cur));
-                        ptr::write(ptr.add(g.kept), v);
-                    }
-                }
-                g.kept += 1;
-            } else {
-                // SAFETY: drop the rejected element in place. It is already
-                // counted as processed, so if this `Drop` panics the guard shifts
-                // only the untouched tail after it.
-                unsafe {
-                    ptr::drop_in_place(ptr.add(cur));
-                }
-            }
-        }
-        // Normal completion: guard's Drop publishes `kept` (tail == 0).
-    }
 }
 
 impl<T, const INLINE: usize, const MAX: usize> TinyVec<T, INLINE, MAX> {
@@ -533,7 +449,7 @@ impl<T, const INLINE: usize, const MAX: usize> Drop for TinyVec<T, INLINE, MAX> 
         // SAFETY: first `len` elements are initialized; drop them, then free
         // any heap allocation.
         unsafe {
-            ptr::drop_in_place(std::ptr::slice_from_raw_parts_mut(self.as_mut_ptr(), len));
+            drop_in_place(slice_from_raw_parts_mut(self.as_mut_ptr(), len));
             self.dealloc_if_spilled();
         }
     }
@@ -633,7 +549,7 @@ impl<T, const INLINE: usize, const MAX: usize> Drop for IntoIter<T, INLINE, MAX>
         // SAFETY: elements `[idx, end)` are initialized and unyielded.
         unsafe {
             let base = self.vec.as_mut_ptr();
-            ptr::drop_in_place(std::ptr::slice_from_raw_parts_mut(
+            drop_in_place(slice_from_raw_parts_mut(
                 base.add(self.idx),
                 self.end - self.idx,
             ));
@@ -713,7 +629,7 @@ impl<T, const INLINE: usize, const MAX: usize> Drop for Drain<'_, T, INLINE, MAX
         // SAFETY: elements `[idx, end)` are initialized and unyielded.
         unsafe {
             let base = self.vec.as_mut_ptr();
-            ptr::drop_in_place(std::ptr::slice_from_raw_parts_mut(
+            drop_in_place(slice_from_raw_parts_mut(
                 base.add(self.idx),
                 self.end - self.idx,
             ));
@@ -726,12 +642,12 @@ mod tests {
     use std::{cell::Cell, mem::size_of, num::NonZeroU32, rc::Rc};
 
     use super::*;
-    use crate::MAX_LIST_SIZE;
+    use crate::MAX_USEFUL_LINEAR_SCAN;
 
     /// Enum mirroring `AutoMap`'s layout, to assert the `NonZeroU8` niche folds
     /// the discriminant in (enum size == tiny-vec size, no extra tag word).
     #[allow(dead_code)]
-    enum MapLike<T, const INLINE: usize, const MAX: usize = MAX_LIST_SIZE> {
+    enum MapLike<T, const INLINE: usize, const MAX: usize = MAX_USEFUL_LINEAR_SCAN> {
         List(TinyVec<T, INLINE, MAX>),
         Map(Box<u32>),
     }
@@ -773,7 +689,7 @@ mod tests {
             v.push(i);
         }
         assert_eq!(v.len(), 20);
-        assert!(v.capacity() > 3 && v.capacity() <= MAX_LIST_SIZE);
+        assert!(v.capacity() > 3 && v.capacity() <= MAX_USEFUL_LINEAR_SCAN);
         let got: Vec<u32> = v.iter().copied().collect();
         assert_eq!(got, (0..20).collect::<Vec<_>>());
         // Shrink back below inline threshold.
@@ -990,108 +906,5 @@ mod tests {
             }
         }
         assert_eq!(changes, vec![2, 4, 8, 10]);
-    }
-
-    #[test]
-    fn retain_mut_basic() {
-        let mut v: TinyVec<u32, 0> = TinyVec::new();
-        v.extend_exact(0..10);
-        v.retain_mut(|x| *x % 2 == 0);
-        assert_eq!(v.iter().copied().collect::<Vec<_>>(), vec![0, 2, 4, 6, 8]);
-    }
-
-    /// `retain_mut` must work identically with inline storage in play.
-    #[test]
-    fn retain_mut_inline() {
-        let mut v: TinyVec<u32, 6> = TinyVec::new();
-        v.extend_exact(0..5); // stays inline (5 <= 6)
-        assert_eq!(v.capacity(), 6);
-        v.retain_mut(|x| *x != 2);
-        assert_eq!(v.iter().copied().collect::<Vec<_>>(), vec![0, 1, 3, 4]);
-        assert_eq!(v.capacity(), 6, "retain never reallocates");
-    }
-
-    #[test]
-    fn retain_mut_can_mutate() {
-        let mut v: TinyVec<u32, 0> = TinyVec::new();
-        v.extend_exact(0..5);
-        v.retain_mut(|x| {
-            *x *= 10;
-            *x != 30
-        });
-        assert_eq!(v.iter().copied().collect::<Vec<_>>(), vec![0, 10, 20, 40]);
-    }
-
-    #[test]
-    fn retain_mut_empty_keep_all_remove_all() {
-        let mut e: TinyVec<u32, 0> = TinyVec::new();
-        e.retain_mut(|_| panic!("must not be called on empty"));
-        assert!(e.is_empty());
-
-        let mut keep: TinyVec<u32, 0> = TinyVec::new();
-        keep.extend_exact(0..5);
-        keep.retain_mut(|_| true);
-        assert_eq!(
-            keep.iter().copied().collect::<Vec<_>>(),
-            vec![0, 1, 2, 3, 4]
-        );
-
-        let mut rm: TinyVec<u32, 0> = TinyVec::new();
-        rm.extend_exact(0..5);
-        rm.retain_mut(|_| false);
-        assert!(rm.is_empty());
-    }
-
-    /// Predicate panic mid-retain: no leak, no double-free, tail preserved.
-    #[test]
-    fn retain_mut_predicate_panic_safety() {
-        assert_balanced(|c| {
-            let mut v: TinyVec<DropTok, 0> = TinyVec::new();
-            for _ in 0..10 {
-                v.push(DropTok::new(c));
-            }
-            let r = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                let mut seen = 0;
-                v.retain_mut(|_| {
-                    seen += 1;
-                    if seen == 5 {
-                        panic!("boom");
-                    }
-                    true
-                });
-            }));
-            assert!(r.is_err());
-            // All 10 elements still accounted for (survivors + shifted tail),
-            // and drop when `v` drops at the end of the closure.
-            assert_eq!(v.len(), 10, "no elements lost after predicate panic");
-        });
-    }
-
-    /// Element `Drop` panic during a rejection: guard still shifts the tail.
-    #[test]
-    fn retain_mut_element_drop_panic_safety() {
-        use std::sync::atomic::{AtomicUsize, Ordering};
-
-        struct PanicyDrop(u32, &'static AtomicUsize);
-        impl Drop for PanicyDrop {
-            fn drop(&mut self) {
-                self.1.fetch_add(1, Ordering::SeqCst);
-                if self.0 == 5 && !std::thread::panicking() {
-                    panic!("boom from drop");
-                }
-            }
-        }
-        static DROPS: AtomicUsize = AtomicUsize::new(0);
-
-        let r = std::panic::catch_unwind(|| {
-            let mut v: TinyVec<PanicyDrop, 0> = TinyVec::new();
-            for i in 0..10 {
-                v.push(PanicyDrop(i, &DROPS));
-            }
-            v.retain_mut(|x| x.0 != 5); // rejecting 5 drops it -> panics
-        });
-        assert!(r.is_err());
-        // Some drops ran; the point is we didn't double-free or abort.
-        assert!(DROPS.load(Ordering::SeqCst) > 0);
     }
 }
