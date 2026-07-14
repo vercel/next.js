@@ -71,7 +71,7 @@ describe('runTypeScriptCli', () => {
     }
   }
 
-  it('spawns tsc detached with inherited stdio and resolves with the exit code', async () => {
+  it('spawns tsc detached with piped stdio and resolves with the exit code', async () => {
     const resultPromise = runTypeScriptCli({
       cwd: '/project',
       tscPath: '/project/node_modules/typescript/bin/tsc',
@@ -85,7 +85,7 @@ describe('runTypeScriptCli', () => {
         cwd: '/project',
         detached: process.platform !== 'win32',
         shell: false,
-        stdio: 'inherit',
+        stdio: ['ignore', 'pipe', 'pipe'],
       })
     )
 
@@ -95,6 +95,41 @@ describe('runTypeScriptCli', () => {
       exitCode: 0,
       signal: null,
     })
+    expectListenersRestored()
+  })
+
+  it('forwards output as it arrives, preserving stdout/stderr interleaving, and stops the spinner on the first byte', async () => {
+    const stdoutWrite = jest
+      .spyOn(process.stdout, 'write')
+      .mockImplementation(() => true)
+    const stderrWrite = jest
+      .spyOn(process.stderr, 'write')
+      .mockImplementation(() => true)
+    const onFirstOutput = jest.fn()
+
+    try {
+      const resultPromise = runTypeScriptCli({
+        cwd: '/project',
+        tscPath: '/project/node_modules/typescript/bin/tsc',
+        args: ['--noEmit'],
+        onFirstOutput,
+      })
+
+      child.stdout.write('checking a\n')
+      child.stderr.write('warning b\n')
+      child.stdout.write('checking c\n')
+      child.emit('close', 0, null)
+
+      await expect(resultPromise).resolves.toMatchObject({ exitCode: 0 })
+
+      expect(onFirstOutput).toHaveBeenCalledTimes(1)
+      expect(stdoutWrite).toHaveBeenNthCalledWith(1, 'checking a\n')
+      expect(stderrWrite).toHaveBeenNthCalledWith(1, 'warning b\n')
+      expect(stdoutWrite).toHaveBeenNthCalledWith(2, 'checking c\n')
+    } finally {
+      stdoutWrite.mockRestore()
+      stderrWrite.mockRestore()
+    }
     expectListenersRestored()
   })
 

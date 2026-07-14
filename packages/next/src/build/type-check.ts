@@ -32,7 +32,8 @@ function verifyAndRunTypeScript(
   appDir: string | undefined,
   pagesDir: string | undefined,
   debugBuildPaths: { app: string[]; pages: string[] } | undefined,
-  useTypeScriptCli: boolean
+  useTypeScriptCli: boolean,
+  onFirstCliOutput?: () => void
 ) {
   let impl: typeof import('../lib/verify-typescript-setup').verifyAndRunTypeScript
   let typeCheckWorker:
@@ -76,6 +77,7 @@ function verifyAndRunTypeScript(
     pagesDir,
     debugBuildPaths,
     useTypeScriptCli,
+    onFirstCliOutput,
   })
     .then((result) => {
       typeCheckWorker?.end()
@@ -124,14 +126,7 @@ export async function startTypeChecking({
   }
 
   if (typeCheckingSpinnerPrefixText) {
-    if (useTypeScriptCli) {
-      // The CLI writes directly to stdout/stderr, bypassing the console hooks
-      // that pause an active spinner. Keep its diagnostics byte-for-byte and
-      // on their own lines by logging a static status line instead.
-      Log.info(`${typeCheckingSpinnerPrefixText} ...`)
-    } else {
-      typeCheckingSpinner = createSpinner(typeCheckingSpinnerPrefixText)
-    }
+    typeCheckingSpinner = createSpinner(typeCheckingSpinnerPrefixText)
   }
 
   const typeCheckAndLintStart = process.hrtime()
@@ -155,7 +150,11 @@ export async function startTypeChecking({
           appDir,
           pagesDir,
           debugBuildPaths,
-          useTypeScriptCli
+          useTypeScriptCli,
+          // Stop the spinner before as soon as the subprocess reports output.
+          useTypeScriptCli && typeCheckingSpinner
+            ? () => typeCheckingSpinner.stop()
+            : undefined
         ).then((resolved) => {
           const checkEnd = process.hrtime(typeCheckAndLintStart)
           return [resolved, checkEnd] as const

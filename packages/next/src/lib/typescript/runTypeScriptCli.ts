@@ -92,11 +92,21 @@ export function runTypeScriptCli({
   tscPath,
   args,
   captureOutput = false,
+  onFirstOutput,
 }: {
   cwd: string
   tscPath: string
   args: string[]
+  /**
+   * Accumulate stdout/stderr into the resolved result instead of forwarding it
+   * to this process's stdout/stderr (for e.g. parsing `--showConfig` output).
+   */
   captureOutput?: boolean
+  /**
+   * Called once, on the first chunk of forwarded output. Used to stop the build
+   * spinner before `tsc`'s diagnostics appear. Not called when capturing.
+   */
+  onFirstOutput?: () => void
 }): Promise<TypeScriptCliResult> {
   return new Promise((resolve, reject) => {
     const child = spawn(process.execPath, [tscPath, ...args], {
@@ -106,23 +116,43 @@ export function runTypeScriptCli({
       // reach both processes instead of orphaning the native compiler.
       detached: process.platform !== 'win32',
       shell: false,
-      stdio: captureOutput ? ['ignore', 'pipe', 'pipe'] : 'inherit',
+      stdio: ['ignore', 'pipe', 'pipe'],
       env: {
         ...process.env,
+        // Piping stdio makes `tsc` disable colored/pretty diagnostics. Restore
+        // them when we are forwarding output to a TTY (not capturing it for
+        // parsing, e.g. `--showConfig`).
+        ...(!captureOutput && process.stdout.isTTY
+          ? { FORCE_COLOR: '1' }
+          : undefined),
       },
     })
 
     let stdout = ''
     let stderr = ''
 
+    child.stdout?.setEncoding('utf8')
+    child.stderr?.setEncoding('utf8')
+
     if (captureOutput) {
-      child.stdout?.setEncoding('utf8')
-      child.stderr?.setEncoding('utf8')
-      child.stdout?.on('data', (chunk) => {
+      child.stdout?.on('data', (chunk: string) => {
         stdout += chunk
       })
-      child.stderr?.on('data', (chunk) => {
+      child.stderr?.on('data', (chunk: string) => {
         stderr += chunk
+      })
+    } else {
+      const forward = (dest: NodeJS.WriteStream, chunk: string) => {
+        onFirstOutput?.()
+        onFirstOutput = undefined // ensure we don't call it again
+        dest.write(chunk)
+      }
+
+      child.stdout?.on('data', (chunk: string) => {
+        forward(process.stdout, chunk)
+      })
+      child.stderr?.on('data', (chunk: string) => {
+        forward(process.stderr, chunk)
       })
     }
 
