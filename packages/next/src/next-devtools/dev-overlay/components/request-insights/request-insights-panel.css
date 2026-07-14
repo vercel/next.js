@@ -97,8 +97,15 @@
 }
 
 .request-insights-duration {
+  justify-self: end;
   color: var(--color-gray-1000);
   font-family: var(--font-mono);
+  text-align: right;
+}
+
+.request-insights-fetch-summary {
+  justify-self: end;
+  text-align: right;
 }
 
 .request-insights-details {

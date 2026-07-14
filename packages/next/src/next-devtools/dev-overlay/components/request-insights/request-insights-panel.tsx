@@ -92,7 +92,7 @@ function RequestRow({
       <span className="request-insights-meta">
         {formatClockTime(request.startTime)}
       </span>
-      <span className="request-insights-meta">
+      <span className="request-insights-meta request-insights-fetch-summary">
         {request.fetches.length
           ? `${request.fetches.length} fetch${request.fetches.length === 1 ? '' : 'es'}`
           : 'No fetches'}

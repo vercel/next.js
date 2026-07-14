@@ -199,12 +199,40 @@ describe('request insights trace viewer', () => {
           attributes: { 'next.span_type': 'AppRender.getBodyResult' },
         },
         {
-          name: 'wait for RSC render',
+          name: 'render RSC response',
+          spanId: 'render-rsc',
+          parentSpanId: 'render',
+          startTime: 113.5,
+          durationMs: 75,
+          attributes: { 'next.span_type': 'AppRender.renderRSCResponse' },
+        },
+        {
+          name: 'wait for RSC render task',
           spanId: 'wait-rsc',
           parentSpanId: 'render',
           startTime: 114,
           durationMs: 5,
           attributes: { 'next.span_type': 'AppRender.waitForRSC' },
+        },
+        {
+          name: 'render HTML shell',
+          spanId: 'render-html-shell',
+          parentSpanId: 'render',
+          startTime: 120,
+          durationMs: 5,
+          attributes: {
+            'next.span_type': 'AppRender.renderToNodeFizzStream',
+          },
+        },
+        {
+          name: 'wait for HTML completion',
+          spanId: 'wait-html-completion',
+          parentSpanId: 'render',
+          startTime: 125,
+          durationMs: 65,
+          attributes: {
+            'next.span_type': 'AppRender.waitForHTMLCompletion',
+          },
         },
       ],
     })
@@ -223,7 +251,10 @@ describe('request insights trace viewer', () => {
       { label: 'prepare app page response', depth: 3 },
       { label: 'initialize app render', depth: 3 },
       { label: 'render route (app) /', depth: 3 },
-      { label: 'wait for RSC render', depth: 4 },
+      { label: 'render RSC response', depth: 4 },
+      { label: 'wait for RSC render task', depth: 4 },
+      { label: 'render HTML shell', depth: 4 },
+      { label: 'wait for HTML completion', depth: 4 },
     ])
     expect(getTraceItems(request, true).map((item) => item.label)).toEqual([
       'GET',
@@ -237,7 +268,10 @@ describe('request insights trace viewer', () => {
       'prepare app page response',
       'initialize app render',
       'render route (app) /',
-      'wait for RSC render',
+      'render RSC response',
+      'wait for RSC render task',
+      'render HTML shell',
+      'wait for HTML completion',
     ])
   })
 
