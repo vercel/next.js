@@ -100,6 +100,22 @@ const tests = {
         )
       }`,
     },
+    {
+      // A side-effect import has no specifiers; the rule should not crash.
+      code: `import 'next/script';
+
+      export default function TestPage() {
+        return <script>{\`console.log('Hello world');\`}</script>
+      }`,
+    },
+    {
+      // A purely named import has no default specifier; the rule should not crash.
+      code: `import { type ScriptProps } from 'next/script';
+
+      export default function TestPage() {
+        return <div />
+      }`,
+    },
   ],
   invalid: [
     {
