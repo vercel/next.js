@@ -64,8 +64,10 @@ export class DevBundlerService {
   ) => {
     // TODO: remove after ensure is pulled out of server
     if (isRequestInsightsEnabled() || process.env.NEXT_OTEL_VERBOSE === '1') {
-      return await getTracer().trace(DevBundlerServiceSpan.ensurePage, {}, () =>
-        this.bundler.hotReloader.ensurePage(definition)
+      return await getTracer().trace(
+        DevBundlerServiceSpan.ensurePage,
+        { attributes: { 'next.span_name': 'compile route' } },
+        () => this.bundler.hotReloader.ensurePage(definition)
       )
     }
 

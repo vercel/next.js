@@ -920,9 +920,9 @@ export default abstract class Server<
         return tracer.trace(
           BaseServerSpan.handleRequest,
           {
-            spanName: `${method}`,
             kind: SpanKind.SERVER,
             attributes: {
+              'next.span_name': method,
               'http.method': method,
               'http.target': req.url,
             },
@@ -931,8 +931,10 @@ export default abstract class Server<
             const request =
               isRequestInsightsEnabled() ||
               process.env.NEXT_OTEL_VERBOSE === '1'
-                ? tracer.trace(BaseServerSpan.handleRequestImpl, {}, () =>
-                    this.handleRequestImpl(req, res, parsedUrl)
+                ? tracer.trace(
+                    BaseServerSpan.handleRequestImpl,
+                    { attributes: { 'next.span_name': 'handle request' } },
+                    () => this.handleRequestImpl(req, res, parsedUrl)
                   )
                 : this.handleRequestImpl(req, res, parsedUrl)
 
@@ -982,7 +984,6 @@ export default abstract class Server<
                   'http.route': route,
                   'next.span_name': name,
                 })
-                span.updateName(name)
 
                 // Propagate http.route to the parent span if one exists and
                 // is different from the handleRequest span. This ensures APM
@@ -992,7 +993,10 @@ export default abstract class Server<
                   parentSpan.setAttribute('http.route', route)
                 }
               } else {
-                span.updateName(isRSCRequest ? `RSC ${method}` : `${method}`)
+                span.setAttribute(
+                  'next.span_name',
+                  isRSCRequest ? `RSC ${method}` : method
+                )
               }
             })
           }
@@ -1031,6 +1035,7 @@ export default abstract class Server<
     let requestSetupSpan = shouldTraceDetailedRequest
       ? getTracer().startSpan(BaseServerSpan.prepareRequest, {
           attributes: {
+            'next.span_name': 'prepare request',
             'next.span_type': BaseServerSpan.prepareRequest,
           },
         })
@@ -1629,8 +1634,11 @@ export default abstract class Server<
         const normalizedParsedUrl = parsedUrl
 
         if (shouldTraceDetailedRequest) {
-          await getTracer().trace(BaseServerSpan.dispatchRequest, {}, () =>
-            this.handleCatchallRenderRequest(req, res, normalizedParsedUrl)
+          await getTracer().trace(
+            BaseServerSpan.dispatchRequest,
+            { attributes: { 'next.span_name': 'dispatch request' } },
+            () =>
+              this.handleCatchallRenderRequest(req, res, normalizedParsedUrl)
           )
         } else {
           await this.handleCatchallRenderRequest(req, res, normalizedParsedUrl)
@@ -1845,8 +1853,10 @@ export default abstract class Server<
       'renderOpts'
     >
   ): Promise<void> {
-    return getTracer().trace(BaseServerSpan.pipe, async () =>
-      this.pipeImpl(fn, partialContext)
+    return getTracer().trace(
+      BaseServerSpan.pipe,
+      { attributes: { 'next.span_name': 'render and send response' } },
+      async () => this.pipeImpl(fn, partialContext)
     )
   }
 
@@ -1948,8 +1958,11 @@ export default abstract class Server<
     parsedUrl?: NextUrlWithParsedQuery,
     internalRender = false
   ): Promise<void> {
-    return getTracer().trace(BaseServerSpan.render, async () =>
-      this.renderImpl(req, res, pathname, query, parsedUrl, internalRender)
+    return getTracer().trace(
+      BaseServerSpan.render,
+      { attributes: { 'next.span_name': 'render request' } },
+      async () =>
+        this.renderImpl(req, res, pathname, query, parsedUrl, internalRender)
     )
   }
 
@@ -2077,6 +2090,7 @@ export default abstract class Server<
 
     return getTracer().trace(
       BaseServerSpan.renderToResponseWithComponents,
+      { attributes: { 'next.span_name': 'render response' } },
       async () => {
         try {
           return await this.renderToResponseWithComponentsImpl(
@@ -2148,6 +2162,7 @@ export default abstract class Server<
         BaseServerSpan.prepareResponseWithComponents,
         {
           attributes: {
+            'next.span_name': 'prepare response',
             'next.span_type': BaseServerSpan.prepareResponseWithComponents,
           },
         }
@@ -2471,6 +2486,7 @@ export default abstract class Server<
         BaseServerSpan.getIncrementalCache,
         {
           attributes: {
+            'next.span_name': 'get incremental cache',
             'next.span_type': BaseServerSpan.getIncrementalCache,
           },
         }
@@ -2488,6 +2504,7 @@ export default abstract class Server<
         BaseServerSpan.resolvePrerendering,
         {
           attributes: {
+            'next.span_name': 'resolve prerendering',
             'next.span_type': BaseServerSpan.resolvePrerendering,
           },
         }
@@ -2585,6 +2602,7 @@ export default abstract class Server<
         BaseServerSpan.prepareRouteHandler,
         {
           attributes: {
+            'next.span_name': 'prepare route handler',
             'next.span_type': BaseServerSpan.prepareRouteHandler,
           },
         }
@@ -2657,10 +2675,13 @@ export default abstract class Server<
     if (detailedPhase) {
       detailedPhase.span?.end()
       detailedPhase.span = undefined
-      await getTracer().trace(BaseServerSpan.executeRouteHandler, {}, () =>
-        components.ComponentMod.handler(handlerReq, handlerRes, {
-          waitUntil: this.getWaitUntil(),
-        })
+      await getTracer().trace(
+        BaseServerSpan.executeRouteHandler,
+        { attributes: { 'next.span_name': 'execute route handler' } },
+        () =>
+          components.ComponentMod.handler(handlerReq, handlerRes, {
+            waitUntil: this.getWaitUntil(),
+          })
       )
     } else {
       await components.ComponentMod.handler(handlerReq, handlerRes, {
@@ -2748,8 +2769,8 @@ export default abstract class Server<
     return getTracer().trace(
       BaseServerSpan.renderToResponse,
       {
-        spanName: `rendering page`,
         attributes: {
+          'next.span_name': 'rendering page',
           'next.route': ctx.pathname,
         },
       },

@@ -2221,6 +2221,7 @@ async function getRSCPayload(
       {
         startTime: finalizePayloadStart,
         attributes: {
+          'next.span_name': 'finalize RSC payload',
           'next.span_type': AppRenderSpan.finalizeRSCPayload,
         },
       }
@@ -3379,6 +3380,7 @@ async function renderToStream(
       {
         startTime: initializationStart,
         attributes: {
+          'next.span_name': 'initialize app render',
           'next.span_type': AppRenderSpan.initializeRender,
         },
       }
@@ -3389,16 +3391,13 @@ async function renderToStream(
   // Create the "render route (app)" span manually so we can keep it open during streaming.
   // This is necessary because errors inside Suspense boundaries are reported asynchronously
   // during stream consumption, after a typical wrapped function would have ended the span.
-  const renderSpan = getTracer().startSpan(
-    `render route (app) ${pagePath}` as any,
-    {
-      attributes: {
-        'next.span_name': `render route (app) ${pagePath}`,
-        'next.span_type': AppRenderSpan.getBodyResult,
-        'next.route': pagePath,
-      },
-    }
-  )
+  const renderSpan = getTracer().startSpan(AppRenderSpan.getBodyResult, {
+    attributes: {
+      'next.span_name': `render route (app) ${pagePath}`,
+      'next.span_type': AppRenderSpan.getBodyResult,
+      'next.route': pagePath,
+    },
+  })
 
   // Helper to end the span with error status (used when throwing from catch blocks)
   const endSpanWithError = (err: unknown) => {
@@ -3417,7 +3416,7 @@ async function renderToStream(
   const trackHTMLRenderCompletion = (allReady: Promise<void>) => {
     const completion = getTracer().trace(
       AppRenderSpan.waitForHTMLCompletion,
-      {},
+      { attributes: { 'next.span_name': 'wait for HTML completion' } },
       () => allReady
     )
 
@@ -3845,6 +3844,7 @@ async function renderToStream(
             {
               startTime: startRSCStreamTime,
               attributes: {
+                'next.span_name': 'start RSC stream',
                 'next.span_type': AppRenderSpan.startRSCStream,
               },
             }
@@ -3862,7 +3862,7 @@ async function renderToStream(
       ) {
         await getTracer().trace(
           AppRenderSpan.waitForRSC,
-          {},
+          { attributes: { 'next.span_name': 'wait for RSC render task' } },
           waitAtLeastOneReactRenderTask
         )
       } else {
@@ -3993,6 +3993,7 @@ async function renderToStream(
             {
               startTime: prepareHTMLRenderStart,
               attributes: {
+                'next.span_name': 'prepare HTML render',
                 'next.span_type': AppRenderSpan.prepareHTMLRender,
               },
             }
@@ -4002,7 +4003,7 @@ async function renderToStream(
 
         const { stream: htmlStream, allReady } = await getTracer().trace(
           AppRenderSpan.renderToNodeFizzStream,
-          {},
+          { attributes: { 'next.span_name': 'render HTML shell' } },
           () =>
             workUnitAsyncStorage.run(
               requestStore,

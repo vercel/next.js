@@ -1089,6 +1089,7 @@ export default class NextNodeServer extends BaseServer<
     let routePreparationSpan = shouldTraceDetailedRequest
       ? getTracer().startSpan(NextNodeServerSpan.prepareRoute, {
           attributes: {
+            'next.span_name': 'prepare route',
             'next.span_type': NextNodeServerSpan.prepareRoute,
           },
         })
@@ -1143,14 +1144,17 @@ export default class NextNodeServer extends BaseServer<
     let routeResolutionSpan
     try {
       const match = shouldTraceDetailedRequest
-        ? await getTracer().trace(NextNodeServerSpan.matchRoute, {}, () =>
-            this.matchers.match(pathname, options)
+        ? await getTracer().trace(
+            NextNodeServerSpan.matchRoute,
+            { attributes: { 'next.span_name': 'match route' } },
+            () => this.matchers.match(pathname, options)
           )
         : await this.matchers.match(pathname, options)
 
       routeResolutionSpan = shouldTraceDetailedRequest
         ? getTracer().startSpan(NextNodeServerSpan.resolveRoute, {
             attributes: {
+              'next.span_name': 'resolve route',
               'next.span_type': NextNodeServerSpan.resolveRoute,
             },
           })
@@ -1200,6 +1204,7 @@ export default class NextNodeServer extends BaseServer<
           routeResolutionSpan = shouldTraceDetailedRequest
             ? getTracer().startSpan(NextNodeServerSpan.resolveRoute, {
                 attributes: {
+                  'next.span_name': 'resolve route',
                   'next.span_type': NextNodeServerSpan.resolveRoute,
                 },
               })
@@ -1241,6 +1246,7 @@ export default class NextNodeServer extends BaseServer<
         routeResolutionSpan = shouldTraceDetailedRequest
           ? getTracer().startSpan(NextNodeServerSpan.resolveRoute, {
               attributes: {
+                'next.span_name': 'resolve route',
                 'next.span_type': NextNodeServerSpan.resolveRoute,
               },
             })

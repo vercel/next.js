@@ -737,6 +737,7 @@ export async function handler(
           {
             startTime: appPagePreparationStart,
             attributes: {
+              'next.span_name': 'prepare app page response',
               'next.span_type': AppRenderSpan.prepareAppPageResponse,
             },
           }
@@ -791,13 +792,14 @@ export async function handler(
           'http.route': route,
           'next.span_name': name,
         })
-        span.updateName(name)
 
         // Propagate http.route to the parent span if one exists (e.g.
         // a platform-created HTTP span in adapter deployments).
         if (parentSpan && parentSpan !== span) {
-          parentSpan.setAttribute('http.route', route)
-          parentSpan.updateName(name)
+          parentSpan.setAttributes({
+            'http.route': route,
+            'next.span_name': name,
+          })
         }
       })
     }
@@ -2137,9 +2139,9 @@ export async function handler(
           tracer.trace(
             BaseServerSpan.handleRequest,
             {
-              spanName: `${method} ${srcPage}`,
               kind: SpanKind.SERVER,
               attributes: {
+                'next.span_name': `${method} ${srcPage}`,
                 'http.method': method,
                 'http.target': httpTarget,
               },

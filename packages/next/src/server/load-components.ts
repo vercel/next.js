@@ -354,5 +354,6 @@ async function loadComponentsImpl<
 
 export const loadComponents = getTracer().wrap(
   LoadComponentsSpan.loadComponents,
+  { attributes: { 'next.span_name': 'load components' } },
   loadComponentsImpl
 )

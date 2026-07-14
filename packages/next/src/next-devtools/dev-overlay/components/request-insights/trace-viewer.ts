@@ -54,20 +54,6 @@ const DEFAULT_VISIBLE_SPAN_TYPES = new Set([
   'ResolveMetadata.generateMetadata',
   'ResolveMetadata.generateViewport',
 ])
-const FIZZ_WORD = /\bFizz\b/gi
-const FLIGHT_WORD = /\bFlight\b/gi
-const SPAN_WORD_CASE: Record<string, string> = {
-  api: 'API',
-  fizz: 'HTML',
-  flight: 'RSC',
-  html: 'HTML',
-  http: 'HTTP',
-  https: 'HTTPS',
-  id: 'ID',
-  node: 'Node',
-  rsc: 'RSC',
-  url: 'URL',
-}
 
 export function getTraceItems(
   request: RequestInsight,
@@ -340,55 +326,9 @@ function getSpanCategory(span: RequestInsightSpan): 'nextjs' | 'application' {
 
 function getSpanLabel(span: RequestInsightSpan): string {
   const explicitName = span.attributes?.['next.span_name']
-  const name =
-    typeof explicitName === 'string' && explicitName.trim().length > 0
-      ? explicitName
-      : span.name
-
-  if (
-    span.attributes?.['next.span_type'] === 'AppRender.executeServerAction' &&
-    typeof explicitName === 'string'
-  ) {
-    return explicitName
-  }
-
-  const displayName = name
-    .replace(FIZZ_WORD, 'HTML')
-    .replace(FLIGHT_WORD, 'RSC')
-
-  if (displayName === 'resolve segment modules') {
-    return 'resolve segment'
-  }
-
-  if (displayName === 'build component tree') {
-    return 'build component tree'
-  }
-
-  if (!displayName.includes('.') && !/[a-z][A-Z]|[_-]/.test(displayName)) {
-    return displayName
-  }
-
-  const identifier = displayName.slice(displayName.lastIndexOf('.') + 1)
-  const words = identifier
-    .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
-    .replace(/([A-Z]+)([A-Z][a-z])/g, '$1 $2')
-    .replace(/[_-]+/g, ' ')
-    .trim()
-    .split(/\s+/)
-    .map((word) => SPAN_WORD_CASE[word.toLowerCase()] ?? word.toLowerCase())
-    .filter(
-      (word, index, allWords) =>
-        !(
-          (word === 'Node' || word === 'web') &&
-          (allWords[index + 1] === 'HTML' || allWords[index + 1] === 'RSC')
-        )
-    )
-
-  if (words[0] === 'wait' && words[1] !== 'for') {
-    words.splice(1, 0, 'for')
-  }
-
-  return words.join(' ')
+  return typeof explicitName === 'string' && explicitName.trim().length > 0
+    ? explicitName
+    : span.name
 }
 
 function getUrlPath(url: string | undefined): string {

@@ -261,7 +261,7 @@ export function renderToWebFlightStream(
 
   return getTracer().trace(
     AppRenderSpan.renderRSCResponse,
-    {},
+    { attributes: { 'next.span_name': 'render RSC response' } },
     (_span, done) => {
       const stream = ComponentMod.renderToReadableStream(
         payload,

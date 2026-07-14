@@ -159,6 +159,7 @@ export async function pipeNodeReadableToNodeResponse(
       getRequestInsightsIdentity() || process.env.NEXT_OTEL_VERBOSE === '1'
         ? getTracer().startSpan(NextNodeServerSpan.waitForFirstResponseChunk, {
             attributes: {
+              'next.span_name': 'wait for first response chunk',
               'next.span_type': NextNodeServerSpan.waitForFirstResponseChunk,
             },
           })
