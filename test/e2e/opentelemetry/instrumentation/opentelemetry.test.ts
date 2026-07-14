@@ -137,7 +137,7 @@ describe.each(
                     attributes: expect.objectContaining({
                       'next.span_name': 'run Server Action <inline action>',
                       'next.span_type': 'AppRender.executeServerAction',
-                      'next.span.category': 'application',
+                      'next.span_category': 'application',
                       'next.server_action.name': '<inline action>',
                       ...(isNextDev
                         ? {
@@ -172,7 +172,7 @@ describe.each(
                       'next.span_name':
                         'run Server Action exportedServerAction',
                       'next.span_type': 'AppRender.executeServerAction',
-                      'next.span.category': 'application',
+                      'next.span_category': 'application',
                       'next.server_action.name': 'exportedServerAction',
                       ...(isNextDev
                         ? {
