@@ -220,6 +220,12 @@ export async function exportAppPage(
       postponed,
       segmentPaths,
       prefetchHints,
+      // React marks a Suspense boundary whose content hasn't flushed with a
+      // `<!--$?-->` comment, and one that will client-render with
+      // `<!--$!-->`. User text can't produce these sequences (React escapes
+      // `<`), so their presence means the HTML contains pending UI —
+      // fallbacks that resolve on resume (postponed) or on the client.
+      hasPendingUi: html.includes('<!--$?-->') || html.includes('<!--$!-->'),
     }
 
     fileWriter.append(

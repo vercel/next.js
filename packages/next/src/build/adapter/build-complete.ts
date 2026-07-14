@@ -197,29 +197,45 @@ export interface AdapterOutput {
     /**
      * route is the source route matcher this prerender belongs to, aligned
      * with the route on the filesystem — it keeps dynamic segments (e.g.
-     * `/blog/[slug]` for the prerendered path `/blog/first`). On a dynamic
-     * route, the prerender whose `pathname` equals `route` is the fallback
-     * template entry; all others are concrete prerendered paths.
+     * `/blog/[slug]` for the prerendered path `/blog/first`).
      */
     route: string
 
     /**
-     * resuming signals whether serving this prerender involves per-request
-     * compute: the build-time prerender of a PPR app page postponed (React
-     * suspended on dynamic data) and must resume on the server. `false`
-     * means it prerendered fully static at build time; `undefined` means
-     * the signal does not apply (pages router, route handlers, blocking
-     * templates).
+     * kind classifies what this build's prerender produced. It is a
+     * point-in-time snapshot of the build artifact, not an intrinsic
+     * property of the route — revalidation can change it.
+     *
+     * - `blocking`: no prerendered shell exists for this entry (pages
+     *   router blocking or omitted templates, or an app shell that is
+     *   empty because everything postponed).
+     * - `fallback`: a shell with pending UI that can still be prerendered
+     *   into something more specific (params remain that
+     *   `generateStaticParams` can fill).
+     * - `shell`: the most specific prerender possible for this entry; its
+     *   pending UI resolves at request time (on the server when
+     *   `postponed`, otherwise on the client).
+     * - `page`: complete HTML with no pending UI.
+     *
+     * `undefined` means unclassified (route handlers).
      */
-    resuming?: boolean
+    kind?: 'blocking' | 'fallback' | 'shell' | 'page'
+
+    /**
+     * postponed signals whether this build's prerender postponed (React
+     * suspended on dynamic data), meaning serving it resumes on the server
+     * — per-request compute. Like `kind`, it describes the build artifact,
+     * not the route: revalidation can flip it. `false` means the prerender
+     * completed without postponing; `undefined` means the signal does not
+     * apply (pages router, route handlers, blocking templates).
+     */
+    postponed?: boolean
 
     /**
      * htmlSize is the byte size of the prerendered HTML shell for app
      * pages. `0` means an empty shell (everything postponed). It is only
      * set on the HTML prerender output; RSC/data/segment outputs leave it
      * `undefined`, as do pages router and route handler outputs.
-     * `htmlSize > 0 && resuming === false` means the prerender was complete
-     * (fully static) at build time.
      */
     htmlSize?: number
 
@@ -1205,9 +1221,10 @@ export async function handleBuildComplete({
               groupId: initialOutput.groupId,
 
               route: initialOutput.route,
+              kind: initialOutput.kind,
               // htmlSize is intentionally omitted: segment outputs are RSC
               // payloads, not HTML shells
-              resuming: initialOutput.resuming,
+              postponed: initialOutput.postponed,
 
               config: {
                 ...initialOutput.config,
@@ -1241,6 +1258,7 @@ export async function handleBuildComplete({
         postponed?: string
         headers?: Record<string, string>
         status?: number
+        hasPendingUi?: boolean
       }
 
       const getAppRouteMeta = async (
@@ -1302,6 +1320,23 @@ export async function handleBuildComplete({
           return undefined
         }
       }
+
+      // Classifies an app page's prerendered shell. `fallback` requires
+      // pending UI in addition to fillable params: an upgradable template
+      // whose HTML is already complete gains nothing from specializing, so
+      // it's a `page`.
+      const classifyAppShell = (
+        htmlSize: number | undefined,
+        hasPendingUi: boolean,
+        upgradable: boolean
+      ): AdapterOutput['PRERENDER']['kind'] =>
+        htmlSize === 0
+          ? 'blocking'
+          : !hasPendingUi
+            ? 'page'
+            : upgradable
+              ? 'fallback'
+              : 'shell'
 
       for (const route in prerenderManifest.routes) {
         const {
@@ -1437,6 +1472,23 @@ export async function handleBuildComplete({
             ? statHtmlSize(filePath)
             : undefined
 
+        // concrete prerenders are fully specified, so they're never
+        // `fallback` (nothing more specific can be prerendered from them)
+        const kind: AdapterOutput['PRERENDER']['kind'] = isAppPage
+          ? dataRoute
+            ? classifyAppShell(
+                htmlSize,
+                Boolean(meta.hasPendingUi || meta.postponed),
+                false
+              )
+            : // route handlers are classified separately in the future
+              undefined
+          : isNotFoundTrue && !hasStatic404
+            ? // no HTML shell is served for this entry
+              undefined
+            : // pages router prerenders are always complete HTML
+              'page'
+
         const initialOutput: AdapterOutput['PRERENDER'] = {
           id: route,
           type: AdapterOutputType.PRERENDER,
@@ -1448,7 +1500,8 @@ export async function handleBuildComplete({
           groupId: prerenderGroupId,
 
           route: srcRoute,
-          resuming:
+          kind,
+          postponed:
             renderingMode === RenderingMode.PARTIALLY_STATIC && isAppPage
               ? Boolean(meta.postponed)
               : undefined,
@@ -1687,6 +1740,25 @@ export async function handleBuildComplete({
             ? statHtmlSize(fallbackHtmlPath)
             : undefined
 
+        const kind: AdapterOutput['PRERENDER']['kind'] = !isAppPage
+          ? typeof fallback === 'string'
+            ? // pages router `fallback: true` — a loading shell that
+              // getStaticPaths can keep specializing at request time
+              'fallback'
+            : // `fallback: 'blocking'` (null) or `fallback: false` — no
+              // shell is prerenderable
+              'blocking'
+          : typeof fallback !== 'string'
+            ? // app template rendered blocking — no shell
+              'blocking'
+            : classifyAppShell(
+                htmlSize,
+                Boolean(meta.hasPendingUi || meta.postponed),
+                // generateStaticParams can still fill params, so the shell
+                // can be prerendered into something more specific
+                (remainingPrerenderableParams?.length ?? 0) > 0
+              )
+
         const initialOutput: AdapterOutput['PRERENDER'] = {
           id: dynamicRoute,
           type: AdapterOutputType.PRERENDER,
@@ -1695,12 +1767,13 @@ export async function handleBuildComplete({
           groupId: prerenderGroupId,
 
           route: srcRoute,
-          resuming:
+          kind,
+          postponed:
             renderingMode === RenderingMode.PARTIALLY_STATIC &&
             isAppPage &&
-            // blocking templates (manifest fallback `null`) don't prerender a
-            // shell, so the postponed signal doesn't apply to them
-            fallback !== null
+            // templates without a prerendered shell (blocking or omitted)
+            // have nothing to postpone, so the signal doesn't apply
+            typeof fallback === 'string'
               ? Boolean(meta.postponed)
               : undefined,
 

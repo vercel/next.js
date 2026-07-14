@@ -136,9 +136,10 @@ ISR-enabled routes and static prerenders:
   pathname: string     // URL pathname
   parentOutputId: string  // ID of the source page/route
   groupId: number        // Revalidation group identifier (prerenders with same groupId revalidate together)
-  route: string           // Source route matcher aligned with the filesystem route, keeping dynamic segments (e.g. /blog/[slug] for the prerendered path /blog/first). On a dynamic route, the prerender whose pathname equals route is the fallback template entry; others are concrete prerendered paths
-  resuming?: boolean      // Whether serving this prerender involves per-request compute (the PPR prerender postponed and resumes on the server); false: prerendered fully static at build time, undefined: does not apply (pages router, route handlers, blocking templates)
-  htmlSize?: number       // Byte size of the prerendered HTML shell for app pages; 0 means an empty shell (everything postponed). Only set on the HTML prerender output; RSC/data/segment, pages router, and route handler outputs leave it undefined. htmlSize > 0 && resuming === false means the prerender was complete (fully static) at build time
+  route: string           // Source route matcher aligned with the filesystem route, keeping dynamic segments (e.g. /blog/[slug] for the prerendered path /blog/first)
+  kind?: 'blocking' | 'fallback' | 'shell' | 'page'  // Point-in-time classification of what this build's prerender produced (revalidation can change it). blocking: no shell is prerenderable (blocking/omitted templates, or an app shell that is empty because everything postponed). fallback: a shell with pending UI that can still be prerendered into something more specific. shell: the most specific prerender possible; its pending UI resolves at request time (on the server when postponed, otherwise on the client). page: complete HTML with no pending UI. undefined: unclassified (route handlers)
+  postponed?: boolean     // Whether this build's prerender postponed (React suspended on dynamic data), so serving it resumes on the server (per-request compute). Snapshot of the build artifact, not intrinsic to the route; false: prerendered without postponing, undefined: does not apply (pages router, route handlers, blocking templates)
+  htmlSize?: number       // Byte size of the prerendered HTML shell for app pages; 0 means an empty shell (everything postponed). Only set on the HTML prerender output; RSC/data/segment, pages router, and route handler outputs leave it undefined
   pprChain?: {
     headers: Record<string, string>  // PPR chain headers (e.g., 'next-resume': '1')
   }

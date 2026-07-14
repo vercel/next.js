@@ -7,4 +7,11 @@ export type RouteMetadata = {
   postponed: string | undefined
   segmentPaths: Array<string> | undefined
   prefetchHints: PrefetchHints | undefined
+  /**
+   * Whether the prerendered HTML contains pending UI: Suspense fallbacks
+   * that resolve later, either by resuming on the server (postponed) or on
+   * the client (e.g. a boundary reading search params). Complete HTML has
+   * no pending UI.
+   */
+  hasPendingUi: boolean | undefined
 }
