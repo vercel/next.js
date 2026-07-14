@@ -232,34 +232,42 @@ impl TurboBackingStorage {
         &self,
         operations: Vec<Arc<AnyOperation>>,
         snapshots: Vec<I>,
-        deletes: Vec<TaskDeletion>,
     ) -> Result<SnapshotMeta>
     where
         I: IntoIterator<Item = SnapshotItem> + Send + Sync,
     {
-        let _span = tracing::info_span!(
-            "save snapshot",
-            operations = operations.len(),
-            deletes = deletes.len()
-        )
-        .entered();
+        let _span = tracing::info_span!("save snapshot", operations = operations.len()).entered();
         let batch = self.inner.database.write_batch()?;
 
         {
             let _span = tracing::trace_span!("update task data").entered();
-            let mut snapshot_meta =
+            // The parallel put phase also *collects* any `SnapshotItem::Delete` tombstones produced
+            // during the (streaming) shard iteration — GC-soft-deleted tasks serialize to a delete
+            // rather than a put. They can't be applied inline: the TaskCache tombstone below reads
+            // and rewrites a whole hash bucket and must run sequentially after all puts. So each
+            // shard returns its collected deletes alongside its `SnapshotMeta`, and they merge with
+            // the caller-supplied `deletes` (from the test-only `gc_for_testing` hook) before the
+            // sequential delete phase.
+            let per_shard =
                 parallel::map_collect_owned::<_, _, Result<Vec<_>>>(snapshots, |shard: I| {
                     let mut max_new_task_id = 0;
                     let mut data_items = 0;
                     let mut meta_items = 0;
                     let mut task_cache_items = 0;
-                    for SnapshotItem {
-                        task_id,
-                        meta,
-                        data,
-                        task_type_hash,
-                    } in shard
-                    {
+                    let mut shard_deletes: Vec<TaskDeletion> = Vec::new();
+                    for item in shard {
+                        let (task_id, meta, data, task_type_hash) = match item {
+                            SnapshotItem::Put {
+                                task_id,
+                                meta,
+                                data,
+                                task_type_hash,
+                            } => (task_id, meta, data, task_type_hash),
+                            SnapshotItem::Delete(deletion) => {
+                                shard_deletes.push(deletion);
+                                continue;
+                            }
+                        };
                         let key = IntKey::new(*task_id);
                         let key = key.as_ref();
                         if let Some(meta) = meta {
@@ -289,20 +297,26 @@ impl TurboBackingStorage {
                             max_new_task_id = max_new_task_id.max(*task_id);
                         }
                     }
-                    Ok(SnapshotMeta {
-                        data_items,
-                        meta_items,
-                        task_cache_items,
-                        // The on-disk byte totals aren't known until the batch is committed below;
-                        // they're filled in from `CommitStats` after `batch.commit()`.
-                        bytes_written: 0,
-                        bytes_deleted: 0,
-                        max_next_task_id: max_new_task_id,
-                    })
-                })?
-                .into_iter()
-                .reduce(|t1, t2| t1.merge(t2))
-                .unwrap_or_default();
+                    Ok((
+                        SnapshotMeta {
+                            data_items,
+                            meta_items,
+                            task_cache_items,
+                            // The on-disk byte totals aren't known until the batch is committed
+                            // below; they're filled in from `CommitStats` after `batch.commit()`.
+                            bytes_written: 0,
+                            bytes_deleted: 0,
+                            max_next_task_id: max_new_task_id,
+                        },
+                        shard_deletes,
+                    ))
+                })?;
+            let mut deletes: Vec<TaskDeletion> = Vec::new();
+            let mut snapshot_meta = SnapshotMeta::default();
+            for (meta, shard_deletes) in per_shard {
+                snapshot_meta = snapshot_meta.merge(meta);
+                deletes.extend(shard_deletes);
+            }
 
             // Apply GC tombstones after the parallel put phase (so no put/delete on the same key
             // space is in-flight when we flush below) and after puts (so a delete wins over a
@@ -870,14 +884,13 @@ mod tests {
 
         let storage = TurboBackingStorage::new_in_memory(db);
 
-        // Snapshot with no task data, just the one deletion.
+        // Snapshot with no task data, just the one deletion (carried inline as a delete item).
         storage.save_snapshot(
             Vec::new(),
-            Vec::<Vec<SnapshotItem>>::new(),
-            vec![TaskDeletion {
+            vec![vec![SnapshotItem::Delete(TaskDeletion {
                 task_id: deleted_id,
                 task_type_hash: collision_hash.to_le_bytes(),
-            }],
+            })]],
         )?;
 
         // The deleted id is gone; the disk-only survivor was re-inserted automatically.

@@ -18,22 +18,19 @@ use std::sync::{
     atomic::{AtomicUsize, Ordering},
 };
 
-use parking_lot::Mutex;
 use turbo_tasks::{
     TaskId, TurboTasks,
     scope::{Spawner, scope_self_feeding},
-    util::{good_chunk_size, into_chunks},
 };
 
-use crate::{
-    backend::{
-        CachedTaskTypeArc, TurboTasksBackend,
-        operation::{ExecuteContext, ExecuteContextImpl, TaskGuard},
-        storage::TaskDataCategory,
-        storage_schema::TaskStorageAccessors,
+use crate::backend::{
+    TurboTasksBackend,
+    operation::{
+        AggregationUpdateQueue, CleanupOldEdgesOperation, ExecuteContext, ExecuteContextImpl,
+        OutdatedEdge, TaskGuard,
     },
-    backing_storage::{TaskDeletion, compute_task_type_hash},
-    data::{CellRef, CollectiblesRef},
+    storage::{SpecificTaskDataCategory, TaskDataCategory},
+    storage_schema::TaskStorageAccessors,
 };
 
 /// When `TURBO_ENGINE_GC` is set to a truthy value, the background job runs a `parent_count`-driven
@@ -52,70 +49,21 @@ pub(super) fn gc_enabled() -> bool {
 }
 
 /// A unit of garbage-collection work fed through the self-feeding parallel pool in
-/// [`TurboTasksBackend::gc_collect`]. Every variant is bounded (a single task, or a bounded chunk),
-/// so no single job pins a worker with unbounded work: a task with a huge number of children or
-/// forward dependencies fans out into many chunked jobs that spread across worker threads. Jobs
-/// discover more jobs (a collected task spawns decrements + scrubs; a decrement that hits 0 spawns
-/// a collect), which the pool drains until quiescent.
+/// [`TurboTasksBackend::gc_collect`]: collecting one task. Parallelism is *across* tasks — the pool
+/// runs many `Collect` jobs on different workers — while each task's own teardown (its
+/// `CleanupOldEdges` run) is sequential. A `Collect` discovers more `Collect` jobs (each child the
+/// cleanup drives to `parent_count == 0` and that is itself collectible), which flow straight back
+/// into the pool until it drains.
+///
+/// (A single-variant enum today; kept as an enum so the self-feeding pool's job type has room to
+/// grow — e.g. if the per-task teardown is later split to fan a huge task's edges across workers.)
 enum GcJob {
-    /// Re-validate `task_id`'s collectibility and, if still collectible, tear it down: remove it
-    /// from the in-memory map + task_cache, record its tombstone, then spawn [`GcJob::Decrement`]
-    /// jobs for its children and `Scrub*` jobs for its forward dependencies.
+    /// Re-validate `task_id`'s collectibility and, if still collectible, tear it down: run
+    /// [`CleanupOldEdgesOperation`] over all its edges (dropping children's `parent_count`,
+    /// scrubbing forward-dep reverse edges, and rebalancing the aggregation graph), remove it from
+    /// the in-memory map + task_cache, record its tombstone, then spawn a [`GcJob::Collect`] for
+    /// each child the cleanup drove to `parent_count == 0` that is now itself collectible.
     Collect(TaskId),
-    /// Decrement the persistent `parent_count` of each task in the chunk (each lost a persistent
-    /// parent that was just collected). Any that reach 0 are newly unreachable and spawn a
-    /// [`GcJob::Collect`].
-    Decrement(Vec<TaskId>),
-    /// Remove `source` from the `output_dependent` reverse-set of each target task in the chunk.
-    ScrubOutput {
-        source: TaskId,
-        targets: Vec<TaskId>,
-    },
-    /// Remove `source`'s cell dependency from the `cell_dependents` reverse-set of each referenced
-    /// cell's task.
-    ScrubCell { source: TaskId, refs: Vec<CellRef> },
-    /// Like [`GcJob::ScrubCell`] for hashed cell dependencies.
-    ScrubCellHashed {
-        source: TaskId,
-        refs: Vec<(CellRef, u64)>,
-    },
-    /// Remove `source` from the `collectibles_dependents` reverse-set of each referenced task.
-    ScrubCollectibles {
-        source: TaskId,
-        refs: Vec<CollectiblesRef>,
-    },
-}
-
-/// The edges captured from a collectible task under its single [`ExecuteContext`] guard, so the
-/// guard can be dropped before the teardown opens the *target* tasks' guards (holding two task
-/// locks at once trips the concurrent-lock detector). `children` drive the cascade; the `*_deps`
-/// are the forward dependencies whose reverse side must be scrubbed; `persistent_task_type` yields
-/// the on-disk `TaskCache` key.
-struct GcDeletePlan {
-    children: Vec<TaskId>,
-    output_deps: Vec<TaskId>,
-    cell_deps: Vec<CellRef>,
-    cell_deps_hashed: Vec<(CellRef, u64)>,
-    collectibles_deps: Vec<CollectiblesRef>,
-    persistent_task_type: Option<CachedTaskTypeArc>,
-}
-
-/// Splits `items` into `good_chunk_size` chunks and spawns one [`GcJob`] per chunk (built by
-/// `make_job`) into the self-feeding GC pool. A small collection becomes a single chunk job (≈
-/// inline); a huge one (e.g. 20K children/deps) fans out into `~4 * parallelism` jobs that spread
-/// across workers, so no single job pins a worker with unbounded work. Empty input spawns nothing.
-fn spawn_chunked<I>(
-    spawner: &Spawner<'_, '_, GcJob>,
-    items: Vec<I>,
-    make_job: impl Fn(Vec<I>) -> GcJob,
-) {
-    if items.is_empty() {
-        return;
-    }
-    let chunk_size = good_chunk_size(items.len());
-    for chunk in into_chunks(items, chunk_size) {
-        spawner.spawn(make_job(chunk.collect()));
-    }
 }
 
 impl TurboTasksBackend {
@@ -169,11 +117,10 @@ impl TurboTasksBackend {
     /// on free worker threads (robust on thread-limited runtimes). GC runs from a synchronous
     /// backend context (like `connect_children`, which also fans out onto the scope machinery).
     ///
-    /// Returns `(number of tasks collected, on-disk tombstones)`.
-    pub(crate) fn gc_collect(
-        &self,
-        turbo_tasks: &TurboTasks<TurboTasksBackend>,
-    ) -> (usize, Vec<TaskDeletion>) {
+    /// Returns the number of tasks collected (marked soft-deleted). The on-disk tombstones are not
+    /// produced here — collected tasks are left resident with their `deleted` flag set, and the
+    /// next snapshot derives the tombstones from that flag (see `snapshot_and_persist`).
+    pub(crate) fn gc_collect(&self, turbo_tasks: &TurboTasks<TurboTasksBackend>) -> usize {
         // Seed the pool by scanning the resident map for tasks that pass the cheap
         // `gc_maybe_collectible` pre-filter (a handful of field reads per task under a shard read
         // lock — the same shape as the eviction scan, which proved this is fast). We scan rather
@@ -199,19 +146,17 @@ impl TurboTasksBackend {
             .map(GcJob::Collect)
             .collect();
         if seeds.is_empty() {
-            return (0, Vec::new());
+            return 0;
         }
 
-        // Shared accumulators. Touched only on the (comparatively rare) collect outcome, not on
-        // every decrement or scrub, so the mutex/atomic are not a hot path.
-        let deletions = Mutex::new(Vec::new());
+        // Written once per collected task (not per child/dep), so the atomic is not a hot path.
         let collected = AtomicUsize::new(0);
 
         scope_self_feeding(seeds, |spawner, job| {
-            self.gc_run_job(job, spawner, turbo_tasks, &deletions, &collected);
+            self.gc_run_job(job, spawner, turbo_tasks, &collected);
         });
 
-        (collected.into_inner(), deletions.into_inner())
+        collected.into_inner()
     }
 
     /// Runs one [`GcJob`], possibly spawning follow-up jobs into the same pool. See
@@ -222,191 +167,106 @@ impl TurboTasksBackend {
         job: GcJob,
         spawner: &Spawner<'_, '_, GcJob>,
         turbo_tasks: &TurboTasks<TurboTasksBackend>,
-        deletions: &Mutex<Vec<TaskDeletion>>,
         collected: &AtomicUsize,
     ) {
         match job {
             GcJob::Collect(task_id) => {
                 let mut ctx = self.execute_context_gc(turbo_tasks);
-
-                // A `Collect` is only ever created for a task that is already collectible, and
-                // nothing can invalidate that before it runs, so this is an asserted invariant, not
-                // a filter:
-                // - seed collects come from the scan, which only matches Meta-resident tasks
-                //   passing `gc_maybe_collectible` (the Meta-resident gate is what makes the raw
-                //   scan agree with the guarded predicate — an evicted-Meta task reads its fields
-                //   as defaults);
-                // - cascade collects are spawned by `Decrement` only after it confirms
-                //   `is_gc_collectible` under the child's guard.
-                // The GC phase holds throughout the pass: no operation can re-connect or pin the
-                // task (both take an operation guard, excluded here), no other GC job touches a
-                // now-parentless task, and eviction runs only after the pass — so a task's
-                // collectibility (and Meta residency) cannot change between spawn and here.
-                //
-                // `All` restores Data so the plan below can read the Data-category dep sets.
+                // `All` restores Data so the edge capture below can read the Data-category dep
+                // sets.
                 let task = ctx.task(task_id, TaskDataCategory::All);
                 debug_assert!(
                     task.is_gc_collectible(),
                     "gc: Collect({task_id}) for a non-collectible task — the seed scan's \
-                     Meta-resident `gc_maybe_collectible` filter and Decrement's pre-spawn check \
-                     should guarantee collectibility under the GC phase"
+                     Meta-resident `gc_maybe_collectible` filter and the cascade's collectibility \
+                     check should guarantee collectibility under the GC phase"
                 );
-                // Snapshot the edges into owned buffers, then drop the guard before the teardown
-                // opens the target tasks' guards.
-                let plan = GcDeletePlan {
-                    children: task.iter_children().collect(),
-                    output_deps: task.iter_output_dependencies().collect(),
-                    cell_deps: task.iter_cell_dependencies().collect(),
-                    cell_deps_hashed: task.iter_cell_dependencies_hashed().collect(),
-                    collectibles_deps: task.iter_collectibles_dependencies().collect(),
-                    persistent_task_type: task.get_persistent_task_type().cloned(),
-                };
+
+                // Capture ALL of this task's edges as `OutdatedEdge`s, then hand them to the same
+                // `CleanupOldEdges` operation a re-executing task uses. This is what makes GC
+                // teardown correct: alongside dropping each child's `parent_count` and scrubbing
+                // the forward-dep reverse edges, it PROPAGATES THE AGGREGATION
+                // REBALANCE (removes this task from its children's `upper` sets via
+                // `InnerOfUppersLostFollowers`). Without that, collected children
+                // would be left with a dangling upper edge and never
+                // become collectible themselves. The op opens `ctx.task(task_id)` to remove the
+                // child edges, so it must run while `task_id` is still resident.
+                let mut old_edges: Vec<OutdatedEdge> = Vec::new();
+                old_edges.extend(task.iter_children().map(OutdatedEdge::Child));
+                old_edges.extend(
+                    task.iter_output_dependencies()
+                        .map(OutdatedEdge::OutputDependency),
+                );
+                old_edges.extend(
+                    task.iter_cell_dependencies()
+                        .map(OutdatedEdge::CellDependency),
+                );
+                old_edges.extend(
+                    task.iter_cell_dependencies_hashed()
+                        .map(|(r, k)| OutdatedEdge::HashedCellDependency(r, k)),
+                );
+                old_edges.extend(
+                    task.iter_collectibles_dependencies()
+                        .map(OutdatedEdge::CollectiblesDependency),
+                );
                 drop(task);
 
-                let deletion = self.gc_remove_task(task_id, &plan, &mut ctx);
-                deletions.lock().push(deletion);
+                CleanupOldEdgesOperation::run(
+                    task_id,
+                    old_edges,
+                    AggregationUpdateQueue::new(),
+                    &mut ctx,
+                );
+
+                // The edges are gone and the children are rebalanced. Instead of removing the task
+                // from the map now (which would let a later `ctx.task` on it — e.g. a sibling's
+                // `CleanupOldEdges` forward-dep scrub — resurrect it from disk as a zombie), mark
+                // it soft-deleted and keep it resident. The next snapshot tombstones its on-disk
+                // copy; a later step hard-deletes it from memory once the tombstone has committed.
+                self.gc_mark_deleted(task_id, &mut ctx);
                 collected.fetch_add(1, Ordering::Relaxed);
 
-                // Fan the (potentially huge) teardown out into bounded chunk jobs so no single
-                // worker is pinned by one task's children/deps. `gc_remove_task` already dropped
-                // `task_id`'s own guard; the scrub jobs only open the *target* guards, and the plan
-                // carries owned edge lists so they don't need `task_id` resident.
-                let GcDeletePlan {
-                    children,
-                    output_deps,
-                    cell_deps,
-                    cell_deps_hashed,
-                    collectibles_deps,
-                    persistent_task_type: _,
-                } = plan;
-                spawn_chunked(spawner, children, GcJob::Decrement);
-                spawn_chunked(spawner, output_deps, |targets| GcJob::ScrubOutput {
-                    source: task_id,
-                    targets,
-                });
-                spawn_chunked(spawner, cell_deps, |refs| GcJob::ScrubCell {
-                    source: task_id,
-                    refs,
-                });
-                spawn_chunked(spawner, cell_deps_hashed, |refs| GcJob::ScrubCellHashed {
-                    source: task_id,
-                    refs,
-                });
-                spawn_chunked(spawner, collectibles_deps, |refs| {
-                    GcJob::ScrubCollectibles {
-                        source: task_id,
-                        refs,
-                    }
-                });
-            }
-            GcJob::Decrement(children) => {
-                let mut ctx = self.execute_context_gc(turbo_tasks);
-                for child in children {
-                    // A collected task's `children` set (unfiltered `iter_children`) can include
-                    // transient children, which carry no persistent `parent_count` — skip them.
-                    if child.is_transient() {
-                        continue;
-                    }
-                    let mut child_task = ctx.task(child, TaskDataCategory::Meta);
-                    let new_count = child_task.update_and_get_parent_count(-1);
-                    // Only spawn a `Collect` for a child that is *actually* collectible now, not
-                    // merely at `parent_count == 0`: a count-0 task can still be pinned, in
-                    // progress, a root, or hold aggregation edges. Checking
-                    // here (under the child's guard we already hold) is what
-                    // lets `Collect` treat its input as guaranteed-collectible.
-                    // Exactly one decrementer observes the RMW hit 0 (entry lock), so at most one
-                    // `Collect` is spawned per child; and under the GC phase nothing can make the
-                    // child non-collectible between here and the `Collect` running (no operation
-                    // can re-connect or pin it, and no other GC job touches a
-                    // now-parentless task).
-                    let collectible = new_count == 0 && child_task.is_gc_collectible();
-                    drop(child_task);
-                    if collectible {
+                // `CleanupOldEdges` recorded (on this GC context) every child whose persistent
+                // `parent_count` reached 0. Those are the cascade candidates: re-check
+                // collectibility under each child's guard (count 0 alone isn't enough — it could be
+                // pinned, a root, or still hold aggregation edges) and spawn a `Collect` for the
+                // ones that are collectible. Each child reaches 0 exactly once, so there is no
+                // double-queueing.
+                let newly_parentless = ctx.take_gc_parent_count_zeroed();
+                for child in newly_parentless {
+                    debug_assert!(
+                        !child.is_transient(),
+                        "gc: a transient task should never have a persistent parent_count to zero"
+                    );
+                    if ctx.task(child, TaskDataCategory::Meta).is_gc_collectible() {
                         spawner.spawn(GcJob::Collect(child));
                     }
-                }
-            }
-            GcJob::ScrubOutput { source, targets } => {
-                let mut ctx = self.execute_context_gc(turbo_tasks);
-                for output_task_id in targets {
-                    let mut target = ctx.task(output_task_id, TaskDataCategory::Data);
-                    target.remove_output_dependent(&source);
-                }
-            }
-            GcJob::ScrubCell { source, refs } => {
-                let mut ctx = self.execute_context_gc(turbo_tasks);
-                for CellRef {
-                    task: cell_task,
-                    cell,
-                } in refs
-                {
-                    let mut target = ctx.task(cell_task, TaskDataCategory::Data);
-                    target.remove_cell_dependents(&CellRef { task: source, cell });
-                }
-            }
-            GcJob::ScrubCellHashed { source, refs } => {
-                let mut ctx = self.execute_context_gc(turbo_tasks);
-                for (
-                    CellRef {
-                        task: cell_task,
-                        cell,
-                    },
-                    key,
-                ) in refs
-                {
-                    let mut target = ctx.task(cell_task, TaskDataCategory::Data);
-                    target.remove_cell_dependents_hashed(&(CellRef { task: source, cell }, key));
-                }
-            }
-            GcJob::ScrubCollectibles { source, refs } => {
-                let mut ctx = self.execute_context_gc(turbo_tasks);
-                for CollectiblesRef {
-                    task: dep_task,
-                    collectible_type,
-                } in refs
-                {
-                    let mut target = ctx.task(dep_task, TaskDataCategory::Data);
-                    target.remove_collectibles_dependents(&(collectible_type, source));
                 }
             }
         }
     }
 
-    /// Removes a collectible task from the in-memory task_cache and map and returns its
-    /// [`TaskDeletion`] tombstone. The reverse-dep edge scrubbing is done separately by the
-    /// `Scrub*` jobs (see [`Self::gc_run_job`]); this only touches `task_id`'s own entries, which
-    /// are independent of the target entries the scrubs mutate, so ordering between them is free.
-    /// Must be called while holding the GC phase.
-    fn gc_remove_task(
-        &self,
-        task_id: TaskId,
-        plan: &GcDeletePlan,
-        _ctx: &mut impl ExecuteContext<'_>,
-    ) -> TaskDeletion {
-        // Remove the in-memory task_cache entry (hash -> id) so lookups don't return a dead id, and
-        // compute the persisted TaskCache key so the snapshot can tombstone the on-disk mapping.
-        // Only persistent tasks are collected, so a persistent task type is always present.
-        let task_type = plan
-            .persistent_task_type
-            .as_ref()
-            .expect("a collected (non-transient) task must have a task type");
-        self.storage.task_cache.remove(task_type.as_ref());
-        let task_type_hash = compute_task_type_hash(task_type);
-
-        // Remove the task from the map. Its own children set is dropped with it; the child ids were
-        // captured into `plan` so the `Decrement` jobs can drop their parent_count.
-        self.storage.remove_task(task_id);
-
-        // Tombstoning the on-disk `TaskCache` erases the *whole* hash bucket, so any live task
-        // whose type xxh3-collides with this one must be re-inserted. Those survivors are resolved
-        // at apply time in `save_snapshot` (which reads the authoritative on-disk bucket) rather
-        // than computed here — the in-memory `task_cache` is lazily populated and keyed by the full
-        // task type, not the hash, so it can't reliably enumerate hash-siblings. Collisions between
-        // two live tasks are astronomically rare, so this survivor path almost never fires.
-        TaskDeletion {
-            task_id,
-            task_type_hash,
-        }
+    /// Marks a collected task **soft-deleted**: it stays resident (in the map and `task_cache`) but
+    /// is flagged for deletion and forced into the next snapshot's modified scan. The task's edges
+    /// and the aggregation rebalance were already handled by the `CleanupOldEdges` run in
+    /// [`Self::gc_run_job`] before this is called.
+    ///
+    /// Keeping the task resident is the whole point: during the pass another job's `ctx.task` on it
+    /// (e.g. a sibling's forward-dep scrub inside `CleanupOldEdges`) finds a real entry rather than
+    /// restoring a zombie from disk. The next snapshot's `process` closure sees the `deleted` flag,
+    /// tombstones the on-disk copy (task meta/data + `TaskCache` bucket) instead of persisting, and
+    /// clears the modified flags; a later step (`evict_after_snapshot`, or the drain snapshot at
+    /// shutdown) hard-deletes it from memory once the tombstone has committed. If the task is
+    /// resurrected by a connect before then, the marker is cleared and it is made dirty. Must be
+    /// called while holding the GC phase.
+    fn gc_mark_deleted(&self, task_id: TaskId, ctx: &mut impl ExecuteContext<'_>) {
+        let mut task = ctx.task(task_id, TaskDataCategory::Meta);
+        task.gc_set_deleted();
+        // Force the task into the next snapshot's per-shard modified scan so `process` can
+        // tombstone it. A cleanly-disconnected collectible task typically has no modified
+        // flags set. The returned `TrackOutcome` is only for undo; GC's mark is permanent,
+        // so discard it.
+        let _ = task.track_modification(SpecificTaskDataCategory::Meta, "gc_deleted");
     }
 
     /// Body of [`Backend::pin_task_for_gc`](turbo_tasks::backend::Backend::pin_task_for_gc); the
@@ -467,16 +327,13 @@ impl TurboTasksBackend {
         );
     }
 
-    /// Runs a full GC pass under the GC phase and returns the number of tasks collected together
-    /// with their on-disk tombstones. Pass the tombstones to a subsequent
-    /// `snapshot_and_evict_for_testing` to commit them (production runs GC inline in
-    /// `snapshot_and_persist` instead). Test-only hook; callers must be idle (no task
-    /// executing).
+    /// Runs a full GC pass under the GC phase and returns the number of tasks collected (marked
+    /// soft-deleted). The tombstones are derived by a subsequent snapshot from the `deleted` flag,
+    /// so — unlike before — nothing needs to be threaded to `snapshot_and_evict_for_testing`
+    /// (production runs GC inline in `snapshot_and_persist`). Test-only hook; callers must be idle
+    /// (no task executing).
     #[doc(hidden)]
-    pub fn gc_for_testing(
-        &self,
-        turbo_tasks: &TurboTasks<TurboTasksBackend>,
-    ) -> (usize, Vec<TaskDeletion>) {
+    pub fn gc_for_testing(&self, turbo_tasks: &TurboTasks<TurboTasksBackend>) -> usize {
         let _serialize = self.snapshot_in_progress.lock();
         let _gc_phase = self.snapshot_coord.begin_gc();
         self.gc_collect(turbo_tasks)

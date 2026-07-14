@@ -1676,6 +1676,7 @@ fn generate_task_storage_accessors_trait(grouped_fields: &GroupedFields) -> Toke
             #[doc = "- `Data` or `Meta`: Checks that the task was accessed with that category"]
             #[doc = ""]
             #[doc = "Implementors should check that the provided category matches how the task was accessed."]
+            #[track_caller]
             fn check_access(&self, category: crate::backend::storage::SpecificTaskDataCategory);
 
             #[doc = "Shrink all collection fields to fit their current contents."]

@@ -8,15 +8,35 @@ use turbo_tasks_hash::Xxh3Hash64Hasher;
 
 pub type TaskTypeHash = [u8; 8];
 
-/// A single item yielded by the snapshot iterator during persistence.
-pub struct SnapshotItem {
-    pub task_id: TaskId,
-    /// Serialized task meta data, if modified
-    pub meta: Option<TurboBincodeBuffer>,
-    /// Serialized task data, if modified
-    pub data: Option<TurboBincodeBuffer>,
-    /// Task type for new tasks that need to be added to the task cache
-    pub task_type_hash: Option<TaskTypeHash>,
+/// A single item yielded by the snapshot iterator during persistence: either a put (persist a
+/// modified task's meta/data + optionally register a new task's type) or a delete (tombstone a
+/// GC-collected task's on-disk copy). Both ride the one streaming iterator `save_snapshot`
+/// consumes, so GC tombstones are applied in the same commit and batch as the puts without a
+/// side-channel that would have to be fully materialized before the put loop.
+pub enum SnapshotItem {
+    Put {
+        task_id: TaskId,
+        /// Serialized task meta data, if modified
+        meta: Option<TurboBincodeBuffer>,
+        /// Serialized task data, if modified
+        data: Option<TurboBincodeBuffer>,
+        /// Task type for new tasks that need to be added to the task cache
+        task_type_hash: Option<TaskTypeHash>,
+    },
+    /// Tombstone a GC-collected task (see [`TaskDeletion`]).
+    Delete(TaskDeletion),
+}
+
+impl SnapshotItem {
+    /// The task this item persists or tombstones. (Currently only used by tests, which assert on
+    /// the id of items yielded by the snapshot iterator.)
+    #[cfg(test)]
+    pub fn task_id(&self) -> TaskId {
+        match self {
+            SnapshotItem::Put { task_id, .. } => *task_id,
+            SnapshotItem::Delete(TaskDeletion { task_id, .. }) => *task_id,
+        }
+    }
 }
 
 /// A task that garbage collection has determined is unreachable and should be tombstoned from

@@ -7,11 +7,52 @@ use crate::{
         operation::{
             ExecuteContext, Operation, TaskGuard,
             aggregation_update::{AggregationUpdateJob, AggregationUpdateQueue},
+            invalidate::make_task_dirty,
         },
         storage_schema::TaskStorageAccessors,
     },
     data::{InProgressState, InProgressStateInner},
 };
+
+/// If `task_id` was marked soft-deleted by GC (collected, awaiting tombstone + hard-delete) but is
+/// being connected as a child again, bring it back to life: clear the `deleted` marker and make it
+/// dirty so it re-executes. GC's `CleanupOldEdges` scrubbed all of the task's edges (children +
+/// forward dependencies) when it was collected, so its cells/output are stale and it must recompute
+/// to rebuild them — the resurrection is a real re-validation, not just un-flagging. This is the
+/// single chokepoint through which every re-entry (a `task_cache` hit or a disk hit in
+/// `get_or_create_task`) flows, so no `deleted` task can be returned to live use without reviving.
+fn resurrect_if_deleted(task_id: TaskId, ctx: &mut impl ExecuteContext<'_>) {
+    // Cheap Meta-only check first; only escalate on a hit. `deleted` is a Meta-category flag, so a
+    // Meta guard suffices to test/clear it — `immutable()` (a Data-category flag) is NOT checked
+    // here to avoid forcing a Data restore on the common not-deleted path.
+    let deleted = {
+        let mut task = ctx.task(task_id, TaskDataCategory::Meta);
+        let deleted = task.gc_is_deleted();
+        if deleted {
+            task.gc_clear_deleted();
+        }
+        deleted
+    };
+    // Only now (rare) open with the Data category `immutable()` needs.
+    let immutable = deleted && ctx.task(task_id, TaskDataCategory::All).immutable();
+    if deleted && !immutable {
+        // A mutable task's forward-dep edges were scrubbed when GC collected it, so it holds
+        // stale/empty edges and must re-execute to rebuild them: make it dirty. An **immutable**
+        // task cannot be made dirty (invariant enforced in `make_task_dirty`) and does not need to
+        // be — its output is deterministic and still valid; clearing the marker is enough (any
+        // child edges it lost are rebuilt if and when it is re-read, and its inlined output is
+        // self-contained).
+        let mut queue = AggregationUpdateQueue::new();
+        make_task_dirty(
+            task_id,
+            #[cfg(feature = "task_dirty_cause")]
+            crate::backend::operation::invalidate::TaskDirtyCause::Unknown,
+            &mut queue,
+            ctx,
+        );
+        queue.execute(ctx);
+    }
+}
 
 #[derive(Encode, Decode, Clone, Default)]
 #[allow(clippy::large_enum_variant)]
@@ -29,6 +70,10 @@ impl ConnectChildOperation {
         child_task_id: TaskId,
         mut ctx: impl ExecuteContext<'_>,
     ) {
+        // Revive the child first if GC had soft-deleted it: it must be live (and re-executing)
+        // before we wire it into the parent's children / aggregation below.
+        resurrect_if_deleted(child_task_id, &mut ctx);
+
         if let Some(parent_task_id) = parent_task_id {
             let mut parent_task = ctx.task(parent_task_id, TaskDataCategory::Meta);
             let Some(InProgressState::InProgress(box InProgressStateInner {

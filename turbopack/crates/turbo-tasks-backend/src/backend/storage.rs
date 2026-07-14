@@ -585,30 +585,6 @@ impl Storage {
         per_shard.into_iter().flatten().collect()
     }
 
-    /// Removes a task entry from the map entirely. Used by GC after a garbage task's edges have
-    /// been scrubbed. Returns the removed storage (dropped by the caller), or `None` if it was
-    /// already gone.
-    ///
-    /// If the removed task carried modified flags, its (once-per-task) contribution to
-    /// `shard_modified_counts` is decremented so the next snapshot's per-shard scan doesn't expect
-    /// a modified entry that no longer exists. GC removes tasks while holding the GC phase,
-    /// which is mutually exclusive with snapshot mode, so the plain (non-snapshot) counter
-    /// applies.
-    pub fn remove_task(&self, task_id: TaskId) -> Option<Box<TaskStorage>> {
-        debug_assert!(
-            !self.snapshot_mode(),
-            "remove_task must not run during snapshot mode"
-        );
-        let removed = self.map.remove(&task_id).map(|(_, storage)| storage);
-        if let Some(storage) = &removed
-            && storage.flags.any_modified()
-        {
-            let shard_idx = self.shard_index(&task_id);
-            self.shard_modified_counts[shard_idx].fetch_sub(1, Ordering::Relaxed);
-        }
-        removed
-    }
-
     pub fn access_pair_mut(
         &self,
         key1: TaskId,
@@ -676,6 +652,30 @@ impl Storage {
                 let (task_id, task) = unsafe { bucket.as_mut() };
                 if task_id.is_transient() {
                     evicted.unevictable_reasons[UnevictableReason::Transient.index()] += 1;
+                    continue;
+                }
+                // GC hard-delete: a task still flagged `deleted` here was collected and its on-disk
+                // copy was tombstoned by the snapshot that just committed (its `deleted` flag is
+                // re-checked under this shard write lock — a resurrection between the snapshot and
+                // now clears the flag, in which case we fall through to normal eviction). Its whole
+                // map entry + task_cache mapping can now be dropped. This is the reclaim path for
+                // the background `ReadWrite` loop; the shutdown drain snapshot drops the whole map
+                // wholesale instead, so it never reaches here.
+                if task.get().gc_is_deleted() {
+                    if let Some(task_type) = task.get().get_persistent_task_type() {
+                        // Best-effort inline; defer on contention (same lock-order caution as
+                        // below).
+                        match try_lock_and_remove(&self.task_cache, task_type.as_ref()) {
+                            TryLockAndRemove::Removed | TryLockAndRemove::NotFound => {}
+                            TryLockAndRemove::WouldBlock => {
+                                deferred_task_cache_removals.push(task_type.clone());
+                            }
+                        }
+                    }
+                    unsafe {
+                        shard.erase(bucket);
+                    }
+                    evicted.full += 1;
                     continue;
                 }
                 let (key_evictability, value_evictability) = task.get().evictability();
@@ -1135,7 +1135,7 @@ mod tests {
         _: &super::TaskStorage,
         _: &mut TurboBincodeBuffer,
     ) -> SnapshotItem {
-        SnapshotItem {
+        SnapshotItem::Put {
             task_id,
             meta: Some(TurboBincodeBuffer::default()),
             data: None,
@@ -1203,7 +1203,7 @@ mod tests {
 
         // The pre-snapshot snapshot copy should have been encoded and returned.
         assert_eq!(items.len(), 1);
-        assert_eq!(items[0].task_id, task_id);
+        assert_eq!(items[0].task_id(), task_id);
 
         {
             let guard = storage.access_mut(task_id);
@@ -1270,7 +1270,7 @@ mod tests {
             .collect();
 
         assert_eq!(items.len(), 1);
-        assert_eq!(items[0].task_id, task_id);
+        assert_eq!(items[0].task_id(), task_id);
 
         {
             let guard = storage.access_mut(task_id);
@@ -1318,7 +1318,7 @@ mod tests {
             .collect();
 
         assert_eq!(items.len(), 1);
-        assert_eq!(items[0].task_id, task_id);
+        assert_eq!(items[0].task_id(), task_id);
 
         // The entry must be gone from the map now that it has been persisted.
         assert!(
@@ -1415,7 +1415,7 @@ mod tests {
             .flat_map(|shard| shard.into_iter())
             .collect();
         assert_eq!(items.len(), 1);
-        assert_eq!(items[0].task_id, modified_id);
+        assert_eq!(items[0].task_id(), modified_id);
     }
 
     #[tokio::test(flavor = "multi_thread")]

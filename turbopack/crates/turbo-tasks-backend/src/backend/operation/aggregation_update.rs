@@ -1461,14 +1461,19 @@ impl AggregationUpdateQueue {
                     // snapshot captures it mid-flight and it replays to completion on restart,
                     // keeping the count crash-consistent.
                     //
-                    // A count reaching 0 means the task has no persistent parent and may be
-                    // collectible — but we don't record it anywhere: the GC pass finds collectible
-                    // tasks by scanning the resident map (see `gc_collect`), deriving
-                    // collectibility from the durable `parent_count` directly
-                    // rather than a side-set that would have to be kept in sync
-                    // and persisted across sessions.
-                    ctx.for_each_task_meta(task_ids, "AdjustParentCount", |mut task, _ctx| {
-                        task.update_and_get_parent_count(delta);
+                    // A count reaching 0 means the task lost its last persistent parent and may be
+                    // collectible. Outside GC we don't record it (the collectibility is derived
+                    // from the durable `parent_count` directly). During a GC
+                    // pass, the collector runs this decrement (via
+                    // `CleanupOldEdges` on a collected task) and needs to
+                    // discover the newly-parentless children to cascade into:
+                    // `note_gc_parent_count_zeroed` records them on the GC
+                    // context (a no-op for every normal context).
+                    ctx.for_each_task_meta(task_ids, "AdjustParentCount", |mut task, ctx| {
+                        if task.update_and_get_parent_count(delta) == 0 {
+                            let id = task.id();
+                            ctx.note_gc_parent_count_zeroed(id);
+                        }
                     });
                 }
                 AggregationUpdateJob::AdjustTransientRefCount { task_ids, delta } => {

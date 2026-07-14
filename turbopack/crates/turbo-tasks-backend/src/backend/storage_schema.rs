@@ -250,6 +250,17 @@ struct TaskStorageSchema {
     #[field(storage = "flag", category = "transient")]
     pub new_task: bool,
 
+    /// GC soft-deletion marker. Set by the garbage collector when a task is collected: its edges
+    /// have been scrubbed and it is destined for deletion, but it stays **resident** (this is a
+    /// transient flag, so eviction's `drop_partial` keeps it as residue) until the next snapshot
+    /// tombstones its on-disk copy and a later step hard-deletes it. Keeping it resident closes
+    /// the resurrection window — any `ctx.task` on it during the pass finds a real entry
+    /// rather than restoring a zombie from disk. Cleared (and the task marked dirty) if the
+    /// task is resurrected by a connect before the hard-delete. Never persisted (a crash just
+    /// leaves the task on disk to be re-collected next session).
+    #[field(storage = "flag", category = "transient")]
+    deleted: bool,
+
     // =========================================================================
     // CHILDREN & AGGREGATION (meta)
     // =========================================================================
@@ -907,12 +918,31 @@ impl TaskStorage {
     /// the aggregation graph, but that can lag and race GC, so we back off rather than collect.
     pub fn gc_maybe_collectible(&self) -> bool {
         self.flags.is_restored(TaskDataCategory::Meta)
+            // Already collected this session (soft-deleted, awaiting tombstone + hard-delete):
+            // don't re-select it, or a second pass would collect it again while it is still
+            // resident.
+            && !self.flags.deleted()
             && self.gc_parent_count() == 0
             && self.gc_transient_ref_count() == 0
             && self.get_activeness().is_none()
             && self.get_in_progress().is_none()
             && self.upper().is_empty()
             && self.followers().is_none_or(|f| f.is_empty())
+    }
+
+    /// Whether this task has been marked soft-deleted by GC (see the `deleted` flag).
+    pub fn gc_is_deleted(&self) -> bool {
+        self.flags.deleted()
+    }
+
+    /// Marks this task soft-deleted (GC collected it; awaiting tombstone + hard-delete).
+    pub fn gc_set_deleted(&mut self) {
+        self.flags.set_deleted(true);
+    }
+
+    /// Clears the soft-deletion marker (the task was resurrected before hard-delete).
+    pub fn gc_clear_deleted(&mut self) {
+        self.flags.set_deleted(false);
     }
 
     /// Increments the transient reference count (a pin / detached-handle / transient-parent edge)
@@ -1832,6 +1862,38 @@ mod tests {
             // cell_data is category=data; meta-only drop leaves it alone.
             assert_eq!(storage.cell_data().unwrap().len(), 1);
         }
+    }
+
+    // ==========================================================================
+    // GC soft-deletion
+    // ==========================================================================
+
+    /// The `deleted` marker round-trips through its accessors, and — because it is a *transient*
+    /// flag, not Meta — it survives a Meta `drop_partial` (partial eviction). The mark therefore
+    /// remains observable no matter what normal eviction does to the Meta/Data payload, so the
+    /// tombstone + hard-delete logic (which keys off the flag) can't be fooled by a partial
+    /// eviction between the mark and the commit.
+    #[test]
+    fn deleted_marker_is_transient_residue() {
+        let mut storage = TaskStorage::new();
+        storage.flags.set_new_task(false);
+        storage.flags.set_data_restored(true);
+        storage.flags.set_meta_restored(true);
+        assert!(!storage.gc_is_deleted());
+
+        storage.gc_set_deleted();
+        assert!(storage.gc_is_deleted());
+
+        // A Meta drop_partial (what partial eviction does) must NOT clear the transient marker.
+        let _ = storage.drop_partial(/* data */ false, /* meta */ true);
+        assert!(
+            storage.gc_is_deleted(),
+            "the `deleted` marker is transient and must survive a Meta drop_partial"
+        );
+
+        // Resurrection clears it.
+        storage.gc_clear_deleted();
+        assert!(!storage.gc_is_deleted());
     }
 
     // ==========================================================================

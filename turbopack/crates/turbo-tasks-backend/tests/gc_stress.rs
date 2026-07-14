@@ -121,9 +121,8 @@ async fn gc_re_rooting_stays_flat() {
         // evict), so the disconnected garbage is still resident when GC scans it. Running eviction
         // first would drop the garbage to disk-only where the in-memory GC can't collect or
         // tombstone it. Return the number GC collected this round alongside the resident count.
-        let (collected, deletes) = tt.backend().gc_for_testing(tt);
-        tt.backend()
-            .snapshot_and_evict_with_deletes_for_testing(tt, deletes);
+        let collected = tt.backend().gc_for_testing(tt);
+        tt.backend().snapshot_and_evict_for_testing(tt);
         // Measure the *persistent* resident count: GC only collects persistent tasks. Transient
         // roots (each round's `run_once`/Once task) are never collected and accumulate
         // independently of GC — including them would mask the real signal.
@@ -242,9 +241,8 @@ async fn gc_collects_wide_fanout_task() {
     // Baseline after building + reading generation 1 (once, to settle), then collect the
     // disconnected generation-0 subtree.
     let baseline = tt2.backend().resident_persistent_task_count_for_testing();
-    let (collected, deletes) = tt2.backend().gc_for_testing(&tt2);
-    tt2.backend()
-        .snapshot_and_evict_with_deletes_for_testing(&tt2, deletes);
+    let collected = tt2.backend().gc_for_testing(&tt2);
+    tt2.backend().snapshot_and_evict_for_testing(&tt2);
     let after = tt2.backend().resident_persistent_task_count_for_testing();
 
     println!(
