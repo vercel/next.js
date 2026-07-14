@@ -1,5 +1,5 @@
 import type { RequestInsight } from '../../../shared/request-insights'
-import { isPageLoadRequest } from './request-list'
+import { getActiveRequestId, isPageLoadRequest } from './request-list'
 import { getTraceItems, getTracePosition, getTraceRange } from './trace-viewer'
 
 function createRequest(
@@ -18,6 +18,17 @@ function createRequest(
 }
 
 describe('request insights trace viewer', () => {
+  it('keeps the active request selected when newer requests arrive', () => {
+    const selectedRequest = createRequest({ requestId: 'selected' })
+    const newerRequest = createRequest({ requestId: 'newer' })
+
+    expect(getActiveRequestId([selectedRequest], null)).toBe('selected')
+    expect(
+      getActiveRequestId([newerRequest, selectedRequest], 'selected')
+    ).toBe('selected')
+    expect(getActiveRequestId([newerRequest], 'selected')).toBe('newer')
+  })
+
   it('only marks the exact initial document request as the page load', () => {
     const initialRequestId = 'document-request'
 
@@ -124,6 +135,16 @@ describe('request insights trace viewer', () => {
           },
         },
         {
+          name: 'compile route',
+          spanId: 'compile-route',
+          parentSpanId: 'ensure',
+          startTime: 107.1,
+          durationMs: 1.5,
+          attributes: {
+            'next.span_type': 'DevBundlerService.ensurePage',
+          },
+        },
+        {
           name: 'render',
           spanId: 'base-render',
           parentSpanId: 'match',
@@ -209,6 +230,7 @@ describe('request insights trace viewer', () => {
       'prepare request',
       'match route',
       'compile and prepare route',
+      'compile route',
       'render',
       'resolve page components',
       'load components',

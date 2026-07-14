@@ -6,7 +6,7 @@ import type {
 import { useDevOverlayContext } from '../../../dev-overlay.browser'
 import { CopyButton } from '../copy-button'
 import { formatDuration } from './format-duration'
-import { isPageLoadRequest } from './request-list'
+import { getActiveRequestId, isPageLoadRequest } from './request-list'
 import {
   getTraceItems,
   getTracePosition,
@@ -24,15 +24,11 @@ export function RequestInsightsPanel() {
     [state.requestInsights]
   )
   const [selectedRequestId, setSelectedRequestId] = useState<string | null>(
-    null
+    () => getActiveRequestId(requests, null)
   )
-  const defaultRequest =
-    requests.find((request) => request.fetches.length > 0) ??
-    requests[0] ??
-    null
+  const activeRequestId = getActiveRequestId(requests, selectedRequestId)
   const selectedRequest =
-    requests.find((request) => request.requestId === selectedRequestId) ??
-    defaultRequest
+    requests.find((request) => request.requestId === activeRequestId) ?? null
   const initialRequestId = self.__next_r
 
   if (requests.length === 0) {
@@ -51,7 +47,7 @@ export function RequestInsightsPanel() {
             key={request.requestId}
             request={request}
             pageLoad={isPageLoadRequest(request, initialRequestId)}
-            selected={request.requestId === selectedRequest?.requestId}
+            selected={request.requestId === activeRequestId}
             onSelect={() => setSelectedRequestId(request.requestId)}
           />
         ))}
