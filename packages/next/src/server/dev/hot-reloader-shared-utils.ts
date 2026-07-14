@@ -24,7 +24,7 @@ export async function getVersionInfo(): Promise<VersionInfo> {
     if (
       !res ||
       !res.ok ||
-      res.headers?.get('content-type') !== 'application/json'
+      res.headers?.get?.('content-type') !== 'application/json'
     )
       return { installed, staleness: 'unknown' }
 
