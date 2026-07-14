@@ -32,8 +32,8 @@ import type {
 // instrumentation-client router transition hooks. Created when `start` is
 // emitted and threaded through the navigate/restore action, so the navigation
 // code that produces the destination state stamps this same shared object
-// onto the state (`AppRouterState.instrumentationTransition`) rather than
-// look it up by id.
+// onto the state (`AppRouterState.instrumentationTransition`) and writes
+// cache-miss marks into it, rather than look it up by id.
 export type PendingRouterTransition = {
   /** Opaque id shared by every event emitted for this transition. */
   id: string
@@ -52,12 +52,24 @@ export type PendingRouterTransition = {
    * Where the transition is in its reportable lifecycle. `pending` from
    * start until HistoryUpdater applies a state carrying this transition
    * (`AppRouterState.instrumentationTransition`), `committed` once `commit`
-   * has been emitted. A one-way latch: it only advances, which is what makes
-   * the emission point idempotent against re-renders, StrictMode double
-   * effects, and derived states (refreshes) that carry an already-reported
-   * transition.
+   * has been emitted, `ended` once `end` has been emitted. A one-way latch:
+   * it only advances, which is what makes the emission points idempotent
+   * against re-renders, StrictMode double effects, and derived states
+   * (refreshes) that carry an already-reported transition.
    */
-  phase: 'pending' | 'committed'
+  phase: 'pending' | 'committed' | 'ended'
+  /**
+   * Set when an `unstable_RouterTransitionEndMarker` showed before `commit`
+   * was emitted; the commit emission consumes it to report `end` right after
+   * `commit`, with the same timestamp. Defensive: the marker reports from a
+   * layout effect and HistoryUpdater emits `commit` from an insertion
+   * effect, and within a React commit every insertion effect runs before any
+   * layout effect — so under the current ordering this can never be set. It
+   * exists so a marker showing ahead of its commit degrades to a correctly
+   * ordered event pair instead of an `end` before its `commit` (or a lost
+   * `end`) if that ordering assumption is ever broken.
+   */
+  markerDidShow: boolean
   /**
    * Whether the action queue discarded this transition's action because a
    * newer navigation was dispatched. A replaced transition's state can never
@@ -95,6 +107,7 @@ const pendingTransitions: PendingRouterTransition[] = []
 // building event payloads no registered hook would receive.
 let hasStartHook = false
 let hasCommitHook = false
+let hasEndHook = false
 let hasAbortHook = false
 
 export function initializeRouterTransitionModules(
@@ -108,6 +121,9 @@ export function initializeRouterTransitionModules(
   )
   hasCommitHook = instrumentationModules.some(
     (hooks) => typeof hooks.unstable_onRouterTransitionCommit === 'function'
+  )
+  hasEndHook = instrumentationModules.some(
+    (hooks) => typeof hooks.unstable_onRouterTransitionEnd === 'function'
   )
   hasAbortHook = instrumentationModules.some(
     (hooks) => typeof hooks.unstable_onRouterTransitionAbort === 'function'
@@ -128,7 +144,7 @@ function callHooks(invoke: (hooks: ClientInstrumentationHooks) => void): void {
 }
 
 function hasLifecycleInstrumentation(): boolean {
-  return hasStartHook || hasCommitHook || hasAbortHook
+  return hasStartHook || hasCommitHook || hasEndHook || hasAbortHook
 }
 
 /**
@@ -148,9 +164,15 @@ function timestamp(): number {
  * `pendingTransitions` immediately, so that it is reported as aborted if a
  * newer navigation commits before this one produces a destination tree.
  *
- * The `from` route describes the route being left; it is read from the
- * current AppRouterState here (rather than passed in) since this is the only
- * transition hook that needs it.
+ * The `from` route describes the route being left; the dispatch site passes
+ * the current AppRouterState in (rather than this module reading it from
+ * app-router-instance) so that this module never references
+ * app-router-instance: even a lazy `require` is traced statically by
+ * bundlers, and this module is reachable from `next/navigation` (via
+ * `unstable_RouterTransitionEndMarker`), which is bundled in contexts —
+ * instrumentation-client, the react-server layer — where the router reducer
+ * graph behind app-router-instance (react-server-dom-webpack etc.) must not
+ * be pulled in and may not even resolve.
  *
  * Returns the pending transition when the lifecycle is active — the caller
  * puts the object on the dispatched action so the queue can settle it
@@ -159,7 +181,8 @@ function timestamp(): number {
  */
 export function startRouterTransition(
   url: string,
-  type: RouterTransitionType
+  type: RouterTransitionType,
+  state: AppRouterState | null
 ): PendingRouterTransition | null {
   // Positive flag check so the instrumentation-only path is removed by DCE when disabled.
   if (process.env.__NEXT_INSTRUMENTATION_CLIENT_ROUTER_TRANSITION_EVENTS) {
@@ -167,12 +190,6 @@ export function startRouterTransition(
       return null
     }
 
-    // Lazy require to avoid a static import cycle: app-router-instance
-    // imports this module to emit `start` when dispatching. (Same pattern as
-    // links.ts.)
-    const { getCurrentAppRouterState } =
-      require('./app-router-instance') as typeof import('./app-router-instance')
-    const state = getCurrentAppRouterState()
     if (state === null) {
       // Navigations can only be dispatched after hydration creates the action
       // queue, so this shouldn't happen; degrade to the legacy hook shape
@@ -187,6 +204,7 @@ export function startRouterTransition(
       type,
       url,
       phase: 'pending',
+      markerDidShow: false,
       replaced: false,
       cacheHit: true,
     }
@@ -321,11 +339,12 @@ export function settleRouterTransition(
 /**
  * Applies the `cacheHit` consequence when a destination-preserving action
  * derives a new state from a tracked-but-not-yet-committed one (see
- * `settleRouterTransition`). The destination identity needs no re-pointing —
- * the reducer copies `instrumentationTransition` onto the derived state, so
- * HistoryUpdater finds the transition on whichever state ends up committing.
- * No-op in the common case where the base state's transition was already
- * committed (a plain refresh of a settled page) or nothing is in flight.
+ * `settleRouterTransition`). The destination identity itself needs no
+ * re-pointing anymore — the reducer copies `instrumentationTransition` onto
+ * the derived state, so HistoryUpdater finds the transition on whichever
+ * state ends up committing. No-op in the common case where the base state's
+ * transition was already committed (a plain refresh of a settled page) or
+ * nothing is in flight.
  */
 function retargetRouterTransition(
   prevState: AppRouterState,
@@ -446,6 +465,11 @@ function sweepReplacedRouterTransitions(): void {
  * a no-op for states that carry no tracked transition (server actions), for
  * re-renders of an already-committed state, and for derived states
  * (refreshes) that carry a transition another state already committed.
+ *
+ * If an `unstable_RouterTransitionEndMarker` somehow showed before this ran
+ * (`markerDidShow`, a defensive path — see its doc), `end` is emitted here
+ * too, right after `commit`, so consumers always observe the events in
+ * lifecycle order.
  */
 export function commitRouterTransition(state: AppRouterState): void {
   if (process.env.__NEXT_INSTRUMENTATION_CLIENT_ROUTER_TRANSITION_EVENTS) {
@@ -506,9 +530,78 @@ export function commitRouterTransition(state: AppRouterState): void {
         })
       )
     }
+    if (committed.markerDidShow) {
+      // The destination's end marker mounted in this same React commit (the
+      // navigation committed with the marker's content already available, so
+      // there is nothing left to stream): the page ended the moment it
+      // committed. Reported after `commit` and with the same timestamp.
+      emitRouterTransitionEnd(committed, now)
+    }
     // Entries newer than the committed one stay pending, but if all of them
     // were already replaced, their race can no longer produce a commit.
     sweepReplacedRouterTransitions()
+  }
+}
+
+/**
+ * Called from `unstable_RouterTransitionEndMarker`'s layout effect when the
+ * marker is committed to the screen — a fresh mount or an `<Activity>`
+ * reveal: the destination declared "the page has loaded". The transition is
+ * the one carried by the router state the marker rendered under (read from
+ * context at render time — see `RouterTransitionEndContext`), and layout
+ * effects run after the insertion effect where HistoryUpdater emits
+ * `commit`, so the transition has normally already committed here.
+ *
+ * The phase latch means only the first marker to show reports the `end` for
+ * a transition: later markers, StrictMode's replayed effects, and markers
+ * showing under a state whose transition already ended are all no-ops. A
+ * marker that shows before the transition's `commit` was emitted (a
+ * defensive path — see `markerDidShow`) only records that it showed; the
+ * commit emission reports `end` right after `commit`.
+ */
+export function reportRouterTransitionEnd(
+  transition: PendingRouterTransition | null
+): void {
+  if (process.env.__NEXT_INSTRUMENTATION_CLIENT_ROUTER_TRANSITION_EVENTS) {
+    if (transition === null) {
+      return
+    }
+    switch (transition.phase) {
+      case 'pending':
+        transition.markerDidShow = true
+        return
+      case 'committed':
+        emitRouterTransitionEnd(transition, timestamp())
+        return
+      case 'ended':
+        return
+      default:
+        transition.phase satisfies never
+    }
+  }
+}
+
+function emitRouterTransitionEnd(
+  transition: PendingRouterTransition,
+  now: number
+): void {
+  // Both callers are already inside the flag; repeated here so the event
+  // payload is provably removed from flag-off bundles without relying on
+  // the minifier dropping this (then-unreferenced) function.
+  if (process.env.__NEXT_INSTRUMENTATION_CLIENT_ROUTER_TRANSITION_EVENTS) {
+    transition.phase = 'ended'
+    if (hasEndHook) {
+      callHooks((hooks) =>
+        hooks.unstable_onRouterTransitionEnd?.(
+          transition.url,
+          transition.type,
+          {
+            id: transition.id,
+            timestamp: now,
+          }
+        )
+      )
+    }
   }
 }
 

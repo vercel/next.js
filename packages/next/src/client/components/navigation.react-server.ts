@@ -6,6 +6,11 @@ export function unstable_isUnrecognizedActionError(): boolean {
   )
 }
 
+// A client component (its module has 'use client'), so importing it from a
+// server component produces a client reference — server components can place
+// the marker even though the reporting only exists on the client.
+export { unstable_RouterTransitionEndMarker } from './router-transition-end-marker'
+
 export { redirect, permanentRedirect } from './redirect'
 export { notFound } from './not-found'
 export { forbidden } from './forbidden'

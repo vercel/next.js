@@ -376,6 +376,234 @@ describe('Instrumentation Client Hook', () => {
       })
     })
 
+    it('reports end when the destination’s end marker reveals with streamed content, after commit', async () => {
+      const browser = await next.browser('/')
+
+      await browser.elementByCss('a[href="/streaming"]').click()
+      // The navigation commits with the Suspense fallback; the marker is
+      // inside the boundary, so `end` must not exist yet when the streamed
+      // content is still pending. Wait for the reveal, then for the event.
+      await browser.elementById('streaming-content')
+      const events = await retry(async () => {
+        const snapshot = await getTransitionEvents(browser)
+        expect(snapshot.filter((e) => e.phase === 'end')).toHaveLength(1)
+        return snapshot
+      })
+
+      const start = events.find((e) => e.phase === 'start')
+      const commit = lastCommit(events)
+      const end = events.find((e) => e.phase === 'end')
+      expect(end.url).toBe('/streaming')
+      expect(end.navigateType).toBe('push')
+      // `end` correlates to the same transition as its start/commit, is
+      // reported after `commit`, and carries exactly the public fields.
+      expect(end.event.id).toBe(start.event.id)
+      expect(end.event.id).toBe(commit.event.id)
+      expect(events.indexOf(end)).toBeGreaterThan(events.indexOf(commit))
+      expect(Object.keys(end.event).sort()).toEqual(['id', 'timestamp'])
+      // The reveal waited on the server's 1s delay, so the end-commit gap
+      // measures streaming cost: clearly after the commit, not the same
+      // instant. (Asserted loosely to keep slow CI off the flake list.)
+      expect(end.event.timestamp - commit.event.timestamp).toBeGreaterThan(100)
+    })
+
+    it('reports end when shallow routing happens while the destination is still streaming', async () => {
+      const browser = await next.browser('/')
+
+      // Navigate to the slow-streaming marked page: the navigation commits
+      // with the fallback and the marker's content streams for ~3s.
+      await browser.elementById('push-streaming-slow').click()
+      const commit = lastCommit(await waitForCommitCount(browser, 1))
+
+      // Shallow-update the URL the way the docs recommend
+      // (history.pushState with app-owned state) while the content is still
+      // streaming. The restore this dispatches derives a state from the
+      // navigation's — it must carry the navigation's transition forward, or
+      // the marker reveals under a null context and the `end` is dropped.
+      await browser.elementById('shallow-tweak-streaming-slow').click()
+      await retry(async () => {
+        expect(await browser.eval('window.location.search')).toBe('?tab=2')
+      })
+
+      await browser.elementById('streaming-slow-content')
+      const events = await retry(async () => {
+        const snapshot = await getTransitionEvents(browser)
+        expect(snapshot.filter((e) => e.phase === 'end')).toHaveLength(1)
+        return snapshot
+      })
+      const end = events.find((e) => e.phase === 'end')
+      expect(end.event.id).toBe(commit.event.id)
+      expect(end.event.timestamp).toBeGreaterThan(commit.event.timestamp)
+      // The shallow update is not a navigation: it must not corrupt the rest
+      // of the lifecycle either — no extra start/commit, no bogus abort.
+      expect(events.filter((e) => e.phase === 'start')).toHaveLength(1)
+      expect(events.filter((e) => e.phase === 'commit')).toHaveLength(1)
+      expect(events.filter((e) => e.phase === 'abort')).toHaveLength(0)
+    })
+
+    it('reports end in the same commit when the marker is part of the committed content', async () => {
+      const browser = await next.browser('/')
+
+      // The marker is in the page's own content and the link is prefetched,
+      // so the navigation commits with the marker already on screen: `end`
+      // reports immediately after `commit`, not in a later reveal.
+      await browser.waitForIdleNetwork()
+      await browser.elementByCss('a[href="/end-marker"]').click()
+      await browser.elementById('end-marker-page')
+      const events = await retry(async () => {
+        const snapshot = await getTransitionEvents(browser)
+        expect(snapshot.filter((e) => e.phase === 'end')).toHaveLength(1)
+        return snapshot
+      })
+
+      const commit = lastCommit(events)
+      const end = events.find((e) => e.phase === 'end')
+      expect(end.event.id).toBe(commit.event.id)
+      expect(events.indexOf(end)).toBeGreaterThan(events.indexOf(commit))
+      expect(end.event.timestamp).toBeGreaterThanOrEqual(commit.event.timestamp)
+    })
+
+    it('reports no end for a route that renders no marker', async () => {
+      const browser = await next.browser('/')
+
+      // Navigate to an unmarked route, then to a marked one. The marked
+      // navigation’s `end` is the fence that bounds the wait: once it
+      // arrives, the unmarked navigation can no longer produce one.
+      await browser.elementByCss('a[href="/some-page"]').click()
+      await browser.elementById('some-page')
+      await waitForCommitCount(browser, 1)
+
+      await browser.elementByCss('a[href="/end-marker"]').click()
+      await browser.elementById('end-marker-page')
+      const events = await retry(async () => {
+        const snapshot = await getTransitionEvents(browser)
+        expect(snapshot.filter((e) => e.phase === 'end')).toHaveLength(1)
+        return snapshot
+      })
+
+      // The only `end` belongs to the marked navigation — the unmarked
+      // one ended its lifecycle at `commit`.
+      const commits = events.filter((e) => e.phase === 'commit')
+      expect(commits).toHaveLength(2)
+      const end = events.find((e) => e.phase === 'end')
+      expect(end.event.id).toBe(commits[1].event.id)
+      expect(end.event.id).not.toBe(commits[0].event.id)
+    })
+
+    it('reports end when a traversal re-shows a marked route, and none for an unmarked one', async () => {
+      const browser = await next.browser('/')
+      await browser.waitForIdleNetwork()
+
+      // Visit the marked page (end #1), then an unmarked page: two pushes.
+      await browser.elementByCss('a[href="/end-marker"]').click()
+      await browser.elementById('end-marker-page')
+      await retry(async () => {
+        const snapshot = await getTransitionEvents(browser)
+        expect(snapshot.filter((e) => e.phase === 'end')).toHaveLength(1)
+      })
+      await browser.elementByCss('a[href="/some-page"]').click()
+      await browser.elementById('some-page')
+      await waitForCommitCount(browser, 2)
+
+      // Traverse back to the marked page. Under cacheComponents the page was
+      // preserved in a hidden <Activity> boundary, so nothing remounts — the
+      // reveal itself must report the traversal's `end`. (Element waits can't
+      // fence this step: the hidden page's DOM is still attached, so the
+      // marker element is findable before the traversal commits.)
+      await browser.back()
+      const events = await retry(async () => {
+        const snapshot = await getTransitionEvents(browser)
+        expect(snapshot.filter((e) => e.phase === 'end')).toHaveLength(2)
+        return snapshot
+      })
+
+      const traverseCommit = lastCommit(events)
+      expect(traverseCommit.navigateType).toBe('traverse')
+      expect(traverseCommit.event.to.canonicalUrl).toBe('/end-marker')
+      const ends = events.filter((e) => e.phase === 'end')
+      // The traversal's own `end`, after its `commit` — not a late report
+      // against the push that first mounted the marker, and nothing for the
+      // unmarked page's push.
+      expect(ends[1].event.id).toBe(traverseCommit.event.id)
+      expect(events.indexOf(ends[1])).toBeGreaterThan(
+        events.indexOf(traverseCommit)
+      )
+      expect(ends[1].event.timestamp).toBeGreaterThanOrEqual(
+        traverseCommit.event.timestamp
+      )
+      const somePageCommit = events.filter((e) => e.phase === 'commit')[1]
+      expect(ends.some((e) => e.event.id === somePageCommit.event.id)).toBe(
+        false
+      )
+    })
+
+    it('reports no end for a hash-only navigation on a marked page: nothing newly shows', async () => {
+      const browser = await next.browser('/')
+      await browser.waitForIdleNetwork()
+
+      // Land on the marked page (end #1).
+      await browser.elementByCss('a[href="/end-marker"]').click()
+      await browser.elementById('end-marker-page')
+      await retry(async () => {
+        expect(
+          (await getTransitionEvents(browser)).filter((e) => e.phase === 'end')
+        ).toHaveLength(1)
+      })
+
+      // A hash-only push on the marked page: the committed tree is the tree
+      // already on screen, so its marker never leaves the screen and nothing
+      // newly shows — the navigation commits but no marker declares a load.
+      await browser.elementById('push-end-marker-hash').click()
+      await waitForCommitCount(browser, 2)
+
+      // Fence: leave and re-enter the marked page. Its `end` bounds the
+      // negative wait — once it arrives, the hash navigation (which committed
+      // two navigations earlier) can no longer produce one.
+      await browser.elementByCss('a[href="/some-page"]').click()
+      await browser.elementById('some-page')
+      await waitForCommitCount(browser, 3)
+      await browser.elementByCss('a[href="/end-marker"]').click()
+      const events = await retry(async () => {
+        const snapshot = await getTransitionEvents(browser)
+        expect(snapshot.filter((e) => e.phase === 'end')).toHaveLength(2)
+        return snapshot
+      })
+
+      const commits = events.filter((e) => e.phase === 'commit')
+      expect(commits).toHaveLength(4)
+      const hashCommit = commits[1]
+      expect(hashCommit.event.to.canonicalUrl).toBe('/end-marker#section')
+      // Both ends belong to the full navigations onto the marked page —
+      // neither to the hash-only one.
+      const ends = events.filter((e) => e.phase === 'end')
+      expect(ends.map((e) => e.event.id)).toEqual([
+        commits[0].event.id,
+        commits[3].event.id,
+      ])
+    })
+
+    it('reports the canonical relative URL on every navigation type, including traversals', async () => {
+      const browser = await next.browser('/')
+
+      await browser.elementByCss('a[href="/some-page"]').click()
+      await browser.elementById('some-page')
+      await waitForCommitCount(browser, 1)
+      await browser.back()
+      const events = await waitForCommitCount(browser, 2)
+
+      // The hooks' `url` argument is the canonical relative href for pushes
+      // and traversals alike: a traversal must not leak the absolute
+      // `location.href` the popstate handler works with.
+      const push = events.find((e) => e.phase === 'start')
+      expect(push.navigateType).toBe('push')
+      expect(push.rawUrl).toBe('/some-page')
+      const traverseEvents = events.filter((e) => e.navigateType === 'traverse')
+      expect(traverseEvents.length).toBeGreaterThanOrEqual(2)
+      for (const event of traverseEvents) {
+        expect(event.rawUrl).toBe('/')
+      }
+    })
+
     it('describes routes across group, dynamic, catch-all, rewritten, hash, query, and intercepted URLs', async () => {
       // One journey through every route-description shape the describe logic
       // handles; each leg waits for its commit and asserts on the newest

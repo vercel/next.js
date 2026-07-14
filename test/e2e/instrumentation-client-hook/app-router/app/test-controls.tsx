@@ -11,6 +11,29 @@ export function TestControls() {
         Push hash
       </button>
       <button
+        id="push-end-marker-hash"
+        onClick={() => router.push('/end-marker#section')}
+      >
+        Push end-marker hash
+      </button>
+      <button
+        id="push-streaming-slow"
+        onClick={() => router.push('/streaming-slow')}
+      >
+        Push streaming slow
+      </button>
+      <button
+        id="shallow-tweak-streaming-slow"
+        onClick={() => {
+          // Shallow routing exactly as the docs recommend (app-owned null
+          // state): fails the internal-state guard in the patched pushState,
+          // so it dispatches the ACTION_RESTORE sync path.
+          window.history.pushState(null, '', '/streaming-slow?tab=2')
+        }}
+      >
+        Shallow tweak streaming slow
+      </button>
+      <button
         id="push-no-prefetch"
         onClick={() => {
           // A programmatic push with no <Link> in the viewport: nothing was

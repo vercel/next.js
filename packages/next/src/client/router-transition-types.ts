@@ -1,7 +1,15 @@
 export type RouterTransitionType = 'push' | 'replace' | 'traverse'
 
 export type RouterTransitionEvent = {
+  /** Opaque id shared by every event emitted for one transition. */
   id: string
+  /**
+   * High-resolution Unix epoch milliseconds, derived from the monotonic
+   * clock (`performance.timeOrigin + performance.now()`) rather than
+   * `Date.now()`, so timestamps within a page never step backwards. Subtract
+   * `performance.timeOrigin` to place an event on the performance timeline
+   * next to `PerformanceObserver` entries.
+   */
   timestamp: number
 }
 
@@ -132,6 +140,30 @@ export type RouterTransitionCommitEvent = RouterTransitionEvent & {
   cacheHit: boolean
 }
 
+/**
+ * Emitted when the navigation's destination declares itself loaded: the first
+ * `unstable_RouterTransitionEndMarker` newly shown for the destination is
+ * committed to the screen — a fresh mount, or a preserved page re-shown by a
+ * traversal. The marker is user-placed — the app decides what "the page has
+ * loaded" means by rendering the marker next to that content (typically
+ * inside the Suspense boundary whose reveal completes the page).
+ *
+ * The timestamp is the React commit that showed the marker, so
+ * `end.timestamp - commit.timestamp` measures the streaming/client-rendering
+ * cost paid after the navigation was applied. When the marker is part of the
+ * content the navigation itself commits (a fully prefetched page's fresh
+ * mount, a preserved page re-shown by a traversal), `end` is reported in the
+ * same React commit, immediately after `commit`.
+ *
+ * At most one `end` is reported per transition, always after its `commit`.
+ * It is not guaranteed: a route that renders no marker, a marker whose
+ * content never streams in, a newer navigation replacing the page before the
+ * marker shows, and a navigation that shows nothing new (hash-only: the
+ * already-on-screen marker never left the screen, so no marker newly shows)
+ * all leave the transition with a `commit` but no `end`.
+ */
+export type RouterTransitionEndEvent = RouterTransitionEvent
+
 export type RouterTransitionAbortEvent = RouterTransitionEvent & {
   /**
    * The id of the transition whose commit replaced (and thereby aborted)
@@ -151,6 +183,11 @@ export type ClientInstrumentationHooks = {
     url: string,
     navigationType: RouterTransitionType,
     event: RouterTransitionCommitEvent
+  ) => void
+  unstable_onRouterTransitionEnd?: (
+    url: string,
+    navigationType: RouterTransitionType,
+    event: RouterTransitionEndEvent
   ) => void
   unstable_onRouterTransitionAbort?: (
     url: string,

@@ -27,6 +27,7 @@ import {
 import { dispatchAppRouterAction, useActionQueue } from './use-action-queue'
 import { setLastCommittedTree } from './router-reducer/reducers/committed-state'
 import { commitRouterTransition } from './router-transition'
+import { RouterTransitionEndContext } from './router-transition-end-marker'
 import { AppRouterAnnouncer } from './app-router-announcer'
 import { RedirectBoundary } from './redirect-boundary'
 import { findHeadInCache } from './router-reducer/reducers/find-head-in-cache'
@@ -40,6 +41,7 @@ import {
 import { useNavFailureHandler } from './nav-failure-handler'
 import {
   dispatchTraverseAction,
+  getCurrentAppRouterState,
   publicAppRouterInstance,
   type AppRouterActionQueue,
   type GlobalErrorState,
@@ -343,9 +345,16 @@ function Router({
           historyState: appHistoryState,
           // TODO: Consider tracking perf for shallow routing. For now a
           // shallow history update is not a tracked transition — no `start`
-          // is emitted for it, so there is no pending transition to thread
-          // through, and it never reports a commit.
-          instrumentationTransition: null,
+          // is emitted for it and it never reports its own commit. But the
+          // produced state derives from the current one, so the current
+          // state's transition must be carried forward, exactly like a
+          // refresh (see settleRouterTransition's destination-preserving
+          // class): stamping null would swap RouterTransitionEndContext away
+          // from a navigation whose content is still streaming — its marker
+          // would reveal reading null and the navigation's `end` would be
+          // silently dropped.
+          instrumentationTransition:
+            getCurrentAppRouterState()?.instrumentationTransition ?? null,
         })
       })
     }
@@ -569,6 +578,22 @@ function Router({
     const { OfflineProvider } =
       require('./use-offline') as typeof import('./use-offline')
     content = <OfflineProvider>{content}</OfflineProvider>
+  }
+
+  // Positive flag check so the provider is removed by DCE when the
+  // experimental lifecycle is disabled (the marker then reads the context's
+  // default `null` and reports nothing). The provider binds each render to
+  // the transition of the state being rendered, which is what lets an
+  // `unstable_RouterTransitionEndMarker` attribute itself correctly even
+  // when it mounts in the same React commit that applies the navigation.
+  if (process.env.__NEXT_INSTRUMENTATION_CLIENT_ROUTER_TRANSITION_EVENTS) {
+    content = (
+      <RouterTransitionEndContext.Provider
+        value={state.instrumentationTransition}
+      >
+        {content}
+      </RouterTransitionEndContext.Provider>
+    )
   }
 
   return (

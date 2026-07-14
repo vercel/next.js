@@ -29,6 +29,7 @@ import { resetKnownRoutes } from './segment-cache/optimistic-routes'
 import { FreshnessPolicy } from './router-reducer/ppr-navigations'
 import { addBasePath } from '../add-base-path'
 import { isExternalURL } from './app-router-utils'
+import { createHrefFromUrl } from './router-reducer/create-href-from-url'
 import type {
   AppRouterInstance,
   NavigateOptions,
@@ -337,8 +338,14 @@ export function dispatchNavigateAction(
   // queued, so the hook runs outside React's render phase. (A user hook that
   // throws during the reducer would otherwise break error isolation between
   // hooks.) The transition object is threaded on the action so the reducer can
-  // attach the destination tree to it once it exists.
-  const instrumentationTransition = startRouterTransition(href, navigateType)
+  // attach the destination tree to it once it exists. The current state is
+  // passed in because router-transition must not import this module back
+  // (see startRouterTransition).
+  const instrumentationTransition = startRouterTransition(
+    href,
+    navigateType,
+    getCurrentAppRouterState()
+  )
 
   dispatchAppRouterAction({
     type: ACTION_NAVIGATE,
@@ -355,10 +362,20 @@ export function dispatchTraverseAction(
   href: string,
   historyState: AppHistoryState | undefined
 ) {
-  const instrumentationTransition = startRouterTransition(href, 'traverse')
+  const url = new URL(href)
+  // A traversal has no caller-provided destination string (the popstate
+  // handler only has the absolute `location.href`), so report the canonical
+  // relative form — pathname + search + hash, the shape navigations
+  // conventionally receive — instead of leaking the absolute URL and making
+  // the hooks' `url` argument shape depend on the navigation type.
+  const instrumentationTransition = startRouterTransition(
+    createHrefFromUrl(url),
+    'traverse',
+    getCurrentAppRouterState()
+  )
   dispatchAppRouterAction({
     type: ACTION_RESTORE,
-    url: new URL(href),
+    url,
     historyState,
     instrumentationTransition,
   })
