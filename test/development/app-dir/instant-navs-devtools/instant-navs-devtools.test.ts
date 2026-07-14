@@ -729,6 +729,88 @@ describe('instant-nav-panel', () => {
     })
   })
 
+  describe('history traversals', () => {
+    it('re-arms the capture when navigating back from a captured SPA navigation', async () => {
+      const browser = await openHomeWithTargetPageWarmup()
+
+      await openInstantNavPanel(browser)
+      await clickStartCapturing(browser)
+      await clickLink(browser, '/target-page/my-post?search=foo')
+      await expectSpaPanel(browser)
+      await expectTargetPageSpaShell(browser)
+
+      // The SPA capture is recorded as soon as the prefetch resolves, which
+      // can be before the navigation commits the new URL. Wait for the URL to
+      // change before traversing so back() returns to home.
+      await retry(async () => {
+        expect(await browser.url()).toContain('/target-page/my-post')
+      }, 10000)
+
+      await browser.back()
+
+      // The traversal restores home with its real content.
+      await browser.waitForElementByCss('[data-testid="home-title"]')
+      await retry(async () => {
+        expect(await browser.url()).not.toContain('/target-page')
+      })
+
+      // The capture no longer corresponds to what's on screen, so the panel
+      // returns to awaiting the next navigation, with the cookie still set.
+      await expectPendingPanel(browser)
+      await waitForInstantModeCookie(browser)
+
+      // The next navigation is captured again. (The revisited route renders
+      // from the navigation cache rather than showing the shell — same as a
+      // recapture after Resume.)
+      await clickLink(browser, '/target-page/my-post?search=foo')
+      await expectSpaPanel(browser)
+    })
+
+    it('shows real content on forward after back while awaiting navigation', async () => {
+      const browser = await openHomeWithTargetPageWarmup()
+
+      await openInstantNavPanel(browser)
+      await clickStartCapturing(browser)
+      await clickLink(browser, '/target-page/my-post?search=foo')
+      await expectSpaPanel(browser)
+      await expectTargetPageSpaShell(browser)
+      await retry(async () => {
+        expect(await browser.url()).toContain('/target-page/my-post')
+      }, 10000)
+
+      await browser.back()
+      await browser.waitForElementByCss('[data-testid="home-title"]')
+      await expectPendingPanel(browser)
+
+      // The re-arm released the captured scope, so the target page's dynamic
+      // data finished streaming in. Forward restores it with real content and
+      // does not start a new capture.
+      await browser.forward()
+      await expectTargetPageRendered(browser)
+      await expectPendingPanel(browser)
+    })
+
+    it('captures a page load when reloading after back', async () => {
+      const browser = await openHomeWithTargetPageWarmup()
+
+      await openInstantNavPanel(browser)
+      await clickStartCapturing(browser)
+      await clickLink(browser, '/target-page/my-post?search=foo')
+      await expectSpaPanel(browser)
+      await retry(async () => {
+        expect(await browser.url()).toContain('/target-page/my-post')
+      }, 10000)
+
+      await browser.back()
+      await browser.waitForElementByCss('[data-testid="home-title"]')
+      await expectPendingPanel(browser)
+
+      await browser.refresh()
+      await getInstantNavPanel(browser)
+      await expectMpaPanel(browser)
+    })
+  })
+
   describe('capture lifecycle', () => {
     it('ends the capture when opening the menu via the logo', async () => {
       const browser = await next.browser('/')

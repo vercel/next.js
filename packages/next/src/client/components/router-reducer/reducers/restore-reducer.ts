@@ -7,6 +7,7 @@ import { extractPathFromFlightRouterState } from '../compute-changed-path'
 import {
   FreshnessPolicy,
   getCurrentNavigationLock,
+  rearmNavigationLockAfterTraversal,
   spawnDynamicRequests,
   startPPRNavigation,
   type NavigationRequestAccumulation,
@@ -98,6 +99,9 @@ export function restoreReducer(
     // Not an HMR refresh, so there's no request generation to cancel.
     undefined
   )
+  // After spawnDynamicRequests so the requests spawned above hold the
+  // released scope's lock and their gated writes flush immediately.
+  rearmNavigationLockAfterTraversal()
   return completeTraverseNavigation(
     state,
     restoredUrl,

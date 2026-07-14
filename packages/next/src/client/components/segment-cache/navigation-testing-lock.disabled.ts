@@ -61,6 +61,8 @@ export function getCurrentNavigationLock(): NavigationLockState | null {
   return null
 }
 
+export function rearmNavigationLockAfterTraversal(): void {}
+
 export function shouldRestrictNavigationToShell(
   _rootPrefetchHints: number,
   _linkFetchStrategy: FetchStrategy
