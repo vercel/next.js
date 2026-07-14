@@ -2,29 +2,20 @@ import { useMemo, useState } from 'react'
 import type {
   RequestInsight,
   RequestInsightFetch,
-  RequestInsightSpan,
 } from '../../../shared/request-insights'
 import { useDevOverlayContext } from '../../../dev-overlay.browser'
 import { CopyButton } from '../copy-button'
+import { formatDuration } from './format-duration'
+import { isPageLoadRequest } from './request-list'
+import {
+  getTraceItems,
+  getTracePosition,
+  getTraceRange,
+  type TraceItem,
+} from './trace-viewer'
 import './request-insights-panel.css'
 
-type TimelinePhase = 'Framework' | 'Render' | 'Fetches' | 'Response'
-
-type TimelineItem = {
-  id: string
-  phase: TimelinePhase
-  label: string
-  detail?: string
-  startTime: number
-  durationMs?: number
-  status: 'ok' | 'error' | 'pending'
-  kind: 'span' | 'fetch'
-  cacheReason?: string
-  isCritical: boolean
-}
-
-const PHASES: TimelinePhase[] = ['Framework', 'Render', 'Fetches', 'Response']
-const FOCUSED_MIN_FRAMEWORK_DURATION_MS = 1
+const TRACE_TICK_COUNT = 5
 
 export function RequestInsightsPanel() {
   const { state } = useDevOverlayContext()
@@ -42,6 +33,7 @@ export function RequestInsightsPanel() {
   const selectedRequest =
     requests.find((request) => request.requestId === selectedRequestId) ??
     defaultRequest
+  const initialRequestId = self.__next_r
 
   if (requests.length === 0) {
     return (
@@ -58,6 +50,7 @@ export function RequestInsightsPanel() {
           <RequestRow
             key={request.requestId}
             request={request}
+            pageLoad={isPageLoadRequest(request, initialRequestId)}
             selected={request.requestId === selectedRequest?.requestId}
             onSelect={() => setSelectedRequestId(request.requestId)}
           />
@@ -71,23 +64,31 @@ export function RequestInsightsPanel() {
 
 function RequestRow({
   request,
+  pageLoad,
   selected,
   onSelect,
 }: {
   request: RequestInsight
+  pageLoad: boolean
   selected: boolean
   onSelect: () => void
 }) {
   return (
     <button
       className="request-insights-row"
+      data-page-load={pageLoad}
       data-selected={selected}
       onClick={onSelect}
       type="button"
     >
       <span className="request-insights-status" data-status={request.status} />
       <span className="request-insights-route">
-        {request.route ?? request.url ?? 'Unknown route'}
+        <span className="request-insights-route-label">
+          {request.route ?? request.url ?? 'Unknown route'}
+        </span>
+        {pageLoad ? (
+          <span className="request-insights-page-load">Page load</span>
+        ) : null}
       </span>
       <span className="request-insights-duration">
         {formatDuration(request.durationMs)}
@@ -106,18 +107,12 @@ function RequestRow({
 
 function RequestDetails({ request }: { request: RequestInsight }) {
   const [verbose, setVerbose] = useState(false)
-  const timelineItems = useMemo(
-    () => getTimelineItems(request, verbose),
+  const traceItems = useMemo(
+    () => getTraceItems(request, verbose),
     [request, verbose]
   )
-  const hiddenTimelineItemCount = useMemo(
-    () =>
-      getTimelineItems(request, true).length -
-      getTimelineItems(request, false).length,
-    [request]
-  )
   const overview = useMemo(() => getRequestOverview(request), [request])
-  const diagnosis = getDiagnosis(request, timelineItems)
+  const diagnosis = getDiagnosis(request, traceItems)
 
   return (
     <div className="request-insights-details">
@@ -142,10 +137,6 @@ function RequestDetails({ request }: { request: RequestInsight }) {
               <span>Verbose</span>
             </label>
           </div>
-          <div className="request-insights-id">
-            request {shortId(request.requestId)} · page{' '}
-            {shortId(request.htmlRequestId)}
-          </div>
         </div>
         <div className="request-insights-total">
           {formatDuration(request.durationMs)}
@@ -158,11 +149,7 @@ function RequestDetails({ request }: { request: RequestInsight }) {
       ) : null}
       <div className="request-insights-diagnosis">{diagnosis}</div>
 
-      <Timeline
-        hiddenItemCount={verbose ? 0 : hiddenTimelineItemCount}
-        items={timelineItems}
-        request={request}
-      />
+      <Trace items={traceItems} request={request} />
 
       <FetchTable fetches={request.fetches} />
     </div>
@@ -186,86 +173,99 @@ function RequestOverview({
   )
 }
 
-function Timeline({
-  hiddenItemCount,
+function Trace({
   request,
   items,
 }: {
-  hiddenItemCount: number
   request: RequestInsight
-  items: TimelineItem[]
+  items: TraceItem[]
 }) {
-  const requestDuration = Math.max(request.durationMs ?? 1, 1)
+  const range = getTraceRange(request)
+  const ticks = Array.from({ length: TRACE_TICK_COUNT }, (_, index) => {
+    const position = index / (TRACE_TICK_COUNT - 1)
+    return {
+      label: formatDuration(range.durationMs * position),
+      position: position * 100,
+    }
+  })
 
   return (
     <div className="request-insights-section">
       <div className="request-insights-section-heading">
-        <div className="request-insights-section-title">Timeline</div>
-        {hiddenItemCount > 0 ? (
-          <div className="request-insights-section-note">
-            {hiddenItemCount} hidden in focused view
-          </div>
-        ) : null}
+        <div className="request-insights-section-title">Trace</div>
+        <div className="request-insights-section-note">
+          {items.length} span{items.length === 1 ? '' : 's'} ·{' '}
+          {formatDuration(range.durationMs)}
+        </div>
       </div>
-      <div className="request-insights-timeline">
-        {PHASES.map((phase) => {
-          const phaseItems = items.filter((item) => item.phase === phase)
+      <div className="request-insights-trace-viewport">
+        <div className="request-insights-trace">
+          <div className="request-insights-trace-header">
+            <span>Span</span>
+            <span className="request-insights-trace-axis">
+              {ticks.map((tick, index) => (
+                <span
+                  className="request-insights-trace-tick"
+                  data-edge={
+                    index === 0
+                      ? 'start'
+                      : index === ticks.length - 1
+                        ? 'end'
+                        : undefined
+                  }
+                  key={tick.position}
+                  style={{ left: `${tick.position}%` }}
+                >
+                  {tick.label}
+                </span>
+              ))}
+            </span>
+            <span className="request-insights-trace-duration-heading">
+              Duration
+            </span>
+          </div>
+          <div className="request-insights-trace-rows">
+            {items.map((item) => {
+              const position = getTracePosition(item, range)
 
-          if (phaseItems.length === 0) {
-            return null
-          }
-
-          return (
-            <div className="request-insights-phase" key={phase}>
-              <div className="request-insights-phase-title">{phase}</div>
-              {phaseItems.map((item) => {
-                const offset = Math.max(item.startTime - request.startTime, 0)
-                const duration = Math.max(item.durationMs ?? 0.5, 0.5)
-                const left = Math.min((offset / requestDuration) * 100, 100)
-                const width = Math.max((duration / requestDuration) * 100, 1)
-
-                return (
-                  <div
-                    className="request-insights-span-row"
-                    data-critical={item.isCritical}
-                    data-kind={item.kind}
-                    key={item.id}
-                    title={
-                      item.detail
-                        ? `${item.label} · ${item.detail}`
-                        : item.label
-                    }
+              return (
+                <div
+                  className="request-insights-span-row"
+                  data-kind={item.kind}
+                  key={item.id}
+                  title={`${item.label} · +${formatDuration(position.offsetMs)} · ${formatDuration(item.durationMs)}`}
+                >
+                  <span
+                    className="request-insights-span-name"
+                    style={{ paddingLeft: `${item.depth * 14 + 4}px` }}
                   >
-                    <span className="request-insights-span-name">
-                      <span>{item.label}</span>
-                      {item.detail ? (
-                        <span className="request-insights-span-detail">
-                          {item.detail}
-                        </span>
-                      ) : null}
-                    </span>
-                    <span className="request-insights-span-offset">
-                      +{formatDuration(offset)}
-                    </span>
-                    <span className="request-insights-span-track">
+                    <span className="request-insights-span-label">
                       <span
-                        className="request-insights-span-bar"
+                        className="request-insights-span-marker"
+                        data-kind={item.kind}
                         data-status={item.status}
-                        style={{
-                          left: `${left}%`,
-                          width: `${Math.min(width, 100 - left)}%`,
-                        }}
                       />
+                      <span>{item.label}</span>
                     </span>
-                    <span className="request-insights-span-duration">
-                      {formatDuration(item.durationMs)}
-                    </span>
-                  </div>
-                )
-              })}
-            </div>
-          )
-        })}
+                  </span>
+                  <span className="request-insights-span-track">
+                    <span
+                      className="request-insights-span-bar"
+                      data-status={item.status}
+                      style={{
+                        left: `${position.left}%`,
+                        width: `${position.width}%`,
+                      }}
+                    />
+                  </span>
+                  <span className="request-insights-span-duration">
+                    {formatDuration(item.durationMs)}
+                  </span>
+                </div>
+              )
+            })}
+          </div>
+        </div>
       </div>
     </div>
   )
@@ -319,114 +319,6 @@ function FetchTable({ fetches }: { fetches: RequestInsightFetch[] }) {
   )
 }
 
-function getTimelineItems(
-  request: RequestInsight,
-  verbose: boolean
-): TimelineItem[] {
-  const items = [
-    ...request.spans
-      .filter((span) => {
-        if (verbose) {
-          return true
-        }
-
-        const phase = getSpanPhase(span)
-        return (
-          phase !== 'Framework' ||
-          (span.durationMs ?? 0) >= FOCUSED_MIN_FRAMEWORK_DURATION_MS
-        )
-      })
-      .filter((span) => {
-        if (verbose) {
-          return true
-        }
-
-        return span.attributes?.['next.span_type'] !== 'AppRender.fetch'
-      })
-      .map((span, index) => getSpanTimelineItem(span, index, verbose)),
-    ...request.fetches
-      .filter((fetch) => fetch.startTime !== undefined)
-      .map((fetch, index) => getFetchTimelineItem(fetch, index)),
-  ].sort((a, b) => a.startTime - b.startTime)
-
-  const criticalItem = items.reduce<TimelineItem | null>((largest, item) => {
-    if (!largest || (item.durationMs ?? 0) > (largest.durationMs ?? 0)) {
-      return item
-    }
-    return largest
-  }, null)
-
-  return items.map((item) => ({
-    ...item,
-    isCritical: item === criticalItem && (item.durationMs ?? 0) > 0,
-  }))
-}
-
-function getSpanTimelineItem(
-  span: RequestInsightSpan,
-  index: number,
-  verbose: boolean
-): TimelineItem {
-  const type = span.attributes?.['next.span_type']
-  const name = verbose ? span.name : getSpanLabel(span.name)
-
-  return {
-    id: `span:${span.spanId ?? index}:${span.startTime}`,
-    phase: getSpanPhase(span),
-    label: name,
-    startTime: span.startTime,
-    durationMs: span.durationMs,
-    status: span.status ?? 'pending',
-    kind: 'span',
-    isCritical: false,
-    detail: getSpanDetail(span, type, verbose),
-  }
-}
-
-function getFetchTimelineItem(
-  fetch: RequestInsightFetch,
-  index: number
-): TimelineItem {
-  const urlParts = formatUrl(fetch.url)
-
-  return {
-    id: `fetch:${fetch.index ?? index}:${fetch.url ?? ''}:${fetch.startTime}`,
-    phase: 'Fetches',
-    label: `${fetch.method ?? 'GET'} ${urlParts.path}`,
-    detail: fetch.cacheReason ?? fetch.cacheStatus,
-    startTime: fetch.startTime!,
-    durationMs: fetch.durationMs,
-    status: getFetchStatus(fetch),
-    kind: 'fetch',
-    cacheReason: fetch.cacheReason,
-    isCritical: false,
-  }
-}
-
-function getSpanPhase(span: RequestInsightSpan): TimelinePhase {
-  const type = span.attributes?.['next.span_type']
-
-  if (type === 'AppRender.fetch') {
-    return 'Fetches'
-  }
-
-  if (
-    span.name === 'start response' ||
-    type === 'NextNodeServer.startResponse'
-  ) {
-    return 'Response'
-  }
-
-  if (
-    type === 'NextNodeServer.createComponentTree' ||
-    type === 'AppRender.getBodyResult'
-  ) {
-    return 'Render'
-  }
-
-  return 'Framework'
-}
-
 function getRequestOverview(request: RequestInsight) {
   const method =
     getFirstStringAttribute(request, 'http.method') ??
@@ -473,42 +365,19 @@ function getRequestOverview(request: RequestInsight) {
   }
 }
 
-function getSpanDetail(
-  span: RequestInsightSpan,
-  type: unknown,
-  verbose: boolean
-): string | undefined {
-  if (!verbose) {
-    if (typeof span.attributes?.['next.segment'] === 'string') {
-      return `segment ${span.attributes['next.segment']}`
-    }
-    return undefined
-  }
-
-  const details = [
-    typeof type === 'string' ? type : undefined,
-    typeof span.attributes?.['next.segment'] === 'string'
-      ? `segment ${span.attributes['next.segment']}`
-      : undefined,
-    span.traceId ? `trace ${shortSpanId(span.traceId)}` : undefined,
-    span.spanId ? `span ${shortSpanId(span.spanId)}` : undefined,
-    span.parentSpanId ? `parent ${shortSpanId(span.parentSpanId)}` : undefined,
-    span.events?.length
-      ? `${span.events.length} event${span.events.length === 1 ? '' : 's'}`
-      : undefined,
-    span.links?.length
-      ? `${span.links.length} link${span.links.length === 1 ? '' : 's'}`
-      : undefined,
-  ].filter((detail): detail is string => Boolean(detail))
-
-  return details.length ? details.join(' · ') : undefined
-}
-
 function getDiagnosis(
   request: RequestInsight,
-  timelineItems: TimelineItem[]
+  traceItems: TraceItem[]
 ): string {
-  const criticalItem = timelineItems.find((item) => item.isCritical)
+  const nestedItems = traceItems.filter((item) => item.depth > 0)
+  const criticalItem = (
+    nestedItems.length > 0 ? nestedItems : traceItems
+  ).reduce<TraceItem | null>((largest, item) => {
+    if (!largest || (item.durationMs ?? 0) > (largest.durationMs ?? 0)) {
+      return item
+    }
+    return largest
+  }, null)
   const slowestFetch = request.fetches.reduce<RequestInsightFetch | null>(
     (slowest, fetch) => {
       if (!slowest || (fetch.durationMs ?? 0) > (slowest.durationMs ?? 0)) {
@@ -519,13 +388,17 @@ function getDiagnosis(
     null
   )
 
-  if (slowestFetch && (!criticalItem || criticalItem.kind === 'fetch')) {
+  if (
+    slowestFetch &&
+    (!criticalItem ||
+      (slowestFetch.durationMs ?? 0) >= (criticalItem.durationMs ?? 0))
+  ) {
     const urlParts = formatUrl(slowestFetch.url)
-    return `Most time was spent in ${formatDuration(slowestFetch.durationMs)} of server fetch work to ${urlParts.path}${getCacheSummary(slowestFetch)}.`
+    return `Slowest recorded operation: ${urlParts.path} · ${formatDuration(slowestFetch.durationMs)}${getCacheSummary(slowestFetch)}.`
   }
 
   if (criticalItem) {
-    return `Most time was spent in ${formatDuration(criticalItem.durationMs)} of ${criticalItem.phase.toLowerCase()} work: ${criticalItem.label}.`
+    return `Slowest recorded operation: ${criticalItem.label} · ${formatDuration(criticalItem.durationMs)}.`
   }
 
   return 'No slow server work was captured for this request.'
@@ -538,22 +411,6 @@ function getCacheSummary(fetch: RequestInsightFetch): string {
 
   const reason = fetch.cacheReason ? `, ${fetch.cacheReason}` : ''
   return ` (${fetch.cacheStatus}${reason})`
-}
-
-function getSpanLabel(name: string): string {
-  if (name === 'resolve segment modules') {
-    return 'resolve segment'
-  }
-
-  if (name === 'build component tree') {
-    return 'build component tree'
-  }
-
-  return name
-}
-
-function getFetchStatus(fetch: RequestInsightFetch): 'ok' | 'error' {
-  return fetch.statusCode && fetch.statusCode >= 400 ? 'error' : 'ok'
 }
 
 function getFirstStringAttribute(
@@ -617,30 +474,10 @@ function formatUrl(url: string | undefined): { path: string; host?: string } {
   }
 }
 
-function formatDuration(durationMs: number | undefined): string {
-  if (durationMs === undefined) {
-    return '-'
-  }
-
-  if (durationMs < 1000) {
-    return `${Math.round(durationMs)} ms`
-  }
-
-  return `${(durationMs / 1000).toFixed(2)} s`
-}
-
 function formatClockTime(timestamp: number): string {
   return new Date(timestamp).toLocaleTimeString(undefined, {
     hour: '2-digit',
     minute: '2-digit',
     second: '2-digit',
   })
-}
-
-function shortId(id: string): string {
-  return id.length > 8 ? id.slice(0, 8) : id
-}
-
-function shortSpanId(id: string): string {
-  return id.length > 8 ? id.slice(-8) : id
 }
