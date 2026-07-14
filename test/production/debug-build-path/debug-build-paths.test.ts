@@ -78,6 +78,22 @@ describe('debug-build-paths', () => {
         `)
       })
 
+      it('should not include custom page support entries for an API-only build', async () => {
+        const buildResult = await next.build({
+          args: ['--debug-build-paths', 'pages/api/hello.ts'],
+        })
+        expect(buildResult.exitCode).toBe(0)
+
+        const pagesManifest = JSON.parse(
+          await next.readFile('.next/server/pages-manifest.json')
+        )
+        expect(pagesManifest).toContainKeys(['/api/hello'])
+        expect(pagesManifest).not.toContainKeys(['/500'])
+        expect(
+          await next.readFile('.next/server/pages/404.html')
+        ).not.toContain('Custom 404')
+      })
+
       it('should build dynamic route with literal [slug] path', async () => {
         // Test that literal paths with brackets work without escaping
         // The path is checked for file existence before being treated as glob

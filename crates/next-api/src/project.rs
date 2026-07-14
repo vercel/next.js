@@ -295,10 +295,10 @@ impl DebugBuildPathsRouteKeys {
             route_key.as_str(),
             "/_error" | "/_document" | "/_app" | "/404" | "/500"
         ) {
-            return self
-                .pages
-                .iter()
-                .any(|page| !page.as_str().starts_with("/api/"));
+            return self.pages.iter().any(|page| {
+                let page = page.as_str();
+                page != "/api" && !page.starts_with("/api/")
+            });
         }
         self.pages.contains(route_key)
     }

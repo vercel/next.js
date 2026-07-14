@@ -45,6 +45,15 @@ const PAGES_SUPPORT_ROUTES = new Set([
   '/404',
   '/500',
 ])
+const PAGES_FRAMEWORK_ROUTES = new Set(['/_app', '/_document', '/_error'])
+
+function isRenderablePagesRoute(page: string): boolean {
+  return (
+    !PAGES_FRAMEWORK_ROUTES.has(page) &&
+    page !== '/api' &&
+    !page.startsWith('/api/')
+  )
+}
 
 function removeSuffix(value: string, suffix: string): string {
   return value.endsWith(suffix) ? value.slice(0, -suffix.length) : value
@@ -447,8 +456,8 @@ export async function discoverRoutes(
     if (debugPaths.length > 0) {
       const debugPathsSet = new Set(debugPaths)
       const filteredPaths = paths.filter((p) => debugPathsSet.has(p))
-      const hasPagesRoute = filteredPaths.some(
-        (p) => !isReservedPage(getPageFromPath(p, pageExtensions))
+      const hasPagesRoute = filteredPaths.some((p) =>
+        isRenderablePagesRoute(getPageFromPath(p, pageExtensions))
       )
 
       if (!hasPagesRoute) {
