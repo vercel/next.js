@@ -88,6 +88,8 @@ describe.each(
 
   // Edge runtime is currently not implemented in custom-entrypoint-server.ts
   const itEdge = useDirectEntrypointHandler ? it.skip : it
+  // This fixture is not wired into custom-entrypoint-server.ts.
+  const itServerAction = useDirectEntrypointHandler ? it.skip : it
 
   for (const env of [
     {
@@ -115,6 +117,45 @@ describe.each(
       env.name,
       () => {
         describe('app router', () => {
+          if (env.name === 'root context') {
+            itServerAction('should trace Server Action execution', async () => {
+              const browser = await next.browser('/app/param/server-action')
+              await browser.elementById('run-server-action').click()
+
+              await retry(async () => {
+                const spanName = isNextDev
+                  ? 'run Server Action <inline action>'
+                  : 'AppRender.executeServerAction'
+                const span = getCollector()
+                  .getSpans()
+                  .find(
+                    (candidate) =>
+                      candidate.attributes?.['next.span_type'] ===
+                      'AppRender.executeServerAction'
+                  )
+
+                expect(span).toEqual(
+                  expect.objectContaining({
+                    name: 'AppRender.executeServerAction',
+                    attributes: expect.objectContaining({
+                      'next.span_name': spanName,
+                      'next.span_type': 'AppRender.executeServerAction',
+                      ...(isNextDev
+                        ? {
+                            'next.span.category': 'application',
+                            'next.server_action.name': '<inline action>',
+                            'next.server_action.file':
+                              'app/app/[param]/server-action/page.tsx',
+                          }
+                        : {}),
+                    }),
+                    status: { code: 0 },
+                  })
+                )
+              })
+            })
+          }
+
           it('should handle RSC with fetch', async () => {
             await next.fetch('/app/param/rsc-fetch', env.fetchInit)
 
