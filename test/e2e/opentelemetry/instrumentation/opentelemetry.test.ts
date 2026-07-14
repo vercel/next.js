@@ -123,9 +123,6 @@ describe.each(
               await browser.elementById('run-server-action').click()
 
               await retry(async () => {
-                const spanName = isNextDev
-                  ? 'run Server Action <inline action>'
-                  : 'AppRender.executeServerAction'
                 const span = getCollector()
                   .getSpans()
                   .find(
@@ -138,12 +135,12 @@ describe.each(
                   expect.objectContaining({
                     name: 'AppRender.executeServerAction',
                     attributes: expect.objectContaining({
-                      'next.span_name': spanName,
+                      'next.span_name': 'run Server Action <inline action>',
                       'next.span_type': 'AppRender.executeServerAction',
+                      'next.span.category': 'application',
+                      'next.server_action.name': '<inline action>',
                       ...(isNextDev
                         ? {
-                            'next.span.category': 'application',
-                            'next.server_action.name': '<inline action>',
                             'next.server_action.file':
                               'app/app/[param]/server-action/page.tsx',
                           }

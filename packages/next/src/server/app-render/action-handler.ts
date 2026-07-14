@@ -96,12 +96,18 @@ function getServerActionInfo(
     return null
   }
 
-  const projectDir =
-    ctx.renderOpts.dir ||
-    (process.env.NEXT_RUNTIME === 'edge' ? '' : process.cwd())
-  const file = normalizeFilePath(projectDir, actionInfo.filename)
   const isInlineAction =
     actionInfo.exportedName?.startsWith(INLINE_ACTION_PREFIX)
+  let file = ''
+
+  // Resolving the source location is only needed for development logging and
+  // tracing. Avoid path normalization on every Server Action in production.
+  if (process.env.__NEXT_DEV_SERVER) {
+    const projectDir =
+      ctx.renderOpts.dir ||
+      (process.env.NEXT_RUNTIME === 'edge' ? '' : process.cwd())
+    file = normalizeFilePath(projectDir, actionInfo.filename)
+  }
 
   return {
     name: isInlineAction
@@ -824,13 +830,11 @@ export async function handleAction({
             } else {
               // Multipart POST, but not a fetch action.
               // Potentially an MPA action, we have to try decoding it to check.
-              const mpaActionId = process.env.__NEXT_DEV_SERVER
-                ? getValidatedMPAActionId(formData, serverModuleMap)
-                : null
-              const areActionIdsValid = process.env.__NEXT_DEV_SERVER
-                ? mpaActionId !== null
-                : areAllActionIdsValid(formData, serverModuleMap)
-              if (!areActionIdsValid) {
+              const mpaActionId = getValidatedMPAActionId(
+                formData,
+                serverModuleMap
+              )
+              if (mpaActionId === null) {
                 // TODO: This can be from skew or manipulated input. We should handle this case
                 // more gracefully but this preserves the prior behavior where decodeAction would throw instead.
                 throw new Error(
@@ -851,9 +855,7 @@ export async function handleAction({
                   workStore,
                   requestStore,
                   actionWasForwarded,
-                  process.env.__NEXT_DEV_SERVER
-                    ? getServerActionInfo(mpaActionId!, ctx)
-                    : null
+                  getServerActionInfo(mpaActionId, ctx)
                 )
 
                 const formState = await decodeFormState(
@@ -1039,13 +1041,11 @@ export async function handleAction({
                 throw err
               }
 
-              const mpaActionId = process.env.__NEXT_DEV_SERVER
-                ? getValidatedMPAActionId(formData, serverModuleMap)
-                : null
-              const areActionIdsValid = process.env.__NEXT_DEV_SERVER
-                ? mpaActionId !== null
-                : areAllActionIdsValid(formData, serverModuleMap)
-              if (!areActionIdsValid) {
+              const mpaActionId = getValidatedMPAActionId(
+                formData,
+                serverModuleMap
+              )
+              if (mpaActionId === null) {
                 // TODO: This can be from skew or manipulated input. We should handle this case
                 // more gracefully but this preserves the prior behavior where decodeAction would throw instead.
                 throw new Error(
@@ -1068,9 +1068,7 @@ export async function handleAction({
                   workStore,
                   requestStore,
                   actionWasForwarded,
-                  process.env.__NEXT_DEV_SERVER
-                    ? getServerActionInfo(mpaActionId!, ctx)
-                    : null
+                  getServerActionInfo(mpaActionId, ctx)
                 )
 
                 const formState = await decodeFormState(
@@ -1155,9 +1153,7 @@ export async function handleAction({
             actionId!
           ]
 
-        const serverActionInfo = process.env.__NEXT_DEV_SERVER
-          ? getServerActionInfo(actionId!, ctx)
-          : null
+        const serverActionInfo = getServerActionInfo(actionId!, ctx)
 
         // Log server action call in development when enabled
         let logInfo: ServerActionLogInfo | null = null
@@ -1368,16 +1364,14 @@ async function executeActionAndPrepareForRender<
     const serverActionName = serverAction?.name ?? '<action>'
     const actionResult = await getTracer().trace(
       AppRenderSpan.executeServerAction,
-      process.env.__NEXT_DEV_SERVER
-        ? {
-            attributes: {
-              'next.span_name': `run Server Action ${serverActionName}`,
-              'next.span.category': 'application',
-              'next.server_action.name': serverActionName,
-              'next.server_action.file': serverAction?.file || undefined,
-            },
-          }
-        : {},
+      {
+        attributes: {
+          'next.span_name': `run Server Action ${serverActionName}`,
+          'next.span.category': 'application',
+          'next.server_action.name': serverActionName,
+          'next.server_action.file': serverAction?.file || undefined,
+        },
+      },
       async (_span, done) => {
         try {
           const result = await executeAction()
@@ -1463,11 +1457,11 @@ const ACTION_ID_EXPECTED_LENGTH = 42
  * It pre-parses the FormData to ensure that any action IDs referred to are actual action IDs for
  * this Next.js application.
  */
-function areAllActionIdsValid(
+function getValidatedMPAActionId(
   mpaFormData: FormData,
   serverModuleMap: ServerModuleMap
-): boolean {
-  let hasAtLeastOneAction = false
+): string | null {
+  let actionId: string | null = null
   // Before we attempt to decode the payload for a possible MPA action, assert that all
   // action IDs are valid IDs. If not we should disregard the payload
   for (let key of mpaFormData.keys()) {
@@ -1479,60 +1473,24 @@ function areAllActionIdsValid(
     if (key.startsWith($ACTION_ID_)) {
       // No Bound args case
       if (isInvalidActionIdFieldName(key, serverModuleMap)) {
-        return false
+        return null
       }
 
-      hasAtLeastOneAction = true
+      actionId = key.slice($ACTION_ID_.length)
     } else if (key.startsWith($ACTION_REF_)) {
       // Bound args case
       const actionDescriptorField =
         $ACTION_ + key.slice($ACTION_REF_.length) + ':0'
       const actionFields = mpaFormData.getAll(actionDescriptorField)
       if (actionFields.length !== 1) {
-        return false
+        return null
       }
       const actionField = actionFields[0]
       if (typeof actionField !== 'string') {
-        return false
-      }
-
-      if (isInvalidStringActionDescriptor(actionField, serverModuleMap)) {
-        return false
-      }
-      hasAtLeastOneAction = true
-    }
-  }
-  return hasAtLeastOneAction
-}
-
-/**
- * Returns the action ID for development-only tracing after validating the full
- * form with the production validation path above.
- */
-function getValidatedMPAActionId(
-  mpaFormData: FormData,
-  serverModuleMap: ServerModuleMap
-): string | null {
-  if (!areAllActionIdsValid(mpaFormData, serverModuleMap)) {
-    return null
-  }
-
-  let actionId: string | null = null
-  for (const key of mpaFormData.keys()) {
-    if (key.startsWith($ACTION_ID_)) {
-      actionId = key.slice($ACTION_ID_.length)
-    } else if (key.startsWith($ACTION_REF_)) {
-      const actionDescriptorField =
-        $ACTION_ + key.slice($ACTION_REF_.length) + ':0'
-      const actionDescriptor = mpaFormData.get(actionDescriptorField)
-      if (typeof actionDescriptor !== 'string') {
         return null
       }
 
-      actionId = getActionIdFromStringDescriptor(
-        actionDescriptor,
-        serverModuleMap
-      )
+      actionId = getActionIdFromStringDescriptor(actionField, serverModuleMap)
       if (actionId === null) {
         return null
       }
