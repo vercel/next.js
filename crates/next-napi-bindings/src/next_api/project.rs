@@ -2337,7 +2337,7 @@ pub fn project_compilation_events_subscribe(
                 }
             }
             // Signal the JS side that the subscription has ended (e.g. after
-            // project shutdown drops all senders).  This allows the async
+            // project shutdown drops all senders). This allows the async
             // iterator to exit promptly instead of hanging forever.
             let _ = tsfn.call(
                 Err(napi::Error::new(
