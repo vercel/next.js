@@ -82,6 +82,11 @@ export async function nextRequestInsights(
     console.log(
       `  request ${shortId(request.requestId)} page ${shortId(request.htmlRequestId)}`
     )
+    if (request.serverAction) {
+      console.log(
+        `  server action ${request.serverAction.name} ${formatDuration(request.serverAction.durationMs)}${request.serverAction.file ? ` ${request.serverAction.file}` : ''}`
+      )
+    }
 
     const visibleFetches = request.fetches.slice(0, DEFAULT_FETCH_LIMIT)
     if (visibleFetches.length < request.fetches.length) {

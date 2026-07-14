@@ -3,6 +3,9 @@
  */
 const nextConfig = {
   distDir: 'build',
+  logging: {
+    serverFunctions: false,
+  },
   experimental: {
     requestInsights: true,
   },
