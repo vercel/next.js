@@ -184,6 +184,48 @@ describe('request insights', () => {
     })
   })
 
+  it('derives safe Server Action metadata from its execution span', () => {
+    process.env.__NEXT_REQUEST_INSIGHTS = 'true'
+
+    recordSpan({
+      name: 'run Server Action saveMessage',
+      startTime: 100,
+      durationMs: 250,
+      status: 'ok',
+      requestId: 'req_action',
+      htmlRequestId: 'html_action',
+      route: '/messages',
+      attributes: {
+        'next.span.category': 'application',
+        'next.span_type': 'AppRender.executeServerAction',
+        'next.server_action.name': 'saveMessage',
+        'next.server_action.file': 'app/actions.ts',
+        'next.server_action.args': 'secret value',
+      },
+    })
+
+    expect(getRequestInsightsSnapshot().requests[0]).toEqual(
+      expect.objectContaining({
+        serverAction: {
+          name: 'saveMessage',
+          file: 'app/actions.ts',
+          durationMs: 250,
+          status: 'ok',
+        },
+        spans: [
+          expect.objectContaining({
+            attributes: {
+              'next.span.category': 'application',
+              'next.span_type': 'AppRender.executeServerAction',
+              'next.server_action.name': 'saveMessage',
+              'next.server_action.file': 'app/actions.ts',
+            },
+          }),
+        ],
+      })
+    )
+  })
+
   it('redacts sensitive request insight payload fields', () => {
     process.env.__NEXT_REQUEST_INSIGHTS = 'true'
 

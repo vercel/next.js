@@ -42,6 +42,13 @@ export type RequestInsightFetch = {
   index?: number
 }
 
+export type RequestInsightServerAction = {
+  name: string
+  file?: string
+  durationMs?: number
+  status: 'ok' | 'error'
+}
+
 export type RequestInsight = {
   requestId: string
   htmlRequestId: string
@@ -50,6 +57,7 @@ export type RequestInsight = {
   startTime: number
   durationMs?: number
   status: 'ok' | 'error' | 'pending'
+  serverAction?: RequestInsightServerAction
   spans: RequestInsightSpan[]
   fetches: RequestInsightFetch[]
 }

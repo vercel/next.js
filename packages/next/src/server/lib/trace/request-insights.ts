@@ -2,6 +2,7 @@ import type { AttributeValue } from 'next/dist/compiled/@opentelemetry/api'
 import type {
   RequestInsight,
   RequestInsightFetch,
+  RequestInsightServerAction,
   RequestInsightsSnapshot,
 } from '../../../next-devtools/shared/request-insights'
 import type { SpanStoreRecord } from './span-store'
@@ -31,7 +32,10 @@ const SAFE_SPAN_ATTRIBUTE_KEYS = new Set([
   'next.fetch.idx',
   'next.route',
   'next.rsc',
+  'next.server_action.file',
+  'next.server_action.name',
   'next.segment',
+  'next.span.category',
   'next.span_name',
   'next.span_type',
 ])
@@ -87,6 +91,11 @@ class InMemoryRequestInsightsStore {
       events: sanitizeSpanEvents(span.events),
       error: span.error,
     })
+
+    const serverAction = getServerActionInsight(span)
+    if (serverAction) {
+      insight.serverAction = serverAction
+    }
 
     const fetch = getFetchInsight(span)
     if (fetch) {
@@ -252,6 +261,31 @@ function getFetchInsight(span: SpanStoreRecord): RequestInsightFetch | null {
     cacheStatus: getStringAttribute(attributes['next.fetch.cache_status']),
     cacheReason: getStringAttribute(attributes['next.fetch.cache_reason']),
     index: getNumberAttribute(attributes['next.fetch.idx']),
+  }
+}
+
+function getServerActionInsight(
+  span: SpanStoreRecord
+): RequestInsightServerAction | null {
+  const attributes = span.attributes
+
+  if (
+    !attributes ||
+    attributes['next.span_type'] !== 'AppRender.executeServerAction'
+  ) {
+    return null
+  }
+
+  const name = getStringAttribute(attributes['next.server_action.name'])
+  if (!name) {
+    return null
+  }
+
+  return {
+    name,
+    file: getStringAttribute(attributes['next.server_action.file']),
+    durationMs: span.durationMs,
+    status: span.status === 'error' ? 'error' : 'ok',
   }
 }
 
