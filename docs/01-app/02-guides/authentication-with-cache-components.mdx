@@ -1,0 +1,295 @@
+---
+title: How to use authentication with Cache Components
+nav_title: Authentication with Cache Components
+description: 'Learn how to read the user session, show authenticated UI without slowing down the page, and cache data derived from the session when Cache Components is enabled.'
+related:
+  title: Next Steps
+  description: Learn more about authentication, caching, and prefetching in Next.js.
+  links:
+    - app/guides/authentication
+    - app/getting-started/caching
+    - app/getting-started/fetching-data
+    - app/guides/runtime-prefetching
+    - app/api-reference/directives/use-cache-private
+    - app/api-reference/functions/cacheTag
+    - app/api-reference/config/next-config-js/cacheComponents
+---
+
+This guide shows how to read the user's session, show authenticated UI without slowing down the rest of the page, and cache data derived from the session, all with [Cache Components](/docs/app/getting-started/caching) enabled.
+
+The examples use [iron-session](https://github.com/vvo/iron-session) for encrypted cookie sessions, but the patterns apply to any session or authentication library. For a complete, runnable version, see the [with-iron-session-cache-components example](https://github.com/vercel/next.js/tree/canary/examples/with-iron-session-cache-components).
+
+## Prerequisites
+
+Enable [`cacheComponents`](/docs/app/api-reference/config/next-config-js/cacheComponents):
+
+```ts filename="next.config.ts"
+import type { NextConfig } from 'next'
+
+const nextConfig: NextConfig = {
+  cacheComponents: true,
+}
+
+export default nextConfig
+```
+
+This guide assumes you're comfortable with Cache Components. If not, read [Caching](/docs/app/getting-started/caching) first. It also assumes you already have a session set on login. See [How to implement authentication in Next.js](/docs/app/guides/authentication) for sign-up, login, and session creation.
+
+## Step 1: Read the current user
+
+Reading the current user reads the session cookie, then looks the user up. Because a request read can't be part of the static shell, it always sits behind a [`<Suspense>`](/docs/app/api-reference/file-conventions/loading) boundary, where it streams in on demand.
+
+That works, but it means streaming the section to the client on every navigation. Giving the read a cache lifetime lets the framework prefetch this UI ahead of time instead.
+
+The server-side directives can't give it that lifetime, though: neither a plain [`use cache`](/docs/app/api-reference/directives/use-cache) nor [`use cache: remote`](/docs/app/api-reference/directives/use-cache-remote) can call `cookies()`, and you can't [extract the value and pass it in](/docs/app/getting-started/caching#passing-runtime-values-to-cached-functions) either, because:
+
+- A session helper reads the cookie deep inside its own code, so there's nothing to lift out.
+- Validating it compares a token's expiry against the current time (iron-session's `unsealData` rejects an expired seal), so the read is request- and time-dependent.
+
+That's what [`use cache: private`](/docs/app/api-reference/directives/use-cache-private) is for: it reads `cookies()` and `headers()` directly, keeping the result in the browser only, never on the server.
+
+A private scope stays in the browser, so it never caches on the server. To cache on the server instead, extract a value (the `userId`, for example) and pass it into a plain [`use cache`](/docs/app/api-reference/directives/use-cache) or [`use cache: remote`](/docs/app/api-reference/directives/use-cache-remote). The same pattern caches data derived from the session, covered in [Step 4](#step-4-cache-session-derived-data).
+
+```tsx filename="lib/session.ts"
+import 'server-only'
+import { cookies } from 'next/headers'
+import { sealData, unsealData } from 'iron-session'
+
+export type SessionData = {
+  userId?: string
+}
+
+const COOKIE_NAME = 'app_session'
+const password = process.env.SESSION_PASSWORD!
+
+export async function getSession(): Promise<SessionData> {
+  const cookie = (await cookies()).get(COOKIE_NAME)?.value
+  if (!cookie) {
+    return {}
+  }
+  return unsealData<SessionData>(cookie, { password })
+}
+```
+
+```tsx filename="lib/auth.ts"
+import 'server-only'
+import { redirect } from 'next/navigation'
+import { getSession } from './session'
+import { findUserById } from './data'
+
+export type User = {
+  id: string
+  name: string
+}
+
+export async function getCurrentUser(): Promise<User> {
+  'use cache: private'
+
+  const { userId } = await getSession()
+  if (!userId) {
+    redirect('/login')
+  }
+
+  const user = await findUserById(userId)
+  if (!user) {
+    redirect('/login')
+  }
+
+  return { id: user.id, name: user.name }
+}
+```
+
+The `redirect()` calls throw to interrupt rendering rather than return a value, so they aren't cached. Only a resolved user is.
+
+> **Good to know:** `use cache: private` accepts `cookies()`, `headers()`, and `searchParams`, but not [`connection()`](/docs/app/api-reference/functions/connection). See [`use cache: private`](/docs/app/api-reference/directives/use-cache-private) for the full list.
+
+## Step 2: Show the user without blocking the page
+
+A component that reads the session must sit behind a [`<Suspense>`](/docs/app/api-reference/file-conventions/loading) boundary. This isn't optional: with Cache Components, reading `cookies()` outside a boundary is a build error. The boundary is also what keeps the rest of the page fast. Anything outside it prerenders into the [static shell](/docs/app/getting-started/caching#prerendering) and loads instantly, as long as it's static or wrapped in [`use cache`](/docs/app/api-reference/directives/use-cache) and doesn't read runtime data of its own. Only the section behind the boundary waits for the request.
+
+```tsx filename="app/page.tsx"
+import { Suspense } from 'react'
+import { getCurrentUser } from '@/lib/auth'
+import { getAnnouncements } from '@/lib/data'
+
+export default function Page() {
+  return (
+    <main>
+      {/* Cached, so it prerenders into the static shell */}
+      <Announcements />
+
+      {/* Reads the session, so it streams in behind the boundary */}
+      <Suspense fallback={<p>Loading your dashboard…</p>}>
+        <Dashboard />
+      </Suspense>
+    </main>
+  )
+}
+
+async function Announcements() {
+  'use cache'
+  const announcements = await getAnnouncements()
+  return (
+    <ul>
+      {announcements.map((announcement) => (
+        <li key={announcement}>{announcement}</li>
+      ))}
+    </ul>
+  )
+}
+
+async function Dashboard() {
+  const user = await getCurrentUser()
+  return <h1>Welcome, {user.name}</h1>
+}
+```
+
+Keep the session read out of a layout's top level, too. A top-level `await` on the session in a layout holds the whole segment, including `{children}`, behind that request, so push it into a component inside a boundary. See [Push dynamic access down](/docs/app/guides/streaming#push-dynamic-access-down).
+
+## Step 3: Share the user across components
+
+You don't have to read the session again in every component that needs the user. Read it once, then hand it to as many Server and Client Components as you like from inside the same boundary.
+
+Server Components can call `getCurrentUser()` directly. To reach Client Components without prop drilling, create the promise once and pass it through context, then unwrap it with [`use()`](https://react.dev/reference/react/use). This is the [context and `React.cache` pattern](/docs/app/getting-started/fetching-data#sharing-data-with-context-and-reactcache) from data fetching, with one auth-specific adjustment: because `getCurrentUser` reads the request, create its promise inside the Suspense boundary, not at the top of a layout.
+
+```tsx filename="app/user-provider.tsx"
+'use client'
+
+import { createContext, use } from 'react'
+import type { ReactNode } from 'react'
+import type { User } from '@/lib/auth'
+
+const UserContext = createContext<Promise<User> | null>(null)
+
+export function UserProvider({
+  userPromise,
+  children,
+}: {
+  userPromise: Promise<User>
+  children: ReactNode
+}) {
+  return (
+    <UserContext.Provider value={userPromise}>{children}</UserContext.Provider>
+  )
+}
+
+export function useUser() {
+  const userPromise = use(UserContext)
+  if (!userPromise) {
+    throw new Error('useUser must be used within a UserProvider')
+  }
+  return use(userPromise)
+}
+```
+
+The Server Component behind the boundary creates the promise, awaits it for its own rendering, and passes the same promise to the provider:
+
+```tsx filename="app/page.tsx"
+async function Dashboard() {
+  const userPromise = getCurrentUser()
+  const user = await userPromise
+
+  return (
+    <UserProvider userPromise={userPromise}>
+      <h1>Welcome, {user.name}</h1>
+      <Suspense fallback={<span>Loading…</span>}>
+        <UserBadge />
+      </Suspense>
+    </UserProvider>
+  )
+}
+```
+
+Client Components read the user with `useUser()`, no prop drilling and no second session read. Keep the read behind a `<Suspense>` boundary, since `use()` suspends until the promise resolves:
+
+```tsx filename="app/user-badge.tsx"
+'use client'
+
+import { useUser } from './user-provider'
+
+export function UserBadge() {
+  const user = useUser()
+  return <span>Signed in as {user.name}</span>
+}
+```
+
+> **Good to know:** Expose only what the client needs. The `getCurrentUser` helper returns a narrow `{ id, name }` rather than the raw session. To keep sensitive fields from reaching the client, see [`taintUniqueValue`](https://react.dev/reference/react/experimental_taintUniqueValue).
+
+## Step 4: Cache session-derived data
+
+Now that you have the user, fetching their data is further work you can cache, either of two ways. Passing the user id into a plain [`use cache`](/docs/app/api-reference/directives/use-cache) function keeps the result on the server, keyed by the id (it becomes part of the [cache key](/docs/app/api-reference/directives/use-cache#cache-keys)), where a [`cacheTag`](/docs/app/api-reference/functions/cacheTag) can invalidate it later. Reading it inside a [`use cache: private`](/docs/app/api-reference/directives/use-cache-private) scope keeps it in the browser only, never on the server, which matters when requirements forbid storing certain data server-side, even ephemerally. The example passes the id, since these notes are tagged and refreshed when they change:
+
+```tsx filename="lib/data.ts"
+import 'server-only'
+import { cacheLife, cacheTag } from 'next/cache'
+
+export async function getUserNotes(userId: string) {
+  'use cache'
+  cacheTag(`notes:${userId}`)
+  cacheLife('minutes')
+
+  return db.query.notes.findMany({
+    where: (notes, { eq }) => eq(notes.userId, userId),
+  })
+}
+```
+
+Call it from a Server Component that already has the user:
+
+```tsx filename="app/page.tsx"
+async function Dashboard() {
+  const user = await getCurrentUser()
+  const notes = await getUserNotes(user.id)
+  // ...
+}
+```
+
+> **Good to know: cache keys and tags are stored in plain text.** A cached function's arguments and captured variables are serialized into its cache key, and `cacheTag` values are stored as written. Neither is hashed: the default cache holds them as plain-text map keys and tag lists, and a [remote cache](/docs/app/api-reference/directives/use-cache-remote) receives them the same way. Key and tag on a stable identifier like the user id, and keep secrets and sensitive personal data (tokens, passwords, raw emails) out of arguments and tags.
+
+On the server, plain `use cache` keeps the entry in memory as a best effort: it's evicted under pressure and, in serverless, doesn't persist across instances. If that data must survive across instances and requests, opt into [`use cache: remote`](/docs/app/api-reference/directives/use-cache-remote) for durable, shared storage, where [the cache key you choose](/docs/app/api-reference/directives/use-cache-remote#cache-key-considerations) drives your hit rate.
+
+## Step 5: Update session-derived data
+
+When a [Server Action](/docs/app/getting-started/updating-data) changes a user's data, call [`updateTag`](/docs/app/api-reference/functions/updateTag) with the same tag to refresh the cached entry. Re-read the session inside the action so it authorizes itself rather than trusting the client.
+
+```ts filename="app/actions.ts"
+'use server'
+import { redirect } from 'next/navigation'
+import { updateTag } from 'next/cache'
+import { getSession } from '@/lib/session'
+import { saveNote } from '@/lib/data'
+
+export async function addNote(formData: FormData) {
+  const { userId } = await getSession()
+  if (!userId) {
+    redirect('/login')
+  }
+
+  const note = String(formData.get('note') ?? '').trim()
+  if (note) {
+    await saveNote(userId, note)
+    updateTag(`notes:${userId}`)
+  }
+}
+```
+
+## Step 6: Make authenticated navigations instant
+
+Cached reads already have a lifetime, so this mostly happens on its own. A `use cache: private` scope uses the [`default` profile](/docs/app/api-reference/functions/cacheLife#preset-cache-profiles) (a five-minute `stale`) unless you set one, and a route that reads the session produces a per-session [App Shell](/docs/app/glossary#app-shell) with the authenticated content, prefetched and cached per session. Navigations to it are already instant.
+
+Two things keep it that way:
+
+- If you tune the lifetime with [`cacheLife`](/docs/app/api-reference/functions/cacheLife), keep `stale` at 30 seconds or more. Below that, the scope drops out of prefetching. See [`cacheLife` client cache behavior](/docs/app/api-reference/functions/cacheLife#client-cache-behavior).
+- A route that _also_ depends on the URL (a `params` or `searchParams` value) needs one more opt-in: set [`prefetch = 'allow-runtime'`](/docs/app/api-reference/file-conventions/route-segment-config/prefetch) so the router resolves that per-link data at prefetch time too.
+
+```tsx filename="app/notes/[id]/page.tsx"
+export const prefetch = 'allow-runtime'
+```
+
+A runtime prefetch fires as each link enters the viewport, one server invocation per link, so a page with many links to the same route (a sidebar of `/chat/[id]` links) triggers a prefetch per link. The [`partialPrefetching`](/docs/app/api-reference/config/next-config-js/partialPrefetching) flag changes this, fetching one [App Shell](/docs/app/glossary#app-shell) per route instead. See [Adopting Partial Prefetching](/docs/app/guides/adopting-partial-prefetching).
+
+## Common pitfalls
+
+- **Reading `cookies()` or `headers()` inside a plain `use cache` function.** This throws. Read the request outside and pass the value in, or use `use cache: private`.
+- **Putting secrets or personal data in cache keys or tags.** Arguments and `cacheTag` values are stored in plain text. Key and tag on a stable identifier, not on sensitive input.
+- **Trusting the client for authorization.** UI checks hide elements, but they don't protect data. Re-verify the session in every Server Action and [Route Handler](/docs/app/api-reference/file-conventions/route), close to the data. See [Authorization](/docs/app/guides/authentication#authorization).
