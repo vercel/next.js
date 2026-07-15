@@ -13,7 +13,6 @@ const glob = promisify(_glob)
 const exec = promisify(execOrig)
 const core = require('@actions/core')
 const { getTestFilter } = require('./test/get-test-filter')
-const { checkBuildFreshness } = require('./test/lib/check-build-freshness')
 
 // --- Test profile and result caching via actions cache ---
 // On CI retry attempts, skip tests that already passed on this commit.
@@ -344,9 +343,6 @@ async function getTestTimings() {
 async function main() {
   // Ensure we have the arguments awaited from yargs.
   argv = await argv
-
-  // Check for stale or missing build
-  await checkBuildFreshness()
 
   // `.github/workflows/build_reusable.yml` sets this, we should use it unless
   // it's overridden by an explicit `--concurrency` argument.
