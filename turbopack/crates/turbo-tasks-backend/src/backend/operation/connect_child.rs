@@ -27,9 +27,9 @@ fn resurrect_if_deleted(task_id: TaskId, ctx: &mut impl ExecuteContext<'_>) {
     // here to avoid forcing a Data restore on the common not-deleted path.
     let deleted = {
         let mut task = ctx.task(task_id, TaskDataCategory::Meta);
-        let deleted = task.gc_is_deleted();
+        let deleted = task.deleted();
         if deleted {
-            task.gc_clear_deleted();
+            task.set_deleted(false);
         }
         deleted
     };

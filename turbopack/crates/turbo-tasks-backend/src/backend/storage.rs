@@ -528,16 +528,16 @@ impl Storage {
 
     /// Mutable access to a resident task **without** inserting a blank entry for a missing key
     /// (unlike [`Storage::access_mut`], which resurrects a blank `TaskStorage`). Returns `None` if
-    /// the task is not resident. The closure runs while a shard write lock is held, so it must be
-    /// cheap and must not re-enter the map. Used by GC pin/unpin, where a missing entry means the
-    /// caller is referencing an already-collected task and inserting a blank would be a bug.
-    pub fn with_task_mut<R>(
-        &self,
-        key: TaskId,
-        f: impl FnOnce(&mut TaskStorage) -> R,
-    ) -> Option<R> {
-        let mut task = self.map.get_mut(&key)?;
-        Some(f(task.value_mut()))
+    /// the task is not resident. Used by the non-inserting
+    /// [`ExecuteContext::resident_task`](crate::backend::operation::ExecuteContext::resident_task)
+    /// path (GC pin/unpin), where a missing entry means the caller is referencing an
+    /// already-collected task and inserting a blank would be a bug.
+    pub fn access_mut_if_resident(&self, key: TaskId) -> Option<StorageWriteGuard<'_>> {
+        let inner = self.map.get_mut(&key)?;
+        Some(StorageWriteGuard {
+            storage: self,
+            inner: inner.into(),
+        })
     }
 
     /// The number of **persistent** (non-transient) tasks resident in the map. GC only collects
@@ -661,7 +661,7 @@ impl Storage {
                 // map entry + task_cache mapping can now be dropped. This is the reclaim path for
                 // the background `ReadWrite` loop; the shutdown drain snapshot drops the whole map
                 // wholesale instead, so it never reaches here.
-                if task.get().gc_is_deleted() {
+                if task.get().flags.deleted() {
                     if let Some(task_type) = task.get().get_persistent_task_type() {
                         // Best-effort inline; defer on contention (same lock-order caution as
                         // below).

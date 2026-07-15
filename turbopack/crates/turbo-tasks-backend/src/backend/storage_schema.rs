@@ -930,47 +930,6 @@ impl TaskStorage {
             && self.followers().is_none_or(|f| f.is_empty())
     }
 
-    /// Whether this task has been marked soft-deleted by GC (see the `deleted` flag).
-    pub fn gc_is_deleted(&self) -> bool {
-        self.flags.deleted()
-    }
-
-    /// Marks this task soft-deleted (GC collected it; awaiting tombstone + hard-delete).
-    pub fn gc_set_deleted(&mut self) {
-        self.flags.set_deleted(true);
-    }
-
-    /// Clears the soft-deletion marker (the task was resurrected before hard-delete).
-    pub fn gc_clear_deleted(&mut self) {
-        self.flags.set_deleted(false);
-    }
-
-    /// Increments the transient reference count (a pin / detached-handle / transient-parent edge)
-    /// and returns the new value. `transient_ref_count` is a transient field, so no modification
-    /// tracking is needed.
-    pub fn gc_increment_transient_ref_count(&mut self) -> u32 {
-        let new = self.gc_transient_ref_count() + 1;
-        self.set_transient_ref_count(new);
-        new
-    }
-
-    /// Decrements the transient reference count and returns the new value. Debug-panics on
-    /// underflow (an unpin without a matching pin).
-    pub fn gc_decrement_transient_ref_count(&mut self) -> u32 {
-        let current = self.gc_transient_ref_count();
-        debug_assert!(
-            current > 0,
-            "transient_ref_count underflow (unpin without pin)"
-        );
-        let new = current.saturating_sub(1);
-        if new == 0 {
-            self.take_transient_ref_count();
-        } else {
-            self.set_transient_ref_count(new);
-        }
-        new
-    }
-
     // GC collectibility (`is_gc_collectible`) lives on the `TaskGuard` trait, so that the Meta
     // fields it reads (`parent_count`/`upper`/`followers`) go through the guard's `check_access`
     // machinery, which enforces that the task was opened with Meta restored. See
@@ -1879,21 +1838,21 @@ mod tests {
         storage.flags.set_new_task(false);
         storage.flags.set_data_restored(true);
         storage.flags.set_meta_restored(true);
-        assert!(!storage.gc_is_deleted());
+        assert!(!storage.flags.deleted());
 
-        storage.gc_set_deleted();
-        assert!(storage.gc_is_deleted());
+        storage.flags.set_deleted(true);
+        assert!(storage.flags.deleted());
 
         // A Meta drop_partial (what partial eviction does) must NOT clear the transient marker.
         let _ = storage.drop_partial(/* data */ false, /* meta */ true);
         assert!(
-            storage.gc_is_deleted(),
+            storage.flags.deleted(),
             "the `deleted` marker is transient and must survive a Meta drop_partial"
         );
 
         // Resurrection clears it.
-        storage.gc_clear_deleted();
-        assert!(!storage.gc_is_deleted());
+        storage.flags.set_deleted(false);
+        assert!(!storage.flags.deleted());
     }
 
     // ==========================================================================

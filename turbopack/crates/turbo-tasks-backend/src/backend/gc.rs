@@ -261,18 +261,29 @@ impl TurboTasksBackend {
     /// called while holding the GC phase.
     fn gc_mark_deleted(&self, task_id: TaskId, ctx: &mut impl ExecuteContext<'_>) {
         let mut task = ctx.task(task_id, TaskDataCategory::Meta);
-        task.gc_set_deleted();
+        task.set_deleted(true);
         // Force the task into the next snapshot's per-shard modified scan so `process` can
-        // tombstone it. A cleanly-disconnected collectible task typically has no modified
-        // flags set. The returned `TrackOutcome` is only for undo; GC's mark is permanent,
-        // so discard it.
+        // tombstone it. This can't be an assert-it's-already-modified: a collected task need NOT
+        // have been modified this cycle. The count-to-0 cascade DOES dirty meta (`parent_count` is
+        // a tracked meta field) and so does an aggregation-graph disconnect, but two collectible
+        // states leave meta clean —
+        //   1. a parentless (`parent_count == 0`) task kept alive only by a pin, then unpinned:
+        //      `transient_ref_count` is a *transient* field, so dropping it to 0 tracks nothing;
+        //      and
+        //   2. a task persisted parentless in a prior session, restored this cycle (restore sets no
+        //      modified flags) and collected with no intervening mutation.
+        // In those cases this call is what carries the tombstone into the snapshot (it flips
+        // `has_modifications`, so the modified scan runs). When meta is already dirty (the common
+        // cascade case) it's a cheap no-op. Runs before `start_snapshot`, so it takes the
+        // not-in-snapshot-mode path and bumps the shard modified count. The returned `TrackOutcome`
+        // is only for undo; GC's mark is permanent, so discard it.
         let _ = task.track_modification(SpecificTaskDataCategory::Meta, "gc_deleted");
     }
 
     /// Body of [`Backend::pin_task_for_gc`](turbo_tasks::backend::Backend::pin_task_for_gc); the
     /// trait method in `mod.rs` delegates here. See the inline comments for the exclusion and
     /// non-resurrection reasoning.
-    pub(super) fn gc_pin(&self, task: TaskId) {
+    pub(super) fn gc_pin(&self, task: TaskId, turbo_tasks: &TurboTasks<TurboTasksBackend>) {
         // Once the backend is stopping, GC bookkeeping is irrelevant (the whole task map is torn
         // down in `stop()`), so pin/unpin become no-ops. This also makes them safe against handles
         // finalized during shutdown — e.g. a `DetachedVc` handed to JS across NAPI is dropped
@@ -280,12 +291,13 @@ impl TurboTasksBackend {
         if self.stopping.load(Ordering::Acquire) {
             return;
         }
-        // Take an operation guard so pin cannot interleave with a GC pass: it runs strictly before
-        // or strictly after a collection, never concurrently with `is_gc_collectible` / task
-        // removal. This is deadlock-free because neither pin caller holds a guard already —
-        // `prevent_gc` runs in the unguarded user-future region, and `DetachedVc` pins from a NAPI
-        // thread — and the GC pass itself never calls pin/unpin.
-        let _guard = self.start_operation();
+        // Build a normal (operation-guarded) execute context so pin cannot interleave with a GC
+        // pass: it runs strictly before or strictly after a collection, never concurrently with
+        // `is_gc_collectible` / task removal. This is deadlock-free because neither pin caller
+        // holds a guard already — `prevent_gc` runs in the unguarded user-future region,
+        // and `DetachedVc` pins from a NAPI thread — and the GC pass itself never calls
+        // pin/unpin.
+        let mut ctx = self.execute_context(turbo_tasks);
         // A pin is an in-session reference from outside the tracked graph (an explicit
         // `prevent_gc`, or a detached handle like `DetachedVc` holding the task's `OperationVc`
         // across NAPI). It is counted the same way a transient parent's edge is: bump
@@ -294,37 +306,41 @@ impl TurboTasksBackend {
         // lost). Counting (rather than a bool flag) makes nested/cloned pins correct — each pin is
         // balanced by its own unpin.
         //
-        // Use the non-inserting `with_task_mut`: a pin always targets a live reference, so the task
+        // Use the non-inserting `resident_task`: a pin always targets a live reference, so the task
         // must be resident. A missing entry means the caller pinned an already-collected task (a
         // "zombie `OperationVc`") — a bug we surface via debug_assert rather than paper over by
-        // resurrecting a blank entry (which would leave an orphaned zombie in the map).
-        let existed = self
-            .storage
-            .with_task_mut(task, |t| t.gc_increment_transient_ref_count());
+        // resurrecting a blank entry (which would leave an orphaned zombie in the map). Going
+        // through the guard routes the count through the same `update_and_get_*` mutation the
+        // `AdjustTransientRefCount` queue job uses.
+        let existed = ctx.resident_task(task);
         debug_assert!(
             existed.is_some(),
             "pin_task_for_gc: task {task} has no resident entry (pinned an already-collected \
              task?)"
         );
+        if let Some(mut guard) = existed {
+            guard.update_and_get_transient_ref_count(1);
+        }
     }
 
     /// Body of [`Backend::unpin_task_for_gc`](turbo_tasks::backend::Backend::unpin_task_for_gc);
     /// the trait method in `mod.rs` delegates here.
-    pub(super) fn gc_unpin(&self, task: TaskId) {
+    pub(super) fn gc_unpin(&self, task: TaskId, turbo_tasks: &TurboTasks<TurboTasksBackend>) {
         // See `gc_pin`: no-op once stopping, so handles finalized during shutdown (after the map is
         // dropped) don't underflow the count.
         if self.stopping.load(Ordering::Acquire) {
             return;
         }
-        let _guard = self.start_operation();
-        let existed = self
-            .storage
-            .with_task_mut(task, |t| t.gc_decrement_transient_ref_count());
+        let mut ctx = self.execute_context(turbo_tasks);
+        let existed = ctx.resident_task(task);
         debug_assert!(
             existed.is_some(),
             "unpin_task_for_gc: task {task} has no resident entry (unpinned an already-collected \
              task?)"
         );
+        if let Some(mut guard) = existed {
+            guard.update_and_get_transient_ref_count(-1);
+        }
     }
 
     /// Runs a full GC pass under the GC phase and returns the number of tasks collected (marked

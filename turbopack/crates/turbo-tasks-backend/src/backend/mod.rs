@@ -521,7 +521,7 @@ impl TurboTasksBackend {
         // connect, which clears the flag and re-executes, so reaching here with it still set means
         // a resurrection path was missed. (debug-only; the flag exists only when GC is enabled.)
         debug_assert!(
-            !task.gc_is_deleted(),
+            !task.deleted(),
             "read_task_output on a GC-deleted task {task_id} — a resurrection path was missed"
         );
 
@@ -898,7 +898,7 @@ impl TurboTasksBackend {
         // See the matching assert in `try_read_task_output`: a GC-deleted task must be resurrected
         // (at connect) before any read; reaching a read with the flag still set is a missed path.
         debug_assert!(
-            !task.gc_is_deleted(),
+            !task.deleted(),
             "read_task_cell on a GC-deleted task {task_id} — a resurrection path was missed"
         );
 
@@ -1293,7 +1293,7 @@ impl TurboTasksBackend {
             // and the iterator clears their modified flags, so a still-`deleted` task not
             // hard-deleted this cycle won't be re-tombstoned next snapshot. Only persistent tasks
             // are collected, so a persistent task type (the `TaskCache` key) is always present.
-            if inner.gc_is_deleted() {
+            if inner.flags.deleted() {
                 let task_type_hash = compute_task_type_hash(
                     inner
                         .get_persistent_task_type()
@@ -3826,12 +3826,12 @@ impl Backend for TurboTasksBackend {
         self.mark_own_task_as_finished(task_id, turbo_tasks);
     }
 
-    fn pin_task_for_gc(&self, task: TaskId, _turbo_tasks: &TurboTasks<Self>) {
-        self.gc_pin(task);
+    fn pin_task_for_gc(&self, task: TaskId, turbo_tasks: &TurboTasks<Self>) {
+        self.gc_pin(task, turbo_tasks);
     }
 
-    fn unpin_task_for_gc(&self, task: TaskId, _turbo_tasks: &TurboTasks<Self>) {
-        self.gc_unpin(task);
+    fn unpin_task_for_gc(&self, task: TaskId, turbo_tasks: &TurboTasks<Self>) {
+        self.gc_unpin(task, turbo_tasks);
     }
 
     fn connect_task(

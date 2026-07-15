@@ -44,6 +44,16 @@ pub trait ExecuteContext<'e>: Sized {
     where
         'e: 'l;
     fn task(&mut self, task_id: TaskId, category: TaskDataCategory) -> Self::TaskGuardImpl;
+    /// Opens an **already-resident** task without restoring from disk and **without** inserting a
+    /// blank entry for a missing key (unlike [`Self::task`], which does both). Returns `None` if
+    /// the task is not resident.
+    ///
+    /// Because it performs no restore, the returned guard may only be used to touch **transient**
+    /// fields (whose accessors don't gate on `check_access`); reading a Meta/Data field through it
+    /// would trip the `check_access` debug assertion. Used for pure in-session bookkeeping on a
+    /// live task — GC pin/unpin adjusting `transient_ref_count` — where a missing entry means
+    /// the caller referenced an already-collected task (a bug) rather than one to resurrect.
+    fn resident_task(&mut self, task_id: TaskId) -> Option<Self::TaskGuardImpl>;
     /// Prepares (as in fetches from persistent storage) a list of tasks.
     /// The iterator should not have duplicates, as this would cause over-fetching.
     fn prepare_tasks(
@@ -795,9 +805,27 @@ impl<'e> ExecuteContext<'e> for ExecuteContextImpl<'e> {
             task,
             task_id,
             #[cfg(debug_assertions)]
-            category,
+            category: Some(category),
             task_lock_counter: self.task_lock_counter.clone(),
         }
+    }
+
+    fn resident_task(&mut self, task_id: TaskId) -> Option<TaskGuardImpl<'e>> {
+        // Non-inserting lookup: `None` means the task is not resident (do not resurrect a blank
+        // entry). No restore is performed, so the guard must only touch transient fields — see the
+        // trait doc. Acquire the context's lock counter for the returned guard (released on its
+        // Drop), exactly like `task()`.
+        let task = self.backend.storage.access_mut_if_resident(task_id)?;
+        self.task_lock_counter.acquire();
+        Some(TaskGuardImpl {
+            task,
+            task_id,
+            // No category was restored: `None` makes `check_access` reject any Meta/Data read
+            // through this guard. Transient-field accessors (the only intended use) never check.
+            #[cfg(debug_assertions)]
+            category: None,
+            task_lock_counter: self.task_lock_counter.clone(),
+        })
     }
 
     fn prepare_tasks(
@@ -829,7 +857,7 @@ impl<'e> ExecuteContext<'e> for ExecuteContextImpl<'e> {
                     task,
                     task_id,
                     #[cfg(debug_assertions)]
-                    category: _category,
+                    category: Some(_category),
                     task_lock_counter: task_lock_counter.clone(),
                 };
                 func(guard, this);
@@ -973,14 +1001,14 @@ impl<'e> ExecuteContext<'e> for ExecuteContextImpl<'e> {
                 task: task1,
                 task_id: task_id1,
                 #[cfg(debug_assertions)]
-                category,
+                category: Some(category),
                 task_lock_counter: self.task_lock_counter.clone(),
             },
             TaskGuardImpl {
                 task: task2,
                 task_id: task_id2,
                 #[cfg(debug_assertions)]
-                category,
+                category: Some(category),
                 task_lock_counter: self.task_lock_counter.clone(),
             },
         )
@@ -1183,8 +1211,12 @@ pub trait TaskGuard: Debug + TaskStorageAccessors {
         new_value
     }
 
-    /// Adjust the count of **persistent** parents referencing this task by `delta` and return the
-    /// new value. Panics in on underflow/overflow
+    /// Adjust the count of **persistent** parents referencing this task by `delta` (+1 when a
+    /// persistent parent connects it as a child, -1 when one disconnects it) and return the new
+    /// value. A value of 0 means no persistent parent lists this task — a prerequisite for
+    /// collection. Panics on underflow/overflow: the count must equal the true number of
+    /// `children`-edge references, so a decrement below 0 (or a wrap past `u32::MAX`) means it has
+    /// drifted from that invariant and must fail loudly rather than corrupt collectibility.
     fn update_and_get_parent_count(&mut self, delta: i32) -> u32 {
         let current = self.get_parent_count().copied().unwrap_or(0);
         let new_value = current
@@ -1196,6 +1228,8 @@ pub trait TaskGuard: Debug + TaskStorageAccessors {
 
     /// Like [`Self::update_and_get_parent_count`], but for the transient (session-only) parent
     /// reference count that keeps a persistent task alive while a transient parent references it.
+    /// Panics on underflow/overflow for the same reason (an accounting drift, not a recoverable
+    /// condition).
     fn update_and_get_transient_ref_count(&mut self, delta: i32) -> u32 {
         let current = self.get_transient_ref_count().copied().unwrap_or(0);
         let new_value = current
@@ -1222,23 +1256,6 @@ pub trait TaskGuard: Debug + TaskStorageAccessors {
             self.check_access(crate::backend::storage::SpecificTaskDataCategory::Meta);
             self.typed().gc_maybe_collectible()
         }
-    }
-
-    /// Whether this task has been marked soft-deleted by GC (the `deleted` transient flag). A
-    /// `deleted` task is resident but destined for deletion; it must be resurrected before any use
-    /// of its (scrubbed) contents.
-    fn gc_is_deleted(&self) -> bool {
-        self.typed().gc_is_deleted()
-    }
-
-    /// Marks this task soft-deleted (GC collected it). See [`TaskStorage::gc_set_deleted`].
-    fn gc_set_deleted(&mut self) {
-        self.typed_mut().gc_set_deleted();
-    }
-
-    /// Clears the soft-deletion marker (the task was resurrected before hard-delete).
-    fn gc_clear_deleted(&mut self) {
-        self.typed_mut().gc_clear_deleted();
     }
 
     fn invalidate_serialization(&mut self);
@@ -1487,8 +1504,13 @@ pub trait TaskGuard: Debug + TaskStorageAccessors {
 pub struct TaskGuardImpl<'a> {
     task_id: TaskId,
     task: StorageWriteGuard<'a>,
+    /// Which category was restored when this guard was opened, gating `check_access`. `None` means
+    /// **no** category was restored (e.g. the non-inserting [`ExecuteContext::resident_task`]
+    /// path, used for transient-only bookkeeping): any Meta/Data access through such a guard
+    /// is a bug and `check_access` rejects it. Transient-field accessors never call
+    /// `check_access`, so they work regardless.
     #[cfg(debug_assertions)]
-    category: TaskDataCategory,
+    category: Option<TaskDataCategory>,
     task_lock_counter: TaskLockCounter,
 }
 
@@ -1508,8 +1530,10 @@ impl TaskGuardImpl<'_> {
             SpecificTaskDataCategory::Data => {
                 #[cfg(debug_assertions)]
                 debug_assert!(
-                    self.category == TaskDataCategory::Data
-                        || self.category == TaskDataCategory::All,
+                    matches!(
+                        self.category,
+                        Some(TaskDataCategory::Data | TaskDataCategory::All)
+                    ),
                     "To read data of {:?} the task need to be accessed with this category (It's \
                      accessed with {:?})",
                     category,
@@ -1519,8 +1543,10 @@ impl TaskGuardImpl<'_> {
             SpecificTaskDataCategory::Meta => {
                 #[cfg(debug_assertions)]
                 debug_assert!(
-                    self.category == TaskDataCategory::Meta
-                        || self.category == TaskDataCategory::All,
+                    matches!(
+                        self.category,
+                        Some(TaskDataCategory::Meta | TaskDataCategory::All)
+                    ),
                     "To read data of {:?} the task need to be accessed with this category (It's \
                      accessed with {:?})",
                     category,
@@ -1747,7 +1773,7 @@ mod filter_transient_tracking_tests {
             task: write,
             task_id,
             #[cfg(debug_assertions)]
-            category: TaskDataCategory::All,
+            category: Some(TaskDataCategory::All),
             task_lock_counter: TaskLockCounter::new(),
         }
     }
@@ -2016,7 +2042,7 @@ mod cell_data_tracking_tests {
             task: write,
             task_id,
             #[cfg(debug_assertions)]
-            category: TaskDataCategory::All,
+            category: Some(TaskDataCategory::All),
             task_lock_counter: TaskLockCounter::new(),
         }
     }
