@@ -39,7 +39,6 @@ import {
 } from '../dynamic-rendering-utils'
 import { createDedupedByCallsiteServerErrorLoggerDev } from '../create-deduped-by-callsite-server-error-logger'
 import { dynamicAccessAsyncStorage } from '../app-render/dynamic-access-async-storage.external'
-import { RenderStage } from '../app-render/staged-rendering'
 import {
   isEmptyParams,
   hasFallbackRouteParams,
@@ -131,15 +130,13 @@ export function createParamsFromClient(
 export type CreateServerParamsForMetadata = typeof createServerParamsForMetadata
 export function createServerParamsForMetadata(
   underlyingParams: Params,
-  optionalCatchAllParamName: string | null,
-  isRuntimePrefetchable: boolean
+  optionalCatchAllParamName: string | null
 ): Promise<Params> {
   const metadataVaryParamsAccumulator = getMetadataVaryParamsAccumulator()
   return createServerParamsForServerSegment(
     underlyingParams,
     optionalCatchAllParamName,
-    metadataVaryParamsAccumulator,
-    isRuntimePrefetchable
+    metadataVaryParamsAccumulator
   )
 }
 
@@ -209,8 +206,7 @@ export function createServerParamsForRoute(
 export function createServerParamsForServerSegment(
   underlyingParams: Params,
   optionalCatchAllParamName: string | null,
-  varyParamsAccumulator: VaryParamsAccumulator | null,
-  isRuntimePrefetchable: boolean
+  varyParamsAccumulator: VaryParamsAccumulator | null
 ): Promise<Params> {
   const workStore = workAsyncStorage.getStore()
   if (!workStore) {
@@ -249,8 +245,7 @@ export function createServerParamsForServerSegment(
           underlyingParams,
           optionalCatchAllParamName,
           workUnitStore,
-          varyParamsAccumulator,
-          isRuntimePrefetchable
+          varyParamsAccumulator
         )
       case 'request': {
         return createRenderParamsForPage(
@@ -258,8 +253,7 @@ export function createServerParamsForServerSegment(
           workUnitStore,
           underlyingParams,
           optionalCatchAllParamName,
-          varyParamsAccumulator,
-          isRuntimePrefetchable
+          varyParamsAccumulator
         )
       }
       default:
@@ -371,9 +365,9 @@ function createStaticPrerenderParams(
         if (
           !allParamsAreRootParams(underlyingParams, prerenderStore.rootParams)
         ) {
+          const staticParamsStage = RENDER_STAGES_BY_DATA_KIND.staticLinkData
           return stagedRendering.delayUntilStage(
-            // static prerenders don't distinguish early/late, this is just for consistency.
-            RENDER_STAGES_BY_DATA_KIND.staticLinkData.late,
+            staticParamsStage,
             'params',
             userspaceParams
           )
@@ -438,8 +432,7 @@ function createRuntimePrerenderParams(
   underlyingParams: Params,
   optionalCatchAllParamName: string | null,
   workUnitStore: PrerenderStoreModernRuntime,
-  varyParamsAccumulator: VaryParamsAccumulator | null,
-  isRuntimePrefetchable: boolean
+  varyParamsAccumulator: VaryParamsAccumulator | null
 ): Promise<Params> {
   let userspaceParams = underlyingParams
   if (varyParamsAccumulator !== null) {
@@ -474,9 +467,12 @@ function createRuntimePrerenderParams(
   // Semantically, we should resolve static params in the static stage.
   // But params are link data, and we need to recover a param-less session shell,
   // so we delay all params until the runtime stage instead.
-  const paramsStages = RENDER_STAGES_BY_DATA_KIND.runtimeLinkData
-  const stage = isRuntimePrefetchable ? paramsStages.early : paramsStages.late
-  return stagedRendering.delayUntilStage(stage, 'params', userspaceParams)
+  const staticParamsStage = RENDER_STAGES_BY_DATA_KIND.runtimeLinkData
+  return stagedRendering.delayUntilStage(
+    staticParamsStage,
+    'params',
+    userspaceParams
+  )
 }
 
 function createRenderParamsForPage(
@@ -484,8 +480,7 @@ function createRenderParamsForPage(
   workUnitStore: RequestStore,
   underlyingParams: Params,
   optionalCatchAllParamName: string | null,
-  varyParamsAccumulator: VaryParamsAccumulator | null,
-  isRuntimePrefetchable: boolean
+  varyParamsAccumulator: VaryParamsAccumulator | null
 ) {
   const { stagedRendering, asyncApiPromises, validationSamples } = workUnitStore
 
@@ -516,8 +511,7 @@ function createRenderParamsForPage(
       stagedRendering,
       asyncApiPromises,
       underlyingParams,
-      userspaceParams,
-      isRuntimePrefetchable
+      userspaceParams
     )
   }
 
@@ -542,16 +536,14 @@ function createStagedRenderParams(
   stagedRendering: NonNullable<RequestStore['stagedRendering']>,
   asyncApiPromises: NonNullable<RequestStore['asyncApiPromises']>,
   underlyingParams: Params,
-  userspaceParams: Params,
-  isRuntimePrefetchable: boolean
+  userspaceParams: Params
 ) {
   const promise = createStagedRenderParamsImpl(
     workUnitStore,
     stagedRendering,
     asyncApiPromises,
     underlyingParams,
-    userspaceParams,
-    isRuntimePrefetchable
+    userspaceParams
   )
   if (process.env.NODE_ENV === 'development') {
     return instrumentParamsPromiseWithDevWarnings(
@@ -571,8 +563,7 @@ function createStagedRenderParamsImpl(
   /** The actual param values, without any instrumentation */
   underlyingParams: Params,
   /** The params object to return to userspace, possibly wrapped in a proxy */
-  userspaceParams: Params,
-  isRuntimePrefetchable: boolean
+  userspaceParams: Params
 ) {
   // If the route has no params, they should resolve immediately.
   if (isEmptyParams(underlyingParams)) {
@@ -583,9 +574,7 @@ function createStagedRenderParamsImpl(
   // We do this indirectly via the shared params parent for better debug info.
   if (hasFallbackRouteParams(underlyingParams, workUnitStore.fallbackParams)) {
     return createParamsPromiseFromTrigger(
-      isRuntimePrefetchable
-        ? asyncApiPromises.earlySharedParamsParent
-        : asyncApiPromises.sharedParamsParent,
+      asyncApiPromises.sharedParamsParent,
       userspaceParams
     )
   }
@@ -603,13 +592,14 @@ function createStagedRenderParamsImpl(
     // shells are handled with a separate render.
     // However, in dev we might need to recover a session shell for instant validation.
     // This is indicated by `needsSessionShell`.
-    const staticParamsStages = workUnitStore.needsSessionShell
+    const staticParamsStage = workUnitStore.needsSessionShell
       ? RENDER_STAGES_BY_DATA_KIND.runtimeLinkData
       : RENDER_STAGES_BY_DATA_KIND.staticLinkData
-    const stage = isRuntimePrefetchable
-      ? staticParamsStages.early
-      : staticParamsStages.late
-    return stagedRendering.delayUntilStage(stage, 'params', userspaceParams)
+    return stagedRendering.delayUntilStage(
+      staticParamsStage,
+      'params',
+      userspaceParams
+    )
   }
 
   return makeUntrackedParams(userspaceParams)
@@ -833,7 +823,7 @@ function makeDynamicallyTrackedParamsWithDevWarnings(
     ? makeDevtoolsIOAwarePromise(
         userspaceParams,
         requestStore,
-        RenderStage.Runtime
+        RENDER_STAGES_BY_DATA_KIND.runtimeLinkData
       )
     : // We don't want to force an environment transition when this params is not part of the fallback params set
       Promise.resolve(userspaceParams)

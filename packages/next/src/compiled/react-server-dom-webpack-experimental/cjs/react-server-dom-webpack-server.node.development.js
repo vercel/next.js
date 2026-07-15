@@ -859,12 +859,19 @@
       switch (functionName) {
         case "new Promise":
         case "Function.withResolvers":
+        case "Promise.withResolvers":
         case "Function.reject":
+        case "Promise.reject":
         case "Function.resolve":
+        case "Promise.resolve":
         case "Function.all":
+        case "Promise.all":
         case "Function.allSettled":
+        case "Promise.allSettled":
         case "Function.race":
+        case "Promise.race":
         case "Function.try":
+        case "Promise.try":
           return !0;
         default:
           return !1;
@@ -908,13 +915,21 @@
         case "Promise.catch":
         case "Promise.finally":
         case "Function.reject":
+        case "Promise.reject":
         case "Function.resolve":
+        case "Promise.resolve":
         case "Function.all":
+        case "Promise.all":
         case "Function.allSettled":
+        case "Promise.allSettled":
         case "Function.any":
+        case "Promise.any":
         case "Function.race":
+        case "Promise.race":
         case "Function.try":
+        case "Promise.try":
         case "Function.withResolvers":
+        case "Promise.withResolvers":
           return !0;
         default:
           return !1;

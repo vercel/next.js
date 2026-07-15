@@ -2344,6 +2344,7 @@ where
                         Pattern::new(pat),
                         collect_affecting_sources,
                         get_issue_source(),
+                        format!("fs.{name}").into(),
                     )
                     .to_resolved()
                     .await?,
@@ -2379,6 +2380,7 @@ where
                         get_traced_project_dir().await?,
                         Pattern::new(pat),
                         get_issue_source(),
+                        rcstr!("fs.readdir"),
                     )
                     .to_resolved()
                     .await?,
@@ -2435,6 +2437,7 @@ where
                     get_traced_project_dir().await?,
                     Pattern::new(pat),
                     get_issue_source(),
+                    rcstr!("path.resolve"),
                 )
                 .to_resolved()
                 .await?,
@@ -2486,6 +2489,7 @@ where
                     get_traced_project_dir().await?,
                     Pattern::new(pat),
                     get_issue_source(),
+                    rcstr!("path.join"),
                 )
                 .to_resolved()
                 .await?,
@@ -2552,6 +2556,7 @@ where
                                 span.lo.to_u32(),
                                 span.hi.to_u32(),
                             ),
+                            format!("child_process.{name}").into(),
                         )
                         .to_resolved()
                         .await?,
@@ -2788,6 +2793,7 @@ where
                                     get_traced_project_dir().await?,
                                     Pattern::new(abs_pattern),
                                     get_issue_source(),
+                                    rcstr!("express().set"),
                                 )
                                 .to_resolved()
                                 .await?,
@@ -2859,6 +2865,7 @@ where
                         get_traced_project_dir().await?,
                         Pattern::new(abs_pattern),
                         get_issue_source(),
+                        rcstr!("strong-globalize.SetRootDir"),
                     )
                     .to_resolved()
                     .await?,
@@ -2929,6 +2936,7 @@ where
                             context_dir.clone(),
                             Pattern::new(Pattern::Constant(dir.into())),
                             get_issue_source(),
+                            rcstr!("protobufjs.load"),
                         )
                         .to_resolved()
                     })
@@ -3053,7 +3061,27 @@ where
                                 // No `scope` key: register at the default scope.
                                 None => rcstr!("/"),
                                 Some(JsValue::Constant(JsConstantValue::Str(value))) => {
-                                    value.as_str().into()
+                                    let scope = value.as_str();
+                                    // The scope must be an absolute path (starting with `/`) so
+                                    // it can be prefixed with the host's base path and served
+                                    // from a stable, root-relative URL. Reject relative scopes
+                                    // rather than silently registering at the wrong scope.
+                                    if !scope.starts_with('/') {
+                                        let (args, hints) = explain_args(args);
+                                        handler.span_warn_with_code(
+                                            span,
+                                            &format!(
+                                                "navigator.serviceWorker.register({args}) has a \
+                                                 `scope` that does not start with `/`{hints}",
+                                            ),
+                                            DiagnosticId::Error(
+                                                errors::failed_to_analyze::ecmascript::NEW_WORKER
+                                                    .to_string(),
+                                            ),
+                                        );
+                                        return Ok(());
+                                    }
+                                    scope.into()
                                 }
                                 // A `scope` was provided but can't be analyzed statically;
                                 // don't silently register at the wrong scope.

@@ -7,7 +7,7 @@ use rustc_hash::{FxHashMap, FxHashSet};
 use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    FxIndexMap, FxIndexSet, ReadRef, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Vc,
+    FxIndexMap, FxIndexSet, ReadRef, ResolvedVc, TraitRef, TryFlatJoinIterExt, TryJoinIterExt, Vc,
 };
 use turbo_tasks_fs::{
     DirectoryEntry, FileSystemPath,
@@ -23,6 +23,7 @@ use turbopack_core::{
     module::{Module, Modules},
     module_graph::{GraphTraversalAction, ModuleGraph},
     raw_module::RawModule,
+    reference::DynamicTraceReference,
 };
 
 use crate::project::Project;
@@ -66,6 +67,7 @@ pub async fn trace_endpoint(
     async {
         let project_path = project.project_path().owned().await?;
         let next_config = project.next_config();
+        let hash_salt = next_config.output_hash_salt();
 
         let output_file_tracing_includes = next_config
             .output_file_tracing_includes(project_path.clone())
@@ -82,10 +84,11 @@ pub async fn trace_endpoint(
                 .await?
                 .map(|v| *v),
             Some(next_config.config_file_path(project_path.clone())),
+            hash_salt,
         )
         .await?;
 
-        let module_data = traced_module_data_for_graph(*module_graph, traced_entries)
+        let module_data = traced_module_data_for_graph(*module_graph, traced_entries, hash_salt)
             .to_resolved()
             .await?;
         let module_paths = module_data.await?.idents;
@@ -182,7 +185,7 @@ async fn get_glob_includes(
     let glob_result = project_root_path.read_glob(glob).await?;
 
     // Walk the full glob_result using an explicit stack to avoid async recursion overheads.
-    // Use a BTreeSet to get determinstic order (return value of `read_glob` has random order).
+    // Use a BTreeSet to get deterministic order (return value of `read_glob` has random order).
     let mut result = vec![];
     let mut stack = VecDeque::new();
     stack.push_back(glob_result);
@@ -270,10 +273,11 @@ pub async fn traced_modules_for_entries(
     traced_entries: Vc<Modules>,
     exclude_glob: Option<Vc<Glob>>,
     forbidden_path: Option<Vc<FileSystemPath>>,
+    hash_salt: Vc<RcStr>,
 ) -> Result<Vc<Modules>> {
     let exclude_glob_and_module_idents = if let Some(exclude_glob) = exclude_glob {
         let exclude_glob = exclude_glob.await?;
-        let data = traced_module_data_for_graph(module_graph, traced_entries).await?;
+        let data = traced_module_data_for_graph(module_graph, traced_entries, hash_salt).await?;
         Some((exclude_glob, data.idents.await?))
     } else {
         None
@@ -334,13 +338,14 @@ pub async fn traced_modules_for_entries(
     )?;
 
     for (parent, reference) in forbidden_issues {
-        ForbiddenTracedFileIssue::new(
-            parent.ident().await?.path.clone(),
-            reference.into_trait_ref().await?.source(),
-        )
-        .to_resolved()
-        .await?
-        .emit();
+        let reference = reference.into_trait_ref().await?;
+        let source = reference.source();
+        let origin_fn_name = TraitRef::try_downcast::<Box<dyn DynamicTraceReference>>(reference)
+            .map(|traced| traced.origin_fn_name());
+        ForbiddenTracedFileIssue::new(parent.ident().await?.path.clone(), source, origin_fn_name)
+            .to_resolved()
+            .await?
+            .emit();
     }
 
     Ok(Vc::cell(traced_modules.into_iter().collect()))
@@ -377,6 +382,7 @@ pub struct TracedModuleData {
 pub async fn traced_module_data_for_graph(
     module_graph: Vc<ModuleGraph>,
     traced_entries: Vc<Modules>,
+    hash_salt: Vc<RcStr>,
 ) -> Result<Vc<TracedModuleData>> {
     // This function is very similar to traced_modules_for_entries, but doesn't apply the glob and
     // is executed only once for the whole graph.
@@ -418,7 +424,7 @@ pub async fn traced_module_data_for_graph(
                         .await?
                         .context("NFT module has no content")?
                         .content()
-                        .hash(HashAlgorithm::Xxh3Hash128Hex)
+                        .hash(hash_salt, HashAlgorithm::Xxh3Hash128Hex)
                         .await?,
                 ),
             ))
@@ -439,6 +445,9 @@ pub async fn traced_module_data_for_graph(
 struct ForbiddenTracedFileIssue {
     parent: FileSystemPath,
     issue_source: Option<IssueSource>,
+    /// The dynamic function whose access triggered the trace (e.g.
+    /// `fs.readFileSync`), used to name the offending call in the message.
+    origin_fn_name: Option<RcStr>,
 }
 
 #[turbo_tasks::value_impl]
@@ -447,10 +456,12 @@ impl ForbiddenTracedFileIssue {
     pub async fn new(
         parent: FileSystemPath,
         issue_source: Option<IssueSource>,
+        origin_fn_name: Option<RcStr>,
     ) -> Result<Vc<Self>> {
         Ok(Self {
             parent,
             issue_source,
+            origin_fn_name,
         }
         .cell())
     }
@@ -499,17 +510,23 @@ impl Issue for ForbiddenTracedFileIssue {
             StyledString::Text(rcstr!("To resolve this, you can")),
             StyledString::Line(vec![
                 StyledString::Text(rcstr!(
-                    "- make sure they are statically scoped to some subfolder: "
+                    "- make sure the path is statically scoped to some subfolder, for example "
                 )),
                 StyledString::Code(rcstr!("path.join(process.cwd(), 'data', bar)")),
                 StyledString::Text(rcstr!(", or")),
             ]),
             StyledString::Text(rcstr!("- only use them in development, or")),
             StyledString::Line(vec![
-                StyledString::Text(rcstr!("- add ignore comments: ")),
-                StyledString::Code(rcstr!(
-                    "path.join(/*turbopackIgnore: true*/ process.cwd(), bar)"
+                StyledString::Text(rcstr!(
+                    "- opt out by adding an ignore comment to the highlighted call: "
                 )),
+                StyledString::Code(
+                    format!(
+                        "{fn_name}(/*turbopackIgnore: true*/ ...)",
+                        fn_name = self.origin_fn_name.as_deref().unwrap_or("someFsOperation")
+                    )
+                    .into(),
+                ),
                 StyledString::Text(rcstr!(", or")),
             ]),
             StyledString::Text(rcstr!("- remove them.")),

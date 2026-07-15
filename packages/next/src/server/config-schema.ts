@@ -258,6 +258,7 @@ export const experimentalSchema = {
   externalMiddlewareRewritesResolve: z.boolean().optional(),
   externalProxyRewritesResolve: z.boolean().optional(),
   exposeTestingApiInProductionBuild: z.boolean().optional(),
+  requestInsights: z.boolean().optional(),
   fallbackNodePolyfills: z.literal(false).optional(),
   fetchCacheKeyPrefix: z.string().optional(),
   forceSwcTransforms: z.boolean().optional(),
@@ -371,7 +372,7 @@ export const experimentalSchema = {
   webpackBuildWorker: z.boolean().optional(),
   webpackMemoryOptimizations: z.boolean().optional(),
   turbopackMemoryEviction: z
-    .union([z.literal(false), z.literal('full')])
+    .union([z.literal(false), z.literal('full'), z.literal('auto')])
     .optional(),
   turbopackPluginRuntimeStrategy: z
     .enum(['workerThreads', 'childProcesses'])
@@ -397,7 +398,6 @@ export const experimentalSchema = {
   turbopackClientSideNestedAsyncChunking: z.boolean().optional(),
   turbopackServerSideNestedAsyncChunking: z.boolean().optional(),
   turbopackImportTypeBytes: z.boolean().optional(),
-  turbopackImportTypeText: z.boolean().optional(),
   turbopackUseBuiltinBabel: z.boolean().optional(),
   turbopackUseBuiltinSass: z.boolean().optional(),
   turbopackLocalPostcssConfig: z.boolean().optional(),
@@ -407,6 +407,7 @@ export const experimentalSchema = {
   optimizePackageImports: z.array(z.string()).optional(),
   optimizeServerReact: z.boolean().optional(),
   strictRouteTypes: z.boolean().optional(),
+  useTypeScriptCli: z.boolean().optional(),
   clientTraceMetadata: z.array(z.string()).optional(),
   serverMinification: z.boolean().optional(),
   serverSourceMaps: z.boolean().optional(),
@@ -440,6 +441,7 @@ export const experimentalSchema = {
   staticGenerationMinPagesPerWorker: z.number().int().optional(),
   typedEnv: z.boolean().optional(),
   serverComponentsHmrCache: z.boolean().optional(),
+  serverComponentsHmrCancellation: z.boolean().optional(),
   authInterrupts: z.boolean().optional(),
   useCache: z.boolean().optional(),
   durableUseCacheEntries: z.boolean().optional(),

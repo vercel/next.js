@@ -875,14 +875,32 @@ impl EsmExports {
             vec![]
         };
 
+        // When a module has dynamic re-exports (`export *` from a module whose
+        // exports are only known at runtime), its namespace object must stay
+        // extensible so the dynamic export proxy can surface those keys. Signal
+        // that to the runtime so it skips sealing the namespace.
+        let has_dynamic_exports = !expanded.dynamic_exports.is_empty();
         let esm_exports = vec![CodeGenerationHoistedStmt::new(
             rcstr!("__turbopack_esm__"),
             if let Some(module) = scope_hoisting_context.module() {
                 let id = module.chunk_item_id(chunking_context).await?;
-                quote!("$turbopack_esm($getters, $id);" as Stmt,
+                if has_dynamic_exports {
+                    quote!("$turbopack_esm($getters, $id, true);" as Stmt,
+                        turbopack_esm: Expr = TURBOPACK_ESM.into(),
+                        getters: Expr = getters,
+                        id: Expr = module_id_to_lit(&id)
+                    )
+                } else {
+                    quote!("$turbopack_esm($getters, $id);" as Stmt,
+                        turbopack_esm: Expr = TURBOPACK_ESM.into(),
+                        getters: Expr = getters,
+                        id: Expr = module_id_to_lit(&id)
+                    )
+                }
+            } else if has_dynamic_exports {
+                quote!("$turbopack_esm($getters, undefined, true);" as Stmt,
                     turbopack_esm: Expr = TURBOPACK_ESM.into(),
-                    getters: Expr = getters,
-                    id: Expr = module_id_to_lit(&id)
+                    getters: Expr = getters
                 )
             } else {
                 quote!("$turbopack_esm($getters);" as Stmt,
