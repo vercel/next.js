@@ -427,3 +427,25 @@ For example, the following configuration maps `@/components/*` to `components/*`
 ```
 
 Each of the `"paths"` are relative to the `baseUrl` location.
+
+## Upgrade your Next.js app
+
+Update to the latest version regularly to get security patches, bug fixes, performance improvements, and new features. Run the `upgrade` codemod:
+
+```bash package="pnpm"
+pnpm dlx @next/codemod@canary upgrade latest
+```
+
+```bash package="npm"
+npx @next/codemod@canary upgrade latest
+```
+
+```bash package="yarn"
+yarn dlx @next/codemod@canary upgrade latest
+```
+
+```bash package="bun"
+bunx @next/codemod@canary upgrade latest
+```
+
+The codemod updates your dependencies and applies automated fixes for breaking changes. See the [upgrade guide](/docs/app/guides/upgrading) for the full list of changes in each version.
