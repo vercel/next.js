@@ -290,6 +290,127 @@ describe('App Shell prefetching', () => {
     )
   })
 
+  it('excludes cached content with a short stale time from a runtime App Shell', async () => {
+    let page: Playwright.Page
+    const browser = await next.browser('/', {
+      beforePageLoad(p: Playwright.Page) {
+        page = p
+      },
+    })
+    const act = createRouterAct(page, { includeAppShellRequests: true })
+
+    // Reveal the LinkAccordion for /short-stale/1. This caches the App Shell
+    // for the route. The page renders two cached components: one with a stale
+    // time of 5 minutes (the App Shell threshold), which is included in the
+    // shell, and one with a stale time of 60 seconds, which is excluded from
+    // the shell so the shell can be reused on the client for longer than the
+    // content's stale time.
+    await act(
+      async () => {
+        await browser
+          .elementByCss('input[data-link-accordion="/short-stale/1"]')
+          .click()
+      },
+      { includes: 'App shell for short-stale' }
+    )
+
+    await act(async () => {
+      // Click the link to /short-stale/124. This link is rendered with
+      // prefetch={false}, so it was never prefetched. The cached App Shell
+      // should render immediately, before any navigation response arrives.
+      await browser.elementByCss('a[href="/short-stale/124"]').click()
+
+      // While the navigation response is blocked (we're still in the `act`
+      // block), the cached App Shell should already be visible, including
+      // the long-lived cached content.
+      expect(await browser.elementById('shell').text()).toEqual(
+        'App shell for short-stale'
+      )
+      expect(await browser.elementById('long-stale-content').text()).toEqual(
+        'Long-lived cached content'
+      )
+      // The short-lived cached content is NOT part of the App Shell — only
+      // its loading fallback is.
+      expect(await browser.locator('#short-stale-content').count()).toBe(0)
+      expect(await browser.elementById('short-stale-loading').text()).toEqual(
+        'Loading short-lived content...'
+      )
+    })
+
+    // After the outer act unblocks the navigation, the short-lived cached
+    // content streams in with the navigation response, along with the
+    // dynamic content.
+    expect(await browser.elementById('short-stale-content').text()).toEqual(
+      'Short-lived cached content'
+    )
+    expect(await browser.elementById('dynamic-content').text()).toEqual(
+      'Post body for 124'
+    )
+  })
+
+  it('excludes cached content with a short stale time from a static App Shell', async () => {
+    // The /static-short-stale/[id] route is fully static and prerendered at
+    // build time. The short-lived cached content is part of the static
+    // prerender, but it resolves in the post-shell stage, so it's excluded
+    // from the App Shell prefix that the client extracts from the prerender
+    // response and reuses across URLs.
+    let page: Playwright.Page
+    const browser = await next.browser('/', {
+      beforePageLoad(p: Playwright.Page) {
+        page = p
+      },
+    })
+    const act = createRouterAct(page, { includeAppShellRequests: true })
+
+    // Reveal the LinkAccordion for /static-short-stale/1. Like the
+    // static-posts route, two prefetch responses fire: the per-segment static
+    // prefetch of /static-short-stale/1 and the runtime shell prefetch.
+    await act(async () => {
+      await browser
+        .elementByCss('input[data-link-accordion="/static-short-stale/1"]')
+        .click()
+    }, [
+      { includes: 'App shell for static short-stale posts' },
+      { includes: 'App shell for static short-stale posts' },
+    ])
+
+    await act(async () => {
+      // Click the link to /static-short-stale/124 — a different param than
+      // what was prefetched, rendered with prefetch={false}. The cached App
+      // Shell should render immediately, before the per-URL navigation
+      // response arrives.
+      await browser.elementByCss('a[href="/static-short-stale/124"]').click()
+
+      // While the navigation response is blocked (we're still in the `act`
+      // block), the cached App Shell should already be visible, including
+      // the long-lived cached content.
+      expect(await browser.elementById('static-shell').text()).toEqual(
+        'App shell for static short-stale posts'
+      )
+      expect(
+        await browser.elementById('static-long-stale-content').text()
+      ).toEqual('Long-lived cached content')
+      // The short-lived cached content is NOT part of the App Shell — only
+      // its loading fallback is.
+      expect(await browser.locator('#static-short-stale-content').count()).toBe(
+        0
+      )
+      expect(
+        await browser.elementById('static-short-stale-loading').text()
+      ).toEqual('Loading short-lived content...')
+    })
+
+    // After the outer act unblocks the navigation, the short-lived cached
+    // content streams in with the navigation response, along with the
+    // per-URL content.
+    expect(
+      await browser.elementById('static-short-stale-content').text()
+    ).toEqual('Short-lived cached content')
+    expect(await browser.elementById('static-content').text()).toEqual(
+      'Static post 124'
+    )
+  })
+
   describe('root params', () => {
     it('includes root params in a runtime App Shell', async () => {
       let page: Playwright.Page

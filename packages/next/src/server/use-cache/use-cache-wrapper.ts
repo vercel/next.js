@@ -59,7 +59,11 @@ import {
 } from '../app-render/create-error-handler'
 import { createDigestWithErrorCode } from '../../lib/error-telemetry-utils'
 import stringHash from 'next/dist/compiled/string-hash'
-import { MIN_PRERENDERABLE_EXPIRE, MIN_PREFETCHABLE_STALE } from './constants'
+import {
+  MIN_PRERENDERABLE_EXPIRE,
+  MIN_PREFETCHABLE_STALE,
+  MIN_SHELL_STALE,
+} from './constants'
 import { NEXT_CACHE_ROOT_PARAM_TAG_ID } from '../../lib/constants'
 import {
   getCacheHandler,
@@ -95,7 +99,10 @@ import type { ResumeDataCache } from '../resume-data-cache/resume-data-cache'
 import { createLazyResult, isResolvedLazyResult } from '../lib/lazy-result'
 import { dynamicAccessAsyncStorage } from '../app-render/dynamic-access-async-storage.external'
 import type { CacheLife } from './cache-life'
-import { RenderStage } from '../app-render/staged-rendering'
+import {
+  RenderStage,
+  type AdvanceableRenderStage,
+} from '../app-render/staged-rendering'
 import * as Log from '../../build/output/log'
 import { getServerReact, getClientReact } from '../runtime-reacts.external'
 import { createPromiseWithResolvers } from '../../shared/lib/promise-with-resolvers'
@@ -1857,7 +1864,6 @@ export async function cache(
         const stagedRendering = outerWorkUnitStore.stagedRendering
         if (stagedRendering) {
           await stagedRendering.waitForStage(
-            // TODO(app-shells): exclude private caches with a short staletime from shells
             RENDER_STAGES_BY_DATA_KIND.sessionData
           )
         }
@@ -1870,7 +1876,6 @@ export async function cache(
           await makeDevtoolsIOAwarePromise(
             undefined,
             outerWorkUnitStore,
-            // TODO(app-shells): exclude private caches with a short staletime
             RENDER_STAGES_BY_DATA_KIND.sessionData
           )
         }
@@ -2313,7 +2318,6 @@ export async function cache(
               const stagedRendering = workUnitStore.stagedRendering
               if (stagedRendering) {
                 await stagedRendering.waitForStage(
-                  // TODO(app-shells): exclude caches with a short staletime
                   RENDER_STAGES_BY_DATA_KIND.sessionData
                 )
               }
@@ -2378,44 +2382,97 @@ export async function cache(
           }
         }
 
-        if (rdcResult.entry.stale < MIN_PREFETCHABLE_STALE) {
+        if (rdcResult.entry.stale < MIN_SHELL_STALE) {
+          // The entry's stale time is short enough that it's excluded from
+          // shells. If it's below `MIN_PREFETCHABLE_STALE`, it's not worth
+          // prefetching at all and is excluded from prerenders entirely,
+          // leaving a dynamic hole that can be filled during the navigation.
+          // Otherwise, it's still included in prerenders and cached
+          // navigations, but it must not be part of an App Shell, which may
+          // be reused on the client for longer than the entry's stale time.
+          // We delay the entry to resolve in the post-shell (link data)
+          // stage, which excludes both its content and its stale time from
+          // the shell.
+          const isPrefetchable = rdcResult.entry.stale >= MIN_PREFETCHABLE_STALE
           switch (workUnitStore.type) {
             case 'prerender':
-            case 'prerender-runtime':
-              // If the cache entry will become
-              // stale in less then 30 seconds, we consider this cache entry
-              // dynamic as it's not worth prefetching. It's better to leave
-              // a dynamic hole that can be filled during the navigation.
-              debug?.(
-                'omitting entry',
-                serializedCacheKey,
-                'from shell due to short stale value:',
-                rdcResult.entry.stale
-              )
-              if (cacheSignal) {
-                cacheSignal.endRead()
+            case 'prerender-runtime': {
+              const prerenderStore = workUnitStore
+              // The post-shell stage that the entry must be delayed to.
+              let postShellStage: AdvanceableRenderStage
+              if (prerenderStore.type === 'prerender') {
+                postShellStage = RENDER_STAGES_BY_DATA_KIND.staticLinkData
+              } else {
+                postShellStage = RENDER_STAGES_BY_DATA_KIND.runtimeLinkData
               }
-              return makeHangingPromise(
-                workUnitStore.renderSignal,
-                workStore.route,
-                'dynamic "use cache"'
-              )
+              const stagedRendering = prerenderStore.stagedRendering
+              if (
+                !isPrefetchable ||
+                // If the render ends before the post-shell stage (e.g. a
+                // render that only produces an App Shell), the entry can't
+                // be delayed and is omitted entirely.
+                (stagedRendering !== null &&
+                  stagedRendering.finalStage !== null &&
+                  stagedRendering.finalStage < postShellStage)
+              ) {
+                debug?.(
+                  'omitting entry',
+                  serializedCacheKey,
+                  'from shell due to short stale value:',
+                  rdcResult.entry.stale
+                )
+                if (cacheSignal) {
+                  cacheSignal.endRead()
+                }
+                return makeHangingPromise(
+                  prerenderStore.renderSignal,
+                  workStore.route,
+                  'dynamic "use cache"'
+                )
+              }
+              if (stagedRendering !== null) {
+                debug?.(
+                  'delaying entry',
+                  serializedCacheKey,
+                  'until after the shell stage due to short stale value:',
+                  rdcResult.entry.stale
+                )
+                await stagedRendering.waitForStage(postShellStage)
+              }
+              break
+            }
             case 'request': {
-              // A short stale time excludes the entry from prerenders.
-              // We delay it here to match that.
+              // A request store in `next start` never delays caches — shells
+              // are produced by separate (runtime) prerenders, which apply
+              // the exclusions above. In dev, the request render is also used
+              // to recover shells, so we delay the entry here to match.
               if (process.env.NODE_ENV === 'development') {
-                // End the cache signal read (once, in case the expire block
-                // above already did) so the deferred value isn't counted as a
-                // pending read at a staged rendering boundary, then defer it to
-                // the dynamic stage.
+                // End the cache signal read (once, in case an earlier block
+                // already did) so the delayed value isn't counted as a pending
+                // read at a staged rendering boundary.
                 if (cacheSignal && !cacheSignalReadEnded) {
                   cacheSignal.endRead()
                   cacheSignalReadEnded = true
                 }
+                // An unprefetchable entry is excluded from prerenders, so it
+                // resolves in the dynamic stage. Otherwise, a dynamic request
+                // generally recovers a static shell, so the entry can resolve
+                // in the static link data stage. If we need to recover a
+                // session shell instead, as indicated by `needsSessionShell`,
+                // the entry must resolve after the session data stage that
+                // the shell includes.
+                let stage: AdvanceableRenderStage
+                if (!isPrefetchable) {
+                  stage = RenderStage.Dynamic
+                } else if (workUnitStore.needsSessionShell) {
+                  stage = RENDER_STAGES_BY_DATA_KIND.runtimeLinkData
+                } else {
+                  stage = RENDER_STAGES_BY_DATA_KIND.staticLinkData
+                }
                 await makeDevtoolsIOAwarePromise(
                   undefined,
                   workUnitStore,
-                  RenderStage.Dynamic
+                  stage
                 )
               }
               break
@@ -2899,24 +2956,43 @@ export async function cache(
           }
         }
 
-        if (entry !== undefined && entry.stale < MIN_PREFETCHABLE_STALE) {
+        if (entry !== undefined && entry.stale < MIN_SHELL_STALE) {
           switch (workUnitStore.type) {
             case 'request': {
-              // A short stale time excludes the entry from prerenders.
-              // We delay it here to match that.
+              // Same as the resume data cache read path: the entry's stale
+              // time is short enough that it's excluded from shells, or, if
+              // it's below `MIN_PREFETCHABLE_STALE`, from prerenders
+              // entirely. A request store in `next start` never delays
+              // caches — shells are produced by separate (runtime)
+              // prerenders. In dev, the request render is also used to
+              // recover shells, so we delay the entry here to match.
               if (process.env.NODE_ENV === 'development') {
                 // End the cache signal read (once, in case the expire block
-                // above already did) so the deferred value isn't counted as a
-                // pending read at a staged rendering boundary, then defer it to
-                // the dynamic stage.
+                // above already did) so the delayed value isn't counted as a
+                // pending read at a staged rendering boundary.
                 if (cacheSignal && !cacheSignalReadEnded) {
                   cacheSignal.endRead()
                   cacheSignalReadEnded = true
                 }
+                // An unprefetchable entry is excluded from prerenders, so it
+                // resolves in the dynamic stage. Otherwise, a dynamic request
+                // generally recovers a static shell, so the entry can resolve
+                // in the static link data stage. If we need to recover a
+                // session shell instead, as indicated by `needsSessionShell`,
+                // the entry must resolve after the session data stage that
+                // the shell includes.
+                let stage: AdvanceableRenderStage
+                if (entry.stale < MIN_PREFETCHABLE_STALE) {
+                  stage = RenderStage.Dynamic
+                } else if (workUnitStore.needsSessionShell) {
+                  stage = RENDER_STAGES_BY_DATA_KIND.runtimeLinkData
+                } else {
+                  stage = RENDER_STAGES_BY_DATA_KIND.staticLinkData
+                }
                 await makeDevtoolsIOAwarePromise(
                   undefined,
                   workUnitStore,
-                  RenderStage.Dynamic
+                  stage
                 )
               }
               break
@@ -2930,8 +3006,8 @@ export async function cache(
             case 'unstable-cache':
             case 'generate-static-params':
               // A handler read in a prerender context is a cache-filling read.
-              // The stale exclusion for those is applied when the RDC is read
-              // in the final prerender, so there's nothing to do here.
+              // The stale exclusions for those are applied when the RDC is
+              // read in the final prerender, so there's nothing to do here.
               break
             default:
               workUnitStore satisfies never
