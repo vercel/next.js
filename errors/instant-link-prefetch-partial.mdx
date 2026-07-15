@@ -88,6 +88,38 @@ module.exports = {
 }
 ```
 
+#### Keep prefetching the dynamic data
+
+`'partial'` prefetches only the App Shell, which is the route's static and cached content. Uncached dynamic data is no longer prefetched. To keep prefetching content that came down with `prefetch={true}`, work through two steps.
+
+1. Cache it with [`use cache`](https://preview.nextjs.org/docs/app/api-reference/directives/use-cache). If the content doesn't depend on the URL, it gets included in the App Shell and that's enough.
+2. If it depends on per-link runtime data (`params`, `searchParams`), it can't be included in the shared App Shell. Opt the route into [runtime prefetching](https://preview.nextjs.org/docs/app/guides/runtime-prefetching) with [`prefetch = 'allow-runtime'`](https://preview.nextjs.org/docs/app/api-reference/file-conventions/route-segment-config/prefetch#allow-runtime) so the cached content is prefetched behind the runtime read.
+
+```jsx filename="app/dashboard/page.js"
+import { Suspense } from 'react'
+
+export const prefetch = 'allow-runtime'
+
+async function getMetrics(range) {
+  'use cache'
+  const res = await fetch(`https://api.example.com/metrics?range=${range}`)
+  return res.json()
+}
+
+async function Metrics({ searchParams }) {
+  const { range } = await searchParams
+  return <MetricsView metrics={await getMetrics(range)} />
+}
+
+export default function DashboardPage({ searchParams }) {
+  return (
+    <Suspense fallback={<Skeleton />}>
+      <Metrics searchParams={searchParams} />
+    </Suspense>
+  )
+}
+```
+
 Learn more: [Adopting Partial Prefetching](https://preview.nextjs.org/docs/app/guides/adopting-partial-prefetching).
 
 ### Trade-off
@@ -99,13 +131,9 @@ The route's dynamic data isn't included in the prefetch. The user sees the App S
 - Partial Prefetching only works with [Cache Components](https://preview.nextjs.org/docs/app/api-reference/config/next-config-js/cacheComponents) enabled.
 - If the route doesn't have a clear App Shell (everything below the layout reads dynamic data), Partial Prefetching has nothing to prefetch and behaves the same as no prefetch. Move static content above the dynamic boundary first.
 
-### Next steps
-
-Opting in stops at the App Shell. To also prefetch cached parts of the route, set `prefetch={true}` on the link. If the cached content depends on request data (cookies, headers, search params), opt the route into [runtime prefetching](https://preview.nextjs.org/docs/app/guides/runtime-prefetching). The [prefetching guide](https://preview.nextjs.org/docs/app/guides/prefetching) covers the link-level options end to end.
-
 ## Use the default prefetch
 
-Choose this fix when you set `prefetch={true}` to warm up a frequently-visited route and you can accept fetching the dynamic data on navigation. Remove the prop and the link uses the default prefetch strategy, which under Cache Components prefetches the cached page render and skips the dynamic data.
+Choose this fix when you set `prefetch={true}` to warm up a frequently-visited route and you can accept fetching the dynamic data on navigation. Remove the prop and the link uses the default prefetch strategy, which under Cache Components prefetches the App Shell (the route's static and cached content) and skips the dynamic data.
 
 ### Patterns
 
@@ -121,7 +149,7 @@ export default function Nav() {
 
 ### Trade-off
 
-The link no longer forces a full prefetch. The user gets the cached parts of the route when the link enters the viewport, and the dynamic data is fetched at navigation time. This is the default behavior under Cache Components.
+The link no longer forces a full prefetch. The user gets the App Shell (static and cached content) when the link enters the viewport, and the dynamic data is fetched at navigation time. This is the default behavior under Cache Components.
 
 ### Gotchas
 

@@ -68,6 +68,9 @@ Default stress routes currently include:
 - `/`
 - `/attributes`
 - `/tailwind`
+- `/dashboard`
+- `/docs`
+- `/blog`
 - `/streaming/light`
 - `/streaming/medium`
 - `/streaming/heavy`

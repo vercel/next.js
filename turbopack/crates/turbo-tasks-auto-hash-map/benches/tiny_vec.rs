@@ -12,8 +12,8 @@
 
 use std::hint::black_box;
 
+use auto_hash_map::TinyVec;
 use criterion::{BenchmarkId, Criterion, criterion_group, criterion_main};
-use turbo_tasks::TinyVec;
 
 #[global_allocator]
 static ALLOC: turbo_tasks_malloc::TurboMalloc = turbo_tasks_malloc::TurboMalloc;
@@ -44,8 +44,8 @@ fn push_vec(n: usize) -> Vec<Item> {
     v
 }
 
-fn push_tinyvec(n: usize) -> TinyVec<Item> {
-    let mut v: TinyVec<Item> = TinyVec::default();
+fn push_tinyvec(n: usize) -> TinyVec<Item, 0> {
+    let mut v: TinyVec<Item, 0> = TinyVec::default();
     for i in 0..n {
         v.push(make_item(i as u64));
     }
@@ -62,7 +62,7 @@ fn iter_vec(v: &Vec<Item>) -> u64 {
     acc
 }
 
-fn iter_tinyvec(v: &TinyVec<Item>) -> u64 {
+fn iter_tinyvec(v: &TinyVec<Item, 0>) -> u64 {
     let mut acc: u64 = 0;
     for it in v.iter() {
         acc = acc.wrapping_add(it.tag).wrapping_add(it.payload);
@@ -106,8 +106,8 @@ pub fn bench(c: &mut Criterion) {
     group.sample_size(200);
     for &n in &sizes {
         // Pre-fill once outside the timed region.
-        let v: Vec<Item> = push_vec(n);
-        let tv: TinyVec<Item> = push_tinyvec(n);
+        let v = push_vec(n);
+        let tv = push_tinyvec(n);
         group.bench_with_input(BenchmarkId::new("Vec", n), &n, |b, _| {
             b.iter(|| black_box(iter_vec(black_box(&v))));
         });

@@ -91,12 +91,26 @@ pnpm bench:render-pipeline:analyze --artifact-dir=bench/render-pipeline/artifact
 
 Omit `--artifact-dir` to analyze the latest run automatically.
 
+## Generated client graph
+
+`bench/basic-app` generates a bulk client-side module graph plus synthetic
+route segments (`app/ui/vendor/`, `app/g/`, both gitignored) before
+building, via `bench/basic-app/scripts/generate-client-graph.mjs`. The
+benchmark runs the generator automatically; run it manually once if you
+build `bench/basic-app` outside the harness. Without it, a small app's
+uniform routes let the production chunker merge client code into a
+handful of chunks, which makes client-reference import rows in the Flight
+payload unrealistically small compared to production apps.
+
 ## Stress routes
 
 Default routes:
 - `/`
 - `/attributes` (attribute and inline-style serialization)
 - `/tailwind` (realistic utility-class-heavy dashboard)
+- `/dashboard` (app-shaped workload: client-reference imports, streamed panels, tables mixing markup and client atoms)
+- `/docs` (documentation-shaped workload: nav metadata tree as data, server-highlighted code)
+- `/blog` (content-index workload: server-rendered cards plus rich-text post data as client props)
 - `/streaming/light`
 - `/streaming/medium`
 - `/streaming/heavy`

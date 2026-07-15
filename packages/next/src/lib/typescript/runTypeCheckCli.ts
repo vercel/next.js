@@ -12,11 +12,17 @@ export async function runTypeCheckCli({
   tsConfigPath,
   tscPath,
   cacheDir,
+  onFirstOutput,
 }: {
   baseDir: string
   tsConfigPath: string
   tscPath: string
   cacheDir?: string
+  /**
+   * Called once when `tsc` first produces output. Used to stop the build
+   * spinner so it does not sit above the diagnostics.
+   */
+  onFirstOutput?: () => void
 }): Promise<TypeCheckResult> {
   const configuration = await getTypeScriptConfigurationCli({
     baseDir,
@@ -45,6 +51,7 @@ export async function runTypeCheckCli({
     cwd: baseDir,
     tscPath,
     args,
+    onFirstOutput,
   })
 
   if (result.exitCode !== 0) {
