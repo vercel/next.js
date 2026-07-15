@@ -2479,11 +2479,9 @@ impl NextConfig {
 
     #[turbo_tasks::function]
     pub fn turbopack_hoist_static_jsx(&self) -> Vc<bool> {
-        Vc::cell(
-            self.experimental
-                .turbopack_hoist_static_jsx
-                .unwrap_or(false),
-        )
+        // Experiment: enabled by default on this branch to exercise the
+        // transform across the full CI suite.
+        Vc::cell(self.experimental.turbopack_hoist_static_jsx.unwrap_or(true))
     }
 
     #[turbo_tasks::function]
