@@ -67,6 +67,7 @@ pub async fn trace_endpoint(
     async {
         let project_path = project.project_path().owned().await?;
         let next_config = project.next_config();
+        let hash_salt = next_config.output_hash_salt();
 
         let output_file_tracing_includes = next_config
             .output_file_tracing_includes(project_path.clone())
@@ -83,10 +84,11 @@ pub async fn trace_endpoint(
                 .await?
                 .map(|v| *v),
             Some(next_config.config_file_path(project_path.clone())),
+            hash_salt,
         )
         .await?;
 
-        let module_data = traced_module_data_for_graph(*module_graph, traced_entries)
+        let module_data = traced_module_data_for_graph(*module_graph, traced_entries, hash_salt)
             .to_resolved()
             .await?;
         let module_paths = module_data.await?.idents;
@@ -271,10 +273,11 @@ pub async fn traced_modules_for_entries(
     traced_entries: Vc<Modules>,
     exclude_glob: Option<Vc<Glob>>,
     forbidden_path: Option<Vc<FileSystemPath>>,
+    hash_salt: Vc<RcStr>,
 ) -> Result<Vc<Modules>> {
     let exclude_glob_and_module_idents = if let Some(exclude_glob) = exclude_glob {
         let exclude_glob = exclude_glob.await?;
-        let data = traced_module_data_for_graph(module_graph, traced_entries).await?;
+        let data = traced_module_data_for_graph(module_graph, traced_entries, hash_salt).await?;
         Some((exclude_glob, data.idents.await?))
     } else {
         None
@@ -379,6 +382,7 @@ pub struct TracedModuleData {
 pub async fn traced_module_data_for_graph(
     module_graph: Vc<ModuleGraph>,
     traced_entries: Vc<Modules>,
+    hash_salt: Vc<RcStr>,
 ) -> Result<Vc<TracedModuleData>> {
     // This function is very similar to traced_modules_for_entries, but doesn't apply the glob and
     // is executed only once for the whole graph.
@@ -420,7 +424,7 @@ pub async fn traced_module_data_for_graph(
                         .await?
                         .context("NFT module has no content")?
                         .content()
-                        .hash(HashAlgorithm::Xxh3Hash128Hex)
+                        .hash(hash_salt, HashAlgorithm::Xxh3Hash128Hex)
                         .await?,
                 ),
             ))

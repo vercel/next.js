@@ -115,12 +115,15 @@ impl Asset for ServerNftJsonAsset {
         )
         .connect();
 
+        let hash_salt = this.project.next_config().output_hash_salt();
+
         let mut server_output_assets = traced_modules_for_entries(
             module_graph,
             Modules::empty(),
             self.entries(),
             Some(self.ignores()),
             None,
+            hash_salt,
         )
         .await?
         .iter()
@@ -133,7 +136,7 @@ impl Asset for ServerNftJsonAsset {
                     .await?
                     .context("NFT module has no content")?
                     .content()
-                    .hash(HashAlgorithm::Xxh3Hash128Hex)
+                    .hash(hash_salt, HashAlgorithm::Xxh3Hash128Hex)
                     .await?,
             ))
         })
@@ -150,7 +153,7 @@ impl Asset for ServerNftJsonAsset {
                     .context("failed to compute relative path for server NFT JSON")?,
                 module_path
                     .read()
-                    .hash(HashAlgorithm::Xxh3Hash128Hex)
+                    .hash(hash_salt, HashAlgorithm::Xxh3Hash128Hex)
                     .await?,
             ));
 
@@ -170,7 +173,9 @@ impl Asset for ServerNftJsonAsset {
                         base_dir
                             .get_relative_path_to(file)
                             .context("failed to compute relative path for server NFT JSON")?,
-                        file.read().hash(HashAlgorithm::Xxh3Hash128Hex).await?,
+                        file.read()
+                            .hash(hash_salt, HashAlgorithm::Xxh3Hash128Hex)
+                            .await?,
                     ))
                 }
             }

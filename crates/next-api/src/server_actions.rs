@@ -231,11 +231,11 @@ impl Asset for ServerActionManifestAsset {
 
         let actions_value = self.actions.await?;
         let async_module_info = self.module_graph.async_module_info();
-        let durable_use_cache_entries = *self
-            .project
-            .next_config()
+        let next_config = self.project.next_config();
+        let durable_use_cache_entries = *next_config
             .enable_durable_use_cache_entries(self.project.next_mode())
             .await?;
+        let hash_salt = next_config.output_hash_salt();
 
         let loader_id = self.chunk_item.id().await?;
         let loader_id = match &loader_id {
@@ -279,6 +279,7 @@ impl Asset for ServerActionManifestAsset {
                                     *self.module_graph,
                                     **module,
                                     *self.chunking_context,
+                                    hash_salt,
                                 )
                                 .await?,
                             )
@@ -361,6 +362,7 @@ async fn compute_subtree_content_hash(
     module_graph: ResolvedVc<ModuleGraph>,
     entry: ResolvedVc<Box<dyn Module>>,
     chunking_context: Vc<Box<dyn ChunkingContext>>,
+    hash_salt: Vc<RcStr>,
 ) -> Result<Vc<RcStr>> {
     let span = tracing::info_span!(
         "compute use-cache code hash",
@@ -408,8 +410,14 @@ async fn compute_subtree_content_hash(
                     .map(async |m| Ok(format!(
                         "  '{}': {}",
                         m.ident_string().await?,
-                        module_hash(*module_graph, chunking_context, async_module_info, **m)
-                            .await?
+                        module_hash(
+                            *module_graph,
+                            chunking_context,
+                            async_module_info,
+                            **m,
+                            hash_salt
+                        )
+                        .await?
                     )))
                     .try_join()
                     .await?
@@ -419,7 +427,15 @@ async fn compute_subtree_content_hash(
 
         let hashes = modules
             .into_iter()
-            .map(|m| module_hash(*module_graph, chunking_context, async_module_info, *m))
+            .map(|m| {
+                module_hash(
+                    *module_graph,
+                    chunking_context,
+                    async_module_info,
+                    *m,
+                    hash_salt,
+                )
+            })
             .try_join()
             .await?;
 
@@ -448,6 +464,7 @@ async fn module_hash(
     chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     async_module_info: ResolvedVc<AsyncModulesInfo>,
     m: ResolvedVc<Box<dyn Module>>,
+    hash_salt: Vc<RcStr>,
 ) -> Result<Vc<RcStr>> {
     let ident = m.ident();
     let ident_value = ident.await?;
@@ -484,7 +501,7 @@ async fn module_hash(
             .await?
             .with_context(|| format!("failed to get source for module {ident_str}"))?
             .content()
-            .hash(HashAlgorithm::Xxh3Hash128Hex)
+            .hash(hash_salt, HashAlgorithm::Xxh3Hash128Hex)
             .await?;
         Ok(Vc::cell(RcStr::from(deterministic_hash(
             "",
