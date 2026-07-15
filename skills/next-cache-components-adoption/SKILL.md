@@ -42,7 +42,7 @@ The choice in step 1 is whether to opt every route out of validation first or fi
 - **With a quiet pre-step (Incremental).** Run the codemod to opt every page and layout out of validation. Once you've also fixed what the codemod can't (sync-IO calls, leftover `revalidate`/`dynamic`/`fetchCache` exports), the build passes; you ship that as its own PR and then start the loop — removing one opt-out at a time and adopting that route. This splits the work into small, reviewable PRs.
 - **Without (Direct).** Enable `cacheComponents` and start the loop on whatever the build flags first. Same loop, but every fix sits on one branch until adoption is complete.
 
-In both, the per-route success bar is the same: **dev loop reports no errors AND `next build` passes**. Check in with the user after every feature. Expect to spend most of the time in the loop, not in the pre-step.
+In both, the per-route success bar is the same: **dev loop reports no errors AND `next build` passes**. Check in with the user after every feature, and suggest a commit but never make one without their confirmation. Expect to spend most of the time in the loop, not in the pre-step.
 
 ## background
 
@@ -89,7 +89,7 @@ In preference order:
 
 3. **Build-only.** If you can't run a dev server at all, the build is your only signal. `○ (Static)` routes with no `<Suspense>` are fully verified by the build (nothing streamed to test). `◐ (Partial Prerender)` routes are only shell-verified — flag them when you report back.
 
-4. **No tooling at all.** Ask the user to run the dev server (or build) and report what they see, or commit the milestone you've reached and hand off.
+4. **No tooling at all.** Ask the user to run the dev server (or build) and report what they see, or hand off the milestone you've reached.
 
 ## step 1: choose a strategy
 

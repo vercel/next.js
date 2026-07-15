@@ -13,7 +13,7 @@ description: >
 
 Enable Partial Prefetching and walk the app until every link reuses a shared App Shell. This skill sequences the work; per-insight recipes live in the dev overlay fix cards and their docs pages. The [Adopting Partial Prefetching guide](https://nextjs.org/docs/app/guides/adopting-partial-prefetching) is the canonical reference for the concepts this skill applies.
 
-The one thing that shapes everything below: **these insights surface only in `next dev`, in the dev overlay's Insights tab.** Nothing fails the build. There is no build-only fallback loop for this skill — the work is a sweep of the running app in the browser. If you can't drive a browser, stop and tell the user what you can't verify, or commit the milestone you've reached and hand off.
+The one thing that shapes everything below: **these insights surface only in `next dev`, in the dev overlay's Insights tab.** Nothing fails the build. There is no build-only fallback loop — confirming an insight is _cleared_ means driving the running app in a browser. But a missing browser gates that verification, not the whole skill: the adoption work is static and runs from the guide, so do the static pass anyway and hand off the live shell check.
 
 Talk to the user in terms of what they'll see — PRs, features, and how the app behaves after — never the insight slugs or step labels. Before you start, tell them briefly what Partial Prefetching changes: a `<Link>` loads a shared App Shell, and `prefetch={true}` no longer prefetches everything the old full prefetch did.
 
@@ -56,7 +56,7 @@ Enumerate the links across the whole source tree, not only `app/` — they often
 
 Then, for each one:
 
-1. **Click it** in `next dev`. The insight fires at navigation time, not when the link prefetches, so a link sitting in the viewport won't trip it — you have to navigate through it.
+1. **Click it** in `next dev`. The insight fires at navigation time, not when the link prefetches, so a link sitting in the viewport won't trip it — you have to navigate through it. This click is _verification_: it confirms the insight fires before you adopt and clears after. Without a browser, skip the click and adopt from [`link-prefetch-partial`](https://nextjs.org/docs/messages/instant-link-prefetch-partial) and the audit table below — the destination's structure tells you the row, and type-check gates the edit — then leave the live confirmation for the hand-off.
 2. **Adopt the destination.** Add `export const prefetch = 'partial'`. That clears the insight for every link pointing at it. If the route reads URL data (`params`, `searchParams`), it's a runtime-prefetch candidate for step 5 — keep `prefetch={true}` on its links and mark the route:
 
    ```tsx
@@ -89,7 +89,7 @@ This is a dev-only second pass. The shell check runs only with the flag on, fire
 
 Sweep feature by feature. A feature is a single product surface — `app/settings/**`, `app/posts/[slug]/**` — not a whole top-level area. Finish one end-to-end before starting the next: load its routes in `next dev` and resolve their insights. The insight never blocks the build and each route is independent, so a partial sweep leaves a working app, and each feature is a self-contained change the user can review or ship on its own.
 
-If the environment can't finish the whole sweep (slow first compiles, a dev server that falls over under load), that's a valid stopping point: report the features you swept and the ones still queued, and hand off rather than restart-looping the dev server.
+If the environment can't finish the whole sweep (slow first compiles, a dev server that falls over under load, no browser at all), take the browser-free work as far as it goes before handing off. Adopt every route you can statically: apply the fix from [`URL data`](https://nextjs.org/docs/messages/instant-shell-url-data) (up to a new `<Suspense>` boundary) and opt the route into `prefetch = 'partial'`, gating on type-check. Work the whole queue in one pass — a harder refactor isn't a reason to defer, and asking whether to continue to the next route or tier isn't a checkpoint; keep going. Stop only for a genuine judgment call, and batch those into the single hand-off report: the routes you statically adopted, the ones still needing a live shell check, and the queue.
 
 Watch the Insights tab and the dev log for `Next.js encountered … data` lines. The signal this step adds is [`URL data`](https://nextjs.org/docs/messages/instant-shell-url-data): a `params` or `searchParams` read outside `<Suspense>` ties the shared shell to one URL. It can surface even inside an existing `<Suspense>` when the boundary sits above the read. Open its docs page and follow the fix there.
 
