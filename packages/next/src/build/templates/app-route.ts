@@ -62,15 +62,13 @@ const routeModule = new AppRouteRouteModule({
   relativeProjectDir: process.env.__NEXT_RELATIVE_PROJECT_DIR || '',
   resolvedPagePath: 'VAR_RESOLVED_PAGE_PATH',
   nextConfigOutput,
-  // Always use a lazy require factory so that:
+  // The lazy require factory ensures that:
   // - In dev: devRequestTimingInternalsEnd is set before userland executes,
   //   correctly attributing module load time to application-code rather than
   //   framework internals.
   // - In all modes: async modules (route files with top-level await) are
   //   handled correctly — require() returns a Promise for such modules, which
-  //   ensureUserland() awaits before the first request is handled. Eagerly
-  //   calling require() would pass that Promise directly to the constructor
-  //   and break _initFromUserland().
+  //   ensureUserland() awaits before the first request is handled.
   userland: () => require('VAR_USERLAND') as typeof import('VAR_USERLAND'),
   // In Turbopack dev mode, also provide a synchronous per-request getter so
   // server HMR updates are picked up without re-executing the entry chunk.
