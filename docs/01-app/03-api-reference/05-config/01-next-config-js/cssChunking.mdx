@@ -117,7 +117,7 @@ module.exports = nextConfig
 ```
 
 - **`requestCost`** (default `20000`): the estimated cost, in bytes, of each additional CSS request. Larger values bias toward fewer, larger shared chunks, and fewer requests overall.
-- **`weightDistribution`** (default `0.1`): controls how a shared chunk's cost is distributed across the routes that load it, weighted by how much CSS each route imports. `0` weights every route equally; higher values give more weight to routes that import less CSS, so the algorithm ships them less unused CSS at the expense of more requests overall.
+- **`weightDistribution`** (default `0.1`): controls how a shared chunk's cost is distributed across the routes that load it, weighted by how much CSS each route imports. `0` weights every route equally; higher values give more weight to routes that import less CSS, so the algorithm prioritizes routes with less CSS, assuming extra CSS is less noticeable on large routes.
 
 ### How `graph` decides what to merge
 
