@@ -97,6 +97,9 @@ Default routes:
 - `/`
 - `/attributes` (attribute and inline-style serialization)
 - `/tailwind` (realistic utility-class-heavy dashboard)
+- `/dashboard` (app-shaped workload: client-reference imports, streamed panels, tables mixing markup and client atoms)
+- `/docs` (documentation-shaped workload: nav metadata tree as data, server-highlighted code)
+- `/blog` (content-index workload: server-rendered cards plus rich-text post data as client props)
 - `/streaming/light`
 - `/streaming/medium`
 - `/streaming/heavy`
