@@ -20,7 +20,7 @@ use turbo_tasks::{
     NonLocalValue, ResolvedVc, ValueToString, Vc, debug::ValueDebugFormat, trace::TraceRawVcs,
 };
 use turbopack_core::{
-    chunk::{ChunkingContext, ChunkingType},
+    chunk::{ChunkingContext, ChunkingType, ModuleChunkItemIdExt},
     issue::IssueSource,
     module::Module,
     reference::ModuleReference,
@@ -43,7 +43,8 @@ use crate::{
         pattern_mapping::{PatternMapping, ResolveType},
         util::SpecifiedChunkingType,
     },
-    runtime_functions::TURBOPACK_CACHE,
+    runtime_functions::{TURBOPACK_CACHE, TURBOPACK_IMPORT},
+    utils::module_id_to_lit,
 };
 
 /// Generic CommonJS reference that doesn't perform any codegen. Used for tracing
@@ -347,6 +348,16 @@ impl CjsRequireAssetReferenceCodeGen {
                         Some(cjs_exports_object(
                             &referenced_export_names(&reference.usage, asset).await?,
                             ctxt,
+                        ))
+                    }
+                    // ESM: `<value>` is the interop namespace via `.i(id)` (gives `default`,
+                    // `__esModule`, live getters), like an `import * as ns`.
+                    EcmascriptExports::EsmExports(_) => {
+                        let target_id = asset.chunk_item_id(chunking_context).await?;
+                        Some(quote!(
+                            "$imp($id)" as Expr,
+                            imp: Expr = TURBOPACK_IMPORT.into(),
+                            id: Expr = module_id_to_lit(&target_id),
                         ))
                     }
                     // Not statically inlinable; keep the runtime require.

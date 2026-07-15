@@ -171,8 +171,8 @@ pub trait ChunkableModule: Module {
 #[turbo_tasks::value_trait]
 pub trait MergeableModule: Module {
     /// Whether the module can be merged, and if so whether it is ESM or CommonJS.
-    /// `None` means it can't be merged. Only modules of the same kind are merged into a
-    /// group, as mixing them requires interop between the two export shapes.
+    /// `None` means it can't be merged; the kind drives interop when the two are
+    /// mixed in one group.
     #[turbo_tasks::function]
     fn merge_kind(self: Vc<Self>) -> Vc<OptionMergeableModuleKind> {
         Vc::cell(Some(MergeableModuleKind::EcmaScript))

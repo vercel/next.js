@@ -7,8 +7,8 @@ use turbo_tasks::{FxIndexMap, FxIndexSet, ResolvedVc, TryFlatJoinIterExt, TryJoi
 
 use crate::{
     chunk::{
-        ChunkableModule, ChunkingType, MergeableModule, MergeableModuleExposure, MergeableModules,
-        MergeableModulesExposed,
+        ChunkableModule, ChunkingType, MergeableModule, MergeableModuleExposure,
+        MergeableModuleKind, MergeableModules, MergeableModulesExposed,
     },
     module::Module,
     module_graph::{
@@ -199,16 +199,13 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
                     && let Some(parent_module) = parent_module
                     && mergeable.contains(&parent_module)
                     && mergeable.contains(&module)
-                    // Only merge modules of the same kind: ESM importing ESM, or CommonJS
-                    // requiring CommonJS.
-                    && merge_kinds.get(&parent_module) == merge_kinds.get(&module)
                     && !async_modules.contains(&parent_module)
                     && !async_modules.contains(&module)
                 {
                     // ^ TODO technically we could merge a sync child into an async parent
 
                     // A hoisted reference from a mergeable module to a non-async mergeable
-                    // module of the same kind, inherit bitmaps from parent.
+                    // module, inherit bitmaps from parent.
                     module_merged_groups.entry(node).or_default();
                     let [Some(parent_merged_groups), Some(current_merged_groups)] =
                         module_merged_groups.get_disjoint_mut([&parent_module, &node])
@@ -538,14 +535,24 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
                     // necessarily needed for browser),
                     exposed_modules_imported.insert(module);
                 }
-                if parent_info.is_some_and(|(_, r)| {
+                if parent_info.is_some_and(|(parent, r)| {
                     matches!(
                         r.binding_usage.export,
                         ExportUsage::All | ExportUsage::PartialNamespaceObject(_)
                     )
+                    // An ESM `import` of a CommonJS module reads it through the interop
+                    // namespace, except a named one, which binds to the per-export local.
+                    || (match &r.binding_usage.export {
+                        ExportUsage::Evaluation => false,
+                        ExportUsage::Named(name) => name == "default",
+                        _ => true,
+                    }
+                        && merge_kinds.get(&parent) == Some(&MergeableModuleKind::EcmaScript)
+                        && merge_kinds.get(&module) == Some(&MergeableModuleKind::CommonJs))
                 }) {
                     // This module needs to be exposed:
-                    // - namespace import from another group
+                    // - namespace import from another group, or
+                    // - CommonJS target of an ESM import (needs interop namespace)
                     exposed_modules_namespace.insert(module);
                 }
                 Ok(())
