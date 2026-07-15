@@ -25,6 +25,7 @@ declare var CROSS_ORIGIN: 'anonymous' | 'use-credentials' | null
 declare var CHUNK_LOAD_RETRY_MAX_ATTEMPTS: number
 declare var CHUNK_LOAD_RETRY_BASE_DELAY_MS: number
 declare var CHUNK_LOAD_RETRY_MAX_JITTER_MS: number
+declare const SUPPORT_COMPONENT_CHUNKS: boolean
 
 interface TurbopackBrowserBaseContext<M> extends TurbopackBaseContext<M> {
   R: ResolvePathFromModule
@@ -85,6 +86,30 @@ const availableModules: Map<ModuleId, Promise<any> | true> = new Map()
 
 const availableModuleChunks: Map<ChunkPath, Promise<any> | true> = new Map()
 
+// Registry mapping a merged chunk's path to its constituent component chunk paths.
+const chunkComponents: Map<ChunkPath, ChunkPath[]> = new Map()
+
+// Registry mapping a component chunk's path to its size in bytes, used by the
+// split-vs-whole cost heuristic.
+const componentChunkSizes: Map<ChunkPath, number> = new Map()
+
+function registerComponentChunkSizes(
+  componentChunks: ChunkPath[],
+  sizes: number[]
+): void {
+  for (let i = 0; i < componentChunks.length; i++) {
+    const size = sizes[i]
+    if (size !== undefined) {
+      componentChunkSizes.set(componentChunks[i], size)
+    }
+  }
+}
+
+type ChunkUrlOrMerged = ChunkUrl | [ChunkUrl, ChunkPath[], number[]]
+
+// Memoizes the composite promise returned for a merged chunk loaded by URL, keyed by URL.
+const splitChunkPromises: Map<ChunkUrl, Promise<any>> = new Map()
+
 function loadChunk(
   this: TurbopackBrowserBaseContext<Module>,
   chunkData: ChunkData
@@ -117,50 +142,24 @@ async function loadChunkInternal(
     return
   }
 
-  const includedModuleChunksList = chunkData.moduleChunks || []
-  const moduleChunksPromises = includedModuleChunksList
-    .map((included) => {
-      // TODO(alexkirsz) Do we need this check?
-      // if (moduleFactories[included]) return true;
-      return availableModuleChunks.get(included)
-    })
-    .filter((p) => p)
-
   let promise: Promise<unknown>
-  if (moduleChunksPromises.length > 0) {
-    // Some module chunks are already loaded or loading.
-
-    if (moduleChunksPromises.length === includedModuleChunksList.length) {
-      // When all included module chunks are already loaded or loading, we can skip loading ourselves
-      await Promise.all(moduleChunksPromises)
-      return
-    }
-
-    const moduleChunksToLoad: Set<ChunkPath> = new Set()
-    for (const moduleChunk of includedModuleChunksList) {
-      if (!availableModuleChunks.has(moduleChunk)) {
-        moduleChunksToLoad.add(moduleChunk)
-      }
-    }
-
-    for (const moduleChunkToLoad of moduleChunksToLoad) {
-      const promise = loadChunkPath(sourceType, sourceData, moduleChunkToLoad)
-
-      availableModuleChunks.set(moduleChunkToLoad, promise)
-
-      moduleChunksPromises.push(promise)
-    }
-
-    promise = Promise.all(moduleChunksPromises)
+  if (SUPPORT_COMPONENT_CHUNKS) {
+    const componentChunks = chunkData.moduleChunks || []
+    // We already have this chunk's component list inline (chunkData.moduleChunks) and split on it
+    // here, so the whole-chunk fallback uses loadChunkByUrlWhole to skip loadChunkByUrlInternal's
+    // chunkComponents-registry lookup, which would just repeat the same split decision.
+    promise = loadComponentChunksOrWhole(
+      sourceType,
+      sourceData,
+      componentChunks,
+      getChunkRelativeUrl(chunkData.path)
+    )
   } else {
-    promise = loadChunkPath(sourceType, sourceData, chunkData.path)
-
-    // Mark all included module chunks as loading if they are not already loaded or loading.
-    for (const includedModuleChunk of includedModuleChunksList) {
-      if (!availableModuleChunks.has(includedModuleChunk)) {
-        availableModuleChunks.set(includedModuleChunk, promise)
-      }
-    }
+    promise = loadChunkByUrlWhole(
+      sourceType,
+      sourceData,
+      getChunkRelativeUrl(chunkData.path)
+    )
   }
 
   for (const included of includedList) {
@@ -174,6 +173,85 @@ async function loadChunkInternal(
   await promise
 }
 
+/**
+ * Approximate cost of an extra HTTP request, expressed in emitted (minified, uncompressed) chunk
+ * bytes, used to decide whether splitting a merged chunk into individually-cached component
+ * chunks is worthwhile.
+ */
+const REQUEST_COST_BYTES = 20_000
+
+/**
+ * Decides whether to load a merged chunk's component chunks individually instead of the whole
+ * merged chunk, weighing the bytes saved (the available components we avoid re-downloading)
+ * against the extra network requests splitting incurs.
+ *
+ * Splitting issues one request per unavailable component vs. a single request for the merged
+ * chunk, so it adds `unavailableCount - 1` extra requests. When at most one component needs the
+ * network, splitting never costs more requests than the merged load (and transfers fewer bytes),
+ * so it always wins. Otherwise it's only worth it when the available bytes exceed the extra
+ * request cost.
+ */
+function shouldLoadComponentChunks(
+  availableBytes: number,
+  unavailableCount: number
+): boolean {
+  if (unavailableCount <= 1) {
+    return true
+  }
+  return availableBytes > REQUEST_COST_BYTES * (unavailableCount - 1)
+}
+
+/**
+ * Loads a chunk's component chunks individually when enough of them are already available
+ * in memory (avoiding re-downloading the ones we have, per `shouldLoadComponentChunks`),
+ * otherwise loads the whole chunk from `chunkUrl` and records its component chunks as available.
+ */
+function loadComponentChunksOrWhole(
+  sourceType: SourceType,
+  sourceData: SourceData,
+  componentChunks: ChunkPath[],
+  chunkUrl: ChunkUrl
+): Promise<unknown> {
+  const componentChunkPromises: Array<Promise<any> | true> = []
+  let availableBytes = 0
+  let unavailableCount = 0
+  for (const componentChunk of componentChunks) {
+    const available = availableModuleChunks.get(componentChunk)
+    if (available) {
+      componentChunkPromises.push(available)
+      availableBytes += componentChunkSizes.get(componentChunk) ?? 0
+    } else {
+      unavailableCount++
+    }
+  }
+
+  if (
+    componentChunkPromises.length > 0 &&
+    shouldLoadComponentChunks(availableBytes, unavailableCount)
+  ) {
+    // Enough component chunks are already loaded or loading that splitting saves more
+    // bytes than the extra requests cost.
+    for (const componentChunk of componentChunks) {
+      if (!availableModuleChunks.has(componentChunk)) {
+        const promise = loadChunkPath(sourceType, sourceData, componentChunk)
+        availableModuleChunks.set(componentChunk, promise)
+        componentChunkPromises.push(promise)
+      }
+    }
+    return Promise.all(componentChunkPromises)
+  }
+
+  // Not enough is available in memory for splitting to pay off. Load the
+  // whole chunk in a single request and record its component chunks as available.
+  const promise = loadChunkByUrlWhole(sourceType, sourceData, chunkUrl)
+  for (const componentChunk of componentChunks) {
+    if (!availableModuleChunks.has(componentChunk)) {
+      availableModuleChunks.set(componentChunk, promise)
+    }
+  }
+  return promise
+}
+
 const loadedChunk = Promise.resolve(undefined)
 const instrumentedBackendLoadChunks = new WeakMap<
   Promise<any>,
@@ -182,14 +260,100 @@ const instrumentedBackendLoadChunks = new WeakMap<
 // Do not make this async. React relies on referential equality of the returned Promise.
 function loadChunkByUrl(
   this: TurbopackBrowserBaseContext<Module>,
-  chunkUrl: ChunkUrl
+  chunkEntry: ChunkUrlOrMerged
 ) {
-  return loadChunkByUrlInternal(SourceType.Parent, this.m.id, chunkUrl)
+  return loadChunkByUrlInternal(SourceType.Parent, this.m.id, chunkEntry)
 }
 browserContextPrototype.L = loadChunkByUrl
 
 // Do not make this async. React relies on referential equality of the returned Promise.
 function loadChunkByUrlInternal(
+  sourceType: SourceType,
+  sourceData: SourceData,
+  chunkEntry: ChunkUrlOrMerged
+): Promise<any> {
+  if (SUPPORT_COMPONENT_CHUNKS) {
+    // A merged chunk arrives as a `[url, componentChunkPaths, componentChunkSizes]` array. Register
+    // the components so a by-URL load of this merged chunk — now or from a later navigation — can
+    // be split, and so `registerChunk` can mark them available when the whole chunk loads.
+    let chunkUrl: ChunkUrl
+    let components: ChunkPath[] | undefined
+    if (typeof chunkEntry === 'string') {
+      chunkUrl = chunkEntry
+    } else {
+      let componentSizes: number[]
+      ;[chunkUrl, components, componentSizes] = chunkEntry
+      registerComponentChunkSizes(components, componentSizes)
+    }
+    const chunkPath = chunkUrlToPath(chunkUrl)
+    if (components !== undefined) {
+      chunkComponents.set(chunkPath, components)
+    } else {
+      // A plain URL may still be a merged chunk we already registered from its array.
+      components = chunkComponents.get(chunkPath)
+    }
+
+    // If we have component chunks for this merged chunk, load only the ones we don't already have
+    // instead of the whole merged chunk.
+    if (components !== undefined) {
+      let promise = splitChunkPromises.get(chunkUrl)
+      if (promise === undefined) {
+        promise = loadComponentChunksOrWhole(
+          sourceType,
+          sourceData,
+          components,
+          chunkUrl
+        )
+        splitChunkPromises.set(chunkUrl, promise)
+      }
+      return promise
+    }
+
+    // This is a non-merged chunk. If its modules were already loaded — e.g. this chunk is a
+    // component of a merged chunk fetched on a previous navigation — reuse that load instead of
+    // re-downloading.
+    const existing = availableModuleChunks.get(chunkPath)
+    if (existing !== undefined) {
+      return existing === true ? loadedChunk : existing
+    }
+    const promise = loadChunkByUrlWhole(sourceType, sourceData, chunkUrl)
+    availableModuleChunks.set(chunkPath, promise)
+    return promise
+  }
+
+  // Component chunks are disabled, so the chunking context never emits merged arrays and every
+  // entry is a plain chunk URL. Load it whole; the backend dedupes repeated URLs.
+  return loadChunkByUrlWhole(sourceType, sourceData, chunkEntry as ChunkUrl)
+}
+
+// Convert a chunk URL back to its ChunkPath (strip base path, query/hash, decode), to
+// match the keys stored in `chunkComponents`.
+function chunkUrlToPath(chunkUrl: ChunkUrl): ChunkPath {
+  const src = decodeURIComponent(chunkUrl.replace(/[?#].*$/, ''))
+  return (
+    src.startsWith(CHUNK_BASE_PATH) ? src.slice(CHUNK_BASE_PATH.length) : src
+  ) as ChunkPath
+}
+
+/**
+ * When a merged chunk finishes registering (e.g. an initial-load `<script>`), mark its
+ * component chunks as available so a later by-URL load of a *different* merged chunk that
+ * shares a component skips re-downloading it. Called from `registerChunk`.
+ */
+
+function markChunkComponentsAvailable(chunk: ChunkPath | ChunkScript) {
+  if (chunkComponents.size === 0) return
+  const components = chunkComponents.get(getPathFromScript(chunk))
+  if (components === undefined) return
+  for (const componentChunk of components) {
+    if (!availableModuleChunks.has(componentChunk)) {
+      availableModuleChunks.set(componentChunk, true)
+    }
+  }
+}
+
+// Do not make this async. React relies on referential equality of the returned Promise.
+function loadChunkByUrlWhole(
   sourceType: SourceType,
   sourceData: SourceData,
   chunkUrl: ChunkUrl

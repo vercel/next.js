@@ -28,6 +28,7 @@ pub async fn get_browser_runtime_code(
     chunk_load_retry: Vc<ChunkLoadRetry>,
     has_async_modules: bool,
     chunk_loading: Vc<ChunkLoading>,
+    support_component_chunks: bool,
 ) -> Result<Vc<Code>> {
     let asset_context = *asset_context;
     let environment = asset_context.compile_time_info().environment();
@@ -114,11 +115,13 @@ pub async fn get_browser_runtime_code(
             var CHUNK_BASE_PATH = {};
             var RELATIVE_ROOT_PATH = {};
             var RUNTIME_PUBLIC_PATH = {};
+            const SUPPORT_COMPONENT_CHUNKS = {};
         "#,
         StringifyJs(&chunk_loading_global),
         StringifyJs(chunk_base_path),
         StringifyJs(relative_root_path.as_str()),
         StringifyJs(chunk_base_path),
+        support_component_chunks,
     )?;
 
     match &*asset_suffix {

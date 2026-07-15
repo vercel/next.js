@@ -10,6 +10,7 @@ if (!Array.isArray(globalThis["TURBOPACK"])) {
 var CHUNK_BASE_PATH = "";
 var RELATIVE_ROOT_PATH = "../../../../../../..";
 var RUNTIME_PUBLIC_PATH = "";
+const SUPPORT_COMPONENT_CHUNKS = false;
 var ASSET_SUFFIX = "";
 var CROSS_ORIGIN = null;
 var CHUNK_LOAD_RETRY_MAX_ATTEMPTS = 1;
@@ -782,6 +783,14 @@ function applyModuleFactoryName(factory) {
  */ /* eslint-disable @typescript-eslint/no-unused-vars */ /// <reference path="../base/globals.d.ts" />
 /// <reference path="../../../shared/runtime/runtime-utils.ts" />
 // Used in WebWorkers to tell the runtime about the chunk suffix
+function _array_like_to_array(arr, len) {
+    if (len == null || len > arr.length) len = arr.length;
+    for(var i = 0, arr2 = new Array(len); i < len; i++)arr2[i] = arr[i];
+    return arr2;
+}
+function _array_with_holes(arr) {
+    if (Array.isArray(arr)) return arr;
+}
 function asyncGeneratorStep(gen, resolve, reject, _next, _throw, key, arg) {
     try {
         var info = gen[key](arg);
@@ -810,6 +819,44 @@ function _async_to_generator(fn) {
             _next(undefined);
         });
     };
+}
+function _iterable_to_array_limit(arr, i) {
+    var _i = arr == null ? null : typeof Symbol !== "undefined" && arr[Symbol.iterator] || arr["@@iterator"];
+    if (_i == null) return;
+    var _arr = [];
+    var _n = true;
+    var _d = false;
+    var _s, _e;
+    try {
+        for(_i = _i.call(arr); !(_n = (_s = _i.next()).done); _n = true){
+            _arr.push(_s.value);
+            if (i && _arr.length === i) break;
+        }
+    } catch (err) {
+        _d = true;
+        _e = err;
+    } finally{
+        try {
+            if (!_n && _i["return"] != null) _i["return"]();
+        } finally{
+            if (_d) throw _e;
+        }
+    }
+    return _arr;
+}
+function _non_iterable_rest() {
+    throw new TypeError("Invalid attempt to destructure non-iterable instance.\\nIn order to be iterable, non-array objects must have a [Symbol.iterator]() method.");
+}
+function _sliced_to_array(arr, i) {
+    return _array_with_holes(arr) || _iterable_to_array_limit(arr, i) || _unsupported_iterable_to_array(arr, i) || _non_iterable_rest();
+}
+function _unsupported_iterable_to_array(o, minLen) {
+    if (!o) return;
+    if (typeof o === "string") return _array_like_to_array(o, minLen);
+    var n = Object.prototype.toString.call(o).slice(8, -1);
+    if (n === "Object" && o.constructor) n = o.constructor.name;
+    if (n === "Map" || n === "Set") return Array.from(n);
+    if (n === "Arguments" || /^(?:Ui|I)nt(?:8|16|32)(?:Clamped)?Array$/.test(n)) return _array_like_to_array(o, minLen);
 }
 function _ts_generator(thisArg, body) {
     var f, y, t, _ = {
@@ -915,6 +962,21 @@ var moduleFactories = new Map();
 contextPrototype.M = moduleFactories;
 var availableModules = new Map();
 var availableModuleChunks = new Map();
+// Registry mapping a merged chunk's path to its constituent component chunk paths.
+var chunkComponents = new Map();
+// Registry mapping a component chunk's path to its size in bytes, used by the
+// split-vs-whole cost heuristic.
+var componentChunkSizes = new Map();
+function registerComponentChunkSizes(componentChunks, sizes) {
+    for(var i = 0; i < componentChunks.length; i++){
+        var size = sizes[i];
+        if (size !== undefined) {
+            componentChunkSizes.set(componentChunks[i], size);
+        }
+    }
+}
+// Memoizes the composite promise returned for a merged chunk loaded by URL, keyed by URL.
+var splitChunkPromises = new Map();
 function loadChunk(chunkData) {
     return loadChunkInternal(SourceType.Parent, this.m.id, chunkData);
 }
@@ -924,7 +986,7 @@ function loadInitialChunk(chunkPath, chunkData) {
 }
 function loadChunkInternal(sourceType, sourceData, chunkData) {
     return _async_to_generator(function() {
-        var includedList, modulesPromises, includedModuleChunksList, moduleChunksPromises, promise, moduleChunksToLoad, _iteratorNormalCompletion, _didIteratorError, _iteratorError, _iterator, _step, moduleChunk, _iteratorNormalCompletion1, _didIteratorError1, _iteratorError1, _iterator1, _step1, moduleChunkToLoad, promise1, _iteratorNormalCompletion2, _didIteratorError2, _iteratorError2, _iterator2, _step2, includedModuleChunk, _iteratorNormalCompletion3, _didIteratorError3, _iteratorError3, _iterator3, _step3, included;
+        var includedList, modulesPromises, promise, componentChunks, _iteratorNormalCompletion, _didIteratorError, _iteratorError, _iterator, _step, included;
         return _ts_generator(this, function(_state) {
             switch(_state.label){
                 case 0:
@@ -956,40 +1018,23 @@ function loadChunkInternal(sourceType, sourceData, chunkData) {
                         2
                     ];
                 case 2:
-                    includedModuleChunksList = chunkData.moduleChunks || [];
-                    moduleChunksPromises = includedModuleChunksList.map(function(included) {
-                        // TODO(alexkirsz) Do we need this check?
-                        // if (moduleFactories[included]) return true;
-                        return availableModuleChunks.get(included);
-                    }).filter(function(p) {
-                        return p;
-                    });
-                    if (!(moduleChunksPromises.length > 0)) return [
-                        3,
-                        5
-                    ];
-                    if (!(moduleChunksPromises.length === includedModuleChunksList.length)) return [
-                        3,
-                        4
-                    ];
-                    // When all included module chunks are already loaded or loading, we can skip loading ourselves
-                    return [
-                        4,
-                        Promise.all(moduleChunksPromises)
-                    ];
-                case 3:
-                    _state.sent();
-                    return [
-                        2
-                    ];
-                case 4:
-                    moduleChunksToLoad = new Set();
+                    if (SUPPORT_COMPONENT_CHUNKS) {
+                        componentChunks = chunkData.moduleChunks || [];
+                        // We already have this chunk's component list inline (chunkData.moduleChunks) and split on it
+                        // here, so the whole-chunk fallback uses loadChunkByUrlWhole to skip loadChunkByUrlInternal's
+                        // chunkComponents-registry lookup, which would just repeat the same split decision.
+                        promise = loadComponentChunksOrWhole(sourceType, sourceData, componentChunks, getChunkRelativeUrl(chunkData.path));
+                    } else {
+                        promise = loadChunkByUrlWhole(sourceType, sourceData, getChunkRelativeUrl(chunkData.path));
+                    }
                     _iteratorNormalCompletion = true, _didIteratorError = false, _iteratorError = undefined;
                     try {
-                        for(_iterator = includedModuleChunksList[Symbol.iterator](); !(_iteratorNormalCompletion = (_step = _iterator.next()).done); _iteratorNormalCompletion = true){
-                            moduleChunk = _step.value;
-                            if (!availableModuleChunks.has(moduleChunk)) {
-                                moduleChunksToLoad.add(moduleChunk);
+                        for(_iterator = includedList[Symbol.iterator](); !(_iteratorNormalCompletion = (_step = _iterator.next()).done); _iteratorNormalCompletion = true){
+                            included = _step.value;
+                            if (!availableModules.has(included)) {
+                                // It might be better to race old and new promises, but it's rare that the new promise will be faster than a request started earlier.
+                                // In production it's even more rare, because the chunk optimization tries to deduplicate modules anyway.
+                                availableModules.set(included, promise);
                             }
                         }
                     } catch (err) {
@@ -1006,89 +1051,11 @@ function loadChunkInternal(sourceType, sourceData, chunkData) {
                             }
                         }
                     }
-                    _iteratorNormalCompletion1 = true, _didIteratorError1 = false, _iteratorError1 = undefined;
-                    try {
-                        for(_iterator1 = moduleChunksToLoad[Symbol.iterator](); !(_iteratorNormalCompletion1 = (_step1 = _iterator1.next()).done); _iteratorNormalCompletion1 = true){
-                            moduleChunkToLoad = _step1.value;
-                            promise1 = loadChunkPath(sourceType, sourceData, moduleChunkToLoad);
-                            availableModuleChunks.set(moduleChunkToLoad, promise1);
-                            moduleChunksPromises.push(promise1);
-                        }
-                    } catch (err) {
-                        _didIteratorError1 = true;
-                        _iteratorError1 = err;
-                    } finally{
-                        try {
-                            if (!_iteratorNormalCompletion1 && _iterator1.return != null) {
-                                _iterator1.return();
-                            }
-                        } finally{
-                            if (_didIteratorError1) {
-                                throw _iteratorError1;
-                            }
-                        }
-                    }
-                    promise = Promise.all(moduleChunksPromises);
-                    return [
-                        3,
-                        6
-                    ];
-                case 5:
-                    promise = loadChunkPath(sourceType, sourceData, chunkData.path);
-                    _iteratorNormalCompletion2 = true, _didIteratorError2 = false, _iteratorError2 = undefined;
-                    try {
-                        // Mark all included module chunks as loading if they are not already loaded or loading.
-                        for(_iterator2 = includedModuleChunksList[Symbol.iterator](); !(_iteratorNormalCompletion2 = (_step2 = _iterator2.next()).done); _iteratorNormalCompletion2 = true){
-                            includedModuleChunk = _step2.value;
-                            if (!availableModuleChunks.has(includedModuleChunk)) {
-                                availableModuleChunks.set(includedModuleChunk, promise);
-                            }
-                        }
-                    } catch (err) {
-                        _didIteratorError2 = true;
-                        _iteratorError2 = err;
-                    } finally{
-                        try {
-                            if (!_iteratorNormalCompletion2 && _iterator2.return != null) {
-                                _iterator2.return();
-                            }
-                        } finally{
-                            if (_didIteratorError2) {
-                                throw _iteratorError2;
-                            }
-                        }
-                    }
-                    _state.label = 6;
-                case 6:
-                    _iteratorNormalCompletion3 = true, _didIteratorError3 = false, _iteratorError3 = undefined;
-                    try {
-                        for(_iterator3 = includedList[Symbol.iterator](); !(_iteratorNormalCompletion3 = (_step3 = _iterator3.next()).done); _iteratorNormalCompletion3 = true){
-                            included = _step3.value;
-                            if (!availableModules.has(included)) {
-                                // It might be better to race old and new promises, but it's rare that the new promise will be faster than a request started earlier.
-                                // In production it's even more rare, because the chunk optimization tries to deduplicate modules anyway.
-                                availableModules.set(included, promise);
-                            }
-                        }
-                    } catch (err) {
-                        _didIteratorError3 = true;
-                        _iteratorError3 = err;
-                    } finally{
-                        try {
-                            if (!_iteratorNormalCompletion3 && _iterator3.return != null) {
-                                _iterator3.return();
-                            }
-                        } finally{
-                            if (_didIteratorError3) {
-                                throw _iteratorError3;
-                            }
-                        }
-                    }
                     return [
                         4,
                         promise
                     ];
-                case 7:
+                case 3:
                     _state.sent();
                     return [
                         2
@@ -1097,15 +1064,212 @@ function loadChunkInternal(sourceType, sourceData, chunkData) {
         });
     })();
 }
+/**
+ * Approximate cost of an extra HTTP request, expressed in emitted (minified, uncompressed) chunk
+ * bytes, used to decide whether splitting a merged chunk into individually-cached component
+ * chunks is worthwhile.
+ */ var REQUEST_COST_BYTES = 20_000;
+/**
+ * Decides whether to load a merged chunk's component chunks individually instead of the whole
+ * merged chunk, weighing the bytes saved (the available components we avoid re-downloading)
+ * against the extra network requests splitting incurs.
+ *
+ * Splitting issues one request per unavailable component vs. a single request for the merged
+ * chunk, so it adds `unavailableCount - 1` extra requests. When at most one component needs the
+ * network, splitting never costs more requests than the merged load (and transfers fewer bytes),
+ * so it always wins. Otherwise it's only worth it when the available bytes exceed the extra
+ * request cost.
+ */ function shouldLoadComponentChunks(availableBytes, unavailableCount) {
+    if (unavailableCount <= 1) {
+        return true;
+    }
+    return availableBytes > REQUEST_COST_BYTES * (unavailableCount - 1);
+}
+/**
+ * Loads a chunk's component chunks individually when enough of them are already available
+ * in memory (avoiding re-downloading the ones we have, per `shouldLoadComponentChunks`),
+ * otherwise loads the whole chunk from `chunkUrl` and records its component chunks as available.
+ */ function loadComponentChunksOrWhole(sourceType, sourceData, componentChunks, chunkUrl) {
+    var componentChunkPromises = [];
+    var availableBytes = 0;
+    var unavailableCount = 0;
+    var _iteratorNormalCompletion = true, _didIteratorError = false, _iteratorError = undefined;
+    try {
+        for(var _iterator = componentChunks[Symbol.iterator](), _step; !(_iteratorNormalCompletion = (_step = _iterator.next()).done); _iteratorNormalCompletion = true){
+            var componentChunk = _step.value;
+            var available = availableModuleChunks.get(componentChunk);
+            if (available) {
+                var _componentChunkSizes_get;
+                componentChunkPromises.push(available);
+                availableBytes += (_componentChunkSizes_get = componentChunkSizes.get(componentChunk)) !== null && _componentChunkSizes_get !== void 0 ? _componentChunkSizes_get : 0;
+            } else {
+                unavailableCount++;
+            }
+        }
+    } catch (err) {
+        _didIteratorError = true;
+        _iteratorError = err;
+    } finally{
+        try {
+            if (!_iteratorNormalCompletion && _iterator.return != null) {
+                _iterator.return();
+            }
+        } finally{
+            if (_didIteratorError) {
+                throw _iteratorError;
+            }
+        }
+    }
+    if (componentChunkPromises.length > 0 && shouldLoadComponentChunks(availableBytes, unavailableCount)) {
+        var _iteratorNormalCompletion1 = true, _didIteratorError1 = false, _iteratorError1 = undefined;
+        try {
+            // Enough component chunks are already loaded or loading that splitting saves more
+            // bytes than the extra requests cost.
+            for(var _iterator1 = componentChunks[Symbol.iterator](), _step1; !(_iteratorNormalCompletion1 = (_step1 = _iterator1.next()).done); _iteratorNormalCompletion1 = true){
+                var componentChunk1 = _step1.value;
+                if (!availableModuleChunks.has(componentChunk1)) {
+                    var promise = loadChunkPath(sourceType, sourceData, componentChunk1);
+                    availableModuleChunks.set(componentChunk1, promise);
+                    componentChunkPromises.push(promise);
+                }
+            }
+        } catch (err) {
+            _didIteratorError1 = true;
+            _iteratorError1 = err;
+        } finally{
+            try {
+                if (!_iteratorNormalCompletion1 && _iterator1.return != null) {
+                    _iterator1.return();
+                }
+            } finally{
+                if (_didIteratorError1) {
+                    throw _iteratorError1;
+                }
+            }
+        }
+        return Promise.all(componentChunkPromises);
+    }
+    // Not enough is available in memory for splitting to pay off. Load the
+    // whole chunk in a single request and record its component chunks as available.
+    var promise1 = loadChunkByUrlWhole(sourceType, sourceData, chunkUrl);
+    var _iteratorNormalCompletion2 = true, _didIteratorError2 = false, _iteratorError2 = undefined;
+    try {
+        for(var _iterator2 = componentChunks[Symbol.iterator](), _step2; !(_iteratorNormalCompletion2 = (_step2 = _iterator2.next()).done); _iteratorNormalCompletion2 = true){
+            var componentChunk2 = _step2.value;
+            if (!availableModuleChunks.has(componentChunk2)) {
+                availableModuleChunks.set(componentChunk2, promise1);
+            }
+        }
+    } catch (err) {
+        _didIteratorError2 = true;
+        _iteratorError2 = err;
+    } finally{
+        try {
+            if (!_iteratorNormalCompletion2 && _iterator2.return != null) {
+                _iterator2.return();
+            }
+        } finally{
+            if (_didIteratorError2) {
+                throw _iteratorError2;
+            }
+        }
+    }
+    return promise1;
+}
 var loadedChunk = Promise.resolve(undefined);
 var instrumentedBackendLoadChunks = new WeakMap();
 // Do not make this async. React relies on referential equality of the returned Promise.
-function loadChunkByUrl(chunkUrl) {
-    return loadChunkByUrlInternal(SourceType.Parent, this.m.id, chunkUrl);
+function loadChunkByUrl(chunkEntry) {
+    return loadChunkByUrlInternal(SourceType.Parent, this.m.id, chunkEntry);
 }
 browserContextPrototype.L = loadChunkByUrl;
 // Do not make this async. React relies on referential equality of the returned Promise.
-function loadChunkByUrlInternal(sourceType, sourceData, chunkUrl) {
+function loadChunkByUrlInternal(sourceType, sourceData, chunkEntry) {
+    if (SUPPORT_COMPONENT_CHUNKS) {
+        // A merged chunk arrives as a `[url, componentChunkPaths, componentChunkSizes]` array. Register
+        // the components so a by-URL load of this merged chunk — now or from a later navigation — can
+        // be split, and so `registerChunk` can mark them available when the whole chunk loads.
+        var chunkUrl;
+        var components;
+        if (typeof chunkEntry === 'string') {
+            chunkUrl = chunkEntry;
+        } else {
+            var componentSizes;
+            var ref;
+            ref = _sliced_to_array(chunkEntry, 3), chunkUrl = ref[0], components = ref[1], componentSizes = ref[2], ref;
+            registerComponentChunkSizes(components, componentSizes);
+        }
+        var chunkPath = chunkUrlToPath(chunkUrl);
+        if (components !== undefined) {
+            chunkComponents.set(chunkPath, components);
+        } else {
+            // A plain URL may still be a merged chunk we already registered from its array.
+            components = chunkComponents.get(chunkPath);
+        }
+        // If we have component chunks for this merged chunk, load only the ones we don't already have
+        // instead of the whole merged chunk.
+        if (components !== undefined) {
+            var promise = splitChunkPromises.get(chunkUrl);
+            if (promise === undefined) {
+                promise = loadComponentChunksOrWhole(sourceType, sourceData, components, chunkUrl);
+                splitChunkPromises.set(chunkUrl, promise);
+            }
+            return promise;
+        }
+        // This is a non-merged chunk. If its modules were already loaded — e.g. this chunk is a
+        // component of a merged chunk fetched on a previous navigation — reuse that load instead of
+        // re-downloading.
+        var existing = availableModuleChunks.get(chunkPath);
+        if (existing !== undefined) {
+            return existing === true ? loadedChunk : existing;
+        }
+        var promise1 = loadChunkByUrlWhole(sourceType, sourceData, chunkUrl);
+        availableModuleChunks.set(chunkPath, promise1);
+        return promise1;
+    }
+    // Component chunks are disabled, so the chunking context never emits merged arrays and every
+    // entry is a plain chunk URL. Load it whole; the backend dedupes repeated URLs.
+    return loadChunkByUrlWhole(sourceType, sourceData, chunkEntry);
+}
+// Convert a chunk URL back to its ChunkPath (strip base path, query/hash, decode), to
+// match the keys stored in `chunkComponents`.
+function chunkUrlToPath(chunkUrl) {
+    var src = decodeURIComponent(chunkUrl.replace(/[?#].*$/, ''));
+    return src.startsWith(CHUNK_BASE_PATH) ? src.slice(CHUNK_BASE_PATH.length) : src;
+}
+/**
+ * When a merged chunk finishes registering (e.g. an initial-load `<script>`), mark its
+ * component chunks as available so a later by-URL load of a *different* merged chunk that
+ * shares a component skips re-downloading it. Called from `registerChunk`.
+ */ function markChunkComponentsAvailable(chunk) {
+    if (chunkComponents.size === 0) return;
+    var components = chunkComponents.get(getPathFromScript(chunk));
+    if (components === undefined) return;
+    var _iteratorNormalCompletion = true, _didIteratorError = false, _iteratorError = undefined;
+    try {
+        for(var _iterator = components[Symbol.iterator](), _step; !(_iteratorNormalCompletion = (_step = _iterator.next()).done); _iteratorNormalCompletion = true){
+            var componentChunk = _step.value;
+            if (!availableModuleChunks.has(componentChunk)) {
+                availableModuleChunks.set(componentChunk, true);
+            }
+        }
+    } catch (err) {
+        _didIteratorError = true;
+        _iteratorError = err;
+    } finally{
+        try {
+            if (!_iteratorNormalCompletion && _iterator.return != null) {
+                _iterator.return();
+            }
+        } finally{
+            if (_didIteratorError) {
+                throw _iteratorError;
+            }
+        }
+    }
+}
+// Do not make this async. React relies on referential equality of the returned Promise.
+function loadChunkByUrlWhole(sourceType, sourceData, chunkUrl) {
     var thenable = BACKEND.loadChunkCached(sourceType, chunkUrl);
     var entry = instrumentedBackendLoadChunks.get(thenable);
     if (entry === undefined) {
@@ -1313,6 +1477,9 @@ function instantiateModule(id, sourceType, sourceData) {
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 function registerChunk(registration) {
     var chunk = getChunkFromRegistration(registration[0]);
+    if (SUPPORT_COMPONENT_CHUNKS) {
+        markChunkComponentsAvailable(chunk);
+    }
     var runtimeParams;
     // When bootstrapping we are passed a single runtimeParams object so we can distinguish purely based on length
     if (registration.length === 2) {

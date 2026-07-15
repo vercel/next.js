@@ -545,6 +545,9 @@ function registerChunk(registration: ChunkRegistration) {
   const chunk = getChunkFromRegistration(registration[0]) as
     | ChunkPath
     | ChunkScript
+  if (SUPPORT_COMPONENT_CHUNKS) {
+    markChunkComponentsAvailable(chunk)
+  }
   let runtimeParams: RuntimeParams | undefined
   // When bootstrapping we are passed a single runtimeParams object so we can distinguish purely based on length
   if (registration.length === 2) {

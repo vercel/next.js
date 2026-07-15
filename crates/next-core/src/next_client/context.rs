@@ -493,6 +493,7 @@ pub struct ClientChunkingContextOptions {
     pub chunking_first_page_load_priority: Option<u32>,
     pub chunking_priority_boost_percent: Option<u32>,
     pub chunking_request_cost: Option<u64>,
+    pub generate_component_chunks: Vc<bool>,
 }
 
 /// Next.js' chunk-load retry policy for the Turbopack browser runtime.
@@ -535,6 +536,7 @@ pub async fn get_client_chunking_context(
         chunking_first_page_load_priority,
         chunking_priority_boost_percent,
         chunking_request_cost,
+        generate_component_chunks,
     } = options;
 
     let next_mode = mode.await?;
@@ -604,6 +606,10 @@ pub async fn get_client_chunking_context(
                     first_page_load_priority: chunking_first_page_load_priority,
                     priority_boost_percent: chunking_priority_boost_percent,
                     request_cost: chunking_request_cost,
+                    // Generate component chunks alongside the merged chunk so that the browser
+                    // runtime can fetch an already-cached one instead of the whole merged chunk.
+                    generate_component_chunks: *generate_component_chunks.await?,
+                    min_component_chunk_size: 20_000,
                     ..Default::default()
                 },
             )

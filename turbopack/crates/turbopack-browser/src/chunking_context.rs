@@ -577,6 +577,16 @@ impl BrowserChunkingContext {
     pub fn chunk_load_retry(&self) -> Vc<ChunkLoadRetry> {
         self.chunk_load_retry.cell()
     }
+
+    /// Whether the ECMAScript chunking config emits component chunks alongside merged chunks.
+    #[turbo_tasks::function]
+    pub async fn generate_component_chunks(&self) -> Result<Vc<bool>> {
+        let ecmascript_ty: ResolvedVc<Box<dyn ChunkType>> =
+            ResolvedVc::upcast(Vc::<EcmascriptChunkType>::default().to_resolved().await?);
+        Ok(Vc::cell(self.chunking_configs.iter().any(
+            |(ty, config)| *ty == ecmascript_ty && config.generate_component_chunks,
+        )))
+    }
 }
 
 #[turbo_tasks::value_impl]
@@ -1049,6 +1059,7 @@ impl ChunkingContext for BrowserChunkingContext {
                             batch_groups: Vec::new(),
                         }
                         .cell(),
+                        Vec::new(),
                     )
                     .to_resolved()
                     .await?

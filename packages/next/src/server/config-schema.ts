@@ -386,6 +386,7 @@ export const experimentalSchema = {
   turbopackRemoveUnusedImports: z.boolean().optional(),
   turbopackRemoveUnusedExports: z.boolean().optional(),
   turbopackScopeHoisting: z.boolean().optional(),
+  turbopackGenerateComponentChunks: z.boolean().optional(),
   turbopackChunkingHeuristics: z
     .object({
       firstPageLoadPriority: z.number().min(0).max(1).optional(),
