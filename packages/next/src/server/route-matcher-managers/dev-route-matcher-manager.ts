@@ -7,6 +7,9 @@ import path from '../../shared/lib/isomorphic/path'
 import * as Log from '../../build/output/log'
 import { cyan } from '../../lib/picocolors'
 import type { RouteMatcher } from '../route-matchers/route-matcher'
+import { DevRouteMatcherManagerSpan } from '../lib/trace/constants'
+import { getTracer } from '../lib/trace/tracer'
+import { isRequestInsightsEnabled } from '../lib/trace/span-store'
 
 export interface RouteEnsurer {
   ensure(match: RouteMatch, pathname: string): Promise<void>
@@ -65,22 +68,85 @@ export class DevRouteMatcherManager extends DefaultRouteMatcherManager {
     pathname: string,
     options: MatchOptions
   ): AsyncGenerator<RouteMatch<RouteDefinition<RouteKind>>, null, undefined> {
+    const shouldTraceDetailedMatch =
+      isRequestInsightsEnabled() || process.env.NEXT_OTEL_VERBOSE === '1'
+    let matchDevelopmentRouteSpan = shouldTraceDetailedMatch
+      ? getTracer().startSpan(
+          DevRouteMatcherManagerSpan.matchDevelopmentRoute,
+          {
+            attributes: {
+              'next.span_type':
+                DevRouteMatcherManagerSpan.matchDevelopmentRoute,
+            },
+          }
+        )
+      : undefined
     // Iterate over the development matches to see if one of them match the
     // request path.
-    for await (const developmentMatch of super.matchAll(pathname, options)) {
-      // We're here, which means that we haven't seen this match yet, so we
-      // should try to ensure it and recompile the production matcher.
-      await this.ensurer.ensure(developmentMatch, pathname)
-      await this.production.reload()
+    try {
+      for await (const developmentMatch of super.matchAll(pathname, options)) {
+        matchDevelopmentRouteSpan?.end()
+        matchDevelopmentRouteSpan = undefined
 
-      // Iterate over the production matches again, this time we should be able
-      // to match it against the production matcher unless there's an error.
-      for await (const productionMatch of this.production.matchAll(
-        pathname,
-        options
-      )) {
-        yield productionMatch
+        // We're here, which means that we haven't seen this match yet, so we
+        // should try to ensure it and recompile the production matcher.
+        if (shouldTraceDetailedMatch) {
+          await getTracer().trace(
+            DevRouteMatcherManagerSpan.ensureRoute,
+            {},
+            () => this.ensurer.ensure(developmentMatch, pathname)
+          )
+          await getTracer().trace(
+            DevRouteMatcherManagerSpan.reloadMatchers,
+            {},
+            () => this.production.reload()
+          )
+        } else {
+          await this.ensurer.ensure(developmentMatch, pathname)
+          await this.production.reload()
+        }
+
+        let matchProductionRouteSpan = shouldTraceDetailedMatch
+          ? getTracer().startSpan(
+              DevRouteMatcherManagerSpan.matchProductionRoute,
+              {
+                attributes: {
+                  'next.span_type':
+                    DevRouteMatcherManagerSpan.matchProductionRoute,
+                },
+              }
+            )
+          : undefined
+        try {
+          // Iterate over the production matches again, this time we should be
+          // able to match it against the production matcher unless there's an
+          // error.
+          for await (const productionMatch of this.production.matchAll(
+            pathname,
+            options
+          )) {
+            matchProductionRouteSpan?.end()
+            matchProductionRouteSpan = undefined
+            yield productionMatch
+          }
+        } finally {
+          matchProductionRouteSpan?.end()
+        }
+
+        matchDevelopmentRouteSpan = shouldTraceDetailedMatch
+          ? getTracer().startSpan(
+              DevRouteMatcherManagerSpan.matchDevelopmentRoute,
+              {
+                attributes: {
+                  'next.span_type':
+                    DevRouteMatcherManagerSpan.matchDevelopmentRoute,
+                },
+              }
+            )
+          : undefined
       }
+    } finally {
+      matchDevelopmentRouteSpan?.end()
     }
 
     // We tried direct matching against the pathname and against all the dynamic

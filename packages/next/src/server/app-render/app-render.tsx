@@ -94,6 +94,7 @@ import {
 import { isRedirectError } from '../../client/components/redirect-error'
 import { getImplicitTags, type ImplicitTags } from '../lib/implicit-tags'
 import { AppRenderSpan, NextNodeServerSpan } from '../lib/trace/constants'
+import { getRequestInsightsIdentity } from '../lib/trace/request-insights-identity'
 import { getTracer, SpanStatusCode } from '../lib/trace/tracer'
 import { FlightRenderResult } from './flight-render-result'
 import {
@@ -249,7 +250,11 @@ import {
 import { isReactLargeShellError } from './react-large-shell-error'
 import type { GlobalErrorComponent } from '../../client/components/builtin/global-error'
 import { normalizeConventionFilePath } from './segment-explorer-path'
-import { getRequestMeta } from '../request-meta'
+import {
+  addRequestMeta,
+  getRequestMeta,
+  removeRequestMeta,
+} from '../request-meta'
 import {
   getDynamicParam,
   interpolateParallelRouteParams,
@@ -2118,6 +2123,11 @@ async function getRSCPayload(
     MetadataOutlet,
   })
 
+  const finalizePayloadStart =
+    getRequestInsightsIdentity() || process.env.NEXT_OTEL_VERBOSE === '1'
+      ? performance.timeOrigin + performance.now()
+      : undefined
+
   // When the `vary` response header is present with `Next-URL`, that means there's a chance
   // it could respond differently if there's an interception route. We provide this information
   // to `AppRouter` so that it can properly seed the prefetch cache with a prefix, if needed.
@@ -2165,7 +2175,7 @@ async function getRSCPayload(
     workStore.isStaticGeneration &&
     ctx.renderOpts.experimental.isRoutePPREnabled === true
 
-  return maybeAppendBuildIdToRSCPayload(ctx, {
+  const payload = maybeAppendBuildIdToRSCPayload(ctx, {
     // See the comment above the `Preloads` component (below) for why this is part of the payload
     P: createElement(Preloads, {
       preloadCallbacks: preloadCallbacks,
@@ -2203,6 +2213,22 @@ async function getRSCPayload(
       ? ((await getDynamicStaleTime(tree)) ?? undefined)
       : undefined,
   } satisfies InitialRSCPayload & { P: ReactNode })
+
+  if (finalizePayloadStart !== undefined) {
+    const finalizePayloadEnd = performance.timeOrigin + performance.now()
+    const finalizePayloadSpan = getTracer().startSpan(
+      AppRenderSpan.finalizeRSCPayload,
+      {
+        startTime: finalizePayloadStart,
+        attributes: {
+          'next.span_type': AppRenderSpan.finalizeRSCPayload,
+        },
+      }
+    )
+    finalizePayloadSpan.end(finalizePayloadEnd)
+  }
+
+  return payload
 }
 
 /**
@@ -2630,10 +2656,7 @@ async function renderToHTMLOrFlightImpl(
                 'next.span_type': NextNodeServerSpan.clientComponentLoading,
               },
             })
-            .end(
-              metrics.clientComponentLoadStart +
-                metrics.clientComponentLoadTimes
-            )
+            .end(metrics.clientComponentLoadEnd)
         }
       }
     })
@@ -2672,6 +2695,9 @@ async function renderToHTMLOrFlightImpl(
 
   let requestId: string
   let htmlRequestId: string
+  const requestInsightsIdentity = process.env.__NEXT_REQUEST_INSIGHTS
+    ? getRequestInsightsIdentity()
+    : undefined
 
   const {
     flightRouterState,
@@ -2686,6 +2712,10 @@ async function renderToHTMLOrFlightImpl(
   if (parsedRequestHeaders.requestId) {
     // If the client has provided a request ID (in development mode), we use it.
     requestId = parsedRequestHeaders.requestId
+  } else if (requestInsightsIdentity) {
+    // Request Insights starts recording before the work store exists. Reuse
+    // the identity from that outer request scope so all spans stay together.
+    requestId = requestInsightsIdentity.requestId
   } else {
     // Otherwise we generate a new request ID.
     if (isStaticGeneration) {
@@ -2706,7 +2736,10 @@ async function renderToHTMLOrFlightImpl(
   // send debug information to the associated WebSocket client. Otherwise, this
   // is the request for the HTML document, so we use the request ID also as the
   // HTML request ID.
-  htmlRequestId = parsedRequestHeaders.htmlRequestId || requestId
+  htmlRequestId =
+    parsedRequestHeaders.htmlRequestId ||
+    requestInsightsIdentity?.htmlRequestId ||
+    requestId
   workStore.requestId = requestId
   workStore.htmlRequestId = htmlRequestId
 
@@ -3084,6 +3117,14 @@ export const renderToHTMLOrFlight: AppPageRender = (
     throw new Error('Invalid URL')
   }
 
+  if (getRequestInsightsIdentity() || process.env.NEXT_OTEL_VERBOSE === '1') {
+    addRequestMeta(
+      req,
+      'appRenderInitializationStart',
+      performance.timeOrigin + performance.now()
+    )
+  }
+
   const url = parseRelativeUrl(req.url, undefined, false)
 
   // We read these values from the request object as, in certain cases,
@@ -3326,10 +3367,28 @@ async function renderToStream(
       (await getInstantTestBootstrapScriptContent())
   }
 
+  const initializationStart = getRequestMeta(
+    req,
+    'appRenderInitializationStart'
+  )
+  if (initializationStart !== undefined) {
+    removeRequestMeta(req, 'appRenderInitializationStart')
+    const initializationEnd = performance.timeOrigin + performance.now()
+    const initializationSpan = getTracer().startSpan(
+      AppRenderSpan.initializeRender,
+      {
+        startTime: initializationStart,
+        attributes: {
+          'next.span_type': AppRenderSpan.initializeRender,
+        },
+      }
+    )
+    initializationSpan.end(initializationEnd)
+  }
+
   // Create the "render route (app)" span manually so we can keep it open during streaming.
   // This is necessary because errors inside Suspense boundaries are reported asynchronously
   // during stream consumption, after a typical wrapped function would have ended the span.
-  // Note: We pass the full span name as the first argument since startSpan uses it directly.
   const renderSpan = getTracer().startSpan(
     `render route (app) ${pagePath}` as any,
     {
@@ -3353,6 +3412,21 @@ async function renderToStream(
       message: err instanceof Error ? err.message : undefined,
     })
     renderSpan.end()
+  }
+
+  const trackHTMLRenderCompletion = (allReady: Promise<void>) => {
+    const completion = getTracer().trace(
+      AppRenderSpan.waitForHTMLCompletion,
+      {},
+      () => allReady
+    )
+
+    void completion.then(
+      () => {
+        if (renderSpan.isRecording()) renderSpan.end()
+      },
+      (err) => endSpanWithError(err)
+    )
   }
 
   // Run the rest of the function within the span's context so child spans
@@ -3674,6 +3748,11 @@ async function renderToStream(
         reactServerResult = new ReactServerResult(flightStream)
       } else {
         // MARK: nodeStreams RSC
+        const startRSCStreamTime =
+          getRequestInsightsIdentity() || process.env.NEXT_OTEL_VERBOSE === '1'
+            ? performance.timeOrigin + performance.now()
+            : undefined
+
         if (process.env.__NEXT_USE_NODE_STREAMS) {
           // This is a dynamic render. We don't do dynamic tracking because we're not prerendering
           const RSCPayload: RSCPayload & RSCPayloadDevProperties =
@@ -3758,12 +3837,42 @@ async function renderToStream(
             )
           )
         }
+
+        if (startRSCStreamTime !== undefined) {
+          const startRSCStreamEnd = performance.timeOrigin + performance.now()
+          const startRSCStreamSpan = getTracer().startSpan(
+            AppRenderSpan.startRSCStream,
+            {
+              startTime: startRSCStreamTime,
+              attributes: {
+                'next.span_type': AppRenderSpan.startRSCStream,
+              },
+            }
+          )
+          startRSCStreamSpan.end(startRSCStreamEnd)
+        }
       }
 
       // React doesn't start rendering synchronously but we want the RSC render to have a chance to start
       // before we begin SSR rendering because we want to capture any available preload headers so we tick
       // one task before continuing
-      await waitAtLeastOneReactRenderTask()
+      if (
+        getRequestInsightsIdentity() ||
+        process.env.NEXT_OTEL_VERBOSE === '1'
+      ) {
+        await getTracer().trace(
+          AppRenderSpan.waitForRSC,
+          {},
+          waitAtLeastOneReactRenderTask
+        )
+      } else {
+        await waitAtLeastOneReactRenderTask()
+      }
+
+      const prepareHTMLRenderStart =
+        getRequestInsightsIdentity() || process.env.NEXT_OTEL_VERBOSE === '1'
+          ? performance.timeOrigin + performance.now()
+          : undefined
 
       // MARK: nodeStreams HTML
       if (process.env.__NEXT_USE_NODE_STREAMS) {
@@ -3820,10 +3929,7 @@ async function renderToStream(
                 { onError: htmlRendererErrorHandler, nonce }
               )
 
-            // End the render span only after React completed rendering (including anything inside Suspense boundaries)
-            allReady.finally(() => {
-              if (renderSpan.isRecording()) renderSpan.end()
-            })
+            trackHTMLRenderCompletion(allReady)
 
             return await continueDynamicHTMLResumeNode(htmlStream, {
               delayDataUntilFirstHtmlChunk:
@@ -3879,8 +3985,24 @@ async function renderToStream(
           formState,
         }
 
+        if (prepareHTMLRenderStart !== undefined) {
+          const prepareHTMLRenderEnd =
+            performance.timeOrigin + performance.now()
+          const prepareHTMLRenderSpan = getTracer().startSpan(
+            AppRenderSpan.prepareHTMLRender,
+            {
+              startTime: prepareHTMLRenderStart,
+              attributes: {
+                'next.span_type': AppRenderSpan.prepareHTMLRender,
+              },
+            }
+          )
+          prepareHTMLRenderSpan.end(prepareHTMLRenderEnd)
+        }
+
         const { stream: htmlStream, allReady } = await getTracer().trace(
           AppRenderSpan.renderToNodeFizzStream,
+          {},
           () =>
             workUnitAsyncStorage.run(
               requestStore,
@@ -3891,10 +4013,7 @@ async function renderToStream(
             )
         )
 
-        // End the render span only after React completed rendering (including anything inside Suspense boundaries)
-        allReady.finally(() => {
-          if (renderSpan.isRecording()) renderSpan.end()
-        })
+        trackHTMLRenderCompletion(allReady)
 
         return await continueFizzStream(htmlStream, {
           inlinedDataStream: createNodeInlinedDataStream(
@@ -3964,10 +4083,7 @@ async function renderToStream(
                 { onError: htmlRendererErrorHandler, nonce }
               )
 
-            // End the render span only after React completed rendering (including anything inside Suspense boundaries)
-            allReady.finally(() => {
-              if (renderSpan.isRecording()) renderSpan.end()
-            })
+            trackHTMLRenderCompletion(allReady)
 
             return await continueDynamicHTMLResumeWeb(htmlStream, {
               delayDataUntilFirstHtmlChunk:
@@ -4029,10 +4145,7 @@ async function renderToStream(
           fizzOptions
         )
 
-        // End the render span only after React completed rendering (including anything inside Suspense boundaries)
-        allReady.finally(() => {
-          if (renderSpan.isRecording()) renderSpan.end()
-        })
+        trackHTMLRenderCompletion(allReady)
 
         return await continueFizzStream(htmlStream, {
           inlinedDataStream: createWebInlinedDataStream(
@@ -4180,9 +4293,7 @@ async function renderToStream(
               { waitForAllReady: generateStaticHTML }
             )
 
-          errorAllReady.finally(() => {
-            if (renderSpan.isRecording()) renderSpan.end()
-          })
+          trackHTMLRenderCompletion(errorAllReady)
 
           return await continueFizzStream(errorHtmlStream, {
             inlinedDataStream: createNodeInlinedDataStream(
@@ -4278,9 +4389,7 @@ async function renderToStream(
               }
             )
 
-          errorAllReady.finally(() => {
-            if (renderSpan.isRecording()) renderSpan.end()
-          })
+          trackHTMLRenderCompletion(errorAllReady)
 
           return await continueFizzStream(errorHtmlStream, {
             inlinedDataStream: createWebInlinedDataStream(

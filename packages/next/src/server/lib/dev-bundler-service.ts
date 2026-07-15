@@ -10,6 +10,8 @@ import {
   type NextJsHotReloaderInterface,
 } from '../dev/hot-reloader-types'
 import { subscribeRequestInsights } from './trace/request-insights'
+import { DevBundlerServiceSpan } from './trace/constants'
+import { getTracer } from './trace/tracer'
 
 /**
  * The DevBundlerService provides an interface to perform tasks with the
@@ -61,6 +63,12 @@ export class DevBundlerService {
     definition
   ) => {
     // TODO: remove after ensure is pulled out of server
+    if (isRequestInsightsEnabled() || process.env.NEXT_OTEL_VERBOSE === '1') {
+      return await getTracer().trace(DevBundlerServiceSpan.ensurePage, {}, () =>
+        this.bundler.hotReloader.ensurePage(definition)
+      )
+    }
+
     return await this.bundler.hotReloader.ensurePage(definition)
   }
 

@@ -44,6 +44,7 @@ import {
 import { DetachedPromise } from '../../lib/detached-promise'
 import { getTracer } from '../lib/trace/tracer'
 import { AppRenderSpan } from '../lib/trace/constants'
+import { getRequestInsightsIdentity } from '../lib/trace/request-insights-identity'
 import {
   atLeastOneTask,
   waitAtLeastOneReactRenderTask,
@@ -545,36 +546,98 @@ export function renderToNodeFlightStream(
   clientModules: FlightClientModules,
   opts: FlightRenderOptions
 ): AnyStream {
-  if (!ComponentMod.renderToPipeableStream) {
-    throw new Error('renderToPipeableStream is not implemented')
-  }
-
-  // `renderToPipeableStream` has no `signal` option (unlike the Web
-  // `renderToReadableStream`), so pull `signal` out of the options and abort
-  // the returned pipeable ourselves when it fires. We drop the listener when
-  // the passthrough closes so a finished render's `pipeable` isn't retained by
-  // the request signal, which can outlive it.
-  const { signal, ...renderOptions } = opts ?? {}
-
-  const pt = new PassThrough()
-  const pipeable = ComponentMod.renderToPipeableStream!(
-    payload,
-    clientModules,
-    renderOptions
-  )
-  pipeable.pipe(pt)
-
-  if (signal) {
-    if (signal.aborted) {
-      pipeable.abort(signal.reason)
-    } else {
-      const onAbort = () => pipeable.abort(signal.reason)
-      signal.addEventListener('abort', onAbort, { once: true })
-      pt.on('close', () => signal.removeEventListener('abort', onAbort))
+  if (!getRequestInsightsIdentity() && process.env.NEXT_OTEL_VERBOSE !== '1') {
+    if (!ComponentMod.renderToPipeableStream) {
+      throw new Error('renderToPipeableStream is not implemented')
     }
+
+    const { signal, ...renderOptions } = opts ?? {}
+    const pt = new PassThrough()
+    const pipeable = ComponentMod.renderToPipeableStream(
+      payload,
+      clientModules,
+      renderOptions
+    )
+    pipeable.pipe(pt)
+
+    if (signal) {
+      if (signal.aborted) {
+        pipeable.abort(signal.reason)
+      } else {
+        const onAbort = () => pipeable.abort(signal.reason)
+        signal.addEventListener('abort', onAbort, { once: true })
+        pt.on('close', () => signal.removeEventListener('abort', onAbort))
+      }
+    }
+
+    return pt
   }
 
-  return pt
+  return getTracer().trace(
+    AppRenderSpan.renderRSCResponse,
+    {},
+    (_span, done) => {
+      if (!ComponentMod.renderToPipeableStream) {
+        throw new Error('renderToPipeableStream is not implemented')
+      }
+
+      // `renderToPipeableStream` has no `signal` option (unlike the Web
+      // `renderToReadableStream`), so pull `signal` out of the options and abort
+      // the returned pipeable ourselves when it fires. We drop the listener when
+      // rendering finishes so a finished render's `pipeable` isn't retained by
+      // the request signal, which can outlive it.
+      const { signal, ...renderOptions } = opts ?? {}
+
+      const pt = new PassThrough()
+      const pipeable = ComponentMod.renderToPipeableStream(
+        payload,
+        clientModules,
+        renderOptions
+      )
+      let finished = false
+      let onAbort: (() => void) | undefined
+
+      const finish = (error?: Error) => {
+        if (finished) return
+        finished = true
+        if (onAbort) signal?.removeEventListener('abort', onAbort)
+        done?.(error)
+      }
+
+      pt.once('finish', () => finish())
+      pt.once('error', (error) => finish(error))
+      pt.once('close', () => {
+        if (!pt.writableFinished) {
+          finish(new Error('RSC render stream closed before completion'))
+        }
+      })
+
+      pipeable.pipe(pt)
+
+      if (signal) {
+        if (signal.aborted) {
+          pipeable.abort(signal.reason)
+          finish(
+            signal.reason instanceof Error
+              ? signal.reason
+              : new Error('RSC render aborted')
+          )
+        } else {
+          onAbort = () => {
+            pipeable.abort(signal.reason)
+            finish(
+              signal.reason instanceof Error
+                ? signal.reason
+                : new Error('RSC render aborted')
+            )
+          }
+          signal.addEventListener('abort', onAbort, { once: true })
+        }
+      }
+
+      return pt
+    }
+  )
 }
 
 export { renderToWebFizzStream } from './stream-ops.web'
@@ -589,37 +652,52 @@ export async function renderToNodeFizzStream(
   const allReady = new DetachedPromise<void>()
   const deferPipe = options?.waitForAllReady === true
 
-  const pipeable = getTracer().trace(AppRenderSpan.renderToReadableStream, () =>
-    renderToPipeableStream(element, {
-      ...streamOptions,
-      onHeaders: streamOptions?.onHeaders,
-      onShellReady() {
-        streamOptions?.onShellReady?.()
-        shellReady.resolve()
-      },
-      onShellError(error: unknown) {
-        streamOptions?.onShellError?.(error)
-        shellReady.reject(error)
-      },
-      onAllReady() {
-        streamOptions?.onAllReady?.()
-        if (deferPipe) {
-          pipeable.pipe(pt)
-        }
-        allReady.resolve()
-      },
-      onError: streamOptions?.onError,
-    })
+  const pipeable = getTracer().trace(
+    AppRenderSpan.renderToReadableStream,
+    {},
+    () =>
+      renderToPipeableStream(element, {
+        ...streamOptions,
+        onHeaders: streamOptions?.onHeaders,
+        onShellReady() {
+          streamOptions?.onShellReady?.()
+          shellReady.resolve()
+        },
+        onShellError(error: unknown) {
+          streamOptions?.onShellError?.(error)
+          shellReady.reject(error)
+        },
+        onAllReady() {
+          streamOptions?.onAllReady?.()
+          if (deferPipe) {
+            pipeable.pipe(pt)
+          }
+          allReady.resolve()
+        },
+        onError: streamOptions?.onError,
+      })
   )
 
   await getTracer().trace(
     AppRenderSpan.waitShellReady,
+    {},
     () => shellReady.promise
   )
 
   if (!deferPipe) {
-    await waitAtLeastOneReactRenderTask()
-    pipeable.pipe(pt)
+    if (getRequestInsightsIdentity() || process.env.NEXT_OTEL_VERBOSE === '1') {
+      await getTracer().trace(
+        AppRenderSpan.waitForFizzRenderTask,
+        {},
+        waitAtLeastOneReactRenderTask
+      )
+      getTracer().trace(AppRenderSpan.pipeFizzStream, {}, () =>
+        pipeable.pipe(pt)
+      )
+    } else {
+      await waitAtLeastOneReactRenderTask()
+      pipeable.pipe(pt)
+    }
   }
 
   return {
@@ -703,18 +781,41 @@ export async function continueFizzStream(
     validateRootLayout,
   }: import('./stream-ops.web').ContinueFizzStreamOptions
 ): Promise<Readable> {
+  const shouldTraceDetailedRender =
+    getRequestInsightsIdentity() || process.env.NEXT_OTEL_VERBOSE === '1'
+
   // Suffix itself might contain close tags at the end, so we need to split it.
   const suffixUnclosed = suffix ? suffix.split(CLOSE_TAG, 1)[0] : null
 
   if (isStaticGeneration) {
     if (allReady) {
-      await allReady
+      if (shouldTraceDetailedRender) {
+        await getTracer().trace(
+          AppRenderSpan.waitForFizzFlush,
+          {},
+          () => allReady
+        )
+      } else {
+        await allReady
+      }
     }
   } else {
     // Otherwise, we want to make sure Fizz is done with all microtasky work
     // before we start pulling the stream and cause a flush.
-    await waitAtLeastOneReactRenderTask()
+    if (shouldTraceDetailedRender) {
+      await getTracer().trace(
+        AppRenderSpan.waitForFizzFlush,
+        {},
+        waitAtLeastOneReactRenderTask
+      )
+    } else {
+      await waitAtLeastOneReactRenderTask()
+    }
   }
+
+  const createHTMLTransformsStart = shouldTraceDetailedRender
+    ? performance.timeOrigin + performance.now()
+    : undefined
 
   // Pipe the render stream through Node.js Transforms:
   // 1. Buffer – coalesces chunks written in the same microtask into one Uint8Array
@@ -768,6 +869,20 @@ export async function continueFizzStream(
   const headInsertion = createHeadInsertionTransform(getServerInsertedHTML)
   source.pipe(headInsertion)
   source = headInsertion
+
+  if (createHTMLTransformsStart !== undefined) {
+    const createHTMLTransformsEnd = performance.timeOrigin + performance.now()
+    const createHTMLTransformsSpan = getTracer().startSpan(
+      AppRenderSpan.createHTMLTransforms,
+      {
+        startTime: createHTMLTransformsStart,
+        attributes: {
+          'next.span_type': AppRenderSpan.createHTMLTransforms,
+        },
+      }
+    )
+    createHTMLTransformsSpan.end(createHTMLTransformsEnd)
+  }
 
   return source
 }

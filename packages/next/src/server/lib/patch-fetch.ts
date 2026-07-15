@@ -344,6 +344,7 @@ export function createPatchedFetcher(
         kind: SpanKind.CLIENT,
         spanName: ['fetch', method, fetchUrl].filter(Boolean).join(' '),
         attributes: {
+          'next.span.category': isInternal ? 'nextjs' : 'application',
           'http.url': fetchUrl,
           'http.method': method,
           'net.peer.name': url?.hostname,

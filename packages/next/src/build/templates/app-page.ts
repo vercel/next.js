@@ -22,7 +22,10 @@ import {
   getRequestMeta,
   setRequestMeta,
 } from '../../server/request-meta' with { 'turbopack-transition': 'next-server-utility' }
-import { BaseServerSpan } from '../../server/lib/trace/constants' with { 'turbopack-transition': 'next-server-utility' }
+import {
+  AppRenderSpan,
+  BaseServerSpan,
+} from '../../server/lib/trace/constants' with { 'turbopack-transition': 'next-server-utility' }
 import { interopDefault } from '../../server/app-render/interop-default' with { 'turbopack-transition': 'next-server-utility' }
 import { stripFlightHeaders } from '../../server/app-render/strip-flight-headers' with { 'turbopack-transition': 'next-server-utility' }
 import {
@@ -212,6 +215,11 @@ export async function handler(
     requestMeta?: RequestMeta
   }
 ) {
+  let appPagePreparationStart =
+    process.env.__NEXT_REQUEST_INSIGHTS || process.env.NEXT_OTEL_VERBOSE === '1'
+      ? performance.timeOrigin + performance.now()
+      : undefined
+
   if (ctx.requestMeta) {
     setRequestMeta(req, ctx.requestMeta)
   }
@@ -721,6 +729,21 @@ export async function handler(
     ) => {
       const nextReq = new NodeNextRequest(req)
       const nextRes = new NodeNextResponse(res)
+
+      if (appPagePreparationStart !== undefined) {
+        const preparationEnd = performance.timeOrigin + performance.now()
+        const preparationSpan = tracer.startSpan(
+          AppRenderSpan.prepareAppPageResponse,
+          {
+            startTime: appPagePreparationStart,
+            attributes: {
+              'next.span_type': AppRenderSpan.prepareAppPageResponse,
+            },
+          }
+        )
+        preparationSpan.end(preparationEnd)
+        appPagePreparationStart = undefined
+      }
 
       return routeModule.render(nextReq, nextRes, context).finally(() => {
         if (!span) return

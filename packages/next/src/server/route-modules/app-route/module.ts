@@ -894,6 +894,7 @@ export class AppRouteRouteModule extends RouteModule<
               {
                 spanName: `executing api route (app) ${pathname}`,
                 attributes: {
+                  'next.span.category': 'application',
                   'next.route': pathname,
                 },
               },
