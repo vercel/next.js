@@ -235,6 +235,9 @@ export class AppRouteRouteModule extends RouteModule<
   // Non-null while an async userland module (top-level await) is loading.
   // ensureUserland() awaits this before the first request is handled.
   private _pendingUserland: Promise<void> | null = null
+  // Init error from an async userland module, rethrown by ensureUserland().
+  private _initError: unknown = null
+  private _hasInitError = false
   // Synchronous per-request userland getter for Turbopack dev mode.
   // Called on every request to pick up server HMR updates.
   private readonly _getUserland?: () => AppRouteUserlandModule
@@ -252,7 +255,12 @@ export class AppRouteRouteModule extends RouteModule<
         this._pendingUserland = result.then((mod) => {
           this._userland = mod
           this._pendingUserland = null
-          this._initFromUserland()
+          try {
+            this._initFromUserland()
+          } catch (err) {
+            this._initError = err
+            this._hasInitError = true
+          }
         })
       } else {
         this._userland = result
@@ -274,6 +282,9 @@ export class AppRouteRouteModule extends RouteModule<
     void this.userland
     if (this._pendingUserland) {
       await this._pendingUserland
+    }
+    if (this._hasInitError) {
+      throw this._initError
     }
   }
 
@@ -312,7 +323,12 @@ export class AppRouteRouteModule extends RouteModule<
         this._pendingUserland = result.then((mod) => {
           this._userland = mod
           this._pendingUserland = null
-          this._initFromUserland()
+          try {
+            this._initFromUserland()
+          } catch (err) {
+            this._initError = err
+            this._hasInitError = true
+          }
         })
       } else {
         this._userland = result

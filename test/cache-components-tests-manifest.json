@@ -375,6 +375,7 @@
       "test/production/app-dir/metadata-streaming-config/metadata-streaming-config-customized.test.ts",
       "test/production/app-dir/metadata-streaming-config/metadata-streaming-config.test.ts",
       "test/production/app-dir/next-types-plugin/sync-params-type-check/sync-params-type-check.test.ts",
+      "test/production/app-dir/output-export-async-route-module/**/*",
       "test/production/app-dir/revalidate/revalidate.test.ts",
       "test/production/app-dir/ssg-single-pass/ssg-single-pass.test.ts",
       "test/production/app-dir/subresource-integrity/subresource-integrity.test.ts",
