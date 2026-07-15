@@ -25,12 +25,13 @@ function parseUrlForPages(
     withFileTypes: true,
   })
   const extensionRegex = buildExtensionRegex(pageExtensions)
+  const indexFileRegex = new RegExp(`^index\\.(${pageExtensions.join('|')})$`)
   const res = []
   fsReadDirSyncCache[directory].forEach((dirent) => {
     if (extensionRegex.test(dirent.name)) {
-      if (/^index/.test(dirent.name)) {
+      if (indexFileRegex.test(dirent.name)) {
         res.push(
-          `${urlprefix}${dirent.name.replace(extensionRegex, '')}`
+          `${urlprefix}${dirent.name.replace(indexFileRegex, '')}`
         )
       }
       res.push(`${urlprefix}${dirent.name.replace(extensionRegex, '')}`)
