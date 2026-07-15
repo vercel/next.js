@@ -108,22 +108,22 @@ export function registerUseCachePrivateTests(
           } else {
             if (isTurbopack) {
               expect(output).toMatchInlineSnapshot(`
-                 "Error: "use cache: private" must not be used within \`unstable_cache()\`.
-                     at <unknown> (app/use-cache-private-in-unstable-cache/page.tsx:21:38)
-                     at async g (app/use-cache-private-in-unstable-cache/page.tsx:16:16)
-                   19 | }
-                   20 |
-                 > 21 | const getCachedData = unstable_cache(async () => {
-                      |                                      ^
-                   22 |   'use cache: private'
-                   23 |
-                   24 |   return fetch('https://next-data-api-endpoint.vercel.app/api/random').then(
-                 To get a more detailed stack trace and pinpoint the issue, try one of the following:
-                   - Start the app in development mode by running \`next dev\`, then open "/use-cache-private-in-unstable-cache" in your browser to investigate the error.
-                   - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
-                 Error occurred prerendering page "/use-cache-private-in-unstable-cache". Read more: https://nextjs.org/docs/messages/prerender-error
-                 Export encountered an error on /use-cache-private-in-unstable-cache/page: /use-cache-private-in-unstable-cache, exiting the build."
-                `)
+               "Error: "use cache: private" must not be used within \`unstable_cache()\`.
+                   at <unknown> (app/use-cache-private-in-unstable-cache/page.tsx:21:38)
+                   at async h (app/use-cache-private-in-unstable-cache/page.tsx:16:16)
+                 19 | }
+                 20 |
+               > 21 | const getCachedData = unstable_cache(async () => {
+                    |                                      ^
+                 22 |   'use cache: private'
+                 23 |
+                 24 |   return fetch('https://next-data-api-endpoint.vercel.app/api/random').then(
+               To get a more detailed stack trace and pinpoint the issue, try one of the following:
+                 - Start the app in development mode by running \`next dev\`, then open "/use-cache-private-in-unstable-cache" in your browser to investigate the error.
+                 - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
+               Error occurred prerendering page "/use-cache-private-in-unstable-cache". Read more: https://nextjs.org/docs/messages/prerender-error
+               Export encountered an error on /use-cache-private-in-unstable-cache/page: /use-cache-private-in-unstable-cache, exiting the build."
+              `)
             } else {
               expect(output).toMatchInlineSnapshot(`
                  "Error: "use cache: private" must not be used within \`unstable_cache()\`.
