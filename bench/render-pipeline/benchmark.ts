@@ -2,6 +2,7 @@
 
 import { spawn } from 'node:child_process'
 import { once } from 'node:events'
+import { existsSync } from 'node:fs'
 import { access, copyFile, mkdir, readFile, writeFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
 import { performance } from 'node:perf_hooks'
@@ -610,6 +611,7 @@ async function runMinimalServerModeBenchmark(
     await writeFile(nextConfigPath, defaultConfig())
 
     if (options.build) {
+      await ensureGeneratedClientGraph(options)
       console.log(`\n[minimal-server/${mode}] building app fixture...`)
       await runCommand('node', [NEXT_BIN, 'build'], options.appDir, {
         ...process.env,
@@ -669,6 +671,14 @@ async function runMinimalServerBenchmarks(
 }
 
 // ---------------------------------------------------------------------------
+async function ensureGeneratedClientGraph(options: CliOptions): Promise<void> {
+  const generator = resolve(options.appDir, 'scripts/generate-client-graph.mjs')
+  if (!existsSync(generator)) return
+  await runCommand('node', [generator], options.appDir, {
+    ...process.env,
+  })
+}
+
 // Scenario: e2e (real production server via next build + next start)
 // ---------------------------------------------------------------------------
 
@@ -729,6 +739,7 @@ async function runE2EModeBenchmark(
     await writeFile(nextConfigPath, defaultConfig())
 
     if (options.build) {
+      await ensureGeneratedClientGraph(options)
       console.log(`\n[e2e/${mode}] building app fixture...`)
       await runCommand('node', [NEXT_BIN, 'build'], options.appDir, {
         ...process.env,

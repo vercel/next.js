@@ -1,4 +1,5 @@
 'use client'
+import { describeBulkGraph } from './vendor-bulk'
 import { describeDataLayer } from './vendor-data'
 import { useState } from 'react'
 export default function SparkChart({ series, height = 120, labels }) {
@@ -50,3 +51,5 @@ export default function SparkChart({ series, height = 120, labels }) {
 }
 
 export const __layers = [describeDataLayer].length
+
+export const __bulk = typeof describeBulkGraph

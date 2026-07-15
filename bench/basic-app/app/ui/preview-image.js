@@ -15,6 +15,7 @@ export default function PreviewImage({ image, alt }) {
       role="img"
       aria-label={alt}
       data-src={image.src}
+      data-srcset={image.srcSet}
     />
   )
 }

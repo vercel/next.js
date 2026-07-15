@@ -1048,3 +1048,339 @@ button {
 .m-0 {
   margin: 0;
 }
+
+/* --- docs chrome --- */
+.announcement {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 6px 12px;
+  font-size: 12px;
+  background: color-mix(in oklab, var(--accent, #6366f1) 14%, var(--bg, #fff));
+  border-bottom: 1px solid var(--border, #e5e5e5);
+}
+.announcement a {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-weight: 500;
+}
+.announcement button {
+  background: none;
+  border: 0;
+  cursor: pointer;
+  font-size: 14px;
+  color: inherit;
+}
+.mobile-nav-toggle {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px;
+  background: none;
+  border: 1px solid var(--border, #e5e5e5);
+  border-radius: 6px;
+  cursor: pointer;
+  color: inherit;
+}
+.docs-search {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 200px;
+  cursor: pointer;
+}
+.version-picker select,
+.locale-picker select {
+  padding: 4px 8px;
+  border: 1px solid var(--border, #e5e5e5);
+  border-radius: 6px;
+  background: var(--bg, #fff);
+  color: inherit;
+  font-size: 12px;
+}
+.page-actions {
+  margin-bottom: 12px;
+}
+.page-actions a,
+.copy-page {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.copy-page {
+  background: none;
+  border: 1px solid var(--border, #e5e5e5);
+  border-radius: 6px;
+  padding: 4px 8px;
+  cursor: pointer;
+  color: inherit;
+}
+.callout-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.callout.tip {
+  border-left-color: #059669;
+}
+.prose h2 a svg,
+.prose h3 a svg {
+  margin-left: 6px;
+  opacity: 0.35;
+  vertical-align: baseline;
+}
+.toc h4 {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.toc a.active {
+  color: var(--accent, #6366f1);
+  font-weight: 500;
+}
+.scroll-top {
+  margin-top: 16px;
+  background: none;
+  border: 0;
+  cursor: pointer;
+  padding: 0;
+}
+.docs-pager {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 28px 0 16px;
+}
+.docs-pager a {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid var(--border, #e5e5e5);
+  border-radius: 8px;
+  padding: 10px 14px;
+  flex: 1;
+}
+.docs-pager a + a {
+  justify-content: flex-end;
+  text-align: right;
+}
+.docs-pager small {
+  display: block;
+}
+.docs-footer a {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+/* --- blog chrome --- */
+.reading-progress {
+  position: sticky;
+  top: 0;
+  height: 2px;
+  background: var(--accent, #6366f1);
+  z-index: 10;
+}
+.category-filter {
+  margin-bottom: 18px;
+}
+.category-filter button {
+  border: 1px solid var(--border, #e5e5e5);
+  border-radius: 999px;
+  background: none;
+  color: inherit;
+  padding: 4px 12px;
+  font-size: 12px;
+  cursor: pointer;
+}
+.category-filter button[aria-pressed='true'] {
+  background: var(--fg, #111);
+  color: var(--bg, #fff);
+  border-color: var(--fg, #111);
+}
+.section-head {
+  margin-top: 8px;
+}
+.carousel-controls {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.carousel-controls button {
+  border: 1px solid var(--border, #e5e5e5);
+  border-radius: 6px;
+  background: none;
+  color: inherit;
+  padding: 2px 9px;
+  cursor: pointer;
+}
+.carousel-controls button:disabled {
+  opacity: 0.4;
+}
+.trending-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  color: #d97706;
+  font-weight: 500;
+}
+.like-button,
+.share-menu > button {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: none;
+  border: 0;
+  cursor: pointer;
+  color: inherit;
+}
+.like-button[aria-pressed='true'] {
+  color: #dc2626;
+}
+.share-menu {
+  position: relative;
+}
+.share-items {
+  position: absolute;
+  right: 0;
+  top: 100%;
+  display: flex;
+  flex-direction: column;
+  min-width: 160px;
+  background: var(--bg, #fff);
+  border: 1px solid var(--border, #e5e5e5);
+  border-radius: 8px;
+  padding: 4px;
+  z-index: 5;
+}
+.share-items button {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: 0;
+  padding: 6px 8px;
+  font-size: 12px;
+  cursor: pointer;
+  color: inherit;
+  border-radius: 5px;
+}
+.share-items button:hover {
+  background: var(--hover, #f4f4f5);
+}
+.media-row {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr 1fr;
+  gap: 14px;
+  margin: 26px 0;
+}
+.video-embed {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: flex-end;
+  gap: 4px;
+  min-height: 150px;
+  border: 0;
+  border-radius: 10px;
+  padding: 14px;
+  color: #fff;
+  cursor: pointer;
+  text-align: left;
+}
+.video-embed .video-title {
+  font-weight: 500;
+}
+.podcast-teaser {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid var(--border, #e5e5e5);
+  border-radius: 10px;
+  padding: 14px;
+  background: none;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+.podcast-teaser small {
+  display: block;
+}
+.newsletter-box {
+  border: 1px solid var(--border, #e5e5e5);
+  border-radius: 10px;
+  padding: 14px;
+}
+.newsletter-box h3 {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 4px;
+  font-size: 14px;
+}
+.newsletter {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+}
+.newsletter input {
+  flex: 1;
+  min-width: 0;
+  padding: 6px 10px;
+  border: 1px solid var(--border, #e5e5e5);
+  border-radius: 6px;
+  background: var(--bg, #fff);
+  color: inherit;
+  font-size: 12px;
+}
+.newsletter button {
+  padding: 6px 12px;
+  border: 0;
+  border-radius: 6px;
+  background: var(--fg, #111);
+  color: var(--bg, #fff);
+  font-size: 12px;
+  cursor: pointer;
+}
+.load-more {
+  display: block;
+  margin: 20px auto 0;
+  padding: 8px 18px;
+  border: 1px solid var(--border, #e5e5e5);
+  border-radius: 8px;
+  background: none;
+  color: inherit;
+  cursor: pointer;
+}
+.blog-footer {
+  margin-top: 34px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border, #e5e5e5);
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.trace {
+  margin: 10px 0 0;
+}
+.trace-span {
+  border-left: 1px solid var(--border, #e5e5e5);
+  margin-top: 2px;
+}
+.trace-label {
+  display: inline-flex;
+  gap: 6px;
+  padding: 1px 0 1px 6px;
+}

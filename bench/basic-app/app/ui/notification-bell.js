@@ -1,4 +1,5 @@
 'use client'
+import { describeBulkGraph } from './vendor-bulk'
 import { describeAuthLayer } from './vendor-auth'
 import { useState } from 'react'
 export default function NotificationBell({ count }) {
@@ -39,3 +40,5 @@ export default function NotificationBell({ count }) {
 }
 
 export const __layers = [describeAuthLayer].length
+
+export const __bulk = typeof describeBulkGraph

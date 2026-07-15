@@ -1,4 +1,5 @@
 'use client'
+import { describeBulkGraph } from './vendor-bulk'
 import { describeTooling } from './vendor-tooling'
 import { describeDataLayer } from './vendor-data'
 import { describeAuthLayer } from './vendor-auth'
@@ -30,3 +31,5 @@ export default function CommandMenu({ commands }) {
 export const __layers = [describeDataLayer, describeAuthLayer].length
 
 export const __tooling = typeof describeTooling
+
+export const __bulk = typeof describeBulkGraph
