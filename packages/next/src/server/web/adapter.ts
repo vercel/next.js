@@ -39,6 +39,7 @@ import { getBuiltinRequestContext } from '../after/builtin-request-context'
 import { getImplicitTags } from '../lib/implicit-tags'
 import { isRSCRequestHeader } from '../lib/is-rsc-request'
 import { setRequestMeta } from '../request-meta'
+import type { __ApiPreviewProps } from '../api-utils'
 
 // The proxy (middleware) does not support `'use cache'`, so this work store
 // never reaches the code that reads `cacheLife` (and `'use cache'` is
@@ -93,6 +94,13 @@ export type AdapterOptions = {
   IncrementalCache?: typeof import('../lib/incremental-cache').IncrementalCache
   incrementalCacheHandler?: typeof import('../lib/incremental-cache').CacheHandler
   bypassNextUrl?: boolean
+  /**
+   * The preview props for draft mode. In the edge runtime these are read
+   * from environment variables injected into the runtime, so this is only
+   * provided when running middleware in the Node.js runtime (where those
+   * environment variables don't exist).
+   */
+  previewProps?: __ApiPreviewProps
 }
 
 // This has to be compatible with what the Vercel builder does as well:
@@ -249,7 +257,7 @@ export async function adapter(
           routes: {},
           dynamicRoutes: {},
           notFoundRoutes: [],
-          preview: getEdgePreviewProps(),
+          preview: params.previewProps ?? getEdgePreviewProps(),
         }
       },
     })
@@ -298,7 +306,7 @@ export async function adapter(
             const onUpdateCookies = (cookies: Array<string>) => {
               cookiesFromResponse = cookies
             }
-            const previewProps = getEdgePreviewProps()
+            const previewProps = params.previewProps ?? getEdgePreviewProps()
             const page = '/' // Fake Work
             const fallbackRouteParams = null
 

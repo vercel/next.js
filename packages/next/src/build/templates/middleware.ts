@@ -13,6 +13,9 @@ import { edgeInstrumentationOnRequestError } from '../../server/web/globals'
 import { isNextRouterError } from '../../client/components/is-next-router-error'
 import { toNodeOutgoingHttpHeaders } from '../../server/web/utils'
 import type { RequestMeta } from '../../server/request-meta'
+import type { __ApiPreviewProps } from '../../server/api-utils'
+import type { PrerenderManifest } from '..'
+import { PRERENDER_MANIFEST } from '../../shared/lib/constants'
 
 const mod = { ..._mod }
 
@@ -75,6 +78,7 @@ function errorHandledHandler(fn: AdapterOptions['handler']) {
 }
 
 const internalHandler: EdgeHandler = async (opts) => {
+  let previewProps: __ApiPreviewProps | undefined
   if (process.env.NEXT_RUNTIME !== 'edge') {
     // This mirrors what `RouteModule#prepare` does for routes
     // edge runtime handles loading instrumentation at the edge adapter level
@@ -93,10 +97,25 @@ const internalHandler: EdgeHandler = async (opts) => {
       : '.next'
 
     await ensureInstrumentationRegistered(absoluteProjectDir, distDir)
+
+    // In the edge runtime the preview props are provided through environment
+    // variables. Those don't exist in the Node.js runtime, so read them from
+    // the prerender manifest like `RouteModule#loadManifests` does for routes.
+    const { loadManifestFromRelativePath } =
+      require('../../server/load-manifest.external') as typeof import('../../server/load-manifest.external')
+    const prerenderManifest = loadManifestFromRelativePath<PrerenderManifest>({
+      projectDir: absoluteProjectDir,
+      distDir,
+      manifest: PRERENDER_MANIFEST,
+      shouldCache: process.env.NODE_ENV === 'production',
+      handleMissing: true,
+    })
+    previewProps = prerenderManifest?.preview
   }
 
   return adapter({
     ...opts,
+    previewProps,
     IncrementalCache,
     incrementalCacheHandler,
     page,
