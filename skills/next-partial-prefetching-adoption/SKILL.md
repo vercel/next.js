@@ -23,7 +23,7 @@ Talk to the user in terms of what they'll see — PRs, features, and how the app
 
 - **Next.js 16.3 or later.** `partialPrefetching`, the `prefetch` route segment config, and the prefetch insights all land there.
 
-- **A browser you can drive.** Install [`next-dev-loop`](https://github.com/vercel/next.js/tree/canary/skills/next-dev-loop) before starting (`npx skills add https://github.com/vercel/next.js/tree/canary/skills/next-dev-loop`). Link prefetches fire when a link renders and enters the viewport, and shell validation fires on navigation — neither is reachable from `curl` or the build. If the app is webpack-pinned, drive a browser directly (`agent-browser`, Playwright) — you lose the framework cross-checks, not the insights; they're still in the overlay and the dev log.
+- **A browser you can drive.** Install [`next-dev-loop`](https://github.com/vercel/next.js/tree/canary/skills/next-dev-loop) before starting (`npx skills add https://github.com/vercel/next.js/tree/canary/skills/next-dev-loop`). Install it without asking — it's a tool, not a product change — and don't assume it's blocked: verify a real blocker (no network, no npm, read-only filesystem) before falling back, and name it in your report. Link prefetches fire when a link renders and enters the viewport, and shell validation fires on navigation — neither is reachable from `curl` or the build. If the app is webpack-pinned, drive a browser directly (`agent-browser`, Playwright) — you lose the framework cross-checks, not the insights; they're still in the overlay and the dev log.
 
 ### notes
 
@@ -85,7 +85,11 @@ Once every audited destination has `prefetch = 'partial'`, finish in two moves.
 
 ## step 3: sweep for URL-data insights (after enabling)
 
-This is a dev-only second pass. The shell check runs only with the flag on, fires at navigation time, and never blocks the build, so it can happen any time after step 2. The work is one loop — build a route queue from a concrete source (the last `next build` route table, or the `app/` tree), keep it as a todo list, and load every route in `next dev` until the queue is empty.
+This is a dev-only second pass. The shell check runs only with the flag on, fires at navigation time, and never blocks the build, so it can happen any time after step 2. Build the route queue from a concrete source (the last `next build` route table, or the `app/` tree) and keep it as a todo list.
+
+Sweep feature by feature. A feature is a single product surface — `app/settings/**`, `app/posts/[slug]/**` — not a whole top-level area. Finish one end-to-end before starting the next: load its routes in `next dev` and resolve their insights. The insight never blocks the build and each route is independent, so a partial sweep leaves a working app, and each feature is a self-contained change the user can review or ship on its own.
+
+If the environment can't finish the whole sweep (slow first compiles, a dev server that falls over under load), that's a valid stopping point: report the features you swept and the ones still queued, and hand off rather than restart-looping the dev server.
 
 Watch the Insights tab and the dev log for `Next.js encountered … data` lines. The signal this step adds is [`URL data`](https://nextjs.org/docs/messages/instant-shell-url-data): a `params` or `searchParams` read outside `<Suspense>` ties the shared shell to one URL. It can surface even inside an existing `<Suspense>` when the boundary sits above the read. Open its docs page and follow the fix there.
 
