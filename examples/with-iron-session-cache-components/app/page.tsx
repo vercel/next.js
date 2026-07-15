@@ -6,21 +6,6 @@ import { addNote, logout } from "./actions";
 import { UserProvider } from "./user-provider";
 import { UserBadge } from "./user-badge";
 
-export default function Page() {
-  return (
-    <main>
-      {/* Shared content. Prerendered into the static shell. */}
-      <Announcements />
-
-      {/* Reads the session, so it renders into the per-session App Shell
-          instead of the shared static shell. */}
-      <Suspense fallback={<p>Loading your dashboard…</p>}>
-        <Dashboard />
-      </Suspense>
-    </main>
-  );
-}
-
 async function Announcements() {
   const announcements = await getAnnouncements();
 
@@ -69,5 +54,20 @@ async function Dashboard() {
         </form>
       </section>
     </UserProvider>
+  );
+}
+
+export default function Page() {
+  return (
+    <main>
+      {/* Shared content. Prerendered into the static shell. */}
+      <Announcements />
+
+      {/* Reads the session, so it renders into the per-session App Shell
+          instead of the shared static shell. */}
+      <Suspense fallback={<p>Loading your dashboard…</p>}>
+        <Dashboard />
+      </Suspense>
+    </main>
   );
 }

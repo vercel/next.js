@@ -9,17 +9,6 @@ import { getNote } from "@/lib/data";
 // time, so the note is ready before the click instead of streaming in after it.
 export const prefetch = "allow-runtime";
 
-export default function NotePage({ params }: PageProps<"/notes/[id]">) {
-  return (
-    <main>
-      <Link href="/">← Back</Link>
-      <Suspense fallback={<p>Loading note…</p>}>
-        <Note params={params} />
-      </Suspense>
-    </main>
-  );
-}
-
 async function Note({
   params,
 }: {
@@ -34,4 +23,15 @@ async function Note({
   }
 
   return <article>{note.text}</article>;
+}
+
+export default function NotePage({ params }: PageProps<"/notes/[id]">) {
+  return (
+    <main>
+      <Link href="/">← Back</Link>
+      <Suspense fallback={<p>Loading note…</p>}>
+        <Note params={params} />
+      </Suspense>
+    </main>
+  );
 }
