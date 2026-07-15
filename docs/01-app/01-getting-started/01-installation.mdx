@@ -449,3 +449,9 @@ bunx @next/codemod@canary upgrade latest
 ```
 
 The codemod updates your dependencies and applies automated fixes for breaking changes. See the [upgrade guide](/docs/app/guides/upgrading) for the full list of changes in each version.
+
+Every release bundles version-matched documentation inside the `next` package. These docs cover new features, along with updated guidance and known pitfalls for existing ones. Your [AI coding agent](/docs/app/guides/ai-agents) can read them to work from the APIs that ship with your installed version instead of its training data. After upgrading, you can be proactive and ask it to catch up on the bundled docs:
+
+```prompt
+Let's get our Next.js knowledge up to speed, then give me a short summary of what's changed since your training data.
+```
