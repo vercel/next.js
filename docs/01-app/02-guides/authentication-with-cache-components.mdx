@@ -35,6 +35,10 @@ export default nextConfig
 
 This guide assumes you're comfortable with Cache Components. If not, read [Caching](/docs/app/getting-started/caching) first. It also assumes you already have a session set on login. See [How to implement authentication in Next.js](/docs/app/guides/authentication) for sign-up, login, and session creation.
 
+## Migrating an existing app
+
+With Cache Components enabled, instant navigation validation flags every route that reads the session, because a request read can't be prerendered into the static shell. You don't have to resolve them all before shipping. Set [`export const instant = false`](/docs/app/guides/instant-navigation#opting-out) on the page or layout to let it keep blocking on the server, then adopt the patterns below one route at a time. For the full migration workflow, see [Migrating to Cache Components](/docs/app/guides/migrating-to-cache-components#following-validation).
+
 ## Step 1: Read the current user
 
 Reading the current user reads the session cookie, then looks the user up. Because a request read can't be part of the static shell, it always sits behind a [`<Suspense>`](/docs/app/api-reference/file-conventions/loading) boundary, where it streams in on demand.
@@ -250,7 +254,7 @@ On the server, plain `use cache` keeps the entry in memory as a best effort: it'
 
 ## Step 5: Update session-derived data
 
-When a [Server Action](/docs/app/getting-started/updating-data) changes a user's data, call [`updateTag`](/docs/app/api-reference/functions/updateTag) with the same tag to refresh the cached entry. Re-read the session inside the action so it authorizes itself rather than trusting the client.
+When a [Server Action](/docs/app/getting-started/mutating-data) changes a user's data, call [`updateTag`](/docs/app/api-reference/functions/updateTag) with the same tag to refresh the cached entry. Re-read the session inside the action so it authorizes itself rather than trusting the client.
 
 ```ts filename="app/actions.ts"
 'use server'
