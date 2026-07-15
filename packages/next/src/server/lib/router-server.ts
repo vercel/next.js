@@ -223,7 +223,8 @@ export async function initialize(opts: {
       // reference to it.
       (req, res) => {
         return requestHandlers[opts.dir](req, res)
-      }
+      },
+      Boolean(developmentConfig.experimental.requestInsights)
     )
 
     development = {

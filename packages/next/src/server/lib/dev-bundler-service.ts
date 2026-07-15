@@ -9,7 +9,6 @@ import {
   type HmrMessageSentToBrowser,
   type NextJsHotReloaderInterface,
 } from '../dev/hot-reloader-types'
-import { isRequestInsightsEnabled } from './trace/span-store'
 import { subscribeRequestInsights } from './trace/request-insights'
 
 /**
@@ -25,7 +24,8 @@ export class DevBundlerService {
 
   constructor(
     private readonly bundler: DevBundler,
-    private readonly handler: WorkerRequestHandler
+    private readonly handler: WorkerRequestHandler,
+    requestInsightsEnabled: boolean
   ) {
     this.appIsrManifestInner = new LRUCache(
       8_000,
@@ -42,7 +42,7 @@ export class DevBundlerService {
       hotReloader.setReactDebugChannel.bind(hotReloader)
     this.sendErrorsToBrowser = hotReloader.sendErrorsToBrowser.bind(hotReloader)
 
-    if (isRequestInsightsEnabled()) {
+    if (requestInsightsEnabled) {
       this.unsubscribeRequestInsights = subscribeRequestInsights((insight) => {
         hotReloader.send({
           type: HMR_MESSAGE_SENT_TO_BROWSER.REQUEST_INSIGHTS_UPDATE,
