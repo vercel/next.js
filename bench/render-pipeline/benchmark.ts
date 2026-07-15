@@ -427,11 +427,15 @@ async function inspectRouteDocument(
       inlineFlightScripts++
     }
     if (inlineFlightScripts === 0) {
-      // Every App Router document carries inline Flight scripts; zero
-      // means the extraction regex no longer matches the markup, and the
-      // flight-share metric would silently read 0.
-      console.warn(
-        `[inspect] ${route}: no inline Flight scripts matched — flight byte metrics are unreliable for this route`
+      // Every App Router document carries inline Flight scripts; a
+      // silent zero would corrupt the flight-share metric.
+      if (text.includes('__next_f')) {
+        throw new Error(
+          `[inspect] ${route}: document contains __next_f but the extraction regex matched no inline Flight scripts — the markup shape changed, update the regex in inspectRouteDocument`
+        )
+      }
+      throw new Error(
+        `[inspect] ${route}: not an App Router document (no __next_f) — this benchmark only measures App Router routes`
       )
     }
     return {
