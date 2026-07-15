@@ -15,6 +15,7 @@
     "dev": "turbo run dev --parallel --filter=\"!@next/bundle-analyzer-ui\"",
     "bench:render-pipeline": "tsx bench/render-pipeline/benchmark.ts",
     "bench:render-pipeline:analyze": "tsx bench/render-pipeline/analyze-profiles.ts",
+    "bench:render-pipeline:client": "tsx bench/render-pipeline/client-trace.ts",
     "pack-next": "tsx scripts/pack-next.ts",
     "eval": "node run-evals.js",
     "test-types": "tsc",
