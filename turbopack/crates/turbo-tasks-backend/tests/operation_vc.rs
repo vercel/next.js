@@ -7,18 +7,18 @@ use turbo_tasks_testing::{Registration, register, run};
 
 static REGISTRATION: Registration = register!();
 
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 fn bare_op_fn() -> Vc<i32> {
     Vc::cell(21)
 }
 
 // operations can take `ResolvedVc`s too (anything that's a `NonLocalValue`).
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 async fn multiply(value: OperationVc<i32>, coefficient: ResolvedVc<i32>) -> Result<Vc<i32>> {
     Ok(Vc::cell((*value.connect().await?) * (*coefficient.await?)))
 }
 
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 fn use_operations() -> Vc<i32> {
     let twenty_one: OperationVc<i32> = bare_op_fn();
     let forty_two: OperationVc<i32> = multiply(twenty_one, ResolvedVc::cell(2));

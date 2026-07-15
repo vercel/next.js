@@ -85,7 +85,12 @@ impl AllocationCounters {
 pub struct TurboMalloc;
 
 impl TurboMalloc {
-    // Returns the current amount of memory
+    /// Returns the current amount of live memory (bytes allocated minus freed)
+    /// tracked across all threads.
+    ///
+    /// For efficiency reasons every thread only synchronizes with this counter after ~100K bytes of
+    /// allocations or deallocations.  So this could be off by as much as 100K*number of thread in
+    /// either direction.
     pub fn memory_usage() -> usize {
         get()
     }
@@ -95,9 +100,22 @@ impl TurboMalloc {
     }
 
     pub fn thread_park() {
+        Self::collect(false);
+    }
+
+    /// When using mimalloc triggers some cleanup
+    /// force=false: process threadlocal free lists and other threadlocal deferred work
+    ///    only operates on thread local data and should be fast
+    /// force=true: do all the work of `process=false` and then process global shared structures and
+    /// return memory to the OS if possible, this is much slower and should only be done rarely.
+    pub fn collect(force: bool) {
         #[cfg(all(feature = "custom_allocator", not(target_family = "wasm")))]
         unsafe {
-            libmimalloc_sys::mi_collect(false);
+            libmimalloc_sys::mi_collect(force);
+        }
+        #[cfg(not(all(feature = "custom_allocator", not(target_family = "wasm"))))]
+        {
+            let _ = force;
         }
     }
 

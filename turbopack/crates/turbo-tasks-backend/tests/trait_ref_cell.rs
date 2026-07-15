@@ -86,7 +86,7 @@ impl Counter {
 
 #[turbo_tasks::value_trait]
 trait CounterTrait {
-    #[turbo_tasks::function]
+    #[turbo_tasks::function(root)]
     fn get_value(&self) -> Vc<CounterValue>;
 
     fn get_value_sync(&self) -> CounterValue;
@@ -94,7 +94,7 @@ trait CounterTrait {
 
 #[turbo_tasks::value_impl]
 impl CounterTrait for Counter {
-    #[turbo_tasks::function]
+    #[turbo_tasks::function(root)]
     fn get_value(&self) -> Result<Vc<CounterValue>> {
         let mut lock = self.value.lock().unwrap();
         lock.1.insert(get_invalidator().unwrap());
@@ -108,13 +108,13 @@ impl CounterTrait for Counter {
 
 #[turbo_tasks::value_trait]
 trait CounterValueTrait {
-    #[turbo_tasks::function]
+    #[turbo_tasks::function(root)]
     fn get_value(&self) -> Vc<CounterValue>;
 }
 
 #[turbo_tasks::value_impl]
 impl CounterValueTrait for CounterValue {
-    #[turbo_tasks::function]
+    #[turbo_tasks::function(root)]
     fn get_value(self: Vc<Self>) -> Vc<Self> {
         self
     }

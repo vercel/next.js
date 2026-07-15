@@ -36,8 +36,11 @@ use turbopack_core::{
     },
     resolve::{
         ExternalTraced, ExternalType, ModulePart, ModuleResolveResult, ModuleResolveResultItem,
-        ResolveResult, ResolveResultItem, options::ResolveOptions, origin::PlainResolveOrigin,
-        parse::Request, resolve,
+        ResolveResult, ResolveResultItem,
+        options::{ConditionValue, ResolveOptions},
+        origin::PlainResolveOrigin,
+        parse::Request,
+        resolve,
     },
     source::Source,
     source_transform::SourceTransforms,
@@ -422,19 +425,11 @@ impl ModuleAssetContext {
     }
 
     #[turbo_tasks::function]
-    pub async fn is_types_resolving_enabled(&self) -> Result<Vc<bool>> {
-        let resolve_options_context = self.resolve_options_context.await?;
-        Ok(Vc::cell(
-            resolve_options_context.enable_types && resolve_options_context.enable_typescript,
-        ))
-    }
-
-    #[turbo_tasks::function]
     pub async fn with_types_resolving_enabled(self: Vc<Self>) -> Result<Vc<ModuleAssetContext>> {
-        if *self.is_types_resolving_enabled().await? {
+        let this = self.await?;
+        if this.is_types_resolving_enabled().await? {
             return Ok(self);
         }
-        let this = self.await?;
         let resolve_options_context = *this
             .resolve_options_context
             .with_types_enabled()
@@ -452,6 +447,10 @@ impl ModuleAssetContext {
 }
 
 impl ModuleAssetContext {
+    async fn is_types_resolving_enabled(&self) -> Result<bool> {
+        let resolve_options_context = self.resolve_options_context.await?;
+        Ok(resolve_options_context.enable_types && resolve_options_context.enable_typescript)
+    }
     async fn process_with_transition_rules(
         self: Vc<Self>,
         source: ResolvedVc<Box<dyn Source>>,
@@ -930,6 +929,7 @@ pub async fn externals_tracing_module_context(
         loose_errors: true,
         collect_affecting_sources: true,
         custom_conditions: vec![rcstr!("node")],
+        module_sync: ConditionValue::Unknown,
         ..Default::default()
     };
 
@@ -1025,8 +1025,8 @@ impl AssetContext for ModuleAssetContext {
         );
 
         let mut result = self.process_resolve_result(*result.to_resolved().await?, reference_type);
-
-        if *self.is_types_resolving_enabled().await? {
+        let this = self.await?;
+        if this.is_types_resolving_enabled().await? {
             let types_result = type_resolve(
                 Vc::upcast(PlainResolveOrigin::new(Vc::upcast(self), origin_path)),
                 request,
@@ -1222,7 +1222,7 @@ pub async fn emit_assets_into_dir(
     Ok(())
 }
 
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 pub async fn emit_assets_into_dir_operation(
     assets: ResolvedVc<ExpandedOutputAssets>,
     output_dir: FileSystemPath,

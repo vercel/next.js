@@ -9,6 +9,8 @@ import {
   type HmrMessageSentToBrowser,
   type NextJsHotReloaderInterface,
 } from '../dev/hot-reloader-types'
+import { isRequestInsightsEnabled } from './trace/span-store'
+import { subscribeRequestInsights } from './trace/request-insights'
 
 /**
  * The DevBundlerService provides an interface to perform tasks with the
@@ -16,10 +18,10 @@ import {
  */
 export class DevBundlerService {
   public appIsrManifestInner: InstanceType<typeof LRUCache<boolean>>
-  public close: NextJsHotReloaderInterface['close']
   public setCacheStatus: NextJsHotReloaderInterface['setCacheStatus']
   public setReactDebugChannel: NextJsHotReloaderInterface['setReactDebugChannel']
   public sendErrorsToBrowser: NextJsHotReloaderInterface['sendErrorsToBrowser']
+  private unsubscribeRequestInsights?: () => void
 
   constructor(
     private readonly bundler: DevBundler,
@@ -35,11 +37,24 @@ export class DevBundlerService {
 
     const { hotReloader } = bundler
 
-    this.close = hotReloader.close.bind(hotReloader)
     this.setCacheStatus = hotReloader.setCacheStatus.bind(hotReloader)
     this.setReactDebugChannel =
       hotReloader.setReactDebugChannel.bind(hotReloader)
     this.sendErrorsToBrowser = hotReloader.sendErrorsToBrowser.bind(hotReloader)
+
+    if (isRequestInsightsEnabled()) {
+      this.unsubscribeRequestInsights = subscribeRequestInsights((insight) => {
+        hotReloader.send({
+          type: HMR_MESSAGE_SENT_TO_BROWSER.REQUEST_INSIGHTS_UPDATE,
+          insight,
+        })
+      })
+    }
+  }
+
+  public close: NextJsHotReloaderInterface['close'] = () => {
+    this.unsubscribeRequestInsights?.()
+    this.bundler.hotReloader.close()
   }
 
   public ensurePage: typeof this.bundler.hotReloader.ensurePage = async (

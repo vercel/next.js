@@ -19,6 +19,7 @@ byteorder = { workspace = true }
 crc32fast = { workspace = true }
 dashmap = { workspace = true}
 either = { workspace = true }
+fs-err = { workspace = true }
 jiff = "0.2.10"
 lzzzz = { workspace = true }
 memmap2 = "0.9.5"
@@ -40,7 +41,7 @@ criterion = { workspace = true }
 rand = { workspace = true }
 rayon = { workspace = true }
 tempfile = { workspace = true }
-turbo-tasks-malloc = { workspace = true }
+turbo-tasks-malloc = { workspace = true, features = ["custom_allocator"] }
 
 [[bin]]
 name = "sst_inspect"

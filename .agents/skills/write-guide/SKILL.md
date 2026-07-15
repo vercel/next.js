@@ -10,6 +10,8 @@ description: |
   **Output type:** A markdown guide with YAML frontmatter, introduction, 2-4 progressive steps, and next steps section.
 agent: Plan
 context: fork
+metadata:
+  internal: true
 ---
 
 # Writing Guides
@@ -107,6 +109,13 @@ Next, learn how to:
 | "needs dynamic information"                          | "depends on request-time data"                           |
 | "requires dynamic processing"                        | "output can't be known ahead of time"                    |
 | "The component blocks the response — causing delays" | "The component blocks the response. This causes delays." |
+
+9. **Bridge new framework terms with legacy or generic vocabulary in `description` and intro.** Guides win or lose SERPs on the colloquial query (e.g. "next js form submission", "next js api endpoint", "next js error page"), not on the framework's preferred noun. When the guide covers a renamed or differentiated concept, include one synonym (Pages-era term, REST/web term, or industry-standard label) in the frontmatter `description` and once in the introduction. Fold into prose. No separate "Synonyms" or "Also known as" section.
+
+| Don't                                            | Do                                                                                                            |
+| ------------------------------------------------ | ------------------------------------------------------------------------------------------------------------- |
+| "Learn how to use Route Handlers"                | "Build API endpoints (formerly API Routes) with Route Handlers"                                               |
+| "Learn how to mutate data with Server Functions" | "Submit forms and update data with Server Functions, the App Router approach to form posts and API mutations" |
 
 ## References
 

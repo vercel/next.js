@@ -1,9 +1,14 @@
 import net from 'net'
 import http from 'http'
-import { createNext, NextInstance } from 'e2e-utils'
+import { nextTestSetup } from 'e2e-utils'
 import { findPort, retry } from 'next-test-utils'
 
 describe('rewrite-request-smuggling', () => {
+  const { next } = nextTestSetup({
+    files: __dirname,
+    skipStart: true,
+  })
+
   const ssrfProbePath = '/secret-upgrade'
   const ssrfProbeBody =
     'SSRF_CONFIRMED: You reached the internal service at 127.0.0.1'
@@ -11,7 +16,6 @@ describe('rewrite-request-smuggling', () => {
   let backendPort: number
   let intermediary: http.Server
   let intermediaryPort: number
-  let next: NextInstance
   const backendRequests: string[] = []
 
   async function sendSmugglingPayload({
@@ -191,16 +195,12 @@ describe('rewrite-request-smuggling', () => {
       intermediary.once('error', reject)
     })
 
-    next = await createNext({
-      files: __dirname,
-      env: {
-        TEST_INTERMEDIARY_PORT: String(intermediaryPort),
-      },
+    await next.start({
+      env: { TEST_INTERMEDIARY_PORT: String(intermediaryPort) },
     })
   })
 
   afterAll(async () => {
-    await next?.destroy()
     await new Promise<void>((resolve) => intermediary.close(() => resolve()))
     await new Promise<void>((resolve) => backend.close(() => resolve()))
   })

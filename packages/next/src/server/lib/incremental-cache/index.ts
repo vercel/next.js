@@ -26,8 +26,7 @@ import {
 import { toRoute } from '../to-route'
 import { SharedCacheControls } from './shared-cache-controls.external'
 import {
-  getPrerenderResumeDataCache,
-  getRenderResumeDataCache,
+  getResumeDataCache,
   workUnitAsyncStorage,
 } from '../../app-render/work-unit-async-storage.external'
 import { InvariantError } from '../../../shared/lib/invariant-error'
@@ -436,7 +435,7 @@ export class IncrementalCache implements IncrementalCacheType {
     if (ctx.kind === IncrementalCacheKind.FETCH) {
       const workUnitStore = workUnitAsyncStorage.getStore()
       const resumeDataCache = workUnitStore
-        ? getRenderResumeDataCache(workUnitStore)
+        ? getResumeDataCache(workUnitStore)
         : null
       if (resumeDataCache) {
         const memoryCacheData = resumeDataCache.fetch.get(cacheKey)
@@ -532,14 +531,13 @@ export class IncrementalCache implements IncrementalCacheType {
       // and it won't have to reach into the fetch cache implementation.
       const workUnitStore = workUnitAsyncStorage.getStore()
       if (workUnitStore) {
-        const prerenderResumeDataCache =
-          getPrerenderResumeDataCache(workUnitStore)
-        if (prerenderResumeDataCache) {
+        const resumeDataCache = getResumeDataCache(workUnitStore)
+        if (resumeDataCache?.mutable) {
           if (IncrementalCache.debug) {
             console.log('IncrementalCache: rdc:set', cacheKey)
           }
 
-          prerenderResumeDataCache.fetch.set(cacheKey, cacheData.value)
+          resumeDataCache.fetch.set(cacheKey, cacheData.value)
         }
       }
 
@@ -682,15 +680,15 @@ export class IncrementalCache implements IncrementalCacheType {
     // debug info to have the right environment associated to it.
     if (data?.kind === CachedRouteKind.FETCH) {
       const workUnitStore = workUnitAsyncStorage.getStore()
-      const prerenderResumeDataCache = workUnitStore
-        ? getPrerenderResumeDataCache(workUnitStore)
+      const resumeDataCache = workUnitStore
+        ? getResumeDataCache(workUnitStore)
         : null
-      if (prerenderResumeDataCache) {
+      if (resumeDataCache?.mutable) {
         if (IncrementalCache.debug) {
           console.log('IncrementalCache: rdc:set', pathname)
         }
 
-        prerenderResumeDataCache.fetch.set(pathname, data)
+        resumeDataCache.fetch.set(pathname, data)
       }
     }
 

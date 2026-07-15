@@ -11,6 +11,7 @@ use turbo_tasks_fs::{
 };
 use turbopack_core::{
     asset::{Asset, AssetContent},
+    chunk::{ChunkingType, TracedMode},
     file_source::FileSource,
     raw_module::RawModule,
     reference::ModuleReference,
@@ -71,6 +72,12 @@ impl ModuleReference for NodePreGypConfigReference {
         )
         .await
     }
+
+    fn chunking_type(&self) -> Option<ChunkingType> {
+        Some(ChunkingType::Traced {
+            mode: TracedMode::Transitive,
+        })
+    }
 }
 
 async fn resolve_node_pre_gyp_files(
@@ -95,10 +102,9 @@ async fn resolve_node_pre_gyp_files(
         collect_affecting_sources,
         true,
     )
-    .first_source()
     .await?;
     let compile_target = compile_target.await?;
-    if let Some(config_asset) = *config
+    if let Some(config_asset) = config.first_source()
         && let AssetContent::File(file) = &*config_asset.content().await?
         && let FileContent::Content(config_file) = &*file.await?
     {
@@ -254,6 +260,12 @@ impl ModuleReference for NodeGypBuildReference {
         )
         .await
     }
+
+    fn chunking_type(&self) -> Option<ChunkingType> {
+        Some(ChunkingType::Traced {
+            mode: TracedMode::Transitive,
+        })
+    }
 }
 
 async fn resolve_node_gyp_build_files(
@@ -273,9 +285,11 @@ async fn resolve_node_gyp_build_files(
         collect_affecting_sources,
         true,
     );
-    if let [binding_gyp] = &gyp_file.primary_sources().await?[..] {
+    let gyp_file = gyp_file.await?;
+    let mut primary_sources = gyp_file.primary_sources();
+    if let (Some(binding_gyp), None) = (primary_sources.next(), primary_sources.next()) {
         let mut merged_affecting_sources = if collect_affecting_sources {
-            gyp_file.await?.get_affecting_sources().collect::<Vec<_>>()
+            gyp_file.get_affecting_sources().collect::<Vec<_>>()
         } else {
             Vec::new()
         };
@@ -375,6 +389,12 @@ impl ModuleReference for NodeBindingsReference {
         )
         .await
     }
+
+    fn chunking_type(&self) -> Option<ChunkingType> {
+        Some(ChunkingType::Traced {
+            mode: TracedMode::Transitive,
+        })
+    }
 }
 
 async fn resolve_node_bindings_files(
@@ -399,9 +419,8 @@ async fn resolve_node_bindings_files(
             collect_affecting_sources,
             true,
         )
-        .first_source()
         .await?;
-        if let Some(asset) = *resolved
+        if let Some(asset) = resolved.first_source()
             && let AssetContent::File(file) = &*asset.content().await?
             && let FileContent::Content(_) = &*file.await?
         {
@@ -435,7 +454,7 @@ async fn resolve_node_bindings_files(
 
     let modules = BINDINGS_TRY
         .iter()
-        .map(|try_dir| try_path.clone()(format!("{}/{}", try_dir, &file_name).into()))
+        .map(|try_dir| try_path.clone()(format!("{}/{}", try_dir, file_name).into()))
         .try_flat_join()
         .await?;
     Ok(*ModuleResolveResult::modules(modules))

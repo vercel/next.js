@@ -5,6 +5,7 @@ import fs from 'fs-extra'
 import { NextInstance } from './base'
 import * as projectEnv from '../../../scripts/reset-project.mjs'
 import { Span } from 'next/dist/trace'
+import { setTimeout } from 'timers/promises'
 
 export class NextDeployInstance extends NextInstance {
   private _cliOutput: string
@@ -185,9 +186,59 @@ export class NextDeployInstance extends NextInstance {
     )
   }
 
+  private async fetchBuildLogsUntilComplete(
+    url: string,
+    vercelEnv: NodeJS.ProcessEnv,
+    vercelFlags: string[]
+  ): Promise<string> {
+    // The fixture's `post-build` script prints the BUILD_ID, DEPLOYMENT_ID and
+    // NEXT_SUPPORTS_IMMUTABLE_ASSETS markers (in that order) as the final lines
+    // of the build (see `base.ts`). A deployment can report `Ready` before that
+    // tail has propagated to the log query API, so `vercel inspect --logs` can
+    // return a truncated prefix that stops before the markers. Gate on the
+    // last-printed marker so a partial read can't slip into the parser, and
+    // re-query until it appears.
+    const maxAttempts = 20
+    const retryDelayMs = 3000
+    let output = ''
+
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      const buildLogs = await execa(
+        'vercel',
+        ['inspect', '--logs', url, ...vercelFlags],
+        {
+          env: vercelEnv,
+          reject: false,
+        }
+      )
+      if (buildLogs.exitCode !== 0) {
+        throw new Error(`Failed to get build output logs: ${buildLogs.stderr}`)
+      }
+      // Build logs are piped to stderr, so combine both streams.
+      output = buildLogs.stdout + buildLogs.stderr
+
+      if (/NEXT_SUPPORTS_IMMUTABLE_ASSETS: (.+)/.test(output)) {
+        return output
+      }
+
+      if (attempt < maxAttempts) {
+        require('console').log(
+          `Build log markers not yet propagated for ${url} (attempt ${attempt}/${maxAttempts}); the build log tail likely hasn't propagated yet. Retrying in ${retryDelayMs}ms...`
+        )
+        await setTimeout(retryDelayMs)
+      }
+    }
+
+    // The markers never appeared within the retry window; return the last
+    // output so `parseIdsFromCliOuput` throws a descriptive error including it.
+    return output
+  }
+
   public async setup(parentSpan: Span) {
     super.setup(parentSpan)
     await super.createTestDir({ parentSpan, skipInstall: true })
+
+    await this.writeMirrorNpmrcIfNecessary()
 
     const existingDeployUrl = process.env.NEXT_TEST_DEPLOY_URL?.trim()
     const customDeployScriptPath =
@@ -274,7 +325,7 @@ export class NextDeployInstance extends NextInstance {
     }
 
     const vercelFlags: string[] = []
-    const NEXT_ENABLE_ADAPTER = process.env.NEXT_ENABLE_ADAPTER
+    const NEXT_ENABLE_ADAPTER = process.env.NEXT_ENABLE_ADAPTER === '1'
     const IS_TURBOPACK_TEST = process.env.IS_TURBOPACK_TEST
 
     const TEST_TEAM_NAME = NEXT_ENABLE_ADAPTER
@@ -381,7 +432,7 @@ export class NextDeployInstance extends NextInstance {
     if (process.env.IS_WEBPACK_TEST) {
       additionalEnv.push(`IS_WEBPACK_TEST=1`)
     }
-    if (process.env.NEXT_ENABLE_ADAPTER) {
+    if (NEXT_ENABLE_ADAPTER) {
       additionalEnv.push(`NEXT_ENABLE_ADAPTER=1`)
     } else {
       additionalEnv.push(`NEXT_ENABLE_ADAPTER=0`)
@@ -432,25 +483,43 @@ export class NextDeployInstance extends NextInstance {
 
     require('console').log(`Deployment URL: ${this._url}`)
 
-    // Use the vercel inspect command to get the CLI output from the build.
-    const buildLogs = await execa(
-      'vercel',
-      ['inspect', '--logs', this._url, ...vercelFlags],
-      {
-        env: vercelEnv,
-        reject: false,
-      }
+    // Fetch the build logs to extract the build/deployment id markers that the
+    // fixture's `post-build` script prints. The deployment can report `Ready`
+    // (and `vercel deploy` can return) before its full build-log tail has
+    // propagated to the log query API, so re-query until the markers appear
+    // rather than failing on the first incomplete read. TODO: Combine with
+    // runtime logs (via `vercel logs`)
+    this._cliOutput = await this.fetchBuildLogsUntilComplete(
+      this._url,
+      vercelEnv,
+      vercelFlags
     )
-    if (buildLogs.exitCode !== 0) {
-      throw new Error(`Failed to get build output logs: ${buildLogs.stderr}`)
-    }
-    // TODO: Combine with runtime logs (via `vercel logs`)
-    // Build logs seem to be piped to stderr, so we'll combine them to make sure we get all the logs.
-    this._cliOutput = buildLogs.stdout + buildLogs.stderr
 
     this.parseIdsFromCliOuput()
-    // Use the stdout from the logs command as the CLI output. The CLI will
-    // output other unrelated logs to stderr.
+  }
+
+  // When the preview-builds npm mirror is auth-protected, the deploy build
+  // installs Next.js artifacts from it and needs credentials. We write an
+  // `.npmrc` with a read token (provided as a CI secret) so the remote install
+  // can authenticate. Only written when the token is set, so unprotected and
+  // local deploy runs are unaffected.
+  private async writeMirrorNpmrcIfNecessary(): Promise<void> {
+    const token = process.env.PREVIEW_BUILDS_READ_TOKEN
+    const baseUrlRaw = process.env.NEXT_TEST_PREVIEW_BUILDS_BASE_URL
+
+    if (!token || !baseUrlRaw) {
+      return
+    }
+
+    const baseUrl = new URL(baseUrlRaw)
+    // Derive the npmrc auth key from the mirror base URL: strip the scheme and
+    // ensure a trailing slash so it matches requests to that registry path.
+    const registryKey = `//${baseUrl.host}${baseUrl.pathname.replace(/\/?$/, '/')}`
+
+    await fs.writeFile(
+      path.join(this.testDir, '.npmrc'),
+      `${registryKey}:_authToken=${token}\n`
+    )
   }
 
   private async configureProxyAddress(): Promise<void> {
@@ -551,5 +620,11 @@ export class NextDeployInstance extends NextInstance {
     newFilename: string
   ): Promise<void> {
     throw new Error('renameFile is not available in deploy test mode')
+  }
+  public async readFileBuffer(filename: string): Promise<Buffer> {
+    throw new Error('readFileBuffer is not available in deploy test mode')
+  }
+  public async writeFileBuffer(filename: string, data: Buffer): Promise<void> {
+    throw new Error('writeFileBuffer is not available in deploy test mode')
   }
 }

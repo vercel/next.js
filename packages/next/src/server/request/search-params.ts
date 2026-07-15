@@ -30,6 +30,8 @@ import { InvariantError } from '../../shared/lib/invariant-error'
 import {
   makeDevtoolsIOAwarePromise,
   makeHangingPromise,
+  makePromiseFromTrigger,
+  RENDER_STAGES_BY_DATA_KIND,
 } from '../dynamic-rendering-utils'
 import { createDedupedByCallsiteServerErrorLoggerDev } from '../create-deduped-by-callsite-server-error-logger'
 import {
@@ -41,7 +43,6 @@ import {
   throwWithStaticGenerationBailoutErrorWithDynamicError,
   throwForSearchParamsAccessInUseCache,
 } from './utils'
-import { RenderStage } from '../app-render/staged-rendering'
 
 export type SearchParams = { [key: string]: string | string[] | undefined }
 
@@ -60,13 +61,6 @@ export function createSearchParamsFromClient(
       case 'prerender-ppr':
       case 'prerender-legacy':
         return createStaticPrerenderSearchParams(workStore, workUnitStore)
-      case 'validation-client': {
-        return createClientSearchParamsInValidation(
-          underlyingSearchParams,
-          workStore,
-          workUnitStore
-        )
-      }
       case 'prerender-runtime':
         throw new InvariantError(
           'createSearchParamsFromClient should not be called in a runtime prerender.'
@@ -81,14 +75,21 @@ export function createSearchParamsFromClient(
         throw new InvariantError(
           'createSearchParamsFromClient should not be called inside generateStaticParams.'
         )
+      case 'validation-client': {
+        if (workUnitStore.validationSamples) {
+          return createClientSearchParamsInValidation(
+            underlyingSearchParams,
+            workStore,
+            workUnitStore
+          )
+        }
+        return makeUntrackedSearchParams(underlyingSearchParams)
+      }
       case 'request':
-        // Client searchParams are not runtime prefetchable
-        const isRuntimePrefetchable = false
         return createRenderSearchParams(
           underlyingSearchParams,
           workStore,
-          workUnitStore,
-          isRuntimePrefetchable
+          workUnitStore
         )
       default:
         workUnitStore satisfies never
@@ -99,21 +100,18 @@ export function createSearchParamsFromClient(
 
 // generateMetadata always runs in RSC context so it is equivalent to a Server Page Component
 export function createServerSearchParamsForMetadata(
-  underlyingSearchParams: SearchParams,
-  isRuntimePrefetchable: boolean
+  underlyingSearchParams: SearchParams
 ): Promise<SearchParams> {
   const metadataVaryParamsAccumulator = getMetadataVaryParamsAccumulator()
   return createServerSearchParamsForServerPage(
     underlyingSearchParams,
-    metadataVaryParamsAccumulator,
-    isRuntimePrefetchable
+    metadataVaryParamsAccumulator
   )
 }
 
 export function createServerSearchParamsForServerPage(
   underlyingSearchParams: SearchParams,
-  varyParamsAccumulator: VaryParamsAccumulator | null,
-  isRuntimePrefetchable: boolean
+  varyParamsAccumulator: VaryParamsAccumulator | null
 ): Promise<SearchParams> {
   const workStore = workAsyncStorage.getStore()
   if (!workStore) {
@@ -145,15 +143,13 @@ export function createServerSearchParamsForServerPage(
         return createRuntimePrerenderSearchParams(
           underlyingSearchParams,
           workUnitStore,
-          varyParamsAccumulator,
-          isRuntimePrefetchable
+          varyParamsAccumulator
         )
       case 'request':
         return createRenderSearchParams(
           underlyingSearchParams,
           workStore,
-          workUnitStore,
-          isRuntimePrefetchable
+          workUnitStore
         )
       default:
         workUnitStore satisfies never
@@ -242,8 +238,7 @@ function createStaticPrerenderSearchParams(
 function createRuntimePrerenderSearchParams(
   underlyingSearchParams: SearchParams,
   workUnitStore: PrerenderStoreModernRuntime,
-  varyParamsAccumulator: VaryParamsAccumulator | null,
-  isRuntimePrefetchable: boolean
+  varyParamsAccumulator: VaryParamsAccumulator | null
 ): Promise<SearchParams> {
   const underlyingSearchParamsWithVarying =
     varyParamsAccumulator !== null
@@ -255,56 +250,101 @@ function createRuntimePrerenderSearchParams(
   if (!stagedRendering) {
     return result
   }
-  const stage = isRuntimePrefetchable
-    ? RenderStage.EarlyRuntime
-    : RenderStage.Runtime
-  return stagedRendering.waitForStage(stage).then(() => result)
+  const searchParamsStage = RENDER_STAGES_BY_DATA_KIND.runtimeLinkData
+  return stagedRendering.waitForStage(searchParamsStage).then(() => result)
 }
 
 function createRenderSearchParams(
   underlyingSearchParams: SearchParams,
   workStore: WorkStore,
-  requestStore: RequestStore,
-  isRuntimePrefetchable: boolean
+  requestStore: RequestStore
 ): Promise<SearchParams> {
+  const { asyncApiPromises, validationSamples } = requestStore
+
+  if (asyncApiPromises) {
+    let userspaceSearchParams = underlyingSearchParams
+    if (validationSamples) {
+      userspaceSearchParams = createSearchParamsProxyForInstantValidation(
+        workStore,
+        validationSamples,
+        underlyingSearchParams
+      )
+    }
+
+    return createStagedRenderSearchParams(
+      workStore,
+      asyncApiPromises,
+      underlyingSearchParams,
+      userspaceSearchParams
+    )
+  }
+
+  // No staged rendering = no cacheComponents, or cacheComponents prod without cachedNavigations
+
   if (workStore.forceStatic) {
     // When using forceStatic we override all other logic and always just return an empty
     // dictionary object.
     return Promise.resolve({})
-  } else {
-    if (process.env.NODE_ENV === 'development') {
-      // Semantically we only need the dev tracking when running in `next dev`
-      // but since you would never use next dev with production NODE_ENV we use this
-      // as a proxy so we can statically exclude this code from production builds.
-      return makeUntrackedSearchParamsWithDevWarnings(
-        underlyingSearchParams,
-        workStore,
-        requestStore,
-        isRuntimePrefetchable
-      )
-    } else if (requestStore.asyncApiPromises) {
-      if (requestStore.validationSamples) {
-        const { createExhaustiveSearchParamsProxy } =
-          require('../app-render/instant-validation/instant-samples') as typeof import('../app-render/instant-validation/instant-samples')
-        const declaredKeys = new Set(
-          Object.keys(requestStore.validationSamples.searchParams ?? {})
-        )
-        underlyingSearchParams = createExhaustiveSearchParamsProxy(
-          underlyingSearchParams,
-          declaredKeys,
-          workStore.route
-        )
-      }
-
-      return (
-        isRuntimePrefetchable
-          ? requestStore.asyncApiPromises.earlySharedSearchParamsParent
-          : requestStore.asyncApiPromises.sharedSearchParamsParent
-      ).then(() => underlyingSearchParams)
-    } else {
-      return makeUntrackedSearchParams(underlyingSearchParams)
-    }
   }
+
+  if (process.env.NODE_ENV === 'development') {
+    // Semantically we only need the dev tracking when running in `next dev`
+    // but since you would never use next dev with production NODE_ENV we use this
+    // as a proxy so we can statically exclude this code from production builds.
+    return makeUntrackedSearchParamsWithDevWarnings(
+      underlyingSearchParams,
+      workStore,
+      requestStore
+    )
+  } else {
+    return makeUntrackedSearchParams(underlyingSearchParams)
+  }
+}
+
+function createStagedRenderSearchParams(
+  workStore: WorkStore,
+  asyncApiPromises: NonNullable<RequestStore['asyncApiPromises']>,
+  underlyingSearchParams: SearchParams,
+  userspaceSearchParams: SearchParams
+): Promise<SearchParams> {
+  const trigger = asyncApiPromises.sharedSearchParamsParent
+
+  if (process.env.NODE_ENV === 'development') {
+    // We wrap each instance of searchParams in a `new Promise()`.
+    // This is important when all awaits are in third party which would otherwise
+    // track all the way to the internal params.
+    const promise = new Promise<SearchParams>((resolve, reject) => {
+      trigger.then(() => resolve(userspaceSearchParams), reject)
+    })
+    // @ts-expect-error
+    promise.displayName = 'searchParams'
+    promise.catch(ignoreReject)
+
+    return instrumentSearchParamsPromiseWithDevWarnings(
+      underlyingSearchParams,
+      promise,
+      workStore
+    )
+  } else {
+    return makePromiseFromTrigger(trigger, userspaceSearchParams)
+  }
+}
+
+function createSearchParamsProxyForInstantValidation(
+  workStore: WorkStore,
+  validationSamples: NonNullable<RequestStore['validationSamples']>,
+  underlyingSearchParams: SearchParams
+) {
+  const { createExhaustiveSearchParamsProxy } =
+    require('../app-render/instant-validation/instant-samples') as typeof import('../app-render/instant-validation/instant-samples')
+  const declaredKeys = new Set(
+    Object.keys(validationSamples.searchParams ?? {})
+  )
+  return createExhaustiveSearchParamsProxy(
+    underlyingSearchParams,
+    declaredKeys,
+    workStore.route
+  )
 }
 
 interface CacheLifetime {}
@@ -479,39 +519,25 @@ function makeUntrackedSearchParams(
 function makeUntrackedSearchParamsWithDevWarnings(
   underlyingSearchParams: SearchParams,
   workStore: WorkStore,
-  requestStore: RequestStore,
-  isRuntimePrefetchable: boolean
+  requestStore: RequestStore
 ): Promise<SearchParams> {
-  if (requestStore.asyncApiPromises) {
-    // Do not cache the resulting promise. If we do, we'll only show the first "awaited at"
-    // across all segments that receive searchParams.
-    return makeUntrackedSearchParamsWithDevWarningsImpl(
-      underlyingSearchParams,
-      workStore,
-      requestStore,
-      isRuntimePrefetchable
-    )
-  } else {
-    const cachedSearchParams = CachedSearchParams.get(underlyingSearchParams)
-    if (cachedSearchParams) {
-      return cachedSearchParams
-    }
-    const promise = makeUntrackedSearchParamsWithDevWarningsImpl(
-      underlyingSearchParams,
-      workStore,
-      requestStore,
-      isRuntimePrefetchable
-    )
-    CachedSearchParams.set(requestStore, promise)
-    return promise
+  const cachedSearchParams = CachedSearchParams.get(underlyingSearchParams)
+  if (cachedSearchParams) {
+    return cachedSearchParams
   }
+  const promise = makeUntrackedSearchParamsWithDevWarningsImpl(
+    underlyingSearchParams,
+    workStore,
+    requestStore
+  )
+  CachedSearchParams.set(requestStore, promise)
+  return promise
 }
 
 function makeUntrackedSearchParamsWithDevWarningsImpl(
   underlyingSearchParams: SearchParams,
   workStore: WorkStore,
-  requestStore: RequestStore,
-  isRuntimePrefetchable: boolean
+  requestStore: RequestStore
 ): Promise<SearchParams> {
   const promiseInitialized = { current: false }
   const proxiedUnderlying = instrumentSearchParamsObjectWithDevWarnings(
@@ -520,26 +546,12 @@ function makeUntrackedSearchParamsWithDevWarningsImpl(
     promiseInitialized
   )
 
-  let promise: Promise<SearchParams>
-  if (requestStore.asyncApiPromises) {
-    // We wrap each instance of searchParams in a `new Promise()`.
-    // This is important when all awaits are in third party which would otherwise
-    // track all the way to the internal params.
-    const sharedSearchParamsParent = isRuntimePrefetchable
-      ? requestStore.asyncApiPromises.earlySharedSearchParamsParent
-      : requestStore.asyncApiPromises.sharedSearchParamsParent
-    promise = new Promise((resolve, reject) => {
-      sharedSearchParamsParent.then(() => resolve(proxiedUnderlying), reject)
-    })
-    // @ts-expect-error
-    promise.displayName = 'searchParams'
-  } else {
-    promise = makeDevtoolsIOAwarePromise(
-      proxiedUnderlying,
-      requestStore,
-      RenderStage.Runtime
-    )
-  }
+  const promise = makeDevtoolsIOAwarePromise(
+    proxiedUnderlying,
+    requestStore,
+    RENDER_STAGES_BY_DATA_KIND.runtimeLinkData
+  )
+
   promise.then(
     () => {
       promiseInitialized.current = true
