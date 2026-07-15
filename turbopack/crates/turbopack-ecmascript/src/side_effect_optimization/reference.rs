@@ -165,7 +165,7 @@ impl EcmascriptModulePartReference {
             result.push(CodeGenerationHoistedStmt::new(
                 format!("hoisted {merged_index}").into(),
                 quote!(
-                    "__turbopack_merged_esm__($id);" as Stmt,
+                    "__turbopack_merged_module__($id);" as Stmt,
                     id: Expr = Lit::Num(merged_index.into()).into(),
                 ),
             ));

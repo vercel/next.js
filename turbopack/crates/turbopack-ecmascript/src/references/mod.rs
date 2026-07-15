@@ -124,7 +124,7 @@ use crate::{
         async_module::{AsyncModule, OptionAsyncModule},
         cjs::{
             CjsAssetReference, CjsRequireAssetReference, CjsRequireCacheAccess,
-            CjsRequireResolveAssetReference,
+            CjsRequireResolveAssetReference, is_hoistable_require_path,
         },
         dynamic_expression::DynamicExpression,
         esm::{
@@ -1882,6 +1882,11 @@ where
         ResolveErrorMode::Error
     };
 
+    // A `require(...)` can only be scope-hoisted (its target inlined) when the
+    // requiring module is itself CommonJS — the supported case is CommonJS
+    // requiring CommonJS. In an ESM module, `require` targets stay runtime imports.
+    let hoistable_require = !state.is_esm && is_hoistable_require_path(ast_path);
+
     let get_traced_project_dir = async || -> Result<FileSystemPath> {
         // readFileSync("./foo") should always be relative to the project root, but this is
         // dangerous inside of node_modules as it can cause a lot of false positives in the
@@ -2174,6 +2179,7 @@ where
                         resolve_override,
                         call_usage.clone(),
                         state.cjs_tree_shaking,
+                        hoistable_require,
                     ),
                     ast_path.to_vec().into(),
                 );
@@ -2228,6 +2234,7 @@ where
                         None,
                         call_usage.clone(),
                         state.cjs_tree_shaking,
+                        hoistable_require,
                     ),
                     ast_path.to_vec().into(),
                 );

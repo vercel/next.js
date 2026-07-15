@@ -1,13 +1,17 @@
 use anyhow::Result;
 use bincode::{Decode, Encode};
 use swc_core::{
-    common::{DUMMY_SP, util::take::Take},
+    common::{DUMMY_SP, SyntaxContext, util::take::Take},
     ecma::{
         ast::{
-            CallExpr, Expr, ExprOrSpread, Lit, ObjectLit, Prop, PropName, PropOrSpread,
-            SpreadElement,
+            CallExpr, Expr, ExprOrSpread, Ident, IdentName, KeyValueProp, Lit, ObjectLit, Prop,
+            PropName, PropOrSpread, SpreadElement,
         },
         utils::prop_name_eq,
+        visit::{
+            AstParentKind,
+            fields::{ExprField, ExprStmtField, VarDeclaratorField},
+        },
     },
     quote,
 };
@@ -29,11 +33,13 @@ use turbopack_core::{
 use turbopack_resolve::ecmascript::cjs_resolve;
 
 use crate::{
+    ScopeHoistingContext,
     chunk::{EcmascriptChunkPlaceable, EcmascriptExports},
     code_gen::{CodeGen, CodeGeneration, IntoCodeGenReference},
     create_visitor,
     references::{
         AstPath,
+        esm::base::ReferencedAsset,
         pattern_mapping::{PatternMapping, ResolveType},
         util::SpecifiedChunkingType,
     },
@@ -106,9 +112,13 @@ pub struct CjsRequireAssetReference {
     resolve_override: Option<ResolvedVc<Box<dyn Module>>>,
     usage: ExportUsage,
     cjs_tree_shaking: bool,
+    /// Whether this `require(...)` is a top-level, unconditional call, so its
+    /// target may be scope-hoisted into the requiring module.
+    hoistable: bool,
 }
 
 impl CjsRequireAssetReference {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         origin: ResolvedVc<Box<dyn ResolveOrigin>>,
         request: ResolvedVc<Request>,
@@ -118,6 +128,7 @@ impl CjsRequireAssetReference {
         resolve_override: Option<ResolvedVc<Box<dyn Module>>>,
         usage: ExportUsage,
         cjs_tree_shaking: bool,
+        hoistable: bool,
     ) -> Self {
         CjsRequireAssetReference {
             origin,
@@ -128,8 +139,108 @@ impl CjsRequireAssetReference {
             resolve_override,
             usage,
             cjs_tree_shaking,
+            hoistable,
         }
     }
+}
+
+/// The export names a `require(...)` reads, restricted to those the target
+/// actually exports (so every emitted reference resolves during merging). A
+/// whole-module require (`All`) reads every export; `Evaluation` reads none.
+async fn referenced_export_names(
+    usage: &ExportUsage,
+    target: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
+) -> Result<Vec<RcStr>> {
+    if matches!(usage, ExportUsage::Evaluation) {
+        return Ok(Vec::new());
+    }
+    let exports = target.get_exports().await?;
+    let EcmascriptExports::CommonJs(Some(static_exports)) = &*exports else {
+        return Ok(Vec::new());
+    };
+    Ok(static_exports
+        .export_names
+        .iter()
+        .filter(|name| match usage {
+            ExportUsage::All => true,
+            ExportUsage::Named(used) => *name == used,
+            ExportUsage::PartialNamespaceObject(used) => used.contains(name),
+            ExportUsage::Evaluation => false,
+        })
+        .cloned()
+        .collect())
+}
+
+/// Builds `{ NAME: NAME, … }` where each value ident carries `ctxt` (the target's
+/// import syntax context), so the merge's `SetSyntaxContextVisitor` later rewrites it
+/// to the target's per-export local (`a` → `_a`). For a `require("./m")` reading `a`
+/// and `b`, this builds the marker value:
+///
+/// ```js
+/// { a: a, b: b }
+/// ```
+///
+/// e.g. `const { a, b } = require("./m")` compiles to:
+///
+/// ```js
+/// const { a, b } = __turbopack_merged_module__(2, { a: a, b: b });
+/// ```
+fn cjs_exports_object(names: &[RcStr], ctxt: SyntaxContext) -> Expr {
+    Expr::Object(ObjectLit {
+        span: DUMMY_SP,
+        props: names
+            .iter()
+            .map(|name| {
+                PropOrSpread::Prop(Box::new(Prop::KeyValue(KeyValueProp {
+                    key: PropName::Ident(IdentName::new(name.as_str().into(), DUMMY_SP)),
+                    value: Box::new(Expr::Ident(Ident::new(
+                        name.as_str().into(),
+                        DUMMY_SP,
+                        ctxt,
+                    ))),
+                })))
+            })
+            .collect(),
+    })
+}
+
+/// Whether a `require("…")` at this AST path may be scope-hoisted. To be scope
+/// hoisted, the require must be top-level.
+pub(crate) fn is_hoistable_require_path(path: &[AstParentKind]) -> bool {
+    // The call has to sit in one of exactly two positions. Anything else — a member
+    // access, an operand, a pattern default — either runs conditionally or feeds a
+    // larger expression.
+    let enclosing = match path {
+        // `const x = require("m")`
+        [
+            enclosing @ ..,
+            AstParentKind::VarDeclarator(VarDeclaratorField::Init),
+            AstParentKind::Expr(ExprField::Call),
+        ]
+        // `require("m")`
+        | [
+            enclosing @ ..,
+            AstParentKind::ExprStmt(ExprStmtField::Expr),
+            AstParentKind::Expr(ExprField::Call),
+        ] => enclosing,
+        _ => return false,
+    };
+
+    // …and that position has to be a statement of the module body itself, so the
+    // call is reached unconditionally. Any block, branch or loop on the way down
+    // introduces a node that isn't listed here.
+    enclosing.iter().all(|kind| {
+        matches!(
+            kind,
+            AstParentKind::Program(_)
+                | AstParentKind::Module(_)
+                | AstParentKind::Script(_)
+                | AstParentKind::ModuleItem(_)
+                | AstParentKind::Stmt(_)
+                | AstParentKind::Decl(_)
+                | AstParentKind::VarDecl(_)
+        )
+    })
 }
 
 #[turbo_tasks::value_impl]
@@ -154,7 +265,7 @@ impl ModuleReference for CjsRequireAssetReference {
             || {
                 Some(ChunkingType::Parallel {
                     inherit_async: false,
-                    hoisted: false,
+                    hoisted: self.hoistable,
                 })
             },
             |c| c.as_chunking_type(false, false),
@@ -201,8 +312,61 @@ impl CjsRequireAssetReferenceCodeGen {
     pub async fn code_generation(
         &self,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
+        scope_hoisting_context: ScopeHoistingContext<'_>,
     ) -> Result<CodeGeneration> {
         let reference = self.reference.await?;
+
+        // If the target is in this scope-hoisting group, replace `require(...)` with a
+        // `__turbopack_merged_module__(i[, <value>])` marker: the merge inlines the target's
+        // body and, for a value-position require, substitutes `<value>` for the call.
+        if let ReferencedAsset::Some(asset) =
+            ReferencedAsset::from_resolve_result(self.reference.resolve_reference()).await?
+            && let Some(index) = scope_hoisting_context.get_module_index(asset)
+            && let Some(ctxt) = scope_hoisting_context.get_module_syntax_context(asset)
+        {
+            // A bare `require(...)` statement (not a binding initializer) discards its
+            // result, so inline the body only (one-arg marker); a value-position require
+            // also substitutes a `<value>` for the call.
+            let is_bare_statement = !self
+                .path
+                .iter()
+                .any(|kind| matches!(kind, AstParentKind::VarDeclarator(_)));
+
+            let id = Expr::from(Lit::Num(index.into()));
+            let marker = if is_bare_statement {
+                Some(quote!(
+                    "__turbopack_merged_module__($id)" as Expr,
+                    id: Expr = id,
+                ))
+            } else {
+                let value = match &*asset.get_exports().await? {
+                    // Static CommonJS: `<value>` is an object of the read exports referencing
+                    // the target's per-export locals (the minifier collapses it to direct
+                    // bindings).
+                    EcmascriptExports::CommonJs(_) | EcmascriptExports::EmptyCommonJs => {
+                        Some(cjs_exports_object(
+                            &referenced_export_names(&reference.usage, asset).await?,
+                            ctxt,
+                        ))
+                    }
+                    // Not statically inlinable; keep the runtime require.
+                    _ => None,
+                };
+                value.map(|value| {
+                    quote!(
+                        "__turbopack_merged_module__($id, $value)" as Expr,
+                        id: Expr = id,
+                        value: Expr = value,
+                    )
+                })
+            };
+            if let Some(marker) = marker {
+                let visitor = create_visitor!(self.path, visit_mut_expr, |expr: &mut Expr| {
+                    *expr = marker.clone();
+                });
+                return Ok(CodeGeneration::visitors(vec![visitor]));
+            }
+        }
 
         let pm = PatternMapping::resolve_request(
             *reference.request,

@@ -1,0 +1,5 @@
+{
+  "scopeHoisting": true,
+  "cjsScopeHoisting": true,
+  "cjsTreeShaking": true
+}

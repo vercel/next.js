@@ -68,8 +68,10 @@ use swc_core::{
     },
     ecma::{
         ast::{
-            self, CallExpr, Callee, Decl, EmptyStmt, Expr, ExprStmt, Id, Ident, ModuleItem,
-            Program, Script, SourceMapperExt, Stmt,
+            self, AssignExpr, AssignOp, AssignTarget, CallExpr, Callee, Decl, EmptyStmt, Expr,
+            ExprStmt, Id, Ident, IdentName, KeyValueProp, Lit, MemberProp, ModuleItem, ObjectLit,
+            Pat, Program, Prop, PropName, PropOrSpread, Script, SeqExpr, SimpleAssignTarget,
+            SourceMapperExt, Stmt, UnaryExpr, UnaryOp, VarDecl, VarDeclKind, VarDeclarator,
         },
         codegen::{Emitter, text_writer::JsWriter},
         utils::StmtLikeInjector,
@@ -88,8 +90,9 @@ use turbo_tasks_fs::{FileJsonContent, FileSystemPath, glob::Glob, rope::Rope};
 use turbopack_core::{
     chunk::{
         AsyncModuleInfo, ChunkItem, ChunkableModule, ChunkingContext, EvaluatableAsset,
-        MergeableModule, MergeableModuleExposure, MergeableModules, MergeableModulesExposed,
-        MinifyType, ModuleChunkItemIdExt, ModuleId,
+        MergeableModule, MergeableModuleExposure, MergeableModuleKind, MergeableModules,
+        MergeableModulesExposed, MinifyType, ModuleChunkItemIdExt, ModuleId,
+        OptionMergeableModuleKind,
     },
     compile_time_info::CompileTimeInfo,
     context::AssetContext,
@@ -104,7 +107,12 @@ use turbopack_core::{
 };
 
 use crate::{
-    analyzer::graph::EvalContext,
+    analyzer::{
+        cjs_ast::{
+            as_exports_define_property, as_module_exports_object_literal, is_cjs_export_member,
+        },
+        graph::EvalContext,
+    },
     chunk::{
         EcmascriptChunkItemContent, EcmascriptChunkPlaceable, EcmascriptExports,
         ecmascript_chunk_item,
@@ -120,9 +128,11 @@ use crate::{
         esm::{UrlRewriteBehavior, base::EsmAssetReferences, export},
         exports::compute_ecmascript_module_exports,
     },
+    runtime_functions::TURBOPACK_EXPORT_VALUE,
     side_effect_optimization::reference::EcmascriptModulePartReference,
     swc_comments::{CowComments, ImmutableComments},
     transform::{remove_directives, remove_shebang},
+    utils::module_id_to_lit,
 };
 pub use crate::{
     references::{AnalyzeEcmascriptModuleResult, TURBOPACK_HELPER},
@@ -897,15 +907,16 @@ impl EcmascriptChunkPlaceable for EcmascriptModuleAsset {
 #[turbo_tasks::value_impl]
 impl MergeableModule for EcmascriptModuleAsset {
     #[turbo_tasks::function]
-    async fn is_mergeable(self: ResolvedVc<Self>) -> Result<Vc<bool>> {
-        if matches!(
-            &*self.get_exports().await?,
-            EcmascriptExports::EsmExports(_)
-        ) {
-            return Ok(Vc::cell(true));
-        }
-
-        Ok(Vc::cell(false))
+    async fn merge_kind(self: ResolvedVc<Self>) -> Result<Vc<OptionMergeableModuleKind>> {
+        Ok(Vc::cell(match &*self.get_exports().await? {
+            EcmascriptExports::EsmExports(_) => Some(MergeableModuleKind::EcmaScript),
+            // A statically-analyzable CommonJS module can also be merged when CJS scope
+            // hoisting is enabled.
+            EcmascriptExports::CommonJs(Some(_)) if self.options().await?.cjs_scope_hoisting => {
+                Some(MergeableModuleKind::CommonJs)
+            }
+            _ => None,
+        }))
     }
 
     #[turbo_tasks::function]
@@ -1527,7 +1538,7 @@ async fn merge_modules(
         let mut inserted_imports = FxHashMap::default();
 
         let span = tracing::trace_span!("merge ASTs");
-        // Replace inserted `__turbopack_merged_esm__(i);` statements with the corresponding
+        // Replace inserted `__turbopack_merged_module__(i);` statements with the corresponding
         // ith-module.
         let mut queue = entry_points
             .iter()
@@ -1545,8 +1556,84 @@ async fn merge_modules(
             .flatten_ok()
             .rev()
             .collect::<Result<Vec<_>, _>>()?;
+
+        /// Replaces each `__turbopack_merged_module__(i, exports)` marker (from a
+        /// scope-hoisted CommonJS require) with its `exports` argument, collecting the
+        /// module index `i` of each into `module_indices`.
+        struct RequireMarkerVisitor<'a> {
+            module_indices: &'a mut Vec<usize>,
+        }
+
+        impl VisitMut for RequireMarkerVisitor<'_> {
+            fn visit_mut_expr(&mut self, expr: &mut Expr) {
+                expr.visit_mut_children_with(self);
+
+                let Expr::Call(call) = expr else { return };
+                if !call
+                    .callee
+                    .as_expr()
+                    .is_some_and(|callee| callee.is_ident_ref_to("__turbopack_merged_module__"))
+                {
+                    return;
+                }
+                let [index, _exports] = &call.args[..] else {
+                    return;
+                };
+                let Some(Lit::Num(index)) = index.expr.as_lit() else {
+                    return;
+                };
+                self.module_indices.push(index.value as usize);
+                *expr = *call.args.pop().expect("marker has two arguments").expr;
+            }
+        }
+
         let mut result = vec![];
-        while let Some(item) = queue.pop() {
+        while let Some(mut item) = queue.pop() {
+            // A scope-hoisted CJS require compiles to a `__turbopack_merged_module__(i, exports)`
+            // marker. Replace the marker call with its `exports` argument, and inline the
+            // marked module's body right before this statement so it runs at the require
+            // site. For `const { a } = require("./m")`:
+            //
+            //     const { a } = __turbopack_merged_module__(2, { a: _a })
+            //         |  (replace the call with its 2nd argument; module 2 inlined above)
+            //         v
+            //     const { a } = { a: _a }
+            if let ModuleItem::Stmt(stmt) = &mut item {
+                // One module index per require marker in this statement. `prepare_module`
+                // below splices each module's body in just above this statement, e.g. for
+                // `const { a } = require("./m")` (module 2):
+                //
+                //     var _a;
+                //     _a = 1;                   // module 2's inlined body
+                //     const { a } = { a: _a }   // this statement (marker already replaced)
+                //
+                let mut module_indices = Vec::new();
+                stmt.visit_mut_with(&mut RequireMarkerVisitor {
+                    module_indices: &mut module_indices,
+                });
+                if !module_indices.is_empty() {
+                    queue.push(item);
+                    for index in module_indices.into_iter().rev() {
+                        if inserted.insert(index) {
+                            queue.extend(
+                                prepare_module(
+                                    contents.len(),
+                                    index,
+                                    &contents[index],
+                                    &mut programs[index],
+                                    &mut merged_prelude,
+                                    &mut lookup_table,
+                                )
+                                .map_err(|err| (index, err))?
+                                .into_iter()
+                                .rev(),
+                            );
+                        }
+                    }
+                    continue;
+                }
+            }
+
             if let ModuleItem::Stmt(stmt) = &item {
                 match stmt {
                     Stmt::Expr(ExprStmt { expr, .. }) => {
@@ -1555,7 +1642,7 @@ async fn merge_modules(
                             args,
                             ..
                         }) = &**expr
-                            && callee.is_ident_ref_to("__turbopack_merged_esm__")
+                            && callee.is_ident_ref_to("__turbopack_merged_module__")
                         {
                             let index =
                                 args[0].expr.as_lit().unwrap().as_num().unwrap().value as usize;
@@ -1808,12 +1895,13 @@ async fn process_parse_result(
     with_consumed_parse_result(
         parsed,
         async |mut program, source_map, globals, eval_context, comments| -> Result<CodeGenResult> {
-            let (top_level_mark, is_esm, strict) = eval_context
+            let (top_level_mark, unresolved_mark, is_esm, strict) = eval_context
                 .as_ref()
                 .map_either(
                     |e| {
                         (
                             e.top_level_mark,
+                            e.unresolved_mark,
                             e.is_esm(specified_module_type),
                             e.imports.strict,
                         )
@@ -1821,12 +1909,16 @@ async fn process_parse_result(
                     |e| {
                         (
                             e.top_level_mark,
+                            e.unresolved_mark,
                             e.is_esm(specified_module_type),
                             e.imports.strict,
                         )
                     },
                 )
                 .into_inner();
+
+            let mut cjs_direct_locals: Option<Vec<(RcStr, Ident)>> = None;
+            let mut cjs_namespace_id: Option<ModuleId> = None;
 
             let (mut code_gens, retain_syntax_context, prepend_ident_comment) =
                 if let Some(scope_hoisting_options) = scope_hoisting_options {
@@ -1851,13 +1943,13 @@ async fn process_parse_result(
                         )
                         .await?;
 
-                    let export_contexts = eval_context
+                    let mut export_contexts = eval_context
                         .map_either(
                             |e| Cow::Owned(e.imports.exports_ids),
                             |e| Cow::Borrowed(&e.imports.exports_ids),
                         )
                         .into_inner();
-                    let preserved_exports =
+                    let mut preserved_exports =
                         match &*scope_hoisting_options.module.get_exports().await? {
                             EcmascriptExports::EsmExports(exports) => exports
                                 .await?
@@ -1874,6 +1966,66 @@ async fn process_parse_result(
                                 .collect::<Result<FxHashSet<_>>>()?,
                             _ => Default::default(),
                         };
+
+                    // Reserve an identifier (a name + a fresh syntax context, so it's a
+                    // distinct binding) for each export of a static CommonJS member. Nothing
+                    // is rewritten here; we just register each in `export_contexts` (so an
+                    // in-group `require("./m").a` resolves to it) and `preserved_exports` (so
+                    // hygiene keeps the name).
+                    //
+                    // The declaration and rewrite happen later, turning this:
+                    //
+                    //     exports.a = 1;
+                    //     exports.b = 2;
+                    //
+                    // into:
+                    //
+                    //     var _a, _b;
+                    //     _a = 1;
+                    //     _b = 2;
+                    if !is_esm
+                        && let EcmascriptExports::CommonJs(Some(static_exports)) =
+                            &*scope_hoisting_options.module.get_exports().await?
+                    {
+                        let ctxt =
+                            GLOBALS.set(globals, || SyntaxContext::empty().apply_mark(Mark::new()));
+                        // Pair each export name with a local. The local's identifier is the
+                        // name prefixed with `_`, so a reserved-word export (e.g. `default`)
+                        // still yields a valid binding; the export name is kept for the
+                        // property key / lookups.
+                        let locals: Vec<(RcStr, Ident)> = static_exports
+                            .export_names
+                            .iter()
+                            .map(|name| {
+                                let local = Ident::new(format!("_{name}").into(), DUMMY_SP, ctxt);
+                                (name.clone(), local)
+                            })
+                            .collect();
+                        for (name, local) in &locals {
+                            let id: Id = (local.sym.clone(), ctxt);
+                            export_contexts.to_mut().insert(name.clone(), id.clone());
+                            preserved_exports.insert(id);
+                        }
+                        cjs_direct_locals = Some(locals);
+                        // Register a namespace object (under the module's own id) when its
+                        // exports are read as a whole — from outside the group (`External`) or
+                        // as a namespace/default import within it (`Internal`). Registered via
+                        // `exportValue` (raw exports, no `namespaceObject`) so an ESM `import`
+                        // still applies CJS→ESM interop (synthesizing `default`).
+                        if !matches!(
+                            scope_hoisting_options
+                                .modules
+                                .get(&scope_hoisting_options.module),
+                            Some(MergeableModuleExposure::None) | None
+                        ) {
+                            cjs_namespace_id = Some(
+                                scope_hoisting_options
+                                    .module
+                                    .chunk_item_id(*options.unwrap().chunking_context)
+                                    .await?,
+                            );
+                        }
+                    }
 
                     let prepend_ident_comment = if matches!(minify, MinifyType::NoMinify) {
                         Some(Comment {
@@ -1967,6 +2119,223 @@ async fn process_parse_result(
                     match &mut program {
                         Program::Module(module) => module.body.prepend_stmt(ModuleItem::Stmt(stmt)),
                         Program::Script(script) => script.body.prepend_stmt(stmt),
+                    }
+                }
+
+                /// Rewrites a static CommonJS module's named export writes to per-export
+                /// locals (`exports.NAME = e` → `_NAME = e`) so scope hoisting can reference
+                /// them directly. A write to a non-exported member (e.g. `__esModule`)
+                /// collapses to its value.
+                struct CjsExportRewriter {
+                    /// Per-export local binding, keyed by export name.
+                    locals: FxHashMap<Atom, Ident>,
+                    unresolved_mark: Mark,
+                }
+
+                impl VisitMut for CjsExportRewriter {
+                    fn visit_mut_expr(&mut self, expr: &mut Expr) {
+                        expr.visit_mut_children_with(self);
+
+                        // A merged module has no `exports` to mark; the group registers the
+                        // flag itself. Only `__esModule` reaches here — see `merge_kind`.
+                        if let Expr::Call(call) = expr
+                            && let Some((name, _)) =
+                                as_exports_define_property(call, self.unresolved_mark)
+                            && name == "__esModule"
+                        {
+                            *expr = quote!("0" as Expr);
+                            return;
+                        }
+
+                        let Expr::Assign(assign) = expr else { return };
+                        if assign.op != AssignOp::Assign {
+                            return;
+                        }
+                        if let Some(seq) = self.rewrite_whole_exports_object(assign) {
+                            *expr = seq;
+                            return;
+                        }
+                        let AssignTarget::Simple(SimpleAssignTarget::Member(member)) = &assign.left
+                        else {
+                            return;
+                        };
+                        if !is_cjs_export_member(member, self.unresolved_mark) {
+                            return;
+                        }
+                        match &member.prop {
+                            MemberProp::Ident(prop) if self.locals.contains_key(&prop.sym) => {
+                                let local = self.locals[&prop.sym].clone();
+                                assign.left =
+                                    AssignTarget::Simple(SimpleAssignTarget::Ident(local.into()));
+                            }
+                            _ => *expr = *assign.right.take(),
+                        }
+                    }
+                }
+
+                impl CjsExportRewriter {
+                    /// Rewrites `module.exports = { a, b: c }` into `(_a = a, _b = c)`. A
+                    /// property with no local keeps only its value, for the side effects.
+                    fn rewrite_whole_exports_object(
+                        &self,
+                        assign: &mut AssignExpr,
+                    ) -> Option<Expr> {
+                        let obj = as_module_exports_object_literal(assign, self.unresolved_mark)?;
+                        // Each property must name one export with an eager value, or be the
+                        // `...void <expr>` spread a dropped export leaves behind.
+                        if !obj.props.iter().all(|prop| match prop {
+                            PropOrSpread::Prop(prop) => {
+                                matches!(&**prop, Prop::Shorthand(_) | Prop::KeyValue(_))
+                            }
+                            PropOrSpread::Spread(spread) => matches!(
+                                &*spread.expr,
+                                Expr::Unary(UnaryExpr {
+                                    op: UnaryOp::Void,
+                                    ..
+                                })
+                            ),
+                        }) {
+                            return None;
+                        }
+                        let Expr::Object(obj) = &mut *assign.right else {
+                            return None;
+                        };
+                        let mut exprs = obj
+                            .props
+                            .take()
+                            .into_iter()
+                            .map(|prop| {
+                                let prop = match prop {
+                                    PropOrSpread::Prop(prop) => prop,
+                                    PropOrSpread::Spread(spread) => return spread.expr,
+                                };
+                                let (name, value) = match *prop {
+                                    Prop::Shorthand(id) => {
+                                        (id.sym.clone(), Box::new(Expr::Ident(id)))
+                                    }
+                                    Prop::KeyValue(KeyValueProp { key, value, .. }) => {
+                                        let name = match &key {
+                                            PropName::Ident(ident) => ident.sym.clone(),
+                                            PropName::Str(str) => {
+                                                str.value.to_string_lossy().as_ref().into()
+                                            }
+                                            _ => return value,
+                                        };
+                                        (name, value)
+                                    }
+                                    _ => unreachable!("checked above"),
+                                };
+                                match self.locals.get(&name) {
+                                    Some(local) => Box::new(Expr::Assign(AssignExpr {
+                                        span: DUMMY_SP,
+                                        op: AssignOp::Assign,
+                                        left: AssignTarget::Simple(SimpleAssignTarget::Ident(
+                                            local.clone().into(),
+                                        )),
+                                        right: value,
+                                    })),
+                                    None => value,
+                                }
+                            })
+                            .collect::<Vec<_>>();
+                        Some(match exprs.len() {
+                            0 => quote!("0" as Expr),
+                            1 => *exprs.pop().unwrap(),
+                            _ => Expr::Seq(SeqExpr {
+                                span: DUMMY_SP,
+                                exprs,
+                            }),
+                        })
+                    }
+                }
+
+                /// `var _A, _B, …;` declaring a module's per-export locals for the writes to
+                /// assign.
+                fn cjs_locals_declaration(locals: &[(RcStr, Ident)]) -> Stmt {
+                    Stmt::Decl(Decl::Var(Box::new(VarDecl {
+                        span: DUMMY_SP,
+                        ctxt: SyntaxContext::empty(),
+                        kind: VarDeclKind::Var,
+                        declare: false,
+                        decls: locals
+                            .iter()
+                            .map(|(_, local)| VarDeclarator {
+                                span: DUMMY_SP,
+                                name: Pat::Ident(local.clone().into()),
+                                init: None,
+                                definite: false,
+                            })
+                            .collect(),
+                    })))
+                }
+
+                /// Builds a `{ NAME: _NAME, … }` namespace object mapping each export name to
+                /// its local, for registering in the runtime module cache so out-of-group
+                /// `require`s and ESM `import`s resolve.
+                fn cjs_exports_object(locals: &[(RcStr, Ident)]) -> Expr {
+                    Expr::Object(ObjectLit {
+                        span: DUMMY_SP,
+                        props: locals
+                            .iter()
+                            .map(|(name, local)| {
+                                PropOrSpread::Prop(Box::new(Prop::KeyValue(KeyValueProp {
+                                    key: PropName::Ident(IdentName::new(
+                                        name.as_str().into(),
+                                        DUMMY_SP,
+                                    )),
+                                    value: Box::new(Expr::Ident(local.clone())),
+                                })))
+                            })
+                            .collect(),
+                    })
+                }
+
+                if let Some(locals) = &cjs_direct_locals {
+                    // Emit what the identifiers reserved above stand for: rewrite each
+                    // `exports.a = …` write to the local `_a`, declare the locals, and — when
+                    // the exports are read as a whole — register them under the module id so
+                    // out-of-group `require`s and ESM `import`s resolve. This turns:
+                    //
+                    //     exports.a = 1;
+                    //     exports.b = 2;
+                    //
+                    // into:
+                    //
+                    //     var _a, _b;
+                    //     _a = 1;
+                    //     _b = 2;
+                    //     __turbopack_export_value__({ a: _a, b: _b }, "…id…"); // if exposed
+                    program.visit_mut_with(&mut CjsExportRewriter {
+                        locals: locals
+                            .iter()
+                            .map(|(name, local)| (name.as_str().into(), local.clone()))
+                            .collect(),
+                        unresolved_mark,
+                    });
+
+                    let decl = (!locals.is_empty()).then(|| cjs_locals_declaration(locals));
+                    let expose = cjs_namespace_id.as_ref().map(|id| {
+                        quote!(
+                            "$f($ns, $id);" as Stmt,
+                            f: Expr = TURBOPACK_EXPORT_VALUE.into(),
+                            ns: Expr = cjs_exports_object(locals),
+                            id: Expr = module_id_to_lit(id),
+                        )
+                    });
+
+                    match &mut program {
+                        Program::Module(m) => {
+                            if let Some(decl) = decl {
+                                m.body.prepend_stmt(ModuleItem::Stmt(decl));
+                            }
+                            m.body.extend(expose.map(ModuleItem::Stmt));
+                        }
+                        Program::Script(s) => {
+                            if let Some(decl) = decl {
+                                s.body.prepend_stmt(decl);
+                            }
+                            s.body.extend(expose);
+                        }
                     }
                 }
 

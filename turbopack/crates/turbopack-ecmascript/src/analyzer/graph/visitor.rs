@@ -742,25 +742,26 @@ mod analyzer_state {
             };
             // A top-level `return` skips the writes after it, and would abandon the rest
             // of a merged factory. An `Object.defineProperty` export keeps its value in
-            // the descriptor, which the merge has no local to bind it to.
-            let static_exports =
-                (!c.has_top_level_return && !c.has_define_property_export).then(|| {
-                    CjsStaticExports {
-                        export_names: c
-                            .writes
-                            .iter()
-                            .flat_map(|w| match w {
-                                DroppableCjsExportAssignment::Write { name, .. } => {
-                                    std::slice::from_ref(name)
-                                }
-                                DroppableCjsExportAssignment::ObjectLiteral { names, .. } => {
-                                    names.as_slice()
-                                }
-                            })
-                            .cloned()
-                            .collect(),
-                        has_es_module: c.has_es_module,
-                    }
+            // the descriptor, which the merge has no local to bind it to. A sloppy-mode
+            // module can't be inlined into the always-strict merged factory.
+            let static_exports = (!c.has_top_level_return
+                && !c.has_define_property_export
+                && self.eval_context.imports.strict)
+                .then(|| CjsStaticExports {
+                    export_names: c
+                        .writes
+                        .iter()
+                        .flat_map(|w| match w {
+                            DroppableCjsExportAssignment::Write { name, .. } => {
+                                std::slice::from_ref(name)
+                            }
+                            DroppableCjsExportAssignment::ObjectLiteral { names, .. } => {
+                                names.as_slice()
+                            }
+                        })
+                        .cloned()
+                        .collect(),
+                    has_es_module: c.has_es_module,
                 });
             // Dropping an unused write stays sound regardless of the `return`, but
             // `__esModule` may be set after it, so it can't be claimed.
