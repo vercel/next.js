@@ -37,9 +37,14 @@ use crate::{
     next_client::context::ClientContextType,
     next_config::{NextConfig, OptionFileSystemPath},
     next_edge::unsupported::NextEdgeUnsupportedModuleReplacer,
-    next_font::google::{
-        GOOGLE_FONTS_INTERNAL_PREFIX, NextFontGoogleCssModuleReplacer,
-        NextFontGoogleFontFileReplacer, NextFontGoogleReplacer,
+    next_font::{
+        google::{
+            GOOGLE_FONTS_INTERNAL_PREFIX, NextFontGoogleCssModuleReplacer,
+            NextFontGoogleFontFileReplacer, NextFontGoogleReplacer,
+        },
+        local::{
+            NextFontLocalCssModuleReplacer, NextFontLocalFontFileReplacer, NextFontLocalReplacer,
+        },
     },
     next_root_params::insert_next_root_params_mapping,
     next_server::context::ServerContextType,
@@ -1082,10 +1087,38 @@ async fn insert_next_shared_aliases(
         package_root,
     );
 
-    // NOTE: `@next/font/local` has moved to a BeforeResolve Plugin, so it does not
-    // have ImportMapping replacers here.
-    //
-    // TODO: Add BeforeResolve plugins for `@next/font/google`
+    // TODO only
+    // ServerContextType::Pages
+    // ServerContextType::AppSSR
+    // ServerContextType::AppRSC
+    // Client
+    import_map.insert_alias(
+        AliasPattern::exact(rcstr!("next/font/local/target.css")),
+        ImportMapping::Dynamic(ResolvedVc::upcast(
+            NextFontLocalReplacer::new(project_path.clone())
+                .to_resolved()
+                .await?,
+        ))
+        .resolved_cell(),
+    );
+
+    import_map.insert_alias(
+        AliasPattern::exact(rcstr!(
+            "@vercel/turbopack-next/internal/font/local/cssmodule.module.css"
+        )),
+        ImportMapping::Dynamic(ResolvedVc::upcast(
+            NextFontLocalCssModuleReplacer::new().to_resolved().await?,
+        ))
+        .resolved_cell(),
+    );
+
+    import_map.insert_alias(
+        AliasPattern::exact(rcstr!("@vercel/turbopack-next/internal/font/local/font")),
+        ImportMapping::Dynamic(ResolvedVc::upcast(
+            NextFontLocalFontFileReplacer::new().to_resolved().await?,
+        ))
+        .resolved_cell(),
+    );
 
     let next_font_google_replacer_mapping = ImportMapping::Dynamic(ResolvedVc::upcast(
         NextFontGoogleReplacer::new(project_path.clone())
