@@ -1591,7 +1591,7 @@ impl PageEndpoint {
             this.pages_project.project(),
             Some(pages_function_name(&this.original_name).into()),
             ssr_module_graph,
-            *ssr_module,
+            Vc::cell(vec![ssr_module]),
         ))
     }
 }

@@ -1995,11 +1995,21 @@ impl AppEndpoint {
             )
             .await?;
 
+        // The server actions loader is a separate graph entry that is not reachable from
+        // rsc_entry, but it is chunked into the endpoint output, so its modules (e.g. externals
+        // imported by actions) must be traced as well.
+        let mut entry_modules = vec![rsc_entry];
+        entry_modules.extend(
+            self.additional_entries(*module_graphs.base)
+                .await?
+                .all_modules(),
+        );
+
         Ok(trace_endpoint(
             this.app_project.project(),
             Some(app_function_name(&app_entry.original_name).into()),
             *module_graphs.full,
-            *rsc_entry,
+            Vc::cell(entry_modules),
         ))
     }
 }
