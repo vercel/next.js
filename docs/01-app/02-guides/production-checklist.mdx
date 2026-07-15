@@ -126,6 +126,54 @@ While building your application, we recommend using the following features to en
 
 - **TypeScript and [TS Plugin](/docs/app/api-reference/config/typescript):** Use TypeScript and the TypeScript plugin for better type-safety, and to help you catch errors early.
 
+## Custom server error handling
+
+If you are using a [custom server](https://nextjs.org/docs/pages/building-your-application/configuring/custom-server), add error handlers explicitly. Without them, uncaught exceptions crash your server process and leave your app unresponsive.
+
+```js filename="server.js"
+const { createServer } = require('http')
+const { parse } = require('url')
+const next = require('next')
+
+const dev = process.env.NODE_ENV !== 'production'
+const app = next({ dev })
+const handle = app.getRequestHandler()
+
+app.prepare().then(() => {
+  const server = createServer((req, res) => {
+    const parsedUrl = parse(req.url, true)
+    handle(req, res, parsedUrl)
+  })
+
+  // Handle server-level errors (e.g. port conflicts, network failures)
+  server.on('error', (err) => {
+    console.error('Server error:', err)
+    process.exit(1)
+  })
+
+  // Graceful shutdown on SIGTERM (e.g. from Docker stop or process managers)
+  process.on('SIGTERM', () => {
+    console.log('Received SIGTERM, shutting down gracefully...')
+    server.close(() => {
+      console.log('Server closed')
+      process.exit(0)
+    })
+  })
+
+  // Catch unhandled promise rejections
+  process.on('unhandledRejection', (reason, promise) => {
+    console.error('Unhandled rejection at:', promise, 'reason:', reason)
+  })
+
+  server.listen(3000, (err) => {
+    if (err) throw err
+    console.log('> Ready on http://localhost:3000')
+  })
+})
+```
+
+> **Warning:** Without `server.on('error', ...)` and graceful shutdown handling, uncaught exceptions will crash your server without cleanup, causing users to see connection errors. Always add error and signal handlers in production custom servers.
+
 ## Before going to production
 
 Before going to production, you can run `next build` to build your application locally and catch any build errors, then run `next start` to measure the performance of your application in a production-like environment.
