@@ -23,7 +23,14 @@ export async function getSession(): Promise<SessionData> {
   if (!cookie) {
     return {};
   }
-  return unsealData<SessionData>(cookie, { password });
+  try {
+    return await unsealData<SessionData>(cookie, { password });
+  } catch {
+    // An expired, tampered, or otherwise unsealable cookie (for example after
+    // SESSION_PASSWORD is rotated) is treated the same as no session, so
+    // callers redirect to /login instead of hitting the error boundary.
+    return {};
+  }
 }
 
 export async function saveSession(data: SessionData) {
