@@ -1,9 +1,12 @@
 import { nextTestSetup } from 'e2e-utils'
 
 describe('hoist-static-jsx', () => {
-  const { next } = nextTestSetup({
+  const { next, isTurbopack } = nextTestSetup({
     files: __dirname,
   })
+
+  // The transform is only implemented for Turbopack builds.
+  const itTurbopack = isTurbopack ? it : it.skip
 
   it('renders the static subtree', async () => {
     const $ = await next.render$('/')
@@ -11,7 +14,7 @@ describe('hoist-static-jsx', () => {
     expect($('.hero p').text()).toBe('Static content')
   })
 
-  it('reuses the static element between requests', async () => {
+  itTurbopack('reuses the static element between requests', async () => {
     const first$ = await next.render$('/')
     const second$ = await next.render$('/')
 

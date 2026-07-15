@@ -1,8 +1,8 @@
+import { connection } from 'next/server'
 import { Probe } from './probe'
 
-export const dynamic = 'force-dynamic'
-
-export default function Page() {
+export default async function Page() {
+  await connection()
   return (
     <main>
       <p id="rendered-at">{Date.now()}</p>

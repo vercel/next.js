@@ -128,7 +128,7 @@ fn main() {
     print_bucket("server (no 'use client')", &server);
     print_bucket("client ('use client')", &client);
 
-    top.sort_by(|a, b| b.0.cmp(&a.0));
+    top.sort_by_key(|entry| std::cmp::Reverse(entry.0));
     println!("top server files by cache sites:");
     for (cache_sites, covered, total, name) in top.iter().take(20) {
         println!("  {cache_sites:>4} sites covering {covered:>4}/{total:<4} calls  {name}");
