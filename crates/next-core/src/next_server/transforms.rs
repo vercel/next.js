@@ -19,6 +19,7 @@ use crate::{
         get_server_actions_transform_rule, next_cjs_optimizer::get_next_cjs_optimizer_rule,
         next_disallow_re_export_all_in_page::get_next_disallow_export_all_in_page_rule,
         next_edge_node_api_assert::next_edge_node_api_assert,
+        next_hoist_static_jsx::get_next_hoist_static_jsx_rule,
         next_middleware_dynamic_assert::get_middleware_dynamic_assert_rule,
         next_pure::get_next_pure_rule, server_actions::ActionsTransform,
     },
@@ -125,6 +126,16 @@ pub async fn get_next_server_transforms_rules(
                 )
                 .await?,
             );
+
+            // Build-only: development lowers JSX to `jsxDEV()` calls, which
+            // capture per-call-site debug info and would not be matched by
+            // the transform anyway.
+            if !foreign_code
+                && *mode.await? == NextMode::Build
+                && *next_config.turbopack_hoist_static_jsx().await?
+            {
+                rules.push(get_next_hoist_static_jsx_rule(mdx_rs).await?);
+            }
 
             is_app_dir = true;
 

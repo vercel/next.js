@@ -801,6 +801,41 @@ fn pure(input: PathBuf) {
     );
 }
 
+#[fixture("tests/fixture/hoist-static-jsx/**/input.js")]
+fn hoist_static_jsx_fixture(input: PathBuf) {
+    use next_custom_transforms::transforms::hoist_static_jsx::hoist_static_jsx;
+    let output = input.parent().unwrap().join("output.js");
+    test_fixture(
+        syntax(),
+        &|tr| {
+            let unresolved_mark = Mark::new();
+            let top_level_mark = Mark::new();
+            // Mirror the real pipeline: the pass runs at the Postprocess stage,
+            // after the React transform has lowered JSX to automatic-runtime
+            // jsx()/jsxs() calls.
+            let jsx = jsx::<SingleThreadedComments>(
+                tr.cm.clone(),
+                Some((*tr.comments).clone()),
+                swc_core::ecma::transforms::react::Options {
+                    runtime: Some(swc_core::ecma::transforms::react::Runtime::Automatic),
+                    development: Some(false),
+                    ..Default::default()
+                },
+                top_level_mark,
+                unresolved_mark,
+            );
+            (
+                resolver(unresolved_mark, top_level_mark, false),
+                jsx,
+                visit_mut_pass(hoist_static_jsx(unresolved_mark)),
+            )
+        },
+        &input,
+        &output,
+        Default::default(),
+    );
+}
+
 fn run_strip_page_exports_test(input: &Path, output: &Path, mode: ExportFilter) {
     test_fixture(
         syntax(),

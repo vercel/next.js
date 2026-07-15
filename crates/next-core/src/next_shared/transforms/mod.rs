@@ -8,6 +8,7 @@ pub(crate) mod next_dynamic;
 pub(crate) mod next_edge_node_api_assert;
 pub(crate) mod next_empty_gsp;
 pub(crate) mod next_font;
+pub(crate) mod next_hoist_static_jsx;
 pub(crate) mod next_lint;
 pub(crate) mod next_middleware_dynamic_assert;
 pub(crate) mod next_optimize_server_react;

@@ -6,6 +6,7 @@ pub mod disallow_re_export_all_in_page;
 pub mod dynamic;
 pub mod empty_gsp;
 pub mod fonts;
+pub mod hoist_static_jsx;
 pub mod import_analyzer;
 pub mod lint_codemod_comments;
 pub mod middleware_dynamic;

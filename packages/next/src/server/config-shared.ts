@@ -777,6 +777,13 @@ export interface ExperimentalConfig {
   turbopackScopeHoisting?: boolean
 
   /**
+   * (`next --turbopack` only) Cache fully static JSX elements in lazily
+   * initialized module-scope variables in production React Server Component
+   * bundles, so repeated renders reuse the same element. Defaults to false.
+   */
+  turbopackHoistStaticJsx?: boolean
+
+  /**
    * (`next --turbopack` only) Traffic-related hints for the production chunker. These change the
    * assumptions Turbopack makes when making chunk merging decisions.
    */
