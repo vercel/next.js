@@ -88,8 +88,6 @@ describe.each(
 
   // Edge runtime is currently not implemented in custom-entrypoint-server.ts
   const itEdge = useDirectEntrypointHandler ? it.skip : it
-  // This fixture is not wired into custom-entrypoint-server.ts.
-  const itServerAction = useDirectEntrypointHandler ? it.skip : it
 
   for (const env of [
     {
@@ -118,7 +116,7 @@ describe.each(
       () => {
         describe('app router', () => {
           if (env.name === 'root context') {
-            itServerAction('should trace inline Server Action', async () => {
+            it('should trace inline Server Action', async () => {
               const browser = await next.browser('/app/param/server-action')
               await browser.elementById('run-inline-server-action').click()
 
@@ -152,7 +150,7 @@ describe.each(
               })
             })
 
-            itServerAction('should trace exported Server Action', async () => {
+            it('should trace exported Server Action', async () => {
               const browser = await next.browser('/app/param/server-action')
               await browser.elementById('run-exported-server-action').click()
 
