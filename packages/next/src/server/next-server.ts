@@ -1875,6 +1875,7 @@ export default class NextNodeServer extends BaseServer<
               middlewareModule.proxy ||
               middlewareModule.middleware ||
               middlewareModule,
+            previewProps: this.renderOpts.previewProps,
             request: {
               ...requestData,
               body: hasRequestBody
