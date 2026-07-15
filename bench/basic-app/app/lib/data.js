@@ -113,7 +113,7 @@ export const people = Array.from({ length: 9 }, () => {
   }
 })
 
-export const deployments = Array.from({ length: 64 }, (_, i) => {
+export const deployments = Array.from({ length: 22 }, (_, i) => {
   return {
     id:
       'dpl_' +
@@ -122,11 +122,25 @@ export const deployments = Array.from({ length: 64 }, (_, i) => {
     project: pick(PROJECTS),
     branch: pick(BRANCHES),
     commit: pick(COMMITS),
-    sha: Math.floor(rand() * 0xffffffff)
-      .toString(16)
-      .padStart(8, '0'),
+    sha: Array.from({ length: 5 }, () =>
+      Math.floor(rand() * 0xffffffff)
+        .toString(16)
+        .padStart(8, '0')
+    ).join(''),
     status: pick(STATUSES),
     author: people[Math.floor(rand() * people.length)],
+    url:
+      'https://' +
+      pick(PROJECTS) +
+      '-' +
+      (100000 + Math.floor(rand() * 899999)).toString(36) +
+      '-acme-team.vercel.app',
+    inspectorUrl:
+      'https://vercel.com/acme/' +
+      pick(PROJECTS) +
+      '/' +
+      (100000 + Math.floor(rand() * 899999)).toString(36) +
+      (100000 + Math.floor(rand() * 899999)).toString(36),
     createdAt: minutesBefore(Math.floor(rand() * 2880) + 2),
     // Optional fields are sparse like real API responses.
     durationSeconds: i % 4 !== 3 ? Math.floor(rand() * 340) + 18 : undefined,
@@ -212,8 +226,13 @@ function blurPlaceholder(seed, w, h) {
   return 'data:image/webp;base64,UklGR' + bytes.map((b) => b64[b]).join('')
 }
 export function imageMeta(seed, w, h) {
+  const base =
+    '/_next/image?url=%2Fscreenshots%2Fdeploy-' + seed.toString(36) + '.webp'
   return {
-    src: '/screenshots/deploy-' + seed.toString(36) + '.webp',
+    src: base + '&w=' + w * 2 + '&q=75',
+    srcSet: [1, 2]
+      .map((x) => base + '&w=' + w * x + '&q=75 ' + x + 'x')
+      .join(', '),
     width: w,
     height: h,
     blurWidth: 8,
@@ -231,7 +250,7 @@ const FRAMEWORKS = [
   'Astro',
   'Remix',
 ]
-export const projects = Array.from({ length: 18 }, (_, i) => ({
+export const projects = Array.from({ length: 10 }, (_, i) => ({
   id: 'prj_' + i,
   updatedAt: minutesBefore(Math.floor(rand() * 4000) + 1),
   name:
@@ -255,7 +274,7 @@ const ACTIVITY_VERBS = [
   ['transferred', 'to team acme'],
   ['enabled analytics for', ''],
 ]
-export const activity = Array.from({ length: 36 }, (_, i) => {
+export const activity = Array.from({ length: 14 }, (_, i) => {
   const [verb, suffix] = pick(ACTIVITY_VERBS)
   return {
     id: 'evt_' + i,
@@ -440,7 +459,7 @@ function richText(seedIdx, paragraphs) {
   return { nodeType: 'document', data: {}, content }
 }
 
-export const posts = Array.from({ length: 48 }, (_, i) => {
+export const posts = Array.from({ length: 74 }, (_, i) => {
   const [title, tag, excerpt] = TOPICS[i % TOPICS.length]
   const first = pick(FIRST)
   const last = pick(LAST)
@@ -520,6 +539,9 @@ export const posts = Array.from({ length: 48 }, (_, i) => {
 })
 
 const DOC_SECTIONS = [
+  'testing',
+  'authentication',
+  'data-fetching',
   'getting-started',
   'guides',
   'app',
@@ -612,14 +634,14 @@ export const docsTree = Object.fromEntries(
   ['stable', 'v15', 'v14'].map((version) => [
     version,
     DOC_SECTIONS.map((section, s) =>
-      Array.from({ length: 4 }, (_, i) =>
+      Array.from({ length: 6 }, (_, i) =>
         docNode(version, section, s * 5 + i, 0)
       )
     ).flat(),
   ])
 )
 
-export const domains = Array.from({ length: 22 }, (_, i) => ({
+export const domains = Array.from({ length: 12 }, (_, i) => ({
   id: 'dom_' + i,
   name:
     (i % 3 === 0 ? 'www.' : '') +
@@ -654,7 +676,7 @@ export const alerts = [
   },
 ]
 
-export const members = Array.from({ length: 18 }, (_, i) => ({
+export const members = Array.from({ length: 10 }, (_, i) => ({
   person: people[i % people.length],
   role: ['owner', 'member', 'member', 'developer', 'billing', 'viewer'][i % 6],
   mfa: i % 4 !== 3,
@@ -663,7 +685,32 @@ export const members = Array.from({ length: 18 }, (_, i) => ({
     i % 5 !== 4 ? minutesBefore(Math.floor(rand() * 10000) + 5) : undefined,
 }))
 
-export const screenshots = projects.slice(0, 9).map((p, i) => ({
+export const screenshots = projects.slice(0, 4).map((p, i) => ({
   project: p.name,
   image: imageMeta(i * 97 + 13, 1200, 630),
+}))
+
+const LOG_TEXTS_LONG = [
+  'GET /api/deployments?teamId=team_kq83majnf02m&limit=20&state=READY 200 in 84ms (region: iad1, cache: MISS, requestId: pdx1::vjk2m-1751371200412-8f3ab2c19d04)',
+  'Cache key generated: fetch:https://api.acme.dev/v2/projects/prj_8f3ab2c19d04/deployments?state=ready&sort=created:desc [tags: deployments,projects]',
+  'Revalidated 4 paths for tag "deployments": /acme/overview, /acme/deployments, /acme/analytics, /api/og/deployments (took 218ms)',
+]
+const LOG_TEXTS = [
+  'GET /api/projects 200 in 24ms',
+  'Cache HIT for /_next/data/build-id/index.json',
+  'Revalidating tag: products',
+  'Function execution took 182ms (limit: 10s)',
+  'GET /dashboard 200 in 41ms',
+  'Edge middleware matched /acme/overview',
+  'ISR write completed for /blog',
+  'Queue consumer acked 24 messages',
+  'Cold start: 312ms in iad1',
+  'GET /api/usage 200 in 12ms',
+  'Cron /api/cron/cleanup completed',
+  'Warning: slow query in listDeployments (1.2s)',
+]
+export const logLines = LOG_TEXTS.concat(LOG_TEXTS_LONG).map((text, i) => ({
+  ts: '12:0' + (i % 10) + ':' + String(10 + ((i * 7) % 50)),
+  level: text.startsWith('Warning') ? 'warn' : 'info',
+  text,
 }))
