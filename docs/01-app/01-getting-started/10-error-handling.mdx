@@ -441,7 +441,29 @@ The `error.js` boundary catches **all** unhandled exceptions, including expected
 
 ### Using `unauthorized()` and `forbidden()`
 
-Next.js provides helpers that throw typed responses and render dedicated route files:
+Next.js provides helpers that throw typed responses and render dedicated route files.
+
+> **Good to know**: [`unauthorized()`](/docs/app/api-reference/functions/unauthorized) and [`forbidden()`](/docs/app/api-reference/functions/forbidden) are experimental. To use them, enable the [`authInterrupts`](/docs/app/api-reference/config/next-config-js/authInterrupts) configuration option in your `next.config.js` file:
+>
+> ```ts filename="next.config.ts" switcher
+> import type { NextConfig } from 'next'
+>
+> const nextConfig: NextConfig = {
+>   experimental: {
+>     authInterrupts: true,
+>   },
+> }
+>
+> export default nextConfig
+> ```
+>
+> ```js filename="next.config.js" switcher
+> module.exports = {
+>   experimental: {
+>     authInterrupts: true,
+>   },
+> }
+> ```
 
 ```ts filename="app/dashboard/page.tsx" switcher
 import { unauthorized, forbidden } from 'next/navigation'
