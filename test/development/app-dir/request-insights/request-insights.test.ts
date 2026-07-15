@@ -122,9 +122,11 @@ describe('request insights', () => {
     const baseRenderSpan = request?.spans.find(
       (span) => span.attributes?.['next.span_type'] === 'BaseServer.render'
     )
+    const pipeSpan = request?.spans.find(
+      (span) => span.attributes?.['next.span_type'] === 'BaseServer.pipe'
+    )
     const renderSpan = request?.spans.find(
-      (span) =>
-        span.attributes?.['next.span_type'] === 'AppRender.getBodyResult'
+      (span) => span.attributes?.['next.span_name'] === 'render route (app) /'
     )
     const renderWithComponentsSpan = request?.spans.find(
       (span) =>
@@ -290,13 +292,29 @@ describe('request insights', () => {
     expect(resolveRouteSpan).toBeDefined()
     expect(matchDevelopmentRouteSpan).toBeDefined()
     expect(ensureRouteSpan).toBeDefined()
+    expect(ensureRouteSpan!.attributes?.['next.span_name']).toBe(
+      'compile and prepare route'
+    )
     expect(compileRouteSpan).toBeDefined()
+    expect(compileRouteSpan!.attributes?.['next.span_name']).toBe(
+      'compile route'
+    )
     expect(compileRouteSpan!.parentSpanId).toBe(ensureRouteSpan!.spanId)
     expect(reloadMatchersSpan).toBeDefined()
     expect(matchProductionRouteSpan).toBeDefined()
     expect(baseRenderSpan).toBeDefined()
+    expect(baseRenderSpan!.attributes?.['next.span_name']).toBe(
+      'render request'
+    )
+    expect(pipeSpan).toBeDefined()
+    expect(pipeSpan!.attributes?.['next.span_name']).toBe(
+      'render and send response'
+    )
     expect(renderSpan).toBeDefined()
     expect(renderWithComponentsSpan).toBeDefined()
+    expect(renderWithComponentsSpan!.attributes?.['next.span_name']).toBe(
+      'render response'
+    )
     expect(prepareResponseSpan).toBeDefined()
     expect(getIncrementalCacheSpan).toBeDefined()
     expect(resolvePrerenderingSpan).toBeDefined()
@@ -329,8 +347,35 @@ describe('request insights', () => {
       })
     ).toBe(true)
     expect(requestSpan!.attributes?.['next.span.category']).toBe('nextjs')
+    expect(renderToNodeFizzStreamSpan!.attributes?.['next.span_name']).toBe(
+      'render HTML shell'
+    )
+    expect(renderRSCResponseSpan!.attributes?.['next.span_name']).toBe(
+      'render RSC response'
+    )
+    expect(waitForRSCSpan!.attributes?.['next.span_name']).toBe(
+      'wait for RSC render task'
+    )
+    expect(waitForHTMLCompletionSpan!.attributes?.['next.span_name']).toBe(
+      'wait for HTML completion'
+    )
     expect(renderRSCResponseSpan!.parentSpanId).toBe(renderSpan!.spanId)
     expect(waitForHTMLCompletionSpan!.parentSpanId).toBe(renderSpan!.spanId)
+    expect(renderToReadableStreamSpan!.attributes?.['next.span_name']).toBe(
+      'start HTML render'
+    )
+    expect(waitShellReadySpan!.attributes?.['next.span_name']).toBe(
+      'wait for HTML shell'
+    )
+    expect(waitForFizzRenderTaskSpan!.attributes?.['next.span_name']).toBe(
+      'wait for HTML render task'
+    )
+    expect(pipeFizzStreamSpan!.attributes?.['next.span_name']).toBe(
+      'pipe HTML stream'
+    )
+    expect(waitForFizzFlushSpan!.attributes?.['next.span_name']).toBe(
+      'wait for HTML flush'
+    )
     expect(request!.startTime).toBe(requestSpan!.startTime)
     expect(request!.durationMs).toBeCloseTo(requestSpan!.durationMs!, 3)
     expect(requestSpan!.startTime).toBeLessThanOrEqual(renderSpan!.startTime)

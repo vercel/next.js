@@ -75,6 +75,7 @@ export class DevRouteMatcherManager extends DefaultRouteMatcherManager {
           DevRouteMatcherManagerSpan.matchDevelopmentRoute,
           {
             attributes: {
+              'next.span_name': 'match development route',
               'next.span_type':
                 DevRouteMatcherManagerSpan.matchDevelopmentRoute,
             },
@@ -93,12 +94,14 @@ export class DevRouteMatcherManager extends DefaultRouteMatcherManager {
         if (shouldTraceDetailedMatch) {
           await getTracer().trace(
             DevRouteMatcherManagerSpan.ensureRoute,
-            {},
+            {
+              attributes: { 'next.span_name': 'compile and prepare route' },
+            },
             () => this.ensurer.ensure(developmentMatch, pathname)
           )
           await getTracer().trace(
             DevRouteMatcherManagerSpan.reloadMatchers,
-            {},
+            { attributes: { 'next.span_name': 'reload route matchers' } },
             () => this.production.reload()
           )
         } else {
@@ -111,6 +114,7 @@ export class DevRouteMatcherManager extends DefaultRouteMatcherManager {
               DevRouteMatcherManagerSpan.matchProductionRoute,
               {
                 attributes: {
+                  'next.span_name': 'match production route',
                   'next.span_type':
                     DevRouteMatcherManagerSpan.matchProductionRoute,
                 },
@@ -138,6 +142,7 @@ export class DevRouteMatcherManager extends DefaultRouteMatcherManager {
               DevRouteMatcherManagerSpan.matchDevelopmentRoute,
               {
                 attributes: {
+                  'next.span_name': 'match development route',
                   'next.span_type':
                     DevRouteMatcherManagerSpan.matchDevelopmentRoute,
                 },

@@ -575,7 +575,7 @@ export function renderToNodeFlightStream(
 
   return getTracer().trace(
     AppRenderSpan.renderRSCResponse,
-    {},
+    { attributes: { 'next.span_name': 'render RSC response' } },
     (_span, done) => {
       if (!ComponentMod.renderToPipeableStream) {
         throw new Error('renderToPipeableStream is not implemented')
@@ -654,7 +654,7 @@ export async function renderToNodeFizzStream(
 
   const pipeable = getTracer().trace(
     AppRenderSpan.renderToReadableStream,
-    {},
+    { attributes: { 'next.span_name': 'start HTML render' } },
     () =>
       renderToPipeableStream(element, {
         ...streamOptions,
@@ -680,7 +680,7 @@ export async function renderToNodeFizzStream(
 
   await getTracer().trace(
     AppRenderSpan.waitShellReady,
-    {},
+    { attributes: { 'next.span_name': 'wait for HTML shell' } },
     () => shellReady.promise
   )
 
@@ -688,11 +688,13 @@ export async function renderToNodeFizzStream(
     if (getRequestInsightsIdentity() || process.env.NEXT_OTEL_VERBOSE === '1') {
       await getTracer().trace(
         AppRenderSpan.waitForFizzRenderTask,
-        {},
+        { attributes: { 'next.span_name': 'wait for HTML render task' } },
         waitAtLeastOneReactRenderTask
       )
-      getTracer().trace(AppRenderSpan.pipeFizzStream, {}, () =>
-        pipeable.pipe(pt)
+      getTracer().trace(
+        AppRenderSpan.pipeFizzStream,
+        { attributes: { 'next.span_name': 'pipe HTML stream' } },
+        () => pipeable.pipe(pt)
       )
     } else {
       await waitAtLeastOneReactRenderTask()
@@ -792,7 +794,7 @@ export async function continueFizzStream(
       if (shouldTraceDetailedRender) {
         await getTracer().trace(
           AppRenderSpan.waitForFizzFlush,
-          {},
+          { attributes: { 'next.span_name': 'wait for HTML flush' } },
           () => allReady
         )
       } else {
@@ -805,7 +807,7 @@ export async function continueFizzStream(
     if (shouldTraceDetailedRender) {
       await getTracer().trace(
         AppRenderSpan.waitForFizzFlush,
-        {},
+        { attributes: { 'next.span_name': 'wait for HTML flush' } },
         waitAtLeastOneReactRenderTask
       )
     } else {
@@ -877,6 +879,7 @@ export async function continueFizzStream(
       {
         startTime: createHTMLTransformsStart,
         attributes: {
+          'next.span_name': 'create HTML transforms',
           'next.span_type': AppRenderSpan.createHTMLTransforms,
         },
       }
