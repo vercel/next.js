@@ -487,12 +487,17 @@ async fn build_manifest(
                     entry_name = StringifyJs(&normalized_manifest_entry),
                     manifest = &client_reference_manifest_json,
                     suffix = if add_deployment_id_at_runtime {
+                        // Only append the suffix when the deployment id is actually available at
+                        // runtime, otherwise a missing env var would be stringified into every
+                        // chunk URL as `?dpl=undefined`.
                         formatdoc!{
                             r#"
-                            for (const key in globalThis.__RSC_MANIFEST[{entry_name}].clientModules) {{
-                                const val = {{ ...globalThis.__RSC_MANIFEST[{entry_name}].clientModules[key] }}
-                                globalThis.__RSC_MANIFEST[{entry_name}].clientModules[key] = val
-                                val.chunks = val.chunks.map((c) => `${{c}}?dpl=${{process.env.NEXT_DEPLOYMENT_ID}}`)
+                            if (process.env.NEXT_DEPLOYMENT_ID) {{
+                                for (const key in globalThis.__RSC_MANIFEST[{entry_name}].clientModules) {{
+                                    const val = {{ ...globalThis.__RSC_MANIFEST[{entry_name}].clientModules[key] }}
+                                    globalThis.__RSC_MANIFEST[{entry_name}].clientModules[key] = val
+                                    val.chunks = val.chunks.map((c) => `${{c}}?dpl=${{process.env.NEXT_DEPLOYMENT_ID}}`)
+                                }}
                             }}
                             "#,
                             entry_name = StringifyJs(&normalized_manifest_entry),

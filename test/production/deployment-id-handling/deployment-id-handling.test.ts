@@ -126,6 +126,41 @@ describe.each([
       }
     )
 
+    if (runtimeServerDeploymentId && process.env.IS_TURBOPACK_TEST) {
+      // The client reference manifest defers the deployment id to a runtime
+      // process.env.NEXT_DEPLOYMENT_ID read. If that value is missing when the
+      // manifest is evaluated, it must not be stringified into the chunk URLs
+      // as `?dpl=undefined`.
+      it('should not emit dpl=undefined chunk URLs when the deployment id is missing at manifest eval time', async () => {
+        const vm = require('node:vm')
+        const manifestSource = await next.readFile(
+          '.next/server/app/from-app/page_client-reference-manifest.js'
+        )
+
+        const getChunks = (env: Record<string, string | undefined>) => {
+          const context: any = { process: { env } }
+          vm.runInNewContext(manifestSource, context)
+          const clientModules =
+            context.__RSC_MANIFEST['/from-app/page'].clientModules
+          return Object.values(clientModules).flatMap(
+            (mod: any) => mod.chunks as string[]
+          )
+        }
+
+        const chunksWithoutId = getChunks({})
+        expect(chunksWithoutId).not.toBeEmpty()
+        expect(chunksWithoutId).toSatisfyAll(
+          (chunk: string) => !chunk.includes('dpl=')
+        )
+
+        const chunksWithId = getChunks({ NEXT_DEPLOYMENT_ID: deploymentId })
+        expect(chunksWithId).not.toBeEmpty()
+        expect(chunksWithId).toSatisfyAll((chunk: string) =>
+          chunk.includes(`?dpl=${deploymentId}`)
+        )
+      })
+    }
+
     it.each([{ pathname: '/api/hello' }, { pathname: '/api/hello-app' }])(
       'should have deployment id env available',
       async ({ pathname }) => {
