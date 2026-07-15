@@ -211,6 +211,9 @@ pub struct NapiProjectOptions {
 
     /// Whether server-side HMR is enabled (disabled with --no-server-fast-refresh).
     pub server_hmr: Option<bool>,
+
+    /// Whether client-side HMR is enabled (disabled with --no-hmr).
+    pub hmr: Option<bool>,
 }
 
 /// [NapiProjectOptions] with all fields optional.
@@ -321,6 +324,7 @@ impl From<NapiProjectOptions> for ProjectOptions {
             is_persistent_caching_enabled,
             next_version,
             server_hmr,
+            hmr,
         } = val;
         ProjectOptions {
             root_path,
@@ -345,6 +349,7 @@ impl From<NapiProjectOptions> for ProjectOptions {
             is_persistent_caching_enabled,
             next_version,
             server_hmr: server_hmr.unwrap_or(false),
+            hmr: hmr.unwrap_or(true),
         }
     }
 }

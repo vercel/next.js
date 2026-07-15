@@ -233,6 +233,7 @@ pub async fn get_client_module_options_context(
     mode: Vc<NextMode>,
     next_config: Vc<NextConfig>,
     encryption_key: ResolvedVc<RcStr>,
+    hmr: bool,
 ) -> Result<Vc<ModuleOptionsContext>> {
     let next_mode = mode.await?;
     let resolve_options_context = get_client_resolve_options_context(
@@ -263,6 +264,7 @@ pub async fn get_client_module_options_context(
         false,
         next_config,
         tsconfig_path,
+        hmr,
     )
     .to_resolved()
     .await?;
@@ -493,6 +495,7 @@ pub struct ClientChunkingContextOptions {
     pub chunking_first_page_load_priority: Option<u32>,
     pub chunking_priority_boost_percent: Option<u32>,
     pub chunking_request_cost: Option<u64>,
+    pub hmr: Vc<bool>,
 }
 
 /// Next.js' chunk-load retry policy for the Turbopack browser runtime.
@@ -535,6 +538,7 @@ pub async fn get_client_chunking_context(
         chunking_first_page_load_priority,
         chunking_priority_boost_percent,
         chunking_request_cost,
+        hmr,
     } = options;
 
     let next_mode = mode.await?;
@@ -589,8 +593,10 @@ pub async fn get_client_chunking_context(
     }
 
     if next_mode.is_development() {
+        if *hmr.await? {
+            builder = builder.hot_module_replacement();
+        }
         builder = builder
-            .hot_module_replacement()
             .source_map_source_type(SourceMapSourceType::AbsoluteFileUri)
             .dynamic_chunk_content_loading(true);
     } else {
@@ -687,6 +693,7 @@ pub async fn get_client_runtime_entries(
     mode: Vc<NextMode>,
     next_config: Vc<NextConfig>,
     execution_context: Vc<ExecutionContext>,
+    hmr: bool,
 ) -> Result<Vc<RuntimeEntries>> {
     let mut runtime_entries = vec![];
     let resolve_options_context = get_client_resolve_options_context(
@@ -697,7 +704,7 @@ pub async fn get_client_runtime_entries(
         execution_context,
     );
 
-    if mode.await?.is_development() {
+    if mode.await?.is_development() && hmr {
         let enable_react_refresh =
             assert_can_resolve_react_refresh(project_root.clone(), resolve_options_context)
                 .await?

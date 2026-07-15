@@ -75,11 +75,13 @@ export function createWebSocket(
         // Check for server restart in Turbopack mode
         if (message.type === HMR_MESSAGE_SENT_TO_BROWSER.TURBOPACK_CONNECTED) {
           if (
+            process.env.__NEXT_HMR &&
             serverSessionId !== null &&
             serverSessionId !== message.data.sessionId
           ) {
             // Either the server's session id has changed and it's a new server, or
             // it's been too long since we disconnected and we should reload the page.
+            // With HMR disabled (`--no-hmr`) the page never reloads itself.
             window.location.reload()
             reloading = true
             return
@@ -122,7 +124,12 @@ export function createWebSocket(
       reconnections++
 
       // After WEB_SOCKET_MAX_RECONNECTIONS reconnects we'll want to reload the page as it indicates the dev server is no longer running.
-      if (reconnections > WEB_SOCKET_MAX_RECONNECTIONS) {
+      // With HMR disabled (`--no-hmr`) the page never reloads itself; keep
+      // retrying instead so a restarted server is eventually picked up.
+      if (
+        process.env.__NEXT_HMR &&
+        reconnections > WEB_SOCKET_MAX_RECONNECTIONS
+      ) {
         reloading = true
         window.location.reload()
         return

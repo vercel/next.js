@@ -119,6 +119,7 @@ export type SetupOpts = {
   onDevServerCleanup: ((listener: () => Promise<void>) => void) | undefined
   resetFetch: () => void
   serverFastRefresh?: boolean
+  hmr?: boolean
 }
 
 export interface DevRoutesManifest {
@@ -244,7 +245,8 @@ async function startWatcher(
           distDir,
           resetFetch,
           lockfile,
-          opts.serverFastRefresh
+          opts.serverFastRefresh,
+          opts.hmr
         )
       })()
     : await (async () => {
@@ -823,6 +825,7 @@ async function startWatcher(
               clientRouterFilters,
               config: nextConfig,
               dev: true,
+              hmr: opts.hmr,
               distDir,
               fetchCacheKeyPrefix:
                 opts.nextConfig.experimental.fetchCacheKeyPrefix,

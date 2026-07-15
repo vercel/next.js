@@ -522,6 +522,7 @@ pub async fn get_server_module_options_context(
         false,
         next_config,
         tsconfig_path.clone(),
+        false,
     )
     .to_resolved()
     .await?;
@@ -532,6 +533,7 @@ pub async fn get_server_module_options_context(
         true,
         next_config,
         tsconfig_path,
+        false,
     )
     .to_resolved()
     .await?;

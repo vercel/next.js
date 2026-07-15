@@ -27,6 +27,12 @@ export default () => {
   devClient.subscribeToHmrEvent((message) => {
     if (reloading) return
 
+    if (!process.env.__NEXT_HMR) {
+      // With HMR disabled (`--no-hmr`) the page never reloads itself; added
+      // or removed pages are picked up on the next manual refresh.
+      return
+    }
+
     // Retrieve the router if it's available
     const router = window.next?.router
 

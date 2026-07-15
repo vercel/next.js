@@ -376,6 +376,9 @@ pub struct ProjectOptions {
 
     /// Whether server-side HMR is enabled (disabled with --no-server-fast-refresh).
     pub server_hmr: bool,
+
+    /// Whether client-side HMR is enabled (disabled with --no-hmr).
+    pub hmr: bool,
 }
 
 #[derive(Default)]
@@ -817,6 +820,7 @@ impl ProjectContainer {
         let deferred_entries;
         let is_persistent_caching_enabled;
         let server_hmr;
+        let hmr;
         {
             let options = self.options_state.get();
             let options = options
@@ -845,6 +849,7 @@ impl ProjectContainer {
             deferred_entries = options.deferred_entries.clone().unwrap_or_default();
             is_persistent_caching_enabled = options.is_persistent_caching_enabled;
             server_hmr = options.server_hmr;
+            hmr = options.hmr;
         }
 
         let root_path = ResolvedVc::cell(root_path_str);
@@ -876,6 +881,7 @@ impl ProjectContainer {
             deferred_entries,
             is_persistent_caching_enabled,
             server_hmr,
+            hmr,
         }
         .cell())
     }
@@ -979,6 +985,9 @@ pub struct Project {
 
     /// Whether server-side HMR is enabled (disabled with --no-server-fast-refresh).
     server_hmr: bool,
+
+    /// Whether client-side HMR is enabled (disabled with --no-hmr).
+    hmr: bool,
 }
 
 #[turbo_tasks::value]
@@ -1213,6 +1222,11 @@ impl Project {
     }
 
     #[turbo_tasks::function]
+    pub(super) fn is_hmr_enabled(&self) -> Vc<bool> {
+        Vc::cell(self.hmr)
+    }
+
+    #[turbo_tasks::function]
     pub(super) fn is_watch_enabled(&self) -> Result<Vc<bool>> {
         Ok(Vc::cell(self.watch.enable))
     }
@@ -1295,7 +1309,7 @@ impl Project {
             self.browserslist_query.clone(),
             self.define_env.client(),
             self.next_config.report_system_env_inlining(),
-            next_mode.is_development(),
+            next_mode.is_development() && self.hmr,
         ))
     }
 
@@ -1637,6 +1651,7 @@ impl Project {
             chunking_first_page_load_priority: chunking_heuristics.first_page_load_priority,
             chunking_priority_boost_percent: chunking_heuristics.priority_boost_percent,
             chunking_request_cost: chunking_heuristics.request_cost,
+            hmr: self.is_hmr_enabled(),
         }))
     }
 
@@ -1674,6 +1689,7 @@ impl Project {
                 self.next_mode(),
                 self.next_config(),
                 self.encryption_key(),
+                *self.is_hmr_enabled().await?,
             ),
             get_client_resolve_options_context(
                 self.project_path().owned().await?,

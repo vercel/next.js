@@ -97,6 +97,7 @@ export async function initialize(opts: {
   customServer?: boolean
   experimentalHttpsServer?: boolean
   serverFastRefresh?: boolean
+  hmr?: boolean
   startServerSpan?: Span
   quiet?: boolean
 }): Promise<ServerInitResult> {
@@ -198,6 +199,16 @@ export async function initialize(opts: {
         cliServerFastRefresh ?? configServerFastRefresh ?? true
     }
 
+    // HMR is enabled by default and can only be disabled via the `--no-hmr`
+    // CLI flag, which is Turbopack-only.
+    let effectiveHmr = opts.hmr ?? true
+    if (!effectiveHmr && !process.env.TURBOPACK) {
+      Log.warn(
+        'The CLI flag "--no-hmr" is only supported with Turbopack and will be ignored.'
+      )
+      effectiveHmr = true
+    }
+
     let developmentBundler = await setupDevBundlerSpan.traceAsyncFn(() =>
       setupDevBundler({
         // Passed here but the initialization of this object happens below, doing the initialization before the setupDev call breaks.
@@ -214,6 +225,7 @@ export async function initialize(opts: {
         onDevServerCleanup: opts.onDevServerCleanup,
         resetFetch,
         serverFastRefresh: effectiveServerFastRefresh,
+        hmr: effectiveHmr,
       })
     )
 

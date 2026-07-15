@@ -314,7 +314,8 @@ export async function createHotReloaderTurbopack(
   distDir: string,
   resetFetch: () => void,
   lockfile: Lockfile | undefined,
-  serverFastRefresh?: boolean
+  serverFastRefresh?: boolean,
+  hmr?: boolean
 ): Promise<NextJsHotReloaderInterface> {
   const dev = true
   const buildId = 'development'
@@ -399,6 +400,7 @@ export async function createHotReloaderTurbopack(
         clientRouterFilters,
         config: nextConfig,
         dev,
+        hmr,
         distDir,
         projectPath,
         fetchCacheKeyPrefix: opts.nextConfig.experimental.fetchCacheKeyPrefix,
@@ -419,6 +421,7 @@ export async function createHotReloaderTurbopack(
       ),
       nextVersion: process.env.__NEXT_VERSION as string,
       serverHmr: serverFastRefresh,
+      hmr: hmr ?? true,
     },
     {
       turbopackMemoryEviction:

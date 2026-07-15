@@ -340,6 +340,10 @@ function processMessage(message: HmrMessageSentToBrowser) {
       return handleSuccess()
     }
     case HMR_MESSAGE_SENT_TO_BROWSER.SERVER_COMPONENT_CHANGES: {
+      if (!process.env.__NEXT_HMR) {
+        // With HMR disabled (`--no-hmr`) the page never reloads itself.
+        return
+      }
       turbopackHmr?.onServerComponentChanges()
       if (hasCompileErrors || RuntimeErrorHandler.hadRuntimeError) {
         window.location.reload()

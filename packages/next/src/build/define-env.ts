@@ -25,6 +25,11 @@ export interface DefineEnvOptions {
   }
   config: NextConfigComplete
   dev: boolean
+  /**
+   * Whether HMR is enabled in development. Only Turbopack supports disabling
+   * HMR (via the `--no-hmr` CLI flag).
+   */
+  hmr?: boolean
   distDir: string
   projectPath: string
   fetchCacheKeyPrefix: string | undefined
@@ -108,6 +113,7 @@ export function getDefineEnv({
   clientRouterFilters,
   config,
   dev,
+  hmr,
   distDir,
   projectPath,
   fetchCacheKeyPrefix,
@@ -160,6 +166,7 @@ export function getDefineEnv({
         ? 'development'
         : 'production',
     'process.env.__NEXT_DEV_SERVER': dev ? '1' : '',
+    'process.env.__NEXT_HMR': isTurbopack ? (hmr ?? true) : true,
     'process.env.__NEXT_DISABLE_DEV_OVERLAY_UX':
       process.env.NEXT_PRIVATE_DISABLE_DEV_OVERLAY_UX === '1',
     'process.env.NEXT_RUNTIME': isEdgeServer
