@@ -19,8 +19,8 @@ use crate::BrowserChunkingContext;
 ///
 /// This is emitted once per [`BrowserChunkingContext`] (deduplicated by
 /// turbo-tasks on its inputs) and shared by every entrypoint, instead of being
-/// inlined into each [`crate::ecmascript::evaluate::chunk::EcmascriptBrowserEvaluateChunk`]. It mirrors
-/// the Node.js `turbopack_nodejs`'s `EcmascriptBuildNodeRuntimeChunk`.
+/// inlined into each [`crate::ecmascript::evaluate::chunk::EcmascriptBrowserEvaluateChunk`]. It
+/// mirrors the Node.js `turbopack_nodejs`'s `EcmascriptBuildNodeRuntimeChunk`.
 #[turbo_tasks::value(shared)]
 #[derive(ValueToString)]
 #[value_to_string("Ecmascript Browser Runtime Chunk")]
@@ -72,6 +72,7 @@ impl EcmascriptBrowserRuntimeChunk {
                     chunking_context.chunk_load_retry(),
                     this.has_async_modules,
                     chunking_context.chunk_loading(),
+                    *chunking_context.generate_component_chunks().await?,
                 );
                 code.push_code(&*runtime_code.await?);
             }

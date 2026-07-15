@@ -169,6 +169,11 @@ impl BrowserChunkingContextBuilder {
         self
     }
 
+    pub fn shared_runtime(mut self, shared_runtime: bool) -> Self {
+        self.chunking_context.shared_runtime = shared_runtime;
+        self
+    }
+
     pub fn should_use_absolute_url_references(
         mut self,
         should_use_absolute_url_references: bool,
@@ -341,6 +346,10 @@ pub struct BrowserChunkingContext {
     enable_dynamic_chunk_content_loading: bool,
     /// Enable debug IDs for chunks and source maps.
     debug_ids: bool,
+    /// Share the browser runtime across routes as a single `runtime.js` asset and expose each
+    /// entrypoint's chunk group bootstrap params via
+    /// `ChunkGroupResult.chunk_group_bootstrap_params`.
+    shared_runtime: bool,
     /// The environment chunks will be evaluated in.
     environment: ResolvedVc<Environment>,
     /// The kind of runtime to include in the output.
@@ -419,6 +428,7 @@ impl BrowserChunkingContext {
                 enable_module_merging: false,
                 enable_dynamic_chunk_content_loading: false,
                 debug_ids: false,
+                shared_runtime: false,
                 environment,
                 runtime_type,
                 minify_type: MinifyType::NoMinify,
@@ -448,8 +458,15 @@ impl BrowserChunkingContext {
         ident: Vc<AssetIdent>,
         other_chunks: Vc<OutputAssets>,
         evaluatable_assets: Vc<EvaluatableAssets>,
+        module_graph: Vc<ModuleGraph>,
     ) -> Vc<EcmascriptBrowserEvaluateChunk> {
-        EcmascriptBrowserEvaluateChunk::new(self, ident, other_chunks, evaluatable_assets)
+        EcmascriptBrowserEvaluateChunk::new(
+            self,
+            ident,
+            other_chunks,
+            evaluatable_assets,
+            module_graph,
+        )
     }
 
     /// The shared browser runtime chunk for this chunking context.
@@ -525,6 +542,14 @@ impl BrowserChunkingContext {
     #[turbo_tasks::function]
     pub fn runtime_type(&self) -> Vc<RuntimeType> {
         self.runtime_type.cell()
+    }
+
+    /// Whether the browser runtime is shared across routes (as a single `runtime.js` asset) and
+    /// the chunk-group bootstrap is inlined by the consumer. When `false`, the runtime is emitted
+    /// inline in each route's evaluate chunk (the pre-shared-runtime behavior).
+    #[turbo_tasks::function]
+    pub fn shared_runtime(&self) -> Vc<bool> {
+        Vc::cell(self.shared_runtime)
     }
 
     /// Returns the asset base path.
@@ -964,7 +989,7 @@ impl ChunkingContext for BrowserChunkingContext {
             }
 
             assets.push(ResolvedVc::upcast(
-                self.generate_evaluate_chunk(ident, other_assets, entries)
+                self.generate_evaluate_chunk(ident, other_assets, entries, *module_graph)
                     .to_resolved()
                     .await?,
             ));
@@ -975,12 +1000,17 @@ impl ChunkingContext for BrowserChunkingContext {
             // bootstrap relies on it being last to load it after the module chunks and
             // to keep it out of `TURBOPACK_NEXT_CHUNK_URLS` (see
             // `EcmascriptBrowserWorkerEntrypoint`).
-            assets.push(ResolvedVc::upcast(
-                self.generate_runtime_chunk(*module_graph)
-                    .await?
-                    .to_resolved()
-                    .await?,
-            ));
+            //
+            // Only emitted when `shared_runtime` is enabled; otherwise the runtime lives inline in
+            // the evaluate chunk above.
+            if this.shared_runtime {
+                assets.push(ResolvedVc::upcast(
+                    self.generate_runtime_chunk(*module_graph)
+                        .await?
+                        .to_resolved()
+                        .await?,
+                ));
+            }
 
             Ok(ChunkGroupResult {
                 assets: ResolvedVc::cell(assets),

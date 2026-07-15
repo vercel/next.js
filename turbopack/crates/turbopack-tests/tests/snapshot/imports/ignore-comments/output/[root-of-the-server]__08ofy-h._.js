@@ -39,7 +39,7 @@ module.exports = 'turbopack';
 }),
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/ignore-comments/input/vercel.cjs [test] (ecmascript, worker loader)", ((__turbopack_context__) => {
 
-__turbopack_context__.v(__turbopack_context__.r("[turbopack-ecmascript]/worker/browser/createWorker.ts [test] (ecmascript)")["default"]("output/0uxq_crates_turbopack-tests_tests_snapshot_imports_ignore-comments_output_0uy0mni._.js", ["output/0_9x_turbopack-tests_tests_snapshot_imports_ignore-comments_input_vercel_cjs_0j-fab5._.js","output/0rv8_turbopack-tests_tests_snapshot_imports_ignore-comments_input_vercel_cjs_02p77ng._.js","output/turbopack-[turbopack]_runtime.js"]));
+__turbopack_context__.v(__turbopack_context__.r("[turbopack-ecmascript]/worker/browser/createWorker.ts [test] (ecmascript)")["default"]("output/0uxq_crates_turbopack-tests_tests_snapshot_imports_ignore-comments_output_0uy0mni._.js", ["output/0_9x_turbopack-tests_tests_snapshot_imports_ignore-comments_input_vercel_cjs_0j-fab5._.js","output/0rv8_turbopack-tests_tests_snapshot_imports_ignore-comments_input_vercel_cjs_02p77ng._.js"]));
 }),
 "[turbopack-ecmascript]/worker/browser/createWorker.ts [test] (ecmascript)", ((__turbopack_context__) => {
 "use strict";
