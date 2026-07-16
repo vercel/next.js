@@ -366,15 +366,14 @@ class NextTracerImpl implements NextTracer {
 
     const spanName = options.spanName ?? type
 
-    const isVanillaSpan =
+    const shouldDelegateSpan =
       NextVanillaSpanAllowlist.has(type) ||
       process.env.NEXT_OTEL_VERBOSE === '1'
-    const shouldRecordLocalSpan =
-      localSpanRecordingEnabled &&
-      (isVanillaSpan ||
-        (localSpanRecorder?.isRequestInsightsEnabled() ?? false))
+    const shouldTraceSpan =
+      shouldDelegateSpan ||
+      (localSpanRecorder?.isRequestInsightsEnabled() ?? false)
 
-    if ((!isVanillaSpan && !shouldRecordLocalSpan) || options.hideSpan) {
+    if (!shouldTraceSpan || options.hideSpan) {
       return fn()
     }
 
@@ -409,8 +408,8 @@ class NextTracerImpl implements NextTracer {
         spanName,
         options,
         spanContext,
-        tracingEnabled && isVanillaSpan,
-        shouldRecordLocalSpan,
+        tracingEnabled && shouldDelegateSpan,
+        localSpanRecordingEnabled,
         (span: Span) => {
           let startTime: number | undefined
           if (

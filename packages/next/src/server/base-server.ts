@@ -998,6 +998,9 @@ export default abstract class Server<
       typeof requestIdHeader === 'string' ? requestIdHeader : nanoid()
     const htmlRequestIdHeader = req.headers[NEXT_HTML_REQUEST_ID_HEADER]
 
+    // The request root and route-matching spans start before App Render creates
+    // its workStore. Carry their identity in this outer scope; App Render copies
+    // it into the workStore so the complete timeline uses one request ID.
     return runWithRequestInsightsIdentity(
       {
         requestId,

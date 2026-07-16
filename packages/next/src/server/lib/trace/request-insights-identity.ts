@@ -7,6 +7,9 @@ export type RequestInsightsIdentity = {
   url: string | undefined
 }
 
+// This storage covers the part of BaseServer request handling that runs before
+// App Render creates workAsyncStorage. Once available, workStore remains the
+// primary identity source for locally recorded spans.
 const REQUEST_INSIGHTS_IDENTITY_STORAGE_KEY = Symbol.for(
   '@next/request-insights-identity-storage'
 )
