@@ -2223,6 +2223,12 @@ async function fetchSegmentsOnCacheMissImpl(
 ): Promise<{
   serverResponse: SegmentPrefetchResponse
   responseSize: number
+  /**
+   * The raw response bytes. A shell variant of the response can be derived
+   * from these with resolveSegmentShellResponse, when the response carries a
+   * shell byte boundary (the `a` field).
+   */
+  responseBuffer: Uint8Array
   closed: Promise<void>
 } | null> {
   // Use the canonical URL to request the segment, not the original URL. These
@@ -2282,8 +2288,11 @@ async function fetchSegmentsOnCacheMissImpl(
   // buffered prefetch paths.
   const closed = createPromiseWithResolvers<void>()
 
-  const { stream: prefetchStream, size: responseSize } =
-    await createNonTaskyPrefetchResponseStream(response.body)
+  const {
+    stream: prefetchStream,
+    size: responseSize,
+    buffer: responseBuffer,
+  } = await createNonTaskyPrefetchResponseStream(response.body)
   closed.resolve()
 
   // Parse the response. Always a SegmentPrefetchResponse with a build ID and a
@@ -2308,7 +2317,12 @@ async function fetchSegmentsOnCacheMissImpl(
     return null
   }
 
-  return { serverResponse, responseSize, closed: closed.promise }
+  return {
+    serverResponse,
+    responseSize,
+    responseBuffer,
+    closed: closed.promise,
+  }
 }
 
 /**
@@ -3268,7 +3282,15 @@ async function fetchPrefetchResponse<T>(
 export async function createNonTaskyPrefetchResponseStream(
   body: ReadableStream<Uint8Array>,
   byteLimit?: number
-): Promise<{ stream: ReadableStream<Uint8Array>; size: number }> {
+): Promise<{
+  stream: ReadableStream<Uint8Array>
+  size: number
+  // The buffered response bytes. Because the response is fully buffered
+  // anyway, this doubles as a rewindable copy: a prefix of it can be decoded
+  // again at a byte boundary (see resolveSegmentShellResponse) without
+  // teeing the original body.
+  buffer: Uint8Array
+}> {
   // Buffer the entire response before passing it to the Flight client. This
   // ensures that when Flight processes the stream, all model data is available
   // synchronously. This is important for readVaryParams, which synchronously
@@ -3329,7 +3351,58 @@ export async function createNonTaskyPrefetchResponseStream(
       controller.close()
     },
   })
-  return { stream, size }
+  return { stream, size, buffer }
+}
+
+/**
+ * Decodes the shell variant of a segment prefetch response: the response's
+ * own output with all param-dependent content reduced to pending references
+ * (which suspend during render, i.e. act as the param fallback). This is the
+ * segment-level analogue of `resolveShellStageData` for route-level
+ * responses.
+ *
+ * The server encodes the shell as a byte prefix: the response's `a` field
+ * resolves to a byte offset such that re-decoding the response body truncated
+ * at that offset yields the shell variant of every segment in the response.
+ *
+ * Returns null when no separate decode is needed:
+ * - `a === undefined`: the server didn't emit a shell boundary (e.g. the page
+ *   wasn't rendered with staged rendering).
+ * - `a` resolves to `null`, or to a boundary covering the entire response:
+ *   the shell IS the full response — the caller can reuse the already-decoded
+ *   response if it needs a shell variant.
+ */
+export async function resolveSegmentShellResponse(
+  responseBuffer: Uint8Array,
+  serverResponse: SegmentPrefetchResponse,
+  headers: RequestHeaders | undefined
+): Promise<SegmentPrefetchResponse | null> {
+  if (serverResponse.a === undefined) {
+    return null
+  }
+  const shellByteLength = await serverResponse.a
+  if (
+    shellByteLength === null ||
+    shellByteLength >= responseBuffer.byteLength
+  ) {
+    // Shell == full response — caller reuses the existing decoded response.
+    return null
+  }
+  // Enqueue the truncated prefix as a single chunk, for the same reason
+  // createNonTaskyPrefetchResponseStream buffers the response: all model data
+  // must be available synchronously when Flight processes the stream.
+  const prefix = responseBuffer.subarray(0, shellByteLength)
+  const stream = new ReadableStream<Uint8Array>({
+    start(controller) {
+      controller.enqueue(prefix)
+      controller.close()
+    },
+  })
+  return createFromNextReadableStream<SegmentPrefetchResponse>(
+    stream,
+    headers,
+    { allowPartialStream: true }
+  )
 }
 
 /**

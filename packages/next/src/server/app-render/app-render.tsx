@@ -8338,6 +8338,11 @@ async function prerenderToStream(
       const collectedChunksByStage = appShells
         ? createStageChunksAccumulator()
         : null
+      // The page-level shell byte boundary, captured when the shell stage
+      // completes. Resolves shellByteLengthDeferred and is also passed to
+      // collectSegmentData so each per-segment response can derive its own
+      // shell boundary from it. Stays undefined when appShells is off.
+      let pageShellByteLength: number | null | undefined = undefined
       const collectChunk = (chunk: Uint8Array) => {
         collectPrerenderChunk(
           collectedChunks,
@@ -8474,14 +8479,13 @@ async function prerenderToStream(
           finishAccumulatingVaryParams(varyParamsAccumulator)
 
           if (shellByteLengthDeferred && collectedChunksByStage) {
-            shellByteLengthDeferred.resolve(
-              didLinkDataUnblockNewContent
-                ? collectedChunksByStage.shellStaticChunks.reduce(
-                    (acc, chunk) => acc + chunk.byteLength,
-                    0
-                  )
-                : null
-            )
+            pageShellByteLength = didLinkDataUnblockNewContent
+              ? collectedChunksByStage.shellStaticChunks.reduce(
+                  (acc, chunk) => acc + chunk.byteLength,
+                  0
+                )
+              : null
+            shellByteLengthDeferred.resolve(pageShellByteLength)
           }
         },
         () => {
@@ -8524,12 +8528,15 @@ async function prerenderToStream(
         )
 
         // collectSegmentData needs the raw flight data without the marker byte.
+        // Note pageShellByteLength is an offset into these raw chunks, so it
+        // doesn't need adjusting for the marker byte.
         const flightData = cachedNavigations
           ? metadata.flightData.subarray(1)
           : metadata.flightData
 
         await collectSegmentData(
           flightData,
+          pageShellByteLength,
           finalServerPrerenderStore,
           ComponentMod,
           renderOpts,
@@ -8882,6 +8889,8 @@ async function prerenderToStream(
         metadata.flightData = flightData
         await collectSegmentData(
           flightData,
+          // Not a staged render; no shell boundary exists.
+          undefined,
           ssrPrerenderStore,
           ComponentMod,
           renderOpts,
@@ -9095,6 +9104,8 @@ async function prerenderToStream(
         metadata.flightData = flightData
         await collectSegmentData(
           flightData,
+          // Not a staged render; no shell boundary exists.
+          undefined,
           prerenderLegacyStore,
           ComponentMod,
           renderOpts,
@@ -9638,6 +9649,8 @@ async function prerenderToStream(
         metadata.flightData = flightData
         await collectSegmentData(
           flightData,
+          // Not a staged render; no shell boundary exists.
+          undefined,
           prerenderLegacyStore,
           ComponentMod,
           renderOpts,
@@ -9880,6 +9893,11 @@ const getGlobalErrorStyles = async (
 
 async function collectSegmentData(
   fullPageDataBuffer: Buffer,
+  // Byte offset into fullPageDataBuffer marking the end of the page's shell
+  // stage (null: shell == full static response), when produced by staged
+  // rendering; undefined otherwise. Used to derive per-segment shell
+  // boundaries.
+  pageShellByteLength: number | null | undefined,
   prerenderStore: PrerenderStore,
   ComponentMod: AppPageModule,
   renderOpts: RenderOpts,
@@ -9999,7 +10017,8 @@ async function collectSegmentData(
     serverConsumerManifest,
     Boolean(renderOpts.experimental.prefetchInlining),
     hints,
-    isUpgradeableISRFallback
+    isUpgradeableISRFallback,
+    pageShellByteLength
   )
 }
 
