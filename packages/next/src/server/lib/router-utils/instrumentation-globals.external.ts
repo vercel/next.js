@@ -7,6 +7,8 @@ import type {
 } from '../../instrumentation/types'
 import { interopDefault } from '../../../lib/interop-default'
 import { afterRegistration as extendInstrumentationAfterRegistration } from './instrumentation-node-extensions'
+import { getTracer, SpanStatusCode } from '../trace/tracer'
+import { InstrumentationSpan } from '../trace/constants'
 
 let cachedInstrumentationModule: InstrumentationModule
 
@@ -54,12 +56,27 @@ async function registerInstrumentation(projectDir: string, distDir: string) {
   }
   const instrumentation = await instrumentationModulePromise
   if (instrumentation?.register) {
+    const startTime = Date.now()
+    let error: unknown
     try {
       await instrumentation.register()
       extendInstrumentationAfterRegistration()
     } catch (err: any) {
+      error = err
       err.message = `An error occurred while loading instrumentation hook: ${err.message}`
       throw err
+    } finally {
+      // Emitted after `register()` so a provider installed inside the hook is
+      // in place. The span is backdated to cover the full hook duration.
+      const span = getTracer().startSpan(InstrumentationSpan.register, {
+        startTime,
+        spanName: 'instrumentation register',
+      })
+      if (error) {
+        span.recordException(error as Error)
+        span.setStatus({ code: SpanStatusCode.ERROR })
+      }
+      span.end()
     }
   }
 }

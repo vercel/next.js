@@ -585,7 +585,21 @@ export default class NextNodeServer extends BaseServer<
     req.url = `${parsedInitUrl.pathname}${parsedInitUrl.search || ''}`
 
     const loader = new NodeModuleLoader()
-    const module = (await loader.load(match.definition.filename)) as {
+    // Loading the route module reads and evaluates the bundled API route chunk
+    // from disk. On a cold module this can be a meaningful portion of the
+    // request's latency, so trace it separately from the handler execution
+    // (which is covered by the `Node.runHandler` span) to make that time
+    // visible in APM tools.
+    const module = (await getTracer().trace(
+      NextNodeServerSpan.runApi,
+      {
+        spanName: 'load api route module',
+        attributes: {
+          'next.route': match.definition.pathname,
+        },
+      },
+      () => loader.load(match.definition.filename)
+    )) as {
       handler: (
         req: IncomingMessage,
         res: ServerResponse,
@@ -1688,11 +1702,21 @@ export default class NextNodeServer extends BaseServer<
       return { finished: false }
     }
 
-    await this.ensureMiddleware(params.request.url)
-    const middlewareInfo = this.getEdgeFunctionInfo({
-      page: middleware.page,
-      middleware: true,
-    })
+    // Resolving and loading the middleware module (compiling the edge bundle
+    // and warming the sandbox on first use) happens before the middleware
+    // function itself runs, which is covered by the `Middleware.execute` span.
+    // Trace it separately so this setup cost is visible in APM tools.
+    const middlewareInfo = await getTracer().trace(
+      NextNodeServerSpan.runMiddleware,
+      { spanName: 'load middleware module' },
+      async () => {
+        await this.ensureMiddleware(params.request.url)
+        return this.getEdgeFunctionInfo({
+          page: middleware.page,
+          middleware: true,
+        })
+      }
+    )
 
     const method = (params.request.method || 'GET').toUpperCase()
     const requestData = {

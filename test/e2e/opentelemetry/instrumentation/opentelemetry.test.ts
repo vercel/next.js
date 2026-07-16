@@ -5,6 +5,7 @@ import path from 'path'
 
 import { SavedSpan } from './constants'
 import { type Collector, connectCollector } from './collector'
+import { InstrumentationSpan } from 'next/src/server/lib/trace/constants'
 
 const EXTERNAL = {
   traceId: 'ee75cd9e534ff5e9ed78b4a0c706f0f2',
@@ -642,6 +643,32 @@ describe.each(
               ],
               true
             )
+          })
+
+          // Middleware runs as a separate internal request whose
+          // `handleRequest` span is not exported, so the `runMiddleware` span
+          // (`load middleware module`) is not a child of the page's
+          // `handleRequest` and can't be asserted via `expectTrace`. Assert it
+          // directly against the collected spans instead.
+          itEdge('should trace middleware module loading', async () => {
+            await next.fetch('/behind-middleware', env.fetchInit)
+
+            await retry(async () => {
+              const spans = getCollector().getSpans()
+              const middlewareLoadSpan = spans.find(
+                (span) =>
+                  span.attributes?.['next.span_type'] ===
+                  'NextNodeServer.runMiddleware'
+              )
+              expect(middlewareLoadSpan).toMatchObject({
+                runtime: 'nodejs',
+                name: 'load middleware module',
+                attributes: {
+                  'next.span_name': 'load middleware module',
+                  'next.span_type': 'NextNodeServer.runMiddleware',
+                },
+              })
+            })
           })
 
           it('should handle error in RSC', async () => {
@@ -1334,6 +1361,23 @@ describe.each(
                     kind: 0,
                     status: { code: 0 },
                   },
+                  // The `runApi` span is emitted by `next-server`'s routing
+                  // path. Direct entrypoint handlers load the route module
+                  // themselves, so this span is not present there.
+                  ...(useDirectEntrypointHandler
+                    ? []
+                    : [
+                        {
+                          name: 'load api route module',
+                          attributes: {
+                            'next.route': '/api/pages/[param]/basic',
+                            'next.span_name': 'load api route module',
+                            'next.span_type': 'NextNodeServer.runApi',
+                          },
+                          kind: 0,
+                          status: { code: 0 },
+                        },
+                      ]),
                 ],
               },
             ])
@@ -1394,6 +1438,23 @@ describe.each(
                     // TODO this difference is odd
                     status: { code: isNextDev ? 2 : 0 },
                   },
+                  // The `runApi` span is emitted by `next-server`'s routing
+                  // path. Direct entrypoint handlers load the route module
+                  // themselves, so this span is not present there.
+                  ...(useDirectEntrypointHandler
+                    ? []
+                    : [
+                        {
+                          name: 'load api route module',
+                          attributes: {
+                            'next.route': '/api/pages/[param]/error',
+                            'next.span_name': 'load api route module',
+                            'next.span_type': 'NextNodeServer.runApi',
+                          },
+                          kind: 0,
+                          status: { code: 0 },
+                        },
+                      ]),
                   ...(isNextDev
                     ? [
                         {
@@ -2026,7 +2087,12 @@ async function expectTrace(
   )
 
   await retry(async () => {
-    const traces = collector.getSpans()
+    const traces = collector.getSpans().filter(
+      (span) =>
+        // Drop the register span which only runs once and would otherwise pollute the first trace
+        // collected from the server
+        span.attributes?.['next.span_type'] !== InstrumentationSpan.register
+    )
 
     const tree: HierSavedSpan[] = []
     const spansForTree: HierSavedSpan[] = traces.map((span) => ({
@@ -2101,5 +2167,10 @@ async function expectTrace(
     })
 
     expect(filteredTree).toMatchObject(match)
-  })
+    // Some spans (notably `NextNodeServer.clientComponentLoading`) end outside
+    // the request's synchronous span tree and are exported to the collector via
+    // an individual HTTP POST when they end. Under CI load that span can end and
+    // arrive slightly after the rest of the trace, so use a window a bit larger
+    // than the 3s default to let all spans arrive before matching.
+  }, 6_000)
 }

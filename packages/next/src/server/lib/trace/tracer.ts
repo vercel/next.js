@@ -214,6 +214,27 @@ const clientTraceDataSetter: TextMapSetter<ClientTraceDataEntry[]> = {
   },
 }
 
+// Resolves the span name and injects the standard `next.span_name` /
+// `next.span_type` attributes. Shared by `trace` and `startSpan` so both
+// paths label spans identically.
+function resolveSpanOptions(
+  type: SpanTypes,
+  options: TracerSpanOptions
+): { spanName: string; options: TracerSpanOptions } {
+  const spanName = options.spanName ?? type
+  return {
+    spanName,
+    options: {
+      ...options,
+      attributes: {
+        'next.span_name': spanName,
+        'next.span_type': type,
+        ...options.attributes,
+      },
+    },
+  }
+}
+
 class NextTracerImpl implements NextTracer {
   /**
    * Returns an instance to the trace with configured name.
@@ -362,8 +383,6 @@ class NextTracerImpl implements NextTracer {
             options: { ...fnOrOptions },
           }
 
-    const spanName = options.spanName ?? type
-
     if (
       (!NextVanillaSpanAllowlist.has(type) &&
         process.env.NEXT_OTEL_VERBOSE !== '1') ||
@@ -372,9 +391,14 @@ class NextTracerImpl implements NextTracer {
       return fn()
     }
 
+    const { spanName, options: resolvedOptions } = resolveSpanOptions(
+      type,
+      options
+    )
+
     // Trying to get active scoped span to assign parent. If option specifies parent span manually, will try to use it.
     let spanContext = this.getSpanContext(
-      options?.parentSpan ?? this.getActiveScopeSpan()
+      resolvedOptions?.parentSpan ?? this.getActiveScopeSpan()
     )
 
     if (!spanContext) {
@@ -391,16 +415,10 @@ class NextTracerImpl implements NextTracer {
 
     const spanId = getSpanId()
 
-    options.attributes = {
-      'next.span_name': spanName,
-      'next.span_type': type,
-      ...options.attributes,
-    }
-
     return context.with(spanContext.setValue(rootSpanIdKey, spanId), () =>
       this.runWithActiveSpan(
         spanName,
-        options,
+        resolvedOptions,
         spanContext,
         tracingEnabled,
         localSpanRecordingEnabled,
@@ -442,7 +460,7 @@ class NextTracerImpl implements NextTracer {
             rootSpanAttributesStore.set(
               spanId,
               new Map(
-                Object.entries(options.attributes ?? {}) as [
+                Object.entries(resolvedOptions.attributes ?? {}) as [
                   AttributeNames,
                   AttributeValue | undefined,
                 ][]
@@ -603,8 +621,13 @@ class NextTracerImpl implements NextTracer {
   public startSpan(type: SpanTypes): Span
   public startSpan(type: SpanTypes, options: TracerSpanOptions): Span
   public startSpan(...args: Array<any>): Span {
-    const [type, options]: [string, TracerSpanOptions | undefined] = args as any
+    const [type, options]: [SpanTypes, TracerSpanOptions | undefined] =
+      args as any
 
+    const { spanName, options: resolvedOptions } = resolveSpanOptions(
+      type,
+      options ?? {}
+    )
     const parentContext =
       this.getSpanContext(options?.parentSpan ?? this.getActiveScopeSpan()) ??
       context.active()
@@ -612,16 +635,24 @@ class NextTracerImpl implements NextTracer {
       getLocalSpanRecorder()?.isLocalSpanRecordingEnabled() ?? false
 
     if (!localSpanRecordingEnabled) {
-      return this.getTracerInstance().startSpan(type, options, parentContext)
+      return this.getTracerInstance().startSpan(
+        spanName,
+        resolvedOptions,
+        parentContext
+      )
     }
 
     const delegateSpan = this.isOpenTelemetryEnabled()
-      ? this.getTracerInstance().startSpan(type, options, parentContext)
+      ? this.getTracerInstance().startSpan(
+          spanName,
+          resolvedOptions,
+          parentContext
+        )
       : undefined
 
     return this.createLocalRecordingSpan(
-      type,
-      options ?? {},
+      spanName,
+      resolvedOptions,
       parentContext,
       delegateSpan
     )

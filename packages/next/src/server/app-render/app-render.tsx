@@ -2627,7 +2627,6 @@ async function renderToHTMLOrFlightImpl(
               attributes: {
                 'next.clientComponentLoadCount':
                   metrics.clientComponentLoadCount,
-                'next.span_type': NextNodeServerSpan.clientComponentLoading,
               },
             })
             .end(
@@ -3329,17 +3328,12 @@ async function renderToStream(
   // Create the "render route (app)" span manually so we can keep it open during streaming.
   // This is necessary because errors inside Suspense boundaries are reported asynchronously
   // during stream consumption, after a typical wrapped function would have ended the span.
-  // Note: We pass the full span name as the first argument since startSpan uses it directly.
-  const renderSpan = getTracer().startSpan(
-    `render route (app) ${pagePath}` as any,
-    {
-      attributes: {
-        'next.span_name': `render route (app) ${pagePath}`,
-        'next.span_type': AppRenderSpan.getBodyResult,
-        'next.route': pagePath,
-      },
-    }
-  )
+  const renderSpan = getTracer().startSpan(AppRenderSpan.getBodyResult, {
+    spanName: `render route (app) ${pagePath}`,
+    attributes: {
+      'next.route': pagePath,
+    },
+  })
 
   // Helper to end the span with error status (used when throwing from catch blocks)
   const endSpanWithError = (err: unknown) => {
