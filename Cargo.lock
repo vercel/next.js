@@ -10193,6 +10193,8 @@ dependencies = [
  "include_dir",
  "indexmap 2.13.0",
  "jsonc-parser",
+ "kqueue-sys",
+ "libc",
  "mime",
  "notify",
  "parking_lot",

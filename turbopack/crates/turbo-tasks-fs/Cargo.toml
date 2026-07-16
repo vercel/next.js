@@ -55,6 +55,10 @@ turbo-tasks-hash = { workspace = true }
 turbo-unix-path = { workspace = true }
 urlencoding = { workspace = true }
 
+[target.'cfg(target_os = "macos")'.dependencies]
+kqueue-sys = "1.0.4"
+libc = "0.2.177"
+
 [dev-dependencies]
 criterion = { workspace = true, features = ["async_tokio"] }
 rand = { workspace = true }
@@ -63,4 +67,3 @@ sha2 = { workspace = true }
 tempfile = { workspace = true }
 turbo-tasks-testing = { workspace = true }
 turbo-tasks-backend = { workspace = true }
-

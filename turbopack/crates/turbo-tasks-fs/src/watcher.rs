@@ -10,12 +10,25 @@ use std::{
     },
     time::Duration,
 };
+#[cfg(target_os = "macos")]
+use std::{
+    collections::HashMap,
+    fs::File,
+    io::{Read, Write},
+    os::{
+        fd::{AsRawFd, RawFd},
+        unix::net::UnixStream,
+    },
+    path::Component,
+};
 
 use anyhow::{Context, Result};
 use bincode::{Decode, Encode};
+#[cfg(target_os = "macos")]
+use kqueue_sys::{EventFilter, EventFlag, FilterFlag, kevent, kqueue};
 use notify::{
     Config, EventKind, PollWatcher, RecommendedWatcher, RecursiveMode, Watcher,
-    event::{MetadataKind, ModifyKind, RenameMode},
+    event::{DataChange, MetadataKind, ModifyKind, RemoveKind, RenameMode},
 };
 use rustc_hash::FxHashSet;
 use tokio::sync::{RwLock, RwLockWriteGuard};
@@ -112,6 +125,8 @@ enum RecursiveState {
     Watching {
         /// Hold onto the watcher: When this is dropped, it will cause the channel to disconnect
         _notify_watcher: NotifyWatcher,
+        #[cfg(target_os = "macos")]
+        fast_file_watcher: Option<FastFileWatcher>,
     },
 }
 
@@ -140,6 +155,187 @@ struct NonRecursiveWatchingState {
 enum NotifyWatcher {
     Recommended(RecommendedWatcher),
     Polling(PollWatcher),
+}
+
+#[cfg(target_os = "macos")]
+const FAST_FILE_WATCHER_LIMIT: usize = 2048;
+
+/// A low-latency supplement to FSEvents for files that are likely to be edited directly.
+///
+/// FSEvents remains the authoritative recursive watcher. This sidecar deliberately watches only
+/// individual project files and is bounded so it cannot exhaust file descriptors on dependency
+/// trees. Events from either watcher enter the same invalidation channel.
+#[cfg(target_os = "macos")]
+struct FastFileWatcher {
+    tx: std::sync::mpsc::Sender<PathBuf>,
+    wakeup: UnixStream,
+}
+
+#[cfg(target_os = "macos")]
+impl FastFileWatcher {
+    fn new(event_tx: std::sync::mpsc::Sender<notify::Result<notify::Event>>) -> Option<Self> {
+        let (tx, rx) = channel();
+        let (wakeup, wakeup_rx) = UnixStream::pair().ok()?;
+        wakeup.set_nonblocking(true).ok()?;
+        wakeup_rx.set_nonblocking(true).ok()?;
+        spawn_thread(move || run_fast_file_watcher(rx, event_tx, wakeup_rx));
+        Some(Self { tx, wakeup })
+    }
+
+    fn watch(&self, path: &Path) {
+        if self.tx.send(path.to_owned()).is_ok() {
+            let _ = (&self.wakeup).write(&[0]);
+        }
+    }
+}
+
+#[cfg(target_os = "macos")]
+fn should_fast_watch(path: &Path, root_path: &Path) -> bool {
+    let Ok(relative_path) = path.strip_prefix(root_path) else {
+        return false;
+    };
+
+    !relative_path.components().any(|component| {
+        matches!(
+            component,
+            Component::Normal(name)
+                if name == "node_modules" || name == ".git" || name == ".next"
+        )
+    })
+}
+
+#[cfg(target_os = "macos")]
+fn run_fast_file_watcher(
+    rx: Receiver<PathBuf>,
+    event_tx: std::sync::mpsc::Sender<notify::Result<notify::Event>>,
+    mut wakeup: UnixStream,
+) {
+    let queue = unsafe { kqueue() };
+    if queue < 0 {
+        return;
+    }
+
+    let wakeup_fd = wakeup.as_raw_fd();
+    let wakeup_change = kevent::new(
+        wakeup_fd as usize,
+        EventFilter::EVFILT_READ,
+        EventFlag::EV_ADD | EventFlag::EV_ENABLE | EventFlag::EV_CLEAR,
+        FilterFlag::empty(),
+    );
+    let wakeup_result = unsafe {
+        kevent(
+            queue,
+            &wakeup_change,
+            1,
+            std::ptr::null_mut(),
+            0,
+            std::ptr::null(),
+        )
+    };
+    if wakeup_result != 0 {
+        unsafe {
+            libc::close(queue);
+        }
+        return;
+    }
+
+    let mut files = HashMap::<PathBuf, File>::new();
+    let mut paths_by_fd = HashMap::<RawFd, PathBuf>::new();
+
+    'watching: loop {
+        let mut event = kevent::new(
+            0,
+            EventFilter::EVFILT_VNODE,
+            EventFlag::empty(),
+            FilterFlag::empty(),
+        );
+        let count = unsafe { kevent(queue, std::ptr::null(), 0, &mut event, 1, std::ptr::null()) };
+        if count != 1 {
+            continue;
+        }
+        if event.flags.contains(EventFlag::EV_ERROR) {
+            break;
+        }
+
+        let fd = event.ident as RawFd;
+        if fd == wakeup_fd {
+            let mut buffer = [0; 256];
+            loop {
+                match wakeup.read(&mut buffer) {
+                    Ok(0) => break,
+                    Ok(_) => {}
+                    Err(error) if error.kind() == std::io::ErrorKind::Interrupted => {}
+                    Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => break,
+                    Err(_) => break,
+                }
+            }
+
+            loop {
+                match rx.try_recv() {
+                    Ok(path) => {
+                        if files.contains_key(&path) || files.len() >= FAST_FILE_WATCHER_LIMIT {
+                            continue;
+                        }
+                        let Ok(file) = File::open(&path) else {
+                            continue;
+                        };
+                        let fd = file.as_raw_fd();
+                        let change = kevent::new(
+                            fd as usize,
+                            EventFilter::EVFILT_VNODE,
+                            EventFlag::EV_ADD | EventFlag::EV_ENABLE | EventFlag::EV_CLEAR,
+                            FilterFlag::NOTE_DELETE
+                                | FilterFlag::NOTE_WRITE
+                                | FilterFlag::NOTE_EXTEND
+                                | FilterFlag::NOTE_ATTRIB
+                                | FilterFlag::NOTE_RENAME
+                                | FilterFlag::NOTE_REVOKE,
+                        );
+                        let result = unsafe {
+                            kevent(queue, &change, 1, std::ptr::null_mut(), 0, std::ptr::null())
+                        };
+                        if result == 0 {
+                            paths_by_fd.insert(fd, path.clone());
+                            files.insert(path, file);
+                        }
+                    }
+                    Err(TryRecvError::Empty) => break,
+                    Err(TryRecvError::Disconnected) => break 'watching,
+                }
+            }
+            continue;
+        }
+
+        let Some(path) = paths_by_fd.get(&fd).cloned() else {
+            continue;
+        };
+        let remove_watch = event.fflags.intersects(
+            FilterFlag::NOTE_DELETE | FilterFlag::NOTE_RENAME | FilterFlag::NOTE_REVOKE,
+        );
+        let kind = if event
+            .fflags
+            .intersects(FilterFlag::NOTE_DELETE | FilterFlag::NOTE_REVOKE)
+        {
+            EventKind::Remove(RemoveKind::Any)
+        } else if event.fflags.contains(FilterFlag::NOTE_RENAME) {
+            EventKind::Modify(ModifyKind::Name(RenameMode::Any))
+        } else if event.fflags.contains(FilterFlag::NOTE_ATTRIB) {
+            EventKind::Modify(ModifyKind::Metadata(MetadataKind::Any))
+        } else {
+            EventKind::Modify(ModifyKind::Data(DataChange::Any))
+        };
+
+        let _ = event_tx.send(Ok(notify::Event::new(kind).add_path(path.clone())));
+
+        if remove_watch {
+            paths_by_fd.remove(&fd);
+            files.remove(&path);
+        }
+    }
+
+    unsafe {
+        libc::close(queue);
+    }
 }
 
 impl NotifyWatcher {
@@ -388,9 +584,9 @@ impl DiskWatcher {
 
         let mut notify_watcher = if let Some(poll_interval) = poll_interval {
             let config = config.with_poll_interval(poll_interval);
-            NotifyWatcher::Polling(PollWatcher::new(tx, config)?)
+            NotifyWatcher::Polling(PollWatcher::new(tx.clone(), config)?)
         } else {
-            NotifyWatcher::Recommended(RecommendedWatcher::new(tx, config)?)
+            NotifyWatcher::Recommended(RecommendedWatcher::new(tx.clone(), config)?)
         };
 
         // TOCTOU: we must watch `root_path` before calling any invalidators and setting up the
@@ -400,6 +596,13 @@ impl DiskWatcher {
             StateWriteGuard::Recursive(_) => RecursiveMode::Recursive,
             StateWriteGuard::NonRecursive(_) => RecursiveMode::NonRecursive,
         };
+        #[cfg(target_os = "macos")]
+        let fast_file_watcher =
+            if matches!(&state_guard, StateWriteGuard::Recursive(_)) && poll_interval.is_none() {
+                FastFileWatcher::new(tx)
+            } else {
+                None
+            };
         notify_watcher.watch(root_path, recursive_mode)?;
 
         // We need to invalidate all reads or writes that happened before watching. As a
@@ -449,6 +652,8 @@ impl DiskWatcher {
             StateWriteGuard::Recursive(mut recursive) => {
                 *recursive = RecursiveState::Watching {
                     _notify_watcher: notify_watcher,
+                    #[cfg(target_os = "macos")]
+                    fast_file_watcher,
                 }
             }
             StateWriteGuard::NonRecursive(mut non_recursive) => {
@@ -744,6 +949,17 @@ impl DiskWatcher {
     }
 
     pub async fn ensure_watched_file(&self, path: &Path, root_path: &Path) -> Result<()> {
+        #[cfg(target_os = "macos")]
+        if let State::Recursive(recursive) = &self.state
+            && should_fast_watch(path, root_path)
+            && let RecursiveState::Watching {
+                fast_file_watcher: Some(fast_file_watcher),
+                ..
+            } = &*recursive.read().await
+        {
+            fast_file_watcher.watch(path);
+        }
+
         // Watch the parent directory instead of the specified file, since directories also track
         // their immediate children (even in non-recursive mode), and we need to watch all the
         // parents anyways.
@@ -859,5 +1075,36 @@ impl InvalidationReasonKind for InvalidateRescanKind {
                 .unwrap()
                 .path
         )
+    }
+}
+
+#[cfg(all(test, target_os = "macos"))]
+mod tests {
+    use std::path::Path;
+
+    use super::should_fast_watch;
+
+    #[test]
+    fn fast_file_watcher_is_limited_to_project_files() {
+        let root = Path::new("/project");
+
+        assert!(should_fast_watch(Path::new("/project/app/page.tsx"), root));
+        assert!(should_fast_watch(
+            Path::new("/project/src/node_modules-helper.ts"),
+            root
+        ));
+        assert!(!should_fast_watch(
+            Path::new("/project/node_modules/package/index.js"),
+            root
+        ));
+        assert!(!should_fast_watch(Path::new("/project/.git/index"), root));
+        assert!(!should_fast_watch(
+            Path::new("/project/.next/server/app.js"),
+            root
+        ));
+        assert!(!should_fast_watch(
+            Path::new("/other-project/app/page.tsx"),
+            root
+        ));
     }
 }
