@@ -6,7 +6,7 @@ use turbopack_core::{
     ident::AssetIdent,
     module::{Module, ModuleSideEffects},
     module_graph::ModuleGraph,
-    output::{OutputAsset, OutputAssetsWithReferenced},
+    output::{OutputAsset, OutputAssets, OutputAssetsWithReferenced},
     source::Source,
 };
 use turbopack_ecmascript::{
@@ -25,13 +25,32 @@ use crate::output_asset::StaticOutputAsset;
 pub struct StaticUrlJsModule {
     pub source: ResolvedVc<Box<dyn Source>>,
     pub tag: Option<RcStr>,
+    emit_output_asset: bool,
 }
 
 #[turbo_tasks::value_impl]
 impl StaticUrlJsModule {
     #[turbo_tasks::function]
     pub fn new(source: ResolvedVc<Box<dyn Source>>, tag: Option<RcStr>) -> Vc<Self> {
-        Self::cell(StaticUrlJsModule { source, tag })
+        Self::cell(StaticUrlJsModule {
+            source,
+            tag,
+            emit_output_asset: true,
+        })
+    }
+
+    /// Keeps the logical URL and its content-derived identity without exposing the asset for
+    /// emission.
+    #[turbo_tasks::function]
+    pub fn new_logical_url_without_output_asset(
+        source: ResolvedVc<Box<dyn Source>>,
+        tag: Option<RcStr>,
+    ) -> Vc<Self> {
+        Self::cell(StaticUrlJsModule {
+            source,
+            tag,
+            emit_output_asset: false,
+        })
     }
 
     #[turbo_tasks::function]
@@ -55,6 +74,9 @@ impl Module for StaticUrlJsModule {
             .with_modifier(rcstr!("static in ecmascript"));
         if let Some(tag) = &self.tag {
             ident = ident.with_modifier(format!("tag {}", tag).into());
+        }
+        if !self.emit_output_asset {
+            ident = ident.with_modifier(rcstr!("logical url without output asset"));
         }
         Ok(ident.into_vc())
     }
@@ -165,6 +187,11 @@ async fn static_url_js_output_assets(
     module: Vc<StaticUrlJsModule>,
     chunking_context: Vc<Box<dyn ChunkingContext>>,
 ) -> Result<Vc<OutputAssetsWithReferenced>> {
+    if !module.await?.emit_output_asset {
+        return Ok(OutputAssetsWithReferenced::from_assets(
+            OutputAssets::empty(),
+        ));
+    }
     let static_asset = module
         .static_output_asset(chunking_context)
         .to_resolved()

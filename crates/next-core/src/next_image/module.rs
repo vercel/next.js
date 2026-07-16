@@ -34,6 +34,28 @@ pub struct StructuredImageModuleType {
     pub blur_placeholder_mode: BlurPlaceholderMode,
 }
 
+fn create_module_with_static_asset(
+    source: ResolvedVc<Box<dyn Source>>,
+    blur_placeholder_mode: BlurPlaceholderMode,
+    module_asset_context: ResolvedVc<ModuleAssetContext>,
+    static_asset: ResolvedVc<StaticUrlJsModule>,
+) -> Vc<Box<dyn Module>> {
+    module_asset_context
+        .process(
+            Vc::upcast(
+                StructuredImageFileSource {
+                    image: source,
+                    blur_placeholder_mode,
+                }
+                .cell(),
+            ),
+            ReferenceType::Internal(ResolvedVc::cell(fxindexmap!(
+                rcstr!("IMAGE") => ResolvedVc::upcast(static_asset)
+            ))),
+        )
+        .module()
+}
+
 #[turbo_tasks::value_impl]
 impl StructuredImageModuleType {
     #[turbo_tasks::function]
@@ -45,20 +67,32 @@ impl StructuredImageModuleType {
         let static_asset = StaticUrlJsModule::new(*source, Some(rcstr!("client")))
             .to_resolved()
             .await?;
-        Ok(module_asset_context
-            .process(
-                Vc::upcast(
-                    StructuredImageFileSource {
-                        image: source,
-                        blur_placeholder_mode,
-                    }
-                    .cell(),
-                ),
-                ReferenceType::Internal(ResolvedVc::cell(fxindexmap!(
-                    rcstr!("IMAGE") => ResolvedVc::upcast(static_asset)
-                ))),
-            )
-            .module())
+        Ok(create_module_with_static_asset(
+            source,
+            blur_placeholder_mode,
+            module_asset_context,
+            static_asset,
+        ))
+    }
+
+    #[turbo_tasks::function]
+    pub(crate) async fn create_module_for_metadata_in_development(
+        source: ResolvedVc<Box<dyn Source>>,
+        blur_placeholder_mode: BlurPlaceholderMode,
+        module_asset_context: ResolvedVc<ModuleAssetContext>,
+    ) -> Result<Vc<Box<dyn Module>>> {
+        let static_asset = StaticUrlJsModule::new_logical_url_without_output_asset(
+            *source,
+            Some(rcstr!("client")),
+        )
+        .to_resolved()
+        .await?;
+        Ok(create_module_with_static_asset(
+            source,
+            blur_placeholder_mode,
+            module_asset_context,
+            static_asset,
+        ))
     }
 
     #[turbo_tasks::function]

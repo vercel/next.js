@@ -17,6 +17,7 @@ use crate::{
         MetadataWithAltItem, get_metadata_route_name,
     },
     base_loader_tree::{AppDirModuleType, BaseLoaderTreeBuilder},
+    mode::NextMode,
     next_app::{
         AppPage,
         metadata::{
@@ -31,6 +32,7 @@ pub struct AppPageLoaderTreeBuilder {
     loader_tree_code: String,
     /// next.config.js' basePath option to construct og metadata.
     base_path: Option<RcStr>,
+    mode: NextMode,
 }
 
 impl AppPageLoaderTreeBuilder {
@@ -38,11 +40,13 @@ impl AppPageLoaderTreeBuilder {
         module_asset_context: ResolvedVc<ModuleAssetContext>,
         server_component_transition: ResolvedVc<Box<dyn Transition>>,
         base_path: Option<RcStr>,
+        mode: NextMode,
     ) -> Self {
         AppPageLoaderTreeBuilder {
             base: BaseLoaderTreeBuilder::new(module_asset_context, server_component_transition),
             loader_tree_code: String::new(),
             base_path,
+            mode,
         }
     }
 
@@ -233,11 +237,20 @@ impl AppPageLoaderTreeBuilder {
 
         self.base
             .create_module_getter_declaration(depth, &identifier, &inner_module_id);
-        let module = StructuredImageModuleType::create_module(
-            Vc::upcast(FileSource::new(path.clone())),
-            BlurPlaceholderMode::None,
-            *self.base.module_asset_context,
-        );
+        let source = Vc::upcast(FileSource::new(path.clone()));
+        let module = if self.mode.is_development() {
+            StructuredImageModuleType::create_module_for_metadata_in_development(
+                source,
+                BlurPlaceholderMode::None,
+                *self.base.module_asset_context,
+            )
+        } else {
+            StructuredImageModuleType::create_module(
+                source,
+                BlurPlaceholderMode::None,
+                *self.base.module_asset_context,
+            )
+        };
         let module = self.base.process_module(module).to_resolved().await?;
         self.base
             .inner_assets
@@ -481,10 +494,16 @@ impl AppPageLoaderTreeModule {
         module_asset_context: ResolvedVc<ModuleAssetContext>,
         server_component_transition: ResolvedVc<Box<dyn Transition>>,
         base_path: Option<RcStr>,
+        mode: NextMode,
     ) -> Result<Self> {
-        AppPageLoaderTreeBuilder::new(module_asset_context, server_component_transition, base_path)
-            .build(loader_tree)
-            .await
+        AppPageLoaderTreeBuilder::new(
+            module_asset_context,
+            server_component_transition,
+            base_path,
+            mode,
+        )
+        .build(loader_tree)
+        .await
     }
 }
 

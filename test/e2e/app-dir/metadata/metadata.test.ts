@@ -17,9 +17,10 @@ import path from 'path'
 const FAVICON_REGEX = /\/favicon.ico\?\w+/
 
 describe('app dir - metadata', () => {
-  const { next, isNextDev, isNextStart, isNextDeploy } = nextTestSetup({
-    files: __dirname,
-  })
+  const { next, isNextDev, isNextStart, isNextDeploy, isTurbopack } =
+    nextTestSetup({
+      files: __dirname,
+    })
 
   describe('basic', () => {
     it('should support title and description', async () => {
@@ -563,6 +564,35 @@ describe('app dir - metadata', () => {
         )
       }
     })
+
+    if (isNextDev && isTurbopack) {
+      it('should expose static media only for an ordinary favicon import', async () => {
+        const $ = await next.render$('/')
+        const faviconHref = $('link[rel="icon"][type="image/x-icon"]').attr(
+          'href'
+        )
+
+        expect(typeof faviconHref).toBe('string')
+        const faviconOutputName = faviconHref!.split('?')[1]
+        expect(faviconOutputName).toMatch(/^favicon\.\w+\.ico$/)
+
+        const metadataOutputResponse = await next.fetch(
+          `/_next/static/media/${faviconOutputName}`
+        )
+        expect(metadataOutputResponse.status).toBe(404)
+
+        const $import = await next.render$('/favicon-import')
+        const importedSrc = $import('#imported-favicon').attr('data-src')
+        expect(typeof importedSrc).toBe('string')
+        expect(path.basename(importedSrc!)).toBe(faviconOutputName)
+
+        const importedResponse = await next.fetch(importedSrc!)
+        expect(importedResponse.status).toBe(200)
+        const importedBuffer = Buffer.from(await importedResponse.arrayBuffer())
+        const sourceBuffer = await next.readFileBuffer('app/favicon.ico')
+        expect(Buffer.compare(importedBuffer, sourceBuffer)).toBe(0)
+      })
+    }
   })
 
   describe('file based icons', () => {
@@ -605,6 +635,55 @@ describe('app dir - metadata', () => {
       const dynamicIconRes = await next.fetch(dynamicIconHref)
       expect(dynamicIconRes.status).toBe(200)
     })
+
+    if (isNextDev && isTurbopack) {
+      it('should update a static metadata image when its contents change', async () => {
+        const iconPath = 'app/icons/static/icon.png'
+        const replacementPath = 'app/icons/static/nested/icon1.png'
+        const originalBuffer = await next.readFileBuffer(iconPath)
+        const replacementBuffer = await next.readFileBuffer(replacementPath)
+
+        const readIcon = async () => {
+          const $ = await next.render$('/icons/static')
+          const icon = $('link[rel="icon"][type!="image/x-icon"]')
+          return {
+            href: icon.attr('href'),
+            sizes: icon.attr('sizes'),
+          }
+        }
+
+        const originalIcon = await readIcon()
+        expect(typeof originalIcon.href).toBe('string')
+        expect(originalIcon.sizes).toBe('114x114')
+
+        await next.writeFileBuffer(iconPath, replacementBuffer)
+        try {
+          await retry(async () => {
+            const replacementIcon = await readIcon()
+            expect(typeof replacementIcon.href).toBe('string')
+            expect(replacementIcon.href === originalIcon.href).toBe(false)
+            expect(replacementIcon.sizes).toBe('32x32')
+
+            const response = await next.fetch(replacementIcon.href!)
+            expect(response.status).toBe(200)
+            const responseBuffer = Buffer.from(await response.arrayBuffer())
+            expect(Buffer.compare(responseBuffer, replacementBuffer)).toBe(0)
+          })
+        } finally {
+          await next.writeFileBuffer(iconPath, originalBuffer)
+          await retry(async () => {
+            const restoredIcon = await readIcon()
+            expect(restoredIcon.href).toBe(originalIcon.href)
+            expect(restoredIcon.sizes).toBe('114x114')
+
+            const response = await next.fetch(restoredIcon.href!)
+            expect(response.status).toBe(200)
+            const responseBuffer = Buffer.from(await response.arrayBuffer())
+            expect(Buffer.compare(responseBuffer, originalBuffer)).toBe(0)
+          })
+        }
+      })
+    }
   })
 
   describe('twitter', () => {
@@ -789,6 +868,14 @@ describe('app dir - metadata', () => {
             '.next/server/app/opengraph/static/opengraph-image.png/[__metadata_id__]/route.js'
           )
         ).toBe(false)
+
+        const sourceBuffer = await next.readFileBuffer(
+          'app/opengraph/static/opengraph-image.png'
+        )
+        const outputBuffer = await next.readFileBuffer(
+          '.next/server/app/opengraph/static/opengraph-image.png.body'
+        )
+        expect(Buffer.compare(outputBuffer, sourceBuffer)).toBe(0)
       })
     })
   }
