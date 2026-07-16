@@ -2534,7 +2534,7 @@ impl NextConfig {
             // The shared runtime / inlined bootstrap is a production-only optimization; in
             // development the per-route runtime is required for HMR.
             NextMode::Development => false,
-            NextMode::Build => self.experimental.turbopack_shared_runtime.unwrap_or(false),
+            NextMode::Build => self.experimental.turbopack_shared_runtime.unwrap_or(true),
         }))
     }
 
