@@ -35,7 +35,7 @@ Let's explore common patterns used to build SPAs and how Next.js solves them.
 
 We recommend fetching data in a parent component (or layout), returning the Promise, and then unwrapping the value in a Client Component with React’s [`use` API](https://react.dev/reference/react/use).
 
-Next.js can start data fetching early on the server. In this example, that’s the root layout — the entry point to your application. The server can immediately begin streaming a response to the client.
+Next.js can start data fetching early on the server. In this example, that’s the root layout, the entry point to your application. The server can immediately begin streaming a response to the client.
 
 By “hoisting” your data fetching to the root layout, Next.js starts the specified requests on the server early before any other components in your application. This eliminates client waterfalls and prevents having multiple roundtrips between client and server. It can also significantly improve performance, as your server is closer (and ideally colocated) to where your database is located.
 
@@ -184,6 +184,8 @@ With SWR 2.3.0 (and React 19+), you can gradually adopt server features alongsid
 - **Server-only:** `useSWR(key)` + RSC-provided data
 - **Mixed:** `useSWR(key, fetcher)` + RSC-provided data
 
+> **Good to know:** Reach for SWR when you need its client-side features, such as revalidation on focus or interval, [`mutate`](https://swr.vercel.app/docs/mutation), or request deduplication across components. If a Client Component only needs to read server data once, pass a Promise to it and unwrap it with [`use()`](#using-reacts-use-within-a-context-provider) instead. That avoids adding a data-fetching library for data that never revalidates on the client.
+
 For example, wrap your application with `<SWRConfig>` and a `fallback`:
 
 ```tsx filename="app/layout.tsx" switcher
@@ -273,11 +275,199 @@ Since the initial `fallback` data is automatically handled by Next.js, you can n
 | Deduplicate requests | <Check size={18} /> | <Check size={18} /> | <Check size={18} /> |
 | Client-side features | <Check size={18} /> | <Cross size={18} /> | <Check size={18} /> |
 
+#### Scoping server data to the components that use it
+
+`<SWRConfig>` can live in any Server Component, not only the root layout. Placing it on the route segment that owns the data keeps the `fallback` close to where it is read, keeps unrelated keys out of a global config, and lets each segment start its own server-side requests:
+
+```tsx filename="app/projects/[id]/page.tsx" switcher
+import { SWRConfig } from 'swr'
+import { getProject } from './data' // some server-side function
+import { ProjectView } from './project-view'
+
+export default async function Page({
+  params,
+}: {
+  params: Promise<{ id: string }>
+}) {
+  const { id } = await params
+
+  return (
+    <SWRConfig
+      value={{
+        fallback: {
+          // Start the request on the server without awaiting it.
+          // Only components that read this key will suspend.
+          [`/api/projects/${id}`]: getProject(id),
+        },
+      }}
+    >
+      <ProjectView id={id} />
+    </SWRConfig>
+  )
+}
+```
+
+```jsx filename="app/projects/[id]/page.js" switcher
+import { SWRConfig } from 'swr'
+import { getProject } from './data' // some server-side function
+import { ProjectView } from './project-view'
+
+export default async function Page({ params }) {
+  const { id } = await params
+
+  return (
+    <SWRConfig
+      value={{
+        fallback: {
+          // Start the request on the server without awaiting it.
+          // Only components that read this key will suspend.
+          [`/api/projects/${id}`]: getProject(id),
+        },
+      }}
+    >
+      <ProjectView id={id} />
+    </SWRConfig>
+  )
+}
+```
+
+The Client Component reads the data with `useSWR` using the same key:
+
+```tsx filename="app/projects/[id]/project-view.tsx" switcher
+'use client'
+
+import useSWR from 'swr'
+
+const fetcher = (url: string) => fetch(url).then((res) => res.json())
+
+export function ProjectView({ id }: { id: string }) {
+  // This key must match the `fallback` key exactly. If it does not, the
+  // server data is ignored and SWR fetches again on the client.
+  const { data } = useSWR(`/api/projects/${id}`, fetcher)
+
+  return <h1>{data.name}</h1>
+}
+```
+
+```jsx filename="app/projects/[id]/project-view.js" switcher
+'use client'
+
+import useSWR from 'swr'
+
+const fetcher = (url) => fetch(url).then((res) => res.json())
+
+export function ProjectView({ id }) {
+  // This key must match the `fallback` key exactly. If it does not, the
+  // server data is ignored and SWR fetches again on the client.
+  const { data } = useSWR(`/api/projects/${id}`, fetcher)
+
+  return <h1>{data.name}</h1>
+}
+```
+
+> **Good to know:** The `fallback` key and the `useSWR` key must match exactly, since SWR looks up the seeded value by key. Nothing warns on a mismatch: the seeded value is never read, `data` starts as `undefined`, and SWR fetches again on the client. When a key is built from dynamic values (route params, search params), derive it in one shared place so the server and client cannot drift apart. To reuse the same request when SWR revalidates after hydration rather than starting a new one, see [`preload`](https://swr.vercel.app/docs/prefetching).
+
 ### SPAs with React Query
 
-You can use React Query with Next.js on both the client and server. This enables you to build both strict SPAs, as well as take advantage of server features in Next.js paired with React Query.
+You can use React Query with Next.js on the client and the server, and seed its cache from a Server Component the same way as [SWR](#spas-with-swr): prefetch on the server, hand the cache to the client, and let React Query own revalidation from there.
 
-Learn more in the [React Query documentation](https://tanstack.com/query/latest/docs/framework/react/guides/advanced-ssr).
+A Server Component starts the request with `prefetchQuery` **without awaiting it**, then serializes the cache into the streamed HTML with `<HydrationBoundary>`:
+
+```tsx filename="app/projects/[id]/page.tsx" switcher
+import { dehydrate, HydrationBoundary } from '@tanstack/react-query'
+import { getQueryClient } from '@/app/get-query-client'
+import { getProject } from './data' // runs on the server and the client
+import { ProjectView } from './project-view'
+
+export default async function Page({
+  params,
+}: {
+  params: Promise<{ id: string }>
+}) {
+  const { id } = await params
+  const queryClient = getQueryClient()
+
+  // Start the request on the server without awaiting it, so rendering is
+  // not blocked. Only components that read this query will suspend.
+  queryClient.prefetchQuery({
+    queryKey: ['project', id],
+    queryFn: () => getProject(id),
+  })
+
+  return (
+    <HydrationBoundary state={dehydrate(queryClient)}>
+      <ProjectView id={id} />
+    </HydrationBoundary>
+  )
+}
+```
+
+```jsx filename="app/projects/[id]/page.js" switcher
+import { dehydrate, HydrationBoundary } from '@tanstack/react-query'
+import { getQueryClient } from '@/app/get-query-client'
+import { getProject } from './data' // runs on the server and the client
+import { ProjectView } from './project-view'
+
+export default async function Page({ params }) {
+  const { id } = await params
+  const queryClient = getQueryClient()
+
+  // Start the request on the server without awaiting it, so rendering is
+  // not blocked. Only components that read this query will suspend.
+  queryClient.prefetchQuery({
+    queryKey: ['project', id],
+    queryFn: () => getProject(id),
+  })
+
+  return (
+    <HydrationBoundary state={dehydrate(queryClient)}>
+      <ProjectView id={id} />
+    </HydrationBoundary>
+  )
+}
+```
+
+The Client Component reads the data with `useSuspenseQuery` (or `useQuery`) using the same query key:
+
+```tsx filename="app/projects/[id]/project-view.tsx" switcher
+'use client'
+
+import { useSuspenseQuery } from '@tanstack/react-query'
+import { getProject } from './data'
+
+export function ProjectView({ id }: { id: string }) {
+  // This query key must match the server prefetch, or the hydrated cache
+  // is ignored and React Query fetches again on the client.
+  const { data } = useSuspenseQuery({
+    queryKey: ['project', id],
+    queryFn: () => getProject(id),
+  })
+
+  return <h1>{data.name}</h1>
+}
+```
+
+```jsx filename="app/projects/[id]/project-view.js" switcher
+'use client'
+
+import { useSuspenseQuery } from '@tanstack/react-query'
+import { getProject } from './data'
+
+export function ProjectView({ id }) {
+  // This query key must match the server prefetch, or the hydrated cache
+  // is ignored and React Query fetches again on the client.
+  const { data } = useSuspenseQuery({
+    queryKey: ['project', id],
+    queryFn: () => getProject(id),
+  })
+
+  return <h1>{data.name}</h1>
+}
+```
+
+The query key connects the two sides, the same way the matching `fallback` and `useSWR` keys do above.
+
+> **Good to know:** This example assumes the one-time setup React Query requires: a shared `getQueryClient` (a new instance per request on the server, a singleton in the browser), a `<QueryClientProvider>` Client Component wrapping your app, and the client configured to dehydrate pending queries so data can stream. React Query also ships an experimental `@tanstack/react-query-next-experimental` package that streams without an explicit prefetch, at the cost of reintroducing request waterfalls on navigation. Because React Query owns and continues to evolve this integration, follow the [React Query App Router guide](https://tanstack.com/query/latest/docs/framework/react/guides/advanced-ssr) for the full setup and current APIs.
 
 ### Rendering components only in the browser
 
