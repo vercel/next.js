@@ -1,0 +1,328 @@
+---
+title: Designing loading UI
+description: Design loading states with skeleton screens, spinners, and loading.tsx so they don't flash, jitter, or shift layout.
+nav_title: Loading UI
+related:
+  description: Learn more about the APIs used in this guide.
+  links:
+    - app/api-reference/file-conventions/loading
+    - app/api-reference/functions/use-link-status
+    - app/api-reference/config/next-config-js/viewTransition
+---
+
+While part of a page loads, the user sees a loading state, such as a skeleton or a spinner. A careless one makes the wait worse. It can flash for a response that was already fast, jump when content arrives at a different size, or replace results the user was reading.
+
+This guide shows how to design loading states that avoid these problems, from choosing the right placeholder to animating the swap to real content.
+
+> **Good to know:** Loading states affect [Core Web Vitals](https://web.dev/articles/vitals). Sized placeholders and top-down reveals keep [CLS](https://web.dev/articles/cls) at zero, and delayed indicators keep loading states from flashing. The other vitals come from streaming, optimistic UI, and prefetching, covered in [Building interactive apps](/docs/app/guides/interactive-apps).
+
+## Example
+
+This guide builds the loading states for a team directory, a searchable member list where each member links to a profile page. The steps build in order: choose the loading state for the member list, size its skeleton so nothing shifts, keep results visible while searching, reveal the profile's variable-height sections top-down, and crossfade the reveals.
+
+The companion [team directory demo](https://loading-ui-demo.labs.vercel.dev) ([source](https://github.com/vercel-labs/loading-ui-demo)) shows each pattern in action.
+
+### Step 1: Choose between a fallback and a pending indicator
+
+A [`<Suspense>`](https://react.dev/reference/react/Suspense) fallback replaces content while it loads. A pending indicator keeps the previous UI on screen and signals activity on top of it.
+
+Use a fallback when there is nothing meaningful on screen yet and the wait is longer than about 200ms. React keeps a shown fallback visible briefly, so a boundary around fast content makes the page slower than no boundary at all. For fast updates, use a pending indicator instead.
+
+The directory page renders a fast header immediately and reserves the fallback for the slow member list:
+
+```tsx filename="app/page.tsx"
+import { Suspense } from 'react'
+import { Stats } from './stats'
+import { Directory } from './directory'
+import { DirectorySkeleton } from './skeletons'
+
+export default function Page() {
+  return (
+    <main>
+      <header>
+        <h1>Team directory</h1>
+        {/* Fast, synchronous: never behind a fallback. */}
+        <Stats />
+      </header>
+
+      <Suspense fallback={<DirectorySkeleton />}>
+        <Directory />
+      </Suspense>
+    </main>
+  )
+}
+```
+
+The header paints immediately, the skeleton stands in for the list, and the list streams in when its data resolves.
+
+[`loading.tsx`](/docs/app/api-reference/file-conventions/loading) wraps the whole route in one boundary, which fits a page whose entire first render waits on data. When only part of the page is slow, place `<Suspense>` around that part instead.
+
+> **Good to know:** A boundary is for the initial load of a region. Retriggering it on fast client navigations (changing its `key`, or adding a `loading.tsx` to a route that renders in milliseconds) replaces a page that would have appeared instantly with a fallback.
+
+#### Skeleton or spinner
+
+- **Skeleton**: Use when you know the shape, like a list of rows or a card. It previews the layout and doubles as the reserved space that prevents layout shift (Step 2). A slow, subtle animation, a pulse or a shimmer sweep, signals the page is still working, where a static skeleton can read as frozen (Step 5).
+- **Spinner**: Use when you don't know the shape, or for a small inline action.
+
+Both fit waits of up to about [ten seconds](https://www.nngroup.com/articles/response-times-3-important-limits/). For an operation you know runs longer, show determinate progress, such as a percent-done bar, since neither a skeleton nor a spinner tells the user how much is left.
+
+### Step 2: Reserve the content's space
+
+When a fallback is replaced by content of a different size, the browser reflows the page and everything below it moves. That jump is [Cumulative Layout Shift](/docs/app/guides/streaming#cls-cumulative-layout-shift).
+
+Measure one real row, mirror its box in the skeleton, and render as many skeleton rows as a full result set. A minimum height on the container reserves the full space before any data arrives:
+
+```tsx filename="app/skeletons.tsx"
+// Same row count and row height as a full result set, so the swap to real
+// content shifts nothing.
+export function DirectorySkeleton({ rows = 8 }: { rows?: number }) {
+  return (
+    <ul aria-hidden className="min-h-[512px]">
+      {Array.from({ length: rows }).map((_, i) => (
+        <li key={i} className="flex h-16 items-center gap-3.5 px-4">
+          <span className="skeleton size-9 rounded-full" />
+          <span className="flex flex-col gap-[3px]">
+            <span className="skeleton h-[14px] w-[140px]" />
+            <span className="skeleton h-3 w-[100px]" />
+          </span>
+        </li>
+      ))}
+    </ul>
+  )
+}
+```
+
+To verify, reload with the layout-shift-regions overlay enabled in your browser's dev tools. The skeleton occupies the same space the list will, so CLS stays at 0.
+
+> **Good to know:** The `@next/playwright` [`instant()`](/docs/app/guides/instant-navigation#prevent-regressions-with-e2e-tests) helper asserts on the UI that is immediately visible on navigation, so a boundary drifting to the wrong place fails in CI.
+
+### Step 3: Keep previous results visible while searching
+
+Content that is already on screen should update inside a [transition](https://react.dev/reference/react/useTransition). Re-rendering it behind a fallback replaces working UI with a skeleton, and results that resolve out of order flicker past. A transition keeps the current content on screen, interrupts the in-flight render when a newer update arrives, and exposes an `isPending` flag for the feedback you add yourself. In the directory's search, that feedback is a dim on the held results and a spinner:
+
+```tsx filename="app/search.tsx"
+'use client'
+
+import { useTransition } from 'react'
+import { useRouter } from 'next/navigation'
+
+export function Search({ children }: { children: React.ReactNode }) {
+  const router = useRouter()
+  const [isPending, startTransition] = useTransition()
+
+  function onSearch(value: string) {
+    startTransition(() => {
+      // `scroll: false` keeps focus in the input during the navigation.
+      router.replace(value ? `/?q=${encodeURIComponent(value)}` : '/', {
+        scroll: false,
+      })
+    })
+  }
+
+  return (
+    <div>
+      <input
+        type="search"
+        onChange={(e) => onSearch(e.target.value)}
+        aria-label="Search members"
+      />
+      <span className="pending" data-active={isPending ? '' : undefined} />
+      <div
+        className="transition-opacity duration-200 data-[pending]:opacity-60"
+        data-pending={isPending ? '' : undefined}
+      >
+        {children}
+      </div>
+    </div>
+  )
+}
+```
+
+`isPending` turns true the moment the transition starts, even when the response arrives within milliseconds, so a spinner bound to it directly would flash on every fast search. Start it invisible and reveal it after a delay:
+
+```css filename="app/globals.css"
+/* Invisible for 150ms, so a fast search resolves before it is ever seen. */
+.pending {
+  opacity: 0;
+}
+
+.pending[data-active] {
+  animation:
+    pending-in 0.2s cubic-bezier(0.23, 1, 0.32, 1) 0.15s forwards,
+    spin 0.7s linear infinite;
+}
+
+@keyframes pending-in {
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+```
+
+Typing now keeps the last complete result set on screen, dimmed, and updates once to the final matches. A search that resolves in under 150ms never shows the spinner. Keep the reveal under 300ms and avoid `ease-in`, which starts slow and holds the finished content back.
+
+Give the results a single `<Suspense>` boundary so its skeleton shows on the first load only, and don't retrigger it per search. If a query per keystroke is too chatty for your server, add a short debounce before the navigation. The debounce delays the transition's `isPending`, so derive the pending flag by comparing the input value to the URL instead.
+
+The same applies to navigations. When the destination has its own `<Suspense>` shell, the click lands on that shell instantly, and its skeletons are the feedback. For links whose destination has no shell, [`useLinkStatus`](/docs/app/api-reference/functions/use-link-status#gracefully-handling-fast-navigation) exposes the link's `pending` state to drive the same delayed indicator.
+
+This is the same pattern as [filter with pending feedback](/docs/app/guides/interactive-apps#step-3-filter-with-pending-feedback) in the interactive apps guide.
+
+### Step 4: Reveal variable-height sections top-down
+
+Sizing the skeleton works for a list of fixed rows. On the profile page, the bio can be one paragraph or three and the activity feed two rows or eight, so no skeleton can reserve the right height.
+
+With sibling `<Suspense>` boundaries, the sections reveal in whatever order their data arrives. If the feed resolves before the bio above it, the feed paints high on the page, then gets pushed down when the bio arrives. Nesting the feed's boundary inside the bio's fixes this, because a nested boundary can't reveal before its parent. The sections appear top-down, and a long bio grows into skeleton space below it.
+
+```tsx filename="app/member/[id]/page.tsx"
+import { Suspense } from 'react'
+import { Bio, Activity } from './profile'
+import { BioSkeleton, ActivitySkeleton } from './skeletons'
+
+export default function MemberPage({
+  params,
+}: {
+  params: Promise<{ id: string }>
+}) {
+  return (
+    <main>
+      <Suspense fallback={<BioSkeleton />}>
+        <Bio params={params} />
+        <Suspense fallback={<ActivitySkeleton />}>
+          <Activity params={params} />
+        </Suspense>
+      </Suspense>
+    </main>
+  )
+}
+```
+
+Both queries still run in parallel, so the page settles as fast as its slowest section. Nesting only delays the reveal of a finished section, not its query.
+
+That hold is the trade-off, since a fast feed now waits for a slow bio. Use sibling boundaries for sections that are visually independent, like dashboard cards in a grid, or a single boundary around all the sections when per-section reveals aren't worth it. The [profiling guide](/docs/app/guides/profiling-performance#step-2-find-content-gated-by-one-boundary) shows how to find a boundary that gates too much content.
+
+### Step 5: Crossfade the reveal
+
+A skeleton that hard-cuts to content replaces it in a single frame. React's [`<ViewTransition>`](https://react.dev/reference/react/ViewTransition) component animates the swap as a crossfade instead. Enable it in your Next.js config:
+
+```ts filename="next.config.ts"
+import type { NextConfig } from 'next'
+
+const nextConfig: NextConfig = {
+  experimental: {
+    viewTransition: true,
+  },
+}
+
+export default nextConfig
+```
+
+Then wrap the content that streams in. A bare `<ViewTransition>` uses the browser's built-in crossfade, so content that reveals once, like the profile sections from Step 4, needs no view-transition CSS:
+
+```tsx filename="app/member/[id]/page.tsx" highlight={2,5}
+<Suspense fallback={<BioSkeleton />}>
+  <ViewTransition>
+    <Bio params={params} />
+    <Suspense fallback={<ActivitySkeleton />}>
+      <ViewTransition>
+        <Activity params={params} />
+      </ViewTransition>
+    </Suspense>
+  </ViewTransition>
+</Suspense>
+```
+
+> **Good to know:** The reveal animates whenever the skeleton is replaced by streamed content, on a refresh as much as after a navigation. Content fast enough to arrive in the initial response has no skeleton, so there is nothing to reveal.
+
+#### Refine and reuse
+
+Wrap the fallback in a `<ViewTransition exit="auto">` so the outgoing skeleton fades too. For content a navigation re-renders, like search results on every keystroke, add `default="none"` so nothing animates by default and `enter="auto"` so only the first reveal does:
+
+```tsx filename="app/page.tsx" highlight={3,8}
+<Suspense
+  fallback={
+    <ViewTransition exit="auto" default="none">
+      <DirectorySkeleton />
+    </ViewTransition>
+  }
+>
+  <ViewTransition enter="auto" default="none">
+    <Directory />
+  </ViewTransition>
+</Suspense>
+```
+
+Once the same props repeat across reveals, extract a component. The demo wraps every reveal in a single `<Crossfade>`:
+
+```tsx filename="app/crossfade.tsx"
+import { ViewTransition } from 'react'
+
+export function Crossfade({ children }: { children: React.ReactNode }) {
+  return (
+    <ViewTransition enter="auto" default="none">
+      {children}
+    </ViewTransition>
+  )
+}
+```
+
+See [Designing view transitions](/docs/app/guides/view-transitions) for the full API, including directional and shared-element transitions.
+
+#### Keep reveal animations cheap
+
+- **Animate reveals only**: Content in the static shell is on screen from the first paint, so there is nothing to reveal and nothing to wrap.
+- **Guard re-rendered content with `default="none"`**: A `<ViewTransition>` runs its exit/enter pair on every update, so re-rendered content would re-animate on every navigation.
+- **Animate `opacity` and `transform` only**: Both run on the compositor, off the main thread. A loading animation plays while the page streams and hydrates, exactly when the main thread is busiest, so a property that repaints every frame, like `filter: blur()` or `background-position`, stutters right when the animation is visible. A pulse animates `opacity`, and a shimmer sweep should translate a gradient overlay with `transform`.
+
+```css filename="app/globals.css"
+/* Opacity only, so the pulse runs on the compositor. Slow and shallow. */
+.skeleton {
+  background: rgba(150, 150, 150, 0.12);
+  animation: skeleton-pulse 1.8s ease-in-out infinite;
+}
+
+@keyframes skeleton-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.55;
+  }
+}
+```
+
+Respect reduced motion preferences by disabling the animations:
+
+```css filename="app/globals.css"
+@media (prefers-reduced-motion: reduce) {
+  .pending[data-active],
+  .skeleton {
+    animation-duration: 0.01ms;
+    animation-iteration-count: 1;
+  }
+
+  ::view-transition-old(*),
+  ::view-transition-new(*),
+  ::view-transition-group(*) {
+    animation-duration: 0s !important;
+    animation-delay: 0s !important;
+  }
+}
+```
+
+## Next steps
+
+Related guides:
+
+- [Streaming](/docs/app/guides/streaming) for `loading.js` versus `<Suspense>`, the static shell, and Web Vitals
+- [Instant navigation](/docs/app/guides/instant-navigation) for boundary placement, the Navigation Inspector, and `instant()` regression tests
+- [View transitions](/docs/app/guides/view-transitions) for the full `<ViewTransition>` API
+- [Building interactive apps](/docs/app/guides/interactive-apps) for pending feedback and optimistic UI with transitions
+- [Profiling performance](/docs/app/guides/profiling-performance) for finding slow Suspense boundaries and data waterfalls in the Performance panel
+- [Forms](/docs/app/guides/forms) for `useFormStatus` pending state during submissions

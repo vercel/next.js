@@ -15,7 +15,7 @@ When a user interaction requires server-side work, the result is not available i
 
 This guide adds responsive feedback to a task management app called _Taskboard_. Each step handles a different kind of pending work, from streaming slow reads to confirming mutations before the server responds.
 
-> **Good to know:** The patterns in this guide also improve [Core Web Vitals](https://web.dev/articles/vitals). Streaming with [`<Suspense>`](https://react.dev/reference/react/Suspense) lowers [FCP](https://web.dev/articles/fcp) and [LCP](https://web.dev/articles/lcp) by letting the shell paint while slow reads finish. Optimistic UI and transitions lower [INP](https://web.dev/articles/inp) by keeping the click frame fast. Prefetching the next route makes FCP, LCP, and INP on the destination page near-instant. These patterns help, but they don't replace the usual INP work: shipping less client JavaScript and avoiding blocking roundtrips during interactions.
+> **Good to know:** The patterns in this guide also improve [Core Web Vitals](https://web.dev/articles/vitals). Streaming with [`<Suspense>`](https://react.dev/reference/react/Suspense) lowers [FCP](https://web.dev/articles/fcp) and [LCP](https://web.dev/articles/lcp) by letting the shell paint while slow reads finish. Optimistic UI and transitions lower [INP](https://web.dev/articles/inp) by keeping the click frame fast. Prefetching the next route makes FCP, LCP, and INP on the destination page near-instant. These patterns help, but they don't replace the usual INP work: shipping less client JavaScript and avoiding blocking roundtrips during interactions. For [CLS](https://web.dev/articles/cls), keeping placeholders and streamed content from shifting the layout as it loads, see [Designing loading UI](/docs/app/guides/loading-ui).
 
 ## Example
 
@@ -777,5 +777,6 @@ Related guides:
 - [Client-side data fetching](/docs/app/guides/client-side-data-fetching) for direct browser fetching, providing initial data from a Server Component, and client cache coordination
 - [Streaming](/docs/app/guides/streaming) for loading boundaries and `<Suspense>` patterns
 - [Instant Navigation](/docs/app/guides/instant-navigation) for validating that navigations stay instant
+- [Designing loading UI](/docs/app/guides/loading-ui) for fallbacks, pending indicators, and keeping loading states from flashing or shifting
 - [View Transitions](/docs/app/guides/view-transitions) for animating state changes
 - [Single-page applications](/docs/app/guides/single-page-applications#mutating-data-with-server-actions) for a shared-reducer `useOptimistic` example that keeps client and server list updates in sync
