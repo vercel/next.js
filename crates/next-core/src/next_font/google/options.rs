@@ -178,13 +178,6 @@ pub(super) fn options_from_request(
         if !supports_variable_weight {
             anyhow::bail!("Axes can only be defined for variable fonts.")
         }
-
-        if weights != FontWeights::Variable {
-            anyhow::bail!(
-                "Axes can only be defined for variable fonts when the weight property is \
-                 nonexistent or set to `variable`."
-            )
-        }
     }
 
     Ok(NextFontGoogleOptions {
@@ -330,7 +323,21 @@ mod tests {
             {
                 "ABeeZee": {
                     "weights": ["400", "variable"],
-                    "styles": ["normal", "italic"]
+                    "styles": ["normal", "italic"],
+                    "axes": [
+                        {
+                            "tag": "opsz",
+                            "min": 6,
+                            "max": 72,
+                            "defaultValue": 16
+                        },
+                        {
+                            "tag": "wght",
+                            "min": 400,
+                            "max": 700,
+                            "defaultValue": 400
+                        }
+                    ]
                 }
             }
             "#,
@@ -546,7 +553,7 @@ mod tests {
     }
 
     #[test]
-    fn test_errors_on_axes_without_variable_weight() -> Result<()> {
+    fn test_allows_axes_with_fixed_weights_for_variable_font() -> Result<()> {
         let data: FxIndexMap<RcStr, FontDataEntry> = parse_json_with_source_context(
             r#"
             {
@@ -566,22 +573,16 @@ mod tests {
                 "variableName": "abeezee",
                 "arguments": [{
                     "weight": ["400"],
-                    "axes": ["wght"]
+                    "axes": ["opsz"]
                 }]
             }
             "#,
         )?;
 
-        match options_from_request(&request, &data) {
-            Ok(_) => panic!(),
-            Err(err) => {
-                assert_eq!(
-                    err.to_string(),
-                    "Axes can only be defined for variable fonts when the weight property is \
-                     nonexistent or set to `variable`."
-                )
-            }
-        }
+        assert_eq!(
+            options_from_request(&request, &data)?.selected_variable_axes,
+            Some(vec![rcstr!("opsz")])
+        );
 
         Ok(())
     }

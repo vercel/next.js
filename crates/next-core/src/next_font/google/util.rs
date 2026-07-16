@@ -59,57 +59,83 @@ pub(super) fn get_font_axes(
         set
     };
 
+    let get_variable_axes = || -> Result<(Option<RcStr>, Option<Vec<(RcStr, RcStr)>>)> {
+        let Some(all_axes) = all_axes else {
+            bail!("Font {} has no definable `axes`", font_family);
+        };
+
+        if let Some(selected_variable_axes) = selected_variable_axes {
+            let definable_axes_tags = all_axes
+                .iter()
+                .map(|axis| axis.tag.to_owned())
+                .filter(|tag| tag != "wght")
+                .collect::<Vec<RcStr>>();
+
+            if definable_axes_tags.is_empty() {
+                bail!("Font {} has no definable `axes`", font_family);
+            }
+
+            for tag in selected_variable_axes {
+                if !definable_axes_tags.contains(tag) {
+                    bail!(
+                        "Invalid axes value {} for font {}.\nAvailable axes: {}",
+                        tag,
+                        font_family,
+                        definable_axes_tags.join(", ")
+                    )
+                }
+            }
+        }
+
+        let mut weight_axis = None;
+        let mut variable_axes = vec![];
+        for axis in all_axes {
+            if axis.tag == "wght" {
+                weight_axis = Some(format!("{}..{}", axis.min, axis.max).into());
+            } else if let Some(selected_variable_axes) = selected_variable_axes
+                && selected_variable_axes.contains(&axis.tag)
+            {
+                variable_axes.push((
+                    axis.tag.clone(),
+                    format!("{}..{}", axis.min, axis.max).into(),
+                ));
+            }
+        }
+
+        Ok((
+            weight_axis,
+            if variable_axes.is_empty() {
+                None
+            } else {
+                Some(variable_axes)
+            },
+        ))
+    };
+
     match weights {
         FontWeights::Variable => {
-            let Some(definable_axes) = all_axes else {
-                bail!("Font {} has no definable `axes`", font_family);
-            };
-
-            if let Some(selected_variable_axes) = selected_variable_axes {
-                let definable_axes_tags = definable_axes
-                    .iter()
-                    .map(|axis| axis.tag.to_owned())
-                    .collect::<Vec<RcStr>>();
-
-                for tag in selected_variable_axes {
-                    if !definable_axes_tags.contains(tag) {
-                        bail!(
-                            "Invalid axes value {} for font {}.\nAvailable axes: {}",
-                            tag,
-                            font_family,
-                            definable_axes_tags.join(", ")
-                        )
-                    }
-                }
-            }
-
-            let mut weight_axis = None;
-            let mut variable_axes = vec![];
-            for axis in definable_axes {
-                if axis.tag == "wght" {
-                    weight_axis = Some(format!("{}..{}", axis.min, axis.max).into());
-                } else if let Some(selected_variable_axes) = selected_variable_axes
-                    && selected_variable_axes.contains(&axis.tag)
-                {
-                    variable_axes.push((
-                        axis.tag.clone(),
-                        format!("{}..{}", axis.min, axis.max).into(),
-                    ));
-                }
-            }
+            let (weight_axis, variable_axes) = get_variable_axes()?;
 
             Ok(FontAxes {
                 wght: FontAxesWeights::Variable(weight_axis),
                 ital,
-                variable_axes: Some(variable_axes),
+                variable_axes,
             })
         }
 
-        FontWeights::Fixed(weights) => Ok(FontAxes {
-            wght: FontAxesWeights::Fixed(weights.iter().copied().collect()),
-            ital,
-            variable_axes: None,
-        }),
+        FontWeights::Fixed(weights) => {
+            let (_, variable_axes) = if selected_variable_axes.is_some() {
+                get_variable_axes()?
+            } else {
+                (None, None)
+            };
+
+            Ok(FontAxes {
+                wght: FontAxesWeights::Fixed(weights.iter().copied().collect()),
+                ital,
+                variable_axes,
+            })
+        }
     }
 }
 
@@ -460,6 +486,54 @@ mod tests {
             FontAxes {
                 wght: FontAxesWeights::Fixed(BTreeSet::from([500])),
                 ..Default::default()
+            }
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn test_selecting_axes_with_fixed_weights() -> Result<()> {
+        let data: FontData = parse_json_with_source_context(
+            r#"
+            {
+                "Newsreader": {
+                    "weights": [
+                        "400",
+                        "700",
+                        "variable"
+                    ],
+                    "styles": ["normal", "italic"],
+                    "axes": [
+                        {
+                            "tag": "opsz",
+                            "min": 6,
+                            "max": 72,
+                            "defaultValue": 16
+                        },
+                        {
+                            "tag": "wght",
+                            "min": 200,
+                            "max": 800,
+                            "defaultValue": 400
+                        }
+                    ]
+                }
+            }
+  "#,
+        )?;
+
+        assert_eq!(
+            get_font_axes(
+                &data,
+                "Newsreader",
+                &FontWeights::Fixed(vec![700]),
+                &[rcstr!("normal")],
+                &Some(vec![rcstr!("opsz")]),
+            )?,
+            FontAxes {
+                wght: FontAxesWeights::Fixed(BTreeSet::from([700])),
+                ital: fxindexset! {FontStyle::Normal},
+                variable_axes: Some(vec![(rcstr!("opsz"), rcstr!("6..72"))]),
             }
         );
         Ok(())
