@@ -1,7 +1,4 @@
-import { connection } from 'next/server'
-
-export default async function layout({ children }) {
-  await connection()
+export default function layout({ children }) {
   return children
 }
 
@@ -10,3 +7,5 @@ export async function generateMetadata() {
     keywords: 'parent',
   }
 }
+
+export const revalidate = 0

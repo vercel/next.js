@@ -1,17 +1,10 @@
 import Link from 'next/link'
-import { Suspense } from 'react'
 
-async function Content(props) {
+export default async function Page(props) {
   const params = await props.params
-  return <h1 id="slug-page">Visiting page {params.slug}</h1>
-}
-
-export default function Page(props) {
   return (
     <div>
-      <Suspense>
-        <Content params={props.params} />
-      </Suspense>
+      <h1 id="slug-page">Visiting page {params.slug}</h1>
       <Link href="/blog/a-post" style={{ display: 'block' }} id="to-blog-post">
         Go to a post
       </Link>
