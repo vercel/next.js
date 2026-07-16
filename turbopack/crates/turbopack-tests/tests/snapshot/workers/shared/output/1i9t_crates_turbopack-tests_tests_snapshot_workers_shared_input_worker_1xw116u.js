@@ -706,6 +706,8 @@ function loadChunk(chunkData) {
     return loadChunkInternal(SourceType.Parent, this.m.id, chunkData);
 }
 browserContextPrototype.l = loadChunk;
+// `chunkPath` is the source chunk; it is `undefined` for entry-only registrations,
+// which have no self chunk.
 function loadInitialChunk(chunkPath, chunkData) {
     return loadChunkInternal(SourceType.Runtime, chunkPath, chunkData);
 }
@@ -2087,6 +2089,10 @@ function handleApply(chunkListPath, update) {
     runtimeChunkLists.add(chunkListPath);
 }
 function registerChunk(registration) {
+    // An inlined entry-only registration is a bare params object (no source chunk).
+    if (!Array.isArray(registration)) {
+        return BACKEND.registerChunk(undefined, registration);
+    }
     const chunk = getChunkFromRegistration(registration[0]);
     if (SUPPORT_COMPONENT_CHUNKS) {
         markChunkComponentsAvailable(chunk);
@@ -2152,10 +2158,13 @@ let BACKEND;
 (()=>{
     BACKEND = {
         async registerChunk (chunk, params) {
-            let chunkPath = getPathFromScript(chunk);
-            let chunkUrl = getUrlFromScript(chunk);
-            const resolver = getOrCreateResolver(chunkUrl);
-            resolver.resolve();
+            // `chunk` is `undefined` for an inlined entry-only registration, which has no source chunk.
+            let chunkPath;
+            if (chunk != null) {
+                chunkPath = getPathFromScript(chunk);
+                const resolver = getOrCreateResolver(getUrlFromScript(chunk));
+                resolver.resolve();
+            }
             if (params == null) {
                 return;
             }

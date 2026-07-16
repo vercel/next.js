@@ -235,8 +235,9 @@ pub async fn get_browser_runtime_code(
         );
     }
 
-    // Registering chunks and chunk lists depends on the BACKEND variable, which is set by the
-    // specific runtime code, hence it must be appended after it.
+    // Registering chunks/chunk lists depends on the BACKEND variable set by the specific
+    // runtime code, so it must be appended after it. `registerChunk` handles both queued forms:
+    // chunk-registration arrays and inlined entry-only params objects.
     writedoc!(
         code,
         r#"

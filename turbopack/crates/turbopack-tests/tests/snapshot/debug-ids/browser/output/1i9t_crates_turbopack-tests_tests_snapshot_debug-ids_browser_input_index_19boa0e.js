@@ -1,4 +1,4 @@
-;!function(){try { var e="undefined"!=typeof globalThis?globalThis:"undefined"!=typeof global?global:"undefined"!=typeof window?window:"undefined"!=typeof self?self:{},n=(new e.Error).stack;n&&((e._debugIds|| (e._debugIds={}))[n]="21c8711a-74c9-45ea-6136-fc86666e7e65")}catch(e){}}();
+;!function(){try { var e="undefined"!=typeof globalThis?globalThis:"undefined"!=typeof global?global:"undefined"!=typeof window?window:"undefined"!=typeof self?self:{},n=(new e.Error).stack;n&&((e._debugIds|| (e._debugIds={}))[n]="e8ad8448-c0e3-c83b-df8b-d8aff38f5d9d")}catch(e){}}();
 (globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push([
     "output/1i9t_crates_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_19boa0e.js",
     {"otherChunks":["output/1do3_crates_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_03ibyvs.js"],"runtimeModuleIds":["[project]/turbopack/crates/turbopack-tests/tests/snapshot/debug-ids/browser/input/index.js [test] (ecmascript)"]}
@@ -707,6 +707,8 @@ function loadChunk(chunkData) {
     return loadChunkInternal(SourceType.Parent, this.m.id, chunkData);
 }
 browserContextPrototype.l = loadChunk;
+// `chunkPath` is the source chunk; it is `undefined` for entry-only registrations,
+// which have no self chunk.
 function loadInitialChunk(chunkPath, chunkData) {
     return loadChunkInternal(SourceType.Runtime, chunkPath, chunkData);
 }
@@ -2088,6 +2090,10 @@ function handleApply(chunkListPath, update) {
     runtimeChunkLists.add(chunkListPath);
 }
 function registerChunk(registration) {
+    // An inlined entry-only registration is a bare params object (no source chunk).
+    if (!Array.isArray(registration)) {
+        return BACKEND.registerChunk(undefined, registration);
+    }
     const chunk = getChunkFromRegistration(registration[0]);
     if (SUPPORT_COMPONENT_CHUNKS) {
         markChunkComponentsAvailable(chunk);
@@ -2153,10 +2159,13 @@ let BACKEND;
 (()=>{
     BACKEND = {
         async registerChunk (chunk, params) {
-            let chunkPath = getPathFromScript(chunk);
-            let chunkUrl = getUrlFromScript(chunk);
-            const resolver = getOrCreateResolver(chunkUrl);
-            resolver.resolve();
+            // `chunk` is `undefined` for an inlined entry-only registration, which has no source chunk.
+            let chunkPath;
+            if (chunk != null) {
+                chunkPath = getPathFromScript(chunk);
+                const resolver = getOrCreateResolver(getUrlFromScript(chunk));
+                resolver.resolve();
+            }
             if (params == null) {
                 return;
             }
@@ -2464,5 +2473,5 @@ chunkListsToRegister.forEach(registerChunkList);
 })();
 
 
-//# debugId=21c8711a-74c9-45ea-6136-fc86666e7e65
+//# debugId=e8ad8448-c0e3-c83b-df8b-d8aff38f5d9d
 //# sourceMappingURL=1do3_crates_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_19boa0e.js.map

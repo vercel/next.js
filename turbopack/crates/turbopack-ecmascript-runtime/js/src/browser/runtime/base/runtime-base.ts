@@ -63,8 +63,13 @@ type ChunkList = {
 }
 
 interface RuntimeBackend {
+  /**
+   * Registers a chunk. `chunk` is `undefined` for an inlined entry-only registration
+   * (no source chunk): the params' other chunks are loaded and its runtime modules run
+   * with no self chunk identity.
+   */
   registerChunk: (
-    chunkPath: ChunkPath | ChunkScript,
+    chunk: ChunkPath | ChunkScript | undefined,
     params?: RuntimeParams
   ) => void
   /**
@@ -118,7 +123,12 @@ function loadChunk(
 }
 browserContextPrototype.l = loadChunk
 
-function loadInitialChunk(chunkPath: ChunkPath, chunkData: ChunkData) {
+// `chunkPath` is the source chunk; it is `undefined` for entry-only registrations,
+// which have no self chunk.
+function loadInitialChunk(
+  chunkPath: ChunkPath | undefined,
+  chunkData: ChunkData
+) {
   return loadChunkInternal(SourceType.Runtime, chunkPath, chunkData)
 }
 
