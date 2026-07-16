@@ -14,11 +14,14 @@ async function main() {
   let argv = await yargs(process.argv.slice(2))
     .string('mode')
     .string('group')
+    .string('preview-builds-base-url')
     .boolean('flake-detection').argv
 
   let testMode = argv.mode
   const isFlakeDetectionMode = argv['flake-detection']
   const attempts = isFlakeDetectionMode ? 3 : 1
+  const previewBuildsBaseUrl =
+    argv['preview-builds-base-url'] || 'https://vercel-packages.vercel.app/next'
 
   if (testMode && !['dev', 'deploy', 'start'].includes(testMode)) {
     throw new Error(
@@ -79,24 +82,26 @@ async function main() {
   }
 
   const RUN_TESTS_ARGS = ['run-tests.js', '-c', '1', '--retries', '0']
-  const PR_NUMBER = process.env.GH_PR_NUMBER
   // Only override the test version for deploy tests, as they need to run against
   // the artifacts for the pull request. Otherwise, we don't need to specify this property,
   // as tests will run against the local version of Next.js
   const nextTestVersion =
     testMode === 'deploy'
-      ? PR_NUMBER
-        ? `https://vercel-packages.vercel.app/next/prs/${PR_NUMBER}/next`
-        : `https://vercel-packages.vercel.app/next/commits/${commitSha}/next`
+      ? `${previewBuildsBaseUrl}/commits/${commitSha}/next`
       : undefined
+
+  const previewBuildsReadToken = process.env.PREVIEW_BUILDS_READ_TOKEN
 
   if (nextTestVersion) {
     console.log(`Verifying artifacts for commit ${commitSha}`)
     // Attempt to fetch the deploy artifacts for the commit
     // These might take a moment to become available, so we'll retry a few times
+    const fetchHeaders = previewBuildsReadToken
+      ? { Authorization: `Bearer ${previewBuildsReadToken}` }
+      : undefined
     const fetchWithRetry = async (url, retries = 5, timeout = 5000) => {
       for (let i = 0; i < retries; i++) {
-        const res = await fetch(url)
+        const res = await fetch(url, { headers: fetchHeaders })
         if (res.ok) {
           return res
         } else if (i < retries - 1) {
@@ -152,6 +157,7 @@ async function main() {
         env: {
           ...process.env,
           NEXT_TEST_MODE: testMode,
+          NEXT_TEST_PREVIEW_BUILDS_BASE_URL: previewBuildsBaseUrl,
           NEXT_TEST_VERSION: nextTestVersion,
           IS_TURBOPACK_TEST: '1',
           TURBOPACK_BUILD: testMode === 'start' ? '1' : undefined,

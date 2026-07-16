@@ -9,7 +9,9 @@ async function main() {
     githubSha,
     githubHeadSha,
     tarballDirectory = path.join(os.tmpdir(), 'vercel-nextjs-preview-tarballs'),
+    baseUrlArg,
   ] = process.argv.slice(2)
+  const baseUrl = baseUrlArg || 'https://vercel-packages.vercel.app/next'
   const repoRoot = path.resolve(__dirname, '..')
 
   await fs.mkdir(tarballDirectory, { recursive: true })
@@ -103,13 +105,13 @@ async function main() {
   for (const packageInfo of packages) {
     packagesByVersion.set(
       packageInfo.name,
-      `https://vercel-packages.vercel.app/next/commits/${githubHeadSha}/${packageInfo.name}`
+      `${baseUrl}/commits/${githubHeadSha}/${packageInfo.name}`
     )
   }
   for (const nextSwcPackageName of nextSwcPackageNames) {
     packagesByVersion.set(
       nextSwcPackageName,
-      `https://vercel-packages.vercel.app/next/commits/${githubHeadSha}/${nextSwcPackageName}`
+      `${baseUrl}/commits/${githubHeadSha}/${nextSwcPackageName}`
     )
   }
 
