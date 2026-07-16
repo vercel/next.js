@@ -12,6 +12,11 @@ A [Next.js 16.3](https://nextjs.org/blog/next-16-3-instant-navigations) music pl
 
 ---
 
+> **This is a benchmark fixture.** A copy of NextBeats vendored into `bench/` as a
+> realistic render-pipeline target, adapted to build and run offline. For setup,
+> how to build and serve it, and what was changed from the original demo, see
+> [BENCH_NOTES.md](./BENCH_NOTES.md). The rest of this README describes the app itself.
+
 ## Features
 
 - **[Cache Components](https://preview.nextjs.org/docs/app/api-reference/config/next-config-js/cacheComponents)**: server caching with `'use cache'`, `cacheTag`, and `cacheLife`.
@@ -36,32 +41,17 @@ Prefetching only runs in production, so try these on the [live demo](https://nex
 
 ## Getting started
 
-NextBeats runs on Postgres. Set `DATABASE_URL` in `.env.local`, then:
-
-```bash
-pnpm install
-pnpm run prisma.push
-pnpm run prisma.seed
-pnpm run dev
-```
-
-<details>
-<summary>Run locally without Postgres</summary>
-
-Drop this prompt into your agent to swap the datasource for SQLite:
-
-> Set up NextBeats to run locally on SQLite instead of Postgres. Swap `provider = "postgresql"` to `provider = "sqlite"` in `prisma/schema.prisma`. Replace `@prisma/adapter-pg` with `@prisma/adapter-better-sqlite3` in `lib/db.ts` and `prisma/seed.ts`, using `new PrismaBetterSqlite3({ url })` where `url` is `process.env.DATABASE_URL` with the `file:` prefix stripped. Remove any `mode: 'insensitive'` Prisma filter options since SQLite doesn't support them. Install `@prisma/adapter-better-sqlite3` and `better-sqlite3`, uninstall `@prisma/adapter-pg`, `pg`, and `@types/pg`. Write `DATABASE_URL=file:./prisma/dev.db` to `.env.local`.
-
-The schema is otherwise identical, so the rest of the app behaves the same as production.
-
-</details>
+This vendored copy runs offline on a committed, seeded SQLite database, so no
+`DATABASE_URL` or external service is needed. See
+[BENCH_NOTES.md](./BENCH_NOTES.md) for the build and serve steps. The
+[live demo](https://next-beats.dev) runs the original Postgres-backed version.
 
 ## Stack
 
 - **[Next.js 16.3](https://nextjs.org/)**: App Router, Cache Components, Server Functions
 - **[React 19](https://react.dev/)** with React Compiler: Suspense, View Transitions, `useOptimistic`
 - **[TypeScript](https://www.typescriptlang.org/)** and **[Tailwind CSS v4](https://tailwindcss.com/)**
-- **[Prisma 7](https://www.prisma.io/)** on PostgreSQL
+- **[Prisma 7](https://www.prisma.io/)** on SQLite (committed seeded `prisma/dev.db`)
 - **[Web Audio API](https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API)** for procedural per-genre synthesis
 
 ## License

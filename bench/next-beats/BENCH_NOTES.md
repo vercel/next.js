@@ -44,7 +44,20 @@ node ../../packages/next/dist/bin/next build
 node ../../packages/next/dist/bin/next start -p 3123
 ```
 
-Representative routes are listed in `routes.json`.
+Representative routes are listed in `routes.json`. The `bench:render-pipeline`
+harness does not read that file, so pass them explicitly with `--routes` (see the
+invocation at the end of this doc); the list here is the source to copy from.
+
+## Determinism
+
+Rendered output is byte-stable across GET requests: all data comes from the
+committed, seeded `prisma/dev.db`, and no Server Component renders wall-clock or
+relative time (the only `Date.now()` is client-side audio scheduling). This keeps
+A/B payload comparisons free of data noise.
+
+The one mutation path is `POST /api/play`, which increments `playCount` and
+writes `lastPlayedAt`. It is intentionally excluded from `routes.json`; keep it
+out of stress runs (or reset the DB afterward) so payloads don't drift mid-run.
 
 ## Two caveats for wiring into `bench:render-pipeline`
 
