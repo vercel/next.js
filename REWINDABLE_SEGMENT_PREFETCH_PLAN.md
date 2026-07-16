@@ -3,12 +3,17 @@
 > Handoff planning doc. Self-contained — assumes no prior conversation context.
 > Written for a fresh session to start implementing from.
 
+## STATUS: IMPLEMENTED (see "Implementation notes" at the bottom)
+
+All phases below are done on this branch. The "Implementation notes" section
+records how the open questions were resolved and where the plan was refined.
+
 ## TL;DR
 
 Give each per-segment prefetch response a **shell byte boundary** — a segment-level
 analogue of the whole-route `a` field — so the client can truncate a segment's
 buffered response and re-decode the prefix into an **intra-segment shell variant**
-(the param-dependent content *within* a single segment reduced to `Fallback`). This
+(the param-dependent content _within_ a single segment reduced to `Fallback`). This
 mirrors, at the segment grain, the shell-extraction the whole-route/navigation path
 already does via `resolveShellStageData` + `decodeStageUntilBoundary`.
 
@@ -30,17 +35,17 @@ The load-bearing difficulty lives in
 
 ## Scope (confirmed with the user)
 
-- **In scope:** the *capability* to extract a shell from a static PPR per-segment
+- **In scope:** the _capability_ to extract a shell from a static PPR per-segment
   prefetch — i.e. produce the per-segment boundary on the server and a decode path
   on the client.
 - **Out of scope:** wiring the derived shell to any consumer. In particular, ignore
   the shell-restricted-navigation / navigation-testing-lock work
   (`shouldRestrictNavigationToShell`, `getShellSegmentVaryPath`) — that was a
-  *separate* task this was split off from. We are not replacing the runtime shell
+  _separate_ task this was split off from. We are not replacing the runtime shell
   render (`FetchStrategy.RuntimeShell`); we are adding a static-derived shell.
 - **Chosen definition of "shell":** option **B — intra-segment byte prefix.** A
   segment's shell is that segment's own output with its param-dependent parts
-  reduced to `Fallback`, expressed as a decodable *prefix* of the segment's
+  reduced to `Fallback`, expressed as a decodable _prefix_ of the segment's
   serialized bytes. (The rejected alternative, option A, was whole-segment grain:
   "a segment is either entirely shell or not," reusing the existing `varyParams`
   signal. The user explicitly wants intra-segment prefixes — that is the point of
@@ -51,7 +56,8 @@ The load-bearing difficulty lives in
 Verified in canary. Symbol names are the reliable anchors (line numbers drift).
 
 **Server** (`packages/next/src/server/app-render/app-render.tsx`):
-- The page render is *staged* via `StagedRenderingController`
+
+- The page render is _staged_ via `StagedRenderingController`
   (`packages/next/src/server/app-render/staged-rendering.ts`). Content serializes in
   temporal stage order: `ShellStatic` → `Static` → `Dynamic`, where the `Shell*`
   stages are the param-independent App Shell.
@@ -62,12 +68,13 @@ Verified in canary. Symbol names are the reliable anchors (line numbers drift).
   and attributes each chunk's byte length to `stageController.currentStage` (and all
   later stages, since later stages include earlier). The stage is advanced in
   lockstep by `runInSequentialTasks(() => advanceStage(ShellStatic), () =>
-  advanceStage(Static), ..., () => advanceStage(Dynamic))`.
+advanceStage(Static), ..., () => advanceStage(Dynamic))`.
 - Cumulative bytes at end-of-`ShellStatic` resolve the response's **`a`** field;
   end-of-`Static` resolves **`l`**. `a` may resolve to `null`, meaning "shell ==
   full response" (no separate prefix).
 
 **Client** (`packages/next/src/client/components/router-reducer/fetch-server-response.ts`):
+
 - `resolveShellStageData(cacheData, flightResponse, headers)`: if `flightResponse.a`
   is a number, truncate `cacheData.shellBodyClone` at that byte offset and decode the
   prefix. `a === undefined` → server emitted nothing; `a === null` → shell == full.
@@ -88,6 +95,7 @@ Field type decls: `NavigationFlightResponse` / `InitialRSCPayload` in
 ## The crux (why this is hard for segments)
 
 `collect-segment-data.tsx` does **not** stage. Flow today:
+
 1. `collectSegmentData(...)` (exported; called from `app-render.tsx` via
    `ComponentMod.collectSegmentData`) receives only the final whole-page Flight
    buffer `fullPageDataBuffer` (params already **concrete**), warms the module cache
@@ -99,16 +107,16 @@ Field type decls: `NavigationFlightResponse` / `InitialRSCPayload` in
    a single prelude stream, and drains it into **one `Buffer`** via `streamToBuffer`.
    The abort controller fires after `waitAtLeastOneReactRenderTask()` (one microtask);
    anything not yet emitted is dynamic and encoded as never-resolving references via
-   `createUnclosingPrefetchStream`. `isPartial` is detected by a *separate*
+   `createUnclosingPrefetchStream`. `isPartial` is detected by a _separate_
    abort-on-microtask prerender in `isPartialRSCData`.
 3. Results collected into `Map<SegmentRequestKey, Buffer>`, including special keys
    `/_tree`, `/_full`, `/_index`. Inlined ancestor segments are carried on a
    `SegmentBundleNode` linked list and flattened into `data[]` at serialization time.
 
 Because the re-encode works from **decoded concrete data**, the shell/static layering
-that the *source* render produced is already collapsed. A naive re-encode therefore
+that the _source_ render produced is already collapsed. A naive re-encode therefore
 **cannot** yield a shell prefix — the prefix property is a product of React PPR staged
-rendering of *source* components, not recoverable from decoded concrete values.
+rendering of _source_ components, not recoverable from decoded concrete values.
 `collectSegmentData` also runs in **both build and edge runtimes**
 (`process.env.NEXT_RUNTIME === 'edge'` is checked at its call site in `app-render.tsx`).
 
@@ -124,9 +132,10 @@ shell byte length** into `collectSegmentData`, it can decode the page buffer **t
 
 Walking both decoded trees in parallel gives, per segment, both a `concreteRsc` and a
 `shellRsc`, using only existing primitives (`streamFromBuffer` + `subarray`/truncation
-+ `createFromReadableStream`).
 
-The remaining open risk is re-emitting, **per segment**, a *single* Flight stream
+- `createFromReadableStream`).
+
+The remaining open risk is re-emitting, **per segment**, a _single_ Flight stream
 whose first `a_seg` bytes decode to `shellRsc` and whose full bytes decode to
 `concreteRsc`.
 
@@ -144,7 +153,7 @@ Candidate techniques, in order of preference:
    `StagedRenderingController` + replayable clone + `countShellAndStaticStageBytes`,
    using a wrapper node that yields `shellRsc` during `ShellStatic` and upgrades to
    `concreteRsc` during `Static` — analogous to the `useDeferredValue(dynamic,
-   static)` override the segment cache already relies on. Record the `ShellStatic`
+static)` override the segment cache already relies on. Record the `ShellStatic`
    byte length as `a_seg`.
    - Note the edge constraint: `ReplayableNodeStream` throws on edge. Segments are
      already `Buffer`s, so use buffer-based cloning, not a Node tee.
@@ -160,12 +169,12 @@ still correct. Prototype with a single simple dynamic-param route.
 ### Phase 1 — server plumbing (after Phase 0 picks a technique)
 
 - Thread the **page shell byte length** into `collectSegmentData`.
-  - OPEN: confirm it is available at the call site. The *streamed response* render
+  - OPEN: confirm it is available at the call site. The _streamed response_ render
     computes it as `shellByteLengthDeferred` and attaches it as `a`. The
     prerender/build path that produces `fullPageDataBuffer` (feeding
     `collectSegmentData`) needs checking — it may already be computed and just needs
     passing through, or may need to be captured/stored. Since `a` is a byte offset
-    *into the whole-page buffer* and `collectSegmentData` already has that buffer,
+    _into the whole-page buffer_ and `collectSegmentData` already has that buffer,
     passing the single number is sufficient (truncate + decode locally).
 - Double-decode the page buffer (full + truncated-at-page-`a`). Walk the shell and
   concrete trees in parallel with the existing `FlightRouterState` / `CacheNodeSeedData`
@@ -271,3 +280,113 @@ still correct. Prototype with a single simple dynamic-param route.
 3. Start Phase 0 as a throwaway spike on one dynamic-param route: get `shellRsc` +
    `concreteRsc` per segment (double-decode via page `a`), then try technique (1) and
    check the exit criteria before building anything durable.
+
+## Implementation notes (written after implementing)
+
+### How the open questions resolved
+
+1. **Phase 0 technique.** A refinement of technique (1) worked, with less
+   machinery than a `StagedRenderingController`: a **gated decode**. Each
+   segment response performs its own extra decode of the page buffer through a
+   stream that enqueues the first `pageShellByteLength` bytes immediately and
+   the remainder only when a gate promise resolves (never closing, like
+   `createUnclosingPrefetchStream`). The decoded per-segment `rsc` then has
+   pending references (React Lazy at ReactNode positions) exactly at the
+   param-dependent holes. Serializing the response while gated emits the shell
+   rows; releasing the gate makes the concrete rows flow into the same stream.
+   No tree splicing or `useDeferredValue`-style wrapper needed — the decode
+   itself is the staging mechanism.
+
+   Byte measurement can NOT use `prerender`: its prelude only becomes readable
+   after the render completes/aborts (verified in the vendored build — the
+   promise resolves in the all-ready callback). So the boundary render uses the
+   streaming `renderToReadableStream` (imported from
+   `react-server-dom-webpack/server`, works in node + edge; the build
+   prerender itself uses it via `ComponentMod.renderToReadableStream`), with
+   task choreography: start render + count consumed bytes → **wait until the
+   stream is quiet** (two consecutive tasks with no new bytes) → snapshot
+   `a_seg`, resolve the payload's `a` promise, release the gate → wait until
+   quiet again → abort and **drop post-abort chunks** (the same halt
+   simulation the page render uses for `flightData`; render-mode abort emits
+   error rows, prerender-mode halt emits nothing — verified). Quiescence
+   rather than a fixed task count is load-bearing: each wave can need
+   multiple rounds because re-rendering pinged tasks can outline further
+   nested lazy references from the decode, one round per nesting level — a
+   fixed window truncated deep trees (caught by segment-cache/
+   prefetch-inlining "hints are based on concrete params"). Attribution can
+   only under-count the shell (safe direction): the concrete wave physically
+   cannot start before the gate is released, which happens after the
+   snapshot.
+
+2. **Page shell byte length at the call site.** Available at the staged
+   build-time path in `app-render.tsx`: captured where
+   `shellByteLengthDeferred` is resolved (the `collectedChunksByStage.
+shellStaticChunks` byte sum when `didLinkDataUnblockNewContent`, else
+   null). `shellStaticChunks` is a strict byte prefix of the full flight
+   buffer (the stage accumulator appends each chunk to all stages >= current).
+   The three legacy `collectSegmentData` call sites (non-staged PPR, legacy
+   prerender, error page) pass `undefined` → no `a` emitted there. The
+   `cachedNavigations` marker byte is stripped before `collectSegmentData`, so
+   the offset needs no adjustment.
+
+3. **Boundary granularity: per-response.** A single stream has a single
+   truncation point; all bundled elements share the gate and go shell-form
+   together. Per-element boundaries are meaningless for one stream. The `a`
+   field lives on `SegmentPrefetchResponse`, typed like the route-level one
+   (`a?: Promise<number | null>`; null = shell == full response, undefined =
+   server didn't emit).
+
+4. **Client capability.** `createNonTaskyPrefetchResponseStream` already
+   buffers the whole response into one contiguous `Uint8Array`; it now also
+   returns that buffer, which doubles as the rewindable clone (no tee needed).
+   `resolveSegmentShellResponse(responseBuffer, serverResponse, headers)` in
+   `segment-cache/cache.ts` mirrors `resolveShellStageData` (undefined/null/
+   covers-whole-response → null, number → re-decode the subarray prefix as a
+   single chunk with `allowPartialStream`). `fetchSegmentsOnCacheMissImpl`
+   returns `responseBuffer` so a future consumer has it at the decision point.
+   Nothing is wired into navigation.
+
+### Safety properties / degraded modes
+
+- Navigation of the gated (shell-form) tree is **synchronous-only**: it
+  follows the same parallel-route-key path used by the concrete walk
+  (`SegmentSeedPath`, threaded through the traversal and `SegmentBundleNode`;
+  `'head'` addresses the head). If any element's path hits a pending thenable
+  or a mismatch, the whole response falls back to the legacy `prerender` path
+  with no `a` — every emitted response is either boundary-enhanced or exactly
+  as before. (Holes at ReactNode positions decode as React Lazy and pass
+  through fine; only holes at data positions — seed tuples/children maps —
+  trigger the bail, so the common cases all get boundaries.)
+- The gated decode root is raced against one render task and errors are
+  caught → bail to legacy path; a malformed prefix can't hang the build.
+- `isPartial`, `varyParams`, `staleTime` are always computed from the
+  concrete decode, as before.
+- `collectPrefetchHints` (size pass) passes no boundary → byte-identical
+  behavior to before.
+- `/_tree` unchanged; `/_full` already carries the page-level `a`; `/_index`
+  gets a boundary like any segment; the page-level `/_shell` special key is
+  unrelated and unchanged.
+
+### Verified
+
+- Types pass; fixture build (cache components, turbopack) emits, for a
+  param-reading page: envelope `"a":"$@f"`, boundary row `f:<offset>` exactly
+  on a row edge, all param-independent content (page static content, layouts,
+  Suspense fallback, bundled head) before the boundary, the param row after
+  it; static routes resolve `a` → null; ISR fallback-shell renders resolve
+  `a` → null (they are already shells; params never unblocked content).
+- New e2e: `test/e2e/app-dir/segment-prefetch-shell-boundary` (start mode).
+- Regression suites run in start mode: segment-cache `basic`,
+  `prefetch-inlining`, `prefetch-app-shell`.
+
+### Possible follow-ups (not in scope)
+
+- One gated decode per response is O(responses × page size) per
+  build/revalidation of a param-varying route. Could be optimized to a single
+  shared gated decode with a barrier that releases the gate after every
+  response has snapshotted its boundary.
+- The deferred-concrete fallback (serialize concrete data gated behind the
+  gate promise when the shell tree can't be navigated) was considered and
+  rejected for now because it changes the decoded shape of `rsc` to a promise.
+- A dev-mode assertion that decodes the truncated prefix server-side and
+  verifies it resolves.

@@ -21,6 +21,8 @@ import type { ManifestNode } from '../../build/webpack/plugins/flight-manifest-p
 import { createFromReadableStream } from 'react-server-dom-webpack/client'
 // eslint-disable-next-line import/no-extraneous-dependencies
 import { prerender } from 'react-server-dom-webpack/static'
+// eslint-disable-next-line import/no-extraneous-dependencies
+import { renderToReadableStream } from 'react-server-dom-webpack/server'
 
 import {
   streamFromBuffer,
@@ -28,6 +30,8 @@ import {
 } from '../stream-utils/node-web-streams-helper'
 import { PAGE_SEGMENT_KEY } from '../../shared/lib/segment'
 import { waitAtLeastOneReactRenderTask } from '../../lib/scheduler'
+import { createPromiseWithResolvers } from '../../shared/lib/promise-with-resolvers'
+import { isThenable } from '../../shared/lib/is-thenable'
 import {
   type SegmentRequestKey,
   createSegmentRequestKeyPart,
@@ -107,6 +111,19 @@ export type SegmentPrefetchResponse = {
    * more complete *static* version may become available.
    */
   isUpgradeableISRFallback: boolean
+  /**
+   * Shell byte boundary for this response — the segment-level analogue of the
+   * `a` field on the route-level response. Resolves to the byte offset such
+   * that truncating the response body at that offset and re-decoding the
+   * prefix yields a shell variant of every segment in the response: the
+   * segment's own output with its param-dependent content reduced to pending
+   * references (which suspend, i.e. render as the param fallback).
+   *
+   * Only emitted for pages rendered with staged rendering (appShells).
+   * Resolves to null when the shell is identical to the full response, in
+   * which case no separate decode is needed.
+   */
+  a?: Promise<number | null>
 }
 
 export type SegmentPrefetch = {
@@ -134,7 +151,35 @@ export type SegmentPrefetch = {
 type SegmentBundleNode = {
   rsc: React.ReactNode
   varyParams: Set<string> | null
+  seedPath: SegmentSeedPath
   next: SegmentBundleNode | null
+}
+
+/**
+ * Identifies a segment's position in the page payload: the chain of parallel
+ * route keys leading to its CacheNodeSeedData, or 'head' for the head. Used
+ * to locate the segment's data in a second, shell-truncated decode of the
+ * page buffer. That tree can't be walked ahead of time alongside the main
+ * traversal because each response performs its own gated decode (see
+ * renderSegmentPrefetchWithShellBoundary), so segments are addressed by path
+ * instead of by value.
+ */
+type SegmentSeedPath = readonly string[] | 'head'
+
+/**
+ * Everything needed to derive per-segment shell byte boundaries from the
+ * whole-page Flight buffer. Only available when the page was produced by
+ * staged rendering (appShells). `pageShellByteLength` is the page-level shell
+ * boundary — the same value the route-level `a` field resolves to; the first
+ * `pageShellByteLength` bytes of `fullPageDataBuffer` decode to the shell
+ * variant of the page. null means the page's shell is identical to its full
+ * static response (route-level `a: null`), and therefore the same is true of
+ * every segment.
+ */
+type ShellBoundaryContext = {
+  pageShellByteLength: number | null
+  fullPageDataBuffer: Buffer
+  serverConsumerManifest: any
 }
 
 const filterStackFrame =
@@ -201,9 +246,20 @@ export async function collectSegmentData(
   serverConsumerManifest: any,
   prefetchInlining: boolean,
   hints: PrefetchHints | null,
-  isUpgradeableISRFallback: boolean
+  isUpgradeableISRFallback: boolean,
+  // The page-level shell byte boundary, when the page was produced by staged
+  // rendering: a byte offset into fullPageDataBuffer, or null if the page's
+  // shell is identical to its full static response. undefined when the render
+  // wasn't staged (no shell exists), in which case segment responses don't
+  // get a shell boundary.
+  pageShellByteLength?: number | null
 ): Promise<Map<SegmentRequestKey, Buffer>> {
   // Traverse the router tree and generate a prefetch response for each segment.
+
+  const shellBoundary: ShellBoundaryContext | null =
+    pageShellByteLength !== undefined
+      ? { pageShellByteLength, fullPageDataBuffer, serverConsumerManifest }
+      : null
 
   // A mutable map to collect the results as we traverse the route tree.
   const resultMap = new Map<SegmentRequestKey, Buffer>()
@@ -252,6 +308,7 @@ export async function collectSegmentData(
       prefetchInlining={prefetchInlining}
       hints={hints}
       isUpgradeableISRFallback={isUpgradeableISRFallback}
+      shellBoundary={shellBoundary}
     />,
     clientModules,
     {
@@ -361,7 +418,11 @@ export async function collectPrefetchHints(
     null,
     // This pass only measures gzip sizes for inlining hints; fallback-ness
     // doesn't affect size, so pass false.
-    false
+    false,
+    'head',
+    // No shell boundary in the size-measurement pass — a shell prefix
+    // wouldn't meaningfully change the gzip size.
+    null
   )
   const headGzipSize = await getGzipSize(headBuffer)
 
@@ -476,7 +537,11 @@ async function collectPrefetchHintsImpl(
       clientModules,
       null,
       // Size-measurement pass only; fallback-ness is irrelevant here.
-      false
+      false,
+      // The seed path is only used when a shell boundary is requested, which
+      // this pass never does.
+      [],
+      null
     )
     currentGzipSize = await getGzipSize(buffer)
   }
@@ -694,6 +759,7 @@ async function PrefetchTreeData({
   prefetchInlining,
   hints,
   isUpgradeableISRFallback,
+  shellBoundary,
 }: {
   isClientParamParsingEnabled: boolean
   fullPageDataBuffer: Buffer
@@ -705,6 +771,7 @@ async function PrefetchTreeData({
   prefetchInlining: boolean
   hints: PrefetchHints | null
   isUpgradeableISRFallback: boolean
+  shellBoundary: ShellBoundaryContext | null
 }): Promise<RootTreePrefetch | null> {
   // We're currently rendering a Flight response for the route tree prefetch.
   // Inside this component, decode the Flight stream for the whole page. This is
@@ -749,7 +816,7 @@ async function PrefetchTreeData({
   // each segment. When prefetch inlining is enabled, small segments are bundled
   // into their children's responses based on the hint bits.
   const headBundle: SegmentBundleNode | null = headIsInlined
-    ? { rsc: head, varyParams: headVaryParams, next: null }
+    ? { rsc: head, varyParams: headVaryParams, seedPath: 'head', next: null }
     : null
   const tree = collectSegmentDataImpl(
     isClientParamParsingEnabled,
@@ -765,7 +832,9 @@ async function PrefetchTreeData({
     null,
     headBundle,
     rootVaryParamsIterable,
-    isUpgradeableISRFallback
+    isUpgradeableISRFallback,
+    [],
+    shellBoundary
   )
 
   // Spawn a task to produce a prefetch response for the "head" segment,
@@ -781,7 +850,9 @@ async function PrefetchTreeData({
           headVaryParams,
           clientModules,
           null,
-          isUpgradeableISRFallback
+          isUpgradeableISRFallback,
+          'head',
+          shellBoundary
         )
       )
     )
@@ -817,7 +888,9 @@ function collectSegmentDataImpl(
   parentBundle: SegmentBundleNode | null,
   headBundle: SegmentBundleNode | null,
   rootVaryParamsIterable: VaryParamsIterable | null,
-  isUpgradeableISRFallback: boolean
+  isUpgradeableISRFallback: boolean,
+  seedPath: readonly string[],
+  shellBoundary: ShellBoundaryContext | null
 ): TreePrefetch {
   // Union the hints already embedded in the FlightRouterState with the
   // separately-computed build-time hints. During the initial build, the
@@ -863,6 +936,7 @@ function collectSegmentDataImpl(
       childBundle = {
         rsc,
         varyParams,
+        seedPath,
         next: parentBundle,
       }
     }
@@ -895,7 +969,9 @@ function collectSegmentDataImpl(
             varyParams,
             clientModules,
             bundle,
-            isUpgradeableISRFallback
+            isUpgradeableISRFallback,
+            seedPath,
+            shellBoundary
           )
         )
       )
@@ -940,7 +1016,9 @@ function collectSegmentDataImpl(
       childBundle,
       headBundle,
       rootVaryParamsIterable,
-      isUpgradeableISRFallback
+      isUpgradeableISRFallback,
+      [...seedPath, parallelRouteKey],
+      shellBoundary
     )
     if (slotMetadata === null) {
       slotMetadata = {}
@@ -983,7 +1061,9 @@ async function renderSegmentPrefetch(
   varyParams: Set<string> | null,
   clientModules: ManifestNode,
   bundle: SegmentBundleNode | null,
-  isUpgradeableISRFallback: boolean
+  isUpgradeableISRFallback: boolean,
+  seedPath: SegmentSeedPath,
+  shellBoundary: ShellBoundaryContext | null
 ): Promise<[SegmentRequestKey, Buffer]> {
   // Build the SegmentPrefetch for the terminal (requested) segment.
   // The terminal always has non-null rsc data — disabled segments are
@@ -995,8 +1075,12 @@ async function renderSegmentPrefetch(
     varyParams,
   }
 
-  // Build the data array. Always an array, even for a single segment.
+  // Build the data array. Always an array, even for a single segment. Track
+  // each element's seed path in a parallel array; the shell boundary render
+  // uses it to locate the same segments in a shell-truncated decode of the
+  // page buffer.
   const data: Array<SegmentPrefetch | null> = [selfPrefetch]
+  const seedPaths: Array<SegmentSeedPath | null> = [seedPath]
   if (bundle !== null) {
     // Walk the bundle linked list and append each entry to the array.
     let node: SegmentBundleNode | null = bundle
@@ -1008,15 +1092,45 @@ async function renderSegmentPrefetch(
           staleTime,
           varyParams: node.varyParams,
         })
+        seedPaths.push(node.seedPath)
       } else {
         // This segment has static prefetching disabled (runtime prefetch
         // or instant = false). Emit null as a placeholder so the array
         // indices stay aligned with the client's SegmentBundle linked
         // list. The client will skip creating a cache entry for this slot.
         data.push(null)
+        seedPaths.push(null)
       }
       node = node.next
     }
+  }
+
+  const responseKey =
+    requestKey === ROOT_SEGMENT_REQUEST_KEY
+      ? ('/_index' as SegmentRequestKey)
+      : requestKey
+
+  if (shellBoundary !== null && shellBoundary.pageShellByteLength !== null) {
+    // The page has a shell that is a strict byte prefix of its static
+    // response. Derive a per-response shell boundary by re-encoding the
+    // segment data in two waves — shell content first, then the
+    // param-dependent remainder — and measuring the boundary between them.
+    const segmentBuffer = await renderSegmentPrefetchWithShellBoundary(
+      buildId,
+      data,
+      seedPaths,
+      clientModules,
+      isUpgradeableISRFallback,
+      shellBoundary.fullPageDataBuffer,
+      shellBoundary.pageShellByteLength,
+      shellBoundary.serverConsumerManifest
+    )
+    if (segmentBuffer !== null) {
+      return [responseKey, segmentBuffer]
+    }
+    // The shell-truncated decode didn't pan out (e.g. this segment's data
+    // isn't reachable in the page's shell prefix). Fall through and emit a
+    // regular response with no shell boundary.
   }
 
   // Wrap in the response envelope with the build ID at the top level.
@@ -1027,6 +1141,12 @@ async function renderSegmentPrefetch(
     buildId: buildId ?? '',
     data,
     isUpgradeableISRFallback,
+  }
+  if (shellBoundary !== null && shellBoundary.pageShellByteLength === null) {
+    // The page's shell is identical to its full static response, so the same
+    // is true of every segment: the shell variant of this response is the
+    // response itself. Mirrors `a: null` on the route-level response.
+    payload.a = Promise.resolve(null)
   }
   // Since all we're doing is decoding and re-encoding a cached prerender, if
   // it takes longer than a microtask, it must because of hanging promises
@@ -1039,11 +1159,301 @@ async function renderSegmentPrefetch(
     onError: onSegmentPrerenderError,
   })
   const segmentBuffer = await streamToBuffer(segmentStream)
-  if (requestKey === ROOT_SEGMENT_REQUEST_KEY) {
-    return ['/_index' as SegmentRequestKey, segmentBuffer]
-  } else {
-    return [requestKey, segmentBuffer]
+  return [responseKey, segmentBuffer]
+}
+
+/**
+ * Renders a segment prefetch response with an embedded shell byte boundary
+ * (the `a` field): a byte offset such that truncating the response body at
+ * that offset and re-decoding the prefix yields a shell variant of every
+ * segment in the response — the output those segments would have produced
+ * had the route's params been unknown. This mirrors, per segment response,
+ * the route-level `a` field produced by staged rendering.
+ *
+ * The shell layering of the original staged page render is not recoverable
+ * from the decoded concrete values that collectSegmentData normally works
+ * with — it's a temporal property of the page stream, already collapsed by
+ * the time the stream is decoded. But the page buffer's own shell boundary
+ * preserves it: the first `pageShellByteLength` bytes decode to a shell-form
+ * payload in which each segment's param-dependent content is reified as
+ * references that stay pending until more of the stream arrives.
+ *
+ * So the page buffer is decoded again through a gate: the shell prefix is
+ * released immediately, the remainder only after the segment's shell content
+ * has been serialized and measured. Re-encoding the gated tree emits the
+ * response in two waves — first the shell rows, with param-dependent
+ * references still pending, then, once the gate is released, the rows those
+ * references resolve to. The byte count at the moment the gate is released
+ * is the response's shell boundary.
+ *
+ * This uses the streaming Flight renderer rather than `prerender` because the
+ * boundary must be observed while the stream is being emitted, and
+ * `prerender` only exposes its prelude after the render has finished.
+ * Aborting the streaming renderer emits error rows for still-pending
+ * references, so chunks that arrive after the abort are discarded — the same
+ * way the page render halts the stream it stores as `flightData`. A dropped
+ * row reads as a reference that never resolves, which is exactly how
+ * prefetch responses encode dynamic holes.
+ *
+ * Returns null if the segment data can't be located in the shell-form decode;
+ * the caller falls back to a regular response with no shell boundary.
+ */
+async function renderSegmentPrefetchWithShellBoundary(
+  buildId: string | undefined,
+  data: Array<SegmentPrefetch | null>,
+  seedPaths: Array<SegmentSeedPath | null>,
+  clientModules: ManifestNode,
+  isUpgradeableISRFallback: boolean,
+  fullPageDataBuffer: Buffer,
+  pageShellByteLength: number,
+  serverConsumerManifest: any
+): Promise<Buffer | null> {
+  // Decode the page buffer through a gate: the shell prefix immediately, the
+  // remainder when the gate is released.
+  const gate = createPromiseWithResolvers<void>()
+  const gatedStream = new ReadableStream<Uint8Array>({
+    async start(controller) {
+      controller.enqueue(fullPageDataBuffer.subarray(0, pageShellByteLength))
+      await gate.promise
+      controller.enqueue(fullPageDataBuffer.subarray(pageShellByteLength))
+      // Intentionally never closed, for the same reason as
+      // createUnclosingPrefetchStream: the page stream may contain references
+      // that never resolve (dynamic holes), and Flight errors if the stream
+      // closes before all references are resolved.
+    },
+  })
+
+  let gatedPayload: InitialRSCPayload | null = null
+  try {
+    const gatedPayloadPromise: Promise<InitialRSCPayload> =
+      createFromReadableStream(gatedStream, {
+        findSourceMapURL,
+        serverConsumerManifest,
+      })
+    // If we bail out below, the decode may reject later (e.g. on a malformed
+    // prefix); that's not actionable at that point.
+    gatedPayloadPromise.catch(() => {})
+    gatedPayload = await Promise.race([
+      gatedPayloadPromise,
+      // The shell prefix is a fully buffered payload and the module cache is
+      // already warm, so the root of the decoded tree resolves within a
+      // microtask. If it hasn't resolved within a task, the prefix must not
+      // contain the root row; bail out rather than risk hanging.
+      waitAtLeastOneReactRenderTask().then(() => null),
+    ])
+  } catch {
+    gatedPayload = null
   }
+  if (gatedPayload === null) {
+    gate.resolve()
+    return null
+  }
+
+  // Substitute each segment's concrete data with its shell-form counterpart.
+  // The shell-form values contain the same content, but everything that was
+  // serialized after the page's shell boundary is a pending reference that
+  // resolves only once the gate is released.
+  const gatedData: Array<SegmentPrefetch | null> = []
+  for (let i = 0; i < data.length; i++) {
+    const element = data[i]
+    const elementSeedPath = seedPaths[i]
+    if (element === null || elementSeedPath === null) {
+      gatedData.push(null)
+      continue
+    }
+    const gatedRsc = readGatedSegmentData(gatedPayload, elementSeedPath)
+    if (gatedRsc === undefined) {
+      // This segment's data isn't synchronously reachable in the shell-form
+      // tree. Re-encoding an asynchronous replacement would change the shape
+      // of the decoded response (e.g. `rsc` would decode to a promise), so
+      // bail out and let the caller emit a regular response instead.
+      gate.resolve()
+      return null
+    }
+    // Everything except the rsc data (isPartial, varyParams) describes the
+    // full response and is copied from the concrete data — it must not
+    // depend on the gated decode, whose iterables/thenables are pending.
+    gatedData.push({ ...element, rsc: gatedRsc })
+  }
+
+  // The boundary can't be known until the shell wave has been measured, so
+  // like the route-level `a`, it's serialized as a promise and resolved
+  // mid-stream. Its row is emitted after the boundary, as part of the
+  // concrete wave; a client decoding the truncated prefix sees it as pending.
+  const boundary = createPromiseWithResolvers<number | null>()
+  const payload: SegmentPrefetchResponse = {
+    buildId: buildId ?? '',
+    data: gatedData,
+    isUpgradeableISRFallback,
+    a: boundary.promise,
+  }
+
+  const abortController = new AbortController()
+  const segmentStream: ReadableStream<Uint8Array> = renderToReadableStream(
+    payload,
+    clientModules,
+    {
+      filterStackFrame,
+      signal: abortController.signal,
+      onError(error: unknown) {
+        if (abortController.signal.aborted) {
+          // Expected: aborting the render "errors" every reference that is
+          // still pending, i.e. the dynamic holes. The corresponding error
+          // rows are discarded below.
+          return undefined
+        }
+        return onSegmentPrerenderError(error)
+      },
+    }
+  )
+
+  // Consume the stream as it's emitted, counting the bytes of the shell wave.
+  // Because reads settle within a microtask of each enqueue and the waves are
+  // separated by task boundaries, every chunk is attributed to the wave that
+  // emitted it. (If a read were ever delayed past the boundary, the chunk
+  // would be attributed to the concrete wave — which under-counts the shell,
+  // a safe direction: the truncated prefix just resolves less content. The
+  // boundary can never over-count, because the concrete wave doesn't start
+  // until the gate is released, after the boundary is measured.)
+  const reader = segmentStream.getReader()
+  const chunks: Uint8Array[] = []
+  let totalByteLength = 0
+  let shellByteLength = 0
+  let isShellWave = true
+  let fatalError: unknown = null
+  const consumePromise = (async () => {
+    try {
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) {
+          break
+        }
+        if (abortController.signal.aborted) {
+          // Discard the error rows emitted by the abort. This matches the
+          // halting behavior of `prerender`, which emits nothing for tasks
+          // that are still pending when it's aborted.
+          continue
+        }
+        chunks.push(value)
+        totalByteLength += value.byteLength
+        if (isShellWave) {
+          shellByteLength += value.byteLength
+        }
+      }
+    } catch (err) {
+      if (!abortController.signal.aborted) {
+        fatalError = err
+      }
+    }
+  })()
+
+  // Each wave can need multiple render tasks to serialize: resolving decoded
+  // data pings the renderer's pending tasks, and re-rendering those can
+  // outline further references (nested lazy nodes from the decode), each of
+  // which needs another round. The number of rounds is bounded by the nesting
+  // depth of the decoded tree, so rather than guess, wait until the stream
+  // goes quiet: proceed only after two consecutive tasks with no new bytes.
+  // (Two, not one, to be robust to the renderer and the stream plumbing
+  // scheduling work with different task primitives.) References that are
+  // still pending once the stream is quiet can't make progress — during the
+  // shell wave that's everything behind the gate, and during the concrete
+  // wave it's the truly-dynamic holes.
+  const waitUntilStreamIsQuiet = async () => {
+    let quietTasks = 0
+    let previousByteLength = totalByteLength
+    while (quietTasks < 2) {
+      await waitAtLeastOneReactRenderTask()
+      if (totalByteLength === previousByteLength) {
+        quietTasks++
+      } else {
+        quietTasks = 0
+        previousByteLength = totalByteLength
+      }
+    }
+  }
+
+  await waitUntilStreamIsQuiet()
+  isShellWave = false
+  boundary.resolve(shellByteLength)
+  gate.resolve()
+  await waitUntilStreamIsQuiet()
+  abortController.abort()
+
+  // The renderer closes the stream after flushing the abort error rows. Don't
+  // rely on it: if the stream hasn't closed within a task, cancel the reader.
+  const consumed = await Promise.race([
+    consumePromise.then(() => true),
+    waitAtLeastOneReactRenderTask().then(() => false),
+  ])
+  if (!consumed) {
+    try {
+      await reader.cancel()
+    } catch {}
+    await consumePromise
+  }
+
+  if (fatalError !== null) {
+    // The streaming render failed before it was aborted. Surface the error —
+    // the regular path would have failed the same way.
+    throw fatalError
+  }
+
+  return Buffer.concat(chunks)
+}
+
+/**
+ * Reads a segment's data from the shell-form decode of the page payload by
+ * following the same path used to reach it in the concrete decode. Returns
+ * undefined if the path can't be followed synchronously — either it doesn't
+ * exist in the shell-form tree, or part of it was serialized after the page's
+ * shell boundary and is still a pending reference. (Holes at ReactNode
+ * positions don't cause this: those decode to React Lazy nodes, which pass
+ * through as regular values and re-encode as pending references, exactly the
+ * shape the shell variant needs.)
+ */
+function readGatedSegmentData(
+  gatedPayload: InitialRSCPayload,
+  seedPath: SegmentSeedPath
+): React.ReactNode | undefined {
+  const flightDataPaths = gatedPayload.f
+  if (
+    !Array.isArray(flightDataPaths) ||
+    flightDataPaths.length !== 1 ||
+    !Array.isArray(flightDataPaths[0])
+  ) {
+    return undefined
+  }
+  // FlightDataPath for a full-page render: [FlightRouterState,
+  // CacheNodeSeedData, HeadData].
+  const flightDataPath = flightDataPaths[0]
+  if (seedPath === 'head') {
+    const head = flightDataPath[2]
+    return head == null || isThenable(head) ? undefined : head
+  }
+  let seedData: unknown = flightDataPath[1]
+  for (let i = 0; i < seedPath.length; i++) {
+    if (seedData == null || isThenable(seedData) || !Array.isArray(seedData)) {
+      return undefined
+    }
+    const children = (seedData as CacheNodeSeedData)[1]
+    if (
+      children == null ||
+      typeof children !== 'object' ||
+      isThenable(children)
+    ) {
+      return undefined
+    }
+    seedData = children[seedPath[i]]
+  }
+  if (seedData == null || isThenable(seedData) || !Array.isArray(seedData)) {
+    return undefined
+  }
+  const rsc = (seedData as CacheNodeSeedData)[0]
+  // The caller only requests segments whose concrete rsc is non-null, so a
+  // null here means the shell-form tree doesn't match. A pending reference at
+  // this position would decode differently than the concrete response
+  // (a promise instead of the node itself), so bail on that too.
+  return rsc == null || isThenable(rsc) ? undefined : rsc
 }
 
 async function isPartialRSCData(
