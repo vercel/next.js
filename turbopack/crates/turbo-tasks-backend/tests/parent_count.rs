@@ -469,6 +469,60 @@ async fn stable_child_parent(selector: ResolvedVc<Selector>) -> Result<Vc<u32>> 
     Ok(Vc::cell(bump + child))
 }
 
+/// One leaf per index — distinct tasks, so a wide parent accumulates that many distinct children.
+#[turbo_tasks::function]
+fn wide_leaf(index: u32) -> Vc<u32> {
+    Vc::cell(index)
+}
+
+/// Reads `WIDE_FANOUT` distinct children — deliberately above `connect_children`'s 10_000
+/// parallelization threshold, so the child-side `parent_count` bump runs through the chunked,
+/// parallel `process_new_children` path (each chunk on its own worker context) rather than the
+/// serial one.
+const WIDE_FANOUT: u32 = 12_000;
+
+#[turbo_tasks::function(operation, root)]
+async fn wide_parent() -> Result<Vc<u32>> {
+    let mut sum = 0u32;
+    for index in 0..WIDE_FANOUT {
+        sum = sum.wrapping_add(*wide_leaf(index).await?);
+    }
+    Ok(Vc::cell(sum))
+}
+
+/// The parallelized `connect_children` path (≥10_000 children, chunked across worker contexts)
+/// must bump each persistent child's `parent_count` exactly once — no child dropped by a chunk
+/// boundary, none double-counted. Connect >10_000 distinct children in one parent and assert a
+/// spread of them (first / middle / last, covering multiple chunks) each end at exactly 1.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn parent_count_wide_fanout_parallel_path() {
+    let (tt, _persistence_dir) = create_tt("parent_count_wide_fanout_parallel_path");
+    let tt2 = tt.clone();
+
+    let result = turbo_tasks::run_once(tt.clone(), async move {
+        unmark_top_level_task_may_leak_eventually_consistent_state();
+
+        let output = wide_parent();
+        output.read_strongly_consistent().await?;
+
+        // Sample across the full range so at least one child from each chunk is checked.
+        for index in [0, 1, WIDE_FANOUT / 2, WIDE_FANOUT - 2, WIDE_FANOUT - 1] {
+            let child_id = task_id_of(wide_leaf(index).resolve().await?);
+            assert_eq!(
+                tt2.backend().parent_count_for_testing(child_id),
+                1,
+                "wide_leaf({index}) must have parent_count == 1 after the parallel connect \
+                 (chunked +1 must bump every child exactly once)"
+            );
+        }
+
+        anyhow::Ok(())
+    })
+    .await;
+    tt.stop_and_wait().await;
+    result.unwrap();
+}
+
 /// Re-validation must not double-count. When a parent re-executes and connects a child it was
 /// *already* connected to (the child is still in its persistent `children` set), the child must NOT
 /// gain a second `parent_count`: `connect_children` only bumps the *genuinely-new* children (those
