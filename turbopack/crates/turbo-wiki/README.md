@@ -27,6 +27,9 @@ cargo run --release -- example /tmp/wiki-out --watch
 
 # persistent cache (stored in <out>/.turbo-wiki-cache)
 cargo run --release -- example /tmp/wiki-out --persist
+
+# dev server with live updates at http://127.0.0.1:3080/
+cargo run --release -- example --serve
 ```
 
 ## How it works
@@ -67,6 +70,12 @@ mode you can see exactly what recomputes:
 The driver spawns a root task that does a single strongly consistent read of
 `compile_report`, sends each settled result over a channel, and reconciles the
 output directory from the main thread.
+
+`--serve` is the same standing query with a different consumer: pages are kept
+in memory and served over HTTP, changed page names are streamed to open tabs
+over server-sent events, and a small injected script refetches the current
+page and patches the document in place — edits (including fixing a broken
+link by creating the missing page) show up in the browser without a reload.
 
 Everything is in [`src/main.rs`](./src/main.rs), top to bottom: value types,
 diagnostics, tasks, plain markdown/HTML helpers, then the driver. Only

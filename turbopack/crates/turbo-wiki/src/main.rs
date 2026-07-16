@@ -533,7 +533,7 @@ fn main() {
 }
 
 fn usage() -> ! {
-    eprintln!("usage: turbo-wiki <input-dir> [output-dir] [--watch] [--persist]");
+    eprintln!("usage: turbo-wiki <input-dir> [output-dir] [--watch] [--persist] [--serve]");
     exit(2);
 }
 
@@ -542,15 +542,21 @@ async fn main_inner() -> Result<()> {
     let mut output: Option<PathBuf> = None;
     let mut watch = false;
     let mut persist = false;
+    let mut serve = false;
     for arg in std::env::args().skip(1) {
         match arg.as_str() {
             "--watch" => watch = true,
             "--persist" => persist = true,
+            "--serve" => serve = true,
             "--help" | "-h" => usage(),
             _ if input.is_none() => input = Some(PathBuf::from(&arg)),
             _ if output.is_none() => output = Some(PathBuf::from(&arg)),
             _ => usage(),
         }
+    }
+    // Serving is a standing query over the wiki; it requires the watcher.
+    if serve {
+        watch = true;
     }
     let Some(input) = input else { usage() };
     let input = std::fs::canonicalize(&input)
@@ -641,6 +647,13 @@ async fn main_inner() -> Result<()> {
         }
     });
 
+    if serve {
+        serve_loop(rx, start).await?;
+        tt.dispose_root_task(task);
+        tt.stop_and_wait().await;
+        return Ok(());
+    }
+
     // Content of the files we've written, to skip and count unchanged outputs.
     let mut written: HashMap<String, String> = HashMap::new();
     let mut first = true;
@@ -702,4 +715,201 @@ async fn main_inner() -> Result<()> {
     tt.dispose_root_task(task);
     tt.stop_and_wait().await;
     Ok(())
+}
+
+// -----------------------------------------------------------------------------------------------
+// Dev server (--serve)
+// -----------------------------------------------------------------------------------------------
+//
+// A miniature version of the dev-server shape: the compilation is a standing
+// query, pages are served from the latest settled snapshot in memory, and a
+// server-sent-events stream tells open browser tabs which pages changed so
+// they can refetch and patch themselves without a full reload. Hand-rolled
+// HTTP to keep the crate dependency-free.
+
+const SERVE_ADDR: &str = "127.0.0.1:3080";
+
+type PageMap = std::sync::Arc<std::sync::RwLock<HashMap<String, String>>>;
+
+async fn serve_loop(
+    mut rx: tokio::sync::mpsc::UnboundedReceiver<Snapshot>,
+    start: Instant,
+) -> Result<()> {
+    let pages: PageMap = Default::default();
+    let (events_tx, _) = tokio::sync::broadcast::channel::<String>(16);
+
+    let listener = tokio::net::TcpListener::bind(SERVE_ADDR)
+        .await
+        .with_context(|| format!("failed to bind {SERVE_ADDR}"))?;
+    {
+        let pages = pages.clone();
+        let events_tx = events_tx.clone();
+        tokio::spawn(async move {
+            loop {
+                let Ok((stream, _)) = listener.accept().await else {
+                    continue;
+                };
+                tokio::spawn(handle_connection(
+                    stream,
+                    pages.clone(),
+                    events_tx.subscribe(),
+                ));
+            }
+        });
+    }
+
+    let mut first = true;
+    while let Some(snapshot) = rx.recv().await {
+        let mut changed: Vec<String> = Vec::new();
+        {
+            let mut pages = pages.write().unwrap();
+            for (slug, html) in &snapshot.pages {
+                if pages.get(slug) != Some(html) {
+                    pages.insert(slug.clone(), html.clone());
+                    changed.push(slug.clone());
+                }
+            }
+            let live: std::collections::HashSet<&String> =
+                snapshot.pages.iter().map(|(slug, _)| slug).collect();
+            let stale: Vec<String> = pages
+                .keys()
+                .filter(|slug| !live.contains(slug))
+                .cloned()
+                .collect();
+            for slug in stale {
+                pages.remove(&slug);
+                changed.push(slug);
+            }
+        }
+
+        if first {
+            println!(
+                "compiled {} pages in {:?} — serving at http://{SERVE_ADDR}/",
+                snapshot.pages.len(),
+                start.elapsed(),
+            );
+            first = false;
+        } else {
+            println!(
+                "recompiled: {} of {} pages",
+                changed.len(),
+                snapshot.pages.len()
+            );
+        }
+        for diagnostic in &snapshot.diagnostics {
+            println!("  warning: {diagnostic}");
+        }
+
+        if !changed.is_empty() {
+            let payload = format!(
+                "[{}]",
+                changed
+                    .iter()
+                    .map(|slug| format!("{slug:?}"))
+                    .collect::<Vec<_>>()
+                    .join(",")
+            );
+            let _ = events_tx.send(payload);
+        }
+    }
+    Ok(())
+}
+
+async fn handle_connection(
+    mut stream: tokio::net::TcpStream,
+    pages: PageMap,
+    mut events: tokio::sync::broadcast::Receiver<String>,
+) {
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+
+    let mut buf = Vec::new();
+    let mut tmp = [0u8; 1024];
+    loop {
+        let Ok(n) = stream.read(&mut tmp).await else {
+            return;
+        };
+        if n == 0 {
+            return;
+        }
+        buf.extend_from_slice(&tmp[..n]);
+        if buf.windows(4).any(|w| w == b"\r\n\r\n") || buf.len() > 8192 {
+            break;
+        }
+    }
+    let head = String::from_utf8_lossy(&buf);
+    let path = head
+        .lines()
+        .next()
+        .and_then(|line| line.split_whitespace().nth(1))
+        .unwrap_or("/");
+    let path = path.split('?').next().unwrap_or("/");
+
+    if path == "/__events" {
+        let _ = stream
+            .write_all(
+                b"HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\nCache-Control: no-cache\r\nConnection: keep-alive\r\n\r\nretry: 500\n\n",
+            )
+            .await;
+        loop {
+            match events.recv().await {
+                Ok(payload) => {
+                    if stream
+                        .write_all(format!("data: {payload}\n\n").as_bytes())
+                        .await
+                        .is_err()
+                    {
+                        return;
+                    }
+                    let _ = stream.flush().await;
+                }
+                Err(tokio::sync::broadcast::error::RecvError::Lagged(_)) => continue,
+                Err(_) => return,
+            }
+        }
+    }
+
+    let slug = path.trim_start_matches('/').trim_end_matches(".html");
+    let slug = if slug.is_empty() { "index" } else { slug };
+    let body = {
+        let pages = pages.read().unwrap();
+        pages.get(slug).map(|html| inject_live_script(html, slug))
+    };
+    match body {
+        Some(body) => {
+            let head = format!(
+                "HTTP/1.1 200 OK\r\nContent-Type: text/html; charset=utf-8\r\nContent-Length: \
+                 {}\r\nConnection: close\r\n\r\n",
+                body.len()
+            );
+            let _ = stream.write_all(head.as_bytes()).await;
+            let _ = stream.write_all(body.as_bytes()).await;
+        }
+        None => {
+            let body = "not found";
+            let head = format!(
+                "HTTP/1.1 404 Not Found\r\nContent-Type: text/plain\r\nContent-Length: \
+                 {}\r\nConnection: close\r\n\r\n",
+                body.len()
+            );
+            let _ = stream.write_all(head.as_bytes()).await;
+            let _ = stream.write_all(body.as_bytes()).await;
+        }
+    }
+}
+
+/// Injects the live-update client: listen for changed slugs over SSE and,
+/// when this page is affected, refetch it and patch the document in place.
+fn inject_live_script(html: &str, slug: &str) -> String {
+    let script = format!(
+        "<script>\nconst slug = {slug:?};\nconst es = new \
+         EventSource(\"/__events\");\nes.onmessage = async (e) => {{\nif \
+         (!JSON.parse(e.data).includes(slug)) return;\nconst html = await (await \
+         fetch(location.pathname)).text();\nconst doc = new DOMParser().parseFromString(html, \
+         \"text/html\");\ndocument.body.innerHTML = doc.body.innerHTML;\ndocument.title = \
+         doc.title;\n}};\n</script>\n"
+    );
+    match html.rfind("</body>") {
+        Some(i) => format!("{}{}{}", &html[..i], script, &html[i..]),
+        None => format!("{html}{script}"),
+    }
 }
