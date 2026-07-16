@@ -96,6 +96,7 @@ describe('span recording', () => {
     process.env.__NEXT_REQUEST_INSIGHTS = 'true'
     setSpanRecorderForTest(recorder)
 
+    expect(isRequestInsightsEnabled()).toBe(false)
     expect(isLocalSpanRecordingEnabled()).toBe(false)
 
     recordSpan({ name: 'test.production', requestId: 'req_2' })

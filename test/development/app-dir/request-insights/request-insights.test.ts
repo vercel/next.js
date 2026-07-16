@@ -1,6 +1,7 @@
 import { nextTestSetup } from 'e2e-utils'
 import { createServer } from 'http'
 import type { AddressInfo } from 'net'
+import { retry } from 'next-test-utils'
 
 type RequestInsight = {
   requestId: string
@@ -8,7 +9,9 @@ type RequestInsight = {
   route: string
   startTime: number
   status: 'ok'
-  spans: []
+  spans: Array<{
+    attributes?: Record<string, string | number | boolean>
+  }>
   fetches: Array<{
     durationMs: number
     statusCode: number
@@ -78,6 +81,42 @@ describe('request insights', () => {
     expect(result.cliOutput).toMatch(
       /No request insights captured yet|retained requests \(newest first\)/
     )
+  })
+
+  it('keeps outer server and app render spans on the same request', async () => {
+    await next.render('/')
+
+    await retry(async () => {
+      const snapshot = (await next
+        .fetch('/_next/development/request-insights')
+        .then((response) => response.json())) as {
+        requests: RequestInsight[]
+      }
+      const pageRequests = snapshot.requests.filter(
+        (request) => request.route === '/'
+      )
+      const requestsWithRelevantSpans = pageRequests.filter((request) =>
+        request.spans.some((span) => {
+          const spanType = span.attributes?.['next.span_type']
+          return (
+            spanType === 'BaseServer.handleRequest' ||
+            spanType === 'AppRender.getBodyResult'
+          )
+        })
+      )
+
+      expect(requestsWithRelevantSpans).toHaveLength(1)
+      expect(
+        requestsWithRelevantSpans[0].spans.map(
+          (span) => span.attributes?.['next.span_type']
+        )
+      ).toEqual(
+        expect.arrayContaining([
+          'BaseServer.handleRequest',
+          'AppRender.getBodyResult',
+        ])
+      )
+    })
   })
 
   it('uses the development endpoint and reports truncated output', async () => {

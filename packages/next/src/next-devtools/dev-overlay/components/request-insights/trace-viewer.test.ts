@@ -98,7 +98,7 @@ describe('request insights trace viewer', () => {
     ])
   })
 
-  it('shows high-level spans by default and reveals hidden spans in verbose mode', () => {
+  it('filters collected spans for presentation without changing collection', () => {
     const request = createRequest({
       spans: [
         {
@@ -335,7 +335,7 @@ describe('request insights trace viewer', () => {
           startTime: 100,
           durationMs: 10,
           attributes: {
-            'next.span.category': 'nextjs',
+            'next.span_category': 'nextjs',
             'next.span_type': 'BaseServer.render',
           },
         },
@@ -344,7 +344,7 @@ describe('request insights trace viewer', () => {
           startTime: 110,
           durationMs: 10,
           attributes: {
-            'next.span.category': 'application',
+            'next.span_category': 'application',
             'next.span_type': 'ResolveMetadata.generateMetadata',
           },
         },
@@ -384,7 +384,7 @@ describe('request insights trace viewer', () => {
           startTime: 120,
           durationMs: 30,
           attributes: {
-            'next.span.category': 'application',
+            'next.span_category': 'application',
             'next.span_type': 'AppRender.fetch',
             'next.fetch.idx': 1,
           },
@@ -396,7 +396,7 @@ describe('request insights trace viewer', () => {
           startTime: 155,
           durationMs: 10,
           attributes: {
-            'next.span.category': 'nextjs',
+            'next.span_category': 'nextjs',
             'next.span_type': 'AppRender.fetch',
             'next.fetch.idx': 2,
           },
