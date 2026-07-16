@@ -44,9 +44,8 @@ node ../../packages/next/dist/bin/next build
 node ../../packages/next/dist/bin/next start -p 3123
 ```
 
-Representative routes are listed in `routes.json`. The `bench:render-pipeline`
-harness does not read that file, so pass them explicitly with `--routes` (see the
-invocation at the end of this doc); the list here is the source to copy from.
+Representative routes are listed in `routes.json`, for pointing a load tool or
+profiler at the pages worth measuring.
 
 ## Determinism
 
@@ -59,26 +58,21 @@ The one mutation path is `POST /api/play`, which increments `playCount` and
 writes `lastPlayedAt`. It is intentionally excluded from `routes.json`; keep it
 out of stress runs (or reset the DB afterward) so payloads don't drift mid-run.
 
-## Two caveats for wiring into `bench:render-pipeline`
+## How to benchmark it
 
-1. **The harness overwrites `next.config`.** `runE2EModeBenchmark()` rewrites the
-   app's config to `module.exports = {}` for the run. That breaks this app: it
-   needs `cacheComponents` (it uses `use cache` / `cacheLife` / PPR). To
-   benchmark real apps, the harness should preserve (or merge into) the app's
-   real config rather than clobber it. It also assumes `next.config.js`; this app
-   uses `next.config.ts`.
+This is a standalone fixture: build and serve it, then measure with whatever
+tool fits, the same way the other real-app fixtures under `bench/` are driven
+(directly or through `@vercel/devlow-bench`). Build, start, and profile the
+routes in `routes.json` in the Chrome Performance panel, or point a load tool at
+them.
 
-2. **Stale local `@next/swc`.** In the current repo state the compiled `next` JS
-   (canary.80) is ahead of the installed native SWC binary, so `next build`
-   fails with `MemoryEvictionMode` / `"auto"`. This is **not** specific to this
-   app — `bench/basic-app` fails identically. Rebuild SWC to match, or (as a
-   temporary local workaround) set `experimental.turbopackMemoryEviction: false`.
+It is not wired into `bench:render-pipeline`. That runner is specific to the
+synthetic `bench/basic-app` fixture and rewrites a fixture's `next.config` to an
+empty one for the run, which would strip the `cacheComponents` / PPR config that
+is the whole point of benchmarking this app.
 
-Once the harness preserves app config, benchmark with e.g.:
-
-```bash
-pnpm bench:render-pipeline --scenario=e2e --stream-mode=node \
-  --app-dir=bench/next-beats \
-  --routes=/,/library,/track/t1,/genre/electronic \
-  --build=true
-```
+> **Good to know:** If the compiled `next` JS is ahead of the installed native
+> SWC binary, `next build` can fail with a `MemoryEvictionMode` error. This is
+> not specific to this app (`bench/basic-app` fails identically). Rebuild SWC to
+> match, or set `experimental.turbopackMemoryEviction: false` as a local
+> workaround.
