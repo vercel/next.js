@@ -120,7 +120,7 @@ The bundled docs include guides, API references, and file conventions for the Ap
 
 Agents also need to see what the running app is doing. Runtime errors, client-side warnings, and rendered output live in the browser, where agents can't look.
 
-`next dev` forwards browser console errors and warnings to the terminal (the `browserDebugInfoInTerminal` config), so the output agents already read carries the failures they're asked to fix. The dev overlay's copy button captures structured error data, including the component stack, for pasting into a chat.
+`next dev` forwards browser console errors and warnings to the terminal (the [`logging.browserToTerminal`](/docs/app/api-reference/config/next-config-js/logging) config), so the output agents already read carries the failures they're asked to fix. The dev overlay's copy button captures structured error data, including the component stack, for pasting into a chat.
 
 For direct access, the [Next.js MCP server](/docs/app/guides/mcp) lets agents discover the running dev server and query its state, such as current errors, routes, and rendered segments, instead of guessing from page HTML. It also ships prompts and tools for version upgrades and Cache Components migrations.
 
@@ -129,5 +129,5 @@ For direct access, the [Next.js MCP server](/docs/app/guides/mcp) lets agents di
 Some tasks are workflows rather than lookups, such as adopting [Cache Components](/docs/app/getting-started/caching) or [Partial Prefetching](/docs/app/guides/adopting-partial-prefetching) across an app. [Next.js skills](https://github.com/vercel/next.js/tree/canary/skills) package these as structured instructions an agent installs and follows, sequencing the work and pointing at the relevant docs at each step:
 
 ```bash
-npx skills add https://github.com/vercel/next.js/tree/canary/skills/next-cache-components-adoption
+npx skills add vercel/next.js --skill next-cache-components-adoption
 ```
