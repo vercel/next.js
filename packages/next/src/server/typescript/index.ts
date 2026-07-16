@@ -135,11 +135,18 @@ export const createTSPlugin: tsModule.server.PluginModuleFactory = ({
     }
 
     // Quick info
-    proxy.getQuickInfoAtPosition = (fileName: string, position: number) => {
-      const prior = info.languageService.getQuickInfoAtPosition(
-        fileName,
-        position
-      )
+    proxy.getQuickInfoAtPosition = (
+      fileName: string,
+      position: number,
+      ...args: any[]
+    ) => {
+      const prior = (
+        info.languageService.getQuickInfoAtPosition as (
+          fileName: string,
+          position: number,
+          ...args: any[]
+        ) => tsModule.QuickInfo | undefined
+      )(fileName, position, ...args)
       if (!isAppEntryFile(fileName)) return prior
 
       // Remove type suggestions for disallowed APIs in server components.
@@ -157,7 +164,11 @@ export const createTSPlugin: tsModule.server.PluginModuleFactory = ({
         }
       }
 
-      const overridden = entryConfig.getQuickInfoAtPosition(fileName, position)
+      const overridden = entryConfig.getQuickInfoAtPosition(
+        fileName,
+        position,
+        prior
+      )
       if (overridden) return overridden
 
       return prior
