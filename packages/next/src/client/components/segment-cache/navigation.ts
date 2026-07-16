@@ -17,7 +17,7 @@ import {
   startPPRNavigation,
   spawnDynamicRequests,
   FreshnessPolicy,
-  getCurrentNavigationLock,
+  beginLockedNavigation,
   type NavigationLock,
   type NavigationRequestAccumulation,
 } from '../router-reducer/ppr-navigations'
@@ -68,7 +68,7 @@ export function navigate(
   scrollBehavior: ScrollBehavior,
   navigateType: 'push' | 'replace'
 ): AppRouterState | Promise<AppRouterState> {
-  let navigationLock: NavigationLock = null
+  let navigationLock: NavigationLock | null = null
 
   // Instant Navigation Testing API: when the lock is active, ensure a
   // prefetch task has been initiated before proceeding with the navigation.
@@ -80,7 +80,11 @@ export function navigate(
     const { isNavigationLocked } =
       require('./navigation-testing-lock') as typeof import('./navigation-testing-lock')
     if (isNavigationLocked()) {
-      navigationLock = getCurrentNavigationLock()
+      // Signal that a new locked navigation is starting. This force-resolves the
+      // previous locked navigation's withheld data (so a reused shared segment
+      // no longer carries a pending deferred rsc) and returns this navigation's
+      // own withheld-data gate.
+      navigationLock = beginLockedNavigation()
       return ensurePrefetchThenNavigate(
         state,
         url,
@@ -123,7 +127,7 @@ function navigateImpl(
   freshnessPolicy: FreshnessPolicy,
   scrollBehavior: ScrollBehavior,
   navigateType: 'push' | 'replace',
-  navigationLock: NavigationLock
+  navigationLock: NavigationLock | null
 ): AppRouterState | Promise<AppRouterState> {
   const now = Date.now()
   const href = url.href
@@ -226,7 +230,7 @@ export function navigateToKnownRoute(
   nextUrl: string | null,
   scrollBehavior: ScrollBehavior,
   navigateType: 'push' | 'replace',
-  navigationLock: NavigationLock,
+  navigationLock: NavigationLock | null,
   debugInfo: Array<unknown> | null,
   // The route cache entry used for this navigation, if it came from route
   // prediction. Passed through so it can be marked as having a dynamic rewrite
@@ -388,7 +392,7 @@ function navigateUsingPrefetchedRouteTree(
   scrollBehavior: ScrollBehavior,
   navigateType: 'push' | 'replace',
   route: FulfilledRouteCacheEntry,
-  navigationLock: NavigationLock
+  navigationLock: NavigationLock | null
 ): AppRouterState {
   const routeTree = route.tree
   const canonicalUrl = route.canonicalUrl + url.hash
@@ -447,7 +451,7 @@ async function navigateToUnknownRoute(
   freshnessPolicy: FreshnessPolicy,
   scrollBehavior: ScrollBehavior,
   navigateType: 'push' | 'replace',
-  navigationLock: NavigationLock
+  navigationLock: NavigationLock | null
 ): Promise<AppRouterState> {
   // Runs when a navigation happens but there's no cached prefetch we can use.
   // Don't bother to wait for a prefetch response; go straight to a full
@@ -1070,7 +1074,7 @@ async function ensurePrefetchThenNavigate(
   freshnessPolicy: FreshnessPolicy,
   scrollBehavior: ScrollBehavior,
   navigateType: 'push' | 'replace',
-  navigationLock: NavigationLock
+  navigationLock: NavigationLock | null
 ): Promise<AppRouterState> {
   const link = getLinkForCurrentNavigation()
   const fetchStrategy = link !== null ? link.fetchStrategy : FetchStrategy.PPR
