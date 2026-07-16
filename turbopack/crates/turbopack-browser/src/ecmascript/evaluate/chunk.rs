@@ -4,7 +4,7 @@ use anyhow::Result;
 use either::Either;
 use indoc::writedoc;
 use serde::Serialize;
-use turbo_rcstr::rcstr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, TryJoinIterExt, ValueToString, Vc, turbobail};
 use turbo_tasks_fs::{File, FileContent, FileSystemPath};
 use turbopack_core::{
@@ -32,9 +32,9 @@ use crate::{
     chunking_context::{CURRENT_CHUNK_METHOD_DOCUMENT_CURRENT_SCRIPT_EXPR, CurrentChunkMethod},
 };
 
-/// An Ecmascript chunk that:
-/// * Contains the Turbopack browser runtime code; and
-/// * Evaluates a list of runtime entries.
+/// An Ecmascript chunk that registers an entrypoint's chunks and runtime module
+/// IDs onto the `globalThis["TURBOPACK"]` queue, which the shared
+/// [`crate::ecmascript::evaluate::runtime::EcmascriptBrowserRuntimeChunk`] drains.
 #[turbo_tasks::value(shared)]
 #[derive(ValueToString)]
 #[value_to_string("Ecmascript Browser Evaluate Chunk")]
@@ -44,7 +44,7 @@ pub(crate) struct EcmascriptBrowserEvaluateChunk {
     other_chunks: ResolvedVc<OutputAssets>,
     evaluatable_assets: ResolvedVc<EvaluatableAssets>,
     // TODO(sokra): It's weird to use ModuleGraph here, we should convert evaluatable_assets to a
-    // list of chunk items before passing it to this struct
+    // list of chunk items before passing it to this struct.
     module_graph: ResolvedVc<ModuleGraph>,
 }
 
@@ -77,31 +77,14 @@ impl EcmascriptBrowserEvaluateChunk {
         ))
     }
 
+    /// The params for bootstrapping: `{ otherChunks, runtimeModuleIds }`. This
+    /// describes which other chunks must load and which runtime modules to instantiate.
+    ///
+    /// The emitted evaluate-chunk file ([`Self::code`]) reuses these same params,
+    /// wrapping them as `push([selfPath, params])`. Next.js inlines them in production.
     #[turbo_tasks::function]
-    pub(crate) async fn code(self: Vc<Self>) -> Result<Vc<Code>> {
+    pub(crate) async fn chunk_group_bootstrap_params(self: Vc<Self>) -> Result<Vc<RcStr>> {
         let this = self.await?;
-        let source_maps = *this
-            .chunking_context
-            .reference_chunk_source_maps(Vc::upcast(self))
-            .await?;
-        // Lifetime hack to pull out the var into this scope
-        let chunk_path;
-        let script_or_path = match *this.chunking_context.current_chunk_method().await? {
-            CurrentChunkMethod::StringLiteral => {
-                let output_root = this.chunking_context.output_root().await?;
-                let chunk_path_vc = self.path();
-                chunk_path = chunk_path_vc.await?;
-                let chunk_server_path = if let Some(path) = output_root.get_path_to(&chunk_path) {
-                    path
-                } else {
-                    turbobail!("chunk path {chunk_path} is not in output root {output_root}");
-                };
-                Either::Left(StringifyJs(chunk_server_path))
-            }
-            CurrentChunkMethod::DocumentCurrentScript => {
-                Either::Right(CURRENT_CHUNK_METHOD_DOCUMENT_CURRENT_SCRIPT_EXPR)
-            }
-        };
 
         let other_chunks_data = self.chunks_data().await?;
         let other_chunks_data = other_chunks_data.iter().try_join().await?;
@@ -141,19 +124,48 @@ impl EcmascriptBrowserEvaluateChunk {
             runtime_module_ids,
         };
 
-        let mut code = CodeBuilder::new(
-            source_maps,
-            *this.chunking_context.debug_ids_enabled().await?,
-        );
+        Ok(Vc::cell(serde_json::to_string(&params)?.into()))
+    }
 
+    #[turbo_tasks::function]
+    pub(crate) async fn code(self: Vc<Self>) -> Result<Vc<Code>> {
+        let this = self.await?;
+        let source_maps = *this
+            .chunking_context
+            .reference_chunk_source_maps(Vc::upcast(self))
+            .await?;
+
+        let params = self.chunk_group_bootstrap_params().await?;
         // Use the configured chunk loading global variable to store the chunk here.
         // This allows multiple runtimes to coexist on the same page when using different global
         // names.
         let chunk_loading_global = this.chunking_context.chunk_loading_global().await?;
-        writedoc!(
+        let use_string_literal = matches!(
+            *this.chunking_context.current_chunk_method().await?,
+            CurrentChunkMethod::StringLiteral
+        );
+        // Lifetime hack to keep the path read alive for the borrow below.
+        let chunk_path;
+        let script_or_path = if use_string_literal {
+            let output_root = this.chunking_context.output_root().await?;
+            chunk_path = self.path().await?;
+            let chunk_server_path = if let Some(path) = output_root.get_path_to(&chunk_path) {
+                path
+            } else {
+                turbobail!("chunk path {chunk_path} is not in output root {output_root}");
+            };
+            Either::Left(StringifyJs(chunk_server_path))
+        } else {
+            Either::Right(CURRENT_CHUNK_METHOD_DOCUMENT_CURRENT_SCRIPT_EXPR)
+        };
+        let mut code = CodeBuilder::new(
+            source_maps,
+            *this.chunking_context.debug_ids_enabled().await?,
+        );
+        writedoc! {
             code,
-            // `||=` would be better but we need to be es2020 compatible
-            //`x || (x = default)` is better than `x = x || default` simply because we avoid _writing_ the property in the common case.
+            // `||=` would be better but we need to be es2020 compatible.
+            // `x || (x = default)` avoids _writing_ the property in the common case.
             r#"
                 (globalThis[{chunk_loading_global}] || (globalThis[{chunk_loading_global}] = [])).push([
                     {script_or_path},
@@ -161,8 +173,9 @@ impl EcmascriptBrowserEvaluateChunk {
                 ]);
             "#,
             chunk_loading_global = StringifyJs(&chunk_loading_global),
-            params = StringifyJs(&params),
-        )?;
+            script_or_path = script_or_path,
+            params = &**params,
+        }?;
 
         // When the runtime is not shared across routes, inline the full browser runtime into this
         // evaluate chunk so the route is self-contained (the pre-shared-runtime behavior). When it
