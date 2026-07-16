@@ -116,6 +116,20 @@ impl CleanupOldEdgesOperation {
                                 // handler — not this site — adjusts the right counter and takes the
                                 // child guards (avoiding a second guard while `task` is still
                                 // held).
+                                //
+                                // Unlike the `+1` (which is folded into a guard `connect_child`
+                                // already holds on the child — see `ParentCountBump`), this `-1` is
+                                // NOT folded onto an existing guard: here the guard we hold is the
+                                // *parent's* (`task_id`), while the count lives on each *child*,
+                                // and taking a child guard under
+                                // the parent guard is disallowed (the
+                                // concurrent-lock detector; hence the deferral). The lost-followers
+                                // fan-out below does guard the children, but it fragments/recurses
+                                // with no singular per-child job to carry a token safely. This is
+                                // also a cold path (re-execution with changed children, and GC
+                                // teardown) — not the hot `connect_children` path — so the separate
+                                // guard pass in the `AdjustParentCount`/`AdjustTransientRefCount`
+                                // handler is left as-is.
                                 if !removed_persistent_children.is_empty() {
                                     let job = if task_id.is_transient() {
                                         AggregationUpdateJob::AdjustTransientRefCount {

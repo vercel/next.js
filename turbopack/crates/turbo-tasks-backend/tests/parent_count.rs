@@ -457,3 +457,61 @@ async fn unpin_after_stop_does_not_panic() {
     // The task is gone from the map, so this must be a harmless no-op — not an underflow panic.
     tt.unpin_task_for_gc(leaf_id);
 }
+
+/// Reads a *stable* child (`leaf(30)`) on every execution, plus a `State` that drives
+/// re-execution. Flipping the state re-executes the parent while it keeps the same child edge.
+#[turbo_tasks::function(operation, root)]
+async fn stable_child_parent(selector: ResolvedVc<Selector>) -> Result<Vc<u32>> {
+    // Read the selector so we re-execute when it flips...
+    let bump = if *selector.await?.get() { 100 } else { 0 };
+    // ...but always connect the SAME child regardless.
+    let child = *leaf(30).await?;
+    Ok(Vc::cell(bump + child))
+}
+
+/// Re-validation must not double-count. When a parent re-executes and connects a child it was
+/// *already* connected to (the child is still in its persistent `children` set), the child is
+/// staged again but must NOT take a second `parent_count` hold — the edge already existed. This
+/// exercises the `insert`-into-`new_children`-of-an-already-`children` path
+/// (`ConnectChildOperation::run`) followed by the completion filter that drops it before
+/// `extend_children`, so the hold count stays at exactly 1 across arbitrarily many re-executions.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn parent_count_not_double_counted_on_revalidation() {
+    let (tt, _persistence_dir) = create_tt("parent_count_not_double_counted_on_revalidation");
+    let tt2 = tt.clone();
+
+    let result = turbo_tasks::run_once(tt.clone(), async move {
+        unmark_top_level_task_may_leak_eventually_consistent_state();
+
+        let selector_op = create_selector(false);
+        let selector_vc = selector_op.resolve().strongly_consistent().await?;
+        let selector = selector_op.read_strongly_consistent().await?;
+
+        let output = stable_child_parent(selector_vc);
+        assert_eq!(*output.read_strongly_consistent().await?, 30);
+
+        let leaf30_id = task_id_of(leaf(30).resolve().await?);
+        assert_eq!(
+            tt2.backend().parent_count_for_testing(leaf30_id),
+            1,
+            "leaf(30) has exactly one parent after the first execution"
+        );
+
+        // Re-execute the parent several times; it keeps the same child edge each time.
+        for i in 0..5 {
+            selector.set(i % 2 == 0);
+            output.read_strongly_consistent().await?;
+            assert_eq!(
+                tt2.backend().parent_count_for_testing(leaf30_id),
+                1,
+                "leaf(30)'s parent_count must stay 1 across re-validation (iteration {i}), not \
+                 grow — the child edge already existed so no new hold is taken"
+            );
+        }
+
+        anyhow::Ok(())
+    })
+    .await;
+    tt.stop_and_wait().await;
+    result.unwrap();
+}

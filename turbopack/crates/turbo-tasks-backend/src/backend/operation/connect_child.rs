@@ -6,7 +6,7 @@ use crate::{
         TaskDataCategory,
         operation::{
             ExecuteContext, Operation, TaskGuard,
-            aggregation_update::{AggregationUpdateJob, AggregationUpdateQueue},
+            aggregation_update::{AggregationUpdateJob, AggregationUpdateQueue, ParentCountBump},
             invalidate::make_task_dirty,
         },
         storage_schema::TaskStorageAccessors,
@@ -115,12 +115,49 @@ impl ConnectChildOperation {
             });
         }
 
+        // This child edge is genuinely new (it passed the dedup early-returns above), so it takes a
+        // child-side reference-count **hold**: a persistent parent holds the child's durable
+        // `parent_count`, a transient parent the session-only `transient_ref_count`. The hold is
+        // taken OPTIMISTICALLY here (before the `new_children.insert` below confirms we won),
+        // riding a guard we take anyway — exactly like the active-count hold. It is
+        // balanced by: the undo on a concurrent-connect race (below), a release on a
+        // stale/cancel discard (see `ExecuteContext::release_children_holds`), or — on
+        // success — by becoming permanent when `connect_children` commits the edge (and
+        // eventually the `-1` in `CleanupOldEdges`). Transient children are never
+        // collected, so they take no hold.
+        let bump = match parent_task_id {
+            Some(parent) if !child_task_id.is_transient() => {
+                if parent.is_transient() {
+                    ParentCountBump::BumpTransientParent
+                } else {
+                    ParentCountBump::BumpParent
+                }
+            }
+            _ => ParentCountBump::NoBump,
+        };
+
         if ctx.should_track_activeness() && parent_task_id.is_some() {
+            // The active-count bump's handler (`increase_active_count`) already opens a Meta guard
+            // on the child; the `bump` token makes it take the parent_count hold under that same
+            // guard — free.
             queue.push(AggregationUpdateJob::IncreaseActiveCount {
                 task: child_task_id,
+                bump,
             });
         } else {
             let mut child_task = ctx.task(child_task_id, TaskDataCategory::Meta);
+
+            // Take the hold under the guard we open here anyway (no active-count bump on this
+            // branch). `NoBump` (transient child / no parent) does nothing.
+            match bump {
+                ParentCountBump::NoBump => {}
+                ParentCountBump::BumpParent => {
+                    child_task.update_and_get_parent_count(1);
+                }
+                ParentCountBump::BumpTransientParent => {
+                    child_task.update_and_get_transient_ref_count(1);
+                }
+            }
 
             if !child_task.has_output()
                 && child_task.add_scheduled(
@@ -150,14 +187,26 @@ impl ConnectChildOperation {
             if !new_children.insert(child_task_id) {
                 drop(parent_task);
 
-                // There was a concurrent connect child operation,
-                // so we need to undo the active count update.
+                // There was a concurrent connect child operation, so this call did NOT win the
+                // edge. Undo both optimistic holds taken above: the active count, and the
+                // parent_count / transient_ref_count (the winning call keeps its own +1).
                 AggregationUpdateQueue::run(
                     AggregationUpdateJob::DecreaseActiveCount {
                         task: child_task_id,
                     },
                     &mut ctx,
                 );
+                match bump {
+                    ParentCountBump::NoBump => {}
+                    ParentCountBump::BumpParent => {
+                        ctx.task(child_task_id, TaskDataCategory::Meta)
+                            .update_and_get_parent_count(-1);
+                    }
+                    ParentCountBump::BumpTransientParent => {
+                        ctx.task(child_task_id, TaskDataCategory::Meta)
+                            .update_and_get_transient_ref_count(-1);
+                    }
+                }
             }
         }
     }
