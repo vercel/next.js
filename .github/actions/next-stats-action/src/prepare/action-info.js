@@ -16,6 +16,7 @@ module.exports = function actionInfo() {
     GITHUB_REPOSITORY,
     GITHUB_EVENT_PATH,
     PR_STATS_COMMENT_TOKEN,
+    PREVIEW_BUILDS_BASE_URL,
   } = process.env
 
   delete process.env.GITHUB_TOKEN
@@ -63,6 +64,8 @@ module.exports = function actionInfo() {
     isRelease:
       GITHUB_REPOSITORY === 'vercel/next.js' &&
       (GITHUB_REF || '').includes('canary'),
+    previewBuildsBaseUrl:
+      PREVIEW_BUILDS_BASE_URL || 'https://vercel-packages.vercel.app/next',
   }
 
   if (info.isRelease) {
