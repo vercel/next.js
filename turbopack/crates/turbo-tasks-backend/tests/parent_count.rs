@@ -470,11 +470,10 @@ async fn stable_child_parent(selector: ResolvedVc<Selector>) -> Result<Vc<u32>> 
 }
 
 /// Re-validation must not double-count. When a parent re-executes and connects a child it was
-/// *already* connected to (the child is still in its persistent `children` set), the child is
-/// staged again but must NOT take a second `parent_count` hold — the edge already existed. This
-/// exercises the `insert`-into-`new_children`-of-an-already-`children` path
-/// (`ConnectChildOperation::run`) followed by the completion filter that drops it before
-/// `extend_children`, so the hold count stays at exactly 1 across arbitrarily many re-executions.
+/// *already* connected to (the child is still in its persistent `children` set), the child must NOT
+/// gain a second `parent_count`: `connect_children` only bumps the *genuinely-new* children (those
+/// not already present in `children`), so the count stays at exactly 1 across arbitrarily many
+/// re-executions that keep the edge.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn parent_count_not_double_counted_on_revalidation() {
     let (tt, _persistence_dir) = create_tt("parent_count_not_double_counted_on_revalidation");
@@ -505,7 +504,7 @@ async fn parent_count_not_double_counted_on_revalidation() {
                 tt2.backend().parent_count_for_testing(leaf30_id),
                 1,
                 "leaf(30)'s parent_count must stay 1 across re-validation (iteration {i}), not \
-                 grow — the child edge already existed so no new hold is taken"
+                 grow — the child edge already existed so no new count is taken"
             );
         }
 

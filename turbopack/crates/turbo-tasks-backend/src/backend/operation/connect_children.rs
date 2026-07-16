@@ -1,3 +1,4 @@
+use rustc_hash::FxHashSet;
 use smallvec::SmallVec;
 use turbo_tasks::{
     TaskId,
@@ -5,35 +6,23 @@ use turbo_tasks::{
     util::{good_chunk_size, into_chunks},
 };
 
-use crate::{
-    backend::operation::{
-        AggregationUpdateJob, AggregationUpdateQueue, ChildExecuteContext, ExecuteContext,
-        Operation, TaskGuard, aggregation_update::InnerOfUppersHasNewFollowersJob,
-        get_aggregation_number, get_uppers, is_aggregating_node,
-    },
-    data::ChildrenCollector,
+use crate::backend::operation::{
+    AggregationUpdateJob, AggregationUpdateQueue, ChildExecuteContext, ExecuteContext, Operation,
+    TaskGuard, aggregation_update::InnerOfUppersHasNewFollowersJob, get_aggregation_number,
+    get_uppers, is_aggregating_node,
 };
 
 pub fn connect_children(
     ctx: &mut impl ExecuteContext<'_>,
     parent_task_id: TaskId,
     mut parent_task: impl TaskGuard,
-    new_children: ChildrenCollector,
+    new_children: FxHashSet<TaskId>,
     parent_has_active_count: bool,
     should_track_activeness: bool,
 ) {
     debug_assert!(!new_children.is_empty());
 
     let parent_aggregation = get_aggregation_number(&parent_task);
-
-    // Commit the staged edges: they become permanent members of `children`. The child-side
-    // `parent_count` / `transient_ref_count` holds were already taken optimistically when each
-    // genuinely-new child was staged in `ConnectChildOperation::run` (riding the guard taken there
-    // for the active-count bump / schedule), so there is NO count adjustment here — committing just
-    // makes those holds permanent. Balanced later by the `-1` in `CleanupOldEdges` when the edge is
-    // removed. (This is why the old separate `AdjustParentCount { +1 }` pass over the children,
-    // which took a second child guard each, is gone.)
-    let new_children = new_children.commit();
 
     let old_children = parent_task.children_len();
     parent_task.extend_children(new_children.iter().copied());
@@ -44,12 +33,43 @@ pub fn connect_children(
         len = new_children.len()
     );
 
+    // Collect the newly-connected **persistent** children now (cheap, no locks) so we can adjust
+    // their child-side parent reference count *after* the parent guard is dropped — taking a child
+    // guard while still holding the parent guard would trip the concurrent-lock detector.
+    let persistent_new_children: SmallVec<[TaskId; 4]> = new_children
+        .iter()
+        .copied()
+        .filter(|c| !c.is_transient())
+        .collect();
+
     let new_follower_ids: SmallVec<_> = new_children.into_iter().collect();
 
     let aggregating_node = is_aggregating_node(parent_aggregation);
     let upper_ids = (!aggregating_node).then(|| get_uppers(&parent_task));
 
     drop(parent_task);
+
+    // Maintain the child-side parent reference count now that the parent guard is released. Each
+    // newly-connected persistent child gains a parent: a persistent parent bumps the durable
+    // `parent_count` (crash-consistent — captured mid-snapshot, replayed on restart), while a
+    // transient parent bumps the session-only `transient_ref_count` (not persisted — transient
+    // parents re-establish their edges by re-executing on restart). Both ride the
+    // `AggregationUpdateQueue`; the handler applies to the right counter. Transient children are
+    // never collected, so their counts are irrelevant.
+    if !persistent_new_children.is_empty() {
+        let job = if parent_task_id.is_transient() {
+            AggregationUpdateJob::AdjustTransientRefCount {
+                task_ids: persistent_new_children,
+                delta: 1,
+            }
+        } else {
+            AggregationUpdateJob::AdjustParentCount {
+                task_ids: persistent_new_children,
+                delta: 1,
+            }
+        };
+        AggregationUpdateQueue::run(job, ctx);
+    }
 
     fn process_new_children(
         ctx: &mut impl ExecuteContext<'_>,
@@ -144,10 +164,10 @@ pub fn connect_children(
     // This avoids long pauses of more than 30µs * 10k = 300ms.
     // We don't want to parallelize too eagerly as spawning tasks and the temporary allocations have
     // a cost as well.
-    const CONNECT_CHILDREN_PARALLELIZATION_THRESHOLD: usize = 10000;
+    const CONNECT_CHILDREN_PARALLIZATION_THRESHOLD: usize = 10000;
 
     let len = new_follower_ids.len();
-    if len >= CONNECT_CHILDREN_PARALLELIZATION_THRESHOLD {
+    if len >= CONNECT_CHILDREN_PARALLIZATION_THRESHOLD {
         let new_follower_ids = new_follower_ids.into_vec();
         let chunk_size = good_chunk_size(len);
         let _ = scope_and_block(len.div_ceil(chunk_size), |scope| {

@@ -14,8 +14,6 @@ use std::{
 
 use anyhow::{Context, Result, bail};
 use bincode::{Decode, Encode};
-use rustc_hash::FxHashSet;
-use smallvec::SmallVec;
 use tracing::info_span;
 #[cfg(feature = "trace_prepare_tasks")]
 use tracing::trace_span;
@@ -33,10 +31,7 @@ use crate::{
         storage::{SpecificTaskDataCategory, StorageWriteGuard, TrackOutcome},
         storage_schema::{TaskStorage, TaskStorageAccessors},
     },
-    data::{
-        ActivenessState, ChildrenCollector, CollectibleRef, Dirtyness, InProgressState,
-        TransientTask,
-    },
+    data::{ActivenessState, CollectibleRef, Dirtyness, InProgressState, TransientTask},
 };
 
 pub trait Operation: Encode + Decode<()> + Default + TryFrom<AnyOperation, Error = ()> {
@@ -95,57 +90,6 @@ pub trait ExecuteContext<'e>: Sized {
             reason,
             func,
         )
-    }
-    /// Release the `parent_count` (or `transient_ref_count`) holds taken when the children in
-    /// `staged` were staged, because the staged edges are being **discarded** without reaching the
-    /// parent's `children` set. Consumes the [`ChildrenCollector`] and returns the raw set. This is
-    /// the sole intended consumer of [`ChildrenCollector::release_set`].
-    ///
-    /// **This releases only the `parent_count` hold, deliberately NOT the active-count hold.** The
-    /// two holds are parallel (both taken optimistically at staging in
-    /// `ConnectChildOperation::run`) but they diverge on the discard paths, because they have
-    /// different consequences:
-    /// - `parent_count` is durable and correctness-critical — a leaked hold makes the child
-    ///   permanently uncollectible (a real memory leak). So it MUST be released on **every**
-    ///   discard path: stale-in-prepare, stale-in-connect, cancel-in-connect, and
-    ///   `task_execution_canceled`.
-    /// - the active count is transient and best-effort — a leaked hold merely keeps a task "active"
-    ///   slightly too long (self-corrects, resets on restart), so exactness is not required. The
-    ///   **stale** paths release it (via a `DecreaseActiveCounts` the caller enqueues from the
-    ///   returned set); the **cancel** paths do NOT touch the active count for the staged children
-    ///   — this preserves the pre-existing cancel behavior (the active-count subsystem manages
-    ///   canceled tasks on its own). Releasing the active count here on cancel would change that
-    ///   behavior, so this method leaves it alone and the cancel callers ignore the returned set.
-    ///
-    /// So a caller on a *stale* path feeds the returned set to `DecreaseActiveCounts`; a caller on
-    /// a *cancel* path ignores the return.
-    ///
-    /// Precondition: `staged` must already be the *genuinely-new* set — children that were merely
-    /// re-validated (already present in the parent's `children` set) must have been removed while
-    /// the parent guard was held (as the stale/completion/cancel paths already do), because those
-    /// never took a hold. Each **persistent** remaining child is decremented once (a persistent
-    /// parent drops the durable `parent_count`; a transient parent drops the session-only
-    /// `transient_ref_count`), mirroring the `+1` taken optimistically at staging. Transient
-    /// children never took a hold and are skipped.
-    fn release_children_holds(
-        &mut self,
-        parent_task_id: TaskId,
-        staged: ChildrenCollector,
-    ) -> FxHashSet<TaskId> {
-        let set = staged.release_set();
-        let persistent: SmallVec<[TaskId; 4]> =
-            set.iter().copied().filter(|c| !c.is_transient()).collect();
-        if !persistent.is_empty() {
-            let parent_is_transient = parent_task_id.is_transient();
-            self.for_each_task_meta(persistent, "release_children_holds", |mut child, _ctx| {
-                if parent_is_transient {
-                    child.update_and_get_transient_ref_count(-1);
-                } else {
-                    child.update_and_get_parent_count(-1);
-                }
-            });
-        }
-        set
     }
     fn task_pair(
         &mut self,

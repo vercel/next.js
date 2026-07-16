@@ -75,8 +75,8 @@ use crate::{
     },
     backing_storage::{SnapshotItem, TaskDeletion, compute_task_type_hash},
     data::{
-        ActivenessState, CellRef, ChildrenCollector, CollectibleRef, CollectiblesRef, Dirtyness,
-        InProgressCellState, InProgressState, InProgressStateInner, OutputValue, TransientTask,
+        ActivenessState, CellRef, CollectibleRef, CollectiblesRef, Dirtyness, InProgressCellState,
+        InProgressState, InProgressStateInner, OutputValue, TransientTask,
     },
     error::TaskError,
     kv_backing_storage::TurboBackingStorage,
@@ -474,7 +474,7 @@ impl TurboTasksBackend {
 
 /// Intermediate result of step 1 of task execution completion.
 struct TaskExecutionCompletePrepareResult {
-    pub new_children: ChildrenCollector,
+    pub new_children: FxHashSet<TaskId>,
     pub is_now_immutable: bool,
     #[cfg(feature = "verify_determinism")]
     pub no_output_set: bool,
@@ -1913,28 +1913,13 @@ impl TurboTasksBackend {
     ) {
         let mut ctx = self.execute_context(turbo_tasks);
         let mut task = ctx.task(task_id, TaskDataCategory::All);
-        // Staged children of a canceled in-progress execution are discarded (the edges never reach
-        // `children`), so their optimistic parent_count holds must be released. Capture the staged
-        // set here and partition it to the genuinely-new subset (drop children already present in
-        // the persistent `children` set — those were re-validations that took no hold) while we
-        // still hold the parent guard; the actual decrement happens after the guard is dropped
-        // (`release_children_holds` takes the child guards).
-        let mut discarded_children = None;
         if let Some(in_progress) = task.take_in_progress() {
             match in_progress {
                 InProgressState::Scheduled {
                     done_event,
                     reason: _,
                 } => done_event.notify(usize::MAX),
-                InProgressState::InProgress(box InProgressStateInner {
-                    done_event,
-                    mut new_children,
-                    ..
-                }) => {
-                    for child in task.iter_children() {
-                        new_children.remove(&child);
-                    }
-                    discarded_children = Some(new_children);
+                InProgressState::InProgress(box InProgressStateInner { done_event, .. }) => {
                     done_event.notify(usize::MAX)
                 }
                 InProgressState::Canceled => {}
@@ -1963,15 +1948,6 @@ impl TurboTasksBackend {
         let old = task.set_in_progress(InProgressState::Canceled);
         debug_assert!(old.is_none(), "InProgress already exists");
         drop(task);
-
-        // Release the parent_count holds now that the parent guard is dropped (see above). Cancel
-        // path: the returned set is intentionally NOT fed to `DecreaseActiveCounts` — only the
-        // durable parent_count is released on cancel (see `release_children_holds`).
-        if let Some(discarded_children) = discarded_children
-            && !discarded_children.is_empty()
-        {
-            let _ = ctx.release_children_holds(task_id, discarded_children);
-        }
 
         if let Some(data_update) = data_update {
             AggregationUpdateQueue::run(data_update, &mut ctx);
@@ -2270,10 +2246,8 @@ impl TurboTasksBackend {
             panic!("Task execution completed, but task is not in progress: {task:#?}");
         };
         if matches!(in_progress, InProgressState::Canceled) {
-            // Already canceled: `task_execution_canceled` took the staged children and released
-            // their holds. Nothing to account for here.
             return Ok(TaskExecutionCompletePrepareResult {
-                new_children: ChildrenCollector::new(),
+                new_children: Default::default(),
                 is_now_immutable: false,
                 #[cfg(feature = "verify_determinism")]
                 no_output_set: false,
@@ -2312,18 +2286,15 @@ impl TurboTasksBackend {
                 reason: TaskExecutionReason::Stale,
             });
             debug_assert!(old.is_none(), "InProgress already exists");
-            // Remove old children from new_children to leave only the genuinely-new children (the
-            // ones that took an active-count AND a parent_count hold when they were staged).
+            // Remove old children from new_children to leave only the children that had their
+            // active count increased
             for task in task.iter_children() {
                 new_children.remove(&task);
             }
             drop(task);
 
-            // The staged edges are discarded (the task will re-execute), so release both holds
-            // taken at staging: the parent_count/transient_ref_count hold (here) and the active
-            // count (via DecreaseActiveCounts below). `release_children_holds` consumes the
-            // collector and returns the raw set to feed the active-count undo.
-            let new_children = ctx.release_children_holds(task_id, new_children);
+            // We need to undo the active count increase for the children since we throw away the
+            // new_children list now.
             AggregationUpdateQueue::run(
                 AggregationUpdateJob::DecreaseActiveCounts {
                     task_ids: new_children.into_iter().collect(),
@@ -2674,13 +2645,13 @@ impl TurboTasksBackend {
     fn task_execution_completed_unfinished_children_dirty(
         &self,
         ctx: &mut impl ExecuteContext<'_>,
-        new_children: &ChildrenCollector,
+        new_children: &FxHashSet<TaskId>,
     ) {
         debug_assert!(!new_children.is_empty());
 
         let mut queue = AggregationUpdateQueue::new();
         ctx.for_each_task_all(
-            new_children.iter(),
+            new_children.iter().copied(),
             "unfinished children dirty",
             |child_task, ctx| {
                 if !child_task.has_output() {
@@ -2705,7 +2676,7 @@ impl TurboTasksBackend {
         &self,
         ctx: &mut impl ExecuteContext<'_>,
         task_id: TaskId,
-        new_children: ChildrenCollector,
+        new_children: FxHashSet<TaskId>,
     ) -> Option<TaskPriority> {
         debug_assert!(!new_children.is_empty());
 
@@ -2714,14 +2685,7 @@ impl TurboTasksBackend {
             panic!("Task execution completed, but task is not in progress: {task:#?}");
         };
         if matches!(in_progress, InProgressState::Canceled) {
-            // Task was canceled in the meantime, so we don't connect the children. The staged
-            // edges are discarded — release their parent_count holds (this `new_children` was
-            // already filtered to the genuinely-new set during prepare). Drop the parent guard
-            // first so `release_children_holds` can take the child guards. Cancel path: the
-            // returned set is intentionally NOT fed to `DecreaseActiveCounts` (only the durable
-            // parent_count is released on cancel — see `release_children_holds`).
-            drop(task);
-            let _ = ctx.release_children_holds(task_id, new_children);
+            // Task was canceled in the meantime, so we don't connect the children
             return None;
         }
         let InProgressState::InProgress(box InProgressStateInner {
@@ -2750,11 +2714,8 @@ impl TurboTasksBackend {
             debug_assert!(old.is_none(), "InProgress already exists");
             drop(task);
 
-            // The staged edges are discarded (the task re-executes), so release both holds taken at
-            // staging: the parent_count/transient_ref_count hold (via `release_children_holds`) and
-            // the active count (via `DecreaseActiveCounts`). This `new_children` was already
-            // filtered to the genuinely-new set during prepare.
-            let new_children = ctx.release_children_holds(task_id, new_children);
+            // All `new_children` are currently hold active with an active count and we need to undo
+            // that. (We already filtered out the old children from that list)
             AggregationUpdateQueue::run(
                 AggregationUpdateJob::DecreaseActiveCounts {
                     task_ids: new_children.into_iter().collect(),

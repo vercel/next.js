@@ -239,91 +239,6 @@ impl Display for RootType {
     }
 }
 
-/// The set of children a task connected during its (in-progress) execution, staged until the
-/// execution completes and they are committed to the task's persistent `children` set.
-///
-/// This is a linear-ish wrapper around the staged `TaskId` set that exists to make the
-/// **`parent_count` hold** impossible to leak. When a genuinely-new child edge is staged, the
-/// child's reference count (`parent_count` for a persistent parent, `transient_ref_count` for a
-/// transient one) is optimistically incremented — exactly like the active-count hold taken at the
-/// same moment (see `ConnectChildOperation::run`). That hold must be discharged in one of exactly
-/// two ways, and the encapsulation here forces the caller to pick one:
-///
-/// - [`commit`](Self::commit): the execution completed and the edges become permanent members of
-///   `children`. The holds become permanent — no count change (the +1 taken at staging simply stops
-///   being "temporary"). Balanced later by the `-1` in `CleanupOldEdges` when the edge is
-///   eventually removed.
-/// - [`release_set`](Self::release_set): the staged edges are being **discarded** without ever
-///   reaching `children` (a stale reschedule or a cancellation). The caller must decrement the
-///   holds — see [`ExecuteContext::release_children_holds`](crate::backend::operation::ExecuteContext::release_children_holds),
-///   the only intended consumer, which does the per-child decrement.
-///
-/// The inner set is private and only reachable through those two methods, so any code path that
-/// ends an in-progress state has to make the commit-vs-discard decision explicitly (rather than
-/// silently dropping the set and leaking every hold, which would leave the children permanently
-/// uncollectible). There is deliberately no `Drop` bomb: at teardown (`drop_contents`) the whole
-/// task map — including in-progress tasks — is dropped wholesale, and the counts no longer matter,
-/// so an inert drop is correct there.
-#[derive(Debug, Default)]
-pub struct ChildrenCollector {
-    /// Staged children. Private: consume via [`commit`](Self::commit) or
-    /// [`release_set`](Self::release_set) so the hold decision cannot be skipped.
-    new_children: FxHashSet<TaskId>,
-}
-
-impl ChildrenCollector {
-    pub fn new() -> Self {
-        Self::default()
-    }
-
-    /// Whether `child` is already staged.
-    pub fn contains(&self, child: &TaskId) -> bool {
-        self.new_children.contains(child)
-    }
-
-    /// Stage `child`. Returns `true` if it was newly added, `false` if it was already staged
-    /// (mirrors [`std::collections::HashSet::insert`]). The caller decides, from this return and
-    /// the parent's existing `children` set, whether a `parent_count` hold applies.
-    pub fn insert(&mut self, child: TaskId) -> bool {
-        self.new_children.insert(child)
-    }
-
-    /// Remove `child` from the staged set. Returns whether it was present.
-    pub fn remove(&mut self, child: &TaskId) -> bool {
-        self.new_children.remove(child)
-    }
-
-    /// Iterate the staged children.
-    pub fn iter(&self) -> impl Iterator<Item = TaskId> + '_ {
-        self.new_children.iter().copied()
-    }
-
-    pub fn is_empty(&self) -> bool {
-        self.new_children.is_empty()
-    }
-
-    pub fn len(&self) -> usize {
-        self.new_children.len()
-    }
-
-    /// Consume the collector on the **success** path: the staged edges become permanent members of
-    /// the task's `children` set. The optimistic `parent_count` holds become permanent (no count
-    /// change here). Returns the staged set for `connect_children`'s `extend_children`.
-    pub fn commit(self) -> FxHashSet<TaskId> {
-        self.new_children
-    }
-
-    /// Consume the collector on a **discard** path (stale reschedule / cancellation). Yields the
-    /// staged set so the caller can release the holds. This is intentionally the *only* other way
-    /// to extract the set; its single intended caller is
-    /// [`ExecuteContext::release_children_holds`](crate::backend::operation::ExecuteContext::release_children_holds),
-    /// which decrements each genuinely-new child's reference count. Named distinctly from `commit`
-    /// so a discard can never be mistaken for a commit (which would leak the holds).
-    pub(crate) fn release_set(self) -> FxHashSet<TaskId> {
-        self.new_children
-    }
-}
-
 #[derive(Debug)]
 pub struct InProgressStateInner {
     pub stale: bool,
@@ -335,11 +250,9 @@ pub struct InProgressStateInner {
     /// Event that is triggered when the task output is available (completed flag set).
     /// This is used to wait for completion when reading the task output before it's available.
     pub done_event: Event,
-    /// Children connected during this execution, staged until completion. Wrapped in
-    /// [`ChildrenCollector`] so the `parent_count` hold taken when each genuinely-new child is
-    /// staged is discharged exactly once — committed to `children` on success, or released on a
-    /// stale/cancel discard.
-    pub new_children: ChildrenCollector,
+    /// Children that should be connected to the task and have their active_count decremented
+    /// once the task completes.
+    pub new_children: FxHashSet<TaskId>,
 }
 
 #[derive(Debug)]

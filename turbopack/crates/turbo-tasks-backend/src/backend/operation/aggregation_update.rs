@@ -183,27 +183,6 @@ impl ComputeDirtyAndCleanUpdateResult {
     }
 }
 
-/// Which child-side reference count (if any) an [`AggregationUpdateJob::IncreaseActiveCount`]
-/// should also bump when it is raised for a genuinely-new child edge in
-/// `ConnectChildOperation::run`. The bump rides the Meta guard that `increase_active_count`
-/// already takes, so maintaining the `parent_count` / `transient_ref_count` for a new edge costs
-/// no extra lock on the hot connect path.
-///
-/// `Default` is [`ParentCountBump::NoBump`]: every producer of `IncreaseActiveCount` other than the
-/// direct-child staging in `ConnectChildOperation::run` (e.g. follower/upper propagation) leaves
-/// the count untouched.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub enum ParentCountBump {
-    /// Do not touch any reference count (the default for propagation-sourced jobs).
-    #[default]
-    NoBump,
-    /// Increment the child's durable `parent_count` (the connecting parent is persistent).
-    BumpParent,
-    /// Increment the child's session-only `transient_ref_count` (the connecting parent is
-    /// transient).
-    BumpTransientParent,
-}
-
 #[derive(Encode, Decode, Clone, Debug)]
 pub struct InnerOfUppersHasNewFollowersJob {
     #[bincode(with = "turbo_bincode::smallvec")]
@@ -324,14 +303,6 @@ pub enum AggregationUpdateJob {
         // upon attempted serialization) similar to #[serde(skip)] on variants
         #[bincode(skip, default = "unreachable_decode")]
         task: TaskId,
-        /// When this `IncreaseActiveCount` is raised for a task being connected as a genuinely-new
-        /// child (in `ConnectChildOperation::run`), it also carries the child-side reference-count
-        /// **hold** for that new edge, applied under the same guard the active-count bump already
-        /// takes (so the hold is free). `NoBump` for every other producer of this job (e.g. the
-        /// follower/upper propagation in `inner_of_upper_has_new_follower`), which must not touch
-        /// the count. Never serialized (this whole variant is `#[bincode(skip)]`).
-        #[bincode(skip, default = "Default::default")]
-        bump: ParentCountBump,
     },
     /// Increases the active counters of the tasks
     IncreaseActiveCounts {
@@ -1530,13 +1501,12 @@ impl AggregationUpdateQueue {
                         }
                     }
                 }
-                AggregationUpdateJob::IncreaseActiveCount { task, bump } => {
-                    self.increase_active_count(ctx, task, bump);
+                AggregationUpdateJob::IncreaseActiveCount { task } => {
+                    self.increase_active_count(ctx, task);
                 }
                 AggregationUpdateJob::IncreaseActiveCounts { mut task_ids } => {
                     if let Some(task_id) = task_ids.pop() {
-                        // Follower/upper propagation: never a direct-child edge, so no count hold.
-                        self.increase_active_count(ctx, task_id, ParentCountBump::NoBump);
+                        self.increase_active_count(ctx, task_id);
                         if !task_ids.is_empty() {
                             self.jobs.push_front(AggregationUpdateJobItem::new(
                                 AggregationUpdateJob::IncreaseActiveCounts { task_ids },
@@ -1787,10 +1757,7 @@ impl AggregationUpdateQueue {
                         let has_active_count =
                             upper.get_activeness().is_some_and(|a| a.active_counter > 0);
                         if has_active_count {
-                            self.push(AggregationUpdateJob::IncreaseActiveCount {
-                                task: task_id,
-                                bump: ParentCountBump::NoBump,
-                            });
+                            self.push(AggregationUpdateJob::IncreaseActiveCount { task: task_id });
                         }
                     }
                     // notify uppers about new follower
@@ -3061,7 +3028,6 @@ impl AggregationUpdateQueue {
                     if has_active_count {
                         self.push(AggregationUpdateJob::IncreaseActiveCount {
                             task: new_follower_id,
-                            bump: ParentCountBump::NoBump,
                         });
                     }
 
@@ -3220,12 +3186,7 @@ impl AggregationUpdateQueue {
     /// Increases the active count of a task.
     ///
     /// Only used when activeness is tracked.
-    fn increase_active_count(
-        &mut self,
-        ctx: &mut impl ExecuteContext<'_>,
-        task_id: TaskId,
-        bump: ParentCountBump,
-    ) {
+    fn increase_active_count(&mut self, ctx: &mut impl ExecuteContext<'_>, task_id: TaskId) {
         #[cfg(feature = "trace_aggregation_update")]
         let _span = trace_span!("increase active count").entered();
 
@@ -3235,19 +3196,6 @@ impl AggregationUpdateQueue {
             // persistent_task_type is now set eagerly in initialize_new_task.
             AGGREGATION_UPDATE_CATEGORY,
         );
-        // Ride this guard to take the child-side reference-count hold for a genuinely-new child
-        // edge (see `ParentCountBump` / `ConnectChildOperation::run`). `parent_count` /
-        // `transient_ref_count` are Meta fields, covered by AGGREGATION_UPDATE_CATEGORY, so this is
-        // free — no extra lock. `NoBump` (every non-direct-child producer) does nothing.
-        match bump {
-            ParentCountBump::NoBump => {}
-            ParentCountBump::BumpParent => {
-                task.update_and_get_parent_count(1);
-            }
-            ParentCountBump::BumpTransientParent => {
-                task.update_and_get_transient_ref_count(1);
-            }
-        }
         self.check_optimization_pending(&task);
         let state = task.get_activeness_mut_or_insert_with(|| ActivenessState::new(task_id));
         let is_new = state.is_empty();
