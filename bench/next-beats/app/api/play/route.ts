@@ -12,8 +12,9 @@ const bodySchema = z.object({
 
 export async function POST(request: NextRequest) {
   const store = await cookies();
-  const userId = store.get(SESSION_COOKIE)?.value;
-  if (!userId) return new NextResponse(null, { status: 401 });
+  // Bench fixture: fall back to the seeded `e2e` user when no session cookie is
+  // present, matching getCurrentUser(), so playback works without signing in.
+  const userId = store.get(SESSION_COOKIE)?.value ?? 'e2e';
 
   const parsed = bodySchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return new NextResponse(null, { status: 400 });
