@@ -8,7 +8,11 @@ import { useEffect } from 'react'
 export function ThirdPartyPush() {
   useEffect(() => {
     if ((window as any).__injectThirdPartyPush) {
-      window.history.pushState({ thirdParty: true }, '', '/?tp=1')
+      window.history.pushState(
+        { thirdParty: true },
+        '',
+        window.location.pathname + '?tp=1'
+      )
     }
   }, [])
   return null

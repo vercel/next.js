@@ -20,6 +20,14 @@ import type * as Playwright from 'playwright'
 // In manual testing this is easiest to hit with a hard reload (shift+cmd+R)
 // because the widened commit-to-hydration window makes the race human-sized;
 // here we make it deterministic by stalling the static scripts instead.
+//
+// Every scenario runs twice: against pages with no Suspense boundary above
+// them, and against pages below a Suspense-wrapped layout. These exercise
+// different recovery codepaths: without a boundary, a suspended traversal
+// holds the transition until its data is ready; with one, it can commit the
+// boundary's fallback and then depends on React retrying when the data
+// resolves. Under cacheComponents the boundary variant regressed into a
+// permanently blank page (#95848) while the boundary-less variant recovered.
 describe('back navigation before hydration after reload', () => {
   const { next } = nextTestSetup({ files: __dirname })
 
@@ -92,227 +100,235 @@ describe('back navigation before hydration after reload', () => {
     return { browser, page, releaseScripts }
   }
 
-  it('reconciles the URL with the rendered content once hydration completes', async () => {
-    const { browser, releaseScripts } = await clickThenReloadStalled(
-      '/',
-      'to-post',
-      'Post'
-    )
+  describe.each([
+    { label: 'no Suspense boundary above the page', prefix: '' },
+    { label: 'Suspense boundary above the page', prefix: '/suspense' },
+  ])('$label', ({ prefix }) => {
+    const homePath = prefix === '' ? '/' : prefix
+    const postPath = `${prefix}/post`
+    const searchPath = `${prefix}/search`
 
-    // Back while the reloaded document is not hydrated: an instant
-    // same-document traversal handled by nobody.
-    await browser.back({ waitUntil: 'commit' })
-    expect(new URL(await browser.url()).pathname).toBe('/')
-
-    releaseScripts()
-
-    // We traversed back to '/', so once the router is up it must render the
-    // home page (or otherwise bring URL and content back in sync).
-    await retry(async () => {
-      expect(new URL(await browser.url()).pathname).toBe('/')
-      expect(await browser.elementByCss('h1').text()).toBe('Home')
-    })
-
-    // History traversal must still work after recovery.
-    await browser.forward()
-    await retry(async () => {
-      expect(new URL(await browser.url()).pathname).toBe('/post')
-      expect(await browser.elementByCss('h1').text()).toBe('Post')
-    })
-
-    await browser.back()
-    await retry(async () => {
-      expect(new URL(await browser.url()).pathname).toBe('/')
-      expect(await browser.elementByCss('h1').text()).toBe('Home')
-    })
-  })
-
-  it('reconciles when the traversed entry differs only in search params', async () => {
-    const { browser, releaseScripts } = await clickThenReloadStalled(
-      '/search?page=1',
-      'to-page-2',
-      'Page 2'
-    )
-
-    await browser.back({ waitUntil: 'commit' })
-    expect(new URL(await browser.url()).search).toBe('?page=1')
-
-    releaseScripts()
-
-    await retry(async () => {
-      expect(new URL(await browser.url()).search).toBe('?page=1')
-      expect(await browser.elementByCss('h1').text()).toBe('Page 1')
-    })
-
-    await browser.forward()
-    await retry(async () => {
-      expect(new URL(await browser.url()).search).toBe('?page=2')
-      expect(await browser.elementByCss('h1').text()).toBe('Page 2')
-    })
-  })
-
-  // History changes before hydration that are NOT missed traversals must not
-  // trigger the recovery: the router should behave exactly as it did before
-  // (adopt the current entry on its first history write, and in particular
-  // never cause a full reload).
-  describe('other history changes before hydration', () => {
-    it('adopts a third-party pushState', async () => {
-      const { browser, page, releaseScripts } = await loadStalled(
-        '/post',
-        '#post'
+    it('reconciles the URL with the rendered content once hydration completes', async () => {
+      const { browser, releaseScripts } = await clickThenReloadStalled(
+        homePath,
+        'to-post',
+        'Post'
       )
 
-      // e.g. analytics/consent tooling running before the framework.
-      await page.evaluate(
-        `window.history.pushState({ thirdParty: true }, '', '/post?tp=1')`
-      )
+      // Back while the reloaded document is not hydrated: an instant
+      // same-document traversal handled by nobody.
+      await browser.back({ waitUntil: 'commit' })
+      expect(new URL(await browser.url()).pathname).toBe(homePath)
+
       releaseScripts()
 
+      // We traversed back, so once the router is up it must render the home
+      // page (or otherwise bring URL and content back in sync).
       await retry(async () => {
-        expect(await browser.eval('window.__stayed')).toBe(true)
-        expect(await browser.elementByCss('h1').text()).toBe('Post')
-        expect(new URL(await browser.url()).search).toBe('?tp=1')
-      })
-
-      // The router still navigates.
-      await browser.elementById('to-home').click()
-      await retry(async () => {
+        expect(new URL(await browser.url()).pathname).toBe(homePath)
         expect(await browser.elementByCss('h1').text()).toBe('Home')
       })
-    })
 
-    it('keeps an in-page anchor jump on a fresh load', async () => {
-      const { browser, page, releaseScripts } = await loadStalled(
-        '/post',
-        '#post'
-      )
-
-      await page.click('#hash-link')
-      expect(new URL(page.url()).hash).toBe('#section')
-      releaseScripts()
-
-      await retry(async () => {
-        expect(await browser.eval('window.__stayed')).toBe(true)
-        expect(await browser.elementByCss('h1').text()).toBe('Post')
-        expect(new URL(await browser.url()).hash).toBe('#section')
-      })
-
-      // Hash traversals keep behaving like same-page jumps.
-      await browser.back()
-      await retry(async () => {
-        expect(new URL(await browser.url()).hash).toBe('')
-        expect(await browser.elementByCss('h1').text()).toBe('Post')
-      })
+      // History traversal must still work after recovery.
       await browser.forward()
       await retry(async () => {
-        expect(new URL(await browser.url()).hash).toBe('#section')
+        expect(new URL(await browser.url()).pathname).toBe(postPath)
         expect(await browser.elementByCss('h1').text()).toBe('Post')
       })
-    })
 
-    it('keeps an in-page anchor jump between a reload and hydration', async () => {
-      const { browser, page, releaseScripts } = await clickThenReloadStalled(
-        '/',
-        'to-post',
-        'Post'
-      )
-
-      await page.click('#hash-link')
-      expect(new URL(page.url()).hash).toBe('#section')
-      releaseScripts()
-
+      await browser.back()
       await retry(async () => {
-        expect(await browser.eval('window.__stayed')).toBe(true)
-        expect(await browser.elementByCss('h1').text()).toBe('Post')
-        expect(new URL(await browser.url()).hash).toBe('#section')
-      })
-
-      // Traversing over the hash entry and the pushState entry still works.
-      await browser.back() // -> /post
-      await browser.back() // -> /
-      await retry(async () => {
-        expect(new URL(await browser.url()).pathname).toBe('/')
+        expect(new URL(await browser.url()).pathname).toBe(homePath)
         expect(await browser.elementByCss('h1').text()).toBe('Home')
       })
     })
 
-    it('handles a pushState followed by back', async () => {
-      const { browser, page, releaseScripts } = await loadStalled(
-        '/post',
-        '#post'
-      )
-
-      await page.evaluate(
-        `window.history.pushState({ thirdParty: true }, '', '/post?tp=1')`
-      )
-      await page.evaluate(`window.history.back()`)
-      await retry(async () => {
-        expect(new URL(page.url()).search).toBe('')
-      })
-      releaseScripts()
-
-      await retry(async () => {
-        expect(await browser.eval('window.__stayed')).toBe(true)
-        expect(await browser.elementByCss('h1').text()).toBe('Post')
-      })
-
-      await browser.elementById('to-home').click()
-      await retry(async () => {
-        expect(await browser.elementByCss('h1').text()).toBe('Home')
-      })
-    })
-
-    it('leaves the traversal unhandled when a third-party write lands before the replay', async () => {
-      const { browser, page, releaseScripts } = await clickThenReloadStalled(
-        '/',
-        'to-post',
-        'Post'
+    it('reconciles when the traversed entry differs only in search params', async () => {
+      const { browser, releaseScripts } = await clickThenReloadStalled(
+        `${searchPath}?page=1`,
+        'to-page-2',
+        'Page 2'
       )
 
       await browser.back({ waitUntil: 'commit' })
-      expect(new URL(await browser.url()).pathname).toBe('/')
+      expect(new URL(await browser.url()).search).toBe('?page=1')
 
-      // Arms an effect in the fixture that pushes a third-party history
-      // entry between the router's traversal detection and its replay.
-      await page.evaluate('window.__injectThirdPartyPush = true')
       releaseScripts()
 
       await retry(async () => {
-        // The traversal cannot be replayed onto the third-party entry. The
-        // content stays on the reloaded page, like before the fix — and in
-        // particular the router must not reload a page that just loaded.
-        expect(await browser.eval('window.__stayed')).toBe(true)
-        expect(new URL(await browser.url()).search).toBe('?tp=1')
-        expect(await browser.elementByCss('h1').text()).toBe('Post')
+        expect(new URL(await browser.url()).search).toBe('?page=1')
+        expect(await browser.elementByCss('h1').text()).toBe('Page 1')
       })
 
-      await browser.elementById('to-home').click()
+      await browser.forward()
       await retry(async () => {
-        expect(await browser.elementByCss('h1').text()).toBe('Home')
+        expect(new URL(await browser.url()).search).toBe('?page=2')
+        expect(await browser.elementByCss('h1').text()).toBe('Page 2')
       })
     })
 
-    it('handles a traversal onto a third-party entry', async () => {
-      const { browser, page, releaseScripts } = await loadStalled(
-        '/post',
-        '#post'
-      )
+    // History changes before hydration that are NOT missed traversals must
+    // not trigger any recovery: the router should adopt the current entry on
+    // its first history write, and in particular never cause a full reload.
+    describe('other history changes before hydration', () => {
+      it('adopts a third-party pushState', async () => {
+        const { browser, page, releaseScripts } = await loadStalled(
+          postPath,
+          '#post'
+        )
 
-      await page.evaluate(
-        `window.history.pushState({ a: 1 }, '', '/post?tp=1')`
-      )
-      await page.evaluate(
-        `window.history.pushState({ b: 2 }, '', '/post?tp=2')`
-      )
-      await page.evaluate(`window.history.back()`)
-      await retry(async () => {
-        expect(new URL(page.url()).search).toBe('?tp=1')
+        // e.g. analytics/consent tooling running before the framework.
+        await page.evaluate(
+          `window.history.pushState({ thirdParty: true }, '', '${postPath}?tp=1')`
+        )
+        releaseScripts()
+
+        await retry(async () => {
+          expect(await browser.eval('window.__stayed')).toBe(true)
+          expect(await browser.elementByCss('h1').text()).toBe('Post')
+          expect(new URL(await browser.url()).search).toBe('?tp=1')
+        })
+
+        // The router still navigates.
+        await browser.elementById('to-home').click()
+        await retry(async () => {
+          expect(await browser.elementByCss('h1').text()).toBe('Home')
+        })
       })
-      releaseScripts()
 
-      await retry(async () => {
-        expect(await browser.eval('window.__stayed')).toBe(true)
-        expect(await browser.elementByCss('h1').text()).toBe('Post')
+      it('keeps an in-page anchor jump on a fresh load', async () => {
+        const { browser, page, releaseScripts } = await loadStalled(
+          postPath,
+          '#post'
+        )
+
+        await page.click('#hash-link')
+        expect(new URL(page.url()).hash).toBe('#section')
+        releaseScripts()
+
+        await retry(async () => {
+          expect(await browser.eval('window.__stayed')).toBe(true)
+          expect(await browser.elementByCss('h1').text()).toBe('Post')
+          expect(new URL(await browser.url()).hash).toBe('#section')
+        })
+
+        // Hash traversals keep behaving like same-page jumps.
+        await browser.back()
+        await retry(async () => {
+          expect(new URL(await browser.url()).hash).toBe('')
+          expect(await browser.elementByCss('h1').text()).toBe('Post')
+        })
+        await browser.forward()
+        await retry(async () => {
+          expect(new URL(await browser.url()).hash).toBe('#section')
+          expect(await browser.elementByCss('h1').text()).toBe('Post')
+        })
+      })
+
+      it('keeps an in-page anchor jump between a reload and hydration', async () => {
+        const { browser, page, releaseScripts } = await clickThenReloadStalled(
+          homePath,
+          'to-post',
+          'Post'
+        )
+
+        await page.click('#hash-link')
+        expect(new URL(page.url()).hash).toBe('#section')
+        releaseScripts()
+
+        await retry(async () => {
+          expect(await browser.eval('window.__stayed')).toBe(true)
+          expect(await browser.elementByCss('h1').text()).toBe('Post')
+          expect(new URL(await browser.url()).hash).toBe('#section')
+        })
+
+        // Traversing over the hash entry and the pushState entry still works.
+        await browser.back() // -> post
+        await browser.back() // -> home
+        await retry(async () => {
+          expect(new URL(await browser.url()).pathname).toBe(homePath)
+          expect(await browser.elementByCss('h1').text()).toBe('Home')
+        })
+      })
+
+      it('handles a pushState followed by back', async () => {
+        const { browser, page, releaseScripts } = await loadStalled(
+          postPath,
+          '#post'
+        )
+
+        await page.evaluate(
+          `window.history.pushState({ thirdParty: true }, '', '${postPath}?tp=1')`
+        )
+        await page.evaluate(`window.history.back()`)
+        await retry(async () => {
+          expect(new URL(page.url()).search).toBe('')
+        })
+        releaseScripts()
+
+        await retry(async () => {
+          expect(await browser.eval('window.__stayed')).toBe(true)
+          expect(await browser.elementByCss('h1').text()).toBe('Post')
+        })
+
+        await browser.elementById('to-home').click()
+        await retry(async () => {
+          expect(await browser.elementByCss('h1').text()).toBe('Home')
+        })
+      })
+
+      it('leaves the traversal unhandled when a third-party write lands before the replay', async () => {
+        const { browser, page, releaseScripts } = await clickThenReloadStalled(
+          homePath,
+          'to-post',
+          'Post'
+        )
+
+        await browser.back({ waitUntil: 'commit' })
+        expect(new URL(await browser.url()).pathname).toBe(homePath)
+
+        // Arms an effect in the fixture that pushes a third-party history
+        // entry between the router's traversal detection and its replay.
+        await page.evaluate('window.__injectThirdPartyPush = true')
+        releaseScripts()
+
+        await retry(async () => {
+          // The traversal cannot be replayed onto the third-party entry. The
+          // content stays on the reloaded page, like before the fix — and in
+          // particular the router must not reload a page that just loaded.
+          expect(await browser.eval('window.__stayed')).toBe(true)
+          expect(new URL(await browser.url()).search).toBe('?tp=1')
+          expect(await browser.elementByCss('h1').text()).toBe('Post')
+        })
+
+        await browser.elementById('to-home').click()
+        await retry(async () => {
+          expect(await browser.elementByCss('h1').text()).toBe('Home')
+        })
+      })
+
+      it('handles a traversal onto a third-party entry', async () => {
+        const { browser, page, releaseScripts } = await loadStalled(
+          postPath,
+          '#post'
+        )
+
+        await page.evaluate(
+          `window.history.pushState({ a: 1 }, '', '${postPath}?tp=1')`
+        )
+        await page.evaluate(
+          `window.history.pushState({ b: 2 }, '', '${postPath}?tp=2')`
+        )
+        await page.evaluate(`window.history.back()`)
+        await retry(async () => {
+          expect(new URL(page.url()).search).toBe('?tp=1')
+        })
+        releaseScripts()
+
+        await retry(async () => {
+          expect(await browser.eval('window.__stayed')).toBe(true)
+          expect(await browser.elementByCss('h1').text()).toBe('Post')
+        })
       })
     })
   })
