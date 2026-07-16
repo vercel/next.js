@@ -95,6 +95,7 @@
       "test/development/app-dir/ssr-only-error/ssr-only-error.test.ts",
       "test/development/app-hmr/hmr-env.test.ts",
       "test/development/app-hmr/hmr.test.ts",
+      "test/e2e/app-dir/actions-navigation/index.test.ts",
       "test/e2e/app-dir/actions-revalidate-remount/actions-revalidate-remount.test.ts",
       "test/e2e/app-dir/actions-unrecognized/actions-unrecognized.test.ts",
       "test/e2e/app-dir/actions/app-action-export.test.ts",
