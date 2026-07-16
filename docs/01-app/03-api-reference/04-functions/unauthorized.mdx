@@ -81,6 +81,76 @@ export default async function DashboardPage() {
 
 ## Examples
 
+### Calling `unauthorized()` after streaming has started
+
+To keep the page's shell and loading UI visible while the session is verified, put the auth check in the [Data Access Layer](/docs/app/guides/authentication#creating-a-data-access-layer-dal) function that loads the data, and render it in a component wrapped in [`<Suspense>`](https://react.dev/reference/react/Suspense). The check runs inside the boundary, so the shell streams while the session resolves:
+
+```tsx filename="app/account/page.tsx" switcher highlight={8}
+import { Suspense } from 'react'
+import { verifySession } from '@/app/lib/dal'
+import { unauthorized } from 'next/navigation'
+
+async function getAccount() {
+  const session = await verifySession()
+  if (!session) {
+    unauthorized()
+  }
+  return db.accounts.findByUserId(session.userId)
+}
+
+async function AccountDetails() {
+  const account = await getAccount()
+  return <p>Signed in as {account.email}</p>
+}
+
+export default function AccountPage() {
+  return (
+    <main>
+      <h1>Account</h1>
+      <Suspense fallback={<p>Loading...</p>}>
+        <AccountDetails />
+      </Suspense>
+    </main>
+  )
+}
+```
+
+```jsx filename="app/account/page.js" switcher highlight={8}
+import { Suspense } from 'react'
+import { verifySession } from '@/app/lib/dal'
+import { unauthorized } from 'next/navigation'
+
+async function getAccount() {
+  const session = await verifySession()
+  if (!session) {
+    unauthorized()
+  }
+  return db.accounts.findByUserId(session.userId)
+}
+
+async function AccountDetails() {
+  const account = await getAccount()
+  return <p>Signed in as {account.email}</p>
+}
+
+export default function AccountPage() {
+  return (
+    <main>
+      <h1>Account</h1>
+      <Suspense fallback={<p>Loading...</p>}>
+        <AccountDetails />
+      </Suspense>
+    </main>
+  )
+}
+```
+
+Because `unauthorized()` is thrown during rendering, it propagates up to the nearest [`unauthorized`](/docs/app/api-reference/file-conventions/unauthorized) boundary and replaces the UI, even after the shell has started streaming. Next.js also injects a `<meta name="robots" content="noindex">` tag so the page is not indexed.
+
+The trade-off is the HTTP status code. Because the check fires inside the `<Suspense>` boundary, the response has already begun streaming as a `200`, and the status can't change once streaming has started. This is usually fine for a page, where the user sees the `unauthorized` UI regardless; if you need the response itself to carry a `401`, the check has to resolve before anything streams. See [Status codes](/docs/app/api-reference/file-conventions/loading#status-codes).
+
+> **Good to know**: Call `unauthorized()` where it is thrown during rendering, either directly in a component or in a function the component `await`s. Calling it inside a floating promise that is never awaited (for example, `void getAccount()`) will not render the unauthorized UI, because the thrown error never propagates through the render tree.
+
 ### Displaying login UI to unauthenticated users
 
 You can use `unauthorized` function to display the `unauthorized.js` file with a login UI.

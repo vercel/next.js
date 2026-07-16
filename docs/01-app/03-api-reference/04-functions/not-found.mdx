@@ -32,6 +32,96 @@ export default async function Profile({ params }) {
 
 > **Good to know**: `notFound()` does not require you to use `return notFound()` due to using the TypeScript [`never`](https://www.typescriptlang.org/docs/handbook/2/functions.html#never) type.
 
+## Examples
+
+### Calling `notFound()` after streaming has started
+
+To keep a page's shell and loading UI visible while data loads, do the existence check inside a component wrapped in [`<Suspense>`](https://react.dev/reference/react/Suspense) instead of blocking the whole route. The idiomatic place for the check is the data-access function itself, awaited by the component that needs the data:
+
+```tsx filename="app/blog/[slug]/page.tsx" switcher highlight={8}
+import { Suspense } from 'react'
+import Link from 'next/link'
+import { notFound } from 'next/navigation'
+
+async function getPost(slug: string) {
+  const res = await fetch(`https://api.example.com/posts/${slug}`)
+  if (!res.ok) {
+    notFound()
+  }
+  return res.json()
+}
+
+async function Article({ slug }: { slug: string }) {
+  const post = await getPost(slug)
+  return (
+    <article>
+      <h1>{post.title}</h1>
+      <p>{post.content}</p>
+    </article>
+  )
+}
+
+export default async function PostPage({
+  params,
+}: {
+  params: Promise<{ slug: string }>
+}) {
+  const { slug } = await params
+
+  return (
+    <section>
+      <Link href="/blog">Blog</Link>
+      <Suspense fallback={<p>Loading...</p>}>
+        <Article slug={slug} />
+      </Suspense>
+    </section>
+  )
+}
+```
+
+```jsx filename="app/blog/[slug]/page.js" switcher highlight={8}
+import { Suspense } from 'react'
+import Link from 'next/link'
+import { notFound } from 'next/navigation'
+
+async function getPost(slug) {
+  const res = await fetch(`https://api.example.com/posts/${slug}`)
+  if (!res.ok) {
+    notFound()
+  }
+  return res.json()
+}
+
+async function Article({ slug }) {
+  const post = await getPost(slug)
+  return (
+    <article>
+      <h1>{post.title}</h1>
+      <p>{post.content}</p>
+    </article>
+  )
+}
+
+export default async function PostPage({ params }) {
+  const { slug } = await params
+
+  return (
+    <section>
+      <Link href="/blog">Blog</Link>
+      <Suspense fallback={<p>Loading...</p>}>
+        <Article slug={slug} />
+      </Suspense>
+    </section>
+  )
+}
+```
+
+Because `notFound()` is thrown during rendering, it propagates up to the nearest [`not-found`](/docs/app/api-reference/file-conventions/not-found) boundary and replaces the UI, even after the shell has started streaming. Next.js also injects a `<meta name="robots" content="noindex">` tag so the page is not indexed.
+
+The trade-off is the HTTP status code. Because the check fires inside the `<Suspense>` boundary, the response has already begun streaming as a `200`, and the status can't change once streaming has started. The `noindex` tag keeps a soft 404 out of search results; if you also need the response itself to carry a `404`, the check has to resolve before anything streams. See [Status codes](/docs/app/api-reference/file-conventions/loading#status-codes).
+
+> **Good to know**: Call `notFound()` where it is thrown during rendering, either directly in a component or in a function the component `await`s. Calling it inside a floating promise that is never awaited (for example, `void getPost(slug)`) will not render the not-found UI, because the thrown error never propagates through the render tree.
+
 ## Version History
 
 | Version   | Changes                |
