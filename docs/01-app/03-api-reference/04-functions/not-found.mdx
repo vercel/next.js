@@ -7,7 +7,9 @@ The `notFound` function allows you to render the [`not-found file`](/docs/app/ap
 
 ## `notFound()`
 
-Invoking the `notFound()` function throws a `NEXT_HTTP_ERROR_FALLBACK;404` error and terminates rendering of the route segment in which it was thrown. Specifying a [**not-found** file](/docs/app/api-reference/file-conventions/not-found) allows you to gracefully handle such errors by rendering a Not Found UI within the segment.
+Invoking the `notFound()` function throws a `NEXT_HTTP_ERROR_FALLBACK;404` error and terminates rendering of the route segment in which it was thrown. Because it works by throwing, call it in the render path: a component, or a function a component `await`s. A call left in an un-awaited promise throws where nothing catches it, and no not-found UI renders.
+
+Specifying a [**not-found** file](/docs/app/api-reference/file-conventions/not-found) allows you to gracefully handle such errors by rendering a Not Found UI within the segment.
 
 ```jsx filename="app/user/[id]/page.js"
 import { notFound } from 'next/navigation'
@@ -118,9 +120,31 @@ export default async function PostPage({ params }) {
 
 Because `notFound()` is thrown during rendering, it propagates up to the nearest [`not-found`](/docs/app/api-reference/file-conventions/not-found) boundary and replaces the UI, even after the shell has started streaming. Next.js also injects a `<meta name="robots" content="noindex">` tag so the page is not indexed.
 
-The trade-off is the HTTP status code. Because the check fires inside the `<Suspense>` boundary, the response has already begun streaming as a `200`, and the status can't change once streaming has started. The `noindex` tag keeps a soft 404 out of search results; if you also need the response itself to carry a `404`, the check has to resolve before anything streams. See [Status codes](/docs/app/api-reference/file-conventions/loading#status-codes).
+Add a `not-found.tsx` alongside the route to define that UI:
 
-> **Good to know**: Call `notFound()` where it is thrown during rendering, either directly in a component or in a function the component `await`s. Calling it inside a floating promise that is never awaited (for example, `void getPost(slug)`) will not render the not-found UI, because the thrown error never propagates through the render tree.
+```tsx filename="app/blog/[slug]/not-found.tsx" switcher
+export default function NotFound() {
+  return (
+    <section>
+      <h1>Post not found</h1>
+      <p>The post you're looking for doesn't exist.</p>
+    </section>
+  )
+}
+```
+
+```jsx filename="app/blog/[slug]/not-found.js" switcher
+export default function NotFound() {
+  return (
+    <section>
+      <h1>Post not found</h1>
+      <p>The post you're looking for doesn't exist.</p>
+    </section>
+  )
+}
+```
+
+The trade-off is the HTTP status code. Because the check fires inside the `<Suspense>` boundary, the response has already begun streaming as a `200`, and the status can't change once streaming has started. The `noindex` tag keeps a soft 404 out of search results; if you also need the response itself to carry a `404`, the check has to resolve before anything streams. See [Status codes](/docs/app/api-reference/file-conventions/loading#status-codes).
 
 ## Version History
 
