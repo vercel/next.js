@@ -7,7 +7,9 @@ related:
     - app/api-reference/file-conventions/forbidden
 ---
 
-The `forbidden` function throws an error that renders a Next.js 403 error page. It's useful for handling authorization errors in your application. Because it works by throwing, call it in the render path: a component, or a function a component `await`s. A call left in an un-awaited promise throws where nothing catches it, and no forbidden UI renders. You can customize the UI using the [`forbidden.js` file](/docs/app/api-reference/file-conventions/forbidden).
+The `forbidden` function throws an error that renders a Next.js 403 page. It's useful for handling authorization errors in your application. You can customize the UI using the [`forbidden.js` file](/docs/app/api-reference/file-conventions/forbidden).
+
+Invoking `forbidden()` throws a `NEXT_HTTP_ERROR_FALLBACK;403` error and terminates rendering of the route segment where it was thrown. Next.js also injects a `<meta name="robots" content="noindex" />` tag so the page is not indexed. Because it works by throwing, call it in the render path: a component, or a function a component `await`s. A call left in an un-awaited promise throws where nothing catches it, and no forbidden UI renders.
 
 To start using `forbidden`, enable the experimental [`authInterrupts`](/docs/app/api-reference/config/next-config-js/authInterrupts) configuration option in your `next.config.js` file:
 
@@ -33,7 +35,7 @@ module.exports = {
 
 `forbidden` can be invoked in [Server Components](/docs/app/getting-started/server-and-client-components), [Server Functions](/docs/app/getting-started/mutating-data), and [Route Handlers](/docs/app/api-reference/file-conventions/route).
 
-```tsx filename="app/auth/page.tsx" switcher
+```tsx filename="app/admin/page.tsx" switcher
 import { verifySession } from '@/app/lib/dal'
 import { forbidden } from 'next/navigation'
 
@@ -50,7 +52,7 @@ export default async function AdminPage() {
 }
 ```
 
-```jsx filename="app/auth/page.js" switcher
+```jsx filename="app/admin/page.js" switcher
 import { verifySession } from '@/app/lib/dal'
 import { forbidden } from 'next/navigation'
 
@@ -149,7 +151,7 @@ export default function ProjectsPage() {
 }
 ```
 
-Because `forbidden()` is thrown during rendering, it propagates up to the nearest [`forbidden`](/docs/app/api-reference/file-conventions/forbidden) boundary and replaces the UI, even after the shell has started streaming. Next.js also injects a `<meta name="robots" content="noindex">` tag so the page is not indexed.
+Because `forbidden()` is thrown during rendering, it propagates up to the nearest [`forbidden`](/docs/app/api-reference/file-conventions/forbidden) boundary and replaces the UI, even after the shell has started streaming.
 
 Add a `forbidden.tsx` alongside the route to define that UI:
 
