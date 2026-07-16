@@ -89,6 +89,7 @@ enum AppRenderSpan {
   fetch = 'AppRender.fetch',
   waitShellReady = 'AppRender.waitShellReady',
   renderToNodeFizzStream = 'AppRender.renderToNodeFizzStream',
+  executeServerAction = 'AppRender.executeServerAction',
 }
 
 enum RouterSpan {
@@ -134,6 +135,7 @@ export const NextVanillaSpanAllowlist = new Set([
   RenderSpan.getStaticProps,
   AppRenderSpan.fetch,
   AppRenderSpan.getBodyResult,
+  AppRenderSpan.executeServerAction,
   RenderSpan.renderDocument,
   NodeSpan.runHandler,
   AppRouteRouteHandlersSpan.runHandler,
