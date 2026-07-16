@@ -94,12 +94,13 @@ export default async function Page({ params }) {
 
 Here's how this example works:
 
-1. During `next build`, all known blog posts are generated
-2. All requests made to these pages (e.g. `/blog/1`) are cached and instantaneous
-3. After 60 seconds has passed, the next request will still return the cached (now stale) page
-4. The cache is invalidated and a new version of the page begins generating in the background
-5. Once generated successfully, the next request will return the updated page and cache it for subsequent requests
-6. If `/blog/26` is requested, and it exists, the page will be generated on-demand. This behavior can be changed by using a different [dynamicParams](/docs/app/api-reference/file-conventions/route-segment-config/dynamicParams) value. However, if the post does not exist, then 404 is returned.
+1. [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params) enables ISR for the dynamic route by returning the list of posts to prerender
+2. During `next build`, a page is prerendered for each post
+3. All requests made to these pages (e.g. `/blog/1`) are cached and instantaneous
+4. After 60 seconds has passed, the next request will still return the cached (now stale) page
+5. The cache is invalidated and a new version of the page begins generating in the background
+6. Once generated successfully, the next request will return the updated page and cache it for subsequent requests
+7. If `/blog/26` is requested, and it exists, the page will be generated on-demand. This behavior can be changed by using a different [dynamicParams](/docs/app/api-reference/file-conventions/route-segment-config/dynamicParams) value. However, if the post does not exist, then 404 is returned.
 
 </AppOnly>
 
@@ -213,6 +214,7 @@ Here's how this example works:
 
 ### Functions
 
+- [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params)
 - [`revalidatePath`](/docs/app/api-reference/functions/revalidatePath)
 - [`revalidateTag`](/docs/app/api-reference/functions/revalidateTag)
 

@@ -14,8 +14,9 @@ use turbopack_core::{
     environment::Environment, resolve::options::ImportMapping,
 };
 use turbopack_ecmascript::{
-    AnalyzeMode, TreeShakingMode, TypeofWindow, references::esm::UrlRewriteBehavior,
-    transform::PresetEnvConfig,
+    AnalyzeMode, TreeShakingMode, TypeofWindow,
+    references::esm::UrlRewriteBehavior,
+    transform::{PresetEnvConfig, ReactCompilerCompilationMode, ReactCompilerTarget},
 };
 pub use turbopack_mdx::MdxTransformOptions;
 use turbopack_node::{
@@ -250,6 +251,8 @@ pub struct EcmascriptOptionsContext {
     // node_modules.
     pub enable_typeof_window_inlining: Option<TypeofWindow>,
     pub enable_jsx: Option<ResolvedVc<JsxTransformOptions>>,
+    pub enable_rust_react_compiler: Option<ReactCompilerCompilationMode>,
+    pub rust_react_compiler_target: ReactCompilerTarget,
     /// Follow type references and resolve declaration files in additional to
     /// normal resolution.
     pub enable_types: bool,
@@ -271,9 +274,6 @@ pub struct EcmascriptOptionsContext {
 
     /// Whether to enable `import bytes from 'module' with { type: "bytes" }` syntax.
     pub enable_import_as_bytes: bool,
-
-    /// Whether to enable `import text from 'module' with { type: "text" }` syntax.
-    pub enable_import_as_text: bool,
 
     // TODO should this be a part of Environment instead?
     pub inline_helpers: bool,

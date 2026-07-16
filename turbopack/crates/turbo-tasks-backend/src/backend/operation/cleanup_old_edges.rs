@@ -17,7 +17,7 @@ use crate::{
         },
         storage_schema::TaskStorageAccessors,
     },
-    data::{CellDependency, CellRef, CollectibleRef, CollectiblesRef},
+    data::{CellRef, CollectibleRef, CollectiblesRef},
 };
 
 #[derive(Encode, Decode, Clone)]
@@ -48,7 +48,8 @@ impl Default for CleanupOldEdgesOperation {
 pub enum OutdatedEdge {
     Child(TaskId),
     Collectible(CollectibleRef, i32),
-    CellDependency(CellDependency),
+    CellDependency(CellRef),
+    HashedCellDependency(CellRef, u64),
     OutputDependency(TaskId),
     CollectiblesDependency(CollectiblesRef),
 }
@@ -166,17 +167,32 @@ impl CleanupOldEdgesOperation {
                                     AggregatedDataUpdate::new().collectibles_update(collectibles),
                                 ));
                             }
-                            OutdatedEdge::CellDependency(dep) => {
-                                let (
-                                    CellRef {
-                                        task: cell_task_id,
-                                        cell,
-                                    },
-                                    key,
-                                ) = dep.into_parts();
+                            OutdatedEdge::CellDependency(forward) => {
+                                let CellRef {
+                                    task: cell_task_id,
+                                    cell,
+                                } = forward;
                                 {
                                     let mut task = ctx.task(cell_task_id, TaskDataCategory::Data);
-                                    task.remove_cell_dependents(&CellDependency::new(
+                                    task.remove_cell_dependents(&CellRef {
+                                        task: task_id,
+                                        cell,
+                                    });
+                                }
+                                {
+                                    let mut task = ctx.task(task_id, TaskDataCategory::Data);
+                                    task.remove_cell_dependencies(&forward);
+                                }
+                            }
+                            OutdatedEdge::HashedCellDependency(forward, key) => {
+                                // ame as above but in the `_hashed` sets.
+                                let CellRef {
+                                    task: cell_task_id,
+                                    cell,
+                                } = forward;
+                                {
+                                    let mut task = ctx.task(cell_task_id, TaskDataCategory::Data);
+                                    task.remove_cell_dependents_hashed(&(
                                         CellRef {
                                             task: task_id,
                                             cell,
@@ -186,7 +202,7 @@ impl CleanupOldEdgesOperation {
                                 }
                                 {
                                     let mut task = ctx.task(task_id, TaskDataCategory::Data);
-                                    task.remove_cell_dependencies(&dep);
+                                    task.remove_cell_dependencies_hashed(&(forward, key));
                                 }
                             }
                             OutdatedEdge::OutputDependency(output_task_id) => {

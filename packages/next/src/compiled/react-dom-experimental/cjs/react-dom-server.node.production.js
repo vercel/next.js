@@ -2262,7 +2262,7 @@ function pushStartInstance(
             nonce: props.nonce,
             type: props.type,
             fetchPriority: props.fetchPriority,
-            referrerPolicy: props.refererPolicy
+            referrerPolicy: props.referrerPolicy
           })),
           0 <= (headers.remainingCapacity -= header.length + 2))
             ? ((renderState.resets.image[key$jscomp$0] = PRELOAD_NO_CREDS),
@@ -3271,7 +3271,7 @@ function preloadModule(href, options) {
           break;
         default:
           if (resumableState.moduleUnknownResources.hasOwnProperty(as)) {
-            var resources = resumableState.unknownResources[as];
+            var resources = resumableState.moduleUnknownResources[as];
             if (resources.hasOwnProperty(href)) return;
           } else
             (resources = {}),
@@ -4350,7 +4350,7 @@ function RequestInstance(
   this.clientRenderedBoundaries = [];
   this.completedBoundaries = [];
   this.partialBoundaries = [];
-  this.trackedPostpones = null;
+  this.postponedState = this.trackedPostpones = null;
   this.onError = void 0 === onError ? defaultErrorHandler : onError;
   this.onAllReady = void 0 === onAllReady ? noop : onAllReady;
   this.onShellReady = void 0 === onShellReady ? noop : onShellReady;
@@ -4782,7 +4782,7 @@ function logRecoverableError(request, error, errorInfo) {
 function fatalError(request, error) {
   var onShellError = request.onShellError,
     onFatalError = request.onFatalError;
-  onShellError(error);
+  0 !== request.pendingRootTasks && onShellError(error);
   onFatalError(error);
   null !== request.destination
     ? ((request.status = 13), request.destination.destroy(error))
@@ -6653,7 +6653,6 @@ function safelyEmitEarlyPreloads(request, shellComplete) {
 function completeShell(request) {
   null === request.trackedPostpones && safelyEmitEarlyPreloads(request, !0);
   null === request.trackedPostpones && preparePreamble(request);
-  request.onShellError = noop;
   request = request.onShellReady;
   request();
 }
@@ -6952,27 +6951,27 @@ function performWork(request$jscomp$1) {
                 errorInfo$jscomp$0
               );
               if (null === boundary$jscomp$0) fatalError(request, x$jscomp$0);
-              else if (
-                (boundary$jscomp$0.pendingTasks--,
-                4 !== boundary$jscomp$0.status)
-              ) {
-                boundary$jscomp$0.status = 4;
-                boundary$jscomp$0.errorDigest = errorDigest$jscomp$0;
-                untrackBoundary(request, boundary$jscomp$0);
-                var boundaryRow = boundary$jscomp$0.row;
-                null !== boundaryRow &&
-                  (request.allPendingTasks++,
-                  0 === --boundaryRow.pendingTasks &&
-                    finishSuspenseListRow(request, boundaryRow),
-                  request.allPendingTasks--);
-                boundary$jscomp$0.parentFlushed &&
-                  request.clientRenderedBoundaries.push(boundary$jscomp$0);
-                0 === request.pendingRootTasks &&
-                  null === request.trackedPostpones &&
-                  null !== boundary$jscomp$0.preamble &&
-                  preparePreamble(request);
+              else {
+                boundary$jscomp$0.pendingTasks--;
+                if (4 !== boundary$jscomp$0.status) {
+                  boundary$jscomp$0.status = 4;
+                  boundary$jscomp$0.errorDigest = errorDigest$jscomp$0;
+                  untrackBoundary(request, boundary$jscomp$0);
+                  var boundaryRow = boundary$jscomp$0.row;
+                  null !== boundaryRow &&
+                    (request.allPendingTasks++,
+                    0 === --boundaryRow.pendingTasks &&
+                      finishSuspenseListRow(request, boundaryRow),
+                    request.allPendingTasks--);
+                  boundary$jscomp$0.parentFlushed &&
+                    request.clientRenderedBoundaries.push(boundary$jscomp$0);
+                  0 === request.pendingRootTasks &&
+                    null === request.trackedPostpones &&
+                    null !== boundary$jscomp$0.preamble &&
+                    preparePreamble(request);
+                }
+                0 === request.allPendingTasks && completeAll(request);
               }
-              0 === request.allPendingTasks && completeAll(request);
             }
           } finally {
             request.currentTask = prevTask$jscomp$0;
@@ -7626,6 +7625,8 @@ function flushCompletedQueues(request, destination) {
     }
   } finally {
     (flushingPartialBoundaries = !1),
+      (i = request.postponedState),
+      null !== i && (i.nextSegmentId = request.nextSegmentId),
       0 === request.allPendingTasks &&
       0 === request.clientRenderedBoundaries.length &&
       0 === request.completedBoundaries.length
@@ -7738,11 +7739,11 @@ function getPostponedState(request) {
       null === trackedPostpones.rootSlots)
   )
     return (request.trackedPostpones = null);
-  if (
+  var hasFlushableShell =
     null === request.completedRootSegment ||
     (5 !== request.completedRootSegment.status &&
-      null !== request.completedPreambleSegments)
-  ) {
+      null !== request.completedPreambleSegments);
+  if (hasFlushableShell) {
     var nextSegmentId = request.nextSegmentId;
     var replaySlots = trackedPostpones.rootSlots;
     var resumableState = request.resumableState;
@@ -7767,7 +7768,7 @@ function getPostponedState(request) {
     resumableState.moduleScriptResources = {};
     resumableState.instructions = 0;
   }
-  return {
+  trackedPostpones = {
     nextSegmentId: nextSegmentId,
     rootFormatContext: request.rootFormatContext,
     progressiveChunkSize: request.progressiveChunkSize,
@@ -7775,14 +7776,16 @@ function getPostponedState(request) {
     replayNodes: trackedPostpones.rootNodes,
     replaySlots: replaySlots
   };
+  hasFlushableShell && (request.postponedState = trackedPostpones);
+  return trackedPostpones;
 }
 function ensureCorrectIsomorphicReactVersion() {
   var isomorphicReactPackageVersion = React.version;
-  if ("19.3.0-experimental-43bcbf80-20260603" !== isomorphicReactPackageVersion)
+  if ("19.3.0-experimental-7023f501-20260714" !== isomorphicReactPackageVersion)
     throw Error(
       'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' +
         (isomorphicReactPackageVersion +
-          "\n  - react-dom:  19.3.0-experimental-43bcbf80-20260603\nLearn more: https://react.dev/warnings/version-mismatch")
+          "\n  - react-dom:  19.3.0-experimental-7023f501-20260714\nLearn more: https://react.dev/warnings/version-mismatch")
     );
 }
 ensureCorrectIsomorphicReactVersion();
@@ -8332,4 +8335,4 @@ exports.resumeToPipeableStream = function (children, postponedState, options) {
     }
   };
 };
-exports.version = "19.3.0-experimental-43bcbf80-20260603";
+exports.version = "19.3.0-experimental-7023f501-20260714";

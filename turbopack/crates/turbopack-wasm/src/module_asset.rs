@@ -72,6 +72,7 @@ impl WebAssemblyModuleAsset {
             .environment()
             .chunk_loading()
             .await?;
+
         let is_edge = matches!(*chunk_loading, ChunkLoading::Edge);
 
         let loader_source = if query == "?module" {
@@ -84,6 +85,10 @@ impl WebAssemblyModuleAsset {
             ChunkLoading::Edge => rcstr!("edge/loadWasm.ts"),
             ChunkLoading::NodeJs => rcstr!("node/loadWasm.ts"),
             ChunkLoading::Dom => rcstr!("browser/loadWasm.ts"),
+            ChunkLoading::SingleChunk => unreachable!(
+                "Environment::chunk_loading never returns SingleChunk; single-chunk WASM is \
+                 rejected in chunk_item_content"
+            ),
         };
 
         let helper = self
@@ -223,6 +228,16 @@ impl EcmascriptChunkPlaceable for WebAssemblyModuleAsset {
         async_module_info: Option<Vc<AsyncModuleInfo>>,
         estimated: bool,
     ) -> Result<Vc<EcmascriptChunkItemContent>> {
+        if matches!(
+            *chunking_context.chunk_loading().await?,
+            ChunkLoading::SingleChunk
+        ) {
+            bail!(
+                "WebAssembly imports are not supported in single-chunk (service-worker) \
+                 entrypoints"
+            );
+        }
+
         // Delegate to the loader's chunk item content
         Ok(self.loader().chunk_item_content(
             chunking_context,

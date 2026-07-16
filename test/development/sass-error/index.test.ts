@@ -26,7 +26,7 @@ describe('app dir - css', () => {
           // css-loader does not report an error for this case
           expect(source).toMatchInlineSnapshot(`
            "./app/global.scss.css (45:1)
-           Parsing CSS source code failed
+           Error: Parsing CSS source code failed
              43 | }
              44 |
            > 45 | input.defaultCheckbox::before path {

@@ -30,8 +30,8 @@ use socket2::{Domain, Protocol, Socket, Type};
 use tokio::task::JoinHandle;
 use tracing::{Instrument, Level, Span, event, info_span};
 use turbo_tasks::{
-    Effects, NonLocalValue, OperationVc, PrettyPrintError, TurboTasksApi, Vc,
-    read_strongly_consistent_and_apply_effects, run_once_with_reason, take_effects,
+    Completion, Effects, NonLocalValue, OperationVc, PrettyPrintError, ResolvedVc, TurboTasksApi,
+    Vc, read_strongly_consistent_and_apply_effects, run_once_with_reason, take_effects,
     trace::TraceRawVcs, util::FormatDuration,
 };
 use turbopack_core::issue::{IssueReporter, IssueSeverity, handle_issues};
@@ -69,6 +69,19 @@ async fn get_source_with_issues_operation(
     let _ = source_op.resolve().strongly_consistent().await?;
     let effects = take_effects(source_op).await?;
     Ok(ContentSourceWithIssues { source_op, effects }.cell())
+}
+
+/// Applies all collected [`ContentSourceSideEffect`]s. The individual `apply()` reads happen
+/// *inside* this task (where eventually-consistent reads are legal); the caller reads the result
+/// strongly consistently so the work is finished before the response is observed.
+#[turbo_tasks::function(operation, root)]
+async fn apply_side_effects_operation(
+    side_effects: Vec<ResolvedVc<Box<dyn ContentSourceSideEffect>>>,
+) -> Result<Vc<Completion>> {
+    for side_effect in &side_effects {
+        side_effect.apply().await?;
+    }
+    Ok(Completion::new())
 }
 
 #[derive(TraceRawVcs, Debug, NonLocalValue)]
@@ -266,13 +279,17 @@ impl DevServerBuilder {
                                 );
                             }
                             if !side_effects.is_empty() {
+                                let side_effects: Vec<_> = side_effects.into_iter().collect();
                                 let join_handle = tokio::spawn(run_once_with_reason(
                                     tt.clone(),
                                     side_effects_reason,
                                     async move {
-                                        for side_effect in side_effects {
-                                            side_effect.apply().await?;
-                                        }
+                                        // Apply the side effects inside a dedicated `operation`
+                                        // task and read its result strongly consistently, so this
+                                        // top-level task performs no eventually-consistent read.
+                                        apply_side_effects_operation(side_effects)
+                                            .read_strongly_consistent()
+                                            .await?;
                                         Ok(())
                                     },
                                 ));

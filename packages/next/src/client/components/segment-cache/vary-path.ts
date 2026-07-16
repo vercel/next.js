@@ -37,6 +37,14 @@ export type VaryPath = {
    */
   id: string | null
   value: string | null | FallbackType
+  /**
+   * Whether this node corresponds to a root param — a path param at or above
+   * the application's root layout. Root params may appear in the App Shell, so
+   * the shell vary path keeps their concrete value instead of replacing it with
+   * Fallback. See getShellSegmentVaryPath. Only set on path param nodes;
+   * undefined (falsy) for structural and search param nodes.
+   */
+  isRootParam?: boolean
   parent: VaryPath | null
 }
 
@@ -142,11 +150,13 @@ export function getFulfilledRouteVaryPath(
 export function appendLayoutVaryPath(
   parentPath: PartialSegmentVaryPath | null,
   cacheKey: string,
-  paramName: string
+  paramName: string,
+  isRootParam: boolean
 ): PartialSegmentVaryPath {
   const varyPathPart: VaryPath = {
     id: paramName,
     value: cacheKey,
+    isRootParam,
     parent: parentPath,
   }
   return varyPathPart as PartialSegmentVaryPath
@@ -270,10 +280,11 @@ export function getSegmentVaryPathForRequest(
   const originalVaryPath = tree.varyPath
 
   if (fetchStrategy === FetchStrategy.RuntimeShell) {
-    // The Shell phase issues a runtime render with params omitted. The
-    // resulting entry is reusable across all concrete param values, so we
-    // key it at the shell vary path (every param substituted with Fallback).
-    return getShellSegmentVaryPath(originalVaryPath)
+    // The Shell phase issues a runtime render with non-root params omitted. The
+    // resulting entry is reusable across all concrete values of those params, so
+    // we key it at the precomputed shell vary path (every non-root param
+    // substituted with Fallback; root params keep their concrete value).
+    return tree.shellVaryPath
   }
 
   // Only page segments (and the special "metadata" segment, which is treated
@@ -362,6 +373,7 @@ export function getFulfilledSegmentVaryPath(
       original.id === null || varyParams.has(original.id)
         ? original.value
         : Fallback,
+    isRootParam: original.isRootParam,
     parent:
       original.parent === null
         ? null
@@ -370,23 +382,22 @@ export function getFulfilledSegmentVaryPath(
   return clone as SegmentVaryPath
 }
 
-function getShellSegmentVaryPath(original: VaryPath): SegmentVaryPath {
+export function getShellSegmentVaryPath(original: VaryPath): SegmentVaryPath {
   // Re-keys a segment's vary path to identify the "App Shell" entry for this
-  // segment position — a reusable, param-free loading state that can be served
-  // for any concrete navigation to this segment. Every param node (path
-  // params, search params) is replaced with Fallback; only structural nodes
-  // (request keys, etc.) keep their concrete value.
-  //
-  // NOTE: For now, we treat root params the same as non-root params and
-  // forbid them from the shell. Root params change less frequently than
-  // other params, though, so caching the shell across root param values is
-  // a potential future optimization. One way to model that would be to
-  // evict the entire client cache whenever a root param change is detected.
-  // Then we would no longer need to include them in the cache key, which
-  // would be consistent with how we treat session-based data like cookies.
+  // segment position — a reusable loading state that can be served for any
+  // concrete navigation to this segment. The shell is rendered with params
+  // omitted, with one exception: root params (path params at or above the root
+  // layout) may be accessed during the shell render, so the shell varies on
+  // them. Accordingly, we keep the concrete value of structural nodes (request
+  // keys, etc.) and root param nodes, and replace every other param node (non-
+  // root path params and search params) with Fallback.
   const clone: VaryPath = {
     id: original.id,
-    value: original.id === null ? original.value : Fallback,
+    value:
+      original.id === null || original.isRootParam === true
+        ? original.value
+        : Fallback,
+    isRootParam: original.isRootParam,
     parent:
       original.parent === null
         ? null

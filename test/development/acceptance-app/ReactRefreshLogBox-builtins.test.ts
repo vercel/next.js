@@ -52,7 +52,7 @@ describe('ReactRefreshLogBox-builtins app', () => {
          "environmentLabel": null,
          "label": "Build Error",
          "source": "./node_modules/my-package/index.js (1:13)
-       Module not found: Can't resolve 'dns'
+       Error: Module not found: Can't resolve 'dns'
        > 1 | const dns = require('dns')
            |             ^^^^^^^^^^^^^^",
          "stack": [],
@@ -119,7 +119,7 @@ describe('ReactRefreshLogBox-builtins app', () => {
          "environmentLabel": null,
          "label": "Build Error",
          "source": "./index.js (1:1)
-       Module not found: Can't resolve 'b'
+       Error: Module not found: Can't resolve 'b'
        > 1 | import Comp from 'b'
            | ^^^^^^^^^^^^^^^^^^^^",
          "stack": [],
@@ -188,7 +188,7 @@ describe('ReactRefreshLogBox-builtins app', () => {
          "environmentLabel": null,
          "label": "Build Error",
          "source": "./app/page.js (2:1)
-       Module not found: Can't resolve 'b'
+       Error: Module not found: Can't resolve 'b'
        > 2 | import Comp from 'b'
            | ^^^^^^^^^^^^^^^^^^^^",
          "stack": [],
@@ -254,7 +254,7 @@ describe('ReactRefreshLogBox-builtins app', () => {
          "environmentLabel": null,
          "label": "Build Error",
          "source": "./app/page.js (2:1)
-       Module not found: Can't resolve './non-existent.css'
+       Error: Module not found: Can't resolve './non-existent.css'
        > 2 | import './non-existent.css'
            | ^^^^^^^^^^^^^^^^^^^^^^^^^^^",
          "stack": [],

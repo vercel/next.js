@@ -14,8 +14,8 @@ use turbopack_browser::{
 };
 use turbopack_core::{
     chunk::{
-        AssetSuffix, ChunkingConfig, ChunkingContext, ContentHashing, CrossOrigin, MangleType,
-        MinifyType, SourceMapSourceType, SourceMapsType, UnusedReferences, UrlBehavior,
+        AssetSuffix, ChunkLoadRetry, ChunkingConfig, ChunkingContext, ContentHashing, CrossOrigin,
+        MangleType, MinifyType, SourceMapSourceType, SourceMapsType, UnusedReferences, UrlBehavior,
         chunk_id_strategy::ModuleIdStrategy,
     },
     compile_time_info::{CompileTimeDefines, CompileTimeInfo, FreeVarReference, FreeVarReferences},
@@ -29,8 +29,10 @@ use turbopack_core::{
 };
 use turbopack_css::chunk::CssChunkType;
 use turbopack_ecmascript::{
-    AnalyzeMode, TypeofWindow, chunk::EcmascriptChunkType, references::esm::UrlRewriteBehavior,
-    transform::PresetEnvConfig,
+    AnalyzeMode, TypeofWindow,
+    chunk::EcmascriptChunkType,
+    references::esm::UrlRewriteBehavior,
+    transform::{PresetEnvConfig, ReactCompilerTarget},
 };
 use turbopack_node::{
     execution_context::ExecutionContext,
@@ -53,7 +55,10 @@ use crate::{
     },
     next_shared::{
         resolve::NextSharedRuntimeResolvePlugin,
-        webpack_rules::{WebpackLoaderBuiltinCondition, webpack_loader_options},
+        webpack_rules::{
+            WebpackLoaderBuiltinCondition, babel::detect_react_compiler_target,
+            webpack_loader_options,
+        },
     },
     transform_options::{
         get_decorators_transform_options, get_jsx_transform_options,
@@ -155,10 +160,19 @@ pub async fn get_client_resolve_options_context(
     let next_client_fallback_import_map = get_next_client_fallback_import_map(ty.clone())
         .to_resolved()
         .await?;
-    let next_client_resolved_map =
-        get_next_client_resolved_map(project_path.clone(), project_path.clone(), *mode.await?)
-            .to_resolved()
+    let expose_testing_api = mode.await?.is_development()
+        || *next_config
+            .enable_expose_testing_api_in_production_build()
             .await?;
+    let next_client_resolved_map = get_next_client_resolved_map(
+        project_path.clone(),
+        project_path.clone(),
+        *mode.await?,
+        expose_testing_api,
+    )
+    .await?
+    .to_resolved()
+    .await?;
     let mut custom_conditions: Vec<_> = mode.await?.custom_resolve_conditions().collect();
 
     if *next_config.enable_cache_components().await? {
@@ -343,12 +357,21 @@ pub async fn get_client_module_options_context(
             .resolved_cell()
         });
 
+    let enable_rust_react_compiler = *next_config.rust_react_compiler().await?;
+    let rust_react_compiler_target = if enable_rust_react_compiler.is_some() {
+        match detect_react_compiler_target(&project_path).await? {
+            Some(ReactCompilerTarget::React18) => ReactCompilerTarget::React18,
+            _ => ReactCompilerTarget::React19,
+        }
+    } else {
+        ReactCompilerTarget::React19
+    };
+
     let module_options_context = ModuleOptionsContext {
         ecmascript: EcmascriptOptionsContext {
             esm_url_rewrite_behavior: Some(UrlRewriteBehavior::Relative),
             enable_typeof_window_inlining: Some(TypeofWindow::Object),
             enable_import_as_bytes: *next_config.turbopack_import_type_bytes().await?,
-            enable_import_as_text: *next_config.turbopack_import_type_text().await?,
             source_maps,
             infer_module_side_effects: *next_config.turbopack_infer_module_side_effects().await?,
             preset_env_config,
@@ -371,14 +394,7 @@ pub async fn get_client_module_options_context(
                 .await?,
         ),
         keep_last_successful_parse: next_mode.is_development(),
-        analyze_mode: if next_mode.is_development() {
-            AnalyzeMode::CodeGeneration
-        } else {
-            // Technically, this doesn't need to tracing for the client context. But this will
-            // result in more cache hits for the analysis for modules which are loaded for both ssr
-            // and client
-            AnalyzeMode::CodeGenerationAndTracing
-        },
+        analyze_mode: AnalyzeMode::CodeGeneration,
         ..Default::default()
     };
 
@@ -423,6 +439,8 @@ pub async fn get_client_module_options_context(
             enable_jsx: Some(jsx_runtime_options),
             enable_typescript_transform: Some(tsconfig),
             enable_decorators: Some(decorators_options.to_resolved().await?),
+            enable_rust_react_compiler,
+            rust_react_compiler_target,
             ..module_options_context.ecmascript.clone()
         },
         enable_webpack_loaders,
@@ -454,6 +472,7 @@ pub struct ClientChunkingContextOptions {
     pub client_root_to_root_path: RcStr,
     pub client_static_folder_name: RcStr,
     pub asset_prefix: Vc<RcStr>,
+    pub service_worker_scope_base_path: Vc<Option<RcStr>>,
     pub environment: Vc<Environment>,
     pub module_id_strategy: Vc<ModuleIdStrategy>,
     pub export_usage: Vc<OptionBindingUsageInfo>,
@@ -463,6 +482,7 @@ pub struct ClientChunkingContextOptions {
     pub no_mangling: Vc<bool>,
     pub scope_hoisting: Vc<bool>,
     pub nested_async_chunking: Vc<bool>,
+    pub shared_runtime: Vc<bool>,
     pub debug_ids: Vc<bool>,
     pub worker_asset_prefix: Vc<Option<RcStr>>,
     pub should_use_absolute_url_references: Vc<bool>,
@@ -471,7 +491,19 @@ pub struct ClientChunkingContextOptions {
     pub cross_origin: Vc<CrossOrigin>,
     pub chunk_loading_global: Vc<Option<RcStr>>,
     pub style_groups_algorithm: StyleGroupsAlgorithm,
+    pub chunking_first_page_load_priority: Option<u32>,
+    pub chunking_priority_boost_percent: Option<u32>,
+    pub chunking_request_cost: Option<u64>,
+    pub generate_component_chunks: Vc<bool>,
 }
+
+/// Next.js' chunk-load retry policy for the Turbopack browser runtime.
+/// Webpack does not currently support chunk-load retrying.
+const NEXT_CHUNK_LOAD_RETRY: ChunkLoadRetry = ChunkLoadRetry {
+    max_retry_attempts: 1,
+    base_delay_ms: 200,
+    max_jitter_ms: 400,
+};
 
 #[turbo_tasks::function]
 pub async fn get_client_chunking_context(
@@ -484,6 +516,7 @@ pub async fn get_client_chunking_context(
         client_root_to_root_path,
         client_static_folder_name,
         asset_prefix,
+        service_worker_scope_base_path,
         environment,
         module_id_strategy,
         export_usage,
@@ -493,6 +526,7 @@ pub async fn get_client_chunking_context(
         no_mangling,
         scope_hoisting,
         nested_async_chunking,
+        shared_runtime,
         debug_ids,
         worker_asset_prefix,
         should_use_absolute_url_references,
@@ -501,10 +535,15 @@ pub async fn get_client_chunking_context(
         cross_origin,
         chunk_loading_global,
         style_groups_algorithm,
+        chunking_first_page_load_priority,
+        chunking_priority_boost_percent,
+        chunking_request_cost,
+        generate_component_chunks,
     } = options;
 
     let next_mode = mode.await?;
     let asset_prefix = asset_prefix.owned().await?;
+    let service_worker_scope_base_path = service_worker_scope_base_path.owned().await?;
     let cross_origin_loading = *cross_origin.await?;
     let mut builder = BrowserChunkingContext::builder(
         root_path,
@@ -521,6 +560,7 @@ pub async fn get_client_chunking_context(
         next_mode.runtime_type(),
     )
     .chunk_base_path(Some(asset_prefix.clone()))
+    .service_worker_scope_base_path(service_worker_scope_base_path)
     .asset_suffix(AssetSuffix::Inferred.resolved_cell())
     .minify_type(if *minify.await? {
         MinifyType::Minify {
@@ -533,6 +573,7 @@ pub async fn get_client_chunking_context(
     .asset_base_path(Some(asset_prefix))
     .current_chunk_method(CurrentChunkMethod::DocumentCurrentScript)
     .cross_origin(cross_origin_loading)
+    .chunk_load_retry(NEXT_CHUNK_LOAD_RETRY)
     .export_usage(*export_usage.await?)
     .unused_references(unused_references.to_resolved().await?)
     .module_id_strategy(module_id_strategy.to_resolved().await?)
@@ -564,6 +605,13 @@ pub async fn get_client_chunking_context(
                     min_chunk_size: 50_000,
                     max_chunk_count_per_group: 40,
                     max_merge_chunk_size: 200_000,
+                    first_page_load_priority: chunking_first_page_load_priority,
+                    priority_boost_percent: chunking_priority_boost_percent,
+                    request_cost: chunking_request_cost,
+                    // Generate component chunks alongside the merged chunk so that the browser
+                    // runtime can fetch an already-cached one instead of the whole merged chunk.
+                    generate_component_chunks: *generate_component_chunks.await?,
+                    min_component_chunk_size: 20_000,
                     ..Default::default()
                 },
             )
@@ -576,8 +624,67 @@ pub async fn get_client_chunking_context(
                 },
             )
             .chunk_content_hashing(ContentHashing::Direct { length: 13 })
-            .module_merging(*scope_hoisting.await?);
+            .module_merging(*scope_hoisting.await?)
+            .shared_runtime(*shared_runtime.await?);
     }
+
+    Ok(Vc::upcast(builder.build()))
+}
+
+#[turbo_tasks::task_input(contains_unresolved_vcs)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash, TraceRawVcs, Encode, Decode)]
+pub struct ServiceWorkerChunkingContextOptions {
+    pub mode: Vc<NextMode>,
+    pub root_path: FileSystemPath,
+    pub output_root: FileSystemPath,
+    pub output_root_to_root_path: RcStr,
+    pub environment: Vc<Environment>,
+    pub minify: Vc<bool>,
+    pub source_maps: Vc<SourceMapsType>,
+    pub no_mangling: Vc<bool>,
+    pub hash_salt: ResolvedVc<RcStr>,
+}
+
+#[turbo_tasks::function]
+pub async fn get_service_worker_chunking_context(
+    options: ServiceWorkerChunkingContextOptions,
+) -> Result<Vc<Box<dyn ChunkingContext>>> {
+    let ServiceWorkerChunkingContextOptions {
+        mode,
+        root_path,
+        output_root,
+        output_root_to_root_path,
+        environment,
+        minify,
+        source_maps,
+        no_mangling,
+        hash_salt,
+    } = options;
+
+    let next_mode = mode.await?;
+    let builder = BrowserChunkingContext::builder(
+        root_path,
+        output_root.clone(),
+        output_root_to_root_path,
+        output_root.clone(),
+        output_root.join("chunks")?,
+        output_root.join("media")?,
+        environment.to_resolved().await?,
+        next_mode.runtime_type(),
+    )
+    .current_chunk_method(CurrentChunkMethod::StringLiteral)
+    .asset_suffix(AssetSuffix::None.resolved_cell())
+    .minify_type(if *minify.await? {
+        MinifyType::Minify {
+            mangle: (!*no_mangling.await?).then_some(MangleType::OptimalSize),
+        }
+    } else {
+        MinifyType::NoMinify
+    })
+    .source_maps(*source_maps.await?)
+    .hash_salt(hash_salt)
+    .single_chunk()
+    .await?;
 
     Ok(Vc::upcast(builder.build()))
 }
