@@ -508,6 +508,9 @@ export class NextDeployInstance extends NextInstance {
     const baseUrlRaw = process.env.NEXT_TEST_PREVIEW_BUILDS_BASE_URL
 
     if (!token || !baseUrlRaw) {
+      require('console').log(
+        `Skipping .npmrc write for preview-builds mirror: missing token or base URL`
+      )
       return
     }
 
@@ -516,6 +519,9 @@ export class NextDeployInstance extends NextInstance {
     // ensure a trailing slash so it matches requests to that registry path.
     const registryKey = `//${baseUrl.host}${baseUrl.pathname.replace(/\/?$/, '/')}`
 
+    require('console').log(
+      `Writing .npmrc for preview-builds mirror: ${registryKey}`
+    )
     await fs.writeFile(
       path.join(this.testDir, '.npmrc'),
       `${registryKey}:_authToken=${token}\n`
