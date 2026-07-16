@@ -1,6 +1,6 @@
 use anyhow::{Result, bail};
 use tracing::Instrument;
-use turbo_rcstr::rcstr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, ValueToString, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
@@ -8,7 +8,7 @@ use turbopack_core::{
     file_source::FileSource,
     issue::IssueSource,
     raw_module::RawModule,
-    reference::ModuleReference,
+    reference::{DynamicTraceReference, ModuleReference},
     resolve::{
         ModuleResolveResult, RequestKey,
         pattern::{Pattern, PatternMatch, read_matches},
@@ -26,6 +26,9 @@ pub struct FileSourceReference {
     path: ResolvedVc<Pattern>,
     collect_affecting_sources: bool,
     issue_source: IssueSource,
+    /// The dynamic function whose access triggered this reference (e.g.
+    /// `fs.readFileSync`), used to name the call in diagnostics.
+    origin_fn_name: RcStr,
 }
 
 #[turbo_tasks::value_impl]
@@ -36,12 +39,14 @@ impl FileSourceReference {
         path: ResolvedVc<Pattern>,
         collect_affecting_sources: bool,
         issue_source: IssueSource,
+        origin_fn_name: RcStr,
     ) -> Vc<Self> {
         Self::cell(FileSourceReference {
             context_dir,
             path,
             collect_affecting_sources,
             issue_source,
+            origin_fn_name,
         })
     }
 }
@@ -89,6 +94,13 @@ impl ModuleReference for FileSourceReference {
     }
 }
 
+#[turbo_tasks::value_impl]
+impl DynamicTraceReference for FileSourceReference {
+    fn origin_fn_name(&self) -> RcStr {
+        self.origin_fn_name.clone()
+    }
+}
+
 #[turbo_tasks::value]
 #[derive(Hash, Debug, ValueToString)]
 #[value_to_string("directory assets {path}")]
@@ -96,6 +108,9 @@ pub struct DirAssetReference {
     context_dir: FileSystemPath,
     path: ResolvedVc<Pattern>,
     issue_source: IssueSource,
+    /// The dynamic function whose access triggered this reference (e.g.
+    /// `fs.readdir`), used to name the call in diagnostics.
+    origin_fn_name: RcStr,
 }
 
 #[turbo_tasks::value_impl]
@@ -105,11 +120,13 @@ impl DirAssetReference {
         context_dir: FileSystemPath,
         path: ResolvedVc<Pattern>,
         issue_source: IssueSource,
+        origin_fn_name: RcStr,
     ) -> Vc<Self> {
         Self::cell(DirAssetReference {
             context_dir,
             path,
             issue_source,
+            origin_fn_name,
         })
     }
 }
@@ -220,5 +237,12 @@ impl ModuleReference for DirAssetReference {
 
     fn source(&self) -> Option<IssueSource> {
         Some(self.issue_source)
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl DynamicTraceReference for DirAssetReference {
+    fn origin_fn_name(&self) -> RcStr {
+        self.origin_fn_name.clone()
     }
 }

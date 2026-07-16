@@ -35,12 +35,14 @@ export function refreshReducer(
     const currentRouterState = state.tree
     invalidateSegmentCacheEntries(currentNextUrl, currentRouterState)
   }
-  return refreshDynamicData(state, FreshnessPolicy.RefreshAll)
+  // A full refresh has no HMR generation to cancel.
+  return refreshDynamicData(state, FreshnessPolicy.RefreshAll, undefined)
 }
 
 export function refreshDynamicData(
   state: ReadonlyReducerState,
-  freshnessPolicy: FreshnessPolicy.RefreshAll | FreshnessPolicy.HMRRefresh
+  freshnessPolicy: FreshnessPolicy.RefreshAll | FreshnessPolicy.HMRRefresh,
+  signal: AbortSignal | undefined
 ): ReducerState {
   // During a refresh, invalidate the BFCache, which may contain dynamic data.
   invalidateBfCache()
@@ -78,7 +80,11 @@ export function refreshDynamicData(
     UnknownDynamicStaleTime
   )
 
-  const navigateType = 'replace'
+  // If the previous navigation hasn't pushed its history entry yet (React
+  // hasn't committed its state), this refresh may commit in its place, so it
+  // takes over the push. If the navigation does commit first, HistoryUpdater
+  // sees that the URL already matches and replaces instead.
+  const navigateType = state.pushRef.pendingPush ? 'push' : 'replace'
   return navigateToKnownRoute(
     now,
     state,
@@ -99,6 +105,7 @@ export function refreshDynamicData(
     // cache entry to mark as having a dynamic rewrite on mismatch. If a
     // mismatch occurs, the retry handler will traverse the known route tree
     // to find and mark the entry.
-    null
+    null,
+    signal
   )
 }

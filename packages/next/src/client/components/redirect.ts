@@ -5,13 +5,7 @@ import {
   isRedirectError,
   REDIRECT_ERROR_CODE,
 } from './redirect-error'
-
-const actionAsyncStorage =
-  typeof window === 'undefined'
-    ? (
-        require('../../server/app-render/action-async-storage.external') as typeof import('../../server/app-render/action-async-storage.external')
-      ).actionAsyncStorage
-    : undefined
+import { actionAsyncStorage } from './server-async-storage'
 
 export function getRedirectError(
   url: string,

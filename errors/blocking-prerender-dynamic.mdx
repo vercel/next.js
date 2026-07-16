@@ -25,38 +25,43 @@ kind: insight
 
 During [prerendering](https://preview.nextjs.org/docs/app/glossary#prerendering), a [`fetch()`](https://developer.mozilla.org/en-US/docs/Web/API/Window/fetch) request, database call, [`await connection()`](https://preview.nextjs.org/docs/app/api-reference/functions/connection), or other asynchronous IO ran outside of [`<Suspense>`](https://react.dev/reference/react/Suspense). With [Cache Components](https://preview.nextjs.org/docs/app/api-reference/config/next-config-js/cacheComponents) enabled, Next.js can't prerender the part of the tree that depends on this data, so navigations to this route block instead of being [instant](https://preview.nextjs.org/docs/app/guides/instant-navigation).
 
-Request-bound reads ([`cookies()`](https://preview.nextjs.org/docs/app/api-reference/functions/cookies), [`headers()`](https://preview.nextjs.org/docs/app/api-reference/functions/headers), [`params`](https://preview.nextjs.org/docs/app/api-reference/file-conventions/page#params-optional), [`searchParams`](https://preview.nextjs.org/docs/app/api-reference/file-conventions/page#searchparams-optional)) have different fixes. See [Next.js encountered runtime data during prerendering](https://preview.nextjs.org/docs/messages/blocking-prerender-runtime).
+Request-bound reads ([`cookies()`](https://preview.nextjs.org/docs/app/api-reference/functions/cookies), [`headers()`](https://preview.nextjs.org/docs/app/api-reference/functions/headers), [`params`](https://preview.nextjs.org/docs/app/api-reference/file-conventions/page#params-optional), [`searchParams`](https://preview.nextjs.org/docs/app/api-reference/file-conventions/page#searchparams-optional)) have different fixes. See [Next.js encountered runtime data during prerendering](/docs/messages/blocking-prerender-runtime).
 
 This error can also appear during a client-side navigation when the data access sits inside a [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary from a parent layout but that boundary is too high. It wraps the entire segment instead of only the dynamic part, so the navigation still blocks. Push the boundary closer to the data access so the rest of the segment stays in the [static shell](https://preview.nextjs.org/docs/app/glossary#static-shell). See [Choosing where to place the boundary](#choosing-where-to-place-the-boundary).
 
 ## Ways to fix this
 
-<FixOption
-  group="stream"
-  href="#wrap-in-or-move-into-suspense"
-  title="Wrap in or move into Suspense"
->
-  Wrap the data-accessing component in a Suspense boundary. The shell ships
-  instantly and the data streams in.
-</FixOption>
-
-<FixOption
-  group="cache"
-  href="#cache-the-component-or-data"
-  title="Cache the component or data"
->
-  Move the data access into a cached function so the result is reused and the
-  route stays prerenderable.
-</FixOption>
-
-<FixOption
-  group="block"
-  href="#allow-blocking-route"
-  title="Allow blocking route"
->
-  Opt this segment out of instant navigation. The route has no static shell and
-  every navigation blocks until the render completes.
-</FixOption>
+<FixCardGrid>
+  <FixCard
+    group="stream"
+    title="Wrap in or move into Suspense"
+    href="#wrap-in-or-move-into-suspense"
+    snippets={[
+      { text: '<Suspense fallback={…}>', highlight: true },
+      { text: '  <DataChild />' },
+      { text: '</Suspense>', highlight: true },
+    ]}
+  />
+  <FixCard
+    group="cache"
+    title="Cache the component or data"
+    href="#cache-the-component-or-data"
+    snippets={[
+      { text: 'async function Posts() {' },
+      { text: '  "use cache"', highlight: true },
+      { text: '  return <List items={…} />' },
+    ]}
+  />
+  <FixCard
+    group="block"
+    title="Allow blocking route"
+    href="#allow-blocking-route"
+    snippets={[
+      { text: '// page.tsx or layout.tsx' },
+      { text: 'export const instant = false', highlight: true },
+    ]}
+  />
+</FixCardGrid>
 
 ## Wrap in or move into Suspense
 
@@ -82,7 +87,7 @@ export default function Page() {
 }
 ```
 
-Learn more: [Streaming with Suspense](https://preview.nextjs.org/docs/app/guides/streaming).
+Learn more: [Streaming](https://preview.nextjs.org/docs/app/guides/streaming).
 
 #### Push the data access down to the leaf
 
@@ -110,7 +115,7 @@ export async function LatestTransactions() {
 }
 ```
 
-Learn more: [Streaming patterns and boundary placement](https://preview.nextjs.org/docs/app/guides/streaming).
+Learn more: [Streaming](https://preview.nextjs.org/docs/app/guides/streaming).
 
 #### Add a boundary per leaf so they stream in parallel
 
@@ -133,7 +138,7 @@ export default function Page() {
 }
 ```
 
-Learn more: [Parallel streaming with multiple Suspense boundaries](https://preview.nextjs.org/docs/app/guides/streaming).
+Learn more: [Streaming](https://preview.nextjs.org/docs/app/guides/streaming).
 
 #### Use `loading.js` for the whole segment
 
@@ -151,7 +156,7 @@ Learn more: [`loading.js` and instant loading states](https://preview.nextjs.org
 
 ### Trade-off
 
-The shell ships immediately, but the user sees a loading state for the streamed region on every request. Design the fallback so it approximates the final layout. A generic spinner causes the page to visibly jump when content arrives. See [CLS-safe skeleton fallback guidance](https://preview.nextjs.org/docs/app/guides/streaming#cls-cumulative-layout-shift).
+The shell ships immediately, but the user sees a loading state for the streamed region on every request. Design the fallback so it approximates the final layout. A generic spinner causes a layout shift when content arrives. See [minimizing layout shift](https://preview.nextjs.org/docs/app/guides/streaming#cls-cumulative-layout-shift).
 
 ### Choosing where to place the boundary
 
@@ -197,7 +202,7 @@ export default async function Page() {
 }
 ```
 
-Learn more: [Fetching data in the App Router](https://preview.nextjs.org/docs/app/getting-started/fetching-data).
+Learn more: [Fetching Data](https://preview.nextjs.org/docs/app/getting-started/fetching-data).
 
 #### Cache the whole component
 
@@ -221,7 +226,7 @@ Learn more: [Caching with `use cache`](https://preview.nextjs.org/docs/app/api-r
 
 #### Tag the cache for targeted invalidation
 
-Choose this when you want control over when the cached value is refreshed. Tag the entry with [`cacheTag`](https://preview.nextjs.org/docs/app/api-reference/functions/cacheTag) and invalidate it on demand: call [`updateTag`](https://preview.nextjs.org/docs/app/api-reference/functions/updateTag) from a [Server Action](https://preview.nextjs.org/docs/app/getting-started/mutating-data) when the user performed the mutation and should see fresh data on the next request, or [`revalidateTag`](https://preview.nextjs.org/docs/app/api-reference/functions/revalidateTag) from a route handler, cron, admin tool, or incoming webhook for stale-while-revalidate refreshes. Tags add an on-demand invalidation path on top of the [`cacheLife`](https://preview.nextjs.org/docs/app/api-reference/functions/cacheLife) expiration window; the two are independent.
+Choose this when you want control over when the cached value is refreshed. Tag the entry with [`cacheTag`](https://preview.nextjs.org/docs/app/api-reference/functions/cacheTag) and invalidate it on demand: call [`updateTag`](/docs/app/api-reference/functions/updateTag) from a [Server Action](https://preview.nextjs.org/docs/app/getting-started/mutating-data) when the user performed the mutation and should see fresh data on the next request, or [`revalidateTag`](https://preview.nextjs.org/docs/app/api-reference/functions/revalidateTag) from a route handler, cron, admin tool, or incoming webhook for stale-while-revalidate refreshes. Tags add an on-demand invalidation path on top of the [`cacheLife`](https://preview.nextjs.org/docs/app/api-reference/functions/cacheLife) expiration window. The two are independent.
 
 ```jsx filename="app/dashboard/page.js"
 import { cacheTag } from 'next/cache'
@@ -253,7 +258,7 @@ Learn more: [How to configure cache lifetimes](https://preview.nextjs.org/docs/a
 
 ### Trade-off
 
-Freshness becomes a property of the cache configuration, not the data source. The cached response is reused until [`cacheLife`](https://preview.nextjs.org/docs/app/api-reference/functions/cacheLife) revalidates or expires, or until [`cacheTag`](https://preview.nextjs.org/docs/app/api-reference/functions/cacheTag) is invalidated. Plan invalidations alongside the code that mutates the data. Call [`updateTag`](https://preview.nextjs.org/docs/app/api-reference/functions/updateTag) from a [Server Action](https://preview.nextjs.org/docs/app/getting-started/mutating-data) when the user performed the mutation and should see fresh data on the next request, or [`revalidateTag`](https://preview.nextjs.org/docs/app/api-reference/functions/revalidateTag) from a route handler, cron, or webhook for stale-while-revalidate refreshes.
+Freshness becomes a property of the cache configuration, not the data source. The cached response is reused until [`cacheLife`](https://preview.nextjs.org/docs/app/api-reference/functions/cacheLife) revalidates or expires, or until [`cacheTag`](https://preview.nextjs.org/docs/app/api-reference/functions/cacheTag) is invalidated. Plan invalidations alongside the code that mutates the data. Call [`updateTag`](/docs/app/api-reference/functions/updateTag) from a [Server Action](https://preview.nextjs.org/docs/app/getting-started/mutating-data) when the user performed the mutation and should see fresh data on the next request, or [`revalidateTag`](https://preview.nextjs.org/docs/app/api-reference/functions/revalidateTag) from a route handler, cron, or webhook for stale-while-revalidate refreshes.
 
 ### Gotchas
 
@@ -264,7 +269,7 @@ Freshness becomes a property of the cache configuration, not the data source. Th
 
 ### Short-lived caches
 
-[`"use cache"`](https://preview.nextjs.org/docs/app/api-reference/directives/use-cache) accepts a [`cacheLife`](https://preview.nextjs.org/docs/app/api-reference/functions/cacheLife) profile. A short profile (such as `"seconds"` or `"minutes"`) whose `revalidate` is shorter than the prerender's effective lifetime prevents the value from being included in the prerender; the segment becomes a dynamic hole instead. The cache entry still helps the [Client Cache](https://preview.nextjs.org/docs/app/glossary#client-cache) and protects upstream APIs, but the page falls back to streaming.
+[`"use cache"`](https://preview.nextjs.org/docs/app/api-reference/directives/use-cache) accepts a [`cacheLife`](https://preview.nextjs.org/docs/app/api-reference/functions/cacheLife) profile. A short profile (such as `"seconds"` or `"minutes"`) whose `revalidate` is shorter than the prerender's effective lifetime prevents the value from being included in the prerender. The segment becomes a dynamic hole instead. The cache entry still helps the [Client Cache](https://preview.nextjs.org/docs/app/glossary#client-cache) and protects upstream APIs, but the page falls back to streaming.
 
 To keep the page prerendered, use a profile with a longer revalidate window such as `"default"` (15 minutes), `"hours"`, or `"days"`. If a short profile is intentional, treat the value as dynamic and use [Wrap in or move into Suspense](#wrap-in-or-move-into-suspense) instead.
 
@@ -317,13 +322,13 @@ Navigations to this route are not instant. The user waits for the full server re
 ### Gotchas
 
 - Setting [`instant`](https://preview.nextjs.org/docs/app/api-reference/file-conventions/route-segment-config/instant) to `false` opts only the segment that exports it out. Descendant segments are still validated by the global default.
-- This export does not disable [prerendering](https://preview.nextjs.org/docs/app/glossary#prerendering). The route still prerenders if it can. It only silences the instant-navigation validation error.
+- This export does not disable [prerendering](https://preview.nextjs.org/docs/app/glossary#prerendering). The route still prerenders if it can. It only disables instant-navigation validation for the route.
 
 ## Verifying the fix
 
-After applying a fix, reload the route to confirm the [static shell](https://preview.nextjs.org/docs/app/glossary#static-shell) renders real content. A [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary placed around the whole page body can pass validation with an empty shell, which defeats the point of an instant navigation.
+After applying a fix, reload the route and confirm the page immediately paints meaningful UI, with any `<Suspense>` fallbacks covering only the regions that stream in. A [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary placed around the whole page body can pass validation with an empty shell, which defeats the point of an instant navigation.
 
-In [`next dev`](https://preview.nextjs.org/docs/app/api-reference/cli/next#next-dev-options), the error overlay points at the failing component with file paths and line numbers. When working from a build instead, the default [`next build`](https://preview.nextjs.org/docs/app/api-reference/cli/next#next-build-options) output is more abbreviated; run `next build --debug-prerender` for full user-frame stack traces and `next build --debug-build-paths /dashboard /settings` to iterate on specific routes.
+In [`next dev`](https://preview.nextjs.org/docs/app/api-reference/cli/next#next-dev-options), the error overlay points at the failing component with file paths and line numbers. When working from a build instead, the default [`next build`](https://preview.nextjs.org/docs/app/api-reference/cli/next#next-build-options) output is more abbreviated. Run `next build --debug-prerender` for full user-frame stack traces and `next build --debug-build-paths /dashboard /settings` to iterate on specific routes.
 
 ## Don't want this validation?
 
@@ -333,3 +338,21 @@ Instant-navigation validation runs by default in [Cache Components](https://prev
 - **Entire app**: set [`experimental.instantInsights.validationLevel`](https://preview.nextjs.org/docs/app/api-reference/file-conventions/route-segment-config/instant#configuring-validation-defaults) to `'manual-warning'` in `next.config`. This limits validation to segments that explicitly export `instant`.
 
 See [Ensuring instant navigations](https://preview.nextjs.org/docs/app/guides/instant-navigation) for the full model.
+
+## Related Insights
+
+- [Runtime data during prerendering](/docs/messages/blocking-prerender-runtime)
+- [URL data in a Client Component outside of Suspense](/docs/messages/blocking-prerender-client-hook)
+- [Runtime data in `generateMetadata()`](/docs/messages/blocking-prerender-metadata-runtime)
+- [Uncached data in `generateMetadata()`](/docs/messages/blocking-prerender-metadata-dynamic)
+- [Runtime data in `generateViewport()`](/docs/messages/blocking-prerender-viewport-runtime)
+- [Uncached data in `generateViewport()`](/docs/messages/blocking-prerender-viewport-dynamic)
+- [`Math.random()` while prerendering](/docs/messages/blocking-prerender-random)
+- [`Math.random()` in a Client Component](/docs/messages/blocking-prerender-random-client)
+- [`Date.now()` while prerendering](/docs/messages/blocking-prerender-current-time)
+- [`Date.now()` in a Client Component](/docs/messages/blocking-prerender-current-time-client)
+- [Crypto APIs while prerendering](/docs/messages/blocking-prerender-crypto)
+- [Crypto APIs in a Client Component](/docs/messages/blocking-prerender-crypto-client)
+- [Dynamic data during prefetching](/docs/messages/instant-link-prefetch-partial)
+- [URL data outside of Suspense](/docs/messages/instant-shell-url-data)
+- [Unrendered segment](/docs/messages/instant-unrendered-segment)

@@ -53,6 +53,7 @@ interface DefineEnv {
     | ProxyMatcher[]
     | BloomFilter
     | Partial<NextConfigComplete['images']>
+    | NextConfigComplete['cacheLife']
     | I18NDomains
     | I18NConfig
 }
@@ -173,6 +174,9 @@ export function getDefineEnv({
     'process.env.__NEXT_APP_NEW_SCROLL_HANDLER': Boolean(
       config.experimental.appNewScrollHandler
     ),
+    'process.env.__NEXT_TURBOPACK_SHARED_RUNTIME': Boolean(
+      config.experimental.turbopackSharedRuntime
+    ),
     'process.env.__NEXT_PPR': isPPREnabled,
     'process.env.__NEXT_CACHE_COMPONENTS': isCacheComponentsEnabled,
     'process.env.__NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS': Boolean(
@@ -182,6 +186,8 @@ export function getDefineEnv({
     'process.env.__NEXT_EXPERIMENTAL_COLD_CACHE_BADGE': Boolean(
       config.experimental.coldCacheBadge
     ),
+    'process.env.__NEXT_REQUEST_INSIGHTS':
+      dev && !!config.experimental.requestInsights,
     'process.env.__NEXT_USE_CACHE': isUseCacheEnabled,
     'process.env.__NEXT_USE_NODE_STREAMS': isEdgeServer ? false : true,
 
@@ -243,6 +249,9 @@ export function getDefineEnv({
       clientRouterFilters?.dynamicFilter ?? false,
     'process.env.__NEXT_CLIENT_VALIDATE_RSC_REQUEST_HEADERS': Boolean(
       config.experimental.validateRSCRequestHeaders
+    ),
+    'process.env.__NEXT_SERVER_COMPONENTS_HMR_CANCELLATION': Boolean(
+      config.experimental.serverComponentsHmrCancellation
     ),
     'process.env.__NEXT_DYNAMIC_ON_HOVER': Boolean(
       config.experimental.dynamicOnHover

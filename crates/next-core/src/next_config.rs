@@ -1127,7 +1127,7 @@ impl CssChunkingConfig {
 }
 
 /// Default `requestCost` for the graph algorithm (in bytes).
-const DEFAULT_REQUEST_COST: f32 = 100_000.0;
+const DEFAULT_REQUEST_COST: f32 = 20_000.0;
 /// Default `weightDistribution` for the graph algorithm.
 const DEFAULT_WEIGHT_DISTRIBUTION: f32 = 0.1;
 
@@ -1292,6 +1292,7 @@ pub struct ExperimentalConfig {
     durable_use_cache_entries: Option<bool>,
     runtime_server_deployment_id: Option<bool>,
     supports_immutable_assets: Option<bool>,
+    expose_testing_api_in_production_build: Option<bool>,
 
     /// A salt to mix into chunk and asset content hashes. Empty string means
     /// no salt.
@@ -1370,6 +1371,8 @@ pub struct ExperimentalConfig {
     turbopack_input_source_maps: Option<bool>,
     turbopack_tree_shaking: Option<bool>,
     turbopack_scope_hoisting: Option<bool>,
+    turbopack_generate_component_chunks: Option<bool>,
+    turbopack_shared_runtime: Option<bool>,
     /// Custom URL prefix for Web Worker URLs (the entrypoint and the module
     /// chunks loaded inside the worker) produced by
     /// `new Worker(new URL(..., import.meta.url))`. Mirrors webpack's
@@ -1384,7 +1387,6 @@ pub struct ExperimentalConfig {
     turbopack_client_side_nested_async_chunking: Option<bool>,
     turbopack_server_side_nested_async_chunking: Option<bool>,
     turbopack_import_type_bytes: Option<bool>,
-    turbopack_import_type_text: Option<bool>,
     /// Disable automatic configuration of the sass loader.
     #[serde(default)]
     turbopack_use_builtin_sass: Option<bool>,
@@ -2334,6 +2336,15 @@ impl NextConfig {
     }
 
     #[turbo_tasks::function]
+    pub fn enable_expose_testing_api_in_production_build(&self) -> Vc<bool> {
+        Vc::cell(
+            self.experimental
+                .expose_testing_api_in_production_build
+                .unwrap_or(false),
+        )
+    }
+
+    #[turbo_tasks::function]
     pub fn enable_cache_components(&self) -> Vc<bool> {
         Vc::cell(self.cache_components.unwrap_or(false))
     }
@@ -2509,6 +2520,25 @@ impl NextConfig {
     }
 
     #[turbo_tasks::function]
+    pub fn turbopack_generate_component_chunks(&self) -> Vc<bool> {
+        Vc::cell(
+            self.experimental
+                .turbopack_generate_component_chunks
+                .unwrap_or(false),
+        )
+    }
+
+    #[turbo_tasks::function]
+    pub async fn turbo_shared_runtime(&self, mode: Vc<NextMode>) -> Result<Vc<bool>> {
+        Ok(Vc::cell(match *mode.await? {
+            // The shared runtime / inlined bootstrap is a production-only optimization; in
+            // development the per-route runtime is required for HMR.
+            NextMode::Development => false,
+            NextMode::Build => self.experimental.turbopack_shared_runtime.unwrap_or(false),
+        }))
+    }
+
+    #[turbo_tasks::function]
     pub async fn turbo_nested_async_chunking(
         &self,
         mode: Vc<NextMode>,
@@ -2536,15 +2566,6 @@ impl NextConfig {
         Vc::cell(
             self.experimental
                 .turbopack_import_type_bytes
-                .unwrap_or(false),
-        )
-    }
-
-    #[turbo_tasks::function]
-    pub async fn turbopack_import_type_text(&self) -> Vc<bool> {
-        Vc::cell(
-            self.experimental
-                .turbopack_import_type_text
                 .unwrap_or(false),
         )
     }

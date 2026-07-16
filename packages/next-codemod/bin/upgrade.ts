@@ -18,6 +18,7 @@ import {
 } from '../lib/handle-package'
 import { runTransform } from './transform'
 import { onCancel, TRANSFORMER_INQUIRER_CHOICES } from '../lib/utils'
+import { refreshAgentRulesBlock } from '../lib/agents-md'
 import { BadInput } from './shared'
 
 type PackageManager = 'pnpm' | 'npm' | 'yarn' | 'bun'
@@ -362,6 +363,46 @@ export async function runUpgrade(
     }
   }
 
+  // Bump `eslint` alongside `eslint-config-next` so the install doesn't fail
+  // on a peer-dep mismatch. e.g. `eslint-config-next@16.x` requires
+  // `eslint@>=9`, but a project upgrading from Next 15 will still have
+  // `eslint@^8` from create-next-app. Skip silently if anything goes wrong;
+  // the worst case is the user hits the same peer-dep error they would have
+  // without this bump.
+  //
+  // Only act when the project is actually using `eslint-config-next` — we
+  // don't want to silently upgrade eslint majors for projects that use
+  // eslint for unrelated reasons.
+  if (allDependencies['eslint'] && allDependencies['eslint-config-next']) {
+    try {
+      const eslintConfigNextPeerDepsJSON = execSync(
+        `npm --silent view "eslint-config-next@${targetNextVersion}" peerDependencies --json`,
+        { encoding: 'utf-8' }
+      )
+      const eslintConfigNextPeerDeps =
+        eslintConfigNextPeerDepsJSON.trim() === ''
+          ? {}
+          : JSON.parse(eslintConfigNextPeerDepsJSON)
+      const eslintRange = eslintConfigNextPeerDeps?.eslint
+      if (eslintRange) {
+        const targetEslintVersion = await loadHighestNPMVersionMatching(
+          `eslint@${eslintRange}`
+        )
+        versionMapping['eslint'] = {
+          version: targetEslintVersion,
+          required: false,
+        }
+      }
+    } catch (e) {
+      if (verbose) {
+        console.warn(
+          `  Could not determine eslint peer range from eslint-config-next@${targetNextVersion}. Leaving eslint version alone.`,
+          e
+        )
+      }
+    }
+  }
+
   // Even though we only need those if we alias `@types/react` to types-react,
   // we still do it out of safety due to https://github.com/microsoft/DefinitelyTyped-tools/issues/433.
   const overrides: Record<string, string> = {}
@@ -434,6 +475,16 @@ export async function runUpgrade(
   console.log() // new line
   if (codemods.length > 0) {
     console.log(`${pc.green('✔')} Codemods have been applied successfully.`)
+  }
+
+  try {
+    if (refreshAgentRulesBlock(cwd) === 'refreshed') {
+      console.log(
+        `${pc.green('✔')} Refreshed the managed agent-rules block in AGENTS.md / CLAUDE.md to match the upgraded Next.js.`
+      )
+    }
+  } catch {
+    // The block refresh is best-effort — never fail the upgrade over it.
   }
 
   warnDependenciesOutOfRange(appPackageJson, versionMapping)
