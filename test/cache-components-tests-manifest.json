@@ -205,7 +205,6 @@
       "test/e2e/app-dir/metadata/metadata.test.ts",
       "test/e2e/app-dir/middleware-rewrite-dynamic/middleware-rewrite-dynamic.test.ts",
       "test/e2e/app-dir/middleware-sitemap/no-matcher/index.test.ts",
-      "test/e2e/app-dir/navigation/navigation.test.ts",
       "test/e2e/app-dir/next-after-app-api-usage/index.test.ts",
       "test/e2e/app-dir/next-after-app-deploy/index.test.ts",
       "test/e2e/app-dir/next-after-app-static/build-time-error/build-time-error.test.ts",
