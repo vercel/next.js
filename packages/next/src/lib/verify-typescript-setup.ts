@@ -22,6 +22,9 @@ import { resolveFrom } from './resolve-from'
 const typescriptPackage: MissingDependency = {
   file: 'typescript/lib/typescript.js',
   pkg: 'typescript',
+  // TypeScript 7 removed the JavaScript compiler API that Next.js requires, so
+  // pin auto-installs to the supported v6 range instead of pulling `latest`.
+  install: 'typescript@^6.0.0',
   exportsRestrict: true,
 }
 
@@ -103,6 +106,32 @@ export async function verifyAndRunTypeScript({
       dir,
       requiredPackages
     )
+
+    // TypeScript 7's native compiler no longer ships the JavaScript compiler API
+    // (`typescript/lib/typescript.js`) that Next.js loads via `require('typescript')`.
+    // Loading it crashes the build worker with a silent SIGSEGV/SIGABRT. When such a
+    // version is already installed it shows up as a "missing" dependency (the API file
+    // isn't there), so check the resolved `package.json` version up front and reject it
+    // before we either auto-install (which would reinstall the unsupported version) or
+    // reach the crashing `require()`.
+    const installedTypescriptPackageJsonPath = deps.resolved.get(
+      join('typescript', 'package.json')
+    )
+    if (installedTypescriptPackageJsonPath) {
+      const installedTypescriptVersion = require(
+        installedTypescriptPackageJsonPath
+      ).version
+      if (
+        installedTypescriptVersion &&
+        semver.gte(installedTypescriptVersion, '7.0.0')
+      ) {
+        throw new CompileError(
+          `TypeScript ${installedTypescriptVersion} is not supported by this version of Next.js. ` +
+            `The TypeScript 7 native compiler does not provide the JavaScript compiler API that Next.js requires. ` +
+            `Install TypeScript 6 (e.g. ${bold('npm install --save-dev typescript@^6')}) or upgrade to a newer version of Next.js that supports TypeScript 7.`
+        )
+      }
+    }
 
     // If @typescript/native-preview is installed and only the typescript package is missing,
     // we can skip auto-installing typescript since the native preview provides TS compilation.
