@@ -107,13 +107,9 @@ export async function verifyAndRunTypeScript({
       requiredPackages
     )
 
-    // TypeScript 7's native compiler no longer ships the JavaScript compiler API
-    // (`typescript/lib/typescript.js`) that Next.js loads via `require('typescript')`.
-    // Loading it crashes the build worker with a silent SIGSEGV/SIGABRT. When such a
-    // version is already installed it shows up as a "missing" dependency (the API file
-    // isn't there), so check the resolved `package.json` version up front and reject it
-    // before we either auto-install (which would reinstall the unsupported version) or
-    // reach the crashing `require()`.
+    // Detect and reject TypeScript >=7. The native compiler no longer ships the JavaScript compiler API
+    // (`typescript/lib/typescript.js`) that Next.js loads.
+    // TODO: directly support the command line api so we are compatible with all TSC versions
     const installedTypescriptPackageJsonPath = deps.resolved.get(
       join('typescript', 'package.json')
     )
@@ -123,7 +119,14 @@ export async function verifyAndRunTypeScript({
       ).version
       if (
         installedTypescriptVersion &&
-        semver.gte(installedTypescriptVersion, '7.0.0')
+        // Use the lowest prerelease sentinel `7.0.0-0` so that TypeScript 7
+        // prereleases (e.g. `7.0.0-beta`, `7.0.0-rc`, or nightly `7.0.0-dev.*`
+        // builds published to the `next` dist-tag) are also rejected. Under
+        // semver precedence a prerelease of `7.0.0` sorts *before* `7.0.0`, so
+        // comparing against `7.0.0` would let those versions slip through.
+        semver.gte(installedTypescriptVersion, '7.0.0-0', {
+          includePrerelease: true,
+        })
       ) {
         throw new CompileError(
           `TypeScript ${installedTypescriptVersion} is not supported by this version of Next.js. ` +
