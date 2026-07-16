@@ -229,7 +229,6 @@ export const experimentalSchema = {
   useOffline: z.boolean().optional(),
   optimisticRouting: z.boolean().optional(),
   instrumentationClientRouterTransitionEvents: z.boolean().optional(),
-  appShells: z.boolean().optional(),
   varyParams: z.boolean().optional(),
   prefetchInlining: z
     .union([

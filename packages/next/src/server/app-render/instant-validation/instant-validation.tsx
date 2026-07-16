@@ -916,7 +916,7 @@ export enum ValidationPrefetchKind {
   Shell = 1,
   // TODO(app-shells): validate speculative prefetches
   // Speculative = 2,
-  /** Pre-appShells behavior. */
+  /** Behavior when Partial Prefetching is not enabled. */
   LegacySpeculative = 3,
 }
 

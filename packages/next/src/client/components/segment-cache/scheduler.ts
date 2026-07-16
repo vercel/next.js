@@ -10,6 +10,7 @@ import {
 import { matchSegment } from '../match-segments'
 import {
   readOrCreateRouteCacheEntry,
+  readRouteCacheEntry,
   readOrCreateSegmentCacheEntry,
   fetchRouteOnCacheMiss,
   fetchSegmentsOnCacheMiss,
@@ -575,9 +576,24 @@ function processQueueInMicrotask() {
         continue
       case PrefetchTaskExitStatus.Done:
         if (task.phase === PrefetchPhase.RouteTree) {
-          // Finished prefetching the route tree. If App Shells are enabled,
-          // run the Shell phase next; otherwise go straight to Speculative.
-          task.phase = process.env.__NEXT_APP_SHELLS
+          // Finished prefetching the route tree. The two-phase (Shell then
+          // Speculative) flow only applies to routes that have opted into
+          // Partial Prefetching — either globally via the `partialPrefetching`
+          // config or per segment (`instant`, `prefetch: 'partial'`,
+          // `'unstable_eager'`, or `'allow-runtime'`), all surfaced as the
+          // `SubtreeHasPartialPrefetching` hint on the route tree. Every other
+          // route skips the Shell phase and goes straight to Speculative.
+          //
+          // The route entry is fulfilled at this point (the RouteTree phase
+          // just completed), so its prefetch hints are available.
+          const route = readRouteCacheEntry(now, task.key)
+          const routeHasPartialPrefetching =
+            route !== null &&
+            route.status === EntryStatus.Fulfilled &&
+            (route.tree.prefetchHints &
+              PrefetchHint.SubtreeHasPartialPrefetching) !==
+              0
+          task.phase = routeHasPartialPrefetching
             ? PrefetchPhase.Shell
             : PrefetchPhase.Speculative
           heapResift(taskHeap, task)
@@ -2051,17 +2067,13 @@ export function subtreeHasSpeculativePrefetch(
   fetchStrategy: FetchStrategy,
   prefetchHints: number
 ): boolean {
-  if (!process.env.__NEXT_APP_SHELLS) {
-    // When App Shells is disabled, all prefetches implicitly include the
-    // speculative (non-shell) part of the target.
-    return true
-  }
-
   return (
     // Check if this is a "full" prefetch (<Link prefetch={true}>).
     fetchStrategy === FetchStrategy.Full ||
     // Check if something in this subtree is configured to be eagerly
-    // prefetched at the route level.
+    // prefetched at the route level. Segments that don't opt into Partial
+    // Prefetching are marked eager, so a route without any Partial Prefetching
+    // still speculatively prefetches everything.
     (prefetchHints & PrefetchHint.SubtreeHasEagerPrefetch) !== 0
   )
 }

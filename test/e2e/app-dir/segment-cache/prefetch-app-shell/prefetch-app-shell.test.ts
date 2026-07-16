@@ -253,21 +253,16 @@ describe('App Shell prefetching', () => {
     })
     const act = createRouterAct(page, { includeAppShellRequests: true })
 
-    // Reveal the LinkAccordion for /static-posts/1. Two prefetch responses
-    // fire: one for the per-segment static prefetch of /static-posts/1
-    // (which contains the resolved page content + the shell above the
-    // params boundary), and one for the runtime shell prefetch (which the
-    // server may return either as a truncated shell or as the full
-    // prerender that the client extracts a shell prefix from). Both
-    // responses contain the "App shell for static posts" substring.
+    // Reveal the LinkAccordion for /static-posts/1. The route is fully static
+    // and doesn't opt into Partial Prefetching, so there's no separate runtime
+    // shell prefetch — a single per-segment static prefetch fires, carrying the
+    // resolved page content plus the shell prefix above the params boundary
+    // (with a byte offset the client uses to extract and cache the shell).
     await act(async () => {
       await browser
         .elementByCss('input[data-link-accordion="/static-posts/1"]')
         .click()
-    }, [
-      { includes: 'App shell for static posts' },
-      { includes: 'App shell for static posts' },
-    ])
+    }, [{ includes: 'App shell for static posts' }])
 
     // Click the link to /static-posts/124 — a different param than what
     // was prefetched, rendered with prefetch={false}. The cached App
@@ -363,16 +358,14 @@ describe('App Shell prefetching', () => {
     const act = createRouterAct(page, { includeAppShellRequests: true })
 
     // Reveal the LinkAccordion for /static-short-stale/1. Like the
-    // static-posts route, two prefetch responses fire: the per-segment static
-    // prefetch of /static-short-stale/1 and the runtime shell prefetch.
+    // static-posts route, it's fully static and opts into Partial Prefetching,
+    // so a single per-segment static prefetch fires, carrying the shell prefix
+    // that the client extracts and caches at the Fallback vary path.
     await act(async () => {
       await browser
         .elementByCss('input[data-link-accordion="/static-short-stale/1"]')
         .click()
-    }, [
-      { includes: 'App shell for static short-stale posts' },
-      { includes: 'App shell for static short-stale posts' },
-    ])
+    }, [{ includes: 'App shell for static short-stale posts' }])
 
     await act(async () => {
       // Click the link to /static-short-stale/124 — a different param than
@@ -484,23 +477,18 @@ describe('App Shell prefetching', () => {
       })
       const act = createRouterAct(page, { includeAppShellRequests: true })
 
-      // Reveal the LinkAccordion for /with-root-param/en/static-posts/1. Two prefetch responses
-      // fire: one for the per-segment static prefetch of /with-root-param/en/static-posts/1
-      // (which contains the resolved page content + the shell above the
-      // params boundary), and one for the runtime shell prefetch (which the
-      // server may return either as a truncated shell or as the full
-      // prerender that the client extracts a shell prefix from). Both
-      // responses contain the "App shell for static posts" substring.
+      // Reveal the LinkAccordion for /with-root-param/en/static-posts/1. The
+      // route is fully static and opts into Partial Prefetching, so a single
+      // per-segment static prefetch fires, carrying the resolved page content
+      // plus the shell prefix above the params boundary (which the client
+      // extracts and caches at the Fallback vary path).
       await act(async () => {
         await browser
           .elementByCss(
             'input[data-link-accordion="/with-root-param/en/static-posts/1"]'
           )
           .click()
-      }, [
-        { includes: 'App shell for static posts with root param: en' },
-        { includes: 'App shell for static posts with root param: en' },
-      ])
+      }, [{ includes: 'App shell for static posts with root param: en' }])
 
       // Click the link to /with-root-param/en/static-posts/124 — a different param than what
       // was prefetched, rendered with prefetch={false}. The cached App
@@ -743,23 +731,18 @@ describe('App Shell prefetching', () => {
       })
       const act = createRouterAct(page, { includeAppShellRequests: true })
 
-      // Reveal the LinkAccordion for /with-root-param/en/static-posts/1. Two prefetch responses
-      // fire: one for the per-segment static prefetch of /with-root-param/en/static-posts/1
-      // (which contains the resolved page content + the shell above the
-      // params boundary), and one for the runtime shell prefetch (which the
-      // server may return either as a truncated shell or as the full
-      // prerender that the client extracts a shell prefix from). Both
-      // responses contain the "App shell for static posts" substring.
+      // Reveal the LinkAccordion for /with-root-param/en/static-posts/1. The
+      // route is fully static and opts into Partial Prefetching, so a single
+      // per-segment static prefetch fires, carrying the resolved page content
+      // plus the shell prefix above the params boundary (which the client
+      // extracts and caches at the Fallback vary path).
       await act(async () => {
         await browser
           .elementByCss(
             'input[data-link-accordion="/with-root-param/en/static-posts/1"]'
           )
           .click()
-      }, [
-        { includes: 'App shell for static posts with root param: en' },
-        { includes: 'App shell for static posts with root param: en' },
-      ])
+      }, [{ includes: 'App shell for static posts with root param: en' }])
 
       await act(async () => {
         const startingUrl = await browser.url()

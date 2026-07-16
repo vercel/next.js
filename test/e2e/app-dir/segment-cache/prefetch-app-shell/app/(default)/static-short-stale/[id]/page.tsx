@@ -3,6 +3,11 @@ import { cacheLife } from 'next/cache'
 
 type Params = { id: string }
 
+// Opt into Partial Prefetching so the fully-static route participates in the
+// App Shell flow: its shell prefix is extracted and cached at the Fallback
+// vary path, reusable for any param.
+export const prefetch = 'partial'
+
 // This page is fully static: all params are statically known via
 // `generateStaticParams`, so the page is prerendered for every URL at build
 // time. It mixes cached content with different stale times. Cached content
