@@ -95,6 +95,8 @@ struct SnapshotOptions {
     #[serde(default)]
     scope_hoisting: bool,
     #[serde(default)]
+    shared_runtime: bool,
+    #[serde(default)]
     production_chunking: bool,
     #[serde(default)]
     single_chunk: bool,
@@ -135,6 +137,7 @@ impl Default for SnapshotOptions {
             remove_unused_imports: false,
             remove_unused_exports: false,
             scope_hoisting: false,
+            shared_runtime: false,
             production_chunking: false,
             single_chunk: false,
             enable_debug_ids: false,
@@ -515,6 +518,7 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
             )
             .minify_type(options.minify_type)
             .module_merging(options.scope_hoisting)
+            .shared_runtime(options.shared_runtime)
             .export_usage(if options.remove_unused_exports {
                 Some(binding_usage.unwrap().connect().to_resolved().await?)
             } else {

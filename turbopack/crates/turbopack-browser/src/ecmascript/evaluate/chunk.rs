@@ -80,13 +80,6 @@ impl EcmascriptBrowserEvaluateChunk {
     #[turbo_tasks::function]
     pub(crate) async fn code(self: Vc<Self>) -> Result<Vc<Code>> {
         let this = self.await?;
-        let environment = this.chunking_context.environment();
-
-        let output_root_to_root_path = this
-            .chunking_context
-            .output_root_to_root_path()
-            .owned()
-            .await?;
         let source_maps = *this
             .chunking_context
             .reference_chunk_source_maps(Vc::upcast(self))
@@ -171,38 +164,48 @@ impl EcmascriptBrowserEvaluateChunk {
             params = StringifyJs(&params),
         )?;
 
-        let asset_context = turbopack::get_runtime_asset_context(environment);
-
-        let runtime_type = *this.chunking_context.runtime_type().await?;
-        // Detect async modules from the whole-app graph in production. In development, the graph
-        // is per-page. To keep the shared `runtime.js` stable, always include the machinery.
-        let has_async_modules = if matches!(runtime_type, RuntimeType::Production) {
-            !this.module_graph.async_module_info().await?.is_empty()
-        } else {
-            true
-        };
-        match runtime_type {
-            RuntimeType::Production | RuntimeType::Development => {
-                let runtime_code = turbopack_ecmascript_runtime::get_browser_runtime_code(
-                    asset_context,
-                    this.chunking_context.chunk_base_path(),
-                    this.chunking_context.asset_suffix(),
-                    runtime_type,
-                    output_root_to_root_path,
-                    source_maps,
-                    this.chunking_context.chunk_loading_global(),
-                    this.chunking_context.cross_origin(),
-                    this.chunking_context.chunk_load_retry(),
-                    has_async_modules,
-                    this.chunking_context.chunk_loading(),
-                    *this.chunking_context.generate_component_chunks().await?,
-                );
-                code.push_code(&*runtime_code.await?);
-            }
-            #[cfg(feature = "test")]
-            RuntimeType::Dummy => {
-                let runtime_code = turbopack_ecmascript_runtime::get_dummy_runtime_code();
-                code.push_code(&runtime_code);
+        // When the runtime is not shared across routes, inline the full browser runtime into this
+        // evaluate chunk so the route is self-contained (the pre-shared-runtime behavior). When it
+        // is shared, the runtime lives in a separate `runtime.js` asset instead.
+        if !*this.chunking_context.shared_runtime().await? {
+            let environment = this.chunking_context.environment();
+            let output_root_to_root_path = this
+                .chunking_context
+                .output_root_to_root_path()
+                .owned()
+                .await?;
+            let asset_context = turbopack::get_runtime_asset_context(environment);
+            let runtime_type = *this.chunking_context.runtime_type().await?;
+            // Detect async modules from the whole-app graph in production. In development the graph
+            // is per-page, so always include the machinery.
+            let has_async_modules = if matches!(runtime_type, RuntimeType::Production) {
+                !this.module_graph.async_module_info().await?.is_empty()
+            } else {
+                true
+            };
+            match runtime_type {
+                RuntimeType::Production | RuntimeType::Development => {
+                    let runtime_code = turbopack_ecmascript_runtime::get_browser_runtime_code(
+                        asset_context,
+                        this.chunking_context.chunk_base_path(),
+                        this.chunking_context.asset_suffix(),
+                        runtime_type,
+                        output_root_to_root_path,
+                        source_maps,
+                        this.chunking_context.chunk_loading_global(),
+                        this.chunking_context.cross_origin(),
+                        this.chunking_context.chunk_load_retry(),
+                        has_async_modules,
+                        this.chunking_context.chunk_loading(),
+                        *this.chunking_context.generate_component_chunks().await?,
+                    );
+                    code.push_code(&*runtime_code.await?);
+                }
+                #[cfg(feature = "test")]
+                RuntimeType::Dummy => {
+                    let runtime_code = turbopack_ecmascript_runtime::get_dummy_runtime_code();
+                    code.push_code(&runtime_code);
+                }
             }
         }
 
