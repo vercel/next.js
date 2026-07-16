@@ -181,8 +181,6 @@ export default function Unauthorized() {
 
 The trade-off is the HTTP status code. Because the check fires inside the `<Suspense>` boundary, the response has already begun streaming as a `200`, and the status can't change once streaming has started. This is usually fine for a page, where the user sees the `unauthorized` UI regardless; if you need the response itself to carry a `401`, the check has to resolve before anything streams. See [Status codes](/docs/app/api-reference/file-conventions/loading#status-codes).
 
-> **Good to know**: Call `unauthorized()` where it is thrown during rendering, either directly in a component or in a function the component `await`s. Calling it inside a floating promise that is never awaited (for example, `void getAccount()`) will not render the unauthorized UI, because the thrown error never propagates through the render tree.
-
 ### Displaying login UI to unauthenticated users
 
 You can use `unauthorized` function to display the `unauthorized.js` file with a login UI.
