@@ -11,7 +11,7 @@ describe('app-dir action handling', () => {
 
     await browser.elementByCss('#middleware-redirect').click()
 
-    expect(await browser.elementByCss('#form').text()).not.toContain(
+    expect(await browser.waitForElementByCss('#form').text()).not.toContain(
       'Loading...'
     )
 
