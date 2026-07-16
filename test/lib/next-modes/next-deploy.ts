@@ -25,6 +25,7 @@ export class NextDeployInstance extends NextInstance {
     super.setup(parentSpan)
     await super.createTestDir({ parentSpan, skipInstall: true })
 
+    await this.writeMirrorNpmrcIfNecessary()
     // ensure Vercel CLI is installed
     try {
       const res = await execa('vercel', ['--version'])
@@ -166,6 +167,36 @@ export class NextDeployInstance extends NextInstance {
     // TODO: Combine with runtime logs (via `vercel logs`)
     // Build logs seem to be piped to stderr, so we'll combine them to make sure we get all the logs.
     this._cliOutput = buildLogs.stdout + buildLogs.stderr
+  }
+
+  // When the preview-builds npm mirror is auth-protected, the deploy build
+  // installs Next.js artifacts from it and needs credentials. We write an
+  // `.npmrc` with a read token (provided as a CI secret) so the remote install
+  // can authenticate. Only written when the token is set, so unprotected and
+  // local deploy runs are unaffected.
+  private async writeMirrorNpmrcIfNecessary(): Promise<void> {
+    const token = process.env.PREVIEW_BUILDS_READ_TOKEN
+    const baseUrlRaw = process.env.NEXT_TEST_PREVIEW_BUILDS_BASE_URL
+
+    if (!token || !baseUrlRaw) {
+      require('console').log(
+        `Skipping .npmrc write for preview-builds mirror: missing token or base URL`
+      )
+      return
+    }
+
+    const baseUrl = new URL(baseUrlRaw)
+    // Derive the npmrc auth key from the mirror base URL: strip the scheme and
+    // ensure a trailing slash so it matches requests to that registry path.
+    const registryKey = `//${baseUrl.host}${baseUrl.pathname.replace(/\/?$/, '/')}`
+
+    require('console').log(
+      `Writing .npmrc for preview-builds mirror: ${registryKey}`
+    )
+    await fs.writeFile(
+      path.join(this.testDir, '.npmrc'),
+      `${registryKey}:_authToken=${token}\n`
+    )
   }
 
   public get cliOutput() {
