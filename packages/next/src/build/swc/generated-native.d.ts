@@ -1,6 +1,6 @@
 // Manual additions to make the generated types below work.
 
-import type { TurbopackResult } from './types'
+import type { CompilationEvent, TurbopackResult, UpdateMessage } from './types'
 
 export type TurboTasks = { readonly __tag: unique symbol }
 export type ExternalEndpoint = { readonly __tag: unique symbol }
@@ -67,13 +67,13 @@ export declare function codeFrameColumns(
 
 export declare function endpointClientChangedSubscribe(
   endpoint: { __napiType: 'Endpoint' },
-  func: (...args: any[]) => any
+  func: (err: Error, value: TurbopackResult) => void
 ): { __napiType: 'RootTask' }
 
 export declare function endpointServerChangedSubscribe(
   endpoint: { __napiType: 'Endpoint' },
   issues: boolean,
-  func: (...args: any[]) => any
+  func: (err: Error, value: TurbopackResult) => void
 ): { __napiType: 'RootTask' }
 
 export declare function endpointWriteToDisk(endpoint: {
@@ -572,7 +572,7 @@ export declare function parse(
 /** Subscribes to all compilation events that are not cached like timing and progress information. */
 export declare function projectCompilationEventsSubscribe(
   project: { __napiType: 'Project' },
-  func: (...args: any[]) => any,
+  func: (err: Error, value: TurbopackResult<CompilationEvent>) => void,
   eventTypes?: Array<string> | undefined | null
 ): void
 
@@ -582,7 +582,7 @@ export declare function projectEntrypoints(project: {
 
 export declare function projectEntrypointsSubscribe(
   project: { __napiType: 'Project' },
-  func: (...args: any[]) => any
+  func: (err: Error, value: TurbopackResult<Partial<NapiEntrypoints>>) => void
 ): { __napiType: 'RootTask' }
 
 /**
@@ -619,14 +619,14 @@ export declare function projectGetSourceMapSync(
 export declare function projectHmrChunkNamesSubscribe(
   project: { __napiType: 'Project' },
   target: string,
-  func: (...args: any[]) => any
+  func: (err: Error, value: TurbopackResult<HmrChunkNames>) => void
 ): { __napiType: 'RootTask' }
 
 export declare function projectHmrEvents(
   project: { __napiType: 'Project' },
   chunkName: RcStr,
   target: string,
-  func: (...args: any[]) => any
+  func: (err: Error, value: TurbopackResult<unknown>) => void
 ): { __napiType: 'RootTask' }
 
 /**
@@ -635,7 +635,7 @@ export declare function projectHmrEvents(
  */
 export declare function projectInvalidateFileSystemCache(project: {
   __napiType: 'Project'
-}): Promise<undefined>
+}): Promise<void>
 
 export declare function projectNew(
   options: NapiProjectOptions,
@@ -651,7 +651,7 @@ export declare function projectNew(
  */
 export declare function projectOnExit(project: {
   __napiType: 'Project'
-}): Promise<undefined>
+}): Promise<void>
 
 /**
  * Runs `project_on_exit`, and then waits for turbo_tasks to gracefully shut down.
@@ -662,7 +662,7 @@ export declare function projectOnExit(project: {
  */
 export declare function projectShutdown(project: {
   __napiType: 'Project'
-}): Promise<undefined>
+}): Promise<void>
 
 export declare function projectTraceSource(
   project: { __napiType: 'Project' },
@@ -673,7 +673,7 @@ export declare function projectTraceSource(
 export declare function projectUpdate(
   project: { __napiType: 'Project' },
   options: NapiPartialProjectOptions
-): Promise<undefined>
+): Promise<void>
 
 /**
  * Subscribes to lifecycle events of the compilation.
@@ -691,7 +691,7 @@ export declare function projectUpdate(
 export declare function projectUpdateInfoSubscribe(
   project: { __napiType: 'Project' },
   aggregationMs: number,
-  func: (...args: any[]) => any
+  func: (err: Error, value: TurbopackResult<UpdateMessage>) => void
 ): void
 
 export declare function projectWriteAllEntrypointsToDisk(
@@ -835,8 +835,7 @@ export interface TransformOutput {
 /**
  * The JS-facing result of a SWC transform.
  *
- * Optional fields are omitted from the resulting object when `None`, matching
- * the previous manual object construction.
+ * Optional fields are omitted from the resulting object when `None`.
  */
 export interface TransformOutputResult {
   code: string
