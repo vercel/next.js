@@ -15,8 +15,10 @@ import { matchSegment } from '../match-segments'
 import type { NavigationLockState } from '../segment-cache/navigation-testing-lock'
 import { createHrefFromUrl } from './create-href-from-url'
 import { fetchServerResponse } from './fetch-server-response'
+import { startTransition } from 'react'
 import { dispatchAppRouterAction } from '../use-action-queue'
 import {
+  ACTION_RESTORE,
   ACTION_SERVER_PATCH,
   type ServerPatchAction,
 } from './router-reducer-types'
@@ -1512,7 +1514,8 @@ export function spawnDynamicRequests(
     primaryRequestPromise,
     refreshRequestPromises,
     routeCacheEntry,
-    navigateType
+    navigateType,
+    freshnessPolicy
   )
   // `finishNavigationTask` is responsible for error handling, so we can attach
   // noop callbacks to this promise.
@@ -1527,7 +1530,8 @@ async function finishNavigationTask(
     ReturnType<typeof fetchMissingDynamicData>
   > | null,
   routeCacheEntry: FulfilledRouteCacheEntry | null,
-  navigateType: 'push' | 'replace'
+  navigateType: 'push' | 'replace',
+  freshnessPolicy: FreshnessPolicy
 ): Promise<void> {
   // Wait for all the requests to finish, or for the first one to fail.
   let exitStatus = await waitForRequestsToFinish(
@@ -1555,8 +1559,29 @@ async function finishNavigationTask(
       return
     }
     case NavigationTaskExitStatus.Done: {
-      // The task has completely finished. There's no missing data. Exit.
+      // The task has completely finished. There's no missing data.
       previousNavigationDidMismatch = false
+      if (
+        process.env.__NEXT_CACHE_COMPONENTS &&
+        freshnessPolicy === FreshnessPolicy.HistoryTraversal
+      ) {
+        // A history traversal commits its tree immediately and streams the
+        // dynamic data in afterwards, relying on React to retry the suspended
+        // render once the data resolves. That retry can be lost when the
+        // traversal rendered into a Suspense boundary that had not hydrated
+        // yet (e.g. a traversal replayed between a reload and hydration),
+        // leaving the resolved content invisible (#95848). Restore the
+        // current entry again now that the data is cached: a no-op re-render
+        // when nothing was lost, and it converges because a fully cached
+        // restore spawns no dynamic requests.
+        startTransition(() => {
+          dispatchAppRouterAction({
+            type: ACTION_RESTORE,
+            url: new URL(window.location.href),
+            historyState: window.history.state?.__PRIVATE_NEXTJS_INTERNALS_TREE,
+          })
+        })
+      }
       return
     }
     case NavigationTaskExitStatus.SoftRetry: {
