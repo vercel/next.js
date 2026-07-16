@@ -126,7 +126,18 @@ For direct access, the [Next.js MCP server](/docs/app/guides/mcp) lets agents di
 
 ## Skills for multi-step workflows
 
-Some tasks are workflows rather than lookups, such as adopting [Cache Components](/docs/app/getting-started/caching) or [Partial Prefetching](/docs/app/guides/adopting-partial-prefetching) across an app. [Next.js skills](https://github.com/vercel/next.js/tree/canary/skills) package these as structured instructions an agent installs and follows, sequencing the work and pointing at the relevant docs at each step:
+Some tasks are workflows rather than lookups, such as adopting Cache Components or Partial Prefetching across an app. [Next.js skills](https://github.com/vercel/next.js/tree/canary/skills) package these as structured instructions an agent installs and follows, sequencing the work and pointing at the relevant docs at each step.
+
+The available skills are:
+
+| Skill                                                                                                                         | What it does                                                                                                                                                                              |
+| ----------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [`next-cache-components-adoption`](https://github.com/vercel/next.js/tree/canary/skills/next-cache-components-adoption)       | Turns on [Cache Components](/docs/app/getting-started/caching) and walks the app to a passing build, resolving each blocking route the flag surfaces.                                     |
+| [`next-cache-components-optimizer`](https://github.com/vercel/next.js/tree/canary/skills/next-cache-components-optimizer)     | Drives a route to instant navigation with a test-driven loop, growing its static shell under Cache Components until it commits immediately on both first load and client-side navigation. |
+| [`next-partial-prefetching-adoption`](https://github.com/vercel/next.js/tree/canary/skills/next-partial-prefetching-adoption) | Turns on [Partial Prefetching](/docs/app/guides/adopting-partial-prefetching) and works through the insights it surfaces until every link reuses a shared App Shell.                      |
+| [`next-dev-loop`](https://github.com/vercel/next.js/tree/canary/skills/next-dev-loop)                                         | Verifies a change actually works at runtime against a running dev server, combining the [MCP server](/docs/app/guides/mcp)'s view with the browser's.                                     |
+
+Install a skill by passing its name to the `skills` CLI:
 
 ```bash
 npx skills add vercel/next.js --skill next-cache-components-adoption
