@@ -6,6 +6,7 @@ import type {
   PrefetchInliningConfig,
   ValidationLevel,
 } from '../../server/config-shared'
+import type { SubresourceIntegrityAlgorithm } from '../../build/webpack/plugins/subresource-integrity-plugin'
 import type { NextFontManifest } from '../../build/webpack/plugins/next-font-manifest-plugin'
 import type { ParsedUrlQuery } from 'querystring'
 import type { AppPageModule } from '../route-modules/app-page/module'
@@ -185,6 +186,14 @@ export interface RenderOptsPartial {
      * drives instant navigation tests.
      */
     exposeTestingApi: boolean
+
+    /**
+     * The SRI algorithm used for subresource integrity (e.g. 'sha256',
+     * 'sha384', 'sha512'). When set, inline flight scripts will include
+     * integrity attributes so they can be trusted under strict CSP without
+     * 'unsafe-inline'.
+     */
+    sriAlgorithm?: SubresourceIntegrityAlgorithm | undefined
   }
   postponed?: string
 

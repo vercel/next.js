@@ -3282,6 +3282,7 @@ async function renderToStream(
   } = renderOpts
 
   const { cachedNavigations, appShells } = renderOpts.experimental
+  const { sriAlgorithm } = renderOpts.experimental
 
   const { ServerInsertedHTMLProvider, renderServerInsertedHTML } =
     createServerInsertedHTML()
@@ -3802,7 +3803,8 @@ async function renderToStream(
             const inlinedDataStream = createNodeInlinedDataStream(
               reactServerResult.tee(),
               nonce,
-              formState
+              formState,
+              sriAlgorithm
             )
 
             // End the span since there's no async rendering in this path
@@ -3856,7 +3858,8 @@ async function renderToStream(
               inlinedDataStream: createNodeInlinedDataStream(
                 reactServerResult.consume(),
                 nonce,
-                formState
+                formState,
+                sriAlgorithm
               ),
               getServerInsertedHTML,
               getServerInsertedMetadata,
@@ -3925,7 +3928,8 @@ async function renderToStream(
           inlinedDataStream: createNodeInlinedDataStream(
             reactServerResult.consume(),
             nonce,
-            formState
+            formState,
+            sriAlgorithm
           ),
           isStaticGeneration: generateStaticHTML,
           allReady,
@@ -3946,7 +3950,8 @@ async function renderToStream(
             const inlinedDataStream = createWebInlinedDataStream(
               reactServerResult.tee(),
               nonce,
-              formState
+              formState,
+              sriAlgorithm
             )
 
             // End the span since there's no async rendering in this path
@@ -4000,7 +4005,8 @@ async function renderToStream(
               inlinedDataStream: createWebInlinedDataStream(
                 reactServerResult.consume(),
                 nonce,
-                formState
+                formState,
+                sriAlgorithm
               ),
               getServerInsertedHTML,
               getServerInsertedMetadata,
@@ -4063,7 +4069,8 @@ async function renderToStream(
           inlinedDataStream: createWebInlinedDataStream(
             reactServerResult.consume(),
             nonce,
-            formState
+            formState,
+            sriAlgorithm
           ),
           isStaticGeneration: generateStaticHTML,
           allReady,
@@ -4230,7 +4237,8 @@ async function renderToStream(
               // render
               reactServerResult.consume(),
               nonce,
-              formState
+              formState,
+              sriAlgorithm
             ),
             isStaticGeneration: generateStaticHTML,
             deploymentId: ctx.sharedContext.deploymentId,
@@ -4328,7 +4336,8 @@ async function renderToStream(
               // render
               reactServerResult.consume(),
               nonce,
-              formState
+              formState,
+              sriAlgorithm
             ),
             isStaticGeneration: generateStaticHTML,
             deploymentId: ctx.sharedContext.deploymentId,
@@ -7662,7 +7671,8 @@ async function continueStaticPrerenderWithInlinedData(
   renderFlightStream: typeof renderToWebFlightStream,
   clientModules: Parameters<typeof renderToWebFlightStream>[2],
   filterStackFrameForError: typeof filterStackFrame,
-  serverComponentsErrorHandler: (err: unknown) => string | undefined
+  serverComponentsErrorHandler: (err: unknown) => string | undefined,
+  sriAlgorithm?: import('../../build/webpack/plugins/subresource-integrity-plugin').SubresourceIntegrityAlgorithm
 ): Promise<AnyStream> {
   const hasFallbackRouteParams =
     fallbackRouteParams && fallbackRouteParams.size > 0
@@ -7693,7 +7703,8 @@ async function continueStaticPrerenderWithInlinedData(
     const inlinedDataStream = createInlinedDataStream(
       emptyReactServerResult.consumeAsStream(),
       nonce,
-      formState
+      formState,
+      sriAlgorithm
     )
     return continueStaticFallbackPrerender(htmlStream, {
       inlinedDataStream,
@@ -7706,7 +7717,8 @@ async function continueStaticPrerenderWithInlinedData(
   const inlinedDataStream = createInlinedDataStream(
     reactServerResult.consumeAsStream(),
     nonce,
-    formState
+    formState,
+    sriAlgorithm
   )
   return continueStaticPrerender(htmlStream, {
     inlinedDataStream,
@@ -7755,6 +7767,7 @@ async function prerenderToStream(
   } = renderOpts
 
   const { cachedNavigations, appShells } = renderOpts.experimental
+  const { sriAlgorithm } = renderOpts.experimental
 
   const renderFlightStream = process.env.__NEXT_USE_NODE_STREAMS
     ? renderToNodeFlightStream
@@ -8771,7 +8784,8 @@ async function prerenderToStream(
         renderFlightStream,
         clientModules,
         filterStackFrame,
-        serverComponentsErrorHandler
+        serverComponentsErrorHandler,
+        sriAlgorithm
       )
 
       return {
@@ -9017,7 +9031,8 @@ async function prerenderToStream(
             inlinedDataStream: createInlinedDataStream(
               reactServerResult.consumeAsStream(),
               nonce,
-              formState
+              formState,
+              sriAlgorithm
             ),
             getServerInsertedHTML,
             getServerInsertedMetadata,
@@ -9117,7 +9132,8 @@ async function prerenderToStream(
           inlinedDataStream: createInlinedDataStream(
             reactServerResult.consumeAsStream(),
             nonce,
-            formState
+            formState,
+            sriAlgorithm
           ),
           isStaticGeneration: true,
           getServerInsertedHTML,
@@ -9534,7 +9550,8 @@ async function prerenderToStream(
           renderFlightStream,
           clientModules,
           filterStackFrame,
-          serverComponentsErrorHandler
+          serverComponentsErrorHandler,
+          sriAlgorithm
         )
 
         errorServerResult.consume()
@@ -9653,7 +9670,8 @@ async function prerenderToStream(
           inlinedDataStream: createInlinedDataStream(
             reactServerPrerenderResult.consumeAsStream(),
             nonce,
-            formState
+            formState,
+            sriAlgorithm
           ),
           isStaticGeneration: true,
           getServerInsertedHTML: makeGetServerInsertedHTML({

@@ -1,5 +1,6 @@
 import type { BinaryStreamOf } from './app-render'
 import type { Readable } from 'node:stream'
+import type { SubresourceIntegrityAlgorithm } from '../../build/webpack/plugins/subresource-integrity-plugin'
 
 import {
   htmlEscapeAttributeString,
@@ -21,6 +22,54 @@ const flightResponses = new WeakMap<
   Promise<any>
 >()
 const encoder = new TextEncoder()
+
+/**
+ * Compute a Subresource Integrity hash of a script's text content.
+ *
+ * Per the W3C SRI specification (https://www.w3.org/TR/SRI/#the-integrity-attribute),
+ * the integrity value for an inline script is "algorithm-base64hash" where the hash
+ * is computed over the script element's text content (the bytes between <script> and
+ * </script>).
+ *
+ * This enables strict CSP without 'unsafe-inline': when every inline script carries
+ * an integrity attribute whose hash matches its content, browsers that support SRI
+ * for inline scripts will execute them even under a script-src policy that omits
+ * 'unsafe-inline'. See also: https://developer.mozilla.org/en-US/docs/Web/Security/Subresource_Integrity
+ *
+ * @param scriptContent The text content between <script> and </script> tags
+ * @param algorithm The hashing algorithm ('sha256', 'sha384', or 'sha512')
+ * @returns The integrity attribute value, e.g. "sha256-abc123..."
+ */
+async function computeInlineScriptIntegrity(
+  scriptContent: string,
+  algorithm: SubresourceIntegrityAlgorithm
+): Promise<string> {
+  const data = encoder.encode(scriptContent)
+  // Web Crypto API is available in all supported runtimes:
+  // Edge runtime, Node.js 18+ (globalThis.crypto.subtle), and browsers.
+  // This avoids bundling the Node.js 'crypto' module which isn't
+  // available in Edge/ESM builds.
+  // Map SRI algorithm names (e.g. 'sha256') to Web Crypto format ('SHA-256')
+  const webCryptoAlgorithm = algorithm
+    .toUpperCase()
+    .replace(/^(\D+)(\d+)$/, '$1-$2')
+  const hashBuffer = await globalThis.crypto.subtle.digest(
+    webCryptoAlgorithm,
+    data
+  )
+  const hashArray = new Uint8Array(hashBuffer)
+  let hashBase64 = ''
+  if (typeof Buffer !== 'undefined') {
+    hashBase64 = Buffer.from(hashArray).toString('base64')
+  } else {
+    // Edge runtime — no Buffer available, use manual base64
+    for (let i = 0; i < hashArray.length; i++) {
+      hashBase64 += String.fromCharCode(hashArray[i])
+    }
+    hashBase64 = btoa(hashBase64)
+  }
+  return `${algorithm}-${hashBase64}`
+}
 
 const findSourceMapURL =
   process.env.NODE_ENV !== 'production'
@@ -157,35 +206,45 @@ export function getFlightStream<T>(
  * Creates a ReadableStream provides inline script tag chunks for writing hydration
  * data to the client outside the React render itself.
  *
+ * When an SRI algorithm is provided, each inline <script> tag receives an
+ * `integrity` attribute computed from its text content. This allows strict
+ * CSP policies (script-src without 'unsafe-inline') to trust these scripts
+ * via Subresource Integrity, as specified in:
+ * https://www.w3.org/TR/SRI/#the-integrity-attribute
+ *
  * @param flightStream The RSC render stream
  * @param nonce optionally a nonce used during this particular render
  * @param formState optionally the formState used with this particular render
+ * @param sriAlgorithm optionally the SRI algorithm for computing integrity hashes
  * @returns a ReadableStream without the complete property. This signifies a lazy ReadableStream
  */
 export function createInlinedDataReadableStream(
   flightStream: ReadableStream<Uint8Array>,
   nonce: string | undefined,
-  formState: unknown | null
+  formState: unknown | null,
+  sriAlgorithm?: SubresourceIntegrityAlgorithm
 ): ReadableStream<Uint8Array> {
-  const startScriptTag = nonce
-    ? `<script nonce="${htmlEscapeAttributeString(nonce)}">`
-    : '<script>'
-
   const flightReader = flightStream.getReader()
   const decoder = new TextDecoder('utf-8', { fatal: true })
 
+  let initialInstructionsWritten = false
+
   const readable = new ReadableStream({
     type: 'bytes',
-    start(controller) {
-      try {
-        writeInitialInstructions(controller, startScriptTag, formState)
-      } catch (error) {
-        // during encoding or enqueueing forward the error downstream
-        controller.error(error)
-      }
-    },
+    start() {},
     async pull(controller) {
       try {
+        if (!initialInstructionsWritten) {
+          initialInstructionsWritten = true
+          await writeInitialInstructions(
+            controller,
+            formState,
+            nonce,
+            sriAlgorithm
+          )
+          return
+        }
+
         const { done, value } = await flightReader.read()
 
         if (value) {
@@ -194,14 +253,20 @@ export function createInlinedDataReadableStream(
 
             // The chunk cannot be decoded as valid UTF-8 string as it might
             // have arbitrary binary data.
-            writeFlightDataInstruction(
+            await writeFlightDataInstruction(
               controller,
-              startScriptTag,
-              decodedString
+              decodedString,
+              nonce,
+              sriAlgorithm
             )
           } catch {
             // The chunk cannot be decoded as valid UTF-8 string.
-            writeFlightDataInstruction(controller, startScriptTag, value)
+            await writeFlightDataInstruction(
+              controller,
+              value,
+              nonce,
+              sriAlgorithm
+            )
           }
         }
 
@@ -219,10 +284,11 @@ export function createInlinedDataReadableStream(
   return readable
 }
 
-function writeInitialInstructions(
+async function writeInitialInstructions(
   controller: ReadableStreamDefaultController,
-  scriptStart: string,
-  formState: unknown | null
+  formState: unknown | null,
+  nonce: string | undefined,
+  sriAlgorithm?: SubresourceIntegrityAlgorithm
 ) {
   let scriptContents = `(self.__next_f=self.__next_f||[]).push(${htmlEscapeJsonString(
     JSON.stringify([INLINE_FLIGHT_PAYLOAD_BOOTSTRAP])
@@ -234,13 +300,23 @@ function writeInitialInstructions(
     )})`
   }
 
-  controller.enqueue(encoder.encode(`${scriptStart}${scriptContents}</script>`))
+  const integrityAttr = sriAlgorithm
+    ? ` integrity="${htmlEscapeAttributeString(await computeInlineScriptIntegrity(scriptContents, sriAlgorithm))}"`
+    : ''
+  const nonceAttr = nonce ? ` nonce="${htmlEscapeAttributeString(nonce)}"` : ''
+
+  controller.enqueue(
+    encoder.encode(
+      `<script${nonceAttr}${integrityAttr}>${scriptContents}</script>`
+    )
+  )
 }
 
-function writeFlightDataInstruction(
+async function writeFlightDataInstruction(
   controller: ReadableStreamDefaultController,
-  scriptStart: string,
-  chunk: string | Uint8Array
+  chunk: string | Uint8Array,
+  nonce: string | undefined,
+  sriAlgorithm?: SubresourceIntegrityAlgorithm
 ) {
   let htmlInlinedData: string
 
@@ -266,9 +342,15 @@ function writeFlightDataInstruction(
     )
   }
 
+  const scriptContents = `self.__next_f.push(${htmlInlinedData})`
+  const integrityAttr = sriAlgorithm
+    ? ` integrity="${htmlEscapeAttributeString(await computeInlineScriptIntegrity(scriptContents, sriAlgorithm))}"`
+    : ''
+  const nonceAttr = nonce ? ` nonce="${htmlEscapeAttributeString(nonce)}"` : ''
+
   controller.enqueue(
     encoder.encode(
-      `${scriptStart}self.__next_f.push(${htmlInlinedData})</script>`
+      `<script${nonceAttr}${integrityAttr}>${scriptContents}</script>`
     )
   )
 }

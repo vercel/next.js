@@ -610,6 +610,7 @@ export default abstract class Server<
           this.dev === true ||
           this.nextConfig.experimental.exposeTestingApiInProductionBuild ===
             true,
+        sriAlgorithm: this.nextConfig.experimental.sri?.algorithm,
       },
       onInstrumentationRequestError:
         this.instrumentationOnRequestError.bind(this),

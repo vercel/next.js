@@ -937,6 +937,7 @@ export async function handler(
             maxPostponedStateSizeBytes: parseMaxPostponedStateSize(
               nextConfig.experimental.maxPostponedStateSize
             ),
+            sriAlgorithm: nextConfig.experimental.sri?.algorithm,
             exposeTestingApi,
           },
 
