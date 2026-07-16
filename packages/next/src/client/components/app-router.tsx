@@ -56,43 +56,6 @@ const globalMutable: {
   pendingMpaPath?: string
 } = {}
 
-// A Back/Forward press between a reload and hydration moves the browser to
-// a different history entry than the one the document was activated on, and
-// the resulting popstate fires before any listener exists. When that
-// happened, the initial history write is skipped so the traversed entry's
-// state is not overwritten, and the missed popstate is replayed once the
-// router has mounted.
-let missedTraversalBeforeHydration: 'unchecked' | 'missed' | 'none' =
-  'unchecked'
-
-/**
- * Handles a popstate event (or one that was missed before hydration).
- * By default dispatches ACTION_RESTORE, however if the history entry was not
- * pushed/replaced by app-router it will reload the page.
- * That case can happen when the old router injected the history entry.
- */
-function handlePopState(state: PopStateEvent['state']): void {
-  if (!state) {
-    // TODO-APP: this case only happens when pushState/replaceState was called outside of Next.js. It should probably reload the page in this case.
-    return
-  }
-
-  // This case happens when the history entry was pushed by the `pages` router.
-  if (!state.__NA) {
-    window.location.reload()
-    return
-  }
-
-  // TODO-APP: Ideally the back button should not use startTransition as it should apply the updates synchronously
-  // Without startTransition works if the cache is there for this path
-  startTransition(() => {
-    dispatchTraverseAction(
-      window.location.href,
-      state.__PRIVATE_NEXTJS_INTERNALS_TREE
-    )
-  })
-}
-
 function HistoryUpdater({
   appRouterState,
 }: {
@@ -106,28 +69,6 @@ function HistoryUpdater({
     }
 
     const { tree, pushRef, canonicalUrl, renderedSearch } = appRouterState
-
-    if (missedTraversalBeforeHydration === 'unchecked') {
-      missedTraversalBeforeHydration = 'none'
-      if (typeof window.navigation !== 'undefined') {
-        // Entry keys are stable across replaceState but not traversals.
-        const activationEntry = window.navigation.activation?.entry
-        const currentEntry = window.navigation.currentEntry
-        if (
-          activationEntry != null &&
-          currentEntry != null &&
-          activationEntry.key !== currentEntry.key &&
-          // Only entries written by the app router can be restored; on any
-          // other entry the traversal is left unhandled, as before.
-          window.history.state?.__NA === true
-        ) {
-          missedTraversalBeforeHydration = 'missed'
-          // The tree was rendered even though the history write is skipped.
-          setLastCommittedTree(tree)
-          return
-        }
-      }
-    }
 
     const appHistoryState: AppHistoryState = {
       tree,
@@ -430,21 +371,35 @@ function Router({
       return originalReplaceState(data, _unused, url)
     }
 
-    const onPopState = (event: PopStateEvent) => handlePopState(event.state)
+    /**
+     * Handle popstate event, this is used to handle back/forward in the browser.
+     * By default dispatches ACTION_RESTORE, however if the history entry was not pushed/replaced by app-router it will reload the page.
+     * That case can happen when the old router injected the history entry.
+     */
+    const onPopState = (event: PopStateEvent) => {
+      if (!event.state) {
+        // TODO-APP: this case only happens when pushState/replaceState was called outside of Next.js. It should probably reload the page in this case.
+        return
+      }
+
+      // This case happens when the history entry was pushed by the `pages` router.
+      if (!event.state.__NA) {
+        window.location.reload()
+        return
+      }
+
+      // TODO-APP: Ideally the back button should not use startTransition as it should apply the updates synchronously
+      // Without startTransition works if the cache is there for this path
+      startTransition(() => {
+        dispatchTraverseAction(
+          window.location.href,
+          event.state.__PRIVATE_NEXTJS_INTERNALS_TREE
+        )
+      })
+    }
 
     // Register popstate event to call onPopstate.
     window.addEventListener('popstate', onPopState)
-
-    if (missedTraversalBeforeHydration === 'missed') {
-      missedTraversalBeforeHydration = 'none'
-      // The entry's state may have been rewritten by a third-party script
-      // since the traversal was detected.
-      const entryHistoryState = window.history.state
-      if (entryHistoryState?.__NA) {
-        handlePopState(entryHistoryState)
-      }
-    }
-
     return () => {
       window.history.pushState = originalPushState
       window.history.replaceState = originalReplaceState
