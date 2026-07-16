@@ -33,7 +33,7 @@ regress = { workspace = true }
 remove_console = { workspace = true }
 rustc-hash = { workspace = true }
 serde = { workspace = true }
-serde_json = { workspace = true }
+serde_json = { workspace = true, features = ["raw_value"] }
 serde_path_to_error = { workspace = true }
 smallvec = { workspace = true }
 swc_sourcemap = { workspace = true }
