@@ -77,20 +77,22 @@ Measure one real row, mirror its box in the skeleton, and render as many skeleto
 // content shifts nothing.
 export function DirectorySkeleton({ rows = 8 }: { rows?: number }) {
   return (
-    <ul aria-hidden className="min-h-[512px]">
+    <div aria-hidden className="min-h-[512px]">
       {Array.from({ length: rows }).map((_, i) => (
-        <li key={i} className="flex h-16 items-center gap-3.5 px-4">
+        <div key={i} className="flex h-16 items-center gap-3.5 px-4">
           <span className="skeleton size-9 rounded-full" />
           <span className="flex flex-col gap-[3px]">
             <span className="skeleton h-[14px] w-[140px]" />
             <span className="skeleton h-3 w-[100px]" />
           </span>
-        </li>
+        </div>
       ))}
-    </ul>
+    </div>
   )
 }
 ```
+
+The skeleton is a decorative placeholder, so it's `aria-hidden` and built from plain `<div>`s: screen readers skip it, and only its box dimensions need to match the real rows, which they do through the same classes.
 
 To verify, reload with the layout-shift-regions overlay enabled in your browser's dev tools. The skeleton occupies the same space the list will, so CLS stays at 0.
 
