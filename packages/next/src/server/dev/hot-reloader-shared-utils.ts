@@ -20,11 +20,13 @@ export async function getVersionInfo(): Promise<VersionInfo> {
     } catch {
       // ignore fetch errors
     }
+    const contentType = res?.headers?.get?.('content-type')
 
     if (
       !res ||
-      !res.ok ||
-      res.headers?.get?.('content-type') !== 'application/json'
+      !res?.ok ||
+      // only reject if content-type is explicitly not JSON, otherwise we can still try to parse it
+      (contentType && contentType !== 'application/json')
     ) {
       return { installed, staleness: 'unknown' }
     }
