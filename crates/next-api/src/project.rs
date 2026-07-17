@@ -1626,6 +1626,7 @@ impl Project {
             nested_async_chunking: self
                 .next_config()
                 .turbo_nested_async_chunking(self.next_mode(), true),
+            shared_runtime: self.next_config().turbo_shared_runtime(self.next_mode()),
             debug_ids: self.next_config().turbopack_debug_ids(),
             worker_asset_prefix: self.next_config().turbopack_worker_asset_prefix(),
             should_use_absolute_url_references: self.next_config().inline_css(),
@@ -1637,6 +1638,7 @@ impl Project {
             chunking_first_page_load_priority: chunking_heuristics.first_page_load_priority,
             chunking_priority_boost_percent: chunking_heuristics.priority_boost_percent,
             chunking_request_cost: chunking_heuristics.request_cost,
+            generate_component_chunks: self.next_config().turbopack_generate_component_chunks(),
         }))
     }
 

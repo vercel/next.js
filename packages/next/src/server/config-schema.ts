@@ -229,7 +229,6 @@ export const experimentalSchema = {
   useOffline: z.boolean().optional(),
   optimisticRouting: z.boolean().optional(),
   instrumentationClientRouterTransitionEvents: z.boolean().optional(),
-  appShells: z.boolean().optional(),
   varyParams: z.boolean().optional(),
   prefetchInlining: z
     .union([
@@ -386,6 +385,8 @@ export const experimentalSchema = {
   turbopackRemoveUnusedImports: z.boolean().optional(),
   turbopackRemoveUnusedExports: z.boolean().optional(),
   turbopackScopeHoisting: z.boolean().optional(),
+  turbopackGenerateComponentChunks: z.boolean().optional(),
+  turbopackSharedRuntime: z.boolean().optional(),
   turbopackChunkingHeuristics: z
     .object({
       firstPageLoadPriority: z.number().min(0).max(1).optional(),

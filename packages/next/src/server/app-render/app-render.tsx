@@ -28,6 +28,8 @@ import type {
   WorkUnitStore,
 } from '../app-render/work-unit-async-storage.external'
 import type { NextParsedUrlQuery } from '../request-meta'
+import { getTurbopackChunkGroupBootstrap } from '../get-page-files'
+import { UNDERSCORE_NOT_FOUND_ROUTE_ENTRY } from '../../shared/lib/entry-constants'
 import type { LoaderTree } from '../lib/app-dir-module'
 import type { AppPageModule } from '../route-modules/app-page/module'
 import type { BaseNextRequest, BaseNextResponse } from '../base-http'
@@ -94,6 +96,7 @@ import {
 import { isRedirectError } from '../../client/components/redirect-error'
 import { getImplicitTags, type ImplicitTags } from '../lib/implicit-tags'
 import { AppRenderSpan, NextNodeServerSpan } from '../lib/trace/constants'
+import { getRequestInsightsIdentity } from '../lib/trace/request-insights-identity'
 import { getTracer, SpanStatusCode } from '../lib/trace/tracer'
 import { FlightRenderResult } from './flight-render-result'
 import {
@@ -944,7 +947,6 @@ async function generateStagedDynamicFlightRenderResultNode(
   const { routeModule } = componentMod
   const { loaderTree } = routeModule.userland
   const { onInstrumentationRequestError, experimental } = renderOpts
-  const { appShells } = experimental
 
   function onFlightDataRenderError(err: DigestedError, silenceLog: boolean) {
     return onInstrumentationRequestError?.(
@@ -992,9 +994,7 @@ async function generateStagedDynamicFlightRenderResultNode(
     selectStaleTime
   )
 
-  const shellByteLengthDeferred = appShells
-    ? createPromiseWithResolvers<number | null>()
-    : null
+  const shellByteLengthDeferred = createPromiseWithResolvers<number | null>()
   const staticStageByteLengthDeferred = createPromiseWithResolvers<number>()
 
   let runtimePrefetchStream: ReadableStream<Uint8Array> | undefined
@@ -1049,7 +1049,7 @@ async function generateStagedDynamicFlightRenderResultNode(
     {
       staleTimeIterable,
       staticStageByteLengthPromise: staticStageByteLengthDeferred.promise,
-      shellByteLengthPromise: shellByteLengthDeferred?.promise,
+      shellByteLengthPromise: shellByteLengthDeferred.promise,
       runtimePrefetchStream,
     }
   )
@@ -1076,7 +1076,7 @@ async function generateStagedDynamicFlightRenderResultNode(
       void countShellAndStaticStageBytes(staticStream, stageController).then(
         (byteLengths) => {
           staticStageByteLengthDeferred.resolve(byteLengths[RenderStage.Static])
-          shellByteLengthDeferred?.resolve(byteLengths[RenderStage.ShellStatic])
+          shellByteLengthDeferred.resolve(byteLengths[RenderStage.ShellStatic])
         }
       )
 
@@ -1117,22 +1117,18 @@ async function spawnRuntimePrefetchWithFilledCaches(
   onError: (err: unknown) => string | undefined
 ): Promise<void> {
   try {
-    const { componentMod, getDynamicParamFromSegment, renderOpts } = ctx
+    const { componentMod, getDynamicParamFromSegment } = ctx
     const { loaderTree } = componentMod.routeModule.userland
-    const { appShells } = renderOpts.experimental
 
     const rootParams = getRootParams(loaderTree, getDynamicParamFromSegment)
     const staleTimeIterable = new StaleTimeIterable()
 
-    const mode: RuntimePrerenderMode = appShells
-      ? // If appShells is on, we want to be able to rewind the result to a session shell.
-        {
-          type: 'rewindable-session-shell',
-          shellUsedSessionDataDeferred: createPromiseWithResolvers(),
-          shellByteLengthDeferred: createPromiseWithResolvers(),
-        }
-      : // Otherwise, render everything without considering shells.
-        { type: 'runtime-only' }
+    // We want to be able to rewind the result to a session shell.
+    const mode: RuntimePrerenderMode = {
+      type: 'rewindable-session-shell',
+      shellUsedSessionDataDeferred: createPromiseWithResolvers(),
+      shellByteLengthDeferred: createPromiseWithResolvers(),
+    }
 
     const { result } = await finalRuntimeServerPrerender(
       mode,
@@ -1143,10 +1139,7 @@ async function spawnRuntimePrefetchWithFilledCaches(
           mode.type === 'rewindable-session-shell'
             ? mode.shellByteLengthDeferred.promise
             : undefined,
-        shellUsedSessionDataPromise:
-          mode.type !== 'runtime-only'
-            ? mode.shellUsedSessionDataDeferred.promise
-            : undefined,
+        shellUsedSessionDataPromise: mode.shellUsedSessionDataDeferred.promise,
       }),
       prerenderResumeDataCache,
       rootParams,
@@ -1476,7 +1469,6 @@ async function generateRuntimePrefetchResult(
     onInstrumentationRequestError,
     setReactDebugChannel,
   } = renderOpts
-  const { appShells } = renderOpts.experimental
 
   function onFlightDataRenderError(err: DigestedError, silenceLog: boolean) {
     return onInstrumentationRequestError?.(
@@ -1522,18 +1514,16 @@ async function generateRuntimePrefetchResult(
     requestStore.draftMode
   )
 
-  const mode: RuntimePrerenderMode = appShells
-    ? isShellPrefetch
-      ? {
-          type: 'session-shell-only',
-          shellUsedSessionDataDeferred: createPromiseWithResolvers(),
-        }
-      : {
-          type: 'rewindable-session-shell',
-          shellUsedSessionDataDeferred: createPromiseWithResolvers(),
-          shellByteLengthDeferred: createPromiseWithResolvers(),
-        }
-    : { type: 'runtime-only' }
+  const mode: RuntimePrerenderMode = isShellPrefetch
+    ? {
+        type: 'session-shell-only',
+        shellUsedSessionDataDeferred: createPromiseWithResolvers(),
+      }
+    : {
+        type: 'rewindable-session-shell',
+        shellUsedSessionDataDeferred: createPromiseWithResolvers(),
+        shellByteLengthDeferred: createPromiseWithResolvers(),
+      }
 
   const debugChannel = setReactDebugChannel
     ? createWebDebugChannel()
@@ -1551,10 +1541,7 @@ async function generateRuntimePrefetchResult(
         mode.type === 'rewindable-session-shell'
           ? mode.shellByteLengthDeferred.promise
           : undefined,
-      shellUsedSessionDataPromise:
-        mode.type !== 'runtime-only'
-          ? mode.shellUsedSessionDataDeferred.promise
-          : undefined,
+      shellUsedSessionDataPromise: mode.shellUsedSessionDataDeferred.promise,
     }),
     prerenderResumeDataCache,
     rootParams,
@@ -1728,7 +1715,6 @@ function prependIsPartialByteToChunks(
 }
 
 type RuntimePrerenderMode =
-  | { type: 'runtime-only' }
   | {
       type: 'session-shell-only'
       shellUsedSessionDataDeferred: PromiseWithResolvers<boolean>
@@ -1818,20 +1804,14 @@ async function finalRuntimeServerPrerender(
 
   const streamState = createStreamPendingState()
   const collectedChunks = createPrerenderChunksAccumulator()
-  const stageByteLengths =
-    mode.type === 'rewindable-session-shell' ||
-    mode.type === 'session-shell-only'
-      ? createStageByteLengths()
-      : null
+  const stageByteLengths = createStageByteLengths()
   const collectChunk = (chunk: Uint8Array) => {
     collectPrerenderChunk(collectedChunks, finalServerController.signal, chunk)
-    if (stageByteLengths) {
-      increaseChunkByteLengths(
-        stageByteLengths,
-        finalStageController.currentStage,
-        chunk.byteLength
-      )
-    }
+    increaseChunkByteLengths(
+      stageByteLengths,
+      finalStageController.currentStage,
+      chunk.byteLength
+    )
   }
 
   let didHandleUnexpectedAbort = false
@@ -1918,20 +1898,12 @@ async function finalRuntimeServerPrerender(
       // (fast immediates will be drained at the end of the task, so in the next task we know we're done flushing)
 
       // Check if session data unblocked new content in the shell.
-      if (
-        (mode.type === 'rewindable-session-shell' ||
-          mode.type === 'session-shell-only') &&
-        stageByteLengths
-      ) {
-        const didSessionDataUnblockNewContent =
-          stageByteLengths[RenderStage.ShellRuntime] >
-          stageByteLengths[RenderStage.Static]
-        mode.shellUsedSessionDataDeferred.resolve(
-          didSessionDataUnblockNewContent
-        )
-      }
+      const didSessionDataUnblockNewContent =
+        stageByteLengths[RenderStage.ShellRuntime] >
+        stageByteLengths[RenderStage.Static]
+      mode.shellUsedSessionDataDeferred.resolve(didSessionDataUnblockNewContent)
 
-      if (mode.type === 'rewindable-session-shell' && stageByteLengths) {
+      if (mode.type === 'rewindable-session-shell') {
         // If advancing to the runtime stage didn't unblock new content,
         // then the result does not depend on link data and can be used as a shell (indicated via `null`).
         // Otherwise, send a byte length to indicate where the shell content ends.
@@ -2672,6 +2644,9 @@ async function renderToHTMLOrFlightImpl(
 
   let requestId: string
   let htmlRequestId: string
+  const requestInsightsIdentity = process.env.__NEXT_REQUEST_INSIGHTS
+    ? getRequestInsightsIdentity()
+    : undefined
 
   const {
     flightRouterState,
@@ -2686,6 +2661,10 @@ async function renderToHTMLOrFlightImpl(
   if (parsedRequestHeaders.requestId) {
     // If the client has provided a request ID (in development mode), we use it.
     requestId = parsedRequestHeaders.requestId
+  } else if (requestInsightsIdentity) {
+    // Request Insights starts recording before the work store exists. Reuse
+    // the identity from that outer request scope so all spans stay together.
+    requestId = requestInsightsIdentity.requestId
   } else {
     // Otherwise we generate a new request ID.
     if (isStaticGeneration) {
@@ -2706,7 +2685,10 @@ async function renderToHTMLOrFlightImpl(
   // send debug information to the associated WebSocket client. Otherwise, this
   // is the request for the HTML document, so we use the request ID also as the
   // HTML request ID.
-  htmlRequestId = parsedRequestHeaders.htmlRequestId || requestId
+  htmlRequestId =
+    parsedRequestHeaders.htmlRequestId ||
+    requestInsightsIdentity?.htmlRequestId ||
+    requestId
   workStore.requestId = requestId
   workStore.htmlRequestId = htmlRequestId
 
@@ -3268,7 +3250,7 @@ async function renderToStream(
     cacheComponents,
   } = renderOpts
 
-  const { cachedNavigations, appShells } = renderOpts.experimental
+  const { cachedNavigations } = renderOpts.experimental
 
   const { ServerInsertedHTMLProvider, renderServerInsertedHTML } =
     createServerInsertedHTML()
@@ -3312,9 +3294,21 @@ async function renderToStream(
   // bootstrap script is executed, which depends on it during hydration.
   // For MPA navigations (page reload, direct URL entry), the request ID
   // header is not present, so we generate a random one.
-  let bootstrapScriptContent = process.env.__NEXT_DEV_SERVER
-    ? `self.__next_r=${JSON.stringify(requestId ?? crypto.randomUUID())}`
-    : undefined
+  let bootstrapScriptContent: string | undefined
+  if (process.env.__NEXT_DEV_SERVER) {
+    bootstrapScriptContent = `self.__next_r=${JSON.stringify(
+      requestId ?? crypto.randomUUID()
+    )}`
+  } else if (
+    buildManifest.pagesChunkGroupBootstrapParams &&
+    buildManifest.chunkLoadingGlobal
+  ) {
+    bootstrapScriptContent = getTurbopackChunkGroupBootstrap(
+      buildManifest.pagesChunkGroupBootstrapParams,
+      buildManifest.chunkLoadingGlobal,
+      [page]
+    )
+  }
 
   // Instant Navigation Testing API: embed the cookie-guarded bootstrap so it
   // runs before the client bootstrap module reads self.__next_instant_test as
@@ -3562,9 +3556,9 @@ async function renderToStream(
           selectStaleTime
         )
 
-        const shellByteLengthDeferred = appShells
-          ? createPromiseWithResolvers<number | null>()
-          : null
+        const shellByteLengthDeferred = createPromiseWithResolvers<
+          number | null
+        >()
         const staticStageByteLengthDeferred =
           createPromiseWithResolvers<number>()
 
@@ -3614,7 +3608,7 @@ async function renderToStream(
           {
             is404: res.statusCode === 404,
             staleTimeIterable,
-            shellByteLengthPromise: shellByteLengthDeferred?.promise,
+            shellByteLengthPromise: shellByteLengthDeferred.promise,
             staticStageByteLengthPromise: staticStageByteLengthDeferred.promise,
             runtimePrefetchStream,
           }
@@ -3647,7 +3641,7 @@ async function renderToStream(
               staticStageByteLengthDeferred.resolve(
                 byteLengths[RenderStage.Static]
               )
-              shellByteLengthDeferred?.resolve(
+              shellByteLengthDeferred.resolve(
                 byteLengths[RenderStage.ShellStatic]
               )
             })
@@ -4115,8 +4109,22 @@ async function renderToStream(
         subresourceIntegrityManifest,
         getAssetQueryString(ctx, false),
         nonce,
-        '/_not-found/page'
+        UNDERSCORE_NOT_FOUND_ROUTE_ENTRY
       )
+
+      let errorBootstrapScriptContent: string | undefined
+      if (process.env.__NEXT_DEV_SERVER) {
+        errorBootstrapScriptContent = bootstrapScriptContent
+      } else if (
+        buildManifest.pagesChunkGroupBootstrapParams &&
+        buildManifest.chunkLoadingGlobal
+      ) {
+        errorBootstrapScriptContent = getTurbopackChunkGroupBootstrap(
+          buildManifest.pagesChunkGroupBootstrapParams,
+          buildManifest.chunkLoadingGlobal,
+          [UNDERSCORE_NOT_FOUND_ROUTE_ENTRY]
+        )
+      }
 
       if (process.env.__NEXT_USE_NODE_STREAMS) {
         // MARK: nodeStreams errorRecovery RSC + HTML
@@ -4173,7 +4181,7 @@ async function renderToStream(
               />,
               {
                 nonce,
-                bootstrapScriptContent,
+                bootstrapScriptContent: errorBootstrapScriptContent,
                 bootstrapScripts: [errorBootstrapScript],
                 formState,
               },
@@ -4272,7 +4280,7 @@ async function renderToStream(
               />,
               {
                 nonce,
-                bootstrapScriptContent,
+                bootstrapScriptContent: errorBootstrapScriptContent,
                 bootstrapScripts: [errorBootstrapScript],
                 formState,
               }
@@ -7715,7 +7723,7 @@ async function prerenderToStream(
     cacheComponents,
   } = renderOpts
 
-  const { cachedNavigations, appShells } = renderOpts.experimental
+  const { cachedNavigations } = renderOpts.experimental
 
   const renderFlightStream = process.env.__NEXT_USE_NODE_STREAMS
     ? renderToNodeFlightStream
@@ -7771,13 +7779,25 @@ async function prerenderToStream(
     page
   )
 
+  let bootstrapScriptContent =
+    buildManifest.pagesChunkGroupBootstrapParams &&
+    buildManifest.chunkLoadingGlobal
+      ? getTurbopackChunkGroupBootstrap(
+          buildManifest.pagesChunkGroupBootstrapParams,
+          buildManifest.chunkLoadingGlobal,
+          [page]
+        )
+      : undefined
+
   // Instant Navigation Testing API: when exposed, embed the cookie-guarded
   // bootstrap into the prerendered prelude so the cached static shell carries
   // it and it runs before the client bootstrap module reads
   // self.__next_instant_test.
-  let bootstrapScriptContent = renderOpts.experimental.exposeTestingApi
-    ? await getInstantTestBootstrapScriptContent()
-    : undefined
+  if (renderOpts.experimental.exposeTestingApi) {
+    bootstrapScriptContent =
+      (bootstrapScriptContent ? `${bootstrapScriptContent};` : '') +
+      (await getInstantTestBootstrapScriptContent())
+  }
 
   // In development the static shell is served without a dynamic resume, so it
   // must carry the debug-channel request id (self.__next_r) itself for
@@ -8141,6 +8161,7 @@ async function prerenderToStream(
                 )
               }
             },
+            bootstrapScriptContent,
             bootstrapScripts: [bootstrapScript],
           }
         )
@@ -8226,9 +8247,9 @@ async function prerenderToStream(
         varyParamsAccumulator,
       }
 
-      const shellByteLengthDeferred = appShells
-        ? createPromiseWithResolvers<number | null>()
-        : null
+      const shellByteLengthDeferred = createPromiseWithResolvers<
+        number | null
+      >()
 
       const finalServerPayload = await workUnitAsyncStorage.run(
         finalServerPayloadPrerenderStore,
@@ -8237,7 +8258,7 @@ async function prerenderToStream(
         ctx,
         {
           is404: res.statusCode === 404,
-          shellByteLengthPromise: shellByteLengthDeferred?.promise,
+          shellByteLengthPromise: shellByteLengthDeferred.promise,
         }
       )
 
@@ -8283,22 +8304,18 @@ async function prerenderToStream(
 
       const streamState = createStreamPendingState()
       const collectedChunks = createPrerenderChunksAccumulator()
-      const collectedChunksByStage = appShells
-        ? createStageChunksAccumulator()
-        : null
+      const collectedChunksByStage = createStageChunksAccumulator()
       const collectChunk = (chunk: Uint8Array) => {
         collectPrerenderChunk(
           collectedChunks,
           finalServerReactController.signal,
           chunk
         )
-        if (collectedChunksByStage) {
-          collectStageChunk(
-            collectedChunksByStage,
-            finalStageController.currentStage,
-            chunk
-          )
-        }
+        collectStageChunk(
+          collectedChunksByStage,
+          finalStageController.currentStage,
+          chunk
+        )
       }
 
       let didHandleUnexpectedAbort = false
@@ -8404,11 +8421,9 @@ async function prerenderToStream(
           // then the prerender uses link data.
           // NOTE: we must capture this *before* resolving staleTime/varyParams,
           // which always emit new static chunks.
-          if (collectedChunksByStage) {
-            didLinkDataUnblockNewContent =
-              collectedChunksByStage.staticChunks.length >
-              collectedChunksByStage.shellStaticChunks.length
-          }
+          didLinkDataUnblockNewContent =
+            collectedChunksByStage.staticChunks.length >
+            collectedChunksByStage.shellStaticChunks.length
 
           // Now that the prerendering is complete, we know the final stale
           // time and vary params. Close the stale time iterable and resolve
@@ -8421,16 +8436,14 @@ async function prerenderToStream(
           }
           finishAccumulatingVaryParams(varyParamsAccumulator)
 
-          if (shellByteLengthDeferred && collectedChunksByStage) {
-            shellByteLengthDeferred.resolve(
-              didLinkDataUnblockNewContent
-                ? collectedChunksByStage.shellStaticChunks.reduce(
-                    (acc, chunk) => acc + chunk.byteLength,
-                    0
-                  )
-                : null
-            )
-          }
+          shellByteLengthDeferred.resolve(
+            didLinkDataUnblockNewContent
+              ? collectedChunksByStage.shellStaticChunks.reduce(
+                  (acc, chunk) => acc + chunk.byteLength,
+                  0
+                )
+              : null
+          )
         },
         () => {
           if (checkUnexpectedAbort()) return
@@ -8484,24 +8497,22 @@ async function prerenderToStream(
           ctx.pagePath,
           metadata
         )
-        if (appShells && collectedChunksByStage) {
-          // If link data (static params) unblocked new content, then the shell has to be partial.
-          // If not, then the shell prerender and the static prerender are the same except for staleTime/varyParams.
-          const shellIsPartial = didLinkDataUnblockNewContent
-            ? true
-            : resultIsPartial
+        // If link data (static params) unblocked new content, then the shell has to be partial.
+        // If not, then the shell prerender and the static prerender are the same except for staleTime/varyParams.
+        const shellIsPartial = didLinkDataUnblockNewContent
+          ? true
+          : resultIsPartial
 
-          metadata.segmentData ??= new Map()
-          metadata.segmentData.set(
-            '/_shell',
-            Buffer.concat(
-              prependIsPartialByteToChunks(
-                collectedChunksByStage.shellStaticChunks,
-                shellIsPartial
-              )
+        metadata.segmentData ??= new Map()
+        metadata.segmentData.set(
+          '/_shell',
+          Buffer.concat(
+            prependIsPartialByteToChunks(
+              collectedChunksByStage.shellStaticChunks,
+              shellIsPartial
             )
           )
-        }
+        )
       }
 
       const clientDynamicTracking = createDynamicTrackingState(
@@ -9149,8 +9160,18 @@ async function prerenderToStream(
       subresourceIntegrityManifest,
       getAssetQueryString(ctx, false),
       nonce,
-      '/_not-found/page'
+      UNDERSCORE_NOT_FOUND_ROUTE_ENTRY
     )
+
+    const errorBootstrapScriptContent =
+      buildManifest.pagesChunkGroupBootstrapParams &&
+      buildManifest.chunkLoadingGlobal
+        ? getTurbopackChunkGroupBootstrap(
+            buildManifest.pagesChunkGroupBootstrapParams,
+            buildManifest.chunkLoadingGlobal,
+            [UNDERSCORE_NOT_FOUND_ROUTE_ENTRY]
+          )
+        : undefined
 
     if (cacheComponents) {
       const originalFlightPrerenderResult = reactServerPrerenderResult
@@ -9322,6 +9343,7 @@ async function prerenderToStream(
               />,
               {
                 nonce,
+                bootstrapScriptContent: errorBootstrapScriptContent,
                 bootstrapScripts: [errorBootstrapScript],
                 formState,
                 signal: errorClientReactController.signal,
@@ -9561,6 +9583,7 @@ async function prerenderToStream(
         />,
         {
           nonce,
+          bootstrapScriptContent: errorBootstrapScriptContent,
           bootstrapScripts: [errorBootstrapScript],
           formState,
         },

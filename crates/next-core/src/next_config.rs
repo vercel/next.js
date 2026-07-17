@@ -1371,6 +1371,8 @@ pub struct ExperimentalConfig {
     turbopack_input_source_maps: Option<bool>,
     turbopack_tree_shaking: Option<bool>,
     turbopack_scope_hoisting: Option<bool>,
+    turbopack_generate_component_chunks: Option<bool>,
+    turbopack_shared_runtime: Option<bool>,
     /// Custom URL prefix for Web Worker URLs (the entrypoint and the module
     /// chunks loaded inside the worker) produced by
     /// `new Worker(new URL(..., import.meta.url))`. Mirrors webpack's
@@ -2514,6 +2516,25 @@ impl NextConfig {
             // Ignore configuration in development mode to not break HMR
             NextMode::Development => false,
             NextMode::Build => self.experimental.turbopack_scope_hoisting.unwrap_or(true),
+        }))
+    }
+
+    #[turbo_tasks::function]
+    pub fn turbopack_generate_component_chunks(&self) -> Vc<bool> {
+        Vc::cell(
+            self.experimental
+                .turbopack_generate_component_chunks
+                .unwrap_or(false),
+        )
+    }
+
+    #[turbo_tasks::function]
+    pub async fn turbo_shared_runtime(&self, mode: Vc<NextMode>) -> Result<Vc<bool>> {
+        Ok(Vc::cell(match *mode.await? {
+            // The shared runtime / inlined bootstrap is a production-only optimization; in
+            // development the per-route runtime is required for HMR.
+            NextMode::Development => false,
+            NextMode::Build => self.experimental.turbopack_shared_runtime.unwrap_or(false),
         }))
     }
 

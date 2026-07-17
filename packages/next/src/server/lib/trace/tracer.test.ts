@@ -20,12 +20,18 @@ import {
 
 import { setSpanRecorderForTest, type SpanStoreRecord } from './span-store'
 import { registerLocalSpanRecorder } from './local-span-recorder'
-import { AppRenderSpan, NodeSpan } from './constants'
+import {
+  AppRenderSpan,
+  BaseServerSpan,
+  LoadComponentsSpan,
+  NodeSpan,
+} from './constants'
 import { SpanKind, SpanStatusCode, getTracer } from './tracer'
 
 const customContextKey = createContextKey('next.tracer.test.custom-context')
 const originalRequestInsights = process.env.__NEXT_REQUEST_INSIGHTS
 const originalDevServer = process.env.__NEXT_DEV_SERVER
+const originalOtelVerbose = process.env.NEXT_OTEL_VERBOSE
 const spanRecords: SpanStoreRecord[] = []
 
 function getSpanRecords(filter: { name?: string } = {}): SpanStoreRecord[] {
@@ -155,6 +161,7 @@ describe('local span recording', () => {
   beforeEach(() => {
     process.env.__NEXT_DEV_SERVER = '1'
     delete process.env.__NEXT_REQUEST_INSIGHTS
+    delete process.env.NEXT_OTEL_VERBOSE
     setSpanRecorderForTest((span) => spanRecords.push(span))
     registerLocalSpanRecorder()
   })
@@ -170,6 +177,11 @@ describe('local span recording', () => {
     } else {
       process.env.__NEXT_DEV_SERVER = originalDevServer
     }
+    if (originalOtelVerbose === undefined) {
+      delete process.env.NEXT_OTEL_VERBOSE
+    } else {
+      process.env.NEXT_OTEL_VERBOSE = originalOtelVerbose
+    }
     trace.disable()
     setSpanRecorderForTest(undefined)
     spanRecords.length = 0
@@ -182,6 +194,90 @@ describe('local span recording', () => {
 
     expect(result).toBe('result')
     expect(getSpanRecords()).toEqual([])
+  })
+
+  it('records non-vanilla trace and wrapped spans for request insights', () => {
+    process.env.__NEXT_REQUEST_INSIGHTS = 'true'
+
+    getTracer().trace(BaseServerSpan.render, () => undefined)
+    const wrappedLoadComponents = getTracer().wrap(
+      LoadComponentsSpan.loadComponents,
+      () => undefined
+    )
+    wrappedLoadComponents()
+
+    expect(getSpanRecords()).toEqual([
+      expect.objectContaining({
+        name: BaseServerSpan.render,
+        attributes: expect.objectContaining({
+          'next.span_category': 'nextjs',
+        }),
+      }),
+      expect.objectContaining({
+        name: LoadComponentsSpan.loadComponents,
+        attributes: expect.objectContaining({
+          'next.span_category': 'nextjs',
+        }),
+      }),
+    ])
+  })
+
+  it('only exports non-vanilla spans when verbose tracing is enabled', () => {
+    process.env.__NEXT_REQUEST_INSIGHTS = 'true'
+    const exportedSpans: string[] = []
+    const delegateSpan = trace.wrapSpanContext({
+      traceId: '0123456789abcdef0123456789abcdef',
+      spanId: '0123456789abcdef',
+      traceFlags: 1,
+    })
+    trace.setGlobalTracerProvider({
+      getTracer() {
+        return {
+          startSpan(name: string) {
+            exportedSpans.push(name)
+            return delegateSpan
+          },
+          startActiveSpan(...args: unknown[]) {
+            exportedSpans.push(args[0] as string)
+            const callback = args.at(-1) as (
+              span: typeof delegateSpan
+            ) => unknown
+            return callback(delegateSpan)
+          },
+        }
+      },
+    })
+
+    getTracer().trace(BaseServerSpan.render, () => undefined)
+    expect(exportedSpans).toEqual([])
+
+    getTracer().trace(NodeSpan.runHandler, () => undefined)
+    expect(exportedSpans).toEqual([NodeSpan.runHandler])
+
+    process.env.NEXT_OTEL_VERBOSE = '1'
+    getTracer().trace(BaseServerSpan.render, () => undefined)
+    expect(exportedSpans).toEqual([NodeSpan.runHandler, BaseServerSpan.render])
+  })
+
+  it('does not record or export hidden spans', () => {
+    process.env.__NEXT_REQUEST_INSIGHTS = 'true'
+    let receivedSpan: unknown = 'not-called'
+    const startSpan = jest.fn()
+    const startActiveSpan = jest.fn()
+    trace.setGlobalTracerProvider({
+      getTracer() {
+        return { startSpan, startActiveSpan }
+      },
+    })
+
+    getTracer().trace(BaseServerSpan.render, { hideSpan: true }, (span) => {
+      receivedSpan = span
+    })
+
+    expect(receivedSpan).toBeUndefined()
+    expect(getSpanRecords()).toEqual([])
+    expect(startSpan).not.toHaveBeenCalled()
+    expect(startActiveSpan).not.toHaveBeenCalled()
   })
 
   it('bypasses local span handling outside the dev server', () => {
@@ -221,6 +317,7 @@ describe('local span recording', () => {
         durationMs: expect.any(Number),
         attributes: expect.objectContaining({
           'next.route': '/products/[id]',
+          'next.span_category': 'nextjs',
           'next.span_name': 'test.sync',
           'next.span_type': NodeSpan.runHandler,
         }),
@@ -235,6 +332,7 @@ describe('local span recording', () => {
         kind: SpanKind.CLIENT,
         spanName: 'fetch GET https://example.vercel.sh/',
         attributes: {
+          'next.span_category': 'application',
           'http.url': 'https://example.vercel.sh/',
           'http.method': 'GET',
           'net.peer.name': 'example.vercel.sh',
@@ -253,6 +351,7 @@ describe('local span recording', () => {
         attributes: expect.objectContaining({
           'next.span_name': 'fetch GET https://example.vercel.sh/',
           'next.span_type': AppRenderSpan.fetch,
+          'next.span_category': 'application',
           'http.url': 'https://example.vercel.sh/',
           'http.method': 'GET',
           'net.peer.name': 'example.vercel.sh',
@@ -415,7 +514,10 @@ describe('local span recording', () => {
       expect(getTracer().getActiveScopeSpan()).toBe(parentSpan)
 
       const childSpan = getTracer().startSpan(AppRenderSpan.fetch, {
-        attributes: { 'next.page': 'child' },
+        attributes: {
+          'next.page': 'child',
+          'next.span_category': 'application',
+        },
       })
       childSpanId = childSpan.spanContext().spanId
       childSpan.end()
@@ -434,6 +536,9 @@ describe('local span recording', () => {
       expect.objectContaining({
         name: NodeSpan.runHandler,
         parentSpanId: undefined,
+        attributes: expect.objectContaining({
+          'next.span_category': 'nextjs',
+        }),
       })
     )
     expect(childRecord).toEqual(
@@ -442,6 +547,9 @@ describe('local span recording', () => {
         spanId: childSpanId,
         traceId: parentRecord?.traceId,
         parentSpanId: parentRecord?.spanId,
+        attributes: expect.objectContaining({
+          'next.span_category': 'application',
+        }),
       })
     )
   })

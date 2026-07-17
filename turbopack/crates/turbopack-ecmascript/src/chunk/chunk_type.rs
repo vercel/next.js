@@ -26,6 +26,7 @@ impl ChunkType for EcmascriptChunkType {
         chunking_context: Vc<Box<dyn ChunkingContext>>,
         chunk_items: Vec<ChunkItemOrBatchWithAsyncModuleInfo>,
         batch_groups: Vec<ResolvedVc<ChunkItemBatchGroup>>,
+        component_chunks: Vec<ResolvedVc<Box<dyn Chunk>>>,
     ) -> Result<Vc<Box<dyn Chunk>>> {
         let content = EcmascriptChunkContent {
             chunk_items: chunk_items
@@ -43,7 +44,11 @@ impl ChunkType for EcmascriptChunkType {
                 .await?,
         }
         .cell();
-        Ok(Vc::upcast(EcmascriptChunk::new(chunking_context, content)))
+        Ok(Vc::upcast(EcmascriptChunk::new(
+            chunking_context,
+            content,
+            ResolvedVc::deref_vec(component_chunks),
+        )))
     }
 
     #[turbo_tasks::function]

@@ -2629,10 +2629,11 @@ export async function fetchSegmentPrefetchesUsingDynamicRequest(
     // staleAt that corresponds to whatever payload the spawned entries get
     // filled with below.
     let staleAtForSpawnedEntries = staleAt
-    if (!process.env.__NEXT_APP_SHELLS || cacheData === null) {
-      // NOTE: cacheData is always set when Cached Navigations is enabled, and
-      // therefore when App Shells is enabled. This null check can be removed
-      // when those flags fully land.
+    if (cacheData === null) {
+      // No shell can be extracted without cache metadata (only present when
+      // Cached Navigations is enabled). For routes without a distinct App Shell
+      // the extraction below is a no-op anyway (`resolveShellStageData` returns
+      // null), so this just short-circuits that case.
       serverDataThatSatisfiesSpawnedEntries = serverData
     } else {
       const shellStageData = await resolveShellStageData(

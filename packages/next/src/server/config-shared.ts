@@ -512,14 +512,6 @@ export interface ExperimentalConfig {
   useOffline?: boolean
   optimisticRouting?: boolean
   instrumentationClientRouterTransitionEvents?: boolean
-  /**
-   * Enables App Shell prefetching: a route's reusable, param-free loading
-   * state is prefetched once per session and served instantly for any
-   * concrete navigation. Routes marked as fully static (no per-request
-   * server work) are unaffected; the App Shell phase only runs for
-   * runtime-prefetchable routes.
-   */
-  appShells?: boolean
   varyParams?: boolean
   prefetchInlining?:
     | boolean
@@ -775,6 +767,20 @@ export interface ExperimentalConfig {
    * Enable scope hoisting. Defaults to true in build mode. Always disabled in development mode.
    */
   turbopackScopeHoisting?: boolean
+
+  /**
+   * (`next --turbopack` only) Emit each merged production chunk's constituent component chunks
+   * alongside it, so the browser runtime can load only the ones it doesn't already have.
+   * Defaults to `false`. Only applies in build mode.
+   */
+  turbopackGenerateComponentChunks?: boolean
+
+  /**
+   * Share the browser runtime across routes in a single `runtime.js` asset and inline the
+   * per-route chunk-group bootstrap into the HTML, dropping the per-route runtime. Defaults to
+   * false. Only applies to production builds; has no effect in development mode.
+   */
+  turbopackSharedRuntime?: boolean
 
   /**
    * (`next --turbopack` only) Traffic-related hints for the production chunker. These change the
@@ -2272,7 +2278,6 @@ export interface NextConfigRuntime {
     | 'dynamicOnHover'
     | 'useOffline'
     | 'optimisticRouting'
-    | 'appShells'
     | 'inlineCss'
     | 'prefetchInlining'
     | 'authInterrupts'
@@ -2342,7 +2347,6 @@ export function getNextConfigRuntime(
     dynamicOnHover: ex.dynamicOnHover,
     useOffline: ex.useOffline,
     optimisticRouting: ex.optimisticRouting,
-    appShells: ex.appShells,
     inlineCss: ex.inlineCss,
     prefetchInlining: ex.prefetchInlining,
     authInterrupts: ex.authInterrupts,

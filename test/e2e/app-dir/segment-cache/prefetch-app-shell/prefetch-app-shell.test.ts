@@ -253,21 +253,16 @@ describe('App Shell prefetching', () => {
     })
     const act = createRouterAct(page, { includeAppShellRequests: true })
 
-    // Reveal the LinkAccordion for /static-posts/1. Two prefetch responses
-    // fire: one for the per-segment static prefetch of /static-posts/1
-    // (which contains the resolved page content + the shell above the
-    // params boundary), and one for the runtime shell prefetch (which the
-    // server may return either as a truncated shell or as the full
-    // prerender that the client extracts a shell prefix from). Both
-    // responses contain the "App shell for static posts" substring.
+    // Reveal the LinkAccordion for /static-posts/1. The route is fully static
+    // and doesn't opt into Partial Prefetching, so there's no separate runtime
+    // shell prefetch — a single per-segment static prefetch fires, carrying the
+    // resolved page content plus the shell prefix above the params boundary
+    // (with a byte offset the client uses to extract and cache the shell).
     await act(async () => {
       await browser
         .elementByCss('input[data-link-accordion="/static-posts/1"]')
         .click()
-    }, [
-      { includes: 'App shell for static posts' },
-      { includes: 'App shell for static posts' },
-    ])
+    }, [{ includes: 'App shell for static posts' }])
 
     // Click the link to /static-posts/124 — a different param than what
     // was prefetched, rendered with prefetch={false}. The cached App
@@ -285,6 +280,125 @@ describe('App Shell prefetching', () => {
 
     // After the outer act unblocks the navigation, the per-URL content
     // streams in.
+    expect(await browser.elementById('static-content').text()).toEqual(
+      'Static post 124'
+    )
+  })
+
+  it('excludes cached content with a short stale time from a runtime App Shell', async () => {
+    let page: Playwright.Page
+    const browser = await next.browser('/', {
+      beforePageLoad(p: Playwright.Page) {
+        page = p
+      },
+    })
+    const act = createRouterAct(page, { includeAppShellRequests: true })
+
+    // Reveal the LinkAccordion for /short-stale/1. This caches the App Shell
+    // for the route. The page renders two cached components: one with a stale
+    // time of 5 minutes (the App Shell threshold), which is included in the
+    // shell, and one with a stale time of 60 seconds, which is excluded from
+    // the shell so the shell can be reused on the client for longer than the
+    // content's stale time.
+    await act(
+      async () => {
+        await browser
+          .elementByCss('input[data-link-accordion="/short-stale/1"]')
+          .click()
+      },
+      { includes: 'App shell for short-stale' }
+    )
+
+    await act(async () => {
+      // Click the link to /short-stale/124. This link is rendered with
+      // prefetch={false}, so it was never prefetched. The cached App Shell
+      // should render immediately, before any navigation response arrives.
+      await browser.elementByCss('a[href="/short-stale/124"]').click()
+
+      // While the navigation response is blocked (we're still in the `act`
+      // block), the cached App Shell should already be visible, including
+      // the long-lived cached content.
+      expect(await browser.elementById('shell').text()).toEqual(
+        'App shell for short-stale'
+      )
+      expect(await browser.elementById('long-stale-content').text()).toEqual(
+        'Long-lived cached content'
+      )
+      // The short-lived cached content is NOT part of the App Shell — only
+      // its loading fallback is.
+      expect(await browser.locator('#short-stale-content').count()).toBe(0)
+      expect(await browser.elementById('short-stale-loading').text()).toEqual(
+        'Loading short-lived content...'
+      )
+    })
+
+    // After the outer act unblocks the navigation, the short-lived cached
+    // content streams in with the navigation response, along with the
+    // dynamic content.
+    expect(await browser.elementById('short-stale-content').text()).toEqual(
+      'Short-lived cached content'
+    )
+    expect(await browser.elementById('dynamic-content').text()).toEqual(
+      'Post body for 124'
+    )
+  })
+
+  it('excludes cached content with a short stale time from a static App Shell', async () => {
+    // The /static-short-stale/[id] route is fully static and prerendered at
+    // build time. The short-lived cached content is part of the static
+    // prerender, but it resolves in the post-shell stage, so it's excluded
+    // from the App Shell prefix that the client extracts from the prerender
+    // response and reuses across URLs.
+    let page: Playwright.Page
+    const browser = await next.browser('/', {
+      beforePageLoad(p: Playwright.Page) {
+        page = p
+      },
+    })
+    const act = createRouterAct(page, { includeAppShellRequests: true })
+
+    // Reveal the LinkAccordion for /static-short-stale/1. Like the
+    // static-posts route, it's fully static and opts into Partial Prefetching,
+    // so a single per-segment static prefetch fires, carrying the shell prefix
+    // that the client extracts and caches at the Fallback vary path.
+    await act(async () => {
+      await browser
+        .elementByCss('input[data-link-accordion="/static-short-stale/1"]')
+        .click()
+    }, [{ includes: 'App shell for static short-stale posts' }])
+
+    await act(async () => {
+      // Click the link to /static-short-stale/124 — a different param than
+      // what was prefetched, rendered with prefetch={false}. The cached App
+      // Shell should render immediately, before the per-URL navigation
+      // response arrives.
+      await browser.elementByCss('a[href="/static-short-stale/124"]').click()
+
+      // While the navigation response is blocked (we're still in the `act`
+      // block), the cached App Shell should already be visible, including
+      // the long-lived cached content.
+      expect(await browser.elementById('static-shell').text()).toEqual(
+        'App shell for static short-stale posts'
+      )
+      expect(
+        await browser.elementById('static-long-stale-content').text()
+      ).toEqual('Long-lived cached content')
+      // The short-lived cached content is NOT part of the App Shell — only
+      // its loading fallback is.
+      expect(await browser.locator('#static-short-stale-content').count()).toBe(
+        0
+      )
+      expect(
+        await browser.elementById('static-short-stale-loading').text()
+      ).toEqual('Loading short-lived content...')
+    })
+
+    // After the outer act unblocks the navigation, the short-lived cached
+    // content streams in with the navigation response, along with the
+    // per-URL content.
+    expect(
+      await browser.elementById('static-short-stale-content').text()
+    ).toEqual('Short-lived cached content')
     expect(await browser.elementById('static-content').text()).toEqual(
       'Static post 124'
     )
@@ -363,23 +477,18 @@ describe('App Shell prefetching', () => {
       })
       const act = createRouterAct(page, { includeAppShellRequests: true })
 
-      // Reveal the LinkAccordion for /with-root-param/en/static-posts/1. Two prefetch responses
-      // fire: one for the per-segment static prefetch of /with-root-param/en/static-posts/1
-      // (which contains the resolved page content + the shell above the
-      // params boundary), and one for the runtime shell prefetch (which the
-      // server may return either as a truncated shell or as the full
-      // prerender that the client extracts a shell prefix from). Both
-      // responses contain the "App shell for static posts" substring.
+      // Reveal the LinkAccordion for /with-root-param/en/static-posts/1. The
+      // route is fully static and opts into Partial Prefetching, so a single
+      // per-segment static prefetch fires, carrying the resolved page content
+      // plus the shell prefix above the params boundary (which the client
+      // extracts and caches at the Fallback vary path).
       await act(async () => {
         await browser
           .elementByCss(
             'input[data-link-accordion="/with-root-param/en/static-posts/1"]'
           )
           .click()
-      }, [
-        { includes: 'App shell for static posts with root param: en' },
-        { includes: 'App shell for static posts with root param: en' },
-      ])
+      }, [{ includes: 'App shell for static posts with root param: en' }])
 
       // Click the link to /with-root-param/en/static-posts/124 — a different param than what
       // was prefetched, rendered with prefetch={false}. The cached App
@@ -622,23 +731,18 @@ describe('App Shell prefetching', () => {
       })
       const act = createRouterAct(page, { includeAppShellRequests: true })
 
-      // Reveal the LinkAccordion for /with-root-param/en/static-posts/1. Two prefetch responses
-      // fire: one for the per-segment static prefetch of /with-root-param/en/static-posts/1
-      // (which contains the resolved page content + the shell above the
-      // params boundary), and one for the runtime shell prefetch (which the
-      // server may return either as a truncated shell or as the full
-      // prerender that the client extracts a shell prefix from). Both
-      // responses contain the "App shell for static posts" substring.
+      // Reveal the LinkAccordion for /with-root-param/en/static-posts/1. The
+      // route is fully static and opts into Partial Prefetching, so a single
+      // per-segment static prefetch fires, carrying the resolved page content
+      // plus the shell prefix above the params boundary (which the client
+      // extracts and caches at the Fallback vary path).
       await act(async () => {
         await browser
           .elementByCss(
             'input[data-link-accordion="/with-root-param/en/static-posts/1"]'
           )
           .click()
-      }, [
-        { includes: 'App shell for static posts with root param: en' },
-        { includes: 'App shell for static posts with root param: en' },
-      ])
+      }, [{ includes: 'App shell for static posts with root param: en' }])
 
       await act(async () => {
         const startingUrl = await browser.url()
