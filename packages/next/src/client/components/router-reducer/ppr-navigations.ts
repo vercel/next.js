@@ -147,7 +147,10 @@ export type NavigationRequestAccumulation = {
  * `beginLockedNavigation`) or when router work spawns a dynamic write outside
  * a navigation (via `getCurrentNavigationLock`), and threaded to the write,
  * which awaits it before applying dynamic data. Resolves when a newer locked
- * navigation begins or the lock is released.
+ * navigation begins or the lock is released. Because the capture happens at
+ * spawn time, a newer navigation's rollover releases this write rather than
+ * re-gating it. Threaded as `NavigationLock | null`; null whenever the testing
+ * API is not active.
  */
 export type NavigationLock = Promise<void>
 
@@ -2339,4 +2342,18 @@ export function beginLockedNavigation(): NavigationLock | null {
     return begin()
   }
   return null
+}
+
+/**
+ * Helper for the Instant Navigation Testing API. Called during a history
+ * traversal: resets the testing lock to a fresh pending scope, releasing any
+ * withheld data from prior navigations. See `resetNavigationLockToPending` in
+ * `navigation-testing-lock`.
+ */
+export function resetNavigationLockToPending(): void {
+  if (process.env.__NEXT_EXPOSE_TESTING_API) {
+    const { resetNavigationLockToPending: reset } =
+      require('../segment-cache/navigation-testing-lock') as typeof import('../segment-cache/navigation-testing-lock')
+    reset()
+  }
 }

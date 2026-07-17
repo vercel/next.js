@@ -340,6 +340,31 @@ export function beginLockedNavigation(): Promise<void> | null {
 }
 
 /**
+ * Called when the router applies a history traversal (Back/Forward restore) while
+ * the testing lock is active. A traversal is not a capture — the mental model is
+ * that history entries are already cached — so it must not participate in the
+ * current capture. Instead it resets the lock to a fresh pending scope:
+ *
+ * - `releaseLock` flushes every still-withheld write from prior forward
+ *   navigations, so the pages you navigated away from finish streaming.
+ * - `acquireLock` immediately re-arms a fresh pending scope (no gap where the
+ *   lock or fetch blocker is down).
+ * - the cookie flips from the captured state back to pending.
+ *
+ * The traversal's own dynamic requests are spawned ungated by the caller (see
+ * `restore-reducer`), so they render from cache or fetch normally rather than
+ * being withheld.
+ */
+export function resetNavigationLockToPending(): void {
+  if (lockState === null || typeof document === 'undefined') {
+    return
+  }
+  releaseLock()
+  acquireLock()
+  writeCookieValue([0, `c${Math.random()}`])
+}
+
+/**
  * Global fetch override
  *
  * While the navigation lock is active, we install this as `window.fetch` so

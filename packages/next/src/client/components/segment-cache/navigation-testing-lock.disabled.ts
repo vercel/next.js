@@ -69,6 +69,8 @@ export function getCurrentNavigationGate(): Promise<void> | null {
   return null
 }
 
+export function resetNavigationLockToPending(): void {}
+
 export function shouldRestrictNavigationToShell(
   _rootPrefetchHints: number,
   _linkFetchStrategy: FetchStrategy
