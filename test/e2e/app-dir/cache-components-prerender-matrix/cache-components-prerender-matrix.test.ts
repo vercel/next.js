@@ -3,6 +3,14 @@ import cheerio from 'cheerio'
 import { nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 
+// The blocking-entry cache-key contract these tests encode is implemented
+// by Next.js itself (self-hosted serving and the built-in Vercel adapter).
+// The LEGACY (non-adapter) Vercel builder lives in vercel/vercel and does
+// not implement it yet — its blocking entries still key and bake
+// never-prerenderable params — so deploy runs are limited to adapter
+// deployments until that ships (see vercel/vercel#17179).
+const isAdapterTest = process.env.NEXT_ENABLE_ADAPTER === '1'
+
 type NextInstance = ReturnType<typeof nextTestSetup>['next']
 
 // A first-principles test matrix for cache components prerendering.
@@ -58,10 +66,8 @@ type NextInstance = ReturnType<typeof nextTestSetup>['next']
 // blocking prerender entries kept never-prerenderable params in
 // allowQuery, keying and baking them on deployed infra. The fully-static
 // and dynamic matrices pass before and after those fixes and guard them
-// against over-correction. Deployments built by the LEGACY (non-adapter)
-// Vercel builder still express the allowQuery bug, so partial-matrix rows
-// are expected to fail there until vercel/vercel ships the equivalent
-// filtering.
+// against over-correction. Deploy runs are adapter-only for now (see the
+// `skipDeployment` note above the `isAdapterTest` declaration).
 
 const PARAMS = ['lang', 'category', 'id'] as const
 type ParamName = (typeof PARAMS)[number]
@@ -446,6 +452,7 @@ function createDocumentFetcher(next: NextInstance) {
 describe('cache-components-prerender-matrix', () => {
   const { next, isNextDev, isNextDeploy } = nextTestSetup({
     files: __dirname,
+    skipDeployment: !isAdapterTest,
   })
 
   if (isNextDev) {
