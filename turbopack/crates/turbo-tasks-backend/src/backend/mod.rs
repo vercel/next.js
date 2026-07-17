@@ -65,8 +65,8 @@ use crate::{
             AggregationUpdateJob, AggregationUpdateQueue, ChildExecuteContext,
             CleanupOldEdgesOperation, ConnectChildOperation, ExecuteContext, ExecuteContextImpl,
             LeafDistanceUpdateQueue, Operation, OutdatedEdge, TaskGuard, TaskType, TaskTypeRef,
-            connect_children, get_aggregation_number, get_uppers, is_root_node,
-            make_task_dirty_internal, prepare_new_children,
+            connect_children, get_aggregation_number, get_uppers, make_task_dirty_internal,
+            prepare_new_children,
         },
         snapshot_coordinator::{OperationGuard, SnapshotCoordinator},
         storage::Storage,
@@ -1516,12 +1516,6 @@ impl TurboTasksBackend {
             raw_get_in_shard(shard, hash, |k| k.eq_components(native_fn, this, arg_ref))
         {
             self.track_cache_hit_by_fn(native_fn);
-            if parent_task.is_none() {
-                let task = ctx.task(task_id, TaskDataCategory::Meta);
-                if is_root_node(get_aggregation_number(&task)) && task.has_output() {
-                    return task_id;
-                }
-            }
             operation::ConnectChildOperation::run(parent_task, task_id, ctx);
             return task_id;
         }

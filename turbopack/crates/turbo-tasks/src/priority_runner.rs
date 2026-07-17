@@ -237,6 +237,9 @@ enum WorkerState {
     UnfinishedFuture,
     PendingFuture,
     Done,
+    /// The queue was empty after a task completed, so the worker yielded to Tokio. This handoff is
+    /// required before the OS-thread grace loop: on a single-worker runtime, `yield_now()` cannot
+    /// run another Tokio task that may be responsible for enqueueing the sequential follow-up.
     Yielded,
     Closed,
 }
@@ -431,6 +434,80 @@ mod tests {
                         completed.await;
                     }
                 }
+
+                tokio::time::timeout(Duration::from_secs(1), async {
+                    while runner.active_workers.load(Ordering::Acquire) != 0 {
+                        tokio::task::yield_now().await;
+                    }
+                })
+                .await
+                .expect("worker should leave the grace window and finish");
+
+                assert_eq!(ctx.completed.load(Ordering::Acquire), TASKS);
+                assert!(runner.queue.lock().is_empty());
+            });
+    }
+
+    #[test]
+    fn test_single_worker_yields_to_runtime_for_sequential_follow_up() {
+        struct TestContext {
+            completed: AtomicUsize,
+            completed_event: tokio::sync::Notify,
+        }
+
+        struct ExecutorImpl;
+
+        impl Executor<TestContext, usize, usize> for ExecutorImpl {
+            type Future = Pin<Box<dyn Future<Output = ()> + Send>>;
+
+            fn execute(
+                &self,
+                ctx: &Arc<TestContext>,
+                _task: usize,
+                _priority: usize,
+            ) -> Self::Future {
+                let ctx = ctx.clone();
+                Box::pin(async move {
+                    ctx.completed.fetch_add(1, Ordering::Release);
+                    ctx.completed_event.notify_one();
+                })
+            }
+        }
+
+        const TASKS: usize = 32;
+        tokio::runtime::Builder::new_multi_thread()
+            .worker_threads(1)
+            .disable_lifo_slot()
+            .enable_all()
+            .build()
+            .unwrap()
+            .block_on(async {
+                let runner = Arc::new(PriorityRunner::new(ExecutorImpl));
+                let ctx = Arc::new(TestContext {
+                    completed: AtomicUsize::new(0),
+                    completed_event: tokio::sync::Notify::new(),
+                });
+
+                let producer_runner = runner.clone();
+                let producer_ctx = ctx.clone();
+                tokio::spawn(async move {
+                    for task in 0..TASKS {
+                        if task > 0 {
+                            assert_eq!(
+                                producer_runner.active_workers.load(Ordering::Acquire),
+                                producer_runner.target_workers,
+                                "the yielded worker should remain available for the follow-up"
+                            );
+                        }
+                        let completed = producer_ctx.completed_event.notified();
+                        producer_runner.schedule(&producer_ctx, task, task);
+                        if producer_ctx.completed.load(Ordering::Acquire) <= task {
+                            completed.await;
+                        }
+                    }
+                })
+                .await
+                .unwrap();
 
                 tokio::time::timeout(Duration::from_secs(1), async {
                     while runner.active_workers.load(Ordering::Acquire) != 0 {

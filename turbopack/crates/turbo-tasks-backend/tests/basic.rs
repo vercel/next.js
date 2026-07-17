@@ -30,10 +30,10 @@ async fn test_dirty_top_level_cached_root() {
     let tt = instance.tt;
 
     let input = turbo_tasks::run(tt.clone(), async {
-        Ok(create_cached_top_level_input()
+        create_cached_top_level_input()
             .resolve()
             .strongly_consistent()
-            .await?)
+            .await
     })
     .await
     .unwrap();
