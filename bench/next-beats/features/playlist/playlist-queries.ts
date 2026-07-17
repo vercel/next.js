@@ -3,9 +3,12 @@ import 'server-only';
 import { cacheTag } from 'next/cache';
 import { notFound } from 'next/navigation';
 import { getCurrentUser } from '@/features/user/user-queries';
-import { prisma } from '@/lib/db';
+import { db } from '@/lib/db';
 import { delay } from '@/lib/utils';
 import { toTrack } from '@/types/track';
+
+const byCreatedAtDesc = (a: { createdAt: Date }, b: { createdAt: Date }) => b.createdAt.getTime() - a.createdAt.getTime();
+const visibleTo = (userId: string) => (p: { userId: string | null }) => p.userId === userId || p.userId === null;
 
 export async function getPlaylists() {
   const userId = await getCurrentUser();
@@ -17,18 +20,16 @@ async function getPlaylistsForUser(userId: string) {
   cacheTag(`playlists:${userId}`);
 
   await delay(1500);
-  const rows = await prisma.playlist.findMany({
-    include: { _count: { select: { tracks: true } } },
-    orderBy: { createdAt: 'desc' },
-    where: { OR: [{ userId }, { userId: null }] },
-  });
-  return rows.map(r => ({
-    coverColor: r.coverColor,
-    description: r.description,
-    id: r.id,
-    name: r.name,
-    trackCount: r._count.tracks,
-  }));
+  return db.playlists
+    .filter(visibleTo(userId))
+    .sort(byCreatedAtDesc)
+    .map(p => ({
+      coverColor: p.coverColor,
+      description: p.description,
+      id: p.id,
+      name: p.name,
+      trackCount: db.playlistTracks.filter(pt => pt.playlistId === p.id).length,
+    }));
 }
 
 export async function getPlaylist(id: string) {
@@ -41,23 +42,22 @@ async function getPlaylistForUser(id: string, userId: string) {
   cacheTag(`playlist-${id}`);
 
   await delay(500);
-  const row = await prisma.playlist.findFirst({
-    include: {
-      tracks: {
-        include: { track: true },
-        orderBy: { position: 'asc' },
-      },
-    },
-    where: { id, OR: [{ userId }, { userId: null }] },
-  });
+  const row = db.playlists.find(p => p.id === id && visibleTo(userId)(p));
   if (!row) notFound();
+  const tracks = db.playlistTracks
+    .filter(pt => pt.playlistId === id)
+    .sort((a, b) => a.position - b.position)
+    .flatMap(pt => {
+      const track = db.tracks.find(t => t.id === pt.trackId);
+      return track ? [toTrack(track)] : [];
+    });
   return {
     coverColor: row.coverColor,
     description: row.description,
     id: row.id,
     name: row.name,
-    trackCount: row.tracks.length,
-    tracks: row.tracks.map(pt => toTrack(pt.track)),
+    trackCount: tracks.length,
+    tracks,
   };
 }
 
@@ -70,17 +70,12 @@ async function getPlaylistMenuItemsForUser(trackId: string, userId: string) {
   'use cache';
   cacheTag(`playlists:${userId}`);
 
-  const playlists = await prisma.playlist.findMany({
-    include: { _count: { select: { tracks: true } } },
-    orderBy: { createdAt: 'desc' },
-    where: { OR: [{ userId }, { userId: null }] },
-  });
+  const playlists = db.playlists.filter(visibleTo(userId)).sort(byCreatedAtDesc);
   if (playlists.length === 0) return [];
 
-  const existing = await prisma.playlistTrack.findMany({
-    select: { playlistId: true },
-    where: { playlistId: { in: playlists.map(p => p.id) }, trackId },
-  });
-  const addedSet = new Set(existing.map(e => e.playlistId));
+  const playlistIds = new Set(playlists.map(p => p.id));
+  const addedSet = new Set(
+    db.playlistTracks.filter(pt => playlistIds.has(pt.playlistId) && pt.trackId === trackId).map(pt => pt.playlistId)
+  );
   return playlists.map(p => ({ label: p.name, value: p.id, active: addedSet.has(p.id) }));
 }

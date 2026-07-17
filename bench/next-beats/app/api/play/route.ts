@@ -2,7 +2,7 @@ import { revalidateTag } from 'next/cache';
 import { cookies } from 'next/headers';
 import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
-import { prisma } from '@/lib/db';
+import { db } from '@/lib/db';
 
 const SESSION_COOKIE = 'beats-user';
 
@@ -20,16 +20,15 @@ export async function POST(request: NextRequest) {
   if (!parsed.success) return new NextResponse(null, { status: 400 });
   const { trackId } = parsed.data;
 
-  await prisma.track.update({
-    where: { id: trackId },
-    data: { playCount: { increment: 1 } },
-  });
+  const track = db.tracks.find(t => t.id === trackId);
+  if (track) track.playCount += 1;
 
-  await prisma.userTrackPlay.upsert({
-    where: { userId_trackId: { userId, trackId } },
-    create: { userId, trackId },
-    update: { lastPlayedAt: new Date() },
-  });
+  const play = db.plays.find(p => p.userId === userId && p.trackId === trackId);
+  if (play) {
+    play.lastPlayedAt = new Date();
+  } else {
+    db.plays.push({ userId, trackId, lastPlayedAt: new Date() });
+  }
 
   revalidateTag(`recently-played:${userId}`, 'max');
   revalidateTag(`discover:${userId}`, 'max');

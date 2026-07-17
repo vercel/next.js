@@ -4,7 +4,7 @@ import { updateTag } from 'next/cache';
 import { z } from 'zod';
 import { SEED_PLAYLIST_IDS } from '@/features/playlist/playlist-constants';
 import { verifyAuth } from '@/features/user/user-queries';
-import { prisma } from '@/lib/db';
+import { db } from '@/lib/db';
 import { delay } from '@/lib/utils';
 
 const createPlaylistSchema = z.object({
@@ -28,13 +28,15 @@ export async function createPlaylist(formData: FormData) {
     return { error: parsed.error.issues[0].message, ok: false as const };
   }
 
-  const playlist = await prisma.playlist.create({
-    data: {
-      coverColor: colors[Math.floor(Math.random() * colors.length)],
-      name: parsed.data.name,
-      userId,
-    },
-  });
+  const playlist = {
+    id: crypto.randomUUID(),
+    coverColor: colors[Math.floor(Math.random() * colors.length)],
+    createdAt: new Date(),
+    description: '',
+    name: parsed.data.name,
+    userId,
+  };
+  db.playlists.push(playlist);
   updateTag(`playlists:${userId}`);
   return { ok: true as const, playlist };
 }
@@ -43,23 +45,14 @@ export async function addToPlaylist(playlistId: string, trackId: string) {
   const userId = await verifyAuth();
   await delay(200);
   if (SEED_PLAYLIST_IDS.has(playlistId)) return { error: "Can't modify a demo playlist", ok: false as const };
-  const existing = await prisma.playlistTrack.findUnique({
-    where: { playlistId_trackId: { playlistId, trackId } },
-  });
+  const existing = db.playlistTracks.find(pt => pt.playlistId === playlistId && pt.trackId === trackId);
   if (existing) return { error: 'Already in this playlist', ok: false as const };
 
-  const maxPos = await prisma.playlistTrack.aggregate({
-    _max: { position: true },
-    where: { playlistId },
-  });
+  const maxPos = db.playlistTracks
+    .filter(pt => pt.playlistId === playlistId)
+    .reduce((max, pt) => Math.max(max, pt.position), -1);
 
-  await prisma.playlistTrack.create({
-    data: {
-      playlistId,
-      position: (maxPos._max.position ?? -1) + 1,
-      trackId,
-    },
-  });
+  db.playlistTracks.push({ playlistId, trackId, position: maxPos + 1, addedAt: new Date() });
   updateTag(`playlist-${playlistId}`);
   updateTag(`playlists:${userId}`);
   return { ok: true as const };
@@ -69,9 +62,8 @@ export async function removeFromPlaylist(playlistId: string, trackId: string) {
   const userId = await verifyAuth();
   await delay(200);
   if (SEED_PLAYLIST_IDS.has(playlistId)) return { error: "Can't modify a demo playlist", ok: false as const };
-  await prisma.playlistTrack.delete({
-    where: { playlistId_trackId: { playlistId, trackId } },
-  });
+  const index = db.playlistTracks.findIndex(pt => pt.playlistId === playlistId && pt.trackId === trackId);
+  if (index !== -1) db.playlistTracks.splice(index, 1);
   updateTag(`playlist-${playlistId}`);
   updateTag(`playlists:${userId}`);
   return { ok: true as const };
@@ -82,7 +74,11 @@ export async function deletePlaylist(playlistId: string) {
   const id = z.string().min(1).parse(playlistId);
   if (SEED_PLAYLIST_IDS.has(id)) return { error: "Can't delete a demo playlist", ok: false as const };
   await delay(300);
-  await prisma.playlist.delete({ where: { id } });
+  const index = db.playlists.findIndex(p => p.id === id);
+  if (index !== -1) db.playlists.splice(index, 1);
+  for (let i = db.playlistTracks.length - 1; i >= 0; i--) {
+    if (db.playlistTracks[i].playlistId === id) db.playlistTracks.splice(i, 1);
+  }
   updateTag(`playlists:${userId}`);
   updateTag(`playlist-${id}`);
   return { ok: true as const };

@@ -3,7 +3,7 @@
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { z } from 'zod';
-import { prisma } from '@/lib/db';
+import { db } from '@/lib/db';
 
 const SESSION_COOKIE = 'beats-user';
 
@@ -19,12 +19,14 @@ export async function signIn(formData: FormData) {
 
   let userId: string;
   try {
-    const user = await prisma.user.upsert({
-      where: { name: parsed.data.name },
-      create: { name: parsed.data.name },
-      update: {},
-    });
-    userId = user.id;
+    const existing = db.users.find(u => u.name === parsed.data.name);
+    if (existing) {
+      userId = existing.id;
+    } else {
+      const user = { id: crypto.randomUUID(), name: parsed.data.name, createdAt: new Date() };
+      db.users.push(user);
+      userId = user.id;
+    }
   } catch {
     return { error: 'Could not sign you in. Please try again.', ok: false as const };
   }

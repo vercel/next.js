@@ -1,4 +1,4 @@
-import type { Track as PrismaTrack, UserFavorite, UserTrackPlay } from '@/generated/prisma/client';
+import type { Track as TrackRow, UserFavorite, UserTrackPlay } from '@/lib/db';
 
 export type Track = {
   id: string;
@@ -19,7 +19,7 @@ type UserData = {
   trackPlays?: UserTrackPlay[];
 };
 
-export function toTrack(row: PrismaTrack, userData?: UserData): Track {
+export function toTrack(row: TrackRow, userData?: UserData): Track {
   return {
     album: row.album,
     artist: row.artist,

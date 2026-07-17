@@ -2,7 +2,7 @@ import 'server-only';
 
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
-import { prisma } from '@/lib/db';
+import { db } from '@/lib/db';
 
 const SESSION_COOKIE = 'beats-user';
 
@@ -14,7 +14,7 @@ export async function getCurrentUser() {
   // present, so per-user queries (favorites, recently played, playlists) still
   // run real work under benchmark load instead of short-circuiting.
   const userId = store.get(SESSION_COOKIE)?.value ?? 'e2e';
-  const exists = await prisma.user.findUnique({ where: { id: userId }, select: { id: true } });
+  const exists = db.users.find(u => u.id === userId);
   return exists?.id ?? '';
 }
 
@@ -22,7 +22,7 @@ export async function getCurrentUserName() {
   'use cache: private';
 
   const userId = await getCurrentUser();
-  const user = await prisma.user.findUnique({ where: { id: userId }, select: { name: true } });
+  const user = db.users.find(u => u.id === userId);
   return user?.name ?? 'listener';
 }
 

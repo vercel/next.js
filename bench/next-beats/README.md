@@ -41,8 +41,8 @@ Prefetching only runs in production, so try these on the [live demo](https://nex
 
 ## Getting started
 
-This vendored copy runs offline on a committed, seeded SQLite database, so no
-`DATABASE_URL` or external service is needed. See
+This vendored copy runs offline on a deterministically seeded in-memory store, so
+no database or external service is needed. See
 [BENCH_NOTES.md](./BENCH_NOTES.md) for the build and serve steps. The
 [live demo](https://next-beats.dev) runs the original Postgres-backed version.
 
@@ -51,7 +51,7 @@ This vendored copy runs offline on a committed, seeded SQLite database, so no
 - **[Next.js 16.3](https://nextjs.org/)**: App Router, Cache Components, Server Functions
 - **[React 19](https://react.dev/)** with React Compiler: Suspense, View Transitions, `useOptimistic`
 - **[TypeScript](https://www.typescriptlang.org/)** and **[Tailwind CSS v4](https://tailwindcss.com/)**
-- **[Prisma 7](https://www.prisma.io/)** on SQLite (committed seeded `prisma/dev.db`)
+- **In-memory store** seeded deterministically from `lib/seed-data.ts` (no external database)
 - **[Web Audio API](https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API)** for procedural per-genre synthesis
 
 ## License

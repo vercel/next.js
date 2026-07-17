@@ -1,20 +1,77 @@
 import 'server-only';
 
-import { PrismaBetterSqlite3 } from '@prisma/adapter-better-sqlite3';
-import { PrismaClient } from '@/generated/prisma/client';
+import { SEED_PLAYLIST_TRACKS, SEED_PLAYLISTS, SEED_TRACKS, SEED_USERS } from '@/lib/seed-data';
 
-const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
+export type User = {
+  id: string;
+  name: string;
+  createdAt: Date;
+};
 
-// Bench fixture: a committed, seeded SQLite file so the app builds and serves
-// fully offline and deterministically. See prisma/dev.db.
-const url = process.env.DATABASE_URL ?? 'file:./prisma/dev.db';
+export type Track = {
+  id: string;
+  title: string;
+  artist: string;
+  album: string;
+  duration: number;
+  genre: string;
+  coverColor: string;
+  playCount: number;
+  createdAt: Date;
+};
 
-export const prisma =
-  globalForPrisma.prisma ??
-  new PrismaClient({
-    adapter: new PrismaBetterSqlite3({ url }),
-  });
+export type UserFavorite = {
+  userId: string;
+  trackId: string;
+  addedAt: Date;
+};
 
-if (process.env.NODE_ENV !== 'production') {
-  globalForPrisma.prisma = prisma;
+export type UserTrackPlay = {
+  userId: string;
+  trackId: string;
+  lastPlayedAt: Date;
+};
+
+export type Playlist = {
+  id: string;
+  name: string;
+  description: string;
+  coverColor: string;
+  userId: string | null;
+  createdAt: Date;
+};
+
+export type PlaylistTrack = {
+  playlistId: string;
+  trackId: string;
+  position: number;
+  addedAt: Date;
+};
+
+type Store = {
+  users: User[];
+  tracks: Track[];
+  favorites: UserFavorite[];
+  plays: UserTrackPlay[];
+  playlists: Playlist[];
+  playlistTracks: PlaylistTrack[];
+};
+
+// Bench fixture: an in-memory, deterministically seeded store so the app builds
+// and serves fully offline with zero external dependencies. Held on globalThis
+// so the RSC, Server Action, and Route Handler bundles share one instance
+// (they compile separately in production).
+const globalForDb = globalThis as unknown as { __beatsStore?: Store };
+
+function seedStore(): Store {
+  return {
+    users: SEED_USERS.map(u => ({ ...u })),
+    tracks: SEED_TRACKS.map(t => ({ ...t })),
+    favorites: [],
+    plays: [],
+    playlists: SEED_PLAYLISTS.map(p => ({ ...p })),
+    playlistTracks: SEED_PLAYLIST_TRACKS.map(pt => ({ ...pt })),
+  };
 }
+
+export const db = (globalForDb.__beatsStore ??= seedStore());

@@ -3,7 +3,7 @@
 import { revalidateTag, updateTag } from 'next/cache';
 import { z } from 'zod';
 import { verifyAuth } from '@/features/user/user-queries';
-import { prisma } from '@/lib/db';
+import { db } from '@/lib/db';
 import { delay } from '@/lib/utils';
 
 const trackIdSchema = z.string().min(1);
@@ -13,18 +13,11 @@ export async function toggleFavorite(trackId: string) {
   await delay(200);
   const id = trackIdSchema.parse(trackId);
 
-  const existing = await prisma.userFavorite.findUnique({
-    where: { userId_trackId: { userId, trackId: id } },
-  });
-
-  if (existing) {
-    await prisma.userFavorite.delete({
-      where: { userId_trackId: { userId, trackId: id } },
-    });
+  const index = db.favorites.findIndex(f => f.userId === userId && f.trackId === id);
+  if (index !== -1) {
+    db.favorites.splice(index, 1);
   } else {
-    await prisma.userFavorite.create({
-      data: { userId, trackId: id },
-    });
+    db.favorites.push({ userId, trackId: id, addedAt: new Date() });
   }
 
   updateTag(`track-${id}:${userId}`);

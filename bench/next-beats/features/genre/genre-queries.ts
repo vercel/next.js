@@ -1,7 +1,7 @@
 import 'server-only';
 
 import { cacheLife, cacheTag } from 'next/cache';
-import { prisma } from '@/lib/db';
+import { db } from '@/lib/db';
 import { delay } from '@/lib/utils';
 
 export async function getGenres() {
@@ -10,13 +10,11 @@ export async function getGenres() {
   cacheLife('days');
 
   await delay(600);
-  const rows = await prisma.track.groupBy({
-    by: ['genre'],
-    _count: { genre: true },
-    orderBy: { _count: { genre: 'desc' } },
-  });
-  return rows.map(r => ({
-    count: r._count.genre,
-    genre: r.genre,
-  }));
+  const counts = new Map<string, number>();
+  for (const track of db.tracks) {
+    counts.set(track.genre, (counts.get(track.genre) ?? 0) + 1);
+  }
+  return [...counts.entries()]
+    .map(([genre, count]) => ({ count, genre }))
+    .sort((a, b) => b.count - a.count);
 }

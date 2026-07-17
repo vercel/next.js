@@ -11,9 +11,12 @@ production app does.
 The upstream demo runs on Neon Postgres with Vercel Analytics. For a hermetic,
 deterministic, offline benchmark it was adapted as follows:
 
-- **Postgres → SQLite.** `prisma/schema.prisma` provider is `sqlite`; `lib/db.ts`
-  and `prisma/seed.ts` use `@prisma/adapter-better-sqlite3`. Data lives in a
-  committed, seeded `prisma/dev.db` (44 tracks, 3 playlists, an `e2e` user).
+- **Postgres → in-memory store.** `lib/db.ts` holds a `globalThis`-backed store
+  seeded deterministically from `lib/seed-data.ts` (44 tracks, 3 playlists, an
+  `e2e` user). The query and action modules read and write plain arrays. No
+  database, driver, or `postinstall` step, so the app builds and serves fully
+  offline like the other `bench/` fixtures. The store lives on `globalThis` so
+  the RSC, Server Action, and Route Handler bundles share one instance.
 - **`next` → workspace.** `package.json` points `next` at
   `link:../../packages/next`, so it builds against the React that this repo
   vendors. React itself comes from the workspace-wide pnpm override.
@@ -23,18 +26,12 @@ deterministic, offline benchmark it was adapted as follows:
   redirect.
 - **Telemetry removed.** `@vercel/analytics` / `@vercel/speed-insights` dropped
   to avoid network noise. Secrets (`.env.local`) were never copied.
-- **`mode: 'insensitive'`** (Postgres-only) dropped from the search query;
-  SQLite `contains` is already case-insensitive for ASCII.
 
 ## Setup
 
-The seeded DB and generated client are produced automatically:
-
-```bash
-pnpm install            # runs postinstall → prisma generate
-# prisma/dev.db is committed; to rebuild it:
-pnpm --filter next-beats prisma.reset
-```
+No setup step. The seed data is a TypeScript module (`lib/seed-data.ts`) loaded
+into memory on first import, so `pnpm install` is all that is needed. To change
+the fixture data, edit `lib/seed-data.ts`.
 
 ## Building / serving
 
@@ -50,13 +47,15 @@ profiler at the pages worth measuring.
 ## Determinism
 
 Rendered output is byte-stable across GET requests: all data comes from the
-committed, seeded `prisma/dev.db`, and no Server Component renders wall-clock or
-relative time (the only `Date.now()` is client-side audio scheduling). This keeps
-A/B payload comparisons free of data noise.
+deterministically seeded in-memory store (timestamps are derived from a fixed
+epoch, not wall-clock), and no Server Component renders wall-clock or relative
+time (the only `Date.now()` is client-side audio scheduling). This keeps A/B
+payload comparisons free of data noise.
 
 The one mutation path is `POST /api/play`, which increments `playCount` and
 writes `lastPlayedAt`. It is intentionally excluded from `routes.json`; keep it
-out of stress runs (or reset the DB afterward) so payloads don't drift mid-run.
+out of stress runs (or restart the server afterward to re-seed) so payloads
+don't drift mid-run.
 
 ## How to benchmark it
 

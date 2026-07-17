@@ -33,22 +33,11 @@ yarn-error.log*
 .pnpm-debug.log*
 
 # env files (can opt-in for committing if needed)
-.env*.local
-# .env is committed on purpose: it only points at the local SQLite fixture.
+.env*
 
 # vercel
 .vercel
 
-# generated
-/generated
-
-# sqlite — the seeded dev.db is committed as a deterministic bench fixture
-prisma/*.db-journal
-!prisma/dev.db
-
 # typescript
 *.tsbuildinfo
 next-env.d.ts
-
-# prisma
-/generated/

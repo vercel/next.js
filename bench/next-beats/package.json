@@ -4,27 +4,18 @@
   "private": true,
   "license": "MIT",
   "scripts": {
-    "postinstall": "prisma generate",
     "dev": "next dev",
-    "build": "prisma generate && next build",
+    "build": "next build",
     "start": "next start",
-    "lint": "eslint .",
-    "prisma.push": "prisma db push",
-    "prisma.seed": "prisma db seed",
-    "prisma.reset": "prisma db push --force-reset && pnpm prisma.seed"
+    "lint": "eslint ."
   },
   "dependencies": {
     "@ariakit/react": "^0.4.28",
-    "@prisma/adapter-better-sqlite3": "^7.8.0",
-    "@prisma/client": "^7.8.0",
-    "better-sqlite3": "^12.11.1",
     "clsx": "^2.1.1",
-    "dotenv": "^17.4.2",
     "geist": "^1.7.0",
     "lucide-react": "^1.8.0",
     "next": "link:../../packages/next",
     "next-themes": "^0.4.6",
-    "prisma": "^7.8.0",
     "react": "19.2.4",
     "react-dom": "19.2.4",
     "server-only": "^0.0.1",
@@ -41,7 +32,6 @@
     "eslint": "^9",
     "eslint-config-next": "16.3.0-canary.30",
     "tailwindcss": "^4",
-    "tsx": "^4.22.2",
     "typescript": "^5"
   }
 }
