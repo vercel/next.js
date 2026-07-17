@@ -1334,17 +1334,27 @@ impl AppEndpoint {
 
         let client_chunking_context = project.client_chunking_context().to_resolved().await?;
 
-        let server_chunking_context = match runtime {
-            NextRuntime::NodeJs => Vc::upcast(project.server_chunking_context(true)),
-            NextRuntime::Edge => this
-                .app_project
-                .project()
-                .edge_chunking_context(process_client_assets),
-        }
-        .to_resolved()
-        .await?;
+        let server_chunking_context = if process_ssr || is_app_page {
+            Some(
+                match runtime {
+                    NextRuntime::NodeJs => Vc::upcast(project.server_chunking_context(true)),
+                    NextRuntime::Edge => this
+                        .app_project
+                        .project()
+                        .edge_chunking_context(process_client_assets),
+                }
+                .to_resolved()
+                .await?,
+            )
+        } else {
+            None
+        };
 
-        let ssr_chunking_context = process_ssr.then_some(server_chunking_context);
+        let ssr_chunking_context = if process_ssr {
+            server_chunking_context
+        } else {
+            None
+        };
 
         let per_page_module_graph = *project.per_page_module_graph().await?;
 
@@ -1600,7 +1610,11 @@ impl AppEndpoint {
                     ssr_chunking_context,
                     // Only pages need `rscModuleMapping`; route handlers and
                     // metadata routes keep emitting no module mappings.
-                    rsc_chunking_context: is_app_page.then_some(server_chunking_context),
+                    rsc_chunking_context: if is_app_page {
+                        server_chunking_context
+                    } else {
+                        None
+                    },
                     async_module_info: module_graphs.full.async_module_info().to_resolved().await?,
                     next_config: project.next_config().to_resolved().await?,
                     runtime,
