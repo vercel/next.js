@@ -1681,12 +1681,9 @@ function finalizeConfig(
     config.supportsImmutableAssets = false
   }
 
-  if (
-    config.outputHashSalt !== undefined &&
-    config.experimental.outputHashSalt !== undefined
-  ) {
+  if (config.experimental.outputHashSalt !== undefined) {
     config.outputHashSalt =
-      config.outputHashSalt + config.experimental.outputHashSalt
+      (config.outputHashSalt ?? '') + config.experimental.outputHashSalt
   }
 
   return config

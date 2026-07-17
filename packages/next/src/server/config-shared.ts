@@ -467,7 +467,7 @@ export function resolveCssChunkingMode(
 
 export interface ExperimentalConfig {
   /**
-   * @deprecated Use the top-level `supportsImmutableAssets` option instead.
+   * @deprecated Use the top-level `outputHashSalt` option instead.
    */
   outputHashSalt?: string
 
