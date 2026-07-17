@@ -1982,12 +1982,13 @@ impl CurrentCellRef {
     ///
     /// ```
     /// #[turbo_tasks::value(transparent, eq = "manual")]
+    /// #[derive(Clone)]
     /// struct Wrapper(Vec<u32>);
     ///
     /// impl PartialEq for Wrapper {
-    ///     fn eq(&self, other: Wrapper) {
+    ///     fn eq(&self, other: &Wrapper) -> bool {
     ///         // Example: order doesn't matter for equality
-    ///         let (mut this, mut other) = (self.clone(), other.clone());
+    ///         let (mut this, mut other) = (self.0.clone(), other.0.clone());
     ///         this.sort_unstable();
     ///         other.sort_unstable();
     ///         this == other
