@@ -1,6 +1,5 @@
 import { cacheLife } from 'next/cache'
 import { notFound } from 'next/navigation'
-import { Suspense } from 'react'
 
 export function generateStaticParams() {
   return [{ slug: 'known' }]
@@ -12,17 +11,13 @@ export default async function Page({
   params: Promise<{ slug: string }>
 }) {
   const { slug } = await params
-  return (
-    <Suspense fallback={null}>
-      <CachedPage slug={slug} />
-    </Suspense>
-  )
+  return <CachedPage slug={slug} />
 }
 
 async function CachedPage({ slug }: { slug: string }) {
   'use cache'
 
-  cacheLife({ revalidate: 0 })
+  cacheLife('hours')
 
   if (slug !== 'known') {
     notFound()
