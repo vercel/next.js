@@ -7,7 +7,12 @@ export type CartItem = {
   quantity: number;
 };
 
+function delay() {
+  return new Promise((resolve) => setTimeout(resolve, 500));
+}
+
 export const getCart = cache(async () => {
+  await delay();
   const cookieStore = await cookies();
   const value = cookieStore.get("cart")?.value;
   if (!value) {

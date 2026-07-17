@@ -1,21 +1,3 @@
-# Blog starter
-
-A blog on Cache Components: content is shared, so reads are cached and tagged, pages prerender to static shells, and mutations invalidate by tag.
-
-## Where things are
-
-- `features/posts/posts-queries.ts` — the data layer. Cached reads with `"use cache"`, `cacheLife`, and `cacheTag`; `getPost` calls `notFound()`.
-- `features/posts/posts-actions.ts` — mutations that call `updateTag`.
-- `features/posts/components/` — async server components, each exporting a matching skeleton.
-- `app/blog/[slug]/page.tsx` — reads `params` with `params.then()` inside `<Suspense>`.
-
-## Docs
-
-- [Cache Components](https://nextjs.org/docs/app/getting-started/caching)
-- [Public static pages](https://nextjs.org/docs/app/guides/public-static-pages)
-- [How revalidation works](https://nextjs.org/docs/app/guides/how-revalidation-works)
-- [MDX](https://nextjs.org/docs/app/guides/mdx)
-
 <!-- BEGIN:nextjs-agent-rules -->
 
 # This is NOT the Next.js you know
@@ -25,3 +7,18 @@ This version has breaking changes — APIs, conventions, and file structure may 
 This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
 
 <!-- END:nextjs-agent-rules -->
+
+# Blog starter
+
+A blog on Cache Components: content is shared, so reads are cached and tagged and pages prerender to static shells.
+
+## Patterns
+
+- [Cache Components](https://nextjs.org/docs/app/getting-started/caching): the cached data layer (`"use cache"`, `cacheLife`, `cacheTag`).
+- [How revalidation works](https://nextjs.org/docs/app/guides/how-revalidation-works): what `updateTag` does after a mutation.
+- [Public static pages](https://nextjs.org/docs/app/guides/public-static-pages): prerendering shared content.
+- [MDX](https://nextjs.org/docs/app/guides/mdx): moving posts from the in-memory store to files.
+
+## Agentic development
+
+The [`next-dev-loop`](.agents/skills/next-dev-loop/SKILL.md) skill is installed so an agent can verify changes at runtime: drive the browser, read the console, and inspect what rendered.

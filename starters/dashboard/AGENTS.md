@@ -1,23 +1,3 @@
-# Dashboard starter
-
-An authenticated dashboard on Cache Components: per-user data is read through a data access layer and streamed, shared data is cached, and the app shell prerenders.
-
-## Where things are
-
-- `features/auth/auth-queries.ts` — `getCurrentUser()`, the data access layer. Reads the session with `"use cache: private"` and redirects to `/login` when there is none.
-- `features/auth/components/user-provider.tsx` — passes the user promise to client components through context and `use()`.
-- `features/auth/components/login-form.tsx` — the login form with `useActionState`.
-- `features/dashboard/dashboard-queries.ts` — per-user reads (through `getCurrentUser`) next to cached shared data.
-- `app/(app)/` — the authenticated layout and page; `app/login/` sits outside it.
-
-## Docs
-
-- [Authentication](https://nextjs.org/docs/app/guides/authentication)
-- [Cache Components](https://nextjs.org/docs/app/getting-started/caching)
-- [`use cache: private`](https://nextjs.org/docs/app/api-reference/directives/use-cache-private)
-- [Data security](https://nextjs.org/docs/app/guides/data-security)
-- [Streaming](https://nextjs.org/docs/app/guides/streaming)
-
 <!-- BEGIN:nextjs-agent-rules -->
 
 # This is NOT the Next.js you know
@@ -27,3 +7,18 @@ This version has breaking changes — APIs, conventions, and file structure may 
 This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
 
 <!-- END:nextjs-agent-rules -->
+
+# Dashboard starter
+
+An authenticated dashboard on Cache Components: per-user data behind a data access layer, streamed in parallel, with shared data cached.
+
+## Patterns
+
+- [Authentication](https://nextjs.org/docs/app/guides/authentication): the data access layer and session handling.
+- [`use cache: private`](https://nextjs.org/docs/app/api-reference/directives/use-cache-private): caching per-user reads off the shared server cache.
+- [Data security](https://nextjs.org/docs/app/guides/data-security): keeping per-user reads safe.
+- [Streaming](https://nextjs.org/docs/app/guides/streaming): parallel Suspense sections.
+
+## Agentic development
+
+The [`next-dev-loop`](.agents/skills/next-dev-loop/SKILL.md) skill is installed so an agent can verify changes at runtime: drive the browser, read the console, and inspect what rendered.

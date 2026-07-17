@@ -5,6 +5,8 @@ import {
 } from "@/features/chat/components/conversation";
 import { getConversation } from "@/features/chat/chat-queries";
 
+export const prefetch = "allow-runtime";
+
 export default function ChatPage({ params }: PageProps<"/chat/[id]">) {
   return (
     <Suspense fallback={<ConversationSkeleton />}>

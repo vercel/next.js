@@ -15,6 +15,8 @@ related:
 
 This guide walks through understanding instant navigations, writing a route that navigates instantly, visualizing what's in the initial UI, and locking the behavior in with end-to-end tests.
 
+> **Good to know:** The [`store` starter](https://github.com/vercel/next.js/tree/canary/starters/store) is a runnable example of a static shell with a streamed, per-request hole.
+
 ## What "instant" means
 
 A navigation is **instant** when the browser can start rendering the new page the moment the user clicks, with static, cached, and fallback content showing up right away, while the server streams the remaining content into its fallbacks.
