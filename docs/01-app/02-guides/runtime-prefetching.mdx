@@ -201,7 +201,7 @@ Use it on routes where:
 - That part of the tree has a known cache lifetime (it can be expressed with `"use cache"` or `"use cache: private"`)
 - The traffic justifies the per-link server invocation
 
-Skip it when the prefetch can't produce a better UI than the App Shell. Each visible `<Link>` to a route with `'allow-runtime'` wakes a server, and that cost only pays off if more of the page is ready before the click:
+Skip it when the prefetch can't produce a better UI than the App Shell. Each visible `<Link prefetch={true}>` to a route with `'allow-runtime'` wakes a server, and that cost only pays off if more of the page is ready before the click:
 
 - The route has little or no URL-data dependency. The App Shell already makes the navigation instant.
 - The dependent content has to be fresh on every request. The prerender stops at the same `<Suspense>` fallback, so the user sees the same UI either way.
