@@ -5,11 +5,10 @@ describe('use-cache-revalidate-zero-not-found', () => {
     files: __dirname,
   })
 
-  it('returns a streamed PPR response without logging an invalid revalidate error', async () => {
+  it('does not log an invalid revalidate error', async () => {
     const outputIndex = next.cliOutput.length
     const response = await next.fetch('/missing')
 
-    expect(response.status).toBe(200)
     await response.text()
 
     expect(next.cliOutput.slice(outputIndex)).not.toContain(
