@@ -6,7 +6,7 @@ import type {
 import { extractPathFromFlightRouterState } from '../compute-changed-path'
 import {
   FreshnessPolicy,
-  getCurrentNavigationLock,
+  resetNavigationLockToPending,
   spawnDynamicRequests,
   startPPRNavigation,
   type NavigationRequestAccumulation,
@@ -44,7 +44,6 @@ export function restoreReducer(
   const restoredUrl = action.url
   const restoredNextUrl =
     extractPathFromFlightRouterState(treeToRestore) ?? restoredUrl.pathname
-  const navigationLock = getCurrentNavigationLock()
 
   const now = Date.now()
   // TODO: Store the dynamic stale time on the top-level state so it's known
@@ -94,10 +93,18 @@ export function restoreReducer(
     null,
     // History traversal always uses 'replace'.
     'replace',
-    navigationLock,
+    // Instant Navigation Testing API: a traversal is not a capture. Spawn its
+    // dynamic requests ungated (null lock) so they render from cache or fetch
+    // normally rather than being withheld behind the lock.
+    null,
     // Not an HMR refresh, so there's no request generation to cancel.
     undefined
   )
+  // Instant Navigation Testing API: a traversal resets the lock to a fresh
+  // pending scope — releasing any data withheld by prior forward navigations and
+  // returning the panel to "awaiting" — without ending the testing session.
+  // No-op when the testing API is disabled or no lock is held.
+  resetNavigationLockToPending()
   return completeTraverseNavigation(
     state,
     restoredUrl,
