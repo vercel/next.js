@@ -1522,48 +1522,33 @@ export function getValidatedMPAActionId(
   return actionId
 }
 
-const ACTION_DESCRIPTOR_ID_PREFIX = '{"id":"'
-function isInvalidStringActionDescriptor(
-  actionDescriptor: string,
-  serverModuleMap: ServerModuleMap
-): unknown {
-  if (actionDescriptor.startsWith(ACTION_DESCRIPTOR_ID_PREFIX) === false) {
-    return true
-  }
-
-  const from = ACTION_DESCRIPTOR_ID_PREFIX.length
-  const to = from + ACTION_ID_EXPECTED_LENGTH
-
-  // We expect actionDescriptor to be '{"id":"<actionId>",...}'
-  const actionId = actionDescriptor.slice(from, to)
-  if (
-    actionId.length !== ACTION_ID_EXPECTED_LENGTH ||
-    actionDescriptor[to] !== '"'
-  ) {
-    return true
-  }
-
-  const entry = serverModuleMap[actionId]
-
-  if (entry == null) {
-    return true
-  }
-
-  return false
-}
-
 function getActionIdFromStringDescriptor(
   actionDescriptor: string,
   serverModuleMap: ServerModuleMap
 ): string | null {
-  if (isInvalidStringActionDescriptor(actionDescriptor, serverModuleMap)) {
+  let parsedActionDescriptor: unknown
+  try {
+    // React also parses this descriptor as JSON before reading its `id`. In
+    // particular, this makes the last of any duplicate `id` properties win.
+    parsedActionDescriptor = JSON.parse(actionDescriptor)
+  } catch {
     return null
   }
 
-  return actionDescriptor.slice(
-    ACTION_DESCRIPTOR_ID_PREFIX.length,
-    ACTION_DESCRIPTOR_ID_PREFIX.length + ACTION_ID_EXPECTED_LENGTH
-  )
+  if (typeof parsedActionDescriptor !== 'object' || !parsedActionDescriptor) {
+    return null
+  }
+
+  const actionId = (parsedActionDescriptor as { id?: unknown }).id
+  if (
+    typeof actionId !== 'string' ||
+    actionId.length !== ACTION_ID_EXPECTED_LENGTH ||
+    serverModuleMap[actionId] == null
+  ) {
+    return null
+  }
+
+  return actionId
 }
 
 function isInvalidActionIdFieldName(

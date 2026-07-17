@@ -45,6 +45,30 @@ describe('getValidatedMPAActionId', () => {
     expect(getValidatedMPAActionId(formData, serverModuleMap)).toBe(ACTION_ID_A)
   })
 
+  it('uses the last duplicate descriptor ID to match React decodeAction', () => {
+    const formData = new FormData()
+    formData.append('$ACTION_REF_0', '')
+    formData.append(
+      '$ACTION_0:0',
+      `{"id":"${ACTION_ID_A}","bound":"$@1","id":"${ACTION_ID_B}"}`
+    )
+    formData.append('$ACTION_0:1', '["A"]')
+
+    expect(getValidatedMPAActionId(formData, serverModuleMap)).toBe(ACTION_ID_B)
+  })
+
+  it('rejects an unknown last duplicate descriptor ID', () => {
+    const formData = new FormData()
+    formData.append('$ACTION_REF_0', '')
+    formData.append(
+      '$ACTION_0:0',
+      `{"id":"${ACTION_ID_A}","bound":"$@1","id":"${UNKNOWN_ACTION_ID}"}`
+    )
+    formData.append('$ACTION_0:1', '["A"]')
+
+    expect(getValidatedMPAActionId(formData, serverModuleMap)).toBeNull()
+  })
+
   it('returns the last valid action ID to match React decodeAction', () => {
     const formData = new FormData()
     formData.append(`$ACTION_ID_${ACTION_ID_A}`, '')
@@ -115,6 +139,10 @@ describe('getValidatedMPAActionId', () => {
     ['a missing descriptor', undefined],
     ['a non-string descriptor', new Blob()],
     ['a malformed descriptor', '{}'],
+    [
+      'a truncated descriptor after a valid action ID',
+      `{"id":"${ACTION_ID_A}"`,
+    ],
     [
       'a descriptor with a too-short action ID',
       createBoundActionDescriptor(ACTION_ID_A.slice(1)),
