@@ -95,7 +95,6 @@ import { setHttpClientAndAgentOptions } from './setup-http-agent-env'
 
 import { isPagesAPIRouteMatch } from './route-matches/pages-api-route-match'
 import type { PagesAPIRouteMatch } from './route-matches/pages-api-route-match'
-import type { MatchOptions } from './route-matcher-managers/route-matcher-manager'
 import { BubbledError, getTracer } from './lib/trace/tracer'
 import { NextNodeServerSpan } from './lib/trace/constants'
 import { nodeFs } from './lib/node-fs-methods'
@@ -1116,9 +1115,7 @@ export default class NextNodeServer extends BaseServer<
       // next.js core assumes page path without trailing slash
       pathname = removeTrailingSlash(pathname)
 
-      const options: MatchOptions = {
-        i18n: this.i18nProvider?.fromRequest(req, pathname),
-      }
+      const options = super.matchOptions(req, pathname)
       const match = await this.matchers.match(pathname, options)
 
       // If we don't have a match, try to render it anyways.

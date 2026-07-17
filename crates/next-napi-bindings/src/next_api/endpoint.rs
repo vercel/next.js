@@ -6,6 +6,7 @@ use napi::{JsFunction, bindgen_prelude::External};
 use napi_derive::napi;
 use next_api::{
     operation::OptionEndpoint,
+    output_mode::mark_as_ssr,
     paths::AssetPath,
     route::{
         Endpoint, EndpointOutputPaths, endpoint_client_changed_operation,
@@ -149,6 +150,8 @@ async fn get_written_endpoint_with_issues_operation(
 #[napi]
 pub async fn endpoint_write_to_disk(
     #[napi(ts_arg_type = "{ __napiType: \"Endpoint\" }")] endpoint: External<ExternalEndpoint>,
+    // Only passed for app page HTML endpoints
+    rsc_only: Option<bool>,
 ) -> napi::Result<TurbopackResult<NapiWrittenEndpoint>> {
     let ctx = endpoint.turbopack_ctx();
     let endpoint_op = ***endpoint;
@@ -156,6 +159,9 @@ pub async fn endpoint_write_to_disk(
         .turbopack_ctx()
         .turbo_tasks()
         .run(async move {
+            if rsc_only == Some(false) {
+                mark_as_ssr(endpoint_op).await?;
+            }
             let written_entrypoint_with_issues_op =
                 get_written_endpoint_with_issues_operation(endpoint_op);
             let read = read_strongly_consistent_and_apply_effects(
