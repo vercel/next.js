@@ -61,13 +61,17 @@ export function getCurrentNavigationLock(): NavigationLockState | null {
   return null
 }
 
+export function beginLockedNavigation(): Promise<void> | null {
+  return null
+}
+
+export function getCurrentNavigationGate(): Promise<void> | null {
+  return null
+}
+
 export function shouldRestrictNavigationToShell(
   _rootPrefetchHints: number,
   _linkFetchStrategy: FetchStrategy
 ): boolean {
   return false
 }
-
-export async function waitForNavigationLockIfActive(
-  _lock: NavigationLockState | null = null
-): Promise<void> {}
