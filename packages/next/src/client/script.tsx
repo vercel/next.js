@@ -26,7 +26,10 @@ export interface ScriptProps extends ScriptHTMLAttributes<HTMLScriptElement> {
  */
 export type Props = ScriptProps
 
-const insertStylesheets = (stylesheets: string[], precedence: 'reset' | 'low' | 'medium' | 'high' = 'medium') => {
+const insertStylesheets = (
+  stylesheets: string[],
+  precedence: 'reset' | 'low' | 'medium' | 'high' = 'medium'
+) => {
   // Case 1: Styles for afterInteractive/lazyOnload with appDir injected via handleClientScriptLoad
   //
   // Using ReactDOM.preinit to feature detect appDir and inject styles
