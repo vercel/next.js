@@ -66,6 +66,20 @@ declare module 'react-server-dom-webpack/client' {
     options?: Options
   ): Promise<T>
 
+  export function createFromInlineData<T>(options?: unknown): Promise<T>
+
+  export type InlineDataSource = {
+    subscribe: (consumer: {
+      segment: (chunk: string | Uint8Array) => void
+      close: () => void
+      error: (error: unknown) => void
+    }) => void
+  }
+
+  export function createInlineDataSource(
+    stream: import('node:stream').Readable
+  ): InlineDataSource
+
   export function createFromNodeStream<T>(
     stream: import('node:stream').Readable,
     serverConsumerManifest: Options['serverConsumerManifest'],

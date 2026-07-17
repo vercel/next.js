@@ -3859,6 +3859,28 @@ async function renderToStream(
           />
         )
 
+        // The vendored React can emit the hydration data scripts itself,
+        // interleaved at its own flush boundaries: hand the RSC byte stream
+        // to Fizz as an inline data source instead of decoding, wrapping
+        // and merging it here. The client reads the React data channel when
+        // the bootstrap flags it. Form state still rides the legacy channel,
+        // so renders with form state fall back.
+        let inlineDataChannel: ((stream: unknown) => unknown) | undefined
+        if (process.env.NEXT_INLINE_DATA === '1' && formState == null) {
+          // react-server-dom-webpack/client must not be hoisted for require cache clearing to work correctly
+          /* eslint-disable import/no-extraneous-dependencies */
+          const reactFlightClientModule: any = (require('react-server-dom-webpack/client') as typeof import('react-server-dom-webpack/client'))
+          /* eslint-enable import/no-extraneous-dependencies */
+          inlineDataChannel = reactFlightClientModule.createInlineDataSource
+        }
+
+        if (inlineDataChannel && process.env.NEXT_INLINE_DATA_DEBUG) {
+          console.error(
+            '[inline-data] Fizz emitting hydration data via the React channel (pid %d)',
+            process.pid
+          )
+        }
+
         const fizzOptions = {
           onError: htmlRendererErrorHandler,
           nonce,
@@ -3871,6 +3893,9 @@ async function renderToStream(
           bootstrapScriptContent,
           bootstrapScripts: [bootstrapScript],
           formState,
+          inlineData: inlineDataChannel
+            ? inlineDataChannel(reactServerResult.consume())
+            : undefined,
         }
 
         const { stream: htmlStream, allReady } = await getTracer().trace(
@@ -3891,11 +3916,13 @@ async function renderToStream(
         })
 
         return await continueFizzStream(htmlStream, {
-          inlinedDataStream: createNodeInlinedDataStream(
-            reactServerResult.consume(),
-            nonce,
-            formState
-          ),
+          inlinedDataStream: inlineDataChannel
+            ? undefined
+            : createNodeInlinedDataStream(
+                reactServerResult.consume(),
+                nonce,
+                formState
+              ),
           isStaticGeneration: generateStaticHTML,
           allReady,
           deploymentId: ctx.sharedContext.deploymentId,
