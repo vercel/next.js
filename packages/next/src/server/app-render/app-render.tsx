@@ -96,7 +96,6 @@ import {
 import { isRedirectError } from '../../client/components/redirect-error'
 import { getImplicitTags, type ImplicitTags } from '../lib/implicit-tags'
 import { AppRenderSpan, NextNodeServerSpan } from '../lib/trace/constants'
-import { getRequestInsightsIdentity } from '../lib/trace/request-insights-identity'
 import { getTracer, SpanStatusCode } from '../lib/trace/tracer'
 import { FlightRenderResult } from './flight-render-result'
 import {
@@ -300,6 +299,16 @@ import { createPromiseWithResolvers } from '../../shared/lib/promise-with-resolv
 import { RENDER_STAGES_BY_DATA_KIND } from '../dynamic-rendering-utils'
 import type { ValidationPrefetchKind } from './instant-validation/instant-validation'
 import { hasNonRootStaticParams } from '../lib/params-utils'
+
+let requestInsightsRuntime:
+  | typeof import('../lib/trace/request-insights')
+  | undefined
+if (process.env.__NEXT_DEV_SERVER) {
+  requestInsightsRuntime =
+    require('../lib/trace/request-insights') as typeof import('../lib/trace/request-insights')
+} else {
+  requestInsightsRuntime = undefined
+}
 
 export type GetDynamicParamFromSegment = (
   // The LoaderTree to extract the dynamic param from
@@ -2644,9 +2653,7 @@ async function renderToHTMLOrFlightImpl(
 
   let requestId: string
   let htmlRequestId: string
-  const requestInsightsIdentity = process.env.__NEXT_REQUEST_INSIGHTS
-    ? getRequestInsightsIdentity()
-    : undefined
+  const requestInsights = getRequestMeta(req, 'requestInsights')
 
   const {
     flightRouterState,
@@ -2661,10 +2668,10 @@ async function renderToHTMLOrFlightImpl(
   if (parsedRequestHeaders.requestId) {
     // If the client has provided a request ID (in development mode), we use it.
     requestId = parsedRequestHeaders.requestId
-  } else if (requestInsightsIdentity) {
+  } else if (requestInsights) {
     // Request Insights starts recording before the work store exists. Reuse
     // the identity from that outer request scope so all spans stay together.
-    requestId = requestInsightsIdentity.requestId
+    requestId = requestInsights.requestId
   } else {
     // Otherwise we generate a new request ID.
     if (isStaticGeneration) {
@@ -2687,7 +2694,7 @@ async function renderToHTMLOrFlightImpl(
   // HTML request ID.
   htmlRequestId =
     parsedRequestHeaders.htmlRequestId ||
-    requestInsightsIdentity?.htmlRequestId ||
+    requestInsights?.htmlRequestId ||
     requestId
   workStore.requestId = requestId
   workStore.htmlRequestId = htmlRequestId
@@ -3320,38 +3327,83 @@ async function renderToStream(
       (await getInstantTestBootstrapScriptContent())
   }
 
-  // Create the "render route (app)" span manually so we can keep it open during streaming.
-  // This is necessary because errors inside Suspense boundaries are reported asynchronously
-  // during stream consumption, after a typical wrapped function would have ended the span.
-  // Note: We pass the full span name as the first argument since startSpan uses it directly.
-  const renderSpan = getTracer().startSpan(
-    `render route (app) ${pagePath}` as any,
-    {
-      attributes: {
-        'next.span_name': `render route (app) ${pagePath}`,
-        'next.span_type': AppRenderSpan.getBodyResult,
-        'next.route': pagePath,
-      },
-    }
-  )
+  // Keep both the exported span and the local profiling operation open until
+  // React has finished streaming, including work inside Suspense boundaries.
+  const renderOperationName = `render route (app) ${pagePath}`
+  const renderStartTime = Date.now()
+  const renderOperation = requestInsightsRuntime?.beginRequestInsightOperation({
+    type: AppRenderSpan.getBodyResult,
+    name: renderOperationName,
+    startTime: renderStartTime,
+  })
+  const renderSpan = getTracer().startSpan(renderOperationName as any, {
+    startTime: renderStartTime,
+    attributes: {
+      'next.span_name': renderOperationName,
+      'next.span_type': AppRenderSpan.getBodyResult,
+      'next.route': pagePath,
+    },
+  })
 
-  // Helper to end the span with error status (used when throwing from catch blocks)
-  const endSpanWithError = (err: unknown) => {
-    if (!renderSpan.isRecording()) return
-    if (err instanceof Error) {
-      renderSpan.recordException(err)
-      renderSpan.setAttribute('error.type', err.name)
+  let renderOperationError: unknown
+  let hasRenderOperationError = false
+
+  const recordRenderOperationError = (err: unknown) => {
+    if (!hasRenderOperationError) {
+      hasRenderOperationError = true
+      renderOperationError = err
     }
-    renderSpan.setStatus({
-      code: SpanStatusCode.ERROR,
-      message: err instanceof Error ? err.message : undefined,
-    })
-    renderSpan.end()
+  }
+
+  const endSpanWithError = (err: unknown) => {
+    recordRenderOperationError(err)
+    if (renderOperation) {
+      requestInsightsRuntime?.endRequestInsightOperation(renderOperation, {
+        status: 'error',
+        error: renderOperationError,
+      })
+    }
+
+    if (renderSpan.isRecording()) {
+      if (err instanceof Error) {
+        renderSpan.recordException(err)
+        renderSpan.setAttribute('error.type', err.name)
+      }
+      renderSpan.setStatus({
+        code: SpanStatusCode.ERROR,
+        message: err instanceof Error ? err.message : undefined,
+      })
+      renderSpan.end()
+    }
+  }
+
+  const endRenderSpan = () => {
+    if (hasRenderOperationError) {
+      endSpanWithError(renderOperationError)
+      return
+    }
+
+    if (renderOperation) {
+      requestInsightsRuntime?.endRequestInsightOperation(renderOperation)
+    }
+    if (renderSpan.isRecording()) {
+      renderSpan.end()
+    }
+  }
+
+  const runWithRenderOperation = <T,>(fn: () => T): T => {
+    const runWithSpan = () => getTracer().withSpan(renderSpan, fn)
+    return renderOperation && requestInsightsRuntime
+      ? requestInsightsRuntime.runWithRequestInsightOperation(
+          renderOperation,
+          runWithSpan
+        )
+      : runWithSpan()
   }
 
   // Run the rest of the function within the span's context so child spans
   // (like "build component tree", "generateMetadata") are properly parented.
-  return getTracer().withSpan(renderSpan, async () => {
+  return runWithRenderOperation(async () => {
     // MARK: renderToStream errorHandlers
     const { reactServerErrorsByDigest } = workStore
 
@@ -3359,6 +3411,7 @@ async function renderToStream(
     let didErrorObservably = false
     function onHTMLRenderRSCError(err: DigestedError, silenceLog: boolean) {
       didErrorObservably = true
+      recordRenderOperationError(err)
       return onInstrumentationRequestError?.(
         err,
         req,
@@ -3375,6 +3428,7 @@ async function renderToStream(
     )
 
     function onHTMLRenderSSRError(err: DigestedError) {
+      recordRenderOperationError(err)
       // We don't need to silence logs here. onHTMLRenderSSRError won't be called
       // at all if the error was logged before in the RSC error handler.
       const silenceLog = false
@@ -3775,7 +3829,7 @@ async function renderToStream(
             )
 
             // End the span since there's no async rendering in this path
-            if (renderSpan.isRecording()) renderSpan.end()
+            endRenderSpan()
             return chainStreams(
               inlinedDataStream,
               createDocumentClosingStream()
@@ -3815,9 +3869,7 @@ async function renderToStream(
               )
 
             // End the render span only after React completed rendering (including anything inside Suspense boundaries)
-            allReady.finally(() => {
-              if (renderSpan.isRecording()) renderSpan.end()
-            })
+            allReady.finally(endRenderSpan)
 
             return await continueDynamicHTMLResumeNode(htmlStream, {
               delayDataUntilFirstHtmlChunk:
@@ -3886,9 +3938,7 @@ async function renderToStream(
         )
 
         // End the render span only after React completed rendering (including anything inside Suspense boundaries)
-        allReady.finally(() => {
-          if (renderSpan.isRecording()) renderSpan.end()
-        })
+        allReady.finally(endRenderSpan)
 
         return await continueFizzStream(htmlStream, {
           inlinedDataStream: createNodeInlinedDataStream(
@@ -3919,7 +3969,7 @@ async function renderToStream(
             )
 
             // End the span since there's no async rendering in this path
-            if (renderSpan.isRecording()) renderSpan.end()
+            endRenderSpan()
             return chainStreams(
               inlinedDataStream,
               createDocumentClosingStream()
@@ -3959,9 +4009,7 @@ async function renderToStream(
               )
 
             // End the render span only after React completed rendering (including anything inside Suspense boundaries)
-            allReady.finally(() => {
-              if (renderSpan.isRecording()) renderSpan.end()
-            })
+            allReady.finally(endRenderSpan)
 
             return await continueDynamicHTMLResumeWeb(htmlStream, {
               delayDataUntilFirstHtmlChunk:
@@ -4024,9 +4072,7 @@ async function renderToStream(
         )
 
         // End the render span only after React completed rendering (including anything inside Suspense boundaries)
-        allReady.finally(() => {
-          if (renderSpan.isRecording()) renderSpan.end()
-        })
+        allReady.finally(endRenderSpan)
 
         return await continueFizzStream(htmlStream, {
           inlinedDataStream: createWebInlinedDataStream(
@@ -4188,9 +4234,7 @@ async function renderToStream(
               { waitForAllReady: generateStaticHTML }
             )
 
-          errorAllReady.finally(() => {
-            if (renderSpan.isRecording()) renderSpan.end()
-          })
+          errorAllReady.finally(endRenderSpan)
 
           return await continueFizzStream(errorHtmlStream, {
             inlinedDataStream: createNodeInlinedDataStream(
@@ -4286,9 +4330,7 @@ async function renderToStream(
               }
             )
 
-          errorAllReady.finally(() => {
-            if (renderSpan.isRecording()) renderSpan.end()
-          })
+          errorAllReady.finally(endRenderSpan)
 
           return await continueFizzStream(errorHtmlStream, {
             inlinedDataStream: createWebInlinedDataStream(

@@ -1,16 +1,23 @@
 import { nextTestSetup } from 'e2e-utils'
 import { createServer } from 'http'
 import type { AddressInfo } from 'net'
-import { retry } from 'next-test-utils'
+import { retry, toggleDevToolsIndicatorPopover } from 'next-test-utils'
 
 type RequestInsight = {
   requestId: string
   htmlRequestId: string
   route: string
+  method: string
+  statusCode: number
+  isRsc: boolean
   startTime: number
+  durationMs: number
   status: 'ok'
-  spans: Array<{
-    attributes?: Record<string, string | number | boolean>
+  operations: Array<{
+    id: number
+    parentId?: number
+    type: string
+    name: string
   }>
   fetches: Array<{
     durationMs: number
@@ -31,9 +38,13 @@ describe('request insights', () => {
       requestId: `request-${index}`,
       htmlRequestId: `page-${index}`,
       route: `/route-${index}`,
+      method: 'GET',
+      statusCode: 200,
+      isRsc: false,
       startTime: index,
+      durationMs: index + 1,
       status: 'ok',
-      spans: [],
+      operations: [],
       fetches: Array.from({ length: fetchCount }, (_, fetchIndex) => ({
         durationMs: fetchIndex + 1,
         statusCode: 200,
@@ -83,7 +94,7 @@ describe('request insights', () => {
     )
   })
 
-  it('keeps outer server and app render spans on the same request', async () => {
+  it('keeps outer server and app render operations in one nested timeline', async () => {
     await next.render('/')
 
     await retry(async () => {
@@ -95,20 +106,25 @@ describe('request insights', () => {
       const pageRequests = snapshot.requests.filter(
         (request) => request.route === '/'
       )
-      const requestsWithRelevantSpans = pageRequests.filter((request) =>
-        request.spans.some((span) => {
-          const spanType = span.attributes?.['next.span_type']
-          return (
-            spanType === 'BaseServer.handleRequest' ||
-            spanType === 'AppRender.getBodyResult'
-          )
-        })
+      const requestsWithRelevantOperations = pageRequests.filter((request) =>
+        request.operations.some(
+          (operation) => operation.type === 'BaseServer.handleRequest'
+        )
       )
 
-      expect(requestsWithRelevantSpans).toHaveLength(1)
+      expect(requestsWithRelevantOperations).toHaveLength(1)
+      expect(requestsWithRelevantOperations[0]).toEqual(
+        expect.objectContaining({
+          method: 'GET',
+          statusCode: 200,
+          isRsc: false,
+          durationMs: expect.any(Number),
+          status: 'ok',
+        })
+      )
       expect(
-        requestsWithRelevantSpans[0].spans.map(
-          (span) => span.attributes?.['next.span_type']
+        requestsWithRelevantOperations[0].operations.map(
+          (operation) => operation.type
         )
       ).toEqual(
         expect.arrayContaining([
@@ -116,7 +132,72 @@ describe('request insights', () => {
           'AppRender.getBodyResult',
         ])
       )
+
+      const operations = requestsWithRelevantOperations[0].operations
+      const requestOperation = operations.find(
+        (operation) => operation.type === 'BaseServer.handleRequest'
+      )
+      const appRenderOperation = operations.find(
+        (operation) => operation.type === 'AppRender.getBodyResult'
+      )
+      expect(
+        isOperationDescendantOf(
+          appRenderOperation?.id,
+          requestOperation?.id,
+          operations
+        )
+      ).toBe(true)
+      expect(requestsWithRelevantOperations[0].fetches).toEqual([
+        expect.objectContaining({
+          method: 'GET',
+          statusCode: 200,
+          url: expect.stringMatching(/\/api\/data$/),
+        }),
+      ])
+      expect(
+        operations.some((operation) => operation.type === 'AppRender.fetch')
+      ).toBe(false)
     })
+  })
+
+  it('streams completed requests into the open DevTools panel', async () => {
+    const browser = await next.browser('/')
+
+    try {
+      await toggleDevToolsIndicatorPopover(browser)
+      await browser.elementByCss('[data-request-insights]').click()
+      await browser.waitForElementByCss('.request-insights-panel')
+
+      const initialRequestCount = (
+        await browser.elementsByCss('.request-insights-row')
+      ).length
+      const requestCount = 3
+      const requestNonce = Date.now()
+
+      await browser.eval(
+        async ({ count, nonce }) => {
+          await Promise.all(
+            Array.from({ length: count }, (_, index) =>
+              fetch(`/api/data?live-update=${nonce}-${index}`).then(
+                (response) => response.text()
+              )
+            )
+          )
+        },
+        { count: requestCount, nonce: requestNonce }
+      )
+
+      await retry(async () => {
+        const currentRequestCount = (
+          await browser.elementsByCss('.request-insights-row')
+        ).length
+        expect(currentRequestCount).toBeGreaterThanOrEqual(
+          initialRequestCount + requestCount
+        )
+      })
+    } finally {
+      await browser.close()
+    }
   })
 
   it('uses the development endpoint and reports truncated output', async () => {
@@ -132,7 +213,7 @@ describe('request insights', () => {
     expect(result.stdout).toContain(
       'Showing 1 of 3 retained requests (newest first).'
     )
-    expect(result.stdout).toContain('/route-3')
+    expect(result.stdout).toContain('GET /route-3')
     expect(result.stdout).not.toContain('/route-2')
     expect(result.stdout).toContain('showing first 5 of 7 fetches')
     expect(result.stdout).toContain('https://example.com/fetch-4')
@@ -157,13 +238,41 @@ describe('request insights', () => {
 
   it.each([
     { body: { requests: null }, args: ['--json'] },
-    { body: { requests: [{ fetches: null }] }, args: [] },
+    { body: { requests: [{ operations: [], fetches: null }] }, args: [] },
+    { body: { requests: [{ operations: null, fetches: [] }] }, args: [] },
   ])('rejects malformed responses', async ({ body, args }) => {
     const { result } = await runWithResponse(body, args)
 
     expect(result.code).toBe(1)
     expect(result.stderr).toContain(
-      'expected requests and fetches to be arrays'
+      'expected requests, operations, and fetches to be arrays'
     )
   })
 })
+
+function isOperationDescendantOf(
+  operationId: number | undefined,
+  ancestorId: number | undefined,
+  operations: RequestInsight['operations']
+): boolean {
+  if (!operationId || !ancestorId) {
+    return false
+  }
+
+  const operationsById = new Map(
+    operations.map((operation) => [operation.id, operation])
+  )
+  let current = operationsById.get(operationId)
+  const visited = new Set<number>()
+
+  while (current?.parentId && !visited.has(current.parentId)) {
+    if (current.parentId === ancestorId) {
+      return true
+    }
+
+    visited.add(current.parentId)
+    current = operationsById.get(current.parentId)
+  }
+
+  return false
+}

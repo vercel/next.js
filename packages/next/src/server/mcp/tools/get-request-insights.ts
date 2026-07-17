@@ -11,7 +11,7 @@ export function registerGetRequestInsightsTool(server: McpServer) {
     'get_request_insights',
     {
       description:
-        'Get recent App Router request insights captured by the local Next.js span recorder. Useful for debugging slow renders, server fetches, cache behavior, and request timelines without an external OTEL collector. Requires experimental.requestInsights.',
+        'Get recent App Router request insights captured by the local Next.js request profiler. Useful for debugging slow renders, server fetches, cache behavior, and request timelines. Requires experimental.requestInsights.',
       inputSchema: {
         requestId: z.string().optional(),
         htmlRequestId: z.string().optional(),

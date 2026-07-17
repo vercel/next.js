@@ -115,6 +115,15 @@ export interface RequestMeta {
   serverComponentsHmrCache?: ServerComponentsHmrCache
 
   /**
+   * Identifies the Request Insights session while App Render initializes its
+   * request-local work store. Only set by the development server.
+   */
+  requestInsights?: {
+    requestId: string
+    htmlRequestId: string
+  }
+
+  /**
    * Equals the segment path that was used for the prefetch RSC request.
    */
   segmentPrefetchRSCRequest?: string

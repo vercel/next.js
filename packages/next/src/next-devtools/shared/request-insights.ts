@@ -1,30 +1,12 @@
-type RequestInsightAttributeValue =
-  | string
-  | number
-  | boolean
-  | Array<null | undefined | string>
-  | Array<null | undefined | number>
-  | Array<null | undefined | boolean>
-
-export type RequestInsightSpan = {
+export type RequestInsightOperation = {
+  id: number
+  parentId?: number
+  type: string
   name: string
+  category: 'nextjs' | 'application'
   startTime: number
-  durationMs?: number
-  status?: 'ok' | 'error'
-  traceId?: string
-  spanId?: string
-  parentSpanId?: string
-  attributes?: Record<string, RequestInsightAttributeValue>
-  links?: Array<{
-    traceId: string
-    spanId: string
-    attributes?: Record<string, RequestInsightAttributeValue>
-  }>
-  events?: Array<{
-    name: string
-    timestamp: number
-    attributes?: Record<string, RequestInsightAttributeValue>
-  }>
+  durationMs: number
+  status: 'ok' | 'error'
   error?: {
     type?: string
     message?: string
@@ -32,6 +14,8 @@ export type RequestInsightSpan = {
 }
 
 export type RequestInsightFetch = {
+  id: number
+  parentOperationId?: number
   url?: string
   method?: string
   statusCode?: number
@@ -47,10 +31,13 @@ export type RequestInsight = {
   htmlRequestId: string
   route?: string
   url?: string
+  method?: string
+  statusCode?: number
+  isRsc?: boolean
   startTime: number
-  durationMs?: number
-  status: 'ok' | 'error' | 'pending'
-  spans: RequestInsightSpan[]
+  durationMs: number
+  status: 'ok' | 'error'
+  operations: RequestInsightOperation[]
   fetches: RequestInsightFetch[]
 }
 

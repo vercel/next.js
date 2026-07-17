@@ -54,7 +54,7 @@ export async function nextRequestInsights(
 
   if (!isRequestInsightsSnapshot(data)) {
     exitWithError(
-      `Invalid response from ${endpoint.toString()}: expected requests and fetches to be arrays.`
+      `Invalid response from ${endpoint.toString()}: expected requests, operations, and fetches to be arrays.`
     )
   }
 
@@ -78,7 +78,11 @@ export async function nextRequestInsights(
   for (const request of visibleRequests) {
     const route = request.route ?? request.url ?? request.requestId
     const duration = formatDuration(request.durationMs)
-    console.log(`${route} ${duration} ${request.status ?? 'pending'}`)
+    const responseStatus = request.statusCode ?? '-'
+    const requestKind = request.isRsc ? 'RSC' : 'HTML'
+    console.log(
+      `${request.method ?? 'GET'} ${route} ${duration} ${responseStatus} ${request.status} ${requestKind}`
+    )
     console.log(
       `  request ${shortId(request.requestId)} page ${shortId(request.htmlRequestId)}`
     )
@@ -157,6 +161,8 @@ function isRequestInsight(request: unknown): request is RequestInsight {
   return (
     typeof request === 'object' &&
     request !== null &&
+    'operations' in request &&
+    Array.isArray(request.operations) &&
     'fetches' in request &&
     Array.isArray(request.fetches)
   )
