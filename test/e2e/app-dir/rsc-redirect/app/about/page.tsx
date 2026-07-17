@@ -1,7 +1,7 @@
 import React from 'react'
-import { connection } from 'next/server'
 
-export default async function Page() {
-  await connection()
+export default function Page() {
   return <div id="about-page">About Page</div>
 }
+
+export const dynamic = 'force-dynamic'

@@ -1,7 +1,7 @@
 import { notFound } from 'next/navigation'
-import { connection } from 'next/server'
 
-export default async function Page(): Promise<never> {
-  await connection()
+export const dynamic = 'force-dynamic'
+
+export default function Page(): never {
   notFound()
 }
