@@ -1149,10 +1149,6 @@ function assignDefaultsAndValidate(
     result.deploymentId = process.env.NEXT_DEPLOYMENT_ID
   }
 
-  if (result.experimental.outputHashSalt) {
-    result.outputHashSalt =
-      result.outputHashSalt ?? result.experimental.outputHashSalt ?? ''
-  }
   if (process.env.NEXT_HASH_SALT) {
     result.outputHashSalt =
       (result.outputHashSalt ?? '') + (process.env.NEXT_HASH_SALT ?? '')
@@ -1683,6 +1679,14 @@ function finalizeConfig(
     // Particularly output=export should just run through the adapter, with only static assets.
     // TODO remove again once output=export (and output=standalone) are using adapters.
     config.supportsImmutableAssets = false
+  }
+
+  if (
+    config.outputHashSalt !== undefined &&
+    config.experimental.outputHashSalt !== undefined
+  ) {
+    config.outputHashSalt =
+      config.outputHashSalt + config.experimental.outputHashSalt
   }
 
   return config

@@ -22008,8 +22008,7 @@
       "NEXT_HASH_SALT should produce image files",
       "outputHashSalt combined salt differs from config-only salt",
       "outputHashSalt combined salt differs from env-var-only salt",
-      "outputHashSalt config salt changes filenames compared to no salt",
-      "outputHashSalt experimental config salt changes filenames compared to no salt"
+      "outputHashSalt config salt changes filenames compared to no salt"
     ],
     "failed": [],
     "pending": [],

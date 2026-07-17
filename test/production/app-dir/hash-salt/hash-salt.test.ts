@@ -83,14 +83,14 @@ describe('outputHashSalt', () => {
   async function buildWithSalts(opts: {
     configSalt?: string
     envSalt?: string
-    experimentalConfigSalt?: string
+    experimentalAdapterSalt?: string
     adapterSalt?: string
   }) {
     const env: Record<string, string> = {}
     if (opts.configSalt) env.OUTPUT_HASH_SALT_CONFIG = opts.configSalt
     if (opts.envSalt) env.NEXT_HASH_SALT = opts.envSalt
-    if (opts.experimentalConfigSalt)
-      env.EXPERIMENTAL_OUTPUT_HASH_SALT_CONFIG = opts.experimentalConfigSalt
+    if (opts.experimentalAdapterSalt)
+      env.EXPERIMENTAL_OUTPUT_HASH_SALT_CONFIG = opts.experimentalAdapterSalt
     if (opts.adapterSalt) env.ADAPTER_HASH_SALT = opts.adapterSalt
     await next.clean()
     await next.build({ env })
@@ -102,7 +102,7 @@ describe('outputHashSalt', () => {
 
   let noSaltChunks: string[]
   let configOnlyChunks: string[]
-  let experimentalConfigOnlyChunks: string[]
+  let experimentalAdapterChunks: string[]
   let envOnlyChunks: string[]
   let adapterEnvOnlyChunks: string[]
   let configAndEnvChunks: string[]
@@ -113,8 +113,8 @@ describe('outputHashSalt', () => {
     async () => {
       noSaltChunks = await buildWithSalts({})
       configOnlyChunks = await buildWithSalts({ configSalt: 'config-salt' })
-      experimentalConfigOnlyChunks = await buildWithSalts({
-        experimentalConfigSalt: 'config-salt',
+      experimentalAdapterChunks = await buildWithSalts({
+        experimentalAdapterSalt: 'experimental-adapter-salt',
       })
       envOnlyChunks = await buildWithSalts({ envSalt: 'env-salt' })
       adapterEnvOnlyChunks = await buildWithSalts({
@@ -140,10 +140,6 @@ describe('outputHashSalt', () => {
     expect(configOnlyChunks).not.toEqual(noSaltChunks)
   })
 
-  it('experimental config salt changes filenames compared to no salt', () => {
-    expect(experimentalConfigOnlyChunks).not.toEqual(noSaltChunks)
-  })
-
   it('config-and-env salt differs', () => {
     expect(configAndEnvChunks).not.toEqual(envOnlyChunks)
     expect(configAndEnvChunks).not.toEqual(configOnlyChunks)
@@ -157,5 +153,9 @@ describe('outputHashSalt', () => {
   it('env-and-adapter-env salt differs', () => {
     expect(envAndAdapterEnvChunks).not.toEqual(envOnlyChunks)
     expect(envAndAdapterEnvChunks).not.toEqual(adapterEnvOnlyChunks)
+  })
+
+  it('adapter experimental config salt changes filenames compared to no salt', () => {
+    expect(experimentalAdapterChunks).not.toEqual(noSaltChunks)
   })
 })
