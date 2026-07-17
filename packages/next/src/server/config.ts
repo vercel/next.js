@@ -1149,10 +1149,13 @@ function assignDefaultsAndValidate(
     result.deploymentId = process.env.NEXT_DEPLOYMENT_ID
   }
 
+  if (result.experimental.outputHashSalt) {
+    result.outputHashSalt =
+      result.outputHashSalt ?? result.experimental.outputHashSalt ?? ''
+  }
   if (process.env.NEXT_HASH_SALT) {
     result.outputHashSalt =
-      (result.outputHashSalt ?? result.experimental.outputHashSalt ?? '') +
-      process.env.NEXT_HASH_SALT
+      (result.outputHashSalt ?? '') + (process.env.NEXT_HASH_SALT ?? '')
   }
 
   const tracingRoot = result?.outputFileTracingRoot
