@@ -1,5 +1,6 @@
 import type { BinaryStreamOf } from './app-render'
 import type { Readable } from 'node:stream'
+import type { FlightRenderHandle } from './stream-ops'
 
 import {
   htmlEscapeAttributeString,
@@ -114,6 +115,59 @@ export function getFlightStream<T>(
     }
   }
 
+  return cacheFlightResponse(flightStream, newResponse)
+}
+
+/**
+ * Consume a Flight render() result in-process through the normal Flight
+ * Response instead of parsing a teed copy of the RSC byte stream. Only
+ * supported in the Node.js runtime. Must be called synchronously after the
+ * render is started, before it begins emitting. DEV debug rows arrive
+ * through the result itself (or leave on the server's debugChannel when one
+ * was provided to the render), so no debug stream is consumed here.
+ */
+export function getFlightResponseFromRender<T>(
+  renderResult: FlightRenderHandle,
+  nonce: string | undefined
+): Promise<T> {
+  if (process.env.NEXT_RUNTIME === 'edge') {
+    throw new InvariantError(
+      'getFlightResponseFromRender is only supported in the Node.js runtime'
+    )
+  }
+
+  if (process.env.NEXT_FLIGHT_RENDER_DEBUG) {
+    console.error(
+      '[flight-render] SSR consuming Flight in-process via createFromRender (pid %d)',
+      process.pid
+    )
+  }
+
+  const { moduleLoading, ssrModuleMapping } = getClientReferenceManifest()
+
+  // react-server-dom-webpack/client must not be hoisted for require cache clearing to work correctly
+  const { createFromRender } =
+    // eslint-disable-next-line import/no-extraneous-dependencies
+    require('react-server-dom-webpack/client') as typeof import('react-server-dom-webpack/client')
+
+  return createFromRender<T>(
+    renderResult,
+    {
+      moduleLoading,
+      moduleMap: ssrModuleMapping,
+      serverModuleMap: null,
+    },
+    {
+      findSourceMapURL,
+      nonce,
+    }
+  )
+}
+
+function cacheFlightResponse<T>(
+  key: Readable | BinaryStreamOf<any>,
+  newResponse: Promise<T>
+): Promise<T> {
   // Edge pages are never prerendered so they necessarily cannot have a workUnitStore type
   // that requires the nextTick behavior. This is why it is safe to access a node only API here
   if (process.env.NEXT_RUNTIME !== 'edge') {
@@ -131,7 +185,7 @@ export function getFlightStream<T>(
             resolve(newResponse)
           })
         })
-        flightResponses.set(flightStream, responseOnNextTick)
+        flightResponses.set(key, responseOnNextTick)
         return responseOnNextTick
       case 'prerender':
       case 'prerender-runtime':
@@ -148,7 +202,7 @@ export function getFlightStream<T>(
     }
   }
 
-  flightResponses.set(flightStream, newResponse)
+  flightResponses.set(key, newResponse)
 
   return newResponse
 }

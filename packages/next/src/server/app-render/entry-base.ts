@@ -18,22 +18,40 @@ type FlightRenderToPipeableStream = (...args: any[]) => {
   abort: (reason?: unknown) => void
 }
 
+// Renders without deciding how the result will be consumed: pipe the result
+// for the byte stream, consume it in-process with the paired Flight client's
+// createFromRender, or both from the same render. The result crosses into
+// the client module graph as a plain-function contract.
+type FlightRender = (
+  model: any,
+  webpackMap: any,
+  options?: any
+) => {
+  pipe<Writable extends NodeJS.WritableStream>(destination: Writable): Writable
+  abort(reason?: unknown): void
+}
+
 type FlightPrerenderToNodeStream = (...args: any[]) => Promise<{
   prelude: import('node:stream').Readable
 }>
 
 /* eslint-disable import/no-extraneous-dependencies */
 export let renderToPipeableStream: FlightRenderToPipeableStream | undefined
+export let renderFlight: FlightRender | undefined
 export let prerenderToNodeStream: FlightPrerenderToNodeStream | undefined
 if (process.env.__NEXT_USE_NODE_STREAMS) {
   renderToPipeableStream = (
     require('react-server-dom-webpack/server.node') as typeof import('react-server-dom-webpack/server.node')
   ).renderToPipeableStream
+  renderFlight = (
+    require('react-server-dom-webpack/server.node') as typeof import('react-server-dom-webpack/server.node')
+  ).render
   prerenderToNodeStream = (
     require('react-server-dom-webpack/static') as typeof import('react-server-dom-webpack/static')
   ).prerenderToNodeStream
 } else {
   renderToPipeableStream = undefined
+  renderFlight = undefined
   prerenderToNodeStream = undefined
 }
 /* eslint-enable import/no-extraneous-dependencies */

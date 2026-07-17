@@ -89,6 +89,28 @@ declare module 'react-server-dom-webpack/client' {
     }
   ): Promise<T>
 
+  // The opaque result of the Flight server's render(): pipe it for the byte
+  // stream, consume it in-process with createFromRender, or both from the
+  // same render. It crosses the react-server/client module graph boundary as
+  // a plain-function contract.
+  export type FlightRenderResult = {
+    pipe<Writable extends NodeJS.WritableStream>(
+      destination: Writable
+    ): Writable
+    abort(reason?: unknown): void
+  }
+
+  // Consumes a render() result in-process through the normal Flight
+  // Response, without the serialize/parse roundtrip. Must be called
+  // synchronously after render(), before the render starts emitting. DEV
+  // debug rows arrive through the result itself, so there is no debug
+  // channel option.
+  export function createFromRender<T>(
+    result: FlightRenderResult,
+    serverConsumerManifest: Options['serverConsumerManifest'],
+    options?: Omit<Options, 'serverConsumerManifest' | 'debugChannel'>
+  ): Promise<T>
+
   export function createServerReference(
     id: string,
     callServer: CallServerCallback,
@@ -266,6 +288,34 @@ declare module 'react-server-dom-webpack/server.node' {
     ): Writable
     abort(reason?: unknown): void
   }
+
+  // Renders without deciding how the result will be consumed: pipe it for
+  // the byte stream, consume it in-process with the paired Flight client's
+  // createFromRender, or both from the same render. An in-process consumer
+  // must attach synchronously after render(), before the render starts
+  // emitting.
+  export function render(
+    model: any,
+    webpackMap: import('react-server-dom-webpack/server.edge').ClientManifest,
+    options?: {
+      temporaryReferences?: import('react-server-dom-webpack/server.edge').TemporaryReferenceSet
+      environmentName?: string | (() => string)
+      filterStackFrame:
+        | ((
+            url: string,
+            functionName: string,
+            lineNumber: number,
+            columnNumber: number
+          ) => boolean)
+        | undefined
+      onError?: (error: unknown) => void
+      signal?: AbortSignal
+      // DEV-only: debug rows leave on this channel instead of reaching
+      // either the byte stream or the in-process consumer's response.
+      debugChannel?: import('node:stream').Writable
+      startTime?: number
+    }
+  ): import('react-server-dom-webpack/client').FlightRenderResult
 
   export type TemporaryReferenceSet = WeakMap<any, string>
 

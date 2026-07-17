@@ -41,6 +41,7 @@ import {
   ReplayableNodeStream,
   type AnyStream as AnyStreamType,
 } from './app-render-prerender-utils'
+import type { FlightRenderHandle } from './stream-ops.web'
 import { DetachedPromise } from '../../lib/detached-promise'
 import { getTracer } from '../lib/trace/tracer'
 import { AppRenderSpan } from '../lib/trace/constants'
@@ -59,6 +60,7 @@ import type {
 // ---------------------------------------------------------------------------
 
 export type {
+  FlightRenderHandle,
   ContinueStreamSharedOptions,
   ContinueFizzStreamOptions,
   ContinueStaticPrerenderOptions,
@@ -91,6 +93,11 @@ export type FlightComponentMod = {
     ): Writable
     abort(reason?: unknown): void
   }
+  renderFlight?: (
+    model: any,
+    webpackMap: any,
+    options?: any
+  ) => FlightRenderHandle
 }
 
 export type FizzStreamResult = {
@@ -575,6 +582,31 @@ export function renderToNodeFlightStream(
   }
 
   return pt
+}
+
+/**
+ * Renders the Flight payload without deciding how it will be consumed. The
+ * returned result is consumed in-process for SSR (createFromRender must be
+ * called synchronously, before the render starts emitting) while the byte
+ * stream serves hydration data inlining from the same render.
+ */
+export function renderToNodeFlightRenderResult(
+  ComponentMod: FlightComponentMod,
+  payload: any,
+  clientModules: any,
+  opts: any
+): {
+  result: FlightRenderHandle
+  stream: AnyStream
+} {
+  if (!ComponentMod.renderFlight) {
+    throw new Error('renderFlight is not implemented')
+  }
+
+  const result = ComponentMod.renderFlight(payload, clientModules, opts)
+  const pt = new PassThrough()
+  result.pipe(pt)
+  return { result, stream: pt }
 }
 
 export { renderToWebFizzStream } from './stream-ops.web'

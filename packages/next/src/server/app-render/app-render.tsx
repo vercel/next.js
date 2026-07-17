@@ -63,6 +63,7 @@ import {
   teeStream,
   renderToWebFizzStream,
   renderToNodeFlightStream,
+  renderToNodeFlightRenderResult,
   renderToNodeFizzStream,
   createNodeInlinedDataStream,
 } from './stream-ops'
@@ -141,7 +142,10 @@ import {
   getPostponedFromState,
 } from './postponed-state'
 import { isDynamicServerError } from '../../client/components/hooks-server-context'
-import { getFlightStream } from './use-flight-response'
+import {
+  getFlightStream,
+  getFlightResponseFromRender,
+} from './use-flight-response'
 import {
   StaticGenBailoutError,
   isStaticGenBailoutError,
@@ -2325,6 +2329,7 @@ async function getErrorRSCPayload(
 // This component must run in an SSR context. It will render the RSC root component
 function App<T>({
   reactServerStream,
+  reactServerResponse,
   reactDebugStream,
   debugEndTime,
   preinitScripts,
@@ -2333,7 +2338,9 @@ function App<T>({
   images,
 }: {
   /* eslint-disable @next/internal/no-ambiguous-jsx -- React Client */
-  reactServerStream: Readable | BinaryStreamOf<T>
+  // Exactly one of reactServerStream and reactServerResponse must be provided.
+  reactServerStream?: Readable | BinaryStreamOf<T>
+  reactServerResponse?: Promise<InitialRSCPayload>
   reactDebugStream: AnyStream | undefined
   debugEndTime: number | undefined
   preinitScripts: () => void
@@ -2345,12 +2352,14 @@ function App<T>({
 }): JSX.Element {
   preinitScripts()
   const response = ReactClient.use(
-    getFlightStream<InitialRSCPayload>(
-      reactServerStream,
-      reactDebugStream,
-      debugEndTime,
-      nonce
-    )
+    reactServerResponse !== undefined
+      ? reactServerResponse
+      : getFlightStream<InitialRSCPayload>(
+          reactServerStream!,
+          reactDebugStream,
+          debugEndTime,
+          nonce
+        )
   )
 
   const initialState = createInitialRouterState({
@@ -3398,6 +3407,11 @@ async function renderToStream(
 
     let reactServerResult: null | ReactServerResult = null
     let reactDebugStream: AnyStream | undefined
+    // When set, the SSR pass consumes the Flight render in-process through
+    // this eagerly-created response instead of parsing a teed copy of the
+    // RSC byte stream. The byte stream then only feeds hydration data
+    // inlining.
+    let reactServerResponse: Promise<InitialRSCPayload> | undefined
 
     const setHeader = res.setHeader.bind(res)
     const appendHeader = res.appendHeader.bind(res)
@@ -3681,24 +3695,46 @@ async function renderToStream(
 
           const debugChannel = setReactDebugChannel && createNodeDebugChannel()
 
+          // The SSR pass consumes the Flight render in-process via
+          // createFromRender instead of parsing a teed copy of the RSC byte
+          // stream; the byte stream only feeds hydration data inlining.
+          // Setting NEXT_FLIGHT_RENDER=0 restores the byte-stream tee for
+          // SSR (used as the baseline when benchmarking this prototype).
+          const useInProcessFlightRender =
+            process.env.NEXT_FLIGHT_RENDER !== '0' &&
+            // The vendored React must support render(); fall back to the
+            // byte-stream tee when it doesn't (e.g. an older React channel).
+            typeof ctx.componentMod.renderFlight === 'function'
+
           if (debugChannel) {
-            const [readableSsr, readableBrowser] = teeStream(
-              debugChannel.clientSide.readable
-            )
+            if (useInProcessFlightRender) {
+              // The in-process consumer receives debug rows through the
+              // render result itself, so the debug byte stream goes to the
+              // browser untouched — no tee needed.
+              setReactDebugChannel(
+                debugChannel.clientSide,
+                htmlRequestId,
+                requestId
+              )
+            } else {
+              const [readableSsr, readableBrowser] = teeStream(
+                debugChannel.clientSide.readable
+              )
 
-            reactDebugStream = readableSsr
+              reactDebugStream = readableSsr
 
-            setReactDebugChannel(
-              { readable: readableBrowser },
-              htmlRequestId,
-              requestId
-            )
+              setReactDebugChannel(
+                { readable: readableBrowser },
+                htmlRequestId,
+                requestId
+              )
+            }
           }
 
-          reactServerResult = new ReactServerResult(
-            workUnitAsyncStorage.run(
+          if (useInProcessFlightRender) {
+            const { result, stream } = workUnitAsyncStorage.run(
               requestStore,
-              renderToNodeFlightStream,
+              renderToNodeFlightRenderResult,
               ctx.componentMod,
               RSCPayload,
               clientModules,
@@ -3708,7 +3744,38 @@ async function renderToStream(
                 debugChannel: debugChannel?.serverSide,
               }
             )
-          )
+
+            // The in-process consumer must attach synchronously, before the
+            // render starts emitting — unless nothing will consume it (a
+            // data-only resume of a postponed prerender never runs an SSR
+            // pass), in which case an unattached render costs nothing.
+            if (
+              !(
+                typeof renderOpts.postponed === 'string' &&
+                postponedState?.type === DynamicState.DATA
+              )
+            ) {
+              reactServerResponse =
+                getFlightResponseFromRender<InitialRSCPayload>(result, nonce)
+            }
+
+            reactServerResult = new ReactServerResult(stream)
+          } else {
+            reactServerResult = new ReactServerResult(
+              workUnitAsyncStorage.run(
+                requestStore,
+                renderToNodeFlightStream,
+                ctx.componentMod,
+                RSCPayload,
+                clientModules,
+                {
+                  filterStackFrame,
+                  onError: serverComponentsErrorHandler,
+                  debugChannel: debugChannel?.serverSide,
+                }
+              )
+            )
+          }
         } else {
           // MARK: webStreams RSC
           // This is a dynamic render. We don't do dynamic tracking because we're not prerendering
@@ -3787,7 +3854,10 @@ async function renderToStream(
 
             const resumeAppElement = (
               <App
-                reactServerStream={reactServerResult.tee()}
+                reactServerStream={
+                  reactServerResponse ? undefined : reactServerResult.tee()
+                }
+                reactServerResponse={reactServerResponse}
                 reactDebugStream={reactDebugStream}
                 debugEndTime={undefined}
                 preinitScripts={preinitScripts}
@@ -3848,7 +3918,10 @@ async function renderToStream(
 
         const appElement = (
           <App
-            reactServerStream={reactServerResult.tee()}
+            reactServerStream={
+              reactServerResponse ? undefined : reactServerResult.tee()
+            }
+            reactServerResponse={reactServerResponse}
             // TODO: Pass Node.js debugStream
             reactDebugStream={reactDebugStream}
             debugEndTime={undefined}
@@ -3966,7 +4039,10 @@ async function renderToStream(
 
             const resumeAppElement = (
               <App
-                reactServerStream={reactServerResult.tee()}
+                reactServerStream={
+                  reactServerResponse ? undefined : reactServerResult.tee()
+                }
+                reactServerResponse={reactServerResponse}
                 reactDebugStream={reactDebugStream}
                 debugEndTime={undefined}
                 preinitScripts={preinitScripts}
@@ -4027,7 +4103,10 @@ async function renderToStream(
 
         const appElement = (
           <App
-            reactServerStream={reactServerResult.tee()}
+            reactServerStream={
+              reactServerResponse ? undefined : reactServerResult.tee()
+            }
+            reactServerResponse={reactServerResponse}
             reactDebugStream={reactDebugStream}
             debugEndTime={undefined}
             preinitScripts={preinitScripts}

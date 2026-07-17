@@ -64,6 +64,19 @@ export type FlightComponentMod = {
   renderToReadableStream: FlightRenderToReadableStream
 }
 
+/**
+ * The opaque result of the Flight server's render(): pipe it for the byte
+ * stream, consume it in-process with the paired Flight client's
+ * createFromRender, or both from the same render. Declared locally
+ * (structurally matching react-server-dom-webpack's RenderResult) so that
+ * the emitted .d.ts files don't reference 'react-server-dom-webpack/client',
+ * which is not resolvable from apps that type-check their builds.
+ */
+export type FlightRenderHandle = {
+  pipe<Writable extends NodeJS.WritableStream>(destination: Writable): Writable
+  abort(reason?: unknown): void
+}
+
 export type ServerPrerenderComponentMod = {
   prerender: (...args: any[]) => Promise<any>
 }
@@ -243,6 +256,18 @@ export function renderToNodeFlightStream(
   _clientModules: FlightClientModules,
   _opts: FlightRenderOptions
 ): AnyStream {
+  throw new Error('not implemented')
+}
+
+export function renderToNodeFlightRenderResult(
+  _ComponentMod: FlightComponentMod,
+  _payload: FlightPayload,
+  _clientModules: FlightClientModules,
+  _opts: FlightRenderOptions
+): {
+  result: FlightRenderHandle
+  stream: AnyStream
+} {
   throw new Error('not implemented')
 }
 
