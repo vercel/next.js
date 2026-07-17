@@ -2032,7 +2032,7 @@ pub enum UpdateMessage {
 }
 
 #[napi(object, object_from_js = false)]
-struct NapiUpdateMessage {
+pub struct NapiUpdateMessage {
     pub update_type: &'static str,
     pub value: Option<NapiUpdateInfo>,
 }
@@ -2053,7 +2053,7 @@ impl From<UpdateMessage> for NapiUpdateMessage {
 }
 
 #[napi(object, object_from_js = false)]
-struct NapiUpdateInfo {
+pub struct NapiUpdateInfo {
     pub duration: u32,
     pub tasks: u32,
 }
@@ -2134,7 +2134,7 @@ pub fn project_update_info_subscribe(
 }
 
 #[napi(object, object_from_js = false)]
-struct NapiCompilationEvent {
+pub struct NapiCompilationEvent {
     pub type_name: String,
     pub severity: String,
     pub message: String,
