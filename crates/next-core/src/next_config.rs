@@ -149,6 +149,10 @@ pub struct NextConfig {
     /// [API Reference](https://nextjs.org/docs/app/api-reference/next-config-js/serverExternalPackages)
     server_external_packages: Option<Vec<RcStr>>,
 
+    /// A salt to mix into chunk and asset content hashes. Empty string means
+    /// no salt.
+    output_hash_salt: Option<RcStr>,
+
     #[serde(rename = "_originalRedirects")]
     original_redirects: Option<Vec<Redirect>>,
 
@@ -1293,10 +1297,6 @@ pub struct ExperimentalConfig {
     durable_use_cache_entries: Option<bool>,
     runtime_server_deployment_id: Option<bool>,
     expose_testing_api_in_production_build: Option<bool>,
-
-    /// A salt to mix into chunk and asset content hashes. Empty string means
-    /// no salt.
-    output_hash_salt: Option<RcStr>,
 
     /// CSS chunking strategy. See [`CssChunkingConfig`] for the accepted shapes.
     css_chunking: Option<CssChunkingConfig>,
@@ -2749,12 +2749,7 @@ impl NextConfig {
 
     #[turbo_tasks::function]
     pub fn output_hash_salt(&self) -> Vc<RcStr> {
-        Vc::cell(
-            self.experimental
-                .output_hash_salt
-                .clone()
-                .unwrap_or_default(),
-        )
+        Vc::cell(self.output_hash_salt.clone().unwrap_or_default())
     }
 }
 

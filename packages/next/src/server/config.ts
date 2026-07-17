@@ -1150,8 +1150,9 @@ function assignDefaultsAndValidate(
   }
 
   if (process.env.NEXT_HASH_SALT) {
-    result.experimental.outputHashSalt =
-      (result.experimental.outputHashSalt ?? '') + process.env.NEXT_HASH_SALT
+    result.outputHashSalt =
+      (result.outputHashSalt ?? result.experimental.outputHashSalt ?? '') +
+      process.env.NEXT_HASH_SALT
   }
 
   const tracingRoot = result?.outputFileTracingRoot
