@@ -2445,6 +2445,18 @@ export default async function build(
                                 )
                               }
 
+                              // "generateStaticParams()" returned a non-empty
+                              // result, but some of the route's params were
+                              // not provided in every entry, so no paths could
+                              // be prerendered.
+                              if (workerResult.missingRouteParams?.length) {
+                                throw new Error(
+                                  `Page "${page}" has "generateStaticParams()" but it did not provide the required params (${workerResult.missingRouteParams.join(
+                                    ', '
+                                  )}), so it cannot be used with "output: export" config. See more info here: https://nextjs.org/docs/messages/generate-static-params-export`
+                                )
+                              }
+
                               throw new Error(
                                 `Page "${page}" has "generateStaticParams()" but it returned an empty array [] with no params, so it cannot be used with "output: export" config. "generateStaticParams()" must return a non-empty array of params. See more info here: https://nextjs.org/docs/messages/generate-static-params-export`
                               )

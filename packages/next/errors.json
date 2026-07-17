@@ -1423,5 +1423,6 @@
   "1422": "MIN_PREFETCHABLE_STALE must not exceed MIN_SHELL_STALE.",
   "1423": "Invalid value returned from \"generateStaticParams\" in \"%s\". Expected an array of params objects, e.g. %s, received %s. See more info here: https://nextjs.org/docs/app/api-reference/functions/generate-static-params#returns",
   "1424": "Page \"%s\" has \"generateStaticParams()\" but it returned an empty array [] with no params, so it cannot be used with \"output: export\" config. \"generateStaticParams()\" must return a non-empty array of params. See more info here: https://nextjs.org/docs/messages/generate-static-params-export",
-  "1425": "Page \"%s\" is missing \"generateStaticParams()\" so it cannot be used with \"output: export\" config. See more info here: https://nextjs.org/docs/messages/generate-static-params-export"
+  "1425": "Page \"%s\" is missing \"generateStaticParams()\" so it cannot be used with \"output: export\" config. See more info here: https://nextjs.org/docs/messages/generate-static-params-export",
+  "1426": "Page \"%s\" has \"generateStaticParams()\" but it did not provide the required params (%s), so it cannot be used with \"output: export\" config. See more info here: https://nextjs.org/docs/messages/generate-static-params-export"
 }

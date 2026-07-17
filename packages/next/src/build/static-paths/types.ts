@@ -57,4 +57,10 @@ export type PrerenderedRoute = StaticPrerenderedRoute | FallbackPrerenderedRoute
 export type StaticPathsResult = {
   fallbackMode: FallbackMode | undefined
   prerenderedRoutes: PrerenderedRoute[] | undefined
+  /**
+   * The pathname params that `generateStaticParams` did not provide values
+   * for in every returned entry. Only populated for app routes when
+   * `generateStaticParams` returned a non-empty result.
+   */
+  missingRouteParams?: readonly string[]
 }

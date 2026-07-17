@@ -954,6 +954,19 @@ export async function buildAppStaticPaths({
     })
   )
 
+  // The pathname params that weren't provided in every generated entry. When
+  // any of these exist, no routes can be prerendered even though
+  // `generateStaticParams` returned a non-empty result, so they're reported
+  // to make error messages accurate (e.g. with `output: export`).
+  const missingRouteParams =
+    routeParams.length > 0
+      ? pathnameRouteParamSegments
+          .filter(({ paramName }) =>
+            routeParams.some((params) => !(paramName in params))
+          )
+          .map(({ paramName }) => paramName)
+      : []
+
   await afterRunner.executeAfter()
 
   let lastDynamicSegmentHadGenerateStaticParams = false
@@ -1176,5 +1189,5 @@ export async function buildAppStaticPaths({
     assignStaticShellMetadata(prerenderedRoutes, prerenderablePathSegments)
   }
 
-  return { fallbackMode, prerenderedRoutes }
+  return { fallbackMode, prerenderedRoutes, missingRouteParams }
 }

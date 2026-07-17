@@ -8,11 +8,15 @@ import { retry } from 'next-test-utils'
 function runTest({
   gspReturnStatement,
   expectedErrMsg,
+  notExpectedErrMsg,
 }: {
   // Replaces the `return []` statement in the fixture's
   // `generateStaticParams`. When omitted, the fixture is used as-is.
   gspReturnStatement?: string
   expectedErrMsg: { dev: string; build: string }
+  // Asserted to be absent from the build output, to guard against a
+  // misleading error being reported for the scenario.
+  notExpectedErrMsg?: string
 }) {
   const { next, skipped, isNextDev } = nextTestSetup({
     files: __dirname,
@@ -44,6 +48,9 @@ function runTest({
     } else {
       const { exitCode, cliOutput } = await next.build()
       expect(cliOutput).toContain(expectedErrMsg.build)
+      if (notExpectedErrMsg) {
+        expect(cliOutput).not.toContain(notExpectedErrMsg)
+      }
       expect(exitCode).toBe(1)
     }
   })
@@ -57,6 +64,23 @@ describe('app-dir-export-invalid-gsp', () => {
         build:
           'Page "/another/[slug]" has "generateStaticParams()" but it returned an empty array [] with no params, so it cannot be used with "output: export" config. "generateStaticParams()" must return a non-empty array of params. See more info here: https://nextjs.org/docs/messages/generate-static-params-export',
       },
+    })
+  })
+
+  describe('should error when generateStaticParams returns params that are missing the required params', () => {
+    runTest({
+      gspReturnStatement: [
+        `// @ts-expect-error -- deliberately return a wrong param name: the type error is suppressed so the runtime behavior being tested here is what fails the build`,
+        `  return [{ id: 'foo' }]`,
+      ].join('\n'),
+      expectedErrMsg: {
+        dev: 'Page "/another/[slug]/page" is missing param "/another/first" in "generateStaticParams()", which is required with "output: export" config.',
+        build:
+          'Page "/another/[slug]" has "generateStaticParams()" but it did not provide the required params (slug), so it cannot be used with "output: export" config. See more info here: https://nextjs.org/docs/messages/generate-static-params-export',
+      },
+      // The params were not empty, so the empty-array error must not be
+      // reported for this scenario.
+      notExpectedErrMsg: 'returned an empty array',
     })
   })
 

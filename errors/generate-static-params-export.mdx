@@ -8,7 +8,8 @@ Your application is configured with `output: 'export'` in `next.config.js`, whic
 
 This error occurs when a dynamic route:
 
-- does not export a `generateStaticParams` function, or
+- does not export a `generateStaticParams` function,
+- exports a `generateStaticParams` function whose returned params do not provide a value for every dynamic segment of the route (for example, returning `[{ id: 'foo' }]` for `app/blog/[slug]/page.tsx`, which never provides `slug`), or
 - exports a `generateStaticParams` function that returned an empty array `[]` with no params, leaving Next.js with no paths to prerender for the route.
 
 ## Possible Ways to Fix It
