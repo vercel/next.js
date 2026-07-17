@@ -3866,10 +3866,18 @@ async function renderToStream(
         // the bootstrap flags it. Form state still rides the legacy channel,
         // so renders with form state fall back.
         let inlineDataChannel: ((stream: unknown) => unknown) | undefined
-        if (process.env.NEXT_INLINE_DATA === '1' && formState == null) {
+        if (
+          (process.env.NEXT_INLINE_DATA === '1' ||
+            // Test-only per-request switch so a parity harness can render
+            // the same route through both channels from one server.
+            (process.env.NEXT_INLINE_DATA === 'test' &&
+              req.headers['x-next-inline-data'] === '1')) &&
+          formState == null
+        ) {
           // react-server-dom-webpack/client must not be hoisted for require cache clearing to work correctly
           /* eslint-disable import/no-extraneous-dependencies */
-          const reactFlightClientModule: any = (require('react-server-dom-webpack/client') as typeof import('react-server-dom-webpack/client'))
+          const reactFlightClientModule: any =
+            require('react-server-dom-webpack/client') as typeof import('react-server-dom-webpack/client')
           /* eslint-enable import/no-extraneous-dependencies */
           inlineDataChannel = reactFlightClientModule.createInlineDataSource
         }
