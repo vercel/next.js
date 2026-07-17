@@ -111,68 +111,20 @@ After the prompts, [`create-next-app`](/docs/app/api-reference/cli/create-next-a
 
 Different types of apps need different caching architectures. A blog caches its content and revalidates when it changes, while a dashboard reads per-user data on each request. Starters are minimal, first-party skeletons that set up the right architecture for your app type, so you and your coding agent build on a working pattern instead of starting from scratch.
 
-Select the type of app you are building:
+Pick the one that matches what you are building:
 
-<StarterPicker
-  starters={[
-    {
-      id: 'blog',
-      title: 'Blog',
-      tagline: 'Content read by everyone, updated occasionally',
-      bestFor: ['Blogs', 'Documentation', 'Marketing sites', 'Portfolios'],
-      profile: [
-        'Reads are cached and tagged, and pages prerender to static shells.',
-        'Post pages prerender for all known slugs with generateStaticParams.',
-        'Mutations invalidate by tag with updateTag, so authors see changes immediately.',
-      ],
-      command:
-        'npx create-next-app@latest --example https://github.com/vercel/next.js/tree/canary/starters/blog my-blog',
-      href: 'https://github.com/vercel/next.js/tree/canary/starters/blog',
-    },
-    {
-      id: 'store',
-      title: 'Store',
-      tagline: 'A shared catalog with a per-visitor cart',
-      bestFor: ['Ecommerce', 'Product catalogs', 'Booking sites'],
-      profile: [
-        'The catalog is cached and shared between all visitors.',
-        'The cart reads cookies per request and streams into the static shell.',
-        'Product pages prerender while the cart and checkout stay dynamic.',
-      ],
-      command:
-        'npx create-next-app@latest --example https://github.com/vercel/next.js/tree/canary/starters/store my-store',
-      href: 'https://github.com/vercel/next.js/tree/canary/starters/store',
-    },
-    {
-      id: 'dashboard',
-      title: 'Dashboard',
-      tagline: 'Authenticated, per-user data on each request',
-      bestFor: ['SaaS apps', 'Admin panels', 'Internal tools', 'Feeds'],
-      profile: [
-        'A data access layer verifies the session before each per-user read.',
-        'Dashboard sections stream in parallel, each behind its own Suspense boundary.',
-        'Shared reference data is cached, and per-user data never is.',
-      ],
-      command:
-        'npx create-next-app@latest --example https://github.com/vercel/next.js/tree/canary/starters/dashboard my-dashboard',
-      href: 'https://github.com/vercel/next.js/tree/canary/starters/dashboard',
-    },
-    {
-      id: 'chat',
-      title: 'Chat',
-      tagline: 'Streaming responses, fully dynamic',
-      bestFor: ['AI chatbots', 'Assistants', 'Real-time tools'],
-      profile: [
-        'Responses stream token by token from a Route Handler.',
-        'The app shell prerenders, and each conversation renders per request.',
-        'A stand-in model stream shows where to plug in the AI SDK.',
-      ],
-      command:
-        'npx create-next-app@latest --example https://github.com/vercel/next.js/tree/canary/starters/chat my-chat',
-      href: 'https://github.com/vercel/next.js/tree/canary/starters/chat',
-    },
-  ]}
-/>
+| Starter                                                                         | Best for                                 | How it renders                                                                                             |
+| ------------------------------------------------------------------------------- | ---------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| [`blog`](https://github.com/vercel/next.js/tree/canary/starters/blog)           | Blogs, docs, marketing sites, portfolios | Reads are cached and tagged; pages prerender to static shells and revalidate by tag.                       |
+| [`store`](https://github.com/vercel/next.js/tree/canary/starters/store)         | Ecommerce, product catalogs, booking     | A cached, shared catalog with a per-visitor cart that streams into the static shell.                       |
+| [`dashboard`](https://github.com/vercel/next.js/tree/canary/starters/dashboard) | SaaS apps, admin panels, internal tools  | Authenticated per-user data behind a data access layer, streamed in parallel; shared data stays cached.    |
+| [`chat`](https://github.com/vercel/next.js/tree/canary/starters/chat)           | AI chatbots, assistants, real-time tools | A prerendered shell with a streamed conversation sidebar; replies stream per request from a Route Handler. |
+
+Create one with the `--example` flag, swapping `blog` for `store`, `dashboard`, or `chat`:
+
+```bash filename="Terminal"
+npx create-next-app@latest --example https://github.com/vercel/next.js/tree/canary/starters/blog my-blog
+```
 
 The starters share a baseline: [Cache Components](/docs/app/getting-started/caching) and [`partialPrefetching`](/docs/app/api-reference/config/next-config-js/partialPrefetching) enabled, feature folders under `features/` that own cached queries (`"use cache"`, `cacheLife`, `cacheTag`) and Server Actions, seeded local data that runs with no setup, `<Suspense>` boundaries with dimension-matched skeletons, and an `AGENTS.md` describing the architecture for [AI coding agents](/docs/app/guides/ai-agents). This baseline matches what `create-next-app` generates.
 
