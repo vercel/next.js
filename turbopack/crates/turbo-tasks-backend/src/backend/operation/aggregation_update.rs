@@ -303,6 +303,14 @@ pub enum AggregationUpdateJob {
         // upon attempted serialization) similar to #[serde(skip)] on variants
         #[bincode(skip, default = "unreachable_decode")]
         task: TaskId,
+        /// Whether this increase is for a task being connected as a genuinely-new child (the
+        /// direct-connect chokepoint in `ConnectChildOperation::run`). When set, the handler also
+        /// resurrects the task if GC had soft-deleted it — riding the child guard it takes anyway,
+        /// so the common (not-deleted) case is a free Meta flag read. `false` for the aggregation
+        /// propagation producers of this job, which never target a `deleted` task (a collected
+        /// task has no `upper`/`followers` to be propagated to).
+        #[bincode(skip, default = "Default::default")]
+        resurrect: bool,
     },
     /// Increases the active counters of the tasks
     IncreaseActiveCounts {
@@ -1501,12 +1509,14 @@ impl AggregationUpdateQueue {
                         }
                     }
                 }
-                AggregationUpdateJob::IncreaseActiveCount { task } => {
-                    self.increase_active_count(ctx, task);
+                AggregationUpdateJob::IncreaseActiveCount { task, resurrect } => {
+                    self.increase_active_count(ctx, task, resurrect);
                 }
                 AggregationUpdateJob::IncreaseActiveCounts { mut task_ids } => {
                     if let Some(task_id) = task_ids.pop() {
-                        self.increase_active_count(ctx, task_id);
+                        // Propagation to followers — never a direct-child connect, so no
+                        // resurrection.
+                        self.increase_active_count(ctx, task_id, false);
                         if !task_ids.is_empty() {
                             self.jobs.push_front(AggregationUpdateJobItem::new(
                                 AggregationUpdateJob::IncreaseActiveCounts { task_ids },
@@ -1757,7 +1767,10 @@ impl AggregationUpdateQueue {
                         let has_active_count =
                             upper.get_activeness().is_some_and(|a| a.active_counter > 0);
                         if has_active_count {
-                            self.push(AggregationUpdateJob::IncreaseActiveCount { task: task_id });
+                            self.push(AggregationUpdateJob::IncreaseActiveCount {
+                                task: task_id,
+                                resurrect: false,
+                            });
                         }
                     }
                     // notify uppers about new follower
@@ -3028,6 +3041,7 @@ impl AggregationUpdateQueue {
                     if has_active_count {
                         self.push(AggregationUpdateJob::IncreaseActiveCount {
                             task: new_follower_id,
+                            resurrect: false,
                         });
                     }
 
@@ -3186,7 +3200,18 @@ impl AggregationUpdateQueue {
     /// Increases the active count of a task.
     ///
     /// Only used when activeness is tracked.
-    fn increase_active_count(&mut self, ctx: &mut impl ExecuteContext<'_>, task_id: TaskId) {
+    ///
+    /// `resurrect` is set only by the direct-child connect (`ConnectChildOperation::run`): if the
+    /// child had been GC-soft-deleted, revive it (clear `deleted`, re-dirty it so it re-executes to
+    /// rebuild the scrubbed edges) before touching activeness — riding the Meta guard taken here,
+    /// so the common (not-deleted) case is a single flag read with no extra lock. Propagation
+    /// callers pass `false` (a collected task has no followers/uppers to propagate to).
+    fn increase_active_count(
+        &mut self,
+        ctx: &mut impl ExecuteContext<'_>,
+        task_id: TaskId,
+        resurrect: bool,
+    ) {
         #[cfg(feature = "trace_aggregation_update")]
         let _span = trace_span!("increase active count").entered();
 
@@ -3196,6 +3221,20 @@ impl AggregationUpdateQueue {
             // persistent_task_type is now set eagerly in initialize_new_task.
             AGGREGATION_UPDATE_CATEGORY,
         );
+        // Revive a GC-soft-deleted child before touching activeness, so the rest of this function
+        // (and the scheduling it drives) sees a live, re-dirtied task — matching the original
+        // resurrect-first ordering. Peek on the guard we already hold; only on the connect path and
+        // only when actually deleted does `resurrect_deleted` consume it, re-acquire `All` to
+        // double-check and atomically clear+re-dirty, and hand back a fresh guard.
+        if resurrect && task.deleted() {
+            task = crate::backend::operation::connect_child::resurrect_deleted(
+                task,
+                task_id,
+                AGGREGATION_UPDATE_CATEGORY,
+                self,
+                ctx,
+            );
+        }
         self.check_optimization_pending(&task);
         let state = task.get_activeness_mut_or_insert_with(|| ActivenessState::new(task_id));
         let is_new = state.is_empty();

@@ -7,51 +7,64 @@ use crate::{
         operation::{
             ExecuteContext, Operation, TaskGuard,
             aggregation_update::{AggregationUpdateJob, AggregationUpdateQueue},
-            invalidate::make_task_dirty,
+            invalidate::make_task_dirty_internal,
         },
         storage_schema::TaskStorageAccessors,
     },
     data::{InProgressState, InProgressStateInner},
 };
 
-/// If `task_id` was marked soft-deleted by GC (collected, awaiting tombstone + hard-delete) but is
-/// being connected as a child again, bring it back to life: clear the `deleted` marker and make it
-/// dirty so it re-executes. GC's `CleanupOldEdges` scrubbed all of the task's edges (children +
-/// forward dependencies) when it was collected, so its cells/output are stale and it must recompute
-/// to rebuild them — the resurrection is a real re-validation, not just un-flagging. This is the
-/// single chokepoint through which every re-entry (a `task_cache` hit or a disk hit in
-/// `get_or_create_task`) flows, so no `deleted` task can be returned to live use without reviving.
-fn resurrect_if_deleted(task_id: TaskId, ctx: &mut impl ExecuteContext<'_>) {
-    // Cheap Meta-only check first; only escalate on a hit. `deleted` is a Meta-category flag, so a
-    // Meta guard suffices to test/clear it — `immutable()` (a Data-category flag) is NOT checked
-    // here to avoid forcing a Data restore on the common not-deleted path.
-    let deleted = {
-        let mut task = ctx.task(task_id, TaskDataCategory::Meta);
-        let deleted = task.deleted();
-        if deleted {
+/// Revive a task the caller observed as GC-soft-deleted (via `guard.deleted()` on a guard it
+/// already holds during the connect handshake). The caller passes that guard **by value**; this
+/// consumes it, performs the revival, and returns a freshly re-acquired guard of the same
+/// `category`, so the call site is simply `guard = resurrect_deleted(guard, ..)` with the
+/// drop/re-acquire encapsulated here.
+///
+/// The passed guard is dropped and an `All` guard re-acquired (needed for the `immutable()` read),
+/// under which `deleted` is **re-checked** — double-checked locking: between the caller's cheap
+/// peek and this re-acquire, a concurrent connect of the same task could have already revived it,
+/// in which case there is nothing to do. When still deleted, the clear and the re-dirty happen
+/// **under that single `All` guard without an intervening drop**, so no operation can observe the
+/// intermediate `!deleted && !dirty` state (a task that looks live but still holds the stale/empty
+/// edges GC scrubbed). A **mutable** task is cleared and made dirty so it re-executes and rebuilds
+/// those edges; an **immutable** task cannot be made dirty (invariant in `make_task_dirty`) and
+/// does not need to be — its output is deterministic and its edges self-contained — so clearing the
+/// marker alone suffices, leaving it immediately valid for any concurrent observer.
+///
+/// GC collection is the single producer of the `deleted` flag and runs under an exclusion that
+/// stops all operations, so once cleared here the flag cannot be re-set concurrently.
+pub(super) fn resurrect_deleted<'e, C: ExecuteContext<'e>>(
+    guard: C::TaskGuardImpl,
+    task_id: TaskId,
+    category: TaskDataCategory,
+    queue: &mut AggregationUpdateQueue,
+    ctx: &mut C,
+) -> C::TaskGuardImpl {
+    // Release the caller's (Meta-ish) guard so we can re-acquire `All` for the `immutable()` read.
+    drop(guard);
+    {
+        let mut task = ctx.task(task_id, TaskDataCategory::All);
+        // Double-check under the re-acquired guard: a concurrent connect may have revived it in the
+        // gap.
+        if task.deleted() {
+            // Clear + re-dirty atomically under this single guard so no observer sees `!deleted`
+            // before the task has been re-validated.
             task.set_deleted(false);
+            if !task.immutable() {
+                make_task_dirty_internal(
+                    task,
+                    task_id,
+                    true,
+                    #[cfg(feature = "task_dirty_cause")]
+                    crate::backend::operation::invalidate::TaskDirtyCause::Unknown,
+                    queue,
+                    ctx,
+                );
+            }
         }
-        deleted
-    };
-    // Only now (rare) open with the Data category `immutable()` needs.
-    let immutable = deleted && ctx.task(task_id, TaskDataCategory::All).immutable();
-    if deleted && !immutable {
-        // A mutable task's forward-dep edges were scrubbed when GC collected it, so it holds
-        // stale/empty edges and must re-execute to rebuild them: make it dirty. An **immutable**
-        // task cannot be made dirty (invariant enforced in `make_task_dirty`) and does not need to
-        // be — its output is deterministic and still valid; clearing the marker is enough (any
-        // child edges it lost are rebuilt if and when it is re-read, and its inlined output is
-        // self-contained).
-        let mut queue = AggregationUpdateQueue::new();
-        make_task_dirty(
-            task_id,
-            #[cfg(feature = "task_dirty_cause")]
-            crate::backend::operation::invalidate::TaskDirtyCause::Unknown,
-            &mut queue,
-            ctx,
-        );
-        queue.execute(ctx);
     }
+    // Hand back a guard of the caller's category so it can continue the handshake.
+    ctx.task(task_id, category)
 }
 
 #[derive(Encode, Decode, Clone, Default)]
@@ -70,9 +83,15 @@ impl ConnectChildOperation {
         child_task_id: TaskId,
         mut ctx: impl ExecuteContext<'_>,
     ) {
-        // Revive the child first if GC had soft-deleted it: it must be live (and re-executing)
-        // before we wire it into the parent's children / aggregation below.
-        resurrect_if_deleted(child_task_id, &mut ctx);
+        // Resurrection of a GC-soft-deleted child (clearing the `deleted` marker + re-dirtying it)
+        // is folded into the child guard the connect handshake takes below — the activeness path
+        // does it in `increase_active_count`, the non-activeness path inline — so the common
+        // (not-deleted) case costs only a Meta flag read on a guard we hold anyway, with no extra
+        // acquisition. A `deleted` child is always in NEITHER the parent's `children` nor its
+        // `new_children` when first connected (GC only collects `parent_count == 0` tasks, so it is
+        // in no live parent's children; and a prior connect in this execution would have already
+        // staged+resurrected it), so the dedup early-returns below never skip a needed
+        // resurrection.
 
         if let Some(parent_task_id) = parent_task_id {
             let mut parent_task = ctx.task(parent_task_id, TaskDataCategory::Meta);
@@ -116,11 +135,29 @@ impl ConnectChildOperation {
         }
 
         if ctx.should_track_activeness() && parent_task_id.is_some() {
+            // Resurrection rides the child guard `increase_active_count` takes (see the
+            // `resurrect` flag on the job).
             queue.push(AggregationUpdateJob::IncreaseActiveCount {
                 task: child_task_id,
+                resurrect: true,
             });
         } else {
             let mut child_task = ctx.task(child_task_id, TaskDataCategory::Meta);
+
+            // Peek for GC soft-deletion on the guard we already hold — common path: one Meta flag
+            // read, no extra lock. Rare (was deleted): `resurrect_deleted` consumes this guard,
+            // re-acquires `All` to double-check and atomically clear+re-dirty, and hands back a
+            // fresh Meta guard for the schedule decision below. Resurrection thus completes before
+            // scheduling, matching the original resurrect-first order.
+            if child_task.deleted() {
+                child_task = resurrect_deleted(
+                    child_task,
+                    child_task_id,
+                    TaskDataCategory::Meta,
+                    &mut queue,
+                    &mut ctx,
+                );
+            }
 
             if !child_task.has_output()
                 && child_task.add_scheduled(
