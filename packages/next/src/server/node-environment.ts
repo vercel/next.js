@@ -18,3 +18,7 @@ import './node-environment-extensions/date'
 import './node-environment-extensions/web-crypto'
 import './node-environment-extensions/node-crypto'
 import './node-environment-extensions/fast-set-immediate.external'
+
+// DEV-only, opt-in (`__NEXT_DETECT_CROSS_REQUEST_STATE`): warns when a
+// module-scoped container leaks a per-request Promise into another request.
+import './node-environment-extensions/cross-request-state'
