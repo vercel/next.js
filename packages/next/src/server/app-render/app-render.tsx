@@ -2886,7 +2886,10 @@ async function prerenderAppPage({
   // prerendering phase and the build.
   if (workStore.invalidDynamicUsageError) {
     logDisallowedDynamicError(workStore, workStore.invalidDynamicUsageError)
-    throw new StaticGenBailoutError()
+    throw new StaticGenBailoutError(
+      workStore.invalidDynamicUsageError.message,
+      { cause: workStore.invalidDynamicUsageError }
+    )
   }
   if (response.digestErrorsMap.size) {
     const buildFailingError = response.digestErrorsMap.values().next().value
@@ -7955,8 +7958,9 @@ async function validateInstantConfigsInBuild(
       success = false
     }
     if (!success) {
-      console.error('Stopping prerender due to instant validation errors.')
-      throw new StaticGenBailoutError()
+      const message = 'Stopping prerender due to instant validation errors.'
+      console.error(message)
+      throw new StaticGenBailoutError(message)
     }
   }
 
@@ -8817,7 +8821,10 @@ async function prerenderToStream(
       // detected invalid dynamic usage in the initial prerender phase.
       if (workStore.invalidDynamicUsageError) {
         logDisallowedDynamicError(workStore, workStore.invalidDynamicUsageError)
-        throw new StaticGenBailoutError()
+        throw new StaticGenBailoutError(
+          workStore.invalidDynamicUsageError.message,
+          { cause: workStore.invalidDynamicUsageError }
+        )
       }
 
       let initialServerResult
@@ -10175,9 +10182,8 @@ async function prerenderToStream(
         )
 
         if (preludeIsEmpty) {
-          console.error(
-            `Route "${workStore.route}" did not produce a static shell while rendering its error page.`
-          )
+          const message = `Route "${workStore.route}" did not produce a static shell while rendering its error page.`
+          console.error(message)
           throwIfDisallowedDynamic(
             workStore,
             PreludeState.Empty,
@@ -10185,7 +10191,7 @@ async function prerenderToStream(
             errorServerDynamicTracking,
             false
           )
-          throw new StaticGenBailoutError()
+          throw new StaticGenBailoutError(message)
         }
 
         const getServerInsertedHTML = makeGetServerInsertedHTML({

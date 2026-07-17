@@ -1335,7 +1335,10 @@ export function throwIfSyncIOUsed(
       workStore,
       serverDynamic.syncDynamicErrorWithStack
     )
-    throw new StaticGenBailoutError()
+    throw new StaticGenBailoutError(
+      serverDynamic.syncDynamicErrorWithStack.message,
+      { cause: serverDynamic.syncDynamicErrorWithStack }
+    )
   }
 }
 
@@ -1358,8 +1361,9 @@ export function throwIfDisallowedDynamic(
     dynamicValidation.hasAllowedDynamic === false &&
     dynamicValidation.hasDynamicMetadata
   ) {
-    console.error(createDynamicOrRuntimeMetadataError(workStore.route).message)
-    throw new StaticGenBailoutError()
+    const metadataError = createDynamicOrRuntimeMetadataError(workStore.route)
+    console.error(metadataError.message)
+    throw new StaticGenBailoutError(metadataError.message)
   }
 
   // Either flag expresses "this shell is allowed to be empty/blocking":
@@ -1382,7 +1386,9 @@ export function throwIfDisallowedDynamic(
         logDisallowedDynamicError(workStore, dynamicErrors[i])
       }
 
-      throw new StaticGenBailoutError()
+      throw new StaticGenBailoutError(dynamicErrors[0].message, {
+        cause: dynamicErrors[0],
+      })
     }
 
     // If we got this far then the only other thing that could be blocking
@@ -1390,20 +1396,18 @@ export function throwIfDisallowedDynamic(
     // you need to opt into that by adding a Suspense boundary above the body
     // to indicate your are ok with fully dynamic rendering.
     if (dynamicValidation.hasDynamicViewport) {
-      console.error(
-        createDynamicOrRuntimeViewportError(workStore.route).message
-      )
-      throw new StaticGenBailoutError()
+      const viewportError = createDynamicOrRuntimeViewportError(workStore.route)
+      console.error(viewportError.message)
+      throw new StaticGenBailoutError(viewportError.message)
     }
 
     if (prelude === PreludeState.Empty) {
       // If we ever get this far then we messed up the tracking of invalid dynamic.
       // We still adhere to the constraint that you must produce a shell but invite the
       // user to report this as a bug in Next.js.
-      console.error(
-        `Route "${workStore.route}" did not produce a static shell and Next.js was unable to determine a reason. This is a bug in Next.js.`
-      )
-      throw new StaticGenBailoutError()
+      const message = `Route "${workStore.route}" did not produce a static shell and Next.js was unable to determine a reason. This is a bug in Next.js.`
+      console.error(message)
+      throw new StaticGenBailoutError(message)
     }
   }
 }

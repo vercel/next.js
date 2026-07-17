@@ -131,6 +131,16 @@ export function registerDynamicRootAndBoundaryTests(
                65 |   )
              To debug the issue, start the app in development mode by running \`next dev\`, then open "/dynamic-root" in your browser to investigate the error.
              Error occurred prerendering page "/dynamic-root". Read more: https://nextjs.org/docs/messages/prerender-error
+             Error: Route "/dynamic-root": Next.js encountered uncached or runtime data during prerendering.
+
+             \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
+
+             Ways to fix this:
+               - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+               - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
+               - [block] Set \`export const instant = false\` to allow a blocking route
+
+             Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic
 
              > Export encountered errors on 1 path:
              	/dynamic-root/page: /dynamic-root"
@@ -178,6 +188,16 @@ export function registerDynamicRootAndBoundaryTests(
                - Start the app in development mode by running \`next dev\`, then open "/dynamic-root" in your browser to investigate the error.
                - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
              Error occurred prerendering page "/dynamic-root". Read more: https://nextjs.org/docs/messages/prerender-error
+             Error: Route "/dynamic-root": Next.js encountered uncached or runtime data during prerendering.
+
+             \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
+
+             Ways to fix this:
+               - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+               - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
+               - [block] Set \`export const instant = false\` to allow a blocking route
+
+             Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic
              Export encountered an error on /dynamic-root/page: /dynamic-root, exiting the build."
             `)
           }
@@ -227,6 +247,16 @@ export function registerDynamicRootAndBoundaryTests(
                65 |   )
              To debug the issue, start the app in development mode by running \`next dev\`, then open "/dynamic-root" in your browser to investigate the error.
              Error occurred prerendering page "/dynamic-root". Read more: https://nextjs.org/docs/messages/prerender-error
+             Error: Route "/dynamic-root": Next.js encountered uncached or runtime data during prerendering.
+
+             \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
+
+             Ways to fix this:
+               - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+               - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
+               - [block] Set \`export const instant = false\` to allow a blocking route
+
+             Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic
 
              > Export encountered errors on 1 path:
              	/dynamic-root/page: /dynamic-root"
@@ -309,6 +339,16 @@ export function registerDynamicRootAndBoundaryTests(
                - Start the app in development mode by running \`next dev\`, then open "/dynamic-root" in your browser to investigate the error.
                - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
              Error occurred prerendering page "/dynamic-root". Read more: https://nextjs.org/docs/messages/prerender-error
+             Error: Route "/dynamic-root": Next.js encountered uncached or runtime data during prerendering.
+
+             \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
+
+             Ways to fix this:
+               - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+               - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
+               - [block] Set \`export const instant = false\` to allow a blocking route
+
+             Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic
              Export encountered an error on /dynamic-root/page: /dynamic-root, exiting the build."
             `)
           }

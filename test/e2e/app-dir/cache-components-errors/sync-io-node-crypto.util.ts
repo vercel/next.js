@@ -90,6 +90,16 @@ export function registerSyncIoNodeCryptoTests(
                23 |
              To debug the issue, start the app in development mode by running \`next dev\`, then open "/sync-io-node-crypto/generate-key-pair-sync" in your browser to investigate the error.
              Error occurred prerendering page "/sync-io-node-crypto/generate-key-pair-sync". Read more: https://nextjs.org/docs/messages/prerender-error
+             Error: Route "/sync-io-node-crypto/generate-key-pair-sync": Next.js encountered the unstable value \`require('node:crypto').generateKeyPairSync(...)\` while prerendering.
+
+             This value can change between renders, so it must be either prerendered or computed later.
+
+             Ways to fix this:
+               - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+               - [cache] Prerender and cache the value with \`"use cache"\`
+               - [client] Render the value on the client with \`"use client"\`
+
+             Learn more: https://nextjs.org/docs/messages/blocking-prerender-random
 
              > Export encountered errors on 1 path:
              	/sync-io-node-crypto/generate-key-pair-sync/page: /sync-io-node-crypto/generate-key-pair-sync"
@@ -118,6 +128,16 @@ export function registerSyncIoNodeCryptoTests(
                - Start the app in development mode by running \`next dev\`, then open "/sync-io-node-crypto/generate-key-pair-sync" in your browser to investigate the error.
                - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
              Error occurred prerendering page "/sync-io-node-crypto/generate-key-pair-sync". Read more: https://nextjs.org/docs/messages/prerender-error
+             Error: Route "/sync-io-node-crypto/generate-key-pair-sync": Next.js encountered the unstable value \`require('node:crypto').generateKeyPairSync(...)\` while prerendering.
+
+             This value can change between renders, so it must be either prerendered or computed later.
+
+             Ways to fix this:
+               - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+               - [cache] Prerender and cache the value with \`"use cache"\`
+               - [client] Render the value on the client with \`"use client"\`
+
+             Learn more: https://nextjs.org/docs/messages/blocking-prerender-random
              Export encountered an error on /sync-io-node-crypto/generate-key-pair-sync/page: /sync-io-node-crypto/generate-key-pair-sync, exiting the build."
             `)
           }
@@ -145,6 +165,16 @@ export function registerSyncIoNodeCryptoTests(
                23 |
              To debug the issue, start the app in development mode by running \`next dev\`, then open "/sync-io-node-crypto/generate-key-pair-sync" in your browser to investigate the error.
              Error occurred prerendering page "/sync-io-node-crypto/generate-key-pair-sync". Read more: https://nextjs.org/docs/messages/prerender-error
+             Error: Route "/sync-io-node-crypto/generate-key-pair-sync": Next.js encountered the unstable value \`require('node:crypto').generateKeyPairSync(...)\` while prerendering.
+
+             This value can change between renders, so it must be either prerendered or computed later.
+
+             Ways to fix this:
+               - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+               - [cache] Prerender and cache the value with \`"use cache"\`
+               - [client] Render the value on the client with \`"use client"\`
+
+             Learn more: https://nextjs.org/docs/messages/blocking-prerender-random
 
              > Export encountered errors on 1 path:
              	/sync-io-node-crypto/generate-key-pair-sync/page: /sync-io-node-crypto/generate-key-pair-sync"
@@ -166,6 +196,16 @@ export function registerSyncIoNodeCryptoTests(
                - Start the app in development mode by running \`next dev\`, then open "/sync-io-node-crypto/generate-key-pair-sync" in your browser to investigate the error.
                - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
              Error occurred prerendering page "/sync-io-node-crypto/generate-key-pair-sync". Read more: https://nextjs.org/docs/messages/prerender-error
+             Error: Route "/sync-io-node-crypto/generate-key-pair-sync": Next.js encountered the unstable value \`require('node:crypto').generateKeyPairSync(...)\` while prerendering.
+
+             This value can change between renders, so it must be either prerendered or computed later.
+
+             Ways to fix this:
+               - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+               - [cache] Prerender and cache the value with \`"use cache"\`
+               - [client] Render the value on the client with \`"use client"\`
+
+             Learn more: https://nextjs.org/docs/messages/blocking-prerender-random
              Export encountered an error on /sync-io-node-crypto/generate-key-pair-sync/page: /sync-io-node-crypto/generate-key-pair-sync, exiting the build."
             `)
           }
@@ -252,6 +292,16 @@ export function registerSyncIoNodeCryptoTests(
                24 |     .export()
              To debug the issue, start the app in development mode by running \`next dev\`, then open "/sync-io-node-crypto/generate-key-sync" in your browser to investigate the error.
              Error occurred prerendering page "/sync-io-node-crypto/generate-key-sync". Read more: https://nextjs.org/docs/messages/prerender-error
+             Error: Route "/sync-io-node-crypto/generate-key-sync": Next.js encountered the unstable value \`require('node:crypto').generateKeySync(...)\` while prerendering.
+
+             This value can change between renders, so it must be either prerendered or computed later.
+
+             Ways to fix this:
+               - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+               - [cache] Prerender and cache the value with \`"use cache"\`
+               - [client] Render the value on the client with \`"use client"\`
+
+             Learn more: https://nextjs.org/docs/messages/blocking-prerender-random
 
              > Export encountered errors on 1 path:
              	/sync-io-node-crypto/generate-key-sync/page: /sync-io-node-crypto/generate-key-sync"
@@ -280,6 +330,16 @@ export function registerSyncIoNodeCryptoTests(
                - Start the app in development mode by running \`next dev\`, then open "/sync-io-node-crypto/generate-key-sync" in your browser to investigate the error.
                - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
              Error occurred prerendering page "/sync-io-node-crypto/generate-key-sync". Read more: https://nextjs.org/docs/messages/prerender-error
+             Error: Route "/sync-io-node-crypto/generate-key-sync": Next.js encountered the unstable value \`require('node:crypto').generateKeySync(...)\` while prerendering.
+
+             This value can change between renders, so it must be either prerendered or computed later.
+
+             Ways to fix this:
+               - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+               - [cache] Prerender and cache the value with \`"use cache"\`
+               - [client] Render the value on the client with \`"use client"\`
+
+             Learn more: https://nextjs.org/docs/messages/blocking-prerender-random
              Export encountered an error on /sync-io-node-crypto/generate-key-sync/page: /sync-io-node-crypto/generate-key-sync, exiting the build."
             `)
           }
@@ -307,6 +367,16 @@ export function registerSyncIoNodeCryptoTests(
                23 |     })
              To debug the issue, start the app in development mode by running \`next dev\`, then open "/sync-io-node-crypto/generate-key-sync" in your browser to investigate the error.
              Error occurred prerendering page "/sync-io-node-crypto/generate-key-sync". Read more: https://nextjs.org/docs/messages/prerender-error
+             Error: Route "/sync-io-node-crypto/generate-key-sync": Next.js encountered the unstable value \`require('node:crypto').generateKeySync(...)\` while prerendering.
+
+             This value can change between renders, so it must be either prerendered or computed later.
+
+             Ways to fix this:
+               - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+               - [cache] Prerender and cache the value with \`"use cache"\`
+               - [client] Render the value on the client with \`"use client"\`
+
+             Learn more: https://nextjs.org/docs/messages/blocking-prerender-random
 
              > Export encountered errors on 1 path:
              	/sync-io-node-crypto/generate-key-sync/page: /sync-io-node-crypto/generate-key-sync"
@@ -328,6 +398,16 @@ export function registerSyncIoNodeCryptoTests(
                - Start the app in development mode by running \`next dev\`, then open "/sync-io-node-crypto/generate-key-sync" in your browser to investigate the error.
                - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
              Error occurred prerendering page "/sync-io-node-crypto/generate-key-sync". Read more: https://nextjs.org/docs/messages/prerender-error
+             Error: Route "/sync-io-node-crypto/generate-key-sync": Next.js encountered the unstable value \`require('node:crypto').generateKeySync(...)\` while prerendering.
+
+             This value can change between renders, so it must be either prerendered or computed later.
+
+             Ways to fix this:
+               - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+               - [cache] Prerender and cache the value with \`"use cache"\`
+               - [client] Render the value on the client with \`"use client"\`
+
+             Learn more: https://nextjs.org/docs/messages/blocking-prerender-random
              Export encountered an error on /sync-io-node-crypto/generate-key-sync/page: /sync-io-node-crypto/generate-key-sync, exiting the build."
             `)
           }
@@ -414,6 +494,16 @@ export function registerSyncIoNodeCryptoTests(
                23 |
              To debug the issue, start the app in development mode by running \`next dev\`, then open "/sync-io-node-crypto/generate-prime-sync" in your browser to investigate the error.
              Error occurred prerendering page "/sync-io-node-crypto/generate-prime-sync". Read more: https://nextjs.org/docs/messages/prerender-error
+             Error: Route "/sync-io-node-crypto/generate-prime-sync": Next.js encountered the unstable value \`require('node:crypto').generatePrimeSync(...)\` while prerendering.
+
+             This value can change between renders, so it must be either prerendered or computed later.
+
+             Ways to fix this:
+               - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+               - [cache] Prerender and cache the value with \`"use cache"\`
+               - [client] Render the value on the client with \`"use client"\`
+
+             Learn more: https://nextjs.org/docs/messages/blocking-prerender-random
 
              > Export encountered errors on 1 path:
              	/sync-io-node-crypto/generate-prime-sync/page: /sync-io-node-crypto/generate-prime-sync"
@@ -442,6 +532,16 @@ export function registerSyncIoNodeCryptoTests(
                - Start the app in development mode by running \`next dev\`, then open "/sync-io-node-crypto/generate-prime-sync" in your browser to investigate the error.
                - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
              Error occurred prerendering page "/sync-io-node-crypto/generate-prime-sync". Read more: https://nextjs.org/docs/messages/prerender-error
+             Error: Route "/sync-io-node-crypto/generate-prime-sync": Next.js encountered the unstable value \`require('node:crypto').generatePrimeSync(...)\` while prerendering.
+
+             This value can change between renders, so it must be either prerendered or computed later.
+
+             Ways to fix this:
+               - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+               - [cache] Prerender and cache the value with \`"use cache"\`
+               - [client] Render the value on the client with \`"use client"\`
+
+             Learn more: https://nextjs.org/docs/messages/blocking-prerender-random
              Export encountered an error on /sync-io-node-crypto/generate-prime-sync/page: /sync-io-node-crypto/generate-prime-sync, exiting the build."
             `)
           }
@@ -469,6 +569,16 @@ export function registerSyncIoNodeCryptoTests(
                23 |
              To debug the issue, start the app in development mode by running \`next dev\`, then open "/sync-io-node-crypto/generate-prime-sync" in your browser to investigate the error.
              Error occurred prerendering page "/sync-io-node-crypto/generate-prime-sync". Read more: https://nextjs.org/docs/messages/prerender-error
+             Error: Route "/sync-io-node-crypto/generate-prime-sync": Next.js encountered the unstable value \`require('node:crypto').generatePrimeSync(...)\` while prerendering.
+
+             This value can change between renders, so it must be either prerendered or computed later.
+
+             Ways to fix this:
+               - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+               - [cache] Prerender and cache the value with \`"use cache"\`
+               - [client] Render the value on the client with \`"use client"\`
+
+             Learn more: https://nextjs.org/docs/messages/blocking-prerender-random
 
              > Export encountered errors on 1 path:
              	/sync-io-node-crypto/generate-prime-sync/page: /sync-io-node-crypto/generate-prime-sync"
@@ -490,6 +600,16 @@ export function registerSyncIoNodeCryptoTests(
                - Start the app in development mode by running \`next dev\`, then open "/sync-io-node-crypto/generate-prime-sync" in your browser to investigate the error.
                - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
              Error occurred prerendering page "/sync-io-node-crypto/generate-prime-sync". Read more: https://nextjs.org/docs/messages/prerender-error
+             Error: Route "/sync-io-node-crypto/generate-prime-sync": Next.js encountered the unstable value \`require('node:crypto').generatePrimeSync(...)\` while prerendering.
+
+             This value can change between renders, so it must be either prerendered or computed later.
+
+             Ways to fix this:
+               - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+               - [cache] Prerender and cache the value with \`"use cache"\`
+               - [client] Render the value on the client with \`"use client"\`
+
+             Learn more: https://nextjs.org/docs/messages/blocking-prerender-random
              Export encountered an error on /sync-io-node-crypto/generate-prime-sync/page: /sync-io-node-crypto/generate-prime-sync, exiting the build."
             `)
           }
@@ -576,6 +696,16 @@ export function registerSyncIoNodeCryptoTests(
                24 |
              To debug the issue, start the app in development mode by running \`next dev\`, then open "/sync-io-node-crypto/get-random-values" in your browser to investigate the error.
              Error occurred prerendering page "/sync-io-node-crypto/get-random-values". Read more: https://nextjs.org/docs/messages/prerender-error
+             Error: Route "/sync-io-node-crypto/get-random-values": Next.js encountered the unstable value \`crypto.getRandomValues()\` while prerendering.
+
+             This value can change between renders, so it must be either prerendered or computed later.
+
+             Ways to fix this:
+               - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+               - [cache] Prerender and cache the value with \`"use cache"\`
+               - [client] Render the value on the client with \`"use client"\`
+
+             Learn more: https://nextjs.org/docs/messages/blocking-prerender-crypto
 
              > Export encountered errors on 1 path:
              	/sync-io-node-crypto/get-random-values/page: /sync-io-node-crypto/get-random-values"
@@ -604,6 +734,16 @@ export function registerSyncIoNodeCryptoTests(
                - Start the app in development mode by running \`next dev\`, then open "/sync-io-node-crypto/get-random-values" in your browser to investigate the error.
                - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
              Error occurred prerendering page "/sync-io-node-crypto/get-random-values". Read more: https://nextjs.org/docs/messages/prerender-error
+             Error: Route "/sync-io-node-crypto/get-random-values": Next.js encountered the unstable value \`crypto.getRandomValues()\` while prerendering.
+
+             This value can change between renders, so it must be either prerendered or computed later.
+
+             Ways to fix this:
+               - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+               - [cache] Prerender and cache the value with \`"use cache"\`
+               - [client] Render the value on the client with \`"use client"\`
+
+             Learn more: https://nextjs.org/docs/messages/blocking-prerender-crypto
              Export encountered an error on /sync-io-node-crypto/get-random-values/page: /sync-io-node-crypto/get-random-values, exiting the build."
             `)
           }
@@ -631,6 +771,16 @@ export function registerSyncIoNodeCryptoTests(
                24 |
              To debug the issue, start the app in development mode by running \`next dev\`, then open "/sync-io-node-crypto/get-random-values" in your browser to investigate the error.
              Error occurred prerendering page "/sync-io-node-crypto/get-random-values". Read more: https://nextjs.org/docs/messages/prerender-error
+             Error: Route "/sync-io-node-crypto/get-random-values": Next.js encountered the unstable value \`crypto.getRandomValues()\` while prerendering.
+
+             This value can change between renders, so it must be either prerendered or computed later.
+
+             Ways to fix this:
+               - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+               - [cache] Prerender and cache the value with \`"use cache"\`
+               - [client] Render the value on the client with \`"use client"\`
+
+             Learn more: https://nextjs.org/docs/messages/blocking-prerender-crypto
 
              > Export encountered errors on 1 path:
              	/sync-io-node-crypto/get-random-values/page: /sync-io-node-crypto/get-random-values"
@@ -652,6 +802,16 @@ export function registerSyncIoNodeCryptoTests(
                - Start the app in development mode by running \`next dev\`, then open "/sync-io-node-crypto/get-random-values" in your browser to investigate the error.
                - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
              Error occurred prerendering page "/sync-io-node-crypto/get-random-values". Read more: https://nextjs.org/docs/messages/prerender-error
+             Error: Route "/sync-io-node-crypto/get-random-values": Next.js encountered the unstable value \`crypto.getRandomValues()\` while prerendering.
+
+             This value can change between renders, so it must be either prerendered or computed later.
+
+             Ways to fix this:
+               - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+               - [cache] Prerender and cache the value with \`"use cache"\`
+               - [client] Render the value on the client with \`"use client"\`
+
+             Learn more: https://nextjs.org/docs/messages/blocking-prerender-crypto
              Export encountered an error on /sync-io-node-crypto/get-random-values/page: /sync-io-node-crypto/get-random-values, exiting the build."
             `)
           }
@@ -738,6 +898,16 @@ export function registerSyncIoNodeCryptoTests(
                23 |
              To debug the issue, start the app in development mode by running \`next dev\`, then open "/sync-io-node-crypto/random-bytes" in your browser to investigate the error.
              Error occurred prerendering page "/sync-io-node-crypto/random-bytes". Read more: https://nextjs.org/docs/messages/prerender-error
+             Error: Route "/sync-io-node-crypto/random-bytes": Next.js encountered the unstable value \`require('node:crypto').randomBytes(size)\` while prerendering.
+
+             This value can change between renders, so it must be either prerendered or computed later.
+
+             Ways to fix this:
+               - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+               - [cache] Prerender and cache the value with \`"use cache"\`
+               - [client] Render the value on the client with \`"use client"\`
+
+             Learn more: https://nextjs.org/docs/messages/blocking-prerender-random
 
              > Export encountered errors on 1 path:
              	/sync-io-node-crypto/random-bytes/page: /sync-io-node-crypto/random-bytes"
@@ -766,6 +936,16 @@ export function registerSyncIoNodeCryptoTests(
                - Start the app in development mode by running \`next dev\`, then open "/sync-io-node-crypto/random-bytes" in your browser to investigate the error.
                - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
              Error occurred prerendering page "/sync-io-node-crypto/random-bytes". Read more: https://nextjs.org/docs/messages/prerender-error
+             Error: Route "/sync-io-node-crypto/random-bytes": Next.js encountered the unstable value \`require('node:crypto').randomBytes(size)\` while prerendering.
+
+             This value can change between renders, so it must be either prerendered or computed later.
+
+             Ways to fix this:
+               - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+               - [cache] Prerender and cache the value with \`"use cache"\`
+               - [client] Render the value on the client with \`"use client"\`
+
+             Learn more: https://nextjs.org/docs/messages/blocking-prerender-random
              Export encountered an error on /sync-io-node-crypto/random-bytes/page: /sync-io-node-crypto/random-bytes, exiting the build."
             `)
           }
@@ -793,6 +973,16 @@ export function registerSyncIoNodeCryptoTests(
                23 |
              To debug the issue, start the app in development mode by running \`next dev\`, then open "/sync-io-node-crypto/random-bytes" in your browser to investigate the error.
              Error occurred prerendering page "/sync-io-node-crypto/random-bytes". Read more: https://nextjs.org/docs/messages/prerender-error
+             Error: Route "/sync-io-node-crypto/random-bytes": Next.js encountered the unstable value \`require('node:crypto').randomBytes(size)\` while prerendering.
+
+             This value can change between renders, so it must be either prerendered or computed later.
+
+             Ways to fix this:
+               - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+               - [cache] Prerender and cache the value with \`"use cache"\`
+               - [client] Render the value on the client with \`"use client"\`
+
+             Learn more: https://nextjs.org/docs/messages/blocking-prerender-random
 
              > Export encountered errors on 1 path:
              	/sync-io-node-crypto/random-bytes/page: /sync-io-node-crypto/random-bytes"
@@ -814,6 +1004,16 @@ export function registerSyncIoNodeCryptoTests(
                - Start the app in development mode by running \`next dev\`, then open "/sync-io-node-crypto/random-bytes" in your browser to investigate the error.
                - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
              Error occurred prerendering page "/sync-io-node-crypto/random-bytes". Read more: https://nextjs.org/docs/messages/prerender-error
+             Error: Route "/sync-io-node-crypto/random-bytes": Next.js encountered the unstable value \`require('node:crypto').randomBytes(size)\` while prerendering.
+
+             This value can change between renders, so it must be either prerendered or computed later.
+
+             Ways to fix this:
+               - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+               - [cache] Prerender and cache the value with \`"use cache"\`
+               - [client] Render the value on the client with \`"use client"\`
+
+             Learn more: https://nextjs.org/docs/messages/blocking-prerender-random
              Export encountered an error on /sync-io-node-crypto/random-bytes/page: /sync-io-node-crypto/random-bytes, exiting the build."
             `)
           }
@@ -900,6 +1100,16 @@ export function registerSyncIoNodeCryptoTests(
                24 |
              To debug the issue, start the app in development mode by running \`next dev\`, then open "/sync-io-node-crypto/random-fill-sync" in your browser to investigate the error.
              Error occurred prerendering page "/sync-io-node-crypto/random-fill-sync". Read more: https://nextjs.org/docs/messages/prerender-error
+             Error: Route "/sync-io-node-crypto/random-fill-sync": Next.js encountered the unstable value \`require('node:crypto').randomFillSync(...)\` while prerendering.
+
+             This value can change between renders, so it must be either prerendered or computed later.
+
+             Ways to fix this:
+               - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+               - [cache] Prerender and cache the value with \`"use cache"\`
+               - [client] Render the value on the client with \`"use client"\`
+
+             Learn more: https://nextjs.org/docs/messages/blocking-prerender-random
 
              > Export encountered errors on 1 path:
              	/sync-io-node-crypto/random-fill-sync/page: /sync-io-node-crypto/random-fill-sync"
@@ -928,6 +1138,16 @@ export function registerSyncIoNodeCryptoTests(
                - Start the app in development mode by running \`next dev\`, then open "/sync-io-node-crypto/random-fill-sync" in your browser to investigate the error.
                - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
              Error occurred prerendering page "/sync-io-node-crypto/random-fill-sync". Read more: https://nextjs.org/docs/messages/prerender-error
+             Error: Route "/sync-io-node-crypto/random-fill-sync": Next.js encountered the unstable value \`require('node:crypto').randomFillSync(...)\` while prerendering.
+
+             This value can change between renders, so it must be either prerendered or computed later.
+
+             Ways to fix this:
+               - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+               - [cache] Prerender and cache the value with \`"use cache"\`
+               - [client] Render the value on the client with \`"use client"\`
+
+             Learn more: https://nextjs.org/docs/messages/blocking-prerender-random
              Export encountered an error on /sync-io-node-crypto/random-fill-sync/page: /sync-io-node-crypto/random-fill-sync, exiting the build."
             `)
           }
@@ -955,6 +1175,16 @@ export function registerSyncIoNodeCryptoTests(
                24 |
              To debug the issue, start the app in development mode by running \`next dev\`, then open "/sync-io-node-crypto/random-fill-sync" in your browser to investigate the error.
              Error occurred prerendering page "/sync-io-node-crypto/random-fill-sync". Read more: https://nextjs.org/docs/messages/prerender-error
+             Error: Route "/sync-io-node-crypto/random-fill-sync": Next.js encountered the unstable value \`require('node:crypto').randomFillSync(...)\` while prerendering.
+
+             This value can change between renders, so it must be either prerendered or computed later.
+
+             Ways to fix this:
+               - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+               - [cache] Prerender and cache the value with \`"use cache"\`
+               - [client] Render the value on the client with \`"use client"\`
+
+             Learn more: https://nextjs.org/docs/messages/blocking-prerender-random
 
              > Export encountered errors on 1 path:
              	/sync-io-node-crypto/random-fill-sync/page: /sync-io-node-crypto/random-fill-sync"
@@ -976,6 +1206,16 @@ export function registerSyncIoNodeCryptoTests(
                - Start the app in development mode by running \`next dev\`, then open "/sync-io-node-crypto/random-fill-sync" in your browser to investigate the error.
                - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
              Error occurred prerendering page "/sync-io-node-crypto/random-fill-sync". Read more: https://nextjs.org/docs/messages/prerender-error
+             Error: Route "/sync-io-node-crypto/random-fill-sync": Next.js encountered the unstable value \`require('node:crypto').randomFillSync(...)\` while prerendering.
+
+             This value can change between renders, so it must be either prerendered or computed later.
+
+             Ways to fix this:
+               - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+               - [cache] Prerender and cache the value with \`"use cache"\`
+               - [client] Render the value on the client with \`"use client"\`
+
+             Learn more: https://nextjs.org/docs/messages/blocking-prerender-random
              Export encountered an error on /sync-io-node-crypto/random-fill-sync/page: /sync-io-node-crypto/random-fill-sync, exiting the build."
             `)
           }
@@ -1062,6 +1302,16 @@ export function registerSyncIoNodeCryptoTests(
                23 |
              To debug the issue, start the app in development mode by running \`next dev\`, then open "/sync-io-node-crypto/random-int-between" in your browser to investigate the error.
              Error occurred prerendering page "/sync-io-node-crypto/random-int-between". Read more: https://nextjs.org/docs/messages/prerender-error
+             Error: Route "/sync-io-node-crypto/random-int-between": Next.js encountered the unstable value \`require('node:crypto').randomInt(min, max)\` while prerendering.
+
+             This value can change between renders, so it must be either prerendered or computed later.
+
+             Ways to fix this:
+               - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+               - [cache] Prerender and cache the value with \`"use cache"\`
+               - [client] Render the value on the client with \`"use client"\`
+
+             Learn more: https://nextjs.org/docs/messages/blocking-prerender-random
 
              > Export encountered errors on 1 path:
              	/sync-io-node-crypto/random-int-between/page: /sync-io-node-crypto/random-int-between"
@@ -1090,6 +1340,16 @@ export function registerSyncIoNodeCryptoTests(
                - Start the app in development mode by running \`next dev\`, then open "/sync-io-node-crypto/random-int-between" in your browser to investigate the error.
                - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
              Error occurred prerendering page "/sync-io-node-crypto/random-int-between". Read more: https://nextjs.org/docs/messages/prerender-error
+             Error: Route "/sync-io-node-crypto/random-int-between": Next.js encountered the unstable value \`require('node:crypto').randomInt(min, max)\` while prerendering.
+
+             This value can change between renders, so it must be either prerendered or computed later.
+
+             Ways to fix this:
+               - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+               - [cache] Prerender and cache the value with \`"use cache"\`
+               - [client] Render the value on the client with \`"use client"\`
+
+             Learn more: https://nextjs.org/docs/messages/blocking-prerender-random
              Export encountered an error on /sync-io-node-crypto/random-int-between/page: /sync-io-node-crypto/random-int-between, exiting the build."
             `)
           }
@@ -1117,6 +1377,16 @@ export function registerSyncIoNodeCryptoTests(
                23 |
              To debug the issue, start the app in development mode by running \`next dev\`, then open "/sync-io-node-crypto/random-int-between" in your browser to investigate the error.
              Error occurred prerendering page "/sync-io-node-crypto/random-int-between". Read more: https://nextjs.org/docs/messages/prerender-error
+             Error: Route "/sync-io-node-crypto/random-int-between": Next.js encountered the unstable value \`require('node:crypto').randomInt(min, max)\` while prerendering.
+
+             This value can change between renders, so it must be either prerendered or computed later.
+
+             Ways to fix this:
+               - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+               - [cache] Prerender and cache the value with \`"use cache"\`
+               - [client] Render the value on the client with \`"use client"\`
+
+             Learn more: https://nextjs.org/docs/messages/blocking-prerender-random
 
              > Export encountered errors on 1 path:
              	/sync-io-node-crypto/random-int-between/page: /sync-io-node-crypto/random-int-between"
@@ -1138,6 +1408,16 @@ export function registerSyncIoNodeCryptoTests(
                - Start the app in development mode by running \`next dev\`, then open "/sync-io-node-crypto/random-int-between" in your browser to investigate the error.
                - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
              Error occurred prerendering page "/sync-io-node-crypto/random-int-between". Read more: https://nextjs.org/docs/messages/prerender-error
+             Error: Route "/sync-io-node-crypto/random-int-between": Next.js encountered the unstable value \`require('node:crypto').randomInt(min, max)\` while prerendering.
+
+             This value can change between renders, so it must be either prerendered or computed later.
+
+             Ways to fix this:
+               - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+               - [cache] Prerender and cache the value with \`"use cache"\`
+               - [client] Render the value on the client with \`"use client"\`
+
+             Learn more: https://nextjs.org/docs/messages/blocking-prerender-random
              Export encountered an error on /sync-io-node-crypto/random-int-between/page: /sync-io-node-crypto/random-int-between, exiting the build."
             `)
           }
@@ -1224,6 +1504,16 @@ export function registerSyncIoNodeCryptoTests(
                23 |
              To debug the issue, start the app in development mode by running \`next dev\`, then open "/sync-io-node-crypto/random-int-up-to" in your browser to investigate the error.
              Error occurred prerendering page "/sync-io-node-crypto/random-int-up-to". Read more: https://nextjs.org/docs/messages/prerender-error
+             Error: Route "/sync-io-node-crypto/random-int-up-to": Next.js encountered the unstable value \`require('node:crypto').randomInt(min, max)\` while prerendering.
+
+             This value can change between renders, so it must be either prerendered or computed later.
+
+             Ways to fix this:
+               - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+               - [cache] Prerender and cache the value with \`"use cache"\`
+               - [client] Render the value on the client with \`"use client"\`
+
+             Learn more: https://nextjs.org/docs/messages/blocking-prerender-random
 
              > Export encountered errors on 1 path:
              	/sync-io-node-crypto/random-int-up-to/page: /sync-io-node-crypto/random-int-up-to"
@@ -1252,6 +1542,16 @@ export function registerSyncIoNodeCryptoTests(
                - Start the app in development mode by running \`next dev\`, then open "/sync-io-node-crypto/random-int-up-to" in your browser to investigate the error.
                - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
              Error occurred prerendering page "/sync-io-node-crypto/random-int-up-to". Read more: https://nextjs.org/docs/messages/prerender-error
+             Error: Route "/sync-io-node-crypto/random-int-up-to": Next.js encountered the unstable value \`require('node:crypto').randomInt(min, max)\` while prerendering.
+
+             This value can change between renders, so it must be either prerendered or computed later.
+
+             Ways to fix this:
+               - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+               - [cache] Prerender and cache the value with \`"use cache"\`
+               - [client] Render the value on the client with \`"use client"\`
+
+             Learn more: https://nextjs.org/docs/messages/blocking-prerender-random
              Export encountered an error on /sync-io-node-crypto/random-int-up-to/page: /sync-io-node-crypto/random-int-up-to, exiting the build."
             `)
           }
@@ -1279,6 +1579,16 @@ export function registerSyncIoNodeCryptoTests(
                23 |
              To debug the issue, start the app in development mode by running \`next dev\`, then open "/sync-io-node-crypto/random-int-up-to" in your browser to investigate the error.
              Error occurred prerendering page "/sync-io-node-crypto/random-int-up-to". Read more: https://nextjs.org/docs/messages/prerender-error
+             Error: Route "/sync-io-node-crypto/random-int-up-to": Next.js encountered the unstable value \`require('node:crypto').randomInt(min, max)\` while prerendering.
+
+             This value can change between renders, so it must be either prerendered or computed later.
+
+             Ways to fix this:
+               - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+               - [cache] Prerender and cache the value with \`"use cache"\`
+               - [client] Render the value on the client with \`"use client"\`
+
+             Learn more: https://nextjs.org/docs/messages/blocking-prerender-random
 
              > Export encountered errors on 1 path:
              	/sync-io-node-crypto/random-int-up-to/page: /sync-io-node-crypto/random-int-up-to"
@@ -1300,6 +1610,16 @@ export function registerSyncIoNodeCryptoTests(
                - Start the app in development mode by running \`next dev\`, then open "/sync-io-node-crypto/random-int-up-to" in your browser to investigate the error.
                - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
              Error occurred prerendering page "/sync-io-node-crypto/random-int-up-to". Read more: https://nextjs.org/docs/messages/prerender-error
+             Error: Route "/sync-io-node-crypto/random-int-up-to": Next.js encountered the unstable value \`require('node:crypto').randomInt(min, max)\` while prerendering.
+
+             This value can change between renders, so it must be either prerendered or computed later.
+
+             Ways to fix this:
+               - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+               - [cache] Prerender and cache the value with \`"use cache"\`
+               - [client] Render the value on the client with \`"use client"\`
+
+             Learn more: https://nextjs.org/docs/messages/blocking-prerender-random
              Export encountered an error on /sync-io-node-crypto/random-int-up-to/page: /sync-io-node-crypto/random-int-up-to, exiting the build."
             `)
           }
@@ -1386,6 +1706,16 @@ export function registerSyncIoNodeCryptoTests(
                23 |
              To debug the issue, start the app in development mode by running \`next dev\`, then open "/sync-io-node-crypto/random-uuid" in your browser to investigate the error.
              Error occurred prerendering page "/sync-io-node-crypto/random-uuid". Read more: https://nextjs.org/docs/messages/prerender-error
+             Error: Route "/sync-io-node-crypto/random-uuid": Next.js encountered the unstable value \`require('node:crypto').randomUUID()\` while prerendering.
+
+             This value can change between renders, so it must be either prerendered or computed later.
+
+             Ways to fix this:
+               - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+               - [cache] Prerender and cache the value with \`"use cache"\`
+               - [client] Render the value on the client with \`"use client"\`
+
+             Learn more: https://nextjs.org/docs/messages/blocking-prerender-random
 
              > Export encountered errors on 1 path:
              	/sync-io-node-crypto/random-uuid/page: /sync-io-node-crypto/random-uuid"
@@ -1414,6 +1744,16 @@ export function registerSyncIoNodeCryptoTests(
                - Start the app in development mode by running \`next dev\`, then open "/sync-io-node-crypto/random-uuid" in your browser to investigate the error.
                - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
              Error occurred prerendering page "/sync-io-node-crypto/random-uuid". Read more: https://nextjs.org/docs/messages/prerender-error
+             Error: Route "/sync-io-node-crypto/random-uuid": Next.js encountered the unstable value \`require('node:crypto').randomUUID()\` while prerendering.
+
+             This value can change between renders, so it must be either prerendered or computed later.
+
+             Ways to fix this:
+               - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+               - [cache] Prerender and cache the value with \`"use cache"\`
+               - [client] Render the value on the client with \`"use client"\`
+
+             Learn more: https://nextjs.org/docs/messages/blocking-prerender-random
              Export encountered an error on /sync-io-node-crypto/random-uuid/page: /sync-io-node-crypto/random-uuid, exiting the build."
             `)
           }
@@ -1441,6 +1781,16 @@ export function registerSyncIoNodeCryptoTests(
                23 |
              To debug the issue, start the app in development mode by running \`next dev\`, then open "/sync-io-node-crypto/random-uuid" in your browser to investigate the error.
              Error occurred prerendering page "/sync-io-node-crypto/random-uuid". Read more: https://nextjs.org/docs/messages/prerender-error
+             Error: Route "/sync-io-node-crypto/random-uuid": Next.js encountered the unstable value \`require('node:crypto').randomUUID()\` while prerendering.
+
+             This value can change between renders, so it must be either prerendered or computed later.
+
+             Ways to fix this:
+               - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+               - [cache] Prerender and cache the value with \`"use cache"\`
+               - [client] Render the value on the client with \`"use client"\`
+
+             Learn more: https://nextjs.org/docs/messages/blocking-prerender-random
 
              > Export encountered errors on 1 path:
              	/sync-io-node-crypto/random-uuid/page: /sync-io-node-crypto/random-uuid"
@@ -1462,6 +1812,16 @@ export function registerSyncIoNodeCryptoTests(
                - Start the app in development mode by running \`next dev\`, then open "/sync-io-node-crypto/random-uuid" in your browser to investigate the error.
                - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
              Error occurred prerendering page "/sync-io-node-crypto/random-uuid". Read more: https://nextjs.org/docs/messages/prerender-error
+             Error: Route "/sync-io-node-crypto/random-uuid": Next.js encountered the unstable value \`require('node:crypto').randomUUID()\` while prerendering.
+
+             This value can change between renders, so it must be either prerendered or computed later.
+
+             Ways to fix this:
+               - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+               - [cache] Prerender and cache the value with \`"use cache"\`
+               - [client] Render the value on the client with \`"use client"\`
+
+             Learn more: https://nextjs.org/docs/messages/blocking-prerender-random
              Export encountered an error on /sync-io-node-crypto/random-uuid/page: /sync-io-node-crypto/random-uuid, exiting the build."
             `)
           }

@@ -76,6 +76,16 @@ export function registerSyncDynamicTests(ctx: CacheComponentsErrorsContext) {
                  40 |       <span id="rand">{random}</span>
                To debug the issue, start the app in development mode by running \`next dev\`, then open "/sync-random-with-fallback" in your browser to investigate the error.
                Error occurred prerendering page "/sync-random-with-fallback". Read more: https://nextjs.org/docs/messages/prerender-error
+               Error: Route "/sync-random-with-fallback": Next.js encountered the unstable value \`Math.random()\` while prerendering.
+
+               This value can change between renders, so it must be either prerendered or computed later.
+
+               Ways to fix this:
+                 - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+                 - [cache] Prerender and cache the value with \`"use cache"\`
+                 - [client] Render the value on the client with \`"use client"\`
+
+               Learn more: https://nextjs.org/docs/messages/blocking-prerender-random
 
                > Export encountered errors on 1 path:
                	/sync-random-with-fallback/page: /sync-random-with-fallback"
@@ -103,6 +113,16 @@ export function registerSyncDynamicTests(ctx: CacheComponentsErrorsContext) {
                  40 |       <span id="rand">{random}</span>
                To debug the issue, start the app in development mode by running \`next dev\`, then open "/sync-random-with-fallback" in your browser to investigate the error.
                Error occurred prerendering page "/sync-random-with-fallback". Read more: https://nextjs.org/docs/messages/prerender-error
+               Error: Route "/sync-random-with-fallback": Next.js encountered the unstable value \`Math.random()\` while prerendering.
+
+               This value can change between renders, so it must be either prerendered or computed later.
+
+               Ways to fix this:
+                 - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+                 - [cache] Prerender and cache the value with \`"use cache"\`
+                 - [client] Render the value on the client with \`"use client"\`
+
+               Learn more: https://nextjs.org/docs/messages/blocking-prerender-random
 
                > Export encountered errors on 1 path:
                	/sync-random-with-fallback/page: /sync-random-with-fallback"
@@ -133,6 +153,16 @@ export function registerSyncDynamicTests(ctx: CacheComponentsErrorsContext) {
                  - Start the app in development mode by running \`next dev\`, then open "/sync-random-with-fallback" in your browser to investigate the error.
                  - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
                Error occurred prerendering page "/sync-random-with-fallback". Read more: https://nextjs.org/docs/messages/prerender-error
+               Error: Route "/sync-random-with-fallback": Next.js encountered the unstable value \`Math.random()\` while prerendering.
+
+               This value can change between renders, so it must be either prerendered or computed later.
+
+               Ways to fix this:
+                 - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+                 - [cache] Prerender and cache the value with \`"use cache"\`
+                 - [client] Render the value on the client with \`"use client"\`
+
+               Learn more: https://nextjs.org/docs/messages/blocking-prerender-random
                Export encountered an error on /sync-random-with-fallback/page: /sync-random-with-fallback, exiting the build."
               `)
             } else {
@@ -152,6 +182,16 @@ export function registerSyncDynamicTests(ctx: CacheComponentsErrorsContext) {
                  - Start the app in development mode by running \`next dev\`, then open "/sync-random-with-fallback" in your browser to investigate the error.
                  - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
                Error occurred prerendering page "/sync-random-with-fallback". Read more: https://nextjs.org/docs/messages/prerender-error
+               Error: Route "/sync-random-with-fallback": Next.js encountered the unstable value \`Math.random()\` while prerendering.
+
+               This value can change between renders, so it must be either prerendered or computed later.
+
+               Ways to fix this:
+                 - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+                 - [cache] Prerender and cache the value with \`"use cache"\`
+                 - [client] Render the value on the client with \`"use client"\`
+
+               Learn more: https://nextjs.org/docs/messages/blocking-prerender-random
                Export encountered an error on /sync-random-with-fallback/page: /sync-random-with-fallback, exiting the build."
               `)
             }
@@ -226,6 +266,16 @@ export function registerSyncDynamicTests(ctx: CacheComponentsErrorsContext) {
                  35 | function RandomReadingComponent() {
                To debug the issue, start the app in development mode by running \`next dev\`, then open "/sync-random-without-fallback" in your browser to investigate the error.
                Error occurred prerendering page "/sync-random-without-fallback". Read more: https://nextjs.org/docs/messages/prerender-error
+               Error: Route "/sync-random-without-fallback": Next.js encountered the unstable value \`Math.random()\` while prerendering.
+
+               This value can change between renders, so it must be either prerendered or computed later.
+
+               Ways to fix this:
+                 - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+                 - [cache] Prerender and cache the value with \`"use cache"\`
+                 - [client] Render the value on the client with \`"use client"\`
+
+               Learn more: https://nextjs.org/docs/messages/blocking-prerender-random
 
                > Export encountered errors on 1 path:
                	/sync-random-without-fallback/page: /sync-random-without-fallback"
@@ -254,6 +304,16 @@ export function registerSyncDynamicTests(ctx: CacheComponentsErrorsContext) {
                  35 | function RandomReadingComponent() {
                To debug the issue, start the app in development mode by running \`next dev\`, then open "/sync-random-without-fallback" in your browser to investigate the error.
                Error occurred prerendering page "/sync-random-without-fallback". Read more: https://nextjs.org/docs/messages/prerender-error
+               Error: Route "/sync-random-without-fallback": Next.js encountered the unstable value \`Math.random()\` while prerendering.
+
+               This value can change between renders, so it must be either prerendered or computed later.
+
+               Ways to fix this:
+                 - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+                 - [cache] Prerender and cache the value with \`"use cache"\`
+                 - [client] Render the value on the client with \`"use client"\`
+
+               Learn more: https://nextjs.org/docs/messages/blocking-prerender-random
 
                > Export encountered errors on 1 path:
                	/sync-random-without-fallback/page: /sync-random-without-fallback"
@@ -284,6 +344,16 @@ export function registerSyncDynamicTests(ctx: CacheComponentsErrorsContext) {
                  - Start the app in development mode by running \`next dev\`, then open "/sync-random-without-fallback" in your browser to investigate the error.
                  - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
                Error occurred prerendering page "/sync-random-without-fallback". Read more: https://nextjs.org/docs/messages/prerender-error
+               Error: Route "/sync-random-without-fallback": Next.js encountered the unstable value \`Math.random()\` while prerendering.
+
+               This value can change between renders, so it must be either prerendered or computed later.
+
+               Ways to fix this:
+                 - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+                 - [cache] Prerender and cache the value with \`"use cache"\`
+                 - [client] Render the value on the client with \`"use client"\`
+
+               Learn more: https://nextjs.org/docs/messages/blocking-prerender-random
                Export encountered an error on /sync-random-without-fallback/page: /sync-random-without-fallback, exiting the build."
               `)
             } else {
@@ -303,6 +373,16 @@ export function registerSyncDynamicTests(ctx: CacheComponentsErrorsContext) {
                  - Start the app in development mode by running \`next dev\`, then open "/sync-random-without-fallback" in your browser to investigate the error.
                  - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
                Error occurred prerendering page "/sync-random-without-fallback". Read more: https://nextjs.org/docs/messages/prerender-error
+               Error: Route "/sync-random-without-fallback": Next.js encountered the unstable value \`Math.random()\` while prerendering.
+
+               This value can change between renders, so it must be either prerendered or computed later.
+
+               Ways to fix this:
+                 - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+                 - [cache] Prerender and cache the value with \`"use cache"\`
+                 - [client] Render the value on the client with \`"use client"\`
+
+               Learn more: https://nextjs.org/docs/messages/blocking-prerender-random
                Export encountered an error on /sync-random-without-fallback/page: /sync-random-without-fallback, exiting the build."
               `)
             }
