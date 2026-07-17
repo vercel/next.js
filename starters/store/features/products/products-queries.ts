@@ -61,3 +61,17 @@ export async function getProduct(slug: string) {
   }
   return product;
 }
+
+export async function searchProducts(query: string) {
+  "use cache";
+  cacheLife("hours");
+  cacheTag("products", `search:${query}`);
+
+  await delay();
+  const q = query.toLowerCase();
+  return products.filter(
+    (product) =>
+      product.name.toLowerCase().includes(q) ||
+      product.description.toLowerCase().includes(q),
+  );
+}

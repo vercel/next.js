@@ -10,6 +10,7 @@ export async function ProductGrid() {
         <li key={product.slug}>
           <Link
             href={`/products/${product.slug}`}
+            prefetch
             className="flex h-full flex-col rounded-lg border border-foreground/10 p-4 hover:border-foreground/30"
           >
             <span className="font-medium">{product.name}</span>

@@ -16,6 +16,10 @@ export async function getConversations() {
 }
 
 export async function getConversation(id: string) {
+  "use cache: private";
+  cacheLife("hours");
+  cacheTag(`conversation:${id}`);
+
   await delay();
   const conversation = conversations.find((c) => c.id === id);
   if (!conversation) {

@@ -1,10 +1,12 @@
 "use server";
 
+import { updateTag } from "next/cache";
 import { cookies } from "next/headers";
-import { getCart } from "./cart-queries";
+import { parseCart } from "./cart-queries";
 
 export async function addToCart(slug: string) {
-  const cart = await getCart();
+  const cookieStore = await cookies();
+  const cart = parseCart(cookieStore.get("cart")?.value);
   const existing = cart.find((item) => item.slug === slug);
 
   const updated = existing
@@ -13,14 +15,15 @@ export async function addToCart(slug: string) {
       )
     : [...cart, { slug, quantity: 1 }];
 
-  const cookieStore = await cookies();
   cookieStore.set("cart", JSON.stringify(updated));
+  updateTag("cart");
 }
 
 export async function removeFromCart(slug: string) {
-  const cart = await getCart();
+  const cookieStore = await cookies();
+  const cart = parseCart(cookieStore.get("cart")?.value);
   const updated = cart.filter((item) => item.slug !== slug);
 
-  const cookieStore = await cookies();
   cookieStore.set("cart", JSON.stringify(updated));
+  updateTag("cart");
 }

@@ -19,3 +19,19 @@ export async function createConversation(prompt: string) {
   updateTag("conversations");
   redirect(`/chat/${id}`);
 }
+
+export async function appendTurn(
+  id: string,
+  userPrompt: string | null,
+  reply: string,
+) {
+  const conversation = conversations.find((c) => c.id === id);
+  if (!conversation) {
+    return;
+  }
+  if (userPrompt) {
+    conversation.messages.push({ role: "user", content: userPrompt });
+  }
+  conversation.messages.push({ role: "assistant", content: reply });
+  updateTag(`conversation:${id}`);
+}

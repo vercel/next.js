@@ -6,13 +6,7 @@ import { createPost, type PostState } from "@/features/feed/feed-actions";
 export function Composer() {
   const formRef = useRef<HTMLFormElement>(null);
   const [state, action, pending] = useActionState<PostState, FormData>(
-    async (prevState, formData) => {
-      const result = await createPost(prevState, formData);
-      if (!result) {
-        formRef.current?.reset();
-      }
-      return result;
-    },
+    createPost,
     null,
   );
 
@@ -21,8 +15,15 @@ export function Composer() {
       <textarea
         name="body"
         rows={2}
+        disabled={pending}
         placeholder="What's happening?"
-        className="resize-none rounded-lg border border-foreground/20 bg-background px-3 py-2 text-sm"
+        onKeyDown={(event) => {
+          if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
+            event.preventDefault();
+            formRef.current?.requestSubmit();
+          }
+        }}
+        className="resize-none rounded-lg border border-foreground/20 bg-background px-3 py-2 text-sm disabled:opacity-70"
       />
       {state?.error ? (
         <p className="text-sm text-red-600 dark:text-red-400">{state.error}</p>

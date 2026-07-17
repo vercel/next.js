@@ -10,7 +10,11 @@ export async function PostList() {
         <li key={post.slug}>
           <article>
             <h2 className="font-medium">
-              <Link href={`/blog/${post.slug}`} className="hover:underline">
+              <Link
+                href={`/blog/${post.slug}`}
+                prefetch
+                className="hover:underline"
+              >
                 {post.title}
               </Link>
             </h2>

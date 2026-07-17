@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { appendTurn } from "@/features/chat/chat-actions";
 import type { Message } from "@/features/chat/chat-data";
 import { Composer } from "./composer";
 
@@ -16,19 +17,20 @@ export function Conversation({
   const startedRef = useRef(false);
 
   const streamReply = useCallback(
-    async (prompt?: string) => {
+    async (prompt: string, persistUser: boolean) => {
       setIsStreaming(true);
       setMessages((current) => [
         ...current,
-        ...(prompt ? [{ role: "user" as const, content: prompt }] : []),
-        { role: "assistant", content: "" },
+        ...(persistUser ? [{ role: "user" as const, content: prompt }] : []),
+        { role: "assistant" as const, content: "" },
       ]);
 
+      let reply = "";
       try {
         const response = await fetch("/api/chat", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ id, prompt }),
+          body: JSON.stringify({ prompt }),
         });
         if (!response.ok || !response.body) {
           throw new Error(`Request failed with ${response.status}`);
@@ -41,17 +43,15 @@ export function Conversation({
           if (done) {
             break;
           }
-          const chunk = decoder.decode(value, { stream: true });
+          reply += decoder.decode(value, { stream: true });
+          const content = reply;
           setMessages((current) => {
             const next = [...current];
-            const last = next[next.length - 1];
-            next[next.length - 1] = {
-              role: "assistant",
-              content: last.content + chunk,
-            };
+            next[next.length - 1] = { role: "assistant", content };
             return next;
           });
         }
+        await appendTurn(id, persistUser ? prompt : null, reply);
       } catch {
         setMessages((current) => {
           const next = [...current];
@@ -72,7 +72,7 @@ export function Conversation({
     const last = initialMessages[initialMessages.length - 1];
     if (!startedRef.current && last?.role === "user") {
       startedRef.current = true;
-      void streamReply();
+      void streamReply(last.content, false);
     }
   }, [initialMessages, streamReply]);
 
@@ -92,16 +92,23 @@ export function Conversation({
           </li>
         ))}
       </ul>
-      <Composer disabled={isStreaming} onSend={(text) => streamReply(text)} />
+      <Composer
+        disabled={isStreaming}
+        onSend={(text) => streamReply(text, true)}
+      />
     </div>
   );
 }
 
 export function ConversationSkeleton() {
   return (
-    <div aria-hidden className="flex flex-1 flex-col gap-4">
-      <div className="h-9 w-40 self-end rounded-2xl bg-foreground/10" />
-      <div className="h-16 w-full max-w-prose animate-pulse rounded bg-foreground/10" />
+    <div aria-hidden className="flex flex-col gap-4">
+      <div className="h-8 w-40 self-end rounded-2xl bg-foreground/10" />
+      <div className="flex max-w-prose flex-col gap-2">
+        <div className="h-4 w-full animate-pulse rounded bg-foreground/10" />
+        <div className="h-4 w-5/6 animate-pulse rounded bg-foreground/10" />
+        <div className="h-4 w-2/3 animate-pulse rounded bg-foreground/10" />
+      </div>
     </div>
   );
 }

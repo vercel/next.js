@@ -7,8 +7,10 @@ import { getProduct, getProducts } from "@/features/products/products-queries";
 
 export async function generateStaticParams() {
   const products = await getProducts();
-  return products.map((product) => ({ slug: product.slug }));
+  return products.slice(0, 1).map((product) => ({ slug: product.slug }));
 }
+
+export const prefetch = "allow-runtime";
 
 export async function generateMetadata(props: PageProps<"/products/[slug]">) {
   const { slug } = await props.params;

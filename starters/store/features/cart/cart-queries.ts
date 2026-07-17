@@ -1,6 +1,6 @@
 import "server-only";
+import { cacheLife, cacheTag } from "next/cache";
 import { cookies } from "next/headers";
-import { cache } from "react";
 
 export type CartItem = {
   slug: string;
@@ -11,10 +11,7 @@ function delay() {
   return new Promise((resolve) => setTimeout(resolve, 500));
 }
 
-export const getCart = cache(async () => {
-  await delay();
-  const cookieStore = await cookies();
-  const value = cookieStore.get("cart")?.value;
+export function parseCart(value: string | undefined): CartItem[] {
   if (!value) {
     return [];
   }
@@ -34,9 +31,19 @@ export const getCart = cache(async () => {
   } catch {
     return [];
   }
-});
+}
 
-export const getCartCount = cache(async () => {
+export async function getCart() {
+  "use cache: private";
+  cacheLife("hours");
+  cacheTag("cart");
+
+  await delay();
+  const cookieStore = await cookies();
+  return parseCart(cookieStore.get("cart")?.value);
+}
+
+export async function getCartCount() {
   const cart = await getCart();
   return cart.reduce((total, item) => total + item.quantity, 0);
-});
+}
