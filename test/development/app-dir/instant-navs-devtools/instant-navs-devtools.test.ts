@@ -607,6 +607,54 @@ describe('instant-nav-panel', () => {
       await clearInstantModeCookie(browser)
     })
 
+    async function expectPostLoadingAt(pathname: string, browser: Playwright) {
+      await retry(
+        async () => {
+          expect(new URL(await browser.url()).pathname).toBe(pathname)
+        },
+        3_000,
+        100
+      )
+
+      await browser
+        .locator('[data-testid="post-loading"]')
+        .first()
+        .waitFor({ state: 'visible' })
+    }
+
+    it('should continue capturing loading navigations when starting on a dynamic route', async () => {
+      const browser = await next.browser('/post/1')
+      await clearInstantModeCookie(browser)
+      await browser.waitForElementByCss('[data-testid="post"]')
+      await waitForAppHydration(browser)
+
+      await openInstantNavPanel(browser)
+      await clickStartCapturing(browser)
+      await expectPendingPanel(browser)
+
+      await clickLink(browser, '/post/2')
+      await expectSpaPanel(browser)
+      await expectPostLoadingAt('/post/2', browser)
+
+      await clickLink(browser, '/post/1')
+      await expectPostLoadingAt('/post/1', browser)
+    })
+
+    it('should continue capturing loading navigations after starting on the home route', async () => {
+      const browser = await openHomeWithTargetPageWarmup()
+
+      await openInstantNavPanel(browser)
+      await clickStartCapturing(browser)
+      await expectPendingPanel(browser)
+
+      await clickLink(browser, '/post/1')
+      await expectSpaPanel(browser)
+      await expectPostLoadingAt('/post/1', browser)
+
+      await clickLink(browser, '/post/2')
+      await expectPostLoadingAt('/post/2', browser)
+    })
+
     it('should reset the panel and app when pressing the close button from captured SPA state', async () => {
       const browser = await openHomeWithTargetPageWarmup()
 

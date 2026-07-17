@@ -947,7 +947,6 @@ async function generateStagedDynamicFlightRenderResultNode(
   const { routeModule } = componentMod
   const { loaderTree } = routeModule.userland
   const { onInstrumentationRequestError, experimental } = renderOpts
-  const { appShells } = experimental
 
   function onFlightDataRenderError(err: DigestedError, silenceLog: boolean) {
     return onInstrumentationRequestError?.(
@@ -995,9 +994,7 @@ async function generateStagedDynamicFlightRenderResultNode(
     selectStaleTime
   )
 
-  const shellByteLengthDeferred = appShells
-    ? createPromiseWithResolvers<number | null>()
-    : null
+  const shellByteLengthDeferred = createPromiseWithResolvers<number | null>()
   const staticStageByteLengthDeferred = createPromiseWithResolvers<number>()
 
   let runtimePrefetchStream: ReadableStream<Uint8Array> | undefined
@@ -1052,7 +1049,7 @@ async function generateStagedDynamicFlightRenderResultNode(
     {
       staleTimeIterable,
       staticStageByteLengthPromise: staticStageByteLengthDeferred.promise,
-      shellByteLengthPromise: shellByteLengthDeferred?.promise,
+      shellByteLengthPromise: shellByteLengthDeferred.promise,
       runtimePrefetchStream,
     }
   )
@@ -1079,7 +1076,7 @@ async function generateStagedDynamicFlightRenderResultNode(
       void countShellAndStaticStageBytes(staticStream, stageController).then(
         (byteLengths) => {
           staticStageByteLengthDeferred.resolve(byteLengths[RenderStage.Static])
-          shellByteLengthDeferred?.resolve(byteLengths[RenderStage.ShellStatic])
+          shellByteLengthDeferred.resolve(byteLengths[RenderStage.ShellStatic])
         }
       )
 
@@ -1120,22 +1117,18 @@ async function spawnRuntimePrefetchWithFilledCaches(
   onError: (err: unknown) => string | undefined
 ): Promise<void> {
   try {
-    const { componentMod, getDynamicParamFromSegment, renderOpts } = ctx
+    const { componentMod, getDynamicParamFromSegment } = ctx
     const { loaderTree } = componentMod.routeModule.userland
-    const { appShells } = renderOpts.experimental
 
     const rootParams = getRootParams(loaderTree, getDynamicParamFromSegment)
     const staleTimeIterable = new StaleTimeIterable()
 
-    const mode: RuntimePrerenderMode = appShells
-      ? // If appShells is on, we want to be able to rewind the result to a session shell.
-        {
-          type: 'rewindable-session-shell',
-          shellUsedSessionDataDeferred: createPromiseWithResolvers(),
-          shellByteLengthDeferred: createPromiseWithResolvers(),
-        }
-      : // Otherwise, render everything without considering shells.
-        { type: 'runtime-only' }
+    // We want to be able to rewind the result to a session shell.
+    const mode: RuntimePrerenderMode = {
+      type: 'rewindable-session-shell',
+      shellUsedSessionDataDeferred: createPromiseWithResolvers(),
+      shellByteLengthDeferred: createPromiseWithResolvers(),
+    }
 
     const { result } = await finalRuntimeServerPrerender(
       mode,
@@ -1146,10 +1139,7 @@ async function spawnRuntimePrefetchWithFilledCaches(
           mode.type === 'rewindable-session-shell'
             ? mode.shellByteLengthDeferred.promise
             : undefined,
-        shellUsedSessionDataPromise:
-          mode.type !== 'runtime-only'
-            ? mode.shellUsedSessionDataDeferred.promise
-            : undefined,
+        shellUsedSessionDataPromise: mode.shellUsedSessionDataDeferred.promise,
       }),
       prerenderResumeDataCache,
       rootParams,
@@ -1479,7 +1469,6 @@ async function generateRuntimePrefetchResult(
     onInstrumentationRequestError,
     setReactDebugChannel,
   } = renderOpts
-  const { appShells } = renderOpts.experimental
 
   function onFlightDataRenderError(err: DigestedError, silenceLog: boolean) {
     return onInstrumentationRequestError?.(
@@ -1525,18 +1514,16 @@ async function generateRuntimePrefetchResult(
     requestStore.draftMode
   )
 
-  const mode: RuntimePrerenderMode = appShells
-    ? isShellPrefetch
-      ? {
-          type: 'session-shell-only',
-          shellUsedSessionDataDeferred: createPromiseWithResolvers(),
-        }
-      : {
-          type: 'rewindable-session-shell',
-          shellUsedSessionDataDeferred: createPromiseWithResolvers(),
-          shellByteLengthDeferred: createPromiseWithResolvers(),
-        }
-    : { type: 'runtime-only' }
+  const mode: RuntimePrerenderMode = isShellPrefetch
+    ? {
+        type: 'session-shell-only',
+        shellUsedSessionDataDeferred: createPromiseWithResolvers(),
+      }
+    : {
+        type: 'rewindable-session-shell',
+        shellUsedSessionDataDeferred: createPromiseWithResolvers(),
+        shellByteLengthDeferred: createPromiseWithResolvers(),
+      }
 
   const debugChannel = setReactDebugChannel
     ? createWebDebugChannel()
@@ -1554,10 +1541,7 @@ async function generateRuntimePrefetchResult(
         mode.type === 'rewindable-session-shell'
           ? mode.shellByteLengthDeferred.promise
           : undefined,
-      shellUsedSessionDataPromise:
-        mode.type !== 'runtime-only'
-          ? mode.shellUsedSessionDataDeferred.promise
-          : undefined,
+      shellUsedSessionDataPromise: mode.shellUsedSessionDataDeferred.promise,
     }),
     prerenderResumeDataCache,
     rootParams,
@@ -1731,7 +1715,6 @@ function prependIsPartialByteToChunks(
 }
 
 type RuntimePrerenderMode =
-  | { type: 'runtime-only' }
   | {
       type: 'session-shell-only'
       shellUsedSessionDataDeferred: PromiseWithResolvers<boolean>
@@ -1821,20 +1804,14 @@ async function finalRuntimeServerPrerender(
 
   const streamState = createStreamPendingState()
   const collectedChunks = createPrerenderChunksAccumulator()
-  const stageByteLengths =
-    mode.type === 'rewindable-session-shell' ||
-    mode.type === 'session-shell-only'
-      ? createStageByteLengths()
-      : null
+  const stageByteLengths = createStageByteLengths()
   const collectChunk = (chunk: Uint8Array) => {
     collectPrerenderChunk(collectedChunks, finalServerController.signal, chunk)
-    if (stageByteLengths) {
-      increaseChunkByteLengths(
-        stageByteLengths,
-        finalStageController.currentStage,
-        chunk.byteLength
-      )
-    }
+    increaseChunkByteLengths(
+      stageByteLengths,
+      finalStageController.currentStage,
+      chunk.byteLength
+    )
   }
 
   let didHandleUnexpectedAbort = false
@@ -1921,20 +1898,12 @@ async function finalRuntimeServerPrerender(
       // (fast immediates will be drained at the end of the task, so in the next task we know we're done flushing)
 
       // Check if session data unblocked new content in the shell.
-      if (
-        (mode.type === 'rewindable-session-shell' ||
-          mode.type === 'session-shell-only') &&
-        stageByteLengths
-      ) {
-        const didSessionDataUnblockNewContent =
-          stageByteLengths[RenderStage.ShellRuntime] >
-          stageByteLengths[RenderStage.Static]
-        mode.shellUsedSessionDataDeferred.resolve(
-          didSessionDataUnblockNewContent
-        )
-      }
+      const didSessionDataUnblockNewContent =
+        stageByteLengths[RenderStage.ShellRuntime] >
+        stageByteLengths[RenderStage.Static]
+      mode.shellUsedSessionDataDeferred.resolve(didSessionDataUnblockNewContent)
 
-      if (mode.type === 'rewindable-session-shell' && stageByteLengths) {
+      if (mode.type === 'rewindable-session-shell') {
         // If advancing to the runtime stage didn't unblock new content,
         // then the result does not depend on link data and can be used as a shell (indicated via `null`).
         // Otherwise, send a byte length to indicate where the shell content ends.
@@ -3281,7 +3250,7 @@ async function renderToStream(
     cacheComponents,
   } = renderOpts
 
-  const { cachedNavigations, appShells } = renderOpts.experimental
+  const { cachedNavigations } = renderOpts.experimental
 
   const { ServerInsertedHTMLProvider, renderServerInsertedHTML } =
     createServerInsertedHTML()
@@ -3587,9 +3556,9 @@ async function renderToStream(
           selectStaleTime
         )
 
-        const shellByteLengthDeferred = appShells
-          ? createPromiseWithResolvers<number | null>()
-          : null
+        const shellByteLengthDeferred = createPromiseWithResolvers<
+          number | null
+        >()
         const staticStageByteLengthDeferred =
           createPromiseWithResolvers<number>()
 
@@ -3639,7 +3608,7 @@ async function renderToStream(
           {
             is404: res.statusCode === 404,
             staleTimeIterable,
-            shellByteLengthPromise: shellByteLengthDeferred?.promise,
+            shellByteLengthPromise: shellByteLengthDeferred.promise,
             staticStageByteLengthPromise: staticStageByteLengthDeferred.promise,
             runtimePrefetchStream,
           }
@@ -3672,7 +3641,7 @@ async function renderToStream(
               staticStageByteLengthDeferred.resolve(
                 byteLengths[RenderStage.Static]
               )
-              shellByteLengthDeferred?.resolve(
+              shellByteLengthDeferred.resolve(
                 byteLengths[RenderStage.ShellStatic]
               )
             })
@@ -7754,7 +7723,7 @@ async function prerenderToStream(
     cacheComponents,
   } = renderOpts
 
-  const { cachedNavigations, appShells } = renderOpts.experimental
+  const { cachedNavigations } = renderOpts.experimental
 
   const renderFlightStream = process.env.__NEXT_USE_NODE_STREAMS
     ? renderToNodeFlightStream
@@ -8278,9 +8247,9 @@ async function prerenderToStream(
         varyParamsAccumulator,
       }
 
-      const shellByteLengthDeferred = appShells
-        ? createPromiseWithResolvers<number | null>()
-        : null
+      const shellByteLengthDeferred = createPromiseWithResolvers<
+        number | null
+      >()
 
       const finalServerPayload = await workUnitAsyncStorage.run(
         finalServerPayloadPrerenderStore,
@@ -8289,7 +8258,7 @@ async function prerenderToStream(
         ctx,
         {
           is404: res.statusCode === 404,
-          shellByteLengthPromise: shellByteLengthDeferred?.promise,
+          shellByteLengthPromise: shellByteLengthDeferred.promise,
         }
       )
 
@@ -8335,22 +8304,18 @@ async function prerenderToStream(
 
       const streamState = createStreamPendingState()
       const collectedChunks = createPrerenderChunksAccumulator()
-      const collectedChunksByStage = appShells
-        ? createStageChunksAccumulator()
-        : null
+      const collectedChunksByStage = createStageChunksAccumulator()
       const collectChunk = (chunk: Uint8Array) => {
         collectPrerenderChunk(
           collectedChunks,
           finalServerReactController.signal,
           chunk
         )
-        if (collectedChunksByStage) {
-          collectStageChunk(
-            collectedChunksByStage,
-            finalStageController.currentStage,
-            chunk
-          )
-        }
+        collectStageChunk(
+          collectedChunksByStage,
+          finalStageController.currentStage,
+          chunk
+        )
       }
 
       let didHandleUnexpectedAbort = false
@@ -8456,11 +8421,9 @@ async function prerenderToStream(
           // then the prerender uses link data.
           // NOTE: we must capture this *before* resolving staleTime/varyParams,
           // which always emit new static chunks.
-          if (collectedChunksByStage) {
-            didLinkDataUnblockNewContent =
-              collectedChunksByStage.staticChunks.length >
-              collectedChunksByStage.shellStaticChunks.length
-          }
+          didLinkDataUnblockNewContent =
+            collectedChunksByStage.staticChunks.length >
+            collectedChunksByStage.shellStaticChunks.length
 
           // Now that the prerendering is complete, we know the final stale
           // time and vary params. Close the stale time iterable and resolve
@@ -8473,16 +8436,14 @@ async function prerenderToStream(
           }
           finishAccumulatingVaryParams(varyParamsAccumulator)
 
-          if (shellByteLengthDeferred && collectedChunksByStage) {
-            shellByteLengthDeferred.resolve(
-              didLinkDataUnblockNewContent
-                ? collectedChunksByStage.shellStaticChunks.reduce(
-                    (acc, chunk) => acc + chunk.byteLength,
-                    0
-                  )
-                : null
-            )
-          }
+          shellByteLengthDeferred.resolve(
+            didLinkDataUnblockNewContent
+              ? collectedChunksByStage.shellStaticChunks.reduce(
+                  (acc, chunk) => acc + chunk.byteLength,
+                  0
+                )
+              : null
+          )
         },
         () => {
           if (checkUnexpectedAbort()) return
@@ -8536,24 +8497,22 @@ async function prerenderToStream(
           ctx.pagePath,
           metadata
         )
-        if (appShells && collectedChunksByStage) {
-          // If link data (static params) unblocked new content, then the shell has to be partial.
-          // If not, then the shell prerender and the static prerender are the same except for staleTime/varyParams.
-          const shellIsPartial = didLinkDataUnblockNewContent
-            ? true
-            : resultIsPartial
+        // If link data (static params) unblocked new content, then the shell has to be partial.
+        // If not, then the shell prerender and the static prerender are the same except for staleTime/varyParams.
+        const shellIsPartial = didLinkDataUnblockNewContent
+          ? true
+          : resultIsPartial
 
-          metadata.segmentData ??= new Map()
-          metadata.segmentData.set(
-            '/_shell',
-            Buffer.concat(
-              prependIsPartialByteToChunks(
-                collectedChunksByStage.shellStaticChunks,
-                shellIsPartial
-              )
+        metadata.segmentData ??= new Map()
+        metadata.segmentData.set(
+          '/_shell',
+          Buffer.concat(
+            prependIsPartialByteToChunks(
+              collectedChunksByStage.shellStaticChunks,
+              shellIsPartial
             )
           )
-        }
+        )
       }
 
       const clientDynamicTracking = createDynamicTrackingState(

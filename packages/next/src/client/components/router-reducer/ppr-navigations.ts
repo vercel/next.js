@@ -12,7 +12,6 @@ import {
   NOT_FOUND_SEGMENT_KEY,
 } from '../../../shared/lib/segment'
 import { matchSegment } from '../match-segments'
-import type { NavigationLockState } from '../segment-cache/navigation-testing-lock'
 import { createHrefFromUrl } from './create-href-from-url'
 import { fetchServerResponse } from './fetch-server-response'
 import { dispatchAppRouterAction } from '../use-action-queue'
@@ -142,7 +141,15 @@ export type NavigationRequestAccumulation = {
   scrollRef: ScrollRef | null
 }
 
-export type NavigationLock = NavigationLockState | null
+/**
+ * A locked navigation's withheld-data gate, for the Instant Navigation Testing
+ * API. Captured — as an immutable promise — when the navigation begins (via
+ * `beginLockedNavigation`) or when router work spawns a dynamic write outside
+ * a navigation (via `getCurrentNavigationLock`), and threaded to the write,
+ * which awaits it before applying dynamic data. Resolves when a newer locked
+ * navigation begins or the lock is released.
+ */
+export type NavigationLock = Promise<void>
 
 const noop = () => {}
 
@@ -1416,7 +1423,7 @@ export function spawnDynamicRequests(
   // server-patch retry logic so it can inherit the intent if the original
   // transition hasn't committed yet.
   navigateType: 'push' | 'replace',
-  navigationLock: NavigationLock,
+  navigationLock: NavigationLock | null,
   signal: AbortSignal | undefined
 ): void {
   const dynamicRequestTree = task.dynamicRequestTree
@@ -1774,7 +1781,7 @@ async function fetchMissingDynamicData(
   nextUrl: string | null,
   freshnessPolicy: FreshnessPolicy,
   routeCacheEntry: FulfilledRouteCacheEntry | null,
-  navigationLock: NavigationLock,
+  navigationLock: NavigationLock | null,
   signal: AbortSignal | undefined
 ): Promise<{
   exitStatus: NavigationTaskExitStatus
@@ -1812,8 +1819,8 @@ async function fetchMissingDynamicData(
     // If the navigation lock is active, wait for it to be released before
     // writing the dynamic data. This allows tests to assert on the prefetched
     // UI state.
-    if (process.env.__NEXT_EXPOSE_TESTING_API) {
-      await waitForNavigationLock(navigationLock)
+    if (process.env.__NEXT_EXPOSE_TESTING_API && navigationLock !== null) {
+      await navigationLock
     }
 
     // TODO: Implement Shell extraction as part of Cached Navigations.
@@ -2300,25 +2307,36 @@ function createDeferredRsc<
 }
 
 /**
- * Helper for the Instant Navigation Testing API. Snapshots the lock that is
- * active when a navigation starts, so the navigation can wait for the same lock
- * even if another lock is acquired before its dynamic response is applied.
+ * Helper for the Instant Navigation Testing API. Captures the withheld-data
+ * gate of the locked navigation that is current when router work spawns a
+ * dynamic write, so the write awaits that same gate even if a newer locked
+ * navigation rolls the lock over before its response is applied.
  *
  * Not exposed in production builds by default.
  */
-export function getCurrentNavigationLock(): NavigationLock {
+export function getCurrentNavigationLock(): NavigationLock | null {
   if (process.env.__NEXT_EXPOSE_TESTING_API) {
-    const { getCurrentNavigationLock: getCurrentLock } =
+    const { getCurrentNavigationGate } =
       require('../segment-cache/navigation-testing-lock') as typeof import('../segment-cache/navigation-testing-lock')
-    return getCurrentLock()
+    return getCurrentNavigationGate()
   }
   return null
 }
 
-async function waitForNavigationLock(lock: NavigationLock): Promise<void> {
+/**
+ * Helper for the Instant Navigation Testing API. Signals that a new locked
+ * navigation is beginning: force-resolves the previous locked navigation's
+ * withheld-data gate (without ending the scope) and returns a fresh gate for
+ * this navigation, which the caller threads to its dynamic-data write. See
+ * `beginLockedNavigation` in `navigation-testing-lock`.
+ *
+ * Not exposed in production builds by default.
+ */
+export function beginLockedNavigation(): NavigationLock | null {
   if (process.env.__NEXT_EXPOSE_TESTING_API) {
-    const { waitForNavigationLockIfActive } =
+    const { beginLockedNavigation: begin } =
       require('../segment-cache/navigation-testing-lock') as typeof import('../segment-cache/navigation-testing-lock')
-    await waitForNavigationLockIfActive(lock)
+    return begin()
   }
+  return null
 }
