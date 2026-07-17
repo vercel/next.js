@@ -2,11 +2,14 @@
 #![feature(arbitrary_self_types_pointers)]
 #![allow(clippy::needless_return)] // tokio macro-generated code doesn't respect this
 
+use std::sync::atomic::{AtomicUsize, Ordering};
+
 use anyhow::Result;
-use turbo_tasks::Vc;
+use turbo_tasks::{ResolvedVc, State, Vc};
 use turbo_tasks_testing::{Registration, register, run_once};
 
 static REGISTRATION: Registration = register!();
+static CACHED_TOP_LEVEL_EXECUTIONS: AtomicUsize = AtomicUsize::new(0);
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_basic() {
@@ -18,6 +21,46 @@ async fn test_basic() {
     })
     .await
     .unwrap()
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn test_dirty_top_level_cached_root() {
+    CACHED_TOP_LEVEL_EXECUTIONS.store(0, Ordering::SeqCst);
+    let instance = REGISTRATION.create_turbo_tasks("dirty_top_level_cached_root", true);
+    let tt = instance.tt;
+
+    let input = turbo_tasks::run(tt.clone(), async {
+        Ok(create_cached_top_level_input()
+            .resolve()
+            .strongly_consistent()
+            .await?)
+    })
+    .await
+    .unwrap();
+
+    let value = turbo_tasks::run(tt.clone(), async move {
+        Ok(cached_top_level_value(*input)
+            .strongly_consistent()
+            .await?
+            .value)
+    })
+    .await
+    .unwrap();
+    assert_eq!(value, 7);
+
+    let value = turbo_tasks::run(tt.clone(), async move {
+        input.await?.state.set(9);
+        Ok(cached_top_level_value(*input)
+            .strongly_consistent()
+            .await?
+            .value)
+    })
+    .await
+    .unwrap();
+    assert_eq!(value, 9);
+
+    assert_eq!(CACHED_TOP_LEVEL_EXECUTIONS.load(Ordering::SeqCst), 2);
+    tt.stop_and_wait().await;
 }
 
 #[turbo_tasks::function(operation, root)]
@@ -47,6 +90,26 @@ async fn test_basic_operation(nonce: u32) -> Result<Vc<()>> {
 #[derive(Clone, Debug)]
 struct Value {
     value: u32,
+}
+
+#[turbo_tasks::value]
+struct CachedTopLevelInput {
+    state: State<u32>,
+}
+
+#[turbo_tasks::function(operation, root)]
+fn create_cached_top_level_input() -> Vc<CachedTopLevelInput> {
+    CachedTopLevelInput {
+        state: State::new(7),
+    }
+    .cell()
+}
+
+#[turbo_tasks::function(root)]
+async fn cached_top_level_value(input: ResolvedVc<CachedTopLevelInput>) -> Result<Vc<Value>> {
+    CACHED_TOP_LEVEL_EXECUTIONS.fetch_add(1, Ordering::SeqCst);
+    let value = *input.await?.state.get();
+    Ok(Value { value }.cell())
 }
 
 #[turbo_tasks::function]

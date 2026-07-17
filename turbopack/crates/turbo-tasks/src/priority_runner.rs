@@ -38,6 +38,12 @@ struct HeapItem<P, T> {
     task: T,
 }
 
+#[cfg(test)]
+struct GraceWindowHook {
+    entered: std::sync::mpsc::Sender<()>,
+    proceed: std::sync::mpsc::Receiver<()>,
+}
+
 impl<P: Eq, T> PartialEq for HeapItem<P, T> {
     fn eq(&self, other: &Self) -> bool {
         self.priority == other.priority
@@ -69,8 +75,12 @@ pub struct PriorityRunner<
     target_workers: usize,
     /// The queue of tasks to execute. These tasks are not scheduled yet.
     queue: Mutex<BinaryHeap<HeapItem<P, T>>>,
+    #[cfg(test)]
+    grace_window_hook: Mutex<Option<GraceWindowHook>>,
     /// The number of active workers currently polling tasks.
-    /// Workers that responded with Poll::Pending are not counted until they are polled again.
+    /// Workers whose current task returned `Poll::Pending` are not counted until they are polled
+    /// again. Workers that self-yield after completing a task remain counted while they check for
+    /// follow-up work.
     active_workers: AtomicUsize,
     phantom: std::marker::PhantomData<C>,
 }
@@ -87,6 +97,8 @@ impl<
             executor,
             target_workers: tokio::runtime::Handle::current().metrics().num_workers(),
             queue: Mutex::new(BinaryHeap::new()),
+            #[cfg(test)]
+            grace_window_hook: Mutex::new(None),
             active_workers: AtomicUsize::new(0),
             phantom: std::marker::PhantomData,
         }
@@ -161,6 +173,32 @@ impl<
         }
     }
 
+    /// On a single-worker runtime, after the worker has already yielded once, briefly release the
+    /// OS thread between queue checks so a concurrent producer can enqueue a sequential follow-up
+    /// without busy-waiting. Multi-worker runtimes can rely on another worker for that handoff.
+    fn pop_future_from_worker_after_yield(&self, execute_context: &Arc<C>) -> Option<E::Future> {
+        const FOLLOW_UP_YIELDS: usize = 16;
+
+        if self.target_workers > 1 {
+            return self.pop_future_from_worker(execute_context);
+        }
+
+        #[cfg(test)]
+        if let Some(hook) = self.grace_window_hook.lock().take() {
+            hook.entered.send(()).unwrap();
+            hook.proceed
+                .recv_timeout(Duration::from_secs(1))
+                .expect("test should enqueue follow-up work before releasing the grace window");
+        }
+        for _ in 0..FOLLOW_UP_YIELDS {
+            std::thread::yield_now();
+            if let Some(future) = self.pop_future_from_worker(execute_context) {
+                return Some(future);
+            }
+        }
+        None
+    }
+
     fn spawn_worker_if_work_available(
         self: &Arc<Self>,
         execute_context: &Arc<C>,
@@ -199,6 +237,7 @@ enum WorkerState {
     UnfinishedFuture,
     PendingFuture,
     Done,
+    Yielded,
     Closed,
 }
 
@@ -286,7 +325,7 @@ impl<
                         }
                     }
                 }
-                WorkerState::Done => {
+                WorkerState::Done | WorkerState::Yielded => {
                     let active_workers = this.runner.active_workers.load(Ordering::Relaxed);
                     if active_workers > this.runner.target_workers {
                         // There are more active workers than target, so we should end this
@@ -298,9 +337,13 @@ impl<
 
                     // This future is done, we need to check the queue for more tasks,
                     // so we can continue working on a new future in this worker.
-                    if let Some(new_future) =
+                    let new_future = if matches!(this.state, WorkerState::Yielded) {
+                        this.runner
+                            .pop_future_from_worker_after_yield(this.execute_context)
+                    } else {
                         this.runner.pop_future_from_worker(this.execute_context)
-                    {
+                    };
+                    if let Some(new_future) = new_future {
                         // We are replacing the future with a new one, but the current future is
                         // pinned. So we need to drop the future in place
                         // and replace it with the new future, which becomes
@@ -314,11 +357,15 @@ impl<
                         }
                         *this.state = WorkerState::UnfinishedFuture;
                     } else {
-                        // No more tasks to execute
-                        // This worker ends here
-                        this.runner.decrease_active_workers(this.execute_context);
-                        *this.state = WorkerState::Closed;
-                        return Poll::Ready(());
+                        if matches!(this.state, WorkerState::Done) {
+                            cx.waker().wake_by_ref();
+                            *this.state = WorkerState::Yielded;
+                            return Poll::Pending;
+                        } else {
+                            this.runner.decrease_active_workers(this.execute_context);
+                            *this.state = WorkerState::Closed;
+                            return Poll::Ready(());
+                        }
                     }
                 }
             }
@@ -329,12 +376,121 @@ impl<
 #[cfg(test)]
 mod tests {
     use std::{
+        future::ready,
         sync::{Arc, Barrier},
         thread::sleep,
         time::Duration,
     };
 
     use super::*;
+
+    #[test]
+    fn test_sequential_follow_ups_finish_cleanly() {
+        struct TestContext {
+            completed: AtomicUsize,
+            completed_event: tokio::sync::Notify,
+        }
+
+        struct ExecutorImpl;
+
+        impl Executor<TestContext, usize, usize> for ExecutorImpl {
+            type Future = Pin<Box<dyn Future<Output = ()> + Send>>;
+
+            fn execute(
+                &self,
+                ctx: &Arc<TestContext>,
+                _task: usize,
+                _priority: usize,
+            ) -> Self::Future {
+                let ctx = ctx.clone();
+                Box::pin(async move {
+                    ctx.completed.fetch_add(1, Ordering::Release);
+                    ctx.completed_event.notify_one();
+                })
+            }
+        }
+
+        const TASKS: usize = 32;
+        tokio::runtime::Builder::new_multi_thread()
+            .worker_threads(1)
+            .disable_lifo_slot()
+            .enable_all()
+            .build()
+            .unwrap()
+            .block_on(async {
+                let runner = Arc::new(PriorityRunner::new(ExecutorImpl));
+                let ctx = Arc::new(TestContext {
+                    completed: AtomicUsize::new(0),
+                    completed_event: tokio::sync::Notify::new(),
+                });
+
+                for task in 0..TASKS {
+                    let completed = ctx.completed_event.notified();
+                    runner.schedule(&ctx, task, task);
+                    if ctx.completed.load(Ordering::Acquire) <= task {
+                        completed.await;
+                    }
+                }
+
+                tokio::time::timeout(Duration::from_secs(1), async {
+                    while runner.active_workers.load(Ordering::Acquire) != 0 {
+                        tokio::task::yield_now().await;
+                    }
+                })
+                .await
+                .expect("worker should leave the grace window and finish");
+
+                assert_eq!(ctx.completed.load(Ordering::Acquire), TASKS);
+                assert!(runner.queue.lock().is_empty());
+            });
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn test_single_worker_consumes_concurrent_follow_up_during_grace_window() {
+        struct ExecutorImpl;
+
+        impl Executor<(), usize, usize> for ExecutorImpl {
+            type Future = std::future::Ready<()>;
+
+            fn execute(&self, _ctx: &Arc<()>, _task: usize, _priority: usize) -> Self::Future {
+                ready(())
+            }
+        }
+
+        let runner = Arc::new(PriorityRunner::new(ExecutorImpl));
+        let ctx = Arc::new(());
+        runner
+            .active_workers
+            .store(runner.target_workers, Ordering::Release);
+
+        let (entered_tx, entered_rx) = std::sync::mpsc::channel();
+        let (proceed_tx, proceed_rx) = std::sync::mpsc::channel();
+        *runner.grace_window_hook.lock() = Some(GraceWindowHook {
+            entered: entered_tx,
+            proceed: proceed_rx,
+        });
+
+        let consumer_runner = runner.clone();
+        let consumer_ctx = ctx.clone();
+        let consumer = std::thread::spawn(move || {
+            consumer_runner.pop_future_from_worker_after_yield(&consumer_ctx)
+        });
+        entered_rx
+            .recv_timeout(Duration::from_secs(1))
+            .expect("consumer should enter the grace window with an empty queue");
+        runner.schedule(&ctx, 0, 0);
+        proceed_tx.send(()).unwrap();
+
+        let future = consumer
+            .join()
+            .expect("consumer thread should not panic")
+            .expect("yielded worker should observe the concurrent follow-up");
+        future.await;
+        assert!(runner.queue.lock().is_empty());
+
+        // No WorkerFuture owns the synthetic active count used to force `schedule` to queue.
+        runner.active_workers.store(0, Ordering::Release);
+    }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn test_cpu_bound_tasks() {
