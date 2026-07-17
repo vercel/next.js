@@ -107,6 +107,15 @@ const program = new Command(packageJson.name)
 `
   )
   .option(
+    '--starter <starter-name>',
+    `
+
+  A starter to bootstrap the app with, from the official Next.js repo
+  (https://github.com/vercel/next.js/tree/canary/starters). Cannot be
+  combined with --example.
+`
+  )
+  .option(
     '--agents-md',
     'Include AGENTS.md to guide coding agents to write up-to-date Next.js code. (default)'
   )
@@ -215,11 +224,26 @@ async function run(): Promise<void> {
     process.exit(1)
   }
 
+  if (opts.starter === true) {
+    console.error(
+      'Please provide a starter name, otherwise remove the starter option.'
+    )
+    process.exit(1)
+  }
+
+  if (opts.example && opts.starter) {
+    console.error(
+      'The --example and --starter options cannot be combined. Please use one or the other.'
+    )
+    process.exit(1)
+  }
+
   if (existsSync(appPath) && !isFolderEmpty(appPath, appName)) {
     process.exit(1)
   }
 
   const example = typeof opts.example === 'string' && opts.example.trim()
+  const starter = typeof opts.starter === 'string' && opts.starter.trim()
   const preferences = (conf.get('preferences') || {}) as Record<
     string,
     boolean | string
@@ -232,7 +256,7 @@ async function run(): Promise<void> {
   let skipPrompt = ciInfo.isCI || opts.yes
   let useRecommendedDefaults = false
 
-  if (!example) {
+  if (!example && !starter) {
     const defaults: typeof preferences = {
       typescript: true,
       eslint: false,
@@ -713,6 +737,7 @@ async function run(): Promise<void> {
       packageManager,
       example: example && example !== 'default' ? example : undefined,
       examplePath: opts.examplePath,
+      starter: starter || undefined,
       typescript: opts.typescript,
       tailwind: opts.tailwind,
       eslint: opts.eslint,
@@ -738,7 +763,7 @@ async function run(): Promise<void> {
       type: 'confirm',
       name: 'builtin',
       message:
-        `Could not download "${example}" because of a connectivity issue between your machine and GitHub.\n` +
+        `Could not download "${example || starter}" because of a connectivity issue between your machine and GitHub.\n` +
         `Do you want to use the default template instead?`,
       initial: true,
     })

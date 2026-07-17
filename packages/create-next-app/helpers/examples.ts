@@ -73,13 +73,16 @@ export function hasRepo({
   return isUrlOk(contentsUrl + packagePath + `?ref=${branch}`)
 }
 
-export function existsInRepo(nameOrUrl: string): Promise<boolean> {
+export function existsInRepo(
+  nameOrUrl: string,
+  dir: 'examples' | 'starters' = 'examples'
+): Promise<boolean> {
   try {
     const url = new URL(nameOrUrl)
     return isUrlOk(url.href)
   } catch {
     return isUrlOk(
-      `https://api.github.com/repos/vercel/next.js/contents/examples/${encodeURIComponent(
+      `https://api.github.com/repos/vercel/next.js/contents/${dir}/${encodeURIComponent(
         nameOrUrl
       )}`
     )
@@ -129,7 +132,11 @@ export async function downloadAndExtractRepo(
   )
 }
 
-export async function downloadAndExtractExample(root: string, name: string) {
+export async function downloadAndExtractExample(
+  root: string,
+  name: string,
+  dir: 'examples' | 'starters' = 'examples'
+) {
   if (name === '__internal-testing-retry') {
     throw new Error('This is an internal example for testing the CLI.')
   }
@@ -141,7 +148,7 @@ export async function downloadAndExtractExample(root: string, name: string) {
     x({
       cwd: root,
       strip: 2 + name.split('/').length,
-      filter: (p) => p.includes(`next.js-canary/examples/${name}/`),
+      filter: (p) => p.includes(`next.js-canary/${dir}/${name}/`),
     })
   )
 }

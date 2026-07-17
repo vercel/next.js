@@ -107,6 +107,77 @@ Would you like to include AGENTS.md to guide coding agents to write up-to-date N
 
 After the prompts, [`create-next-app`](/docs/app/api-reference/cli/create-next-app) will create a folder with your project name and install the required dependencies.
 
+## Start from a starter
+
+Different types of apps need different caching architectures. A blog caches its content and revalidates when it changes, while a dashboard reads per-user data on each request. Starters are minimal, first-party skeletons that set up the right architecture for your app type, so you and your coding agent build on a working pattern instead of starting from scratch.
+
+Select the type of app you are building:
+
+<StarterPicker
+  starters={[
+    {
+      id: 'blog',
+      title: 'Blog',
+      tagline: 'Content read by everyone, updated occasionally',
+      bestFor: ['Blogs', 'Documentation', 'Marketing sites', 'Portfolios'],
+      profile: [
+        'Reads are cached and tagged, and pages prerender to static shells.',
+        'Post pages prerender for all known slugs with generateStaticParams.',
+        'Mutations invalidate by tag with updateTag, so authors see changes immediately.',
+      ],
+      command:
+        'npx create-next-app@latest --example https://github.com/vercel/next.js/tree/canary/starters/blog my-blog',
+      href: 'https://github.com/vercel/next.js/tree/canary/starters/blog',
+    },
+    {
+      id: 'store',
+      title: 'Store',
+      tagline: 'A shared catalog with a per-visitor cart',
+      bestFor: ['Ecommerce', 'Product catalogs', 'Booking sites'],
+      profile: [
+        'The catalog is cached and shared between all visitors.',
+        'The cart reads cookies per request and streams into the static shell.',
+        'Product pages prerender while the cart and checkout stay dynamic.',
+      ],
+      command:
+        'npx create-next-app@latest --example https://github.com/vercel/next.js/tree/canary/starters/store my-store',
+      href: 'https://github.com/vercel/next.js/tree/canary/starters/store',
+    },
+    {
+      id: 'dashboard',
+      title: 'Dashboard',
+      tagline: 'Authenticated, per-user data on each request',
+      bestFor: ['SaaS apps', 'Admin panels', 'Internal tools', 'Feeds'],
+      profile: [
+        'A data access layer verifies the session before each per-user read.',
+        'Dashboard sections stream in parallel, each behind its own Suspense boundary.',
+        'Shared reference data is cached, and per-user data never is.',
+      ],
+      command:
+        'npx create-next-app@latest --example https://github.com/vercel/next.js/tree/canary/starters/dashboard my-dashboard',
+      href: 'https://github.com/vercel/next.js/tree/canary/starters/dashboard',
+    },
+    {
+      id: 'chat',
+      title: 'Chat',
+      tagline: 'Streaming responses, fully dynamic',
+      bestFor: ['AI chatbots', 'Assistants', 'Real-time tools'],
+      profile: [
+        'Responses stream token by token from a Route Handler.',
+        'The app shell prerenders, and each conversation renders per request.',
+        'A stand-in model stream shows where to plug in the AI SDK.',
+      ],
+      command:
+        'npx create-next-app@latest --example https://github.com/vercel/next.js/tree/canary/starters/chat my-chat',
+      href: 'https://github.com/vercel/next.js/tree/canary/starters/chat',
+    },
+  ]}
+/>
+
+The starters share a baseline: [Cache Components](/docs/app/getting-started/caching) and [`partialPrefetching`](/docs/app/api-reference/config/next-config-js/partialPrefetching) enabled, feature folders under `features/` that own cached queries (`"use cache"`, `cacheLife`, `cacheTag`) and Server Actions, seeded local data that runs with no setup, `<Suspense>` boundaries with dimension-matched skeletons, and an `AGENTS.md` describing the architecture for [AI coding agents](/docs/app/guides/ai-agents). This baseline matches what `create-next-app` generates.
+
+> **Good to know:** Starters are minimal foundations maintained in the [Next.js repository](https://github.com/vercel/next.js/tree/canary/starters). For integrations with a specific library or service, see the [examples](https://github.com/vercel/next.js/tree/canary/examples), and for complete deployable applications, see the [templates](https://vercel.com/templates/next.js).
+
 ## Manual installation
 
 To manually create a new Next.js app, install the required packages:

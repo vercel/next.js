@@ -30,6 +30,7 @@ export async function createApp({
   packageManager,
   example,
   examplePath,
+  starter,
   typescript,
   tailwind,
   eslint,
@@ -49,6 +50,7 @@ export async function createApp({
   packageManager: PackageManager
   example?: string
   examplePath?: string
+  starter?: string
   typescript: boolean
   tailwind: boolean
   eslint: boolean
@@ -129,6 +131,21 @@ export async function createApp({
         process.exit(1)
       }
     }
+  } else if (starter) {
+    const found = await existsInRepo(starter, 'starters')
+
+    if (!found) {
+      console.error(
+        `Could not locate a starter named ${red(
+          `"${starter}"`
+        )}. It could be due to the following:\n`,
+        `1. Your spelling of starter ${red(
+          `"${starter}"`
+        )} might be incorrect.\n`,
+        `2. You might not be connected to the internet or you are behind a proxy.`
+      )
+      process.exit(1)
+    }
   }
 
   const root = resolve(appPath)
@@ -162,12 +179,12 @@ export async function createApp({
   const packageJsonPath = join(root, 'package.json')
   let hasPackageJson = false
 
-  if (example) {
+  if (example || starter) {
     /**
-     * If an example repository is provided, clone it.
+     * If an example repository or a starter is provided, clone it.
      */
     try {
-      if (repoInfo) {
+      if (example && repoInfo) {
         const repoInfo2 = repoInfo
         console.log(
           `Downloading files from repo ${cyan(
@@ -178,7 +195,7 @@ export async function createApp({
         await retry(() => downloadAndExtractRepo(root, repoInfo2), {
           retries: 3,
         })
-      } else {
+      } else if (example) {
         console.log(
           `Downloading files for example ${cyan(
             example
@@ -188,6 +205,19 @@ export async function createApp({
         await retry(() => downloadAndExtractExample(root, example), {
           retries: 3,
         })
+      } else if (starter) {
+        console.log(
+          `Downloading files for starter ${cyan(
+            starter
+          )}. This might take a moment.`
+        )
+        console.log()
+        await retry(
+          () => downloadAndExtractExample(root, starter, 'starters'),
+          {
+            retries: 3,
+          }
+        )
       }
     } catch (reason) {
       function isErrorLike(err: unknown): err is { message: string } {

@@ -409,6 +409,7 @@ export default defineConfig([
       // resolve inside the sandbox (e.g. @vercel/agent-eval/eval).
       'evals/evals/**/*',
       'examples/**/*',
+      'starters/**/*',
       'test/**/*',
       '**/*.d.ts',
       'turbopack/**/*',
@@ -449,7 +450,7 @@ export default defineConfig([
     },
   },
   {
-    files: ['examples/**/*'],
+    files: ['examples/**/*', 'starters/**/*'],
     linterOptions: {
       reportUnusedDisableDirectives: 'off',
     },

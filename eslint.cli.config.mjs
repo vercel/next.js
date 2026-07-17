@@ -20,6 +20,7 @@ export default defineConfig([
       // resolve inside the sandbox (e.g. @vercel/agent-eval/eval).
       'evals/evals/**/*',
       'examples/**/*',
+      'starters/**/*',
       'test/**/*',
       '**/*.d.ts',
       'turbopack/**/*',
