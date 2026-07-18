@@ -55,7 +55,7 @@ import { getTask } from '@/features/task/task-queries'
 import { TaskDetail } from '@/features/task/components/task-detail'
 import { CommentSection } from '@/features/task/components/comment-section'
 
-export default async function TaskPage({ params }) {
+export default async function TaskPage({ params }: PageProps<'/task/[id]'>) {
   const { id } = await params
   const task = await getTask(id)
 
@@ -83,7 +83,7 @@ import {
   CommentSectionSkeleton,
 } from '@/features/task/components/comment-section'
 
-export default function TaskPage({ params }) {
+export default function TaskPage({ params }: PageProps<'/task/[id]'>) {
   return (
     <div>
       <Suspense fallback={<TaskDetailSkeleton />}>
