@@ -9,7 +9,6 @@ export type LinkActiveState = {
 
 export type NavLinkProps = Omit<LinkProps, 'children' | 'className'> & {
   exact?: boolean
-  activeClassName?: string
   className?: string | ((state: LinkActiveState) => string)
   children?: React.ReactNode | ((state: LinkActiveState) => React.ReactNode)
   ref?: React.Ref<HTMLAnchorElement>

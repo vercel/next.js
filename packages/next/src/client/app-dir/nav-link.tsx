@@ -15,8 +15,6 @@ export type LinkActiveState = {
 export type NavLinkProps = Omit<LinkProps, 'children' | 'className'> & {
   /** Match nested paths by default; `exact` matches only `href`. `/` is always exact. */
   exact?: boolean
-  /** Class appended when active. */
-  activeClassName?: string
   className?: string | ((state: LinkActiveState) => string)
   children?: React.ReactNode | ((state: LinkActiveState) => React.ReactNode)
   ref?: React.Ref<HTMLAnchorElement>
@@ -60,36 +58,21 @@ function matchNavLink(
  * server without opting the link out of the static shell under `cacheComponents`.
  */
 export default function NavLink(props: NavLinkProps) {
-  const {
-    href,
-    exact = false,
-    activeClassName,
-    className,
-    children,
-    ref,
-    ...rest
-  } = props
+  const { href, exact = false, className, children, ref, ...rest } = props
 
   const pathname = useUntrackedPathname()
   const target = stripUrlQueryAndHash(formatStringOrUrl(href))
   const isActive = pathname !== null && matchNavLink(pathname, target, exact)
 
-  // A function `className` resolves inside `Link`, where `isPending` lives; a
-  // string is combined with `activeClassName` here.
-  const resolvedClassName =
-    typeof className === 'function'
-      ? className
-      : [className, isActive && activeClassName ? activeClassName : null]
-          .filter(Boolean)
-          .join(' ') || undefined
-
+  // A string `className` passes through; a function is resolved inside `Link`,
+  // where `isPending` lives.
   return (
     <LinkComponent
       {...rest}
       href={href}
       ref={ref ?? null}
       aria-current={isActive ? 'page' : undefined}
-      className={resolvedClassName}
+      className={className}
       __navActive={isActive}
     >
       {children}

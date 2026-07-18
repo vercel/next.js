@@ -15,7 +15,7 @@ export default function NavLink(props: NavLinkProps) {
     const href =
       typeof props.href === 'string' ? props.href : formatUrl(props.href)
     throw new Error(
-      `NavLink "${href}": A function \`className\` or \`children\` only works in Client Components. Add the "use client" directive at the top of the file that renders it, or pass a string \`className\`/\`activeClassName\` instead.`
+      `NavLink "${href}": A function \`className\` or \`children\` only works in Client Components. Add the "use client" directive at the top of the file that renders it, or pass a string \`className\` instead.`
     )
   }
 

@@ -1422,5 +1422,5 @@
   "1421": "The lazy module is still loading. It must be awaited with `waitUntilLoaded()` before it can be accessed.",
   "1422": "MIN_PREFETCHABLE_STALE must not exceed MIN_SHELL_STALE.",
   "1423": "`next/nav-link` is only supported in the App Router (the `app` directory).",
-  "1424": "NavLink \"%s\": A function \\`className\\` or \\`children\\` only works in Client Components. Add the \"use client\" directive at the top of the file that renders it, or pass a string \\`className\\`/\\`activeClassName\\` instead."
+  "1424": "NavLink \"%s\": A function \\`className\\` or \\`children\\` only works in Client Components. Add the \"use client\" directive at the top of the file that renders it, or pass a string \\`className\\` instead."
 }

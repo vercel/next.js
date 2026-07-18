@@ -21,7 +21,7 @@ import NavLink from 'next/nav-link'
 export function Nav() {
   return (
     <nav>
-      <NavLink href="/" activeClassName="active">
+      <NavLink href="/" className="link aria-[current=page]:active">
         Home
       </NavLink>
       <NavLink
@@ -45,7 +45,7 @@ import NavLink from 'next/nav-link'
 export function Nav() {
   return (
     <nav>
-      <NavLink href="/" activeClassName="active">
+      <NavLink href="/" className="link aria-[current=page]:active">
         Home
       </NavLink>
       <NavLink
@@ -67,12 +67,11 @@ export function Nav() {
 
 `<NavLink>` accepts every [`<Link>` prop](/docs/app/api-reference/components/link#reference), plus the following:
 
-| Prop              | Example                           | Type                                  | Default |
-| ----------------- | --------------------------------- | ------------------------------------- | ------- |
-| `exact`           | `exact`                           | `boolean`                             | `false` |
-| `activeClassName` | `activeClassName="active"`        | `string`                              | -       |
-| `className`       | `className={({ isActive }) => …}` | `string` or `(state) => string`       | -       |
-| `children`        | `children={({ isActive }) => …}`  | `ReactNode` or `(state) => ReactNode` | -       |
+| Prop        | Example                           | Type                                  | Default |
+| ----------- | --------------------------------- | ------------------------------------- | ------- |
+| `exact`     | `exact`                           | `boolean`                             | `false` |
+| `className` | `className={({ isActive }) => …}` | `string` or `(state) => string`       | -       |
+| `children`  | `children={({ isActive }) => …}`  | `ReactNode` or `(state) => ReactNode` | -       |
 
 ### `exact`
 
@@ -87,14 +86,22 @@ Controls how `href` is compared to the current pathname:
 </NavLink>
 ```
 
-### `activeClassName`
+### Active styling
 
-A class appended to `className` when the link is active. Use it for the common case where the active style is a single class:
+`<NavLink>` sets `aria-current="page"` on the active link, so you can style the active state in CSS with no render prop, straight from a Server Component. With Tailwind, use the `aria-[current=page]:` variant:
 
 ```tsx
-<NavLink href="/" activeClassName="font-bold">
+<NavLink href="/" className="rounded px-3 aria-[current=page]:font-bold">
   Home
 </NavLink>
+```
+
+Or target the attribute directly in plain CSS:
+
+```css
+a[aria-current='page'] {
+  font-weight: bold;
+}
 ```
 
 ### `className` and `children` as functions
@@ -114,7 +121,7 @@ Pass a function to `className` or `children` to receive `{ isActive, isPending }
 
 `isPending` is `true` while a navigation to the link is in progress, the same value provided by [`useLinkStatus`](/docs/app/api-reference/functions/use-link-status).
 
-> **A function `className` or `children` must be used in a Client Component.** The function cannot be passed to a Client Component from the server, so add the `"use client"` directive to the file that renders the `NavLink`. A string `className` or `activeClassName` works from a Server Component.
+> **A function `className` or `children` must be used in a Client Component.** The function cannot be passed to a Client Component from the server, so add the `"use client"` directive to the file that renders the `NavLink`. A string `className` works from a Server Component.
 
 ### Pending UI with `useLinkStatus`
 
