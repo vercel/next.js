@@ -699,7 +699,7 @@ const nextConfig: NextConfig = {
 export default nextConfig
 ```
 
-Enabling Cache Components applies prerender validation across every route, not just the ones in this step. A route that reads request data such as `cookies()`, `headers()`, or `searchParams` outside [`<Suspense>`](https://react.dev/reference/react/Suspense) now blocks prerendering and needs the Step 1 treatment. To turn it on in an existing app, see [Migrating to Cache Components](/docs/app/guides/migrating-to-cache-components).
+Enabling Cache Components applies prerender validation across every route, not only the ones in this step. A route that reads request data such as `cookies()`, `headers()`, or `searchParams` outside [`<Suspense>`](https://react.dev/reference/react/Suspense) now blocks prerendering and needs the Step 1 treatment. To turn it on in an existing app, see [Migrating to Cache Components](/docs/app/guides/migrating-to-cache-components).
 
 #### Cache reusable reads
 
@@ -772,7 +772,7 @@ The patterns in this guide combine a handful of primitives:
 | Reusable reads should survive across requests and stay fresh after writes | [`'use cache'`](/docs/app/api-reference/directives/use-cache) with [`cacheTag`](/docs/app/api-reference/functions/cacheTag), revalidated by [`updateTag`](/docs/app/api-reference/functions/updateTag) or [`revalidateTag`](/docs/app/api-reference/functions/revalidateTag) |
 | Navigation between pages of an interactive app should feel instant        | [`<Link>`](/docs/app/api-reference/components/link) prefetching with [Partial Prefetching](/docs/app/guides/adopting-partial-prefetching), and [per-link prefetching](/docs/app/guides/optimizing-prefetching) via `prefetch={true}` for content that depends on URL data    |
 
-Most patterns mix two or more of these. Reach for whichever primitive fits the constraint you're solving.
+Most patterns mix two or more of these. Reach for whichever one fits the constraint you're solving.
 
 Related guides:
 
