@@ -235,8 +235,7 @@ type InternalLinkProps = {
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 export type LinkProps<RouteInferType = any> = InternalLinkProps
 
-// The active-link state resolved for `className`/`children` when `NavLink`
-// (from `next/nav-link`) sets `__navActive`. Kept internal here.
+// Resolved for `className`/`children` when `NavLink` sets `__navActive`.
 type LinkActiveState = {
   isActive: boolean
   isPending: boolean
@@ -382,9 +381,7 @@ export default function LinkComponent(
     ...restProps
   } = props
 
-  // Active-link state, populated only by `NavLink`; plain `Link` leaves
-  // `__navActive` undefined. `className` and `children` may each be a function
-  // of this state. Resolving here (inside `Link`) is what lets `className` read
+  // Resolving here (inside `Link`) is what lets a function `className` read
   // `isPending`, which a userland wrapper around `Link` cannot do.
   const navState = {
     isActive: __navActive ?? false,

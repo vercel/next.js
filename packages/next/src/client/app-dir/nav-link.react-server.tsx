@@ -4,11 +4,9 @@ import ClientNavLink, {
   type LinkActiveState,
 } from './nav-link'
 
-// This wrapper runs on the server, so it receives the render-prop functions
-// directly (before React tries to serialize them to the client). That lets us
-// throw a `NavLink`-specific error instead of React's generic "Functions are
-// not valid as a child of Client Components". When `NavLink` is used from a
-// Client Component this wrapper does not run, so there is no false positive.
+// Runs only on the server boundary, so it can catch a function `className`/
+// `children` and throw a `NavLink`-specific error instead of React's generic
+// "Functions are not valid as a child of Client Components".
 export default function NavLink(props: NavLinkProps) {
   if (
     typeof props.className === 'function' ||

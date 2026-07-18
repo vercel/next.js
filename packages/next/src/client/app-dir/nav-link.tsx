@@ -6,23 +6,16 @@ import { formatUrl } from '../../shared/lib/router/utils/format-url'
 import { useUntrackedPathname } from '../components/navigation-untracked'
 import LinkComponent, { type LinkProps } from './link'
 
-/** The active state passed to a `NavLink` function `className`/`children`. */
+/** State passed to a `NavLink` function `className`/`children`. */
 export type LinkActiveState = {
-  /** Whether the link's `href` matches the current pathname. */
   isActive: boolean
-  /** Whether a navigation to this link is in progress. */
   isPending: boolean
 }
 
 export type NavLinkProps = Omit<LinkProps, 'children' | 'className'> & {
-  /**
-   * How `href` is compared to the current pathname:
-   * - Default: active on `href` and any nested path (`/blog` matches
-   *   `/blog/post`). `/` stays exact so it is not active everywhere.
-   * - `exact`: active only when the pathname equals `href`.
-   */
+  /** Match nested paths by default; `exact` matches only `href`. `/` is always exact. */
   exact?: boolean
-  /** Class appended when active. Convenience for the common string case. */
+  /** Class appended when active. */
   activeClassName?: string
   className?: string | ((state: LinkActiveState) => string)
   children?: React.ReactNode | ((state: LinkActiveState) => React.ReactNode)
@@ -40,42 +33,31 @@ function stripUrlQueryAndHash(url: string): string {
   return index === -1 ? url : url.slice(0, index)
 }
 
+// Drop a trailing slash (except root) so matching is stable under `trailingSlash`.
+function normalizePathname(pathname: string): string {
+  return pathname.length > 1 && pathname.endsWith('/')
+    ? pathname.slice(0, -1)
+    : pathname
+}
+
 function matchNavLink(
   pathname: string,
   target: string,
   exact: boolean
 ): boolean {
-  if (exact || target === '/') {
-    return pathname === target
+  const currentPath = normalizePathname(pathname)
+  const targetPath = normalizePathname(target)
+  if (exact || targetPath === '/') {
+    return currentPath === targetPath
   }
-  return pathname === target || pathname.startsWith(target + '/')
+  return currentPath === targetPath || currentPath.startsWith(targetPath + '/')
 }
 
 /**
- * A `<Link>` that knows whether it points at the current route. It sets
- * `aria-current="page"` when active and lets `className` and `children` be
- * functions of `{ isActive, isPending }`, so a nav item can style or swap its
- * content without wiring up `usePathname()` by hand.
- *
- * ```tsx
- * import NavLink from 'next/nav-link'
- *
- * <NavLink href="/dashboard" activeClassName="font-bold">
- *   Dashboard
- * </NavLink>
- *
- * <NavLink
- *   href="/inbox"
- *   className={({ isActive, isPending }) =>
- *     cn(isActive && 'text-blue-600', isPending && 'opacity-50')}
- * >
- *   {({ isActive }) => (isActive ? <InboxFilled /> : <Inbox />)}
- * </NavLink>
- * ```
- *
- * The active state is computed from the current pathname without opting the
- * link out of the static shell under `cacheComponents`, and it is resolved on
- * the server too, so the correct state is present on first paint.
+ * A `<Link>` that knows whether it points at the current route: it sets
+ * `aria-current="page"` when active and accepts `className`/`children` as
+ * functions of `{ isActive, isPending }`. The active state resolves on the
+ * server without opting the link out of the static shell under `cacheComponents`.
  */
 export default function NavLink(props: NavLinkProps) {
   const {
@@ -92,9 +74,8 @@ export default function NavLink(props: NavLinkProps) {
   const target = stripUrlQueryAndHash(formatStringOrUrl(href))
   const isActive = pathname !== null && matchNavLink(pathname, target, exact)
 
-  // `activeClassName` needs only `isActive`, so fold it into a string here. A
-  // function `className` is passed through and resolved inside `Link`, where
-  // the pending status lives.
+  // A function `className` resolves inside `Link`, where `isPending` lives; a
+  // string is combined with `activeClassName` here.
   const resolvedClassName =
     typeof className === 'function'
       ? className
