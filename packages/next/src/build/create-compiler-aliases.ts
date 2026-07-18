@@ -260,6 +260,7 @@ export function createNextApiEsmAliases() {
     dynamic: 'next/dist/api/dynamic',
     script: 'next/dist/api/script',
     link: 'next/dist/api/link',
+    'nav-link': 'next/dist/api/nav-link',
     form: 'next/dist/api/form',
     navigation: 'next/dist/api/navigation',
     headers: 'next/dist/api/headers',
@@ -284,6 +285,7 @@ export function createAppRouterApiAliases(isServerOnlyLayer: boolean) {
     head: 'next/dist/client/components/noop-head',
     dynamic: 'next/dist/api/app-dynamic',
     link: 'next/dist/client/app-dir/link',
+    'nav-link': 'next/dist/client/app-dir/nav-link',
     form: 'next/dist/client/app-dir/form',
   }
 
@@ -291,6 +293,7 @@ export function createAppRouterApiAliases(isServerOnlyLayer: boolean) {
     mapping['error'] = 'next/dist/api/error.react-server'
     mapping['navigation'] = 'next/dist/api/navigation.react-server'
     mapping['link'] = 'next/dist/client/app-dir/link.react-server'
+    mapping['nav-link'] = 'next/dist/client/app-dir/nav-link.react-server'
   }
 
   const aliasMap: Record<string, string> = {}
