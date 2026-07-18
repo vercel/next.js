@@ -116,6 +116,52 @@ Pass a function to `className` or `children` to receive `{ isActive, isPending }
 
 > **A function `className` or `children` must be used in a Client Component.** The function cannot be passed to a Client Component from the server, so add the `"use client"` directive to the file that renders the `NavLink`. A string `className` or `activeClassName` works from a Server Component.
 
+### Pending UI with `useLinkStatus`
+
+The render-prop `isPending` covers the link itself. For a pending indicator nested deeper in the link, such as a spinner beside the label, call [`useLinkStatus`](/docs/app/api-reference/functions/use-link-status) from a component rendered inside the `NavLink`, the same as with [`Link`](/docs/app/api-reference/components/link). `NavLink` extends `Link`, so the hook works inside it.
+
+```tsx filename="app/ui/nav-item.tsx" switcher
+'use client'
+
+import NavLink from 'next/nav-link'
+import { useLinkStatus } from 'next/link'
+
+function Spinner() {
+  const { pending } = useLinkStatus()
+  return pending ? <span className="spinner" aria-hidden /> : null
+}
+
+export function NavItem() {
+  return (
+    <NavLink href="/dashboard" activeClassName="active">
+      Dashboard <Spinner />
+    </NavLink>
+  )
+}
+```
+
+```jsx filename="app/ui/nav-item.js" switcher
+'use client'
+
+import NavLink from 'next/nav-link'
+import { useLinkStatus } from 'next/link'
+
+function Spinner() {
+  const { pending } = useLinkStatus()
+  return pending ? <span className="spinner" aria-hidden /> : null
+}
+
+export function NavItem() {
+  return (
+    <NavLink href="/dashboard" activeClassName="active">
+      Dashboard <Spinner />
+    </NavLink>
+  )
+}
+```
+
+> **Good to know:** The render-prop `isPending` and `useLinkStatus` read the same status. Use the render prop for the link's own `className`/`children`, and `useLinkStatus` for a self-contained nested indicator that does not need the render prop threaded down to it.
+
 ### `aria-current`
 
 `<NavLink>` sets `aria-current="page"` on the rendered `<a>` when the link is active, keeping the visual state and the assistive-technology state in sync. You do not set it yourself.
