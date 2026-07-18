@@ -608,19 +608,23 @@ function formatExampleParams(
 ): string {
   const paramName = segment.paramName ?? 'slug'
 
+  // Catch-all params (including intercepted variants) are arrays of strings.
+  //
+  // A switch with a default case would read better here, but
+  // @typescript-eslint/switch-exhaustiveness-check would not be
+  // happy, so we use if/else instead.
   let paramValue: string
-  switch (segment.paramType) {
-    // Catch-all params (including intercepted variants) are arrays of strings.
-    case 'catchall':
-    case 'optional-catchall':
-    case 'catchall-intercepted-(..)(..)':
-    case 'catchall-intercepted-(.)':
-    case 'catchall-intercepted-(..)':
-    case 'catchall-intercepted-(...)':
-      paramValue = "['...']"
-      break
-    default:
-      paramValue = "'...'"
+  if (
+    segment.paramType === 'catchall' ||
+    segment.paramType === 'optional-catchall' ||
+    segment.paramType === 'catchall-intercepted-(..)(..)' ||
+    segment.paramType === 'catchall-intercepted-(.)' ||
+    segment.paramType === 'catchall-intercepted-(..)' ||
+    segment.paramType === 'catchall-intercepted-(...)'
+  ) {
+    paramValue = "['...']"
+  } else {
+    paramValue = "'...'"
   }
 
   return `[{ ${paramName}: ${paramValue} }]`
