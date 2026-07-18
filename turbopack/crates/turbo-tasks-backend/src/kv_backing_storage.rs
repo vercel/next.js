@@ -240,16 +240,18 @@ impl TurboBackingStorage {
         let batch = self.inner.database.write_batch()?;
 
         {
-            let _span = tracing::trace_span!("update task data").entered();
-            // The parallel put phase also *collects* any `SnapshotItem::Delete` tombstones produced
-            // during the (streaming) shard iteration — GC-soft-deleted tasks serialize to a delete
-            // rather than a put. They can't be applied inline: the TaskCache tombstone below reads
-            // and rewrites a whole hash bucket and must run sequentially after all puts. So each
-            // shard returns its collected deletes alongside its `SnapshotMeta`, and they merge with
-            // the caller-supplied `deletes` (from the test-only `gc_for_testing` hook) before the
-            // sequential delete phase.
+            let span = tracing::trace_span!("update task data");
+            // GC-soft-deleted tasks serialize to a `SnapshotItem::Delete` rather than a put. The
+            // parallel put phase applies their SingleValue TaskMeta/TaskData tombstones inline (see
+            // the `Delete` arm) and returns each `TaskDeletion` in `shard_deletes` so the
+            // sequential phase below can apply the TaskCache tombstone — that one
+            // erases a whole MultiValue hash bucket and re-inserts survivors, a
+            // read-modify-write that must run after all puts. These merge with the
+            // caller-supplied deletes (from the test-only `gc_for_testing` hook), which
+            // arrive as their own shard.
             let per_shard =
                 parallel::map_collect_owned::<_, _, Result<Vec<_>>>(snapshots, |shard: I| {
+                    let _span = span.clone().entered();
                     let mut max_new_task_id = 0;
                     let mut data_items = 0;
                     let mut meta_items = 0;
@@ -264,6 +266,18 @@ impl TurboBackingStorage {
                                 task_type_hash,
                             } => (task_id, meta, data, task_type_hash),
                             SnapshotItem::Delete(deletion) => {
+                                // TaskMeta/TaskData are SingleValue, so tombstoning is a direct
+                                // per-id delete with no cross-shard read-modify-write — issue it
+                                // inline here, on the same thread-local collector the puts use (a
+                                // deleted id is never also emitted as a put in the same commit: GC
+                                // removes tasks from the map before the snapshot serializes). Only
+                                // the TaskCache tombstone must be deferred to the sequential phase
+                                // below (it erases a whole MultiValue hash bucket and re-inserts
+                                // survivors), so we still carry `deletion` out for that.
+                                let key = IntKey::new(*deletion.task_id);
+                                let key = key.as_ref();
+                                batch.delete(KeySpace::TaskMeta, WriteBuffer::Borrowed(key))?;
+                                batch.delete(KeySpace::TaskData, WriteBuffer::Borrowed(key))?;
                                 shard_deletes.push(deletion);
                                 continue;
                             }
@@ -311,85 +325,87 @@ impl TurboBackingStorage {
                         shard_deletes,
                     ))
                 })?;
-            let mut deletes: Vec<TaskDeletion> = Vec::new();
+            // Merge the per-shard snapshot metadata and, in the same pass, group the deleted ids by
+            // their TaskCache hash bucket (their SingleValue TaskMeta/TaskData tombstones were
+            // already applied inline in the parallel phase above). TaskCache is MultiValue and a
+            // tombstone erases the *whole* bucket, so for each distinct hash we must re-insert
+            // every id still living in that bucket (any type that xxh3-collides with a
+            // deleted one). Normally each hash maps to exactly the single id being
+            // deleted, so the survivor set is empty.
             let mut snapshot_meta = SnapshotMeta::default();
+            let mut deleted_by_hash: FxHashMap<TaskTypeHash, SmallVec<[TaskId; 4]>> =
+                FxHashMap::default();
+            let mut deleted_count = 0usize;
             for (meta, shard_deletes) in per_shard {
                 snapshot_meta = snapshot_meta.merge(meta);
-                deletes.extend(shard_deletes);
-            }
-
-            // Apply GC tombstones after the parallel put phase (so no put/delete on the same key
-            // space is in-flight when we flush below) and after puts (so a delete wins over a
-            // racing stale put for the same id, though GC removes tasks from the map before the
-            // snapshot serializes so overlap should not occur). Applied sequentially: the delete
-            // list is small relative to the snapshot and ordering matters more than parallelism.
-            if !deletes.is_empty() {
-                let _span = tracing::trace_span!("delete tasks", count = deletes.len()).entered();
-
-                // Group the deleted ids by their TaskCache hash bucket. TaskCache is MultiValue and
-                // a tombstone erases the *whole* bucket, so for each distinct hash we must
-                // re-insert every id still living in that bucket (any type that
-                // xxh3-collides with a deleted one). Normally each hash maps to
-                // exactly the single id being deleted, so the survivor set is
-                // empty.
-                let mut deleted_by_hash: FxHashMap<TaskTypeHash, SmallVec<[TaskId; 4]>> =
-                    FxHashMap::default();
-                for deletion in &deletes {
-                    // TaskMeta/TaskData are SingleValue: tombstone the id key directly.
-                    let key = IntKey::new(*deletion.task_id);
-                    let key = key.as_ref();
-                    batch.delete(KeySpace::TaskMeta, WriteBuffer::Borrowed(key))?;
-                    batch.delete(KeySpace::TaskData, WriteBuffer::Borrowed(key))?;
+                for deletion in shard_deletes {
                     deleted_by_hash
                         .entry(deletion.task_type_hash)
                         .or_default()
                         .push(deletion.task_id);
-                }
-
-                // TODO: this would be a good usecase for a batch_get_multiple, that would optimize
-                // reading
-                for (task_type_hash, deleted_ids) in deleted_by_hash {
-                    // Read the authoritative on-disk bucket so we can keep every id we are NOT
-                    // deleting. (A survivor that is a *new* task added in this same commit is
-                    // covered by its own put above — new tasks aren't on disk yet, so they can't
-                    // appear here and won't be double-inserted.)
-                    let bucket = self
-                        .inner
-                        .database
-                        .get_multiple(KeySpace::TaskCache, &task_type_hash)
-                        .with_context(|| {
-                            format!("Reading TaskCache bucket {task_type_hash:?} for GC re-insert")
-                        })?;
-
-                    // Tombstone the whole bucket, then re-insert the survivors (almost always
-                    // none).
-                    batch.delete(
-                        KeySpace::TaskCache,
-                        WriteBuffer::Borrowed(&task_type_hash[..]),
-                    )?;
-                    for bytes in bucket {
-                        let id = TaskId::try_from(as_u32(bytes)?)?;
-                        if deleted_ids.contains(&id) {
-                            continue;
-                        }
-                        let survivor_key = IntKey::new(*id);
-                        batch.put(
-                            KeySpace::TaskCache,
-                            WriteBuffer::Borrowed(&task_type_hash[..]),
-                            WriteBuffer::Vec(survivor_key.as_ref().to_vec()),
-                        )?;
-                    }
+                    deleted_count += 1;
                 }
             }
 
-            let span = tracing::trace_span!("flush task data").entered();
+            // The TaskCache bucket rewrite must run after all puts (each bucket is a
+            // read+delete+reinsert), but the buckets are independent (distinct hash keys, only the
+            // shared `batch`/`database` refs in common), so process them in parallel.
+            // `batch.delete` and `batch.put` use the same thread-local collectors the
+            // parallel put phase does, and `get_multiple` is a shared-ref read, so
+            // concurrent calls are safe.
+            if !deleted_by_hash.is_empty() {
+                let span = tracing::trace_span!("delete tasks", count = deleted_count);
+
+                // TODO: this would be a good usecase for a batch_get_multiple, that would optimize
+                // reading
+                let database = &self.inner.database;
+                let batch = &batch;
+                parallel::try_for_each_owned(
+                    deleted_by_hash.into_iter().collect::<Vec<_>>(),
+                    |(task_type_hash, deleted_ids)| {
+                        let _span = span.clone().entered();
+                        // Read the authoritative on-disk bucket so we can keep every id we are NOT
+                        // deleting. (A survivor that is a *new* task added in this same commit is
+                        // covered by its own put above — new tasks aren't on disk yet, so they
+                        // can't appear here and won't be double-inserted.)
+                        let bucket = database
+                            .get_multiple(KeySpace::TaskCache, &task_type_hash)
+                            .with_context(|| {
+                                format!(
+                                    "Reading TaskCache bucket {task_type_hash:?} for GC re-insert"
+                                )
+                            })?;
+
+                        // Tombstone the whole bucket, then re-insert the survivors (almost always
+                        // none).
+                        batch.delete(
+                            KeySpace::TaskCache,
+                            WriteBuffer::Borrowed(&task_type_hash[..]),
+                        )?;
+                        for bytes in bucket {
+                            let id = TaskId::try_from(as_u32(bytes)?)?;
+                            if deleted_ids.contains(&id) {
+                                continue;
+                            }
+                            let survivor_key = IntKey::new(*id);
+                            batch.put(
+                                KeySpace::TaskCache,
+                                WriteBuffer::Borrowed(&task_type_hash[..]),
+                                WriteBuffer::Vec(survivor_key.as_ref().to_vec()),
+                            )?;
+                        }
+                        anyhow::Ok(())
+                    },
+                )?;
+            }
+
+            let span = tracing::trace_span!("flush task data");
             parallel::try_for_each(
                 &[KeySpace::TaskMeta, KeySpace::TaskData, KeySpace::TaskCache],
                 |&key_space| {
                     let _span = span.clone().entered();
-                    // Safety: `map_collect_owned` has returned and the sequential delete loop above
-                    // has finished, so no concurrent `put` or `delete` on these key spaces are
-                    // in-flight.
+                    // Safety: the two loops above have completed so no concurrent `put` or `delete`
+                    // on these key spaces are in-flight.
                     unsafe { batch.flush(key_space) }
                 },
             )?;
