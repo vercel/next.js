@@ -14,11 +14,13 @@ While part of a page loads, the user sees a loading state, such as a skeleton or
 
 This guide shows how to design loading states that avoid these problems, from choosing the right placeholder to animating the swap to real content.
 
+For the interactions these loading states respond to, such as transitions and optimistic UI, see [Building interactive apps](/docs/app/guides/interactive-apps).
+
 > **Good to know:** Loading states affect [Core Web Vitals](https://web.dev/articles/vitals). Sized placeholders and top-down reveals keep [CLS](https://web.dev/articles/cls) at zero, and delayed indicators keep loading states from flashing. The other vitals come from streaming, optimistic UI, and prefetching, covered in [Building interactive apps](/docs/app/guides/interactive-apps).
 
 ## Example
 
-This guide builds the loading states for a team directory, a searchable member list where each member links to a profile page. The steps build in order: choose the loading state for the member list, size its skeleton so nothing shifts, keep results visible while searching, reveal the profile's variable-height sections top-down, and crossfade the reveals.
+This guide builds the loading states for a team directory, a searchable member list where each member links to a profile page. The steps build in order: choose the loading state for the member list, size its skeleton so nothing shifts, keep results visible while searching, reveal the profile's variable-height sections top-down, crossfade the reveals, and load more members without shifting the page.
 
 The companion [team directory demo](https://loading-ui-demo.labs.vercel.dev) ([source](https://github.com/vercel-labs/loading-ui-demo)) shows each pattern in action.
 
@@ -93,6 +95,8 @@ export function DirectorySkeleton({ rows = 8 }: { rows?: number }) {
 ```
 
 The skeleton is a decorative placeholder, so it's `aria-hidden` and built from plain `<div>`s: screen readers skip it, and only its box dimensions need to match the real rows, which they do through the same classes.
+
+If you build the skeleton from the component's own sub-skeletons, like an avatar or a text line, and keep it beside the component, the two stay in sync as the component changes.
 
 To verify, reload with the layout-shift-regions overlay enabled in your browser's dev tools. The skeleton occupies the same space the list will, so CLS stays at 0.
 
@@ -194,10 +198,14 @@ export default function MemberPage({
   return (
     <main>
       <Suspense fallback={<BioSkeleton />}>
-        <Bio params={params} />
-        <Suspense fallback={<ActivitySkeleton />}>
-          <Activity params={params} />
-        </Suspense>
+        {params.then(({ id }) => (
+          <>
+            <Bio id={id} />
+            <Suspense fallback={<ActivitySkeleton />}>
+              <Activity id={id} />
+            </Suspense>
+          </>
+        ))}
       </Suspense>
     </main>
   )
@@ -206,7 +214,9 @@ export default function MemberPage({
 
 Both queries still run in parallel, so the page settles as fast as its slowest section. Nesting only delays the reveal of a finished section, not its query.
 
-That hold is the trade-off, since a fast feed now waits for a slow bio. Use sibling boundaries for sections that are visually independent, like dashboard cards in a grid, or a single boundary around all the sections when per-section reveals aren't worth it. The [profiling guide](/docs/app/guides/profiling-performance#step-2-find-content-gated-by-one-boundary) shows how to find a boundary that gates too much content.
+> **Good to know:** The [profiling guide](/docs/app/guides/profiling-performance#step-2-find-content-gated-by-one-boundary) shows these sections streaming in the Performance panel, so you can confirm they run in parallel and find a boundary that gates too much content.
+
+That hold is the trade-off, since a fast feed now waits for a slow bio. Use sibling boundaries for sections that are visually independent, like dashboard cards in a grid, or a single boundary around all the sections when per-section reveals aren't worth it. Where a section can fail on its own, it's common to give it an [error boundary](/docs/app/getting-started/error-handling) too, though not every section needs one.
 
 ### Step 5: Crossfade the reveal
 
@@ -226,16 +236,18 @@ export default nextConfig
 
 Then wrap the content that streams in. A bare `<ViewTransition>` uses the browser's built-in crossfade, so content that reveals once, like the profile sections from Step 4, needs no view-transition CSS:
 
-```tsx filename="app/member/[id]/page.tsx" highlight={2,5}
+```tsx filename="app/member/[id]/page.tsx" highlight={3,6}
 <Suspense fallback={<BioSkeleton />}>
-  <ViewTransition>
-    <Bio params={params} />
-    <Suspense fallback={<ActivitySkeleton />}>
-      <ViewTransition>
-        <Activity params={params} />
-      </ViewTransition>
-    </Suspense>
-  </ViewTransition>
+  {params.then(({ id }) => (
+    <ViewTransition>
+      <Bio id={id} />
+      <Suspense fallback={<ActivitySkeleton />}>
+        <ViewTransition>
+          <Activity id={id} />
+        </ViewTransition>
+      </Suspense>
+    </ViewTransition>
+  ))}
 </Suspense>
 ```
 
@@ -317,6 +329,138 @@ Respect reduced motion preferences by disabling the animations:
   }
 }
 ```
+
+### Step 6: Load the next page without a shift
+
+A long list loads its first page, then grows on demand. Done carelessly, "load more" remounts or reloads the rows already on screen, so they flash or the page jumps. Drive the page count from the URL and give each page its own boundary, so a new page appends below the existing ones without touching them.
+
+Keep the page component synchronous and resolve the count inline with `searchParams.then()`, passing the value to the list. Awaiting `searchParams` in the page itself opts the whole page out of the static shell under `cacheComponents`:
+
+```tsx filename="app/page.tsx"
+import { Suspense } from 'react'
+import { MemberPages } from './member-list'
+import { DirectorySkeleton } from './skeletons'
+
+export default function Page({
+  searchParams,
+}: {
+  searchParams: Promise<{ page?: string }>
+}) {
+  return (
+    <main>
+      <header>
+        <h1>Team directory</h1>
+      </header>
+
+      <Suspense fallback={<DirectorySkeleton />}>
+        {searchParams.then(({ page }) => (
+          <MemberPages pageCount={Math.max(1, Number(page) || 1)} />
+        ))}
+      </Suspense>
+    </main>
+  )
+}
+```
+
+`MemberPages` reads the count and renders every page into one shared `<ul>`. The first page shares the boundary above; each later page gets its own `<Suspense>` with a rows-only skeleton, so loading a new page shows skeletons only for that page while the earlier rows stay put:
+
+```tsx filename="app/member-list.tsx"
+import { Suspense } from 'react'
+import { getMembers } from './members'
+import { MemberRowsSkeleton } from './skeletons'
+import { LoadMore } from './load-more'
+
+export function MemberPages({ pageCount }: { pageCount: number }) {
+  const pages = Array.from({ length: pageCount }, (_, i) => i + 1)
+
+  return (
+    <ul>
+      {pages.map((p) =>
+        p === 1 ? (
+          <MemberRows key={p} page={p} isLast={p === pageCount} />
+        ) : (
+          <Suspense key={p} fallback={<MemberRowsSkeleton />}>
+            <MemberRows page={p} isLast={p === pageCount} />
+          </Suspense>
+        )
+      )}
+    </ul>
+  )
+}
+
+async function MemberRows({ page, isLast }: { page: number; isLast: boolean }) {
+  const { members, hasMore } = await getMembers(page)
+
+  return (
+    <>
+      {members.map((member) => (
+        <li key={member.id}>
+          <a href={`/member/${member.id}`}>{member.name}</a>
+        </li>
+      ))}
+      {isLast && hasMore && (
+        <li>
+          <LoadMore nextPage={page + 1} />
+        </li>
+      )}
+    </>
+  )
+}
+```
+
+`MemberRowsSkeleton` renders the same skeleton rows as `DirectorySkeleton` from Step 2, but as bare `<li>`s so it drops into the shared `<ul>` while a page loads. Fetching one row past the page size tells you whether another page exists, so the button's visibility needs no separate count query:
+
+```ts filename="app/members.ts"
+export const PAGE_SIZE = 8
+
+export async function getMembers(page: number) {
+  // Fetch one extra row to learn whether another page exists.
+  const rows = await db.member.findMany({
+    skip: (page - 1) * PAGE_SIZE,
+    take: PAGE_SIZE + 1,
+  })
+
+  return {
+    members: rows.slice(0, PAGE_SIZE),
+    hasMore: rows.length > PAGE_SIZE,
+  }
+}
+```
+
+The button is a small client component. It advances `?page=` inside a transition, disables and relabels itself while pending, and passes `scroll: false` so the viewport stays put as rows append below:
+
+```tsx filename="app/load-more.tsx"
+'use client'
+
+import { useTransition } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
+
+export function LoadMore({ nextPage }: { nextPage: number }) {
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  const [isPending, startTransition] = useTransition()
+
+  function loadMore() {
+    const params = new URLSearchParams(searchParams)
+    params.set('page', String(nextPage))
+    startTransition(() => {
+      router.push(`?${params.toString()}`, { scroll: false })
+    })
+  }
+
+  return (
+    <button type="button" onClick={loadMore} disabled={isPending}>
+      {isPending ? 'Loading…' : 'Load more'}
+    </button>
+  )
+}
+```
+
+Clicking Load more advances the URL, the server renders the new page, and its `<Suspense>` shows the rows-only skeleton while its data resolves. The pages already on screen keep their stable keys, so the client never remounts them, and wrapping each page in the `<Crossfade>` from Step 5 fades the new rows in. Cache each page's read so rendering the next page does not recompute the earlier ones.
+
+Because the count lives in the URL, the list is shareable and the back button steps through it, and none of the pagination runs on the client beyond the button's navigation.
+
+> **Good to know:** When the full list is already loaded and small, progressive disclosure needs no pagination. Render every item and reveal the overflow with a native [`<details>`](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/details) element, so "show more" works without client JavaScript or another request.
 
 ## Next steps
 
