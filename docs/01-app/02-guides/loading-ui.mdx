@@ -190,11 +190,7 @@ import { Suspense } from 'react'
 import { Bio, Activity } from './profile'
 import { BioSkeleton, ActivitySkeleton } from './skeletons'
 
-export default function MemberPage({
-  params,
-}: {
-  params: Promise<{ id: string }>
-}) {
+export default function MemberPage({ params }: PageProps<'/member/[id]'>) {
   return (
     <main>
       <Suspense fallback={<BioSkeleton />}>
@@ -341,11 +337,7 @@ import { Suspense } from 'react'
 import { MemberPages } from './member-list'
 import { DirectorySkeleton } from './skeletons'
 
-export default function Page({
-  searchParams,
-}: {
-  searchParams: Promise<{ page?: string }>
-}) {
+export default function Page({ searchParams }: PageProps<'/'>) {
   return (
     <main>
       <header>
