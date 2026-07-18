@@ -65,3 +65,18 @@ export function removeFromUint8Array(a: Uint8Array, b: Uint8Array) {
     return a
   }
 }
+
+/**
+ * Check if Uint8Array `a` ends with Uint8Array `b`.
+ */
+export function isUint8ArraySuffix(a: Uint8Array, b: Uint8Array) {
+  if (b.length === 0) return true
+  if (b.length > a.length) return false
+
+  const offset = a.length - b.length
+  for (let i = 0; i < b.length; i++) {
+    if (a[offset + i] !== b[i]) return false
+  }
+
+  return true
+}

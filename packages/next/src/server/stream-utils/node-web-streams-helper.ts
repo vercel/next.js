@@ -11,6 +11,7 @@ import { ENCODED_TAGS } from './encoded-tags'
 import {
   indexOfUint8Array,
   isEquivalentUint8Arrays,
+  isUint8ArraySuffix,
   removeFromUint8Array,
 } from './uint8array-helpers'
 import { MISSING_ROOT_TAGS_ERROR } from '../../shared/lib/errors/constants'
@@ -731,29 +732,23 @@ export function createMoveSuffixStream(): TransformStream<
         return controller.enqueue(chunk)
       }
 
-      const index = indexOfUint8Array(chunk, ENCODED_TAGS.CLOSED.BODY_AND_HTML)
-      if (index > -1) {
+      // React writes the document suffix as the final bytes of the stream,
+      // so only a chunk's tail can be it. A full scan of every chunk pays
+      // O(bytes) for the whole stream for a match that can only happen at
+      // the end; a suffix byte-sequence appearing mid-content is content,
+      // not the document end.
+      const suffix = ENCODED_TAGS.CLOSED.BODY_AND_HTML
+      if (isUint8ArraySuffix(chunk, suffix)) {
         foundSuffix = true
 
-        // If the whole chunk is the suffix, then don't write anything, it will
-        // be written in the flush.
-        if (chunk.length === ENCODED_TAGS.CLOSED.BODY_AND_HTML.length) {
+        // If the whole chunk is the suffix, then don't write anything, it
+        // will be written in the flush.
+        if (chunk.length === suffix.length) {
           return
         }
 
         // Write out the part before the suffix.
-        const before = chunk.slice(0, index)
-        controller.enqueue(before)
-
-        // In the case where the suffix is in the middle of the chunk, we need
-        // to split the chunk into two parts.
-        if (chunk.length > ENCODED_TAGS.CLOSED.BODY_AND_HTML.length + index) {
-          // Write out the part after the suffix.
-          const after = chunk.slice(
-            index + ENCODED_TAGS.CLOSED.BODY_AND_HTML.length
-          )
-          controller.enqueue(after)
-        }
+        controller.enqueue(chunk.slice(0, chunk.length - suffix.length))
       } else {
         controller.enqueue(chunk)
       }
