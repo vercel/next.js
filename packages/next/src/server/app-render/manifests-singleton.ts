@@ -82,17 +82,6 @@ export function getChunksDictForManifest(
       }
     }
 
-    if (manifest.ssrModuleMapping) {
-      for (const key of Object.keys(manifest.ssrModuleMapping)) {
-        const exportsMap = manifest.ssrModuleMapping[key]
-        if (exportsMap && typeof exportsMap === 'object') {
-          for (const exp of Object.keys(exportsMap)) {
-            processChunks(exportsMap[exp]?.chunks)
-          }
-        }
-      }
-    }
-
     entry = { dict, chunksToId }
     chunksDicts.set(manifest, entry)
   }
@@ -405,6 +394,16 @@ function getManifestsSingleton(): ManifestsSingleton {
 
 export function getClientReferenceManifest(): DeepReadonly<ClientReferenceManifest> {
   return getManifestsSingleton().proxiedClientReferenceManifest
+}
+
+export function getCurrentChunksDict() {
+  const workStore = workAsyncStorage.getStore()
+  if (!workStore) return undefined
+
+  const manifest = getManifestsSingleton().clientReferenceManifestsPerRoute.get(
+    workStore.route
+  )
+  return manifest ? getChunksDictForManifest(manifest).dict : undefined
 }
 
 export function getServerActionsManifest(): DeepReadonly<ActionManifest> {

@@ -51,6 +51,7 @@ import { invalidateEntirePrefetchCache } from '../../segment-cache/cache'
 import { startRevalidationCooldown } from '../../segment-cache/scheduler'
 import { getDeploymentId } from '../../../../shared/lib/deployment-id'
 import { getNavigationBuildId } from '../../../navigation-build-id'
+import { decodeFlightResponse } from '../../../../shared/lib/flight-chunk-list-deduplication'
 import { NEXT_NAV_DEPLOYMENT_ID_HEADER } from '../../../../lib/constants'
 import {
   completeHardNavigation,
@@ -248,7 +249,7 @@ async function fetchServerAction(
       : Promise.resolve(res)
 
     const response: ActionFlightResponse = await createFromFetch(
-      responsePromise,
+      decodeFlightResponse(responsePromise),
       {
         callServer,
         findSourceMapURL,

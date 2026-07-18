@@ -9,8 +9,12 @@ import { workUnitAsyncStorage } from './work-unit-async-storage.external'
 import { InvariantError } from '../../shared/lib/invariant-error'
 import {
   getClientReferenceManifest,
-  getChunksDictForManifest,
+  getCurrentChunksDict,
 } from './manifests-singleton'
+import {
+  decodeFlightChunkLists,
+  FlightChunkListDecoder,
+} from '../../shared/lib/flight-chunk-list-deduplication'
 
 const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
 
@@ -18,6 +22,7 @@ const INLINE_FLIGHT_PAYLOAD_BOOTSTRAP = 0
 const INLINE_FLIGHT_PAYLOAD_DATA = 1
 const INLINE_FLIGHT_PAYLOAD_FORM_STATE = 2
 const INLINE_FLIGHT_PAYLOAD_BINARY = 3
+const INLINE_FLIGHT_PAYLOAD_CHUNKS_DICTIONARY = 4
 
 const flightResponses = new WeakMap<
   Readable | BinaryStreamOf<any>,
@@ -30,6 +35,29 @@ const findSourceMapURL =
     ? (require('../lib/source-maps') as typeof import('../lib/source-maps'))
         .findSourceMapURLDEV
     : undefined
+
+function decodeNodeFlightChunkLists(
+  stream: Readable,
+  dictionary: Record<string, string[]> | undefined
+): Readable {
+  const { Transform } = require('node:stream') as typeof import('node:stream')
+  const decoder = new FlightChunkListDecoder(dictionary)
+  const output = new Transform({
+    transform(chunk: Buffer, _encoding, callback) {
+      for (const decodedChunk of decoder.transform(chunk)) {
+        this.push(decodedChunk)
+      }
+      callback()
+    },
+    flush(callback) {
+      for (const decodedChunk of decoder.flush()) this.push(decodedChunk)
+      callback()
+    },
+  })
+  stream.on('error', (error) => output.destroy(error))
+  stream.pipe(output)
+  return output
+}
 
 /**
  * Render Flight stream.
@@ -49,6 +77,7 @@ export function getFlightStream<T>(
 
   const { moduleLoading, edgeSSRModuleMapping, ssrModuleMapping } =
     getClientReferenceManifest()
+  const chunksDictionary = getCurrentChunksDict()
 
   let newResponse: Promise<T>
   if (flightStream instanceof ReadableStream) {
@@ -62,17 +91,20 @@ export function getFlightStream<T>(
       // eslint-disable-next-line import/no-extraneous-dependencies
       require('react-server-dom-webpack/client') as typeof import('react-server-dom-webpack/client')
 
-    newResponse = createFromReadableStream<T>(flightStream, {
-      findSourceMapURL,
-      serverConsumerManifest: {
-        moduleLoading,
-        moduleMap: isEdgeRuntime ? edgeSSRModuleMapping : ssrModuleMapping,
-        serverModuleMap: null,
-      },
-      nonce,
-      debugChannel: debugStream ? { readable: debugStream } : undefined,
-      endTime: debugEndTime,
-    })
+    newResponse = createFromReadableStream<T>(
+      decodeFlightChunkLists(flightStream, chunksDictionary),
+      {
+        findSourceMapURL,
+        serverConsumerManifest: {
+          moduleLoading,
+          moduleMap: isEdgeRuntime ? edgeSSRModuleMapping : ssrModuleMapping,
+          serverModuleMap: null,
+        },
+        nonce,
+        debugChannel: debugStream ? { readable: debugStream } : undefined,
+        endTime: debugEndTime,
+      }
+    )
   } else {
     if (process.env.NEXT_RUNTIME === 'edge') {
       throw new InvariantError(
@@ -101,7 +133,7 @@ export function getFlightStream<T>(
         require('react-server-dom-webpack/client') as typeof import('react-server-dom-webpack/client')
 
       newResponse = createFromNodeStream<T>(
-        flightStream,
+        decodeNodeFlightChunkLists(flightStream, chunksDictionary),
         {
           moduleLoading,
           moduleMap: isEdgeRuntime ? edgeSSRModuleMapping : ssrModuleMapping,
@@ -232,12 +264,13 @@ function writeInitialInstructions(
   )})`
 
   try {
-    const manifest = getClientReferenceManifest()
-    const dictEntry = getChunksDictForManifest(manifest)
-    if (dictEntry && Object.keys(dictEntry.dict).length > 0) {
-      const line = `__next_chunks_dict__:${JSON.stringify(dictEntry.dict)}\n`
+    const chunksDictionary = getCurrentChunksDict()
+    if (chunksDictionary && Object.keys(chunksDictionary).length > 0) {
       scriptContents += `;self.__next_f.push(${htmlEscapeJsonString(
-        JSON.stringify([INLINE_FLIGHT_PAYLOAD_DATA, line])
+        JSON.stringify([
+          INLINE_FLIGHT_PAYLOAD_CHUNKS_DICTIONARY,
+          chunksDictionary,
+        ])
       )})`
     }
   } catch (e) {

@@ -29,6 +29,10 @@ import { getDeploymentId } from '../shared/lib/deployment-id'
 import { setNavigationBuildId } from './navigation-build-id'
 import type { ClientInstrumentationModules } from './router-transition-types'
 import { initializeRouterTransitionModules } from './components/router-transition'
+import {
+  decodeFlightChunkLists,
+  decodeFlightResponse,
+} from '../shared/lib/flight-chunk-list-deduplication'
 
 /// <reference types="react-dom/experimental" />
 
@@ -56,13 +60,14 @@ let initialServerDataLoaded = false
 let initialServerDataFlushed = false
 
 let initialFormStateData: null | any = null
+let initialChunksDictionary: Record<string, string[]> | undefined
 
 type FlightSegment =
   | [isBootStrap: 0]
   | [isNotBootstrap: 1, responsePartial: string]
   | [isFormState: 2, formState: any]
   | [isBinary: 3, responseBase64Partial: string]
-  | [isChunksDict: 4, chunksDict: Record<string, string[]>]
+  | [isChunksDictionary: 4, chunksDictionary: Record<string, string[]>]
 
 type NextFlight = Omit<Array<FlightSegment>, 'push'> & {
   push: (seg: FlightSegment) => void
@@ -110,10 +115,7 @@ function nextServerDataCallback(seg: FlightSegment): void {
       initialServerDataBuffer.push(decodedChunk)
     }
   } else if (seg[0] === 4) {
-    ;(self as any).__next_f_chunks_dict = Object.assign(
-      (self as any).__next_f_chunks_dict || {},
-      seg[1]
-    )
+    initialChunksDictionary = seg[1]
   }
 }
 
@@ -189,94 +191,12 @@ nextServerDataLoadingGlobal.length = 0
 // Patch its push method so subsequent chunks are handled (but not actually pushed to the array).
 nextServerDataLoadingGlobal.push = nextServerDataCallback
 
-function replaceChunks(line: string): string {
-  const dict = (self as any).__next_f_chunks_dict
-  if (!dict) return line
-  return line.replace(/:I\[([^,]+),("c\d+"),/g, (match, moduleId, quotedId) => {
-    const id = quotedId.slice(1, -1)
-    const chunks = dict[id]
-    if (chunks) {
-      return `:I[${moduleId},${JSON.stringify(chunks)},`
-    }
-    return match
-  })
-}
-
-function transformRSCStream(
-  stream: ReadableStream<Uint8Array>
-): ReadableStream<Uint8Array> {
-  const reader = stream.getReader()
-  const decoder = new TextDecoder()
-  let buffer = ''
-
-  return new ReadableStream<Uint8Array>({
-    async pull(controller) {
-      while (true) {
-        const { done, value } = await reader.read()
-        if (done) {
-          if (buffer) {
-            controller.enqueue(encoder.encode(replaceChunks(buffer)))
-          }
-          controller.close()
-          return
-        }
-        buffer += decoder.decode(value, { stream: true })
-        const lines = buffer.split('\n')
-        buffer = lines.pop() || ''
-        for (let line of lines) {
-          const match = line.match(/^__next_chunks_dict__:(.*)$/)
-          if (match) {
-            try {
-              ;(self as any).__next_f_chunks_dict = Object.assign(
-                (self as any).__next_f_chunks_dict || {},
-                JSON.parse(match[1])
-              )
-            } catch (e) {
-              // ignore
-            }
-          } else {
-            controller.enqueue(encoder.encode(replaceChunks(line) + '\n'))
-          }
-        }
-        if (lines.length > 0) {
-          return
-        }
-      }
-    },
-    cancel(reason) {
-      return reader.cancel(reason)
-    },
-  })
-}
-
-if (typeof window !== 'undefined') {
-  const originalFetch = window.fetch
-  window.fetch = function (input, init) {
-    return originalFetch.call(this, input, init).then((response) => {
-      const contentType = response.headers.get('content-type')
-      if (
-        contentType &&
-        contentType.includes('text/x-component') &&
-        response.body
-      ) {
-        const transformedBody = transformRSCStream(response.body)
-        return new Response(transformedBody, {
-          status: response.status,
-          statusText: response.statusText,
-          headers: response.headers,
-        })
-      }
-      return response
-    })
-  }
-}
-
 let readable: ReadableStream<Uint8Array> = new ReadableStream({
   start(controller) {
     nextServerDataRegisterWriter(controller)
   },
 })
-readable = transformRSCStream(readable)
+readable = decodeFlightChunkLists(readable, initialChunksDictionary)
 if (process.env.NODE_ENV !== 'production') {
   // @ts-expect-error
   readable.name = 'hydration'
@@ -319,16 +239,19 @@ if (instantTestStaticFetch) {
   // fetch kicked off by an injected <script> tag, instead of the inline
   // Flight data (which is not present in the static shell).
   initialServerResponse = Promise.resolve(
-    createFromFetch<InitialRSCPayload>(instantTestStaticFetch, {
-      callServer,
-      findSourceMapURL,
-      debugChannel,
-      // The static fetch response is a partial stream (static-only Flight
-      // data with no dynamic content). Allow it to close without error so
-      // React treats dynamic holes as still-suspended rather than
-      // triggering error recovery.
-      unstable_allowPartialStream: true,
-    })
+    createFromFetch<InitialRSCPayload>(
+      decodeFlightResponse(instantTestStaticFetch),
+      {
+        callServer,
+        findSourceMapURL,
+        debugChannel,
+        // The static fetch response is a partial stream (static-only Flight
+        // data with no dynamic content). Allow it to close without error so
+        // React treats dynamic holes as still-suspended rather than
+        // triggering error recovery.
+        unstable_allowPartialStream: true,
+      }
+    )
   ).then(async (initialRSCPayload) => {
     return createInitialRSCPayloadFromFallbackPrerender(
       await instantTestStaticFetch,
@@ -343,11 +266,14 @@ if (instantTestStaticFetch) {
     // @ts-expect-error
     window.__NEXT_CLIENT_RESUME
   initialServerResponse = Promise.resolve(
-    createFromFetch<InitialRSCPayload>(clientResumeFetch, {
-      callServer,
-      findSourceMapURL,
-      debugChannel,
-    })
+    createFromFetch<InitialRSCPayload>(
+      decodeFlightResponse(clientResumeFetch),
+      {
+        callServer,
+        findSourceMapURL,
+        debugChannel,
+      }
+    )
   ).then(async (fallbackInitialRSCPayload) =>
     createInitialRSCPayloadFromFallbackPrerender(
       await clientResumeFetch,

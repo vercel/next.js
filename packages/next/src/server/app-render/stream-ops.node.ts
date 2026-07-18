@@ -17,10 +17,7 @@ import { prerender } from 'react-dom/static'
 import { PassThrough, Readable, Transform } from 'node:stream'
 import { isUtf8 } from 'node:buffer'
 
-import {
-  getClientReferenceManifest,
-  getChunksDictForManifest,
-} from './manifests-singleton'
+import { getCurrentChunksDict } from './manifests-singleton'
 import {
   continueStaticPrerender as webContinueStaticPrerender,
   continueDynamicPrerender as webContinueDynamicPrerender,
@@ -952,12 +949,13 @@ export function createNodeInlinedDataStream(
     JSON.stringify([INLINE_FLIGHT_PAYLOAD_BOOTSTRAP])
   )})`
   try {
-    const manifest = getClientReferenceManifest()
-    const dictEntry = getChunksDictForManifest(manifest)
-    if (dictEntry && Object.keys(dictEntry.dict).length > 0) {
-      const line = `__next_chunks_dict__:${JSON.stringify(dictEntry.dict)}\n`
+    const chunksDictionary = getCurrentChunksDict()
+    if (chunksDictionary && Object.keys(chunksDictionary).length > 0) {
       scriptContents += `;self.__next_f.push(${htmlEscapeJsonString(
-        JSON.stringify([INLINE_FLIGHT_PAYLOAD_DATA, line])
+        JSON.stringify([
+          INLINE_FLIGHT_PAYLOAD_CHUNKS_DICTIONARY,
+          chunksDictionary,
+        ])
       )})`
     }
   } catch (e) {
@@ -980,6 +978,7 @@ const INLINE_FLIGHT_PAYLOAD_BOOTSTRAP = 0
 const INLINE_FLIGHT_PAYLOAD_DATA = 1
 const INLINE_FLIGHT_PAYLOAD_FORM_STATE = 2
 const INLINE_FLIGHT_PAYLOAD_BINARY = 3
+const INLINE_FLIGHT_PAYLOAD_CHUNKS_DICTIONARY = 4
 
 async function pullFlightData(
   dataStream: Readable,

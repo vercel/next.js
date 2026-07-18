@@ -46,6 +46,10 @@ import {
   createNonTaskyPrefetchResponseStream,
 } from '../segment-cache/cache'
 import { UnknownDynamicStaleTime } from '../segment-cache/bfcache'
+import {
+  decodeFlightChunkLists,
+  decodeFlightResponse as decodeFlightChunkListResponse,
+} from '../../../shared/lib/flight-chunk-list-deduplication'
 
 const createFromReadableStream =
   createFromReadableStreamBrowser as (typeof import('react-server-dom-webpack/client.browser'))['createFromReadableStream']
@@ -839,7 +843,7 @@ export function createFromNextReadableStream<T>(
   requestHeaders: RequestHeaders | undefined,
   options?: { allowPartialStream?: boolean }
 ): Promise<T> {
-  return createFromReadableStream(flightStream, {
+  return createFromReadableStream(decodeFlightChunkLists(flightStream), {
     callServer,
     findSourceMapURL,
     debugChannel: createDebugChannel && createDebugChannel(requestHeaders),
@@ -851,7 +855,7 @@ function createFromNextFetch<T>(
   promiseForResponse: Promise<Response>,
   requestHeaders: RequestHeaders
 ): Promise<T> & { _debugInfo?: Array<any> } {
-  return createFromFetch(promiseForResponse, {
+  return createFromFetch(decodeFlightChunkListResponse(promiseForResponse), {
     callServer,
     findSourceMapURL,
     debugChannel: createDebugChannel && createDebugChannel(requestHeaders),

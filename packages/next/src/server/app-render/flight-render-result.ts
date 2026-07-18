@@ -1,10 +1,7 @@
 import { RSC_CONTENT_TYPE_HEADER } from '../../client/components/app-router-headers'
 import RenderResult, { type RenderResultMetadata } from '../render-result'
 import type { AnyStream } from './stream-ops'
-import {
-  getClientReferenceManifest,
-  getChunksDictForManifest,
-} from './manifests-singleton'
+import { getCurrentChunksDict } from './manifests-singleton'
 import { PassThrough, Readable } from 'node:stream'
 
 function prependToWebStream(
@@ -54,6 +51,24 @@ function prependToStream(stream: any, prefix: string): any {
   return stream
 }
 
+export function prependFlightChunksDictionaryToBuffer(payload: Buffer): Buffer {
+  const chunksDictionary = getCurrentChunksDict()
+  if (!chunksDictionary || Object.keys(chunksDictionary).length === 0) {
+    return payload
+  }
+
+  const prefix = Buffer.from(
+    `__next_chunks_dict__:${JSON.stringify(chunksDictionary)}\n`
+  )
+  // Cache Components place a completeness marker before the Flight rows.
+  // Keep it as the first byte so both the cache and Flight decoders see the
+  // framing they expect.
+  if (payload[0] === 0x23 || payload[0] === 0x7e) {
+    return Buffer.concat([payload.subarray(0, 1), prefix, payload.subarray(1)])
+  }
+  return Buffer.concat([prefix, payload])
+}
+
 /**
  * Flight Response is always set to RSC_CONTENT_TYPE_HEADER to ensure it does not get interpreted as HTML.
  */
@@ -65,10 +80,9 @@ export class FlightRenderResult extends RenderResult {
   ) {
     let payload = response
     try {
-      const manifest = getClientReferenceManifest()
-      const dictEntry = getChunksDictForManifest(manifest)
-      if (dictEntry && Object.keys(dictEntry.dict).length > 0) {
-        const prefix = `__next_chunks_dict__:${JSON.stringify(dictEntry.dict)}\n`
+      const chunksDictionary = getCurrentChunksDict()
+      if (chunksDictionary && Object.keys(chunksDictionary).length > 0) {
+        const prefix = `__next_chunks_dict__:${JSON.stringify(chunksDictionary)}\n`
         if (typeof payload === 'string') {
           payload = prefix + payload
         } else {

@@ -98,7 +98,10 @@ import { getImplicitTags, type ImplicitTags } from '../lib/implicit-tags'
 import { AppRenderSpan, NextNodeServerSpan } from '../lib/trace/constants'
 import { getRequestInsightsIdentity } from '../lib/trace/request-insights-identity'
 import { getTracer, SpanStatusCode } from '../lib/trace/tracer'
-import { FlightRenderResult } from './flight-render-result'
+import {
+  FlightRenderResult,
+  prependFlightChunksDictionaryToBuffer,
+} from './flight-render-result'
 import {
   createReactServerErrorHandler,
   createHTMLErrorHandler,
@@ -8475,7 +8478,7 @@ async function prerenderToStream(
       reactServerPrerenderStore = finalServerPrerenderStore
 
       if (shouldGenerateStaticFlightData(workStore)) {
-        metadata.flightData = Buffer.concat(
+        const flightDataWithMarker = Buffer.concat(
           cachedNavigations
             ? prependIsPartialByteToChunks(
                 reactServerResult.asChunks(),
@@ -8486,8 +8489,8 @@ async function prerenderToStream(
 
         // collectSegmentData needs the raw flight data without the marker byte.
         const flightData = cachedNavigations
-          ? metadata.flightData.subarray(1)
-          : metadata.flightData
+          ? flightDataWithMarker.subarray(1)
+          : flightDataWithMarker
 
         await collectSegmentData(
           flightData,
@@ -8497,6 +8500,8 @@ async function prerenderToStream(
           ctx.pagePath,
           metadata
         )
+        metadata.flightData =
+          prependFlightChunksDictionaryToBuffer(flightDataWithMarker)
         // If link data (static params) unblocked new content, then the shell has to be partial.
         // If not, then the shell prerender and the static prerender are the same except for staleTime/varyParams.
         const shellIsPartial = didLinkDataUnblockNewContent
@@ -8838,7 +8843,6 @@ async function prerenderToStream(
       const flightData = await streamToBuffer(reactServerResult.asStream())
 
       if (shouldGenerateStaticFlightData(workStore)) {
-        metadata.flightData = flightData
         await collectSegmentData(
           flightData,
           ssrPrerenderStore,
@@ -8847,6 +8851,7 @@ async function prerenderToStream(
           ctx.pagePath,
           metadata
         )
+        metadata.flightData = prependFlightChunksDictionaryToBuffer(flightData)
       }
 
       const { prelude, preludeIsEmpty } =
@@ -9051,7 +9056,6 @@ async function prerenderToStream(
 
       if (shouldGenerateStaticFlightData(workStore)) {
         const flightData = await streamToBuffer(reactServerResult.asStream())
-        metadata.flightData = flightData
         await collectSegmentData(
           flightData,
           prerenderLegacyStore,
@@ -9060,6 +9064,7 @@ async function prerenderToStream(
           ctx.pagePath,
           metadata
         )
+        metadata.flightData = prependFlightChunksDictionaryToBuffer(flightData)
       }
 
       const getServerInsertedHTML = makeGetServerInsertedHTML({
@@ -9594,7 +9599,6 @@ async function prerenderToStream(
         const flightData = await streamToBuffer(
           reactServerPrerenderResult.asStream()
         )
-        metadata.flightData = flightData
         await collectSegmentData(
           flightData,
           prerenderLegacyStore,
@@ -9603,6 +9607,7 @@ async function prerenderToStream(
           ctx.pagePath,
           metadata
         )
+        metadata.flightData = prependFlightChunksDictionaryToBuffer(flightData)
       }
 
       return {
