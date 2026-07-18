@@ -183,7 +183,7 @@ Use `revalidateTag` instead when:
 - You're in a Route Handler or other non-action context
 - You want stale-while-revalidate semantics
 - You're building a webhook or API endpoint for cache invalidation
-- The update is a passive side-effect rather than a change the user is waiting to see. A blocking refetch stalls the next navigation, so use `revalidateTag(tag, 'max')`
+- The update is a passive, background side-effect rather than a change the user is waiting to see. Use `revalidateTag(tag, 'max')` so it does not block a read. Because Server Actions run one at a time, move a frequent background update to a Route Handler so it does not queue behind the user's other actions
 
 ## Related
 
