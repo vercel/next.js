@@ -5,17 +5,24 @@ import NavLink from 'next/nav-link'
 export function Nav() {
   return (
     <nav>
-      <NavLink href="/" activeClassName="active-home">
+      <NavLink
+        href="/"
+        className={({ isActive }) => (isActive ? 'active-home' : '')}
+      >
         Home
       </NavLink>
-      <NavLink href="/blog" activeClassName="active-blog">
+      <NavLink
+        href="/blog"
+        className={({ isActive }) => (isActive ? 'active-blog' : '')}
+      >
         Blog
       </NavLink>
       <NavLink
         href="/blog"
         exact
-        className="blog-exact"
-        activeClassName="active-blog-exact"
+        className={({ isActive }) =>
+          isActive ? 'blog-exact active-blog-exact' : 'blog-exact'
+        }
       >
         Blog exact
       </NavLink>
