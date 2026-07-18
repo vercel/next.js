@@ -59,6 +59,7 @@ While both `updateTag` and `revalidateTag` invalidate cached data, they serve di
 - **`revalidateTag`**:
   - Can be used in Server Actions and Route Handlers
   - With `profile="max"` (recommended): Serves cached data while fetching fresh data in the background (stale-while-revalidate)
+  - With `{ expire: 0 }`: Expires immediately so the next read is a blocking cache miss. This is the `updateTag` equivalent for a Route Handler, where `updateTag` is not available
   - With custom profile: Can be configured to any cache life profile for advanced usage
   - Without profile: legacy behavior which is equivalent to `updateTag`
 
@@ -118,6 +119,42 @@ export async function createPost(formData) {
 }
 ```
 
+### Passive update that shouldn't block
+
+When a mutation is a side effect of visiting a page rather than a change the user is waiting to see, use `revalidateTag(tag, 'max')` instead of `updateTag`. The next read is served from cache and refreshed in the background, so the update never blocks a navigation.
+
+```ts filename="app/notifications/actions.ts" switcher
+'use server'
+
+import { revalidateTag } from 'next/cache'
+
+export async function markNotificationsRead(userId: string) {
+  await db.notification.updateMany({
+    where: { userId, readAt: null },
+    data: { readAt: new Date() },
+  })
+
+  // Background refresh, not read-your-own-write, so the next visit is never blocked
+  revalidateTag(`notifications:${userId}`, 'max')
+}
+```
+
+```js filename="app/notifications/actions.js" switcher
+'use server'
+
+import { revalidateTag } from 'next/cache'
+
+export async function markNotificationsRead(userId) {
+  await db.notification.updateMany({
+    where: { userId, readAt: null },
+    data: { readAt: new Date() },
+  })
+
+  // Background refresh, not read-your-own-write, so the next visit is never blocked
+  revalidateTag(`notifications:${userId}`, 'max')
+}
+```
+
 ### Error when used outside Server Actions
 
 ```ts filename="app/api/posts/route.ts" switcher
@@ -146,6 +183,7 @@ Use `revalidateTag` instead when:
 - You're in a Route Handler or other non-action context
 - You want stale-while-revalidate semantics
 - You're building a webhook or API endpoint for cache invalidation
+- The update is a passive side-effect rather than a change the user is waiting to see. A blocking refetch stalls the next navigation, so use `revalidateTag(tag, 'max')`
 
 ## Related
 
