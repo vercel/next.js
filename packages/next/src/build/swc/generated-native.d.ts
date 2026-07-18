@@ -168,9 +168,10 @@ export interface NapiWrittenEndpoint {
   serverPaths: Array<NapiAssetPath>
   config: NapiEndpointConfig
 }
-export declare function endpointWriteToDisk(endpoint: {
-  __napiType: 'Endpoint'
-}): Promise<TurbopackResult>
+export declare function endpointWriteToDisk(
+  endpoint: { __napiType: 'Endpoint' },
+  rscOnly?: boolean | undefined | null
+): Promise<TurbopackResult>
 export declare function endpointServerChangedSubscribe(
   endpoint: { __napiType: 'Endpoint' },
   issues: boolean,
