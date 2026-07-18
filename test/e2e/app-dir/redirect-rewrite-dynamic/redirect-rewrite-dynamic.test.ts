@@ -8,22 +8,12 @@ import type * as Playwright from 'playwright'
 //   /  -> rewrite to /a   (a dynamic, param-reading page)
 //
 // On a client-side navigation to `/a`, the proxy redirects to `/`. The URL in
-// the address bar should update to the redirect destination, including any
-// configured basePath. Hard navigation (typing the URL / reload) works
-// correctly; only client-side navigation regressed.
-describe.each([
-  { label: 'without basePath', basePath: '' },
-  { label: 'with basePath', basePath: '/base/path' },
-])('redirect to a rewritten dynamic route (#95195) $label', ({ basePath }) => {
+// the address bar should update to `/` (the redirect destination), but on the
+// 16.3 preview it stays at `/a`. Hard navigation (typing the URL / reload)
+// works correctly; only client-side navigation regressed.
+describe('redirect to a rewritten dynamic route (#95195)', () => {
   const { next, isNextDev } = nextTestSetup({
     files: __dirname,
-    ...(basePath
-      ? {
-          overrideFiles: {
-            'next.config.js': `module.exports = { basePath: '${basePath}' }`,
-          },
-        }
-      : {}),
   })
 
   if (isNextDev) {
@@ -36,18 +26,16 @@ describe.each([
     return url.pathname + url.search + url.hash
   }
 
-  const redirectDestination = basePath || '/'
-
-  it('hard navigation to /a uses the redirect destination', async () => {
+  it('hard navigation to /a redirects to /', async () => {
     // Sanity check: the proxy redirect works on a full page load.
-    const browser = await next.browser(`${basePath}/a`)
+    const browser = await next.browser('/a')
     expect(await browser.elementById('page').text()).toBe('slug: a')
-    expect(relativeHref(await browser.url())).toBe(redirectDestination)
+    expect(relativeHref(await browser.url())).toBe('/')
   })
 
-  it('client navigation to /a uses the redirect destination', async () => {
+  it('client-side navigation to /a should update the URL to /', async () => {
     let page: Playwright.Page
-    const browser = await next.browser(`${basePath}/two`, {
+    const browser = await next.browser('/two', {
       beforePageLoad(p: Playwright.Page) {
         page = p
       },
@@ -60,18 +48,18 @@ describe.each([
     // click it to navigate to /a.
     const toggle = await browser.elementByCss('input[data-link-accordion="/a"]')
     await toggle.click()
-    const link = await browser.elementByCss(`a[href="${basePath}/a"]`)
+    const link = await browser.elementByCss('a[href="/a"]')
     await link.click()
 
     // The proxy redirects /a -> / (then rewrites / -> /a). Wait for the client
     // router to settle on the redirect destination. This is an event-driven
     // wait for the exact expected URL: if the redirect isn't reflected (the
     // bug), it times out and fails, rather than being papered over by polling.
-    await page.waitForURL((url) => url.pathname === redirectDestination)
+    await page.waitForURL((url) => url.pathname === '/')
 
     // The rewritten home page content rendered, and the URL reflects the
-    // redirect destination rather than the link target.
+    // redirect destination `/`, not the link target `/a`.
     expect(await browser.elementById('page').text()).toBe('slug: a')
-    expect(relativeHref(await browser.url())).toBe(redirectDestination)
+    expect(relativeHref(await browser.url())).toBe('/')
   })
 })

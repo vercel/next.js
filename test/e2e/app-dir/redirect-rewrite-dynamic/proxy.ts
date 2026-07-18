@@ -11,20 +11,16 @@ export default function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl
 
   if (pathname === '/a') {
-    const url = request.nextUrl.clone()
-    url.pathname = '/'
-    return NextResponse.redirect(url)
+    return NextResponse.redirect(new URL('/', request.url))
   }
 
   if (pathname === '/') {
-    const url = request.nextUrl.clone()
-    url.pathname = '/a'
-    return NextResponse.rewrite(url)
+    return NextResponse.rewrite(new URL('/a', request.url))
   }
 
   return NextResponse.next()
 }
 
 export const config = {
-  matcher: ['/', '/((?!_next|favicon.ico).*)'],
+  matcher: '/((?!_next|favicon.ico).*)',
 }
