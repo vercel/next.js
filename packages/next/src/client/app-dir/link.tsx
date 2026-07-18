@@ -381,19 +381,24 @@ export default function LinkComponent(
     ...restProps
   } = props
 
-  // Resolving here (inside `Link`) is what lets a function `className` read
-  // `isPending`, which a userland wrapper around `Link` cannot do.
+  // Resolving function `className`/`children` here (inside `Link`) is what lets
+  // them read `isPending`, which a userland wrapper cannot do. Only `NavLink`
+  // sets `__navActive`, so a plain `Link` never invokes function props and keeps
+  // its original behavior.
+  const isNavLink = __navActive !== undefined
   const navState = {
     isActive: __navActive ?? false,
     isPending: linkStatus.pending,
   }
   const className =
-    typeof classNameProp === 'function'
+    isNavLink && typeof classNameProp === 'function'
       ? classNameProp(navState)
-      : classNameProp
+      : (classNameProp as string | undefined)
 
   children =
-    typeof childrenProp === 'function' ? childrenProp(navState) : childrenProp
+    isNavLink && typeof childrenProp === 'function'
+      ? childrenProp(navState)
+      : (childrenProp as React.ReactNode)
 
   if (
     legacyBehavior &&

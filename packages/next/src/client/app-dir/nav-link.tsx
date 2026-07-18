@@ -12,7 +12,10 @@ export type LinkActiveState = {
   isPending: boolean
 }
 
-export type NavLinkProps = Omit<LinkProps, 'children' | 'className'> & {
+export type NavLinkProps = Omit<
+  LinkProps,
+  'children' | 'className' | 'legacyBehavior' | 'passHref'
+> & {
   /** Match nested paths by default; `exact` matches only `href`. `/` is always exact. */
   exact?: boolean
   className?: string | ((state: LinkActiveState) => string)
@@ -56,6 +59,9 @@ function matchNavLink(
  * `aria-current="page"` when active and accepts `className`/`children` as
  * functions of `{ isActive, isPending }`. The active state resolves on the
  * server without opting the link out of the static shell under `cacheComponents`.
+ *
+ * Matching ignores the query string and hash on `href`. `/` is active only on
+ * `/` itself, and `exact` restricts any `href` to its own path.
  */
 export default function NavLink(props: NavLinkProps) {
   const { href, exact = false, className, children, ref, ...rest } = props

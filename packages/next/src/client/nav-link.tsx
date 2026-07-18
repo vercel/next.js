@@ -7,7 +7,10 @@ export type LinkActiveState = {
   isPending: boolean
 }
 
-export type NavLinkProps = Omit<LinkProps, 'children' | 'className'> & {
+export type NavLinkProps = Omit<
+  LinkProps,
+  'children' | 'className' | 'legacyBehavior' | 'passHref'
+> & {
   exact?: boolean
   className?: string | ((state: LinkActiveState) => string)
   children?: React.ReactNode | ((state: LinkActiveState) => React.ReactNode)
