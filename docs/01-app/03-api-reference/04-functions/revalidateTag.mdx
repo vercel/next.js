@@ -69,7 +69,7 @@ async function getData() {
 
 ## Examples
 
-The following examples demonstrate how to use `revalidateTag` in different contexts. In both cases, we're using `profile="max"` to mark data as stale and use stale-while-revalidate semantics, which is the recommended approach for most use cases.
+The following examples demonstrate how to use `revalidateTag` in different contexts. In each case, we're using `profile="max"` to mark data as stale and use stale-while-revalidate semantics, which is the recommended approach for most use cases.
 
 ### Server Action
 
@@ -133,6 +133,44 @@ export async function GET(request) {
     now: Date.now(),
     message: 'Missing tag to revalidate',
   })
+}
+```
+
+### Passive update that shouldn't block
+
+When a mutation is a side effect of visiting a page rather than a change the user is waiting to see, run it from a Route Handler and call `revalidateTag(tag, 'max')`, then call the handler fire-and-forget from the client. The request runs outside the Server Action queue, and the next read is served from cache and refreshed in the background, so the update blocks neither navigation nor the user's other actions.
+
+```ts filename="app/api/notifications/read/route.ts" switcher
+import { revalidateTag } from 'next/cache'
+import { NextResponse } from 'next/server'
+
+export async function POST() {
+  const userId = await getCurrentUserId()
+  await db.notification.updateMany({
+    where: { userId, readAt: null },
+    data: { readAt: new Date() },
+  })
+
+  // Background refresh, not read-your-own-write
+  revalidateTag(`notifications:${userId}`, 'max')
+  return new NextResponse(null, { status: 204 })
+}
+```
+
+```js filename="app/api/notifications/read/route.js" switcher
+import { revalidateTag } from 'next/cache'
+import { NextResponse } from 'next/server'
+
+export async function POST() {
+  const userId = await getCurrentUserId()
+  await db.notification.updateMany({
+    where: { userId, readAt: null },
+    data: { readAt: new Date() },
+  })
+
+  // Background refresh, not read-your-own-write
+  revalidateTag(`notifications:${userId}`, 'max')
+  return new NextResponse(null, { status: 204 })
 }
 ```
 
