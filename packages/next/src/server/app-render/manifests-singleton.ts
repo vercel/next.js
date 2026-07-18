@@ -44,6 +44,79 @@ type ClientReferenceManifestMappingProp =
 
 const globalThisWithManifests = globalThis as GlobalThisWithManifests
 
+const chunksDicts = new WeakMap<
+  any,
+  {
+    dict: Record<string, string[]>
+    chunksToId: Map<string, string>
+  }
+>()
+
+export function getChunksDictForManifest(
+  manifest: DeepReadonly<ClientReferenceManifest>
+) {
+  let entry = chunksDicts.get(manifest)
+  if (!entry) {
+    const dict: Record<string, string[]> = {}
+    const chunksToId = new Map<string, string>()
+    let idCounter = 1
+
+    const processChunks = (
+      chunks: DeepReadonly<ReadonlyArray<string>> | undefined
+    ) => {
+      if (!chunks || !Array.isArray(chunks)) return
+      const key = JSON.stringify(chunks)
+      if (!chunksToId.has(key)) {
+        const id = `c${idCounter++}`
+        chunksToId.set(key, id)
+        dict[id] = chunks as string[]
+      }
+    }
+
+    if (manifest.clientModules) {
+      for (const key of Object.keys(manifest.clientModules)) {
+        const moduleNode = manifest.clientModules[key]
+        if (moduleNode && typeof moduleNode === 'object') {
+          processChunks(moduleNode.chunks)
+        }
+      }
+    }
+
+    if (manifest.ssrModuleMapping) {
+      for (const key of Object.keys(manifest.ssrModuleMapping)) {
+        const exportsMap = manifest.ssrModuleMapping[key]
+        if (exportsMap && typeof exportsMap === 'object') {
+          for (const exp of Object.keys(exportsMap)) {
+            processChunks(exportsMap[exp]?.chunks)
+          }
+        }
+      }
+    }
+
+    entry = { dict, chunksToId }
+    chunksDicts.set(manifest, entry)
+  }
+  return entry
+}
+
+function wrapClientModulesEntry(entry: any, prop: string, manifest: any) {
+  if (prop === 'clientModules' && entry && typeof entry === 'object') {
+    const entryChunks = entry.chunks
+    if (Array.isArray(entryChunks)) {
+      const dictEntry = getChunksDictForManifest(manifest)
+      const chunksKey = JSON.stringify(entryChunks)
+      const chunkId = dictEntry.chunksToId.get(chunksKey)
+      if (chunkId) {
+        return {
+          ...entry,
+          chunks: chunkId,
+        }
+      }
+    }
+  }
+  return entry
+}
+
 function createProxiedClientReferenceManifest(
   clientReferenceManifestsPerRoute: Map<
     string,
@@ -63,7 +136,11 @@ function createProxiedClientReferenceManifest(
             )
 
             if (currentManifest?.[prop][id]) {
-              return currentManifest[prop][id]
+              return wrapClientModulesEntry(
+                currentManifest[prop][id],
+                prop,
+                currentManifest
+              )
             }
 
             // In development, we also check all other manifests to see if the
@@ -88,7 +165,7 @@ function createProxiedClientReferenceManifest(
                 const entry = manifest[prop][id]
 
                 if (entry !== undefined) {
-                  return entry
+                  return wrapClientModulesEntry(entry, prop, manifest)
                 }
               }
             }
@@ -103,7 +180,7 @@ function createProxiedClientReferenceManifest(
               const entry = manifest[prop][id]
 
               if (entry !== undefined) {
-                return entry
+                return wrapClientModulesEntry(entry, prop, manifest)
               }
             }
           }

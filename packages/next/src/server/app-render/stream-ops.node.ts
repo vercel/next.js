@@ -18,6 +18,10 @@ import { PassThrough, Readable, Transform } from 'node:stream'
 import { isUtf8 } from 'node:buffer'
 
 import {
+  getClientReferenceManifest,
+  getChunksDictForManifest,
+} from './manifests-singleton'
+import {
   continueStaticPrerender as webContinueStaticPrerender,
   continueDynamicPrerender as webContinueDynamicPrerender,
   continueStaticFallbackPrerender as webContinueStaticFallbackPrerender,
@@ -947,6 +951,18 @@ export function createNodeInlinedDataStream(
   let scriptContents = `(self.__next_f=self.__next_f||[]).push(${htmlEscapeJsonString(
     JSON.stringify([INLINE_FLIGHT_PAYLOAD_BOOTSTRAP])
   )})`
+  try {
+    const manifest = getClientReferenceManifest()
+    const dictEntry = getChunksDictForManifest(manifest)
+    if (dictEntry && Object.keys(dictEntry.dict).length > 0) {
+      const line = `__next_chunks_dict__:${JSON.stringify(dictEntry.dict)}\n`
+      scriptContents += `;self.__next_f.push(${htmlEscapeJsonString(
+        JSON.stringify([INLINE_FLIGHT_PAYLOAD_DATA, line])
+      )})`
+    }
+  } catch (e) {
+    // ignore
+  }
   if (formState != null) {
     scriptContents += `;self.__next_f.push(${htmlEscapeJsonString(
       JSON.stringify([INLINE_FLIGHT_PAYLOAD_FORM_STATE, formState])

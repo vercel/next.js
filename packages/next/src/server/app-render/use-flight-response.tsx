@@ -7,7 +7,10 @@ import {
 } from '../../shared/lib/htmlescape'
 import { workUnitAsyncStorage } from './work-unit-async-storage.external'
 import { InvariantError } from '../../shared/lib/invariant-error'
-import { getClientReferenceManifest } from './manifests-singleton'
+import {
+  getClientReferenceManifest,
+  getChunksDictForManifest,
+} from './manifests-singleton'
 
 const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
 
@@ -227,6 +230,19 @@ function writeInitialInstructions(
   let scriptContents = `(self.__next_f=self.__next_f||[]).push(${htmlEscapeJsonString(
     JSON.stringify([INLINE_FLIGHT_PAYLOAD_BOOTSTRAP])
   )})`
+
+  try {
+    const manifest = getClientReferenceManifest()
+    const dictEntry = getChunksDictForManifest(manifest)
+    if (dictEntry && Object.keys(dictEntry.dict).length > 0) {
+      const line = `__next_chunks_dict__:${JSON.stringify(dictEntry.dict)}\n`
+      scriptContents += `;self.__next_f.push(${htmlEscapeJsonString(
+        JSON.stringify([INLINE_FLIGHT_PAYLOAD_DATA, line])
+      )})`
+    }
+  } catch (e) {
+    // ignore
+  }
 
   if (formState != null) {
     scriptContents += `;self.__next_f.push(${htmlEscapeJsonString(
