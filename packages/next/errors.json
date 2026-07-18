@@ -1421,7 +1421,6 @@
   "1420": "shouldTrackSyncInterrupt allowed a sync IO interrupt in an unexpected stage: %s",
   "1421": "The lazy module is still loading. It must be awaited with `waitUntilLoaded()` before it can be accessed.",
   "1422": "MIN_PREFETCHABLE_STALE must not exceed MIN_SHELL_STALE.",
-  "1423": "`NavLink` from `next/link` is only supported in the App Router (the `app` directory).",
-  "1424": "A `NavLink` with a function `className` or `children` (render props) must be rendered from a Client Component, because the function cannot be passed to a Client Component from the server. Add the \"use client\" directive to the file that renders this `NavLink`, or pass a string `className`/`activeClassName` instead.",
-  "1425": "`next/nav-link` is only supported in the App Router (the `app` directory)."
+  "1423": "`next/nav-link` is only supported in the App Router (the `app` directory).",
+  "1424": "NavLink \"%s\": A function \\`className\\` or \\`children\\` only works in Client Components. Add the \"use client\" directive at the top of the file that renders it, or pass a string \\`className\\`/\\`activeClassName\\` instead."
 }

@@ -1,3 +1,4 @@
+import { formatUrl } from '../../shared/lib/router/utils/format-url'
 import ClientNavLink, {
   type NavLinkProps,
   type LinkActiveState,
@@ -13,8 +14,10 @@ export default function NavLink(props: NavLinkProps) {
     typeof props.className === 'function' ||
     typeof props.children === 'function'
   ) {
+    const href =
+      typeof props.href === 'string' ? props.href : formatUrl(props.href)
     throw new Error(
-      'A `NavLink` with a function `className` or `children` (render props) must be rendered from a Client Component, because the function cannot be passed to a Client Component from the server. Add the "use client" directive to the file that renders this `NavLink`, or pass a string `className`/`activeClassName` instead.'
+      `NavLink "${href}": A function \`className\` or \`children\` only works in Client Components. Add the "use client" directive at the top of the file that renders it, or pass a string \`className\`/\`activeClassName\` instead.`
     )
   }
 
