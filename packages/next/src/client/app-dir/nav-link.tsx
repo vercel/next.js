@@ -55,13 +55,19 @@ function matchNavLink(
 }
 
 /**
- * A `<Link>` that knows whether it points at the current route: it sets
- * `aria-current="page"` when active and accepts `className`/`children` as
- * functions of `{ isActive, isPending }`. The active state resolves on the
- * server without opting the link out of the static shell under `cacheComponents`.
+ * A `<Link>` that knows whether it points at the current route: it accepts
+ * `className`/`children` as functions of `{ isActive, isPending }` and sets
+ * `aria-current="page"` on the exact current page. The active state resolves on
+ * the server without opting the link out of the static shell under `cacheComponents`.
  *
  * Matching ignores the query string and hash on `href`. `/` is active only on
  * `/` itself, and `exact` restricts any `href` to its own path.
+ *
+ * Two hooks reflect the state, because they mean different things. `data-active`
+ * is present whenever the link is active (exact or prefix), for styling in CSS.
+ * `aria-current="page"` is set only on an exact match, so an ancestor made active
+ * by prefix matching still carries `data-active` but is not announced as the
+ * current page.
  */
 export default function NavLink(props: NavLinkProps) {
   const { href, exact = false, className, children, ref, ...rest } = props
@@ -69,6 +75,11 @@ export default function NavLink(props: NavLinkProps) {
   const pathname = useUntrackedPathname()
   const target = stripUrlQueryAndHash(formatStringOrUrl(href))
   const isActive = pathname !== null && matchNavLink(pathname, target, exact)
+  // `aria-current="page"` marks the current page itself, so it's set only on an
+  // exact match, not on an ancestor made active by prefix matching.
+  const isCurrentPage =
+    pathname !== null &&
+    normalizePathname(pathname) === normalizePathname(target)
 
   // A string `className` passes through; a function is resolved inside `Link`,
   // where `isPending` lives.
@@ -77,7 +88,8 @@ export default function NavLink(props: NavLinkProps) {
       {...rest}
       href={href}
       ref={ref ?? null}
-      aria-current={isActive ? 'page' : undefined}
+      aria-current={isCurrentPage ? 'page' : undefined}
+      data-active={isActive ? '' : undefined}
       className={className}
       __navActive={isActive}
     >

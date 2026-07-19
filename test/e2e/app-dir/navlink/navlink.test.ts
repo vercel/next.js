@@ -6,13 +6,15 @@ describe('navlink', () => {
 
   it('marks the matching link active in the SSR HTML with aria-current (flicker-free)', async () => {
     const $ = await next.render$('/blog')
-    const blog = $('nav a[href="/blog"]')
+    const blog = $('nav a[href="/blog"]').first()
     expect(blog.attr('aria-current')).toBe('page')
+    expect(blog.attr('data-active')).toBe('')
     expect(blog.attr('class')).toContain('active-blog')
 
     // Non-greedy "/": home is not active on another route.
     const home = $('nav a[href="/"]')
     expect(home.attr('aria-current')).toBeUndefined()
+    expect(home.attr('data-active')).toBeUndefined()
     expect(home.attr('class') || '').not.toContain('active-home')
   })
 
@@ -25,11 +27,16 @@ describe('navlink', () => {
     expect(onBlog('nav a[href="/"]').attr('aria-current')).toBeUndefined()
   })
 
-  it('matches nested routes by default (prefix)', async () => {
+  it('matches nested routes by default (prefix) with data-active but not aria-current', async () => {
     const $ = await next.render$('/blog/first')
     const blog = $('nav a[href="/blog"]').first()
-    expect(blog.attr('aria-current')).toBe('page')
+    // The active class and data-active apply to the ancestor via prefix matching...
     expect(blog.attr('class')).toContain('active-blog')
+    expect(blog.attr('data-active')).toBe('')
+    // ...but aria-current="page" is reserved for the exact current page, so an
+    // ancestor link must not claim to be the page.
+    expect(blog.attr('aria-current')).toBeUndefined()
+    expect($('nav a[href="/"]').attr('data-active')).toBeUndefined()
     expect($('nav a[href="/"]').attr('aria-current')).toBeUndefined()
   })
 
