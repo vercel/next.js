@@ -11,6 +11,8 @@ type ValidationStartEvent = {
   type: 'validation_start'
   requestId: string
   url: string
+  /** Only reported for development validation. */
+  responseFinished?: boolean
 }
 type ValidationEndEvent = {
   type: 'validation_end'

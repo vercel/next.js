@@ -116,6 +116,8 @@ export interface RenderOptsPartial {
   isOnDemandRevalidate?: boolean
   isPossibleServerAction?: boolean
   setCacheStatus?: (status: ServerCacheStatus, htmlRequestId: string) => void
+  /** @internal Cancels detached validation when a newer dev request starts. */
+  devValidationSignal?: AbortSignal
   setIsrStatus?: (key: string, value: boolean | undefined) => void
   setReactDebugChannel?: (
     debugChannel: { readable: AnyStream },

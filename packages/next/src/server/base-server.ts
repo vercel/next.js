@@ -129,6 +129,7 @@ import { matchNextDataPathname } from './lib/match-next-data-pathname'
 import getRouteFromAssetPath from '../shared/lib/router/utils/get-route-from-asset-path'
 import { RSCPathnameNormalizer } from './normalizers/request/rsc'
 import { stripFlightHeaders } from './app-render/strip-flight-headers'
+import { beginDevValidationRequest } from './app-render/dev-validation-scheduler'
 import {
   isAppPageRouteModule,
   isAppRouteRouteModule,
@@ -1832,6 +1833,10 @@ export default abstract class Server<
     >
   ): Promise<void> {
     const ua = partialContext.req.headers['user-agent'] || ''
+    const devValidationSignal =
+      this.dev && this.nextConfig.cacheComponents
+        ? beginDevValidationRequest(this)
+        : undefined
 
     const ctx: RequestContext<ServerRequest, ServerResponse> = {
       ...partialContext,
@@ -1843,6 +1848,7 @@ export default abstract class Server<
           ua,
           this.nextConfig.htmlLimitedBots
         ),
+        ...(devValidationSignal === undefined ? null : { devValidationSignal }),
       },
     }
 
