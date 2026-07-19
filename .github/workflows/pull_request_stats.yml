@@ -85,7 +85,9 @@ jobs:
   stats:
     name: Stats (${{ matrix.bundler }})
     needs: build
-    timeout-minutes: 25
+    # The webpack benchmark alone takes ~25 minutes, so anything at or below
+    # that cancels the job right as it finishes (seen on canary and PRs alike).
+    timeout-minutes: 35
     strategy:
       fail-fast: false
       matrix:
