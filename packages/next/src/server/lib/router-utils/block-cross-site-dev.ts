@@ -156,16 +156,6 @@ export const blockCrossSiteDEV = (
   // ensure websocket requests are only fulfilled from allowed origin
   const rawOrigin = req.headers['origin']
   const originHeader = Array.isArray(rawOrigin) ? rawOrigin[0] : rawOrigin
-
-  // Browser devtools fetch dev resources like source maps for attached
-  // Node.js processes from their privileged devtools:// origin. The Origin
-  // header is browser-controlled and web content can never run under the
-  // devtools:// scheme, so it cannot be forged by cross-site requests.
-  // Requests without an Origin header are already allowed below, so this
-  // admits no requester that couldn't already reach these endpoints.
-  if (originHeader?.startsWith('devtools://')) {
-    return false
-  }
   const parsedOrigin =
     originHeader && originHeader !== 'null'
       ? parseUrl(originHeader)

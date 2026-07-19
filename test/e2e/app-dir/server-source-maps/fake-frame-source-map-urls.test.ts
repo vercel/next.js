@@ -177,14 +177,7 @@ describe('app-dir - server source maps - fake frame source map URLs', () => {
       for (const script of fakeScripts) {
         let sourceMap = sourceMapsByURL.get(script.sourceMapURL)
         if (sourceMap === undefined) {
-          const response = await fetch(script.sourceMapURL, {
-            headers: {
-              // Chrome DevTools fetches source maps for attached Node.js
-              // targets from its own privileged origin, which must not be
-              // rejected by the dev server's cross-origin protection.
-              Origin: 'devtools://devtools',
-            },
-          })
+          const response = await fetch(script.sourceMapURL)
           expect({
             url: script.sourceMapURL,
             status: response.status,

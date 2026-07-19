@@ -553,14 +553,10 @@ describe('app-dir - server source maps', () => {
         )
       })
       const cliOutput = normalizeCliOutput(next.cliOutput.slice(outputIndex))
-      // TODO(veil): Fake frames resolve their original source to a `file:`
-      // URL that's not normalized to a path relative to the project root
-      // like regular frames are.
-      expect(cliOutput).toMatch(
-        /at throwsInCache \([^)]*app\/rsc-error-throw-cached\/page\.js:5:9\)/
-      )
       expect(cliOutput).toContain(
-        '\n  3 | async function throwsInCache() {' +
+        'Error: rsc-error-throw-cached' +
+          '\n    at throwsInCache (app/rsc-error-throw-cached/page.js:5:9)' +
+          '\n  3 | async function throwsInCache() {' +
           "\n  4 |   'use cache'" +
           "\n> 5 |   throw new Error('rsc-error-throw-cached')" +
           '\n    |         ^' +
