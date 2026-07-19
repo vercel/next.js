@@ -1,0 +1,333 @@
+//! A source map kept in structured form until it is actually emitted.
+//!
+//! Historically module source maps were serialized to a JSON [`Rope`] immediately after code
+//! generation and treated as opaque bytes from then on. Because `sourcesContent` (the full
+//! original source text) is inlined into that JSON, every subsequent per-chunking-context
+//! rewrite of the `sources` URLs had to copy the entire map — duplicating each module's source
+//! text once per layer and again per chunking context — and every embedding of the map into a
+//! chunk's source map copied it again.
+//!
+//! [`StructuredSourceMap`] instead stores the map's fields:
+//! - fields we never modify are kept as verbatim raw JSON snippets ([`Rope`]s), so producers'
+//!   bytes round-trip untouched and re-emission is pure rope sharing;
+//! - `sources` is typed, because URL rewrites (see [`super::utils`]) modify it;
+//! - `sourcesContent` entries are individual, already-JSON-escaped [`Rope`]s that are shared —
+//!   not copied — into every map that embeds them;
+//! - `mappings` stays a raw snippet since it is usually the largest skeleton field.
+//!
+//! [`StructuredSourceMap::to_rope`] emits fields in the same order as `swc_sourcemap`'s
+//! serializer, so maps built via [`StructuredSourceMap::from_swc_map`] serialize byte-for-byte
+//! identically to what `swc_sourcemap::SourceMap::to_writer` would have produced (pinned by the
+//! golden tests below).
+
+use anyhow::Result;
+use bincode::{Decode, Encode};
+use serde::Deserialize;
+use serde_json::value::RawValue;
+use turbo_tasks::{NonLocalValue, trace::TraceRawVcs};
+use turbo_tasks_fs::rope::{Rope, RopeBuilder};
+use turbo_tasks_hash::{DeterministicHash, DeterministicHasher};
+
+/// A single source map in structured form. See the module documentation.
+#[derive(Clone, Debug, Default, PartialEq, Eq, Encode, Decode, TraceRawVcs, NonLocalValue)]
+pub struct StructuredSourceMap {
+    // Raw snippet fields hold the field's verbatim JSON value (e.g. `3`, `"..."`, `[...]`).
+    // Declaration order mirrors `swc_sourcemap`'s `RawSourceMap`, which is the emission order.
+    version: Option<Rope>,
+    file: Option<Rope>,
+    /// Typed because URL rewrites modify it.
+    sources: Option<Vec<Option<String>>>,
+    source_root: Option<Rope>,
+    /// One entry per `sources` entry: the JSON value of the source's content — an escaped
+    /// string literal (including quotes) or the literal `null`. Shared into every emitted map.
+    sources_content: Option<Vec<Rope>>,
+    sections: Option<Rope>,
+    names: Option<Rope>,
+    scopes: Option<Rope>,
+    range_mappings: Option<Rope>,
+    mappings: Option<Rope>,
+    ignore_list: Option<Rope>,
+    x_facebook_offsets: Option<Rope>,
+    x_metro_module_paths: Option<Rope>,
+    x_facebook_sources: Option<Rope>,
+    debug_id_old: Option<Rope>,
+    debug_id: Option<Rope>,
+}
+
+/// Deserialization mirror of [`StructuredSourceMap`]. Unknown fields are dropped, matching the
+/// previous behavior of source map rewrites (`SourceMapJson`).
+#[derive(Deserialize)]
+struct RawFields {
+    version: Option<Box<RawValue>>,
+    file: Option<Box<RawValue>>,
+    sources: Option<Vec<Option<String>>>,
+    #[serde(rename = "sourceRoot")]
+    source_root: Option<Box<RawValue>>,
+    #[serde(rename = "sourcesContent")]
+    sources_content: Option<Vec<Option<String>>>,
+    sections: Option<Box<RawValue>>,
+    names: Option<Box<RawValue>>,
+    scopes: Option<Box<RawValue>>,
+    #[serde(rename = "rangeMappings")]
+    range_mappings: Option<Box<RawValue>>,
+    mappings: Option<Box<RawValue>>,
+    #[serde(rename = "ignoreList")]
+    ignore_list: Option<Box<RawValue>>,
+    x_facebook_offsets: Option<Box<RawValue>>,
+    x_metro_module_paths: Option<Box<RawValue>>,
+    x_facebook_sources: Option<Box<RawValue>>,
+    #[serde(rename = "debug_id")]
+    debug_id_old: Option<Box<RawValue>>,
+    #[serde(rename = "debugId")]
+    debug_id: Option<Box<RawValue>>,
+}
+
+fn snippet(value: Option<Box<RawValue>>) -> Option<Rope> {
+    value.map(|v| Rope::from(v.get().as_bytes().to_vec()))
+}
+
+/// JSON-escapes a source's content into the string-literal form stored in `sources_content`.
+fn escape_content(content: Option<&str>) -> Rope {
+    match content {
+        Some(text) => {
+            Rope::from(serde_json::to_vec(text).expect("string serialization is infallible"))
+        }
+        None => Rope::from("null"),
+    }
+}
+
+impl StructuredSourceMap {
+    /// Builds from a [`swc_sourcemap::SourceMap`], taking the `sourcesContent` entries out of
+    /// the map before serializing the (now small) remainder. This is the cheap constructor for
+    /// all internally generated maps: the source text is escaped exactly once and never
+    /// round-trips through JSON parsing.
+    pub fn from_swc_map(mut map: swc_sourcemap::SourceMap) -> Result<Self> {
+        let contents: Vec<Rope> = map
+            .source_contents()
+            .map(|content| escape_content(content.map(|c| c.as_str())))
+            .collect();
+        let has_contents = contents.iter().any(|c| c.to_bytes().as_ref() != b"null");
+        for idx in 0..map.get_source_count() {
+            map.set_source_contents(idx, None);
+        }
+        let mut skeleton = Vec::new();
+        map.to_writer(&mut skeleton)?;
+        let mut result = Self::from_json_slice(&skeleton)?;
+        result.sources_content = has_contents.then_some(contents);
+        Ok(result)
+    }
+
+    /// Parses an arbitrary serialized source map, e.g. one shipped alongside external code.
+    pub fn from_json(map: &Rope) -> Result<Self> {
+        Self::from_json_slice(&map.to_bytes())
+    }
+
+    /// Parses a serialized source map from a byte slice.
+    pub fn from_json_slice(map: &[u8]) -> Result<Self> {
+        let fields: RawFields = serde_json::from_slice(map)?;
+        Ok(StructuredSourceMap {
+            version: snippet(fields.version),
+            file: snippet(fields.file),
+            sources: fields.sources,
+            source_root: snippet(fields.source_root),
+            sources_content: fields.sources_content.map(|contents| {
+                contents
+                    .iter()
+                    .map(|content| escape_content(content.as_deref()))
+                    .collect()
+            }),
+            sections: snippet(fields.sections),
+            names: snippet(fields.names),
+            scopes: snippet(fields.scopes),
+            range_mappings: snippet(fields.range_mappings),
+            mappings: snippet(fields.mappings),
+            ignore_list: snippet(fields.ignore_list),
+            x_facebook_offsets: snippet(fields.x_facebook_offsets),
+            x_metro_module_paths: snippet(fields.x_metro_module_paths),
+            x_facebook_sources: snippet(fields.x_facebook_sources),
+            debug_id_old: snippet(fields.debug_id_old),
+            debug_id: snippet(fields.debug_id),
+        })
+    }
+
+    /// Rewrites each `sources` entry, keeping every other field (including the shared
+    /// `sourcesContent` ropes) intact. `rewrite` returns `None` to leave an entry unchanged.
+    pub fn rewrite_sources(
+        &self,
+        mut rewrite: impl FnMut(&str) -> Result<Option<String>>,
+    ) -> Result<Self> {
+        let mut result = self.clone();
+        if let Some(sources) = &mut result.sources {
+            for source in sources.iter_mut().flatten() {
+                if let Some(new_source) = rewrite(source)? {
+                    *source = new_source;
+                }
+            }
+        }
+        Ok(result)
+    }
+
+    /// Serializes the map. Field order matches `swc_sourcemap`'s serializer; `sourcesContent`
+    /// and `mappings` ropes are shared, not copied, into the result.
+    pub fn to_rope(&self) -> Rope {
+        fn field(
+            builder: &mut RopeBuilder,
+            first: &mut bool,
+            key: &'static str,
+            value: &Option<Rope>,
+        ) {
+            if let Some(value) = value {
+                if !*first {
+                    *builder += ",";
+                }
+                *first = false;
+                *builder += "\"";
+                *builder += key;
+                *builder += "\":";
+                *builder += value;
+            }
+        }
+
+        let mut builder = RopeBuilder::default();
+        let mut first = true;
+        builder += "{";
+        field(&mut builder, &mut first, "version", &self.version);
+        field(&mut builder, &mut first, "file", &self.file);
+        if let Some(sources) = &self.sources {
+            if !first {
+                builder += ",";
+            }
+            first = false;
+            builder += "\"sources\":";
+            builder += &Rope::from(
+                serde_json::to_vec(sources).expect("string serialization is infallible"),
+            );
+        }
+        field(&mut builder, &mut first, "sourceRoot", &self.source_root);
+        if let Some(contents) = &self.sources_content {
+            if !first {
+                builder += ",";
+            }
+            first = false;
+            builder += "\"sourcesContent\":[";
+            for (i, content) in contents.iter().enumerate() {
+                if i > 0 {
+                    builder += ",";
+                }
+                builder += content;
+            }
+            builder += "]";
+        }
+        field(&mut builder, &mut first, "sections", &self.sections);
+        field(&mut builder, &mut first, "names", &self.names);
+        field(&mut builder, &mut first, "scopes", &self.scopes);
+        field(
+            &mut builder,
+            &mut first,
+            "rangeMappings",
+            &self.range_mappings,
+        );
+        field(&mut builder, &mut first, "mappings", &self.mappings);
+        field(&mut builder, &mut first, "ignoreList", &self.ignore_list);
+        field(
+            &mut builder,
+            &mut first,
+            "x_facebook_offsets",
+            &self.x_facebook_offsets,
+        );
+        field(
+            &mut builder,
+            &mut first,
+            "x_metro_module_paths",
+            &self.x_metro_module_paths,
+        );
+        field(
+            &mut builder,
+            &mut first,
+            "x_facebook_sources",
+            &self.x_facebook_sources,
+        );
+        field(&mut builder, &mut first, "debug_id", &self.debug_id_old);
+        field(&mut builder, &mut first, "debugId", &self.debug_id);
+        builder += "}";
+        builder.build()
+    }
+}
+
+impl DeterministicHash for StructuredSourceMap {
+    fn deterministic_hash<H: DeterministicHasher>(&self, state: &mut H) {
+        // Hashing the serialized form covers every field and matches the previous behavior of
+        // hashing the serialized map rope.
+        self.to_rope().deterministic_hash(state);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// `to_rope(from_swc_map(m))` must be byte-identical to `m.to_writer()` — this pins the
+    /// emitter to `swc_sourcemap`'s format so emitted maps (and snapshot fixtures) don't change.
+    #[test]
+    fn golden_matches_swc_serializer() -> Result<()> {
+        let mut builder = swc_sourcemap::SourceMapBuilder::new(None);
+        let src_a = builder.add_source("turbopack:///[project]/a.js".into());
+        let src_b = builder.add_source("turbopack:///[project]/dir/b\u{2028}c\"d\\e.js".into());
+        builder.set_source_contents(
+            src_a,
+            Some("let a = 1;\nconsole.log(\"hi\\n\", '\u{1F980}', `\u{2028}\u{0000}`);".into()),
+        );
+        builder.set_source_contents(src_b, None);
+        let name = builder.add_name("console".into());
+        builder.add_raw(0, 0, 0, 0, Some(src_a), Some(name), false);
+        builder.add_raw(0, 10, 1, 0, Some(src_b), None, false);
+        let map = builder.into_sourcemap();
+
+        let mut expected = Vec::new();
+        map.clone().to_writer(&mut expected)?;
+
+        let structured = StructuredSourceMap::from_swc_map(map)?;
+        assert_eq!(structured.to_rope().to_bytes().as_ref(), &expected[..]);
+        Ok(())
+    }
+
+    /// Same, for a map without any source contents.
+    #[test]
+    fn golden_matches_swc_serializer_no_contents() -> Result<()> {
+        let mut builder = swc_sourcemap::SourceMapBuilder::new(None);
+        let src = builder.add_source("turbopack:///[project]/a.js".into());
+        builder.add_raw(0, 0, 0, 0, Some(src), None, false);
+        let map = builder.into_sourcemap();
+
+        let mut expected = Vec::new();
+        map.clone().to_writer(&mut expected)?;
+
+        let structured = StructuredSourceMap::from_swc_map(map)?;
+        assert_eq!(structured.to_rope().to_bytes().as_ref(), &expected[..]);
+        Ok(())
+    }
+
+    /// `from_json` → `to_rope` round-trips maps produced by serde-style serializers.
+    #[test]
+    fn roundtrips_serialized_map() -> Result<()> {
+        let input = r#"{"version":3,"sources":["a.js",null],"sourcesContent":["let a = \"x\";\n",null],"names":["a"],"mappings":"AAAA"}"#;
+        let structured = StructuredSourceMap::from_json(&Rope::from(input))?;
+        assert_eq!(structured.to_rope().to_bytes().as_ref(), input.as_bytes());
+        Ok(())
+    }
+
+    #[test]
+    fn rewrite_sources_keeps_contents_shared() -> Result<()> {
+        let input = r#"{"version":3,"sources":["turbopack:///[project]/a.js"],"sourcesContent":["text"],"mappings":"AAAA"}"#;
+        let structured = StructuredSourceMap::from_json(&Rope::from(input))?;
+        let rewritten = structured.rewrite_sources(|source| {
+            Ok(source
+                .strip_prefix("turbopack:///[project]/")
+                .map(|rest| format!("file:///root/{rest}")))
+        })?;
+        let json: serde_json::Value = serde_json::from_slice(&rewritten.to_rope().to_bytes())?;
+        assert_eq!(json["sources"][0], "file:///root/a.js");
+        assert_eq!(json["sourcesContent"][0], "text");
+        Ok(())
+    }
+}

@@ -10,7 +10,7 @@ use turbo_tasks::{ResolvedVc, turbofmt};
 use turbo_tasks_fs::{DiskFileSystem, FileContent, FileSystemPath, rope::Rope};
 use url::Url;
 
-use crate::SOURCE_URL_PROTOCOL_STR;
+use crate::{SOURCE_URL_PROTOCOL_STR, source_map::structured::StructuredSourceMap};
 
 pub fn add_default_ignore_list(map: &mut swc_sourcemap::SourceMap) {
     let mut ignored_ids = HashSet::new();
@@ -321,6 +321,74 @@ pub async fn relative_fileify_source_map(
             Ok(src_rest.to_string())
         } else {
             Ok(format!("{relative_path_to_output_root}/{src_rest}",))
+        }
+    })
+    .await
+}
+
+/// Applies the standard `turbopack:///[fs]/` source-URL transform to a structured map,
+/// sharing every other field (notably `sourcesContent`) with the input.
+async fn transform_structured_sources<F>(
+    map: &StructuredSourceMap,
+    context_path: &FileSystemPath,
+    mut transform: F,
+) -> Result<StructuredSourceMap>
+where
+    F: FnMut(&DiskFileSystem, &str) -> Result<String>,
+{
+    let context_fs = context_path.fs;
+    let context_fs = &*ResolvedVc::try_downcast_type::<DiskFileSystem>(context_fs)
+        .context("Expected the chunking context to have a DiskFileSystem")?
+        .await?;
+
+    let prefix = format!("{}///[{}]/", SOURCE_URL_PROTOCOL_STR, context_fs.name());
+
+    map.rewrite_sources(|src| {
+        if let Some(src_rest) = src.strip_prefix(&prefix) {
+            Ok(Some(transform(context_fs, src_rest)?))
+        } else {
+            Ok(None)
+        }
+    })
+}
+
+/// [`absolute_fileify_source_map`] for structured maps.
+pub async fn absolute_fileify_structured_source_map(
+    map: &StructuredSourceMap,
+    context_path: FileSystemPath,
+) -> Result<StructuredSourceMap> {
+    transform_structured_sources(map, &context_path.clone(), |context_fs, src_rest| {
+        let path = context_path.join(src_rest)?;
+
+        // `to_sys_path` returns a win32 path on Windows. `Url::from_file_path` can also handle
+        // verbatim (`\\?\`-prefixed) disk and UNC paths, in case that conversion failed.
+        let sys_path = context_fs.to_sys_path(&path);
+        Ok(Url::from_file_path(&sys_path)
+            .map_err(|()| {
+                anyhow::anyhow!("path {sys_path:?} cannot be converted to a file:// URI")
+            })?
+            .into())
+    })
+    .await
+}
+
+/// [`relative_fileify_source_map`] for structured maps.
+pub async fn relative_fileify_structured_source_map(
+    map: &StructuredSourceMap,
+    context_path: FileSystemPath,
+    relative_path_to_output_root: RcStr,
+) -> Result<StructuredSourceMap> {
+    let relative_path_to_output_root = relative_path_to_output_root
+        .split('/')
+        .map(|s| urlencoding::encode(s))
+        .collect::<Vec<_>>()
+        .join("/");
+    transform_structured_sources(map, &context_path, |_context_fs, src_rest| {
+        let src_rest = uri_encode_path(src_rest);
+        if relative_path_to_output_root.is_empty() {
+            Ok(src_rest.to_string())
+        } else {
+            Ok(format!("{relative_path_to_output_root}/{src_rest}"))
         }
     })
     .await

@@ -5,8 +5,9 @@ use lightningcss::css_modules::CssModuleReference;
 use swc_core::common::{BytePos, FileName, LineCol, SourceMap};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{FxIndexMap, ResolvedVc, Vc, turbofmt};
-use turbo_tasks_fs::{FileSystemPath, rope::Rope};
+use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
+    source_map::structured::StructuredSourceMap,
     chunk::{AsyncModuleInfo, ChunkableModule, ChunkingContext, ModuleChunkItemIdExt},
     context::{AssetContext, ProcessResult},
     ident::AssetIdent,
@@ -22,7 +23,7 @@ use turbopack_ecmascript::{
         EcmascriptChunkItemContent, EcmascriptChunkItemOptions, EcmascriptChunkPlaceable,
         EcmascriptExports, ecmascript_chunk_item,
     },
-    parse::generate_js_source_map,
+    parse::generate_js_structured_source_map,
     runtime_functions::{TURBOPACK_EXPORT_VALUE, TURBOPACK_IMPORT},
     utils::StringifyJs,
 };
@@ -369,7 +370,10 @@ impl ResolveOrigin for EcmascriptCssModule {
     }
 }
 
-fn generate_minimal_source_map(filename: String, source: String) -> Result<Rope> {
+fn generate_minimal_source_map(
+    filename: String,
+    source: String,
+) -> Result<StructuredSourceMap> {
     let mut mappings = vec![];
     // Start from 1 because 0 is reserved for dummy spans in SWC.
     let mut pos = 1;
@@ -385,6 +389,7 @@ fn generate_minimal_source_map(filename: String, source: String) -> Result<Rope>
     }
     let sm: Arc<SourceMap> = Default::default();
     sm.new_source_file(FileName::Custom(filename).into(), source);
-    let map = generate_js_source_map(&*sm, mappings, None, true, true, Default::default())?;
+    let map =
+        generate_js_structured_source_map(&*sm, mappings, None, true, true, Default::default())?;
     Ok(map)
 }

@@ -36,6 +36,7 @@ use turbo_tasks::{PrettyPrintError, ResolvedVc, ValueToString, Vc, turbofmt, uti
 use turbo_tasks_fs::{FileContent, FileSystemPath, rope::Rope};
 use turbo_tasks_hash::hash_xxh3_hash64;
 use turbopack_core::{
+    source_map::structured::StructuredSourceMap,
     SOURCE_URL_PROTOCOL,
     asset::{Asset, AssetContent},
     issue::{Issue, IssueExt, IssueSeverity, IssueSource, IssueStage, StyledString},
@@ -237,6 +238,62 @@ pub fn generate_js_source_map<'a>(
         let mut result = vec![];
         map.to_writer(&mut result)?;
         Ok(Rope::from(result))
+    }
+}
+
+/// Like [`generate_js_source_map`], but returns a [`StructuredSourceMap`] whose
+/// `sourcesContent` entries are individual shared ropes instead of being embedded in the
+/// serialized JSON. This keeps later `sources` URL rewrites and map embedding from copying the
+/// source text of every module.
+pub fn generate_js_structured_source_map<'a>(
+    files_map: &impl Files,
+    mappings: Vec<(BytePos, LineCol)>,
+    original_source_maps: impl IntoIterator<Item = &'a Rope>,
+    original_source_maps_complete: bool,
+    inline_sources_content: bool,
+    names: FxHashMap<BytePos, Atom>,
+) -> Result<StructuredSourceMap> {
+    let original_source_maps = original_source_maps
+        .into_iter()
+        .map(|map| map.to_bytes())
+        .collect::<Vec<_>>();
+    let original_source_maps = original_source_maps
+        .iter()
+        .map(|map| Ok(swc_sourcemap::lazy::decode(map)?.into_source_map()?))
+        .collect::<Result<Vec<_>>>()?;
+
+    let fast_path_single_original_source_map =
+        original_source_maps.len() == 1 && original_source_maps_complete;
+
+    let mut new_mappings = build_source_map(
+        files_map,
+        &mappings,
+        None,
+        &InlineSourcesContentConfig {
+            // See the identical config in `generate_js_source_map`.
+            inline_sources_content: inline_sources_content && !fast_path_single_original_source_map,
+            names,
+        },
+    );
+
+    if original_source_maps.is_empty() {
+        add_default_ignore_list(&mut new_mappings);
+        StructuredSourceMap::from_swc_map(new_mappings)
+    } else if fast_path_single_original_source_map {
+        let mut map = original_source_maps.into_iter().next().unwrap();
+        // TODO: Make this more efficient
+        map.adjust_mappings(new_mappings);
+
+        // TODO: Enable this when we have a way to handle the ignore list
+        // add_default_ignore_list(&mut map);
+        let map = map.into_raw_sourcemap();
+        StructuredSourceMap::from_json_slice(&serde_json::to_vec(&map)?)
+    } else {
+        let mut map = new_mappings.adjust_mappings_from_multiple(original_source_maps);
+
+        add_default_ignore_list(&mut map);
+
+        StructuredSourceMap::from_swc_map(map)
     }
 }
 

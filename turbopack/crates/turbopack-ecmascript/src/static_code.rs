@@ -55,7 +55,7 @@ impl StaticEcmascriptCode {
             .module_content_without_analysis(self.generate_source_map)
             .await?;
         let mut code = CodeBuilder::default();
-        code.push_source(
+        code.push_structured_source(
             &runtime_base_content.inner_code,
             runtime_base_content.source_map.clone(),
         );

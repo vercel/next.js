@@ -9,6 +9,7 @@ use turbo_tasks::{FxIndexMap, FxIndexSet, ResolvedVc, TryJoinIterExt, ValueToStr
 use turbo_tasks_fs::{FileContent, rope::Rope};
 use turbopack::{ModuleAssetContext, module_options::CustomModuleType};
 use turbopack_core::{
+    source_map::structured::StructuredSourceMap,
     asset::Asset,
     chunk::{AsyncModuleInfo, ChunkableModule, ChunkingContext},
     code_builder::CodeBuilder,
@@ -258,6 +259,9 @@ impl EcmascriptChunkPlaceable for RawEcmascriptModule {
                 None
             };
 
+            let source_map = source_map
+                .map(|map| StructuredSourceMap::from_json(&map))
+                .transpose()?;
             Ok(EcmascriptChunkItemContent {
                 source_map,
                 inner_code: code.into_source_code(),
