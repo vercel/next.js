@@ -261,6 +261,10 @@ struct TaskStorageSchema {
     #[field(storage = "flag", category = "transient")]
     deleted: bool,
 
+    /// Marks the task as a GC root meaning it can never be collected via reference counting.
+    #[field(storage = "flag", category = "meta")]
+    gc_root: bool,
+
     // =========================================================================
     // CHILDREN & AGGREGATION (meta)
     // =========================================================================
@@ -918,14 +922,29 @@ impl TaskStorage {
     /// the aggregation graph, but that can lag and race GC, so we back off rather than collect.
     pub fn gc_maybe_collectible(&self) -> bool {
         self.flags.is_restored(TaskDataCategory::Meta)
+            // TODO: gating on Data being resident is a stop-gap for the crash where GC selects a
+            // task whose Data (holding `persistent_task_type`) was evicted, then `snapshot_and_persist`
+            // reads the absent type and panics. It creates a standoff: a truly-unreferenced task
+            // whose Data is never restored can never be collected (can't-delete-because-not-restored
+            // / won't-restore-because-unreferenced) — a disk-space leak, not memory. Real fix:
+            // restore Data during the GC pass before deciding, or move the task-type-hash into Meta
+            // so collection needs only Meta.
+            && self.flags.is_restored(TaskDataCategory::Data)
             // Already collected this session (soft-deleted, awaiting tombstone + hard-delete):
             // don't re-select it, or a second pass would collect it again while it is still
             // resident.
             && !self.flags.deleted()
+            // A GC root (a task spawned with no parent, see the `gc_root` flag) is held from
+            // outside the tracked graph and has no persistent parent — never collect it.
+            && !self.flags.gc_root()
+            // Refcounts must be 0
             && self.gc_parent_count() == 0
             && self.gc_transient_ref_count() == 0
+            // Must not be in progress or being connected
             && self.get_activeness().is_none()
             && self.get_in_progress().is_none()
+            // Must not be participating in the aggregation graph.  Getting disconnected from parents
+            // should clear these but that process isn't atomic.
             && self.upper().is_empty()
             && self.followers().is_none_or(|f| f.is_empty())
     }

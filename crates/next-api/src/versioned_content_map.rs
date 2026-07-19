@@ -5,7 +5,7 @@ use rustc_hash::{FxHashMap, FxHashSet};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
     FxIndexSet, NonLocalValue, OperationValue, OperationVc, ResolvedVc, State, TryFlatJoinIterExt,
-    TryJoinIterExt, Vc, debug::ValueDebugFormat, trace::TraceRawVcs, turbobail,
+    TryJoinIterExt, Vc, debug::ValueDebugFormat, trace::TraceRawVcs, turbo_tasks, turbobail,
 };
 use turbo_tasks_fs::{FileContent, FileSystemPath};
 use turbopack_core::{
@@ -66,7 +66,16 @@ unsafe impl OperationValue for PathToOutputOperation {}
 type OutputOperationToComputeEntry =
     FxHashMap<OperationVc<ExpandedOutputAssets>, OperationVc<OptionMapEntry>>;
 
-#[turbo_tasks::value]
+// This map is a dev-only, rebuilt-every-session index over the current session's output assets
+// (populated via `insert_output_assets` during the write/emit phase), not a source of truth — the
+// underlying `ExpandedOutputAssets` operations are the persisted data. So we skip persisting it
+// (`serialization = "skip"`), which keeps the `OperationVc` GC pins it holds (see the pin/unpin
+// calls in the mutation methods below) purely in-session: no persist/restore re-pinning needed.
+//
+// `evict = "never"` because the op set and the record of what's pinned live in this cell's `State`;
+// evicting the cell would drop that state and (with serialization skipped) it could not be
+// restored, silently resetting the map and orphaning the pins.
+#[turbo_tasks::value(serialization = "skip", evict = "never")]
 pub struct VersionedContentMap {
     // TODO: turn into a bi-directional multimap, ExpandedOutputAssets ->
     // FxIndexSet<FileSystemPath>
@@ -108,7 +117,32 @@ impl VersionedContentMap {
             client_output_path,
         );
         this.map_op_to_compute_entry.update_conditionally(|map| {
-            map.insert(assets_operation, compute_entry) != Some(compute_entry)
+            let previous = map.insert(assets_operation, compute_entry);
+            if previous == Some(compute_entry) {
+                // Nothing changed: the same value was already stored under this key, so the
+                // `insert` replaced `compute_entry` with an identical `compute_entry`. The key op's
+                // pin (taken when it was first inserted) and the value op's pin are both still
+                // correct; no pin bookkeeping needed.
+                return false;
+            }
+            // Pin the operations so GC keeps their tasks alive while they're held in this map (the
+            // map stores them outside the task graph, so nothing else anchors them). This runs in a
+            // task function body — the unguarded region — so acquiring the pin guard is safe.
+            let tt = turbo_tasks();
+            match previous {
+                None => {
+                    // New key: pin both the key op and the value op.
+                    tt.pin_task_for_gc(assets_operation.task_id());
+                    tt.pin_task_for_gc(compute_entry.task_id());
+                }
+                Some(old_compute_entry) => {
+                    // Key already present (its pin stays); the value op changed — unpin the old,
+                    // pin the new.
+                    tt.unpin_task_for_gc(old_compute_entry.task_id());
+                    tt.pin_task_for_gc(compute_entry.task_id());
+                }
+            }
+            true
         });
         Ok(())
     }
@@ -132,30 +166,42 @@ impl VersionedContentMap {
         self.map_path_to_op.update_conditionally(|map| {
             let mut changed = false;
 
+            // The map stores `assets_operation` outside the task graph, so pin its task for the
+            // duration of each (path -> op) membership: pin on a genuine insert, unpin on a genuine
+            // removal. This runs in a task function body (the unguarded region), so acquiring the
+            // pin guard is safe. Balance is one pin per distinct path bucket the op lives in.
+            let tt = turbo_tasks();
+
             // get current map's keys, subtract keys that don't exist in operation
             let mut stale_assets = map.0.keys().cloned().collect::<FxHashSet<_>>();
 
             for (k, _) in entries.iter().flatten() {
-                let res = map
+                let inserted = map
                     .0
                     .entry(k.clone())
                     .or_default()
                     .0
                     .insert(assets_operation);
+                if inserted {
+                    tt.pin_task_for_gc(assets_operation.task_id());
+                }
                 stale_assets.remove(k);
-                changed = changed || res;
+                changed = changed || inserted;
             }
 
             // Make more efficient with reverse map
             for k in &stale_assets {
-                let res = map
+                let removed = map
                     .0
                     .get_mut(k)
                     // guaranteed
                     .unwrap()
                     .0
                     .swap_remove(&assets_operation);
-                changed = changed || res
+                if removed {
+                    tt.unpin_task_for_gc(assets_operation.task_id());
+                }
+                changed = changed || removed
             }
             changed
         });

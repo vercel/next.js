@@ -272,10 +272,16 @@ impl Storage {
     /// Mark a newly allocated task as restored (skip DB queries) and new (include in persistence
     /// snapshots). Optionally sets the `persistent_task_type` eagerly so it's available for
     /// persistence snapshots without needing to propagate it through `connect_child`.
-    pub fn initialize_new_task(&self, task_id: TaskId, task_type: Option<CachedTaskTypeArc>) {
+    pub fn initialize_new_task(
+        &self,
+        task_id: TaskId,
+        task_type: Option<CachedTaskTypeArc>,
+        is_gc_root: bool,
+    ) {
         let mut task = self.access_mut(task_id);
         task.flags.set_restored(TaskDataCategory::All);
         task.flags.set_new_task(true);
+        task.flags.set_gc_root(is_gc_root);
         if let Some(task_type) = task_type {
             task.set_persistent_task_type(task_type);
             if !task_id.is_transient() {
