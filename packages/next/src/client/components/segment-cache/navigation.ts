@@ -28,7 +28,7 @@ import {
   readRouteCacheEntry,
   deprecated_requestOptimisticRouteCacheEntry,
   convertRootFlightRouterStateToRouteTree,
-  getStaleAt,
+  resolveStaleAt,
   writePrerenderResponseIntoCache,
   processRuntimePrefetchStream,
   writeDynamicRenderResponseIntoCache,
@@ -545,7 +545,7 @@ async function navigateToUnknownRoute(
 
       // Write the static stage of the response into the segment cache so that
       // subsequent navigations can serve cached static segments instantly.
-      getStaleAt(now, staticStageResponse.s)
+      resolveStaleAt(now, staticStageResponse.s)
         .then((staleAt) => {
           const buildId =
             responseHeaders.get(NEXT_NAV_DEPLOYMENT_ID_HEADER) ??
