@@ -347,7 +347,7 @@ impl CssChunkItem for CssModuleChunkItem {
                 inner_code: output_code.to_owned().into(),
                 imports,
                 import_context: self.module.await?.import_context,
-                source_map: *source_map,
+                source_map: source_map.clone(),
             }
             .cell())
         } else {
@@ -358,7 +358,7 @@ impl CssChunkItem for CssModuleChunkItem {
                     .into(),
                 imports: vec![],
                 import_context: None,
-                source_map: FileContent::NotFound.resolved_cell(),
+                source_map: None,
             }
             .cell())
         }
