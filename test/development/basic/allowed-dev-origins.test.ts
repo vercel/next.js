@@ -254,6 +254,17 @@ describe.each(['', '/docs'])(
         )
         expect(res.status).not.toBe(403)
       })
+      it('should allow requests from browser devtools origins', async () => {
+        // Chrome DevTools fetches dev resources like source maps for attached
+        // Node.js processes from its privileged devtools:// origin, which web
+        // content can never use as its Origin.
+        const res = await requestInternalDevMiddleware(
+          next.appPort,
+          basePath,
+          'devtools://devtools'
+        )
+        expect(res.status).not.toBe(403)
+      })
       it('should allow same-site requests without an origin header', async () => {
         const res = await fetchViaHTTP(
           next.appPort,

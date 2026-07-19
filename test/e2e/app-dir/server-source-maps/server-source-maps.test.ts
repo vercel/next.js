@@ -537,6 +537,62 @@ describe('app-dir - server source maps', () => {
     }
   })
 
+  it('thrown errors from "use cache" have a sourcemapped stack with a codeframe', async () => {
+    // Errors thrown inside "use cache" functions cross a Flight boundary:
+    // the logged error object is deserialized by the consuming Flight client,
+    // and its stack is rebuilt through React's eval'd fake frame functions
+    // (`about://React/Cache/...` sourceURLs). This covers sourcemapping of
+    // fake stack frames, which resolve via the underlying chunk's source map.
+    if (isNextDev) {
+      const outputIndex = next.cliOutput.length
+      await next.render('/rsc-error-throw-cached')
+
+      await retry(() => {
+        expect(next.cliOutput.slice(outputIndex)).toContain(
+          'Error: rsc-error-throw-cached'
+        )
+      })
+      const cliOutput = normalizeCliOutput(next.cliOutput.slice(outputIndex))
+      // TODO(veil): Fake frames resolve their original source to a `file:`
+      // URL that's not normalized to a path relative to the project root
+      // like regular frames are.
+      expect(cliOutput).toMatch(
+        /at throwsInCache \([^)]*app\/rsc-error-throw-cached\/page\.js:5:9\)/
+      )
+      expect(cliOutput).toContain(
+        '\n  3 | async function throwsInCache() {' +
+          "\n  4 |   'use cache'" +
+          "\n> 5 |   throw new Error('rsc-error-throw-cached')" +
+          '\n    |         ^' +
+          '\n  6 | }' +
+          '\n  7 |' +
+          '\n  8 | export default async function Page() {'
+      )
+      // The logged error is the one revived by the consuming Flight client,
+      // not the original from the cache environment.
+      expect(cliOutput).toContain("environmentName: 'Cache'")
+    } else {
+      const outputIndex = next.cliOutput.length
+      await next.render('/rsc-error-throw-cached')
+
+      await retry(() => {
+        expect(next.cliOutput.slice(outputIndex)).toContain(
+          'Error: rsc-error-throw-cached'
+        )
+      })
+      const cliOutput = normalizeCliOutput(next.cliOutput.slice(outputIndex))
+      if (isTurbopack) {
+        // Runtime stacks are not sourcemapped in production, but fake frames
+        // must still be devirtualized to the underlying chunk path instead of
+        // leaking `about://React/` URLs.
+        expect(cliOutput).toMatch(
+          /at <mangled> \(\.next\/server\/app\/rsc-error-throw-cached\/page\.js:\d+:\d+\)/
+        )
+      }
+      expect(cliOutput).not.toContain('about://React/')
+    }
+  })
+
   it('logged errors preserve their name', async () => {
     let cliOutput = next.cliOutput
     if (isNextDev) {

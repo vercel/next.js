@@ -172,6 +172,11 @@ const sourceMapURLs = new LRUCache<string | typeof invalidSourceMap>(
 export function findSourceMapURLDEV(
   scriptNameOrSourceURL: string
 ): string | null {
+  if (scriptNameOrSourceURL === '') {
+    // Anonymous frames don't have a source map. Bail explicitly since
+    // Node.js' `findSourceMap('')` can return an unrelated script's map.
+    return null
+  }
   let sourceMapURL = sourceMapURLs.get(scriptNameOrSourceURL)
   if (sourceMapURL === undefined) {
     let sourceMapPayload: ModernSourceMapPayload | undefined
@@ -183,9 +188,25 @@ export function findSourceMapURLDEV(
       )
     }
 
+    const origin = process.env.__NEXT_PRIVATE_ORIGIN
     if (sourceMapPayload === undefined) {
       sourceMapURL = invalidSourceMap
+    } else if (origin !== undefined) {
+      // Prefer returning a URL to the dev server's source map endpoint (the
+      // same one the browser-side `findSourceMapURL` uses) over inlining the
+      // whole payload as a `data:` URL. React embeds the returned URL into
+      // every eval'd fake stack frame function, and each fake function has a
+      // unique sourceURL. With `data:` URLs, Node.js (with source maps
+      // enabled, as `next dev` enables them) parses and retains a separate
+      // copy of the full multi-MB source map payload per fake function in a
+      // never-evicted cache, which can consume gigabytes of heap on
+      // component-heavy apps in development. A URL reference costs ~100 bytes
+      // per fake function instead, can be cached per file by debugger
+      // frontends, and Node.js stores it without parsing anything.
+      sourceMapURL = `${origin.replace(/\/$/, '')}/__nextjs_source-map?filename=${encodeURIComponent(scriptNameOrSourceURL)}`
     } else {
+      // Fallback for custom servers where the origin is unknown: inline the
+      // payload.
       // TODO: Might be more efficient to extract the relevant section from Index Maps.
       // Unclear if that search is worth the smaller payload we have to stringify.
       const sourceMapJSON = JSON.stringify(sourceMapPayload)
