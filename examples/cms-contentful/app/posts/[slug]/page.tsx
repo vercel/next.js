@@ -17,11 +17,7 @@ export async function generateStaticParams() {
   }));
 }
 
-export default async function PostPage({
-  params,
-}: {
-  params: Promise<{ slug: string }>;
-}) {
+export default async function PostPage({ params }: PageProps<"/posts/[slug]">) {
   const { isEnabled } = await draftMode();
   const { slug } = await params;
   const { post, morePosts } = await getPostAndMorePosts(slug, isEnabled);
