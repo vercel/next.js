@@ -308,7 +308,7 @@ Each card is clickable and opens a page with patterns, code samples, and trade-o
    }
    ```
 
-2. Deploy the change. Links to the adopted destination load the App Shell, and the insight keeps firing for the destinations you haven't reached.
+2. Deploy the change. Links to the adopted destination load the App Shell, and the insight keeps surfacing for the destinations you haven't reached.
 3. Repeat until every destination in scope is adopted, then [enable the flag](#enable-partial-prefetching).
 
 The per-route `prefetch = 'partial'` exports are now redundant. Remove them in one pass with the [`remove-partial-prefetch`](/docs/app/guides/upgrading/codemods#remove-partial-prefetch) codemod, which strips `export const prefetch = 'partial'` from every `page` and `layout`:
