@@ -139,6 +139,64 @@ describe('use-cache-dev', () => {
       expect(softReloadContent).toEqual(hardReloadContent)
     })
 
+    it('should serve stale content to cookieless requests after an edit until a hard reload revalidates it', async () => {
+      // Establish the cookieless cache entry.
+      let $ = await next.render$('/')
+      expect($('#text').text()).toBe('foo')
+
+      await next.patchFile(
+        'app/page.tsx',
+        (content) => content.replace('foo', 'baz'),
+        async () => {
+          // Once compiled, a request with an HMR refresh hash cookie
+          // (normally set by the HMR client) uses a new cache key and is
+          // rendered fresh. Using a unique hash per attempt to avoid
+          // caching a pre-edit render under the tested key.
+          await retry(async () => {
+            const $ = await next.render$(
+              '/',
+              {},
+              {
+                headers: {
+                  cookie: `__next_hmr_refresh_hash__=${Math.random()}`,
+                },
+              }
+            )
+
+            expect($('#text').text()).toBe('baz')
+          })
+
+          // The edit did not evict the cookieless cache entry; it still
+          // serves the pre-edit content.
+          $ = await next.render$('/')
+          expect($('#text').text()).toBe('foo')
+
+          // A hard reload (cache-control: no-cache) renders fresh...
+          $ = await next.render$(
+            '/',
+            {},
+            { headers: { 'cache-control': 'no-cache' } }
+          )
+
+          expect($('#text').text()).toBe('baz')
+
+          // ...and overwrites the cookieless cache entry.
+          $ = await next.render$('/')
+          expect($('#text').text()).toBe('baz')
+        }
+      )
+
+      // Re-sync the cookieless cache entry with the reverted file content
+      // for subsequent tests.
+      $ = await next.render$(
+        '/',
+        {},
+        { headers: { 'cache-control': 'no-cache' } }
+      )
+
+      expect($('#text').text()).toBe('foo')
+    })
+
     it('should successfully finish compilation when "use cache" directive is added/removed', async () => {
       await next.browser('/')
       let cliOutputLength = next.cliOutput.length
