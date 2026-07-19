@@ -160,11 +160,19 @@ pub async fn get_client_resolve_options_context(
     let next_client_fallback_import_map = get_next_client_fallback_import_map(ty.clone())
         .to_resolved()
         .await?;
-    let next_client_resolved_map =
-        get_next_client_resolved_map(project_path.clone(), project_path.clone(), *mode.await?)
-            .await?
-            .to_resolved()
+    let expose_testing_api = mode.await?.is_development()
+        || *next_config
+            .enable_expose_testing_api_in_production_build()
             .await?;
+    let next_client_resolved_map = get_next_client_resolved_map(
+        project_path.clone(),
+        project_path.clone(),
+        *mode.await?,
+        expose_testing_api,
+    )
+    .await?
+    .to_resolved()
+    .await?;
     let mut custom_conditions: Vec<_> = mode.await?.custom_resolve_conditions().collect();
 
     if *next_config.enable_cache_components().await? {
@@ -464,6 +472,7 @@ pub struct ClientChunkingContextOptions {
     pub client_root_to_root_path: RcStr,
     pub client_static_folder_name: RcStr,
     pub asset_prefix: Vc<RcStr>,
+    pub service_worker_scope_base_path: Vc<Option<RcStr>>,
     pub environment: Vc<Environment>,
     pub module_id_strategy: Vc<ModuleIdStrategy>,
     pub export_usage: Vc<OptionBindingUsageInfo>,
@@ -473,6 +482,7 @@ pub struct ClientChunkingContextOptions {
     pub no_mangling: Vc<bool>,
     pub scope_hoisting: Vc<bool>,
     pub nested_async_chunking: Vc<bool>,
+    pub shared_runtime: Vc<bool>,
     pub debug_ids: Vc<bool>,
     pub worker_asset_prefix: Vc<Option<RcStr>>,
     pub should_use_absolute_url_references: Vc<bool>,
@@ -484,6 +494,7 @@ pub struct ClientChunkingContextOptions {
     pub chunking_first_page_load_priority: Option<u32>,
     pub chunking_priority_boost_percent: Option<u32>,
     pub chunking_request_cost: Option<u64>,
+    pub generate_component_chunks: Vc<bool>,
 }
 
 /// Next.js' chunk-load retry policy for the Turbopack browser runtime.
@@ -505,6 +516,7 @@ pub async fn get_client_chunking_context(
         client_root_to_root_path,
         client_static_folder_name,
         asset_prefix,
+        service_worker_scope_base_path,
         environment,
         module_id_strategy,
         export_usage,
@@ -514,6 +526,7 @@ pub async fn get_client_chunking_context(
         no_mangling,
         scope_hoisting,
         nested_async_chunking,
+        shared_runtime,
         debug_ids,
         worker_asset_prefix,
         should_use_absolute_url_references,
@@ -525,10 +538,12 @@ pub async fn get_client_chunking_context(
         chunking_first_page_load_priority,
         chunking_priority_boost_percent,
         chunking_request_cost,
+        generate_component_chunks,
     } = options;
 
     let next_mode = mode.await?;
     let asset_prefix = asset_prefix.owned().await?;
+    let service_worker_scope_base_path = service_worker_scope_base_path.owned().await?;
     let cross_origin_loading = *cross_origin.await?;
     let mut builder = BrowserChunkingContext::builder(
         root_path,
@@ -545,6 +560,7 @@ pub async fn get_client_chunking_context(
         next_mode.runtime_type(),
     )
     .chunk_base_path(Some(asset_prefix.clone()))
+    .service_worker_scope_base_path(service_worker_scope_base_path)
     .asset_suffix(AssetSuffix::Inferred.resolved_cell())
     .minify_type(if *minify.await? {
         MinifyType::Minify {
@@ -592,6 +608,10 @@ pub async fn get_client_chunking_context(
                     first_page_load_priority: chunking_first_page_load_priority,
                     priority_boost_percent: chunking_priority_boost_percent,
                     request_cost: chunking_request_cost,
+                    // Generate component chunks alongside the merged chunk so that the browser
+                    // runtime can fetch an already-cached one instead of the whole merged chunk.
+                    generate_component_chunks: *generate_component_chunks.await?,
+                    min_component_chunk_size: 20_000,
                     ..Default::default()
                 },
             )
@@ -604,7 +624,8 @@ pub async fn get_client_chunking_context(
                 },
             )
             .chunk_content_hashing(ContentHashing::Direct { length: 13 })
-            .module_merging(*scope_hoisting.await?);
+            .module_merging(*scope_hoisting.await?)
+            .shared_runtime(*shared_runtime.await?);
     }
 
     Ok(Vc::upcast(builder.build()))

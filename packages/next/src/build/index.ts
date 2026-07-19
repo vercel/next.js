@@ -10,6 +10,7 @@ import type { CacheControl, Revalidate } from '../server/lib/cache-control'
 import type { PrefetchHints } from '../shared/lib/app-router-types'
 
 import '../lib/setup-exception-listeners'
+import { resolveBuildPaths } from '../lib/resolve-build-paths'
 
 import { loadEnvConfig, type LoadedEnvFiles } from '@next/env'
 import { bold, yellow } from '../lib/picocolors'
@@ -231,6 +232,7 @@ import {
   type PrefetchSegmentDataRoute,
 } from '../server/lib/router-utils/build-prefetch-segment-data-route'
 import { generateRoutesManifest } from './generate-routes-manifest'
+import { buildCustomRoute } from '../lib/build-custom-route'
 import { validateAppPaths } from './validate-app-paths'
 
 type Fallback = null | boolean | string
@@ -936,7 +938,7 @@ export default async function build(
   bundler = Bundler.Turbopack,
   experimentalBuildMode: 'default' | 'compile' | 'generate' | 'generate-env',
   traceUploadUrl: string | undefined,
-  debugBuildPaths: { app: string[]; pages: string[] } | undefined,
+  debugBuildPathsPatterns: string[] | undefined,
   enabledFeatures: Record<string, unknown> = {}
 ): Promise<void> {
   const isCompileMode = experimentalBuildMode === 'compile'
@@ -976,7 +978,6 @@ export default async function build(
     NextBuildContext.reactProductionProfiling = reactProductionProfiling
     NextBuildContext.noMangling = noMangling
     NextBuildContext.debugPrerender = debugPrerender
-    NextBuildContext.debugBuildPaths = debugBuildPaths
 
     await nextBuildSpan.traceAsyncFn(async () => {
       // attempt to load global env values so they are available in next.config.js
@@ -1016,6 +1017,19 @@ export default async function build(
           )
         )
       loadedConfig = config
+
+      // Resolve selective build paths now that the page extensions are known.
+      const debugBuildPaths = debugBuildPathsPatterns
+        ? await (async () => {
+            const resolved = await resolveBuildPaths(
+              debugBuildPathsPatterns,
+              dir,
+              config.pageExtensions
+            )
+            return { app: resolved.appPaths, pages: resolved.pagePaths }
+          })()
+        : undefined
+      NextBuildContext.debugBuildPaths = debugBuildPaths
 
       // Validate deploymentId if provided
       if (config.deploymentId !== undefined) {
@@ -2725,6 +2739,26 @@ export default async function build(
         ]).map((page) => {
           return buildDataRoute(page, buildId)
         })
+      }
+
+      // Service workers are compiled into `distDir/static/service-worker/` and register at a broader
+      // scope than their own directory (e.g. `/`), so their script response needs a
+      // `Service-Worker-Allowed` header.
+      const serviceWorkerDir = path.join(distDir, 'static', 'service-worker')
+      if (
+        existsSync(serviceWorkerDir) &&
+        (await fs.readdir(serviceWorkerDir)).length > 0
+      ) {
+        routesManifest.headers.push(
+          buildCustomRoute('header', {
+            source: `${config.basePath || ''}/_next/static/service-worker/:path*`,
+            headers: [
+              { key: 'Service-Worker-Allowed', value: config.basePath || '/' },
+            ],
+            locale: false,
+            internal: true,
+          })
+        )
       }
 
       // We need to write the manifest with rewrites before build

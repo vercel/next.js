@@ -816,6 +816,10 @@ declare module 'next/dist/compiled/@vercel/routing-utils' {
   export = m
 }
 
+declare module 'next/dist/compiled/@vercel/detect-agent' {
+  export * from '@vercel/detect-agent'
+}
+
 declare module 'next/dist/compiled/@modelcontextprotocol/sdk/server/mcp' {
   export * from '@modelcontextprotocol/sdk/server/mcp'
 }

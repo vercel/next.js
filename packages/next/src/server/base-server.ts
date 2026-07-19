@@ -84,6 +84,8 @@ import {
 import { getNextPathnameInfo } from '../shared/lib/router/utils/get-next-pathname-info'
 import {
   RSC_HEADER,
+  NEXT_HTML_REQUEST_ID_HEADER,
+  NEXT_REQUEST_ID_HEADER,
   NEXT_RSC_UNION_QUERY,
   NEXT_ROUTER_PREFETCH_HEADER,
   NEXT_ROUTER_SEGMENT_PREFETCH_HEADER,
@@ -92,6 +94,7 @@ import {
   NEXT_INSTANT_TEST_COOKIE,
   NEXT_HMR_REFRESH_HEADER,
 } from '../client/components/app-router-headers'
+import { nanoid } from 'next/dist/compiled/nanoid'
 import type {
   MatchOptions,
   RouteMatcherManager,
@@ -110,6 +113,8 @@ import {
   SpanStatusCode,
 } from './lib/trace/tracer'
 import { BaseServerSpan } from './lib/trace/constants'
+import { runWithRequestInsightsIdentity } from './lib/trace/request-insights-identity'
+import { isRequestInsightsEnabled } from './lib/trace/span-store'
 import { I18NProvider } from './lib/i18n-provider'
 import { sendResponse } from './send-response'
 import { normalizeNextQueryParam } from './web/utils'
@@ -129,7 +134,10 @@ import {
   isAppRouteRouteModule,
 } from './route-modules/checks'
 import { NextDataPathnameNormalizer } from './normalizers/request/next-data'
-import { getIsPossibleServerAction } from './lib/server-action-request-meta'
+import {
+  getIsPossibleServerAction,
+  getServerActionRequestMetadata,
+} from './lib/server-action-request-meta'
 import { isInterceptionRouteAppPath } from '../shared/lib/router/utils/interception-routes'
 import { toRoute } from './lib/to-route'
 import type { DeepReadonly } from '../shared/lib/deep-readonly'
@@ -465,6 +473,12 @@ export default abstract class Server<
     // TODO: should conf be normalized to prevent missing
     // values from causing issues as this can be user provided
     this.nextConfig = conf as NextConfigRuntime
+    if (
+      (dev || process.env.__NEXT_DEV_SERVER) &&
+      this.nextConfig.experimental.requestInsights
+    ) {
+      process.env.__NEXT_REQUEST_INSIGHTS = 'true'
+    }
 
     if (this.nextConfig.experimental.runtimeServerDeploymentId) {
       if (!process.env.NEXT_DEPLOYMENT_ID) {
@@ -591,7 +605,6 @@ export default abstract class Server<
         useCacheTimeout: this.nextConfig.experimental.useCacheTimeout,
         cachedNavigations:
           this.nextConfig.experimental.cachedNavigations ?? false,
-        appShells: this.nextConfig.experimental.appShells,
         maxPostponedStateSizeBytes: parseMaxPostponedStateSize(
           this.nextConfig.experimental.maxPostponedStateSize
         ),
@@ -896,86 +909,111 @@ export default abstract class Server<
     const method = req.method.toUpperCase()
     const tracer = getTracer()
 
-    return tracer.withPropagatedContext(req.headers, () => {
-      // Capture the parent span before creating the handleRequest span.
-      // When deployed with an adapter, the platform's runtime may create its
-      // own OTEL HTTP server span before Next.js runs. We propagate http.route
-      // to this parent span so APM tools (e.g. Datadog) can derive the
-      // resource name correctly.
-      const parentSpan = tracer.getActiveScopeSpan()
+    const handleRequest = () =>
+      tracer.withPropagatedContext(req.headers, () => {
+        // Capture the parent span before creating the handleRequest span.
+        // When deployed with an adapter, the platform's runtime may create its
+        // own OTEL HTTP server span before Next.js runs. We propagate http.route
+        // to this parent span so APM tools (e.g. Datadog) can derive the
+        // resource name correctly.
+        const parentSpan = tracer.getActiveScopeSpan()
 
-      return tracer.trace(
-        BaseServerSpan.handleRequest,
-        {
-          spanName: `${method}`,
-          kind: SpanKind.SERVER,
-          attributes: {
-            'http.method': method,
-            'http.target': req.url,
+        return tracer.trace(
+          BaseServerSpan.handleRequest,
+          {
+            spanName: `${method}`,
+            kind: SpanKind.SERVER,
+            attributes: {
+              'http.method': method,
+              'http.target': req.url,
+            },
           },
-        },
-        async (span) =>
-          this.handleRequestImpl(req, res, parsedUrl).finally(() => {
-            if (!span) return
+          async (span) =>
+            this.handleRequestImpl(req, res, parsedUrl).finally(() => {
+              if (!span) return
 
-            const isRSCRequest = getRequestMeta(req, 'isRSCRequest') ?? false
-            span.setAttributes({
-              'http.status_code': res.statusCode,
-              'next.rsc': isRSCRequest,
-            })
-
-            if (res.statusCode && res.statusCode >= 500) {
-              // For 5xx status codes: SHOULD be set to 'Error' span status.
-              // x-ref: https://opentelemetry.io/docs/specs/semconv/http/http-spans/#status
-              span.setStatus({
-                code: SpanStatusCode.ERROR,
-              })
-              // For span status 'Error', SHOULD set 'error.type' attribute.
-              span.setAttribute('error.type', res.statusCode.toString())
-            }
-
-            const rootSpanAttributes = tracer.getRootSpanAttributes()
-            // We were unable to get attributes, probably OTEL is not enabled
-            if (!rootSpanAttributes) return
-
-            if (
-              rootSpanAttributes.get('next.span_type') !==
-              BaseServerSpan.handleRequest
-            ) {
-              console.warn(
-                `Unexpected root span type '${rootSpanAttributes.get(
-                  'next.span_type'
-                )}'. Please report this Next.js issue https://github.com/vercel/next.js`
-              )
-              return
-            }
-
-            const route = rootSpanAttributes.get('next.route')
-            if (route) {
-              const name = isRSCRequest
-                ? `RSC ${method} ${route}`
-                : `${method} ${route}`
-
+              const isRSCRequest = getRequestMeta(req, 'isRSCRequest') ?? false
               span.setAttributes({
-                'next.route': route,
-                'http.route': route,
-                'next.span_name': name,
+                'http.status_code': res.statusCode,
+                'next.rsc': isRSCRequest,
               })
-              span.updateName(name)
 
-              // Propagate http.route to the parent span if one exists and
-              // is different from the handleRequest span. This ensures APM
-              // tools that read attributes from the outermost span (e.g.
-              // a platform-created HTTP span) can derive the resource name.
-              if (parentSpan && parentSpan !== span) {
-                parentSpan.setAttribute('http.route', route)
+              if (res.statusCode && res.statusCode >= 500) {
+                // For 5xx status codes: SHOULD be set to 'Error' span status.
+                // x-ref: https://opentelemetry.io/docs/specs/semconv/http/http-spans/#status
+                span.setStatus({
+                  code: SpanStatusCode.ERROR,
+                })
+                // For span status 'Error', SHOULD set 'error.type' attribute.
+                span.setAttribute('error.type', res.statusCode.toString())
               }
-            } else {
-              span.updateName(isRSCRequest ? `RSC ${method}` : `${method}`)
-            }
-          })
-      )
-    })
+
+              const rootSpanAttributes = tracer.getRootSpanAttributes()
+              // We were unable to get attributes, probably OTEL is not enabled
+              if (!rootSpanAttributes) return
+
+              if (
+                rootSpanAttributes.get('next.span_type') !==
+                BaseServerSpan.handleRequest
+              ) {
+                console.warn(
+                  `Unexpected root span type '${rootSpanAttributes.get(
+                    'next.span_type'
+                  )}'. Please report this Next.js issue https://github.com/vercel/next.js`
+                )
+                return
+              }
+
+              const route = rootSpanAttributes.get('next.route')
+              if (route) {
+                const name = isRSCRequest
+                  ? `RSC ${method} ${route}`
+                  : `${method} ${route}`
+
+                span.setAttributes({
+                  'next.route': route,
+                  'http.route': route,
+                  'next.span_name': name,
+                })
+                span.updateName(name)
+
+                // Propagate http.route to the parent span if one exists and
+                // is different from the handleRequest span. This ensures APM
+                // tools that read attributes from the outermost span (e.g.
+                // a platform-created HTTP span) can derive the resource name.
+                if (parentSpan && parentSpan !== span) {
+                  parentSpan.setAttribute('http.route', route)
+                }
+              } else {
+                span.updateName(isRSCRequest ? `RSC ${method}` : `${method}`)
+              }
+            })
+        )
+      })
+
+    if (!isRequestInsightsEnabled()) {
+      return handleRequest()
+    }
+
+    const requestIdHeader = req.headers[NEXT_REQUEST_ID_HEADER]
+    const requestId =
+      typeof requestIdHeader === 'string' ? requestIdHeader : nanoid()
+    const htmlRequestIdHeader = req.headers[NEXT_HTML_REQUEST_ID_HEADER]
+
+    // The request root and route-matching spans start before App Render creates
+    // its workStore. Carry their identity in this outer scope; App Render copies
+    // it into the workStore so the complete timeline uses one request ID.
+    return runWithRequestInsightsIdentity(
+      {
+        requestId,
+        htmlRequestId:
+          typeof htmlRequestIdHeader === 'string'
+            ? htmlRequestIdHeader
+            : requestId,
+        url: req.url,
+      },
+      handleRequest
+    )
   }
 
   private async handleRequestImpl(
@@ -2622,6 +2660,22 @@ export default abstract class Server<
   ): Promise<LoadComponentsReturnType<ErrorModule> | null>
   protected abstract getRoutesManifest(): NormalizedRouteManifest | undefined
 
+  protected matchOptions(req: ServerRequest, pathname: string): MatchOptions {
+    return {
+      i18n: this.i18nProvider?.fromRequest(req, pathname),
+      // Only actual navigations and fetch actions compile the SSR-free output
+      // — never prefetches. With cache components, a prefetch triggers a dev
+      // validation render that consumes the Flight payload through
+      // `ssrModuleMapping`, which the SSR-free output doesn't emit. Fetch
+      // actions always respond with a Flight payload, unlike no-JS form
+      // actions, which respond with an HTML document.
+      rscOnly:
+        (!!getRequestMeta(req, 'isRSCRequest') &&
+          !getRequestMeta(req, 'isPrefetchRSCRequest')) ||
+        getServerActionRequestMetadata(req).isFetchAction,
+    }
+  }
+
   private async renderToResponseImpl(
     ctx: RequestContext<ServerRequest, ServerResponse>
   ): Promise<ResponsePayload | null> {
@@ -2642,9 +2696,7 @@ export default abstract class Server<
     }
     delete query[NEXT_RSC_UNION_QUERY]
 
-    const options: MatchOptions = {
-      i18n: this.i18nProvider?.fromRequest(req, pathname),
-    }
+    const options = this.matchOptions(req, pathname)
 
     const existingMatch = getRequestMeta(ctx.req, 'match')
 

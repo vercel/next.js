@@ -512,14 +512,6 @@ export interface ExperimentalConfig {
   useOffline?: boolean
   optimisticRouting?: boolean
   instrumentationClientRouterTransitionEvents?: boolean
-  /**
-   * Enables App Shell prefetching: a route's reusable, param-free loading
-   * state is prefetched once per session and served instantly for any
-   * concrete navigation. Routes marked as fully static (no per-request
-   * server work) are unaffected; the App Shell phase only runs for
-   * runtime-prefetchable routes.
-   */
-  appShells?: boolean
   varyParams?: boolean
   prefetchInlining?:
     | boolean
@@ -566,6 +558,12 @@ export interface ExperimentalConfig {
    * Do not enable in user-facing production deployments.
    */
   exposeTestingApiInProductionBuild?: boolean
+  /**
+   * Show Request Insights in the dev tools indicator. Request Insights records
+   * the local framework spans needed to explain App Router request, render,
+   * fetch, and cache behavior without requiring an external OTEL collector.
+   */
+  requestInsights?: boolean
   extensionAlias?: Record<string, any>
   allowedRevalidateHeaderKeys?: string[]
   fetchCacheKeyPrefix?: string
@@ -711,6 +709,12 @@ export interface ExperimentalConfig {
   strictRouteTypes?: boolean
 
   /**
+   * Runs the project-local TypeScript CLI instead of using TypeScript's
+   * programmatic API for build-time type checking and config loading.
+   */
+  useTypeScriptCli?: boolean
+
+  /**
    * Displays an indicator when a React Transition has no other indicator rendered.
    * This includes displaying an indicator on client-side navigations.
    */
@@ -763,6 +767,20 @@ export interface ExperimentalConfig {
    * Enable scope hoisting. Defaults to true in build mode. Always disabled in development mode.
    */
   turbopackScopeHoisting?: boolean
+
+  /**
+   * (`next --turbopack` only) Emit each merged production chunk's constituent component chunks
+   * alongside it, so the browser runtime can load only the ones it doesn't already have.
+   * Defaults to `false`. Only applies in build mode.
+   */
+  turbopackGenerateComponentChunks?: boolean
+
+  /**
+   * Share the browser runtime across routes in a single `runtime.js` asset and inline the
+   * per-route chunk-group bootstrap into the HTML, dropping the per-route runtime. Defaults to
+   * false. Only applies to production builds; has no effect in development mode.
+   */
+  turbopackSharedRuntime?: boolean
 
   /**
    * (`next --turbopack` only) Traffic-related hints for the production chunker. These change the
@@ -2134,6 +2152,7 @@ export const defaultConfig = Object.freeze({
     fullySpecified: false,
     swcTraceProfiling: false,
     forceSwcTransforms: false,
+    requestInsights: false,
     swcPlugins: undefined,
     largePageDataBytes: 128 * 1000, // 128KB by default
     disablePostcssPresetEnv: undefined,
@@ -2148,6 +2167,7 @@ export const defaultConfig = Object.freeze({
     webpackMemoryOptimizations: false,
     optimizeServerReact: true,
     strictRouteTypes: false,
+    useTypeScriptCli: false,
     viewTransition: false,
     removeUncaughtErrorAndRejectionListeners: false,
     validateRSCRequestHeaders: true,
@@ -2258,7 +2278,6 @@ export interface NextConfigRuntime {
     | 'dynamicOnHover'
     | 'useOffline'
     | 'optimisticRouting'
-    | 'appShells'
     | 'inlineCss'
     | 'prefetchInlining'
     | 'authInterrupts'
@@ -2296,6 +2315,7 @@ export interface NextConfigRuntime {
     | 'exposeTestingApiInProductionBuild'
     | 'supportsImmutableAssets'
     | 'instantInsights'
+    | 'requestInsights'
   > & {
     // Pick on @internal fields generates invalid .d.ts files
     /** @internal */
@@ -2327,7 +2347,6 @@ export function getNextConfigRuntime(
     dynamicOnHover: ex.dynamicOnHover,
     useOffline: ex.useOffline,
     optimisticRouting: ex.optimisticRouting,
-    appShells: ex.appShells,
     inlineCss: ex.inlineCss,
     prefetchInlining: ex.prefetchInlining,
     authInterrupts: ex.authInterrupts,
@@ -2366,6 +2385,7 @@ export function getNextConfigRuntime(
     exposeTestingApiInProductionBuild: ex.exposeTestingApiInProductionBuild,
     supportsImmutableAssets: ex.supportsImmutableAssets,
     instantInsights: ex.instantInsights,
+    requestInsights: ex.requestInsights,
 
     trustHostHeader: ex.trustHostHeader,
     isExperimentalCompile: ex.isExperimentalCompile,

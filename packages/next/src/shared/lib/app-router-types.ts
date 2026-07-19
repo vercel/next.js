@@ -184,10 +184,11 @@ export const enum PrefetchHint {
   // This segment has a runtime prefetch enabled (via instant with
   // prefetch: 'runtime'). Per-segment only, does not propagate to ancestors.
   HasRuntimePrefetch = 0b00001,
-  // This segment or one of its descendants opts into Partial Prefetching.
-  // Currently set when a truthy instant config is present on any
-  // segment in the subtree (regardless of prefetch mode). Propagates upward
-  // so the root segment reflects the entire subtree.
+  // This segment or one of its descendants opts into Partial Prefetching, i.e.
+  // uses the two-phase (Shell then Speculative) prefetch flow. Set when a
+  // truthy instant config is present, or `prefetch` is 'partial',
+  // 'unstable_eager', or 'allow-runtime'. Propagates upward so the root segment
+  // reflects the entire subtree.
   SubtreeHasPartialPrefetching = 0b00010,
   // This segment itself has a loading.tsx boundary.
   SegmentHasLoadingBoundary = 0b00100,

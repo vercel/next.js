@@ -99,6 +99,7 @@ use crate::{
     entrypoints::Entrypoints,
     instrumentation::InstrumentationEndpoint,
     middleware::MiddlewareEndpoint,
+    output_mode::{OptionOutputModeState, OutputModeState},
     pages::PagesProject,
     route::{
         Endpoint, EndpointGroup, EndpointGroupEntry, EndpointGroupKey, EndpointGroups, Endpoints,
@@ -466,6 +467,7 @@ pub struct ProjectContainer {
     name: RcStr,
     options_state: State<Option<ProjectOptions>>,
     versioned_content_map: Option<ResolvedVc<VersionedContentMap>>,
+    output_mode_state: Option<ResolvedVc<OutputModeState>>,
 }
 
 #[turbo_tasks::value_impl]
@@ -478,6 +480,13 @@ impl ProjectContainer {
             // is assumed to be operating over a static snapshot
             versioned_content_map: if dev {
                 Some(VersionedContentMap::new())
+            } else {
+                None
+            },
+            // only dev serves pages on demand, so only dev can defer the
+            // Client Component SSR output of a page
+            output_mode_state: if dev {
+                Some(OutputModeState::new())
             } else {
                 None
             },
@@ -866,6 +875,7 @@ impl ProjectContainer {
                 NextMode::Build.resolved_cell()
             },
             versioned_content_map: self.versioned_content_map,
+            output_mode_state: self.output_mode_state,
             build_id,
             encryption_key,
             preview_props,
@@ -950,6 +960,11 @@ pub struct Project {
     mode: ResolvedVc<NextMode>,
 
     versioned_content_map: Option<ResolvedVc<VersionedContentMap>>,
+
+    /// Tracks which app pages must emit full HTML output in development. Like
+    /// [`Project::versioned_content_map`], this is the same cell across
+    /// `Project` re-creations, so the state survives options changes.
+    output_mode_state: Option<ResolvedVc<OutputModeState>>,
 
     build_id: RcStr,
 
@@ -1055,6 +1070,11 @@ impl Project {
     #[turbo_tasks::function]
     pub fn pages_project(self: Vc<Self>) -> Vc<PagesProject> {
         PagesProject::new(self)
+    }
+
+    #[turbo_tasks::function]
+    pub fn output_mode_state(&self) -> Vc<OptionOutputModeState> {
+        Vc::cell(self.output_mode_state)
     }
 
     #[turbo_tasks::function]
@@ -1614,6 +1634,7 @@ impl Project {
                 .owned()
                 .await?,
             asset_prefix: self.next_config().computed_asset_prefix(),
+            service_worker_scope_base_path: self.next_config().base_path(),
             environment: self.client_compile_time_info().environment(),
             module_id_strategy: self.module_ids(),
             export_usage: self.export_usage(),
@@ -1625,6 +1646,7 @@ impl Project {
             nested_async_chunking: self
                 .next_config()
                 .turbo_nested_async_chunking(self.next_mode(), true),
+            shared_runtime: self.next_config().turbo_shared_runtime(self.next_mode()),
             debug_ids: self.next_config().turbopack_debug_ids(),
             worker_asset_prefix: self.next_config().turbopack_worker_asset_prefix(),
             should_use_absolute_url_references: self.next_config().inline_css(),
@@ -1636,6 +1658,7 @@ impl Project {
             chunking_first_page_load_priority: chunking_heuristics.first_page_load_priority,
             chunking_priority_boost_percent: chunking_heuristics.priority_boost_percent,
             chunking_request_cost: chunking_heuristics.request_cost,
+            generate_component_chunks: self.next_config().turbopack_generate_component_chunks(),
         }))
     }
 

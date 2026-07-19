@@ -545,6 +545,7 @@ impl ChunkingContext for NodeJsChunkingContext {
                 referenced_assets: OutputAssets::empty_resolved(),
                 references: ResolvedVc::cell(references),
                 availability_info,
+                chunk_group_bootstrap_params: None,
             }
             .cell())
         }

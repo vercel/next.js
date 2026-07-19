@@ -13,6 +13,10 @@ import type {
   ServerCacheStatus,
 } from '../../next-devtools/dev-overlay/cache-indicator'
 import type { DevToolsConfig } from '../../next-devtools/dev-overlay/shared'
+import type {
+  RequestInsight,
+  RequestInsightsSnapshot,
+} from '../../next-devtools/shared/request-insights'
 import type { ReactDebugChannelForBrowser } from './debug-channel'
 import type { AnyStream } from '../app-render/stream-ops'
 
@@ -38,6 +42,7 @@ export const enum HMR_MESSAGE_SENT_TO_BROWSER {
   DEVTOOLS_CONFIG = 'devtoolsConfig',
   REQUEST_CURRENT_ERROR_STATE = 'requestCurrentErrorState',
   REQUEST_PAGE_METADATA = 'requestPageMetadata',
+  REQUEST_INSIGHTS_UPDATE = 'requestInsightsUpdate',
 
   // Binary messages:
   REACT_DEBUG_CHUNK = 0,
@@ -83,6 +88,7 @@ export interface SyncMessage {
   debug?: DebugInfo
   devIndicator: DevIndicatorServerState
   devToolsConfig?: DevToolsConfig
+  requestInsights?: RequestInsightsSnapshot
 }
 
 export interface BuiltMessage {
@@ -179,6 +185,11 @@ export interface CacheIndicatorMessage {
   state: CacheIndicatorState
 }
 
+export interface RequestInsightsUpdateMessage {
+  type: HMR_MESSAGE_SENT_TO_BROWSER.REQUEST_INSIGHTS_UPDATE
+  insight: RequestInsight
+}
+
 export type HmrMessageSentToBrowser =
   | TurbopackMessage
   | TurbopackConnectedMessage
@@ -201,6 +212,7 @@ export type HmrMessageSentToBrowser =
   | RequestCurrentErrorStateMessage
   | RequestPageMetadataMessage
   | CacheIndicatorMessage
+  | RequestInsightsUpdateMessage
 
 export type BinaryHmrMessageSentToBrowser = Extract<
   HmrMessageSentToBrowser,
@@ -275,6 +287,7 @@ export interface NextJsHotReloaderInterface {
     isApp?: boolean
     definition?: RouteDefinition
     url?: string
+    rscOnly?: boolean
     /**
      * Whether to wire HMR change subscriptions for the compiled entry.
      * Defaults to true (the dev server uses these to push updates to
