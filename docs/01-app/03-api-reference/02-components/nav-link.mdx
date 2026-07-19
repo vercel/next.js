@@ -86,23 +86,32 @@ Controls how `href` is compared to the current pathname:
 </NavLink>
 ```
 
-### Query strings
+### `data-active` and `aria-current`
 
-`<NavLink>` matches the pathname and ignores the query string, so `/dashboard?tab=one` and `/dashboard?tab=two` both match `href="/dashboard"`. Query params are request-time data, and matching on them would opt the link out of the static shell that keeps the active state flicker-free.
+`<NavLink>` reflects its state with two attributes on the rendered `<a>`, and you set neither yourself:
 
-For active state that depends on a query param, such as tabs or filters, read [`useSearchParams()`](/docs/app/api-reference/functions/use-search-params) in a Client Component and compare it yourself. The [Interactive apps guide](/docs/app/guides/interactive-apps#step-3-filter-with-pending-feedback) builds this pattern with pending feedback.
+- `data-active` is present whenever the link is active, including an ancestor matched by [prefix](#exact). Use it to [style](#active-styling) the visual active state.
+- `aria-current="page"` is set only on the exact current page. A prefix-matched ancestor is not the current page, so it gets `data-active` but not `aria-current`. An assistive technology never announces two links as the current page at once.
+
+For a `<NavLink href="/blog">`, the rendered `<a>` depends on the route:
+
+```html
+<!-- On /blog (exact match) -->
+<a href="/blog" data-active aria-current="page">Blog</a>
+
+<!-- On /blog/post (prefix match) -->
+<a href="/blog" data-active>Blog</a>
+```
+
+## Examples
 
 ### Active styling
 
-`<NavLink>` sets `data-active` on the active link, including an ancestor matched by [prefix](#exact), so you can style the active state in CSS with no render prop, straight from a Server Component. With Tailwind, use the `data-active:` variant:
+`<NavLink>` sets `data-active` on the active link, including an ancestor matched by [prefix](#exact), so you can style the active state in CSS with no render prop, straight from a Server Component:
 
 ```tsx
-<NavLink href="/blog" className="rounded px-3 data-active:font-bold">
-  Blog
-</NavLink>
+<NavLink href="/blog">Blog</NavLink>
 ```
-
-Or target the attribute directly in plain CSS:
 
 ```css
 a[data-active] {
@@ -110,7 +119,17 @@ a[data-active] {
 }
 ```
 
-Style with `data-active` for the visual state. `aria-current="page"` is set only on the [exact current page](#data-active-and-aria-current), so `aria-[current=page]:` styling turns off on nested routes. Use it when you want the style to match only the exact page.
+`aria-current="page"` is set only on the exact current page, so an `[aria-current='page']` selector matches only the exact page, not nested routes.
+
+#### With Tailwind
+
+Use the `data-active:` variant:
+
+```tsx
+<NavLink href="/blog" className="rounded px-3 data-active:font-bold">
+  Blog
+</NavLink>
+```
 
 ### `className` and `children` as functions
 
@@ -148,7 +167,7 @@ function Spinner() {
 
 export function NavItem() {
   return (
-    <NavLink href="/dashboard" className="aria-[current=page]:font-bold">
+    <NavLink href="/dashboard" className="data-active:font-bold">
       Dashboard <Spinner />
     </NavLink>
   )
@@ -168,25 +187,24 @@ function Spinner() {
 
 export function NavItem() {
   return (
-    <NavLink href="/dashboard" className="aria-[current=page]:font-bold">
+    <NavLink href="/dashboard" className="data-active:font-bold">
       Dashboard <Spinner />
     </NavLink>
   )
 }
 ```
 
-> **Good to know:** The render-prop `isPending` and `useLinkStatus` read the same status. Use the render prop for the link's own `className`/`children`, and `useLinkStatus` for a self-contained nested indicator that does not need the render prop threaded down to it.
-
-### `data-active` and `aria-current`
-
-`<NavLink>` reflects its state with two attributes on the rendered `<a>`, and you set neither yourself:
-
-- `data-active` is present whenever the link is active, including an ancestor matched by [prefix](#exact). Use it to [style](#active-styling) the visual active state.
-- `aria-current="page"` is set only on the [exact current page](#exact). A prefix-matched ancestor is not the current page, so it gets `data-active` but not `aria-current`. An assistive technology never announces two links as the current page at once.
+> **Good to know:** The render-prop `isPending` and `useLinkStatus` read the same status. Use the render prop for the link's own `className`/`children`, and call `useLinkStatus` inside a nested component (like the `Spinner` above) so it reads the pending status directly instead of taking it as a prop.
 
 ## Behavior
 
 `NavLink` resolves its active state from the current pathname on both the server and the client, so the correct `data-active`, `aria-current`, and classes are in the initial HTML.
+
+### Query strings
+
+`<NavLink>` matches the pathname and ignores the query string, so `/dashboard?tab=one` and `/dashboard?tab=two` both match `href="/dashboard"`. Query params are request-time data, and matching on them would opt the link out of the static shell that keeps the active state flicker-free.
+
+For active state that depends on a query param, such as tabs or filters, read [`useSearchParams()`](/docs/app/api-reference/functions/use-search-params) in a Client Component and compare it yourself. The [Interactive apps guide](/docs/app/guides/interactive-apps#step-3-filter-with-pending-feedback) builds this pattern with pending feedback.
 
 ### Cache Components
 
