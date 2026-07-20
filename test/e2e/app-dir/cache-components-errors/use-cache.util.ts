@@ -460,9 +460,11 @@ export function registerUseCacheTests(ctx: CacheComponentsErrorsContext) {
                "description": "Next.js encountered runtime data during prerendering.",
                "environmentLabel": "Server",
                "label": "Blocking Route",
-               "source": null,
+               "source": "app/use-cache-low-expire/fast/page.tsx (3:16) @ Page
+             > 3 | export default async function Page() {
+                 |                ^",
                "stack": [
-                 "Page [Prerender] <anonymous>",
+                 "Page app/use-cache-low-expire/fast/page.tsx (3:16)",
                ],
              }
             `)
@@ -519,36 +521,9 @@ export function registerUseCacheTests(ctx: CacheComponentsErrorsContext) {
                    - [block] Set \`export const instant = false\` to allow a blocking route
 
                  Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic
-                     at H (../../../packages/next/dist/esm/client/components/layout-router.js:266:34)
-                     at a (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
-                     at b (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
-                     at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
-                     at I (../../../packages/next/dist/esm/client/components/layout-router.js:389:32)
-                     at c (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
-                     at F (../../../packages/next/dist/esm/client/components/layout-router.js:100:9)
-                     at G (../../../packages/next/dist/esm/client/components/layout-router.js:249:39)
-                     at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:418:49)
-                     ... collapsed 9 duplicate lines matching above lines ...
                      at main (<anonymous>)
                      at body (<anonymous>)
                      at html (<anonymous>)
-                     at H (../../../packages/next/dist/esm/client/components/layout-router.js:266:34)
-                     at d (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
-                     at e (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
-                     at f (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:18:9)
-                     at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
-                     at I (../../../packages/next/dist/esm/client/components/layout-router.js:389:32)
-                     at g (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
-                     at F (../../../packages/next/dist/esm/client/components/layout-router.js:100:9)
-                     at G (../../../packages/next/dist/esm/client/components/layout-router.js:249:39)
-                     at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:418:49)
-                   264 | /**
-                   265 |  * InnerLayoutRouter handles rendering the provided segment based on the cache.
-                 > 266 |  */ function InnerLayoutRouter({ tree, segmentPath, debugNameContext, cacheNode: maybeCacheNode, params, url, isActive }) {
-                       |                                  ^
-                   267 |     const context = useContext(GlobalLayoutRouterContext);
-                   268 |     const parentNavPromises = useContext(NavigationPromisesContext);
-                   269 |     if (!context) {
                  To get a more detailed stack trace and pinpoint the issue, try one of the following:
                    - Start the app in development mode by running \`next dev\`, then open "/use-cache-low-expire/fast" in your browser to investigate the error.
                    - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
@@ -603,9 +578,11 @@ Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
                "description": "Next.js encountered runtime data during prerendering.",
                "environmentLabel": "Server",
                "label": "Blocking Route",
-               "source": null,
+               "source": "app/use-cache-low-expire/slow/page.tsx (3:16) @ Page
+             > 3 | export default async function Page() {
+                 |                ^",
                "stack": [
-                 "Page [Prerender] <anonymous>",
+                 "Page app/use-cache-low-expire/slow/page.tsx (3:16)",
                ],
              }
             `)
@@ -662,36 +639,9 @@ Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
                    - [block] Set \`export const instant = false\` to allow a blocking route
 
                  Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic
-                     at H (../../../packages/next/dist/esm/client/components/layout-router.js:266:34)
-                     at a (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
-                     at b (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
-                     at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
-                     at I (../../../packages/next/dist/esm/client/components/layout-router.js:389:32)
-                     at c (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
-                     at F (../../../packages/next/dist/esm/client/components/layout-router.js:100:9)
-                     at G (../../../packages/next/dist/esm/client/components/layout-router.js:249:39)
-                     at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:418:49)
-                     ... collapsed 9 duplicate lines matching above lines ...
                      at main (<anonymous>)
                      at body (<anonymous>)
                      at html (<anonymous>)
-                     at H (../../../packages/next/dist/esm/client/components/layout-router.js:266:34)
-                     at d (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
-                     at e (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
-                     at f (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:18:9)
-                     at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
-                     at I (../../../packages/next/dist/esm/client/components/layout-router.js:389:32)
-                     at g (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
-                     at F (../../../packages/next/dist/esm/client/components/layout-router.js:100:9)
-                     at G (../../../packages/next/dist/esm/client/components/layout-router.js:249:39)
-                     at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:418:49)
-                   264 | /**
-                   265 |  * InnerLayoutRouter handles rendering the provided segment based on the cache.
-                 > 266 |  */ function InnerLayoutRouter({ tree, segmentPath, debugNameContext, cacheNode: maybeCacheNode, params, url, isActive }) {
-                       |                                  ^
-                   267 |     const context = useContext(GlobalLayoutRouterContext);
-                   268 |     const parentNavPromises = useContext(NavigationPromisesContext);
-                   269 |     if (!context) {
                  To get a more detailed stack trace and pinpoint the issue, try one of the following:
                    - Start the app in development mode by running \`next dev\`, then open "/use-cache-low-expire/slow" in your browser to investigate the error.
                    - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
@@ -906,9 +856,11 @@ Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
                "description": "Next.js encountered runtime data during prerendering.",
                "environmentLabel": "Server",
                "label": "Blocking Route",
-               "source": null,
+               "source": "app/use-cache-revalidate-0/fast/page.tsx (3:16) @ Page
+             > 3 | export default async function Page() {
+                 |                ^",
                "stack": [
-                 "Page [Prerender] <anonymous>",
+                 "Page app/use-cache-revalidate-0/fast/page.tsx (3:16)",
                ],
              }
             `)
@@ -965,36 +917,9 @@ Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
                    - [block] Set \`export const instant = false\` to allow a blocking route
 
                  Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic
-                     at H (../../../packages/next/dist/esm/client/components/layout-router.js:266:34)
-                     at a (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
-                     at b (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
-                     at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
-                     at I (../../../packages/next/dist/esm/client/components/layout-router.js:389:32)
-                     at c (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
-                     at F (../../../packages/next/dist/esm/client/components/layout-router.js:100:9)
-                     at G (../../../packages/next/dist/esm/client/components/layout-router.js:249:39)
-                     at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:418:49)
-                     ... collapsed 9 duplicate lines matching above lines ...
                      at main (<anonymous>)
                      at body (<anonymous>)
                      at html (<anonymous>)
-                     at H (../../../packages/next/dist/esm/client/components/layout-router.js:266:34)
-                     at d (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
-                     at e (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
-                     at f (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:18:9)
-                     at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
-                     at I (../../../packages/next/dist/esm/client/components/layout-router.js:389:32)
-                     at g (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
-                     at F (../../../packages/next/dist/esm/client/components/layout-router.js:100:9)
-                     at G (../../../packages/next/dist/esm/client/components/layout-router.js:249:39)
-                     at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:418:49)
-                   264 | /**
-                   265 |  * InnerLayoutRouter handles rendering the provided segment based on the cache.
-                 > 266 |  */ function InnerLayoutRouter({ tree, segmentPath, debugNameContext, cacheNode: maybeCacheNode, params, url, isActive }) {
-                       |                                  ^
-                   267 |     const context = useContext(GlobalLayoutRouterContext);
-                   268 |     const parentNavPromises = useContext(NavigationPromisesContext);
-                   269 |     if (!context) {
                  To get a more detailed stack trace and pinpoint the issue, try one of the following:
                    - Start the app in development mode by running \`next dev\`, then open "/use-cache-revalidate-0/fast" in your browser to investigate the error.
                    - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
@@ -1049,9 +974,11 @@ Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
                "description": "Next.js encountered runtime data during prerendering.",
                "environmentLabel": "Server",
                "label": "Blocking Route",
-               "source": null,
+               "source": "app/use-cache-revalidate-0/slow/page.tsx (3:16) @ Page
+             > 3 | export default async function Page() {
+                 |                ^",
                "stack": [
-                 "Page [Prerender] <anonymous>",
+                 "Page app/use-cache-revalidate-0/slow/page.tsx (3:16)",
                ],
              }
             `)
@@ -1108,36 +1035,9 @@ Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
                    - [block] Set \`export const instant = false\` to allow a blocking route
 
                  Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic
-                     at H (../../../packages/next/dist/esm/client/components/layout-router.js:266:34)
-                     at a (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
-                     at b (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
-                     at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
-                     at I (../../../packages/next/dist/esm/client/components/layout-router.js:389:32)
-                     at c (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
-                     at F (../../../packages/next/dist/esm/client/components/layout-router.js:100:9)
-                     at G (../../../packages/next/dist/esm/client/components/layout-router.js:249:39)
-                     at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:418:49)
-                     ... collapsed 9 duplicate lines matching above lines ...
                      at main (<anonymous>)
                      at body (<anonymous>)
                      at html (<anonymous>)
-                     at H (../../../packages/next/dist/esm/client/components/layout-router.js:266:34)
-                     at d (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
-                     at e (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
-                     at f (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:18:9)
-                     at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
-                     at I (../../../packages/next/dist/esm/client/components/layout-router.js:389:32)
-                     at g (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
-                     at F (../../../packages/next/dist/esm/client/components/layout-router.js:100:9)
-                     at G (../../../packages/next/dist/esm/client/components/layout-router.js:249:39)
-                     at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:418:49)
-                   264 | /**
-                   265 |  * InnerLayoutRouter handles rendering the provided segment based on the cache.
-                 > 266 |  */ function InnerLayoutRouter({ tree, segmentPath, debugNameContext, cacheNode: maybeCacheNode, params, url, isActive }) {
-                       |                                  ^
-                   267 |     const context = useContext(GlobalLayoutRouterContext);
-                   268 |     const parentNavPromises = useContext(NavigationPromisesContext);
-                   269 |     if (!context) {
                  To get a more detailed stack trace and pinpoint the issue, try one of the following:
                    - Start the app in development mode by running \`next dev\`, then open "/use-cache-revalidate-0/slow" in your browser to investigate the error.
                    - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
@@ -1351,18 +1251,9 @@ Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
              "description": "Next.js encountered runtime data during prerendering.",
              "environmentLabel": "Server",
              "label": "Blocking Route",
-             "source": "../../../packages/next/dist/compiled/react-server-dom-turbopack/cjs/react-server-dom-turbopack-client.node.development.js (550:19) @ Object.resolveToJSON
-           > 550 |             value.then(function (partValue) {
-                 |                   ^",
+             "source": null,
              "stack": [
-               "Promise.then <anonymous>",
-               "Object.resolveToJSON ../../../packages/next/dist/compiled/react-server-dom-turbopack/cjs/react-server-dom-turbopack-client.node.development.js (550:19)",
-               "JSON.stringify <anonymous>",
-               "serializeModel ../../../packages/next/dist/compiled/react-server-dom-turbopack/cjs/react-server-dom-turbopack-client.node.development.js (771:21)",
-               "processReply ../../../packages/next/dist/compiled/react-server-dom-turbopack/cjs/react-server-dom-turbopack-client.node.development.js (779:18)",
-               "<anonymous> ../../../packages/next/dist/compiled/react-server-dom-turbopack/cjs/react-server-dom-turbopack-client.node.development.js (5450:21)",
-               "exports.encodeReply ../../../packages/next/dist/compiled/react-server-dom-turbopack/cjs/react-server-dom-turbopack-client.node.development.js (5449:14)",
-               "Page app/use-cache-params/[slug]/page.tsx (1:16)",
+               "Page [Prerender] <anonymous>",
              ],
            }
           `)
@@ -1417,36 +1308,9 @@ Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
                  - [block] Set \`export const instant = false\` to allow a blocking route
 
                Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic
-                   at H (../../../packages/next/dist/esm/client/components/layout-router.js:266:34)
-                   at a (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
-                   at b (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
-                   at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
-                   at I (../../../packages/next/dist/esm/client/components/layout-router.js:389:32)
-                   at c (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
-                   at F (../../../packages/next/dist/esm/client/components/layout-router.js:100:9)
-                   at G (../../../packages/next/dist/esm/client/components/layout-router.js:249:39)
-                   at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:418:49)
-                   ... collapsed 9 duplicate lines matching above lines ...
                    at main (<anonymous>)
                    at body (<anonymous>)
                    at html (<anonymous>)
-                   at H (../../../packages/next/dist/esm/client/components/layout-router.js:266:34)
-                   at d (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
-                   at e (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
-                   at f (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:18:9)
-                   at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
-                   at I (../../../packages/next/dist/esm/client/components/layout-router.js:389:32)
-                   at g (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
-                   at F (../../../packages/next/dist/esm/client/components/layout-router.js:100:9)
-                   at G (../../../packages/next/dist/esm/client/components/layout-router.js:249:39)
-                   at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:418:49)
-                 264 | /**
-                 265 |  * InnerLayoutRouter handles rendering the provided segment based on the cache.
-               > 266 |  */ function InnerLayoutRouter({ tree, segmentPath, debugNameContext, cacheNode: maybeCacheNode, params, url, isActive }) {
-                     |                                  ^
-                 267 |     const context = useContext(GlobalLayoutRouterContext);
-                 268 |     const parentNavPromises = useContext(NavigationPromisesContext);
-                 269 |     if (!context) {
                To get a more detailed stack trace and pinpoint the issue, try one of the following:
                  - Start the app in development mode by running \`next dev\`, then open "/use-cache-params/[slug]" in your browser to investigate the error.
                  - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
@@ -1488,11 +1352,6 @@ Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
              "stack": [
                "throwAnError app/use-cache-runtime-error/page.tsx (15:9)",
                "ThrowingComponent app/use-cache-runtime-error/page.tsx (21:3)",
-               "resolveErrorDev ../../../packages/next/dist/compiled/react-server-dom-turbopack/cjs/react-server-dom-turbopack-client.node.development.js (3506:51)",
-               "processFullStringRow ../../../packages/next/dist/compiled/react-server-dom-turbopack/cjs/react-server-dom-turbopack-client.node.development.js (4673:23)",
-               "processFullBinaryRow ../../../packages/next/dist/compiled/react-server-dom-turbopack/cjs/react-server-dom-turbopack-client.node.development.js (4616:7)",
-               "processBinaryChunk ../../../packages/next/dist/compiled/react-server-dom-turbopack/cjs/react-server-dom-turbopack-client.node.development.js (4839:19)",
-               "progress ../../../packages/next/dist/compiled/react-server-dom-turbopack/cjs/react-server-dom-turbopack-client.node.development.js (5025:9)",
              ],
            }
           `)
@@ -1539,12 +1398,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
             expect(output).toMatchInlineSnapshot(`
              "⨯ Error: Kaputt!
                  at a (<next-dist-dir>)
-                 at b (<next-dist-dir>)
-                 at eR (../../../packages/next/dist/compiled/next-server/app-page-turbo.runtime.prod.js:9:62877)
-                 at eH (../../../packages/next/dist/compiled/next-server/app-page-turbo.runtime.prod.js:9:69697)
-                 at eK (../../../packages/next/dist/compiled/next-server/app-page-turbo.runtime.prod.js:9:79286)
-                 at eQ (../../../packages/next/dist/compiled/next-server/app-page-turbo.runtime.prod.js:9:80029)
-                 at <unknown> (../../../packages/next/dist/compiled/next-server/app-page-turbo.runtime.prod.js:9:81554) {
+                 at b (<next-dist-dir>) {
                digest: '<error-digest>'
              }"
             `)
@@ -1569,11 +1423,6 @@ Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
                 |         ^",
              "stack": [
                "throwAnError app/use-cache-catch-error/page.tsx (19:9)",
-               "resolveErrorDev ../../../packages/next/dist/compiled/react-server-dom-turbopack/cjs/react-server-dom-turbopack-client.node.development.js (3506:51)",
-               "processFullStringRow ../../../packages/next/dist/compiled/react-server-dom-turbopack/cjs/react-server-dom-turbopack-client.node.development.js (4673:23)",
-               "processFullBinaryRow ../../../packages/next/dist/compiled/react-server-dom-turbopack/cjs/react-server-dom-turbopack-client.node.development.js (4616:7)",
-               "processBinaryChunk ../../../packages/next/dist/compiled/react-server-dom-turbopack/cjs/react-server-dom-turbopack-client.node.development.js (4839:19)",
-               "progress ../../../packages/next/dist/compiled/react-server-dom-turbopack/cjs/react-server-dom-turbopack-client.node.development.js (5025:9)",
                "Page app/use-cache-catch-error/page.tsx (11:7)",
              ],
            }
@@ -1621,12 +1470,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
             expect(output).toMatchInlineSnapshot(`
              "⨯ Error: Kaputt!
                  at a (<next-dist-dir>)
-                 at b (<next-dist-dir>)
-                 at eR (../../../packages/next/dist/compiled/next-server/app-page-turbo.runtime.prod.js:9:62877)
-                 at eH (../../../packages/next/dist/compiled/next-server/app-page-turbo.runtime.prod.js:9:69697)
-                 at eK (../../../packages/next/dist/compiled/next-server/app-page-turbo.runtime.prod.js:9:79286)
-                 at eQ (../../../packages/next/dist/compiled/next-server/app-page-turbo.runtime.prod.js:9:80029)
-                 at <unknown> (../../../packages/next/dist/compiled/next-server/app-page-turbo.runtime.prod.js:9:81554) {
+                 at b (<next-dist-dir>) {
                digest: '<error-digest>'
              }
              [Error: An error occurred in the Server Components render. The specific message is omitted in production builds to avoid leaking sensitive details. A digest property is included on this error instance which may provide additional details about the nature of the error.] {
