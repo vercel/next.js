@@ -8,6 +8,7 @@ import { resolve } from 'node:path'
 import { performance } from 'node:perf_hooks'
 import { setTimeout as sleep } from 'node:timers/promises'
 import { fileURLToPath } from 'node:url'
+import zlib from 'node:zlib'
 
 const REPO_ROOT = fileURLToPath(new URL('../..', import.meta.url))
 const NEXT_BIN = resolve(REPO_ROOT, 'packages/next/dist/bin/next')
@@ -78,6 +79,7 @@ type FullRoutePhaseResult = {
 type RouteDocumentInfo = {
   route: string
   bytes: number
+  gzipBytes: number
   inlineFlightBytes: number
   inlineFlightShare: number
   inlineFlightScripts: number
@@ -417,6 +419,7 @@ async function inspectRouteDocument(
       throw new Error(`Request failed (${response.status}) for ${url}`)
     }
     const bytes = Buffer.byteLength(text)
+    const gzipBytes = zlib.gzipSync(text).byteLength
     let inlineFlightBytes = 0
     let inlineFlightScripts = 0
     // Inline Flight scripts can carry attributes (e.g. a CSP nonce), so
@@ -441,6 +444,7 @@ async function inspectRouteDocument(
     return {
       route,
       bytes,
+      gzipBytes,
       inlineFlightBytes,
       inlineFlightShare: bytes > 0 ? inlineFlightBytes / bytes : 0,
       inlineFlightScripts,
@@ -510,7 +514,7 @@ function printFullResults(label: string, results: FullRunResult[]) {
       )
       if (document) {
         console.log(
-          `    document ${formatKb(document.bytes)} flight=${formatKb(document.inlineFlightBytes)} (${(document.inlineFlightShare * 100).toFixed(1)}%, ${document.inlineFlightScripts} inline scripts)`
+          `    document ${formatKb(document.bytes)} gzip=${formatKb(document.gzipBytes)} flight=${formatKb(document.inlineFlightBytes)} (${(document.inlineFlightShare * 100).toFixed(1)}%, ${document.inlineFlightScripts} inline scripts)`
         )
       }
       const routeEntries = result.routeResults.filter(
