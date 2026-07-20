@@ -222,7 +222,9 @@ export function runTests({
     | 'set client'
     | 'set empty'
     | 'set invalid entry'
+    | 'set mixed params'
     | 'set non-array'
+    | 'set wrong param'
   expectedErrMsg?: string | RegExp
 }) {
   let { next, skipped, isNextDev } = nextTestSetup({
@@ -300,6 +302,20 @@ export function runTests({
         content.replace(
           `return [{ slug: 'first' }, { slug: 'second' }]`,
           'return []'
+        )
+      )
+    } else if (generateStaticParamsOpt === 'set wrong param') {
+      await next.patchFile('app/another/[slug]/page.js', (content) =>
+        content.replace(
+          `return [{ slug: 'first' }, { slug: 'second' }]`,
+          `return [{ id: 'first' }]`
+        )
+      )
+    } else if (generateStaticParamsOpt === 'set mixed params') {
+      await next.patchFile('app/another/[slug]/page.js', (content) =>
+        content.replace(
+          `return [{ slug: 'first' }, { slug: 'second' }]`,
+          `return [{ slug: 'first' }, { id: 'second' }]`
         )
       )
     }
