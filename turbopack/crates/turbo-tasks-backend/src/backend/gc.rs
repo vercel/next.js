@@ -50,8 +50,9 @@ enum GcJob {
 }
 
 /// Observability counters for one [`TurboTasksBackend::gc_collect`] pass.
-#[derive(Default)]
 pub(crate) struct GcStats {
+    /// Total number of gc roots
+    pub gc_roots: usize,
     /// Tasks collected (marked soft-deleted).
     pub collected: usize,
     /// Edges torn down across all collected tasks (children + forward-dependency reverse edges).
@@ -149,6 +150,9 @@ impl TurboTasksBackend {
         // Written once per collected task (not per child/dep), so the atomics are not a hot path.
         let collected = AtomicUsize::new(0);
         let edges_deleted = AtomicUsize::new(0);
+        // Durable roots seen by the shard scans. Summed across scan jobs rather than returned by a
+        // whole-map call, since the scan is now spread over the pool.
+        let roots_found = AtomicUsize::new(0);
 
         // Each job builds its own GC `ExecuteContext`; see the doc above for the concurrency
         // argument. A job may spawn follow-up jobs (a shard's candidates, or children driven to
@@ -158,8 +162,10 @@ impl TurboTasksBackend {
                 GcJob::ScanShard(index) => {
                     // Enqueue under the shard read lock — `spawn` is just an accounting bump plus a
                     // queue push, which is what `gc_scan_shard` requires of its callback.
-                    self.storage
+                    let roots = self
+                        .storage
                         .gc_scan_shard(index, |task_id| spawner.spawn(GcJob::Collect(task_id)));
+                    roots_found.fetch_add(roots, Ordering::Relaxed);
                     return ControlFlow::Continue(());
                 }
                 GcJob::Collect(task_id) => task_id,
@@ -258,6 +264,7 @@ impl TurboTasksBackend {
         });
 
         GcStats {
+            gc_roots: roots_found.into_inner(),
             collected: collected.into_inner(),
             edges_deleted: edges_deleted.into_inner(),
         }

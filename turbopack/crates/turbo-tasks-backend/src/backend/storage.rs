@@ -272,10 +272,16 @@ impl Storage {
     /// Mark a newly allocated task as restored (skip DB queries) and new (include in persistence
     /// snapshots). Optionally sets the `persistent_task_type` eagerly so it's available for
     /// persistence snapshots without needing to propagate it through `connect_child`.
-    pub fn initialize_new_task(&self, task_id: TaskId, task_type: Option<CachedTaskTypeArc>) {
+    pub fn initialize_new_task(
+        &self,
+        task_id: TaskId,
+        task_type: Option<CachedTaskTypeArc>,
+        is_gc_root: bool,
+    ) {
         let mut task = self.access_mut(task_id);
         task.flags.set_restored(TaskDataCategory::All);
         task.flags.set_new_task(true);
+        task.flags.set_gc_root(is_gc_root);
         if let Some(task_type) = task_type {
             task.set_persistent_task_type(task_type);
             if !task_id.is_transient() {
@@ -568,7 +574,9 @@ impl Storage {
 
     /// Scans a **single** shard by index, invoking `on_candidate` for each resident, non-transient
     /// task whose storage passes the cheap [`TaskStorage::gc_maybe_collectible`] pre-filter (a
-    /// handful of field reads, the same shape as the eviction scan).
+    /// handful of field reads, the same shape as the eviction scan). Returns the number of durable
+    /// GC **roots** seen in this shard — parent-less tasks that are *not* collectible because they
+    /// are anchored — which GC sums across shards for its stats.
     ///
     /// GC drives one of these per shard as a job in its main pool, so discovered candidates flow
     /// straight into the same queue the collect jobs drain — the cascade starts while later shards
@@ -581,16 +589,22 @@ impl Storage {
     /// # Panics
     ///
     /// If `index >= self.shard_count()`.
-    pub fn gc_scan_shard(&self, index: usize, mut on_candidate: impl FnMut(TaskId)) {
+    pub fn gc_scan_shard(&self, index: usize, mut on_candidate: impl FnMut(TaskId)) -> usize {
         let shard = self.map.shards()[index].read();
+        let mut roots_found = 0usize;
         // SAFETY: we hold the shard read lock for the duration of iteration.
         for bucket in unsafe { shard.iter() } {
             // SAFETY: the read lock guard outlives the bucket reference.
             let (task_id, shared_value) = unsafe { bucket.as_ref() };
-            if !task_id.is_transient() && shared_value.get().gc_maybe_collectible() {
-                on_candidate(*task_id);
+            if !task_id.is_transient() {
+                if shared_value.get().gc_maybe_collectible() {
+                    on_candidate(*task_id);
+                } else if shared_value.get().flags.gc_root() {
+                    roots_found += 1;
+                }
             }
         }
+        roots_found
     }
 
     pub fn access_pair_mut(

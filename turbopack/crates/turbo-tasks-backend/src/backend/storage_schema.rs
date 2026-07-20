@@ -263,6 +263,10 @@ struct TaskStorageSchema {
     #[field(storage = "flag", category = "transient")]
     deleted: bool,
 
+    /// Marks the task as a GC root meaning it can never be collected via reference counting.
+    #[field(storage = "flag", category = "meta")]
+    gc_root: bool,
+
     // =========================================================================
     // CHILDREN & AGGREGATION (meta)
     // =========================================================================
@@ -919,15 +923,28 @@ impl TaskStorage {
     /// The aggregation-edges check is conservative: a disconnected task is typically removed from
     /// the aggregation graph, but that can lag and race GC, so we back off rather than collect.
     pub fn gc_maybe_collectible(&self) -> bool {
+        // Note: this intentionally does NOT gate on `Data` being resident. Data holds
+        // `persistent_task_type` (needed to tombstone the `TaskCache` entry), but the collect path
+        // opens the task with `All`, restoring Data before it reads the type. Gating here would
+        // instead strand a truly-unreferenced Data-evicted task forever (it would never be
+        // selected, so its Data would never be restored) — a disk-space leak. Accepting the
+        // extra Data restore for a task about to be deleted is the better trade.
         self.flags.is_restored(TaskDataCategory::Meta)
             // Already collected this session (soft-deleted, awaiting tombstone + hard-delete):
             // don't re-select it, or a second pass would collect it again while it is still
             // resident.
             && !self.flags.deleted()
+            // A GC root (a task spawned with no parent, see the `gc_root` flag) is held from
+            // outside the tracked graph and has no persistent parent — never collect it.
+            && !self.flags.gc_root()
+            // Refcounts must be 0
             && self.gc_parent_count() == 0
             && self.gc_transient_ref_count() == 0
+            // Must not be in progress or being connected
             && self.get_activeness().is_none()
             && self.get_in_progress().is_none()
+            // Must not be participating in the aggregation graph.  Getting disconnected from parents
+            // should clear these but that process isn't atomic.
             && self.upper().is_empty()
             && self.followers().is_none_or(|f| f.is_empty())
     }
@@ -1181,23 +1198,25 @@ mod tests {
         storage.flags.set_current_session_clean(true);
         assert!(storage.flags.current_session_clean());
 
-        // Test persisted_bits only includes non-transient flags
-        // optimization_pending=bit 0 (meta, persisted)
-        // invalidator=bit 1, immutable=bit 2 (data, persisted)
-        // current_session_clean=bit 3 (transient)
+        // Test persisted_bits only includes non-transient flags.
+        // Persisted flags are laid out meta-first then data (each in declaration order):
+        //   optimization_pending=bit 0, gc_root=bit 1 (meta, persisted)
+        //   invalidator=bit 2, immutable=bit 3 (data, persisted)
+        //   current_session_clean and later (transient)
         let persisted = storage.flags.persisted_bits();
-        assert_eq!(persisted, 0b110); // invalidator + immutable
+        assert_eq!(persisted, 0b1100); // invalidator (bit 2) + immutable (bit 3)
 
         // Test TaskFlags constants
-        assert_eq!(TaskFlags::PERSISTED_MASK, 0b111); // 3 persisted flags
+        assert_eq!(TaskFlags::PERSISTED_MASK, 0b1111); // 4 persisted flags
 
         // Test set_persisted_bits preserves transient flags
         let mut storage2 = TaskStorage::new();
         storage2.flags.set_current_session_clean(true); // Set transient flag
-        storage2.flags.set_persisted_bits(0b100); // Set immutable only
+        storage2.flags.set_persisted_bits(0b1000); // Set immutable only (bit 3)
         assert!(storage2.flags.immutable());
         assert!(!storage2.flags.invalidator());
         assert!(!storage2.flags.optimization_pending());
+        assert!(!storage2.flags.gc_root());
         assert!(storage2.flags.current_session_clean()); // Transient flag preserved
     }
 
@@ -1238,14 +1257,14 @@ mod tests {
         assert!(storage.flags.prefetched());
 
         // Verify these are all transient (not in persisted_bits)
-        // Only invalidator, immutable should be persisted
+        // Only optimization_pending/gc_root (meta) and invalidator/immutable (data) are persisted.
         let persisted = storage.flags.persisted_bits();
         assert_eq!(persisted, 0b00); // No persisted flags set
 
         // Set a persisted flag and verify internal state flags are still transient
         storage.flags.set_immutable(true);
         let persisted = storage.flags.persisted_bits();
-        assert_eq!(persisted, 0b100); // Only immutable (bit 2)
+        assert_eq!(persisted, 0b1000); // Only immutable (bit 3)
     }
 
     // Helper to create encoder

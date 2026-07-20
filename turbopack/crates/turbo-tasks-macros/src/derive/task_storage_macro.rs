@@ -1025,20 +1025,18 @@ fn generate_task_flags_bitfield(grouped_fields: &GroupedFields) -> TokenStream {
     let data_count = grouped_fields.persisted_data_flags_count();
     let persisted_count = meta_count + data_count;
 
-    // Ensure counts fit within u16 bitfield (and u8 for individual categories)
+    // Ensure counts fit within u32 bitfield (and u8 for individual categories)
     assert!(
-        meta_count <= 8,
-        "Too many persisted meta flags ({meta_count}), maximum is 8 (though this could be \
-         expanded)"
+        meta_count <= 16,
+        "Too many persisted meta flags ({meta_count}), maximum is 16"
     );
     assert!(
-        data_count <= 8,
-        "Too many persisted data flags ({data_count}), maximum is 8 (though this could be \
-         expanded)"
+        data_count <= 16,
+        "Too many persisted data flags ({data_count}), maximum is 16"
     );
     assert!(
-        all_flags.len() <= 16,
-        "Too many total flags ({}), maximum is 16 (though this could be expanded)",
+        all_flags.len() <= 32,
+        "Too many total flags ({}), maximum is 32",
         all_flags.len()
     );
 
@@ -1063,17 +1061,17 @@ fn generate_task_flags_bitfield(grouped_fields: &GroupedFields) -> TokenStream {
     // Data flags are in bits meta_count..meta_count+data_count
     // Combined persisted mask covers both
     let meta_mask = if meta_count > 0 {
-        (1u16 << meta_count) - 1
+        (1u32 << meta_count) - 1
     } else {
         0
     };
     let data_mask = if data_count > 0 {
-        ((1u16 << data_count) - 1) << meta_count
+        ((1u32 << data_count) - 1) << meta_count
     } else {
         0
     };
     let persisted_mask = if persisted_count > 0 {
-        (1u16 << persisted_count) - 1
+        (1u32 << persisted_count) - 1
     } else {
         0
     };
@@ -1085,7 +1083,7 @@ fn generate_task_flags_bitfield(grouped_fields: &GroupedFields) -> TokenStream {
             #[doc = "Bit layout: [meta flags: 0..M] [data flags: M..M+D] [transient: M+D..]"]
             #[doc = "This ordering allows separate masks for per-category serialization."]
             #[derive(Clone, Default, PartialEq, Eq)]
-            pub struct TaskFlags(u16);
+            pub struct TaskFlags(u32);
             impl Debug;
 
             #(#bitfield_accessors;)*
@@ -1094,54 +1092,54 @@ fn generate_task_flags_bitfield(grouped_fields: &GroupedFields) -> TokenStream {
         #[automatically_derived]
         impl TaskFlags {
             #[doc = "Mask for persisted meta flags"]
-            pub const META_MASK: u16 = #meta_mask;
+            pub const META_MASK: u32 = #meta_mask;
 
             #[doc = "Mask for persisted data flags"]
-            pub const DATA_MASK: u16 = #data_mask;
+            pub const DATA_MASK: u32 = #data_mask;
 
             #[doc = "Mask for all persisted flags (meta + data)"]
-            pub const PERSISTED_MASK: u16 = #persisted_mask;
+            pub const PERSISTED_MASK: u32 = #persisted_mask;
 
             #[doc = "Get the raw bits value"]
-            pub fn bits(&self) -> u16 {
+            pub fn bits(&self) -> u32 {
                 self.0
             }
 
             #[doc = "Get only the persisted meta bits (for meta serialization)"]
-            pub fn persisted_meta_bits(&self) -> u8 {
+            pub fn persisted_meta_bits(&self) -> u16 {
                 // Meta bits are in the lowest positions (bits 0..meta_count),
-                // and we assert meta_count <= 8, so this fits in a u8
-                (self.0 & Self::META_MASK) as u8
+                // and we assert meta_count <= 16, so this fits in a u16
+                (self.0 & Self::META_MASK) as u16
             }
 
             #[doc = "Get only the persisted data bits (for data serialization)"]
-            pub fn persisted_data_bits(&self) -> u8 {
+            pub fn persisted_data_bits(&self) -> u16 {
                 // Data bits are in positions meta_count..meta_count+data_count,
                 // so we shift right to get them into the low bits.
-                // We assert data_count <= 8, so this fits in a u8
-                ((self.0 & Self::DATA_MASK) >> #meta_count) as u8
+                // We assert data_count <= 16, so this fits in a u16
+                ((self.0 & Self::DATA_MASK) >> #meta_count) as u16
             }
 
             #[doc = "Get all persisted bits (for serialization)"]
-            pub fn persisted_bits(&self) -> u16 {
+            pub fn persisted_bits(&self) -> u32 {
                 self.0 & Self::PERSISTED_MASK
             }
 
             #[doc = "Set meta bits from a raw value, preserving other flags"]
-            pub fn set_persisted_meta_bits(&mut self, bits: u8) {
+            pub fn set_persisted_meta_bits(&mut self, bits: u16) {
                 // Meta bits go in the lowest positions (bits 0..meta_count)
-                self.0 = (self.0 & !Self::META_MASK) | (bits as u16 & Self::META_MASK);
+                self.0 = (self.0 & !Self::META_MASK) | (bits as u32 & Self::META_MASK);
             }
 
             #[doc = "Set data bits from a raw value, preserving other flags"]
-            pub fn set_persisted_data_bits(&mut self, bits: u8) {
+            pub fn set_persisted_data_bits(&mut self, bits: u16) {
                 // Data bits go in positions meta_count..meta_count+data_count,
                 // so we shift left to place them correctly
-                self.0 = (self.0 & !Self::DATA_MASK) | (((bits as u16) << #meta_count) & Self::DATA_MASK);
+                self.0 = (self.0 & !Self::DATA_MASK) | (((bits as u32) << #meta_count) & Self::DATA_MASK);
             }
 
             #[doc = "Set all persisted bits from a raw value, preserving transient flags"]
-            pub fn set_persisted_bits(&mut self, bits: u16) {
+            pub fn set_persisted_bits(&mut self, bits: u32) {
                 self.0 = (self.0 & !Self::PERSISTED_MASK) | (bits & Self::PERSISTED_MASK);
             }
 
@@ -1162,7 +1160,7 @@ fn generate_task_flags_bitfield(grouped_fields: &GroupedFields) -> TokenStream {
             }
 
             #[doc = "Create from raw bits (for deserialization)"]
-            pub fn from_bits(bits: u16) -> Self {
+            pub fn from_bits(bits: u32) -> Self {
                 Self(bits)
             }
         }

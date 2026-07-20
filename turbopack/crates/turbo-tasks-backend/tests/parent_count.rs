@@ -117,6 +117,14 @@ async fn select_pinned(selector: ResolvedVc<Selector>) -> Result<Vc<u32>> {
     Ok(Vc::cell(value))
 }
 
+/// A plain leaf used to test the "spawned with no parent → GC root" rule. When called at the top
+/// level of a `run` (where the current task is `None`), its task is created with `parent == None`
+/// and marked a GC root, so it must never be collected even once disconnected.
+#[turbo_tasks::function]
+async fn gc_root_leaf() -> Result<Vc<u32>> {
+    Ok(Vc::cell(77))
+}
+
 /// `parent_count` must track the number of persistent parents, incremented when a parent connects a
 /// child and decremented when it disconnects it.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -424,6 +432,60 @@ async fn gc_does_not_collect_pinned_task() {
         tt2.backend().gc_for_testing(&tt2),
         0,
         "pinned task must survive eviction and not be collected"
+    );
+
+    tt.stop_and_wait().await;
+}
+
+/// A task spawned with **no parent** — called at the top level of a `run`, where the current task
+/// is `None` — is marked a GC root at creation and must never be collected, even with
+/// `parent_count == 0`. This is what keeps externally-spawned root operations (project container,
+/// endpoints, per-request source-map ops) alive: their handles live outside the tracked graph, so
+/// nothing else anchors them.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn gc_does_not_collect_parentless_root_task() {
+    let (tt, _persistence_dir) = create_tt("gc_does_not_collect_parentless_root_task");
+    let tt2 = tt.clone();
+    let tt3 = tt.clone();
+
+    let root_id = turbo_tasks::run_once(tt.clone(), async move {
+        unmark_top_level_task_may_leak_eventually_consistent_state();
+
+        // Called directly in the `run` future: the current task is `None`, so gc_root_leaf's task
+        // is created with `parent == None` and marked a GC root. It has NO persistent parent edge.
+        assert_eq!(*gc_root_leaf().await?, 77);
+
+        let root_id = task_id_of(gc_root_leaf().resolve().await?);
+        // No parent connected it, so its parent_count is 0 from the start — yet it is a GC root.
+        assert_eq!(
+            tt3.backend().parent_count_for_testing(root_id),
+            0,
+            "a parentless root has no persistent parent edge"
+        );
+
+        anyhow::Ok(root_id)
+    })
+    .await
+    .unwrap();
+
+    // parent_count is 0 and it is disconnected, but the gc_root flag must keep it uncollectible.
+    assert_eq!(
+        tt2.backend().parent_count_for_testing(root_id),
+        0,
+        "still parent_count 0 after the run"
+    );
+    let collected = tt2.backend().gc_for_testing(&tt2);
+    assert_eq!(
+        collected, 0,
+        "a parentless (gc_root) task must not be collected even with parent_count 0"
+    );
+
+    // Survives snapshot + eviction too (the gc_root flag is persisted meta).
+    tt2.backend().snapshot_and_evict_for_testing(&tt2);
+    assert_eq!(
+        tt2.backend().gc_for_testing(&tt2),
+        0,
+        "gc_root task must survive eviction and not be collected"
     );
 
     tt.stop_and_wait().await;
