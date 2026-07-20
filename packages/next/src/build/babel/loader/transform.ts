@@ -72,6 +72,45 @@ function transformAst(file: any, babelConfig: any, parentSpan: Span) {
   }
 }
 
+function normalizeSourceMapPath(filename: string): string {
+  return filename.replace(/\\/g, '/')
+}
+
+function findLoaderInputSourceIndex(
+  sources: string[],
+  filename: string
+): number {
+  const normalizedFilename = normalizeSourceMapPath(filename)
+  const sourceIndex = sources.findIndex(
+    (sourceName) => normalizeSourceMapPath(sourceName) === normalizedFilename
+  )
+
+  if (sourceIndex !== -1) {
+    return sourceIndex
+  }
+
+  return sources.length === 1 ? 0 : -1
+}
+
+function preserveLoaderInputSourceContent(
+  map: GeneratorResult['map'],
+  source: string,
+  filename: string
+) {
+  const sources = map?.sources
+  if (!sources) {
+    return
+  }
+
+  const sourceIndex = findLoaderInputSourceIndex(sources, filename)
+  if (sourceIndex === -1) {
+    return
+  }
+
+  map.sourcesContent ??= []
+  map.sourcesContent[sourceIndex] = source
+}
+
 export default async function transform(
   ctx: NextJsLoaderContext,
   source: string,
@@ -108,6 +147,8 @@ export default async function transform(
   const generateSpan = parentSpan.traceChild('babel-turbo-generate')
   const { code, map } = generate(file.ast, file.opts.generatorOpts, file.code)
   generateSpan.stop()
+
+  preserveLoaderInputSourceContent(map, source, filename)
 
   return { code, map }
 }

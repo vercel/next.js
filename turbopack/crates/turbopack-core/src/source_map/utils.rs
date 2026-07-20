@@ -206,6 +206,9 @@ pub async fn resolve_source_map_sources(
 
     if let Some(file) = &mut map.file {
         resolve_source(file, None).await?;
+    } else {
+        let origin_str = &origin.path;
+        map.file = Some(format!("{SOURCE_URL_PROTOCOL_STR}///{fs_str}/{origin_str}"));
     }
 
     resolve_map(&mut map).await?;
@@ -359,6 +362,7 @@ mod tests {
         tt.run_once(async move {
             #[turbo_tasks::value]
             struct SourceMapSourcesOutput {
+                resolved_file: Option<String>,
                 resolved_sources: Vec<Option<String>>,
                 rooted_sources: Vec<Option<String>>,
             }
@@ -428,6 +432,7 @@ mod tests {
                 )?;
 
                 Ok(SourceMapSourcesOutput {
+                    resolved_file: resolved_source_map.file,
                     resolved_sources: resolved_source_map.sources.unwrap_or_default(),
                     rooted_sources: rooted_source_map.sources.unwrap_or_default(),
                 }
@@ -439,6 +444,11 @@ mod tests {
                 .await?;
 
             let prefix = format!("{SOURCE_URL_PROTOCOL_STR}///[mock]");
+            assert_eq!(
+                resolved_source_maps.resolved_file,
+                Some(format!("{prefix}/app/source%20mapped/page.js"))
+            );
+
             assert_eq!(
                 resolved_source_maps.resolved_sources,
                 vec![
