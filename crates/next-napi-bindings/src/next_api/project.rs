@@ -58,8 +58,7 @@ use turbo_tasks::{
 };
 use turbo_tasks_backend::db_invalidation::invalidation_reasons;
 use turbo_tasks_fs::{
-    DiskFileSystem, FileContent, FileSystem, FileSystemPath, invalidation,
-    util::{uri_from_file, uri_from_path_buf},
+    DiskFileSystem, FileContent, FileSystem, FileSystemPath, invalidation, util::uri_from_file,
 };
 use turbo_unix_path::{get_relative_path_to, sys_to_unix, unix_to_sys};
 use turbopack_core::{
@@ -2327,18 +2326,14 @@ pub async fn get_source_map_file_path(
         return Ok(Vc::cell(None));
     };
 
-    // Both the client (`VirtualFileSystem`) and server chunks live under the dist dir on disk, so
-    // reconstruct the absolute path from the dist dir rather than from the (possibly virtual)
-    // `FileSystemPath` of the asset.
-    let dist_dir_absolute = container.project().dist_dir_absolute().await?;
-    let sys_path = PathBuf::from(format!(
-        "{}{}{}",
-        dist_dir_absolute,
-        std::path::MAIN_SEPARATOR,
-        unix_to_sys(&chunk_base_unix)
-    ));
+    // Both the client (`VirtualFileSystem`) and server chunks physically live under the dist dir
+    // (i.e. `node_root`) on disk, so build the `file://` URL by joining the chunk base onto the
+    // disk-backed `node_root`. This reuses `FileSystemPath::join`/`to_sys_path` normalization
+    // (leading separators, Windows paths) rather than concatenating strings by hand.
+    let node_root = container.project().node_root().owned().await?;
+    let uri = uri_from_file(node_root, Some(&chunk_base_unix)).await?;
 
-    Ok(Vc::cell(Some(RcStr::from(uri_from_path_buf(sys_path)))))
+    Ok(Vc::cell(Some(RcStr::from(uri))))
 }
 
 #[turbo_tasks::function(operation, root)]
