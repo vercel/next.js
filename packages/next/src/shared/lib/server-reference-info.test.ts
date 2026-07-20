@@ -1,8 +1,24 @@
 import {
+  SERVER_REFERENCE_ID_LENGTH,
   type ServerReferenceInfo,
   extractInfoFromServerReferenceId,
+  mightBeServerReferenceId,
   omitUnusedArgs,
 } from './server-reference-info'
+
+describe('mightBeServerReferenceId', () => {
+  test('should identify IDs with the expected length', () => {
+    expect(
+      mightBeServerReferenceId('a'.repeat(SERVER_REFERENCE_ID_LENGTH))
+    ).toBe(true)
+    expect(
+      mightBeServerReferenceId('a'.repeat(SERVER_REFERENCE_ID_LENGTH - 1))
+    ).toBe(false)
+    expect(
+      mightBeServerReferenceId('a'.repeat(SERVER_REFERENCE_ID_LENGTH + 1))
+    ).toBe(false)
+  })
+})
 
 describe('extractInfoFromServerReferenceId', () => {
   test('should parse id with typeBit 0, no args used, no restArgs', () => {

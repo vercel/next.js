@@ -6,6 +6,7 @@ import type {
 import type { DeepReadonly } from '../../shared/lib/deep-readonly'
 import { InvariantError } from '../../shared/lib/invariant-error'
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
+import type { ServerModuleMap } from './action-utils'
 import { workAsyncStorage } from './work-async-storage.external'
 
 let __next_loaded_action_key: CryptoKey
@@ -80,13 +81,7 @@ export function setReferenceManifestsSingleton({
   page: string
   clientReferenceManifest: DeepReadonly<ClientReferenceManifest>
   serverActionsManifest: DeepReadonly<ActionManifest>
-  serverModuleMap: {
-    [id: string]: {
-      id: string
-      chunks: string[]
-      name: string
-    }
-  }
+  serverModuleMap: ServerModuleMap
 }) {
   // @ts-expect-error
   const clientReferenceManifestsPerPage = globalThis[
@@ -110,13 +105,7 @@ export function getServerModuleMap() {
   const serverActionsManifestSingleton = (globalThis as any)[
     SERVER_ACTION_MANIFESTS_SINGLETON
   ] as {
-    serverModuleMap: {
-      [id: string]: {
-        id: string
-        chunks: string[]
-        name: string
-      }
-    }
+    serverModuleMap: ServerModuleMap
   }
 
   if (!serverActionsManifestSingleton) {
