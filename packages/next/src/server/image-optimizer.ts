@@ -215,9 +215,7 @@ async function deleteFromCacheDir(cacheDir: string, cacheKey: string) {
  * https://en.wikipedia.org/wiki/List_of_file_signatures
  */
 export async function detectContentType(
-  buffer: Buffer,
-  skipMetadata: boolean | null | undefined,
-  concurrency?: number | null | undefined
+  buffer: Buffer
 ): Promise<string | null> {
   if (buffer.byteLength === 0) {
     return null
@@ -295,28 +293,13 @@ export async function detectContentType(
     return JP2
   }
 
-  let format:
-    | import('sharp').Metadata['format']
-    | ReturnType<typeof detector>
-    | undefined
-  format = detector(buffer)
-
-  if (!format && !skipMetadata) {
-    const sharp = getSharp(concurrency)
-    const meta = await sharp(buffer)
-      .metadata()
-      .catch((_) => null)
-    format = meta?.format
-  }
+  const format = detector(buffer.subarray(0, 1024))
 
   switch (format) {
-    case 'avif':
-      return AVIF
     case 'webp':
       return WEBP
     case 'png':
       return PNG
-    case 'jpeg':
     case 'jpg':
       return JPEG
     case 'gif':
@@ -329,28 +312,14 @@ export async function detectContentType(
     case 'jp2':
       return JP2
     case 'tiff':
-    case 'tif':
       return TIFF
-    case 'pdf':
-      return PDF
     case 'bmp':
       return BMP
     case 'ico':
       return ICO
     case 'icns':
       return ICNS
-    case 'dcraw':
-    case 'dz':
-    case 'exr':
-    case 'fits':
     case 'heif':
-    case 'input':
-    case 'magick':
-    case 'openslide':
-    case 'ppm':
-    case 'rad':
-    case 'raw':
-    case 'v':
     case 'cur':
     case 'dds':
     case 'j2c':
@@ -359,8 +328,10 @@ export async function detectContentType(
     case 'psd':
     case 'tga':
     case undefined:
+      return null // unsupported formats
     default:
-      return null
+      format satisfies never // exhaustive check
+      return null // impossible to reach
   }
 }
 
@@ -929,7 +900,6 @@ export async function imageOptimizer(
       | 'imgOptConcurrency'
       | 'imgOptMaxInputPixels'
       | 'imgOptSequentialRead'
-      | 'imgOptSkipMetadata'
       | 'imgOptTimeoutInSeconds'
     >
     images: Pick<
@@ -957,11 +927,7 @@ export async function imageOptimizer(
     getMaxAge(imageUpstream.cacheControl)
   )
 
-  const upstreamType = await detectContentType(
-    upstreamBuffer,
-    nextConfig.experimental.imgOptSkipMetadata,
-    nextConfig.experimental.imgOptConcurrency
-  )
+  const upstreamType = await detectContentType(upstreamBuffer)
 
   if (
     !upstreamType ||
