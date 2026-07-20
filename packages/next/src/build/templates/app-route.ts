@@ -94,11 +94,17 @@ type WriteRawHttpError =
   typeof import('../../server/websocket-upgrade').writeRawHttpError
 type WriteRawHttpResponse =
   typeof import('../../server/websocket-upgrade').writeRawHttpResponse
+type FilterWebSocketUpgradeRequestHeaders =
+  typeof import('../../server/websocket-upgrade').filterWebSocketUpgradeRequestHeaders
+type ValidateWebSocketHandshake =
+  typeof import('../../server/websocket-upgrade').validateWebSocketHandshake
 type MockedResponseConstructor =
   typeof import('../../server/lib/mock-request').MockedResponse
 
 let writeRawHttpError: WriteRawHttpError
 let writeRawHttpResponse: WriteRawHttpResponse
+let filterWebSocketUpgradeRequestHeaders: FilterWebSocketUpgradeRequestHeaders
+let validateWebSocketHandshake: ValidateWebSocketHandshake
 let webSocketUpgradeTransport: WebSocketUpgradeTransport | undefined
 let MockedResponse: MockedResponseConstructor
 if (process.env.__NEXT_EXPERIMENTAL_WEBSOCKET_ROUTE_HANDLERS) {
@@ -109,11 +115,22 @@ if (process.env.__NEXT_EXPERIMENTAL_WEBSOCKET_ROUTE_HANDLERS) {
 
   writeRawHttpError = websocketUpgrade.writeRawHttpError
   writeRawHttpResponse = websocketUpgrade.writeRawHttpResponse
+  filterWebSocketUpgradeRequestHeaders =
+    websocketUpgrade.filterWebSocketUpgradeRequestHeaders
+  validateWebSocketHandshake = websocketUpgrade.validateWebSocketHandshake
   webSocketUpgradeTransport = websocketUpgrade.createWebSocketUpgradeTransport({
-    registerPeer: (peer) =>
-      registerWebSocketPeer('VAR_DEFINITION_BUNDLE_PATH', peer),
-    unregisterPeer: (peer) =>
-      unregisterWebSocketPeer('VAR_DEFINITION_BUNDLE_PATH', peer),
+    registerPeer: (peer, context) =>
+      registerWebSocketPeer(
+        'VAR_DEFINITION_BUNDLE_PATH',
+        peer,
+        context.registryScope
+      ),
+    unregisterPeer: (peer, context) =>
+      unregisterWebSocketPeer(
+        'VAR_DEFINITION_BUNDLE_PATH',
+        peer,
+        context.registryScope
+      ),
   })
   MockedResponse = mockRequest.MockedResponse
 } else {
@@ -136,6 +153,12 @@ if (process.env.__NEXT_EXPERIMENTAL_WEBSOCKET_ROUTE_HANDLERS) {
       socket.end()
     }
   }
+  filterWebSocketUpgradeRequestHeaders =
+    function filterWebSocketUpgradeRequestHeadersUnsupported() {}
+  validateWebSocketHandshake =
+    function validateWebSocketHandshakeUnsupported() {
+      return undefined
+    }
   webSocketUpgradeTransport = undefined
   MockedResponse = class MockedResponseUnsupported {
     constructor() {
@@ -753,6 +776,23 @@ async function upgradeHandlerImpl(
   if (ctx.requestMeta) {
     setRequestMeta(req, ctx.requestMeta)
   }
+  if (!getRequestMeta(req, 'webSocketUpgradeHeadersFiltered')) {
+    filterWebSocketUpgradeRequestHeaders(req)
+    addRequestMeta(req, 'webSocketUpgradeHeadersFiltered', true)
+  }
+
+  const handshakeError = validateWebSocketHandshake(req)
+  if (handshakeError) {
+    await writeRawHttpError(
+      req,
+      socket,
+      handshakeError.status,
+      handshakeError.message,
+      handshakeError.headers
+    )
+    return
+  }
+
   if (routeModule.isDev) {
     addRequestMeta(req, 'devRequestTimingInternalsEnd', process.hrtime.bigint())
   }
@@ -936,6 +976,7 @@ async function upgradeHandlerImpl(
       response,
       {
         onHookError: reportError,
+        registryScope: getRequestMeta(req, 'webSocketRegistryScope'),
       }
     )
   } catch (error) {

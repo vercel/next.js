@@ -408,12 +408,10 @@ export async function startServer(
           ;(async () => {
             debug('start-server process cleanup')
 
-            const closeUpgradedPromise =
-              closeUpgraded?.().catch(console.error) ?? Promise.resolve()
-
-            // first, stop accepting new connections and finish pending requests,
-            // because they might affect `nextServer.close()` (e.g. by scheduling an `after`)
-            await new Promise<void>((res) => {
+            // Stop accepting new connections before snapshotting and closing
+            // upgraded sockets. Otherwise an upgrade can land between those
+            // operations and survive shutdown.
+            const serverClosePromise = new Promise<void>((res) => {
               server.close((err) => {
                 if (err) console.error(err)
                 res()
@@ -422,7 +420,12 @@ export async function startServer(
                 server.closeAllConnections()
               }
             })
-            await closeUpgradedPromise
+            const closeUpgradedPromise =
+              closeUpgraded?.().catch(console.error) ?? Promise.resolve()
+
+            // Pending HTTP requests and upgraded sockets can drain in parallel
+            // after the listener has stopped accepting connections.
+            await Promise.all([serverClosePromise, closeUpgradedPromise])
 
             // now that no new requests can come in, clean up the rest
             await Promise.all([

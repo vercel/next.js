@@ -2167,6 +2167,24 @@ export async function ncc_crossws(task, opts) {
     join(runtimeDir, 'index.js')
   )
 
+  const runtimeFile = join(runtimeDir, 'index.js')
+  const requestPrototypeSetup =
+    'Object.setPrototypeOf(StubRequest.prototype,globalThis.Request.prototype);'
+  const runtimeSource = await fs.readFile(runtimeFile, 'utf8')
+  if (!runtimeSource.includes(requestPrototypeSetup)) {
+    throw new Error('Failed to find the CrossWS StubRequest prototype setup.')
+  }
+  // CrossWS relies on a class field to shadow Request.prototype.url. That
+  // field can be removed when a user production bundle minifies this vendored
+  // module, leaving a getter-only inherited property which throws on assign.
+  await fs.writeFile(
+    runtimeFile,
+    runtimeSource.replace(
+      requestPrototypeSetup,
+      `${requestPrototypeSetup}Object.defineProperty(StubRequest.prototype,"url",{configurable:true,writable:true});`
+    )
+  )
+
   const typeFiles = glob.sync(
     '{index.d.mts,_chunks/adapter.d.mts,_chunks/node.d.mts,_chunks/web.d.mts,adapters/node.d.mts}',
     { cwd: distDir }
@@ -2193,10 +2211,23 @@ export async function ncc_crossws(task, opts) {
 
 externals['ws'] = 'next/dist/compiled/ws'
 export async function ncc_ws(task, opts) {
+  const packageJson = require('ws/package.json')
+
   await task
     .source(relative(__dirname, require.resolve('ws')))
     .ncc({ packageName: 'ws', externals })
     .target('src/compiled/ws')
+
+  await fs.writeFile(
+    join(__dirname, 'src/compiled/ws/package.json'),
+    JSON.stringify({
+      name: packageJson.name,
+      version: packageJson.version,
+      main: 'index.js',
+      author: packageJson.author,
+      license: packageJson.license,
+    })
+  )
 }
 
 export async function ncc_modelcontextprotocol_sdk(task, opts) {

@@ -1,22 +1,35 @@
 import type { WebSocketPeer } from './web/spec-extension/response'
 
 const REGISTRY_SYMBOL = Symbol.for('next.websocket.connection-registry')
+const DEFAULT_SCOPE = Symbol.for('next.websocket.default-registry-scope')
 const CLOSE_GRACE_PERIOD_MS = 5_000
 
 type Registry = Map<string, Set<WebSocketPeer>>
+type ScopedRegistry = Map<symbol, Registry>
 
-function getRegistry(): Registry {
+function getScopedRegistry(): ScopedRegistry {
   const globalRegistry = globalThis as typeof globalThis & {
-    [REGISTRY_SYMBOL]?: Registry
+    [REGISTRY_SYMBOL]?: ScopedRegistry
   }
   return (globalRegistry[REGISTRY_SYMBOL] ??= new Map())
 }
 
+function getRegistry(scope: symbol, create: boolean): Registry | undefined {
+  const scopedRegistry = getScopedRegistry()
+  let registry = scopedRegistry.get(scope)
+  if (!registry && create) {
+    registry = new Map()
+    scopedRegistry.set(scope, registry)
+  }
+  return registry
+}
+
 export function registerWebSocketPeer(
   bundlePath: string,
-  peer: WebSocketPeer
+  peer: WebSocketPeer,
+  scope: symbol = DEFAULT_SCOPE
 ): void {
-  const registry = getRegistry()
+  const registry = getRegistry(scope, true)!
   let connections = registry.get(bundlePath)
   if (!connections) {
     connections = new Set()
@@ -28,14 +41,19 @@ export function registerWebSocketPeer(
 
 export function unregisterWebSocketPeer(
   bundlePath: string,
-  peer: WebSocketPeer
+  peer: WebSocketPeer,
+  scope: symbol = DEFAULT_SCOPE
 ): void {
-  const registry = getRegistry()
+  const registry = getRegistry(scope, false)
+  if (!registry) return
   const connections = registry.get(bundlePath)
   if (!connections) return
 
   connections.delete(peer)
-  if (connections.size === 0) registry.delete(bundlePath)
+  if (connections.size === 0) {
+    registry.delete(bundlePath)
+    if (registry.size === 0) getScopedRegistry().delete(scope)
+  }
 }
 
 function waitForCloseOrTerminate(peer: WebSocketPeer, code: number) {
@@ -80,6 +98,9 @@ function waitForCloseOrTerminate(peer: WebSocketPeer, code: number) {
         if (websocket.readyState !== 3) {
           peer.terminate()
         }
+      } catch {
+        // A transport may throw while already tearing down. The registry must
+        // still settle so process shutdown cannot be interrupted.
       } finally {
         finish()
       }
@@ -91,6 +112,8 @@ function waitForCloseOrTerminate(peer: WebSocketPeer, code: number) {
       } catch {
         try {
           peer.terminate()
+        } catch {
+          // Treat an already-failed transport as closed for registry cleanup.
         } finally {
           finish()
         }
@@ -115,22 +138,45 @@ function closeConnections(
 
 export function closeWebSocketsForBundle(
   bundlePath: string,
-  code: number = 1012
+  code: number = 1012,
+  scope?: symbol
 ): Promise<void> {
-  const registry = getRegistry()
-  const connections = registry.get(bundlePath)
-  if (!connections) return Promise.resolve()
+  const connections: WebSocketPeer[] = []
+  const scopedRegistry = getScopedRegistry()
+  const scopes = scope
+    ? [[scope, scopedRegistry.get(scope)] as const]
+    : scopedRegistry
 
-  registry.delete(bundlePath)
+  for (const [registryScope, registry] of scopes) {
+    const bundleConnections = registry?.get(bundlePath)
+    if (!bundleConnections) continue
+
+    connections.push(...bundleConnections)
+    registry!.delete(bundlePath)
+    if (registry!.size === 0) scopedRegistry.delete(registryScope)
+  }
+
   return closeConnections(connections, code)
 }
 
-export function closeAllWebSockets(code: number = 1001): Promise<void> {
-  const registry = getRegistry()
+export function closeAllWebSockets(
+  code: number = 1001,
+  scope?: symbol
+): Promise<void> {
+  const scopedRegistry = getScopedRegistry()
   const connections: WebSocketPeer[] = []
-  for (const bundleConnections of registry.values()) {
-    connections.push(...bundleConnections)
+  const scopes = scope
+    ? [[scope, scopedRegistry.get(scope)] as const]
+    : scopedRegistry
+
+  for (const [registryScope, registry] of scopes) {
+    if (!registry) continue
+    for (const bundleConnections of registry.values()) {
+      connections.push(...bundleConnections)
+    }
+    registry.clear()
+    scopedRegistry.delete(registryScope)
   }
-  registry.clear()
+
   return closeConnections(connections, code)
 }

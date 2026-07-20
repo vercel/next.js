@@ -232,6 +232,14 @@ export interface RequestMeta {
   webSocketUpgradeHeaders?: Record<string, string | string[]>
 
   /**
+   * Whether untrusted internal headers were filtered at upgrade ingress.
+   */
+  webSocketUpgradeHeadersFiltered?: boolean
+
+  /** The owning router-server instance for upgraded connection cleanup. */
+  webSocketRegistryScope?: symbol
+
+  /**
    * Whether the request should render the fallback shell or not.
    */
   renderFallbackShell?: boolean
