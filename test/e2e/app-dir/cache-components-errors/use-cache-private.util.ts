@@ -159,11 +159,6 @@ export function registerUseCachePrivateTests(
                 | ^",
              "stack": [
                "Private app/use-cache-private-in-use-cache/page.tsx (15:1)",
-               "resolveErrorDev ../../../packages/next/dist/compiled/react-server-dom-turbopack/cjs/react-server-dom-turbopack-client.node.development.js (3506:51)",
-               "processFullStringRow ../../../packages/next/dist/compiled/react-server-dom-turbopack/cjs/react-server-dom-turbopack-client.node.development.js (4673:23)",
-               "processFullBinaryRow ../../../packages/next/dist/compiled/react-server-dom-turbopack/cjs/react-server-dom-turbopack-client.node.development.js (4616:7)",
-               "processBinaryChunk ../../../packages/next/dist/compiled/react-server-dom-turbopack/cjs/react-server-dom-turbopack-client.node.development.js (4839:19)",
-               "progress ../../../packages/next/dist/compiled/react-server-dom-turbopack/cjs/react-server-dom-turbopack-client.node.development.js (5025:9)",
              ],
            }
           `)
@@ -287,10 +282,11 @@ export function registerUseCachePrivateTests(
              "description": "Next.js encountered runtime data during prerendering.",
              "environmentLabel": "Server",
              "label": "Blocking Route",
-             "source": "app/use-cache-private-without-suspense/page.tsx (10:7) @ Page
-           > 10 |       <Private />
-                |       ^",
+             "source": "app/use-cache-private-without-suspense/page.tsx (15:1) @ Private
+           > 15 | async function Private() {
+                | ^",
              "stack": [
+               "Private app/use-cache-private-without-suspense/page.tsx (15:1)",
                "Page app/use-cache-private-without-suspense/page.tsx (10:7)",
              ],
            }
@@ -349,35 +345,9 @@ export function registerUseCachePrivateTests(
                  - [block] Set \`export const instant = false\` to allow a blocking route
 
                Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic
-                   at H (../../../packages/next/dist/esm/client/components/layout-router.js:266:34)
-                   at a (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
-                   at b (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
-                   at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
-                   at I (../../../packages/next/dist/esm/client/components/layout-router.js:389:32)
-                   at c (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
-                   at F (../../../packages/next/dist/esm/client/components/layout-router.js:100:9)
-                   at G (../../../packages/next/dist/esm/client/components/layout-router.js:249:39)
-                   at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:418:49)
                    at main (<anonymous>)
                    at body (<anonymous>)
                    at html (<anonymous>)
-                   at H (../../../packages/next/dist/esm/client/components/layout-router.js:266:34)
-                   at d (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
-                   at e (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
-                   at f (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:18:9)
-                   at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
-                   at I (../../../packages/next/dist/esm/client/components/layout-router.js:389:32)
-                   at g (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
-                   at F (../../../packages/next/dist/esm/client/components/layout-router.js:100:9)
-                   at G (../../../packages/next/dist/esm/client/components/layout-router.js:249:39)
-                   at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:418:49)
-                 264 | /**
-                 265 |  * InnerLayoutRouter handles rendering the provided segment based on the cache.
-               > 266 |  */ function InnerLayoutRouter({ tree, segmentPath, debugNameContext, cacheNode: maybeCacheNode, params, url, isActive }) {
-                     |                                  ^
-                 267 |     const context = useContext(GlobalLayoutRouterContext);
-                 268 |     const parentNavPromises = useContext(NavigationPromisesContext);
-                 269 |     if (!context) {
                To get a more detailed stack trace and pinpoint the issue, try one of the following:
                  - Start the app in development mode by running \`next dev\`, then open "/use-cache-private-without-suspense" in your browser to investigate the error.
                  - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
