@@ -21,7 +21,7 @@ export function registerSyncIoAndBlockingTests(
         if (partialPrefetching) {
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E1295",
+             "code": "E1432",
              "description": "Next.js encountered the unstable value Date.now() while prerendering.",
              "environmentLabel": "Server",
              "label": "Blocking Route",
@@ -85,7 +85,7 @@ export function registerSyncIoAndBlockingTests(
         if (partialPrefetching) {
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E1295",
+             "code": "E1432",
              "description": "Next.js encountered the unstable value Date.now() while prerendering.",
              "environmentLabel": "Server",
              "label": "Blocking Route",
@@ -156,7 +156,7 @@ export function registerSyncIoAndBlockingTests(
         if (partialPrefetching) {
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E1295",
+             "code": "E1432",
              "description": "Next.js encountered the unstable value Date.now() while prerendering.",
              "environmentLabel": "Server",
              "label": "Blocking Route",
