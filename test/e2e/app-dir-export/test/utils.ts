@@ -220,6 +220,7 @@ export function runTests({
   generateStaticParamsOpt?:
     | 'set noop'
     | 'set client'
+    | 'set empty'
     | 'set invalid entry'
     | 'set non-array'
   expectedErrMsg?: string | RegExp
@@ -292,6 +293,13 @@ export function runTests({
         content.replace(
           `return [{ slug: 'first' }, { slug: 'second' }]`,
           `return [null]`
+        )
+      )
+    } else if (generateStaticParamsOpt === 'set empty') {
+      await next.patchFile('app/another/[slug]/page.js', (content) =>
+        content.replace(
+          `return [{ slug: 'first' }, { slug: 'second' }]`,
+          'return []'
         )
       )
     }
