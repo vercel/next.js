@@ -256,31 +256,31 @@ export function registerSyncIoAndBlockingTests(
           await expectNoDevValidationErrors(browser, await browser.url())
         } else {
           await expect(browser).toDisplayCollapsedRedbox(`
-             {
-               "cause": [
-                 {
-                   "label": "Caused by: Instant Validation",
-                   "source": "app/suspense-in-root/static/blocking-layout/missing-suspense-around-dynamic/page.tsx (3:24) @ instant
-             > 3 | export const instant = { level: 'experimental-error' }
-                 |                        ^",
-                   "stack": [
-                     "instant app/suspense-in-root/static/blocking-layout/missing-suspense-around-dynamic/page.tsx (3:24)",
-                     "Set.forEach <anonymous>",
-                   ],
-                 },
-               ],
-               "code": "E1402",
-               "description": "Next.js encountered runtime data during a navigation.",
-               "environmentLabel": "Server",
-               "label": "Instant",
-               "source": "app/suspense-in-root/static/blocking-layout/missing-suspense-around-dynamic/page.tsx (6:16) @ Page
-             > 6 |   await cookies()
-                 |                ^",
-               "stack": [
-                 "Page app/suspense-in-root/static/blocking-layout/missing-suspense-around-dynamic/page.tsx (6:16)",
-               ],
-             }
-            `)
+           {
+             "cause": [
+               {
+                 "label": "Caused by: Instant Validation",
+                 "source": "app/suspense-in-root/static/blocking-layout/missing-suspense-around-dynamic/page.tsx (3:24) @ instant
+           > 3 | export const instant = { level: 'experimental-error' }
+               |                        ^",
+                 "stack": [
+                   "instant app/suspense-in-root/static/blocking-layout/missing-suspense-around-dynamic/page.tsx (3:24)",
+                   "Set.forEach <anonymous>",
+                 ],
+               },
+             ],
+             "code": "E1430",
+             "description": "Next.js encountered runtime data during a navigation.",
+             "environmentLabel": "Server",
+             "label": "Instant",
+             "source": "app/suspense-in-root/static/blocking-layout/missing-suspense-around-dynamic/page.tsx (6:16) @ Page
+           > 6 |   await cookies()
+               |                ^",
+             "stack": [
+               "Page app/suspense-in-root/static/blocking-layout/missing-suspense-around-dynamic/page.tsx (6:16)",
+             ],
+           }
+          `)
         }
       } else {
         const result = await prerender(
@@ -355,31 +355,31 @@ export function registerSyncIoAndBlockingTests(
           await expectNoDevValidationErrors(browser, await browser.url())
         } else {
           await expect(browser).toDisplayCollapsedRedbox(`
-             {
-               "cause": [
-                 {
-                   "label": "Caused by: Instant Validation",
-                   "source": "app/suspense-in-root/static/invalid-blocking-inside-static/layout.tsx (1:24) @ instant
-             > 1 | export const instant = { level: 'experimental-error' }
-                 |                        ^",
-                   "stack": [
-                     "instant app/suspense-in-root/static/invalid-blocking-inside-static/layout.tsx (1:24)",
-                     "Set.forEach <anonymous>",
-                   ],
-                 },
-               ],
-               "code": "E1402",
-               "description": "Next.js encountered runtime data during a navigation.",
-               "environmentLabel": "Server",
-               "label": "Instant",
-               "source": "app/suspense-in-root/static/invalid-blocking-inside-static/page.tsx (6:16) @ BlockingPage
-             > 6 |   await cookies()
-                 |                ^",
-               "stack": [
-                 "BlockingPage app/suspense-in-root/static/invalid-blocking-inside-static/page.tsx (6:16)",
-               ],
-             }
-            `)
+           {
+             "cause": [
+               {
+                 "label": "Caused by: Instant Validation",
+                 "source": "app/suspense-in-root/static/invalid-blocking-inside-static/layout.tsx (1:24) @ instant
+           > 1 | export const instant = { level: 'experimental-error' }
+               |                        ^",
+                 "stack": [
+                   "instant app/suspense-in-root/static/invalid-blocking-inside-static/layout.tsx (1:24)",
+                   "Set.forEach <anonymous>",
+                 ],
+               },
+             ],
+             "code": "E1430",
+             "description": "Next.js encountered runtime data during a navigation.",
+             "environmentLabel": "Server",
+             "label": "Instant",
+             "source": "app/suspense-in-root/static/invalid-blocking-inside-static/page.tsx (6:16) @ BlockingPage
+           > 6 |   await cookies()
+               |                ^",
+             "stack": [
+               "BlockingPage app/suspense-in-root/static/invalid-blocking-inside-static/page.tsx (6:16)",
+             ],
+           }
+          `)
         }
       } else {
         const result = await prerender(
@@ -422,31 +422,31 @@ export function registerSyncIoAndBlockingTests(
           '/suspense-in-root/runtime/invalid-blocking-inside-runtime'
         )
         await expect(browser).toDisplayCollapsedRedbox(`
-           {
-             "cause": [
-               {
-                 "label": "Caused by: Instant Validation",
-                 "source": "app/suspense-in-root/runtime/invalid-blocking-inside-runtime/layout.tsx (3:24) @ instant
-           > 3 | export const instant = { level: 'experimental-error' }
-               |                        ^",
-                 "stack": [
-                   "instant app/suspense-in-root/runtime/invalid-blocking-inside-runtime/layout.tsx (3:24)",
-                   "Set.forEach <anonymous>",
-                 ],
-               },
-             ],
-             "code": "E1398",
-             "description": "Next.js encountered uncached data during a navigation.",
-             "environmentLabel": "Server",
-             "label": "Instant",
-             "source": "app/suspense-in-root/runtime/invalid-blocking-inside-runtime/page.tsx (6:19) @ BlockingPage
-           > 6 |   await connection()
-               |                   ^",
-             "stack": [
-               "BlockingPage app/suspense-in-root/runtime/invalid-blocking-inside-runtime/page.tsx (6:19)",
-             ],
-           }
-          `)
+         {
+           "cause": [
+             {
+               "label": "Caused by: Instant Validation",
+               "source": "app/suspense-in-root/runtime/invalid-blocking-inside-runtime/layout.tsx (3:24) @ instant
+         > 3 | export const instant = { level: 'experimental-error' }
+             |                        ^",
+               "stack": [
+                 "instant app/suspense-in-root/runtime/invalid-blocking-inside-runtime/layout.tsx (3:24)",
+                 "Set.forEach <anonymous>",
+               ],
+             },
+           ],
+           "code": "E1437",
+           "description": "Next.js encountered uncached data during a navigation.",
+           "environmentLabel": "Server",
+           "label": "Instant",
+           "source": "app/suspense-in-root/runtime/invalid-blocking-inside-runtime/page.tsx (6:19) @ BlockingPage
+         > 6 |   await connection()
+             |                   ^",
+           "stack": [
+             "BlockingPage app/suspense-in-root/runtime/invalid-blocking-inside-runtime/page.tsx (6:19)",
+           ],
+         }
+        `)
       } else {
         const result = await prerender(
           '/suspense-in-root/runtime/invalid-blocking-inside-runtime'

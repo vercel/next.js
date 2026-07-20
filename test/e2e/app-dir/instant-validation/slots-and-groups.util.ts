@@ -22,31 +22,31 @@ export function registerSlotsAndGroupsTests(ctx: InstantValidationCaseContext) {
           await expectNoDevValidationErrors(browser, await browser.url())
         } else {
           await expect(browser).toDisplayCollapsedRedbox(`
-             {
-               "cause": [
-                 {
-                   "label": "Caused by: Instant Validation",
-                   "source": "app/suspense-in-root/static/missing-suspense-in-parallel-route/@slot/layout.tsx (1:24) @ instant
-             > 1 | export const instant = { level: 'experimental-error' }
-                 |                        ^",
-                   "stack": [
-                     "instant app/suspense-in-root/static/missing-suspense-in-parallel-route/@slot/layout.tsx (1:24)",
-                     "Set.forEach <anonymous>",
-                   ],
-                 },
-               ],
-               "code": "E1402",
-               "description": "Next.js encountered runtime data during a navigation.",
-               "environmentLabel": "Server",
-               "label": "Instant",
-               "source": "app/suspense-in-root/static/missing-suspense-in-parallel-route/@slot/page.tsx (4:16) @ IndexSlot
-             > 4 |   await cookies()
-                 |                ^",
-               "stack": [
-                 "IndexSlot app/suspense-in-root/static/missing-suspense-in-parallel-route/@slot/page.tsx (4:16)",
-               ],
-             }
-            `)
+           {
+             "cause": [
+               {
+                 "label": "Caused by: Instant Validation",
+                 "source": "app/suspense-in-root/static/missing-suspense-in-parallel-route/@slot/layout.tsx (1:24) @ instant
+           > 1 | export const instant = { level: 'experimental-error' }
+               |                        ^",
+                 "stack": [
+                   "instant app/suspense-in-root/static/missing-suspense-in-parallel-route/@slot/layout.tsx (1:24)",
+                   "Set.forEach <anonymous>",
+                 ],
+               },
+             ],
+             "code": "E1430",
+             "description": "Next.js encountered runtime data during a navigation.",
+             "environmentLabel": "Server",
+             "label": "Instant",
+             "source": "app/suspense-in-root/static/missing-suspense-in-parallel-route/@slot/page.tsx (4:16) @ IndexSlot
+           > 4 |   await cookies()
+               |                ^",
+             "stack": [
+               "IndexSlot app/suspense-in-root/static/missing-suspense-in-parallel-route/@slot/page.tsx (4:16)",
+             ],
+           }
+          `)
         }
       } else {
         const result = await prerender(
@@ -95,31 +95,31 @@ export function registerSlotsAndGroupsTests(ctx: InstantValidationCaseContext) {
           await expectNoDevValidationErrors(browser, await browser.url())
         } else {
           await expect(browser).toDisplayCollapsedRedbox(`
-             {
-               "cause": [
-                 {
-                   "label": "Caused by: Instant Validation",
-                   "source": "app/suspense-in-root/static/missing-suspense-in-parallel-route/foo/page.tsx (1:24) @ instant
-             > 1 | export const instant = { level: 'experimental-error' }
-                 |                        ^",
-                   "stack": [
-                     "instant app/suspense-in-root/static/missing-suspense-in-parallel-route/foo/page.tsx (1:24)",
-                     "Set.forEach <anonymous>",
-                   ],
-                 },
-               ],
-               "code": "E1402",
-               "description": "Next.js encountered runtime data during a navigation.",
-               "environmentLabel": "Server",
-               "label": "Instant",
-               "source": "app/suspense-in-root/static/missing-suspense-in-parallel-route/@slot/foo/page.tsx (4:16) @ FooSlot
-             > 4 |   await cookies()
-                 |                ^",
-               "stack": [
-                 "FooSlot app/suspense-in-root/static/missing-suspense-in-parallel-route/@slot/foo/page.tsx (4:16)",
-               ],
-             }
-            `)
+           {
+             "cause": [
+               {
+                 "label": "Caused by: Instant Validation",
+                 "source": "app/suspense-in-root/static/missing-suspense-in-parallel-route/foo/page.tsx (1:24) @ instant
+           > 1 | export const instant = { level: 'experimental-error' }
+               |                        ^",
+                 "stack": [
+                   "instant app/suspense-in-root/static/missing-suspense-in-parallel-route/foo/page.tsx (1:24)",
+                   "Set.forEach <anonymous>",
+                 ],
+               },
+             ],
+             "code": "E1430",
+             "description": "Next.js encountered runtime data during a navigation.",
+             "environmentLabel": "Server",
+             "label": "Instant",
+             "source": "app/suspense-in-root/static/missing-suspense-in-parallel-route/@slot/foo/page.tsx (4:16) @ FooSlot
+           > 4 |   await cookies()
+               |                ^",
+             "stack": [
+               "FooSlot app/suspense-in-root/static/missing-suspense-in-parallel-route/@slot/foo/page.tsx (4:16)",
+             ],
+           }
+          `)
         }
       } else {
         const result = await prerender(
@@ -168,31 +168,31 @@ export function registerSlotsAndGroupsTests(ctx: InstantValidationCaseContext) {
           await expectNoDevValidationErrors(browser, await browser.url())
         } else {
           await expect(browser).toDisplayCollapsedRedbox(`
-             {
-               "cause": [
-                 {
-                   "label": "Caused by: Instant Validation",
-                   "source": "app/suspense-in-root/static/missing-suspense-in-parallel-route/bar/page.tsx (1:24) @ instant
-             > 1 | export const instant = { level: 'experimental-error' }
-                 |                        ^",
-                   "stack": [
-                     "instant app/suspense-in-root/static/missing-suspense-in-parallel-route/bar/page.tsx (1:24)",
-                     "Set.forEach <anonymous>",
-                   ],
-                 },
-               ],
-               "code": "E1402",
-               "description": "Next.js encountered runtime data during a navigation.",
-               "environmentLabel": "Server",
-               "label": "Instant",
-               "source": "app/suspense-in-root/static/missing-suspense-in-parallel-route/@slot/default.tsx (4:16) @ DefaultSlot
-             > 4 |   await cookies()
-                 |                ^",
-               "stack": [
-                 "DefaultSlot app/suspense-in-root/static/missing-suspense-in-parallel-route/@slot/default.tsx (4:16)",
-               ],
-             }
-            `)
+           {
+             "cause": [
+               {
+                 "label": "Caused by: Instant Validation",
+                 "source": "app/suspense-in-root/static/missing-suspense-in-parallel-route/bar/page.tsx (1:24) @ instant
+           > 1 | export const instant = { level: 'experimental-error' }
+               |                        ^",
+                 "stack": [
+                   "instant app/suspense-in-root/static/missing-suspense-in-parallel-route/bar/page.tsx (1:24)",
+                   "Set.forEach <anonymous>",
+                 ],
+               },
+             ],
+             "code": "E1430",
+             "description": "Next.js encountered runtime data during a navigation.",
+             "environmentLabel": "Server",
+             "label": "Instant",
+             "source": "app/suspense-in-root/static/missing-suspense-in-parallel-route/@slot/default.tsx (4:16) @ DefaultSlot
+           > 4 |   await cookies()
+               |                ^",
+             "stack": [
+               "DefaultSlot app/suspense-in-root/static/missing-suspense-in-parallel-route/@slot/default.tsx (4:16)",
+             ],
+           }
+          `)
         }
       } else {
         const result = await prerender(
@@ -242,31 +242,31 @@ export function registerSlotsAndGroupsTests(ctx: InstantValidationCaseContext) {
           await expectNoDevValidationErrors(browser, await browser.url())
         } else {
           await expect(browser).toDisplayCollapsedRedbox(`
-             {
-               "cause": [
-                 {
-                   "label": "Caused by: Instant Validation",
-                   "source": "app/suspense-in-root/static/route-group-config-only/(group)/layout.tsx (3:24) @ instant
-             > 3 | export const instant = { level: 'experimental-error' }
-                 |                        ^",
-                   "stack": [
-                     "instant app/suspense-in-root/static/route-group-config-only/(group)/layout.tsx (3:24)",
-                     "Set.forEach <anonymous>",
-                   ],
-                 },
-               ],
-               "code": "E1402",
-               "description": "Next.js encountered runtime data during a navigation.",
-               "environmentLabel": "Server",
-               "label": "Instant",
-               "source": "app/suspense-in-root/static/route-group-config-only/(group)/page.tsx (4:16) @ Page
-             > 4 |   await cookies()
-                 |                ^",
-               "stack": [
-                 "Page app/suspense-in-root/static/route-group-config-only/(group)/page.tsx (4:16)",
-               ],
-             }
-            `)
+           {
+             "cause": [
+               {
+                 "label": "Caused by: Instant Validation",
+                 "source": "app/suspense-in-root/static/route-group-config-only/(group)/layout.tsx (3:24) @ instant
+           > 3 | export const instant = { level: 'experimental-error' }
+               |                        ^",
+                 "stack": [
+                   "instant app/suspense-in-root/static/route-group-config-only/(group)/layout.tsx (3:24)",
+                   "Set.forEach <anonymous>",
+                 ],
+               },
+             ],
+             "code": "E1430",
+             "description": "Next.js encountered runtime data during a navigation.",
+             "environmentLabel": "Server",
+             "label": "Instant",
+             "source": "app/suspense-in-root/static/route-group-config-only/(group)/page.tsx (4:16) @ Page
+           > 4 |   await cookies()
+               |                ^",
+             "stack": [
+               "Page app/suspense-in-root/static/route-group-config-only/(group)/page.tsx (4:16)",
+             ],
+           }
+          `)
         }
       } else {
         const result = await prerender(
@@ -314,31 +314,31 @@ export function registerSlotsAndGroupsTests(ctx: InstantValidationCaseContext) {
           await expectNoDevValidationErrors(browser, await browser.url())
         } else {
           await expect(browser).toDisplayCollapsedRedbox(`
-             {
-               "cause": [
-                 {
-                   "label": "Caused by: Instant Validation",
-                   "source": "app/suspense-in-root/static/route-group-config-and-segment-config/(group)/layout.tsx (3:24) @ instant
-             > 3 | export const instant = { level: 'experimental-error' }
-                 |                        ^",
-                   "stack": [
-                     "instant app/suspense-in-root/static/route-group-config-and-segment-config/(group)/layout.tsx (3:24)",
-                     "Set.forEach <anonymous>",
-                   ],
-                 },
-               ],
-               "code": "E1402",
-               "description": "Next.js encountered runtime data during a navigation.",
-               "environmentLabel": "Server",
-               "label": "Instant",
-               "source": "app/suspense-in-root/static/route-group-config-and-segment-config/(group)/page.tsx (4:16) @ Page
-             > 4 |   await cookies()
-                 |                ^",
-               "stack": [
-                 "Page app/suspense-in-root/static/route-group-config-and-segment-config/(group)/page.tsx (4:16)",
-               ],
-             }
-            `)
+           {
+             "cause": [
+               {
+                 "label": "Caused by: Instant Validation",
+                 "source": "app/suspense-in-root/static/route-group-config-and-segment-config/(group)/layout.tsx (3:24) @ instant
+           > 3 | export const instant = { level: 'experimental-error' }
+               |                        ^",
+                 "stack": [
+                   "instant app/suspense-in-root/static/route-group-config-and-segment-config/(group)/layout.tsx (3:24)",
+                   "Set.forEach <anonymous>",
+                 ],
+               },
+             ],
+             "code": "E1430",
+             "description": "Next.js encountered runtime data during a navigation.",
+             "environmentLabel": "Server",
+             "label": "Instant",
+             "source": "app/suspense-in-root/static/route-group-config-and-segment-config/(group)/page.tsx (4:16) @ Page
+           > 4 |   await cookies()
+               |                ^",
+             "stack": [
+               "Page app/suspense-in-root/static/route-group-config-and-segment-config/(group)/page.tsx (4:16)",
+             ],
+           }
+          `)
         }
       } else {
         const result = await prerender(
@@ -387,31 +387,31 @@ export function registerSlotsAndGroupsTests(ctx: InstantValidationCaseContext) {
           await expectNoDevValidationErrors(browser, await browser.url())
         } else {
           await expect(browser).toDisplayCollapsedRedbox(`
-             {
-               "cause": [
-                 {
-                   "label": "Caused by: Instant Validation",
-                   "source": "app/suspense-in-root/static/route-group-segment-config-only/layout.tsx (3:24) @ instant
-             > 3 | export const instant = { level: 'experimental-error' }
-                 |                        ^",
-                   "stack": [
-                     "instant app/suspense-in-root/static/route-group-segment-config-only/layout.tsx (3:24)",
-                     "Set.forEach <anonymous>",
-                   ],
-                 },
-               ],
-               "code": "E1402",
-               "description": "Next.js encountered runtime data during a navigation.",
-               "environmentLabel": "Server",
-               "label": "Instant",
-               "source": "app/suspense-in-root/static/route-group-segment-config-only/(group)/page.tsx (4:16) @ Page
-             > 4 |   await cookies()
-                 |                ^",
-               "stack": [
-                 "Page app/suspense-in-root/static/route-group-segment-config-only/(group)/page.tsx (4:16)",
-               ],
-             }
-            `)
+           {
+             "cause": [
+               {
+                 "label": "Caused by: Instant Validation",
+                 "source": "app/suspense-in-root/static/route-group-segment-config-only/layout.tsx (3:24) @ instant
+           > 3 | export const instant = { level: 'experimental-error' }
+               |                        ^",
+                 "stack": [
+                   "instant app/suspense-in-root/static/route-group-segment-config-only/layout.tsx (3:24)",
+                   "Set.forEach <anonymous>",
+                 ],
+               },
+             ],
+             "code": "E1430",
+             "description": "Next.js encountered runtime data during a navigation.",
+             "environmentLabel": "Server",
+             "label": "Instant",
+             "source": "app/suspense-in-root/static/route-group-segment-config-only/(group)/page.tsx (4:16) @ Page
+           > 4 |   await cookies()
+               |                ^",
+             "stack": [
+               "Page app/suspense-in-root/static/route-group-segment-config-only/(group)/page.tsx (4:16)",
+             ],
+           }
+          `)
         }
       } else {
         const result = await prerender(
@@ -460,31 +460,31 @@ export function registerSlotsAndGroupsTests(ctx: InstantValidationCaseContext) {
           await expectNoDevValidationErrors(browser, await browser.url())
         } else {
           await expect(browser).toDisplayCollapsedRedbox(`
-             {
-               "cause": [
-                 {
-                   "label": "Caused by: Instant Validation",
-                   "source": "app/suspense-in-root/static/route-group-config-with-deeper-segment/(group)/layout.tsx (3:24) @ instant
-             > 3 | export const instant = { level: 'experimental-error' }
-                 |                        ^",
-                   "stack": [
-                     "instant app/suspense-in-root/static/route-group-config-with-deeper-segment/(group)/layout.tsx (3:24)",
-                     "Set.forEach <anonymous>",
-                   ],
-                 },
-               ],
-               "code": "E1402",
-               "description": "Next.js encountered runtime data during a navigation.",
-               "environmentLabel": "Server",
-               "label": "Instant",
-               "source": "app/suspense-in-root/static/route-group-config-with-deeper-segment/(group)/inner/page.tsx (4:16) @ Page
-             > 4 |   await cookies()
-                 |                ^",
-               "stack": [
-                 "Page app/suspense-in-root/static/route-group-config-with-deeper-segment/(group)/inner/page.tsx (4:16)",
-               ],
-             }
-            `)
+           {
+             "cause": [
+               {
+                 "label": "Caused by: Instant Validation",
+                 "source": "app/suspense-in-root/static/route-group-config-with-deeper-segment/(group)/layout.tsx (3:24) @ instant
+           > 3 | export const instant = { level: 'experimental-error' }
+               |                        ^",
+                 "stack": [
+                   "instant app/suspense-in-root/static/route-group-config-with-deeper-segment/(group)/layout.tsx (3:24)",
+                   "Set.forEach <anonymous>",
+                 ],
+               },
+             ],
+             "code": "E1430",
+             "description": "Next.js encountered runtime data during a navigation.",
+             "environmentLabel": "Server",
+             "label": "Instant",
+             "source": "app/suspense-in-root/static/route-group-config-with-deeper-segment/(group)/inner/page.tsx (4:16) @ Page
+           > 4 |   await cookies()
+               |                ^",
+             "stack": [
+               "Page app/suspense-in-root/static/route-group-config-with-deeper-segment/(group)/inner/page.tsx (4:16)",
+             ],
+           }
+          `)
         }
       } else {
         const result = await prerender(
@@ -533,31 +533,31 @@ export function registerSlotsAndGroupsTests(ctx: InstantValidationCaseContext) {
           await expectNoDevValidationErrors(browser, await browser.url())
         } else {
           await expect(browser).toDisplayCollapsedRedbox(`
-             {
-               "cause": [
-                 {
-                   "label": "Caused by: Instant Validation",
-                   "source": "app/suspense-in-root/static/route-group-deeper-segment-config/(group)/inner/layout.tsx (3:24) @ instant
-             > 3 | export const instant = { level: 'experimental-error' }
-                 |                        ^",
-                   "stack": [
-                     "instant app/suspense-in-root/static/route-group-deeper-segment-config/(group)/inner/layout.tsx (3:24)",
-                     "Set.forEach <anonymous>",
-                   ],
-                 },
-               ],
-               "code": "E1402",
-               "description": "Next.js encountered runtime data during a navigation.",
-               "environmentLabel": "Server",
-               "label": "Instant",
-               "source": "app/suspense-in-root/static/route-group-deeper-segment-config/(group)/inner/page.tsx (4:16) @ Page
-             > 4 |   await cookies()
-                 |                ^",
-               "stack": [
-                 "Page app/suspense-in-root/static/route-group-deeper-segment-config/(group)/inner/page.tsx (4:16)",
-               ],
-             }
-            `)
+           {
+             "cause": [
+               {
+                 "label": "Caused by: Instant Validation",
+                 "source": "app/suspense-in-root/static/route-group-deeper-segment-config/(group)/inner/layout.tsx (3:24) @ instant
+           > 3 | export const instant = { level: 'experimental-error' }
+               |                        ^",
+                 "stack": [
+                   "instant app/suspense-in-root/static/route-group-deeper-segment-config/(group)/inner/layout.tsx (3:24)",
+                   "Set.forEach <anonymous>",
+                 ],
+               },
+             ],
+             "code": "E1430",
+             "description": "Next.js encountered runtime data during a navigation.",
+             "environmentLabel": "Server",
+             "label": "Instant",
+             "source": "app/suspense-in-root/static/route-group-deeper-segment-config/(group)/inner/page.tsx (4:16) @ Page
+           > 4 |   await cookies()
+               |                ^",
+             "stack": [
+               "Page app/suspense-in-root/static/route-group-deeper-segment-config/(group)/inner/page.tsx (4:16)",
+             ],
+           }
+          `)
         }
       } else {
         const result = await prerender(
@@ -613,31 +613,31 @@ export function registerSlotsAndGroupsTests(ctx: InstantValidationCaseContext) {
           await expectNoDevValidationErrors(browser, await browser.url())
         } else {
           await expect(browser).toDisplayCollapsedRedbox(`
-             {
-               "cause": [
-                 {
-                   "label": "Caused by: Instant Validation",
-                   "source": "app/suspense-in-root/static/route-group-shared-boundary/(outer)/(inner)/page.tsx (6:24) @ instant
-             > 6 | export const instant = { level: 'experimental-error' }
-                 |                        ^",
-                   "stack": [
-                     "instant app/suspense-in-root/static/route-group-shared-boundary/(outer)/(inner)/page.tsx (6:24)",
-                     "Set.forEach <anonymous>",
-                   ],
-                 },
-               ],
-               "code": "E1402",
-               "description": "Next.js encountered runtime data during a navigation.",
-               "environmentLabel": "Server",
-               "label": "Instant",
-               "source": "app/suspense-in-root/static/route-group-shared-boundary/(outer)/(inner)/layout.tsx (13:16) @ InnerLayout
-             > 13 |   await cookies()
-                  |                ^",
-               "stack": [
-                 "InnerLayout app/suspense-in-root/static/route-group-shared-boundary/(outer)/(inner)/layout.tsx (13:16)",
-               ],
-             }
-            `)
+           {
+             "cause": [
+               {
+                 "label": "Caused by: Instant Validation",
+                 "source": "app/suspense-in-root/static/route-group-shared-boundary/(outer)/(inner)/page.tsx (6:24) @ instant
+           > 6 | export const instant = { level: 'experimental-error' }
+               |                        ^",
+                 "stack": [
+                   "instant app/suspense-in-root/static/route-group-shared-boundary/(outer)/(inner)/page.tsx (6:24)",
+                   "Set.forEach <anonymous>",
+                 ],
+               },
+             ],
+             "code": "E1430",
+             "description": "Next.js encountered runtime data during a navigation.",
+             "environmentLabel": "Server",
+             "label": "Instant",
+             "source": "app/suspense-in-root/static/route-group-shared-boundary/(outer)/(inner)/layout.tsx (13:16) @ InnerLayout
+           > 13 |   await cookies()
+                |                ^",
+             "stack": [
+               "InnerLayout app/suspense-in-root/static/route-group-shared-boundary/(outer)/(inner)/layout.tsx (13:16)",
+             ],
+           }
+          `)
         }
       } else {
         const result = await prerender(
@@ -700,31 +700,31 @@ export function registerSlotsAndGroupsTests(ctx: InstantValidationCaseContext) {
           await expectNoDevValidationErrors(browser, await browser.url())
         } else {
           await expect(browser).toDisplayCollapsedRedbox(`
-             {
-               "cause": [
-                 {
-                   "label": "Caused by: Instant Validation",
-                   "source": "app/suspense-in-root/static/parallel-group-depths-deep-slot-hole/@slot/(g1)/(g2)/(g3)/page.tsx (1:24) @ instant
-             > 1 | export const instant = { level: 'experimental-error' }
-                 |                        ^",
-                   "stack": [
-                     "instant app/suspense-in-root/static/parallel-group-depths-deep-slot-hole/@slot/(g1)/(g2)/(g3)/page.tsx (1:24)",
-                     "Set.forEach <anonymous>",
-                   ],
-                 },
-               ],
-               "code": "E1402",
-               "description": "Next.js encountered runtime data during a navigation.",
-               "environmentLabel": "Server",
-               "label": "Instant",
-               "source": "app/suspense-in-root/static/parallel-group-depths-deep-slot-hole/@slot/(g1)/(g2)/(g3)/layout.tsx (7:16) @ G3Layout
-             >  7 |   await cookies()
-                  |                ^",
-               "stack": [
-                 "G3Layout app/suspense-in-root/static/parallel-group-depths-deep-slot-hole/@slot/(g1)/(g2)/(g3)/layout.tsx (7:16)",
-               ],
-             }
-            `)
+           {
+             "cause": [
+               {
+                 "label": "Caused by: Instant Validation",
+                 "source": "app/suspense-in-root/static/parallel-group-depths-deep-slot-hole/@slot/(g1)/(g2)/(g3)/page.tsx (1:24) @ instant
+           > 1 | export const instant = { level: 'experimental-error' }
+               |                        ^",
+                 "stack": [
+                   "instant app/suspense-in-root/static/parallel-group-depths-deep-slot-hole/@slot/(g1)/(g2)/(g3)/page.tsx (1:24)",
+                   "Set.forEach <anonymous>",
+                 ],
+               },
+             ],
+             "code": "E1430",
+             "description": "Next.js encountered runtime data during a navigation.",
+             "environmentLabel": "Server",
+             "label": "Instant",
+             "source": "app/suspense-in-root/static/parallel-group-depths-deep-slot-hole/@slot/(g1)/(g2)/(g3)/layout.tsx (7:16) @ G3Layout
+           >  7 |   await cookies()
+                |                ^",
+             "stack": [
+               "G3Layout app/suspense-in-root/static/parallel-group-depths-deep-slot-hole/@slot/(g1)/(g2)/(g3)/layout.tsx (7:16)",
+             ],
+           }
+          `)
         }
       } else {
         const result = await prerender(
@@ -781,31 +781,31 @@ export function registerSlotsAndGroupsTests(ctx: InstantValidationCaseContext) {
           await expectNoDevValidationErrors(browser, await browser.url())
         } else {
           await expect(browser).toDisplayCollapsedRedbox(`
-             {
-               "cause": [
-                 {
-                   "label": "Caused by: Instant Validation",
-                   "source": "app/suspense-in-root/static/parallel-group-depths-shallow-slot-hole/(b1)/(b2)/page.tsx (1:24) @ instant
-             > 1 | export const instant = { level: 'experimental-error' }
-                 |                        ^",
-                   "stack": [
-                     "instant app/suspense-in-root/static/parallel-group-depths-shallow-slot-hole/(b1)/(b2)/page.tsx (1:24)",
-                     "Set.forEach <anonymous>",
-                   ],
-                 },
-               ],
-               "code": "E1402",
-               "description": "Next.js encountered runtime data during a navigation.",
-               "environmentLabel": "Server",
-               "label": "Instant",
-               "source": "app/suspense-in-root/static/parallel-group-depths-shallow-slot-hole/(b1)/(b2)/layout.tsx (5:16) @ B2Layout
-             > 5 |   await cookies()
-                 |                ^",
-               "stack": [
-                 "B2Layout app/suspense-in-root/static/parallel-group-depths-shallow-slot-hole/(b1)/(b2)/layout.tsx (5:16)",
-               ],
-             }
-            `)
+           {
+             "cause": [
+               {
+                 "label": "Caused by: Instant Validation",
+                 "source": "app/suspense-in-root/static/parallel-group-depths-shallow-slot-hole/(b1)/(b2)/page.tsx (1:24) @ instant
+           > 1 | export const instant = { level: 'experimental-error' }
+               |                        ^",
+                 "stack": [
+                   "instant app/suspense-in-root/static/parallel-group-depths-shallow-slot-hole/(b1)/(b2)/page.tsx (1:24)",
+                   "Set.forEach <anonymous>",
+                 ],
+               },
+             ],
+             "code": "E1430",
+             "description": "Next.js encountered runtime data during a navigation.",
+             "environmentLabel": "Server",
+             "label": "Instant",
+             "source": "app/suspense-in-root/static/parallel-group-depths-shallow-slot-hole/(b1)/(b2)/layout.tsx (5:16) @ B2Layout
+           > 5 |   await cookies()
+               |                ^",
+             "stack": [
+               "B2Layout app/suspense-in-root/static/parallel-group-depths-shallow-slot-hole/(b1)/(b2)/layout.tsx (5:16)",
+             ],
+           }
+          `)
         }
       } else {
         const result = await prerender(
@@ -943,31 +943,31 @@ export function registerSlotsAndGroupsTests(ctx: InstantValidationCaseContext) {
           await expectNoDevValidationErrors(browser, await browser.url())
         } else {
           await expect(browser).toDisplayCollapsedRedbox(`
-             {
-               "cause": [
-                 {
-                   "label": "Caused by: Instant Validation",
-                   "source": "app/suspense-in-root/static/config-depth-preference/deeper/still/deep/page.tsx (3:24) @ instant
-             > 3 | export const instant = { level: 'experimental-error' }
-                 |                        ^",
-                   "stack": [
-                     "instant app/suspense-in-root/static/config-depth-preference/deeper/still/deep/page.tsx (3:24)",
-                     "Set.forEach <anonymous>",
-                   ],
-                 },
-               ],
-               "code": "E1402",
-               "description": "Next.js encountered runtime data during a navigation.",
-               "environmentLabel": "Server",
-               "label": "Instant",
-               "source": "app/suspense-in-root/static/config-depth-preference/@slot/[...catchall]/page.tsx (8:16) @ CatchallSlotPage
-             >  8 |   await cookies()
-                  |                ^",
-               "stack": [
-                 "CatchallSlotPage app/suspense-in-root/static/config-depth-preference/@slot/[...catchall]/page.tsx (8:16)",
-               ],
-             }
-            `)
+           {
+             "cause": [
+               {
+                 "label": "Caused by: Instant Validation",
+                 "source": "app/suspense-in-root/static/config-depth-preference/deeper/still/deep/page.tsx (3:24) @ instant
+           > 3 | export const instant = { level: 'experimental-error' }
+               |                        ^",
+                 "stack": [
+                   "instant app/suspense-in-root/static/config-depth-preference/deeper/still/deep/page.tsx (3:24)",
+                   "Set.forEach <anonymous>",
+                 ],
+               },
+             ],
+             "code": "E1430",
+             "description": "Next.js encountered runtime data during a navigation.",
+             "environmentLabel": "Server",
+             "label": "Instant",
+             "source": "app/suspense-in-root/static/config-depth-preference/@slot/[...catchall]/page.tsx (8:16) @ CatchallSlotPage
+           >  8 |   await cookies()
+                |                ^",
+             "stack": [
+               "CatchallSlotPage app/suspense-in-root/static/config-depth-preference/@slot/[...catchall]/page.tsx (8:16)",
+             ],
+           }
+          `)
         }
       } else {
         const result = await prerender(
@@ -1000,31 +1000,31 @@ export function registerSlotsAndGroupsTests(ctx: InstantValidationCaseContext) {
           await expectNoDevValidationErrors(browser, await browser.url())
         } else {
           await expect(browser).toDisplayCollapsedRedbox(`
-             {
-               "cause": [
-                 {
-                   "label": "Caused by: Instant Validation",
-                   "source": "app/suspense-in-root/static/config-depth-preference-slot-wins/deeper/@anotherSlot/still/deep/page.tsx (3:24) @ instant
-             > 3 | export const instant = { level: 'experimental-error' }
-                 |                        ^",
-                   "stack": [
-                     "instant app/suspense-in-root/static/config-depth-preference-slot-wins/deeper/@anotherSlot/still/deep/page.tsx (3:24)",
-                     "Set.forEach <anonymous>",
-                   ],
-                 },
-               ],
-               "code": "E1402",
-               "description": "Next.js encountered runtime data during a navigation.",
-               "environmentLabel": "Server",
-               "label": "Instant",
-               "source": "app/suspense-in-root/static/config-depth-preference-slot-wins/@slot/[...catchall]/page.tsx (7:16) @ CatchallSlotPage
-             >  7 |   await cookies()
-                  |                ^",
-               "stack": [
-                 "CatchallSlotPage app/suspense-in-root/static/config-depth-preference-slot-wins/@slot/[...catchall]/page.tsx (7:16)",
-               ],
-             }
-            `)
+           {
+             "cause": [
+               {
+                 "label": "Caused by: Instant Validation",
+                 "source": "app/suspense-in-root/static/config-depth-preference-slot-wins/deeper/@anotherSlot/still/deep/page.tsx (3:24) @ instant
+           > 3 | export const instant = { level: 'experimental-error' }
+               |                        ^",
+                 "stack": [
+                   "instant app/suspense-in-root/static/config-depth-preference-slot-wins/deeper/@anotherSlot/still/deep/page.tsx (3:24)",
+                   "Set.forEach <anonymous>",
+                 ],
+               },
+             ],
+             "code": "E1430",
+             "description": "Next.js encountered runtime data during a navigation.",
+             "environmentLabel": "Server",
+             "label": "Instant",
+             "source": "app/suspense-in-root/static/config-depth-preference-slot-wins/@slot/[...catchall]/page.tsx (7:16) @ CatchallSlotPage
+           >  7 |   await cookies()
+                |                ^",
+             "stack": [
+               "CatchallSlotPage app/suspense-in-root/static/config-depth-preference-slot-wins/@slot/[...catchall]/page.tsx (7:16)",
+             ],
+           }
+          `)
         }
       } else {
         const result = await prerender(
@@ -1075,31 +1075,31 @@ export function registerSlotsAndGroupsTests(ctx: InstantValidationCaseContext) {
           await expectNoDevValidationErrors(browser, await browser.url())
         } else {
           await expect(browser).toDisplayCollapsedRedbox(`
-             {
-               "cause": [
-                 {
-                   "label": "Caused by: Instant Validation",
-                   "source": "app/suspense-in-root/static/config-children-preferred/page.tsx (4:24) @ instant
-             > 4 | export const instant = { level: 'experimental-error' }
-                 |                        ^",
-                   "stack": [
-                     "instant app/suspense-in-root/static/config-children-preferred/page.tsx (4:24)",
-                     "Set.forEach <anonymous>",
-                   ],
-                 },
-               ],
-               "code": "E1402",
-               "description": "Next.js encountered runtime data during a navigation.",
-               "environmentLabel": "Server",
-               "label": "Instant",
-               "source": "app/suspense-in-root/static/config-children-preferred/@slot/page.tsx (7:16) @ SlotPage
-             >  7 |   await cookies()
-                  |                ^",
-               "stack": [
-                 "SlotPage app/suspense-in-root/static/config-children-preferred/@slot/page.tsx (7:16)",
-               ],
-             }
-            `)
+           {
+             "cause": [
+               {
+                 "label": "Caused by: Instant Validation",
+                 "source": "app/suspense-in-root/static/config-children-preferred/page.tsx (4:24) @ instant
+           > 4 | export const instant = { level: 'experimental-error' }
+               |                        ^",
+                 "stack": [
+                   "instant app/suspense-in-root/static/config-children-preferred/page.tsx (4:24)",
+                   "Set.forEach <anonymous>",
+                 ],
+               },
+             ],
+             "code": "E1430",
+             "description": "Next.js encountered runtime data during a navigation.",
+             "environmentLabel": "Server",
+             "label": "Instant",
+             "source": "app/suspense-in-root/static/config-children-preferred/@slot/page.tsx (7:16) @ SlotPage
+           >  7 |   await cookies()
+                |                ^",
+             "stack": [
+               "SlotPage app/suspense-in-root/static/config-children-preferred/@slot/page.tsx (7:16)",
+             ],
+           }
+          `)
         }
       } else {
         const result = await prerender(
@@ -1151,31 +1151,31 @@ export function registerSlotsAndGroupsTests(ctx: InstantValidationCaseContext) {
           await expectNoDevValidationErrors(browser, await browser.url())
         } else {
           await expect(browser).toDisplayCollapsedRedbox(`
-             {
-               "cause": [
-                 {
-                   "label": "Caused by: Instant Validation",
-                   "source": "app/suspense-in-root/static/cross-slot-blocking/inner/deep/page.tsx (5:24) @ instant
-             > 5 | export const instant = { level: 'experimental-error' }
-                 |                        ^",
-                   "stack": [
-                     "instant app/suspense-in-root/static/cross-slot-blocking/inner/deep/page.tsx (5:24)",
-                     "Set.forEach <anonymous>",
-                   ],
-                 },
-               ],
-               "code": "E1402",
-               "description": "Next.js encountered runtime data during a navigation.",
-               "environmentLabel": "Server",
-               "label": "Instant",
-               "source": "app/suspense-in-root/static/cross-slot-blocking/@slot/[...catchall]/page.tsx (8:16) @ CatchallSlotPage
-             >  8 |   await cookies()
-                  |                ^",
-               "stack": [
-                 "CatchallSlotPage app/suspense-in-root/static/cross-slot-blocking/@slot/[...catchall]/page.tsx (8:16)",
-               ],
-             }
-            `)
+           {
+             "cause": [
+               {
+                 "label": "Caused by: Instant Validation",
+                 "source": "app/suspense-in-root/static/cross-slot-blocking/inner/deep/page.tsx (5:24) @ instant
+           > 5 | export const instant = { level: 'experimental-error' }
+               |                        ^",
+                 "stack": [
+                   "instant app/suspense-in-root/static/cross-slot-blocking/inner/deep/page.tsx (5:24)",
+                   "Set.forEach <anonymous>",
+                 ],
+               },
+             ],
+             "code": "E1430",
+             "description": "Next.js encountered runtime data during a navigation.",
+             "environmentLabel": "Server",
+             "label": "Instant",
+             "source": "app/suspense-in-root/static/cross-slot-blocking/@slot/[...catchall]/page.tsx (8:16) @ CatchallSlotPage
+           >  8 |   await cookies()
+                |                ^",
+             "stack": [
+               "CatchallSlotPage app/suspense-in-root/static/cross-slot-blocking/@slot/[...catchall]/page.tsx (8:16)",
+             ],
+           }
+          `)
         }
       } else {
         const result = await prerender(

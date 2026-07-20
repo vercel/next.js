@@ -61,31 +61,31 @@ export function registerHeadAndReportingTests(
           '/suspense-in-root/head/invalid-runtime-viewport-in-static'
         )
         await expect(browser).toDisplayCollapsedRedbox(`
-           {
-             "cause": [
-               {
-                 "label": "Caused by: Instant Validation",
-                 "source": "app/suspense-in-root/head/invalid-runtime-viewport-in-static/page.tsx (9:24) @ instant
-           >  9 | export const instant = { level: 'experimental-error' }
-                |                        ^",
-                 "stack": [
-                   "instant app/suspense-in-root/head/invalid-runtime-viewport-in-static/page.tsx (9:24)",
-                   "Set.forEach <anonymous>",
-                 ],
-               },
-             ],
-             "code": "E1409",
-             "description": "Next.js encountered URL data in generateViewport().",
-             "environmentLabel": "Server",
-             "label": "Blocking Route",
-             "source": "app/suspense-in-root/head/invalid-runtime-viewport-in-static/page.tsx (16:3) @ Module.generateViewport
-           > 16 |   await searchParams
-                |   ^",
-             "stack": [
-               "Module.generateViewport app/suspense-in-root/head/invalid-runtime-viewport-in-static/page.tsx (16:3)",
-             ],
-           }
-          `)
+         {
+           "cause": [
+             {
+               "label": "Caused by: Instant Validation",
+               "source": "app/suspense-in-root/head/invalid-runtime-viewport-in-static/page.tsx (9:24) @ instant
+         >  9 | export const instant = { level: 'experimental-error' }
+              |                        ^",
+               "stack": [
+                 "instant app/suspense-in-root/head/invalid-runtime-viewport-in-static/page.tsx (9:24)",
+                 "Set.forEach <anonymous>",
+               ],
+             },
+           ],
+           "code": "E1431",
+           "description": "Next.js encountered URL data in generateViewport().",
+           "environmentLabel": "Server",
+           "label": "Blocking Route",
+           "source": "app/suspense-in-root/head/invalid-runtime-viewport-in-static/page.tsx (16:3) @ Module.generateViewport
+         > 16 |   await searchParams
+              |   ^",
+           "stack": [
+             "Module.generateViewport app/suspense-in-root/head/invalid-runtime-viewport-in-static/page.tsx (16:3)",
+           ],
+         }
+        `)
       } else {
         const result = await prerender(
           '/suspense-in-root/head/invalid-runtime-viewport-in-static'
@@ -120,31 +120,31 @@ export function registerHeadAndReportingTests(
           '/suspense-in-root/head/invalid-dynamic-viewport-in-runtime'
         )
         await expect(browser).toDisplayCollapsedRedbox(`
-           {
-             "cause": [
-               {
-                 "label": "Caused by: Instant Validation",
-                 "source": "app/suspense-in-root/head/invalid-dynamic-viewport-in-runtime/page.tsx (6:24) @ instant
-           > 6 | export const instant = { level: 'experimental-error' }
-               |                        ^",
-                 "stack": [
-                   "instant app/suspense-in-root/head/invalid-dynamic-viewport-in-runtime/page.tsx (6:24)",
-                   "Set.forEach <anonymous>",
-                 ],
-               },
-             ],
-             "code": "E1395",
-             "description": "Next.js encountered uncached data in generateViewport().",
-             "environmentLabel": "Server",
-             "label": "Blocking Route",
-             "source": "app/suspense-in-root/head/invalid-dynamic-viewport-in-runtime/page.tsx (11:19) @ Module.generateViewport
-           > 11 |   await connection()
-                |                   ^",
-             "stack": [
-               "Module.generateViewport app/suspense-in-root/head/invalid-dynamic-viewport-in-runtime/page.tsx (11:19)",
-             ],
-           }
-          `)
+         {
+           "cause": [
+             {
+               "label": "Caused by: Instant Validation",
+               "source": "app/suspense-in-root/head/invalid-dynamic-viewport-in-runtime/page.tsx (6:24) @ instant
+         > 6 | export const instant = { level: 'experimental-error' }
+             |                        ^",
+               "stack": [
+                 "instant app/suspense-in-root/head/invalid-dynamic-viewport-in-runtime/page.tsx (6:24)",
+                 "Set.forEach <anonymous>",
+               ],
+             },
+           ],
+           "code": "E1438",
+           "description": "Next.js encountered uncached data in generateViewport().",
+           "environmentLabel": "Server",
+           "label": "Blocking Route",
+           "source": "app/suspense-in-root/head/invalid-dynamic-viewport-in-runtime/page.tsx (11:19) @ Module.generateViewport
+         > 11 |   await connection()
+              |                   ^",
+           "stack": [
+             "Module.generateViewport app/suspense-in-root/head/invalid-dynamic-viewport-in-runtime/page.tsx (11:19)",
+           ],
+         }
+        `)
       } else {
         const result = await prerender(
           '/suspense-in-root/head/invalid-dynamic-viewport-in-runtime'
@@ -230,7 +230,7 @@ export function registerHeadAndReportingTests(
                ],
              },
            ],
-           "code": "E1395",
+           "code": "E1438",
            "description": "Next.js encountered uncached data in generateViewport().",
            "environmentLabel": "Server",
            "label": "Blocking Route",
@@ -536,31 +536,31 @@ export function registerHeadAndReportingTests(
           '/suspense-in-root/disable-validation/disable-build'
         )
         await expect(browser).toDisplayCollapsedRedbox(`
-           {
-             "cause": [
-               {
-                 "label": "Caused by: Instant Validation",
-                 "source": "app/suspense-in-root/disable-validation/disable-build/page.tsx (3:24) @ instant
-           > 3 | export const instant = {
-               |                        ^",
-                 "stack": [
-                   "instant app/suspense-in-root/disable-validation/disable-build/page.tsx (3:24)",
-                   "Set.forEach <anonymous>",
-                 ],
-               },
-             ],
-             "code": "E1398",
-             "description": "Next.js encountered uncached data during a navigation.",
-             "environmentLabel": "Server",
-             "label": "Instant",
-             "source": "app/suspense-in-root/disable-validation/disable-build/page.tsx (9:19) @ Page
-           >  9 |   await connection()
-                |                   ^",
-             "stack": [
-               "Page app/suspense-in-root/disable-validation/disable-build/page.tsx (9:19)",
-             ],
-           }
-          `)
+         {
+           "cause": [
+             {
+               "label": "Caused by: Instant Validation",
+               "source": "app/suspense-in-root/disable-validation/disable-build/page.tsx (3:24) @ instant
+         > 3 | export const instant = {
+             |                        ^",
+               "stack": [
+                 "instant app/suspense-in-root/disable-validation/disable-build/page.tsx (3:24)",
+                 "Set.forEach <anonymous>",
+               ],
+             },
+           ],
+           "code": "E1437",
+           "description": "Next.js encountered uncached data during a navigation.",
+           "environmentLabel": "Server",
+           "label": "Instant",
+           "source": "app/suspense-in-root/disable-validation/disable-build/page.tsx (9:19) @ Page
+         >  9 |   await connection()
+              |                   ^",
+           "stack": [
+             "Page app/suspense-in-root/disable-validation/disable-build/page.tsx (9:19)",
+           ],
+         }
+        `)
       } else {
         const result = await prerender(
           '/suspense-in-root/disable-validation/disable-build'
