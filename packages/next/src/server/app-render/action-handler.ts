@@ -756,7 +756,34 @@ export async function handleAction({
             throw new Error('invariant: Missing request body.')
           }
 
-          // TODO: add body limit
+          const defaultBodySizeLimit = '1 MB'
+          const bodySizeLimit =
+            serverActions?.bodySizeLimit ?? defaultBodySizeLimit
+          // Inline the bytes parser so this code path works in Edge runtime
+          // where `require('next/dist/compiled/bytes')` is not available.
+          const bodySizeLimitBytes: number =
+            bodySizeLimit === defaultBodySizeLimit
+              ? 1024 * 1024 // 1 MB
+              : typeof bodySizeLimit === 'number'
+                ? bodySizeLimit
+                : (() => {
+                    const units: Record<string, number> = {
+                      b: 1,
+                      kb: 1024,
+                      mb: 1024 ** 2,
+                      gb: 1024 ** 3,
+                      tb: 1024 ** 4,
+                      pb: 1024 ** 5,
+                    }
+                    const match = /^([\d.]+)\s*(b|kb|mb|gb|tb|pb)$/i.exec(
+                      bodySizeLimit as string
+                    )
+                    if (!match) return parseInt(bodySizeLimit as string, 10)
+                    return Math.floor(
+                      parseFloat(match[1]) *
+                        (units[match[2].toLowerCase()] ?? 1)
+                    )
+                  })()
 
           // Use react-server-dom-webpack/server
           const {
@@ -769,8 +796,42 @@ export async function handleAction({
           temporaryReferences = createTemporaryReferenceSet()
 
           if (isMultipartAction) {
-            // TODO-APP: Add streaming support
-            const formData = await req.request.formData()
+            // Read the body stream with size tracking to enforce bodySizeLimitBytes.
+            // We cannot call req.request.formData() directly as that would bypass
+            // the body size limit entirely.
+            const edgeChunks: Uint8Array[] = []
+            let edgeBodySize = 0
+            const edgeReader = req.body.getReader()
+            while (true) {
+              const { done, value } = await edgeReader.read()
+              if (done) break
+              edgeBodySize += value.byteLength
+              if (edgeBodySize > bodySizeLimitBytes) {
+                throw Object.assign(
+                  new Error(
+                    `Body exceeded ${bodySizeLimit} limit.\n` +
+                      `To configure the body size limit for Server Actions, see: https://nextjs.org/docs/app/api-reference/next-config-js/serverActions#bodysizelimit`
+                  ),
+                  { statusCode: 413 }
+                )
+              }
+              edgeChunks.push(value)
+            }
+            // Reconstruct a Blob from the buffered chunks and parse formData from it.
+            // Note: we must pass the original Content-Type as an explicit header
+            // rather than relying on the Blob's `type`. The Blob constructor
+            // normalizes `type` to ASCII lowercase per the File API spec, which
+            // would lowercase the multipart boundary parameter (e.g.
+            // `boundary=----WebKitFormBoundaryAbCdEf`). The body bytes contain the
+            // original mixed-case boundary delimiter, so a lowercased boundary
+            // would fail to match and `formData()` would throw. An explicit header
+            // on the Request takes precedence over the Blob's normalized type.
+            const edgeBodyBlob = new Blob(edgeChunks as BlobPart[])
+            const formData = await new Request('http://n/', {
+              method: 'POST',
+              headers: { 'content-type': req.headers['content-type'] ?? '' },
+              body: edgeBodyBlob,
+            }).formData()
             if (isFetchAction) {
               // A fetch action with a multipart body.
 
@@ -849,6 +910,7 @@ export async function handleAction({
             // which can happen for very simple JSON-like values that don't need multiple flight rows.
 
             const chunks: Buffer[] = []
+            let nonMultipartBodySize = 0
             const reader = req.body.getReader()
             while (true) {
               const { done, value } = await reader.read()
@@ -856,6 +918,16 @@ export async function handleAction({
                 break
               }
 
+              nonMultipartBodySize += value.byteLength
+              if (nonMultipartBodySize > bodySizeLimitBytes) {
+                throw Object.assign(
+                  new Error(
+                    `Body exceeded ${bodySizeLimit} limit.\n` +
+                      `To configure the body size limit for Server Actions, see: https://nextjs.org/docs/app/api-reference/next-config-js/serverActions#bodysizelimit`
+                  ),
+                  { statusCode: 413 }
+                )
+              }
               chunks.push(value)
             }
 
