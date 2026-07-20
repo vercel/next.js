@@ -34,28 +34,28 @@ To manually set up Vitest, install `vitest` and the following packages as dev de
 
 ```bash package="pnpm"
 # Using TypeScript
-pnpm add -D vitest @vitejs/plugin-react jsdom @testing-library/react @testing-library/dom vite-tsconfig-paths
+pnpm add -D vitest @vitejs/plugin-react jsdom @testing-library/react @testing-library/dom
 # Using JavaScript
 pnpm add -D vitest @vitejs/plugin-react jsdom @testing-library/react @testing-library/dom
 ```
 
 ```bash package="npm"
 # Using TypeScript
-npm install -D vitest @vitejs/plugin-react jsdom @testing-library/react @testing-library/dom vite-tsconfig-paths
+npm install -D vitest @vitejs/plugin-react jsdom @testing-library/react @testing-library/dom
 # Using JavaScript
 npm install -D vitest @vitejs/plugin-react jsdom @testing-library/react @testing-library/dom
 ```
 
 ```bash package="yarn"
 # Using TypeScript
-yarn add -D vitest @vitejs/plugin-react jsdom @testing-library/react @testing-library/dom vite-tsconfig-paths
+yarn add -D vitest @vitejs/plugin-react jsdom @testing-library/react @testing-library/dom
 # Using JavaScript
 yarn add -D vitest @vitejs/plugin-react jsdom @testing-library/react @testing-library/dom
 ```
 
 ```bash package="bun"
 # Using TypeScript
-bun add -D vitest @vitejs/plugin-react jsdom @testing-library/react @testing-library/dom vite-tsconfig-paths
+bun add -D vitest @vitejs/plugin-react jsdom @testing-library/react @testing-library/dom
 # Using JavaScript
 bun add -D vitest @vitejs/plugin-react jsdom @testing-library/react @testing-library/dom
 ```
@@ -65,12 +65,14 @@ Create a `vitest.config.mts|js` file in the root of your project, and add the fo
 ```ts filename="vitest.config.mts" switcher
 import { defineConfig } from 'vitest/config'
 import react from '@vitejs/plugin-react'
-import tsconfigPaths from 'vite-tsconfig-paths'
 
 export default defineConfig({
-  plugins: [tsconfigPaths(), react()],
+  plugins: [react()],
   test: {
     environment: 'jsdom',
+  },
+  resolve: {
+    tsconfigPaths: true,
   },
 })
 ```
