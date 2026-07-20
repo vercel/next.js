@@ -168,6 +168,8 @@ pub struct ExecuteContextImpl<'e> {
     turbo_tasks: &'e TurboTasks<TurboTasksBackend>,
     _operation_guard: Option<OperationGuard<'e, AnyOperation>>,
     task_lock_counter: TaskLockCounter,
+    #[cfg(test)]
+    operation_suspend_points: Option<&'e std::sync::atomic::AtomicUsize>,
 }
 
 impl<'e> ExecuteContextImpl<'e> {
@@ -180,7 +182,18 @@ impl<'e> ExecuteContextImpl<'e> {
             turbo_tasks,
             _operation_guard: Some(backend.start_operation()),
             task_lock_counter: TaskLockCounter::new(),
+            #[cfg(test)]
+            operation_suspend_points: None,
         }
+    }
+
+    #[cfg(test)]
+    fn with_operation_suspend_point_counter(
+        mut self,
+        counter: &'e std::sync::atomic::AtomicUsize,
+    ) -> Self {
+        self.operation_suspend_points = Some(counter);
+        self
     }
 
     fn restore_task_data(
@@ -954,6 +967,10 @@ impl<'e> ExecuteContext<'e> for ExecuteContextImpl<'e> {
     }
 
     fn operation_suspend_point<T: Clone + Into<AnyOperation>>(&mut self, op: &T) {
+        #[cfg(test)]
+        if let Some(counter) = self.operation_suspend_points {
+            counter.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        }
         self.backend.operation_suspend_point(|| op.clone().into());
     }
 
@@ -1016,6 +1033,8 @@ impl<'e> ChildExecuteContext<'e> for ChildExecuteContextImpl<'e> {
             turbo_tasks: self.turbo_tasks,
             _operation_guard: None,
             task_lock_counter: TaskLockCounter::new(),
+            #[cfg(test)]
+            operation_suspend_points: None,
         }
     }
 }

@@ -159,3 +159,73 @@ impl Operation for ConnectChildOperation {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use std::sync::atomic::{AtomicUsize, Ordering};
+
+    use turbo_tasks::{TaskId, TurboTasks};
+
+    use super::*;
+    use crate::{
+        BackendOptions, TurboTasksBackend, backend::operation::ExecuteContextImpl,
+        data::OutputValue, noop_backing_storage,
+    };
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn completed_top_level_root_skips_aggregation_operation() {
+        let tt = TurboTasks::new(TurboTasksBackend::new(
+            BackendOptions {
+                num_workers: Some(1),
+                small_preallocation: true,
+                storage_mode: None,
+                ..Default::default()
+            },
+            noop_backing_storage(),
+        ));
+        let backend = tt.backend();
+        let child_task_id = TaskId::new(1).unwrap();
+        backend.storage.initialize_new_task(child_task_id, None);
+        backend
+            .storage
+            .access_mut(child_task_id)
+            .set_output(OutputValue::Output(child_task_id));
+
+        // The first top-level connection must promote the non-root task.
+        ConnectChildOperation::run(None, child_task_id, ExecuteContextImpl::new(backend, &tt));
+        let mut ctx = ExecuteContextImpl::new(backend, &tt);
+        let child_task = ctx.task(child_task_id, TaskDataCategory::Meta);
+        assert!(is_root_node(get_aggregation_number(&child_task)));
+        drop(child_task);
+        drop(ctx);
+
+        // The subsequent completed-root connection must not dispatch an empty aggregation
+        // operation, whose execute loop would otherwise visit at least one suspend point.
+        let suspend_points = AtomicUsize::new(0);
+        ConnectChildOperation::run(
+            None,
+            child_task_id,
+            ExecuteContextImpl::new(backend, &tt)
+                .with_operation_suspend_point_counter(&suspend_points),
+        );
+        assert_eq!(suspend_points.load(Ordering::Relaxed), 0);
+
+        // Prove the observer is active by explicitly executing the redundant update we skipped.
+        let mut queue = AggregationUpdateQueue::new();
+        queue.push(AggregationUpdateJob::UpdateAggregationNumber {
+            task_id: child_task_id,
+            base_aggregation_number: u32::MAX,
+            distance: None,
+        });
+        ConnectChildOperation::UpdateAggregation {
+            aggregation_update: queue,
+        }
+        .execute(
+            &mut ExecuteContextImpl::new(backend, &tt)
+                .with_operation_suspend_point_counter(&suspend_points),
+        );
+        assert!(suspend_points.load(Ordering::Relaxed) > 0);
+
+        tt.stop_and_wait().await;
+    }
+}
