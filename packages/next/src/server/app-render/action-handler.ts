@@ -50,7 +50,12 @@ import { warn } from '../../build/output/log'
 import { RequestCookies, ResponseCookies } from '../web/spec-extension/cookies'
 import { HeadersAdapter } from '../web/spec-extension/adapters/headers'
 import { fromNodeOutgoingHttpHeaders } from '../web/utils'
-import { selectWorkerForForwarding } from './action-utils'
+import {
+  getActionNotFoundError,
+  getInvalidServerReferenceIdError,
+  selectWorkerForForwarding,
+  type ServerModuleMap,
+} from './action-utils'
 import { isNodeNextRequest, isWebNextRequest } from '../base-http/helpers'
 import { RedirectStatusCode } from '../../client/components/redirect-status-code'
 import { synchronizeMutableCookies } from '../async-storage/request-store'
@@ -61,6 +66,7 @@ import { executeRevalidates } from '../revalidation-utils'
 import { getRequestMeta } from '../request-meta'
 import { setCacheBustingSearchParamWithHash } from '../../client/components/router-reducer/set-cache-busting-search-param'
 import { computeCacheBustingSearchParam } from '../../shared/lib/router/utils/cache-busting-search-param'
+import { mightBeServerReferenceId } from '../../shared/lib/server-reference-info'
 
 /**
  * Checks if the app has any server actions defined in any runtime.
@@ -453,15 +459,6 @@ export function parseHostHeader(
       : undefined
 }
 
-type ServerModuleMap = Record<
-  string,
-  {
-    id: string
-    chunks: string[]
-    name: string
-  }
->
-
 type ServerActionsConfig = {
   bodySizeLimit?: SizeLimit
   allowedOrigins?: string[]
@@ -554,7 +551,11 @@ export async function handleAction({
 
   // If the app has no server actions at all, we can 404 early.
   if (!hasServerActions(serverActionsManifest)) {
-    return handleUnrecognizedFetchAction(getActionNotFoundError(actionId))
+    const error =
+      actionId !== null && !mightBeServerReferenceId(actionId)
+        ? getInvalidServerReferenceIdError(actionId)
+        : getActionNotFoundError(actionId)
+    return handleUnrecognizedFetchAction(error)
   }
 
   if (workStore.isStaticGeneration) {
@@ -682,7 +683,7 @@ export async function handleAction({
       { isAction: true },
       async (): Promise<HandleActionResult> => {
         // We only use these for fetch actions -- MPA actions handle them inside `decodeAction`.
-        let actionModId: string | undefined
+        let actionModId: string | number | undefined
         let boundActionArguments: unknown[] = []
 
         if (
@@ -1195,31 +1196,33 @@ async function executeActionAndPrepareForRender<
 function getActionModIdOrError(
   actionId: string | null,
   serverModuleMap: ServerModuleMap
-): string {
+): string | number {
   // if we're missing the action ID header, we can't do any further processing
   if (!actionId) {
     throw new InvariantError("Missing 'next-action' header.")
   }
 
-  const actionModId = serverModuleMap[actionId]?.id
+  const entry = serverModuleMap[actionId]
 
-  if (!actionModId) {
-    throw getActionNotFoundError(actionId)
+  if (entry == null) {
+    // The proxy throws for malformed IDs and IDs that are missing from the
+    // manifest. It only returns undefined when the ID collides with a
+    // well-known property name (e.g. `toString`) that the proxy excludes from
+    // server reference validation so that framework reflection probes don't
+    // throw. Next.js never produces such an ID, so this is almost certainly a
+    // probe with a known-bad ID. Repeat the manifest's throw logic here so the
+    // caller gets a diagnosable error instead of a `TypeError`.
+    throw mightBeServerReferenceId(actionId)
+      ? getActionNotFoundError(actionId)
+      : getInvalidServerReferenceIdError(actionId)
   }
 
-  return actionModId
-}
-
-function getActionNotFoundError(actionId: string | null): Error {
-  return new Error(
-    `Failed to find Server Action${actionId ? ` "${actionId}"` : ''}. This request might be from an older or newer deployment.\nRead more: https://nextjs.org/docs/messages/failed-to-find-server-action`
-  )
+  return entry.id
 }
 
 const $ACTION_ = '$ACTION_'
 const $ACTION_REF_ = '$ACTION_REF_'
 const $ACTION_ID_ = '$ACTION_ID_'
-const ACTION_ID_EXPECTED_LENGTH = 42
 
 /**
  * This function mirrors logic inside React's decodeAction and should be kept in sync with that.
@@ -1278,14 +1281,14 @@ function isInvalidStringActionDescriptor(
   }
 
   const from = ACTION_DESCRIPTOR_ID_PREFIX.length
-  const to = from + ACTION_ID_EXPECTED_LENGTH
+  const to = actionDescriptor.indexOf('"', from)
+  if (to === -1) {
+    return true
+  }
 
   // We expect actionDescriptor to be '{"id":"<actionId>",...}'
   const actionId = actionDescriptor.slice(from, to)
-  if (
-    actionId.length !== ACTION_ID_EXPECTED_LENGTH ||
-    actionDescriptor[to] !== '"'
-  ) {
+  if (!mightBeServerReferenceId(actionId)) {
     return true
   }
 
@@ -1305,15 +1308,13 @@ function isInvalidActionIdFieldName(
   // The field name must always start with $ACTION_ID_ but since it is
   // the id is extracted from the key of the field we have already validated
   // this before entering this function
-  if (
-    actionIdFieldName.length !==
-    $ACTION_ID_.length + ACTION_ID_EXPECTED_LENGTH
-  ) {
+  const actionId = actionIdFieldName.slice($ACTION_ID_.length)
+  if (!mightBeServerReferenceId(actionId)) {
     // this field name has too few or too many characters
+    // or it is otherwise in the wrong format
     return true
   }
 
-  const actionId = actionIdFieldName.slice($ACTION_ID_.length)
   const entry = serverModuleMap[actionId]
 
   if (entry == null) {
