@@ -641,6 +641,18 @@ async function callGenerateStaticParams(
     )
   }
 
+  for (const [index, params] of generatedParams.entries()) {
+    if (
+      params === null ||
+      typeof params !== 'object' ||
+      Array.isArray(params)
+    ) {
+      throw new Error(
+        `Invalid value at index ${index} returned from generateStaticParams for "${page}". Expected an object, but received type ${getValueType(params)}. See more info here: https://nextjs.org/docs/messages/generate-static-params`
+      )
+    }
+  }
+
   return generatedParams
 }
 
