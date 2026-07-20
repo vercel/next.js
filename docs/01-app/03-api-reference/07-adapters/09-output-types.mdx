@@ -136,6 +136,11 @@ ISR-enabled routes and static prerenders:
   pathname: string     // URL pathname
   parentOutputId: string  // ID of the source page/route
   groupId: number        // Revalidation group identifier (prerenders with same groupId revalidate together)
+  route: string           // Source route matcher aligned with the filesystem route, keeping dynamic segments (e.g. /blog/[slug] for the prerendered path /blog/first)
+  routeType?: 'fallback' | 'shell' | 'page'  // Which URLs this prerender serves. fallback: at least one prerenderable param is missing (generateStaticParams/getStaticPaths can still specialize it). shell: all prerenderable params present; remaining params are dynamic, so this is the most specific prerender for its class of URLs. page: the prerender for one specific URL. undefined: unclassified (route handlers)
+  ui?: 'empty' | 'partial' | 'complete'  // Visual completeness of the prerendered HTML — a point-in-time snapshot of the build artifact (revalidation can change it). empty: no initial UI (no shell, or an empty shell). partial: some UI is pending and appears after load (resolved on the server or the client). complete: visually complete on initial load
+  compute?: 'blocking' | 'resuming' | 'static'  // Per-request compute involved in serving this prerender (also a build-time snapshot). blocking: the server must render before any UI is ready. resuming: the prerendered UI is served and the server resumes the postponed parts. static: no per-request compute (pending UI resolves on the client). undefined: does not apply (route handlers, or never-served templates like pages router fallback: false)
+  htmlSize?: number       // Byte size of the prerendered HTML shell for app pages; 0 means an empty shell (everything postponed). Only set on the HTML prerender output; RSC/data/segment, pages router, and route handler outputs leave it undefined
   pprChain?: {
     headers: Record<string, string>  // PPR chain headers (e.g., 'next-resume': '1')
   }
