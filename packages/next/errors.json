@@ -793,5 +793,7 @@
   "792": "Response body exceeded maximum size of %s bytes",
   "793": "The Server Reference ID did not match the expected format. Received %s.\\nRead more: https://nextjs.org/docs/messages/failed-to-find-server-action",
   "794": "Unsupported body type: %s",
-  "795": "Invalid target hostname \"%s\" for proxy request, expected \"%s\""
+  "795": "Invalid target hostname \"%s\" for proxy request, expected \"%s\"",
+  "796": "Missing initURL",
+  "797": "Could not determine origin for forwarded Server Actions request. This can happen if port or hostname are not configured for this server."
 }
