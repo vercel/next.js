@@ -218,7 +218,7 @@ With SWR 2.3.0 (and React 19+), you can gradually adopt server features alongsid
 
 Reach for SWR when you need its client-side features, such as revalidation on focus or interval, [`mutate`](https://swr.vercel.app/docs/mutation), or request deduplication across components. If a Client Component only needs to read server data once, pass a Promise to it and unwrap it with [`use()`](#using-reacts-use-within-a-context-provider) instead. That avoids adding a data-fetching library for data that never revalidates on the client.
 
-To seed the client cache from the server, wrap your application in `<SWRConfig>` and provide a `fallback`:
+To provide server data to SWR on the first render, wrap your application in `<SWRConfig>` and provide a `fallback`:
 
 ```tsx filename="app/layout.tsx" switcher
 import { SWRConfig } from 'swr'
@@ -401,7 +401,7 @@ export function ProjectView({ id }) {
 }
 ```
 
-> **Good to know:** The `fallback` key and the `useSWR` key must match exactly, since SWR looks up the seeded value by key. Nothing warns on a mismatch: the seeded value is never read, `data` starts as `undefined`, and SWR fetches again on the client. When a key is built from dynamic values (route params, search params), derive it in one shared place so the server and client cannot drift apart. To reuse the same request when SWR revalidates after hydration rather than starting a new one, see [`preload`](https://swr.vercel.app/docs/prefetching).
+> **Good to know:** The `fallback` key and the `useSWR` key must match exactly, since SWR looks up the seeded value by key. Nothing warns on a mismatch: the seeded value is never read, `data` starts as `undefined`, and SWR fetches again on the client. When a key is built from dynamic values (route params, search params), derive it in one shared place so the server and client cannot drift apart. `fallback` seeds the first render, not SWR's persistent cache, so use [`preload`](https://swr.vercel.app/docs/prefetching) to fill the cache and reuse the request on revalidation.
 
 See the [live demo](https://next-spa-patterns.labs.vercel.dev/swr) and its [source code](https://github.com/vercel-labs/next-spa-patterns/tree/main/app/swr).
 
