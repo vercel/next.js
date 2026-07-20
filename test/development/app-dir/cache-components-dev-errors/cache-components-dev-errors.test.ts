@@ -132,7 +132,7 @@ describe('Cache Components Dev Errors', () => {
              "description": "Route segment config "revalidate" is not compatible with \`nextConfig.cacheComponents\`. Please remove it.",
              "environmentLabel": null,
              "label": "Build Error",
-             "source": "./test/tmp/next-test-1784571478422-635/app/page.tsx (1:14)
+             "source": "./app/page.tsx (1:14)
            Error: Route segment config "revalidate" is not compatible with \`nextConfig.cacheComponents\`. Please remove it.
            > 1 | export const revalidate = 10
                |              ^^^^^^^^^^",

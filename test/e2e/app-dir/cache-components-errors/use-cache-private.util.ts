@@ -90,7 +90,6 @@ export function registerUseCachePrivateTests(
               expect(output).toMatchInlineSnapshot(`
                "Error: "use cache: private" must not be used within \`unstable_cache()\`.
                    at <unknown> (webpack:///app/use-cache-private-in-unstable-cache/page.tsx:21:38)
-                   at cachedCb (webpack:///<next-src>)
                    at async ComponentWithCachedData (webpack:///app/use-cache-private-in-unstable-cache/page.tsx:16:16)
                  19 | }
                  20 |
