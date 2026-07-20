@@ -1,7 +1,8 @@
 import type { Socket } from 'net'
+import { realpathSync } from 'fs'
 import { mkdir, writeFile } from 'fs/promises'
 import * as inspector from 'inspector'
-import { join, extname, relative } from 'path'
+import { join, extname, relative, isAbsolute } from 'path'
 import { pathToFileURL } from 'url'
 
 import ws from 'next/dist/compiled/ws'
@@ -85,6 +86,7 @@ import type { ModernSourceMapPayload } from '../lib/source-maps'
 import { isDeferredEntry } from '../../build/entries'
 import { isMetadataRouteFile } from '../../lib/metadata/is-metadata-route'
 import { setBundlerFindSourceMapImplementation } from '../patch-error-inspect'
+import { setBundlerFindSourceMapURLImplementation } from '../lib/source-maps'
 import { getNextErrorFeedbackMiddleware } from '../../next-devtools/server/get-next-error-feedback-middleware'
 import {
   formatIssue,
@@ -308,6 +310,26 @@ function getSourceMapFromTurbopack(
   }
 }
 
+function getSourceMapURLFromTurbopack(
+  distDirFileURL: string,
+  sourceURL: string
+): string | null {
+  // Scripts appear in stack frames both as absolute paths (CJS) and as
+  // `file:` URLs.
+  const fileURL = isAbsolute(sourceURL)
+    ? pathToFileURL(sourceURL).href
+    : sourceURL
+  // Chunks emitted into the dist dir have their source map written as a
+  // sibling `<chunk-path>.map` file. Scripts with a query in their URL are
+  // eval'd (e.g. server HMR modules) and carry their own inline source map,
+  // and scripts outside the dist dir (e.g. node_modules) are not emitted by
+  // Turbopack; both resolve through Node.js instead.
+  if (fileURL.startsWith(distDirFileURL) && !fileURL.includes('?')) {
+    return fileURL + '.map'
+  }
+  return null
+}
+
 export async function createHotReloaderTurbopack(
   opts: SetupOpts & { isSrcDir: boolean },
   serverFields: ServerFields,
@@ -438,6 +460,14 @@ export async function createHotReloaderTurbopack(
   setBundlerFindSourceMapImplementation(
     getSourceMapFromTurbopack.bind(null, project, projectPath)
   )
+  setBundlerFindSourceMapURLImplementation(
+    getSourceMapURLFromTurbopack.bind(
+      null,
+      // Script URLs observed in stack frames have symlinks resolved (e.g.
+      // `/var` -> `/private/var` on macOS), so compare against the real path.
+      pathToFileURL(realpathSync(distDir)).href + '/'
+    )
+  )
 
   // Set up code frame renderer using native bindings
   const { installCodeFrameSupport } =
@@ -446,6 +476,7 @@ export async function createHotReloaderTurbopack(
 
   opts.onDevServerCleanup?.(async () => {
     setBundlerFindSourceMapImplementation(() => undefined)
+    setBundlerFindSourceMapURLImplementation(() => null)
     await project.onExit()
     await lockfile?.unlock()
   })
