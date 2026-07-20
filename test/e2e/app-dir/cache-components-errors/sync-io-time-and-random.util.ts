@@ -51,62 +51,58 @@ export function registerSyncIoTimeAndRandomTests(
         if (isDebugPrerender) {
           if (isTurbopack) {
             expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/sync-io-current-time/date": Next.js encountered the unstable value \`Date()\` while prerendering.
+             "Error: Route "/sync-io-current-time/date": Next.js encountered the unstable value \`Date()\` while prerendering.
 
-               This value can change between renders, so it must be either prerendered or computed later.
+             This value can change between renders, so it must be either prerendered or computed later.
 
-               Ways to fix this:
-                 - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
-                   https://nextjs.org/docs/messages/blocking-prerender-current-time#generate-on-every-request
-                 - [cache] Prerender and cache the value with \`"use cache"\`
-                   https://nextjs.org/docs/messages/blocking-prerender-current-time#cache-the-timestamp
-                 - [client] Render the value on the client with \`"use client"\`
-                   https://nextjs.org/docs/messages/blocking-prerender-current-time#render-on-the-client
-                 - [measure] If the value is for telemetry, use a timing API such as \`performance.now()\`
-                   https://nextjs.org/docs/messages/blocking-prerender-current-time#for-telemetry-use-a-timing-api
-                   at DateReadingComponent (app/sync-io-current-time/date/page.tsx:19:16)
-                   at Page (app/sync-io-current-time/date/page.tsx:11:9)
-                 17 | async function DateReadingComponent() {
-                 18 |   await new Promise((r) => process.nextTick(r))
-               > 19 |   return <div>{Date()}</div>
-                    |                ^
-                 20 | }
-                 21 |
-               To debug the issue, start the app in development mode by running \`next dev\`, then open "/sync-io-current-time/date" in your browser to investigate the error.
-               Error occurred prerendering page "/sync-io-current-time/date". Read more: https://nextjs.org/docs/messages/prerender-error
+             Ways to fix this:
+               - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+               - [cache] Prerender and cache the value with \`"use cache"\`
+               - [client] Render the value on the client with \`"use client"\`
+               - [measure] If the value is for telemetry, use a timing API such as \`performance.now()\`
 
-               > Export encountered errors on 1 path:
-               	/sync-io-current-time/date/page: /sync-io-current-time/date"
-              `)
+             Learn more: https://nextjs.org/docs/messages/blocking-prerender-current-time
+                 at DateReadingComponent (app/sync-io-current-time/date/page.tsx:19:16)
+                 at Page (app/sync-io-current-time/date/page.tsx:11:9)
+               17 | async function DateReadingComponent() {
+               18 |   await new Promise((r) => process.nextTick(r))
+             > 19 |   return <div>{Date()}</div>
+                  |                ^
+               20 | }
+               21 |
+             To debug the issue, start the app in development mode by running \`next dev\`, then open "/sync-io-current-time/date" in your browser to investigate the error.
+             Error occurred prerendering page "/sync-io-current-time/date". Read more: https://nextjs.org/docs/messages/prerender-error
+
+             > Export encountered errors on 1 path:
+             	/sync-io-current-time/date/page: /sync-io-current-time/date"
+            `)
           } else {
             expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/sync-io-current-time/date": Next.js encountered the unstable value \`Date()\` while prerendering.
+             "Error: Route "/sync-io-current-time/date": Next.js encountered the unstable value \`Date()\` while prerendering.
 
-               This value can change between renders, so it must be either prerendered or computed later.
+             This value can change between renders, so it must be either prerendered or computed later.
 
-               Ways to fix this:
-                 - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
-                   https://nextjs.org/docs/messages/blocking-prerender-current-time#generate-on-every-request
-                 - [cache] Prerender and cache the value with \`"use cache"\`
-                   https://nextjs.org/docs/messages/blocking-prerender-current-time#cache-the-timestamp
-                 - [client] Render the value on the client with \`"use client"\`
-                   https://nextjs.org/docs/messages/blocking-prerender-current-time#render-on-the-client
-                 - [measure] If the value is for telemetry, use a timing API such as \`performance.now()\`
-                   https://nextjs.org/docs/messages/blocking-prerender-current-time#for-telemetry-use-a-timing-api
-                   at DateReadingComponent (webpack:///app/sync-io-current-time/date/page.tsx:19:16)
-                   at Page (webpack:///app/sync-io-current-time/date/page.tsx:11:9)
-                 17 | async function DateReadingComponent() {
-                 18 |   await new Promise((r) => process.nextTick(r))
-               > 19 |   return <div>{Date()}</div>
-                    |                ^
-                 20 | }
-                 21 |
-               To debug the issue, start the app in development mode by running \`next dev\`, then open "/sync-io-current-time/date" in your browser to investigate the error.
-               Error occurred prerendering page "/sync-io-current-time/date". Read more: https://nextjs.org/docs/messages/prerender-error
+             Ways to fix this:
+               - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+               - [cache] Prerender and cache the value with \`"use cache"\`
+               - [client] Render the value on the client with \`"use client"\`
+               - [measure] If the value is for telemetry, use a timing API such as \`performance.now()\`
 
-               > Export encountered errors on 1 path:
-               	/sync-io-current-time/date/page: /sync-io-current-time/date"
-              `)
+             Learn more: https://nextjs.org/docs/messages/blocking-prerender-current-time
+                 at DateReadingComponent (webpack:///app/sync-io-current-time/date/page.tsx:19:16)
+                 at Page (webpack:///app/sync-io-current-time/date/page.tsx:11:9)
+               17 | async function DateReadingComponent() {
+               18 |   await new Promise((r) => process.nextTick(r))
+             > 19 |   return <div>{Date()}</div>
+                  |                ^
+               20 | }
+               21 |
+             To debug the issue, start the app in development mode by running \`next dev\`, then open "/sync-io-current-time/date" in your browser to investigate the error.
+             Error occurred prerendering page "/sync-io-current-time/date". Read more: https://nextjs.org/docs/messages/prerender-error
+
+             > Export encountered errors on 1 path:
+             	/sync-io-current-time/date/page: /sync-io-current-time/date"
+            `)
           }
         } else {
           if (isTurbopack) {
@@ -200,62 +196,58 @@ export function registerSyncIoTimeAndRandomTests(
         if (isDebugPrerender) {
           if (isTurbopack) {
             expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/sync-io-current-time/date-now": Next.js encountered the unstable value \`Date.now()\` while prerendering.
+             "Error: Route "/sync-io-current-time/date-now": Next.js encountered the unstable value \`Date.now()\` while prerendering.
 
-               This value can change between renders, so it must be either prerendered or computed later.
+             This value can change between renders, so it must be either prerendered or computed later.
 
-               Ways to fix this:
-                 - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
-                   https://nextjs.org/docs/messages/blocking-prerender-current-time#generate-on-every-request
-                 - [cache] Prerender and cache the value with \`"use cache"\`
-                   https://nextjs.org/docs/messages/blocking-prerender-current-time#cache-the-timestamp
-                 - [client] Render the value on the client with \`"use client"\`
-                   https://nextjs.org/docs/messages/blocking-prerender-current-time#render-on-the-client
-                 - [measure] If the value is for telemetry, use a timing API such as \`performance.now()\`
-                   https://nextjs.org/docs/messages/blocking-prerender-current-time#for-telemetry-use-a-timing-api
-                   at DateReadingComponent (app/sync-io-current-time/date-now/page.tsx:19:21)
-                   at Page (app/sync-io-current-time/date-now/page.tsx:11:9)
-                 17 | async function DateReadingComponent() {
-                 18 |   await new Promise((r) => process.nextTick(r))
-               > 19 |   return <div>{Date.now()}</div>
-                    |                     ^
-                 20 | }
-                 21 |
-               To debug the issue, start the app in development mode by running \`next dev\`, then open "/sync-io-current-time/date-now" in your browser to investigate the error.
-               Error occurred prerendering page "/sync-io-current-time/date-now". Read more: https://nextjs.org/docs/messages/prerender-error
+             Ways to fix this:
+               - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+               - [cache] Prerender and cache the value with \`"use cache"\`
+               - [client] Render the value on the client with \`"use client"\`
+               - [measure] If the value is for telemetry, use a timing API such as \`performance.now()\`
 
-               > Export encountered errors on 1 path:
-               	/sync-io-current-time/date-now/page: /sync-io-current-time/date-now"
-              `)
+             Learn more: https://nextjs.org/docs/messages/blocking-prerender-current-time
+                 at DateReadingComponent (app/sync-io-current-time/date-now/page.tsx:19:21)
+                 at Page (app/sync-io-current-time/date-now/page.tsx:11:9)
+               17 | async function DateReadingComponent() {
+               18 |   await new Promise((r) => process.nextTick(r))
+             > 19 |   return <div>{Date.now()}</div>
+                  |                     ^
+               20 | }
+               21 |
+             To debug the issue, start the app in development mode by running \`next dev\`, then open "/sync-io-current-time/date-now" in your browser to investigate the error.
+             Error occurred prerendering page "/sync-io-current-time/date-now". Read more: https://nextjs.org/docs/messages/prerender-error
+
+             > Export encountered errors on 1 path:
+             	/sync-io-current-time/date-now/page: /sync-io-current-time/date-now"
+            `)
           } else {
             expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/sync-io-current-time/date-now": Next.js encountered the unstable value \`Date.now()\` while prerendering.
+             "Error: Route "/sync-io-current-time/date-now": Next.js encountered the unstable value \`Date.now()\` while prerendering.
 
-               This value can change between renders, so it must be either prerendered or computed later.
+             This value can change between renders, so it must be either prerendered or computed later.
 
-               Ways to fix this:
-                 - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
-                   https://nextjs.org/docs/messages/blocking-prerender-current-time#generate-on-every-request
-                 - [cache] Prerender and cache the value with \`"use cache"\`
-                   https://nextjs.org/docs/messages/blocking-prerender-current-time#cache-the-timestamp
-                 - [client] Render the value on the client with \`"use client"\`
-                   https://nextjs.org/docs/messages/blocking-prerender-current-time#render-on-the-client
-                 - [measure] If the value is for telemetry, use a timing API such as \`performance.now()\`
-                   https://nextjs.org/docs/messages/blocking-prerender-current-time#for-telemetry-use-a-timing-api
-                   at DateReadingComponent (webpack:///app/sync-io-current-time/date-now/page.tsx:19:21)
-                   at Page (webpack:///app/sync-io-current-time/date-now/page.tsx:11:9)
-                 17 | async function DateReadingComponent() {
-                 18 |   await new Promise((r) => process.nextTick(r))
-               > 19 |   return <div>{Date.now()}</div>
-                    |                     ^
-                 20 | }
-                 21 |
-               To debug the issue, start the app in development mode by running \`next dev\`, then open "/sync-io-current-time/date-now" in your browser to investigate the error.
-               Error occurred prerendering page "/sync-io-current-time/date-now". Read more: https://nextjs.org/docs/messages/prerender-error
+             Ways to fix this:
+               - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+               - [cache] Prerender and cache the value with \`"use cache"\`
+               - [client] Render the value on the client with \`"use client"\`
+               - [measure] If the value is for telemetry, use a timing API such as \`performance.now()\`
 
-               > Export encountered errors on 1 path:
-               	/sync-io-current-time/date-now/page: /sync-io-current-time/date-now"
-              `)
+             Learn more: https://nextjs.org/docs/messages/blocking-prerender-current-time
+                 at DateReadingComponent (webpack:///app/sync-io-current-time/date-now/page.tsx:19:21)
+                 at Page (webpack:///app/sync-io-current-time/date-now/page.tsx:11:9)
+               17 | async function DateReadingComponent() {
+               18 |   await new Promise((r) => process.nextTick(r))
+             > 19 |   return <div>{Date.now()}</div>
+                  |                     ^
+               20 | }
+               21 |
+             To debug the issue, start the app in development mode by running \`next dev\`, then open "/sync-io-current-time/date-now" in your browser to investigate the error.
+             Error occurred prerendering page "/sync-io-current-time/date-now". Read more: https://nextjs.org/docs/messages/prerender-error
+
+             > Export encountered errors on 1 path:
+             	/sync-io-current-time/date-now/page: /sync-io-current-time/date-now"
+            `)
           }
         } else {
           if (isTurbopack) {
@@ -349,62 +341,58 @@ export function registerSyncIoTimeAndRandomTests(
         if (isDebugPrerender) {
           if (isTurbopack) {
             expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/sync-io-current-time/new-date": Next.js encountered the unstable value \`new Date()\` while prerendering.
+             "Error: Route "/sync-io-current-time/new-date": Next.js encountered the unstable value \`new Date()\` while prerendering.
 
-               This value can change between renders, so it must be either prerendered or computed later.
+             This value can change between renders, so it must be either prerendered or computed later.
 
-               Ways to fix this:
-                 - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
-                   https://nextjs.org/docs/messages/blocking-prerender-current-time#generate-on-every-request
-                 - [cache] Prerender and cache the value with \`"use cache"\`
-                   https://nextjs.org/docs/messages/blocking-prerender-current-time#cache-the-timestamp
-                 - [client] Render the value on the client with \`"use client"\`
-                   https://nextjs.org/docs/messages/blocking-prerender-current-time#render-on-the-client
-                 - [measure] If the value is for telemetry, use a timing API such as \`performance.now()\`
-                   https://nextjs.org/docs/messages/blocking-prerender-current-time#for-telemetry-use-a-timing-api
-                   at DateReadingComponent (app/sync-io-current-time/new-date/page.tsx:19:16)
-                   at Page (app/sync-io-current-time/new-date/page.tsx:11:9)
-                 17 | async function DateReadingComponent() {
-                 18 |   await new Promise((r) => process.nextTick(r))
-               > 19 |   return <div>{new Date().toString()}</div>
-                    |                ^
-                 20 | }
-                 21 |
-               To debug the issue, start the app in development mode by running \`next dev\`, then open "/sync-io-current-time/new-date" in your browser to investigate the error.
-               Error occurred prerendering page "/sync-io-current-time/new-date". Read more: https://nextjs.org/docs/messages/prerender-error
+             Ways to fix this:
+               - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+               - [cache] Prerender and cache the value with \`"use cache"\`
+               - [client] Render the value on the client with \`"use client"\`
+               - [measure] If the value is for telemetry, use a timing API such as \`performance.now()\`
 
-               > Export encountered errors on 1 path:
-               	/sync-io-current-time/new-date/page: /sync-io-current-time/new-date"
-              `)
+             Learn more: https://nextjs.org/docs/messages/blocking-prerender-current-time
+                 at DateReadingComponent (app/sync-io-current-time/new-date/page.tsx:19:16)
+                 at Page (app/sync-io-current-time/new-date/page.tsx:11:9)
+               17 | async function DateReadingComponent() {
+               18 |   await new Promise((r) => process.nextTick(r))
+             > 19 |   return <div>{new Date().toString()}</div>
+                  |                ^
+               20 | }
+               21 |
+             To debug the issue, start the app in development mode by running \`next dev\`, then open "/sync-io-current-time/new-date" in your browser to investigate the error.
+             Error occurred prerendering page "/sync-io-current-time/new-date". Read more: https://nextjs.org/docs/messages/prerender-error
+
+             > Export encountered errors on 1 path:
+             	/sync-io-current-time/new-date/page: /sync-io-current-time/new-date"
+            `)
           } else {
             expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/sync-io-current-time/new-date": Next.js encountered the unstable value \`new Date()\` while prerendering.
+             "Error: Route "/sync-io-current-time/new-date": Next.js encountered the unstable value \`new Date()\` while prerendering.
 
-               This value can change between renders, so it must be either prerendered or computed later.
+             This value can change between renders, so it must be either prerendered or computed later.
 
-               Ways to fix this:
-                 - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
-                   https://nextjs.org/docs/messages/blocking-prerender-current-time#generate-on-every-request
-                 - [cache] Prerender and cache the value with \`"use cache"\`
-                   https://nextjs.org/docs/messages/blocking-prerender-current-time#cache-the-timestamp
-                 - [client] Render the value on the client with \`"use client"\`
-                   https://nextjs.org/docs/messages/blocking-prerender-current-time#render-on-the-client
-                 - [measure] If the value is for telemetry, use a timing API such as \`performance.now()\`
-                   https://nextjs.org/docs/messages/blocking-prerender-current-time#for-telemetry-use-a-timing-api
-                   at DateReadingComponent (webpack:///app/sync-io-current-time/new-date/page.tsx:19:16)
-                   at Page (webpack:///app/sync-io-current-time/new-date/page.tsx:11:9)
-                 17 | async function DateReadingComponent() {
-                 18 |   await new Promise((r) => process.nextTick(r))
-               > 19 |   return <div>{new Date().toString()}</div>
-                    |                ^
-                 20 | }
-                 21 |
-               To debug the issue, start the app in development mode by running \`next dev\`, then open "/sync-io-current-time/new-date" in your browser to investigate the error.
-               Error occurred prerendering page "/sync-io-current-time/new-date". Read more: https://nextjs.org/docs/messages/prerender-error
+             Ways to fix this:
+               - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+               - [cache] Prerender and cache the value with \`"use cache"\`
+               - [client] Render the value on the client with \`"use client"\`
+               - [measure] If the value is for telemetry, use a timing API such as \`performance.now()\`
 
-               > Export encountered errors on 1 path:
-               	/sync-io-current-time/new-date/page: /sync-io-current-time/new-date"
-              `)
+             Learn more: https://nextjs.org/docs/messages/blocking-prerender-current-time
+                 at DateReadingComponent (webpack:///app/sync-io-current-time/new-date/page.tsx:19:16)
+                 at Page (webpack:///app/sync-io-current-time/new-date/page.tsx:11:9)
+               17 | async function DateReadingComponent() {
+               18 |   await new Promise((r) => process.nextTick(r))
+             > 19 |   return <div>{new Date().toString()}</div>
+                  |                ^
+               20 | }
+               21 |
+             To debug the issue, start the app in development mode by running \`next dev\`, then open "/sync-io-current-time/new-date" in your browser to investigate the error.
+             Error occurred prerendering page "/sync-io-current-time/new-date". Read more: https://nextjs.org/docs/messages/prerender-error
+
+             > Export encountered errors on 1 path:
+             	/sync-io-current-time/new-date/page: /sync-io-current-time/new-date"
+            `)
           }
         } else {
           if (isTurbopack) {
@@ -498,58 +486,56 @@ export function registerSyncIoTimeAndRandomTests(
         if (isDebugPrerender) {
           if (isTurbopack) {
             expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/sync-io-random/math-random": Next.js encountered the unstable value \`Math.random()\` while prerendering.
+             "Error: Route "/sync-io-random/math-random": Next.js encountered the unstable value \`Math.random()\` while prerendering.
 
-               This value can change between renders, so it must be either prerendered or computed later.
+             This value can change between renders, so it must be either prerendered or computed later.
 
-               Ways to fix this:
-                 - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
-                   https://nextjs.org/docs/messages/blocking-prerender-random#generate-on-every-request
-                 - [cache] Prerender and cache the value with \`"use cache"\`
-                   https://nextjs.org/docs/messages/blocking-prerender-random#cache-the-random-value
-                 - [client] Render the value on the client with \`"use client"\`
-                   https://nextjs.org/docs/messages/blocking-prerender-random#render-on-the-client
-                   at SyncIOComponent (app/sync-io-random/math-random/page.tsx:19:21)
-                   at Page (app/sync-io-random/math-random/page.tsx:11:9)
-                 17 | async function SyncIOComponent() {
-                 18 |   await new Promise((r) => process.nextTick(r))
-               > 19 |   return <div>{Math.random()}</div>
-                    |                     ^
-                 20 | }
-                 21 |
-               To debug the issue, start the app in development mode by running \`next dev\`, then open "/sync-io-random/math-random" in your browser to investigate the error.
-               Error occurred prerendering page "/sync-io-random/math-random". Read more: https://nextjs.org/docs/messages/prerender-error
+             Ways to fix this:
+               - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+               - [cache] Prerender and cache the value with \`"use cache"\`
+               - [client] Render the value on the client with \`"use client"\`
 
-               > Export encountered errors on 1 path:
-               	/sync-io-random/math-random/page: /sync-io-random/math-random"
-              `)
+             Learn more: https://nextjs.org/docs/messages/blocking-prerender-random
+                 at SyncIOComponent (app/sync-io-random/math-random/page.tsx:19:21)
+                 at Page (app/sync-io-random/math-random/page.tsx:11:9)
+               17 | async function SyncIOComponent() {
+               18 |   await new Promise((r) => process.nextTick(r))
+             > 19 |   return <div>{Math.random()}</div>
+                  |                     ^
+               20 | }
+               21 |
+             To debug the issue, start the app in development mode by running \`next dev\`, then open "/sync-io-random/math-random" in your browser to investigate the error.
+             Error occurred prerendering page "/sync-io-random/math-random". Read more: https://nextjs.org/docs/messages/prerender-error
+
+             > Export encountered errors on 1 path:
+             	/sync-io-random/math-random/page: /sync-io-random/math-random"
+            `)
           } else {
             expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/sync-io-random/math-random": Next.js encountered the unstable value \`Math.random()\` while prerendering.
+             "Error: Route "/sync-io-random/math-random": Next.js encountered the unstable value \`Math.random()\` while prerendering.
 
-               This value can change between renders, so it must be either prerendered or computed later.
+             This value can change between renders, so it must be either prerendered or computed later.
 
-               Ways to fix this:
-                 - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
-                   https://nextjs.org/docs/messages/blocking-prerender-random#generate-on-every-request
-                 - [cache] Prerender and cache the value with \`"use cache"\`
-                   https://nextjs.org/docs/messages/blocking-prerender-random#cache-the-random-value
-                 - [client] Render the value on the client with \`"use client"\`
-                   https://nextjs.org/docs/messages/blocking-prerender-random#render-on-the-client
-                   at SyncIOComponent (webpack:///app/sync-io-random/math-random/page.tsx:19:21)
-                   at Page (webpack:///app/sync-io-random/math-random/page.tsx:11:9)
-                 17 | async function SyncIOComponent() {
-                 18 |   await new Promise((r) => process.nextTick(r))
-               > 19 |   return <div>{Math.random()}</div>
-                    |                     ^
-                 20 | }
-                 21 |
-               To debug the issue, start the app in development mode by running \`next dev\`, then open "/sync-io-random/math-random" in your browser to investigate the error.
-               Error occurred prerendering page "/sync-io-random/math-random". Read more: https://nextjs.org/docs/messages/prerender-error
+             Ways to fix this:
+               - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+               - [cache] Prerender and cache the value with \`"use cache"\`
+               - [client] Render the value on the client with \`"use client"\`
 
-               > Export encountered errors on 1 path:
-               	/sync-io-random/math-random/page: /sync-io-random/math-random"
-              `)
+             Learn more: https://nextjs.org/docs/messages/blocking-prerender-random
+                 at SyncIOComponent (webpack:///app/sync-io-random/math-random/page.tsx:19:21)
+                 at Page (webpack:///app/sync-io-random/math-random/page.tsx:11:9)
+               17 | async function SyncIOComponent() {
+               18 |   await new Promise((r) => process.nextTick(r))
+             > 19 |   return <div>{Math.random()}</div>
+                  |                     ^
+               20 | }
+               21 |
+             To debug the issue, start the app in development mode by running \`next dev\`, then open "/sync-io-random/math-random" in your browser to investigate the error.
+             Error occurred prerendering page "/sync-io-random/math-random". Read more: https://nextjs.org/docs/messages/prerender-error
+
+             > Export encountered errors on 1 path:
+             	/sync-io-random/math-random/page: /sync-io-random/math-random"
+            `)
           }
         } else {
           if (isTurbopack) {
@@ -641,60 +627,58 @@ export function registerSyncIoTimeAndRandomTests(
         if (isDebugPrerender) {
           if (isTurbopack) {
             expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/sync-io-web-crypto/get-random-value": Next.js encountered the unstable value \`crypto.getRandomValues()\` while prerendering.
+             "Error: Route "/sync-io-web-crypto/get-random-value": Next.js encountered the unstable value \`crypto.getRandomValues()\` while prerendering.
 
-               This value can change between renders, so it must be either prerendered or computed later.
+             This value can change between renders, so it must be either prerendered or computed later.
 
-               Ways to fix this:
-                 - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
-                   https://nextjs.org/docs/messages/blocking-prerender-crypto#generate-on-every-request
-                 - [cache] Prerender and cache the value with \`"use cache"\`
-                   https://nextjs.org/docs/messages/blocking-prerender-crypto#cache-the-generated-value
-                 - [client] Render the value on the client with \`"use client"\`
-                   https://nextjs.org/docs/messages/blocking-prerender-crypto#render-on-the-client
-                   at SyncIOComponent (app/sync-io-web-crypto/get-random-value/page.tsx:20:10)
-                   at Page (app/sync-io-web-crypto/get-random-value/page.tsx:11:9)
-                 18 |   await new Promise((r) => process.nextTick(r))
-                 19 |   const buffer = new Uint8Array(8)
-               > 20 |   crypto.getRandomValues(buffer)
-                    |          ^
-                 21 |   return <div>{buffer.toString()}</div>
-                 22 | }
-                 23 |
-               To debug the issue, start the app in development mode by running \`next dev\`, then open "/sync-io-web-crypto/get-random-value" in your browser to investigate the error.
-               Error occurred prerendering page "/sync-io-web-crypto/get-random-value". Read more: https://nextjs.org/docs/messages/prerender-error
+             Ways to fix this:
+               - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+               - [cache] Prerender and cache the value with \`"use cache"\`
+               - [client] Render the value on the client with \`"use client"\`
 
-               > Export encountered errors on 1 path:
-               	/sync-io-web-crypto/get-random-value/page: /sync-io-web-crypto/get-random-value"
-              `)
+             Learn more: https://nextjs.org/docs/messages/blocking-prerender-crypto
+                 at SyncIOComponent (app/sync-io-web-crypto/get-random-value/page.tsx:20:10)
+                 at Page (app/sync-io-web-crypto/get-random-value/page.tsx:11:9)
+               18 |   await new Promise((r) => process.nextTick(r))
+               19 |   const buffer = new Uint8Array(8)
+             > 20 |   crypto.getRandomValues(buffer)
+                  |          ^
+               21 |   return <div>{buffer.toString()}</div>
+               22 | }
+               23 |
+             To debug the issue, start the app in development mode by running \`next dev\`, then open "/sync-io-web-crypto/get-random-value" in your browser to investigate the error.
+             Error occurred prerendering page "/sync-io-web-crypto/get-random-value". Read more: https://nextjs.org/docs/messages/prerender-error
+
+             > Export encountered errors on 1 path:
+             	/sync-io-web-crypto/get-random-value/page: /sync-io-web-crypto/get-random-value"
+            `)
           } else {
             expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/sync-io-web-crypto/get-random-value": Next.js encountered the unstable value \`crypto.getRandomValues()\` while prerendering.
+             "Error: Route "/sync-io-web-crypto/get-random-value": Next.js encountered the unstable value \`crypto.getRandomValues()\` while prerendering.
 
-               This value can change between renders, so it must be either prerendered or computed later.
+             This value can change between renders, so it must be either prerendered or computed later.
 
-               Ways to fix this:
-                 - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
-                   https://nextjs.org/docs/messages/blocking-prerender-crypto#generate-on-every-request
-                 - [cache] Prerender and cache the value with \`"use cache"\`
-                   https://nextjs.org/docs/messages/blocking-prerender-crypto#cache-the-generated-value
-                 - [client] Render the value on the client with \`"use client"\`
-                   https://nextjs.org/docs/messages/blocking-prerender-crypto#render-on-the-client
-                   at SyncIOComponent (webpack:///app/sync-io-web-crypto/get-random-value/page.tsx:20:10)
-                   at Page (webpack:///app/sync-io-web-crypto/get-random-value/page.tsx:11:9)
-                 18 |   await new Promise((r) => process.nextTick(r))
-                 19 |   const buffer = new Uint8Array(8)
-               > 20 |   crypto.getRandomValues(buffer)
-                    |          ^
-                 21 |   return <div>{buffer.toString()}</div>
-                 22 | }
-                 23 |
-               To debug the issue, start the app in development mode by running \`next dev\`, then open "/sync-io-web-crypto/get-random-value" in your browser to investigate the error.
-               Error occurred prerendering page "/sync-io-web-crypto/get-random-value". Read more: https://nextjs.org/docs/messages/prerender-error
+             Ways to fix this:
+               - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+               - [cache] Prerender and cache the value with \`"use cache"\`
+               - [client] Render the value on the client with \`"use client"\`
 
-               > Export encountered errors on 1 path:
-               	/sync-io-web-crypto/get-random-value/page: /sync-io-web-crypto/get-random-value"
-              `)
+             Learn more: https://nextjs.org/docs/messages/blocking-prerender-crypto
+                 at SyncIOComponent (webpack:///app/sync-io-web-crypto/get-random-value/page.tsx:20:10)
+                 at Page (webpack:///app/sync-io-web-crypto/get-random-value/page.tsx:11:9)
+               18 |   await new Promise((r) => process.nextTick(r))
+               19 |   const buffer = new Uint8Array(8)
+             > 20 |   crypto.getRandomValues(buffer)
+                  |          ^
+               21 |   return <div>{buffer.toString()}</div>
+               22 | }
+               23 |
+             To debug the issue, start the app in development mode by running \`next dev\`, then open "/sync-io-web-crypto/get-random-value" in your browser to investigate the error.
+             Error occurred prerendering page "/sync-io-web-crypto/get-random-value". Read more: https://nextjs.org/docs/messages/prerender-error
+
+             > Export encountered errors on 1 path:
+             	/sync-io-web-crypto/get-random-value/page: /sync-io-web-crypto/get-random-value"
+            `)
           }
         } else {
           if (isTurbopack) {
@@ -787,58 +771,56 @@ export function registerSyncIoTimeAndRandomTests(
         if (isDebugPrerender) {
           if (isTurbopack) {
             expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/sync-io-web-crypto/random-uuid": Next.js encountered the unstable value \`crypto.randomUUID()\` while prerendering.
+             "Error: Route "/sync-io-web-crypto/random-uuid": Next.js encountered the unstable value \`crypto.randomUUID()\` while prerendering.
 
-               This value can change between renders, so it must be either prerendered or computed later.
+             This value can change between renders, so it must be either prerendered or computed later.
 
-               Ways to fix this:
-                 - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
-                   https://nextjs.org/docs/messages/blocking-prerender-crypto#generate-on-every-request
-                 - [cache] Prerender and cache the value with \`"use cache"\`
-                   https://nextjs.org/docs/messages/blocking-prerender-crypto#cache-the-generated-value
-                 - [client] Render the value on the client with \`"use client"\`
-                   https://nextjs.org/docs/messages/blocking-prerender-crypto#render-on-the-client
-                   at SyncIOComponent (app/sync-io-web-crypto/random-uuid/page.tsx:19:23)
-                   at Page (app/sync-io-web-crypto/random-uuid/page.tsx:11:9)
-                 17 | async function SyncIOComponent() {
-                 18 |   await new Promise((r) => process.nextTick(r))
-               > 19 |   return <div>{crypto.randomUUID()}</div>
-                    |                       ^
-                 20 | }
-                 21 |
-               To debug the issue, start the app in development mode by running \`next dev\`, then open "/sync-io-web-crypto/random-uuid" in your browser to investigate the error.
-               Error occurred prerendering page "/sync-io-web-crypto/random-uuid". Read more: https://nextjs.org/docs/messages/prerender-error
+             Ways to fix this:
+               - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+               - [cache] Prerender and cache the value with \`"use cache"\`
+               - [client] Render the value on the client with \`"use client"\`
 
-               > Export encountered errors on 1 path:
-               	/sync-io-web-crypto/random-uuid/page: /sync-io-web-crypto/random-uuid"
-              `)
+             Learn more: https://nextjs.org/docs/messages/blocking-prerender-crypto
+                 at SyncIOComponent (app/sync-io-web-crypto/random-uuid/page.tsx:19:23)
+                 at Page (app/sync-io-web-crypto/random-uuid/page.tsx:11:9)
+               17 | async function SyncIOComponent() {
+               18 |   await new Promise((r) => process.nextTick(r))
+             > 19 |   return <div>{crypto.randomUUID()}</div>
+                  |                       ^
+               20 | }
+               21 |
+             To debug the issue, start the app in development mode by running \`next dev\`, then open "/sync-io-web-crypto/random-uuid" in your browser to investigate the error.
+             Error occurred prerendering page "/sync-io-web-crypto/random-uuid". Read more: https://nextjs.org/docs/messages/prerender-error
+
+             > Export encountered errors on 1 path:
+             	/sync-io-web-crypto/random-uuid/page: /sync-io-web-crypto/random-uuid"
+            `)
           } else {
             expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/sync-io-web-crypto/random-uuid": Next.js encountered the unstable value \`crypto.randomUUID()\` while prerendering.
+             "Error: Route "/sync-io-web-crypto/random-uuid": Next.js encountered the unstable value \`crypto.randomUUID()\` while prerendering.
 
-               This value can change between renders, so it must be either prerendered or computed later.
+             This value can change between renders, so it must be either prerendered or computed later.
 
-               Ways to fix this:
-                 - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
-                   https://nextjs.org/docs/messages/blocking-prerender-crypto#generate-on-every-request
-                 - [cache] Prerender and cache the value with \`"use cache"\`
-                   https://nextjs.org/docs/messages/blocking-prerender-crypto#cache-the-generated-value
-                 - [client] Render the value on the client with \`"use client"\`
-                   https://nextjs.org/docs/messages/blocking-prerender-crypto#render-on-the-client
-                   at SyncIOComponent (webpack:///app/sync-io-web-crypto/random-uuid/page.tsx:19:23)
-                   at Page (webpack:///app/sync-io-web-crypto/random-uuid/page.tsx:11:9)
-                 17 | async function SyncIOComponent() {
-                 18 |   await new Promise((r) => process.nextTick(r))
-               > 19 |   return <div>{crypto.randomUUID()}</div>
-                    |                       ^
-                 20 | }
-                 21 |
-               To debug the issue, start the app in development mode by running \`next dev\`, then open "/sync-io-web-crypto/random-uuid" in your browser to investigate the error.
-               Error occurred prerendering page "/sync-io-web-crypto/random-uuid". Read more: https://nextjs.org/docs/messages/prerender-error
+             Ways to fix this:
+               - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+               - [cache] Prerender and cache the value with \`"use cache"\`
+               - [client] Render the value on the client with \`"use client"\`
 
-               > Export encountered errors on 1 path:
-               	/sync-io-web-crypto/random-uuid/page: /sync-io-web-crypto/random-uuid"
-              `)
+             Learn more: https://nextjs.org/docs/messages/blocking-prerender-crypto
+                 at SyncIOComponent (webpack:///app/sync-io-web-crypto/random-uuid/page.tsx:19:23)
+                 at Page (webpack:///app/sync-io-web-crypto/random-uuid/page.tsx:11:9)
+               17 | async function SyncIOComponent() {
+               18 |   await new Promise((r) => process.nextTick(r))
+             > 19 |   return <div>{crypto.randomUUID()}</div>
+                  |                       ^
+               20 | }
+               21 |
+             To debug the issue, start the app in development mode by running \`next dev\`, then open "/sync-io-web-crypto/random-uuid" in your browser to investigate the error.
+             Error occurred prerendering page "/sync-io-web-crypto/random-uuid". Read more: https://nextjs.org/docs/messages/prerender-error
+
+             > Export encountered errors on 1 path:
+             	/sync-io-web-crypto/random-uuid/page: /sync-io-web-crypto/random-uuid"
+            `)
           }
         } else {
           if (isTurbopack) {
