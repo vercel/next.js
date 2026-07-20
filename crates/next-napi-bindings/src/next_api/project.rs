@@ -58,14 +58,15 @@ use turbo_tasks::{
 };
 use turbo_tasks_backend::db_invalidation::invalidation_reasons;
 use turbo_tasks_fs::{
-    DiskFileSystem, FileContent, FileSystem, FileSystemPath, invalidation, util::uri_from_file,
+    DiskFileSystem, FileContent, FileSystem, FileSystemPath, invalidation, rebase,
+    util::uri_from_file,
 };
 use turbo_unix_path::{get_relative_path_to, sys_to_unix, unix_to_sys};
 use turbopack_core::{
     PROJECT_FILESYSTEM_NAME, SOURCE_URL_PROTOCOL,
     issue::PlainIssue,
-    output::{OutputAsset, OutputAssets},
-    source_map::{GenerateSourceMap, SourceMap, Token},
+    output::{OutputAsset, OutputAssets, OutputAssetsReference},
+    source_map::{GenerateSourceMap, SourceMap, SourceMapAsset, Token},
     version::{PartialUpdate, TotalUpdate, Update, VersionState},
 };
 use turbopack_ecmascript_hmr_protocol::{ClientUpdateInstruction, Issue, ResourceIdentifier};
@@ -2181,23 +2182,41 @@ pub struct StackFrame {
 #[derive(Clone)]
 pub struct OptionStackFrame(Option<StackFrame>);
 
-/// The resolved chunk asset that owns the source map for a given `source_url`, along with the
-/// optional module `section` (the `id` query param) and the `chunk_base` (path relative to the dist
-/// dir, in unix form) that were used to resolve it.
+/// The chunk asset that owns the source map for a given `source_url`, along with the referenced
+/// [`SourceMapAsset`] and the optional module `section` (the `id` query param).
 ///
-/// Callers can derive the source map *content* from the asset (via [`GenerateSourceMap`]) or its
-/// *file path* (via [`OutputAsset::path`]).
+/// Callers can derive the source map *content* from `chunk` (via [`GenerateSourceMap`]) or its
+/// *file path* from `source_map`'s [`OutputAsset::path`].
 struct ResolvedSourceMapAsset {
-    asset: ResolvedVc<Box<dyn OutputAsset>>,
+    chunk: ResolvedVc<Box<dyn OutputAsset>>,
+    source_map: ResolvedVc<SourceMapAsset>,
     section: Option<RcStr>,
-    chunk_base_unix: RcStr,
 }
 
-/// Resolves the chunk asset whose generated source map has content for the given `source_url`,
-/// trying the server chunk first and falling back to a client chunk.
+/// Returns the [`SourceMapAsset`] referenced by `chunk` (chunks reference their source map as a
+/// sibling output asset), or `None` if the chunk has no source map.
+async fn source_map_asset_of(
+    chunk: ResolvedVc<Box<dyn OutputAsset>>,
+) -> Result<Option<ResolvedVc<SourceMapAsset>>> {
+    let references = (*chunk).references().await?;
+    for referenced in references.assets.await?.iter() {
+        if let Some(source_map) = ResolvedVc::try_downcast_type::<SourceMapAsset>(*referenced) {
+            return Ok(Some(source_map));
+        }
+    }
+    Ok(None)
+}
+
+/// Resolves the chunk asset that owns the source map for the given `source_url`, trying the server
+/// chunk first and falling back to a client chunk.
 ///
-/// Returns `Ok(None)` when the url is outside the dist dir. `bail`s when the chunk exists in
-/// neither location (i.e. is missing a sourcemap).
+/// The server-vs-client decision is based on whether a chunk asset *exists at that path and
+/// references a [`SourceMapAsset`]* — we deliberately avoid *generating* the source map here
+/// (that's potentially expensive and is only needed by the content getter), so the file-path getter
+/// never pays for source-map codegen.
+///
+/// Returns `Ok(None)` when the url is outside the dist dir. `bail`s when no such chunk exists in
+/// either location (i.e. is missing a sourcemap).
 async fn resolve_source_map_asset(
     container: Vc<ProjectContainer>,
     source_url: &RcStr,
@@ -2240,19 +2259,13 @@ async fn resolve_source_map_asset(
         .await?
         .join(&chunk_base_unix)?;
 
-    // A chunk asset may exist without producing a (non-empty) source map, so the server-vs-client
-    // decision is based on whether the *generated* source map has content, matching the historical
-    // behavior of `get_source_map_rope`.
-    if container
-        .get_source_map(server_path.clone(), module.clone())
-        .await?
-        .is_content()
-        && let Some(asset) = *container.get_source_map_asset(server_path).await?
+    if let Some(chunk) = *container.get_source_map_asset(server_path).await?
+        && let Some(source_map) = source_map_asset_of(chunk).await?
     {
         return Ok(Some(ResolvedSourceMapAsset {
-            asset,
+            chunk,
+            source_map,
             section: module,
-            chunk_base_unix,
         }));
     }
 
@@ -2266,16 +2279,13 @@ async fn resolve_source_map_asset(
         .await?
         .join(&chunk_base_unix)?;
 
-    if container
-        .get_source_map(client_path.clone(), module.clone())
-        .await?
-        .is_content()
-        && let Some(asset) = *container.get_source_map_asset(client_path).await?
+    if let Some(chunk) = *container.get_source_map_asset(client_path).await?
+        && let Some(source_map) = source_map_asset_of(chunk).await?
     {
         return Ok(Some(ResolvedSourceMapAsset {
-            asset,
+            chunk,
+            source_map,
             section: module,
-            chunk_base_unix,
         }));
     }
 
@@ -2287,13 +2297,13 @@ pub async fn get_source_map_rope(
     container: Vc<ProjectContainer>,
     source_url: RcStr,
 ) -> Result<Vc<FileContent>> {
-    let Some(ResolvedSourceMapAsset { asset, section, .. }) =
+    let Some(ResolvedSourceMapAsset { chunk, section, .. }) =
         resolve_source_map_asset(container, &source_url).await?
     else {
         return Ok(FileContent::NotFound.cell());
     };
 
-    let Some(generate_source_map) = ResolvedVc::try_sidecast::<Box<dyn GenerateSourceMap>>(asset)
+    let Some(generate_source_map) = ResolvedVc::try_sidecast::<Box<dyn GenerateSourceMap>>(chunk)
     else {
         bail!("chunk/module '{}' is missing a sourcemap", source_url);
     };
@@ -2319,19 +2329,41 @@ pub async fn get_source_map_file_path(
     container: Vc<ProjectContainer>,
     source_url: RcStr,
 ) -> Result<Vc<Option<RcStr>>> {
-    let Some(ResolvedSourceMapAsset {
-        chunk_base_unix, ..
-    }) = resolve_source_map_asset(container, &source_url).await?
+    let Some(ResolvedSourceMapAsset { source_map, .. }) =
+        resolve_source_map_asset(container, &source_url).await?
     else {
         return Ok(Vc::cell(None));
     };
 
-    // Both the client (`VirtualFileSystem`) and server chunks physically live under the dist dir
-    // (i.e. `node_root`) on disk, so build the `file://` URL by joining the chunk base onto the
-    // disk-backed `node_root`. This reuses `FileSystemPath::join`/`to_sys_path` normalization
-    // (leading separators, Windows paths) rather than concatenating strings by hand.
-    let node_root = container.project().node_root().owned().await?;
-    let uri = uri_from_file(node_root, Some(&chunk_base_unix)).await?;
+    // Use the `SourceMapAsset`'s own `path()` rather than deriving `<chunk>.map` by string
+    // manipulation: it's authoritative in every mode, whereas the `<chunk>.map` derivation breaks
+    // for content-hashed chunks (prod client), where the map is hashed from the map's own content —
+    // see `SourceMapAsset::path` / `BrowserChunkingContext::chunk_path`.
+    let source_map_path = source_map.path().owned().await?;
+
+    // Server source maps live under `node_root` (a `DiskFileSystem`) and can be turned into a
+    // `file://` URL directly. Client source maps live under `client_relative_path` (a
+    // `VirtualFileSystem`), which is not disk-backed; they are emitted to disk by rebasing onto the
+    // client output path (which is `node_root` in dev — see `Project::emit_all_output_assets`).
+    // Mirror that rebasing so we always hand back the on-disk location.
+    let project = container.project();
+    let node_root = project.node_root().owned().await?;
+    let disk_source_map_path = if source_map_path.is_inside_ref(&node_root) {
+        source_map_path
+    } else {
+        let client_relative_path = project.client_relative_path().owned().await?;
+        if source_map_path.is_inside_ref(&client_relative_path) {
+            rebase(source_map_path, client_relative_path, node_root.clone())
+                .owned()
+                .await?
+        } else {
+            // Not under a known output root (e.g. produced on some other filesystem); we can't map
+            // it to a disk `file://` URL.
+            return Ok(Vc::cell(None));
+        }
+    };
+
+    let uri = uri_from_file(disk_source_map_path, None).await?;
 
     Ok(Vc::cell(Some(RcStr::from(uri))))
 }
