@@ -1,0 +1,26 @@
+{
+  "skill_name": "sandbox-bench",
+  "evals": [
+    {
+      "id": 0,
+      "eval_name": "react-pr-regression-check",
+      "prompt": "someone on the team suspects react PR https://github.com/react/react/pull/33810 regresses RSC serialization perf. can you check what benching it would involve and show me the exact plan + commands you'd run? don't actually launch anything yet, I want to review the plan first",
+      "expected_output": "Agent discovers the sandbox-bench setup, checks config (unconfigured on this machine), asks the user for Vercel team/project rather than guessing or hardcoding, and produces a concrete plan: gate step if applicable, sandbox-e2e --pr command with background/non-blocking invocation, boot-level analysis policy (boot-level p<0.01 on A/A-validated infra, no live-number conclusions), cost expectations. Uses --dry-run. Does NOT create any VMs or invent team names.",
+      "files": []
+    },
+    {
+      "id": 1,
+      "eval_name": "next-pr-bench-plan",
+      "prompt": "hey, we want to know if vercel/next.js PR 83617 makes SSR slower on the bench app routes. what's the process to measure that properly? lay out the steps and the commands, no long-running stuff for now",
+      "expected_output": "Agent identifies this as a Next-side A/B (--next-pr, React side fixed via --react-ref), explains base = merge-base with canary, shows the dry-run plan, mentions paired same-VM ABBA design and boot-level claims policy, and the confirmation-run policy for decision-driving results.",
+      "files": []
+    },
+    {
+      "id": 2,
+      "eval_name": "handrolled-branch-gate-first",
+      "prompt": "i cherry-picked a couple of react commits onto a branch called my-flight-tweaks in my react checkout and resolved some conflicts by hand. before we trust any perf numbers from it, what would you do? show me your exact commands (planning only, don't run the actual VMs)",
+      "expected_output": "Agent insists on gating correctness BEFORE benching (sandbox-gate.mjs with ReactFlight dev+prod, verified test counts), explains why (bench numbers from a broken arm are meaningless), sets base = merge-base with main rather than cand^, then shows the bench plan with --arms base-first ordering.",
+      "files": []
+    }
+  ]
+}
