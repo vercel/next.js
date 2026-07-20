@@ -126,13 +126,11 @@ export function registerSyncIoAndBlockingTests(
 
          Ways to fix this:
            - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
-             https://nextjs.org/docs/messages/blocking-prerender-current-time#generate-on-every-request
            - [cache] Prerender and cache the value with \`"use cache"\`
-             https://nextjs.org/docs/messages/blocking-prerender-current-time#cache-the-timestamp
            - [client] Render the value on the client with \`"use client"\`
-             https://nextjs.org/docs/messages/blocking-prerender-current-time#render-on-the-client
            - [measure] If the value is for telemetry, use a timing API such as \`performance.now()\`
-             https://nextjs.org/docs/messages/blocking-prerender-current-time#for-telemetry-use-a-timing-api
+
+         Learn more: https://nextjs.org/docs/messages/blocking-prerender-current-time
              at a (app/suspense-in-root/sync-io/sync-io-after-cache-with-cookie-input/page.tsx:49:15)
            47 |   const cookiePromise = cookies().then((c) => c.get('testCookie')?.value ?? '')
            48 |   await cachedFn(cookiePromise)
@@ -293,24 +291,63 @@ export function registerSyncIoAndBlockingTests(
         } else {
           expect(extractBuildValidationError(result.cliOutput))
             .toMatchInlineSnapshot(`
-             "Error: Route "/suspense-in-root/static/blocking-layout/missing-suspense-around-dynamic": Next.js encountered runtime data during prerendering or a navigation.
+           "Error: Route "/suspense-in-root/static/blocking-layout/missing-suspense-around-dynamic": Next.js encountered runtime data during prerendering or a navigation.
 
-             \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
+           \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
 
-             Ways to fix this:
-               - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                 https://nextjs.org/docs/messages/blocking-prerender-runtime#wrap-in-or-move-into-suspense
-               - [block] Set \`export const instant = false\` to allow a blocking route
-                 https://nextjs.org/docs/messages/blocking-prerender-runtime#allow-blocking-route
-                 at body (<anonymous>)
-                 at html (<anonymous>)
-                 at a (<anonymous>)
-             Build-time instant validation failed for route "/suspense-in-root/static/blocking-layout/missing-suspense-around-dynamic".
-             To get a more detailed stack trace and pinpoint the issue, try one of the following:
-               - Start the app in development mode by running \`next dev\`, then open "/suspense-in-root/static/blocking-layout/missing-suspense-around-dynamic" in your browser to investigate the error.
-               - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
-             Stopping prerender due to instant validation errors."
-            `)
+           Ways to fix this:
+             - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+             - [block] Set \`export const instant = false\` to allow a blocking route
+
+           Learn more: https://nextjs.org/docs/messages/blocking-prerender-runtime
+               at H (../../../packages/next/dist/esm/client/components/layout-router.js:266:34)
+               at a (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
+               at b (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
+               at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
+               at I (../../../packages/next/dist/esm/client/components/layout-router.js:389:32)
+               at c (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
+               at F (../../../packages/next/dist/esm/client/components/layout-router.js:100:9)
+               at G (../../../packages/next/dist/esm/client/components/layout-router.js:249:39)
+               at __next_instant_validation_boundary__ (../../../packages/next/dist/esm/server/app-render/instant-validation/boundary-impl.js:41:52)
+               at a.s.name (../../../packages/next/dist/esm/server/app-render/instant-validation/boundary-impl.js:63:55)
+               at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:418:49)
+               at a.s.id (../../../packages/next/dist/esm/server/app-render/instant-validation/boundary-impl.js:56:57)
+               at H (../../../packages/next/dist/esm/client/components/layout-router.js:266:34)
+               at d (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
+               at e (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
+               at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
+               at I (../../../packages/next/dist/esm/client/components/layout-router.js:389:32)
+               at f (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
+               at F (../../../packages/next/dist/esm/client/components/layout-router.js:100:9)
+               at G (../../../packages/next/dist/esm/client/components/layout-router.js:249:39)
+               at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:418:49)
+               ... collapsed 18 duplicate lines matching above 9 lines 2 times...
+               at body (<anonymous>)
+               at html (<anonymous>)
+               at g (<anonymous>)
+               at H (../../../packages/next/dist/esm/client/components/layout-router.js:266:34)
+               at h (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
+               at i (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
+               at j (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:18:9)
+               at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
+               at I (../../../packages/next/dist/esm/client/components/layout-router.js:389:32)
+               at k (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
+               at F (../../../packages/next/dist/esm/client/components/layout-router.js:100:9)
+               at G (../../../packages/next/dist/esm/client/components/layout-router.js:249:39)
+               at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:418:49)
+             264 | /**
+             265 |  * InnerLayoutRouter handles rendering the provided segment based on the cache.
+           > 266 |  */ function InnerLayoutRouter({ tree, segmentPath, debugNameContext, cacheNode: maybeCacheNode, params, url, isActive }) {
+                 |                                  ^
+             267 |     const context = useContext(GlobalLayoutRouterContext);
+             268 |     const parentNavPromises = useContext(NavigationPromisesContext);
+             269 |     if (!context) {
+           Build-time instant validation failed for route "/suspense-in-root/static/blocking-layout/missing-suspense-around-dynamic".
+           To get a more detailed stack trace and pinpoint the issue, try one of the following:
+             - Start the app in development mode by running \`next dev\`, then open "/suspense-in-root/static/blocking-layout/missing-suspense-around-dynamic" in your browser to investigate the error.
+             - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
+           Stopping prerender due to instant validation errors."
+          `)
           expect(result.exitCode).toBe(1)
         }
       }
@@ -392,25 +429,72 @@ export function registerSyncIoAndBlockingTests(
         } else {
           expect(extractBuildValidationError(result.cliOutput))
             .toMatchInlineSnapshot(`
-             "Error: Route "/suspense-in-root/static/invalid-blocking-inside-static": Next.js encountered runtime data during prerendering or a navigation.
+           "Error: Route "/suspense-in-root/static/invalid-blocking-inside-static": Next.js encountered runtime data during prerendering or a navigation.
 
-             \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
+           \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
 
-             Ways to fix this:
-               - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                 https://nextjs.org/docs/messages/blocking-prerender-runtime#wrap-in-or-move-into-suspense
-               - [block] Set \`export const instant = false\` to allow a blocking route
-                 https://nextjs.org/docs/messages/blocking-prerender-runtime#allow-blocking-route
-                 at div (<anonymous>)
-                 at body (<anonymous>)
-                 at html (<anonymous>)
-                 at a (<anonymous>)
-             Build-time instant validation failed for route "/suspense-in-root/static/invalid-blocking-inside-static".
-             To get a more detailed stack trace and pinpoint the issue, try one of the following:
-               - Start the app in development mode by running \`next dev\`, then open "/suspense-in-root/static/invalid-blocking-inside-static" in your browser to investigate the error.
-               - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
-             Stopping prerender due to instant validation errors."
-            `)
+           Ways to fix this:
+             - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+             - [block] Set \`export const instant = false\` to allow a blocking route
+
+           Learn more: https://nextjs.org/docs/messages/blocking-prerender-runtime
+               at H (../../../packages/next/dist/esm/client/components/layout-router.js:266:34)
+               at a (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
+               at b (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
+               at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
+               at I (../../../packages/next/dist/esm/client/components/layout-router.js:389:32)
+               at c (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
+               at F (../../../packages/next/dist/esm/client/components/layout-router.js:100:9)
+               at G (../../../packages/next/dist/esm/client/components/layout-router.js:249:39)
+               at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:418:49)
+               at div (<anonymous>)
+               at H (../../../packages/next/dist/esm/client/components/layout-router.js:266:34)
+               at d (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
+               at e (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
+               at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
+               at I (../../../packages/next/dist/esm/client/components/layout-router.js:389:32)
+               at f (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
+               at F (../../../packages/next/dist/esm/client/components/layout-router.js:100:9)
+               at G (../../../packages/next/dist/esm/client/components/layout-router.js:249:39)
+               at __next_instant_validation_boundary__ (../../../packages/next/dist/esm/server/app-render/instant-validation/boundary-impl.js:41:52)
+               at a.s.name (../../../packages/next/dist/esm/server/app-render/instant-validation/boundary-impl.js:63:55)
+               at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:418:49)
+               at a.s.id (../../../packages/next/dist/esm/server/app-render/instant-validation/boundary-impl.js:56:57)
+               at H (../../../packages/next/dist/esm/client/components/layout-router.js:266:34)
+               at g (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
+               at h (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
+               at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
+               at I (../../../packages/next/dist/esm/client/components/layout-router.js:389:32)
+               at i (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
+               at F (../../../packages/next/dist/esm/client/components/layout-router.js:100:9)
+               at G (../../../packages/next/dist/esm/client/components/layout-router.js:249:39)
+               at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:418:49)
+               at body (<anonymous>)
+               at html (<anonymous>)
+               at j (<anonymous>)
+               at H (../../../packages/next/dist/esm/client/components/layout-router.js:266:34)
+               at k (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
+               at l (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
+               at m (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:18:9)
+               at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
+               at I (../../../packages/next/dist/esm/client/components/layout-router.js:389:32)
+               at n (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
+               at F (../../../packages/next/dist/esm/client/components/layout-router.js:100:9)
+               at G (../../../packages/next/dist/esm/client/components/layout-router.js:249:39)
+               at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:418:49)
+             264 | /**
+             265 |  * InnerLayoutRouter handles rendering the provided segment based on the cache.
+           > 266 |  */ function InnerLayoutRouter({ tree, segmentPath, debugNameContext, cacheNode: maybeCacheNode, params, url, isActive }) {
+                 |                                  ^
+             267 |     const context = useContext(GlobalLayoutRouterContext);
+             268 |     const parentNavPromises = useContext(NavigationPromisesContext);
+             269 |     if (!context) {
+           Build-time instant validation failed for route "/suspense-in-root/static/invalid-blocking-inside-static".
+           To get a more detailed stack trace and pinpoint the issue, try one of the following:
+             - Start the app in development mode by running \`next dev\`, then open "/suspense-in-root/static/invalid-blocking-inside-static" in your browser to investigate the error.
+             - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
+           Stopping prerender due to instant validation errors."
+          `)
           expect(result.exitCode).toBe(1)
         }
       }
@@ -453,27 +537,73 @@ export function registerSyncIoAndBlockingTests(
         )
         expect(extractBuildValidationError(result.cliOutput))
           .toMatchInlineSnapshot(`
-           "Error: Route "/suspense-in-root/runtime/invalid-blocking-inside-runtime": Next.js encountered uncached data during prerendering or a navigation.
+         "Error: Route "/suspense-in-root/runtime/invalid-blocking-inside-runtime": Next.js encountered uncached data during prerendering or a navigation.
 
-           \`fetch(...)\` or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
+         \`fetch(...)\` or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
 
-           Ways to fix this:
-             - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-               https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
-             - [cache] Cache the data access with \`"use cache"\` (does not apply to \`connection()\`)
-               https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
-             - [block] Set \`export const instant = false\` to allow a blocking route
-               https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
-               at div (<anonymous>)
-               at body (<anonymous>)
-               at html (<anonymous>)
-               at a (<anonymous>)
-           Build-time instant validation failed for route "/suspense-in-root/runtime/invalid-blocking-inside-runtime".
-           To get a more detailed stack trace and pinpoint the issue, try one of the following:
-             - Start the app in development mode by running \`next dev\`, then open "/suspense-in-root/runtime/invalid-blocking-inside-runtime" in your browser to investigate the error.
-             - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
-           Stopping prerender due to instant validation errors."
-          `)
+         Ways to fix this:
+           - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+           - [cache] Cache the data access with \`"use cache"\` (does not apply to \`connection()\`)
+           - [block] Set \`export const instant = false\` to allow a blocking route
+
+         Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic
+             at H (../../../packages/next/dist/esm/client/components/layout-router.js:266:34)
+             at a (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
+             at b (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
+             at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
+             at I (../../../packages/next/dist/esm/client/components/layout-router.js:389:32)
+             at c (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
+             at F (../../../packages/next/dist/esm/client/components/layout-router.js:100:9)
+             at G (../../../packages/next/dist/esm/client/components/layout-router.js:249:39)
+             at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:418:49)
+             at div (<anonymous>)
+             at H (../../../packages/next/dist/esm/client/components/layout-router.js:266:34)
+             at d (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
+             at e (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
+             at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
+             at I (../../../packages/next/dist/esm/client/components/layout-router.js:389:32)
+             at f (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
+             at F (../../../packages/next/dist/esm/client/components/layout-router.js:100:9)
+             at G (../../../packages/next/dist/esm/client/components/layout-router.js:249:39)
+             at __next_instant_validation_boundary__ (../../../packages/next/dist/esm/server/app-render/instant-validation/boundary-impl.js:41:52)
+             at a.s.name (../../../packages/next/dist/esm/server/app-render/instant-validation/boundary-impl.js:63:55)
+             at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:418:49)
+             at a.s.id (../../../packages/next/dist/esm/server/app-render/instant-validation/boundary-impl.js:56:57)
+             at H (../../../packages/next/dist/esm/client/components/layout-router.js:266:34)
+             at g (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
+             at h (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
+             at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
+             at I (../../../packages/next/dist/esm/client/components/layout-router.js:389:32)
+             at i (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
+             at F (../../../packages/next/dist/esm/client/components/layout-router.js:100:9)
+             at G (../../../packages/next/dist/esm/client/components/layout-router.js:249:39)
+             at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:418:49)
+             at body (<anonymous>)
+             at html (<anonymous>)
+             at j (<anonymous>)
+             at H (../../../packages/next/dist/esm/client/components/layout-router.js:266:34)
+             at k (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
+             at l (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
+             at m (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:18:9)
+             at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
+             at I (../../../packages/next/dist/esm/client/components/layout-router.js:389:32)
+             at n (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
+             at F (../../../packages/next/dist/esm/client/components/layout-router.js:100:9)
+             at G (../../../packages/next/dist/esm/client/components/layout-router.js:249:39)
+             at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:418:49)
+           264 | /**
+           265 |  * InnerLayoutRouter handles rendering the provided segment based on the cache.
+         > 266 |  */ function InnerLayoutRouter({ tree, segmentPath, debugNameContext, cacheNode: maybeCacheNode, params, url, isActive }) {
+               |                                  ^
+           267 |     const context = useContext(GlobalLayoutRouterContext);
+           268 |     const parentNavPromises = useContext(NavigationPromisesContext);
+           269 |     if (!context) {
+         Build-time instant validation failed for route "/suspense-in-root/runtime/invalid-blocking-inside-runtime".
+         To get a more detailed stack trace and pinpoint the issue, try one of the following:
+           - Start the app in development mode by running \`next dev\`, then open "/suspense-in-root/runtime/invalid-blocking-inside-runtime" in your browser to investigate the error.
+           - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
+         Stopping prerender due to instant validation errors."
+        `)
         expect(result.exitCode).toBe(1)
       }
     })

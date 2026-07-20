@@ -457,11 +457,9 @@ export function registerUseCacheTests(ctx: CacheComponentsErrorsContext) {
                "description": "Next.js encountered runtime data during prerendering.",
                "environmentLabel": "Server",
                "label": "Blocking Route",
-               "source": "app/use-cache-low-expire/fast/page.tsx (3:16) @ Page
-             > 3 | export default async function Page() {
-                 |                ^",
+               "source": null,
                "stack": [
-                 "Page app/use-cache-low-expire/fast/page.tsx (3:16)",
+                 "Page [Prerender] <anonymous>",
                ],
              }
             `)
@@ -568,11 +566,10 @@ export function registerUseCacheTests(ctx: CacheComponentsErrorsContext) {
 
 Ways to fix this:
   - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-    https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
   - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
-    https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
   - [block] Set \`export const instant = false\` to allow a blocking route
-    https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route`
+
+Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
                 )
               } else {
                 expect(output).toInclude(
@@ -582,11 +579,10 @@ Ways to fix this:
 
 Ways to fix this:
   - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-    https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
   - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
-    https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
   - [block] Set \`export const instant = false\` to allow a blocking route
-    https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route`
+
+Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
                 )
               }
             }
@@ -605,11 +601,9 @@ Ways to fix this:
                "description": "Next.js encountered runtime data during prerendering.",
                "environmentLabel": "Server",
                "label": "Blocking Route",
-               "source": "app/use-cache-low-expire/slow/page.tsx (3:16) @ Page
-             > 3 | export default async function Page() {
-                 |                ^",
+               "source": null,
                "stack": [
-                 "Page app/use-cache-low-expire/slow/page.tsx (3:16)",
+                 "Page [Prerender] <anonymous>",
                ],
              }
             `)
@@ -716,11 +710,10 @@ Ways to fix this:
 
 Ways to fix this:
   - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-    https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
   - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
-    https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
   - [block] Set \`export const instant = false\` to allow a blocking route
-    https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route`
+
+Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
                 )
               } else {
                 expect(output).toInclude(
@@ -730,11 +723,10 @@ Ways to fix this:
 
 Ways to fix this:
   - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-    https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
   - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
-    https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
   - [block] Set \`export const instant = false\` to allow a blocking route
-    https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route`
+
+Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
                 )
               }
             }
@@ -912,11 +904,9 @@ Ways to fix this:
                "description": "Next.js encountered runtime data during prerendering.",
                "environmentLabel": "Server",
                "label": "Blocking Route",
-               "source": "app/use-cache-revalidate-0/fast/page.tsx (3:16) @ Page
-             > 3 | export default async function Page() {
-                 |                ^",
+               "source": null,
                "stack": [
-                 "Page app/use-cache-revalidate-0/fast/page.tsx (3:16)",
+                 "Page [Prerender] <anonymous>",
                ],
              }
             `)
@@ -1023,11 +1013,10 @@ Ways to fix this:
 
 Ways to fix this:
   - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-    https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
   - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
-    https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
   - [block] Set \`export const instant = false\` to allow a blocking route
-    https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route`
+
+Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
                 )
               } else {
                 expect(output).toInclude(
@@ -1037,11 +1026,10 @@ Ways to fix this:
 
 Ways to fix this:
   - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-    https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
   - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
-    https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
   - [block] Set \`export const instant = false\` to allow a blocking route
-    https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route`
+
+Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
                 )
               }
             }
@@ -1060,11 +1048,9 @@ Ways to fix this:
                "description": "Next.js encountered runtime data during prerendering.",
                "environmentLabel": "Server",
                "label": "Blocking Route",
-               "source": "app/use-cache-revalidate-0/slow/page.tsx (3:16) @ Page
-             > 3 | export default async function Page() {
-                 |                ^",
+               "source": null,
                "stack": [
-                 "Page app/use-cache-revalidate-0/slow/page.tsx (3:16)",
+                 "Page [Prerender] <anonymous>",
                ],
              }
             `)
@@ -1171,11 +1157,10 @@ Ways to fix this:
 
 Ways to fix this:
   - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-    https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
   - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
-    https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
   - [block] Set \`export const instant = false\` to allow a blocking route
-    https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route`
+
+Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
                 )
               } else {
                 expect(output).toInclude(
@@ -1185,11 +1170,10 @@ Ways to fix this:
 
 Ways to fix this:
   - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-    https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
   - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
-    https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
   - [block] Set \`export const instant = false\` to allow a blocking route
-    https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route`
+
+Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
                 )
               }
             }
@@ -1366,9 +1350,18 @@ Ways to fix this:
              "description": "Next.js encountered runtime data during prerendering.",
              "environmentLabel": "Server",
              "label": "Blocking Route",
-             "source": null,
+             "source": "../../../packages/next/dist/compiled/react-server-dom-turbopack/cjs/react-server-dom-turbopack-client.node.development.js (550:19) @ Object.resolveToJSON
+           > 550 |             value.then(function (partValue) {
+                 |                   ^",
              "stack": [
-               "Page [Prerender] <anonymous>",
+               "Promise.then <anonymous>",
+               "Object.resolveToJSON ../../../packages/next/dist/compiled/react-server-dom-turbopack/cjs/react-server-dom-turbopack-client.node.development.js (550:19)",
+               "JSON.stringify <anonymous>",
+               "serializeModel ../../../packages/next/dist/compiled/react-server-dom-turbopack/cjs/react-server-dom-turbopack-client.node.development.js (771:21)",
+               "processReply ../../../packages/next/dist/compiled/react-server-dom-turbopack/cjs/react-server-dom-turbopack-client.node.development.js (779:18)",
+               "<anonymous> ../../../packages/next/dist/compiled/react-server-dom-turbopack/cjs/react-server-dom-turbopack-client.node.development.js (5450:21)",
+               "exports.encodeReply ../../../packages/next/dist/compiled/react-server-dom-turbopack/cjs/react-server-dom-turbopack-client.node.development.js (5449:14)",
+               "Page app/use-cache-params/[slug]/page.tsx (1:16)",
              ],
            }
           `)
@@ -1495,6 +1488,11 @@ Ways to fix this:
              "stack": [
                "throwAnError app/use-cache-runtime-error/page.tsx (15:9)",
                "ThrowingComponent app/use-cache-runtime-error/page.tsx (21:3)",
+               "resolveErrorDev ../../../packages/next/dist/compiled/react-server-dom-turbopack/cjs/react-server-dom-turbopack-client.node.development.js (3506:51)",
+               "processFullStringRow ../../../packages/next/dist/compiled/react-server-dom-turbopack/cjs/react-server-dom-turbopack-client.node.development.js (4673:23)",
+               "processFullBinaryRow ../../../packages/next/dist/compiled/react-server-dom-turbopack/cjs/react-server-dom-turbopack-client.node.development.js (4616:7)",
+               "processBinaryChunk ../../../packages/next/dist/compiled/react-server-dom-turbopack/cjs/react-server-dom-turbopack-client.node.development.js (4839:19)",
+               "progress ../../../packages/next/dist/compiled/react-server-dom-turbopack/cjs/react-server-dom-turbopack-client.node.development.js (5025:9)",
              ],
            }
           `)
@@ -1569,6 +1567,11 @@ Ways to fix this:
                 |         ^",
              "stack": [
                "throwAnError app/use-cache-catch-error/page.tsx (19:9)",
+               "resolveErrorDev ../../../packages/next/dist/compiled/react-server-dom-turbopack/cjs/react-server-dom-turbopack-client.node.development.js (3506:51)",
+               "processFullStringRow ../../../packages/next/dist/compiled/react-server-dom-turbopack/cjs/react-server-dom-turbopack-client.node.development.js (4673:23)",
+               "processFullBinaryRow ../../../packages/next/dist/compiled/react-server-dom-turbopack/cjs/react-server-dom-turbopack-client.node.development.js (4616:7)",
+               "processBinaryChunk ../../../packages/next/dist/compiled/react-server-dom-turbopack/cjs/react-server-dom-turbopack-client.node.development.js (4839:19)",
+               "progress ../../../packages/next/dist/compiled/react-server-dom-turbopack/cjs/react-server-dom-turbopack-client.node.development.js (5025:9)",
                "Page app/use-cache-catch-error/page.tsx (11:7)",
              ],
            }

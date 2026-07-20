@@ -21,7 +21,7 @@ describe('Cache Components Dev Errors', () => {
     // soft-navigating to the page (see test below).
     await expect(browser).toDisplayCollapsedRedbox(`
      {
-       "code": "E1295",
+       "code": "E1432",
        "description": "Next.js encountered the unstable value Math.random() while prerendering.",
        "environmentLabel": "Server",
        "label": "Blocking Route",
@@ -51,7 +51,7 @@ describe('Cache Components Dev Errors', () => {
     // TODO: React should not include the anon stack in the Owner Stack.
     await expect(browser).toDisplayCollapsedRedbox(`
      {
-       "code": "E1295",
+       "code": "E1432",
        "description": "Next.js encountered the unstable value Math.random() while prerendering.",
        "environmentLabel": "Server",
        "label": "Blocking Route",
@@ -98,7 +98,7 @@ describe('Cache Components Dev Errors', () => {
 
     await expect(browser).toDisplayCollapsedRedbox(`
      {
-       "code": "E1401",
+       "code": "E1440",
        "description": "Next.js encountered uncached data during prerendering.",
        "environmentLabel": "Server",
        "label": "Blocking Route",
@@ -132,7 +132,7 @@ describe('Cache Components Dev Errors', () => {
              "description": "Route segment config "revalidate" is not compatible with \`nextConfig.cacheComponents\`. Please remove it.",
              "environmentLabel": null,
              "label": "Build Error",
-             "source": "./app/page.tsx (1:14)
+             "source": "./test/tmp/next-test-1784571478422-635/app/page.tsx (1:14)
            Error: Route segment config "revalidate" is not compatible with \`nextConfig.cacheComponents\`. Please remove it.
            > 1 | export const revalidate = 10
                |              ^^^^^^^^^^",

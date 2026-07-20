@@ -158,6 +158,11 @@ export function registerUseCachePrivateTests(
                 | ^",
              "stack": [
                "Private app/use-cache-private-in-use-cache/page.tsx (15:1)",
+               "resolveErrorDev ../../../packages/next/dist/compiled/react-server-dom-turbopack/cjs/react-server-dom-turbopack-client.node.development.js (3506:51)",
+               "processFullStringRow ../../../packages/next/dist/compiled/react-server-dom-turbopack/cjs/react-server-dom-turbopack-client.node.development.js (4673:23)",
+               "processFullBinaryRow ../../../packages/next/dist/compiled/react-server-dom-turbopack/cjs/react-server-dom-turbopack-client.node.development.js (4616:7)",
+               "processBinaryChunk ../../../packages/next/dist/compiled/react-server-dom-turbopack/cjs/react-server-dom-turbopack-client.node.development.js (4839:19)",
+               "progress ../../../packages/next/dist/compiled/react-server-dom-turbopack/cjs/react-server-dom-turbopack-client.node.development.js (5025:9)",
              ],
            }
           `)
@@ -281,11 +286,10 @@ export function registerUseCachePrivateTests(
              "description": "Next.js encountered runtime data during prerendering.",
              "environmentLabel": "Server",
              "label": "Blocking Route",
-             "source": "app/use-cache-private-without-suspense/page.tsx (15:1) @ Private
-           > 15 | async function Private() {
-                | ^",
+             "source": "app/use-cache-private-without-suspense/page.tsx (10:7) @ Page
+           > 10 |       <Private />
+                |       ^",
              "stack": [
-               "Private app/use-cache-private-without-suspense/page.tsx (15:1)",
                "Page app/use-cache-private-without-suspense/page.tsx (10:7)",
              ],
            }
@@ -393,11 +397,10 @@ export function registerUseCachePrivateTests(
 
 Ways to fix this:
   - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-    https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
   - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
-    https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
   - [block] Set \`export const instant = false\` to allow a blocking route
-    https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route`
+
+Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
               )
             } else {
               expect(output).toMatchInlineSnapshot(`

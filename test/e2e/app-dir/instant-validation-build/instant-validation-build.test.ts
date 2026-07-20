@@ -70,14 +70,52 @@ describe('instant-validation-build', () => {
 
          Ways to fix this:
            - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-             https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
            - [cache] Cache the data access with \`"use cache"\` (does not apply to \`connection()\`)
-             https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
            - [block] Set \`export const instant = false\` to allow a blocking route
-             https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
+
+         Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic
              at main (<anonymous>)
+             at H (../../../packages/next/dist/esm/client/components/layout-router.js:266:34)
+             at a (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
+             at b (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
+             at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
+             at I (../../../packages/next/dist/esm/client/components/layout-router.js:389:32)
+             at c (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
+             at F (../../../packages/next/dist/esm/client/components/layout-router.js:100:9)
+             at G (../../../packages/next/dist/esm/client/components/layout-router.js:249:39)
+             at __next_instant_validation_boundary__ (../../../packages/next/dist/esm/server/app-render/instant-validation/boundary-impl.js:41:52)
+             at a.s.name (../../../packages/next/dist/esm/server/app-render/instant-validation/boundary-impl.js:63:55)
+             at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:418:49)
+             at a.s.id (../../../packages/next/dist/esm/server/app-render/instant-validation/boundary-impl.js:56:57)
+             at H (../../../packages/next/dist/esm/client/components/layout-router.js:266:34)
+             at d (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
+             at e (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
+             at f (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:18:9)
+             at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
+             at I (../../../packages/next/dist/esm/client/components/layout-router.js:389:32)
+             at g (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
+             at F (../../../packages/next/dist/esm/client/components/layout-router.js:100:9)
+             at G (../../../packages/next/dist/esm/client/components/layout-router.js:249:39)
+             at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:418:49)
              at body (<anonymous>)
              at html (<anonymous>)
+             at H (../../../packages/next/dist/esm/client/components/layout-router.js:266:34)
+             at h (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
+             at i (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
+             at j (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:18:9)
+             at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
+             at I (../../../packages/next/dist/esm/client/components/layout-router.js:389:32)
+             at k (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
+             at F (../../../packages/next/dist/esm/client/components/layout-router.js:100:9)
+             at G (../../../packages/next/dist/esm/client/components/layout-router.js:249:39)
+             at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:418:49)
+           264 | /**
+           265 |  * InnerLayoutRouter handles rendering the provided segment based on the cache.
+         > 266 |  */ function InnerLayoutRouter({ tree, segmentPath, debugNameContext, cacheNode: maybeCacheNode, params, url, isActive }) {
+               |                                  ^
+           267 |     const context = useContext(GlobalLayoutRouterContext);
+           268 |     const parentNavPromises = useContext(NavigationPromisesContext);
+           269 |     if (!context) {
          Build-time instant validation failed for route "/invalid-missing-suspense-around-runtime".
          To get a more detailed stack trace and pinpoint the issue, try one of the following:
            - Start the app in development mode by running \`next dev\`, then open "/invalid-missing-suspense-around-runtime" in your browser to investigate the error.
@@ -104,10 +142,58 @@ describe('instant-validation-build', () => {
         .toMatchInlineSnapshot(`
        "Error: Route "/server-errors/page-throws": Could not validate \`instant\` because an error prevented the target segment from rendering.
            at main (<anonymous>)
+           at H (../../../packages/next/dist/esm/client/components/layout-router.js:266:34)
+           at a (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
+           at b (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
+           at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
+           at I (../../../packages/next/dist/esm/client/components/layout-router.js:389:32)
+           at c (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
+           at F (../../../packages/next/dist/esm/client/components/layout-router.js:100:9)
+           at G (../../../packages/next/dist/esm/client/components/layout-router.js:249:39)
+           at __next_instant_validation_boundary__ (../../../packages/next/dist/esm/server/app-render/instant-validation/boundary-impl.js:41:52)
+           at a.s.name (../../../packages/next/dist/esm/server/app-render/instant-validation/boundary-impl.js:63:55)
+           at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:418:49)
+           at a.s.id (../../../packages/next/dist/esm/server/app-render/instant-validation/boundary-impl.js:56:57)
+           at H (../../../packages/next/dist/esm/client/components/layout-router.js:266:34)
+           at d (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
+           at e (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
+           at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
+           at I (../../../packages/next/dist/esm/client/components/layout-router.js:389:32)
+           at f (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
+           at F (../../../packages/next/dist/esm/client/components/layout-router.js:100:9)
+           at G (../../../packages/next/dist/esm/client/components/layout-router.js:249:39)
+           at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:418:49)
+           at H (../../../packages/next/dist/esm/client/components/layout-router.js:266:34)
+           at g (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
+           at h (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
+           at i (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:18:9)
+           at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
+           at I (../../../packages/next/dist/esm/client/components/layout-router.js:389:32)
+           at j (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
+           at F (../../../packages/next/dist/esm/client/components/layout-router.js:100:9)
+           at G (../../../packages/next/dist/esm/client/components/layout-router.js:249:39)
+           at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:418:49)
            at body (<anonymous>)
-           at html (<anonymous>) {
+           at html (<anonymous>)
+           at H (../../../packages/next/dist/esm/client/components/layout-router.js:266:34)
+           at k (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
+           at l (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
+           at m (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:18:9)
+           at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
+           at I (../../../packages/next/dist/esm/client/components/layout-router.js:389:32)
+           at n (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
+           at F (../../../packages/next/dist/esm/client/components/layout-router.js:100:9)
+           at G (../../../packages/next/dist/esm/client/components/layout-router.js:249:39)
+           at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:418:49)
+         264 | /**
+         265 |  * InnerLayoutRouter handles rendering the provided segment based on the cache.
+       > 266 |  */ function InnerLayoutRouter({ tree, segmentPath, debugNameContext, cacheNode: maybeCacheNode, params, url, isActive }) {
+             |                                  ^
+         267 |     const context = useContext(GlobalLayoutRouterContext);
+         268 |     const parentNavPromises = useContext(NavigationPromisesContext);
+         269 |     if (!context) { {
          [cause]: Error: Kaboom
-             at a (app/(default)/server-errors/page-throws/page.tsx:22:9)
+             at o (app/(default)/server-errors/page-throws/page.tsx:22:9)
            20 | async function Throws(): Promise<never> {
            21 |   await cookies()
          > 22 |   throw new Error('Kaboom')
@@ -134,11 +220,59 @@ describe('instant-validation-build', () => {
         .toMatchInlineSnapshot(`
        "Error: Route "/server-errors/page-throws-with-suspense": Could not validate \`instant\` because an error prevented the target segment from rendering.
            at main (<anonymous>)
-           at a (<anonymous>)
+           at H (../../../packages/next/dist/esm/client/components/layout-router.js:266:34)
+           at a (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
+           at b (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
+           at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
+           at I (../../../packages/next/dist/esm/client/components/layout-router.js:389:32)
+           at c (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
+           at F (../../../packages/next/dist/esm/client/components/layout-router.js:100:9)
+           at G (../../../packages/next/dist/esm/client/components/layout-router.js:249:39)
+           at __next_instant_validation_boundary__ (../../../packages/next/dist/esm/server/app-render/instant-validation/boundary-impl.js:41:52)
+           at a.s.name (../../../packages/next/dist/esm/server/app-render/instant-validation/boundary-impl.js:63:55)
+           at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:418:49)
+           at d (<anonymous>)
+           at a.s.id (../../../packages/next/dist/esm/server/app-render/instant-validation/boundary-impl.js:56:57)
+           at H (../../../packages/next/dist/esm/client/components/layout-router.js:266:34)
+           at e (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
+           at f (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
+           at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
+           at I (../../../packages/next/dist/esm/client/components/layout-router.js:389:32)
+           at g (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
+           at F (../../../packages/next/dist/esm/client/components/layout-router.js:100:9)
+           at G (../../../packages/next/dist/esm/client/components/layout-router.js:249:39)
+           at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:418:49)
+           at H (../../../packages/next/dist/esm/client/components/layout-router.js:266:34)
+           at h (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
+           at i (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
+           at j (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:18:9)
+           at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
+           at I (../../../packages/next/dist/esm/client/components/layout-router.js:389:32)
+           at k (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
+           at F (../../../packages/next/dist/esm/client/components/layout-router.js:100:9)
+           at G (../../../packages/next/dist/esm/client/components/layout-router.js:249:39)
+           at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:418:49)
            at body (<anonymous>)
-           at html (<anonymous>) {
+           at html (<anonymous>)
+           at H (../../../packages/next/dist/esm/client/components/layout-router.js:266:34)
+           at l (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
+           at m (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
+           at n (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:18:9)
+           at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
+           at I (../../../packages/next/dist/esm/client/components/layout-router.js:389:32)
+           at o (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
+           at F (../../../packages/next/dist/esm/client/components/layout-router.js:100:9)
+           at G (../../../packages/next/dist/esm/client/components/layout-router.js:249:39)
+           at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:418:49)
+         264 | /**
+         265 |  * InnerLayoutRouter handles rendering the provided segment based on the cache.
+       > 266 |  */ function InnerLayoutRouter({ tree, segmentPath, debugNameContext, cacheNode: maybeCacheNode, params, url, isActive }) {
+             |                                  ^
+         267 |     const context = useContext(GlobalLayoutRouterContext);
+         268 |     const parentNavPromises = useContext(NavigationPromisesContext);
+         269 |     if (!context) { {
          [cause]: Error: Kaboom
-             at b (app/(default)/server-errors/page-throws-with-suspense/page.tsx:22:9)
+             at p (app/(default)/server-errors/page-throws-with-suspense/page.tsx:22:9)
            20 | async function Throws(): Promise<never> {
            21 |   await cookies()
          > 22 |   throw new Error('Kaboom')
@@ -166,8 +300,49 @@ describe('instant-validation-build', () => {
        "Error: Route "/client-errors/page-throws": Could not validate \`instant\` because an error prevented the target segment from rendering.
            at <unknown> (app/(default)/client-errors/page-throws/client.tsx:6:3)
            at main (<anonymous>)
+           at H (../../../packages/next/dist/esm/client/components/layout-router.js:266:34)
+           at a (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
+           at b (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
+           at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
+           at I (../../../packages/next/dist/esm/client/components/layout-router.js:389:32)
+           at c (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
+           at F (../../../packages/next/dist/esm/client/components/layout-router.js:100:9)
+           at G (../../../packages/next/dist/esm/client/components/layout-router.js:249:39)
+           at __next_instant_validation_boundary__ (../../../packages/next/dist/esm/server/app-render/instant-validation/boundary-impl.js:41:52)
+           at a.s.name (../../../packages/next/dist/esm/server/app-render/instant-validation/boundary-impl.js:63:55)
+           at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:418:49)
+           at a.s.id (../../../packages/next/dist/esm/server/app-render/instant-validation/boundary-impl.js:56:57)
+           at H (../../../packages/next/dist/esm/client/components/layout-router.js:266:34)
+           at d (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
+           at e (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
+           at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
+           at I (../../../packages/next/dist/esm/client/components/layout-router.js:389:32)
+           at f (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
+           at F (../../../packages/next/dist/esm/client/components/layout-router.js:100:9)
+           at G (../../../packages/next/dist/esm/client/components/layout-router.js:249:39)
+           at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:418:49)
+           at H (../../../packages/next/dist/esm/client/components/layout-router.js:266:34)
+           at g (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
+           at h (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
+           at i (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:18:9)
+           at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
+           at I (../../../packages/next/dist/esm/client/components/layout-router.js:389:32)
+           at j (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
+           at F (../../../packages/next/dist/esm/client/components/layout-router.js:100:9)
+           at G (../../../packages/next/dist/esm/client/components/layout-router.js:249:39)
+           at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:418:49)
            at body (<anonymous>)
            at html (<anonymous>)
+           at H (../../../packages/next/dist/esm/client/components/layout-router.js:266:34)
+           at k (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
+           at l (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
+           at m (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:18:9)
+           at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
+           at I (../../../packages/next/dist/esm/client/components/layout-router.js:389:32)
+           at n (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
+           at F (../../../packages/next/dist/esm/client/components/layout-router.js:100:9)
+           at G (../../../packages/next/dist/esm/client/components/layout-router.js:249:39)
+           at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:418:49)
          4 |
          5 | export function ThrowsInClient(): Promise<never> {
        > 6 |   useSearchParams()
@@ -202,9 +377,50 @@ describe('instant-validation-build', () => {
        "Error: Route "/client-errors/page-throws-with-suspense": Could not validate \`instant\` because an error prevented the target segment from rendering.
            at <unknown> (app/(default)/client-errors/page-throws-with-suspense/client.tsx:6:3)
            at main (<anonymous>)
-           at a (<anonymous>)
+           at H (../../../packages/next/dist/esm/client/components/layout-router.js:266:34)
+           at a (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
+           at b (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
+           at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
+           at I (../../../packages/next/dist/esm/client/components/layout-router.js:389:32)
+           at c (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
+           at F (../../../packages/next/dist/esm/client/components/layout-router.js:100:9)
+           at G (../../../packages/next/dist/esm/client/components/layout-router.js:249:39)
+           at __next_instant_validation_boundary__ (../../../packages/next/dist/esm/server/app-render/instant-validation/boundary-impl.js:41:52)
+           at a.s.name (../../../packages/next/dist/esm/server/app-render/instant-validation/boundary-impl.js:63:55)
+           at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:418:49)
+           at d (<anonymous>)
+           at a.s.id (../../../packages/next/dist/esm/server/app-render/instant-validation/boundary-impl.js:56:57)
+           at H (../../../packages/next/dist/esm/client/components/layout-router.js:266:34)
+           at e (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
+           at f (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
+           at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
+           at I (../../../packages/next/dist/esm/client/components/layout-router.js:389:32)
+           at g (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
+           at F (../../../packages/next/dist/esm/client/components/layout-router.js:100:9)
+           at G (../../../packages/next/dist/esm/client/components/layout-router.js:249:39)
+           at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:418:49)
+           at H (../../../packages/next/dist/esm/client/components/layout-router.js:266:34)
+           at h (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
+           at i (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
+           at j (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:18:9)
+           at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
+           at I (../../../packages/next/dist/esm/client/components/layout-router.js:389:32)
+           at k (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
+           at F (../../../packages/next/dist/esm/client/components/layout-router.js:100:9)
+           at G (../../../packages/next/dist/esm/client/components/layout-router.js:249:39)
+           at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:418:49)
            at body (<anonymous>)
            at html (<anonymous>)
+           at H (../../../packages/next/dist/esm/client/components/layout-router.js:266:34)
+           at l (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
+           at m (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
+           at n (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:18:9)
+           at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
+           at I (../../../packages/next/dist/esm/client/components/layout-router.js:389:32)
+           at o (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
+           at F (../../../packages/next/dist/esm/client/components/layout-router.js:100:9)
+           at G (../../../packages/next/dist/esm/client/components/layout-router.js:249:39)
+           at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:418:49)
          4 |
          5 | export function ThrowsInClient(): Promise<never> {
        > 6 |   useSearchParams()
@@ -247,16 +463,18 @@ describe('instant-validation-build', () => {
       expect(extractBuildValidationError(result.cliOutput))
         .toMatchInlineSnapshot(`
        "Error: Route "/search-params/invalid-undeclared-search-param" accessed searchParam "undeclared" which is not defined in the \`unstable_samples\` of \`instant\`. Add it to the sample's \`searchParams\` object, or \`{ "undeclared": null }\` if it should be absent.
+           at a (../../../packages/next/dist/esm/server/app-render/instant-validation/instant-samples.js:269:34)
+           at Object.get (../../../packages/next/dist/esm/server/app-render/instant-validation/instant-samples.js:230:49)
            at <unknown> (app/(default)/search-params/invalid-undeclared-search-param/page.tsx:32:14)
            at <unknown> (ensure-error.ts:11:5)
-           at a (app/(default)/search-params/invalid-undeclared-search-param/page.tsx:31:3)
-         30 |   const sp = await searchParams
-         31 |   ensureThrows(
-       > 32 |     () => sp.undeclared,
-            |              ^
-         33 |     \`Expected accessing an undeclared search param to throw\`
-         34 |   )
-         35 |   return null {
+           at b (app/(default)/search-params/invalid-undeclared-search-param/page.tsx:31:3)
+         267 | }
+         268 | function createMissingSearchParamSampleError(route, name) {
+       > 269 |     return Object.defineProperty(new InstantValidationError(\`Route "\${route}" accessed searchParam "\${name}" which is not defined in the \\\`unstable_samples\\\` \` + \`of \\\`instant\\\`. Add it to the sample's \\\`searchParams\\\` object, \` ...
+             |                                  ^
+         270 |         value: "E1347",
+         271 |         enumerable: false,
+         272 |         configurable: true {
          digest: 'INSTANT_VALIDATION_ERROR'
        }
        Build-time instant validation failed for route "/search-params/invalid-undeclared-search-param".
@@ -284,16 +502,18 @@ describe('instant-validation-build', () => {
       expect(extractBuildValidationError(result.cliOutput))
         .toMatchInlineSnapshot(`
        "Error: Route "/search-params/invalid-undeclared-search-param-caught" accessed searchParam "undeclared" which is not defined in the \`unstable_samples\` of \`instant\`. Add it to the sample's \`searchParams\` object, or \`{ "undeclared": null }\` if it should be absent.
+           at a (../../../packages/next/dist/esm/server/app-render/instant-validation/instant-samples.js:269:34)
+           at Object.get (../../../packages/next/dist/esm/server/app-render/instant-validation/instant-samples.js:230:49)
            at <unknown> (app/(default)/search-params/invalid-undeclared-search-param-caught/page.tsx:36:16)
            at <unknown> (ensure-error.ts:11:5)
-           at a (app/(default)/search-params/invalid-undeclared-search-param-caught/page.tsx:35:5)
-         34 |   try {
-         35 |     ensureThrows(
-       > 36 |       () => sp.undeclared,
-            |                ^
-         37 |       \`Expected accessing an undeclared search param to throw\`
-         38 |     )
-         39 |   } catch (err) { {
+           at b (app/(default)/search-params/invalid-undeclared-search-param-caught/page.tsx:35:5)
+         267 | }
+         268 | function createMissingSearchParamSampleError(route, name) {
+       > 269 |     return Object.defineProperty(new InstantValidationError(\`Route "\${route}" accessed searchParam "\${name}" which is not defined in the \\\`unstable_samples\\\` \` + \`of \\\`instant\\\`. Add it to the sample's \\\`searchParams\\\` object, \` ...
+             |                                  ^
+         270 |         value: "E1347",
+         271 |         enumerable: false,
+         272 |         configurable: true {
          digest: 'INSTANT_VALIDATION_ERROR'
        }
        Build-time instant validation failed for route "/search-params/invalid-undeclared-search-param-caught".
@@ -614,16 +834,17 @@ describe('instant-validation-build', () => {
       expect(extractBuildValidationError(result.cliOutput))
         .toMatchInlineSnapshot(`
        "Error: Route "/params/invalid-param-not-provided/[one]/[two]" accessed param "two" which is not defined in the \`unstable_samples\` of \`instant\`. Add it to the sample's \`params\` object.
+           at Object.get (../../../packages/next/dist/esm/server/app-render/instant-validation/instant-samples.js:212:71)
            at <unknown> (app/(default)/params/invalid-param-not-provided/[one]/[two]/page.tsx:48:24)
            at <unknown> (ensure-error.ts:11:5)
            at a (app/(default)/params/invalid-param-not-provided/[one]/[two]/page.tsx:48:3)
-         46 |
-         47 |   // We're not allowed to access params not in the samples.
-       > 48 |   ensureThrows(() => p.two)
-            |                        ^
-         49 |
-         50 |   // TODO: test \`in\` and iteration
-         51 |   // assert.deepStrictEqual( {
+         210 |             // accessing properties that aren't expected to be a valid param value is fine.
+         211 |             prop in underlyingParams && !declaredParamNames.has(prop)) {
+       > 212 |                 trackMissingSampleErrorAndThrow(Object.defineProperty(new InstantValidationError(\`Route "\${route}" accessed param "\${prop}" which is not defined in the \\\`unstable_samples\\\` \` + \`of \\\`instant\\\`. Add it to the sampl...
+             |                                                                       ^
+         213 |                     value: "E1349",
+         214 |                     enumerable: false,
+         215 |                     configurable: true {
          digest: 'INSTANT_VALIDATION_ERROR'
        }
        Build-time instant validation failed for route "/params/invalid-param-not-provided/[one]/[two]".
@@ -643,16 +864,17 @@ describe('instant-validation-build', () => {
       expect(extractBuildValidationError(result.cliOutput))
         .toMatchInlineSnapshot(`
        "Error: Route "/params/invalid-param-not-provided-caught/[one]/[two]" accessed param "two" which is not defined in the \`unstable_samples\` of \`instant\`. Add it to the sample's \`params\` object.
+           at Object.get (../../../packages/next/dist/esm/server/app-render/instant-validation/instant-samples.js:212:71)
            at <unknown> (app/(default)/params/invalid-param-not-provided-caught/[one]/[two]/page.tsx:46:26)
            at <unknown> (ensure-error.ts:11:5)
            at a (app/(default)/params/invalid-param-not-provided-caught/[one]/[two]/page.tsx:46:5)
-         44 |   try {
-         45 |     // We're not allowed to access params not in the samples.
-       > 46 |     ensureThrows(() => p.two, \`Expected accessing an undeclared param to throw\`)
-            |                          ^
-         47 |   } catch (err) {
-         48 |     // We swallow the error. It should still be reported and fail the validation.
-         49 |   } {
+         210 |             // accessing properties that aren't expected to be a valid param value is fine.
+         211 |             prop in underlyingParams && !declaredParamNames.has(prop)) {
+       > 212 |                 trackMissingSampleErrorAndThrow(Object.defineProperty(new InstantValidationError(\`Route "\${route}" accessed param "\${prop}" which is not defined in the \\\`unstable_samples\\\` \` + \`of \\\`instant\\\`. Add it to the sampl...
+             |                                                                       ^
+         213 |                     value: "E1349",
+         214 |                     enumerable: false,
+         215 |                     configurable: true {
          digest: 'INSTANT_VALIDATION_ERROR'
        }
        Build-time instant validation failed for route "/params/invalid-param-not-provided-caught/[one]/[two]".
