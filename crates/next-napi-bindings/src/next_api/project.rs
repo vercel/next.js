@@ -2329,10 +2329,11 @@ pub async fn get_source_map_file_path(
 
     // Both the client (`VirtualFileSystem`) and server chunks live under the dist dir on disk, so
     // reconstruct the absolute path from the dist dir rather than from the (possibly virtual)
-    // `FileSystemPath` of the asset.
+    // `FileSystemPath` of the asset. The source map is emitted at the path of the asset it
+    // belongs to with an appended `.map` (see `SourceMapAsset::path`).
     let dist_dir_absolute = container.project().dist_dir_absolute().await?;
     let sys_path = PathBuf::from(format!(
-        "{}{}{}",
+        "{}{}{}.map",
         dist_dir_absolute,
         std::path::MAIN_SEPARATOR,
         unix_to_sys(&chunk_base_unix)
