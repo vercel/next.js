@@ -217,7 +217,7 @@ export function runTests({
   dynamicPage?: string
   dynamicParams?: string
   dynamicApiRoute?: string
-  generateStaticParamsOpt?: 'set noop' | 'set client'
+  generateStaticParamsOpt?: 'set noop' | 'set client' | 'set non-array'
   expectedErrMsg?: string | RegExp
 }) {
   let { next, skipped, isNextDev } = nextTestSetup({
@@ -275,6 +275,13 @@ export function runTests({
       await next.patchFile(
         'app/another/[slug]/page.js',
         (content) => '"use client"\n' + content
+      )
+    } else if (generateStaticParamsOpt === 'set non-array') {
+      await next.patchFile('app/another/[slug]/page.js', (content) =>
+        content.replace(
+          `return [{ slug: 'first' }, { slug: 'second' }]`,
+          `return { slug: 'first' }`
+        )
       )
     }
   })
