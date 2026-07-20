@@ -88,22 +88,23 @@ export function registerUseCachePrivateTests(
                 `)
             } else {
               expect(output).toMatchInlineSnapshot(`
-                 "Error: "use cache: private" must not be used within \`unstable_cache()\`.
-                     at <unknown> (webpack:///app/use-cache-private-in-unstable-cache/page.tsx:21:38)
-                     at async ComponentWithCachedData (webpack:///app/use-cache-private-in-unstable-cache/page.tsx:16:16)
-                   19 | }
-                   20 |
-                 > 21 | const getCachedData = unstable_cache(async () => {
-                      |                                      ^
-                   22 |   'use cache: private'
-                   23 |
-                   24 |   return fetch('https://next-data-api-endpoint.vercel.app/api/random').then(
-                 To debug the issue, start the app in development mode by running \`next dev\`, then open "/use-cache-private-in-unstable-cache" in your browser to investigate the error.
-                 Error occurred prerendering page "/use-cache-private-in-unstable-cache". Read more: https://nextjs.org/docs/messages/prerender-error
+               "Error: "use cache: private" must not be used within \`unstable_cache()\`.
+                   at <unknown> (webpack:///app/use-cache-private-in-unstable-cache/page.tsx:21:38)
+                   at cachedCb (webpack:///<next-src>)
+                   at async ComponentWithCachedData (webpack:///app/use-cache-private-in-unstable-cache/page.tsx:16:16)
+                 19 | }
+                 20 |
+               > 21 | const getCachedData = unstable_cache(async () => {
+                    |                                      ^
+                 22 |   'use cache: private'
+                 23 |
+                 24 |   return fetch('https://next-data-api-endpoint.vercel.app/api/random').then(
+               To debug the issue, start the app in development mode by running \`next dev\`, then open "/use-cache-private-in-unstable-cache" in your browser to investigate the error.
+               Error occurred prerendering page "/use-cache-private-in-unstable-cache". Read more: https://nextjs.org/docs/messages/prerender-error
 
-                 > Export encountered errors on 1 path:
-                 	/use-cache-private-in-unstable-cache/page: /use-cache-private-in-unstable-cache"
-                `)
+               > Export encountered errors on 1 path:
+               	/use-cache-private-in-unstable-cache/page: /use-cache-private-in-unstable-cache"
+              `)
             }
           } else {
             if (isTurbopack) {
@@ -311,32 +312,31 @@ export function registerUseCachePrivateTests(
           if (isTurbopack) {
             if (isDebugPrerender) {
               expect(output).toMatchInlineSnapshot(`
-                 "Error: Route "/use-cache-private-without-suspense": Next.js encountered uncached or runtime data during prerendering.
+               "Error: Route "/use-cache-private-without-suspense": Next.js encountered uncached or runtime data during prerendering.
 
-                 \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
+               \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
 
-                 Ways to fix this:
-                   - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                     https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
-                   - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
-                     https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
-                   - [block] Set \`export const instant = false\` to allow a blocking route
-                     https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
-                     at Private (app/use-cache-private-without-suspense/page.tsx:15:1)
-                     at Page (app/use-cache-private-without-suspense/page.tsx:10:7)
-                   13 | }
-                   14 |
-                 > 15 | async function Private() {
-                      | ^
-                   16 |   'use cache: private'
-                   17 |
-                   18 |   return <p>Private</p>
-                 To debug the issue, start the app in development mode by running \`next dev\`, then open "/use-cache-private-without-suspense" in your browser to investigate the error.
-                 Error occurred prerendering page "/use-cache-private-without-suspense". Read more: https://nextjs.org/docs/messages/prerender-error
+               Ways to fix this:
+                 - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+                 - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
+                 - [block] Set \`export const instant = false\` to allow a blocking route
 
-                 > Export encountered errors on 1 path:
-                 	/use-cache-private-without-suspense/page: /use-cache-private-without-suspense"
-                `)
+               Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic
+                   at Private (app/use-cache-private-without-suspense/page.tsx:15:1)
+                   at Page (app/use-cache-private-without-suspense/page.tsx:10:7)
+                 13 | }
+                 14 |
+               > 15 | async function Private() {
+                    | ^
+                 16 |   'use cache: private'
+                 17 |
+                 18 |   return <p>Private</p>
+               To debug the issue, start the app in development mode by running \`next dev\`, then open "/use-cache-private-without-suspense" in your browser to investigate the error.
+               Error occurred prerendering page "/use-cache-private-without-suspense". Read more: https://nextjs.org/docs/messages/prerender-error
+
+               > Export encountered errors on 1 path:
+               	/use-cache-private-without-suspense/page: /use-cache-private-without-suspense"
+              `)
             } else {
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/use-cache-private-without-suspense": Next.js encountered uncached or runtime data during prerendering.
