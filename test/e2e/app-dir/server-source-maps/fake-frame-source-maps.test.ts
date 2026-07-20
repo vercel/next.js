@@ -244,6 +244,23 @@ describe('app-dir - server source maps - fake frame source maps', () => {
           }).toEqual({ url: script.url, hasSourceMap: true })
         }
 
+        if (isTurbopack) {
+          // Turbopack must reference the emitted source map files instead of
+          // inlining a payload copy into every fake script. Guards against
+          // silently degrading to `data:` URLs, e.g. when the bundler
+          // implementation isn't registered in one of the compiled copies of
+          // the resolver.
+          for (const script of fakeScripts) {
+            expect({
+              url: script.url,
+              sourceMapURL: script.sourceMapURL,
+            }).toEqual({
+              url: script.url,
+              sourceMapURL: expect.stringMatching(/^file:/),
+            })
+          }
+        }
+
         // Resolve each source map like a debugger frontend and map the
         // padded `_()` call position of each fake function back to its
         // original source, like clicking the frame in a debugger would.
