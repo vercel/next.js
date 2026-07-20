@@ -117,7 +117,11 @@ function parseArgs() {
     isolateRoutes: a.includes('--isolate-routes'),
     keep: a.includes('--keep'),
     prepare: a.includes('--prepare'),
-    profile: a.includes('--profile'),
+    // Profiles are captured by default: the pass runs strictly after the
+    // timed runs (never touches the numbers), costs ~10-15 min of VM
+    // wall-clock, and cross-VM profile diffs proved highly stable
+    // (16/16 sign agreement on movers). --no-profile opts out.
+    profile: !a.includes('--no-profile'),
     // KEY=VALUE env exported around bench:render-pipeline (e.g.
     // NEXT_FLIGHT_RENDER=0 to force the byte-tee SSR baseline).
     benchEnv: get('--bench-env', ''),
@@ -145,6 +149,44 @@ async function sb(args, opts = {}) {
   const {stdout, stderr} = await execFileP(VERCEL, scoped, {maxBuffer: 64 * 1024 * 1024, ...opts});
   // The CLI prints some results (e.g. snapshot ids) on stderr.
   return `${stdout}\n${stderr}`;
+}
+
+// The platform rejects single `sandbox cp` uploads somewhere above ~128MB
+// ("Request Entity Too Large", observed 2026-07-20; 645MB tree tarballs that
+// uploaded fine hours earlier started failing). Upload large files in parts
+// and reassemble on the VM, verifying the sha256 end to end.
+const CP_CHUNK_BYTES = 128 * 1024 * 1024;
+async function sbCpToVm(vm, localPath, vmDest) {
+  const size = fs.statSync(localPath).size;
+  if (size <= CP_CHUNK_BYTES) {
+    await sb(['cp', localPath, `${vm}:${vmDest}`]);
+    return;
+  }
+  const partDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sbcp-'));
+  try {
+    await execFileP('split', ['-b', String(CP_CHUNK_BYTES), localPath,
+      path.join(partDir, 'part-')]);
+    const parts = fs.readdirSync(partDir).sort();
+    for (const p of parts) {
+      await sb(['cp', path.join(partDir, p), `${vm}:${vmDest}.${p}`]);
+    }
+    const localSha = (await execFileP('shasum', ['-a', '256', localPath]))
+      .stdout.split(' ')[0];
+    const catList = parts.map(p => `'${vmDest}.${p}'`).join(' ');
+    const out = await sbExec(vm, '10m',
+      `cat ${catList} > '${vmDest}' && rm -f ${catList} && sha256sum '${vmDest}' | cut -d' ' -f1`,
+      `cp:${path.basename(vmDest)}`);
+    // sbExec output interleaves stderr (CLI banners); take the last
+    // sha-shaped token rather than the last line.
+    const shaTokens = out.match(/\b[0-9a-f]{64}\b/g);
+    const remoteSha = shaTokens ? shaTokens[shaTokens.length - 1] : '';
+    if (remoteSha !== localSha) {
+      throw new Error(
+        `chunked upload of ${localPath} corrupt: local ${localSha} != remote ${remoteSha}`);
+    }
+  } finally {
+    fs.rmSync(partDir, {recursive: true, force: true});
+  }
 }
 
 // PR spec ("37023" or a github PR URL) -> arms: base = merge-base of the
@@ -591,7 +633,7 @@ async function ensureExperimentSnapshot(cfg) {
     for (const arm of cfg.arms) {
       if (arm.treeCached) {
         console.error(`uploading cached tree for ${arm.name}...`);
-        await sb(['cp', arm.treeTgz, `${vm}:/vercel/sandbox/tree-${arm.name}.tgz`]);
+        await sbCpToVm(vm, arm.treeTgz, `/vercel/sandbox/tree-${arm.name}.tgz`);
       } else if (arm.tgz) {
         await sb(['cp', arm.tgz, `${vm}:/vercel/sandbox/arm-${arm.name}.tgz`]);
       }
@@ -888,6 +930,7 @@ wc -l /vercel/sandbox/results.jsonl`;
       // overhead must never touch the numbers.
       const prof = `set -e
 for arm in ${base} ${cand}; do
+  if [ "$arm" = "${base}" ]; then PORT=3720; else PORT=3721; fi
   cd /vercel/sandbox/next-$arm
   pnpm bench:render-pipeline ${benchArgs('--capture-cpu')} \
     --json-out=/tmp/pr.json --artifact-dir=/vercel/sandbox/prof-$arm >/tmp/prof.log 2>&1 \
@@ -895,11 +938,26 @@ for arm in ${base} ${cand}; do
   echo "profiled $arm"
 done
 cd /vercel/sandbox && tar -czf profiles.tgz prof-*`;
-      await sbExec(vm, '30m', prof, `${tag}:prof`);
-      const profTgz = path.join(outDir, `profiles-vm${index}.tgz`);
-      await sb(['cp', `${vm}:/vercel/sandbox/profiles.tgz`, profTgz]);
-      await execFileP('tar', ['-xzf', profTgz, '-C', outDir]);
-      console.error(`${tag}: profiles in ${outDir}/prof-*`);
+      // Profile capture is best-effort: a failed pass or transfer on one VM
+      // must not kill collection for the whole run (the timed results are
+      // already on disk at this point). Each VM extracts into its own
+      // subdirectory so VMs don't overwrite each other's prof-<arm> dirs.
+      try {
+        await sbExec(vm, '30m', prof, `${tag}:prof`);
+        const profTgz = path.join(outDir, `profiles-vm${index}.tgz`);
+        await sb(['cp', `${vm}:/vercel/sandbox/profiles.tgz`, profTgz]);
+        if (!fs.existsSync(profTgz) || fs.statSync(profTgz).size === 0) {
+          throw new Error('profile tarball missing or empty after cp');
+        }
+        const vmProfDir = path.join(outDir, `prof-vm${index}`);
+        fs.mkdirSync(vmProfDir, {recursive: true});
+        await execFileP('tar', ['-xzf', profTgz, '-C', vmProfDir]);
+        console.error(`${tag}: profiles in ${vmProfDir}`);
+      } catch (profErr) {
+        console.error(
+          `${tag}: profile capture failed (timed results unaffected): ${profErr.message}`,
+        );
+      }
     }
     writeStatus({vms: {...statusState.vms, [vm]: {...statusState.vms[vm], state: 'done'}}});
     return local;

@@ -115,9 +115,25 @@ node scripts/sandbox-e2e.mjs --pr <url> --label <slug> \
   reuse the built snapshot until a new canary ships.
 - Useful flags: `--bench-env KEY=VALUE` (runtime-only env for the
   bench process — it does NOT affect the snapshot's app build), `--isolate-routes`
-  (tail investigations), `--profile` (CPU capture after timed runs),
-  `--prepare` (build caches only — use when two cells will share an
-  arm, to avoid duplicate builds racing).
+  (tail investigations), `--no-profile` (skip the CPU capture that
+  runs by default after the timed runs), `--prepare` (build caches
+  only — use when two cells will share an arm, to avoid duplicate
+  builds racing).
+- CPU profiles are captured by default: one profile pass per arm runs
+  strictly AFTER the timed runs (it cannot touch the numbers), costs
+  ~10-15 min extra VM wall-clock, and lands in `<runDir>/prof-vm<N>/`
+  as standard V8 `.cpuprofile` files. Cross-VM profile diffs are
+  highly stable (observed 16/16 sign agreement on real movers), so one
+  profiled cell suffices to rank hot paths. Analysis caveats:
+  aggregate by (functionName, line, column) — bare minified names
+  collide across the bundle — and never diff arms by minified name
+  (the minifier renames between builds); match positions or code
+  snippets instead.
+- The bench exercises Next's node-streams path
+  (`__NEXT_USE_NODE_STREAMS` is inlined as true for the node runtime
+  at build time). React changes that only touch the EDGE stream
+  configs are not exercised end-to-end and will (correctly) bench as
+  no detected difference.
 
 ### 4. Read the result like a skeptical data scientist
 
