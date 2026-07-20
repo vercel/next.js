@@ -50,13 +50,11 @@ export function registerSyncIoAndBlockingTests(
 
            Ways to fix this:
              - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
-               https://nextjs.org/docs/messages/blocking-prerender-current-time#generate-on-every-request
              - [cache] Prerender and cache the value with \`"use cache"\`
-               https://nextjs.org/docs/messages/blocking-prerender-current-time#cache-the-timestamp
              - [client] Render the value on the client with \`"use client"\`
-               https://nextjs.org/docs/messages/blocking-prerender-current-time#render-on-the-client
              - [measure] If the value is for telemetry, use a timing API such as \`performance.now()\`
-               https://nextjs.org/docs/messages/blocking-prerender-current-time#for-telemetry-use-a-timing-api
+
+           Learn more: https://nextjs.org/docs/messages/blocking-prerender-current-time
                at a (app/suspense-in-root/sync-io/sync-io-after-cookies/page.tsx:29:15)
              27 | async function SyncIOAfterCookies() {
              28 |   await cookies()
@@ -185,13 +183,11 @@ export function registerSyncIoAndBlockingTests(
 
            Ways to fix this:
              - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
-               https://nextjs.org/docs/messages/blocking-prerender-current-time#generate-on-every-request
              - [cache] Prerender and cache the value with \`"use cache"\`
-               https://nextjs.org/docs/messages/blocking-prerender-current-time#cache-the-timestamp
              - [client] Render the value on the client with \`"use client"\`
-               https://nextjs.org/docs/messages/blocking-prerender-current-time#render-on-the-client
              - [measure] If the value is for telemetry, use a timing API such as \`performance.now()\`
-               https://nextjs.org/docs/messages/blocking-prerender-current-time#for-telemetry-use-a-timing-api
+
+           Learn more: https://nextjs.org/docs/messages/blocking-prerender-current-time
                at Module.e [as generateMetadata] (app/suspense-in-root/sync-io/sync-io-after-cookies-in-generate-metadata/page.tsx:8:20)
               6 | export async function generateMetadata() {
               7 |   await cookies()

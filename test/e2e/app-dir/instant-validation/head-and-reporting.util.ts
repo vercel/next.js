@@ -653,9 +653,9 @@ export function registerHeadAndReportingTests(
 
              Ways to fix this:
                - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                 https://nextjs.org/docs/messages/instant-shell-url-data#wrap-in-or-move-into-suspense
                - [block] Set \`export const instant = false\` to allow a blocking route
-                 https://nextjs.org/docs/messages/instant-shell-url-data#allow-blocking-route
+
+             Learn more: https://nextjs.org/docs/messages/instant-shell-url-data
                  at main (<anonymous>)
                  at body (<anonymous>)
                  at html (<anonymous>)
@@ -690,9 +690,9 @@ export function registerHeadAndReportingTests(
 
                Ways to fix this:
                  - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                   https://nextjs.org/docs/messages/instant-shell-url-data#wrap-in-or-move-into-suspense
                  - [block] Set \`export const instant = false\` to allow a blocking route
-                   https://nextjs.org/docs/messages/instant-shell-url-data#allow-blocking-route
+
+               Learn more: https://nextjs.org/docs/messages/instant-shell-url-data
                    at LinkData (app/shells/(default)/invalid-runtime-searchparams/page.tsx:27:3)
                    at Page (app/shells/(default)/invalid-runtime-searchparams/page.tsx:17:7)
                  25 |   searchParams: Promise<Record<string, string | string[]>>
@@ -754,9 +754,9 @@ export function registerHeadAndReportingTests(
 
              Ways to fix this:
                - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                 https://nextjs.org/docs/messages/instant-shell-url-data#wrap-in-or-move-into-suspense
                - [block] Set \`export const instant = false\` to allow a blocking route
-                 https://nextjs.org/docs/messages/instant-shell-url-data#allow-blocking-route
+
+             Learn more: https://nextjs.org/docs/messages/instant-shell-url-data
                  at main (<anonymous>)
                  at body (<anonymous>)
                  at html (<anonymous>)
@@ -866,9 +866,9 @@ export function registerHeadAndReportingTests(
 
              Ways to fix this:
                - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                 https://nextjs.org/docs/messages/instant-shell-url-data#wrap-in-or-move-into-suspense
                - [block] Set \`export const instant = false\` to allow a blocking route
-                 https://nextjs.org/docs/messages/instant-shell-url-data#allow-blocking-route
+
+             Learn more: https://nextjs.org/docs/messages/instant-shell-url-data
                  at main (<anonymous>)
                  at body (<anonymous>)
                  at html (<anonymous>)
