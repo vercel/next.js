@@ -613,7 +613,8 @@ async function callGenerateStaticParams(
   generateStaticParams: NonNullable<AppSegment['generateStaticParams']>,
   parentParams: Params,
   rootParamKeys: readonly string[],
-  implicitTags: ImplicitTags
+  implicitTags: ImplicitTags,
+  isStaticExport: boolean
 ): Promise<Params[]> {
   const rootParams: Params = {}
   for (const key of rootParamKeys) {
@@ -638,6 +639,12 @@ async function callGenerateStaticParams(
   if (!Array.isArray(generatedParams)) {
     throw new Error(
       `Invalid value returned from generateStaticParams for "${page}". Expected an array, but received type ${getValueType(generatedParams)}. See more info here: https://nextjs.org/docs/messages/generate-static-params`
+    )
+  }
+
+  if (isStaticExport && generatedParams.length === 0) {
+    throw new Error(
+      `Page "${page}" returned an empty array from "generateStaticParams()". With "output: export", at least one route must be generated. See more info here: https://nextjs.org/docs/messages/generate-static-params`
     )
   }
 
@@ -666,6 +673,7 @@ async function callGenerateStaticParams(
  * @param store - Work store for tracking fetch cache configuration
  * @param isRoutePPREnabled - Whether PPR is enabled for this route
  * @param rootParamKeys - The keys identifying which params are root params
+ * @param isStaticExport - Whether the route is built with output: export
  * @returns Promise that resolves to an array of all parameter combinations
  */
 export async function generateRouteStaticParams(
@@ -679,7 +687,8 @@ export async function generateRouteStaticParams(
   >,
   store: Pick<WorkStore, 'fetchCache' | 'page'>,
   isRoutePPREnabled: boolean,
-  rootParamKeys: readonly string[]
+  rootParamKeys: readonly string[],
+  isStaticExport: boolean
 ): Promise<Params[]> {
   // Early return if no segments to process
   if (segments.length === 0) return []
@@ -728,7 +737,8 @@ export async function generateRouteStaticParams(
           current.generateStaticParams,
           parentParams,
           rootParamKeys,
-          implicitTags
+          implicitTags,
+          isStaticExport
         )
 
         if (result.length > 0) {
@@ -750,7 +760,8 @@ export async function generateRouteStaticParams(
         current.generateStaticParams,
         {},
         rootParamKeys,
-        implicitTags
+        implicitTags,
+        isStaticExport
       )
       if (result.length === 0 && isRoutePPREnabled) {
         throwEmptyGenerateStaticParamsError(current.createEmptyParamsError)
@@ -918,7 +929,8 @@ export async function buildAppStaticPaths({
     segments,
     store,
     isRoutePPREnabled,
-    rootParamKeys
+    rootParamKeys,
+    nextConfigOutput === 'export'
   )
   const generatedParamNames = new Set<string>()
   for (const params of routeParams) {

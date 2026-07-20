@@ -30,6 +30,15 @@ describe('app dir - with output export - dynamic missing gsp', () => {
     })
   })
 
+  describe('should error when generateStaticParams returns an empty array', () => {
+    runTests({
+      dynamicPage: 'undefined',
+      generateStaticParamsOpt: 'set empty',
+      expectedErrMsg:
+        'Page "/another/[slug]" returned an empty array from "generateStaticParams()". With "output: export", at least one route must be generated. See more info here: https://nextjs.org/docs/messages/generate-static-params',
+    })
+  })
+
   describe('should error when client component has generateStaticParams', () => {
     const expectedErrMsg = process.env.IS_TURBOPACK_TEST
       ? 'App pages cannot use both "use client" and export function "generateStaticParams()".'
