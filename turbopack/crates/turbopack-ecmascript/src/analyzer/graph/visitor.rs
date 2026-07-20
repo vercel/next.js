@@ -21,11 +21,16 @@ use crate::{
     AnalyzeMode,
     analyzer::{
         Bump, BumpVec, ConstantValue, JsValue, WellKnownFunctionKind,
+        cjs_ast::{is_exports_object, is_global},
         graph::{ConditionalKind, Effect, EffectArg, EffectsBlock, EvalContext, VarGraph},
         is_unresolved_id,
     },
     code_gen::CodeGen,
-    references::esm::EsmModuleItem,
+    references::{
+        AstPath,
+        cjs::{CjsExportsDropCodeGen, DroppableCjsExportAssignment},
+        esm::EsmModuleItem,
+    },
     utils::{AstPathRange, unparen},
 };
 
@@ -84,6 +89,18 @@ pub(super) struct Analyzer<'arena, 'eval> {
     pub(super) supports_block_scoping: bool,
 
     pub(super) eval_context: &'eval EvalContext,
+}
+
+/// Collects a static CommonJS module's droppable named exports during the main
+/// analyzer walk. Any `exports` / `module` use that isn't a recognized
+/// `exports.NAME = …` write taints the module by dropping the collector,
+/// leaving the module opaque.
+#[derive(Default)]
+struct CjsExportsCollector {
+    /// Recognized `exports.NAME = …` writes, each removable if `NAME` is unused.
+    writes: Vec<DroppableCjsExportAssignment>,
+    /// Whether the `exports.__esModule = true` interop marker is set.
+    has_es_module: bool,
 }
 
 trait FunctionLike {
@@ -173,6 +190,9 @@ mod analyzer_state {
         early_return_stack: Vec<EarlyReturn<'a>>,
         lexical_stack: Vec<LexicalContext>,
         var_decl_kind: Option<VarDeclKind>,
+        cjs_exports: Option<CjsExportsCollector>,
+        cjs_export_target: bool,
+        cjs_export_value: bool,
     }
 
     impl<'a> Analyzer<'a, '_> {
@@ -232,15 +252,23 @@ mod analyzer_state {
 
         /// Returns true if `this` is bound in any active scope
         pub(super) fn is_this_bound(&self) -> bool {
-            self.state.lexical_stack.iter().rev().any(|b| {
-                matches!(
-                    b,
-                    LexicalContext::Function {
-                        id: _,
-                        binds_this: true
-                    } | LexicalContext::ClassBody
-                )
-            })
+            self.this_binding_depth() > 0
+        }
+
+        pub(super) fn this_binding_depth(&self) -> usize {
+            self.state
+                .lexical_stack
+                .iter()
+                .filter(|b| {
+                    matches!(
+                        b,
+                        LexicalContext::Function {
+                            id: _,
+                            binds_this: true
+                        } | LexicalContext::ClassBody
+                    )
+                })
+                .count()
         }
 
         /// Adds a return value to the current function.
@@ -293,6 +321,31 @@ mod analyzer_state {
         /// Returns the current variable declaration kind.
         pub(super) fn var_decl_kind(&self) -> Option<VarDeclKind> {
             self.state.var_decl_kind
+        }
+
+        pub(super) fn with_cjs_export_target<T>(&mut self, func: impl FnOnce(&mut Self) -> T) -> T {
+            let prev = replace(&mut self.state.cjs_export_target, true);
+            let out = func(self);
+            self.state.cjs_export_target = prev;
+            out
+        }
+
+        pub(super) fn in_cjs_export_target(&self) -> bool {
+            self.state.cjs_export_target
+        }
+
+        /// Runs `func` (the right-hand side of a recognized `exports.NAME = …` write) with
+        /// the `cjs_export_value` flag set, so a first-level `this` inside an exported
+        /// function value can be recognized as aliasing `exports`.
+        pub(super) fn with_cjs_export_value<T>(&mut self, func: impl FnOnce(&mut Self) -> T) -> T {
+            let prev = replace(&mut self.state.cjs_export_value, true);
+            let out = func(self);
+            self.state.cjs_export_value = prev;
+            out
+        }
+
+        pub(super) fn in_cjs_export_value(&self) -> bool {
+            self.state.cjs_export_value
         }
 
         /// Runs `func` with the current function identifier and return values initialized for the
@@ -497,6 +550,58 @@ mod analyzer_state {
                 }
             }
             always_returns
+        }
+
+        pub(in crate::analyzer::graph) fn enable_cjs_exports(&mut self) {
+            self.state.cjs_exports = Some(CjsExportsCollector::default());
+        }
+
+        pub(super) fn cjs_exports_enabled(&self) -> bool {
+            self.state.cjs_exports.is_some()
+        }
+
+        pub(super) fn taint_cjs_exports(&mut self) {
+            self.state.cjs_exports = None;
+        }
+
+        /// Records the `exports.__esModule = true` interop marker.
+        pub(super) fn set_cjs_has_es_module(&mut self) {
+            if let Some(c) = &mut self.state.cjs_exports {
+                c.has_es_module = true;
+            }
+        }
+
+        pub(super) fn record_cjs_export(&mut self, name: RcStr, path: AstPath) {
+            if let Some(c) = &mut self.state.cjs_exports {
+                c.writes.push(DroppableCjsExportAssignment { name, path });
+            }
+        }
+
+        /// Returns the removable writes and whether the `__esModule` flag is set.
+        pub(super) fn droppable_cjs_exports(
+            &mut self,
+        ) -> Option<(Vec<DroppableCjsExportAssignment>, bool)> {
+            let c = self.state.cjs_exports.take()?;
+            if c.writes.is_empty() {
+                return None;
+            }
+            Some((c.writes, c.has_es_module))
+        }
+
+        /// Whether `target` is a static named CommonJS export write —
+        /// eg. `exports.NAME` / `module.exports.NAME`, or a top-level `this.NAME`
+        /// (free top-level `this` aliases `module.exports` in CommonJS).
+        pub(super) fn is_named_cjs_export_target(&self, target: &AssignTarget) -> bool {
+            let AssignTarget::Simple(SimpleAssignTarget::Member(member)) = target else {
+                return false;
+            };
+            if !matches!(member.prop, MemberProp::Ident(_)) {
+                return false;
+            }
+            is_exports_object(&member.obj, self.eval_context.unresolved_mark)
+                || (matches!(&*member.obj, Expr::This(_))
+                    && !self.is_in_fn()
+                    && !self.is_in_nested_block_scope())
         }
     }
 }
@@ -1092,6 +1197,46 @@ impl<'a> Analyzer<'a, '_> {
             );
         }
     }
+
+    /// Records a top-level `exports.NAME = …` write (or the `__esModule = true` marker)
+    /// so an unused export can be dropped. Forms we can't drop safely are left in place.
+    fn maybe_recognize_cjs_export(
+        &mut self,
+        n: &AssignExpr,
+        ast_path: &AstNodePath<AstParentNodeRef<'_>>,
+    ) {
+        if n.op != AssignOp::Assign {
+            return;
+        }
+        // Only top-level writes can be dropped.
+        if self.is_in_fn() || self.is_in_nested_block_scope() {
+            self.taint_cjs_exports();
+            return;
+        }
+        let AssignTarget::Simple(SimpleAssignTarget::Member(member)) = &n.left else {
+            return;
+        };
+        let MemberProp::Ident(name) = &member.prop else {
+            return;
+        };
+
+        // Transpilers use this to signal that this is transpiled esm.
+        // Which in turn changes the behavior of default exports. such that `import foo from
+        // 'transpiled-esm-cjs'` gets the `default` export instead of the namespace
+        if name.sym.as_ref() == "__esModule" {
+            // Only a literal `true` is the interop marker.
+            if matches!(unparen(&n.right), Expr::Lit(Lit::Bool(b)) if b.value) {
+                self.set_cjs_has_es_module();
+            }
+            return;
+        }
+
+        // The RHS isn't inspected; the code-gen keeps it as `<value>`.
+        self.record_cjs_export(
+            RcStr::from(name.sym.as_str()),
+            as_parent_path(ast_path).into(),
+        );
+    }
 }
 
 impl VisitAstPath for Analyzer<'_, '_> {
@@ -1120,8 +1265,19 @@ impl VisitAstPath for Analyzer<'_, '_> {
         n: &'ast AssignExpr,
         ast_path: &mut AstNodePath<AstParentNodeRef<'r>>,
     ) {
-        // LHS
-        {
+        // A CommonJS named-export write target: record it (to drop the export if unused)
+        // and visit the target inside a `cjs_export_target` scope so `exports` / `module`
+        // don't taint the module (see `visit_ident`).
+        let is_cjs_export = self.cjs_exports_enabled() && self.is_named_cjs_export_target(&n.left);
+        if is_cjs_export {
+            self.maybe_recognize_cjs_export(n, ast_path);
+            let mut ast_path =
+                ast_path.with_guard(AstParentNodeRef::AssignExpr(n, AssignExprField::Left));
+            self.with_cjs_export_target(|this| {
+                n.left.visit_children_with_ast_path(this, &mut ast_path)
+            });
+        } else {
+            // LHS.
             let mut ast_path =
                 ast_path.with_guard(AstParentNodeRef::AssignExpr(n, AssignExprField::Left));
 
@@ -1149,7 +1305,12 @@ impl VisitAstPath for Analyzer<'_, '_> {
         {
             let mut ast_path =
                 ast_path.with_guard(AstParentNodeRef::AssignExpr(n, AssignExprField::Right));
-            self.visit_expr(&n.right, &mut ast_path);
+            // A function assigned directly to a CommonJS export can see `exports` as `this`.
+            if is_cjs_export && matches!(&*n.right, Expr::Fn(_)) {
+                self.with_cjs_export_value(|this| this.visit_expr(&n.right, &mut ast_path));
+            } else {
+                self.visit_expr(&n.right, &mut ast_path);
+            }
         }
     }
 
@@ -1828,6 +1989,17 @@ impl VisitAstPath for Analyzer<'_, '_> {
         // Note: The `Ident` children of `ImportSpecifier` are not visited because
         // `visit_import_specifier` bails out.
 
+        // An `exports` / `module` reference outside a recognized export write target is a
+        // read or alias, which makes the exports opaque.
+        if self.cjs_exports_enabled() && !self.in_cjs_export_target() {
+            let unresolved_mark = self.eval_context.unresolved_mark;
+            if is_global(ident, "exports", unresolved_mark)
+                || is_global(ident, "module", unresolved_mark)
+            {
+                self.taint_cjs_exports();
+            }
+        }
+
         // Attempt to add import effects.
         if let Some((esm_reference_index, export)) =
             self.eval_context.imports.get_binding(&ident.to_id())
@@ -1885,13 +2057,46 @@ impl VisitAstPath for Analyzer<'_, '_> {
         node: &'ast ThisExpr,
         ast_path: &mut swc_core::ecma::visit::AstNodePath<'r>,
     ) {
-        if self.analyze_mode.is_code_gen() && !self.is_this_bound() {
-            // Otherwise 'this' is free
+        if !self.analyze_mode.is_code_gen() {
+            return;
+        }
+
+        if !self.is_this_bound() {
+            // 'this' is free; in CommonJS a top-level `this` aliases `exports`.
             self.add_effect(Effect::FreeVar {
                 var: atom!("this"),
                 ast_path: as_parent_path_in(self.arena, ast_path),
                 span: node.span(),
-            })
+            });
+            if !self.in_cjs_export_target() {
+                self.taint_cjs_exports();
+            }
+        } else if self.in_cjs_export_value() && self.this_binding_depth() == 1 {
+            /*
+            `this` at the top level of an exported function value may be `exports` when the
+            function is called as a method of the exports (`require(m).fn()`), so the
+            exports escape — bail out.
+
+            there are other cases where `this` can escape, for example:
+
+            // module A
+            function use_this() {
+                if (this.bar === undefined) throw new Error();
+            }
+
+            exports.foo = use_this
+
+            exports.bar = ''
+
+            // module B
+            const a = require("a")
+
+            a.use_this();
+
+            This is a known correctness issue with CJS tree-shaking that
+            we share with Webpack.
+            */
+            self.taint_cjs_exports();
         }
     }
 
@@ -1922,6 +2127,13 @@ impl VisitAstPath for Analyzer<'_, '_> {
         self.effects
             .extend(self.arena, take(&mut self.hoisted_effects));
         self.data.effects = take(&mut self.effects).into_iter().collect();
+
+        // Emit the CommonJS unused-export drop code-gen, if any.
+        if let Some((drops, has_es_module)) = self.droppable_cjs_exports() {
+            self.code_gens
+                .push(CjsExportsDropCodeGen::new(drops, has_es_module).into());
+        }
+
         self.data.code_gens = take(&mut self.code_gens);
     }
 

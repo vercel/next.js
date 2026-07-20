@@ -5,6 +5,7 @@ use swc_core::{
     ecma::ast::{CallExpr, Expr, ExprOrSpread, Lit},
     quote,
 };
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     NonLocalValue, ResolvedVc, ValueToString, Vc, debug::ValueDebugFormat, trace::TraceRawVcs,
 };
@@ -19,6 +20,7 @@ use turbopack_core::{
 use turbopack_resolve::ecmascript::cjs_resolve;
 
 use crate::{
+    chunk::{EcmascriptChunkPlaceable, EcmascriptExports},
     code_gen::{CodeGen, CodeGeneration, IntoCodeGenReference},
     create_visitor,
     references::{
@@ -403,5 +405,84 @@ impl CjsRequireCacheAccess {
 impl From<CjsRequireCacheAccess> for CodeGen {
     fn from(val: CjsRequireCacheAccess) -> Self {
         CodeGen::CjsRequireCacheAccess(val)
+    }
+}
+
+/// Removes each named `exports.NAME = …` write the module graph proved unused.
+/// Built by the analyzer for statically-analyzable CommonJS modules; recognition
+/// happens inline during the walk (see `analyzer::graph::visitor`).
+#[derive(
+    PartialEq, Eq, TraceRawVcs, ValueDebugFormat, NonLocalValue, Hash, Debug, Encode, Decode,
+)]
+pub struct CjsExportsDropCodeGen {
+    drops: Vec<DroppableCjsExportAssignment>,
+    /// Whether the module sets `__esModule`. Without it, a default import binds
+    /// the whole `module.exports`, so nothing may be dropped.
+    has_es_module: bool,
+}
+
+/// A single named `exports.NAME = …` write.
+#[derive(
+    PartialEq, Eq, TraceRawVcs, ValueDebugFormat, NonLocalValue, Hash, Debug, Encode, Decode,
+)]
+pub struct DroppableCjsExportAssignment {
+    pub name: RcStr,
+    /// Path to the `exports.NAME = …` assignment expression.
+    pub path: AstPath,
+}
+
+impl CjsExportsDropCodeGen {
+    pub fn new(drops: Vec<DroppableCjsExportAssignment>, has_es_module: bool) -> Self {
+        CjsExportsDropCodeGen {
+            drops,
+            has_es_module,
+        }
+    }
+
+    pub async fn code_generation(
+        &self,
+        chunking_context: Vc<Box<dyn ChunkingContext>>,
+        module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
+        _exports: ResolvedVc<EcmascriptExports>,
+    ) -> Result<CodeGeneration> {
+        let export_usage_info = chunking_context
+            .module_export_usage(*ResolvedVc::upcast(module))
+            .await?;
+        let export_usage_info = export_usage_info.export_usage.await?;
+
+        // Without `__esModule`, a default import binds the whole `module.exports`,
+        // so a used `default` makes every named export reachable — drop nothing.
+        if !self.has_es_module && export_usage_info.is_export_used(&rcstr!("default")) {
+            return Ok(CodeGeneration::empty());
+        }
+
+        // Replace each unused `exports.NAME = <value>` with `<value>`, preserving
+        // side effects (the minifier drops a pure value). Rewriting the assignment
+        // rather than its statement keeps chained writes like
+        // `exports.a = exports.b = 1` sound.
+        let mut visitors = Vec::new();
+        for drop in &self.drops {
+            if export_usage_info.is_export_used(&drop.name) {
+                continue;
+            }
+            visitors.push(create_visitor!(
+                drop.path,
+                visit_mut_expr,
+                |expr: &mut Expr| {
+                    if let Expr::Assign(assign) = expr {
+                        let value = assign.right.take();
+                        *expr = *value;
+                    }
+                }
+            ));
+        }
+
+        Ok(CodeGeneration::visitors(visitors))
+    }
+}
+
+impl From<CjsExportsDropCodeGen> for CodeGen {
+    fn from(val: CjsExportsDropCodeGen) -> Self {
+        CodeGen::CjsExportsDropCodeGen(val)
     }
 }

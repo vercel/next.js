@@ -246,6 +246,7 @@ impl ModuleOptions {
                     source_maps: ecmascript_source_maps,
                     inline_helpers,
                     infer_module_side_effects,
+                    cjs_tree_shaking,
                     ref preset_env_config,
                     ..
                 },
@@ -336,6 +337,7 @@ impl ModuleOptions {
             enable_exports_info_inlining,
             inline_helpers,
             infer_module_side_effects,
+            cjs_tree_shaking,
             ..Default::default()
         };
         let ecmascript_options_vc = ecmascript_options.resolved_cell();
