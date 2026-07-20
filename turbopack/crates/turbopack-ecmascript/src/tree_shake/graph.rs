@@ -362,6 +362,7 @@ impl DepGraph {
                 body: directives.to_vec(),
                 shebang: None,
             };
+            let mut is_module_eval_chunk = false;
             let mut part_deps_done = FxHashSet::default();
 
             let mut required_vars = group
@@ -452,8 +453,7 @@ impl DepGraph {
                     _ => {
                         if data[item_id].is_module_evaluation {
                             debug_assert_eq!(module_evaluation_ix, None);
-                            module_evaluation_ix = Some(ix as u32);
-                            outputs.insert(Key::ModuleEvaluation, ix as u32);
+                            is_module_eval_chunk = true;
                         }
                     }
                 }
@@ -715,6 +715,17 @@ impl DepGraph {
 
             if chunk.body.is_empty() {
                 continue;
+            }
+
+            if is_module_eval_chunk {
+                // Use the actual push index (modules.len() before push) rather than
+                // the enumerate index `ix`, because empty chunks are skipped and
+                // not pushed to `modules`. Using `ix` would produce an out-of-bounds
+                // index when empty chunks precede the module evaluation chunk.
+                // See: https://github.com/vercel/next.js/issues/93424
+                let actual_ix = modules.len() as u32;
+                module_evaluation_ix = Some(actual_ix);
+                outputs.insert(Key::ModuleEvaluation, actual_ix);
             }
 
             modules.push(chunk);
