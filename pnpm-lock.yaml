@@ -30,7 +30,7 @@ patchedDependencies:
     hash: rvl3vkomen3tospgr67bzubfyu
     path: patches/@types__node@20.17.6.patch
   http-proxy@1.18.1:
-    hash: eyqcxg3pntyhqyqr5zytxa7pbi
+    hash: kzqzmw2zuo23hy3avffm6aqice
     path: patches/http-proxy@1.18.1.patch
   stacktrace-parser@0.1.10:
     hash: x5tdcojc7b5m2b5ojepbcdl36a
@@ -366,7 +366,7 @@ importers:
         version: 5.1.18
       http-proxy:
         specifier: 1.18.1
-        version: 1.18.1(patch_hash=eyqcxg3pntyhqyqr5zytxa7pbi)
+        version: 1.18.1(patch_hash=kzqzmw2zuo23hy3avffm6aqice)
       husky:
         specifier: 9.0.11
         version: 9.0.11
@@ -1359,7 +1359,7 @@ importers:
         version: 5.1.1
       http-proxy:
         specifier: 1.18.1
-        version: 1.18.1(patch_hash=eyqcxg3pntyhqyqr5zytxa7pbi)
+        version: 1.18.1(patch_hash=kzqzmw2zuo23hy3avffm6aqice)
       http-proxy-agent:
         specifier: 5.0.0
         version: 5.0.0
@@ -13969,7 +13969,6 @@ packages:
     engines: {node: '>=0.6.0', teleport: '>=0.2.0'}
     deprecated: |-
       You or someone you depend on is using Q, the JavaScript Promise library that gave JavaScript developers strong feelings about promises. They can almost certainly migrate to the native JavaScript promise now. Thank you literally everyone for joining me in this bet against the odds. Be excellent to each other.
-
       (For a CapTP with native promises, see @endo/eventual-send and @endo/captp)
 
   qs@6.11.0:
@@ -27239,7 +27238,7 @@ snapshots:
   http-proxy-middleware@2.0.7(@types/express@4.17.21):
     dependencies:
       '@types/http-proxy': 1.17.16
-      http-proxy: 1.18.1(patch_hash=eyqcxg3pntyhqyqr5zytxa7pbi)
+      http-proxy: 1.18.1(patch_hash=kzqzmw2zuo23hy3avffm6aqice)
       is-glob: 4.0.3
       is-plain-obj: 3.0.0
       micromatch: 4.0.8
@@ -27248,7 +27247,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  http-proxy@1.18.1(patch_hash=eyqcxg3pntyhqyqr5zytxa7pbi):
+  http-proxy@1.18.1(patch_hash=kzqzmw2zuo23hy3avffm6aqice):
     dependencies:
       eventemitter3: 4.0.7
       follow-redirects: 1.9.0

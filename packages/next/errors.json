@@ -792,5 +792,6 @@
   "791": "image of size %s could not be tracked by lru cache",
   "792": "Response body exceeded maximum size of %s bytes",
   "793": "The Server Reference ID did not match the expected format. Received %s.\\nRead more: https://nextjs.org/docs/messages/failed-to-find-server-action",
-  "794": "Unsupported body type: %s"
+  "794": "Unsupported body type: %s",
+  "795": "Invalid target hostname \"%s\" for proxy request, expected \"%s\""
 }
