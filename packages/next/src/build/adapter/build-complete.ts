@@ -1,7 +1,6 @@
 import path from 'path'
 import crypto from 'crypto'
 import fs from 'fs/promises'
-import { statSync } from 'fs'
 import { pathToFileURL } from 'url'
 import * as Log from '../output/log'
 import { isMiddlewareFilename } from '../utils'
@@ -29,6 +28,7 @@ import type {
 import type {
   RoutesManifest,
   PrerenderManifest,
+  PrerenderManifestRoute,
   ManifestRewriteRoute,
   FunctionsConfigManifest,
   DynamicPrerenderManifestRoute,
@@ -56,6 +56,7 @@ import { generateRoutesManifest } from '../generate-routes-manifest'
 import { Bundler } from '../../lib/bundler'
 import { resolveCacheHandlerPathToFilesystem } from '../../lib/format-dynamic-import-path'
 import { isAPIRoute } from '../../lib/is-api-route'
+import { InvariantError } from '../../shared/lib/invariant-error'
 
 interface SharedRouteFields {
   /**
@@ -143,6 +144,57 @@ interface SharedRouteFields {
   }
 }
 
+/**
+ * Classification metadata for the primary response in a prerender group.
+ * Related RSC, data, and segment outputs do not expose these fields.
+ */
+type PrerenderClassification =
+  | {
+      /**
+       * Which kind of canonical response this output represents.
+       *
+       * - `route`: a non-UI route, such as a Route Handler.
+       * - `page`: a page whose URL has no missing prerenderable params.
+       * - `shell`: the most specific reusable page shell for its URL class.
+       * - `fallback`: a reusable page response that can be specialized by
+       *   filling more prerenderable params.
+       */
+      routeType: 'route' | 'fallback' | 'shell' | 'page'
+
+      /**
+       * How complete the response is before any request-time work.
+       *
+       * - `empty`: no initial page response can be served.
+       * - `initial`: an initial response can be served, but it is not the
+       *   completed page UI.
+       * - `complete`: the response is complete. This can still describe a
+       *   zero-byte response body, such as a 204 Route Handler response.
+       */
+      response: 'empty' | 'initial' | 'complete'
+
+      /**
+       * The request-time compute needed to serve the completed response.
+       *
+       * - `blocking`: compute must finish before a response can be served.
+       * - `resuming`: an initial response is served while postponed work
+       *   resumes on the server.
+       * - `static`: no server compute is required per request.
+       */
+      compute: 'blocking' | 'resuming' | 'static'
+
+      /**
+       * The byte size of the prerendered HTML shell. Only the HTML output
+       * exposes this; sibling RSC/data/segment outputs omit it.
+       */
+      htmlSize?: number
+    }
+  | {
+      routeType?: never
+      response?: never
+      compute?: never
+      htmlSize?: never
+    }
+
 export interface AdapterOutput {
   /**
    * `PAGES` represents all the React pages that are under `pages/`.
@@ -200,65 +252,6 @@ export interface AdapterOutput {
      * `/blog/[slug]` for the prerendered path `/blog/first`).
      */
     route: string
-
-    /**
-     * routeType classifies which URLs this prerender serves. Like `ui` and
-     * `compute`, it is a point-in-time snapshot of what this build
-     * produced — revalidation can specialize or generalize it.
-     *
-     * - `fallback`: at least one prerenderable param (fillable by
-     *   `generateStaticParams` / `getStaticPaths`) is missing, so this is
-     *   the generic UI for a class of URLs that can still be prerendered
-     *   into something more specific.
-     * - `shell`: all prerenderable params are present; the remaining
-     *   params are dynamic and resolve per request, so this is the most
-     *   specific prerender possible for its class of URLs.
-     * - `page`: no params are missing — the prerender for one specific
-     *   URL.
-     *
-     * `undefined` means unclassified (route handlers, or entries with no
-     * served shell such as `notFound: true` pages).
-     *
-     * routeType/ui/compute describe the route's HTML prerender and are
-     * mirrored onto its sibling RSC/data/segment outputs.
-     */
-    routeType?: 'fallback' | 'shell' | 'page'
-
-    /**
-     * ui describes the visual completeness of this build's prerendered
-     * HTML. It is a point-in-time snapshot of the build artifact, not an
-     * intrinsic property of the route — revalidation can change it.
-     *
-     * - `empty`: no initial UI at all (no shell, or an empty shell).
-     * - `partial`: some UI is pending and appears after the page loads,
-     *   resolved on the server or the client.
-     * - `complete`: visually complete on initial load.
-     */
-    ui?: 'empty' | 'partial' | 'complete'
-
-    /**
-     * compute describes the per-request compute involved in serving this
-     * prerender. Like `ui`, it is a snapshot of the build artifact.
-     *
-     * - `blocking`: the server must render before any UI is ready.
-     * - `resuming`: the prerendered UI is served immediately and the
-     *   server resumes the postponed parts.
-     * - `static`: no per-request compute — any pending UI resolves on
-     *   the client.
-     *
-     * `undefined` means the signal does not apply (route handlers, or
-     * templates that are never served because unmatched paths 404, e.g.
-     * `fallback: false` / `dynamicParams = false`).
-     */
-    compute?: 'blocking' | 'resuming' | 'static'
-
-    /**
-     * htmlSize is the byte size of the prerendered HTML shell for app
-     * pages. `0` means an empty shell (everything postponed). It is only
-     * set on the HTML prerender output; RSC/data/segment outputs leave it
-     * `undefined`, as do pages router and route handler outputs.
-     */
-    htmlSize?: number
 
     pprChain?: {
       headers: Record<string, string>
@@ -342,7 +335,7 @@ export interface AdapterOutput {
        */
       bypassToken?: string
     }
-  }
+  } & PrerenderClassification
 
   /**
    * `STATIC_FILE` represents a static file (ie /_next/static) or a purely
@@ -392,14 +385,6 @@ export interface AdapterOutput {
   }
 }
 
-/**
- * The routeType/ui/compute classification dimensions of a PRERENDER output.
- */
-type PrerenderClassification = Pick<
-  AdapterOutput['PRERENDER'],
-  'routeType' | 'ui' | 'compute'
->
-
 export interface AdapterOutputs {
   pages: Array<AdapterOutput['PAGES']>
   middleware?: AdapterOutput['MIDDLEWARE']
@@ -408,6 +393,40 @@ export interface AdapterOutputs {
   appRoutes: Array<AdapterOutput['APP_ROUTE']>
   prerenders: Array<AdapterOutput['PRERENDER']>
   staticFiles: Array<AdapterOutput['STATIC_FILE']>
+}
+
+function getPrerenderClassification(
+  route: string,
+  routeType: PrerenderManifestRoute['routeType'],
+  response: PrerenderManifestRoute['response'],
+  compute: PrerenderManifestRoute['compute'],
+  htmlSize: PrerenderManifestRoute['htmlSize']
+): PrerenderClassification {
+  if (
+    routeType === undefined &&
+    response === undefined &&
+    compute === undefined &&
+    htmlSize === undefined
+  ) {
+    return {}
+  }
+
+  if (
+    routeType === undefined ||
+    response === undefined ||
+    compute === undefined
+  ) {
+    throw new InvariantError(
+      `Expected complete prerender classification for route "${route}"`
+    )
+  }
+
+  return {
+    routeType,
+    response,
+    compute,
+    ...(typeof htmlSize === 'number' && { htmlSize }),
+  }
 }
 
 type RewriteItem = {
@@ -1260,11 +1279,6 @@ export async function handleBuildComplete({
               groupId: initialOutput.groupId,
 
               route: initialOutput.route,
-              routeType: initialOutput.routeType,
-              ui: initialOutput.ui,
-              compute: initialOutput.compute,
-              // htmlSize is intentionally omitted: segment outputs are RSC
-              // payloads, not HTML shells
 
               config: {
                 ...initialOutput.config,
@@ -1298,7 +1312,6 @@ export async function handleBuildComplete({
         postponed?: string
         headers?: Record<string, string>
         status?: number
-        hasPendingUi?: boolean
       }
 
       const getAppRouteMeta = async (
@@ -1351,38 +1364,6 @@ export async function handleBuildComplete({
         return newCheck
       }
 
-      // A missing file yields `undefined` ("no signal"), never 0 — an empty
-      // shell that exists on disk is a meaningful 0.
-      const statHtmlSize = (filePath: string): number | undefined => {
-        try {
-          return statSync(filePath).size
-        } catch {
-          return undefined
-        }
-      }
-
-      // Derives the ui/compute dimensions for an app page prerender from
-      // its shell size and route metadata.
-      const classifyAppShell = (
-        htmlSize: number | undefined,
-        meta: AppRouteMeta
-      ): Pick<PrerenderClassification, 'ui' | 'compute'> => {
-        const isEmptyShell = htmlSize === 0
-        return {
-          ui: isEmptyShell
-            ? 'empty'
-            : meta.hasPendingUi || meta.postponed
-              ? 'partial'
-              : 'complete',
-          compute: meta.postponed
-            ? isEmptyShell
-              ? // an empty shell has no UI ready until the server renders
-                'blocking'
-              : 'resuming'
-            : 'static',
-        }
-      }
-
       for (const route in prerenderManifest.routes) {
         const {
           initialExpireSeconds: initialExpiration,
@@ -1392,6 +1373,10 @@ export async function handleBuildComplete({
           dataRoute,
           prefetchDataRoute,
           renderingMode,
+          routeType,
+          response,
+          compute,
+          htmlSize,
           allowHeader,
           experimentalBypassFor,
         } = prerenderManifest.routes[route]
@@ -1509,26 +1494,13 @@ export async function handleBuildComplete({
             'private, no-store, no-cache, max-age=0, must-revalidate'
         }
 
-        // only app pages (not route handlers, which have no dataRoute and
-        // write a `.body` file) have an HTML shell to measure; the
-        // isNotFoundTrue condition mirrors the `fallback` field below
-        const htmlSize =
-          isAppPage && dataRoute && (!isNotFoundTrue || hasStatic404)
-            ? statHtmlSize(filePath)
-            : undefined
-
-        // concrete prerenders have no params missing, so they serve
-        // exactly one URL
-        const classification: PrerenderClassification = isAppPage
-          ? dataRoute
-            ? { routeType: 'page', ...classifyAppShell(htmlSize, meta) }
-            : // route handlers are classified separately in the future
-              {}
-          : isNotFoundTrue && !hasStatic404
-            ? // no HTML shell is served for this entry
-              {}
-            : // pages router prerenders are always complete static HTML
-              { routeType: 'page', ui: 'complete', compute: 'static' }
+        const classification = getPrerenderClassification(
+          route,
+          routeType,
+          response,
+          compute,
+          htmlSize
+        )
 
         const initialOutput: AdapterOutput['PRERENDER'] = {
           id: route,
@@ -1541,7 +1513,6 @@ export async function handleBuildComplete({
           groupId: prerenderGroupId,
 
           route: srcRoute,
-          ...classification,
 
           pprChain:
             isAppPage && renderingMode === RenderingMode.PARTIALLY_STATIC
@@ -1587,12 +1558,11 @@ export async function handleBuildComplete({
             bypassToken: prerenderManifest.preview.previewModeId,
           },
         }
-        // htmlSize describes the HTML shell only, so it's attached here
-        // rather than on initialOutput, which is spread into the RSC/data
-        // outputs below. The shallow spread shares `fallback` by reference,
-        // so handleAppMeta's postponedState mutation still reaches this
-        // pushed output.
-        outputs.prerenders.push({ ...initialOutput, htmlSize })
+        // Classification describes the primary HTML or Route Handler body,
+        // not the related RSC/data/segment outputs that spread initialOutput.
+        // The shallow spread shares `fallback` by reference, so
+        // handleAppMeta's postponedState mutation still reaches this output.
+        outputs.prerenders.push({ ...initialOutput, ...classification })
 
         if (!isAppPage && appPageKeys && appPageKeys.length > 0) {
           const rscPage = `${route === '/' ? '/index' : route}.rsc`
@@ -1702,6 +1672,10 @@ export async function handleBuildComplete({
           allowHeader,
           dataRoute,
           renderingMode,
+          routeType,
+          response,
+          compute,
+          htmlSize,
           experimentalBypassFor,
         } = prerenderManifest.dynamicRoutes[dynamicRoute]
 
@@ -1805,44 +1779,13 @@ export async function handleBuildComplete({
             ? path.join(isAppPage ? appDistDir : pagesDistDir, fallbackHtmlFile)
             : undefined
 
-        const htmlSize =
-          isAppPage && fallbackHtmlPath !== undefined
-            ? statHtmlSize(fallbackHtmlPath)
-            : undefined
-
-        const classification: PrerenderClassification = !isAppPage
-          ? typeof fallback === 'string'
-            ? // fallback: true — serving the loading shell itself is
-              // static; the client then fetches the data, and generation
-              // happens on that data-route request
-              { routeType: 'fallback', ui: 'partial', compute: 'static' }
-            : fallback === null
-              ? // fallback: 'blocking' — rendered on request
-                { routeType: 'fallback', ui: 'empty', compute: 'blocking' }
-              : // fallback: false — the template is never served
-                // (unmatched paths 404; parentFallbackMode is false)
-                { routeType: 'fallback', ui: 'empty', compute: undefined }
-          : typeof fallback !== 'string'
-            ? // app template without a prerendered shell. Its missing
-              // params are fillable (via generateStaticParams or on
-              // request), which is why concrete siblings exist, so it's a
-              // `fallback`; `remainingPrerenderableParams` only describes
-              // prerendered shells and can't refine this.
-              fallback === null
-              ? { routeType: 'fallback', ui: 'empty', compute: 'blocking' }
-              : // fallback: false / dynamicParams = false — never served
-                { routeType: 'fallback', ui: 'empty', compute: undefined }
-            : {
-                // params that generateStaticParams can still fill make the
-                // template upgradable (`fallback`); otherwise the
-                // remaining params are dynamic and this is the most
-                // specific prerender for its class of URLs (`shell`)
-                routeType:
-                  (remainingPrerenderableParams?.length ?? 0) > 0
-                    ? 'fallback'
-                    : 'shell',
-                ...classifyAppShell(htmlSize, meta),
-              }
+        const classification = getPrerenderClassification(
+          dynamicRoute,
+          routeType,
+          response,
+          compute,
+          htmlSize
+        )
 
         const initialOutput: AdapterOutput['PRERENDER'] = {
           id: dynamicRoute,
@@ -1852,7 +1795,6 @@ export async function handleBuildComplete({
           groupId: prerenderGroupId,
 
           route: srcRoute,
-          ...classification,
 
           pprChain:
             isAppPage && renderingMode === RenderingMode.PARTIALLY_STATIC
@@ -1890,12 +1832,11 @@ export async function handleBuildComplete({
         }
 
         if (!config.i18n || isAppPage) {
-          // htmlSize describes the HTML shell only, so it's attached here
-          // rather than on initialOutput, which is spread into the RSC/data
-          // outputs below. The shallow spread shares `fallback` by reference,
-          // so handleAppMeta's postponedState mutation still reaches this
-          // pushed output.
-          outputs.prerenders.push({ ...initialOutput, htmlSize })
+          // Classification describes only the primary HTML response, not the
+          // related RSC/data/segment outputs that spread initialOutput. The
+          // shallow spread shares `fallback` by reference, so handleAppMeta's
+          // postponedState mutation still reaches this output.
+          outputs.prerenders.push({ ...initialOutput, ...classification })
 
           if (
             !isAppPage &&

@@ -380,7 +380,6 @@ export default class FileSystemCache implements CacheHandler {
         postponed: undefined,
         segmentPaths: undefined,
         prefetchHints: undefined,
-        hasPendingUi: undefined,
       }
 
       writer.append(
@@ -435,9 +434,6 @@ export default class FileSystemCache implements CacheHandler {
           postponed: data.postponed,
           segmentPaths,
           prefetchHints: undefined,
-          // Not computed on runtime revalidation writes: nothing consumes
-          // the pending-UI signal from runtime meta.
-          hasPendingUi: undefined,
         }
 
         writer.append(
