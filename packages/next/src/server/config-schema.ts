@@ -595,6 +595,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
       .optional(),
     deploymentId: z.string().optional(),
     supportsImmutableAssets: z.boolean().optional(),
+    outputHashSalt: z.string().optional(),
     devIndicators: z
       .union([
         z.object({
