@@ -864,9 +864,12 @@ function bindingToApi(
       this._nativeEndpoint = nativeEndpoint
     }
 
-    async writeToDisk(): Promise<TurbopackResult<WrittenEndpoint>> {
+    async writeToDisk(
+      rscOnly?: boolean
+    ): Promise<TurbopackResult<WrittenEndpoint>> {
       return (await binding.endpointWriteToDisk(
-        this._nativeEndpoint
+        this._nativeEndpoint,
+        rscOnly
       )) as TurbopackResult<WrittenEndpoint>
     }
 

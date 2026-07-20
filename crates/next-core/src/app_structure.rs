@@ -206,20 +206,24 @@ struct PlainDirectoryTree {
 ///
 /// For example, given this directory structure:
 ///
-///     app/
-///     ├── (group1)/
-///     │   └── products/
-///     │       └── sale/
-///     └── (group2)/
-///         └── products/
-///             └── [id]/
+/// ```text
+/// app/
+/// ├── (group1)/
+/// │   └── products/
+/// │       └── sale/
+/// └── (group2)/
+///     └── products/
+///         └── [id]/
+/// ```
 ///
 /// The UrlSegmentTree would be:
 ///
-///     (root)
-///     └── products/
-///         ├── sale/
-///         └── [id]/
+/// ```text
+/// (root)
+/// └── products/
+///     ├── sale/
+///     └── [id]/
+/// ```
 ///
 /// This makes it easy to find all siblings at a given URL level.
 #[derive(Clone, Debug, Default, PartialEq, Eq, TraceRawVcs, NonLocalValue, Encode, Decode)]

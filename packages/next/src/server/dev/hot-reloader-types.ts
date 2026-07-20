@@ -287,6 +287,7 @@ export interface NextJsHotReloaderInterface {
     isApp?: boolean
     definition?: RouteDefinition
     url?: string
+    rscOnly?: boolean
     /**
      * Whether to wire HMR change subscriptions for the compiled entry.
      * Defaults to true (the dev server uses these to push updates to
