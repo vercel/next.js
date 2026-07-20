@@ -1143,5 +1143,6 @@
   "1142": "Route %s used \\`import('next/root-params').%s()\\` inside \\`generateStaticParams\\`, but the \\`%s\\` parameter was not provided by a parent \\`generateStaticParams\\`. In \\`generateStaticParams\\`, root params are only available for segments nested below the segment that provides them.",
   "1143": "Response body exceeded maximum size of %s bytes",
   "1144": "The Server Reference ID did not match the expected format. Received %s.\\nRead more: https://nextjs.org/docs/messages/failed-to-find-server-action",
-  "1145": "Unsupported body type: %s"
+  "1145": "Unsupported body type: %s",
+  "1146": "Invalid target hostname \"%s\" for proxy request, expected \"%s\""
 }

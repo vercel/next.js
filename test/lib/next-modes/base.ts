@@ -553,7 +553,10 @@ export class NextInstance {
     }
   }
 
-  public async start(options?: { skipBuild?: boolean }): Promise<void> {}
+  public async start(options?: {
+    skipBuild?: boolean
+    env?: Record<string, string>
+  }): Promise<void> {}
 
   public async stop(
     signal: 'SIGINT' | 'SIGTERM' | 'SIGKILL' = 'SIGKILL'

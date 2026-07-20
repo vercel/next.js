@@ -60,13 +60,15 @@ export class NextStartInstance extends NextInstance {
     })
   }
 
-  public async start(options: { skipBuild?: boolean } = {}) {
+  public async start(
+    options: { skipBuild?: boolean; env?: Record<string, string> } = {}
+  ) {
     if (this.childProcess) {
       throw new Error('next already started')
     }
 
     this._cliOutput = ''
-    const spawnOpts = this.getSpawnOpts()
+    const spawnOpts = this.getSpawnOpts(options.env)
 
     let startArgs = ['pnpm', 'next', 'start']
 
