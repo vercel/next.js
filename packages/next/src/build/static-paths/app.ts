@@ -980,17 +980,29 @@ export async function buildAppStaticPaths({
     }
   }
 
+  const missingParamNames: string[] = []
+  if (routeParams.length > 0) {
+    for (const { paramName } of pathnameRouteParamSegments) {
+      if (routeParams.some((params) => !(paramName in params))) {
+        missingParamNames.push(paramName)
+      }
+    }
+  }
+
   // Determine if all the segments have had their parameters provided.
   const hadAllParamsGenerated =
     pathnameRouteParamSegments.length === 0 ||
-    (routeParams.length > 0 &&
-      routeParams.every((params) => {
-        for (const { paramName } of pathnameRouteParamSegments) {
-          if (paramName in params) continue
-          return false
-        }
-        return true
-      }))
+    (routeParams.length > 0 && missingParamNames.length === 0)
+
+  if (
+    nextConfigOutput === 'export' &&
+    routeParams.length > 0 &&
+    !hadAllParamsGenerated
+  ) {
+    throw new Error(
+      `Page "${page}" returned incomplete params from "generateStaticParams()". With "output: export", every params object must include all dynamic route parameters. Missing: ${missingParamNames.map((name) => `"${name}"`).join(', ')}. See more info here: https://nextjs.org/docs/messages/generate-static-params`
+    )
+  }
 
   // TODO: dynamic params should be allowed to be granular per segment but
   // we need additional information stored/leveraged in the prerender
