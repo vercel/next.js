@@ -1301,6 +1301,7 @@ function areAllActionIdsValid(
   mpaFormData: FormData,
   serverModuleMap: ServerModuleMap
 ): boolean {
+  let seenActionRefs = 0
   let hasAtLeastOneAction = false
   // Before we attempt to decode the payload for a possible MPA action, assert that all
   // action IDs are valid IDs. If not we should disregard the payload
@@ -1318,6 +1319,13 @@ function areAllActionIdsValid(
 
       hasAtLeastOneAction = true
     } else if (key.startsWith($ACTION_REF_)) {
+      if (++seenActionRefs > 2) {
+        // We only expect to see at most 2 $ACTION_REF_ fields in the form data:
+        // one from <form action="..." method="post">
+        // and one from <input action="..." type="submit">
+        return false
+      }
+
       // Bound args case
       const actionDescriptorField =
         $ACTION_ + key.slice($ACTION_REF_.length) + ':0'
