@@ -15,7 +15,7 @@ describe('adapter-prerender-metadata', () => {
     return outputs.prerenders
   }
 
-  it('classifies a complete static app page as page', async () => {
+  it('classifies a complete static app page', async () => {
     const prerenders = await getPrerenders()
     const staticPage = prerenders.find(
       (output) => output.pathname === '/static'
@@ -25,11 +25,12 @@ describe('adapter-prerender-metadata', () => {
     // route is the source route matcher; for a non-dynamic page it equals
     // the pathname
     expect(staticPage.route).toBe('/static')
-    // complete HTML, no pending UI
-    expect(staticPage.kind).toBe('page')
-    // cacheComponents => PARTIALLY_STATIC; fully prerendered => no resume
-    // needed, so false, not undefined
-    expect(staticPage.postponed).toBe(false)
+    // no dynamic params: the prerender serves exactly one URL
+    expect(staticPage.routeType).toBe('page')
+    // visually complete on initial load
+    expect(staticPage.ui).toBe('complete')
+    // no per-request compute
+    expect(staticPage.compute).toBe('static')
     // full static shell on disk
     expect(staticPage.htmlSize).toBeGreaterThan(0)
   })
@@ -42,12 +43,13 @@ describe('adapter-prerender-metadata', () => {
 
     expect(template).toBeDefined()
     expect(template.route).toBe('/blog/[slug]')
-    // [slug] has generateStaticParams, so the shell can still be
-    // prerendered into something more specific
-    expect(template.kind).toBe('fallback')
-    // the fallback shell postponed on params/dynamic content
-    expect(template.postponed).toBe(true)
-    // the fallback shell exists on disk
+    // [slug] is prerenderable (generateStaticParams) and missing from this
+    // prerender
+    expect(template.routeType).toBe('fallback')
+    // the shell contains pending UI for the params/dynamic content
+    expect(template.ui).toBe('partial')
+    // the prerender postponed, so serving it resumes on the server
+    expect(template.compute).toBe('resuming')
     expect(template.htmlSize).toBeGreaterThan(0)
   })
 
@@ -63,31 +65,37 @@ describe('adapter-prerender-metadata', () => {
     // generic template: [one] can still be filled by generateStaticParams
     expect(generic).toBeDefined()
     expect(generic.route).toBe('/prefix/[one]/[two]')
-    expect(generic.kind).toBe('fallback')
+    expect(generic.routeType).toBe('fallback')
+    expect(generic.ui).toBe('partial')
+    expect(generic.compute).toBe('resuming')
 
-    // partial fallback: [two] has no generateStaticParams, so this is the
-    // most specific prerender possible for that path family
+    // partial fallback: all prerenderable params are present; [two] is a
+    // dynamic param, so this is the generic UI for a class of URLs
     expect(partial).toBeDefined()
     expect(partial.route).toBe('/prefix/[one]/[two]')
-    expect(partial.kind).toBe('shell')
+    expect(partial.routeType).toBe('shell')
+    expect(partial.ui).toBe('partial')
+    expect(partial.compute).toBe('resuming')
   })
 
-  it('classifies client-resolving pending UI as shell without postponing', async () => {
+  it('classifies client-resolving pending UI as partial without compute', async () => {
     const prerenders = await getPrerenders()
     const clientHole = prerenders.find(
       (output) => output.pathname === '/client-hole'
     )
 
     expect(clientHole).toBeDefined()
+    // one URL, no dynamic params
+    expect(clientHole.routeType).toBe('page')
     // the HTML contains a Suspense fallback that resolves on the client
-    // (useSearchParams), so it's a shell...
-    expect(clientHole.kind).toBe('shell')
+    // (useSearchParams)...
+    expect(clientHole.ui).toBe('partial')
     // ...but serving it needs no per-request compute
-    expect(clientHole.postponed).toBe(false)
+    expect(clientHole.compute).toBe('static')
     expect(clientHole.htmlSize).toBeGreaterThan(0)
   })
 
-  it('classifies concrete prerenders that postponed as shell', async () => {
+  it('classifies concrete prerenders that postponed as resuming', async () => {
     const prerenders = await getPrerenders()
     const concrete = prerenders.find(
       (output) => output.pathname === '/blog/first'
@@ -99,25 +107,28 @@ describe('adapter-prerender-metadata', () => {
       (output) => output.pathname === '/page-postponed'
     )
 
-    // concrete prerendered path: pathname differs from the route matcher
+    // concrete prerendered path: no dynamic params remain, and the
+    // pathname differs from the route matcher
     expect(concrete).toBeDefined()
     expect(concrete.route).toBe('/blog/[slug]')
     expect(concrete.pathname).not.toBe(concrete.route)
-    // it postponed on uncached IO, so its pending UI resolves on the server
-    expect(concrete.kind).toBe('shell')
-    expect(concrete.postponed).toBe(true)
+    expect(concrete.routeType).toBe('page')
+    expect(concrete.ui).toBe('partial')
+    expect(concrete.compute).toBe('resuming')
 
     expect(pprShell).toBeDefined()
-    expect(pprShell.kind).toBe('shell')
-    expect(pprShell.postponed).toBe(true)
+    expect(pprShell.routeType).toBe('page')
+    expect(pprShell.ui).toBe('partial')
+    expect(pprShell.compute).toBe('resuming')
     expect(pprShell.htmlSize).toBeGreaterThan(0)
 
     // even when the whole page postpones (loading.tsx boundary), the shell
     // still contains the root layout HTML under cacheComponents, so
-    // htmlSize is > 0 rather than 0
+    // htmlSize is > 0 and the UI is partial rather than empty
     expect(pagePostponed).toBeDefined()
-    expect(pagePostponed.kind).toBe('shell')
-    expect(pagePostponed.postponed).toBe(true)
+    expect(pagePostponed.routeType).toBe('page')
+    expect(pagePostponed.ui).toBe('partial')
+    expect(pagePostponed.compute).toBe('resuming')
     expect(pagePostponed.htmlSize).toBeGreaterThan(0)
   })
 
@@ -131,26 +142,32 @@ describe('adapter-prerender-metadata', () => {
       (output) => output.pathname === '/omitted/[id]'
     )
 
-    // concrete pages-router prerender: complete HTML; PPR signals don't
-    // apply
+    // concrete pages-router prerender: complete static HTML
     expect(gsp).toBeDefined()
     expect(gsp.route).toBe('/gsp')
-    expect(gsp.kind).toBe('page')
-    expect(gsp.postponed).toBeUndefined()
+    expect(gsp.routeType).toBe('page')
+    expect(gsp.ui).toBe('complete')
+    expect(gsp.compute).toBe('static')
     expect(gsp.htmlSize).toBeUndefined()
 
-    // fallback: 'blocking' template — no shell is prerenderable
+    // fallback: 'blocking' template — [id] is prerenderable via
+    // getStaticPaths, but no shell was produced: the server renders
+    // before any UI is ready
     expect(blockingTemplate).toBeDefined()
     expect(blockingTemplate.route).toBe('/blocking/[id]')
-    expect(blockingTemplate.kind).toBe('blocking')
-    expect(blockingTemplate.postponed).toBeUndefined()
+    expect(blockingTemplate.routeType).toBe('fallback')
+    expect(blockingTemplate.ui).toBe('empty')
+    expect(blockingTemplate.compute).toBe('blocking')
     expect(blockingTemplate.htmlSize).toBeUndefined()
 
-    // fallback: false (omitted) template — no shell is prerenderable
+    // fallback: false (omitted) template — no shell, and unmatched paths
+    // 404 instead of rendering, so compute does not apply
+    // (parentFallbackMode `false` marks the entry as not served)
     expect(omittedTemplate).toBeDefined()
     expect(omittedTemplate.route).toBe('/omitted/[id]')
-    expect(omittedTemplate.kind).toBe('blocking')
-    expect(omittedTemplate.postponed).toBeUndefined()
+    expect(omittedTemplate.routeType).toBe('fallback')
+    expect(omittedTemplate.ui).toBe('empty')
+    expect(omittedTemplate.compute).toBeUndefined()
     expect(omittedTemplate.htmlSize).toBeUndefined()
   })
 
@@ -163,8 +180,9 @@ describe('adapter-prerender-metadata', () => {
     )
     expect(staticRsc).toBeDefined()
     expect(staticRsc.route).toBe('/static')
-    expect(staticRsc.kind).toBe('page')
-    expect(staticRsc.postponed).toBe(false)
+    expect(staticRsc.routeType).toBe('page')
+    expect(staticRsc.ui).toBe('complete')
+    expect(staticRsc.compute).toBe('static')
     expect(staticRsc.htmlSize).toBeUndefined()
 
     // RSC output of a fallback template (spread from initialOutput)
@@ -173,8 +191,9 @@ describe('adapter-prerender-metadata', () => {
     )
     expect(templateRsc).toBeDefined()
     expect(templateRsc.route).toBe('/blog/[slug]')
-    expect(templateRsc.kind).toBe('fallback')
-    expect(templateRsc.postponed).toBe(true)
+    expect(templateRsc.routeType).toBe('fallback')
+    expect(templateRsc.ui).toBe('partial')
+    expect(templateRsc.compute).toBe('resuming')
     expect(templateRsc.htmlSize).toBeUndefined()
 
     // segment prerenders (built as fresh literals in handleAppMeta) must
@@ -185,8 +204,9 @@ describe('adapter-prerender-metadata', () => {
     expect(segments.length).toBeGreaterThan(0)
     for (const segment of segments) {
       expect(segment.route).toBe('/blog/[slug]')
-      expect(segment.kind).toBe('fallback')
-      expect(segment.postponed).toBe(true)
+      expect(segment.routeType).toBe('fallback')
+      expect(segment.ui).toBe('partial')
+      expect(segment.compute).toBe('resuming')
       expect(segment.htmlSize).toBeUndefined()
     }
   })
