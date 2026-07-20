@@ -42,13 +42,13 @@ The following examples cover common patterns for building an SPA with Next.js. T
 
 ### Using React’s `use` within a Context Provider
 
-You can use React’s [`use` API](https://react.dev/reference/react/use) to stream data from the server to a Client Component. Fetch the data in a Server Component (a parent or layout) and pass the Promise down; the Client Component unwraps it with `use()`, since it cannot `await` during render.
+You can use React’s [`use` API](https://react.dev/reference/react/use) to stream data from the server to a Client Component. Fetch the data in a Server Component (a parent or layout) and pass the Promise down. The Client Component unwraps it with `use()`, since it cannot `await` during render.
 
 Starting the request on the server, before the rest of the app renders, lets the response stream immediately and avoids client-side request waterfalls.
 
 You can pass a single Promise as a prop and unwrap it with `use()`, or pair it with a React context provider so any Client Component can read the value through a custom hook. A provider isn't always the best fit: often you can read the data in a Server Component, or pass the Promise directly, rather than putting everything in context. For general client-side data fetching, a library like [SWR](#spas-with-swr) can help.
 
-Start the request in your root layout without awaiting it, and pass the Promise to the provider:
+Start the request in a Server Component (here, the root layout) without awaiting it, and pass the Promise to the provider:
 
 ```tsx filename="app/layout.tsx" switcher
 import { UserProvider } from './user-provider'
@@ -84,80 +84,73 @@ export default function RootLayout({ children }) {
 }
 ```
 
-If several components read the same data in one request, wrap `getUser` in React's [`cache`](https://react.dev/reference/react/cache) so they share a single call.
+> **Good to know:** Refetching a Promise set high in the tree re-runs the Server Component that set it, so for data only part of the app needs, place the provider on that subtree instead of the root layout. See React's [caveat on reading a Promise from context](https://react.dev/reference/react/use#reading-a-promise-from-context).
+
+If several components read the same data in one request, wrap `getUser` in React's [`cache`](https://react.dev/reference/react/cache) so they share a single call. See [Reusing data with `React.cache`](/docs/app/getting-started/fetching-data#reusing-data-with-reactcache) for more on this pattern.
 
 The provider forwards the Promise through context:
 
-```ts filename="app/user-provider.ts" switcher
-'use client';
+```tsx filename="app/user-provider.tsx" switcher
+'use client'
 
-import { createContext, useContext, ReactNode } from 'react';
+import { createContext, use, useContext } from 'react'
 
-type User = any;
-type UserContextType = {
-  userPromise: Promise<User | null>;
-};
+type User = { id: string; name: string }
 
-const UserContext = createContext<UserContextType | null>(null);
+const UserContext = createContext<Promise<User> | null>(null)
 
-export function useUser(): UserContextType {
-  let context = useContext(UserContext);
-  if (context === null) {
-    throw new Error('useUser must be used within a UserProvider');
+export function useUser() {
+  const userPromise = useContext(UserContext)
+  if (!userPromise) {
+    throw new Error('useUser must be used within a UserProvider')
   }
-  return context;
+  return use(userPromise)
 }
 
 export function UserProvider({
   children,
-  userPromise
+  userPromise,
 }: {
-  children: ReactNode;
-  userPromise: Promise<User | null>;
+  children: React.ReactNode
+  userPromise: Promise<User>
 }) {
   return (
-    <UserContext.Provider value={{ userPromise }}>
-      {children}
-    </UserContext.Provider>
-  );
+    <UserContext.Provider value={userPromise}>{children}</UserContext.Provider>
+  )
 }
 ```
 
 ```js filename="app/user-provider.js" switcher
 'use client'
 
-import { createContext, useContext, ReactNode } from 'react'
+import { createContext, use, useContext } from 'react'
 
 const UserContext = createContext(null)
 
 export function useUser() {
-  let context = useContext(UserContext)
-  if (context === null) {
+  const userPromise = useContext(UserContext)
+  if (!userPromise) {
     throw new Error('useUser must be used within a UserProvider')
   }
-  return context
+  return use(userPromise)
 }
 
 export function UserProvider({ children, userPromise }) {
   return (
-    <UserContext.Provider value={{ userPromise }}>
-      {children}
-    </UserContext.Provider>
+    <UserContext.Provider value={userPromise}>{children}</UserContext.Provider>
   )
 }
 ```
 
-Finally, you can call the `useUser()` custom hook in any Client Component and unwrap the Promise:
+Finally, call the `useUser()` hook in any Client Component. It unwraps the Promise with `use()` internally, so the component suspends until the data is ready:
 
 ```tsx filename="app/profile.tsx" switcher
 'use client'
 
-import { use } from 'react'
 import { useUser } from './user-provider'
 
 export function Profile() {
-  const { userPromise } = useUser()
-  const user = use(userPromise)
+  const user = useUser()
 
   return '...'
 }
@@ -166,14 +159,40 @@ export function Profile() {
 ```jsx filename="app/profile.js" switcher
 'use client'
 
-import { use } from 'react'
 import { useUser } from './user-provider'
 
 export function Profile() {
-  const { userPromise } = useUser()
-  const user = use(userPromise)
+  const user = useUser()
 
   return '...'
+}
+```
+
+Wrap the consumer in a `<Suspense>` boundary to show a fallback while the Promise resolves:
+
+```tsx filename="app/page.tsx" switcher
+import { Suspense } from 'react'
+import { Profile } from './profile'
+
+export default function Page() {
+  return (
+    <Suspense fallback={<p>Loading…</p>}>
+      <Profile />
+    </Suspense>
+  )
+}
+```
+
+```jsx filename="app/page.js" switcher
+import { Suspense } from 'react'
+import { Profile } from './profile'
+
+export default function Page() {
+  return (
+    <Suspense fallback={<p>Loading…</p>}>
+      <Profile />
+    </Suspense>
+  )
 }
 ```
 
@@ -265,7 +284,7 @@ export function Profile() {
 
 The `fallback` data can be prerendered and included in the initial HTML response, then immediately read in the child components using `useSWR`. SWR’s polling, revalidation, and caching still run **client-side only**, so it preserves all the interactivity you rely on for an SPA.
 
-Because Next.js seeds the `fallback` on the server, `useSWR` has data on first render, so there's no need for conditional logic to handle an `undefined` `data`. By default, `useSWR` returns `isLoading` and `error` for you to render during client revalidation; enable SWR's [Suspense mode](https://swr.vercel.app/docs/suspense) if you would rather suspend at the closest `<Suspense>` boundary instead.
+Because Next.js seeds the `fallback` on the server, `useSWR` has data on first render, so there's no need for conditional logic to handle an `undefined` `data`. Note that `isLoading` still flips to `true` while SWR revalidates on the client, even though the seeded `data` is present, so avoid gating the whole render on `isLoading`. To suspend at the closest `<Suspense>` boundary instead, enable SWR's [Suspense mode](https://swr.vercel.app/docs/suspense).
 
 |                      | SWR                 | RSC                 | RSC + SWR           |
 | -------------------- | ------------------- | ------------------- | ------------------- |
@@ -276,7 +295,7 @@ Because Next.js seeds the `fallback` on the server, `useSWR` has data on first r
 
 #### Scoping server data to the components that use it
 
-`<SWRConfig>` can live in any Server Component, not only the root layout. Placing it on the route segment that owns the data keeps the `fallback` close to where it is read, keeps unrelated keys out of a global config, and lets each segment start its own server-side requests:
+`<SWRConfig>` can live in any Server Component, not only the root layout. Placing it on the route segment that owns the data keeps the `fallback` close to where it is read, keeps unrelated keys out of a global config, and lets each segment start its own server-side requests. Nested `<SWRConfig>` providers merge their fallbacks, so a page-level config extends the keys seeded by a parent layout rather than replacing them:
 
 ```tsx filename="app/projects/[id]/page.tsx" switcher
 import { Suspense } from 'react'
@@ -344,7 +363,7 @@ function ProjectData({ id }) {
 
 Inside `<Suspense>`, `params.then()` resolves the `id` and passes it to `ProjectData`, which seeds the `fallback` with the `getProject(id)` promise. Only that subtree suspends while the data loads.
 
-The Client Component reads the data with `useSWR` using the same key:
+The Client Component reads the data with `useSWR` using the same key. Passing `suspense: true` opts into SWR's [Suspense mode](https://swr.vercel.app/docs/suspense), so it suspends at the boundary above until the seeded Promise resolves and `data` is always defined:
 
 ```tsx filename="app/projects/[id]/project-view.tsx" switcher
 'use client'
@@ -355,7 +374,7 @@ const fetcher = (url: string) => fetch(url).then((res) => res.json())
 
 export function ProjectView({ id }: { id: string }) {
   // This key must match the `fallback` key exactly.
-  const { data } = useSWR(`/api/projects/${id}`, fetcher)
+  const { data } = useSWR(`/api/projects/${id}`, fetcher, { suspense: true })
 
   return <h1>{data.name}</h1>
 }
@@ -370,7 +389,7 @@ const fetcher = (url) => fetch(url).then((res) => res.json())
 
 export function ProjectView({ id }) {
   // This key must match the `fallback` key exactly.
-  const { data } = useSWR(`/api/projects/${id}`, fetcher)
+  const { data } = useSWR(`/api/projects/${id}`, fetcher, { suspense: true })
 
   return <h1>{data.name}</h1>
 }
@@ -458,7 +477,7 @@ function ProjectData({ id }) {
 
 As with SWR, `params.then()` resolves the `id` inside `<Suspense>`, and `ProjectData` prefetches below the boundary.
 
-The Client Component reads the data with the same query key. Use `useSuspenseQuery` when a `<Suspense>` boundary handles loading and you want `data` to always be defined; use `useQuery` when you would rather render its `isPending` and `error` states inline:
+The Client Component reads the data with the same query key. Use `useSuspenseQuery` when a `<Suspense>` boundary handles loading and you want `data` to always be defined. Use `useQuery` when you would rather render its `isPending` and `error` states inline:
 
 ```tsx filename="app/projects/[id]/project-view.tsx" switcher
 'use client'
@@ -574,7 +593,7 @@ See the [live demo](https://next-spa-patterns.labs.vercel.dev/shallow-routing) a
 
 ### Mutating data with Server Actions
 
-The sections above seed client-side data-fetching libraries from the server, which handle reads. Interactivity means writing data, and that usually happens outside those libraries: a Client Component calls a [Server Action](/docs/app/guides/server-actions) to run the mutation on the server. If you already use SWR or TanStack Query, you can instead write through an API route and revalidate with SWR's [`mutate`](https://swr.vercel.app/docs/mutation) or TanStack Query's [`invalidateQueries`](https://tanstack.com/query/latest/docs/framework/react/guides/invalidations-from-mutations); the rest of this section uses Server Actions directly.
+The sections above seed client-side data-fetching libraries from the server, which handle reads. Interactivity means writing data, and that usually happens outside those libraries: a Client Component calls a [Server Action](/docs/app/guides/server-actions) to run the mutation on the server. If you already use SWR or TanStack Query, you can instead write through an API route and revalidate with SWR's [`mutate`](https://swr.vercel.app/docs/mutation) or TanStack Query's [`invalidateQueries`](https://tanstack.com/query/latest/docs/framework/react/guides/invalidations-from-mutations). The rest of this section uses Server Actions directly.
 
 A Server Action takes time and can fail. React has useful tools to keep the UI responsive while it runs, so a mutation can feel as instant as a client-rendered SPA: [transitions](https://react.dev/reference/react/useTransition), [`useOptimistic`](https://react.dev/reference/react/useOptimistic), [`useActionState`](https://react.dev/reference/react/useActionState), and [`useFormStatus`](https://react.dev/reference/react-dom/hooks/useFormStatus).
 
@@ -645,6 +664,8 @@ export function applyAction(todos: Todo[], action: TodoAction): Todo[] {
       )
     case 'delete':
       return todos.filter((todo) => todo.id !== action.id)
+    default:
+      return todos
   }
 }
 ```
@@ -664,6 +685,8 @@ export function applyAction(todos, action) {
       )
     case 'delete':
       return todos.filter((todo) => todo.id !== action.id)
+    default:
+      return todos
   }
 }
 ```
