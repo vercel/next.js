@@ -87,8 +87,6 @@ How much of the route is prefetched depends on whether it's static or dynamic:
 
 By skipping or partially prefetching dynamic routes, Next.js avoids unnecessary work on the server for routes the users may never visit. However, waiting for a server response before navigation can give the users the impression that the app is not responding.
 
-> **Using Cache Components?** With [`cacheComponents`](/docs/app/api-reference/config/next-config-js/cacheComponents) enabled, `<Link>` prefetches a per-route [App Shell](/docs/app/glossary#app-shell) instead of the full route. Many links to the same route reuse one shell, fetched once, so a page with many links makes fewer prefetch requests. Content beyond the shell streams in on navigation, or is prefetched too when the link opts in with [`prefetch={true}`](/docs/app/guides/runtime-prefetching). See [Adopting Partial Prefetching](/docs/app/guides/adopting-partial-prefetching).
-
 <Image
   alt="Server Rendering without Streaming"
   srcLight="/docs/light/server-rendering-without-streaming.png"
@@ -96,6 +94,8 @@ By skipping or partially prefetching dynamic routes, Next.js avoids unnecessary 
   width="1600"
   height="748"
 />
+
+> **Good to know:** See the [Prefetching guide](/docs/app/guides/prefetching) for the full behavior, including how to configure the default prefetching. Prefetching also changes when you opt in to [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents), an improved rendering mode for the App Router. To understand that first, start with [Caching](/docs/app/getting-started/caching).
 
 To improve the navigation experience to dynamic routes, you can use [streaming](#streaming).
 
