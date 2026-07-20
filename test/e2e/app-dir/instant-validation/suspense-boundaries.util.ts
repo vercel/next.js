@@ -58,31 +58,31 @@ export function registerSuspenseBoundariesTests(
         await expectNoDevValidationErrors(browser, await browser.url())
       } else {
         await expect(browser).toDisplayCollapsedRedbox(`
-           {
-             "cause": [
-               {
-                 "label": "Caused by: Instant Validation",
-                 "source": "app/suspense-in-root/static/missing-suspense-around-runtime/page.tsx (3:24) @ instant
-           > 3 | export const instant = { level: 'experimental-error' }
-               |                        ^",
-                 "stack": [
-                   "instant app/suspense-in-root/static/missing-suspense-around-runtime/page.tsx (3:24)",
-                   "Set.forEach <anonymous>",
-                 ],
-               },
-             ],
-             "code": "E1402",
-             "description": "Next.js encountered runtime data during a navigation.",
-             "environmentLabel": "Server",
-             "label": "Instant",
-             "source": "app/suspense-in-root/static/missing-suspense-around-runtime/page.tsx (6:16) @ Page
-           > 6 |   await cookies()
-               |                ^",
-             "stack": [
-               "Page app/suspense-in-root/static/missing-suspense-around-runtime/page.tsx (6:16)",
-             ],
-           }
-          `)
+         {
+           "cause": [
+             {
+               "label": "Caused by: Instant Validation",
+               "source": "app/suspense-in-root/static/missing-suspense-around-runtime/page.tsx (3:24) @ instant
+         > 3 | export const instant = { level: 'experimental-error' }
+             |                        ^",
+               "stack": [
+                 "instant app/suspense-in-root/static/missing-suspense-around-runtime/page.tsx (3:24)",
+                 "Set.forEach <anonymous>",
+               ],
+             },
+           ],
+           "code": "E1430",
+           "description": "Next.js encountered runtime data during a navigation.",
+           "environmentLabel": "Server",
+           "label": "Instant",
+           "source": "app/suspense-in-root/static/missing-suspense-around-runtime/page.tsx (6:16) @ Page
+         > 6 |   await cookies()
+             |                ^",
+           "stack": [
+             "Page app/suspense-in-root/static/missing-suspense-around-runtime/page.tsx (6:16)",
+           ],
+         }
+        `)
       }
     } else {
       const result = await prerender(
@@ -124,31 +124,31 @@ export function registerSuspenseBoundariesTests(
         '/suspense-in-root/static/missing-suspense-around-dynamic'
       )
       await expect(browser).toDisplayCollapsedRedbox(`
-         {
-           "cause": [
-             {
-               "label": "Caused by: Instant Validation",
-               "source": "app/suspense-in-root/static/missing-suspense-around-dynamic/page.tsx (3:24) @ instant
-         > 3 | export const instant = { level: 'experimental-error' }
-             |                        ^",
-               "stack": [
-                 "instant app/suspense-in-root/static/missing-suspense-around-dynamic/page.tsx (3:24)",
-                 "Set.forEach <anonymous>",
-               ],
-             },
-           ],
-           "code": "E1398",
-           "description": "Next.js encountered uncached data during a navigation.",
-           "environmentLabel": "Server",
-           "label": "Instant",
-           "source": "app/suspense-in-root/static/missing-suspense-around-dynamic/page.tsx (6:19) @ Page
-         > 6 |   await connection()
-             |                   ^",
-           "stack": [
-             "Page app/suspense-in-root/static/missing-suspense-around-dynamic/page.tsx (6:19)",
-           ],
-         }
-        `)
+       {
+         "cause": [
+           {
+             "label": "Caused by: Instant Validation",
+             "source": "app/suspense-in-root/static/missing-suspense-around-dynamic/page.tsx (3:24) @ instant
+       > 3 | export const instant = { level: 'experimental-error' }
+           |                        ^",
+             "stack": [
+               "instant app/suspense-in-root/static/missing-suspense-around-dynamic/page.tsx (3:24)",
+               "Set.forEach <anonymous>",
+             ],
+           },
+         ],
+         "code": "E1437",
+         "description": "Next.js encountered uncached data during a navigation.",
+         "environmentLabel": "Server",
+         "label": "Instant",
+         "source": "app/suspense-in-root/static/missing-suspense-around-dynamic/page.tsx (6:19) @ Page
+       > 6 |   await connection()
+           |                   ^",
+         "stack": [
+           "Page app/suspense-in-root/static/missing-suspense-around-dynamic/page.tsx (6:19)",
+         ],
+       }
+      `)
     } else {
       const result = await prerender(
         '/suspense-in-root/static/missing-suspense-around-dynamic'
@@ -185,32 +185,32 @@ export function registerSuspenseBoundariesTests(
         '/suspense-in-root/runtime/missing-suspense-around-dynamic'
       )
       await expect(browser).toDisplayCollapsedRedbox(`
-         {
-           "cause": [
-             {
-               "label": "Caused by: Instant Validation",
-               "source": "app/suspense-in-root/runtime/missing-suspense-around-dynamic/page.tsx (4:24) @ instant
-         > 4 | export const instant = { level: 'experimental-error' }
-             |                        ^",
-               "stack": [
-                 "instant app/suspense-in-root/runtime/missing-suspense-around-dynamic/page.tsx (4:24)",
-                 "Set.forEach <anonymous>",
-               ],
-             },
-           ],
-           "code": "E1398",
-           "description": "Next.js encountered uncached data during a navigation.",
-           "environmentLabel": "Server",
-           "label": "Instant",
-           "source": "app/suspense-in-root/runtime/missing-suspense-around-dynamic/page.tsx (23:19) @ Dynamic
-         > 23 |   await connection()
-              |                   ^",
-           "stack": [
-             "Dynamic app/suspense-in-root/runtime/missing-suspense-around-dynamic/page.tsx (23:19)",
-             "Page app/suspense-in-root/runtime/missing-suspense-around-dynamic/page.tsx (16:9)",
-           ],
-         }
-        `)
+       {
+         "cause": [
+           {
+             "label": "Caused by: Instant Validation",
+             "source": "app/suspense-in-root/runtime/missing-suspense-around-dynamic/page.tsx (4:24) @ instant
+       > 4 | export const instant = { level: 'experimental-error' }
+           |                        ^",
+             "stack": [
+               "instant app/suspense-in-root/runtime/missing-suspense-around-dynamic/page.tsx (4:24)",
+               "Set.forEach <anonymous>",
+             ],
+           },
+         ],
+         "code": "E1437",
+         "description": "Next.js encountered uncached data during a navigation.",
+         "environmentLabel": "Server",
+         "label": "Instant",
+         "source": "app/suspense-in-root/runtime/missing-suspense-around-dynamic/page.tsx (23:19) @ Dynamic
+       > 23 |   await connection()
+            |                   ^",
+         "stack": [
+           "Dynamic app/suspense-in-root/runtime/missing-suspense-around-dynamic/page.tsx (23:19)",
+           "Page app/suspense-in-root/runtime/missing-suspense-around-dynamic/page.tsx (16:9)",
+         ],
+       }
+      `)
     } else {
       const result = await prerender(
         '/suspense-in-root/runtime/missing-suspense-around-dynamic'
@@ -254,31 +254,31 @@ export function registerSuspenseBoundariesTests(
         await expectNoDevValidationErrors(browser, await browser.url())
       } else {
         await expect(browser).toDisplayCollapsedRedbox(`
-           {
-             "cause": [
-               {
-                 "label": "Caused by: Instant Validation",
-                 "source": "app/suspense-in-root/static/missing-suspense-around-dynamic-layout/layout.tsx (4:24) @ instant
-           > 4 | export const instant = { level: 'experimental-error' }
-               |                        ^",
-                 "stack": [
-                   "instant app/suspense-in-root/static/missing-suspense-around-dynamic-layout/layout.tsx (4:24)",
-                   "Set.forEach <anonymous>",
-                 ],
-               },
-             ],
-             "code": "E1402",
-             "description": "Next.js encountered runtime data during a navigation.",
-             "environmentLabel": "Server",
-             "label": "Instant",
-             "source": "app/suspense-in-root/static/missing-suspense-around-dynamic-layout/layout.tsx (7:16) @ Layout
-           >  7 |   await cookies()
-                |                ^",
-             "stack": [
-               "Layout app/suspense-in-root/static/missing-suspense-around-dynamic-layout/layout.tsx (7:16)",
-             ],
-           }
-          `)
+         {
+           "cause": [
+             {
+               "label": "Caused by: Instant Validation",
+               "source": "app/suspense-in-root/static/missing-suspense-around-dynamic-layout/layout.tsx (4:24) @ instant
+         > 4 | export const instant = { level: 'experimental-error' }
+             |                        ^",
+               "stack": [
+                 "instant app/suspense-in-root/static/missing-suspense-around-dynamic-layout/layout.tsx (4:24)",
+                 "Set.forEach <anonymous>",
+               ],
+             },
+           ],
+           "code": "E1430",
+           "description": "Next.js encountered runtime data during a navigation.",
+           "environmentLabel": "Server",
+           "label": "Instant",
+           "source": "app/suspense-in-root/static/missing-suspense-around-dynamic-layout/layout.tsx (7:16) @ Layout
+         >  7 |   await cookies()
+              |                ^",
+           "stack": [
+             "Layout app/suspense-in-root/static/missing-suspense-around-dynamic-layout/layout.tsx (7:16)",
+           ],
+         }
+        `)
       }
     } else {
       const result = await prerender(
@@ -318,31 +318,31 @@ export function registerSuspenseBoundariesTests(
         '/suspense-in-root/runtime/missing-suspense-around-dynamic-layout'
       )
       await expect(browser).toDisplayCollapsedRedbox(`
-         {
-           "cause": [
-             {
-               "label": "Caused by: Instant Validation",
-               "source": "app/suspense-in-root/runtime/missing-suspense-around-dynamic-layout/layout.tsx (4:24) @ instant
-         > 4 | export const instant = { level: 'experimental-error' }
-             |                        ^",
-               "stack": [
-                 "instant app/suspense-in-root/runtime/missing-suspense-around-dynamic-layout/layout.tsx (4:24)",
-                 "Set.forEach <anonymous>",
-               ],
-             },
-           ],
-           "code": "E1398",
-           "description": "Next.js encountered uncached data during a navigation.",
-           "environmentLabel": "Server",
-           "label": "Instant",
-           "source": "app/suspense-in-root/runtime/missing-suspense-around-dynamic-layout/layout.tsx (8:19) @ Layout
-         >  8 |   await connection()
-              |                   ^",
-           "stack": [
-             "Layout app/suspense-in-root/runtime/missing-suspense-around-dynamic-layout/layout.tsx (8:19)",
-           ],
-         }
-        `)
+       {
+         "cause": [
+           {
+             "label": "Caused by: Instant Validation",
+             "source": "app/suspense-in-root/runtime/missing-suspense-around-dynamic-layout/layout.tsx (4:24) @ instant
+       > 4 | export const instant = { level: 'experimental-error' }
+           |                        ^",
+             "stack": [
+               "instant app/suspense-in-root/runtime/missing-suspense-around-dynamic-layout/layout.tsx (4:24)",
+               "Set.forEach <anonymous>",
+             ],
+           },
+         ],
+         "code": "E1437",
+         "description": "Next.js encountered uncached data during a navigation.",
+         "environmentLabel": "Server",
+         "label": "Instant",
+         "source": "app/suspense-in-root/runtime/missing-suspense-around-dynamic-layout/layout.tsx (8:19) @ Layout
+       >  8 |   await connection()
+            |                   ^",
+         "stack": [
+           "Layout app/suspense-in-root/runtime/missing-suspense-around-dynamic-layout/layout.tsx (8:19)",
+         ],
+       }
+      `)
     } else {
       const result = await prerender(
         '/suspense-in-root/runtime/missing-suspense-around-dynamic-layout'
@@ -411,32 +411,32 @@ export function registerSuspenseBoundariesTests(
         `)
     } else {
       await expect(browser).toDisplayCollapsedRedbox(`
-         {
-           "cause": [
-             {
-               "label": "Caused by: Instant Validation",
-               "source": "app/suspense-in-root/static/missing-suspense-around-params/[param]/page.tsx (1:24) @ instant
-         > 1 | export const instant = {
-             |                        ^",
-               "stack": [
-                 "instant app/suspense-in-root/static/missing-suspense-around-params/[param]/page.tsx (1:24)",
-                 "Set.forEach <anonymous>",
-               ],
-             },
-           ],
-           "code": "E1402",
-           "description": "Next.js encountered runtime data during a navigation.",
-           "environmentLabel": "Server",
-           "label": "Instant",
-           "source": "app/suspense-in-root/static/missing-suspense-around-params/[param]/page.tsx (20:21) @ Runtime
-         > 20 |   const { param } = await params
-              |                     ^",
-           "stack": [
-             "Runtime app/suspense-in-root/static/missing-suspense-around-params/[param]/page.tsx (20:21)",
-             "Page app/suspense-in-root/static/missing-suspense-around-params/[param]/page.tsx (14:7)",
-           ],
-         }
-        `)
+       {
+         "cause": [
+           {
+             "label": "Caused by: Instant Validation",
+             "source": "app/suspense-in-root/static/missing-suspense-around-params/[param]/page.tsx (1:24) @ instant
+       > 1 | export const instant = {
+           |                        ^",
+             "stack": [
+               "instant app/suspense-in-root/static/missing-suspense-around-params/[param]/page.tsx (1:24)",
+               "Set.forEach <anonymous>",
+             ],
+           },
+         ],
+         "code": "E1430",
+         "description": "Next.js encountered runtime data during a navigation.",
+         "environmentLabel": "Server",
+         "label": "Instant",
+         "source": "app/suspense-in-root/static/missing-suspense-around-params/[param]/page.tsx (20:21) @ Runtime
+       > 20 |   const { param } = await params
+            |                     ^",
+         "stack": [
+           "Runtime app/suspense-in-root/static/missing-suspense-around-params/[param]/page.tsx (20:21)",
+           "Page app/suspense-in-root/static/missing-suspense-around-params/[param]/page.tsx (14:7)",
+         ],
+       }
+      `)
     }
   })
 
@@ -446,32 +446,32 @@ export function registerSuspenseBoundariesTests(
         '/suspense-in-root/runtime/invalid-no-suspense-around-params/123'
       )
       await expect(browser).toDisplayCollapsedRedbox(`
-         {
-           "cause": [
-             {
-               "label": "Caused by: Instant Validation",
-               "source": "app/suspense-in-root/runtime/invalid-no-suspense-around-params/[param]/page.tsx (4:24) @ instant
-         > 4 | export const instant = {
-             |                        ^",
-               "stack": [
-                 "instant app/suspense-in-root/runtime/invalid-no-suspense-around-params/[param]/page.tsx (4:24)",
-                 "Set.forEach <anonymous>",
-               ],
-             },
-           ],
-           "code": "E1408",
-           "description": "Next.js encountered URL data outside of Suspense.",
-           "environmentLabel": "Server",
-           "label": "Instant",
-           "source": "app/suspense-in-root/runtime/invalid-no-suspense-around-params/[param]/page.tsx (36:21) @ LinkData
-         > 36 |   const { param } = await params
-              |                     ^",
-           "stack": [
-             "LinkData app/suspense-in-root/runtime/invalid-no-suspense-around-params/[param]/page.tsx (36:21)",
-             "Page app/suspense-in-root/runtime/invalid-no-suspense-around-params/[param]/page.tsx (22:9)",
-           ],
-         }
-        `)
+       {
+         "cause": [
+           {
+             "label": "Caused by: Instant Validation",
+             "source": "app/suspense-in-root/runtime/invalid-no-suspense-around-params/[param]/page.tsx (4:24) @ instant
+       > 4 | export const instant = {
+           |                        ^",
+             "stack": [
+               "instant app/suspense-in-root/runtime/invalid-no-suspense-around-params/[param]/page.tsx (4:24)",
+               "Set.forEach <anonymous>",
+             ],
+           },
+         ],
+         "code": "E1439",
+         "description": "Next.js encountered URL data outside of Suspense.",
+         "environmentLabel": "Server",
+         "label": "Instant",
+         "source": "app/suspense-in-root/runtime/invalid-no-suspense-around-params/[param]/page.tsx (36:21) @ LinkData
+       > 36 |   const { param } = await params
+            |                     ^",
+         "stack": [
+           "LinkData app/suspense-in-root/runtime/invalid-no-suspense-around-params/[param]/page.tsx (36:21)",
+           "Page app/suspense-in-root/runtime/invalid-no-suspense-around-params/[param]/page.tsx (22:9)",
+         ],
+       }
+      `)
     } else {
       const result = await prerender(
         '/suspense-in-root/runtime/invalid-no-suspense-around-params/[param]'
@@ -627,7 +627,7 @@ export function registerSuspenseBoundariesTests(
                  ],
                },
              ],
-             "code": "E1402",
+             "code": "E1430",
              "description": "Next.js encountered runtime data during a navigation.",
              "environmentLabel": "Server",
              "label": "Instant",
@@ -738,32 +738,32 @@ export function registerSuspenseBoundariesTests(
           `)
       } else {
         await expect(browser).toDisplayCollapsedRedbox(`
-           {
-             "cause": [
-               {
-                 "label": "Caused by: Instant Validation",
-                 "source": "app/suspense-in-root/runtime/invalid-no-suspense-around-search-params/page.tsx (4:24) @ instant
-           > 4 | export const instant = {
-               |                        ^",
-                 "stack": [
-                   "instant app/suspense-in-root/runtime/invalid-no-suspense-around-search-params/page.tsx (4:24)",
-                   "Set.forEach <anonymous>",
-                 ],
-               },
-             ],
-             "code": "E1408",
-             "description": "Next.js encountered URL data outside of Suspense.",
-             "environmentLabel": "Server",
-             "label": "Instant",
-             "source": "app/suspense-in-root/runtime/invalid-no-suspense-around-search-params/page.tsx (40:18) @ LinkData
-           > 40 |   const search = await searchParams
-                |                  ^",
-             "stack": [
-               "LinkData app/suspense-in-root/runtime/invalid-no-suspense-around-search-params/page.tsx (40:18)",
-               "Page app/suspense-in-root/runtime/invalid-no-suspense-around-search-params/page.tsx (22:9)",
-             ],
-           }
-          `)
+         {
+           "cause": [
+             {
+               "label": "Caused by: Instant Validation",
+               "source": "app/suspense-in-root/runtime/invalid-no-suspense-around-search-params/page.tsx (4:24) @ instant
+         > 4 | export const instant = {
+             |                        ^",
+               "stack": [
+                 "instant app/suspense-in-root/runtime/invalid-no-suspense-around-search-params/page.tsx (4:24)",
+                 "Set.forEach <anonymous>",
+               ],
+             },
+           ],
+           "code": "E1439",
+           "description": "Next.js encountered URL data outside of Suspense.",
+           "environmentLabel": "Server",
+           "label": "Instant",
+           "source": "app/suspense-in-root/runtime/invalid-no-suspense-around-search-params/page.tsx (40:18) @ LinkData
+         > 40 |   const search = await searchParams
+              |                  ^",
+           "stack": [
+             "LinkData app/suspense-in-root/runtime/invalid-no-suspense-around-search-params/page.tsx (40:18)",
+             "Page app/suspense-in-root/runtime/invalid-no-suspense-around-search-params/page.tsx (22:9)",
+           ],
+         }
+        `)
       }
     } else {
       const result = await prerender(
@@ -825,31 +825,31 @@ export function registerSuspenseBoundariesTests(
         await expectNoDevValidationErrors(browser, await browser.url())
       } else {
         await expect(browser).toDisplayCollapsedRedbox(`
-           {
-             "cause": [
-               {
-                 "label": "Caused by: Instant Validation",
-                 "source": "app/suspense-in-root/static/suspense-too-high/page.tsx (3:24) @ instant
-           > 3 | export const instant = { level: 'experimental-error' }
-               |                        ^",
-                 "stack": [
-                   "instant app/suspense-in-root/static/suspense-too-high/page.tsx (3:24)",
-                   "Set.forEach <anonymous>",
-                 ],
-               },
-             ],
-             "code": "E1402",
-             "description": "Next.js encountered runtime data during a navigation.",
-             "environmentLabel": "Server",
-             "label": "Instant",
-             "source": "app/suspense-in-root/static/suspense-too-high/page.tsx (6:16) @ Page
-           > 6 |   await cookies()
-               |                ^",
-             "stack": [
-               "Page app/suspense-in-root/static/suspense-too-high/page.tsx (6:16)",
-             ],
-           }
-          `)
+         {
+           "cause": [
+             {
+               "label": "Caused by: Instant Validation",
+               "source": "app/suspense-in-root/static/suspense-too-high/page.tsx (3:24) @ instant
+         > 3 | export const instant = { level: 'experimental-error' }
+             |                        ^",
+               "stack": [
+                 "instant app/suspense-in-root/static/suspense-too-high/page.tsx (3:24)",
+                 "Set.forEach <anonymous>",
+               ],
+             },
+           ],
+           "code": "E1430",
+           "description": "Next.js encountered runtime data during a navigation.",
+           "environmentLabel": "Server",
+           "label": "Instant",
+           "source": "app/suspense-in-root/static/suspense-too-high/page.tsx (6:16) @ Page
+         > 6 |   await cookies()
+             |                ^",
+           "stack": [
+             "Page app/suspense-in-root/static/suspense-too-high/page.tsx (6:16)",
+           ],
+         }
+        `)
       }
     } else {
       const result = await prerender(
@@ -894,32 +894,32 @@ export function registerSuspenseBoundariesTests(
         '/suspense-in-root/runtime/suspense-too-high'
       )
       await expect(browser).toDisplayCollapsedRedbox(`
-         {
-           "cause": [
-             {
-               "label": "Caused by: Instant Validation",
-               "source": "app/suspense-in-root/runtime/suspense-too-high/page.tsx (4:24) @ instant
-         > 4 | export const instant = { level: 'experimental-error' }
-             |                        ^",
-               "stack": [
-                 "instant app/suspense-in-root/runtime/suspense-too-high/page.tsx (4:24)",
-                 "Set.forEach <anonymous>",
-               ],
-             },
-           ],
-           "code": "E1398",
-           "description": "Next.js encountered uncached data during a navigation.",
-           "environmentLabel": "Server",
-           "label": "Instant",
-           "source": "app/suspense-in-root/runtime/suspense-too-high/page.tsx (24:19) @ Dynamic
-         > 24 |   await connection()
-              |                   ^",
-           "stack": [
-             "Dynamic app/suspense-in-root/runtime/suspense-too-high/page.tsx (24:19)",
-             "Page app/suspense-in-root/runtime/suspense-too-high/page.tsx (17:9)",
-           ],
-         }
-        `)
+       {
+         "cause": [
+           {
+             "label": "Caused by: Instant Validation",
+             "source": "app/suspense-in-root/runtime/suspense-too-high/page.tsx (4:24) @ instant
+       > 4 | export const instant = { level: 'experimental-error' }
+           |                        ^",
+             "stack": [
+               "instant app/suspense-in-root/runtime/suspense-too-high/page.tsx (4:24)",
+               "Set.forEach <anonymous>",
+             ],
+           },
+         ],
+         "code": "E1437",
+         "description": "Next.js encountered uncached data during a navigation.",
+         "environmentLabel": "Server",
+         "label": "Instant",
+         "source": "app/suspense-in-root/runtime/suspense-too-high/page.tsx (24:19) @ Dynamic
+       > 24 |   await connection()
+            |                   ^",
+         "stack": [
+           "Dynamic app/suspense-in-root/runtime/suspense-too-high/page.tsx (24:19)",
+           "Page app/suspense-in-root/runtime/suspense-too-high/page.tsx (17:9)",
+         ],
+       }
+      `)
     } else {
       const result = await prerender(
         '/suspense-in-root/runtime/suspense-too-high'
@@ -978,32 +978,32 @@ export function registerSuspenseBoundariesTests(
         '/suspense-in-root/static/invalid-loading-above-route-group'
       )
       await expect(browser).toDisplayCollapsedRedbox(`
-         {
-           "cause": [
-             {
-               "label": "Caused by: Instant Validation",
-               "source": "app/suspense-in-root/static/invalid-loading-above-route-group/(group)/page.tsx (4:24) @ instant
-         > 4 | export const instant = { level: 'experimental-error' }
-             |                        ^",
-               "stack": [
-                 "instant app/suspense-in-root/static/invalid-loading-above-route-group/(group)/page.tsx (4:24)",
-                 "Set.forEach <anonymous>",
-               ],
-             },
-           ],
-           "code": "E1398",
-           "description": "Next.js encountered uncached data during a navigation.",
-           "environmentLabel": "Server",
-           "label": "Instant",
-           "source": "app/suspense-in-root/static/invalid-loading-above-route-group/(group)/page.tsx (34:19) @ Dynamic
-         > 34 |   await connection()
-              |                   ^",
-           "stack": [
-             "Dynamic app/suspense-in-root/static/invalid-loading-above-route-group/(group)/page.tsx (34:19)",
-             "Page app/suspense-in-root/static/invalid-loading-above-route-group/(group)/page.tsx (22:9)",
-           ],
-         }
-        `)
+       {
+         "cause": [
+           {
+             "label": "Caused by: Instant Validation",
+             "source": "app/suspense-in-root/static/invalid-loading-above-route-group/(group)/page.tsx (4:24) @ instant
+       > 4 | export const instant = { level: 'experimental-error' }
+           |                        ^",
+             "stack": [
+               "instant app/suspense-in-root/static/invalid-loading-above-route-group/(group)/page.tsx (4:24)",
+               "Set.forEach <anonymous>",
+             ],
+           },
+         ],
+         "code": "E1437",
+         "description": "Next.js encountered uncached data during a navigation.",
+         "environmentLabel": "Server",
+         "label": "Instant",
+         "source": "app/suspense-in-root/static/invalid-loading-above-route-group/(group)/page.tsx (34:19) @ Dynamic
+       > 34 |   await connection()
+            |                   ^",
+         "stack": [
+           "Dynamic app/suspense-in-root/static/invalid-loading-above-route-group/(group)/page.tsx (34:19)",
+           "Page app/suspense-in-root/static/invalid-loading-above-route-group/(group)/page.tsx (22:9)",
+         ],
+       }
+      `)
     } else {
       const result = await prerender(
         '/suspense-in-root/static/invalid-loading-above-route-group/(group)'
@@ -1043,32 +1043,32 @@ export function registerSuspenseBoundariesTests(
         '/suspense-in-root/static/invalid-dynamic-layout-with-loading'
       )
       await expect(browser).toDisplayCollapsedRedbox(`
-         {
-           "cause": [
-             {
-               "label": "Caused by: Instant Validation",
-               "source": "app/suspense-in-root/static/invalid-dynamic-layout-with-loading/layout.tsx (4:24) @ instant
-         > 4 | export const instant = { level: 'experimental-error' }
-             |                        ^",
-               "stack": [
-                 "instant app/suspense-in-root/static/invalid-dynamic-layout-with-loading/layout.tsx (4:24)",
-                 "Set.forEach <anonymous>",
-               ],
-             },
-           ],
-           "code": "E1398",
-           "description": "Next.js encountered uncached data during a navigation.",
-           "environmentLabel": "Server",
-           "label": "Instant",
-           "source": "app/suspense-in-root/static/invalid-dynamic-layout-with-loading/layout.tsx (24:19) @ Dynamic
-         > 24 |   await connection()
-              |                   ^",
-           "stack": [
-             "Dynamic app/suspense-in-root/static/invalid-dynamic-layout-with-loading/layout.tsx (24:19)",
-             "Layout app/suspense-in-root/static/invalid-dynamic-layout-with-loading/layout.tsx (15:9)",
-           ],
-         }
-        `)
+       {
+         "cause": [
+           {
+             "label": "Caused by: Instant Validation",
+             "source": "app/suspense-in-root/static/invalid-dynamic-layout-with-loading/layout.tsx (4:24) @ instant
+       > 4 | export const instant = { level: 'experimental-error' }
+           |                        ^",
+             "stack": [
+               "instant app/suspense-in-root/static/invalid-dynamic-layout-with-loading/layout.tsx (4:24)",
+               "Set.forEach <anonymous>",
+             ],
+           },
+         ],
+         "code": "E1437",
+         "description": "Next.js encountered uncached data during a navigation.",
+         "environmentLabel": "Server",
+         "label": "Instant",
+         "source": "app/suspense-in-root/static/invalid-dynamic-layout-with-loading/layout.tsx (24:19) @ Dynamic
+       > 24 |   await connection()
+            |                   ^",
+         "stack": [
+           "Dynamic app/suspense-in-root/static/invalid-dynamic-layout-with-loading/layout.tsx (24:19)",
+           "Layout app/suspense-in-root/static/invalid-dynamic-layout-with-loading/layout.tsx (15:9)",
+         ],
+       }
+      `)
     } else {
       const result = await prerender(
         '/suspense-in-root/static/invalid-dynamic-layout-with-loading'

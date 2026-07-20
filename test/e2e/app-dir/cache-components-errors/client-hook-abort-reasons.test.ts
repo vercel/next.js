@@ -293,11 +293,10 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
 
                  Ways to fix this:
                    - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                     https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
                    - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
-                     https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
                    - [block] Set \`export const instant = false\` to allow a blocking route
-                     https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
+
+                 Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic
                      at DataSlot (webpack:///app/client-hook-abort-reasons/data.tsx:1:23)
                      at Page (webpack:///app/client-hook-abort-reasons/normal/use-search-params/[id]/page.tsx:7:7)
                  > 1 | export async function DataSlot() {
@@ -312,9 +311,9 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
 
                  Ways to fix this:
                    - [stream] Wrap the component in \`<Suspense fallback={...}>\` so the hook value streams in after prerendering
-                     https://nextjs.org/docs/messages/blocking-prerender-client-hook#wrap-in-or-move-into-suspense
                    - [block] Set \`export const instant = false\` to allow a blocking route
-                     https://nextjs.org/docs/messages/blocking-prerender-client-hook#allow-blocking-route
+
+                 Learn more: https://nextjs.org/docs/messages/blocking-prerender-client-hook
                      at Object.useDynamicSearchParams (webpack:///<next-src>)
                      at useSearchParams (webpack:///<next-src>)
                      at UseSearchParams (webpack:///app/client-hook-abort-reasons/client.tsx:27:18)
@@ -427,11 +426,10 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
 
                Ways to fix this:
                  - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                   https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
                  - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
-                   https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
                  - [block] Set \`export const instant = false\` to allow a blocking route
-                   https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
+
+               Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic
                    at DataSlot (app/client-hook-abort-reasons/data.tsx:1:23)
                    at Page (app/client-hook-abort-reasons/normal/use-search-params/[id]/page.tsx:7:7)
                > 1 | export async function DataSlot() {
@@ -446,9 +444,9 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
 
                Ways to fix this:
                  - [stream] Wrap the component in \`<Suspense fallback={...}>\` so the hook value streams in after prerendering
-                   https://nextjs.org/docs/messages/blocking-prerender-client-hook#wrap-in-or-move-into-suspense
                  - [block] Set \`export const instant = false\` to allow a blocking route
-                   https://nextjs.org/docs/messages/blocking-prerender-client-hook#allow-blocking-route
+
+               Learn more: https://nextjs.org/docs/messages/blocking-prerender-client-hook
                    at UseSearchParams (app/client-hook-abort-reasons/client.tsx:27:18)
                    at Page (app/client-hook-abort-reasons/normal/use-search-params/[id]/page.tsx:8:7)
                  25 |
@@ -574,11 +572,10 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
 
                  Ways to fix this:
                    - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                     https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
                    - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
-                     https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
                    - [block] Set \`export const instant = false\` to allow a blocking route
-                     https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
+
+                 Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic
                      at DataSlot (webpack:///app/client-hook-abort-reasons/data.tsx:1:23)
                      at Page (webpack:///app/client-hook-abort-reasons/normal/use-pathname/[id]/page.tsx:8:7)
                  > 1 | export async function DataSlot() {
@@ -593,9 +590,9 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
 
                  Ways to fix this:
                    - [stream] Wrap the component in \`<Suspense fallback={...}>\` so the hook value streams in after prerendering
-                     https://nextjs.org/docs/messages/blocking-prerender-client-hook#wrap-in-or-move-into-suspense
                    - [block] Set \`export const instant = false\` to allow a blocking route
-                     https://nextjs.org/docs/messages/blocking-prerender-client-hook#allow-blocking-route
+
+                 Learn more: https://nextjs.org/docs/messages/blocking-prerender-client-hook
                      at Object.useDynamicRouteParams (webpack:///<next-src>)
                      at usePathname (webpack:///<next-src>)
                      at UsePathname (webpack:///app/client-hook-abort-reasons/client.tsx:22:14)
@@ -708,11 +705,10 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
 
                Ways to fix this:
                  - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                   https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
                  - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
-                   https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
                  - [block] Set \`export const instant = false\` to allow a blocking route
-                   https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
+
+               Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic
                    at DataSlot (app/client-hook-abort-reasons/data.tsx:1:23)
                    at Page (app/client-hook-abort-reasons/normal/use-pathname/[id]/page.tsx:8:7)
                > 1 | export async function DataSlot() {
@@ -727,9 +723,9 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
 
                Ways to fix this:
                  - [stream] Wrap the component in \`<Suspense fallback={...}>\` so the hook value streams in after prerendering
-                   https://nextjs.org/docs/messages/blocking-prerender-client-hook#wrap-in-or-move-into-suspense
                  - [block] Set \`export const instant = false\` to allow a blocking route
-                   https://nextjs.org/docs/messages/blocking-prerender-client-hook#allow-blocking-route
+
+               Learn more: https://nextjs.org/docs/messages/blocking-prerender-client-hook
                    at UsePathname (app/client-hook-abort-reasons/client.tsx:22:14)
                    at Page (app/client-hook-abort-reasons/normal/use-pathname/[id]/page.tsx:7:7)
                  20 |
@@ -855,11 +851,10 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
 
                  Ways to fix this:
                    - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                     https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
                    - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
-                     https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
                    - [block] Set \`export const instant = false\` to allow a blocking route
-                     https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
+
+                 Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic
                      at DataSlot (webpack:///app/client-hook-abort-reasons/data.tsx:1:23)
                      at Page (webpack:///app/client-hook-abort-reasons/normal/use-params/[id]/page.tsx:7:7)
                  > 1 | export async function DataSlot() {
@@ -874,9 +869,9 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
 
                  Ways to fix this:
                    - [stream] Wrap the component in \`<Suspense fallback={...}>\` so the hook value streams in after prerendering
-                     https://nextjs.org/docs/messages/blocking-prerender-client-hook#wrap-in-or-move-into-suspense
                    - [block] Set \`export const instant = false\` to allow a blocking route
-                     https://nextjs.org/docs/messages/blocking-prerender-client-hook#allow-blocking-route
+
+                 Learn more: https://nextjs.org/docs/messages/blocking-prerender-client-hook
                      at Object.useDynamicRouteParams (webpack:///<next-src>)
                      at useParams (webpack:///<next-src>)
                      at UseParams (webpack:///app/client-hook-abort-reasons/client.tsx:17:12)
@@ -989,11 +984,10 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
 
                Ways to fix this:
                  - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                   https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
                  - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
-                   https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
                  - [block] Set \`export const instant = false\` to allow a blocking route
-                   https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
+
+               Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic
                    at DataSlot (app/client-hook-abort-reasons/data.tsx:1:23)
                    at Page (app/client-hook-abort-reasons/normal/use-params/[id]/page.tsx:7:7)
                > 1 | export async function DataSlot() {
@@ -1008,9 +1002,9 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
 
                Ways to fix this:
                  - [stream] Wrap the component in \`<Suspense fallback={...}>\` so the hook value streams in after prerendering
-                   https://nextjs.org/docs/messages/blocking-prerender-client-hook#wrap-in-or-move-into-suspense
                  - [block] Set \`export const instant = false\` to allow a blocking route
-                   https://nextjs.org/docs/messages/blocking-prerender-client-hook#allow-blocking-route
+
+               Learn more: https://nextjs.org/docs/messages/blocking-prerender-client-hook
                    at UseParams (app/client-hook-abort-reasons/client.tsx:17:12)
                    at Page (app/client-hook-abort-reasons/normal/use-params/[id]/page.tsx:8:7)
                  15 |
@@ -1136,11 +1130,10 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
 
                  Ways to fix this:
                    - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                     https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
                    - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
-                     https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
                    - [block] Set \`export const instant = false\` to allow a blocking route
-                     https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
+
+                 Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic
                      at DataSlot (webpack:///app/client-hook-abort-reasons/data.tsx:1:23)
                      at Page (webpack:///app/client-hook-abort-reasons/normal/use-selected-layout-segments/[id]/page.tsx:8:7)
                  > 1 | export async function DataSlot() {
@@ -1155,9 +1148,9 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
 
                  Ways to fix this:
                    - [stream] Wrap the component in \`<Suspense fallback={...}>\` so the hook value streams in after prerendering
-                     https://nextjs.org/docs/messages/blocking-prerender-client-hook#wrap-in-or-move-into-suspense
                    - [block] Set \`export const instant = false\` to allow a blocking route
-                     https://nextjs.org/docs/messages/blocking-prerender-client-hook#allow-blocking-route
+
+                 Learn more: https://nextjs.org/docs/messages/blocking-prerender-client-hook
                      at Object.useDynamicRouteParams (webpack:///<next-src>)
                      at useSelectedLayoutSegments (webpack:///<next-src>)
                      at UseSelectedLayoutSegments (webpack:///app/client-hook-abort-reasons/client.tsx:37:28)
@@ -1270,11 +1263,10 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
 
                Ways to fix this:
                  - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                   https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
                  - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
-                   https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
                  - [block] Set \`export const instant = false\` to allow a blocking route
-                   https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
+
+               Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic
                    at DataSlot (app/client-hook-abort-reasons/data.tsx:1:23)
                    at Page (app/client-hook-abort-reasons/normal/use-selected-layout-segments/[id]/page.tsx:8:7)
                > 1 | export async function DataSlot() {
@@ -1289,9 +1281,9 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
 
                Ways to fix this:
                  - [stream] Wrap the component in \`<Suspense fallback={...}>\` so the hook value streams in after prerendering
-                   https://nextjs.org/docs/messages/blocking-prerender-client-hook#wrap-in-or-move-into-suspense
                  - [block] Set \`export const instant = false\` to allow a blocking route
-                   https://nextjs.org/docs/messages/blocking-prerender-client-hook#allow-blocking-route
+
+               Learn more: https://nextjs.org/docs/messages/blocking-prerender-client-hook
                    at UseSelectedLayoutSegments (app/client-hook-abort-reasons/client.tsx:37:28)
                    at Page (app/client-hook-abort-reasons/normal/use-selected-layout-segments/[id]/page.tsx:7:7)
                  35 |
@@ -1417,11 +1409,10 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
 
                  Ways to fix this:
                    - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                     https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
                    - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
-                     https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
                    - [block] Set \`export const instant = false\` to allow a blocking route
-                     https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
+
+                 Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic
                      at DataSlot (webpack:///app/client-hook-abort-reasons/data.tsx:1:23)
                      at Page (webpack:///app/client-hook-abort-reasons/normal/use-selected-layout-segment/[id]/page.tsx:7:7)
                  > 1 | export async function DataSlot() {
@@ -1436,9 +1427,9 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
 
                  Ways to fix this:
                    - [stream] Wrap the component in \`<Suspense fallback={...}>\` so the hook value streams in after prerendering
-                     https://nextjs.org/docs/messages/blocking-prerender-client-hook#wrap-in-or-move-into-suspense
                    - [block] Set \`export const instant = false\` to allow a blocking route
-                     https://nextjs.org/docs/messages/blocking-prerender-client-hook#allow-blocking-route
+
+                 Learn more: https://nextjs.org/docs/messages/blocking-prerender-client-hook
                      at Object.useDynamicRouteParams (webpack:///<next-src>)
                      at useSelectedLayoutSegment (webpack:///<next-src>)
                      at UseSelectedLayoutSegment (webpack:///app/client-hook-abort-reasons/client.tsx:32:27)
@@ -1551,11 +1542,10 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
 
                Ways to fix this:
                  - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                   https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
                  - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
-                   https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
                  - [block] Set \`export const instant = false\` to allow a blocking route
-                   https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
+
+               Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic
                    at DataSlot (app/client-hook-abort-reasons/data.tsx:1:23)
                    at Page (app/client-hook-abort-reasons/normal/use-selected-layout-segment/[id]/page.tsx:7:7)
                > 1 | export async function DataSlot() {
@@ -1570,9 +1560,9 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
 
                Ways to fix this:
                  - [stream] Wrap the component in \`<Suspense fallback={...}>\` so the hook value streams in after prerendering
-                   https://nextjs.org/docs/messages/blocking-prerender-client-hook#wrap-in-or-move-into-suspense
                  - [block] Set \`export const instant = false\` to allow a blocking route
-                   https://nextjs.org/docs/messages/blocking-prerender-client-hook#allow-blocking-route
+
+               Learn more: https://nextjs.org/docs/messages/blocking-prerender-client-hook
                    at UseSelectedLayoutSegment (app/client-hook-abort-reasons/client.tsx:32:27)
                    at Page (app/client-hook-abort-reasons/normal/use-selected-layout-segment/[id]/page.tsx:8:7)
                  30 |
@@ -1894,11 +1884,10 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
 
                  Ways to fix this:
                    - [stream] Wrap the Client Component in \`<Suspense fallback={...}>\`
-                     https://nextjs.org/docs/messages/blocking-prerender-current-time-client#wrap-in-or-move-into-suspense
                    - [defer] Move the read into a \`useEffect\` or event handler
-                     https://nextjs.org/docs/messages/blocking-prerender-current-time-client#move-into-effect-or-event-handler
                    - [measure] If the value is for telemetry, use a timing API such as \`performance.now()\`
-                     https://nextjs.org/docs/messages/blocking-prerender-current-time-client#for-telemetry-use-a-timing-api
+
+                 Learn more: https://nextjs.org/docs/messages/blocking-prerender-current-time-client
                      at SyncIO (webpack:///app/client-hook-abort-reasons/client.tsx:12:8)
                      at Page (webpack:///app/client-hook-abort-reasons/sync-io/use-search-params/[id]/page.tsx:7:7)
                    10 |
@@ -1945,11 +1934,10 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
 
                Ways to fix this:
                  - [stream] Wrap the Client Component in \`<Suspense fallback={...}>\`
-                   https://nextjs.org/docs/messages/blocking-prerender-current-time-client#wrap-in-or-move-into-suspense
                  - [defer] Move the read into a \`useEffect\` or event handler
-                   https://nextjs.org/docs/messages/blocking-prerender-current-time-client#move-into-effect-or-event-handler
                  - [measure] If the value is for telemetry, use a timing API such as \`performance.now()\`
-                   https://nextjs.org/docs/messages/blocking-prerender-current-time-client#for-telemetry-use-a-timing-api
+
+               Learn more: https://nextjs.org/docs/messages/blocking-prerender-current-time-client
                    at SyncIO (app/client-hook-abort-reasons/client.tsx:12:8)
                    at Page (app/client-hook-abort-reasons/sync-io/use-search-params/[id]/page.tsx:7:7)
                  10 |
@@ -2012,11 +2000,10 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
 
                  Ways to fix this:
                    - [stream] Wrap the Client Component in \`<Suspense fallback={...}>\`
-                     https://nextjs.org/docs/messages/blocking-prerender-current-time-client#wrap-in-or-move-into-suspense
                    - [defer] Move the read into a \`useEffect\` or event handler
-                     https://nextjs.org/docs/messages/blocking-prerender-current-time-client#move-into-effect-or-event-handler
                    - [measure] If the value is for telemetry, use a timing API such as \`performance.now()\`
-                     https://nextjs.org/docs/messages/blocking-prerender-current-time-client#for-telemetry-use-a-timing-api
+
+                 Learn more: https://nextjs.org/docs/messages/blocking-prerender-current-time-client
                      at SyncIO (webpack:///app/client-hook-abort-reasons/client.tsx:12:8)
                      at Page (webpack:///app/client-hook-abort-reasons/sync-io/use-pathname/[id]/page.tsx:7:7)
                    10 |
@@ -2063,11 +2050,10 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
 
                Ways to fix this:
                  - [stream] Wrap the Client Component in \`<Suspense fallback={...}>\`
-                   https://nextjs.org/docs/messages/blocking-prerender-current-time-client#wrap-in-or-move-into-suspense
                  - [defer] Move the read into a \`useEffect\` or event handler
-                   https://nextjs.org/docs/messages/blocking-prerender-current-time-client#move-into-effect-or-event-handler
                  - [measure] If the value is for telemetry, use a timing API such as \`performance.now()\`
-                   https://nextjs.org/docs/messages/blocking-prerender-current-time-client#for-telemetry-use-a-timing-api
+
+               Learn more: https://nextjs.org/docs/messages/blocking-prerender-current-time-client
                    at SyncIO (app/client-hook-abort-reasons/client.tsx:12:8)
                    at Page (app/client-hook-abort-reasons/sync-io/use-pathname/[id]/page.tsx:7:7)
                  10 |
@@ -2130,11 +2116,10 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
 
                  Ways to fix this:
                    - [stream] Wrap the Client Component in \`<Suspense fallback={...}>\`
-                     https://nextjs.org/docs/messages/blocking-prerender-current-time-client#wrap-in-or-move-into-suspense
                    - [defer] Move the read into a \`useEffect\` or event handler
-                     https://nextjs.org/docs/messages/blocking-prerender-current-time-client#move-into-effect-or-event-handler
                    - [measure] If the value is for telemetry, use a timing API such as \`performance.now()\`
-                     https://nextjs.org/docs/messages/blocking-prerender-current-time-client#for-telemetry-use-a-timing-api
+
+                 Learn more: https://nextjs.org/docs/messages/blocking-prerender-current-time-client
                      at SyncIO (webpack:///app/client-hook-abort-reasons/client.tsx:12:8)
                      at Page (webpack:///app/client-hook-abort-reasons/sync-io/use-params/[id]/page.tsx:8:7)
                    10 |
@@ -2151,9 +2136,9 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
 
                  Ways to fix this:
                    - [stream] Wrap the component in \`<Suspense fallback={...}>\` so the hook value streams in after prerendering
-                     https://nextjs.org/docs/messages/blocking-prerender-client-hook#wrap-in-or-move-into-suspense
                    - [block] Set \`export const instant = false\` to allow a blocking route
-                     https://nextjs.org/docs/messages/blocking-prerender-client-hook#allow-blocking-route
+
+                 Learn more: https://nextjs.org/docs/messages/blocking-prerender-client-hook
                      at Object.useDynamicRouteParams (webpack:///<next-src>)
                      at useParams (webpack:///<next-src>)
                      at UseParams (webpack:///app/client-hook-abort-reasons/client.tsx:17:12)
@@ -2243,11 +2228,10 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
 
                Ways to fix this:
                  - [stream] Wrap the Client Component in \`<Suspense fallback={...}>\`
-                   https://nextjs.org/docs/messages/blocking-prerender-current-time-client#wrap-in-or-move-into-suspense
                  - [defer] Move the read into a \`useEffect\` or event handler
-                   https://nextjs.org/docs/messages/blocking-prerender-current-time-client#move-into-effect-or-event-handler
                  - [measure] If the value is for telemetry, use a timing API such as \`performance.now()\`
-                   https://nextjs.org/docs/messages/blocking-prerender-current-time-client#for-telemetry-use-a-timing-api
+
+               Learn more: https://nextjs.org/docs/messages/blocking-prerender-current-time-client
                    at SyncIO (app/client-hook-abort-reasons/client.tsx:12:8)
                    at Page (app/client-hook-abort-reasons/sync-io/use-params/[id]/page.tsx:8:7)
                  10 |
@@ -2264,9 +2248,9 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
 
                Ways to fix this:
                  - [stream] Wrap the component in \`<Suspense fallback={...}>\` so the hook value streams in after prerendering
-                   https://nextjs.org/docs/messages/blocking-prerender-client-hook#wrap-in-or-move-into-suspense
                  - [block] Set \`export const instant = false\` to allow a blocking route
-                   https://nextjs.org/docs/messages/blocking-prerender-client-hook#allow-blocking-route
+
+               Learn more: https://nextjs.org/docs/messages/blocking-prerender-client-hook
                    at UseParams (app/client-hook-abort-reasons/client.tsx:17:12)
                    at Page (app/client-hook-abort-reasons/sync-io/use-params/[id]/page.tsx:7:7)
                  15 |
@@ -2375,11 +2359,10 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
 
                  Ways to fix this:
                    - [stream] Wrap the Client Component in \`<Suspense fallback={...}>\`
-                     https://nextjs.org/docs/messages/blocking-prerender-current-time-client#wrap-in-or-move-into-suspense
                    - [defer] Move the read into a \`useEffect\` or event handler
-                     https://nextjs.org/docs/messages/blocking-prerender-current-time-client#move-into-effect-or-event-handler
                    - [measure] If the value is for telemetry, use a timing API such as \`performance.now()\`
-                     https://nextjs.org/docs/messages/blocking-prerender-current-time-client#for-telemetry-use-a-timing-api
+
+                 Learn more: https://nextjs.org/docs/messages/blocking-prerender-current-time-client
                      at SyncIO (webpack:///app/client-hook-abort-reasons/client.tsx:12:8)
                      at Page (webpack:///app/client-hook-abort-reasons/sync-io/use-selected-layout-segments/[id]/page.tsx:8:7)
                    10 |
@@ -2396,11 +2379,10 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
 
                  Ways to fix this:
                    - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                     https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
                    - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
-                     https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
                    - [block] Set \`export const instant = false\` to allow a blocking route
-                     https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
+
+                 Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic
                      at DataSlot (webpack:///app/client-hook-abort-reasons/data.tsx:1:23)
                      at Page (webpack:///app/client-hook-abort-reasons/sync-io/use-selected-layout-segments/[id]/page.tsx:7:7)
                  > 1 | export async function DataSlot() {
@@ -2482,11 +2464,10 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
 
                Ways to fix this:
                  - [stream] Wrap the Client Component in \`<Suspense fallback={...}>\`
-                   https://nextjs.org/docs/messages/blocking-prerender-current-time-client#wrap-in-or-move-into-suspense
                  - [defer] Move the read into a \`useEffect\` or event handler
-                   https://nextjs.org/docs/messages/blocking-prerender-current-time-client#move-into-effect-or-event-handler
                  - [measure] If the value is for telemetry, use a timing API such as \`performance.now()\`
-                   https://nextjs.org/docs/messages/blocking-prerender-current-time-client#for-telemetry-use-a-timing-api
+
+               Learn more: https://nextjs.org/docs/messages/blocking-prerender-current-time-client
                    at SyncIO (app/client-hook-abort-reasons/client.tsx:12:8)
                    at Page (app/client-hook-abort-reasons/sync-io/use-selected-layout-segments/[id]/page.tsx:8:7)
                  10 |
@@ -2503,11 +2484,10 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
 
                Ways to fix this:
                  - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                   https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
                  - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
-                   https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
                  - [block] Set \`export const instant = false\` to allow a blocking route
-                   https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
+
+               Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic
                    at DataSlot (app/client-hook-abort-reasons/data.tsx:1:23)
                    at Page (app/client-hook-abort-reasons/sync-io/use-selected-layout-segments/[id]/page.tsx:7:7)
                > 1 | export async function DataSlot() {
@@ -2606,11 +2586,10 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
 
                  Ways to fix this:
                    - [stream] Wrap the Client Component in \`<Suspense fallback={...}>\`
-                     https://nextjs.org/docs/messages/blocking-prerender-current-time-client#wrap-in-or-move-into-suspense
                    - [defer] Move the read into a \`useEffect\` or event handler
-                     https://nextjs.org/docs/messages/blocking-prerender-current-time-client#move-into-effect-or-event-handler
                    - [measure] If the value is for telemetry, use a timing API such as \`performance.now()\`
-                     https://nextjs.org/docs/messages/blocking-prerender-current-time-client#for-telemetry-use-a-timing-api
+
+                 Learn more: https://nextjs.org/docs/messages/blocking-prerender-current-time-client
                      at SyncIO (webpack:///app/client-hook-abort-reasons/client.tsx:12:8)
                      at Page (webpack:///app/client-hook-abort-reasons/sync-io/use-selected-layout-segment/[id]/page.tsx:9:7)
                    10 |
@@ -2627,11 +2606,10 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
 
                  Ways to fix this:
                    - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                     https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
                    - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
-                     https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
                    - [block] Set \`export const instant = false\` to allow a blocking route
-                     https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
+
+                 Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic
                      at DataSlot (webpack:///app/client-hook-abort-reasons/data.tsx:1:23)
                      at Page (webpack:///app/client-hook-abort-reasons/sync-io/use-selected-layout-segment/[id]/page.tsx:7:7)
                  > 1 | export async function DataSlot() {
@@ -2646,9 +2624,9 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
 
                  Ways to fix this:
                    - [stream] Wrap the component in \`<Suspense fallback={...}>\` so the hook value streams in after prerendering
-                     https://nextjs.org/docs/messages/blocking-prerender-client-hook#wrap-in-or-move-into-suspense
                    - [block] Set \`export const instant = false\` to allow a blocking route
-                     https://nextjs.org/docs/messages/blocking-prerender-client-hook#allow-blocking-route
+
+                 Learn more: https://nextjs.org/docs/messages/blocking-prerender-client-hook
                      at Object.useDynamicRouteParams (webpack:///<next-src>)
                      at useSelectedLayoutSegment (webpack:///<next-src>)
                      at UseSelectedLayoutSegment (webpack:///app/client-hook-abort-reasons/client.tsx:32:27)
@@ -2775,11 +2753,10 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
 
                Ways to fix this:
                  - [stream] Wrap the Client Component in \`<Suspense fallback={...}>\`
-                   https://nextjs.org/docs/messages/blocking-prerender-current-time-client#wrap-in-or-move-into-suspense
                  - [defer] Move the read into a \`useEffect\` or event handler
-                   https://nextjs.org/docs/messages/blocking-prerender-current-time-client#move-into-effect-or-event-handler
                  - [measure] If the value is for telemetry, use a timing API such as \`performance.now()\`
-                   https://nextjs.org/docs/messages/blocking-prerender-current-time-client#for-telemetry-use-a-timing-api
+
+               Learn more: https://nextjs.org/docs/messages/blocking-prerender-current-time-client
                    at SyncIO (app/client-hook-abort-reasons/client.tsx:12:8)
                    at Page (app/client-hook-abort-reasons/sync-io/use-selected-layout-segment/[id]/page.tsx:9:7)
                  10 |
@@ -2796,11 +2773,10 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
 
                Ways to fix this:
                  - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                   https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
                  - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
-                   https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
                  - [block] Set \`export const instant = false\` to allow a blocking route
-                   https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
+
+               Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic
                    at DataSlot (app/client-hook-abort-reasons/data.tsx:1:23)
                    at Page (app/client-hook-abort-reasons/sync-io/use-selected-layout-segment/[id]/page.tsx:7:7)
                > 1 | export async function DataSlot() {
@@ -2815,9 +2791,9 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
 
                Ways to fix this:
                  - [stream] Wrap the component in \`<Suspense fallback={...}>\` so the hook value streams in after prerendering
-                   https://nextjs.org/docs/messages/blocking-prerender-client-hook#wrap-in-or-move-into-suspense
                  - [block] Set \`export const instant = false\` to allow a blocking route
-                   https://nextjs.org/docs/messages/blocking-prerender-client-hook#allow-blocking-route
+
+               Learn more: https://nextjs.org/docs/messages/blocking-prerender-client-hook
                    at UseSelectedLayoutSegment (app/client-hook-abort-reasons/client.tsx:32:27)
                    at Page (app/client-hook-abort-reasons/sync-io/use-selected-layout-segment/[id]/page.tsx:8:7)
                  30 |
