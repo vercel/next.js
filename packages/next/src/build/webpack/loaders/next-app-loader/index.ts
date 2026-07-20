@@ -429,7 +429,7 @@ async function createTreeCodeFromPath(
       parallelSegmentKey =
         parallelSegmentKey === PARALLEL_VIRTUAL_SEGMENT ||
         parallelSegmentKey === PAGE_SEGMENT
-          ? '(slot)'
+          ? '(__SLOT__)'
           : parallelSegmentKey
 
       const normalizedParallelKey = normalizeParallelKey(parallelKey)
@@ -1108,13 +1108,15 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
   )
 
   // Lazily evaluate the imported modules in the generated code
-  const header = collectedDeclarations
-    .map(([varName, modulePath]) => {
-      return `const ${varName} = () => import(/* webpackMode: "eager" */ ${JSON.stringify(
-        modulePath
-      )});\n`
-    })
-    .join('')
+  const header =
+    `import { instrumentModuleGetter } from 'next/dist/server/app-render/module-loading/instrument-module-getter'\n` +
+    collectedDeclarations
+      .map(([varName, modulePath]) => {
+        return `const ${varName} = instrumentModuleGetter(() => import(/* webpackMode: "eager" */ ${JSON.stringify(
+          modulePath
+        )}));\n`
+      })
+      .join('')
 
   return header + code
 }

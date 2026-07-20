@@ -93,7 +93,7 @@ export default function MyApp({ Component, pageProps }) {
 
 ## Google fonts
 
-You can automatically self-host any Google Font. Fonts are included stored as static assets and served from the same domain as your deployment, meaning no requests are sent to Google by the browser when the user visits your site.
+You can automatically self-host any Google Font. Fonts are included as static assets and served from the same domain as your deployment, meaning no requests are sent to Google by the browser when the user visits your site.
 
 To start using a Google Font, import your chosen font from `next/font/google`:
 

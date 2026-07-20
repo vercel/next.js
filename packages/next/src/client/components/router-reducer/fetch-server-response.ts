@@ -8,6 +8,7 @@ import {
 } from 'react-server-dom-webpack/client'
 
 import { InvariantError } from '../../../shared/lib/invariant-error'
+import { fetch } from '../segment-cache/fetch'
 import type {
   FlightRouterState,
   InitialRSCPayload,
@@ -17,7 +18,6 @@ import type {
 import {
   type NEXT_ROUTER_PREFETCH_HEADER,
   type NEXT_ROUTER_SEGMENT_PREFETCH_HEADER,
-  type NEXT_INSTANT_PREFETCH_HEADER,
   NEXT_ROUTER_STATE_TREE_HEADER,
   NEXT_RSC_UNION_QUERY,
   NEXT_URL,
@@ -25,7 +25,6 @@ import {
   RSC_CONTENT_TYPE_HEADER,
   NEXT_HMR_REFRESH_HEADER,
   NEXT_DID_POSTPONE_HEADER,
-  NEXT_ROUTER_STALE_TIME_HEADER,
   NEXT_HTML_REQUEST_ID_HEADER,
   NEXT_REQUEST_ID_HEADER,
 } from '../app-router-headers'
@@ -42,7 +41,11 @@ import type { NormalizedSearch } from '../segment-cache/cache-key'
 import { getDeploymentId } from '../../../shared/lib/deployment-id'
 import { getNavigationBuildId } from '../../navigation-build-id'
 import { NEXT_NAV_DEPLOYMENT_ID_HEADER } from '../../../lib/constants'
-import { stripIsPartialByte } from '../segment-cache/cache'
+import {
+  stripIsPartialByte,
+  createNonTaskyPrefetchResponseStream,
+} from '../segment-cache/cache'
+import { UnknownDynamicStaleTime } from '../segment-cache/bfcache'
 
 const createFromReadableStream =
   createFromReadableStreamBrowser as (typeof import('react-server-dom-webpack/client.browser'))['createFromReadableStream']
@@ -63,6 +66,7 @@ export interface FetchServerResponseOptions {
   readonly flightRouterState: FlightRouterState
   readonly nextUrl: string | null
   readonly isHmrRefresh?: boolean
+  readonly signal?: AbortSignal
 }
 
 export type StaticStageData<
@@ -81,11 +85,20 @@ type SpaFetchServerResponseResult = {
   couldBeIntercepted: boolean
   supportsPerSegmentPrefetching: boolean
   postponed: boolean
-  staleTime: number
+  dynamicStaleTime: number
   staticStageData: StaticStageData | null
   runtimePrefetchStream: ReadableStream<Uint8Array> | null
   responseHeaders: Headers
   debugInfo: Array<any> | null
+  /**
+   * Dev only: resolves once the server has flushed the shell-stage content to
+   * the stream (or earlier, on a cache miss). The navigation defers revealing
+   * the response (resolving its deferred RSCs) until this settles, so React
+   * doesn't render a boundary's children before their row has been decoded and
+   * commit a premature Suspense fallback. `null` outside the streaming dev
+   * render.
+   */
+  revealAfter: Promise<void> | null
 }
 
 type MpaFetchServerResponseResult = string
@@ -98,7 +111,7 @@ export type RequestHeaders = {
   [RSC_HEADER]?: '1'
   [NEXT_ROUTER_STATE_TREE_HEADER]?: string
   [NEXT_URL]?: string
-  [NEXT_ROUTER_PREFETCH_HEADER]?: '1' | '2'
+  [NEXT_ROUTER_PREFETCH_HEADER]?: '1' | '2' | '3'
   [NEXT_ROUTER_SEGMENT_PREFETCH_HEADER]?: string
   'x-deployment-id'?: string
   [NEXT_HMR_REFRESH_HEADER]?: '1'
@@ -106,7 +119,6 @@ export type RequestHeaders = {
   'Next-Test-Fetch-Priority'?: RequestInit['priority']
   [NEXT_HTML_REQUEST_ID_HEADER]?: string // dev-only
   [NEXT_REQUEST_ID_HEADER]?: string // dev-only
-  [NEXT_INSTANT_PREFETCH_HEADER]?: '1' // testing API only
 }
 
 function doMpaNavigation(url: string): FetchServerResponseResult {
@@ -187,8 +199,17 @@ export async function fetchServerResponse(
       url,
       headers,
       'auto',
-      shouldImmediatelyDecode
+      shouldImmediatelyDecode,
+      options.signal
     )
+
+    // If the fetch succeeds while we're in the offline state, notify the
+    // offline module so it can short-circuit the polling loop.
+    if (process.env.__NEXT_USE_OFFLINE) {
+      const { notifyOnline } =
+        require('../offline') as typeof import('../offline')
+      notifyOnline()
+    }
 
     const responseUrl = urlToUrlWithoutFlightMarker(new URL(res.url))
     const canonicalUrl = res.redirected ? responseUrl : originalUrl
@@ -196,13 +217,6 @@ export async function fetchServerResponse(
     const contentType = res.headers.get('content-type') || ''
     const interception = !!res.headers.get('vary')?.includes(NEXT_URL)
     const postponed = !!res.headers.get(NEXT_DID_POSTPONE_HEADER)
-    const staleTimeHeaderSeconds = res.headers.get(
-      NEXT_ROUTER_STALE_TIME_HEADER
-    )
-    const staleTime =
-      staleTimeHeaderSeconds !== null
-        ? parseInt(staleTimeHeaderSeconds, 10) * 1000
-        : -1
     let isFlightResponse = contentType.startsWith(RSC_CONTENT_TYPE_HEADER)
 
     if (process.env.NODE_ENV === 'production') {
@@ -289,13 +303,47 @@ export async function fetchServerResponse(
       couldBeIntercepted: interception,
       supportsPerSegmentPrefetching: flightResponse.S,
       postponed,
-      staleTime,
+      // The dynamicStaleTime is only present in the response body when
+      // a page exports unstable_dynamicStaleTime and this is a dynamic render.
+      // When absent (UnknownDynamicStaleTime), the client falls back to the
+      // global DYNAMIC_STALETIME_MS. The value is in seconds.
+      dynamicStaleTime: flightResponse.d ?? UnknownDynamicStaleTime,
       staticStageData,
       runtimePrefetchStream: flightResponse.p ?? null,
       responseHeaders: res.headers,
       debugInfo: flightResponsePromise._debugInfo ?? null,
+      revealAfter: flightResponse._revealAfter ?? null,
     }
   } catch (err) {
+    if (options.signal?.aborted) {
+      // A newer HMR refresh superseded this one and aborted its request.
+      // Rethrow so the caller treats it as canceled, rather than logging a
+      // failure or falling back to an MPA navigation.
+      throw err
+    }
+
+    // If the fetch rejected due to a network error, wait for connectivity
+    // to be restored and then retry. checkOfflineError returns true for
+    // network errors (and starts the polling loop); returns false for
+    // intentional aborts/timeouts, which fall through to the MPA fallback.
+    //
+    // Note: when the user navigates multiple times while offline, each
+    // navigation queues a separate retry here. Once connectivity returns,
+    // all pending retries resume simultaneously. This is mitigated in PR 3
+    // by reusing back-forward cache entries during offline navigation, which
+    // avoids issuing new fetches in the first place.
+    if (process.env.__NEXT_USE_OFFLINE && !isPageUnloading) {
+      const { checkOfflineError, getOffline, waitForConnection } =
+        require('../offline') as typeof import('../offline')
+      if (checkOfflineError(err)) {
+        const offline = getOffline()
+        if (offline !== null) {
+          await waitForConnection(offline)
+        }
+        return fetchServerResponse(url, options)
+      }
+    }
+
     if (!isPageUnloading) {
       console.error(
         `Failed to fetch RSC payload for ${originalUrl}. Falling back to browser navigation.`,
@@ -328,7 +376,12 @@ export type RSCResponse<T> = {
 
 type FetchResponseCacheData = {
   isResponsePartial: boolean
-  responseBodyClone?: ReadableStream<Uint8Array>
+  // Separate clones of the response body for stage extraction. The static
+  // stage and shell stage are extracted from independent reads, so each
+  // needs its own ReadableStream. Both are derived from a chain of `tee()`
+  // calls in `processFetch`.
+  staticBodyClone?: ReadableStream<Uint8Array>
+  shellBodyClone?: ReadableStream<Uint8Array>
 }
 
 /**
@@ -360,9 +413,16 @@ export async function processFetch(response: Response): Promise<{
     let cacheData: FetchResponseCacheData
 
     if (process.env.__NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS) {
-      const [stream1, stream2] = stream.tee()
+      // Three readers needed: the main Flight decoder, the static-stage
+      // extractor, and the shell-stage extractor. Tee twice.
+      const [stream1, rest] = stream.tee()
+      const [staticBodyClone, shellBodyClone] = rest.tee()
       responseStream = stream1
-      cacheData = { isResponsePartial: isPartial, responseBodyClone: stream2 }
+      cacheData = {
+        isResponsePartial: isPartial,
+        staticBodyClone,
+        shellBodyClone,
+      }
     } else {
       responseStream = stream
       cacheData = { isResponsePartial: isPartial }
@@ -404,12 +464,12 @@ export async function resolveStaticStageData<
   flightResponse: T,
   headers: RequestHeaders | undefined
 ): Promise<StaticStageData<T> | null> {
-  const { isResponsePartial, responseBodyClone } = cacheData
+  const { isResponsePartial, staticBodyClone } = cacheData
 
-  if (responseBodyClone) {
+  if (staticBodyClone) {
     if (!isResponsePartial) {
       // Fully static — cache the entire decoded response as-is.
-      responseBodyClone.cancel()
+      staticBodyClone.cancel()
 
       return { response: flightResponse, isResponsePartial: false }
     }
@@ -417,9 +477,10 @@ export async function resolveStaticStageData<
     if (flightResponse.l !== undefined) {
       // Partially static — truncate the body clone at the byte boundary and
       // decode it.
-      const response = await decodeStaticStage<T>(
-        responseBodyClone,
-        flightResponse.l,
+      const staticStageByteLength = await flightResponse.l
+      const response = await decodeStageUntilBoundary<T>(
+        staticBodyClone,
+        staticStageByteLength,
         headers
       )
 
@@ -427,32 +488,191 @@ export async function resolveStaticStageData<
     }
 
     // No caching — cancel the unused clone.
-    responseBodyClone.cancel()
+    staticBodyClone.cancel()
   }
 
   return null
 }
 
 /**
- * Truncates a Flight stream clone at the given byte boundary and decodes the
- * static stage prefix. Used by both the navigation path and the initial HTML
- * hydration path.
+ * Resolves the shell stage of a prerender response, performing a separate
+ * Flight decode of the byte prefix when the shell differs from the main
+ * response. Returns null when no separate decode is needed:
+ *
+ * - `a === undefined`: server didn't emit shell stage info.
+ * - `a` resolves to `null`: the shell IS the main response — the caller can
+ *   reuse the existing decoded `flightResponse` if it needs a shell payload.
+ *
+ * Returns the decoded shell payload when `a` resolves to a number, i.e.
+ * the shell is a strict prefix of the response and requires a separate
+ * decode at that byte boundary.
  */
-export async function decodeStaticStage<T>(
+export async function resolveShellStageData<
+  T extends NavigationFlightResponse | InitialRSCPayload,
+>(
+  cacheData: FetchResponseCacheData,
+  flightResponse: T,
+  headers: RequestHeaders | undefined
+): Promise<T | null> {
+  const { shellBodyClone } = cacheData
+
+  if (!shellBodyClone) {
+    return null
+  }
+
+  if (flightResponse.a === undefined) {
+    shellBodyClone.cancel()
+    return null
+  }
+
+  const shellByteLength = await flightResponse.a
+  if (shellByteLength === null) {
+    // Shell == main response — caller reuses the existing flightResponse.
+    shellBodyClone.cancel()
+    return null
+  }
+
+  return decodeStageUntilBoundary<T>(shellBodyClone, shellByteLength, headers)
+}
+
+/**
+ * Truncates and buffers a Flight stream clone at the given byte boundary and
+ * decodes the prefix as a Flight payload. Used by the static-stage and
+ * shell-stage extraction helpers.
+ */
+export async function decodeStageUntilBoundary<T>(
   responseBodyClone: ReadableStream<Uint8Array>,
-  staticStageByteLengthPromise: Promise<number>,
+  byteLength: number,
   headers: RequestHeaders | undefined
 ): Promise<T> {
-  const staticStageByteLength = await staticStageByteLengthPromise
-
-  const truncatedStream = truncateStream(
+  // Buffer the truncated stream into a single chunk before passing it to
+  // Flight. This ensures all model data is available synchronously, which is
+  // required for readVaryParams to synchronously read the thenable status.
+  const { stream } = await createNonTaskyPrefetchResponseStream(
     responseBodyClone,
-    staticStageByteLength
+    byteLength
   )
 
-  return createFromNextReadableStream<T>(truncatedStream, headers, {
+  return createFromNextReadableStream<T>(stream, headers, {
     allowPartialStream: true,
   })
+}
+
+// When an HMR refresh can be superseded, we decode its Flight response through
+// a wrapper stream we can close on abort. Closing the stream (rather than
+// letting the aborted fetch error it) makes React's Flight client mark
+// unresolved rows as halted: they suspend during render instead of rejecting,
+// so a superseded request never surfaces an error on an already-committed tree.
+// Because the stream is closed, there's also no unclosed-stream GC-root leak
+// (see #89610). The wrapper is created synchronously here so that the decode
+// starts at the same point `createFromNextFetch` would, preserving the
+// server-latency debug timing.
+function createHaltingFlightResponse<T>(
+  fetchPromise: Promise<Response>,
+  headers: RequestHeaders,
+  signal: AbortSignal
+): Promise<T> & { _debugInfo?: Array<any> } {
+  let closed = false
+  let reader: ReadableStreamDefaultReader<Uint8Array> | null = null
+  const wrapper = new ReadableStream<Uint8Array>({
+    start(controller) {
+      const onAbort = () => {
+        closed = true
+        try {
+          controller.close()
+        } catch {
+          // The controller may already be closed; nothing to do.
+        }
+        if (reader !== null) {
+          reader.cancel().catch(() => {})
+        }
+      }
+      if (signal.aborted) {
+        onAbort()
+      } else {
+        signal.addEventListener('abort', onAbort, { once: true })
+      }
+    },
+    async pull(controller) {
+      if (closed) {
+        return
+      }
+      if (reader === null) {
+        let response: Response
+        try {
+          response = await fetchPromise
+        } catch (err) {
+          // We don't inspect `err`. If the request was superseded, `onAbort`
+          // already ran synchronously (abort listeners fire during
+          // `signal.abort()`, before this rejection microtask), so `closed` is
+          // true and the controller is already closed — erroring it would
+          // throw, and a superseded request's failure is moot regardless of its
+          // cause. Only a genuine, non-superseded failure reaches here with
+          // `closed` still false; that is the case we surface.
+          if (!closed) {
+            controller.error(err)
+          }
+          return
+        }
+        if (closed) {
+          // Aborted while awaiting the response. The `fetch` abort tears down
+          // an in-flight request, but if it had already completed we still hold
+          // an unread body; release it so it isn't left dangling.
+          response.body?.cancel().catch(() => {})
+          return
+        }
+        const body = response.body
+        if (body === null) {
+          controller.close()
+          return
+        }
+        reader = body.getReader()
+      }
+      try {
+        const { done, value } = await reader.read()
+        if (closed) {
+          return
+        }
+        if (done) {
+          controller.close()
+        } else {
+          controller.enqueue(value)
+        }
+      } catch (err) {
+        // Same as the fetch catch above: once superseded (`closed`) the
+        // controller is already closed and the outcome is moot, so we swallow
+        // the rejection unconditionally; only a real, non-superseded read
+        // failure (`closed` still false) is surfaced.
+        if (!closed) {
+          controller.error(err)
+        }
+      }
+    },
+  })
+
+  // React attaches `_debugInfo` to the returned promise at runtime.
+  return createFromNextReadableStream<T>(wrapper, headers, {
+    allowPartialStream: true,
+  }) as Promise<T> & { _debugInfo?: Array<any> }
+}
+
+// Selects the Flight decode strategy: a halting wrapper for cancellable HMR
+// refreshes, otherwise the standard fetch-based decode. Gated to the dev server
+// (where HMR runs) so the wrapper is eliminated from production and
+// `--debug-prerender` bundles regardless of the flag.
+function decodeFlightResponse<T>(
+  fetchPromise: Promise<Response>,
+  headers: RequestHeaders,
+  signal: AbortSignal | undefined
+): Promise<T> & { _debugInfo?: Array<any> } {
+  if (
+    process.env.__NEXT_DEV_SERVER &&
+    process.env.__NEXT_SERVER_COMPONENTS_HMR_CANCELLATION &&
+    signal
+  ) {
+    return createHaltingFlightResponse<T>(fetchPromise, headers, signal)
+  }
+  return createFromNextFetch<T>(fetchPromise, headers)
 }
 
 export async function createFetch<T>(
@@ -499,7 +719,7 @@ export async function createFetch<T>(
   // search param to it. This should not leak outside of this function, so we
   // track them separately.
   let fetchUrl = new URL(url)
-  setCacheBustingSearchParam(fetchUrl, headers)
+  await setCacheBustingSearchParam(fetchUrl, headers)
   let processed = fetch(fetchUrl, fetchOptions).then(processFetch)
   let fetchPromise = processed.then(({ response }) => response)
 
@@ -512,7 +732,7 @@ export async function createFetch<T>(
   // been written into the cache by the time the navigation happens, the router
   // will go straight to a dynamic request.
   let flightResponsePromise = shouldImmediatelyDecode
-    ? createFromNextFetch<T>(fetchPromise, headers)
+    ? decodeFlightResponse<T>(fetchPromise, headers, signal)
     : null
   let browserResponse = await fetchPromise
 
@@ -569,11 +789,11 @@ export async function createFetch<T>(
       // fetch again.
       // TODO: We should abort the previous request.
       fetchUrl = new URL(responseUrl)
-      setCacheBustingSearchParam(fetchUrl, headers)
+      await setCacheBustingSearchParam(fetchUrl, headers)
       processed = fetch(fetchUrl, fetchOptions).then(processFetch)
       fetchPromise = processed.then(({ response }) => response)
       flightResponsePromise = shouldImmediatelyDecode
-        ? createFromNextFetch<T>(fetchPromise, headers)
+        ? decodeFlightResponse<T>(fetchPromise, headers, signal)
         : null
       browserResponse = await fetchPromise
       // We just performed a manual redirect, so this is now true.
@@ -635,43 +855,5 @@ function createFromNextFetch<T>(
     callServer,
     findSourceMapURL,
     debugChannel: createDebugChannel && createDebugChannel(requestHeaders),
-  })
-}
-
-function truncateStream(
-  stream: ReadableStream<Uint8Array>,
-  byteLength: number
-): ReadableStream<Uint8Array> {
-  const reader = stream.getReader()
-  let remaining = byteLength
-
-  return new ReadableStream({
-    async pull(controller) {
-      if (remaining <= 0) {
-        reader.cancel()
-        controller.close()
-        return
-      }
-
-      const { done, value } = await reader.read()
-
-      if (done) {
-        controller.close()
-        return
-      }
-
-      if (value.byteLength <= remaining) {
-        controller.enqueue(value)
-        remaining -= value.byteLength
-      } else {
-        controller.enqueue(value.subarray(0, remaining))
-        remaining = 0
-        reader.cancel()
-        controller.close()
-      }
-    },
-    cancel() {
-      reader.cancel()
-    },
   })
 }

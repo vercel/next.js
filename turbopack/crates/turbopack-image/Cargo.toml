@@ -20,6 +20,7 @@ workspace = true
 
 [dependencies]
 anyhow = { workspace = true }
+async-trait = { workspace = true }
 base64 = "0.21.0"
 bincode = { workspace = true }
 image = { workspace = true, default-features = false, features = [
@@ -31,9 +32,8 @@ image = { workspace = true, default-features = false, features = [
   "tga",
 ] }
 mime = { workspace = true }
-once_cell = { workspace = true }
+phf = { workspace = true }
 regex = { workspace = true }
-rustc-hash = { workspace = true }
 serde = { workspace = true }
 turbo-bincode = { workspace = true }
 turbo-rcstr = { workspace = true }

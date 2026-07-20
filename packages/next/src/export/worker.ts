@@ -120,6 +120,10 @@ async function exportPageImpl(
     // When true, attempt to run build-time instant validation for this export path.
     _runInstantValidation: runInstantValidation = false,
 
+    // When true, a fallback shell for this path could later be upgraded to a
+    // concrete version (it has a `generateStaticParams` candidate param).
+    _isFallbackUpgradeable: isFallbackUpgradeable = false,
+
     // Pull the original query out.
     query: originalQuery = {},
   } = exportPath
@@ -253,8 +257,10 @@ async function exportPageImpl(
       htmlFilepath,
       fileWriter,
       commonRenderOpts.cacheComponents,
+      commonRenderOpts.staticPageGenerationTimeout,
       commonRenderOpts.experimental,
-      buildId
+      buildId,
+      deploymentId
     )
   }
 
@@ -273,6 +279,7 @@ async function exportPageImpl(
     serveStreamingMetadata: true,
     allowEmptyStaticShell,
     runInstantValidation,
+    isFallbackUpgradeable,
     experimental: {
       ...commonRenderOpts.experimental,
       isRoutePPREnabled,

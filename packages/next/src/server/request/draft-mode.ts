@@ -19,8 +19,11 @@ import { createDedupedByCallsiteServerErrorLoggerDev } from '../create-deduped-b
 import { StaticGenBailoutError } from '../../client/components/static-generation-bailout'
 import { DynamicServerError } from '../../client/components/hooks-server-context'
 import { InvariantError } from '../../shared/lib/invariant-error'
-import { delayUntilRuntimeStage } from '../dynamic-rendering-utils'
 import { ReflectAdapter } from '../web/spec-extension/adapters/reflect'
+import {
+  applyOwnerStack,
+  RENDER_STAGES_BY_DATA_KIND,
+} from '../dynamic-rendering-utils'
 
 export function draftMode(): Promise<DraftMode> {
   const callingExpression = 'draftMode'
@@ -32,12 +35,19 @@ export function draftMode(): Promise<DraftMode> {
   }
 
   switch (workUnitStore.type) {
-    case 'prerender-runtime':
+    case 'prerender-runtime': {
       // TODO(runtime-ppr): does it make sense to delay this? normally it's always microtasky
-      return delayUntilRuntimeStage(
-        workUnitStore,
-        createOrGetCachedDraftMode(workUnitStore.draftMode, workStore)
-      )
+      const { stagedRendering } = workUnitStore
+      if (stagedRendering) {
+        return stagedRendering.delayUntilStage(
+          RENDER_STAGES_BY_DATA_KIND.sessionData,
+          'draftMode',
+          new DraftMode(workUnitStore.draftMode)
+        )
+      } else {
+        return createOrGetCachedDraftMode(workUnitStore.draftMode, workStore)
+      }
+    }
     case 'request':
       return createOrGetCachedDraftMode(workUnitStore.draftMode, workStore)
 
@@ -70,6 +80,10 @@ export function draftMode(): Promise<DraftMode> {
         `${exportName} must not be used within a Client Component. Next.js should be preventing ${exportName} from being included in Client Components statically, but did not in this case.`
       )
     }
+    case 'generate-static-params':
+      throw new Error(
+        `Route ${workStore.route} used \`${callingExpression}()\` inside \`generateStaticParams\`. This is not supported because \`generateStaticParams\` runs at build time without an HTTP request. Read more: https://nextjs.org/docs/messages/next-dynamic-api-wrong-context`
+      )
 
     default:
       return workUnitStore satisfies never
@@ -202,6 +216,7 @@ function trackDynamicDraftMode(expression: string, constructorOpt: Function) {
             `Route ${workStore.route} used "${expression}" inside "use cache". The enabled status of \`draftMode()\` can be read in caches but you must not enable or disable \`draftMode()\` inside a cache. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache`
           )
           Error.captureStackTrace(error, constructorOpt)
+          applyOwnerStack(error)
           workStore.invalidDynamicUsageError ??= error
           throw error
         }
@@ -247,6 +262,10 @@ function trackDynamicDraftMode(expression: string, constructorOpt: Function) {
         case 'request':
           trackDynamicDataInDynamicRender(workUnitStore)
           break
+        case 'generate-static-params':
+          throw new Error(
+            `Route ${workStore.route} used \`${expression}\` inside \`generateStaticParams\`. This is not supported because \`generateStaticParams\` runs at build time without an HTTP request. Read more: https://nextjs.org/docs/messages/next-dynamic-api-wrong-context`
+          )
         default:
           workUnitStore satisfies never
       }

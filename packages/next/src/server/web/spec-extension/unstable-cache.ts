@@ -80,8 +80,10 @@ export function unstable_cache<T extends Callback>(
     ? validateTags(options.tags, `unstable_cache ${cb.toString()}`)
     : []
 
-  // Validate the revalidate options
-  validateRevalidate(
+  // Validate the revalidate option, and adopt the normalized value, which
+  // maps `false` and `Infinity` to INFINITE_CACHE so that the stored value
+  // survives JSON serialization.
+  const revalidate = validateRevalidate(
     options.revalidate,
     `unstable_cache ${cb.name || cb.toString()}`
   )
@@ -148,6 +150,7 @@ export function unstable_cache<T extends Callback>(
           workUnitStore &&
           workStore &&
           getDraftModeProviderForCacheScope(workStore, workUnitStore),
+        rootParams: undefined,
       }
 
       if (workStore) {
@@ -167,14 +170,14 @@ export function unstable_cache<T extends Callback>(
             case 'prerender-runtime':
             case 'prerender-ppr':
             case 'prerender-legacy':
-              // We update the store's revalidate property if the option.revalidate is a higher precedence
-              // options.revalidate === undefined doesn't affect timing.
-              // options.revalidate === false doesn't shrink timing. it stays at the maximum.
-              if (typeof options.revalidate === 'number') {
-                if (workUnitStore.revalidate < options.revalidate) {
+              // We update the store's revalidate property if the revalidate option is a higher precedence
+              // revalidate === undefined doesn't affect timing.
+              // revalidate === INFINITE_CACHE (from `false` or `Infinity`) doesn't shrink timing. it stays at the maximum.
+              if (typeof revalidate === 'number') {
+                if (workUnitStore.revalidate < revalidate) {
                   // The store is already revalidating on a shorter time interval, leave it alone
                 } else {
-                  workUnitStore.revalidate = options.revalidate
+                  workUnitStore.revalidate = revalidate
                 }
               }
 
@@ -197,6 +200,7 @@ export function unstable_cache<T extends Callback>(
             case 'prerender-client':
             case 'validation-client':
             case 'request':
+            case 'generate-static-params':
               break
             default:
               workUnitStore satisfies never
@@ -215,7 +219,7 @@ export function unstable_cache<T extends Callback>(
           // We attempt to get the current cache entry from the incremental cache.
           const cacheEntry = await incrementalCache.get(cacheKey, {
             kind: IncrementalCacheKind.FETCH,
-            revalidate: options.revalidate,
+            revalidate,
             tags,
             softTags: implicitTags?.tags,
             fetchIdx,
@@ -257,7 +261,7 @@ export function unstable_cache<T extends Callback>(
                         incrementalCache,
                         cacheKey,
                         tags,
-                        options.revalidate,
+                        revalidate,
                         fetchIdx,
                         fetchUrl
                       )
@@ -286,8 +290,12 @@ export function unstable_cache<T extends Callback>(
                 // Check if we need to do foreground revalidation
                 if (workStore.isStaticGeneration) {
                   // When the page is revalidating and the cache entry is stale,
-                  // we need to wait for fresh data (blocking revalidate)
-                  return workStore.pendingRevalidates[invocationKey]
+                  // we need to wait for fresh data (blocking revalidate). The
+                  // `await` here keeps `cacheSignal.endRead` (in the outer
+                  // `finally`) suspended until the recompute + cacheNewResult
+                  // actually complete, so the prospective prerender's
+                  // `cacheSignal` doesn't resolve `cacheReady` prematurely.
+                  return await workStore.pendingRevalidates[invocationKey]
                 }
                 // Otherwise, we're doing background revalidation - return stale immediately
               }
@@ -318,7 +326,7 @@ export function unstable_cache<T extends Callback>(
             incrementalCache,
             cacheKey,
             tags,
-            options.revalidate,
+            revalidate,
             fetchIdx,
             fetchUrl
           )
@@ -336,7 +344,7 @@ export function unstable_cache<T extends Callback>(
           // We aren't doing an on demand revalidation so we check use the cache if valid
           const cacheEntry = await incrementalCache.get(cacheKey, {
             kind: IncrementalCacheKind.FETCH,
-            revalidate: options.revalidate,
+            revalidate,
             tags,
             fetchIdx,
             fetchUrl,
@@ -377,7 +385,7 @@ export function unstable_cache<T extends Callback>(
           incrementalCache,
           cacheKey,
           tags,
-          options.revalidate,
+          revalidate,
           fetchIdx,
           fetchUrl
         )
@@ -417,6 +425,7 @@ function getFetchUrlPrefix(
     case 'cache':
     case 'private-cache':
     case 'unstable-cache':
+    case 'generate-static-params':
       return workStore.route
     default:
       return workUnitStore satisfies never

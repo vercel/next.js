@@ -140,7 +140,7 @@
 
 *anonymous function 5936* = (...) => {"type": "sort_expression", "expression": expression, "order": order}
 
-*anonymous function 625* (const after eval) = (...) => `Expected ${describeExpected(expected)} but ${describeFound(found)} found.`
+*anonymous function 625* = (...) => `Expected ${describeExpected(expected)} but ${describeFound(found)} found.`
 
 *anonymous function 6287* = (...) => {"type": "scalar_function_expression", "name": name, "arguments": args, "udf": true}
 
@@ -255,12 +255,10 @@ describeExpectation = (...) => DESCRIBE_EXPECTATION_FNS[expectation["type"]](exp
 describeExpected = (...) => (
   | descriptions[0]
   | `${descriptions[0]} or ${descriptions[1]}`
-  | `${descriptions["slice"](0, ???*0*)["join"](", ")}, or ${descriptions[???*1*]}`
+  | `${descriptions["slice"](0, -1)["join"](", ")}, or ${descriptions[???*0*]}`
   | undefined
 )
 - *0* unsupported expression
-  ⚠️  This value might have side effects
-- *1* unsupported expression
   ⚠️  This value might have side effects
 
 describeFound = (...) => (found ? `"${literalEscape(found)}"` : "end of input")

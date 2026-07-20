@@ -8,15 +8,11 @@ description: Upgrade your Next.js Application from Version 15 to 16.
 
 ## Upgrading from 15 to 16
 
-### Using AI Agents with Next.js DevTools MCP
+### Using AI Agents
 
-If you're using an AI coding assistant that supports the [Model Context Protocol (MCP)](https://modelcontextprotocol.io), you can use the **Next.js DevTools MCP** to automate the upgrade process and migration tasks.
+If you're using an AI coding assistant, it can run the upgrade for you with the [codemod](#using-the-codemod) below and then help resolve any remaining breaking changes.
 
-#### Setup
-
-Add the following configuration to your MCP client, for each coding agent you can read [this section](https://github.com/vercel/next-devtools-mcp#mcp-client-configuration) for configuration details.
-
-**example:**
+For the best results, also configure the [`next-devtools-mcp`](https://github.com/vercel/next-devtools-mcp) server. It lets your agent inspect your running dev server for migration errors and read the version-accurate Next.js docs bundled with your project:
 
 ```json filename=".mcp.json"
 {
@@ -29,31 +25,7 @@ Add the following configuration to your MCP client, for each coding agent you ca
 }
 ```
 
-For more information, visit the [`next-devtools-mcp`](https://github.com/vercel/next-devtools-mcp) documentation to configure with your MCP client.
-
-> **Note:** Using `next-devtools-mcp@latest` ensures that your MCP client will always use the latest version of the Next.js DevTools MCP server.
-
-#### Example Prompts
-
-Once configured, you can use natural language prompts to upgrade your Next.js app:
-
-**To upgrade to Next.js 16:**
-
-Connect to your coding agent and then prompt:
-
-```txt
-Next Devtools, help me upgrade my Next.js app to version 16
-```
-
-**To migrate to Cache Components (after upgrading to v16):**
-
-Connect to your coding agent and then prompt:
-
-```txt
-Next Devtools, migrate my Next.js app to cache components
-```
-
-Learn more in the documentation [here](/docs/app/guides/mcp).
+See the [Next.js MCP guide](/docs/app/guides/mcp) and the [`next-devtools-mcp` documentation](https://github.com/vercel/next-devtools-mcp#mcp-client-configuration) for client setup. Then ask your agent to upgrade your app — it will run the codemod and use the dev server's diagnostics to fix breaking changes.
 
 ### Using the Codemod
 
@@ -454,7 +426,17 @@ bun add -D babel-plugin-react-compiler
 
 ### revalidateTag
 
-[`revalidateTag`](/docs/app/api-reference/functions/revalidateTag) has a new function signature. You can pass a [`cacheLife`](/docs/app/api-reference/functions/cacheLife#reference) profile as the second argument.
+[`revalidateTag`](/docs/app/api-reference/functions/revalidateTag) now requires a second argument specifying a [`cacheLife`](/docs/app/api-reference/functions/cacheLife#reference) profile. The single-argument form is deprecated and will produce a TypeScript error.
+
+```ts
+// Before
+revalidateTag('posts')
+
+// After
+revalidateTag('posts', 'max')
+```
+
+If you need immediate expiration rather than stale-while-revalidate, use [`updateTag`](/docs/app/api-reference/functions/updateTag) in Server Actions instead.
 
 ```ts filename="app/actions.ts" switcher
 'use server'
@@ -833,6 +815,8 @@ const nextConfig = {
 module.exports = nextConfig
 ```
 
+This might be necessary when hosting Next.js in a VPC with split-horizon DNS and you receive status 400 Bad Request. Only enable once you understand the SSRF risk.
+
 ### Maximum Redirects (Breaking change)
 
 The default for `images.maximumRedirects` has changed from unlimited to 3 redirects maximum.
@@ -911,22 +895,22 @@ module.exports = {
 
 Additionally, a lockfile mechanism prevents multiple `next dev` or `next build` instances on the same project.
 
-Since the development server outputs to `.next/dev`, the [Turbopack tracing command](/docs/app/guides/local-development#turbopack-tracing) should be:
+The [Turbopack tracing command](/docs/app/guides/local-development#turbopack-tracing) should be:
 
 ```bash package="pnpm"
-pnpm next internal trace .next/dev/trace-turbopack
+pnpm next internal trace .next-profiles/trace-turbopack.bin
 ```
 
 ```bash package="npm"
-npx next internal trace .next/dev/trace-turbopack
+npx next internal trace .next-profiles/trace-turbopack.bin
 ```
 
 ```bash package="yarn"
-yarn next internal trace .next/dev/trace-turbopack
+yarn next internal trace .next-profiles/trace-turbopack.bin
 ```
 
 ```bash package="bun"
-bunx next internal trace .next/dev/trace-turbopack
+bunx next internal trace .next-profiles/trace-turbopack.bin
 ```
 
 ## Parallel Routes `default.js` requirement
@@ -1040,7 +1024,7 @@ const nextConfig = {
 module.exports = nextConfig
 ```
 
-Share your feedback in the [RFC discussion](https://github.com/vercel/next.js/discussions/77740).
+`adapterPath` was promoted to a stable, top-level option in 16.2.0. See [`adapterPath`](/docs/app/api-reference/config/next-config-js/adapterPath) for the current API reference.
 
 ## Modern Sass API
 
@@ -1198,14 +1182,21 @@ The following options have been removed from [`devIndicators`](/docs/app/api-ref
 
 The indicator itself remains available.
 
-### `experimental.dynamicIO`
+### `experimental.dynamicIO` and `experimental.useCache`
 
-The `experimental.dynamicIO` flag has been renamed to `cacheComponents`:
-
-Update your Next config file, by removing the `dynamicIO` flag.
+The `experimental.dynamicIO` and `experimental.useCache` flags are deprecated. Use top-level [`cacheComponents`](/docs/app/api-reference/config/next-config-js/cacheComponents) instead.
 
 ```js filename="next.config.js"
-// Next.js 15 - experimental.dynamicIO is now removed
+// Before: experimental.useCache
+module.exports = {
+  experimental: {
+    useCache: true,
+  },
+}
+```
+
+```js filename="next.config.js"
+// Before: experimental.dynamicIO
 module.exports = {
   experimental: {
     dynamicIO: true,
@@ -1213,15 +1204,26 @@ module.exports = {
 }
 ```
 
-Add the [`cacheComponents`](/docs/app/api-reference/config/next-config-js/cacheComponents) flag set to true.
+```ts filename="next.config.ts" switcher
+import type { NextConfig } from 'next'
 
-```js filename="next.config.js"
-// Next.js 16 - use cacheComponents instead
+// After
+const nextConfig: NextConfig = {
+  cacheComponents: true,
+}
+
+export default nextConfig
+```
+
+```js filename="next.config.js" switcher
+// After
 module.exports = {
   cacheComponents: true,
 }
 ```
 
+For more on Cache Components, see [Migrating to Cache Components](/docs/app/guides/migrating-to-cache-components).
+
 ### `unstable_rootParams`
 
-The `unstable_rootParams` function has been removed. We are working on an alternative API that we will ship in an upcoming minor release.
+The `unstable_rootParams` function has been removed. Use [`next/root-params`](/docs/app/api-reference/functions/next-root-params) instead.

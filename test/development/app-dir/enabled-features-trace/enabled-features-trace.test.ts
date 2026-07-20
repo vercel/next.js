@@ -8,7 +8,7 @@ import { parseTraceFile } from '../../../lib/parse-trace-file'
 describe('enabled features in trace', () => {
   const { next, isNextDev } = nextTestSetup({
     files: __dirname,
-    startArgs: ['--experimental-server-fast-refresh'],
+    startArgs: ['--no-server-fast-refresh'],
   })
 
   if (!isNextDev) {
@@ -37,9 +37,9 @@ describe('enabled features in trace', () => {
 
     const startDevServerEvent = startDevServerEvents![0]
     expect(startDevServerEvent.tags).toBeDefined()
-    expect(
-      startDevServerEvent.tags!['feature.experimentalServerFastRefresh']
-    ).toBe(true)
+    expect(startDevServerEvent.tags!['feature.serverFastRefreshDisabled']).toBe(
+      true
+    )
   })
 
   it('should denormalize inherited enabled features during upload', async () => {
@@ -99,16 +99,14 @@ describe('enabled features in trace', () => {
     const compilePathEvent = traces.find((e: any) => e.name === 'compile-path')
     const renderPathEvent = traces.find((e: any) => e.name === 'render-path')
 
-    // Both should have inherited feature.experimentalServerFastRefresh from their parent
+    // Both should have inherited feature.serverFastRefreshDisabled from their parent
     expect(compilePathEvent).toBeDefined()
-    expect(compilePathEvent.tags['feature.experimentalServerFastRefresh']).toBe(
+    expect(compilePathEvent.tags['feature.serverFastRefreshDisabled']).toBe(
       true
     )
 
     expect(renderPathEvent).toBeDefined()
-    expect(renderPathEvent.tags['feature.experimentalServerFastRefresh']).toBe(
-      true
-    )
+    expect(renderPathEvent.tags['feature.serverFastRefreshDisabled']).toBe(true)
   })
 })
 

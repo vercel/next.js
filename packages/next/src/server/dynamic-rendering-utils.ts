@@ -1,12 +1,10 @@
 import {
   RenderStage,
   type AdvanceableRenderStage,
-  type StagedRenderingController,
 } from './app-render/staged-rendering'
-import type {
-  PrerenderStoreModernRuntime,
-  RequestStore,
-} from './app-render/work-unit-async-storage.external'
+import type { RequestStore } from './app-render/work-unit-async-storage.external'
+import { workUnitAsyncStorage } from './app-render/work-unit-async-storage.external'
+import { getServerReact, getClientReact } from './runtime-reacts.external'
 
 export function isHangingPromiseRejectionError(
   err: unknown
@@ -33,7 +31,35 @@ class HangingPromiseRejectionError extends Error {
   }
 }
 
-type AbortListeners = Array<(err: unknown) => void>
+const CLIENT_HOOK_DYNAMIC = 'CLIENT_HOOK_DYNAMIC'
+
+export class ClientHookDynamicError extends Error {
+  public readonly digest = CLIENT_HOOK_DYNAMIC
+
+  constructor(route: string, expression: string) {
+    super(
+      `Route "${route}": Next.js encountered URL data \`${expression}\` in a Client Component outside of \`<Suspense>\`.\n\n` +
+        `This blocks prerendering because the value is only available at runtime.\n\n` +
+        `Ways to fix this:\n` +
+        `  - [stream] Wrap the component in \`<Suspense fallback={...}>\` so the hook value streams in after prerendering\n` +
+        `    https://nextjs.org/docs/messages/blocking-prerender-client-hook#wrap-in-or-move-into-suspense\n` +
+        `  - [block] Set \`export const instant = false\` to allow a blocking route\n` +
+        `    https://nextjs.org/docs/messages/blocking-prerender-client-hook#allow-blocking-route`
+    )
+  }
+}
+
+export function isClientHookDynamicError(
+  err: unknown
+): err is ClientHookDynamicError {
+  if (typeof err !== 'object' || err === null || !('digest' in err)) {
+    return false
+  }
+
+  return err.digest === CLIENT_HOOK_DYNAMIC
+}
+
+type AbortListeners = Array<() => void>
 const abortListenersBySignal = new WeakMap<AbortSignal, AbortListeners>()
 
 /**
@@ -48,14 +74,28 @@ export function makeHangingPromise<T>(
   route: string,
   expression: string
 ): Promise<T> {
+  return makeHangingPromiseWithError(
+    signal,
+    new HangingPromiseRejectionError(route, expression)
+  )
+}
+
+export function makeClientHookHangingPromise<T>(
+  signal: AbortSignal,
+  error: ClientHookDynamicError
+): Promise<T> {
+  return makeHangingPromiseWithError(signal, error)
+}
+
+function makeHangingPromiseWithError<T>(
+  signal: AbortSignal,
+  error: Error
+): Promise<T> {
   if (signal.aborted) {
-    return Promise.reject(new HangingPromiseRejectionError(route, expression))
+    return Promise.reject(error)
   } else {
     const hangingPromise = new Promise<T>((_, reject) => {
-      const boundRejection = reject.bind(
-        null,
-        new HangingPromiseRejectionError(route, expression)
-      )
+      const boundRejection = reject.bind(null, error)
       let currentListeners = abortListenersBySignal.get(signal)
       if (currentListeners) {
         currentListeners.push(boundRejection)
@@ -83,6 +123,21 @@ export function makeHangingPromise<T>(
 
 function ignoreReject() {}
 
+/**
+ * Creates a promise that will be triggered when another promise resolves.
+ * It will not emit unhandled rejections, which is important if the trigger
+ * is a promise that might itself get rejected (e.g. when a prerender/render
+ * are aborted due to sync IO)
+ */
+export function makePromiseFromTrigger<T>(
+  trigger: Promise<any>,
+  value: T
+): Promise<T> {
+  const promise = trigger.then(() => value)
+  promise.catch(ignoreReject)
+  return promise
+}
+
 export function makeDevtoolsIOAwarePromise<T>(
   underlying: T,
   requestStore: RequestStore,
@@ -106,45 +161,69 @@ export function makeDevtoolsIOAwarePromise<T>(
   })
 }
 
-/**
- * Returns the appropriate runtime stage for the current point in the render.
- * Runtime-prefetchable segments render in the early stages and should wait
- * for EarlyRuntime. Non-prefetchable segments render in the later stages
- * and should wait for Runtime.
- */
-export function getRuntimeStage(
-  stagedRendering: StagedRenderingController
-): RenderStage.EarlyRuntime | RenderStage.Runtime {
-  if (
-    stagedRendering.currentStage === RenderStage.EarlyStatic ||
-    stagedRendering.currentStage === RenderStage.EarlyRuntime
-  ) {
-    return RenderStage.EarlyRuntime
-  }
-  return RenderStage.Runtime
+export const RENDER_STAGES_BY_DATA_KIND = {
+  sessionData: RenderStage.ShellRuntime as const,
+  staticLinkData: RenderStage.Static as const,
+  runtimeLinkData: RenderStage.Runtime as const,
 }
 
-/**
- * Delays until the appropriate runtime stage based on the current stage of
- * the rendering pipeline:
- *
- * - Early stages → wait for EarlyRuntime
- *   (for runtime-prefetchable segments)
- * - Later stages → wait for Runtime
- *   (for segments not using runtime prefetch)
- *
- * This ensures that cookies()/headers()/etc. resolve at the right time for
- * each segment type.
- */
-export function delayUntilRuntimeStage<T>(
-  prerenderStore: PrerenderStoreModernRuntime,
-  result: Promise<T>
-): Promise<T> {
-  const { stagedRendering } = prerenderStore
-  if (!stagedRendering) {
-    return result
+export function applyOwnerStack(error: Error): Error {
+  if (process.env.NODE_ENV !== 'production') {
+    let ownerStack: string | undefined | null
+    const workUnitStore = workUnitAsyncStorage.getStore()
+
+    // captureOwnerStack() returns the owner stack for the current React
+    // rendering context. Inside a cache scope this only includes the inner
+    // component tree. The outer owner stack (captured before entering the
+    // cache boundary in use-cache-wrapper.ts) is stored on the cache store.
+    // We concatenate both to get the full component tree.
+    const innerOwnerStack =
+      getClientReact()?.captureOwnerStack?.() ??
+      getServerReact()?.captureOwnerStack?.()
+
+    switch (workUnitStore?.type) {
+      case 'cache':
+      case 'private-cache':
+        ownerStack =
+          (innerOwnerStack || '') + (workUnitStore.outerOwnerStack || '') ||
+          undefined
+        break
+      case 'unstable-cache':
+      case 'request':
+      case 'prerender':
+      case 'prerender-ppr':
+      case 'prerender-legacy':
+      case 'prerender-runtime':
+      case 'prerender-client':
+      case 'validation-client':
+      case 'generate-static-params':
+      case undefined:
+        ownerStack = innerOwnerStack
+        break
+      default:
+        workUnitStore satisfies never
+    }
+
+    if (ownerStack) {
+      let stack = ownerStack
+
+      if (error.stack) {
+        const frames: string[] = []
+
+        for (const frame of error.stack.split('\n').slice(1)) {
+          if (frame.includes('react_stack_bottom_frame')) {
+            break
+          }
+
+          frames.push(frame)
+        }
+
+        stack = '\n' + frames.join('\n') + stack
+      }
+
+      error.stack = error.name + ': ' + error.message + stack
+    }
   }
-  return stagedRendering
-    .waitForStage(getRuntimeStage(stagedRendering))
-    .then(() => result)
+
+  return error
 }

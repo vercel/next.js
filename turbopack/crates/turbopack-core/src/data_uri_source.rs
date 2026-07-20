@@ -42,11 +42,15 @@ impl DataUriSource {
 impl Source for DataUriSource {
     #[turbo_tasks::function]
     async fn description(&self) -> Result<Vc<RcStr>> {
+        let media_type = &self.media_type;
+        let encoding = &self.encoding;
         let data = self.data.await?;
-        // Include a short prefix of the raw data for identification; data URIs
-        // can be very long so we cap it at 50 characters.
-        let prefix: String = data.chars().take(50).collect();
-        let ellipsis = if data.len() > 50 { "..." } else { "" };
+        // Build the data URI prefix for identification; data URIs can be very
+        // long so we cap the total display at 50 characters.
+        let sep = if encoding.is_empty() { "" } else { ";" };
+        let full_with_data = format!("data:{media_type}{sep}{encoding},{data}");
+        let prefix: String = full_with_data.chars().take(50).collect();
+        let ellipsis = if full_with_data.len() > 50 { "..." } else { "" };
         Ok(Vc::cell(
             format!("data URI content ({prefix}{ellipsis})").into(),
         ))
@@ -63,10 +67,9 @@ impl Source for DataUriSource {
                 &self.encoding
             )))[0..6]
         );
-        Ok(
-            AssetIdent::from_path(self.lookup_path.join(&filename)?)
-                .with_content_type(content_type),
-        )
+        Ok(AssetIdent::from_path(self.lookup_path.join(&filename)?)
+            .with_content_type(content_type)
+            .into_vc())
     }
 }
 

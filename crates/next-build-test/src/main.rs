@@ -92,6 +92,7 @@ fn main() {
                             *cell = Some(Instant::now());
                         }
                     });
+                    TurboMalloc::thread_park();
                 })
                 .build()
                 .unwrap()

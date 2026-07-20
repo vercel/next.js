@@ -4,6 +4,10 @@ import type {
 } from '../app-render/work-async-storage.external'
 
 import { AppRenderSpan, NextNodeServerSpan } from './trace/constants'
+import {
+  isRequestInsightsEnabled,
+  recordRequestInsightFetch,
+} from './trace/request-insights'
 import { getTracer, SpanKind } from './trace/tracer'
 import {
   CACHE_ONE_YEAR_SECONDS,
@@ -30,6 +34,8 @@ import {
 import { cloneResponse } from './clone-response'
 import type { IncrementalCache } from './incremental-cache'
 import { RenderStage } from '../app-render/staged-rendering'
+import { encodeCacheTag } from './encode-cache-tag'
+import type { Span } from './trace/tracer'
 
 const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
 
@@ -54,7 +60,9 @@ export function validateRevalidate(
   try {
     let normalizedRevalidate: number | undefined = undefined
 
-    if (revalidateVal === false) {
+    if (revalidateVal === false || revalidateVal === Infinity) {
+      // Unlike Infinity, INFINITE_CACHE survives JSON serialization (e.g. in
+      // the fetch cache).
       normalizedRevalidate = INFINITE_CACHE
     } else if (
       typeof revalidateVal === 'number' &&
@@ -95,7 +103,10 @@ export function validateTags(tags: any[], description: string) {
         reason: `exceeded max length of ${NEXT_CACHE_TAG_MAX_LENGTH}`,
       })
     } else {
-      validTags.push(tag)
+      // Encode so a non-ASCII tag can be safely serialized into the
+      // `x-next-cache-tags` HTTP header without tripping Node's header
+      // validation. Length is checked on the raw input above.
+      validTags.push(encodeCacheTag(tag))
     }
 
     if (validTags.length > NEXT_CACHE_TAG_MAX_ITEMS) {
@@ -119,19 +130,49 @@ export function validateTags(tags: any[], description: string) {
 
 function trackFetchMetric(
   workStore: WorkStore,
+  span: Span | undefined,
   ctx: Omit<FetchMetric, 'end' | 'idx'>
 ) {
+  const metric = {
+    ...ctx,
+    end: performance.timeOrigin + performance.now(),
+    idx: workStore.nextFetchId || 0,
+  }
+
+  span?.setAttributes({
+    'http.status_code': metric.status,
+    'next.fetch.idx': metric.idx,
+    'next.fetch.cache_status': metric.cacheStatus,
+    'next.fetch.cache_reason': metric.cacheReason,
+  })
+
+  if (isRequestInsightsEnabled() && workStore.requestId) {
+    recordRequestInsightFetch(
+      {
+        requestId: workStore.requestId,
+        htmlRequestId: workStore.htmlRequestId,
+        route: workStore.route,
+      },
+      {
+        url: metric.url,
+        method: metric.method,
+        statusCode: metric.status,
+        startTime: metric.start,
+        durationMs: metric.end - metric.start,
+        cacheStatus: metric.cacheStatus,
+        cacheReason: metric.cacheReason,
+        index: metric.idx,
+      }
+    )
+  }
+
   if (!workStore.shouldTrackFetchMetrics) {
     return
   }
 
   workStore.fetchMetrics ??= []
 
-  workStore.fetchMetrics.push({
-    ...ctx,
-    end: performance.timeOrigin + performance.now(),
-    idx: workStore.nextFetchId || 0,
-  })
+  workStore.fetchMetrics.push(metric)
 }
 
 async function createCachedPrerenderResponse(
@@ -309,7 +350,7 @@ export function createPatchedFetcher(
           'net.peer.port': url?.port || undefined,
         },
       },
-      async () => {
+      async (span) => {
         // If this is an internal fetch, we should not do any special treatment.
         if (isInternal) {
           return originFetch(input, init)
@@ -373,6 +414,7 @@ export function createPatchedFetcher(
               break
             case 'request':
             case 'unstable-cache':
+            case 'generate-static-params':
               break
             default:
               workUnitStore satisfies never
@@ -412,6 +454,7 @@ export function createPatchedFetcher(
             case 'request':
             case 'cache':
             case 'private-cache':
+            case 'generate-static-params':
               break
             default:
               workUnitStore satisfies never
@@ -583,6 +626,7 @@ export function createPatchedFetcher(
             case 'cache':
             case 'private-cache':
             case 'unstable-cache':
+            case 'generate-static-params':
               break
             default:
               workUnitStore satisfies never
@@ -715,6 +759,7 @@ export function createPatchedFetcher(
                 case 'cache':
                 case 'private-cache':
                 case 'unstable-cache':
+                case 'generate-static-params':
                   break
                 default:
                   workUnitStore satisfies never
@@ -759,6 +804,7 @@ export function createPatchedFetcher(
             case 'prerender-ppr':
             case 'prerender-legacy':
             case 'unstable-cache':
+            case 'generate-static-params':
               break
             default:
               workUnitStore satisfies never
@@ -836,7 +882,7 @@ export function createPatchedFetcher(
           return originFetch(input, clonedInit)
             .then(async (res) => {
               if (!isStale && fetchStart) {
-                trackFetchMetric(workStore, {
+                trackFetchMetric(workStore, span, {
                   start: fetchStart,
                   url: fetchUrl,
                   cacheReason: cacheReasonOverride || cacheReason,
@@ -913,6 +959,7 @@ export function createPatchedFetcher(
                   case 'cache':
                   case 'private-cache':
                   case 'unstable-cache':
+                  case 'generate-static-params':
                   case undefined:
                     return createCachedDynamicResponse(
                       workStore,
@@ -996,6 +1043,7 @@ export function createPatchedFetcher(
                 case 'cache':
                 case 'private-cache':
                 case 'unstable-cache':
+                case 'generate-static-params':
                   break
                 default:
                   workUnitStore satisfies never
@@ -1046,7 +1094,7 @@ export function createPatchedFetcher(
 
           if (cachedFetchData) {
             if (fetchStart) {
-              trackFetchMetric(workStore, {
+              trackFetchMetric(workStore, span, {
                 start: fetchStart,
                 url: fetchUrl,
                 cacheReason,
@@ -1125,6 +1173,7 @@ export function createPatchedFetcher(
                 case 'cache':
                 case 'private-cache':
                 case 'unstable-cache':
+                case 'generate-static-params':
                   break
                 default:
                   workUnitStore satisfies never
@@ -1172,6 +1221,7 @@ export function createPatchedFetcher(
                   case 'unstable-cache':
                   case 'prerender-legacy':
                   case 'prerender-ppr':
+                  case 'generate-static-params':
                     break
                   default:
                     workUnitStore satisfies never

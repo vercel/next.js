@@ -48,10 +48,10 @@ impl TraceWriter {
     /// This is a non-blocking writer that writes a file in a background thread.
     /// This is inspired by tracing-appender non_blocking, but has some
     /// differences:
-    /// * It allows writing an owned Vec<u8> instead of a reference, so avoiding additional
+    /// * It allows writing an owned [`Vec<u8>`] instead of a reference, so avoiding additional
     ///   allocation.
     /// * It uses an unbounded channel to avoid slowing down the application at all (memory) cost.
-    /// * It issues less writes by buffering the data into chunks of WRITE_BUFFER_SIZE, when
+    /// * It issues less writes by buffering the data into chunks of `WRITE_BUFFER_SIZE`, when
     ///   possible.
     pub fn new<W: Write + Send + 'static>(mut writer: W) -> (Self, TraceWriterGuard) {
         let (data_tx, data_rx) = unbounded::<Option<TraceInfoBuffer>>();

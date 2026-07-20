@@ -15,6 +15,10 @@ import {
   toPath,
   type TransformIpc,
 } from './transforms'
+import {
+  evaluateBundle,
+  type ImportModuleResult,
+} from './webpack-loaders-runtime'
 import fs from 'fs'
 import path from 'path'
 
@@ -41,12 +45,18 @@ export type IpcInfoMessage =
       }>
     }
 
-export type IpcRequestMessage = {
-  type: 'resolve'
-  options: any
-  lookupPath: string
-  request: string
-}
+export type IpcRequestMessage =
+  | {
+      type: 'resolve'
+      options: any
+      lookupPath: string
+      request: string
+    }
+  | {
+      type: 'importModule'
+      lookupPath: string
+      request: string
+    }
 
 type LoaderConfig =
   | string
@@ -351,6 +361,53 @@ const transform = (
           },
           emitWarning: makeErrorEmitter('warning', ipc),
           emitError: makeErrorEmitter('error', ipc),
+          importModule(
+            request: string,
+            optionsOrCallback?: any,
+            maybeCallback?: (err: Error | null, result?: any) => void
+          ) {
+            // Support both (request, options, callback) and (request, options) -> Promise
+            let callback:
+              | ((err: Error | null, result?: any) => void)
+              | undefined
+            if (typeof optionsOrCallback === 'function') {
+              callback = optionsOrCallback
+            } else {
+              callback = maybeCallback
+            }
+
+            const doImport = async () => {
+              let actualRequest = request
+              // The webpack API allows absolute paths in importModule requests,
+              // but Turbopack's resolver expects relative paths. Convert absolute
+              // paths to relative ones for backward compatibility with webpack loaders.
+              if (path.isAbsolute(request)) {
+                actualRequest = path.relative(resourceDir, request)
+                if (
+                  !path.isAbsolute(actualRequest) &&
+                  actualRequest.split(path.sep)[0] !== '..'
+                ) {
+                  actualRequest = './' + actualRequest
+                }
+              }
+
+              const result = (await ipc.sendRequest({
+                type: 'importModule',
+                lookupPath: toPath(resourceDir),
+                request: actualRequest,
+              })) as ImportModuleResult
+
+              return evaluateBundle(result)
+            }
+
+            if (!callback) {
+              return doImport()
+            }
+            doImport().then(
+              (result) => callback!(null, result),
+              (err) => callback!(err as Error)
+            )
+          },
           getLogger(name: unknown) {
             const logFn = (logType: string, ...args: unknown[]) => {
               let trace: StackFrame[] | undefined

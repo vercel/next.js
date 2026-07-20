@@ -25,6 +25,7 @@ import type { PagesManifest } from '../../build/webpack/plugins/pages-manifest-p
 import * as React from 'react'
 import fs from 'fs'
 import { Worker } from 'next/dist/compiled/jest-worker'
+import { installUseCacheProbe } from './use-cache-probe-pool'
 import { join as pathJoin } from 'path'
 import { PUBLIC_DIR_MIDDLEWARE_CONFLICT } from '../../lib/constants'
 import { findPagesDir } from '../../lib/find-pages-dir'
@@ -88,6 +89,9 @@ import type { PrerenderManifest } from '../../build'
 import { getRouteRegex } from '../../shared/lib/router/utils/route-regex'
 import type { PrerenderedRoute } from '../../build/static-paths/types'
 import { HMR_MESSAGE_SENT_TO_BROWSER } from './hot-reloader-types'
+import { registerLocalSpanRecorder } from '../lib/trace/local-span-recorder'
+
+registerLocalSpanRecorder()
 
 // Load ReactDevOverlay only when needed
 let PagesDevOverlayBridgeImpl: PagesDevOverlayBridgeType
@@ -214,6 +218,13 @@ export default class DevServer extends Server {
         }
       )
     }
+
+    installUseCacheProbe({
+      distDir: this.distDir,
+      buildId: this.buildId,
+      deploymentId: this.deploymentId,
+      nextConfig: this.nextConfig,
+    })
   }
 
   protected override getServerComponentsHmrCache() {
@@ -224,12 +235,13 @@ export default class DevServer extends Server {
     const { pagesDir, appDir } = findPagesDir(this.dir)
 
     const ensurer: RouteEnsurer = {
-      ensure: async (match, pathname) => {
+      ensure: async (match, pathname, options) => {
         await this.ensurePage({
           definition: match.definition,
           page: match.definition.page,
           clientOnly: false,
           url: pathname,
+          rscOnly: options?.rscOnly,
         })
       },
     }
@@ -799,8 +811,6 @@ export default class DevServer extends Server {
           pathname,
           config: {
             pprConfig: this.nextConfig.experimental.ppr,
-            partialFallbacks:
-              this.nextConfig.experimental.partialFallbacks === true,
             configFileName,
             cacheComponents: Boolean(this.nextConfig.cacheComponents),
           },
@@ -818,7 +828,11 @@ export default class DevServer extends Server {
           cacheMaxMemorySize: this.nextConfig.cacheMaxMemorySize,
           nextConfigOutput: this.nextConfig.output,
           buildId: this.buildId,
+          deploymentId: this.deploymentId,
           authInterrupts: Boolean(this.nextConfig.experimental.authInterrupts),
+          useCacheTimeout: this.nextConfig.experimental.useCacheTimeout,
+          staticPageGenerationTimeout:
+            this.nextConfig.staticPageGenerationTimeout,
           sriEnabled: Boolean(this.nextConfig.experimental.sri?.algorithm),
         })
         return pathsResult
@@ -969,6 +983,7 @@ export default class DevServer extends Server {
     appPaths?: ReadonlyArray<string> | null
     definition: RouteDefinition | undefined
     url?: string
+    rscOnly?: boolean
   }): Promise<void> {
     await this.bundlerService.ensurePage(opts)
   }

@@ -12,6 +12,7 @@ import {
   Locator,
   Request as PlaywrightRequest,
   Response as PlaywrightResponse,
+  BrowserContextOptions,
 } from 'playwright'
 import path from 'path'
 
@@ -19,10 +20,13 @@ type EventType = 'request' | 'response'
 
 type PageLog = { source: string; message: string; args: unknown[] }
 
+export type Permissions = BrowserContextOptions['permissions']
+
 let page: Page
 let browser: Browser | undefined
 let context: BrowserContext | undefined
 let contextHasJSEnabled: boolean = true
+let contextPermissions: Permissions = undefined
 let pageLogs: Array<Promise<PageLog> | PageLog> = []
 let websocketFrames: Array<{ payload: string | Buffer }> = []
 
@@ -167,7 +171,8 @@ export class Playwright<TCurrent = undefined> {
     javaScriptEnabled: boolean,
     ignoreHTTPSErrors: boolean,
     headless: boolean,
-    userAgent: string | undefined
+    userAgent: string | undefined,
+    permissions: Permissions
   ) {
     let device
 
@@ -182,7 +187,13 @@ export class Playwright<TCurrent = undefined> {
     }
 
     if (browser) {
-      if (contextHasJSEnabled !== javaScriptEnabled) {
+      if (
+        contextHasJSEnabled !== javaScriptEnabled ||
+        // Even triggers on same set of permissions, but we don't want to deal
+        // with the complexity of diffing them, so we just always recreate the
+        // context when permissions are set.
+        contextPermissions !== permissions
+      ) {
         // If we have switched from having JS enable/disabled we need to recreate the context.
         await teardown(this.teardownTracing.bind(this))
         await context?.close()
@@ -192,8 +203,10 @@ export class Playwright<TCurrent = undefined> {
           ignoreHTTPSErrors,
           ...(userAgent ? { userAgent } : {}),
           ...device,
+          permissions,
         })
         contextHasJSEnabled = javaScriptEnabled
+        contextPermissions = permissions
       }
       return
     }
@@ -205,6 +218,7 @@ export class Playwright<TCurrent = undefined> {
       ignoreHTTPSErrors,
       ...(userAgent ? { userAgent } : {}),
       ...device,
+      permissions,
     })
     contextHasJSEnabled = javaScriptEnabled
   }
@@ -214,14 +228,16 @@ export class Playwright<TCurrent = undefined> {
     await page?.close()
   }
 
-  async launchBrowser(browserName: string, launchOptions: Record<string, any>) {
+  async launchBrowser(
+    browserName: string,
+    launchOptions: { headless: boolean }
+  ) {
     if (browserName === 'safari') {
       return await webkit.launch(launchOptions)
     } else if (browserName === 'firefox') {
       return await firefox.launch({
         ...launchOptions,
         firefoxUserPrefs: {
-          ...launchOptions.firefoxUserPrefs,
           // The "fission.webContentIsolationStrategy" pref must be
           // set to 1 on Firefox due to the bug where a new history
           // state is pushed on a page reload.
@@ -231,9 +247,13 @@ export class Playwright<TCurrent = undefined> {
         },
       })
     } else {
+      let launchArgs: string[] = []
+      if (!launchOptions.headless) {
+        launchArgs.push('--auto-open-devtools-for-tabs')
+      }
       return await chromium.launch({
-        devtools: !launchOptions.headless,
         ...launchOptions,
+        args: launchArgs,
         ignoreDefaultArgs: ['--disable-back-forward-cache'],
       })
     }
@@ -249,6 +269,13 @@ export class Playwright<TCurrent = undefined> {
       disableCache?: boolean
       cpuThrottleRate?: number
       pushErrorAsConsoleLog?: boolean
+      /**
+       * Suppress the harness from echoing the browser's console output to the
+       * test's terminal (the `Browser Log:` lines). Browser logs are still
+       * collected and available via `browser.log()`. Useful when a test
+       * captures and asserts on terminal output, where the echo would be noise.
+       */
+      disableBrowserLog?: boolean
       beforePageLoad?: (page: Page) => void | Promise<void>
       /**
        * @see {@link https://playwright.dev/docs/api/class-page#page-set-extra-http-headers Playwright.Page.setExtraHTTPHeaders}
@@ -278,7 +305,9 @@ export class Playwright<TCurrent = undefined> {
     websocketFrames = []
 
     page.on('console', (msg) => {
-      debugPrint('Browser Log:', msg)
+      if (!opts?.disableBrowserLog) {
+        debugPrint('Browser Log:', msg)
+      }
 
       pageLogs.push(
         Promise.all(
@@ -363,10 +392,25 @@ export class Playwright<TCurrent = undefined> {
       await page.goForward(options)
     })
   }
-  refresh() {
+  refresh(opts?: { waitUntil?: PlaywrightNavigationWaitUntil }) {
     // do not preserve the previous chained value, it's likely to be invalid after a reload.
     return this.startChain(async () => {
-      await page.reload()
+      await page.reload({ waitUntil: opts?.waitUntil ?? 'load' })
+    })
+  }
+  /**
+   * Evict the browser HTTP cache via CDP (`Network.clearBrowserCache`). This is
+   * only supported in Chromium; gate the calling test on `global.browserName
+   * === 'chrome'` (Playwright's Firefox and WebKit don't expose CDP).
+   */
+  clearBrowserCache() {
+    return this.startChain(async () => {
+      const session = await context!.newCDPSession(page)
+      try {
+        await session.send('Network.clearBrowserCache')
+      } finally {
+        await session.detach()
+      }
     })
   }
   setDimensions({ width, height }: { height: number; width: number }) {

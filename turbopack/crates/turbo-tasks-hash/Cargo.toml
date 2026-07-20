@@ -15,6 +15,7 @@ workspace = true
 [dependencies]
 bincode = { workspace = true }
 data-encoding = { workspace = true }
+smallvec = { workspace = true }
 sha2 = { workspace = true }
 turbo-tasks-macros = { workspace = true }
 xxhash-rust = { workspace = true }

@@ -2,13 +2,6 @@ import type {
   EdgeFunctionDefinition,
   MiddlewareManifest,
 } from '../../../build/webpack/plugins/middleware-plugin'
-import type {
-  StatsAsset,
-  StatsChunk,
-  StatsChunkGroup,
-  StatsModule,
-  StatsCompilation as WebpackStats,
-} from 'webpack'
 import type { BuildManifest } from '../../../server/get-page-files'
 import type { PagesManifest } from '../../../build/webpack/plugins/pages-manifest-plugin'
 import type { ActionManifest } from '../../../build/webpack/plugins/flight-client-entry-plugin'
@@ -27,7 +20,6 @@ import {
   SUBRESOURCE_INTEGRITY_MANIFEST,
   TURBOPACK_CLIENT_BUILD_MANIFEST,
   TURBOPACK_CLIENT_MIDDLEWARE_MANIFEST,
-  WEBPACK_STATS,
 } from '../constants'
 import { join, posix } from 'path'
 import { readFileSync } from 'fs'
@@ -35,7 +27,7 @@ import type { SetupOpts } from '../../../server/lib/router-utils/setup-dev-bundl
 import { deleteCache } from '../../../server/dev/require-cache'
 import { writeFileAtomic } from '../../../lib/fs/write-atomic'
 import getAssetPathFromRoute from '../router/utils/get-asset-path-from-route'
-import { getEntryKey, type EntryKey } from './entry-key'
+import { getEntryKey, splitEntryKey, type EntryKey } from './entry-key'
 import type { CustomRoutes } from '../../../lib/load-custom-routes'
 import { getSortedRoutes } from '../router/utils'
 import { existsSync } from 'fs'
@@ -69,7 +61,6 @@ type ManifestName =
   | typeof MIDDLEWARE_MANIFEST
   | typeof BUILD_MANIFEST
   | typeof PAGES_MANIFEST
-  | typeof WEBPACK_STATS
   | typeof APP_PATHS_MANIFEST
   | `${typeof SERVER_REFERENCE_MANIFEST}.json`
   | `${typeof SUBRESOURCE_INTEGRITY_MANIFEST}.json`
@@ -181,6 +172,10 @@ class ManifestsMap<K, V> {
   values() {
     return this.map.values()
   }
+
+  entries() {
+    return this.map.entries()
+  }
 }
 
 export class TurbopackManifestLoader {
@@ -199,8 +194,6 @@ export class TurbopackManifestLoader {
     TurbopackMiddlewareManifest
   > = new ManifestsMap()
   private pagesManifests: ManifestsMap<string, PagesManifest> =
-    new ManifestsMap()
-  private webpackStats: ManifestsMap<EntryKey, WebpackStats> =
     new ManifestsMap()
   private sriManifests: ManifestsMap<EntryKey, SubresourceIntegrityManifest> =
     new ManifestsMap()
@@ -243,7 +236,6 @@ export class TurbopackManifestLoader {
     this.fontManifests.delete(key)
     this.middlewareManifests.delete(key)
     this.pagesManifests.delete(key)
-    this.webpackStats.delete(key)
   }
 
   loadActionManifest(pageName: string): void {
@@ -273,12 +265,10 @@ export class TurbopackManifestLoader {
       for (const key in other) {
         const action = (actionEntries[key] ??= {
           workers: {},
-          layer: {},
         })
         action.filename = other[key].filename
         action.exportedName = other[key].exportedName
         Object.assign(action.workers, other[key].workers)
-        Object.assign(action.layer, other[key].layer)
       }
     }
 
@@ -289,12 +279,10 @@ export class TurbopackManifestLoader {
     for (const key in manifest.node) {
       const entry = manifest.node[key]
       entry.workers = sortObjectByKey(entry.workers)
-      entry.layer = sortObjectByKey(entry.layer)
     }
     for (const key in manifest.edge) {
       const entry = manifest.edge[key]
       entry.workers = sortObjectByKey(entry.workers)
-      entry.layer = sortObjectByKey(entry.layer)
     }
 
     return manifest
@@ -358,16 +346,6 @@ export class TurbopackManifestLoader {
     )
   }
 
-  private writeWebpackStats(): void {
-    if (!this.webpackStats.takeChanged()) {
-      return
-    }
-    const webpackStats = this.mergeWebpackStats(this.webpackStats.values())
-    const path = join(this.distDir, 'server', WEBPACK_STATS)
-    this.pendingCacheDeletes.push(path)
-    writeFileAtomic(path, JSON.stringify(webpackStats, null, 2))
-  }
-
   private writeSriManifest(): void {
     if (!this.sriEnabled || !this.sriManifests.takeChanged()) {
       return
@@ -416,13 +394,6 @@ export class TurbopackManifestLoader {
     )
   }
 
-  loadWebpackStats(pageName: string, type: 'app' | 'pages' = 'pages'): void {
-    this.webpackStats.set(
-      getEntryKey(type, 'client', pageName),
-      readPartialManifestContent(this.distDir, WEBPACK_STATS, pageName, type)
-    )
-  }
-
   loadSriManifest(pageName: string, type: 'app' | 'pages' = 'pages'): void {
     if (!this.sriEnabled) return
     this.sriManifests.set(
@@ -434,66 +405,6 @@ export class TurbopackManifestLoader {
         type
       )
     )
-  }
-
-  private mergeWebpackStats(statsFiles: Iterable<WebpackStats>): WebpackStats {
-    const entrypoints: Record<string, StatsChunkGroup> = {}
-    const assets: Map<string, StatsAsset> = new Map()
-    const chunks: Map<string | number, StatsChunk> = new Map()
-    const modules: Map<string | number, StatsModule> = new Map()
-
-    for (const statsFile of statsFiles) {
-      if (statsFile.entrypoints) {
-        for (const [k, v] of Object.entries(statsFile.entrypoints)) {
-          if (!entrypoints[k]) {
-            entrypoints[k] = v
-          }
-        }
-      }
-
-      if (statsFile.assets) {
-        for (const asset of statsFile.assets) {
-          if (!assets.has(asset.name)) {
-            assets.set(asset.name, asset)
-          }
-        }
-      }
-
-      if (statsFile.chunks) {
-        for (const chunk of statsFile.chunks) {
-          if (!chunks.has(chunk.id!)) {
-            chunks.set(chunk.id!, chunk)
-          }
-        }
-      }
-
-      if (statsFile.modules) {
-        for (const module of statsFile.modules) {
-          const id = module.id
-          if (id != null) {
-            // Merge the chunk list for the module. This can vary across endpoints.
-            const existing = modules.get(id)
-            if (existing == null) {
-              modules.set(id, module)
-            } else if (module.chunks != null && existing.chunks != null) {
-              for (const chunk of module.chunks) {
-                if (!existing.chunks.includes(chunk)) {
-                  existing.chunks.push(chunk)
-                }
-              }
-            }
-          }
-        }
-      }
-    }
-
-    return {
-      version: 'Turbopack',
-      entrypoints,
-      assets: [...assets.values()],
-      chunks: [...chunks.values()],
-      modules: [...modules.values()],
-    }
   }
 
   private mergeBuildManifests(
@@ -509,12 +420,25 @@ export class TurbopackManifestLoader {
       polyfillFiles: [],
       lowPriorityFiles,
       rootMainFiles: [],
+      rootMainFilesTree: {},
+      pagesChunkGroupBootstrapParams: {},
     }
     for (const m of manifests) {
       Object.assign(manifest.pages, m.pages)
       if (m.rootMainFiles.length) manifest.rootMainFiles = m.rootMainFiles
       // polyfillFiles should always be the same, so we can overwrite instead of actually merging
       if (m.polyfillFiles.length) manifest.polyfillFiles = m.polyfillFiles
+      if (m.rootMainFilesTree) {
+        Object.assign(manifest.rootMainFilesTree!, m.rootMainFilesTree)
+      }
+      if (m.pagesChunkGroupBootstrapParams) {
+        Object.assign(
+          manifest.pagesChunkGroupBootstrapParams!,
+          m.pagesChunkGroupBootstrapParams
+        )
+      }
+      if (m.chunkLoadingGlobal)
+        manifest.chunkLoadingGlobal = m.chunkLoadingGlobal
     }
     manifest.pages = sortObjectByKey(manifest.pages) as BuildManifest['pages']
     return manifest
@@ -664,11 +588,39 @@ export class TurbopackManifestLoader {
       rewrites,
       sortedPageKeys
     )
-    const clientBuildManifestJs = `self.__BUILD_MANIFEST = ${JSON.stringify(
-      clientBuildManifest,
-      null,
-      2
-    )};self.__BUILD_MANIFEST_CB && self.__BUILD_MANIFEST_CB()`
+
+    // Expose each route's bootstrap params and the chunk-loading global to the client
+    // so `route-loader` can instantiate a navigated page's entry module. The server
+    // stores params as raw JSON per route.
+    const pageBootstrapParams: Record<string, unknown> = {}
+    let chunkLoadingGlobal: string | undefined
+    for (const [key, m] of this.buildManifests.entries()) {
+      // Only the pages-router `route-loader` reads `__TURBOPACK_PAGE_BOOTSTRAP`. App routes
+      // navigate via flight and never use it, so skip app entries to keep `_buildManifest.js`
+      // (loaded on every page) small.
+      if (splitEntryKey(key).type !== 'pages') continue
+      if (m.chunkLoadingGlobal) chunkLoadingGlobal = m.chunkLoadingGlobal
+      for (const [route, params] of Object.entries(
+        m.pagesChunkGroupBootstrapParams ?? {}
+      )) {
+        pageBootstrapParams[route] = params
+      }
+    }
+
+    // Only emit the bootstrap globals when a route actually inlined its bootstrap (shared runtime
+    // enabled).
+    const hasBootstrapParams = Object.keys(pageBootstrapParams).length > 0
+    const clientBuildManifestJs =
+      `self.__BUILD_MANIFEST = ${JSON.stringify(clientBuildManifest, null, 2)};` +
+      (hasBootstrapParams
+        ? `self.__TURBOPACK_PAGE_BOOTSTRAP = ${JSON.stringify(pageBootstrapParams)};` +
+          (chunkLoadingGlobal
+            ? `self.__TURBOPACK_CHUNK_LOADING_GLOBAL = ${JSON.stringify(
+                chunkLoadingGlobal
+              )};`
+            : '')
+        : '') +
+      `self.__BUILD_MANIFEST_CB && self.__BUILD_MANIFEST_CB()`
 
     writeFileAtomic(
       join(this.distDir, buildManifestPath),
@@ -959,10 +911,6 @@ export class TurbopackManifestLoader {
     this.writePagesManifest()
 
     this.writeSriManifest()
-
-    if (process.env.TURBOPACK_STATS != null) {
-      this.writeWebpackStats()
-    }
 
     // Flush all queued cache deletions in a single require.cache scan
     if (this.pendingCacheDeletes.length > 0) {

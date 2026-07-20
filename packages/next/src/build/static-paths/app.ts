@@ -21,13 +21,22 @@ import {
 import escapePathDelimiters from '../../shared/lib/router/utils/escape-path-delimiters'
 import { createIncrementalCache } from '../../export/helpers/create-incremental-cache'
 import type { NextConfigComplete } from '../../server/config-shared'
-import type { WorkStore } from '../../server/app-render/work-async-storage.external'
+import {
+  type WorkStore,
+  workAsyncStorage,
+} from '../../server/app-render/work-async-storage.external'
 import type { DynamicParamTypes } from '../../shared/lib/app-router-types'
 import { getParamProperties } from '../../shared/lib/router/utils/get-segment-param'
 import { throwEmptyGenerateStaticParamsError } from '../../shared/lib/errors/empty-generate-static-params-error'
 import type { AppRouteModule } from '../../server/route-modules/app-route/module.compiled'
 import type { NormalizedAppRoute } from '../../shared/lib/router/routes/app'
 import { interceptionPrefixFromParamType } from '../../shared/lib/router/utils/interception-prefix-from-param-type'
+import {
+  type GenerateStaticParamsStore,
+  workUnitAsyncStorage,
+} from '../../server/app-render/work-unit-async-storage.external'
+import type { ImplicitTags } from '../../server/lib/implicit-tags'
+import { getImplicitTags } from '../../server/lib/implicit-tags'
 
 /**
  * Filters out duplicate parameters from a list of parameters.
@@ -424,8 +433,7 @@ export function assignStaticShellMetadata(
   pathnameSegments: ReadonlyArray<{
     readonly paramName: string
     readonly hasGenerateStaticParams: boolean
-  }>,
-  computeRemainingPrerenderableParams: boolean
+  }>
 ): void {
   // If there are no routes to process, exit early.
   if (prerenderedRoutes.length === 0) {
@@ -545,11 +553,7 @@ export function assignStaticShellMetadata(
           route.throwOnEmptyStaticShell = true // Should throw on empty static shell.
         }
 
-        if (
-          computeRemainingPrerenderableParams &&
-          route.fallbackRouteParams &&
-          route.fallbackRouteParams.length > 0
-        ) {
+        if (route.fallbackRouteParams && route.fallbackRouteParams.length > 0) {
           const fallbackRouteParamsByName = new Map(
             route.fallbackRouteParams.map((param) => [param.paramName, param])
           )
@@ -595,6 +599,35 @@ export function assignStaticShellMetadata(
 }
 
 /**
+ * Calls a single generateStaticParams function within a WorkUnitStore context,
+ * making root param getters available during static param generation.
+ */
+async function callGenerateStaticParams(
+  generateStaticParams: NonNullable<AppSegment['generateStaticParams']>,
+  parentParams: Params,
+  rootParamKeys: readonly string[],
+  implicitTags: ImplicitTags
+): Promise<Params[]> {
+  const rootParams: Params = {}
+  for (const key of rootParamKeys) {
+    if (key in parentParams) {
+      rootParams[key] = parentParams[key]
+    }
+  }
+
+  const workUnitStore: GenerateStaticParamsStore = {
+    type: 'generate-static-params',
+    phase: 'render',
+    implicitTags,
+    rootParams,
+  }
+
+  return workUnitAsyncStorage.run(workUnitStore, generateStaticParams, {
+    params: parentParams,
+  })
+}
+
+/**
  * Processes app directory segments to build route parameters from generateStaticParams functions.
  * This function walks through the segments array and calls generateStaticParams for each segment that has it,
  * combining parent parameters with child parameters to build the complete parameter combinations.
@@ -602,17 +635,27 @@ export function assignStaticShellMetadata(
  *
  * @param segments - Array of app directory segments to process
  * @param store - Work store for tracking fetch cache configuration
+ * @param isRoutePPREnabled - Whether PPR is enabled for this route
+ * @param rootParamKeys - The keys identifying which params are root params
  * @returns Promise that resolves to an array of all parameter combinations
  */
 export async function generateRouteStaticParams(
   segments: ReadonlyArray<
-    Readonly<Pick<AppSegment, 'config' | 'generateStaticParams'>>
+    Readonly<
+      Pick<
+        AppSegment,
+        'config' | 'generateStaticParams' | 'createEmptyParamsError'
+      >
+    >
   >,
-  store: Pick<WorkStore, 'fetchCache'>,
-  isRoutePPREnabled: boolean
+  store: Pick<WorkStore, 'fetchCache' | 'page'>,
+  isRoutePPREnabled: boolean,
+  rootParamKeys: readonly string[]
 ): Promise<Params[]> {
   // Early return if no segments to process
   if (segments.length === 0) return []
+
+  const implicitTags = await getImplicitTags(store.page, store.page, null)
 
   // Use iterative processing with a work queue to avoid recursion overhead
   interface WorkItem {
@@ -651,9 +694,12 @@ export async function generateRouteStaticParams(
     if (params.length > 0) {
       // Process each parent parameter combination
       for (const parentParams of params) {
-        const result = await current.generateStaticParams({
-          params: parentParams,
-        })
+        const result = await callGenerateStaticParams(
+          current.generateStaticParams,
+          parentParams,
+          rootParamKeys,
+          implicitTags
+        )
 
         if (result.length > 0) {
           // Merge parent params with each result item
@@ -661,7 +707,7 @@ export async function generateRouteStaticParams(
             nextParams.push({ ...parentParams, ...item })
           }
         } else if (isRoutePPREnabled) {
-          throwEmptyGenerateStaticParamsError()
+          throwEmptyGenerateStaticParamsError(current.createEmptyParamsError)
         } else {
           // No results, just pass through parent params
           nextParams.push(parentParams)
@@ -669,9 +715,14 @@ export async function generateRouteStaticParams(
       }
     } else {
       // No parent params, call generateStaticParams with empty object
-      const result = await current.generateStaticParams({ params: {} })
+      const result = await callGenerateStaticParams(
+        current.generateStaticParams,
+        {},
+        rootParamKeys,
+        implicitTags
+      )
       if (result.length === 0 && isRoutePPREnabled) {
-        throwEmptyGenerateStaticParamsError()
+        throwEmptyGenerateStaticParamsError(current.createEmptyParamsError)
       }
 
       nextParams.push(...result)
@@ -731,6 +782,8 @@ export async function buildAppStaticPaths({
   distDir,
   cacheComponents,
   authInterrupts,
+  useCacheTimeout,
+  staticPageGenerationTimeout,
   segments,
   isrFlushToDisk,
   cacheHandler,
@@ -742,8 +795,8 @@ export async function buildAppStaticPaths({
   nextConfigOutput,
   ComponentMod,
   isRoutePPREnabled = false,
-  partialFallbacksEnabled = false,
   buildId,
+  deploymentId,
   rootParamKeys,
 }: {
   dir: string
@@ -751,22 +804,22 @@ export async function buildAppStaticPaths({
   route: NormalizedAppRoute
   cacheComponents: boolean
   authInterrupts: boolean
+  useCacheTimeout: number
+  staticPageGenerationTimeout: number
   segments: readonly Readonly<AppSegment>[]
   distDir: string
   isrFlushToDisk?: boolean
   fetchCacheKeyPrefix?: string
   cacheHandler?: string
   cacheHandlers?: NextConfigComplete['cacheHandlers']
-  cacheLifeProfiles?: {
-    [profile: string]: import('../../server/use-cache/cache-life').CacheLife
-  }
+  cacheLifeProfiles: import('../../server/config-shared').ResolvedCacheLifeProfiles
   cacheMaxMemorySize: number
   requestHeaders: IncrementalCache['requestHeaders']
   nextConfigOutput: 'standalone' | 'export' | undefined
   ComponentMod: AppPageModule | AppRouteModule
   isRoutePPREnabled: boolean
-  partialFallbacksEnabled?: boolean
   buildId: string
+  deploymentId: string
   rootParamKeys: readonly string[]
 }): Promise<StaticPathsResult> {
   if (
@@ -808,25 +861,33 @@ export async function buildAppStaticPaths({
     renderOpts: {
       incrementalCache,
       cacheLifeProfiles,
+      staticPageGenerationTimeout,
       supportsDynamicResponse: true,
       cacheComponents,
+      // generateStaticParams evaluation doesn't render pages, so instant
+      // validation never runs here. The level value is irrelevant.
+      // TODO: remove validationLevel and other global config out of renderOpts
+      validationLevel: 'warning',
       experimental: {
         authInterrupts,
+        useCacheTimeout,
       },
       waitUntil: afterRunner.context.waitUntil,
       onClose: afterRunner.context.onClose,
       onAfterTaskError: afterRunner.context.onTaskError,
     },
     buildId,
+    deploymentId,
     previouslyRevalidatedTags: [],
   })
 
-  const routeParams = await ComponentMod.workAsyncStorage.run(
+  const routeParams = await workAsyncStorage.run(
     store,
     generateRouteStaticParams,
     segments,
     store,
-    isRoutePPREnabled
+    isRoutePPREnabled,
+    rootParamKeys
   )
   const generatedParamNames = new Set<string>()
   for (const params of routeParams) {
@@ -1060,11 +1121,7 @@ export async function buildAppStaticPaths({
 
   // Now we have to set the throwOnEmptyStaticShell for each of the routes.
   if (prerenderedRoutes && cacheComponents) {
-    assignStaticShellMetadata(
-      prerenderedRoutes,
-      prerenderablePathSegments,
-      partialFallbacksEnabled
-    )
+    assignStaticShellMetadata(prerenderedRoutes, prerenderablePathSegments)
   }
 
   return { fallbackMode, prerenderedRoutes }
