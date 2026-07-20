@@ -467,13 +467,7 @@ export function resolveCssChunkingMode(
 
 export interface ExperimentalConfig {
   /**
-   * A string that is incorporated into content-addressed output filenames
-   * (chunks, assets) for both Webpack and Turbopack. Changing this value
-   * forces all output hashes to change, which is useful for invalidating
-   * cached assets across deployments without modifying source files.
-   *
-   * When `NEXT_HASH_SALT` environment variable is also set, the two values are
-   * concatenated (`outputHashSalt + NEXT_HASH_SALT`) to form the effective salt.
+   * @deprecated Use the top-level `outputHashSalt` option instead.
    */
   outputHashSalt?: string
 
@@ -905,6 +899,13 @@ export interface ExperimentalConfig {
    * Defaults to `true`
    */
   turbopackInferModuleSideEffects?: boolean
+
+  /**
+   * Enable tree shaking of unused exports from analyzable CommonJS modules in Turbopack.
+   *
+   * Defaults to `false`
+   */
+  turbopackCjsTreeShaking?: boolean
 
   /**
    * Set this to `false` to disable the automatic configuration of the babel loader when a Babel
@@ -1364,9 +1365,7 @@ export interface ExperimentalConfig {
   runtimeServerDeploymentId?: boolean
 
   /**
-   * Whether the deployment environment supports immutable assets (assets deployed to
-   * `_next/static/immutable` don't need a `?dpl` parameter and can be safely requested across
-   * deployments.)
+   * @deprecated Use the top-level `supportsImmutableAssets` option instead.
    */
   supportsImmutableAssets?: boolean
 
@@ -1693,6 +1692,13 @@ export interface NextConfig {
   deploymentId?: string
 
   /**
+   * Whether the deployment environment supports immutable assets (assets deployed to
+   * `_next/static/immutable` don't need a `?dpl` parameter and can be safely requested across
+   * deployments.)
+   */
+  supportsImmutableAssets?: boolean
+
+  /**
    * Deploy a Next.js application under a sub-path of a domain
    *
    * @see [Base path configuration](https://nextjs.org/docs/app/api-reference/config/next-config-js/basePath)
@@ -1967,6 +1973,17 @@ export interface NextConfig {
    */
   outputFileTracingIncludes?: Record<string, string[]>
 
+  /**
+   * A string that is incorporated into content-addressed output filenames
+   * (chunks, assets) for both Webpack and Turbopack. Changing this value
+   * forces all output hashes to change, which is useful for invalidating
+   * cached assets across deployments without modifying source files.
+   *
+   * When `NEXT_HASH_SALT` environment variable is also set, the two values are
+   * concatenated (`outputHashSalt + NEXT_HASH_SALT`) to form the effective salt.
+   */
+  outputHashSalt?: string
+
   watchOptions?: {
     pollIntervalMs?: number
   }
@@ -2235,6 +2252,7 @@ export async function normalizeConfig(phase: string, config: any) {
 export interface NextConfigRuntime {
   // Can be undefined, particularly when experimental.runtimeServerDeploymentId is true
   deploymentId?: NextConfigComplete['deploymentId']
+  supportsImmutableAssets?: NextConfigComplete['supportsImmutableAssets']
 
   configFileName?: string
   // Should only be included when using isExperimentalCompile
@@ -2313,7 +2331,6 @@ export interface NextConfigRuntime {
     | 'maxPostponedStateSize'
     | 'cachedNavigations'
     | 'exposeTestingApiInProductionBuild'
-    | 'supportsImmutableAssets'
     | 'instantInsights'
     | 'requestInsights'
   > & {
@@ -2383,7 +2400,6 @@ export function getNextConfigRuntime(
     maxPostponedStateSize: ex.maxPostponedStateSize,
     cachedNavigations: ex.cachedNavigations,
     exposeTestingApiInProductionBuild: ex.exposeTestingApiInProductionBuild,
-    supportsImmutableAssets: ex.supportsImmutableAssets,
     instantInsights: ex.instantInsights,
     requestInsights: ex.requestInsights,
 
@@ -2395,6 +2411,7 @@ export function getNextConfigRuntime(
     deploymentId: config.experimental.runtimeServerDeploymentId
       ? ''
       : config.deploymentId,
+    supportsImmutableAssets: config.supportsImmutableAssets,
 
     configFileName: undefined,
     env: undefined,

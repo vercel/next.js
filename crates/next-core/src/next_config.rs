@@ -149,6 +149,10 @@ pub struct NextConfig {
     /// [API Reference](https://nextjs.org/docs/app/api-reference/next-config-js/serverExternalPackages)
     server_external_packages: Option<Vec<RcStr>>,
 
+    /// A salt to mix into chunk and asset content hashes. Empty string means
+    /// no salt.
+    output_hash_salt: Option<RcStr>,
+
     #[serde(rename = "_originalRedirects")]
     original_redirects: Option<Vec<Redirect>>,
 
@@ -174,6 +178,7 @@ pub struct NextConfig {
     typescript: TypeScriptConfig,
     use_file_system_public_routes: bool,
     cache_components: Option<bool>,
+    supports_immutable_assets: Option<bool>,
 
     adapter_path: Option<RcStr>,
     //
@@ -1291,12 +1296,7 @@ pub struct ExperimentalConfig {
     use_cache: Option<bool>,
     durable_use_cache_entries: Option<bool>,
     runtime_server_deployment_id: Option<bool>,
-    supports_immutable_assets: Option<bool>,
     expose_testing_api_in_production_build: Option<bool>,
-
-    /// A salt to mix into chunk and asset content hashes. Empty string means
-    /// no salt.
-    output_hash_salt: Option<RcStr>,
 
     /// CSS chunking strategy. See [`CssChunkingConfig`] for the accepted shapes.
     css_chunking: Option<CssChunkingConfig>,
@@ -1409,6 +1409,8 @@ pub struct ExperimentalConfig {
     turbopack_remove_unused_exports: Option<bool>,
     /// Enable local analysis to infer side effect free modules. Defaults to true.
     turbopack_infer_module_side_effects: Option<bool>,
+    /// Enable tree shaking of unused exports from static CommonJS modules. Defaults to false.
+    turbopack_cjs_tree_shaking: Option<bool>,
     /// Devtool option for the segment explorer.
     devtool_segment_explorer: Option<bool>,
     /// Whether to report inlined system environment variables as warnings or errors.
@@ -2283,10 +2285,7 @@ impl NextConfig {
     /// Returns the suffix to use for chunk loading.
     #[turbo_tasks::function]
     pub fn asset_suffix_path(&self) -> Vc<Option<RcStr>> {
-        let needs_dpl_id = self
-            .experimental
-            .supports_immutable_assets
-            .is_none_or(|f| !f);
+        let needs_dpl_id = self.supports_immutable_assets.is_none_or(|f| !f);
 
         Vc::cell(
             needs_dpl_id
@@ -2300,19 +2299,17 @@ impl NextConfig {
     /// .next/immutable-static-hashes.json manifest.
     #[turbo_tasks::function]
     pub fn enable_immutable_assets(&self) -> Vc<bool> {
-        Vc::cell(self.experimental.supports_immutable_assets == Some(true))
+        Vc::cell(self.supports_immutable_assets == Some(true))
     }
 
     #[turbo_tasks::function]
     pub fn client_static_folder_name(&self) -> Vc<RcStr> {
-        Vc::cell(
-            if self.experimental.supports_immutable_assets == Some(true) {
-                // Ends up as `_next/static/immutable`
-                rcstr!("static/immutable")
-            } else {
-                rcstr!("static")
-            },
-        )
+        Vc::cell(if self.supports_immutable_assets == Some(true) {
+            // Ends up as `_next/static/immutable`
+            rcstr!("static/immutable")
+        } else {
+            rcstr!("static")
+        })
     }
 
     #[turbo_tasks::function]
@@ -2379,10 +2376,7 @@ impl NextConfig {
 
     #[turbo_tasks::function]
     pub fn should_append_server_deployment_id_at_runtime(&self) -> Vc<bool> {
-        let needs_dpl_id = self
-            .experimental
-            .supports_immutable_assets
-            .is_none_or(|f| !f);
+        let needs_dpl_id = self.supports_immutable_assets.is_none_or(|f| !f);
 
         Vc::cell(
             needs_dpl_id
@@ -2473,6 +2467,15 @@ impl NextConfig {
             self.experimental
                 .turbopack_infer_module_side_effects
                 .unwrap_or(true),
+        )
+    }
+
+    #[turbo_tasks::function]
+    pub fn turbopack_cjs_tree_shaking(&self) -> Vc<bool> {
+        Vc::cell(
+            self.experimental
+                .turbopack_cjs_tree_shaking
+                .unwrap_or(false),
         )
     }
 
@@ -2757,12 +2760,7 @@ impl NextConfig {
 
     #[turbo_tasks::function]
     pub fn output_hash_salt(&self) -> Vc<RcStr> {
-        Vc::cell(
-            self.experimental
-                .output_hash_salt
-                .clone()
-                .unwrap_or_default(),
-        )
+        Vc::cell(self.output_hash_salt.clone().unwrap_or_default())
     }
 }
 
