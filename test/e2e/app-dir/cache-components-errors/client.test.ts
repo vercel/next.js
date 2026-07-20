@@ -511,7 +511,6 @@ describe('Cache Components Errors - Client Components', () => {
                    at i (<next-dist-dir>)
                    at j (<next-dist-dir>)
                    at k (<next-dist-dir>)
-                   ... collapsed 10 duplicate lines matching above lines ...
                    at l (<next-dist-dir>)
                    at m (<next-dist-dir>)
                    at n (<next-dist-dir>)
@@ -523,6 +522,16 @@ describe('Cache Components Errors - Client Components', () => {
                    at t (<next-dist-dir>)
                    at u (<next-dist-dir>)
                    at v (<next-dist-dir>)
+                   at w (<next-dist-dir>)
+                   at x (<next-dist-dir>)
+                   at y (<next-dist-dir>)
+                   at z (<next-dist-dir>)
+                   at a (<next-dist-dir>)
+                   at b (<next-dist-dir>)
+                   at c (<next-dist-dir>)
+                   at d (<next-dist-dir>)
+                   at e (<next-dist-dir>)
+                   at f (<next-dist-dir>)
                    at body (<anonymous>)
                    at html (<anonymous>) {
                  digest: 'CLIENT_HOOK_DYNAMIC'
