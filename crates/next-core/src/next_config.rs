@@ -174,6 +174,7 @@ pub struct NextConfig {
     typescript: TypeScriptConfig,
     use_file_system_public_routes: bool,
     cache_components: Option<bool>,
+    supports_immutable_assets: Option<bool>,
 
     adapter_path: Option<RcStr>,
     //
@@ -1291,7 +1292,6 @@ pub struct ExperimentalConfig {
     use_cache: Option<bool>,
     durable_use_cache_entries: Option<bool>,
     runtime_server_deployment_id: Option<bool>,
-    supports_immutable_assets: Option<bool>,
     expose_testing_api_in_production_build: Option<bool>,
 
     /// A salt to mix into chunk and asset content hashes. Empty string means
@@ -2283,10 +2283,7 @@ impl NextConfig {
     /// Returns the suffix to use for chunk loading.
     #[turbo_tasks::function]
     pub fn asset_suffix_path(&self) -> Vc<Option<RcStr>> {
-        let needs_dpl_id = self
-            .experimental
-            .supports_immutable_assets
-            .is_none_or(|f| !f);
+        let needs_dpl_id = self.supports_immutable_assets.is_none_or(|f| !f);
 
         Vc::cell(
             needs_dpl_id
@@ -2300,19 +2297,17 @@ impl NextConfig {
     /// .next/immutable-static-hashes.json manifest.
     #[turbo_tasks::function]
     pub fn enable_immutable_assets(&self) -> Vc<bool> {
-        Vc::cell(self.experimental.supports_immutable_assets == Some(true))
+        Vc::cell(self.supports_immutable_assets == Some(true))
     }
 
     #[turbo_tasks::function]
     pub fn client_static_folder_name(&self) -> Vc<RcStr> {
-        Vc::cell(
-            if self.experimental.supports_immutable_assets == Some(true) {
-                // Ends up as `_next/static/immutable`
-                rcstr!("static/immutable")
-            } else {
-                rcstr!("static")
-            },
-        )
+        Vc::cell(if self.supports_immutable_assets == Some(true) {
+            // Ends up as `_next/static/immutable`
+            rcstr!("static/immutable")
+        } else {
+            rcstr!("static")
+        })
     }
 
     #[turbo_tasks::function]
@@ -2379,10 +2374,7 @@ impl NextConfig {
 
     #[turbo_tasks::function]
     pub fn should_append_server_deployment_id_at_runtime(&self) -> Vc<bool> {
-        let needs_dpl_id = self
-            .experimental
-            .supports_immutable_assets
-            .is_none_or(|f| !f);
+        let needs_dpl_id = self.supports_immutable_assets.is_none_or(|f| !f);
 
         Vc::cell(
             needs_dpl_id

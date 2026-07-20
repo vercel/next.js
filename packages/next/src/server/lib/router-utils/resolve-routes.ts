@@ -522,7 +522,7 @@ export function getResolveRoutes(
                 config.deploymentId
               ) {
                 let isImmutableFile =
-                  config.experimental.supportsImmutableAssets &&
+                  config.supportsImmutableAssets &&
                   clientHashes![`static${decodeURI(output.itemPath)}`]
                 // Service workers are served at a fixed, stable URL (so the browser can keep the
                 // same registration across builds), so they don't carry a `?dpl` token.

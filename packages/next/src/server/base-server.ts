@@ -496,7 +496,7 @@ export default abstract class Server<
       process.env.NEXT_DEPLOYMENT_ID = id
     }
     ;(globalThis as any).NEXT_CLIENT_ASSET_SUFFIX =
-      this.nextConfig.experimental.supportsImmutableAssets || !this.deploymentId
+      this.nextConfig.supportsImmutableAssets || !this.deploymentId
         ? ''
         : `?dpl=${this.deploymentId}`
 
