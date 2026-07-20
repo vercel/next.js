@@ -111,18 +111,9 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                },
                {
                  "code": "E1440",
-                 "description": "Route "/client-hook-abort-reasons/normal/use-search-params/[id]": Next.js encountered uncached data during prerendering.
-
-             \`fetch(...)\` or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
-
-             Ways to fix this:
-               - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-               - [cache] Cache the data access with \`"use cache"\` (does not apply to \`connection()\`)
-               - [block] Set \`export const instant = false\` to allow a blocking route
-
-             Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic",
+                 "description": "Next.js encountered uncached data during prerendering.",
                  "environmentLabel": "Server",
-                 "label": "Console Error",
+                 "label": "Blocking Route",
                  "source": "app/client-hook-abort-reasons/data.tsx (2:9) @ DataSlot
              > 2 |   await new Promise((resolve) => setTimeout(resolve, 0))
                  |         ^",
@@ -157,18 +148,9 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                },
                {
                  "code": "E1440",
-                 "description": "Route "/client-hook-abort-reasons/normal/use-pathname/[id]": Next.js encountered uncached data during prerendering.
-
-             \`fetch(...)\` or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
-
-             Ways to fix this:
-               - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-               - [cache] Cache the data access with \`"use cache"\` (does not apply to \`connection()\`)
-               - [block] Set \`export const instant = false\` to allow a blocking route
-
-             Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic",
+                 "description": "Next.js encountered uncached data during prerendering.",
                  "environmentLabel": "Server",
-                 "label": "Console Error",
+                 "label": "Blocking Route",
                  "source": "app/client-hook-abort-reasons/data.tsx (2:9) @ DataSlot
              > 2 |   await new Promise((resolve) => setTimeout(resolve, 0))
                  |         ^",
@@ -203,18 +185,9 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                },
                {
                  "code": "E1440",
-                 "description": "Route "/client-hook-abort-reasons/normal/use-params/[id]": Next.js encountered uncached data during prerendering.
-
-             \`fetch(...)\` or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
-
-             Ways to fix this:
-               - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-               - [cache] Cache the data access with \`"use cache"\` (does not apply to \`connection()\`)
-               - [block] Set \`export const instant = false\` to allow a blocking route
-
-             Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic",
+                 "description": "Next.js encountered uncached data during prerendering.",
                  "environmentLabel": "Server",
-                 "label": "Console Error",
+                 "label": "Blocking Route",
                  "source": "app/client-hook-abort-reasons/data.tsx (2:9) @ DataSlot
              > 2 |   await new Promise((resolve) => setTimeout(resolve, 0))
                  |         ^",
@@ -249,18 +222,9 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                },
                {
                  "code": "E1440",
-                 "description": "Route "/client-hook-abort-reasons/normal/use-selected-layout-segments/[id]": Next.js encountered uncached data during prerendering.
-
-             \`fetch(...)\` or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
-
-             Ways to fix this:
-               - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-               - [cache] Cache the data access with \`"use cache"\` (does not apply to \`connection()\`)
-               - [block] Set \`export const instant = false\` to allow a blocking route
-
-             Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic",
+                 "description": "Next.js encountered uncached data during prerendering.",
                  "environmentLabel": "Server",
-                 "label": "Console Error",
+                 "label": "Blocking Route",
                  "source": "app/client-hook-abort-reasons/data.tsx (2:9) @ DataSlot
              > 2 |   await new Promise((resolve) => setTimeout(resolve, 0))
                  |         ^",
@@ -295,18 +259,9 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                },
                {
                  "code": "E1440",
-                 "description": "Route "/client-hook-abort-reasons/normal/use-selected-layout-segment/[id]": Next.js encountered uncached data during prerendering.
-
-             \`fetch(...)\` or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
-
-             Ways to fix this:
-               - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-               - [cache] Cache the data access with \`"use cache"\` (does not apply to \`connection()\`)
-               - [block] Set \`export const instant = false\` to allow a blocking route
-
-             Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic",
+                 "description": "Next.js encountered uncached data during prerendering.",
                  "environmentLabel": "Server",
-                 "label": "Console Error",
+                 "label": "Blocking Route",
                  "source": "app/client-hook-abort-reasons/data.tsx (2:9) @ DataSlot
              > 2 |   await new Promise((resolve) => setTimeout(resolve, 0))
                  |         ^",
@@ -387,9 +342,9 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
 
                  Ways to fix this:
                    - [stream] Wrap the component in \`<Suspense fallback={...}>\` so the hook value streams in after prerendering
-                     https://nextjs.org/docs/messages/blocking-prerender-client-hook#wrap-in-or-move-into-suspense
                    - [block] Set \`export const instant = false\` to allow a blocking route
-                     https://nextjs.org/docs/messages/blocking-prerender-client-hook#allow-blocking-route
+
+                 Learn more: https://nextjs.org/docs/messages/blocking-prerender-client-hook
                      at a (<next-dist-dir>)
                      at b (<next-dist-dir>)
                      at c (<next-dist-dir>)
@@ -401,6 +356,7 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                      at i (<next-dist-dir>)
                      at j (<next-dist-dir>)
                      at k (<next-dist-dir>)
+                     ... collapsed 30 duplicate lines matching above 10 lines 3 times...
                      at l (<next-dist-dir>)
                      at m (<next-dist-dir>)
                      at n (<next-dist-dir>)
@@ -412,36 +368,6 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                      at t (<next-dist-dir>)
                      at u (<next-dist-dir>)
                      at v (<next-dist-dir>)
-                     at w (<next-dist-dir>)
-                     at x (<next-dist-dir>)
-                     at y (<next-dist-dir>)
-                     at z (<next-dist-dir>)
-                     at a (<next-dist-dir>)
-                     at b (<next-dist-dir>)
-                     at c (<next-dist-dir>)
-                     at d (<next-dist-dir>)
-                     at e (<next-dist-dir>)
-                     at f (<next-dist-dir>)
-                     at g (<next-dist-dir>)
-                     at h (<next-dist-dir>)
-                     at i (<next-dist-dir>)
-                     at j (<next-dist-dir>)
-                     at k (<next-dist-dir>)
-                     at l (<next-dist-dir>)
-                     at m (<next-dist-dir>)
-                     at n (<next-dist-dir>)
-                     at o (<next-dist-dir>)
-                     at p (<next-dist-dir>)
-                     at q (<next-dist-dir>)
-                     at r (<next-dist-dir>)
-                     at s (<next-dist-dir>)
-                     at t (<next-dist-dir>)
-                     at u (<next-dist-dir>)
-                     at v (<next-dist-dir>)
-                     at w (<next-dist-dir>)
-                     at x (<next-dist-dir>)
-                     at y (<next-dist-dir>)
-                     at z (<next-dist-dir>)
                      at body (<anonymous>)
                      at html (<anonymous>) {
                    digest: 'CLIENT_HOOK_DYNAMIC'
@@ -455,33 +381,10 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
 
                  Ways to fix this:
                    - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                     https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
                    - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
-                     https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
                    - [block] Set \`export const instant = false\` to allow a blocking route
-                     https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
-                     at a (<next-dist-dir>)
-                     at b (<next-dist-dir>)
-                     at c (<next-dist-dir>)
-                     at d (<next-dist-dir>)
-                     at e (<next-dist-dir>)
-                     at f (<next-dist-dir>)
-                     at g (<next-dist-dir>)
-                     at h (<next-dist-dir>)
-                     at i (<next-dist-dir>)
-                     at j (<next-dist-dir>)
-                     at k (<next-dist-dir>)
-                     at l (<next-dist-dir>)
-                     at m (<next-dist-dir>)
-                     at n (<next-dist-dir>)
-                     at o (<next-dist-dir>)
-                     at p (<next-dist-dir>)
-                     at q (<next-dist-dir>)
-                     at r (<next-dist-dir>)
-                     at s (<next-dist-dir>)
-                     at t (<next-dist-dir>)
-                     at u (<next-dist-dir>)
-                     at v (<next-dist-dir>)
+
+                 Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic
                      at w (<next-dist-dir>)
                      at x (<next-dist-dir>)
                      at y (<next-dist-dir>)
@@ -492,6 +395,7 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                      at d (<next-dist-dir>)
                      at e (<next-dist-dir>)
                      at f (<next-dist-dir>)
+                     ... collapsed 30 duplicate lines matching above 10 lines 3 times...
                      at g (<next-dist-dir>)
                      at h (<next-dist-dir>)
                      at i (<next-dist-dir>)
@@ -503,14 +407,6 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                      at o (<next-dist-dir>)
                      at p (<next-dist-dir>)
                      at q (<next-dist-dir>)
-                     at r (<next-dist-dir>)
-                     at s (<next-dist-dir>)
-                     at t (<next-dist-dir>)
-                     at u (<next-dist-dir>)
-                     at v (<next-dist-dir>)
-                     at w (<next-dist-dir>)
-                     at x (<next-dist-dir>)
-                     at y (<next-dist-dir>)
                      at body (<anonymous>)
                      at html (<anonymous>)
                  To get a more detailed stack trace and pinpoint the issue, try one of the following:
@@ -578,10 +474,30 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
 
                Ways to fix this:
                  - [stream] Wrap the component in \`<Suspense fallback={...}>\` so the hook value streams in after prerendering
-                   https://nextjs.org/docs/messages/blocking-prerender-client-hook#wrap-in-or-move-into-suspense
                  - [block] Set \`export const instant = false\` to allow a blocking route
-                   https://nextjs.org/docs/messages/blocking-prerender-client-hook#allow-blocking-route
+
+               Learn more: https://nextjs.org/docs/messages/blocking-prerender-client-hook
                    at <unknown> (app/client-hook-abort-reasons/client.tsx:27:3)
+                   at H (../../../packages/next/dist/esm/client/components/layout-router.js:266:34)
+                   at a (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
+                   at b (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
+                   at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
+                   at I (../../../packages/next/dist/esm/client/components/layout-router.js:389:32)
+                   at c (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
+                   at F (../../../packages/next/dist/esm/client/components/layout-router.js:100:9)
+                   at G (../../../packages/next/dist/esm/client/components/layout-router.js:249:39)
+                   at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:418:49)
+                   ... collapsed 27 duplicate lines matching above 9 lines 3 times...
+                   at H (../../../packages/next/dist/esm/client/components/layout-router.js:266:34)
+                   at d (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
+                   at e (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
+                   at f (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:18:9)
+                   at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
+                   at I (../../../packages/next/dist/esm/client/components/layout-router.js:389:32)
+                   at g (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
+                   at F (../../../packages/next/dist/esm/client/components/layout-router.js:100:9)
+                   at G (../../../packages/next/dist/esm/client/components/layout-router.js:249:39)
+                   at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:418:49)
                    at body (<anonymous>)
                    at html (<anonymous>)
                  25 |
@@ -602,13 +518,39 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
 
                Ways to fix this:
                  - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                   https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
                  - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
-                   https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
                  - [block] Set \`export const instant = false\` to allow a blocking route
-                   https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
+
+               Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic
+                   at H (../../../packages/next/dist/esm/client/components/layout-router.js:266:34)
+                   at h (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
+                   at i (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
+                   at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
+                   at I (../../../packages/next/dist/esm/client/components/layout-router.js:389:32)
+                   at j (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
+                   at F (../../../packages/next/dist/esm/client/components/layout-router.js:100:9)
+                   at G (../../../packages/next/dist/esm/client/components/layout-router.js:249:39)
+                   at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:418:49)
+                   ... collapsed 27 duplicate lines matching above 9 lines 3 times...
+                   at H (../../../packages/next/dist/esm/client/components/layout-router.js:266:34)
+                   at k (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
+                   at l (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
+                   at m (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:18:9)
+                   at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
+                   at I (../../../packages/next/dist/esm/client/components/layout-router.js:389:32)
+                   at n (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
+                   at F (../../../packages/next/dist/esm/client/components/layout-router.js:100:9)
+                   at G (../../../packages/next/dist/esm/client/components/layout-router.js:249:39)
+                   at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:418:49)
                    at body (<anonymous>)
                    at html (<anonymous>)
+                 264 | /**
+                 265 |  * InnerLayoutRouter handles rendering the provided segment based on the cache.
+               > 266 |  */ function InnerLayoutRouter({ tree, segmentPath, debugNameContext, cacheNode: maybeCacheNode, params, url, isActive }) {
+                     |                                  ^
+                 267 |     const context = useContext(GlobalLayoutRouterContext);
+                 268 |     const parentNavPromises = useContext(NavigationPromisesContext);
+                 269 |     if (!context) {
                To get a more detailed stack trace and pinpoint the issue, try one of the following:
                  - Start the app in development mode by running \`next dev\`, then open "/client-hook-abort-reasons/normal/use-search-params/[id]" in your browser to investigate the error.
                  - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
@@ -681,9 +623,9 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
 
                  Ways to fix this:
                    - [stream] Wrap the component in \`<Suspense fallback={...}>\` so the hook value streams in after prerendering
-                     https://nextjs.org/docs/messages/blocking-prerender-client-hook#wrap-in-or-move-into-suspense
                    - [block] Set \`export const instant = false\` to allow a blocking route
-                     https://nextjs.org/docs/messages/blocking-prerender-client-hook#allow-blocking-route
+
+                 Learn more: https://nextjs.org/docs/messages/blocking-prerender-client-hook
                      at a (<next-dist-dir>)
                      at b (<next-dist-dir>)
                      at c (<next-dist-dir>)
@@ -695,6 +637,7 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                      at i (<next-dist-dir>)
                      at j (<next-dist-dir>)
                      at k (<next-dist-dir>)
+                     ... collapsed 30 duplicate lines matching above 10 lines 3 times...
                      at l (<next-dist-dir>)
                      at m (<next-dist-dir>)
                      at n (<next-dist-dir>)
@@ -706,36 +649,6 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                      at t (<next-dist-dir>)
                      at u (<next-dist-dir>)
                      at v (<next-dist-dir>)
-                     at w (<next-dist-dir>)
-                     at x (<next-dist-dir>)
-                     at y (<next-dist-dir>)
-                     at z (<next-dist-dir>)
-                     at a (<next-dist-dir>)
-                     at b (<next-dist-dir>)
-                     at c (<next-dist-dir>)
-                     at d (<next-dist-dir>)
-                     at e (<next-dist-dir>)
-                     at f (<next-dist-dir>)
-                     at g (<next-dist-dir>)
-                     at h (<next-dist-dir>)
-                     at i (<next-dist-dir>)
-                     at j (<next-dist-dir>)
-                     at k (<next-dist-dir>)
-                     at l (<next-dist-dir>)
-                     at m (<next-dist-dir>)
-                     at n (<next-dist-dir>)
-                     at o (<next-dist-dir>)
-                     at p (<next-dist-dir>)
-                     at q (<next-dist-dir>)
-                     at r (<next-dist-dir>)
-                     at s (<next-dist-dir>)
-                     at t (<next-dist-dir>)
-                     at u (<next-dist-dir>)
-                     at v (<next-dist-dir>)
-                     at w (<next-dist-dir>)
-                     at x (<next-dist-dir>)
-                     at y (<next-dist-dir>)
-                     at z (<next-dist-dir>)
                      at body (<anonymous>)
                      at html (<anonymous>) {
                    digest: 'CLIENT_HOOK_DYNAMIC'
@@ -749,33 +662,10 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
 
                  Ways to fix this:
                    - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                     https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
                    - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
-                     https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
                    - [block] Set \`export const instant = false\` to allow a blocking route
-                     https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
-                     at a (<next-dist-dir>)
-                     at b (<next-dist-dir>)
-                     at c (<next-dist-dir>)
-                     at d (<next-dist-dir>)
-                     at e (<next-dist-dir>)
-                     at f (<next-dist-dir>)
-                     at g (<next-dist-dir>)
-                     at h (<next-dist-dir>)
-                     at i (<next-dist-dir>)
-                     at j (<next-dist-dir>)
-                     at k (<next-dist-dir>)
-                     at l (<next-dist-dir>)
-                     at m (<next-dist-dir>)
-                     at n (<next-dist-dir>)
-                     at o (<next-dist-dir>)
-                     at p (<next-dist-dir>)
-                     at q (<next-dist-dir>)
-                     at r (<next-dist-dir>)
-                     at s (<next-dist-dir>)
-                     at t (<next-dist-dir>)
-                     at u (<next-dist-dir>)
-                     at v (<next-dist-dir>)
+
+                 Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic
                      at w (<next-dist-dir>)
                      at x (<next-dist-dir>)
                      at y (<next-dist-dir>)
@@ -786,6 +676,7 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                      at d (<next-dist-dir>)
                      at e (<next-dist-dir>)
                      at f (<next-dist-dir>)
+                     ... collapsed 30 duplicate lines matching above 10 lines 3 times...
                      at g (<next-dist-dir>)
                      at h (<next-dist-dir>)
                      at i (<next-dist-dir>)
@@ -797,14 +688,6 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                      at o (<next-dist-dir>)
                      at p (<next-dist-dir>)
                      at q (<next-dist-dir>)
-                     at r (<next-dist-dir>)
-                     at s (<next-dist-dir>)
-                     at t (<next-dist-dir>)
-                     at u (<next-dist-dir>)
-                     at v (<next-dist-dir>)
-                     at w (<next-dist-dir>)
-                     at x (<next-dist-dir>)
-                     at y (<next-dist-dir>)
                      at body (<anonymous>)
                      at html (<anonymous>)
                  To get a more detailed stack trace and pinpoint the issue, try one of the following:
@@ -872,10 +755,30 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
 
                Ways to fix this:
                  - [stream] Wrap the component in \`<Suspense fallback={...}>\` so the hook value streams in after prerendering
-                   https://nextjs.org/docs/messages/blocking-prerender-client-hook#wrap-in-or-move-into-suspense
                  - [block] Set \`export const instant = false\` to allow a blocking route
-                   https://nextjs.org/docs/messages/blocking-prerender-client-hook#allow-blocking-route
+
+               Learn more: https://nextjs.org/docs/messages/blocking-prerender-client-hook
                    at <unknown> (app/client-hook-abort-reasons/client.tsx:22:3)
+                   at H (../../../packages/next/dist/esm/client/components/layout-router.js:266:34)
+                   at a (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
+                   at b (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
+                   at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
+                   at I (../../../packages/next/dist/esm/client/components/layout-router.js:389:32)
+                   at c (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
+                   at F (../../../packages/next/dist/esm/client/components/layout-router.js:100:9)
+                   at G (../../../packages/next/dist/esm/client/components/layout-router.js:249:39)
+                   at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:418:49)
+                   ... collapsed 27 duplicate lines matching above 9 lines 3 times...
+                   at H (../../../packages/next/dist/esm/client/components/layout-router.js:266:34)
+                   at d (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
+                   at e (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
+                   at f (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:18:9)
+                   at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
+                   at I (../../../packages/next/dist/esm/client/components/layout-router.js:389:32)
+                   at g (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
+                   at F (../../../packages/next/dist/esm/client/components/layout-router.js:100:9)
+                   at G (../../../packages/next/dist/esm/client/components/layout-router.js:249:39)
+                   at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:418:49)
                    at body (<anonymous>)
                    at html (<anonymous>)
                  20 |
@@ -896,13 +799,39 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
 
                Ways to fix this:
                  - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                   https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
                  - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
-                   https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
                  - [block] Set \`export const instant = false\` to allow a blocking route
-                   https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
+
+               Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic
+                   at H (../../../packages/next/dist/esm/client/components/layout-router.js:266:34)
+                   at h (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
+                   at i (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
+                   at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
+                   at I (../../../packages/next/dist/esm/client/components/layout-router.js:389:32)
+                   at j (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
+                   at F (../../../packages/next/dist/esm/client/components/layout-router.js:100:9)
+                   at G (../../../packages/next/dist/esm/client/components/layout-router.js:249:39)
+                   at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:418:49)
+                   ... collapsed 27 duplicate lines matching above 9 lines 3 times...
+                   at H (../../../packages/next/dist/esm/client/components/layout-router.js:266:34)
+                   at k (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
+                   at l (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
+                   at m (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:18:9)
+                   at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
+                   at I (../../../packages/next/dist/esm/client/components/layout-router.js:389:32)
+                   at n (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
+                   at F (../../../packages/next/dist/esm/client/components/layout-router.js:100:9)
+                   at G (../../../packages/next/dist/esm/client/components/layout-router.js:249:39)
+                   at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:418:49)
                    at body (<anonymous>)
                    at html (<anonymous>)
+                 264 | /**
+                 265 |  * InnerLayoutRouter handles rendering the provided segment based on the cache.
+               > 266 |  */ function InnerLayoutRouter({ tree, segmentPath, debugNameContext, cacheNode: maybeCacheNode, params, url, isActive }) {
+                     |                                  ^
+                 267 |     const context = useContext(GlobalLayoutRouterContext);
+                 268 |     const parentNavPromises = useContext(NavigationPromisesContext);
+                 269 |     if (!context) {
                To get a more detailed stack trace and pinpoint the issue, try one of the following:
                  - Start the app in development mode by running \`next dev\`, then open "/client-hook-abort-reasons/normal/use-pathname/[id]" in your browser to investigate the error.
                  - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
@@ -975,9 +904,9 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
 
                  Ways to fix this:
                    - [stream] Wrap the component in \`<Suspense fallback={...}>\` so the hook value streams in after prerendering
-                     https://nextjs.org/docs/messages/blocking-prerender-client-hook#wrap-in-or-move-into-suspense
                    - [block] Set \`export const instant = false\` to allow a blocking route
-                     https://nextjs.org/docs/messages/blocking-prerender-client-hook#allow-blocking-route
+
+                 Learn more: https://nextjs.org/docs/messages/blocking-prerender-client-hook
                      at a (<next-dist-dir>)
                      at b (<next-dist-dir>)
                      at c (<next-dist-dir>)
@@ -989,6 +918,7 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                      at i (<next-dist-dir>)
                      at j (<next-dist-dir>)
                      at k (<next-dist-dir>)
+                     ... collapsed 30 duplicate lines matching above 10 lines 3 times...
                      at l (<next-dist-dir>)
                      at m (<next-dist-dir>)
                      at n (<next-dist-dir>)
@@ -1000,36 +930,6 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                      at t (<next-dist-dir>)
                      at u (<next-dist-dir>)
                      at v (<next-dist-dir>)
-                     at w (<next-dist-dir>)
-                     at x (<next-dist-dir>)
-                     at y (<next-dist-dir>)
-                     at z (<next-dist-dir>)
-                     at a (<next-dist-dir>)
-                     at b (<next-dist-dir>)
-                     at c (<next-dist-dir>)
-                     at d (<next-dist-dir>)
-                     at e (<next-dist-dir>)
-                     at f (<next-dist-dir>)
-                     at g (<next-dist-dir>)
-                     at h (<next-dist-dir>)
-                     at i (<next-dist-dir>)
-                     at j (<next-dist-dir>)
-                     at k (<next-dist-dir>)
-                     at l (<next-dist-dir>)
-                     at m (<next-dist-dir>)
-                     at n (<next-dist-dir>)
-                     at o (<next-dist-dir>)
-                     at p (<next-dist-dir>)
-                     at q (<next-dist-dir>)
-                     at r (<next-dist-dir>)
-                     at s (<next-dist-dir>)
-                     at t (<next-dist-dir>)
-                     at u (<next-dist-dir>)
-                     at v (<next-dist-dir>)
-                     at w (<next-dist-dir>)
-                     at x (<next-dist-dir>)
-                     at y (<next-dist-dir>)
-                     at z (<next-dist-dir>)
                      at body (<anonymous>)
                      at html (<anonymous>) {
                    digest: 'CLIENT_HOOK_DYNAMIC'
@@ -1043,33 +943,10 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
 
                  Ways to fix this:
                    - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                     https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
                    - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
-                     https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
                    - [block] Set \`export const instant = false\` to allow a blocking route
-                     https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
-                     at a (<next-dist-dir>)
-                     at b (<next-dist-dir>)
-                     at c (<next-dist-dir>)
-                     at d (<next-dist-dir>)
-                     at e (<next-dist-dir>)
-                     at f (<next-dist-dir>)
-                     at g (<next-dist-dir>)
-                     at h (<next-dist-dir>)
-                     at i (<next-dist-dir>)
-                     at j (<next-dist-dir>)
-                     at k (<next-dist-dir>)
-                     at l (<next-dist-dir>)
-                     at m (<next-dist-dir>)
-                     at n (<next-dist-dir>)
-                     at o (<next-dist-dir>)
-                     at p (<next-dist-dir>)
-                     at q (<next-dist-dir>)
-                     at r (<next-dist-dir>)
-                     at s (<next-dist-dir>)
-                     at t (<next-dist-dir>)
-                     at u (<next-dist-dir>)
-                     at v (<next-dist-dir>)
+
+                 Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic
                      at w (<next-dist-dir>)
                      at x (<next-dist-dir>)
                      at y (<next-dist-dir>)
@@ -1080,6 +957,7 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                      at d (<next-dist-dir>)
                      at e (<next-dist-dir>)
                      at f (<next-dist-dir>)
+                     ... collapsed 30 duplicate lines matching above 10 lines 3 times...
                      at g (<next-dist-dir>)
                      at h (<next-dist-dir>)
                      at i (<next-dist-dir>)
@@ -1091,14 +969,6 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                      at o (<next-dist-dir>)
                      at p (<next-dist-dir>)
                      at q (<next-dist-dir>)
-                     at r (<next-dist-dir>)
-                     at s (<next-dist-dir>)
-                     at t (<next-dist-dir>)
-                     at u (<next-dist-dir>)
-                     at v (<next-dist-dir>)
-                     at w (<next-dist-dir>)
-                     at x (<next-dist-dir>)
-                     at y (<next-dist-dir>)
                      at body (<anonymous>)
                      at html (<anonymous>)
                  To get a more detailed stack trace and pinpoint the issue, try one of the following:
@@ -1166,10 +1036,30 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
 
                Ways to fix this:
                  - [stream] Wrap the component in \`<Suspense fallback={...}>\` so the hook value streams in after prerendering
-                   https://nextjs.org/docs/messages/blocking-prerender-client-hook#wrap-in-or-move-into-suspense
                  - [block] Set \`export const instant = false\` to allow a blocking route
-                   https://nextjs.org/docs/messages/blocking-prerender-client-hook#allow-blocking-route
+
+               Learn more: https://nextjs.org/docs/messages/blocking-prerender-client-hook
                    at <unknown> (app/client-hook-abort-reasons/client.tsx:17:3)
+                   at H (../../../packages/next/dist/esm/client/components/layout-router.js:266:34)
+                   at a (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
+                   at b (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
+                   at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
+                   at I (../../../packages/next/dist/esm/client/components/layout-router.js:389:32)
+                   at c (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
+                   at F (../../../packages/next/dist/esm/client/components/layout-router.js:100:9)
+                   at G (../../../packages/next/dist/esm/client/components/layout-router.js:249:39)
+                   at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:418:49)
+                   ... collapsed 27 duplicate lines matching above 9 lines 3 times...
+                   at H (../../../packages/next/dist/esm/client/components/layout-router.js:266:34)
+                   at d (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
+                   at e (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
+                   at f (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:18:9)
+                   at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
+                   at I (../../../packages/next/dist/esm/client/components/layout-router.js:389:32)
+                   at g (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
+                   at F (../../../packages/next/dist/esm/client/components/layout-router.js:100:9)
+                   at G (../../../packages/next/dist/esm/client/components/layout-router.js:249:39)
+                   at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:418:49)
                    at body (<anonymous>)
                    at html (<anonymous>)
                  15 |
@@ -1190,13 +1080,39 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
 
                Ways to fix this:
                  - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                   https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
                  - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
-                   https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
                  - [block] Set \`export const instant = false\` to allow a blocking route
-                   https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
+
+               Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic
+                   at H (../../../packages/next/dist/esm/client/components/layout-router.js:266:34)
+                   at h (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
+                   at i (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
+                   at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
+                   at I (../../../packages/next/dist/esm/client/components/layout-router.js:389:32)
+                   at j (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
+                   at F (../../../packages/next/dist/esm/client/components/layout-router.js:100:9)
+                   at G (../../../packages/next/dist/esm/client/components/layout-router.js:249:39)
+                   at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:418:49)
+                   ... collapsed 27 duplicate lines matching above 9 lines 3 times...
+                   at H (../../../packages/next/dist/esm/client/components/layout-router.js:266:34)
+                   at k (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
+                   at l (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
+                   at m (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:18:9)
+                   at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
+                   at I (../../../packages/next/dist/esm/client/components/layout-router.js:389:32)
+                   at n (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
+                   at F (../../../packages/next/dist/esm/client/components/layout-router.js:100:9)
+                   at G (../../../packages/next/dist/esm/client/components/layout-router.js:249:39)
+                   at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:418:49)
                    at body (<anonymous>)
                    at html (<anonymous>)
+                 264 | /**
+                 265 |  * InnerLayoutRouter handles rendering the provided segment based on the cache.
+               > 266 |  */ function InnerLayoutRouter({ tree, segmentPath, debugNameContext, cacheNode: maybeCacheNode, params, url, isActive }) {
+                     |                                  ^
+                 267 |     const context = useContext(GlobalLayoutRouterContext);
+                 268 |     const parentNavPromises = useContext(NavigationPromisesContext);
+                 269 |     if (!context) {
                To get a more detailed stack trace and pinpoint the issue, try one of the following:
                  - Start the app in development mode by running \`next dev\`, then open "/client-hook-abort-reasons/normal/use-params/[id]" in your browser to investigate the error.
                  - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
@@ -1269,9 +1185,9 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
 
                  Ways to fix this:
                    - [stream] Wrap the component in \`<Suspense fallback={...}>\` so the hook value streams in after prerendering
-                     https://nextjs.org/docs/messages/blocking-prerender-client-hook#wrap-in-or-move-into-suspense
                    - [block] Set \`export const instant = false\` to allow a blocking route
-                     https://nextjs.org/docs/messages/blocking-prerender-client-hook#allow-blocking-route
+
+                 Learn more: https://nextjs.org/docs/messages/blocking-prerender-client-hook
                      at a (<next-dist-dir>)
                      at b (<next-dist-dir>)
                      at c (<next-dist-dir>)
@@ -1283,6 +1199,7 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                      at i (<next-dist-dir>)
                      at j (<next-dist-dir>)
                      at k (<next-dist-dir>)
+                     ... collapsed 30 duplicate lines matching above 10 lines 3 times...
                      at l (<next-dist-dir>)
                      at m (<next-dist-dir>)
                      at n (<next-dist-dir>)
@@ -1294,36 +1211,6 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                      at t (<next-dist-dir>)
                      at u (<next-dist-dir>)
                      at v (<next-dist-dir>)
-                     at w (<next-dist-dir>)
-                     at x (<next-dist-dir>)
-                     at y (<next-dist-dir>)
-                     at z (<next-dist-dir>)
-                     at a (<next-dist-dir>)
-                     at b (<next-dist-dir>)
-                     at c (<next-dist-dir>)
-                     at d (<next-dist-dir>)
-                     at e (<next-dist-dir>)
-                     at f (<next-dist-dir>)
-                     at g (<next-dist-dir>)
-                     at h (<next-dist-dir>)
-                     at i (<next-dist-dir>)
-                     at j (<next-dist-dir>)
-                     at k (<next-dist-dir>)
-                     at l (<next-dist-dir>)
-                     at m (<next-dist-dir>)
-                     at n (<next-dist-dir>)
-                     at o (<next-dist-dir>)
-                     at p (<next-dist-dir>)
-                     at q (<next-dist-dir>)
-                     at r (<next-dist-dir>)
-                     at s (<next-dist-dir>)
-                     at t (<next-dist-dir>)
-                     at u (<next-dist-dir>)
-                     at v (<next-dist-dir>)
-                     at w (<next-dist-dir>)
-                     at x (<next-dist-dir>)
-                     at y (<next-dist-dir>)
-                     at z (<next-dist-dir>)
                      at body (<anonymous>)
                      at html (<anonymous>) {
                    digest: 'CLIENT_HOOK_DYNAMIC'
@@ -1337,33 +1224,10 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
 
                  Ways to fix this:
                    - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                     https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
                    - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
-                     https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
                    - [block] Set \`export const instant = false\` to allow a blocking route
-                     https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
-                     at a (<next-dist-dir>)
-                     at b (<next-dist-dir>)
-                     at c (<next-dist-dir>)
-                     at d (<next-dist-dir>)
-                     at e (<next-dist-dir>)
-                     at f (<next-dist-dir>)
-                     at g (<next-dist-dir>)
-                     at h (<next-dist-dir>)
-                     at i (<next-dist-dir>)
-                     at j (<next-dist-dir>)
-                     at k (<next-dist-dir>)
-                     at l (<next-dist-dir>)
-                     at m (<next-dist-dir>)
-                     at n (<next-dist-dir>)
-                     at o (<next-dist-dir>)
-                     at p (<next-dist-dir>)
-                     at q (<next-dist-dir>)
-                     at r (<next-dist-dir>)
-                     at s (<next-dist-dir>)
-                     at t (<next-dist-dir>)
-                     at u (<next-dist-dir>)
-                     at v (<next-dist-dir>)
+
+                 Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic
                      at w (<next-dist-dir>)
                      at x (<next-dist-dir>)
                      at y (<next-dist-dir>)
@@ -1374,6 +1238,7 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                      at d (<next-dist-dir>)
                      at e (<next-dist-dir>)
                      at f (<next-dist-dir>)
+                     ... collapsed 30 duplicate lines matching above 10 lines 3 times...
                      at g (<next-dist-dir>)
                      at h (<next-dist-dir>)
                      at i (<next-dist-dir>)
@@ -1385,14 +1250,6 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                      at o (<next-dist-dir>)
                      at p (<next-dist-dir>)
                      at q (<next-dist-dir>)
-                     at r (<next-dist-dir>)
-                     at s (<next-dist-dir>)
-                     at t (<next-dist-dir>)
-                     at u (<next-dist-dir>)
-                     at v (<next-dist-dir>)
-                     at w (<next-dist-dir>)
-                     at x (<next-dist-dir>)
-                     at y (<next-dist-dir>)
                      at body (<anonymous>)
                      at html (<anonymous>)
                  To get a more detailed stack trace and pinpoint the issue, try one of the following:
@@ -1460,10 +1317,30 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
 
                Ways to fix this:
                  - [stream] Wrap the component in \`<Suspense fallback={...}>\` so the hook value streams in after prerendering
-                   https://nextjs.org/docs/messages/blocking-prerender-client-hook#wrap-in-or-move-into-suspense
                  - [block] Set \`export const instant = false\` to allow a blocking route
-                   https://nextjs.org/docs/messages/blocking-prerender-client-hook#allow-blocking-route
+
+               Learn more: https://nextjs.org/docs/messages/blocking-prerender-client-hook
                    at <unknown> (app/client-hook-abort-reasons/client.tsx:37:3)
+                   at H (../../../packages/next/dist/esm/client/components/layout-router.js:266:34)
+                   at a (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
+                   at b (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
+                   at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
+                   at I (../../../packages/next/dist/esm/client/components/layout-router.js:389:32)
+                   at c (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
+                   at F (../../../packages/next/dist/esm/client/components/layout-router.js:100:9)
+                   at G (../../../packages/next/dist/esm/client/components/layout-router.js:249:39)
+                   at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:418:49)
+                   ... collapsed 27 duplicate lines matching above 9 lines 3 times...
+                   at H (../../../packages/next/dist/esm/client/components/layout-router.js:266:34)
+                   at d (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
+                   at e (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
+                   at f (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:18:9)
+                   at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
+                   at I (../../../packages/next/dist/esm/client/components/layout-router.js:389:32)
+                   at g (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
+                   at F (../../../packages/next/dist/esm/client/components/layout-router.js:100:9)
+                   at G (../../../packages/next/dist/esm/client/components/layout-router.js:249:39)
+                   at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:418:49)
                    at body (<anonymous>)
                    at html (<anonymous>)
                  35 |
@@ -1484,13 +1361,39 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
 
                Ways to fix this:
                  - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                   https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
                  - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
-                   https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
                  - [block] Set \`export const instant = false\` to allow a blocking route
-                   https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
+
+               Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic
+                   at H (../../../packages/next/dist/esm/client/components/layout-router.js:266:34)
+                   at h (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
+                   at i (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
+                   at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
+                   at I (../../../packages/next/dist/esm/client/components/layout-router.js:389:32)
+                   at j (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
+                   at F (../../../packages/next/dist/esm/client/components/layout-router.js:100:9)
+                   at G (../../../packages/next/dist/esm/client/components/layout-router.js:249:39)
+                   at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:418:49)
+                   ... collapsed 27 duplicate lines matching above 9 lines 3 times...
+                   at H (../../../packages/next/dist/esm/client/components/layout-router.js:266:34)
+                   at k (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
+                   at l (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
+                   at m (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:18:9)
+                   at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
+                   at I (../../../packages/next/dist/esm/client/components/layout-router.js:389:32)
+                   at n (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
+                   at F (../../../packages/next/dist/esm/client/components/layout-router.js:100:9)
+                   at G (../../../packages/next/dist/esm/client/components/layout-router.js:249:39)
+                   at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:418:49)
                    at body (<anonymous>)
                    at html (<anonymous>)
+                 264 | /**
+                 265 |  * InnerLayoutRouter handles rendering the provided segment based on the cache.
+               > 266 |  */ function InnerLayoutRouter({ tree, segmentPath, debugNameContext, cacheNode: maybeCacheNode, params, url, isActive }) {
+                     |                                  ^
+                 267 |     const context = useContext(GlobalLayoutRouterContext);
+                 268 |     const parentNavPromises = useContext(NavigationPromisesContext);
+                 269 |     if (!context) {
                To get a more detailed stack trace and pinpoint the issue, try one of the following:
                  - Start the app in development mode by running \`next dev\`, then open "/client-hook-abort-reasons/normal/use-selected-layout-segments/[id]" in your browser to investigate the error.
                  - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
@@ -1563,9 +1466,9 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
 
                  Ways to fix this:
                    - [stream] Wrap the component in \`<Suspense fallback={...}>\` so the hook value streams in after prerendering
-                     https://nextjs.org/docs/messages/blocking-prerender-client-hook#wrap-in-or-move-into-suspense
                    - [block] Set \`export const instant = false\` to allow a blocking route
-                     https://nextjs.org/docs/messages/blocking-prerender-client-hook#allow-blocking-route
+
+                 Learn more: https://nextjs.org/docs/messages/blocking-prerender-client-hook
                      at a (<next-dist-dir>)
                      at b (<next-dist-dir>)
                      at c (<next-dist-dir>)
@@ -1577,6 +1480,7 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                      at i (<next-dist-dir>)
                      at j (<next-dist-dir>)
                      at k (<next-dist-dir>)
+                     ... collapsed 30 duplicate lines matching above 10 lines 3 times...
                      at l (<next-dist-dir>)
                      at m (<next-dist-dir>)
                      at n (<next-dist-dir>)
@@ -1588,36 +1492,6 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                      at t (<next-dist-dir>)
                      at u (<next-dist-dir>)
                      at v (<next-dist-dir>)
-                     at w (<next-dist-dir>)
-                     at x (<next-dist-dir>)
-                     at y (<next-dist-dir>)
-                     at z (<next-dist-dir>)
-                     at a (<next-dist-dir>)
-                     at b (<next-dist-dir>)
-                     at c (<next-dist-dir>)
-                     at d (<next-dist-dir>)
-                     at e (<next-dist-dir>)
-                     at f (<next-dist-dir>)
-                     at g (<next-dist-dir>)
-                     at h (<next-dist-dir>)
-                     at i (<next-dist-dir>)
-                     at j (<next-dist-dir>)
-                     at k (<next-dist-dir>)
-                     at l (<next-dist-dir>)
-                     at m (<next-dist-dir>)
-                     at n (<next-dist-dir>)
-                     at o (<next-dist-dir>)
-                     at p (<next-dist-dir>)
-                     at q (<next-dist-dir>)
-                     at r (<next-dist-dir>)
-                     at s (<next-dist-dir>)
-                     at t (<next-dist-dir>)
-                     at u (<next-dist-dir>)
-                     at v (<next-dist-dir>)
-                     at w (<next-dist-dir>)
-                     at x (<next-dist-dir>)
-                     at y (<next-dist-dir>)
-                     at z (<next-dist-dir>)
                      at body (<anonymous>)
                      at html (<anonymous>) {
                    digest: 'CLIENT_HOOK_DYNAMIC'
@@ -1631,33 +1505,10 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
 
                  Ways to fix this:
                    - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                     https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
                    - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
-                     https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
                    - [block] Set \`export const instant = false\` to allow a blocking route
-                     https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
-                     at a (<next-dist-dir>)
-                     at b (<next-dist-dir>)
-                     at c (<next-dist-dir>)
-                     at d (<next-dist-dir>)
-                     at e (<next-dist-dir>)
-                     at f (<next-dist-dir>)
-                     at g (<next-dist-dir>)
-                     at h (<next-dist-dir>)
-                     at i (<next-dist-dir>)
-                     at j (<next-dist-dir>)
-                     at k (<next-dist-dir>)
-                     at l (<next-dist-dir>)
-                     at m (<next-dist-dir>)
-                     at n (<next-dist-dir>)
-                     at o (<next-dist-dir>)
-                     at p (<next-dist-dir>)
-                     at q (<next-dist-dir>)
-                     at r (<next-dist-dir>)
-                     at s (<next-dist-dir>)
-                     at t (<next-dist-dir>)
-                     at u (<next-dist-dir>)
-                     at v (<next-dist-dir>)
+
+                 Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic
                      at w (<next-dist-dir>)
                      at x (<next-dist-dir>)
                      at y (<next-dist-dir>)
@@ -1668,6 +1519,7 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                      at d (<next-dist-dir>)
                      at e (<next-dist-dir>)
                      at f (<next-dist-dir>)
+                     ... collapsed 30 duplicate lines matching above 10 lines 3 times...
                      at g (<next-dist-dir>)
                      at h (<next-dist-dir>)
                      at i (<next-dist-dir>)
@@ -1679,14 +1531,6 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                      at o (<next-dist-dir>)
                      at p (<next-dist-dir>)
                      at q (<next-dist-dir>)
-                     at r (<next-dist-dir>)
-                     at s (<next-dist-dir>)
-                     at t (<next-dist-dir>)
-                     at u (<next-dist-dir>)
-                     at v (<next-dist-dir>)
-                     at w (<next-dist-dir>)
-                     at x (<next-dist-dir>)
-                     at y (<next-dist-dir>)
                      at body (<anonymous>)
                      at html (<anonymous>)
                  To get a more detailed stack trace and pinpoint the issue, try one of the following:
@@ -1754,10 +1598,30 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
 
                Ways to fix this:
                  - [stream] Wrap the component in \`<Suspense fallback={...}>\` so the hook value streams in after prerendering
-                   https://nextjs.org/docs/messages/blocking-prerender-client-hook#wrap-in-or-move-into-suspense
                  - [block] Set \`export const instant = false\` to allow a blocking route
-                   https://nextjs.org/docs/messages/blocking-prerender-client-hook#allow-blocking-route
+
+               Learn more: https://nextjs.org/docs/messages/blocking-prerender-client-hook
                    at <unknown> (app/client-hook-abort-reasons/client.tsx:32:3)
+                   at H (../../../packages/next/dist/esm/client/components/layout-router.js:266:34)
+                   at a (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
+                   at b (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
+                   at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
+                   at I (../../../packages/next/dist/esm/client/components/layout-router.js:389:32)
+                   at c (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
+                   at F (../../../packages/next/dist/esm/client/components/layout-router.js:100:9)
+                   at G (../../../packages/next/dist/esm/client/components/layout-router.js:249:39)
+                   at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:418:49)
+                   ... collapsed 27 duplicate lines matching above 9 lines 3 times...
+                   at H (../../../packages/next/dist/esm/client/components/layout-router.js:266:34)
+                   at d (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
+                   at e (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
+                   at f (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:18:9)
+                   at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
+                   at I (../../../packages/next/dist/esm/client/components/layout-router.js:389:32)
+                   at g (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
+                   at F (../../../packages/next/dist/esm/client/components/layout-router.js:100:9)
+                   at G (../../../packages/next/dist/esm/client/components/layout-router.js:249:39)
+                   at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:418:49)
                    at body (<anonymous>)
                    at html (<anonymous>)
                  30 |
@@ -1778,13 +1642,39 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
 
                Ways to fix this:
                  - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                   https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
                  - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
-                   https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
                  - [block] Set \`export const instant = false\` to allow a blocking route
-                   https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
+
+               Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic
+                   at H (../../../packages/next/dist/esm/client/components/layout-router.js:266:34)
+                   at h (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
+                   at i (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
+                   at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
+                   at I (../../../packages/next/dist/esm/client/components/layout-router.js:389:32)
+                   at j (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
+                   at F (../../../packages/next/dist/esm/client/components/layout-router.js:100:9)
+                   at G (../../../packages/next/dist/esm/client/components/layout-router.js:249:39)
+                   at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:418:49)
+                   ... collapsed 27 duplicate lines matching above 9 lines 3 times...
+                   at H (../../../packages/next/dist/esm/client/components/layout-router.js:266:34)
+                   at k (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
+                   at l (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
+                   at m (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:18:9)
+                   at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
+                   at I (../../../packages/next/dist/esm/client/components/layout-router.js:389:32)
+                   at n (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
+                   at F (../../../packages/next/dist/esm/client/components/layout-router.js:100:9)
+                   at G (../../../packages/next/dist/esm/client/components/layout-router.js:249:39)
+                   at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:418:49)
                    at body (<anonymous>)
                    at html (<anonymous>)
+                 264 | /**
+                 265 |  * InnerLayoutRouter handles rendering the provided segment based on the cache.
+               > 266 |  */ function InnerLayoutRouter({ tree, segmentPath, debugNameContext, cacheNode: maybeCacheNode, params, url, isActive }) {
+                     |                                  ^
+                 267 |     const context = useContext(GlobalLayoutRouterContext);
+                 268 |     const parentNavPromises = useContext(NavigationPromisesContext);
+                 269 |     if (!context) {
                To get a more detailed stack trace and pinpoint the issue, try one of the following:
                  - Start the app in development mode by running \`next dev\`, then open "/client-hook-abort-reasons/normal/use-selected-layout-segment/[id]" in your browser to investigate the error.
                  - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
@@ -1917,18 +1807,9 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                },
                {
                  "code": "E1440",
-                 "description": "Route "/client-hook-abort-reasons/sync-io/use-selected-layout-segments/[id]": Next.js encountered uncached data during prerendering.
-
-             \`fetch(...)\` or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
-
-             Ways to fix this:
-               - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-               - [cache] Cache the data access with \`"use cache"\` (does not apply to \`connection()\`)
-               - [block] Set \`export const instant = false\` to allow a blocking route
-
-             Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic",
+                 "description": "Next.js encountered uncached data during prerendering.",
                  "environmentLabel": "Server",
-                 "label": "Console Error",
+                 "label": "Blocking Route",
                  "source": "app/client-hook-abort-reasons/data.tsx (2:9) @ DataSlot
              > 2 |   await new Promise((resolve) => setTimeout(resolve, 0))
                  |         ^",
@@ -1976,18 +1857,9 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                },
                {
                  "code": "E1440",
-                 "description": "Route "/client-hook-abort-reasons/sync-io/use-selected-layout-segment/[id]": Next.js encountered uncached data during prerendering.
-
-             \`fetch(...)\` or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
-
-             Ways to fix this:
-               - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-               - [cache] Cache the data access with \`"use cache"\` (does not apply to \`connection()\`)
-               - [block] Set \`export const instant = false\` to allow a blocking route
-
-             Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic",
+                 "description": "Next.js encountered uncached data during prerendering.",
                  "environmentLabel": "Server",
-                 "label": "Console Error",
+                 "label": "Blocking Route",
                  "source": "app/client-hook-abort-reasons/data.tsx (2:9) @ DataSlot
              > 2 |   await new Promise((resolve) => setTimeout(resolve, 0))
                  |         ^",
@@ -2050,11 +1922,10 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
 
                  Ways to fix this:
                    - [stream] Wrap the Client Component in \`<Suspense fallback={...}>\`
-                     https://nextjs.org/docs/messages/blocking-prerender-current-time-client#wrap-in-or-move-into-suspense
                    - [defer] Move the read into a \`useEffect\` or event handler
-                     https://nextjs.org/docs/messages/blocking-prerender-current-time-client#move-into-effect-or-event-handler
                    - [measure] If the value is for telemetry, use a timing API such as \`performance.now()\`
-                     https://nextjs.org/docs/messages/blocking-prerender-current-time-client#for-telemetry-use-a-timing-api
+
+                 Learn more: https://nextjs.org/docs/messages/blocking-prerender-current-time-client
                      at a (<next-dist-dir>)
                  To get a more detailed stack trace and pinpoint the issue, try one of the following:
                    - Start the app in development mode by running \`next dev\`, then open "/client-hook-abort-reasons/sync-io/use-search-params/[id]" in your browser to investigate the error.
@@ -2102,11 +1973,10 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
 
                Ways to fix this:
                  - [stream] Wrap the Client Component in \`<Suspense fallback={...}>\`
-                   https://nextjs.org/docs/messages/blocking-prerender-current-time-client#wrap-in-or-move-into-suspense
                  - [defer] Move the read into a \`useEffect\` or event handler
-                   https://nextjs.org/docs/messages/blocking-prerender-current-time-client#move-into-effect-or-event-handler
                  - [measure] If the value is for telemetry, use a timing API such as \`performance.now()\`
-                   https://nextjs.org/docs/messages/blocking-prerender-current-time-client#for-telemetry-use-a-timing-api
+
+               Learn more: https://nextjs.org/docs/messages/blocking-prerender-current-time-client
                    at <unknown> (app/client-hook-abort-reasons/client.tsx:12:8)
                  10 |
                  11 | export function SyncIO() {
@@ -2170,11 +2040,10 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
 
                  Ways to fix this:
                    - [stream] Wrap the Client Component in \`<Suspense fallback={...}>\`
-                     https://nextjs.org/docs/messages/blocking-prerender-current-time-client#wrap-in-or-move-into-suspense
                    - [defer] Move the read into a \`useEffect\` or event handler
-                     https://nextjs.org/docs/messages/blocking-prerender-current-time-client#move-into-effect-or-event-handler
                    - [measure] If the value is for telemetry, use a timing API such as \`performance.now()\`
-                     https://nextjs.org/docs/messages/blocking-prerender-current-time-client#for-telemetry-use-a-timing-api
+
+                 Learn more: https://nextjs.org/docs/messages/blocking-prerender-current-time-client
                      at a (<next-dist-dir>)
                  To get a more detailed stack trace and pinpoint the issue, try one of the following:
                    - Start the app in development mode by running \`next dev\`, then open "/client-hook-abort-reasons/sync-io/use-pathname/[id]" in your browser to investigate the error.
@@ -2222,11 +2091,10 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
 
                Ways to fix this:
                  - [stream] Wrap the Client Component in \`<Suspense fallback={...}>\`
-                   https://nextjs.org/docs/messages/blocking-prerender-current-time-client#wrap-in-or-move-into-suspense
                  - [defer] Move the read into a \`useEffect\` or event handler
-                   https://nextjs.org/docs/messages/blocking-prerender-current-time-client#move-into-effect-or-event-handler
                  - [measure] If the value is for telemetry, use a timing API such as \`performance.now()\`
-                   https://nextjs.org/docs/messages/blocking-prerender-current-time-client#for-telemetry-use-a-timing-api
+
+               Learn more: https://nextjs.org/docs/messages/blocking-prerender-current-time-client
                    at <unknown> (app/client-hook-abort-reasons/client.tsx:12:8)
                  10 |
                  11 | export function SyncIO() {
@@ -2313,11 +2181,10 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
 
                  Ways to fix this:
                    - [stream] Wrap the Client Component in \`<Suspense fallback={...}>\`
-                     https://nextjs.org/docs/messages/blocking-prerender-current-time-client#wrap-in-or-move-into-suspense
                    - [defer] Move the read into a \`useEffect\` or event handler
-                     https://nextjs.org/docs/messages/blocking-prerender-current-time-client#move-into-effect-or-event-handler
                    - [measure] If the value is for telemetry, use a timing API such as \`performance.now()\`
-                     https://nextjs.org/docs/messages/blocking-prerender-current-time-client#for-telemetry-use-a-timing-api
+
+                 Learn more: https://nextjs.org/docs/messages/blocking-prerender-current-time-client
                      at a (<next-dist-dir>)
                  To get a more detailed stack trace and pinpoint the issue, try one of the following:
                    - Start the app in development mode by running \`next dev\`, then open "/client-hook-abort-reasons/sync-io/use-params/[id]" in your browser to investigate the error.
@@ -2328,9 +2195,9 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
 
                  Ways to fix this:
                    - [stream] Wrap the component in \`<Suspense fallback={...}>\` so the hook value streams in after prerendering
-                     https://nextjs.org/docs/messages/blocking-prerender-client-hook#wrap-in-or-move-into-suspense
                    - [block] Set \`export const instant = false\` to allow a blocking route
-                     https://nextjs.org/docs/messages/blocking-prerender-client-hook#allow-blocking-route
+
+                 Learn more: https://nextjs.org/docs/messages/blocking-prerender-client-hook
                      at b (<next-dist-dir>)
                      at c (<next-dist-dir>)
                      at d (<next-dist-dir>)
@@ -2342,6 +2209,7 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                      at j (<next-dist-dir>)
                      at k (<next-dist-dir>)
                      at l (<next-dist-dir>)
+                     ... collapsed 30 duplicate lines matching above 10 lines 3 times...
                      at m (<next-dist-dir>)
                      at n (<next-dist-dir>)
                      at o (<next-dist-dir>)
@@ -2353,36 +2221,6 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                      at u (<next-dist-dir>)
                      at v (<next-dist-dir>)
                      at w (<next-dist-dir>)
-                     at x (<next-dist-dir>)
-                     at y (<next-dist-dir>)
-                     at z (<next-dist-dir>)
-                     at a (<next-dist-dir>)
-                     at b (<next-dist-dir>)
-                     at c (<next-dist-dir>)
-                     at d (<next-dist-dir>)
-                     at e (<next-dist-dir>)
-                     at f (<next-dist-dir>)
-                     at g (<next-dist-dir>)
-                     at h (<next-dist-dir>)
-                     at i (<next-dist-dir>)
-                     at j (<next-dist-dir>)
-                     at k (<next-dist-dir>)
-                     at l (<next-dist-dir>)
-                     at m (<next-dist-dir>)
-                     at n (<next-dist-dir>)
-                     at o (<next-dist-dir>)
-                     at p (<next-dist-dir>)
-                     at q (<next-dist-dir>)
-                     at r (<next-dist-dir>)
-                     at s (<next-dist-dir>)
-                     at t (<next-dist-dir>)
-                     at u (<next-dist-dir>)
-                     at v (<next-dist-dir>)
-                     at w (<next-dist-dir>)
-                     at x (<next-dist-dir>)
-                     at y (<next-dist-dir>)
-                     at z (<next-dist-dir>)
-                     at a (<next-dist-dir>)
                      at body (<anonymous>)
                      at html (<anonymous>) {
                    digest: 'CLIENT_HOOK_DYNAMIC'
@@ -2454,11 +2292,10 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
 
                Ways to fix this:
                  - [stream] Wrap the Client Component in \`<Suspense fallback={...}>\`
-                   https://nextjs.org/docs/messages/blocking-prerender-current-time-client#wrap-in-or-move-into-suspense
                  - [defer] Move the read into a \`useEffect\` or event handler
-                   https://nextjs.org/docs/messages/blocking-prerender-current-time-client#move-into-effect-or-event-handler
                  - [measure] If the value is for telemetry, use a timing API such as \`performance.now()\`
-                   https://nextjs.org/docs/messages/blocking-prerender-current-time-client#for-telemetry-use-a-timing-api
+
+               Learn more: https://nextjs.org/docs/messages/blocking-prerender-current-time-client
                    at <unknown> (app/client-hook-abort-reasons/client.tsx:12:8)
                  10 |
                  11 | export function SyncIO() {
@@ -2476,10 +2313,30 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
 
                Ways to fix this:
                  - [stream] Wrap the component in \`<Suspense fallback={...}>\` so the hook value streams in after prerendering
-                   https://nextjs.org/docs/messages/blocking-prerender-client-hook#wrap-in-or-move-into-suspense
                  - [block] Set \`export const instant = false\` to allow a blocking route
-                   https://nextjs.org/docs/messages/blocking-prerender-client-hook#allow-blocking-route
+
+               Learn more: https://nextjs.org/docs/messages/blocking-prerender-client-hook
                    at <unknown> (app/client-hook-abort-reasons/client.tsx:17:3)
+                   at H (../../../packages/next/dist/esm/client/components/layout-router.js:266:34)
+                   at a (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
+                   at b (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
+                   at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
+                   at I (../../../packages/next/dist/esm/client/components/layout-router.js:389:32)
+                   at c (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
+                   at F (../../../packages/next/dist/esm/client/components/layout-router.js:100:9)
+                   at G (../../../packages/next/dist/esm/client/components/layout-router.js:249:39)
+                   at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:418:49)
+                   ... collapsed 27 duplicate lines matching above 9 lines 3 times...
+                   at H (../../../packages/next/dist/esm/client/components/layout-router.js:266:34)
+                   at d (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
+                   at e (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
+                   at f (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:18:9)
+                   at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
+                   at I (../../../packages/next/dist/esm/client/components/layout-router.js:389:32)
+                   at g (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
+                   at F (../../../packages/next/dist/esm/client/components/layout-router.js:100:9)
+                   at G (../../../packages/next/dist/esm/client/components/layout-router.js:249:39)
+                   at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:418:49)
                    at body (<anonymous>)
                    at html (<anonymous>)
                  15 |
@@ -2565,11 +2422,10 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
 
                  Ways to fix this:
                    - [stream] Wrap the Client Component in \`<Suspense fallback={...}>\`
-                     https://nextjs.org/docs/messages/blocking-prerender-current-time-client#wrap-in-or-move-into-suspense
                    - [defer] Move the read into a \`useEffect\` or event handler
-                     https://nextjs.org/docs/messages/blocking-prerender-current-time-client#move-into-effect-or-event-handler
                    - [measure] If the value is for telemetry, use a timing API such as \`performance.now()\`
-                     https://nextjs.org/docs/messages/blocking-prerender-current-time-client#for-telemetry-use-a-timing-api
+
+                 Learn more: https://nextjs.org/docs/messages/blocking-prerender-current-time-client
                      at a (<next-dist-dir>)
                  To get a more detailed stack trace and pinpoint the issue, try one of the following:
                    - Start the app in development mode by running \`next dev\`, then open "/client-hook-abort-reasons/sync-io/use-selected-layout-segments/[id]" in your browser to investigate the error.
@@ -2580,11 +2436,10 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
 
                  Ways to fix this:
                    - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                     https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
                    - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
-                     https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
                    - [block] Set \`export const instant = false\` to allow a blocking route
-                     https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
+
+                 Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic
                      at b (<next-dist-dir>)
                      at c (<next-dist-dir>)
                      at d (<next-dist-dir>)
@@ -2595,6 +2450,7 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                      at i (<next-dist-dir>)
                      at j (<next-dist-dir>)
                      at k (<next-dist-dir>)
+                     ... collapsed 30 duplicate lines matching above 10 lines 3 times...
                      at l (<next-dist-dir>)
                      at m (<next-dist-dir>)
                      at n (<next-dist-dir>)
@@ -2606,36 +2462,6 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                      at t (<next-dist-dir>)
                      at u (<next-dist-dir>)
                      at v (<next-dist-dir>)
-                     at w (<next-dist-dir>)
-                     at x (<next-dist-dir>)
-                     at y (<next-dist-dir>)
-                     at z (<next-dist-dir>)
-                     at a (<next-dist-dir>)
-                     at b (<next-dist-dir>)
-                     at c (<next-dist-dir>)
-                     at d (<next-dist-dir>)
-                     at e (<next-dist-dir>)
-                     at f (<next-dist-dir>)
-                     at g (<next-dist-dir>)
-                     at h (<next-dist-dir>)
-                     at i (<next-dist-dir>)
-                     at j (<next-dist-dir>)
-                     at k (<next-dist-dir>)
-                     at l (<next-dist-dir>)
-                     at m (<next-dist-dir>)
-                     at n (<next-dist-dir>)
-                     at o (<next-dist-dir>)
-                     at p (<next-dist-dir>)
-                     at q (<next-dist-dir>)
-                     at r (<next-dist-dir>)
-                     at s (<next-dist-dir>)
-                     at t (<next-dist-dir>)
-                     at u (<next-dist-dir>)
-                     at v (<next-dist-dir>)
-                     at w (<next-dist-dir>)
-                     at x (<next-dist-dir>)
-                     at y (<next-dist-dir>)
-                     at z (<next-dist-dir>)
                      at body (<anonymous>)
                      at html (<anonymous>)
                  To get a more detailed stack trace and pinpoint the issue, try one of the following:
@@ -2703,11 +2529,10 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
 
                Ways to fix this:
                  - [stream] Wrap the Client Component in \`<Suspense fallback={...}>\`
-                   https://nextjs.org/docs/messages/blocking-prerender-current-time-client#wrap-in-or-move-into-suspense
                  - [defer] Move the read into a \`useEffect\` or event handler
-                   https://nextjs.org/docs/messages/blocking-prerender-current-time-client#move-into-effect-or-event-handler
                  - [measure] If the value is for telemetry, use a timing API such as \`performance.now()\`
-                   https://nextjs.org/docs/messages/blocking-prerender-current-time-client#for-telemetry-use-a-timing-api
+
+               Learn more: https://nextjs.org/docs/messages/blocking-prerender-current-time-client
                    at <unknown> (app/client-hook-abort-reasons/client.tsx:12:8)
                  10 |
                  11 | export function SyncIO() {
@@ -2725,13 +2550,39 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
 
                Ways to fix this:
                  - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                   https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
                  - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
-                   https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
                  - [block] Set \`export const instant = false\` to allow a blocking route
-                   https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
+
+               Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic
+                   at H (../../../packages/next/dist/esm/client/components/layout-router.js:266:34)
+                   at a (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
+                   at b (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
+                   at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
+                   at I (../../../packages/next/dist/esm/client/components/layout-router.js:389:32)
+                   at c (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
+                   at F (../../../packages/next/dist/esm/client/components/layout-router.js:100:9)
+                   at G (../../../packages/next/dist/esm/client/components/layout-router.js:249:39)
+                   at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:418:49)
+                   ... collapsed 27 duplicate lines matching above 9 lines 3 times...
+                   at H (../../../packages/next/dist/esm/client/components/layout-router.js:266:34)
+                   at d (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
+                   at e (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
+                   at f (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:18:9)
+                   at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
+                   at I (../../../packages/next/dist/esm/client/components/layout-router.js:389:32)
+                   at g (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
+                   at F (../../../packages/next/dist/esm/client/components/layout-router.js:100:9)
+                   at G (../../../packages/next/dist/esm/client/components/layout-router.js:249:39)
+                   at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:418:49)
                    at body (<anonymous>)
                    at html (<anonymous>)
+                 264 | /**
+                 265 |  * InnerLayoutRouter handles rendering the provided segment based on the cache.
+               > 266 |  */ function InnerLayoutRouter({ tree, segmentPath, debugNameContext, cacheNode: maybeCacheNode, params, url, isActive }) {
+                     |                                  ^
+                 267 |     const context = useContext(GlobalLayoutRouterContext);
+                 268 |     const parentNavPromises = useContext(NavigationPromisesContext);
+                 269 |     if (!context) {
                To get a more detailed stack trace and pinpoint the issue, try one of the following:
                  - Start the app in development mode by running \`next dev\`, then open "/client-hook-abort-reasons/sync-io/use-selected-layout-segments/[id]" in your browser to investigate the error.
                  - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
@@ -2825,11 +2676,10 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
 
                  Ways to fix this:
                    - [stream] Wrap the Client Component in \`<Suspense fallback={...}>\`
-                     https://nextjs.org/docs/messages/blocking-prerender-current-time-client#wrap-in-or-move-into-suspense
                    - [defer] Move the read into a \`useEffect\` or event handler
-                     https://nextjs.org/docs/messages/blocking-prerender-current-time-client#move-into-effect-or-event-handler
                    - [measure] If the value is for telemetry, use a timing API such as \`performance.now()\`
-                     https://nextjs.org/docs/messages/blocking-prerender-current-time-client#for-telemetry-use-a-timing-api
+
+                 Learn more: https://nextjs.org/docs/messages/blocking-prerender-current-time-client
                      at a (<next-dist-dir>)
                  To get a more detailed stack trace and pinpoint the issue, try one of the following:
                    - Start the app in development mode by running \`next dev\`, then open "/client-hook-abort-reasons/sync-io/use-selected-layout-segment/[id]" in your browser to investigate the error.
@@ -2840,9 +2690,9 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
 
                  Ways to fix this:
                    - [stream] Wrap the component in \`<Suspense fallback={...}>\` so the hook value streams in after prerendering
-                     https://nextjs.org/docs/messages/blocking-prerender-client-hook#wrap-in-or-move-into-suspense
                    - [block] Set \`export const instant = false\` to allow a blocking route
-                     https://nextjs.org/docs/messages/blocking-prerender-client-hook#allow-blocking-route
+
+                 Learn more: https://nextjs.org/docs/messages/blocking-prerender-client-hook
                      at b (<next-dist-dir>)
                      at c (<next-dist-dir>)
                      at d (<next-dist-dir>)
@@ -2854,6 +2704,7 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                      at j (<next-dist-dir>)
                      at k (<next-dist-dir>)
                      at l (<next-dist-dir>)
+                     ... collapsed 30 duplicate lines matching above 10 lines 3 times...
                      at m (<next-dist-dir>)
                      at n (<next-dist-dir>)
                      at o (<next-dist-dir>)
@@ -2865,36 +2716,6 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                      at u (<next-dist-dir>)
                      at v (<next-dist-dir>)
                      at w (<next-dist-dir>)
-                     at x (<next-dist-dir>)
-                     at y (<next-dist-dir>)
-                     at z (<next-dist-dir>)
-                     at a (<next-dist-dir>)
-                     at b (<next-dist-dir>)
-                     at c (<next-dist-dir>)
-                     at d (<next-dist-dir>)
-                     at e (<next-dist-dir>)
-                     at f (<next-dist-dir>)
-                     at g (<next-dist-dir>)
-                     at h (<next-dist-dir>)
-                     at i (<next-dist-dir>)
-                     at j (<next-dist-dir>)
-                     at k (<next-dist-dir>)
-                     at l (<next-dist-dir>)
-                     at m (<next-dist-dir>)
-                     at n (<next-dist-dir>)
-                     at o (<next-dist-dir>)
-                     at p (<next-dist-dir>)
-                     at q (<next-dist-dir>)
-                     at r (<next-dist-dir>)
-                     at s (<next-dist-dir>)
-                     at t (<next-dist-dir>)
-                     at u (<next-dist-dir>)
-                     at v (<next-dist-dir>)
-                     at w (<next-dist-dir>)
-                     at x (<next-dist-dir>)
-                     at y (<next-dist-dir>)
-                     at z (<next-dist-dir>)
-                     at a (<next-dist-dir>)
                      at body (<anonymous>)
                      at html (<anonymous>) {
                    digest: 'CLIENT_HOOK_DYNAMIC'
@@ -2908,33 +2729,10 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
 
                  Ways to fix this:
                    - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                     https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
                    - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
-                     https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
                    - [block] Set \`export const instant = false\` to allow a blocking route
-                     https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
-                     at b (<next-dist-dir>)
-                     at c (<next-dist-dir>)
-                     at d (<next-dist-dir>)
-                     at e (<next-dist-dir>)
-                     at f (<next-dist-dir>)
-                     at g (<next-dist-dir>)
-                     at h (<next-dist-dir>)
-                     at i (<next-dist-dir>)
-                     at j (<next-dist-dir>)
-                     at k (<next-dist-dir>)
-                     at l (<next-dist-dir>)
-                     at m (<next-dist-dir>)
-                     at n (<next-dist-dir>)
-                     at o (<next-dist-dir>)
-                     at p (<next-dist-dir>)
-                     at q (<next-dist-dir>)
-                     at r (<next-dist-dir>)
-                     at s (<next-dist-dir>)
-                     at t (<next-dist-dir>)
-                     at u (<next-dist-dir>)
-                     at v (<next-dist-dir>)
-                     at w (<next-dist-dir>)
+
+                 Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic
                      at x (<next-dist-dir>)
                      at y (<next-dist-dir>)
                      at z (<next-dist-dir>)
@@ -2945,6 +2743,7 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                      at e (<next-dist-dir>)
                      at f (<next-dist-dir>)
                      at g (<next-dist-dir>)
+                     ... collapsed 30 duplicate lines matching above 10 lines 3 times...
                      at h (<next-dist-dir>)
                      at i (<next-dist-dir>)
                      at j (<next-dist-dir>)
@@ -2956,14 +2755,6 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                      at p (<next-dist-dir>)
                      at q (<next-dist-dir>)
                      at r (<next-dist-dir>)
-                     at s (<next-dist-dir>)
-                     at t (<next-dist-dir>)
-                     at u (<next-dist-dir>)
-                     at v (<next-dist-dir>)
-                     at w (<next-dist-dir>)
-                     at x (<next-dist-dir>)
-                     at y (<next-dist-dir>)
-                     at z (<next-dist-dir>)
                      at body (<anonymous>)
                      at html (<anonymous>)
                  To get a more detailed stack trace and pinpoint the issue, try one of the following:
@@ -3052,11 +2843,10 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
 
                Ways to fix this:
                  - [stream] Wrap the Client Component in \`<Suspense fallback={...}>\`
-                   https://nextjs.org/docs/messages/blocking-prerender-current-time-client#wrap-in-or-move-into-suspense
                  - [defer] Move the read into a \`useEffect\` or event handler
-                   https://nextjs.org/docs/messages/blocking-prerender-current-time-client#move-into-effect-or-event-handler
                  - [measure] If the value is for telemetry, use a timing API such as \`performance.now()\`
-                   https://nextjs.org/docs/messages/blocking-prerender-current-time-client#for-telemetry-use-a-timing-api
+
+               Learn more: https://nextjs.org/docs/messages/blocking-prerender-current-time-client
                    at <unknown> (app/client-hook-abort-reasons/client.tsx:12:8)
                  10 |
                  11 | export function SyncIO() {
@@ -3074,10 +2864,30 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
 
                Ways to fix this:
                  - [stream] Wrap the component in \`<Suspense fallback={...}>\` so the hook value streams in after prerendering
-                   https://nextjs.org/docs/messages/blocking-prerender-client-hook#wrap-in-or-move-into-suspense
                  - [block] Set \`export const instant = false\` to allow a blocking route
-                   https://nextjs.org/docs/messages/blocking-prerender-client-hook#allow-blocking-route
+
+               Learn more: https://nextjs.org/docs/messages/blocking-prerender-client-hook
                    at <unknown> (app/client-hook-abort-reasons/client.tsx:32:3)
+                   at H (../../../packages/next/dist/esm/client/components/layout-router.js:266:34)
+                   at a (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
+                   at b (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
+                   at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
+                   at I (../../../packages/next/dist/esm/client/components/layout-router.js:389:32)
+                   at c (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
+                   at F (../../../packages/next/dist/esm/client/components/layout-router.js:100:9)
+                   at G (../../../packages/next/dist/esm/client/components/layout-router.js:249:39)
+                   at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:418:49)
+                   ... collapsed 27 duplicate lines matching above 9 lines 3 times...
+                   at H (../../../packages/next/dist/esm/client/components/layout-router.js:266:34)
+                   at d (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
+                   at e (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
+                   at f (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:18:9)
+                   at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
+                   at I (../../../packages/next/dist/esm/client/components/layout-router.js:389:32)
+                   at g (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
+                   at F (../../../packages/next/dist/esm/client/components/layout-router.js:100:9)
+                   at G (../../../packages/next/dist/esm/client/components/layout-router.js:249:39)
+                   at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:418:49)
                    at body (<anonymous>)
                    at html (<anonymous>)
                  30 |
@@ -3098,13 +2908,39 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
 
                Ways to fix this:
                  - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                   https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
                  - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
-                   https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
                  - [block] Set \`export const instant = false\` to allow a blocking route
-                   https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
+
+               Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic
+                   at H (../../../packages/next/dist/esm/client/components/layout-router.js:266:34)
+                   at h (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
+                   at i (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
+                   at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
+                   at I (../../../packages/next/dist/esm/client/components/layout-router.js:389:32)
+                   at j (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
+                   at F (../../../packages/next/dist/esm/client/components/layout-router.js:100:9)
+                   at G (../../../packages/next/dist/esm/client/components/layout-router.js:249:39)
+                   at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:418:49)
+                   ... collapsed 27 duplicate lines matching above 9 lines 3 times...
+                   at H (../../../packages/next/dist/esm/client/components/layout-router.js:266:34)
+                   at k (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
+                   at l (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
+                   at m (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:18:9)
+                   at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
+                   at I (../../../packages/next/dist/esm/client/components/layout-router.js:389:32)
+                   at n (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
+                   at F (../../../packages/next/dist/esm/client/components/layout-router.js:100:9)
+                   at G (../../../packages/next/dist/esm/client/components/layout-router.js:249:39)
+                   at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:418:49)
                    at body (<anonymous>)
                    at html (<anonymous>)
+                 264 | /**
+                 265 |  * InnerLayoutRouter handles rendering the provided segment based on the cache.
+               > 266 |  */ function InnerLayoutRouter({ tree, segmentPath, debugNameContext, cacheNode: maybeCacheNode, params, url, isActive }) {
+                     |                                  ^
+                 267 |     const context = useContext(GlobalLayoutRouterContext);
+                 268 |     const parentNavPromises = useContext(NavigationPromisesContext);
+                 269 |     if (!context) {
                To get a more detailed stack trace and pinpoint the issue, try one of the following:
                  - Start the app in development mode by running \`next dev\`, then open "/client-hook-abort-reasons/sync-io/use-selected-layout-segment/[id]" in your browser to investigate the error.
                  - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.

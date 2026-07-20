@@ -158,11 +158,6 @@ export function registerUseCachePrivateTests(
                 | ^",
              "stack": [
                "Private app/use-cache-private-in-use-cache/page.tsx (15:1)",
-               "resolveErrorDev ../../../packages/next/dist/compiled/react-server-dom-turbopack/cjs/react-server-dom-turbopack-client.node.development.js (3506:51)",
-               "processFullStringRow ../../../packages/next/dist/compiled/react-server-dom-turbopack/cjs/react-server-dom-turbopack-client.node.development.js (4673:23)",
-               "processFullBinaryRow ../../../packages/next/dist/compiled/react-server-dom-turbopack/cjs/react-server-dom-turbopack-client.node.development.js (4616:7)",
-               "processBinaryChunk ../../../packages/next/dist/compiled/react-server-dom-turbopack/cjs/react-server-dom-turbopack-client.node.development.js (4839:19)",
-               "progress ../../../packages/next/dist/compiled/react-server-dom-turbopack/cjs/react-server-dom-turbopack-client.node.development.js (5025:9)",
              ],
            }
           `)
@@ -283,21 +278,14 @@ export function registerUseCachePrivateTests(
           await expect(browser).toDisplayCollapsedRedbox(`
            {
              "code": "E1427",
-             "description": "Route "/use-cache-private-without-suspense": Next.js encountered runtime data during prerendering.
-
-           \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
-
-           Ways to fix this:
-             - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-             - [block] Set \`export const instant = false\` to allow a blocking route
-
-           Learn more: https://nextjs.org/docs/messages/blocking-prerender-runtime",
+             "description": "Next.js encountered runtime data during prerendering.",
              "environmentLabel": "Server",
-             "label": "Console Error",
-             "source": "app/use-cache-private-without-suspense/page.tsx (10:7) @ Page
-           > 10 |       <Private />
-                |       ^",
+             "label": "Blocking Route",
+             "source": "app/use-cache-private-without-suspense/page.tsx (15:1) @ Private
+           > 15 | async function Private() {
+                | ^",
              "stack": [
+               "Private app/use-cache-private-without-suspense/page.tsx (15:1)",
                "Page app/use-cache-private-without-suspense/page.tsx (10:7)",
              ],
            }
@@ -347,26 +335,51 @@ export function registerUseCachePrivateTests(
                 `)
             } else {
               expect(output).toMatchInlineSnapshot(`
-                 "Error: Route "/use-cache-private-without-suspense": Next.js encountered uncached or runtime data during prerendering.
+               "Error: Route "/use-cache-private-without-suspense": Next.js encountered uncached or runtime data during prerendering.
 
-                 \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
+               \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
 
-                 Ways to fix this:
-                   - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                     https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
-                   - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
-                     https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
-                   - [block] Set \`export const instant = false\` to allow a blocking route
-                     https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
-                     at main (<anonymous>)
-                     at body (<anonymous>)
-                     at html (<anonymous>)
-                 To get a more detailed stack trace and pinpoint the issue, try one of the following:
-                   - Start the app in development mode by running \`next dev\`, then open "/use-cache-private-without-suspense" in your browser to investigate the error.
-                   - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
-                 Error occurred prerendering page "/use-cache-private-without-suspense". Read more: https://nextjs.org/docs/messages/prerender-error
-                 Export encountered an error on /use-cache-private-without-suspense/page: /use-cache-private-without-suspense, exiting the build."
-                `)
+               Ways to fix this:
+                 - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+                 - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
+                 - [block] Set \`export const instant = false\` to allow a blocking route
+
+               Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic
+                   at H (../../../packages/next/dist/esm/client/components/layout-router.js:266:34)
+                   at a (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
+                   at b (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
+                   at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
+                   at I (../../../packages/next/dist/esm/client/components/layout-router.js:389:32)
+                   at c (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
+                   at F (../../../packages/next/dist/esm/client/components/layout-router.js:100:9)
+                   at G (../../../packages/next/dist/esm/client/components/layout-router.js:249:39)
+                   at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:418:49)
+                   at main (<anonymous>)
+                   at body (<anonymous>)
+                   at html (<anonymous>)
+                   at H (../../../packages/next/dist/esm/client/components/layout-router.js:266:34)
+                   at d (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
+                   at e (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
+                   at f (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:18:9)
+                   at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
+                   at I (../../../packages/next/dist/esm/client/components/layout-router.js:389:32)
+                   at g (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
+                   at F (../../../packages/next/dist/esm/client/components/layout-router.js:100:9)
+                   at G (../../../packages/next/dist/esm/client/components/layout-router.js:249:39)
+                   at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:418:49)
+                 264 | /**
+                 265 |  * InnerLayoutRouter handles rendering the provided segment based on the cache.
+               > 266 |  */ function InnerLayoutRouter({ tree, segmentPath, debugNameContext, cacheNode: maybeCacheNode, params, url, isActive }) {
+                     |                                  ^
+                 267 |     const context = useContext(GlobalLayoutRouterContext);
+                 268 |     const parentNavPromises = useContext(NavigationPromisesContext);
+                 269 |     if (!context) {
+               To get a more detailed stack trace and pinpoint the issue, try one of the following:
+                 - Start the app in development mode by running \`next dev\`, then open "/use-cache-private-without-suspense" in your browser to investigate the error.
+                 - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
+               Error occurred prerendering page "/use-cache-private-without-suspense". Read more: https://nextjs.org/docs/messages/prerender-error
+               Export encountered an error on /use-cache-private-without-suspense/page: /use-cache-private-without-suspense, exiting the build."
+              `)
             }
           } else {
             if (isDebugPrerender) {
@@ -388,47 +401,46 @@ Ways to fix this:
               )
             } else {
               expect(output).toMatchInlineSnapshot(`
-                 "Error: Route "/use-cache-private-without-suspense": Next.js encountered uncached or runtime data during prerendering.
+               "Error: Route "/use-cache-private-without-suspense": Next.js encountered uncached or runtime data during prerendering.
 
-                 \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
+               \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
 
-                 Ways to fix this:
-                   - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                     https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
-                   - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
-                     https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
-                   - [block] Set \`export const instant = false\` to allow a blocking route
-                     https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
-                     at a (<next-dist-dir>)
-                     at b (<next-dist-dir>)
-                     at c (<next-dist-dir>)
-                     at d (<next-dist-dir>)
-                     at e (<next-dist-dir>)
-                     at f (<next-dist-dir>)
-                     at g (<next-dist-dir>)
-                     at h (<next-dist-dir>)
-                     at i (<next-dist-dir>)
-                     at j (<next-dist-dir>)
-                     at main (<anonymous>)
-                     at body (<anonymous>)
-                     at html (<anonymous>)
-                     at k (<next-dist-dir>)
-                     at l (<next-dist-dir>)
-                     at m (<next-dist-dir>)
-                     at n (<next-dist-dir>)
-                     at o (<next-dist-dir>)
-                     at p (<next-dist-dir>)
-                     at q (<next-dist-dir>)
-                     at r (<next-dist-dir>)
-                     at s (<next-dist-dir>)
-                     at t (<next-dist-dir>)
-                     at u (<next-dist-dir>)
-                 To get a more detailed stack trace and pinpoint the issue, try one of the following:
-                   - Start the app in development mode by running \`next dev\`, then open "/use-cache-private-without-suspense" in your browser to investigate the error.
-                   - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
-                 Error occurred prerendering page "/use-cache-private-without-suspense". Read more: https://nextjs.org/docs/messages/prerender-error
-                 Export encountered an error on /use-cache-private-without-suspense/page: /use-cache-private-without-suspense, exiting the build."
-                `)
+               Ways to fix this:
+                 - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+                 - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
+                 - [block] Set \`export const instant = false\` to allow a blocking route
+
+               Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic
+                   at a (<next-dist-dir>)
+                   at b (<next-dist-dir>)
+                   at c (<next-dist-dir>)
+                   at d (<next-dist-dir>)
+                   at e (<next-dist-dir>)
+                   at f (<next-dist-dir>)
+                   at g (<next-dist-dir>)
+                   at h (<next-dist-dir>)
+                   at i (<next-dist-dir>)
+                   at j (<next-dist-dir>)
+                   at main (<anonymous>)
+                   at body (<anonymous>)
+                   at html (<anonymous>)
+                   at k (<next-dist-dir>)
+                   at l (<next-dist-dir>)
+                   at m (<next-dist-dir>)
+                   at n (<next-dist-dir>)
+                   at o (<next-dist-dir>)
+                   at p (<next-dist-dir>)
+                   at q (<next-dist-dir>)
+                   at r (<next-dist-dir>)
+                   at s (<next-dist-dir>)
+                   at t (<next-dist-dir>)
+                   at u (<next-dist-dir>)
+               To get a more detailed stack trace and pinpoint the issue, try one of the following:
+                 - Start the app in development mode by running \`next dev\`, then open "/use-cache-private-without-suspense" in your browser to investigate the error.
+                 - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
+               Error occurred prerendering page "/use-cache-private-without-suspense". Read more: https://nextjs.org/docs/messages/prerender-error
+               Export encountered an error on /use-cache-private-without-suspense/page: /use-cache-private-without-suspense, exiting the build."
+              `)
             }
           }
         })
