@@ -583,7 +583,7 @@ export default function UserProvider({
   children: React.ReactNode
   userPromise: Promise<User>
 }) {
-  return <UserContext value={userPromise}>{children}</UserContext>
+  return <UserContext.Provider value={userPromise}>{children}</UserContext.Provider>
 }
 ```
 
@@ -595,9 +595,8 @@ import { createContext } from 'react'
 export const UserContext = createContext(null)
 
 export default function UserProvider({ children, userPromise }) {
-  return <UserContext value={userPromise}>{children}</UserContext>
+  return <UserContext.Provider value={userPromise}>{children}</UserContext.Provider>
 }
-```
 
 In a layout, pass the promise to the provider without awaiting:
 
