@@ -1137,6 +1137,14 @@ try {
   console.error(`results in ${outDir}`);
   analyze(files, cfg);
   writeStatus({phase: 'done'});
+} catch (err) {
+  // Leave a machine-readable trace: bench-status.mjs reports dead runs
+  // and the right recovery action from this.
+  writeStatus({
+    phase: 'failed',
+    error: String((err && err.message) || err).slice(0, 500),
+  });
+  throw err;
 } finally {
   fs.rmSync(tmp, {recursive: true, force: true});
 }

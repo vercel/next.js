@@ -227,6 +227,16 @@ hit their ~2h timeout.
 
 ## Failure recovery
 
+- **First move, always: `node scripts/bench-status.mjs`.** Session
+  restarts silently kill background launchers while their detached VMs
+  keep measuring, and a dead launcher's log still ends with a
+  healthy-looking progress line — never infer liveness from log tails
+  or task output files. bench-status checks each run's recorded
+  launcher pid and prints the per-run recovery action (running /
+  collect now / relaunch). Run it at the start of any session that
+  expects work in flight, after any crash, and before telling the user
+  what is or isn't running. Launcher crashes are also recorded in the
+  run's status.json (`phase: "failed"` plus the error).
 - **Interrupted local process**: remote VMs keep running detached.
   `vercel sandbox list` (with the configured team/project) to find
   them; poll each VM's `/vercel/sandbox/loop.done`, `cp` its
