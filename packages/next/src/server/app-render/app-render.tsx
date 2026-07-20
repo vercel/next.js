@@ -179,7 +179,10 @@ import {
 } from '../client-component-renderer-logger'
 import { isNodeNextRequest, isNodeNextResponse } from '../base-http/helpers'
 import { waitForResponseToFinish } from './wait-for-response'
-import { yieldToForegroundRequest } from './dev-validation-scheduler'
+import {
+  beginDevValidation,
+  yieldToForegroundRequest,
+} from './dev-validation-scheduler'
 import { signalFromNodeResponse } from '../web/spec-extension/adapters/next-request'
 import {
   parseRelativeUrl,
@@ -1262,8 +1265,7 @@ async function generateDynamicFlightRenderResultWithStagesInDev(
   ctx: AppRenderContext,
   initialRequestStore: RequestStore,
   createRequestStore: (() => RequestStore) | undefined,
-  fallbackParams: OpaqueFallbackRouteParams | null,
-  devValidationSignal: AbortSignal | undefined
+  fallbackParams: OpaqueFallbackRouteParams | null
 ): Promise<RenderResult> {
   const {
     htmlRequestId,
@@ -1308,6 +1310,7 @@ async function generateDynamicFlightRenderResultWithStagesInDev(
   // instant configs exist, since we render all the layouts necessary to perform
   // the validation in those cases.
   const shouldValidate =
+    !ctx.isPrefetch &&
     !isBypassingCachesInDev(initialRequestStore, workStore) &&
     (initialRequestStore.isHmrRefresh === true ||
       (await anySegmentNeedsInstantValidationInDev(loaderTree)))
@@ -1425,7 +1428,6 @@ async function generateDynamicFlightRenderResultWithStagesInDev(
         prefetchStage,
       },
       requestAbortSignal,
-      devValidationSignal,
     })
     stream = result.stream
     debugChannel = result.debugChannel
@@ -2555,7 +2557,6 @@ async function renderToHTMLOrFlightImpl(
     enableTainting,
     cacheComponents,
     setIsrStatus,
-    devValidationSignal,
   } = renderOpts
 
   const { cachedNavigations } = renderOpts.experimental
@@ -2911,8 +2912,7 @@ async function renderToHTMLOrFlightImpl(
             ctx,
             requestStore,
             createRequestStore,
-            fallbackParams,
-            devValidationSignal
+            fallbackParams
           )
         } else if (cacheComponents && cachedNavigations) {
           // MARK: RSC cacheComponents
@@ -2959,8 +2959,7 @@ async function renderToHTMLOrFlightImpl(
             postponedState,
             metadata,
             undefined, // Prevent restartable-render behavior in dev + Cache Components mode
-            fallbackParams,
-            devValidationSignal
+            fallbackParams
           )
 
           return new RenderResult(stream, {
@@ -3002,8 +3001,7 @@ async function renderToHTMLOrFlightImpl(
       // and we currently we don't copy changes over when creating a new store,
       // so the restarted render wouldn't be correct.
       didExecuteServerAction ? undefined : createRequestStore,
-      fallbackParams,
-      devValidationSignal
+      fallbackParams
     )
 
     // Forward an invalid-dynamic-usage error recorded by `'use cache'` only
@@ -3227,8 +3225,7 @@ async function renderToStream(
   postponedState: PostponedState | null,
   metadata: AppPageRenderResultMetadata,
   createRequestStore: (() => RequestStore) | undefined,
-  fallbackParams: OpaqueFallbackRouteParams | null,
-  devValidationSignal: AbortSignal | undefined
+  fallbackParams: OpaqueFallbackRouteParams | null
 ): Promise<AnyStream> {
   /* eslint-disable @next/internal/no-ambiguous-jsx -- React Client */
   // MARK: renderToStream setup
@@ -3484,7 +3481,6 @@ async function renderToStream(
               },
               // We currently only abort HMR refresh requests.
               requestAbortSignal: undefined,
-              devValidationSignal,
             })
 
           reactServerResult = new ReactServerResult(serverStream)
@@ -4437,7 +4433,8 @@ function runDevValidationInBackground(
   createRequestStore: () => RequestStore,
   getPayload: (requestStore: RequestStore) => Promise<RSCPayload>,
   onError: (error: unknown) => void,
-  validationAbortSignal: AbortSignal | undefined
+  validationAbortSignal: AbortSignal,
+  onSettled: () => void
 ): void {
   void consoleAsyncStorage
     .run({ dim: true }, async () => {
@@ -4561,6 +4558,7 @@ function runDevValidationInBackground(
         })
       )
     })
+    .finally(onSettled)
 }
 
 /**
@@ -4619,7 +4617,7 @@ async function prepareValidationInputs(
   createRequestStore: () => RequestStore,
   getPayload: (requestStore: RequestStore) => Promise<RSCPayload>,
   onError: (error: unknown) => void,
-  requestAbortSignal: AbortSignal | undefined
+  validationAbortSignal: AbortSignal | undefined
 ): Promise<PrepareValidationInputsResult> {
   // Check if we can re-use the main render for validation.
   let inputsFromNavigation: DevValidationInputs | null
@@ -4649,7 +4647,7 @@ async function prepareValidationInputs(
       getPayload,
       onError,
       inputsFromNavigation,
-      requestAbortSignal
+      validationAbortSignal
     )
   } else {
     return prepareValidationInputsInLegacyPrefetching(
@@ -4659,7 +4657,7 @@ async function prepareValidationInputs(
       getPayload,
       onError,
       inputsFromNavigation,
-      requestAbortSignal
+      validationAbortSignal
     )
   }
 }
@@ -4673,7 +4671,7 @@ async function prepareValidationInputsInPartialPrefetching(
   getPayload: (requestStore: RequestStore) => Promise<RSCPayload>,
   onError: (error: unknown) => void,
   inputsFromNavigation: DevValidationInputs | null,
-  requestAbortSignal: AbortSignal | undefined
+  validationAbortSignal: AbortSignal | undefined
 ): Promise<PrepareValidationInputsResult> {
   const loaderTree = ctx.componentMod.routeModule.userland.loaderTree
   const needsInstantValidation =
@@ -4698,7 +4696,7 @@ async function prepareValidationInputsInPartialPrefetching(
       prerenderResumeDataCache,
       prefetchMode,
       shouldRenderWithAppShell,
-      requestAbortSignal
+      validationAbortSignal
     )
     if (forwardErrorsFromWarmRender(inputs, ctx)) {
       return VALIDATION_BAILOUT
@@ -4713,7 +4711,7 @@ async function prepareValidationInputsInPartialPrefetching(
       getPayload,
       onError,
       prerenderResumeDataCache,
-      requestAbortSignal
+      validationAbortSignal
     )
     if (forwardErrorsFromWarmRender(inputs, ctx)) {
       return VALIDATION_BAILOUT
@@ -4767,7 +4765,7 @@ async function prepareValidationInputsInLegacyPrefetching(
   getPayload: (requestStore: RequestStore) => Promise<RSCPayload>,
   onError: (error: unknown) => void,
   inputsFromNavigation: DevValidationInputs | null,
-  requestAbortSignal: AbortSignal | undefined
+  validationAbortSignal: AbortSignal | undefined
 ): Promise<PrepareValidationInputsResult> {
   const loaderTree = ctx.componentMod.routeModule.userland.loaderTree
   const needsInstantValidation =
@@ -4793,7 +4791,7 @@ async function prepareValidationInputsInLegacyPrefetching(
       prerenderResumeDataCache,
       prefetchMode,
       shouldRenderWithAppShell,
-      requestAbortSignal
+      validationAbortSignal
     )
     if (forwardErrorsFromWarmRender(inputs, ctx)) {
       return VALIDATION_BAILOUT
@@ -4808,7 +4806,7 @@ async function prepareValidationInputsInLegacyPrefetching(
       getPayload,
       onError,
       prerenderResumeDataCache,
-      requestAbortSignal
+      validationAbortSignal
     )
     if (forwardErrorsFromWarmRender(inputs, ctx)) {
       return VALIDATION_BAILOUT
@@ -4989,9 +4987,10 @@ interface StagedDevRenderOptions {
   requestStore: RequestStore
   onError: (error: unknown) => void
   navigationKind: DevNavigationKind
-  // When this aborts, the staged dev render is torn down (its in-flight `'use
-  // cache'` fills keep running) and the detached validation is skipped.
-  // `undefined` runs both to completion.
+  // This is defined only for foreground HMR requests. When it aborts, the
+  // staged render is torn down while its in-flight `'use cache'` fills keep
+  // running. Detached validation uses its per-document generation signal;
+  // `waitForResponseToFinish` handles response closure before it begins.
   requestAbortSignal: AbortSignal | undefined
 }
 
@@ -5269,7 +5268,7 @@ async function renderWithWarmCachesForValidationInDev(
   prerenderResumeDataCache: ReturnType<typeof createPrerenderResumeDataCache>,
   prefetchMode: PrefetchingMode,
   shouldRenderWithAppShell: boolean,
-  requestAbortSignal: AbortSignal | undefined
+  validationAbortSignal: AbortSignal | undefined
 ): Promise<DevValidationInputs> {
   const { ComponentMod, setReactDebugChannel } = ctx.renderOpts
   const { clientModules } = getClientReferenceManifest()
@@ -5319,14 +5318,14 @@ async function renderWithWarmCachesForValidationInDev(
           startTime,
           filterStackFrame,
           debugChannel: debugChannel?.serverSide,
-          signal: requestAbortSignal,
+          signal: validationAbortSignal,
         }
       ) as Readable
 
       return accumulateStreamChunks(
         sourceStream,
         stageController,
-        requestAbortSignal ?? null
+        validationAbortSignal ?? null
       )
     },
     () => stageController.advanceStage(RenderStage.Static),
@@ -5352,7 +5351,6 @@ interface StagedRenderWithCachesInDevOptions extends StagedDevRenderOptions {
   shouldValidate: boolean
   fallbackRouteParams: OpaqueFallbackRouteParams | null
   getDevRenderDidError: () => boolean
-  devValidationSignal: AbortSignal | undefined
 }
 
 async function prerenderWithWarmCachesForStaticValidationInDev(
@@ -5361,7 +5359,7 @@ async function prerenderWithWarmCachesForStaticValidationInDev(
   getPayload: (requestStore: RequestStore) => Promise<RSCPayload>,
   onError: (error: unknown) => void,
   prerenderResumeDataCache: ReturnType<typeof createPrerenderResumeDataCache>,
-  requestAbortSignal: AbortSignal | undefined
+  validationAbortSignal: AbortSignal | undefined
 ): Promise<DevValidationInputs> {
   // This function is currently only used in partialPrefetching.
   const prefetchMode = PrefetchingMode.Partial
@@ -5375,8 +5373,8 @@ async function prerenderWithWarmCachesForStaticValidationInDev(
   const finalReactController = new AbortController()
   const finalDataController = new AbortController()
 
-  if (requestAbortSignal) {
-    abortWhenSignalAborts(requestAbortSignal, finalReactController)
+  if (validationAbortSignal) {
+    abortWhenSignalAborts(validationAbortSignal, finalReactController)
   }
 
   const stageController = new StagedRenderingController({
@@ -5536,90 +5534,96 @@ async function stagedRenderWithCachesInDev({
   getDevRenderDidError,
   navigationKind,
   requestAbortSignal,
-  devValidationSignal,
 }: StagedRenderWithCachesInDevOptions): Promise<{
   stream: Readable
   debugChannel: NodeDebugChannelPair | undefined
 }> {
-  const { setReactDebugChannel } = ctx.renderOpts
+  const validationGeneration = shouldValidate
+    ? beginDevValidation(ctx.htmlRequestId)
+    : undefined
+  let validationWasScheduled = false
 
-  const validationAbortSignal =
-    requestAbortSignal === undefined
-      ? devValidationSignal
-      : devValidationSignal === undefined
-        ? requestAbortSignal
-        : AbortSignal.any([requestAbortSignal, devValidationSignal])
+  try {
+    const { setReactDebugChannel } = ctx.renderOpts
 
-  const {
-    cacheSignal,
-    prerenderResumeDataCache,
-    stageController,
-    environmentName,
-  } = setUpStagedDevRender(prefetchMode, navigationKind, requestStore)
-
-  let validationDebugChannel: AnyStream | undefined
-  const debugChannel = setReactDebugChannel && createNodeDebugChannel()
-  if (shouldValidate && debugChannel) {
-    const debugChannelReplay = new ReplayableNodeStream(
-      debugChannel.clientSide.readable
-    )
-    debugChannel.clientSide.readable = debugChannelReplay.createReplayStream()
-    validationDebugChannel = debugChannelReplay.createReplayStream()
-  }
-
-  // The stage controller starts in the `Before` stage, where sync IO doesn't
-  // abort, so it's fine if it happens while creating the payload.
-  const rscPayload = await getPayload(requestStore)
-
-  const { stream, resultPromise } = await streamStagedRenderInDev({
-    prefetchMode,
-    ctx,
-    requestStore,
-    rscPayload,
-    stageController,
-    cacheSignal,
-    environmentName,
-    onError,
-    debugChannel,
-    navigationKind,
-    requestAbortSignal,
-  })
-
-  if (shouldValidate) {
-    runDevValidationInBackground(
-      prefetchMode,
-      navigationKind,
-      resultPromise,
-      requestStore,
-      validationDebugChannel,
+    const {
       cacheSignal,
-      ctx,
-      fallbackRouteParams,
       prerenderResumeDataCache,
-      getDevRenderDidError,
-      createRequestStore,
-      getPayload,
+      stageController,
+      environmentName,
+    } = setUpStagedDevRender(prefetchMode, navigationKind, requestStore)
+
+    let validationDebugChannel: AnyStream | undefined
+    const debugChannel = setReactDebugChannel && createNodeDebugChannel()
+    if (validationGeneration !== undefined && debugChannel) {
+      const debugChannelReplay = new ReplayableNodeStream(
+        debugChannel.clientSide.readable
+      )
+      debugChannel.clientSide.readable = debugChannelReplay.createReplayStream()
+      validationDebugChannel = debugChannelReplay.createReplayStream()
+    }
+
+    // The stage controller starts in the `Before` stage, where sync IO doesn't
+    // abort, so it's fine if it happens while creating the payload.
+    const rscPayload = await getPayload(requestStore)
+
+    const { stream, resultPromise } = await streamStagedRenderInDev({
+      prefetchMode,
+      ctx,
+      requestStore,
+      rscPayload,
+      stageController,
+      cacheSignal,
+      environmentName,
       onError,
-      validationAbortSignal
-    )
-  } else {
-    logValidationSkipped(ctx)
+      debugChannel,
+      navigationKind,
+      requestAbortSignal,
+    })
 
-    // We don't validate, but the render may still record an invalid dynamic
-    // usage error (e.g. a request API used inside `'use cache'`). `result`
-    // resolves once the full stream (incl. the dynamic stage) has finished, so
-    // any such error is final by then; forward it to the dev overlay.
-    resultPromise.then(
-      () =>
-        forwardInvalidDynamicUsageError(
-          ctx.workStore.invalidDynamicUsageError,
-          ctx
-        ),
-      () => {}
-    )
+    if (validationGeneration !== undefined) {
+      runDevValidationInBackground(
+        prefetchMode,
+        navigationKind,
+        resultPromise,
+        requestStore,
+        validationDebugChannel,
+        cacheSignal,
+        ctx,
+        fallbackRouteParams,
+        prerenderResumeDataCache,
+        getDevRenderDidError,
+        createRequestStore,
+        getPayload,
+        onError,
+        validationGeneration.signal,
+        validationGeneration.finish
+      )
+      validationWasScheduled = true
+    } else {
+      logValidationSkipped(ctx)
+
+      // We don't validate, but the render may still record an invalid dynamic
+      // usage error (e.g. a request API used inside `'use cache'`). `result`
+      // resolves once the full stream (incl. the dynamic stage) has finished, so
+      // any such error is final by then; forward it to the dev overlay.
+      resultPromise.then(
+        () =>
+          forwardInvalidDynamicUsageError(
+            ctx.workStore.invalidDynamicUsageError,
+            ctx
+          ),
+        () => {}
+      )
+    }
+
+    return { stream, debugChannel }
+  } catch (err) {
+    if (!validationWasScheduled) {
+      validationGeneration?.finish()
+    }
+    throw err
   }
-
-  return { stream, debugChannel }
 }
 
 interface AccumulatedStreamChunks {
@@ -5997,13 +6001,47 @@ async function runValidationInDev(
         '</VALIDATION_MESSAGE>'
     )
     try {
+      const validationAbortSignal: AbortSignal | undefined = args[6]
+      // Keep validation in flight for scheduler E2E tests without relying on
+      // timing-sensitive user code. Aborts end the delay immediately.
+      const validationDelay = Number(
+        process.env.NEXT_TEST_DEV_VALIDATION_DELAY_MS
+      )
+      if (
+        validationAbortSignal !== undefined &&
+        Number.isFinite(validationDelay) &&
+        validationDelay > 0 &&
+        !validationAbortSignal.aborted
+      ) {
+        await new Promise<void>((resolve) => {
+          let timeout: NodeJS.Timeout
+          const finishDelay = () => {
+            clearTimeout(timeout)
+            validationAbortSignal.removeEventListener('abort', finishDelay)
+            resolve()
+          }
+          timeout = setTimeout(finishDelay, validationDelay)
+          validationAbortSignal.addEventListener('abort', finishDelay, {
+            once: true,
+          })
+        })
+      }
+
+      if (validationAbortSignal?.aborted) {
+        return
+      }
       return await runValidationInDevImpl(...args)
     } finally {
-      console.log(
-        '<VALIDATION_MESSAGE>' +
-          JSON.stringify({ type: 'validation_end', requestId, url }) +
-          '</VALIDATION_MESSAGE>'
-      )
+      const validationAbortSignal: AbortSignal | undefined = args[6]
+      if (validationAbortSignal?.aborted) {
+        logValidationAborted(ctx)
+      } else {
+        console.log(
+          '<VALIDATION_MESSAGE>' +
+            JSON.stringify({ type: 'validation_end', requestId, url }) +
+            '</VALIDATION_MESSAGE>'
+        )
+      }
     }
   } else {
     return await runValidationInDevImpl(...args)

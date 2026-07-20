@@ -19,8 +19,9 @@ type ValidationEndEvent = {
   requestId: string
   url: string
 }
-// Emitted instead of a start/end pair when a request is aborted before its
-// detached validation runs (e.g. Server Components HMR cancellation).
+// Emitted when detached validation is aborted. It can appear without a start
+// when cancellation happens before validation runs, or after a start instead
+// of an end when in-flight validation is cancelled.
 type ValidationAbortedEvent = {
   type: 'validation_aborted'
   requestId: string

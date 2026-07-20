@@ -1,25 +1,78 @@
 import { unpatchedSetImmediate } from '../node-environment-extensions/fast-set-immediate.external'
+import { InvariantError } from '../../shared/lib/invariant-error'
 
-// Validation is diagnostic work. Once another app render starts, completing an
-// older validation can only delay the render whose result the user is waiting
-// for. Keep one generation per dev server so a new request can supersede it.
-const currentValidationByServer = new WeakMap<object, AbortController>()
+const MAX_ACTIVE_DEV_VALIDATIONS = 100
 
-export function beginDevValidationRequest(
-  devServerOwner: object | undefined
-): AbortSignal | undefined {
-  if (devServerOwner === undefined) {
-    return undefined
+export interface DevValidationGeneration {
+  readonly signal: AbortSignal
+  finish(): void
+}
+
+export class DevValidationScheduler {
+  private readonly currentValidationByDocument = new Map<
+    string,
+    AbortController
+  >()
+
+  constructor(private readonly maxActiveValidations: number) {
+    if (maxActiveValidations < 1) {
+      throw new InvariantError(
+        'DevValidationScheduler requires at least one active validation'
+      )
+    }
   }
 
-  const previousController = currentValidationByServer.get(devServerOwner)
-  if (previousController !== undefined) {
-    previousController.abort()
+  get size(): number {
+    return this.currentValidationByDocument.size
   }
 
-  const controller = new AbortController()
-  currentValidationByServer.set(devServerOwner, controller)
-  return controller.signal
+  begin(htmlRequestId: string): DevValidationGeneration {
+    const previousController =
+      this.currentValidationByDocument.get(htmlRequestId)
+    if (previousController !== undefined) {
+      this.currentValidationByDocument.delete(htmlRequestId)
+      previousController.abort()
+    }
+
+    if (this.currentValidationByDocument.size >= this.maxActiveValidations) {
+      const oldestEntry = this.currentValidationByDocument
+        .entries()
+        .next().value
+      if (oldestEntry !== undefined) {
+        const [oldestHtmlRequestId, oldestController] = oldestEntry
+        this.currentValidationByDocument.delete(oldestHtmlRequestId)
+        oldestController.abort()
+      }
+    }
+
+    const controller = new AbortController()
+    this.currentValidationByDocument.set(htmlRequestId, controller)
+
+    return {
+      signal: controller.signal,
+      finish: () => {
+        // A superseded generation may settle after its replacement. Only the
+        // current generation is allowed to remove this document's entry.
+        if (
+          this.currentValidationByDocument.get(htmlRequestId) === controller
+        ) {
+          this.currentValidationByDocument.delete(htmlRequestId)
+        }
+      },
+    }
+  }
+}
+
+// Only active validation work is retained. The hard cap also bounds the
+// registry if user code suspends indefinitely and the work never settles.
+const devValidationScheduler = new DevValidationScheduler(
+  MAX_ACTIVE_DEV_VALIDATIONS
+)
+
+export function beginDevValidation(
+  htmlRequestId: string
+): DevValidationGeneration {
+  return devValidationScheduler.begin(htmlRequestId)
 }
 
 /**
