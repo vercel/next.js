@@ -55,20 +55,20 @@ export function registerErrorAttributionTests(
           const browser = await next.browser(pathname)
 
           await expect(browser).toDisplayCollapsedRedbox(`
-             {
-               "code": "E1287",
-               "description": "Next.js encountered the unstable value new Date() in a Client Component.",
-               "environmentLabel": "Server",
-               "label": "Blocking Route",
-               "source": "app/sync-attribution/guarded-async-unguarded-clientsync/client.tsx (5:16) @ SyncIO
-             > 5 |   const data = new Date().toISOString()
-                 |                ^",
-               "stack": [
-                 "SyncIO app/sync-attribution/guarded-async-unguarded-clientsync/client.tsx (5:16)",
-                 "Page app/sync-attribution/guarded-async-unguarded-clientsync/page.tsx (22:9)",
-               ],
-             }
-            `)
+           {
+             "code": "E1434",
+             "description": "Next.js encountered the unstable value new Date() in a Client Component.",
+             "environmentLabel": "Server",
+             "label": "Blocking Route",
+             "source": "app/sync-attribution/guarded-async-unguarded-clientsync/client.tsx (5:16) @ SyncIO
+           > 5 |   const data = new Date().toISOString()
+               |                ^",
+             "stack": [
+               "SyncIO app/sync-attribution/guarded-async-unguarded-clientsync/client.tsx (5:16)",
+               "Page app/sync-attribution/guarded-async-unguarded-clientsync/page.tsx (22:9)",
+             ],
+           }
+          `)
         })
       } else {
         it('should error the build with a reason related to sync IO access', async () => {
@@ -207,20 +207,28 @@ export function registerErrorAttributionTests(
           const browser = await next.browser(pathname)
 
           await expect(browser).toDisplayCollapsedRedbox(`
-             {
-               "code": "E1400",
-               "description": "Next.js encountered runtime data during prerendering.",
-               "environmentLabel": "Server",
-               "label": "Blocking Route",
-               "source": "app/sync-attribution/unguarded-async-guarded-clientsync/page.tsx (34:18) @ RequestData
-             > 34 |   ;(await cookies()).get('foo')
-                  |                  ^",
-               "stack": [
-                 "RequestData app/sync-attribution/unguarded-async-guarded-clientsync/page.tsx (34:18)",
-                 "Page app/sync-attribution/unguarded-async-guarded-clientsync/page.tsx (27:9)",
-               ],
-             }
-            `)
+           {
+             "code": "E1427",
+             "description": "Route "/sync-attribution/unguarded-async-guarded-clientsync": Next.js encountered runtime data during prerendering.
+
+           \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
+
+           Ways to fix this:
+             - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+             - [block] Set \`export const instant = false\` to allow a blocking route
+
+           Learn more: https://nextjs.org/docs/messages/blocking-prerender-runtime",
+             "environmentLabel": "Server",
+             "label": "Console Error",
+             "source": "app/sync-attribution/unguarded-async-guarded-clientsync/page.tsx (34:18) @ RequestData
+           > 34 |   ;(await cookies()).get('foo')
+                |                  ^",
+             "stack": [
+               "RequestData app/sync-attribution/unguarded-async-guarded-clientsync/page.tsx (34:18)",
+               "Page app/sync-attribution/unguarded-async-guarded-clientsync/page.tsx (27:9)",
+             ],
+           }
+          `)
         })
       } else {
         it('should error the build with a reason related dynamic data', async () => {
@@ -387,20 +395,20 @@ export function registerErrorAttributionTests(
           const browser = await next.browser(pathname)
 
           await expect(browser).toDisplayCollapsedRedbox(`
-             {
-               "code": "E1287",
-               "description": "Next.js encountered the unstable value new Date() in a Client Component.",
-               "environmentLabel": "Server",
-               "label": "Blocking Route",
-               "source": "app/sync-attribution/unguarded-async-unguarded-clientsync/client.tsx (5:16) @ SyncIO
-             > 5 |   const data = new Date().toISOString()
-                 |                ^",
-               "stack": [
-                 "SyncIO app/sync-attribution/unguarded-async-unguarded-clientsync/client.tsx (5:16)",
-                 "Page app/sync-attribution/unguarded-async-unguarded-clientsync/page.tsx (22:9)",
-               ],
-             }
-            `)
+           {
+             "code": "E1434",
+             "description": "Next.js encountered the unstable value new Date() in a Client Component.",
+             "environmentLabel": "Server",
+             "label": "Blocking Route",
+             "source": "app/sync-attribution/unguarded-async-unguarded-clientsync/client.tsx (5:16) @ SyncIO
+           > 5 |   const data = new Date().toISOString()
+               |                ^",
+             "stack": [
+               "SyncIO app/sync-attribution/unguarded-async-unguarded-clientsync/client.tsx (5:16)",
+               "Page app/sync-attribution/unguarded-async-unguarded-clientsync/page.tsx (22:9)",
+             ],
+           }
+          `)
         })
       } else {
         it('should error the build with a reason related to sync IO access', async () => {

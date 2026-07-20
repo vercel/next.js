@@ -452,19 +452,25 @@ export function registerUseCacheTests(ctx: CacheComponentsErrorsContext) {
             const browser = await next.browser('/use-cache-low-expire/fast')
 
             await expect(browser).toDisplayCollapsedRedbox(`
-               {
-                 "code": "E1400",
-                 "description": "Next.js encountered runtime data during prerendering.",
-                 "environmentLabel": "Server",
-                 "label": "Blocking Route",
-                 "source": "app/use-cache-low-expire/fast/page.tsx (3:16) @ Page
-               > 3 | export default async function Page() {
-                   |                ^",
-                 "stack": [
-                   "Page app/use-cache-low-expire/fast/page.tsx (3:16)",
-                 ],
-               }
-              `)
+             {
+               "code": "E1427",
+               "description": "Route "/use-cache-low-expire/fast": Next.js encountered runtime data during prerendering.
+
+             \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
+
+             Ways to fix this:
+               - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+               - [block] Set \`export const instant = false\` to allow a blocking route
+
+             Learn more: https://nextjs.org/docs/messages/blocking-prerender-runtime",
+               "environmentLabel": "Server",
+               "label": "Console Error",
+               "source": null,
+               "stack": [
+                 "Page [Prerender] <anonymous>",
+               ],
+             }
+            `)
           })
         } else {
           it('should error the build', async () => {
@@ -574,19 +580,25 @@ Ways to fix this:
             const browser = await next.browser('/use-cache-low-expire/slow')
 
             await expect(browser).toDisplayCollapsedRedbox(`
-               {
-                 "code": "E1400",
-                 "description": "Next.js encountered runtime data during prerendering.",
-                 "environmentLabel": "Server",
-                 "label": "Blocking Route",
-                 "source": "app/use-cache-low-expire/slow/page.tsx (3:16) @ Page
-               > 3 | export default async function Page() {
-                   |                ^",
-                 "stack": [
-                   "Page app/use-cache-low-expire/slow/page.tsx (3:16)",
-                 ],
-               }
-              `)
+             {
+               "code": "E1427",
+               "description": "Route "/use-cache-low-expire/slow": Next.js encountered runtime data during prerendering.
+
+             \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
+
+             Ways to fix this:
+               - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+               - [block] Set \`export const instant = false\` to allow a blocking route
+
+             Learn more: https://nextjs.org/docs/messages/blocking-prerender-runtime",
+               "environmentLabel": "Server",
+               "label": "Console Error",
+               "source": null,
+               "stack": [
+                 "Page [Prerender] <anonymous>",
+               ],
+             }
+            `)
           })
         } else {
           it('should error the build', async () => {
@@ -855,19 +867,25 @@ Ways to fix this:
             const browser = await next.browser('/use-cache-revalidate-0/fast')
 
             await expect(browser).toDisplayCollapsedRedbox(`
-               {
-                 "code": "E1400",
-                 "description": "Next.js encountered runtime data during prerendering.",
-                 "environmentLabel": "Server",
-                 "label": "Blocking Route",
-                 "source": "app/use-cache-revalidate-0/fast/page.tsx (3:16) @ Page
-               > 3 | export default async function Page() {
-                   |                ^",
-                 "stack": [
-                   "Page app/use-cache-revalidate-0/fast/page.tsx (3:16)",
-                 ],
-               }
-              `)
+             {
+               "code": "E1427",
+               "description": "Route "/use-cache-revalidate-0/fast": Next.js encountered runtime data during prerendering.
+
+             \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
+
+             Ways to fix this:
+               - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+               - [block] Set \`export const instant = false\` to allow a blocking route
+
+             Learn more: https://nextjs.org/docs/messages/blocking-prerender-runtime",
+               "environmentLabel": "Server",
+               "label": "Console Error",
+               "source": null,
+               "stack": [
+                 "Page [Prerender] <anonymous>",
+               ],
+             }
+            `)
           })
         } else {
           it('should error the build', async () => {
@@ -977,19 +995,25 @@ Ways to fix this:
             const browser = await next.browser('/use-cache-revalidate-0/slow')
 
             await expect(browser).toDisplayCollapsedRedbox(`
-               {
-                 "code": "E1400",
-                 "description": "Next.js encountered runtime data during prerendering.",
-                 "environmentLabel": "Server",
-                 "label": "Blocking Route",
-                 "source": "app/use-cache-revalidate-0/slow/page.tsx (3:16) @ Page
-               > 3 | export default async function Page() {
-                   |                ^",
-                 "stack": [
-                   "Page app/use-cache-revalidate-0/slow/page.tsx (3:16)",
-                 ],
-               }
-              `)
+             {
+               "code": "E1427",
+               "description": "Route "/use-cache-revalidate-0/slow": Next.js encountered runtime data during prerendering.
+
+             \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
+
+             Ways to fix this:
+               - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+               - [block] Set \`export const instant = false\` to allow a blocking route
+
+             Learn more: https://nextjs.org/docs/messages/blocking-prerender-runtime",
+               "environmentLabel": "Server",
+               "label": "Console Error",
+               "source": null,
+               "stack": [
+                 "Page [Prerender] <anonymous>",
+               ],
+             }
+            `)
           })
         } else {
           it('should error the build', async () => {
@@ -1257,17 +1281,34 @@ Ways to fix this:
           const browser = await next.browser('/use-cache-params/foo')
 
           await expect(browser).toDisplayCollapsedRedbox(`
-             {
-               "code": "E1400",
-               "description": "Next.js encountered runtime data during prerendering.",
-               "environmentLabel": "Server",
-               "label": "Blocking Route",
-               "source": null,
-               "stack": [
-                 "Page [Prerender] <anonymous>",
-               ],
-             }
-            `)
+           {
+             "code": "E1427",
+             "description": "Route "/use-cache-params/[slug]": Next.js encountered runtime data during prerendering.
+
+           \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
+
+           Ways to fix this:
+             - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+             - [block] Set \`export const instant = false\` to allow a blocking route
+
+           Learn more: https://nextjs.org/docs/messages/blocking-prerender-runtime",
+             "environmentLabel": "Server",
+             "label": "Console Error",
+             "source": "../../../packages/next/dist/compiled/react-server-dom-turbopack/cjs/react-server-dom-turbopack-client.node.development.js (550:19) @ Object.resolveToJSON
+           > 550 |             value.then(function (partValue) {
+                 |                   ^",
+             "stack": [
+               "Promise.then <anonymous>",
+               "Object.resolveToJSON ../../../packages/next/dist/compiled/react-server-dom-turbopack/cjs/react-server-dom-turbopack-client.node.development.js (550:19)",
+               "JSON.stringify <anonymous>",
+               "serializeModel ../../../packages/next/dist/compiled/react-server-dom-turbopack/cjs/react-server-dom-turbopack-client.node.development.js (771:21)",
+               "processReply ../../../packages/next/dist/compiled/react-server-dom-turbopack/cjs/react-server-dom-turbopack-client.node.development.js (779:18)",
+               "<anonymous> ../../../packages/next/dist/compiled/react-server-dom-turbopack/cjs/react-server-dom-turbopack-client.node.development.js (5450:21)",
+               "exports.encodeReply ../../../packages/next/dist/compiled/react-server-dom-turbopack/cjs/react-server-dom-turbopack-client.node.development.js (5449:14)",
+               "Page app/use-cache-params/[slug]/page.tsx (1:16)",
+             ],
+           }
+          `)
         })
       } else {
         it('should error the build', async () => {
@@ -1355,19 +1396,24 @@ Ways to fix this:
           const browser = await next.browser('/use-cache-runtime-error')
 
           await expect(browser).toDisplayRedbox(`
-             {
-               "description": "Kaputt!",
-               "environmentLabel": "Cache",
-               "label": "Runtime Error",
-               "source": "app/use-cache-runtime-error/page.tsx (15:9) @ throwAnError
-             > 15 |   throw new Error('Kaputt!')
-                  |         ^",
-               "stack": [
-                 "throwAnError app/use-cache-runtime-error/page.tsx (15:9)",
-                 "ThrowingComponent app/use-cache-runtime-error/page.tsx (21:3)",
-               ],
-             }
-            `)
+           {
+             "description": "Kaputt!",
+             "environmentLabel": "Cache",
+             "label": "Runtime Error",
+             "source": "app/use-cache-runtime-error/page.tsx (15:9) @ throwAnError
+           > 15 |   throw new Error('Kaputt!')
+                |         ^",
+             "stack": [
+               "throwAnError app/use-cache-runtime-error/page.tsx (15:9)",
+               "ThrowingComponent app/use-cache-runtime-error/page.tsx (21:3)",
+               "resolveErrorDev ../../../packages/next/dist/compiled/react-server-dom-turbopack/cjs/react-server-dom-turbopack-client.node.development.js (3506:51)",
+               "processFullStringRow ../../../packages/next/dist/compiled/react-server-dom-turbopack/cjs/react-server-dom-turbopack-client.node.development.js (4673:23)",
+               "processFullBinaryRow ../../../packages/next/dist/compiled/react-server-dom-turbopack/cjs/react-server-dom-turbopack-client.node.development.js (4616:7)",
+               "processBinaryChunk ../../../packages/next/dist/compiled/react-server-dom-turbopack/cjs/react-server-dom-turbopack-client.node.development.js (4839:19)",
+               "progress ../../../packages/next/dist/compiled/react-server-dom-turbopack/cjs/react-server-dom-turbopack-client.node.development.js (5025:9)",
+             ],
+           }
+          `)
         })
       } else {
         it('should log an error at runtime', async () => {
@@ -1425,19 +1471,24 @@ Ways to fix this:
           const browser = await next.browser('/use-cache-catch-error')
 
           await expect(browser).toDisplayCollapsedRedbox(`
-             {
-               "description": "Kaputt!",
-               "environmentLabel": "Cache",
-               "label": "Console Error",
-               "source": "app/use-cache-catch-error/page.tsx (19:9) @ throwAnError
-             > 19 |   throw new Error('Kaputt!')
-                  |         ^",
-               "stack": [
-                 "throwAnError app/use-cache-catch-error/page.tsx (19:9)",
-                 "Page app/use-cache-catch-error/page.tsx (11:7)",
-               ],
-             }
-            `)
+           {
+             "description": "Kaputt!",
+             "environmentLabel": "Cache",
+             "label": "Console Error",
+             "source": "app/use-cache-catch-error/page.tsx (19:9) @ throwAnError
+           > 19 |   throw new Error('Kaputt!')
+                |         ^",
+             "stack": [
+               "throwAnError app/use-cache-catch-error/page.tsx (19:9)",
+               "resolveErrorDev ../../../packages/next/dist/compiled/react-server-dom-turbopack/cjs/react-server-dom-turbopack-client.node.development.js (3506:51)",
+               "processFullStringRow ../../../packages/next/dist/compiled/react-server-dom-turbopack/cjs/react-server-dom-turbopack-client.node.development.js (4673:23)",
+               "processFullBinaryRow ../../../packages/next/dist/compiled/react-server-dom-turbopack/cjs/react-server-dom-turbopack-client.node.development.js (4616:7)",
+               "processBinaryChunk ../../../packages/next/dist/compiled/react-server-dom-turbopack/cjs/react-server-dom-turbopack-client.node.development.js (4839:19)",
+               "progress ../../../packages/next/dist/compiled/react-server-dom-turbopack/cjs/react-server-dom-turbopack-client.node.development.js (5025:9)",
+               "Page app/use-cache-catch-error/page.tsx (11:7)",
+             ],
+           }
+          `)
         })
       } else {
         it('should log an error at runtime', async () => {

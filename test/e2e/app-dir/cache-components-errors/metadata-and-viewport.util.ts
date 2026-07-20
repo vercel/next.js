@@ -21,19 +21,19 @@ export function registerMetadataAndViewportTests(
         const browser = await next.browser(pathname)
 
         await expect(browser).toDisplayCollapsedRedbox(`
-           {
-             "code": "E1370",
-             "description": "Next.js encountered uncached data in generateMetadata().",
-             "environmentLabel": "Server",
-             "label": "Blocking Route",
-             "source": "app/dynamic-metadata-static-route/page.tsx (2:9) @ Module.generateMetadata
-           > 2 |   await new Promise((r) => setTimeout(r, 0))
-               |         ^",
-             "stack": [
-               "Module.generateMetadata app/dynamic-metadata-static-route/page.tsx (2:9)",
-             ],
-           }
-          `)
+         {
+           "code": "E1425",
+           "description": "Next.js encountered uncached data in generateMetadata().",
+           "environmentLabel": "Server",
+           "label": "Blocking Route",
+           "source": "app/dynamic-metadata-static-route/page.tsx (2:9) @ Module.generateMetadata
+         > 2 |   await new Promise((r) => setTimeout(r, 0))
+             |         ^",
+           "stack": [
+             "Module.generateMetadata app/dynamic-metadata-static-route/page.tsx (2:9)",
+           ],
+         }
+        `)
       })
     } else {
       it('should error the build if generateMetadata is dynamic when the rest of the route is prerenderable', async () => {
@@ -95,20 +95,29 @@ export function registerMetadataAndViewportTests(
         const browser = await next.browser(pathname)
 
         await expect(browser).toDisplayCollapsedRedbox(`
-           {
-             "code": "E1401",
-             "description": "Next.js encountered uncached data during prerendering.",
-             "environmentLabel": "Server",
-             "label": "Blocking Route",
-             "source": "app/dynamic-metadata-error-route/page.tsx (21:9) @ Dynamic
-           > 21 |   await new Promise((r) => setTimeout(r))
-                |         ^",
-             "stack": [
-               "Dynamic app/dynamic-metadata-error-route/page.tsx (21:9)",
-               "Page app/dynamic-metadata-error-route/page.tsx (15:7)",
-             ],
-           }
-          `)
+         {
+           "code": "E1440",
+           "description": "Route "/dynamic-metadata-error-route": Next.js encountered uncached data during prerendering.
+
+         \`fetch(...)\` or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
+
+         Ways to fix this:
+           - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+           - [cache] Cache the data access with \`"use cache"\` (does not apply to \`connection()\`)
+           - [block] Set \`export const instant = false\` to allow a blocking route
+
+         Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic",
+           "environmentLabel": "Server",
+           "label": "Console Error",
+           "source": "app/dynamic-metadata-error-route/page.tsx (21:9) @ Dynamic
+         > 21 |   await new Promise((r) => setTimeout(r))
+              |         ^",
+           "stack": [
+             "Dynamic app/dynamic-metadata-error-route/page.tsx (21:9)",
+             "Page app/dynamic-metadata-error-route/page.tsx (15:7)",
+           ],
+         }
+        `)
       })
     } else {
       // This test is just here because there was a bug when dynamic metadata was used alongside another cache components violation which caused the validation to be skipped.
@@ -262,19 +271,19 @@ export function registerMetadataAndViewportTests(
         const browser = await next.browser(pathname)
 
         await expect(browser).toDisplayCollapsedRedbox(`
-           {
-             "code": "E1370",
-             "description": "Next.js encountered uncached data in generateMetadata().",
-             "environmentLabel": "Server",
-             "label": "Blocking Route",
-             "source": "app/dynamic-metadata-static-with-suspense/page.tsx (2:9) @ Module.generateMetadata
-           > 2 |   await new Promise((r) => setTimeout(r, 0))
-               |         ^",
-             "stack": [
-               "Module.generateMetadata app/dynamic-metadata-static-with-suspense/page.tsx (2:9)",
-             ],
-           }
-          `)
+         {
+           "code": "E1425",
+           "description": "Next.js encountered uncached data in generateMetadata().",
+           "environmentLabel": "Server",
+           "label": "Blocking Route",
+           "source": "app/dynamic-metadata-static-with-suspense/page.tsx (2:9) @ Module.generateMetadata
+         > 2 |   await new Promise((r) => setTimeout(r, 0))
+             |         ^",
+           "stack": [
+             "Module.generateMetadata app/dynamic-metadata-static-with-suspense/page.tsx (2:9)",
+           ],
+         }
+        `)
       })
     } else {
       it('should error the build if generateMetadata is dynamic when the rest of the route is prerenderable', async () => {
@@ -336,19 +345,19 @@ export function registerMetadataAndViewportTests(
         const browser = await next.browser(pathname)
 
         await expect(browser).toDisplayCollapsedRedbox(`
-           {
-             "code": "E1370",
-             "description": "Next.js encountered uncached data in generateMetadata().",
-             "environmentLabel": "Server",
-             "label": "Blocking Route",
-             "source": "app/dynamic-metadata-static-with-suspense-above-body/page.tsx (2:9) @ Module.generateMetadata
-           > 2 |   await new Promise((r) => setTimeout(r, 0))
-               |         ^",
-             "stack": [
-               "Module.generateMetadata app/dynamic-metadata-static-with-suspense-above-body/page.tsx (2:9)",
-             ],
-           }
-          `)
+         {
+           "code": "E1425",
+           "description": "Next.js encountered uncached data in generateMetadata().",
+           "environmentLabel": "Server",
+           "label": "Blocking Route",
+           "source": "app/dynamic-metadata-static-with-suspense-above-body/page.tsx (2:9) @ Module.generateMetadata
+         > 2 |   await new Promise((r) => setTimeout(r, 0))
+             |         ^",
+           "stack": [
+             "Module.generateMetadata app/dynamic-metadata-static-with-suspense-above-body/page.tsx (2:9)",
+           ],
+         }
+        `)
       })
     } else {
       it('should error the build because Suspense above body is not a documented mitigation for dynamic generateMetadata', async () => {
@@ -410,19 +419,19 @@ export function registerMetadataAndViewportTests(
         const browser = await next.browser(pathname)
 
         await expect(browser).toDisplayCollapsedRedbox(`
-           {
-             "code": "E1370",
-             "description": "Next.js encountered uncached data in generateMetadata().",
-             "environmentLabel": "Server",
-             "label": "Blocking Route",
-             "source": "app/dynamic-metadata-static-with-instant-false/page.tsx (4:9) @ Module.generateMetadata
-           > 4 |   await new Promise((r) => setTimeout(r, 0))
-               |         ^",
-             "stack": [
-               "Module.generateMetadata app/dynamic-metadata-static-with-instant-false/page.tsx (4:9)",
-             ],
-           }
-          `)
+         {
+           "code": "E1425",
+           "description": "Next.js encountered uncached data in generateMetadata().",
+           "environmentLabel": "Server",
+           "label": "Blocking Route",
+           "source": "app/dynamic-metadata-static-with-instant-false/page.tsx (4:9) @ Module.generateMetadata
+         > 4 |   await new Promise((r) => setTimeout(r, 0))
+             |         ^",
+           "stack": [
+             "Module.generateMetadata app/dynamic-metadata-static-with-instant-false/page.tsx (4:9)",
+           ],
+         }
+        `)
       })
     } else {
       it('should error the build because instant = false is not a documented mitigation for dynamic generateMetadata', async () => {
@@ -509,19 +518,19 @@ export function registerMetadataAndViewportTests(
         const browser = await next.browser(pathname)
 
         await expect(browser).toDisplayCollapsedRedbox(`
-           {
-             "code": "E1395",
-             "description": "Next.js encountered uncached data in generateViewport().",
-             "environmentLabel": "Server",
-             "label": "Blocking Route",
-             "source": "app/dynamic-viewport-static-route/page.tsx (2:9) @ Module.generateViewport
-           > 2 |   await new Promise((r) => setTimeout(r, 0))
-               |         ^",
-             "stack": [
-               "Module.generateViewport app/dynamic-viewport-static-route/page.tsx (2:9)",
-             ],
-           }
-          `)
+         {
+           "code": "E1438",
+           "description": "Next.js encountered uncached data in generateViewport().",
+           "environmentLabel": "Server",
+           "label": "Blocking Route",
+           "source": "app/dynamic-viewport-static-route/page.tsx (2:9) @ Module.generateViewport
+         > 2 |   await new Promise((r) => setTimeout(r, 0))
+             |         ^",
+           "stack": [
+             "Module.generateViewport app/dynamic-viewport-static-route/page.tsx (2:9)",
+           ],
+         }
+        `)
       })
     } else {
       it('should error the build if generateViewport is dynamic', async () => {
@@ -621,19 +630,19 @@ export function registerMetadataAndViewportTests(
         const browser = await next.browser(pathname)
 
         await expect(browser).toDisplayCollapsedRedbox(`
-           {
-             "code": "E1395",
-             "description": "Next.js encountered uncached data in generateViewport().",
-             "environmentLabel": "Server",
-             "label": "Blocking Route",
-             "source": "app/dynamic-viewport-dynamic-route/page.tsx (4:9) @ Module.generateViewport
-           > 4 |   await new Promise((r) => setTimeout(r, 0))
-               |         ^",
-             "stack": [
-               "Module.generateViewport app/dynamic-viewport-dynamic-route/page.tsx (4:9)",
-             ],
-           }
-          `)
+         {
+           "code": "E1438",
+           "description": "Next.js encountered uncached data in generateViewport().",
+           "environmentLabel": "Server",
+           "label": "Blocking Route",
+           "source": "app/dynamic-viewport-dynamic-route/page.tsx (4:9) @ Module.generateViewport
+         > 4 |   await new Promise((r) => setTimeout(r, 0))
+             |         ^",
+           "stack": [
+             "Module.generateViewport app/dynamic-viewport-dynamic-route/page.tsx (4:9)",
+           ],
+         }
+        `)
       })
     } else {
       it('should error the build if generateViewport is dynamic even if there are other uses of dynamic on the page', async () => {

@@ -60,10 +60,19 @@ describe('instant validation - level warning', () => {
         const browser = await next.browser('/bare')
         await expect(browser).toDisplayCollapsedRedbox(`
          {
-           "code": "E1398",
-           "description": "Next.js encountered uncached data during a navigation.",
+           "code": "E1437",
+           "description": "Route "/bare": Next.js encountered uncached data during prerendering or a navigation.
+
+         \`fetch(...)\` or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
+
+         Ways to fix this:
+           - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+           - [cache] Cache the data access with \`"use cache"\` (does not apply to \`connection()\`)
+           - [block] Set \`export const instant = false\` to allow a blocking route
+
+         Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic",
            "environmentLabel": "Server",
-           "label": "Instant",
+           "label": "Console Error",
            "source": "app/bare/page.tsx (10:19) @ Page
          > 10 |   await connection()
               |                   ^",
@@ -90,10 +99,19 @@ describe('instant validation - level warning', () => {
                ],
              },
            ],
-           "code": "E1398",
-           "description": "Next.js encountered uncached data during a navigation.",
+           "code": "E1437",
+           "description": "Route "/explicit-error": Next.js encountered uncached data during prerendering or a navigation.
+
+         \`fetch(...)\` or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
+
+         Ways to fix this:
+           - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+           - [cache] Cache the data access with \`"use cache"\` (does not apply to \`connection()\`)
+           - [block] Set \`export const instant = false\` to allow a blocking route
+
+         Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic",
            "environmentLabel": "Server",
-           "label": "Instant",
+           "label": "Console Error",
            "source": "app/explicit-error/page.tsx (10:19) @ Page
          > 10 |   await connection()
               |                   ^",
@@ -120,10 +138,19 @@ describe('instant validation - level warning', () => {
                ],
              },
            ],
-           "code": "E1398",
-           "description": "Next.js encountered uncached data during a navigation.",
+           "code": "E1437",
+           "description": "Route "/explicit-true": Next.js encountered uncached data during prerendering or a navigation.
+
+         \`fetch(...)\` or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
+
+         Ways to fix this:
+           - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+           - [cache] Cache the data access with \`"use cache"\` (does not apply to \`connection()\`)
+           - [block] Set \`export const instant = false\` to allow a blocking route
+
+         Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic",
            "environmentLabel": "Server",
-           "label": "Instant",
+           "label": "Console Error",
            "source": "app/explicit-true/page.tsx (11:19) @ Page
          > 11 |   await connection()
               |                   ^",
@@ -150,10 +177,19 @@ describe('instant validation - level warning', () => {
                ],
              },
            ],
-           "code": "E1398",
-           "description": "Next.js encountered uncached data during a navigation.",
+           "code": "E1437",
+           "description": "Route "/explicit-warning": Next.js encountered uncached data during prerendering or a navigation.
+
+         \`fetch(...)\` or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
+
+         Ways to fix this:
+           - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+           - [cache] Cache the data access with \`"use cache"\` (does not apply to \`connection()\`)
+           - [block] Set \`export const instant = false\` to allow a blocking route
+
+         Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic",
            "environmentLabel": "Server",
-           "label": "Instant",
+           "label": "Console Error",
            "source": "app/explicit-warning/page.tsx (11:19) @ Page
          > 11 |   await connection()
               |                   ^",
@@ -177,10 +213,19 @@ describe('instant validation - level warning', () => {
         const browser = await next.browser('/layered')
         await expect(browser).toDisplayCollapsedRedbox(`
          {
-           "code": "E1398",
-           "description": "Next.js encountered uncached data during a navigation.",
+           "code": "E1437",
+           "description": "Route "/layered": Next.js encountered uncached data during prerendering or a navigation.
+
+         \`fetch(...)\` or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
+
+         Ways to fix this:
+           - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+           - [cache] Cache the data access with \`"use cache"\` (does not apply to \`connection()\`)
+           - [block] Set \`export const instant = false\` to allow a blocking route
+
+         Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic",
            "environmentLabel": "Server",
-           "label": "Instant",
+           "label": "Console Error",
            "source": "app/layered/page.tsx (8:19) @ Page
          >  8 |   await connection()
               |                   ^",
@@ -208,14 +253,42 @@ describe('instant validation - level warning', () => {
 
          Ways to fix this:
            - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-             https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
            - [cache] Cache the data access with \`"use cache"\` (does not apply to \`connection()\`)
-             https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
            - [block] Set \`export const instant = false\` to allow a blocking route
-             https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
-             at a (<anonymous>)
+
+         Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic
+             at H (../../../packages/next/dist/esm/client/components/layout-router.js:266:34)
+             at a (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
+             at b (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
+             at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
+             at I (../../../packages/next/dist/esm/client/components/layout-router.js:389:32)
+             at c (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
+             at F (../../../packages/next/dist/esm/client/components/layout-router.js:100:9)
+             at G (../../../packages/next/dist/esm/client/components/layout-router.js:249:39)
+             at __next_instant_validation_boundary__ (../../../packages/next/dist/esm/server/app-render/instant-validation/boundary-impl.js:41:52)
+             at a.s.name (../../../packages/next/dist/esm/server/app-render/instant-validation/boundary-impl.js:63:55)
+             at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:418:49)
+             at a.s.id (../../../packages/next/dist/esm/server/app-render/instant-validation/boundary-impl.js:56:57)
+             at H (../../../packages/next/dist/esm/client/components/layout-router.js:266:34)
+             at d (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
+             at e (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
+             at f (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:18:9)
+             at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
+             at I (../../../packages/next/dist/esm/client/components/layout-router.js:389:32)
+             at g (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
+             at F (../../../packages/next/dist/esm/client/components/layout-router.js:100:9)
+             at G (../../../packages/next/dist/esm/client/components/layout-router.js:249:39)
+             at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:418:49)
+             at h (<anonymous>)
              at body (<anonymous>)
              at html (<anonymous>)
+           264 | /**
+           265 |  * InnerLayoutRouter handles rendering the provided segment based on the cache.
+         > 266 |  */ function InnerLayoutRouter({ tree, segmentPath, debugNameContext, cacheNode: maybeCacheNode, params, url, isActive }) {
+               |                                  ^
+           267 |     const context = useContext(GlobalLayoutRouterContext);
+           268 |     const parentNavPromises = useContext(NavigationPromisesContext);
+           269 |     if (!context) {
          Build-time instant validation failed for route "/explicit-error".
          To get a more detailed stack trace and pinpoint the issue, try one of the following:
            - Start the app in development mode by running \`next dev\`, then open "/explicit-error" in your browser to investigate the error.

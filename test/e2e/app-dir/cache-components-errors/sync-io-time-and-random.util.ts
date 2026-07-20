@@ -20,20 +20,20 @@ export function registerSyncIoTimeAndRandomTests(
         const browser = await next.browser(pathname)
 
         await expect(browser).toDisplayCollapsedRedbox(`
-           {
-             "code": "E1295",
-             "description": "Next.js encountered the unstable value Date() while prerendering.",
-             "environmentLabel": "Server",
-             "label": "Blocking Route",
-             "source": "app/sync-io-current-time/date/page.tsx (19:16) @ DateReadingComponent
-           > 19 |   return <div>{Date()}</div>
-                |                ^",
-             "stack": [
-               "DateReadingComponent app/sync-io-current-time/date/page.tsx (19:16)",
-               "Page app/sync-io-current-time/date/page.tsx (11:9)",
-             ],
-           }
-          `)
+         {
+           "code": "E1432",
+           "description": "Next.js encountered the unstable value Date() while prerendering.",
+           "environmentLabel": "Server",
+           "label": "Blocking Route",
+           "source": "app/sync-io-current-time/date/page.tsx (19:16) @ DateReadingComponent
+         > 19 |   return <div>{Date()}</div>
+              |                ^",
+           "stack": [
+             "DateReadingComponent app/sync-io-current-time/date/page.tsx (19:16)",
+             "Page app/sync-io-current-time/date/page.tsx (11:9)",
+           ],
+         }
+        `)
       })
     } else {
       it('should error the build if sync IO is used in a Server Component while prerendering', async () => {
@@ -173,20 +173,20 @@ export function registerSyncIoTimeAndRandomTests(
         const browser = await next.browser(pathname)
 
         await expect(browser).toDisplayCollapsedRedbox(`
-           {
-             "code": "E1295",
-             "description": "Next.js encountered the unstable value Date.now() while prerendering.",
-             "environmentLabel": "Server",
-             "label": "Blocking Route",
-             "source": "app/sync-io-current-time/date-now/page.tsx (19:21) @ DateReadingComponent
-           > 19 |   return <div>{Date.now()}</div>
-                |                     ^",
-             "stack": [
-               "DateReadingComponent app/sync-io-current-time/date-now/page.tsx (19:21)",
-               "Page app/sync-io-current-time/date-now/page.tsx (11:9)",
-             ],
-           }
-          `)
+         {
+           "code": "E1432",
+           "description": "Next.js encountered the unstable value Date.now() while prerendering.",
+           "environmentLabel": "Server",
+           "label": "Blocking Route",
+           "source": "app/sync-io-current-time/date-now/page.tsx (19:21) @ DateReadingComponent
+         > 19 |   return <div>{Date.now()}</div>
+              |                     ^",
+           "stack": [
+             "DateReadingComponent app/sync-io-current-time/date-now/page.tsx (19:21)",
+             "Page app/sync-io-current-time/date-now/page.tsx (11:9)",
+           ],
+         }
+        `)
       })
     } else {
       it('should error the build if sync IO is used in a Server Component while prerendering', async () => {
@@ -326,20 +326,20 @@ export function registerSyncIoTimeAndRandomTests(
         const browser = await next.browser(pathname)
 
         await expect(browser).toDisplayCollapsedRedbox(`
-           {
-             "code": "E1295",
-             "description": "Next.js encountered the unstable value new Date() while prerendering.",
-             "environmentLabel": "Server",
-             "label": "Blocking Route",
-             "source": "app/sync-io-current-time/new-date/page.tsx (19:16) @ DateReadingComponent
-           > 19 |   return <div>{new Date().toString()}</div>
-                |                ^",
-             "stack": [
-               "DateReadingComponent app/sync-io-current-time/new-date/page.tsx (19:16)",
-               "Page app/sync-io-current-time/new-date/page.tsx (11:9)",
-             ],
-           }
-          `)
+         {
+           "code": "E1432",
+           "description": "Next.js encountered the unstable value new Date() while prerendering.",
+           "environmentLabel": "Server",
+           "label": "Blocking Route",
+           "source": "app/sync-io-current-time/new-date/page.tsx (19:16) @ DateReadingComponent
+         > 19 |   return <div>{new Date().toString()}</div>
+              |                ^",
+           "stack": [
+             "DateReadingComponent app/sync-io-current-time/new-date/page.tsx (19:16)",
+             "Page app/sync-io-current-time/new-date/page.tsx (11:9)",
+           ],
+         }
+        `)
       })
     } else {
       it('should error the build if sync IO is used in a Server Component while prerendering', async () => {
@@ -479,20 +479,20 @@ export function registerSyncIoTimeAndRandomTests(
         const browser = await next.browser(pathname)
 
         await expect(browser).toDisplayCollapsedRedbox(`
-           {
-             "code": "E1295",
-             "description": "Next.js encountered the unstable value Math.random() while prerendering.",
-             "environmentLabel": "Server",
-             "label": "Blocking Route",
-             "source": "app/sync-io-random/math-random/page.tsx (19:21) @ SyncIOComponent
-           > 19 |   return <div>{Math.random()}</div>
-                |                     ^",
-             "stack": [
-               "SyncIOComponent app/sync-io-random/math-random/page.tsx (19:21)",
-               "Page app/sync-io-random/math-random/page.tsx (11:9)",
-             ],
-           }
-          `)
+         {
+           "code": "E1432",
+           "description": "Next.js encountered the unstable value Math.random() while prerendering.",
+           "environmentLabel": "Server",
+           "label": "Blocking Route",
+           "source": "app/sync-io-random/math-random/page.tsx (19:21) @ SyncIOComponent
+         > 19 |   return <div>{Math.random()}</div>
+              |                     ^",
+           "stack": [
+             "SyncIOComponent app/sync-io-random/math-random/page.tsx (19:21)",
+             "Page app/sync-io-random/math-random/page.tsx (11:9)",
+           ],
+         }
+        `)
       })
     } else {
       it('should error the build if sync IO is used in a Server Component while prerendering', async () => {
@@ -624,20 +624,20 @@ export function registerSyncIoTimeAndRandomTests(
         const browser = await next.browser(pathname)
 
         await expect(browser).toDisplayCollapsedRedbox(`
-           {
-             "code": "E1295",
-             "description": "Next.js encountered the unstable value crypto.getRandomValues() while prerendering.",
-             "environmentLabel": "Server",
-             "label": "Blocking Route",
-             "source": "app/sync-io-web-crypto/get-random-value/page.tsx (20:10) @ SyncIOComponent
-           > 20 |   crypto.getRandomValues(buffer)
-                |          ^",
-             "stack": [
-               "SyncIOComponent app/sync-io-web-crypto/get-random-value/page.tsx (20:10)",
-               "Page app/sync-io-web-crypto/get-random-value/page.tsx (11:9)",
-             ],
-           }
-          `)
+         {
+           "code": "E1432",
+           "description": "Next.js encountered the unstable value crypto.getRandomValues() while prerendering.",
+           "environmentLabel": "Server",
+           "label": "Blocking Route",
+           "source": "app/sync-io-web-crypto/get-random-value/page.tsx (20:10) @ SyncIOComponent
+         > 20 |   crypto.getRandomValues(buffer)
+              |          ^",
+           "stack": [
+             "SyncIOComponent app/sync-io-web-crypto/get-random-value/page.tsx (20:10)",
+             "Page app/sync-io-web-crypto/get-random-value/page.tsx (11:9)",
+           ],
+         }
+        `)
       })
     } else {
       it('should error the build if sync IO is used in a Server Component while prerendering', async () => {
@@ -772,20 +772,20 @@ export function registerSyncIoTimeAndRandomTests(
         const browser = await next.browser(pathname)
 
         await expect(browser).toDisplayCollapsedRedbox(`
-           {
-             "code": "E1295",
-             "description": "Next.js encountered the unstable value crypto.randomUUID() while prerendering.",
-             "environmentLabel": "Server",
-             "label": "Blocking Route",
-             "source": "app/sync-io-web-crypto/random-uuid/page.tsx (19:23) @ SyncIOComponent
-           > 19 |   return <div>{crypto.randomUUID()}</div>
-                |                       ^",
-             "stack": [
-               "SyncIOComponent app/sync-io-web-crypto/random-uuid/page.tsx (19:23)",
-               "Page app/sync-io-web-crypto/random-uuid/page.tsx (11:9)",
-             ],
-           }
-          `)
+         {
+           "code": "E1432",
+           "description": "Next.js encountered the unstable value crypto.randomUUID() while prerendering.",
+           "environmentLabel": "Server",
+           "label": "Blocking Route",
+           "source": "app/sync-io-web-crypto/random-uuid/page.tsx (19:23) @ SyncIOComponent
+         > 19 |   return <div>{crypto.randomUUID()}</div>
+              |                       ^",
+           "stack": [
+             "SyncIOComponent app/sync-io-web-crypto/random-uuid/page.tsx (19:23)",
+             "Page app/sync-io-web-crypto/random-uuid/page.tsx (11:9)",
+           ],
+         }
+        `)
       })
     } else {
       it('should error the build if sync IO is used in a Server Component while prerendering', async () => {

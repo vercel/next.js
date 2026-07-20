@@ -148,19 +148,24 @@ export function registerUseCachePrivateTests(
           const browser = await next.browser('/use-cache-private-in-use-cache')
 
           await expect(browser).toDisplayRedbox(`
-             {
-               "code": "E1001",
-               "description": ""use cache: private" must not be used within "use cache". It can only be nested inside of another "use cache: private".",
-               "environmentLabel": "Cache",
-               "label": "Runtime Error",
-               "source": "app/use-cache-private-in-use-cache/page.tsx (15:1) @ Private
-             > 15 | async function Private() {
-                  | ^",
-               "stack": [
-                 "Private app/use-cache-private-in-use-cache/page.tsx (15:1)",
-               ],
-             }
-            `)
+           {
+             "code": "E1001",
+             "description": ""use cache: private" must not be used within "use cache". It can only be nested inside of another "use cache: private".",
+             "environmentLabel": "Cache",
+             "label": "Runtime Error",
+             "source": "app/use-cache-private-in-use-cache/page.tsx (15:1) @ Private
+           > 15 | async function Private() {
+                | ^",
+             "stack": [
+               "Private app/use-cache-private-in-use-cache/page.tsx (15:1)",
+               "resolveErrorDev ../../../packages/next/dist/compiled/react-server-dom-turbopack/cjs/react-server-dom-turbopack-client.node.development.js (3506:51)",
+               "processFullStringRow ../../../packages/next/dist/compiled/react-server-dom-turbopack/cjs/react-server-dom-turbopack-client.node.development.js (4673:23)",
+               "processFullBinaryRow ../../../packages/next/dist/compiled/react-server-dom-turbopack/cjs/react-server-dom-turbopack-client.node.development.js (4616:7)",
+               "processBinaryChunk ../../../packages/next/dist/compiled/react-server-dom-turbopack/cjs/react-server-dom-turbopack-client.node.development.js (4839:19)",
+               "progress ../../../packages/next/dist/compiled/react-server-dom-turbopack/cjs/react-server-dom-turbopack-client.node.development.js (5025:9)",
+             ],
+           }
+          `)
         })
       } else {
         it('should error the build', async () => {
@@ -276,20 +281,27 @@ export function registerUseCachePrivateTests(
           )
 
           await expect(browser).toDisplayCollapsedRedbox(`
-             {
-               "code": "E1400",
-               "description": "Next.js encountered runtime data during prerendering.",
-               "environmentLabel": "Server",
-               "label": "Blocking Route",
-               "source": "app/use-cache-private-without-suspense/page.tsx (15:1) @ Private
-             > 15 | async function Private() {
-                  | ^",
-               "stack": [
-                 "Private app/use-cache-private-without-suspense/page.tsx (15:1)",
-                 "Page app/use-cache-private-without-suspense/page.tsx (10:7)",
-               ],
-             }
-            `)
+           {
+             "code": "E1427",
+             "description": "Route "/use-cache-private-without-suspense": Next.js encountered runtime data during prerendering.
+
+           \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
+
+           Ways to fix this:
+             - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+             - [block] Set \`export const instant = false\` to allow a blocking route
+
+           Learn more: https://nextjs.org/docs/messages/blocking-prerender-runtime",
+             "environmentLabel": "Server",
+             "label": "Console Error",
+             "source": "app/use-cache-private-without-suspense/page.tsx (10:7) @ Page
+           > 10 |       <Private />
+                |       ^",
+             "stack": [
+               "Page app/use-cache-private-without-suspense/page.tsx (10:7)",
+             ],
+           }
+          `)
         })
       } else {
         it('should error the build', async () => {
