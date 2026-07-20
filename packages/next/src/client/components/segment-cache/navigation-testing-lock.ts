@@ -365,6 +365,32 @@ export function resetNavigationLockToPending(): void {
 }
 
 /**
+ * Returns true if the request targets a dev-server endpoint — one of the
+ * hot-reloader middleware routes (error overlay, source maps, launch-editor,
+ * devtools). They all share the `/__nextjs_` path prefix and are always
+ * requested root-relative on the same origin.
+ */
+function isDevServerRequest(input: RequestInfo | URL): boolean {
+  let url: URL
+  try {
+    url = new URL(
+      typeof input === 'string'
+        ? input
+        : input instanceof URL
+          ? input
+          : input.url,
+      window.location.href
+    )
+  } catch {
+    return false
+  }
+  return (
+    url.origin === window.location.origin &&
+    url.pathname.startsWith('/__nextjs_')
+  )
+}
+
+/**
  * Global fetch override
  *
  * While the navigation lock is active, we install this as `window.fetch` so
@@ -385,6 +411,15 @@ function globalFetchOverride(
     // only if a caller captured a reference to this function during a lock
     // scope and invoked it after release.
     return fetch(input, init)
+  }
+  if (process.env.__NEXT_DEV_SERVER && isDevServerRequest(input)) {
+    // Dev-server requests must not be gated on the testing lock — blocking
+    // them would break the error overlay, source maps, and devtools for the
+    // whole scope. Dispatch immediately through the pre-lock fetch. Copy to a
+    // local so the call doesn't bind `this` to the lock state object (native
+    // fetch throws "Illegal invocation" for a foreign receiver).
+    const preLockFetch = lockState.fetch
+    return preLockFetch(input, init)
   }
   // Block user-initiated fetches until the lock is released, then dispatch
   // through the fetch captured at acquire time. Reading from `lockState`
