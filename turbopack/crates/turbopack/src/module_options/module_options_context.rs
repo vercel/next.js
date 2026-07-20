@@ -281,6 +281,9 @@ pub struct EcmascriptOptionsContext {
     /// Whether to infer side effect free modules via local analysis. Defaults to true.
     pub infer_module_side_effects: bool,
 
+    /// Whether to tree shake unused exports from static CommonJS modules. Defaults to false.
+    pub cjs_tree_shaking: bool,
+
     /// Additional SWC preset-env options (mode, coreJs, include, exclude, etc.).
     pub preset_env_config: Option<ResolvedVc<PresetEnvConfig>>,
 

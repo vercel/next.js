@@ -901,6 +901,13 @@ export interface ExperimentalConfig {
   turbopackInferModuleSideEffects?: boolean
 
   /**
+   * Enable tree shaking of unused exports from analyzable CommonJS modules in Turbopack.
+   *
+   * Defaults to `false`
+   */
+  turbopackCjsTreeShaking?: boolean
+
+  /**
    * Set this to `false` to disable the automatic configuration of the babel loader when a Babel
    * configuration file is present. This option is enabled by default.
    *
