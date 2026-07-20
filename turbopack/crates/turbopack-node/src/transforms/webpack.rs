@@ -32,7 +32,7 @@ use turbopack_core::{
     module::Module,
     module_graph::{
         ModuleGraph, SingleModuleGraph,
-        chunk_group_info::{ChunkGroup, ChunkGroupEntry},
+        chunk_group_info::{ChunkGroup, ChunkGroupEntry, EntryHeuristics},
     },
     output::{ExpandOutputAssetsInput, OutputAsset, OutputAssets, expand_output_assets},
     reference_type::{EcmaScriptModulesReferenceSubType, InnerAssets, ReferenceType},
@@ -753,7 +753,10 @@ impl EvaluateContext for WebpackLoaderContext {
                 // Build a module graph from the resolved module and its
                 // transitive dependencies
                 let single_graph = SingleModuleGraph::new_with_entry(
-                    ChunkGroupEntry::Entry(vec![module]),
+                    ChunkGroupEntry::Entry {
+                        modules: vec![module],
+                        heuristics: EntryHeuristics::default(),
+                    },
                     false,
                     false,
                 );

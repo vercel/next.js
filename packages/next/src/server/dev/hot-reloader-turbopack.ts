@@ -123,6 +123,10 @@ import {
 } from './hot-reloader-shared-utils'
 import { getMcpMiddleware } from '../mcp/get-mcp-middleware'
 import { formatCompilationIssues } from '../mcp/tools/utils/format-compilation-issues'
+import {
+  getRequestInsightsSnapshot,
+  isRequestInsightsEnabled,
+} from '../lib/trace/request-insights'
 import { resolvePathToRoute } from '../mcp/tools/utils/resolve-path-to-route'
 import { handleErrorStateResponse } from '../mcp/tools/get-errors'
 import { handlePageMetadataResponse } from '../mcp/tools/get-page-metadata'
@@ -1468,6 +1472,11 @@ export async function createHotReloaderTurbopack(
             },
             devIndicator: devIndicatorServerState,
             devToolsConfig,
+            requestInsights:
+              nextConfig.experimental.requestInsights ||
+              isRequestInsightsEnabled()
+                ? getRequestInsightsSnapshot()
+                : undefined,
           }
 
           sendToClient(client, syncMessage)
@@ -1647,6 +1656,7 @@ export async function createHotReloaderTurbopack(
       definition,
       isApp,
       url: requestUrl,
+      rscOnly,
       subscribeToChanges = true,
     }) {
       // When there is no route definition this is an internal file not a route the user added.
@@ -1793,6 +1803,7 @@ export async function createHotReloaderTurbopack(
               entrypoints: currentEntrypoints,
               manifestLoader,
               readyIds,
+              rscOnly,
               devRewrites: opts.fsChecker.rewrites,
               productionRewrites: undefined,
               logErrors: true,

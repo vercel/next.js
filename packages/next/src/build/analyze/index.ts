@@ -43,6 +43,9 @@ export default async function analyze({
   port = 4000,
 }: AnalyzeOptions): Promise<void> {
   try {
+    // analyze is Turbopack-only. Mirror what parseBundlerArgs does for build/dev
+    // so every process.env.TURBOPACK consumer in this run agrees with the bundler choice.
+    process.env.TURBOPACK ??= '1'
     const config: NextConfigComplete = await loadConfig(PHASE_ANALYZE, dir, {
       silent: false,
       reactProductionProfiling,

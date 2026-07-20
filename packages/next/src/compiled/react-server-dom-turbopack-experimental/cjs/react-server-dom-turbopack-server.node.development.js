@@ -859,12 +859,19 @@
       switch (functionName) {
         case "new Promise":
         case "Function.withResolvers":
+        case "Promise.withResolvers":
         case "Function.reject":
+        case "Promise.reject":
         case "Function.resolve":
+        case "Promise.resolve":
         case "Function.all":
+        case "Promise.all":
         case "Function.allSettled":
+        case "Promise.allSettled":
         case "Function.race":
+        case "Promise.race":
         case "Function.try":
+        case "Promise.try":
           return !0;
         default:
           return !1;
@@ -908,13 +915,21 @@
         case "Promise.catch":
         case "Promise.finally":
         case "Function.reject":
+        case "Promise.reject":
         case "Function.resolve":
+        case "Promise.resolve":
         case "Function.all":
+        case "Promise.all":
         case "Function.allSettled":
+        case "Promise.allSettled":
         case "Function.any":
+        case "Promise.any":
         case "Function.race":
+        case "Promise.race":
         case "Function.try":
+        case "Promise.try":
         case "Function.withResolvers":
+        case "Promise.withResolvers":
           return !0;
         default:
           return !1;
@@ -2332,22 +2347,27 @@
         originalValue === jsonValue ||
         originalValue instanceof Date ||
         callWithDebugContextInDEV(request, task, function () {
-          "Object" !== objectName(originalValue)
-            ? "string" === typeof jsxChildrenParents.get(parent)
-              ? console.error(
-                  "%s objects cannot be rendered as text children. Try formatting it using toString().%s",
-                  objectName(originalValue),
-                  describeObjectForErrorMessage(parent, parentPropertyName)
-                )
-              : console.error(
-                  "Only plain objects can be passed to Client Components from Server Components. %s objects are not supported.%s",
-                  objectName(originalValue),
-                  describeObjectForErrorMessage(parent, parentPropertyName)
-                )
-            : console.error(
-                "Only plain objects can be passed to Client Components from Server Components. Objects with toJSON methods are not supported. Convert it manually to a simple value before passing it to props.%s",
+          ArrayBuffer.isView(originalValue)
+            ? console.error(
+                "Binary data with a toJSON method, such as a Node.js Buffer, is serialized through toJSON instead of as binary. Pass a Uint8Array or ArrayBuffer to send binary data.%s",
                 describeObjectForErrorMessage(parent, parentPropertyName)
-              );
+              )
+            : "Object" !== objectName(originalValue)
+              ? "string" === typeof jsxChildrenParents.get(parent)
+                ? console.error(
+                    "%s objects cannot be rendered as text children. Try formatting it using toString().%s",
+                    objectName(originalValue),
+                    describeObjectForErrorMessage(parent, parentPropertyName)
+                  )
+                : console.error(
+                    "Only plain objects can be passed to Client Components from Server Components. %s objects are not supported.%s",
+                    objectName(originalValue),
+                    describeObjectForErrorMessage(parent, parentPropertyName)
+                  )
+              : console.error(
+                  "Only plain objects can be passed to Client Components from Server Components. Objects with toJSON methods are not supported. Convert it manually to a simple value before passing it to props.%s",
+                  describeObjectForErrorMessage(parent, parentPropertyName)
+                );
         });
       value = renderModel(request, task, parent, parentPropertyName, jsonValue);
       if (null === value || "object" !== typeof value) return value;

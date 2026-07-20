@@ -27,7 +27,7 @@ describe.each([
     ) {
       // Match logs that contain the message, with any environment.
       const logPattern = new RegExp(
-        `^(?=.*\\b${message}\\b)(?=.*\\b(Cache|Prerender|Prefetch|Prefetchable|Server)\\b).*`
+        `^(?=.*\\b${message}\\b)(?=.*\\b(Cache|Prerender|Prefetch|Server)\\b).*`
       )
       const logMessages = logs.map((log) => log.message)
       const messages = logMessages.filter((message) => logPattern.test(message))
@@ -154,8 +154,6 @@ describe.each([
       }
     }
 
-    const RUNTIME_ENV = hasRuntimePrefetch ? 'Prefetch' : 'Prefetchable'
-
     describe.each([
       { description: 'initial load', isInitialLoad: true },
       { description: 'navigation', isInitialLoad: false },
@@ -167,10 +165,10 @@ describe.each([
           assertLog(logs, 'after immediate - static - layout', 'Prerender')
           assertLog(logs, 'after immediate - static - page', 'Prerender')
 
-          assertLog(logs, 'after cookies - layout', RUNTIME_ENV)
-          assertLog(logs, 'after cookies - page', RUNTIME_ENV)
-          assertLog(logs, 'after immediate - runtime - layout', RUNTIME_ENV)
-          assertLog(logs, 'after immediate - runtime - page', RUNTIME_ENV)
+          assertLog(logs, 'after cookies - layout', 'Prefetch')
+          assertLog(logs, 'after cookies - page', 'Prefetch')
+          assertLog(logs, 'after immediate - runtime - layout', 'Prefetch')
+          assertLog(logs, 'after immediate - runtime - page', 'Prefetch')
 
           assertLog(logs, 'after connection - layout', 'Server')
           assertLog(logs, 'after connection - page', 'Server')

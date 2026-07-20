@@ -25,7 +25,7 @@ use std::{
 use parking_lot::Mutex;
 use rustc_hash::FxHasher;
 use turbo_tasks::{
-    CellId, SharedReference, TaskExecutionReason, TaskId, TinyVec, TraitTypeId, ValueTypeId,
+    CellId, SharedReference, TaskExecutionReason, TaskId, TraitTypeId, ValueTypeId,
     backend::{CachedTaskTypeArc, CellHash, TransientTaskType},
     event::Event,
     task_storage,
@@ -39,6 +39,7 @@ use crate::{
     },
 };
 
+type TinyVec<T, const MAX: usize> = auto_hash_map::TinyVec<T, 0, MAX>;
 type AutoSet<K, const I: usize> = auto_hash_map::AutoSet<K, BuildHasherDefault<FxHasher>, I>;
 
 /// Auto-map storage for key-value pairs.
@@ -83,7 +84,7 @@ struct TaskStorageSchema {
         filter_transient,
         drop_on_completion_if_immutable
     )]
-    output_dependent: AutoSet<TaskId, 4>,
+    output_dependent: AutoSet<TaskId, 6>,
 
     /// The task's output value.
     /// Filtered during serialization to skip transient outputs (referencing transient tasks).
@@ -92,7 +93,7 @@ struct TaskStorageSchema {
 
     /// Upper nodes in the aggregation tree (reference counted).
     #[field(storage = "counter_map", category = "meta", inline, filter_transient)]
-    upper: CounterMap<TaskId, u32, 2>,
+    upper: CounterMap<TaskId, u32, 3>,
 
     // =========================================================================
     // COLLECTIBLES (meta)
@@ -1721,10 +1722,10 @@ mod tests {
             128,
             "TaskStorage size changed! Run print_schema_sizes and update this test."
         );
-        // `LazyField` is 48 B = 40 B largest payload + 8 B discriminant.
+        // `LazyField` is 40 B = 32 B largest payload + 8 B discriminant.
         assert_eq!(
             size_of::<LazyField>(),
-            48,
+            40,
             "LazyField size changed! Run print_schema_sizes and update this test."
         );
     }

@@ -4782,7 +4782,7 @@ function logRecoverableError(request, error, errorInfo) {
 function fatalError(request, error) {
   var onShellError = request.onShellError,
     onFatalError = request.onFatalError;
-  onShellError(error);
+  0 !== request.pendingRootTasks && onShellError(error);
   onFatalError(error);
   null !== request.destination
     ? ((request.status = 13), request.destination.destroy(error))
@@ -6653,7 +6653,6 @@ function safelyEmitEarlyPreloads(request, shellComplete) {
 function completeShell(request) {
   null === request.trackedPostpones && safelyEmitEarlyPreloads(request, !0);
   null === request.trackedPostpones && preparePreamble(request);
-  request.onShellError = noop;
   request = request.onShellReady;
   request();
 }
@@ -6952,27 +6951,27 @@ function performWork(request$jscomp$1) {
                 errorInfo$jscomp$0
               );
               if (null === boundary$jscomp$0) fatalError(request, x$jscomp$0);
-              else if (
-                (boundary$jscomp$0.pendingTasks--,
-                4 !== boundary$jscomp$0.status)
-              ) {
-                boundary$jscomp$0.status = 4;
-                boundary$jscomp$0.errorDigest = errorDigest$jscomp$0;
-                untrackBoundary(request, boundary$jscomp$0);
-                var boundaryRow = boundary$jscomp$0.row;
-                null !== boundaryRow &&
-                  (request.allPendingTasks++,
-                  0 === --boundaryRow.pendingTasks &&
-                    finishSuspenseListRow(request, boundaryRow),
-                  request.allPendingTasks--);
-                boundary$jscomp$0.parentFlushed &&
-                  request.clientRenderedBoundaries.push(boundary$jscomp$0);
-                0 === request.pendingRootTasks &&
-                  null === request.trackedPostpones &&
-                  null !== boundary$jscomp$0.preamble &&
-                  preparePreamble(request);
+              else {
+                boundary$jscomp$0.pendingTasks--;
+                if (4 !== boundary$jscomp$0.status) {
+                  boundary$jscomp$0.status = 4;
+                  boundary$jscomp$0.errorDigest = errorDigest$jscomp$0;
+                  untrackBoundary(request, boundary$jscomp$0);
+                  var boundaryRow = boundary$jscomp$0.row;
+                  null !== boundaryRow &&
+                    (request.allPendingTasks++,
+                    0 === --boundaryRow.pendingTasks &&
+                      finishSuspenseListRow(request, boundaryRow),
+                    request.allPendingTasks--);
+                  boundary$jscomp$0.parentFlushed &&
+                    request.clientRenderedBoundaries.push(boundary$jscomp$0);
+                  0 === request.pendingRootTasks &&
+                    null === request.trackedPostpones &&
+                    null !== boundary$jscomp$0.preamble &&
+                    preparePreamble(request);
+                }
+                0 === request.allPendingTasks && completeAll(request);
               }
-              0 === request.allPendingTasks && completeAll(request);
             }
           } finally {
             request.currentTask = prevTask$jscomp$0;
@@ -7782,11 +7781,11 @@ function getPostponedState(request) {
 }
 function ensureCorrectIsomorphicReactVersion() {
   var isomorphicReactPackageVersion = React.version;
-  if ("19.3.0-experimental-247fbb45-20260622" !== isomorphicReactPackageVersion)
+  if ("19.3.0-experimental-172742b4-20260716" !== isomorphicReactPackageVersion)
     throw Error(
       'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' +
         (isomorphicReactPackageVersion +
-          "\n  - react-dom:  19.3.0-experimental-247fbb45-20260622\nLearn more: https://react.dev/warnings/version-mismatch")
+          "\n  - react-dom:  19.3.0-experimental-172742b4-20260716\nLearn more: https://react.dev/warnings/version-mismatch")
     );
 }
 ensureCorrectIsomorphicReactVersion();
@@ -8336,4 +8335,4 @@ exports.resumeToPipeableStream = function (children, postponedState, options) {
     }
   };
 };
-exports.version = "19.3.0-experimental-247fbb45-20260622";
+exports.version = "19.3.0-experimental-172742b4-20260716";

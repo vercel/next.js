@@ -10,6 +10,7 @@
 import type { PostponedState, PrerenderOptions } from 'react-dom/static'
 import { resume, renderToReadableStream } from 'react-dom/server'
 import { prerender } from 'react-dom/static'
+import type { renderToReadableStream as flightRenderToReadableStream } from 'react-server-dom-webpack/server'
 
 import {
   renderToInitialFizzStream,
@@ -32,11 +33,7 @@ import type { AnyStream as AnyStreamType } from './app-render-prerender-utils'
 // Shared types
 // ---------------------------------------------------------------------------
 
-type FlightRenderToReadableStream = (
-  model: any,
-  webpackMap: any,
-  options?: any
-) => ReadableStream<Uint8Array>
+type FlightRenderToReadableStream = typeof flightRenderToReadableStream
 
 export type AnyStream = AnyStreamType
 
@@ -73,7 +70,17 @@ export type ServerPrerenderComponentMod = {
 
 export type FlightPayload = Parameters<FlightRenderToReadableStream>[0]
 export type FlightClientModules = Parameters<FlightRenderToReadableStream>[1]
-export type FlightRenderOptions = Parameters<FlightRenderToReadableStream>[2]
+
+/**
+ * The options our Flight render wrappers accept, taken from React's Flight
+ * `renderToReadableStream`. `signal` aborts the render: the Web wrapper passes
+ * it straight to `renderToReadableStream`, while the Node wrapper aborts the
+ * pipeable returned by `renderToPipeableStream` (which has no `signal` option)
+ * when it fires.
+ */
+export type FlightRenderOptions = NonNullable<
+  Parameters<FlightRenderToReadableStream>[2]
+>
 
 export type FizzStreamResult = {
   stream: AnyStream

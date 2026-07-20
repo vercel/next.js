@@ -10,6 +10,7 @@ import {
 import { matchSegment } from '../match-segments'
 import {
   readOrCreateRouteCacheEntry,
+  readRouteCacheEntry,
   readOrCreateSegmentCacheEntry,
   fetchRouteOnCacheMiss,
   fetchSegmentsOnCacheMiss,
@@ -27,10 +28,10 @@ import {
   canNewFetchStrategyProvideMoreContent,
   attemptToFulfillDynamicSegmentFromBFCache,
   attemptToUpgradeSegmentFromBFCache,
-  MetadataOnlyRequestTree,
 } from './cache'
 import type { RouteCacheKey } from './cache-key'
 import { createCacheKey } from './cache-key'
+import { urlSearchParamsToParsedUrlQuery } from '../../route-params'
 import {
   FetchStrategy,
   type PrefetchTaskFetchStrategy,
@@ -575,9 +576,24 @@ function processQueueInMicrotask() {
         continue
       case PrefetchTaskExitStatus.Done:
         if (task.phase === PrefetchPhase.RouteTree) {
-          // Finished prefetching the route tree. If App Shells are enabled,
-          // run the Shell phase next; otherwise go straight to Speculative.
-          task.phase = process.env.__NEXT_APP_SHELLS
+          // Finished prefetching the route tree. The two-phase (Shell then
+          // Speculative) flow only applies to routes that have opted into
+          // Partial Prefetching — either globally via the `partialPrefetching`
+          // config or per segment (`instant`, `prefetch: 'partial'`,
+          // `'unstable_eager'`, or `'allow-runtime'`), all surfaced as the
+          // `SubtreeHasPartialPrefetching` hint on the route tree. Every other
+          // route skips the Shell phase and goes straight to Speculative.
+          //
+          // The route entry is fulfilled at this point (the RouteTree phase
+          // just completed), so its prefetch hints are available.
+          const route = readRouteCacheEntry(now, task.key)
+          const routeHasPartialPrefetching =
+            route !== null &&
+            route.status === EntryStatus.Fulfilled &&
+            (route.tree.prefetchHints &
+              PrefetchHint.SubtreeHasPartialPrefetching) !==
+              0
+          task.phase = routeHasPartialPrefetching
             ? PrefetchPhase.Shell
             : PrefetchPhase.Speculative
           heapResift(taskHeap, task)
@@ -850,18 +866,22 @@ function pingRootRouteTree(
                 ? FetchStrategy.RuntimeShell
                 : FetchStrategy.PPRRuntime
 
-            // Always ping the runtime head — it may need to be fetched
-            // independently even if all runtime segments are already
-            // cached (e.g. navigating between siblings under a shared
-            // runtime layout).
-            const spawnedEntries = new Map<
-              SegmentRequestKey,
-              PendingSegmentCacheEntry
-            >()
-            pingRuntimeHead(now, task, route, spawnedEntries, runtimeStrategy)
-
+            // spawnedRuntimePrefetches was populated during the traversal
+            // above: every segment in the new part of the tree that is a
+            // candidate for runtime prefetching. It's derived purely from
+            // server hints, not cache state — it tells us whether a runtime
+            // request would be needed even if the cache were completely empty.
+            //
+            // If it's null, nothing in the new part of the tree is a candidate
+            // for runtime prefetching, and we don't fetch the head, either —
+            // the head is runtime prefetched only if one of the segments is.
             const spawnedRuntimePrefetches = task.spawnedRuntimePrefetches
             if (spawnedRuntimePrefetches !== null) {
+              const spawnedEntries = new Map<
+                SegmentRequestKey,
+                PendingSegmentCacheEntry
+              >()
+              pingRuntimeHead(now, task, route, spawnedEntries, runtimeStrategy)
               const requestTree = pingRuntimePrefetches(
                 now,
                 task,
@@ -878,25 +898,6 @@ function pingRootRouteTree(
                     route,
                     runtimeStrategy,
                     requestTree,
-                    spawnedEntries
-                  )
-                )
-              }
-            } else {
-              // No segments spawned a runtime prefetch; however, the head might
-              // have. If there are any spawned entries, it must have come from
-              // the head. Request the metadata only.
-              // TODO: Refactor the "request tree" format so that the metadata
-              // is less of a special case. Right now the logic for this is
-              // spread across both here
-              // and fetchSegmentPrefetchesUsingDynamicRequest.
-              if (spawnedEntries.size > 0) {
-                spawnPrefetchSubtask(
-                  fetchSegmentPrefetchesUsingDynamicRequest(
-                    task,
-                    route,
-                    runtimeStrategy,
-                    MetadataOnlyRequestTree,
                     spawnedEntries
                   )
                 )
@@ -2046,7 +2047,9 @@ function doesCurrentSegmentMatchCachedSegment(
       currentSegment ===
       addSearchParamsIfPageSegment(
         PAGE_SEGMENT_KEY,
-        Object.fromEntries(new URLSearchParams(route.renderedSearch))
+        urlSearchParamsToParsedUrlQuery(
+          new URLSearchParams(route.renderedSearch)
+        )
       )
     )
   }
@@ -2064,17 +2067,13 @@ export function subtreeHasSpeculativePrefetch(
   fetchStrategy: FetchStrategy,
   prefetchHints: number
 ): boolean {
-  if (!process.env.__NEXT_APP_SHELLS) {
-    // When App Shells is disabled, all prefetches implicitly include the
-    // speculative (non-shell) part of the target.
-    return true
-  }
-
   return (
     // Check if this is a "full" prefetch (<Link prefetch={true}>).
     fetchStrategy === FetchStrategy.Full ||
     // Check if something in this subtree is configured to be eagerly
-    // prefetched at the route level.
+    // prefetched at the route level. Segments that don't opt into Partial
+    // Prefetching are marked eager, so a route without any Partial Prefetching
+    // still speculatively prefetches everything.
     (prefetchHints & PrefetchHint.SubtreeHasEagerPrefetch) !== 0
   )
 }
