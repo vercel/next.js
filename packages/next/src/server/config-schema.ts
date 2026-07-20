@@ -594,6 +594,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
       .union([z.literal('anonymous'), z.literal('use-credentials')])
       .optional(),
     deploymentId: z.string().optional(),
+    supportsImmutableAssets: z.boolean().optional(),
     devIndicators: z
       .union([
         z.object({

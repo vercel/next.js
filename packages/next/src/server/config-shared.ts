@@ -1364,9 +1364,7 @@ export interface ExperimentalConfig {
   runtimeServerDeploymentId?: boolean
 
   /**
-   * Whether the deployment environment supports immutable assets (assets deployed to
-   * `_next/static/immutable` don't need a `?dpl` parameter and can be safely requested across
-   * deployments.)
+   * @deprecated Use the top-level `supportsImmutableAssets` option instead.
    */
   supportsImmutableAssets?: boolean
 
@@ -1691,6 +1689,13 @@ export interface NextConfig {
    * A unique identifier for a deployment that will be included in each request's query string or header.
    */
   deploymentId?: string
+
+  /**
+   * Whether the deployment environment supports immutable assets (assets deployed to
+   * `_next/static/immutable` don't need a `?dpl` parameter and can be safely requested across
+   * deployments.)
+   */
+  supportsImmutableAssets?: boolean
 
   /**
    * Deploy a Next.js application under a sub-path of a domain
@@ -2235,6 +2240,7 @@ export async function normalizeConfig(phase: string, config: any) {
 export interface NextConfigRuntime {
   // Can be undefined, particularly when experimental.runtimeServerDeploymentId is true
   deploymentId?: NextConfigComplete['deploymentId']
+  supportsImmutableAssets?: NextConfigComplete['supportsImmutableAssets']
 
   configFileName?: string
   // Should only be included when using isExperimentalCompile
@@ -2313,7 +2319,6 @@ export interface NextConfigRuntime {
     | 'maxPostponedStateSize'
     | 'cachedNavigations'
     | 'exposeTestingApiInProductionBuild'
-    | 'supportsImmutableAssets'
     | 'instantInsights'
     | 'requestInsights'
   > & {
@@ -2383,7 +2388,6 @@ export function getNextConfigRuntime(
     maxPostponedStateSize: ex.maxPostponedStateSize,
     cachedNavigations: ex.cachedNavigations,
     exposeTestingApiInProductionBuild: ex.exposeTestingApiInProductionBuild,
-    supportsImmutableAssets: ex.supportsImmutableAssets,
     instantInsights: ex.instantInsights,
     requestInsights: ex.requestInsights,
 
@@ -2395,6 +2399,7 @@ export function getNextConfigRuntime(
     deploymentId: config.experimental.runtimeServerDeploymentId
       ? ''
       : config.deploymentId,
+    supportsImmutableAssets: config.supportsImmutableAssets,
 
     configFileName: undefined,
     env: undefined,

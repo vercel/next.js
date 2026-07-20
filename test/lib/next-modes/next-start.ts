@@ -6,6 +6,7 @@ import { Span } from 'next/dist/trace'
 import stripAnsi from 'strip-ansi'
 import { quote as shellQuote } from 'shell-quote'
 import { shouldUseTurbopack } from 'next-test-utils'
+import { RequiredServerFilesManifest } from 'next/dist/build'
 
 export class NextStartInstance extends NextInstance {
   private _buildId: string
@@ -171,12 +172,11 @@ export class NextStartInstance extends NextInstance {
             ),
             'utf8'
           )
-        )
+        ) as RequiredServerFilesManifest
         this._deploymentId =
           requiredServerFiles.config?.deploymentId || undefined
         this._supportsImmutableAssets =
-          requiredServerFiles.config?.experimental?.supportsImmutableAssets ||
-          false
+          requiredServerFiles.config?.supportsImmutableAssets || false
       } catch {}
     }
 
@@ -330,8 +330,7 @@ export class NextStartInstance extends NextInstance {
       )
       this._deploymentId = requiredServerFiles.config?.deploymentId || undefined
       this._supportsImmutableAssets =
-        requiredServerFiles.config?.experimental?.supportsImmutableAssets ||
-        false
+        requiredServerFiles.config?.supportsImmutableAssets || false
     } catch {}
 
     return result
