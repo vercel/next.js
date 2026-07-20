@@ -210,6 +210,27 @@ mechanism transfer, percentages do not. Never present a
 noise-compatible delta as a small win or loss — it is "no detected
 difference".
 
+## Results database
+
+Every collected run lands in one SQLite file,
+`~/.cache/sandbox-bench/results.db` — raw measurements and artifacts
+(CPU profiles, logs) only, written exclusively by the importer, never
+by hand. The launcher imports and verifies automatically at
+collection; `bench-analyze` reads the db and nothing else, so every
+statistic is a pure function of it. Numbers in reports come from the
+analysis output verbatim — never retype, recompute, or aggregate them
+yourself.
+
+- `node scripts/bench-db.mjs ls` — all runs with sample/artifact counts.
+- `node scripts/bench-db.mjs verify [runId]` — integrity checks:
+  sqlite-level, referential, one fingerprint per arm, paired sample
+  counts, artifact sha256. Run it before drawing on old data.
+- `node scripts/bench-db.mjs export out.db <runId...>` — cut a
+  self-contained db of specific runs (with their profiles) to send to
+  someone. It opens in any SQLite tool.
+- `node scripts/bench-analyze.mjs <runId>` — re-analyze anything in
+  the db; a run-dir argument imports it first.
+
 ## Keeping the user informed
 
 The launcher narrates itself on stdout: launch facts first (run dir,

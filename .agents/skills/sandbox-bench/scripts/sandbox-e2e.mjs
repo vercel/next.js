@@ -23,6 +23,7 @@ import os from 'os';
 import path from 'path';
 import crypto from 'crypto';
 import {analyzeE2eRows, tTestP} from './bench-stats.mjs';
+import {openDb, importRun, loadRows, verify as verifyDb} from './bench-db.mjs';
 import {loadConfig, sandboxScope, ensureNextRepo, ensureReactRepo} from './config.mjs';
 
 const execFileP = promisify(execFile);
@@ -987,9 +988,18 @@ function pairedP(deltas) {
 }
 
 
-function analyze(files, cfg) {
-  const rows = files.flatMap((f, i) =>
-    fs.readFileSync(f, 'utf8').trim().split('\n').map(l => ({vm: i, ...JSON.parse(l)})));
+function analyze(cfg) {
+  // Collected JSONL + profiles land in the results db first; the stats
+  // read the db and nothing else. Import is idempotent, verify is
+  // mechanical (sqlite integrity, pairing shape, artifact hashes).
+  const db = openDb();
+  const {runId, samples, artifacts} = importRun(db, outDir);
+  const problems = verifyDb(db, runId);
+  if (problems.length) {
+    throw new Error(`results db verify FAILED:\n  ${problems.join('\n  ')}`);
+  }
+  console.error(`results db: ${samples} samples, ${artifacts} artifacts as ${runId} (verify ok)`);
+  const rows = loadRows(db, runId);
   const [base, cand] = cfg.arms.map(a => a.name);
   printRunContext(m => console.log(m), cfg.runContext);
   // ttfb/rss/rssHw only exist on next refs carrying the bench-client-
@@ -1131,11 +1141,11 @@ try {
     console.error(`prepared: arms + experiment snapshot ${expSnap}; exiting (--prepare)`);
     process.exit(0);
   }
-  const files = await Promise.all(
+  await Promise.all(
     Array.from({length: cfg.vms}, (_, i) => runVm(i, cfg, expSnap, outDir)));
   writeStatus({phase: 'analyzing'});
   console.error(`results in ${outDir}`);
-  analyze(files, cfg);
+  analyze(cfg);
   writeStatus({phase: 'done'});
 } catch (err) {
   // Leave a machine-readable trace: bench-status.mjs reports dead runs
