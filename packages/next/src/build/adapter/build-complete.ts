@@ -1046,7 +1046,7 @@ export async function handleBuildComplete({
               path.relative(repoRoot, pageFile),
               pageFile,
               bundler,
-              config.experimental.outputHashSalt || ''
+              config.outputHashSalt || ''
             )
             continue
           }
@@ -2170,7 +2170,7 @@ async function getSharedNodeAssets({
   const pagesSharedNodeAssetsHashes: Record<string, string> = {}
   const appPagesSharedNodeAssets: Record<string, string> = {}
   const appPagesSharedNodeAssetsHashes: Record<string, string> = {}
-  const salt = config.experimental.outputHashSalt || ''
+  const salt = config.outputHashSalt || ''
 
   const moduleTypes = ['app-page', 'pages'] as const
 
