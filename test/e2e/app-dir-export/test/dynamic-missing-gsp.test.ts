@@ -7,8 +7,8 @@ describe('app dir - with output export - dynamic missing gsp', () => {
       dynamicPage: 'undefined',
       generateStaticParamsOpt: 'set noop',
       expectedErrMsg: isNextDev
-        ? 'Page "/another/[slug]/page" is missing exported function "generateStaticParams()", which is required with "output: export" config.'
-        : 'Page "/another/[slug]" is missing "generateStaticParams()" so it cannot be used with "output: export" config.',
+        ? 'Page "/another/[slug]/page" is missing exported function "generateStaticParams()", which is required with "output: export" config. See more info here: https://nextjs.org/docs/messages/generate-static-params'
+        : 'Page "/another/[slug]" is missing "generateStaticParams()" so it cannot be used with "output: export" config. See more info here: https://nextjs.org/docs/messages/generate-static-params',
     })
   })
 
