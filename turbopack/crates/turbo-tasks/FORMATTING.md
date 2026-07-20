@@ -9,20 +9,12 @@ read. These macros handle that automatically.
 Returns `Result<RcStr>` after resolving all arguments asynchronously.
 
 ```rust
-# use anyhow::Result;
-# use turbo_rcstr::RcStr;
-# use turbo_tasks::{Vc, turbofmt};
-# struct Asset;
-# impl Asset { fn ident(&self) -> &'static str { "asset" } }
-# async fn example(asset: Asset, base_path: &str, some_vc: Vc<RcStr>) -> Result<()> {
 // Positional arguments
 let msg = turbofmt!("asset {} in path {}", asset.ident(), base_path).await?;
 
 // Captured variables
 let name = some_vc;
 let msg = turbofmt!("hello {name}").await?;
-# Ok(())
-# }
 ```
 
 Arguments can be `Vc<T>`, `ResolvedVc<T>`, `ReadRef<T>`, or any type
@@ -37,13 +29,7 @@ Same as `turbofmt!`, but calls `anyhow::bail!()` with the formatted message.
 Has implicit `.await` and return flow.
 
 ```rust
-# use anyhow::Result;
-# use turbo_tasks::turbobail;
-# struct Asset;
-# impl Asset { fn ident(&self) -> &'static str { "asset" } }
-# async fn example(asset: Asset, base_path: &str) -> Result<()> {
 turbobail!("asset {} is not in path {}", asset.ident(), base_path);
-# }
 ```
 
 ## `#[derive(ValueToString)]`
@@ -55,49 +41,29 @@ and `ResolvedVc<T>` fields work directly in format strings.
 **No attribute** — delegates to `Display::to_string()`:
 
 ```rust
-# #![feature(arbitrary_self_types_pointers)]
-# use std::fmt;
-# use turbo_tasks::ValueToString;
-# #[turbo_tasks::value]
 #[derive(ValueToString)]
-struct Foo; // requires Display impl
-# impl fmt::Display for Foo {
-#     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result { f.write_str("foo") }
-# }
+struct Foo { ... } // requires Display impl
 ```
 
 **Format string with field references** — fields are resolved async:
 
 ```rust
-# #![feature(arbitrary_self_types_pointers)]
-# use turbo_rcstr::RcStr;
-# use turbo_tasks::{ResolvedVc, ValueToString};
-# #[turbo_tasks::value]
 #[derive(ValueToString)]
 #[value_to_string("[{fs}]/{path}")]
-struct FileSystemPath { fs: ResolvedVc<RcStr>, path: RcStr }
+struct FileSystemPath { fs: ResolvedVc<...>, path: RcStr }
 ```
 
 **Format string with explicit expressions:**
 
 ```rust
-# #![feature(arbitrary_self_types_pointers)]
-# use turbo_rcstr::RcStr;
-# use turbo_tasks::ValueToString;
-# #[turbo_tasks::value]
 #[derive(ValueToString)]
 #[value_to_string("{}", self.name())]
-struct Bar { name: RcStr }
-# impl Bar { fn name(&self) -> &str { &self.name } }
+struct Bar { ... }
 ```
 
 **Direct expression:**
 
 ```rust
-# #![feature(arbitrary_self_types_pointers)]
-# use turbo_rcstr::RcStr;
-# use turbo_tasks::ValueToString;
-# #[turbo_tasks::value]
 #[derive(ValueToString)]
 #[value_to_string(self.inner)]
 struct Wrapper { inner: RcStr }
@@ -106,10 +72,6 @@ struct Wrapper { inner: RcStr }
 **Enums** — variants without an attribute default to their name:
 
 ```rust
-# #![feature(arbitrary_self_types_pointers)]
-# use turbo_rcstr::RcStr;
-# use turbo_tasks::{ResolvedVc, ValueToString};
-# #[turbo_tasks::value]
 #[derive(ValueToString)]
 enum Kind {
     Foo,                                    // → "Foo"
@@ -126,12 +88,8 @@ The underlying async trait. You rarely need to implement this manually —
 prefer `#[derive(ValueToString)]` instead.
 
 ```rust
-# #![feature(arbitrary_self_types_pointers)]
-# use turbo_rcstr::RcStr;
-# use turbo_tasks::Vc;
 #[turbo_tasks::value_trait]
 pub trait ValueToString {
-    #[turbo_tasks::function]
     fn to_string(self: Vc<Self>) -> Vc<RcStr>;
 }
 ```

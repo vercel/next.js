@@ -24,9 +24,9 @@ async fn test_basic() {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn test_dirty_top_level_cached_root() {
+async fn test_cached_top_level_root_fast_path() {
     CACHED_TOP_LEVEL_EXECUTIONS.store(0, Ordering::SeqCst);
-    let instance = REGISTRATION.create_turbo_tasks("dirty_top_level_cached_root", true);
+    let instance = REGISTRATION.create_turbo_tasks("cached_top_level_root_fast_path", true);
     let tt = instance.tt;
 
     let input = turbo_tasks::run(tt.clone(), async {
@@ -47,7 +47,21 @@ async fn test_dirty_top_level_cached_root() {
     .await
     .unwrap();
     assert_eq!(value, 7);
+    assert_eq!(CACHED_TOP_LEVEL_EXECUTIONS.load(Ordering::SeqCst), 1);
 
+    // A clean cache hit must reuse the completed root without executing the task again.
+    let value = turbo_tasks::run(tt.clone(), async move {
+        Ok(cached_top_level_value(*input)
+            .strongly_consistent()
+            .await?
+            .value)
+    })
+    .await
+    .unwrap();
+    assert_eq!(value, 7);
+    assert_eq!(CACHED_TOP_LEVEL_EXECUTIONS.load(Ordering::SeqCst), 1);
+
+    // The fast path must not prevent a dirty root from being re-executed by the read path.
     let value = turbo_tasks::run(tt.clone(), async move {
         input.await?.state.set(9);
         Ok(cached_top_level_value(*input)

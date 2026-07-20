@@ -81,6 +81,9 @@ impl ConnectChildOperation {
         } else {
             let mut child_task = ctx.task(child_task_id, TaskDataCategory::Meta);
             let has_output = child_task.has_output();
+            // A completed top-level task was already made a root when it was first connected.
+            // Repeating that idempotent update would only make the queue non-empty and force an
+            // otherwise unnecessary operation suspend point on every cache hit.
             let is_completed_root = parent_task_id.is_none()
                 && has_output
                 && is_root_node(get_aggregation_number(&child_task));

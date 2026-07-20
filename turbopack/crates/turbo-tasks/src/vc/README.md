@@ -2,16 +2,10 @@
 
 In order to get a reference to the pointed value, you need to `.await` the [`Vc<T>`] to get a [`ReadRef<T>`][`ReadRef`]:
 
-```rust
-# use anyhow::Result;
-# use turbo_rcstr::RcStr;
-# use turbo_tasks::{ReadRef, Vc};
-# async fn read_value(some_vc: Vc<RcStr>) -> Result<()> {
-let some_ref: ReadRef<RcStr> = some_vc.await?;
-let value: &RcStr = &some_ref;
-# assert_eq!(value, &*some_ref);
-# Ok(())
-# }
+```
+let some_vc: Vc<T>;
+let some_ref: ReadRef<T> = some_vc.await?;
+some_ref.some_method_on_t();
 ```
 
 The returned [`ReadRef<T>`][`ReadRef`] represents a [reference-counted][triomphe::Arc] snapshot of a cell's value at a given point in time.

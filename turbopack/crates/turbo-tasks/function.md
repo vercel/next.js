@@ -1,13 +1,9 @@
 Tasks are created by defining a Rust function annotated with the `#[turbo_tasks::function]` macro and calling it with arguments. Each unique combination of function and arguments create a new task at runtime. Tasks are the fundamental units of work within the build system.
 
 ```rust
-# use turbo_tasks::Vc;
-# #[turbo_tasks::value]
-# struct Something;
 #[turbo_tasks::function]
 fn add(a: i32, b: i32) -> Vc<Something> {
     // Task implementation goes here...
-#   Something.cell()
 }
 ```
 
@@ -70,11 +66,6 @@ async fn foo(
 will have an external signature of
 
 ```rust
-# #![feature(arbitrary_self_types_pointers)]
-# use turbo_tasks::Vc;
-# #[turbo_tasks::value_trait]
-# trait Example {
-# #[turbo_tasks::function]
 fn foo(
     self: Vc<Self>,           // was: &self
     a: i32,
@@ -82,7 +73,6 @@ fn foo(
     c: Vc<i32>,               // was: ResolvedVc<i32>
     d: Option<Vec<Vc<i32>>>,  // was: Option<Vec<ResolvedVc<i32>>>
 ) -> Vc<i32>;                 // was: impl Future<Output = Result<ResolvedVc<i32>>>
-# }
 ```
 
 ## Attributes
@@ -91,15 +81,9 @@ The `#[turbo_tasks::function]` macro accepts optional attributes that modify the
 task. Multiple attributes can be combined by separating them with commas.
 
 ```rust
-# use anyhow::Result;
-# use turbo_rcstr::RcStr;
-# use turbo_tasks::Vc;
-# #[turbo_tasks::value]
-# struct FileContent;
 #[turbo_tasks::function(fs, session_dependent)]
 async fn read_file(path: RcStr) -> Result<Vc<FileContent>> {
     // ...
-#   Ok(FileContent.cell())
 }
 ```
 
@@ -172,36 +156,28 @@ Tasks can be methods associated with a value or a trait implementation using the
 ### Inherent Implementations
 
 ```rust
-# #![feature(arbitrary_self_types_pointers)]
-# use anyhow::Result;
-# use turbo_tasks::{ResolvedVc, Vc};
-# #[turbo_tasks::value]
-# struct Something { some_field: i32 }
-# #[turbo_tasks::value]
-# struct SomethingElse(i32);
-# impl SomethingElse { fn new(value: i32, a: i32) -> Self { Self(value + a) } }
 #[turbo_tasks::value_impl]
 impl Something {
     #[turbo_tasks::function]
-    async fn method(self: Vc<Self>, a: i32) -> Result<Vc<SomethingElse>> {
+    fn method(self: Vc<Self>, a: i32) -> Vc<SomethingElse> {
         // Receives the full `Vc<Self>` type, which we must `.await` to get a
         // `ReadRef<Self>`.
-        let some_field = self.await?.some_field;
+        vdbg!(self.await?.some_field);
 
         // The `Vc` type is useful for calling other methods declared on
         // `Vc<Self>`, e.g.:
-        Ok(self.method_resolved(a))
+        self.method_resolved(a)
     }
 
     #[turbo_tasks::function]
-    async fn method_resolved(self: ResolvedVc<Self>, a: i32) -> Result<Vc<SomethingElse>> {
+    fn method_resolved(self: ResolvedVc<Self>, a: i32) -> Vc<SomethingElse> {
         // Same as above, but receives a `ResolvedVc`, which can be `.await`ed
         // to a `ReadRef` or dereferenced (implicitly or with `*`) to `Vc`.
-        let some_field = self.await?.some_field;
+        vdbg!(self.await?.some_field);
 
         // The `ResolvedVc<Self>` type can be used to call other methods
         // declared on `Vc<Self>`, e.g.:
-        Ok(self.method_ref(a))
+        self.method_ref(a)
     }
 
     #[turbo_tasks::function]
@@ -212,7 +188,7 @@ impl Something {
         // It can access fields on the struct/enum and call methods declared on
         // `Self`, but it cannot call other methods declared on `Vc<Self>`
         // (without cloning the value and re-wrapping it in a `Vc`).
-        SomethingElse::new(self.some_field, a).cell()
+        Vc::cell(SomethingElse::new(self.some_field, a))
     }
 }
 ```
@@ -226,17 +202,6 @@ impl Something {
 ### Trait Implementations
 
 ```rust
-# #![feature(arbitrary_self_types_pointers)]
-# use turbo_tasks::Vc;
-# #[turbo_tasks::value]
-# struct Something;
-# #[turbo_tasks::value]
-# struct SomethingElse;
-# #[turbo_tasks::value_trait]
-# trait Trait {
-#     #[turbo_tasks::function]
-#     fn method(self: Vc<Self>, a: i32) -> Vc<SomethingElse>;
-# }
 #[turbo_tasks::value_impl]
 impl Trait for Something {
     #[turbo_tasks::function]
@@ -244,7 +209,6 @@ impl Trait for Something {
         // Trait method implementation...
         //
         // `self: ResolvedVc<Self>` and `&self` are also valid argument types!
-#       SomethingElse.cell()
     }
 }
 ```
