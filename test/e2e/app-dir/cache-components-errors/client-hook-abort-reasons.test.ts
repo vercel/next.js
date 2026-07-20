@@ -476,26 +476,6 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
 
                Learn more: https://nextjs.org/docs/messages/blocking-prerender-client-hook
                    at <unknown> (app/client-hook-abort-reasons/client.tsx:27:3)
-                   at H (../../../packages/next/dist/esm/client/components/layout-router.js:266:34)
-                   at a (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
-                   at b (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
-                   at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
-                   at I (../../../packages/next/dist/esm/client/components/layout-router.js:389:32)
-                   at c (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
-                   at F (../../../packages/next/dist/esm/client/components/layout-router.js:100:9)
-                   at G (../../../packages/next/dist/esm/client/components/layout-router.js:249:39)
-                   at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:418:49)
-                   ... collapsed 27 duplicate lines matching above 9 lines 3 times...
-                   at H (../../../packages/next/dist/esm/client/components/layout-router.js:266:34)
-                   at d (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
-                   at e (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
-                   at f (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:18:9)
-                   at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
-                   at I (../../../packages/next/dist/esm/client/components/layout-router.js:389:32)
-                   at g (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
-                   at F (../../../packages/next/dist/esm/client/components/layout-router.js:100:9)
-                   at G (../../../packages/next/dist/esm/client/components/layout-router.js:249:39)
-                   at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:418:49)
                    at body (<anonymous>)
                    at html (<anonymous>)
                  25 |
@@ -520,35 +500,8 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                  - [block] Set \`export const instant = false\` to allow a blocking route
 
                Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic
-                   at H (../../../packages/next/dist/esm/client/components/layout-router.js:266:34)
-                   at h (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
-                   at i (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
-                   at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
-                   at I (../../../packages/next/dist/esm/client/components/layout-router.js:389:32)
-                   at j (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
-                   at F (../../../packages/next/dist/esm/client/components/layout-router.js:100:9)
-                   at G (../../../packages/next/dist/esm/client/components/layout-router.js:249:39)
-                   at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:418:49)
-                   ... collapsed 27 duplicate lines matching above 9 lines 3 times...
-                   at H (../../../packages/next/dist/esm/client/components/layout-router.js:266:34)
-                   at k (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
-                   at l (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
-                   at m (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:18:9)
-                   at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
-                   at I (../../../packages/next/dist/esm/client/components/layout-router.js:389:32)
-                   at n (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
-                   at F (../../../packages/next/dist/esm/client/components/layout-router.js:100:9)
-                   at G (../../../packages/next/dist/esm/client/components/layout-router.js:249:39)
-                   at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:418:49)
                    at body (<anonymous>)
                    at html (<anonymous>)
-                 264 | /**
-                 265 |  * InnerLayoutRouter handles rendering the provided segment based on the cache.
-               > 266 |  */ function InnerLayoutRouter({ tree, segmentPath, debugNameContext, cacheNode: maybeCacheNode, params, url, isActive }) {
-                     |                                  ^
-                 267 |     const context = useContext(GlobalLayoutRouterContext);
-                 268 |     const parentNavPromises = useContext(NavigationPromisesContext);
-                 269 |     if (!context) {
                To get a more detailed stack trace and pinpoint the issue, try one of the following:
                  - Start the app in development mode by running \`next dev\`, then open "/client-hook-abort-reasons/normal/use-search-params/[id]" in your browser to investigate the error.
                  - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
@@ -755,26 +708,6 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
 
                Learn more: https://nextjs.org/docs/messages/blocking-prerender-client-hook
                    at <unknown> (app/client-hook-abort-reasons/client.tsx:22:3)
-                   at H (../../../packages/next/dist/esm/client/components/layout-router.js:266:34)
-                   at a (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
-                   at b (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
-                   at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
-                   at I (../../../packages/next/dist/esm/client/components/layout-router.js:389:32)
-                   at c (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
-                   at F (../../../packages/next/dist/esm/client/components/layout-router.js:100:9)
-                   at G (../../../packages/next/dist/esm/client/components/layout-router.js:249:39)
-                   at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:418:49)
-                   ... collapsed 27 duplicate lines matching above 9 lines 3 times...
-                   at H (../../../packages/next/dist/esm/client/components/layout-router.js:266:34)
-                   at d (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
-                   at e (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
-                   at f (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:18:9)
-                   at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
-                   at I (../../../packages/next/dist/esm/client/components/layout-router.js:389:32)
-                   at g (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
-                   at F (../../../packages/next/dist/esm/client/components/layout-router.js:100:9)
-                   at G (../../../packages/next/dist/esm/client/components/layout-router.js:249:39)
-                   at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:418:49)
                    at body (<anonymous>)
                    at html (<anonymous>)
                  20 |
@@ -799,35 +732,8 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                  - [block] Set \`export const instant = false\` to allow a blocking route
 
                Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic
-                   at H (../../../packages/next/dist/esm/client/components/layout-router.js:266:34)
-                   at h (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
-                   at i (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
-                   at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
-                   at I (../../../packages/next/dist/esm/client/components/layout-router.js:389:32)
-                   at j (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
-                   at F (../../../packages/next/dist/esm/client/components/layout-router.js:100:9)
-                   at G (../../../packages/next/dist/esm/client/components/layout-router.js:249:39)
-                   at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:418:49)
-                   ... collapsed 27 duplicate lines matching above 9 lines 3 times...
-                   at H (../../../packages/next/dist/esm/client/components/layout-router.js:266:34)
-                   at k (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
-                   at l (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
-                   at m (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:18:9)
-                   at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
-                   at I (../../../packages/next/dist/esm/client/components/layout-router.js:389:32)
-                   at n (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
-                   at F (../../../packages/next/dist/esm/client/components/layout-router.js:100:9)
-                   at G (../../../packages/next/dist/esm/client/components/layout-router.js:249:39)
-                   at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:418:49)
                    at body (<anonymous>)
                    at html (<anonymous>)
-                 264 | /**
-                 265 |  * InnerLayoutRouter handles rendering the provided segment based on the cache.
-               > 266 |  */ function InnerLayoutRouter({ tree, segmentPath, debugNameContext, cacheNode: maybeCacheNode, params, url, isActive }) {
-                     |                                  ^
-                 267 |     const context = useContext(GlobalLayoutRouterContext);
-                 268 |     const parentNavPromises = useContext(NavigationPromisesContext);
-                 269 |     if (!context) {
                To get a more detailed stack trace and pinpoint the issue, try one of the following:
                  - Start the app in development mode by running \`next dev\`, then open "/client-hook-abort-reasons/normal/use-pathname/[id]" in your browser to investigate the error.
                  - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
@@ -1034,26 +940,6 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
 
                Learn more: https://nextjs.org/docs/messages/blocking-prerender-client-hook
                    at <unknown> (app/client-hook-abort-reasons/client.tsx:17:3)
-                   at H (../../../packages/next/dist/esm/client/components/layout-router.js:266:34)
-                   at a (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
-                   at b (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
-                   at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
-                   at I (../../../packages/next/dist/esm/client/components/layout-router.js:389:32)
-                   at c (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
-                   at F (../../../packages/next/dist/esm/client/components/layout-router.js:100:9)
-                   at G (../../../packages/next/dist/esm/client/components/layout-router.js:249:39)
-                   at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:418:49)
-                   ... collapsed 27 duplicate lines matching above 9 lines 3 times...
-                   at H (../../../packages/next/dist/esm/client/components/layout-router.js:266:34)
-                   at d (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
-                   at e (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
-                   at f (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:18:9)
-                   at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
-                   at I (../../../packages/next/dist/esm/client/components/layout-router.js:389:32)
-                   at g (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
-                   at F (../../../packages/next/dist/esm/client/components/layout-router.js:100:9)
-                   at G (../../../packages/next/dist/esm/client/components/layout-router.js:249:39)
-                   at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:418:49)
                    at body (<anonymous>)
                    at html (<anonymous>)
                  15 |
@@ -1078,35 +964,8 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                  - [block] Set \`export const instant = false\` to allow a blocking route
 
                Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic
-                   at H (../../../packages/next/dist/esm/client/components/layout-router.js:266:34)
-                   at h (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
-                   at i (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
-                   at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
-                   at I (../../../packages/next/dist/esm/client/components/layout-router.js:389:32)
-                   at j (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
-                   at F (../../../packages/next/dist/esm/client/components/layout-router.js:100:9)
-                   at G (../../../packages/next/dist/esm/client/components/layout-router.js:249:39)
-                   at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:418:49)
-                   ... collapsed 27 duplicate lines matching above 9 lines 3 times...
-                   at H (../../../packages/next/dist/esm/client/components/layout-router.js:266:34)
-                   at k (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
-                   at l (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
-                   at m (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:18:9)
-                   at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
-                   at I (../../../packages/next/dist/esm/client/components/layout-router.js:389:32)
-                   at n (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
-                   at F (../../../packages/next/dist/esm/client/components/layout-router.js:100:9)
-                   at G (../../../packages/next/dist/esm/client/components/layout-router.js:249:39)
-                   at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:418:49)
                    at body (<anonymous>)
                    at html (<anonymous>)
-                 264 | /**
-                 265 |  * InnerLayoutRouter handles rendering the provided segment based on the cache.
-               > 266 |  */ function InnerLayoutRouter({ tree, segmentPath, debugNameContext, cacheNode: maybeCacheNode, params, url, isActive }) {
-                     |                                  ^
-                 267 |     const context = useContext(GlobalLayoutRouterContext);
-                 268 |     const parentNavPromises = useContext(NavigationPromisesContext);
-                 269 |     if (!context) {
                To get a more detailed stack trace and pinpoint the issue, try one of the following:
                  - Start the app in development mode by running \`next dev\`, then open "/client-hook-abort-reasons/normal/use-params/[id]" in your browser to investigate the error.
                  - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
@@ -1313,26 +1172,6 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
 
                Learn more: https://nextjs.org/docs/messages/blocking-prerender-client-hook
                    at <unknown> (app/client-hook-abort-reasons/client.tsx:37:3)
-                   at H (../../../packages/next/dist/esm/client/components/layout-router.js:266:34)
-                   at a (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
-                   at b (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
-                   at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
-                   at I (../../../packages/next/dist/esm/client/components/layout-router.js:389:32)
-                   at c (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
-                   at F (../../../packages/next/dist/esm/client/components/layout-router.js:100:9)
-                   at G (../../../packages/next/dist/esm/client/components/layout-router.js:249:39)
-                   at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:418:49)
-                   ... collapsed 27 duplicate lines matching above 9 lines 3 times...
-                   at H (../../../packages/next/dist/esm/client/components/layout-router.js:266:34)
-                   at d (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
-                   at e (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
-                   at f (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:18:9)
-                   at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
-                   at I (../../../packages/next/dist/esm/client/components/layout-router.js:389:32)
-                   at g (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
-                   at F (../../../packages/next/dist/esm/client/components/layout-router.js:100:9)
-                   at G (../../../packages/next/dist/esm/client/components/layout-router.js:249:39)
-                   at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:418:49)
                    at body (<anonymous>)
                    at html (<anonymous>)
                  35 |
@@ -1357,35 +1196,8 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                  - [block] Set \`export const instant = false\` to allow a blocking route
 
                Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic
-                   at H (../../../packages/next/dist/esm/client/components/layout-router.js:266:34)
-                   at h (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
-                   at i (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
-                   at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
-                   at I (../../../packages/next/dist/esm/client/components/layout-router.js:389:32)
-                   at j (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
-                   at F (../../../packages/next/dist/esm/client/components/layout-router.js:100:9)
-                   at G (../../../packages/next/dist/esm/client/components/layout-router.js:249:39)
-                   at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:418:49)
-                   ... collapsed 27 duplicate lines matching above 9 lines 3 times...
-                   at H (../../../packages/next/dist/esm/client/components/layout-router.js:266:34)
-                   at k (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
-                   at l (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
-                   at m (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:18:9)
-                   at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
-                   at I (../../../packages/next/dist/esm/client/components/layout-router.js:389:32)
-                   at n (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
-                   at F (../../../packages/next/dist/esm/client/components/layout-router.js:100:9)
-                   at G (../../../packages/next/dist/esm/client/components/layout-router.js:249:39)
-                   at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:418:49)
                    at body (<anonymous>)
                    at html (<anonymous>)
-                 264 | /**
-                 265 |  * InnerLayoutRouter handles rendering the provided segment based on the cache.
-               > 266 |  */ function InnerLayoutRouter({ tree, segmentPath, debugNameContext, cacheNode: maybeCacheNode, params, url, isActive }) {
-                     |                                  ^
-                 267 |     const context = useContext(GlobalLayoutRouterContext);
-                 268 |     const parentNavPromises = useContext(NavigationPromisesContext);
-                 269 |     if (!context) {
                To get a more detailed stack trace and pinpoint the issue, try one of the following:
                  - Start the app in development mode by running \`next dev\`, then open "/client-hook-abort-reasons/normal/use-selected-layout-segments/[id]" in your browser to investigate the error.
                  - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
@@ -1592,26 +1404,6 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
 
                Learn more: https://nextjs.org/docs/messages/blocking-prerender-client-hook
                    at <unknown> (app/client-hook-abort-reasons/client.tsx:32:3)
-                   at H (../../../packages/next/dist/esm/client/components/layout-router.js:266:34)
-                   at a (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
-                   at b (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
-                   at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
-                   at I (../../../packages/next/dist/esm/client/components/layout-router.js:389:32)
-                   at c (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
-                   at F (../../../packages/next/dist/esm/client/components/layout-router.js:100:9)
-                   at G (../../../packages/next/dist/esm/client/components/layout-router.js:249:39)
-                   at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:418:49)
-                   ... collapsed 27 duplicate lines matching above 9 lines 3 times...
-                   at H (../../../packages/next/dist/esm/client/components/layout-router.js:266:34)
-                   at d (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
-                   at e (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
-                   at f (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:18:9)
-                   at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
-                   at I (../../../packages/next/dist/esm/client/components/layout-router.js:389:32)
-                   at g (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
-                   at F (../../../packages/next/dist/esm/client/components/layout-router.js:100:9)
-                   at G (../../../packages/next/dist/esm/client/components/layout-router.js:249:39)
-                   at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:418:49)
                    at body (<anonymous>)
                    at html (<anonymous>)
                  30 |
@@ -1636,35 +1428,8 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                  - [block] Set \`export const instant = false\` to allow a blocking route
 
                Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic
-                   at H (../../../packages/next/dist/esm/client/components/layout-router.js:266:34)
-                   at h (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
-                   at i (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
-                   at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
-                   at I (../../../packages/next/dist/esm/client/components/layout-router.js:389:32)
-                   at j (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
-                   at F (../../../packages/next/dist/esm/client/components/layout-router.js:100:9)
-                   at G (../../../packages/next/dist/esm/client/components/layout-router.js:249:39)
-                   at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:418:49)
-                   ... collapsed 27 duplicate lines matching above 9 lines 3 times...
-                   at H (../../../packages/next/dist/esm/client/components/layout-router.js:266:34)
-                   at k (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
-                   at l (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
-                   at m (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:18:9)
-                   at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
-                   at I (../../../packages/next/dist/esm/client/components/layout-router.js:389:32)
-                   at n (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
-                   at F (../../../packages/next/dist/esm/client/components/layout-router.js:100:9)
-                   at G (../../../packages/next/dist/esm/client/components/layout-router.js:249:39)
-                   at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:418:49)
                    at body (<anonymous>)
                    at html (<anonymous>)
-                 264 | /**
-                 265 |  * InnerLayoutRouter handles rendering the provided segment based on the cache.
-               > 266 |  */ function InnerLayoutRouter({ tree, segmentPath, debugNameContext, cacheNode: maybeCacheNode, params, url, isActive }) {
-                     |                                  ^
-                 267 |     const context = useContext(GlobalLayoutRouterContext);
-                 268 |     const parentNavPromises = useContext(NavigationPromisesContext);
-                 269 |     if (!context) {
                To get a more detailed stack trace and pinpoint the issue, try one of the following:
                  - Start the app in development mode by running \`next dev\`, then open "/client-hook-abort-reasons/normal/use-selected-layout-segment/[id]" in your browser to investigate the error.
                  - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
@@ -2301,26 +2066,6 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
 
                Learn more: https://nextjs.org/docs/messages/blocking-prerender-client-hook
                    at <unknown> (app/client-hook-abort-reasons/client.tsx:17:3)
-                   at H (../../../packages/next/dist/esm/client/components/layout-router.js:266:34)
-                   at a (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
-                   at b (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
-                   at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
-                   at I (../../../packages/next/dist/esm/client/components/layout-router.js:389:32)
-                   at c (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
-                   at F (../../../packages/next/dist/esm/client/components/layout-router.js:100:9)
-                   at G (../../../packages/next/dist/esm/client/components/layout-router.js:249:39)
-                   at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:418:49)
-                   ... collapsed 27 duplicate lines matching above 9 lines 3 times...
-                   at H (../../../packages/next/dist/esm/client/components/layout-router.js:266:34)
-                   at d (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
-                   at e (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
-                   at f (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:18:9)
-                   at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
-                   at I (../../../packages/next/dist/esm/client/components/layout-router.js:389:32)
-                   at g (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
-                   at F (../../../packages/next/dist/esm/client/components/layout-router.js:100:9)
-                   at G (../../../packages/next/dist/esm/client/components/layout-router.js:249:39)
-                   at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:418:49)
                    at body (<anonymous>)
                    at html (<anonymous>)
                  15 |
@@ -2534,35 +2279,8 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                  - [block] Set \`export const instant = false\` to allow a blocking route
 
                Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic
-                   at H (../../../packages/next/dist/esm/client/components/layout-router.js:266:34)
-                   at a (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
-                   at b (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
-                   at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
-                   at I (../../../packages/next/dist/esm/client/components/layout-router.js:389:32)
-                   at c (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
-                   at F (../../../packages/next/dist/esm/client/components/layout-router.js:100:9)
-                   at G (../../../packages/next/dist/esm/client/components/layout-router.js:249:39)
-                   at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:418:49)
-                   ... collapsed 27 duplicate lines matching above 9 lines 3 times...
-                   at H (../../../packages/next/dist/esm/client/components/layout-router.js:266:34)
-                   at d (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
-                   at e (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
-                   at f (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:18:9)
-                   at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
-                   at I (../../../packages/next/dist/esm/client/components/layout-router.js:389:32)
-                   at g (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
-                   at F (../../../packages/next/dist/esm/client/components/layout-router.js:100:9)
-                   at G (../../../packages/next/dist/esm/client/components/layout-router.js:249:39)
-                   at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:418:49)
                    at body (<anonymous>)
                    at html (<anonymous>)
-                 264 | /**
-                 265 |  * InnerLayoutRouter handles rendering the provided segment based on the cache.
-               > 266 |  */ function InnerLayoutRouter({ tree, segmentPath, debugNameContext, cacheNode: maybeCacheNode, params, url, isActive }) {
-                     |                                  ^
-                 267 |     const context = useContext(GlobalLayoutRouterContext);
-                 268 |     const parentNavPromises = useContext(NavigationPromisesContext);
-                 269 |     if (!context) {
                To get a more detailed stack trace and pinpoint the issue, try one of the following:
                  - Start the app in development mode by running \`next dev\`, then open "/client-hook-abort-reasons/sync-io/use-selected-layout-segments/[id]" in your browser to investigate the error.
                  - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
@@ -2844,26 +2562,6 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
 
                Learn more: https://nextjs.org/docs/messages/blocking-prerender-client-hook
                    at <unknown> (app/client-hook-abort-reasons/client.tsx:32:3)
-                   at H (../../../packages/next/dist/esm/client/components/layout-router.js:266:34)
-                   at a (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
-                   at b (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
-                   at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
-                   at I (../../../packages/next/dist/esm/client/components/layout-router.js:389:32)
-                   at c (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
-                   at F (../../../packages/next/dist/esm/client/components/layout-router.js:100:9)
-                   at G (../../../packages/next/dist/esm/client/components/layout-router.js:249:39)
-                   at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:418:49)
-                   ... collapsed 27 duplicate lines matching above 9 lines 3 times...
-                   at H (../../../packages/next/dist/esm/client/components/layout-router.js:266:34)
-                   at d (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
-                   at e (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
-                   at f (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:18:9)
-                   at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
-                   at I (../../../packages/next/dist/esm/client/components/layout-router.js:389:32)
-                   at g (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
-                   at F (../../../packages/next/dist/esm/client/components/layout-router.js:100:9)
-                   at G (../../../packages/next/dist/esm/client/components/layout-router.js:249:39)
-                   at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:418:49)
                    at body (<anonymous>)
                    at html (<anonymous>)
                  30 |
@@ -2888,35 +2586,8 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                  - [block] Set \`export const instant = false\` to allow a blocking route
 
                Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic
-                   at H (../../../packages/next/dist/esm/client/components/layout-router.js:266:34)
-                   at h (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
-                   at i (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
-                   at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
-                   at I (../../../packages/next/dist/esm/client/components/layout-router.js:389:32)
-                   at j (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
-                   at F (../../../packages/next/dist/esm/client/components/layout-router.js:100:9)
-                   at G (../../../packages/next/dist/esm/client/components/layout-router.js:249:39)
-                   at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:418:49)
-                   ... collapsed 27 duplicate lines matching above 9 lines 3 times...
-                   at H (../../../packages/next/dist/esm/client/components/layout-router.js:266:34)
-                   at k (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
-                   at l (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
-                   at m (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:18:9)
-                   at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
-                   at I (../../../packages/next/dist/esm/client/components/layout-router.js:389:32)
-                   at n (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
-                   at F (../../../packages/next/dist/esm/client/components/layout-router.js:100:9)
-                   at G (../../../packages/next/dist/esm/client/components/layout-router.js:249:39)
-                   at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:418:49)
                    at body (<anonymous>)
                    at html (<anonymous>)
-                 264 | /**
-                 265 |  * InnerLayoutRouter handles rendering the provided segment based on the cache.
-               > 266 |  */ function InnerLayoutRouter({ tree, segmentPath, debugNameContext, cacheNode: maybeCacheNode, params, url, isActive }) {
-                     |                                  ^
-                 267 |     const context = useContext(GlobalLayoutRouterContext);
-                 268 |     const parentNavPromises = useContext(NavigationPromisesContext);
-                 269 |     if (!context) {
                To get a more detailed stack trace and pinpoint the issue, try one of the following:
                  - Start the app in development mode by running \`next dev\`, then open "/client-hook-abort-reasons/sync-io/use-selected-layout-segment/[id]" in your browser to investigate the error.
                  - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.

@@ -90,7 +90,6 @@ export function registerUseCacheTests(ctx: CacheComponentsErrorsContext) {
               expect(output).toMatchInlineSnapshot(`
                "Error: Route /use-cache-cookies used \`cookies()\` inside "use cache". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use \`cookies()\` outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache
                    at CookiesReadingComponent (webpack:///app/use-cache-cookies/page.tsx:22:18)
-                   at Object.then (webpack:///<next-src>)
                    at Page (webpack:///app/use-cache-cookies/page.tsx:10:7)
                  20 |   // in userland.
                  21 |   try {
@@ -308,7 +307,6 @@ export function registerUseCacheTests(ctx: CacheComponentsErrorsContext) {
               expect(output).toMatchInlineSnapshot(`
                "Error: Route /use-cache-headers used \`headers()\` inside "use cache". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use \`headers()\` outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache
                    at HeadersReadingComponent (webpack:///app/use-cache-headers/page.tsx:21:18)
-                   at Object.then (webpack:///<next-src>)
                    at Page (webpack:///app/use-cache-headers/page.tsx:10:7)
                  19 |   // to ensure that this error is shown even when it's caught in userland.
                  20 |   try {
@@ -416,7 +414,6 @@ export function registerUseCacheTests(ctx: CacheComponentsErrorsContext) {
               expect(output).toMatchInlineSnapshot(`
                "Error: Route /use-cache-connection used \`connection()\` inside "use cache". The \`connection()\` function is used to indicate the subsequent code must only run when there is an actual request, but caches must be able to be produced before a request, so this function is not allowed in this scope. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache
                    at ConnectionCallingComponent (webpack:///app/use-cache-connection/page.tsx:21:21)
-                   at Object.then (webpack:///<next-src>)
                    at Page (webpack:///app/use-cache-connection/page.tsx:10:7)
                  19 |   // here to ensure that this error is shown even when it's caught in userland.
                  20 |   try {
@@ -806,7 +803,6 @@ Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
                    [cause]: Nested dynamic "use cache": This "use cache" has a dynamic cache life that was propagated to its parent.
                        at innerCache (webpack:///app/use-cache-low-expire/nested/page.tsx:3:1)
                        at outerCache (webpack:///app/use-cache-low-expire/nested/page.tsx:14:10)
-                       at Object.then (webpack:///<next-src>)
                        at Page (<anonymous>)
                      1 | import { cacheLife } from 'next/cache'
                      2 |
@@ -1202,7 +1198,6 @@ Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
                    [cause]: Nested dynamic "use cache": This "use cache" has a dynamic cache life that was propagated to its parent.
                        at innerCache (webpack:///app/use-cache-revalidate-0/nested/page.tsx:3:1)
                        at outerCache (webpack:///app/use-cache-revalidate-0/nested/page.tsx:14:10)
-                       at Object.then (webpack:///<next-src>)
                        at Page (<anonymous>)
                      1 | import { cacheLife } from 'next/cache'
                      2 |
@@ -1383,13 +1378,11 @@ Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
                  at throwAnError (<next-dist-dir>)
                  at ThrowingComponent (<next-dist-dir>)
                  at Object.then (<next-dist-dir>)
-                 at serializeThenable (../../../packages/next/dist/compiled/next-server/app-page-turbo.runtime.dev.js:86:65397)
-                 at renderModelDestructive (../../../packages/next/dist/compiled/next-server/app-page-turbo.runtime.dev.js:86:89353)
-                 at retryTask (../../../packages/next/dist/compiled/next-server/app-page-turbo.runtime.dev.js:86:131533)
-                 at performWork (../../../packages/next/dist/compiled/next-server/app-page-turbo.runtime.dev.js:86:133543)
-                 at <anonymous> (../../../packages/next/dist/compiled/next-server/app-page-turbo.runtime.dev.js:86:138824)
                  at resolveErrorDev (<next-dist-dir>)
-                 at processFullStringRow (<next-dist-dir>) {
+                 at processFullStringRow (<next-dist-dir>)
+                 at processFullBinaryRow (<next-dist-dir>)
+                 at processBinaryChunk (<next-dist-dir>)
+                 at progress (<next-dist-dir>) {
                environmentName: 'Cache',
                digest: '<error-digest>'
              }"
@@ -1454,14 +1447,11 @@ Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
              "Error: Kaputt!
                  at throwAnError (<next-dist-dir>)
                  at Object.then (<next-dist-dir>)
-                 at serializeThenable (../../../packages/next/dist/compiled/next-server/app-page-turbo.runtime.dev.js:86:65397)
-                 at renderModelDestructive (../../../packages/next/dist/compiled/next-server/app-page-turbo.runtime.dev.js:86:89353)
-                 at retryTask (../../../packages/next/dist/compiled/next-server/app-page-turbo.runtime.dev.js:86:131533)
-                 at performWork (../../../packages/next/dist/compiled/next-server/app-page-turbo.runtime.dev.js:86:133543)
-                 at <anonymous> (../../../packages/next/dist/compiled/next-server/app-page-turbo.runtime.dev.js:86:138824)
                  at resolveErrorDev (<next-dist-dir>)
                  at processFullStringRow (<next-dist-dir>)
-                 at processFullBinaryRow (<next-dist-dir>) {
+                 at processFullBinaryRow (<next-dist-dir>)
+                 at processBinaryChunk (<next-dist-dir>)
+                 at progress (<next-dist-dir>) {
                environmentName: 'Cache',
                digest: '<error-digest>'
              }"
@@ -1549,15 +1539,14 @@ Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
               if (isDebugPrerender) {
                 expect(output).toMatchInlineSnapshot(`
                  "Error: Route /use-cache-cookies-third-party used \`cookies()\` inside "use cache". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use \`cookies()\` outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache
-                     at Object.then (webpack:///<next-src>)
                      at Page (webpack:///app/use-cache-cookies-third-party/page.tsx:10:7)
-                   15 |     then(onfulfilled, onrejected) {
-                   16 |       if (!pendingResult) {
-                 > 17 |         pendingResult = Promise.resolve(fn())
-                      |                                         ^
-                   18 |       }
-                   19 |
-                   20 |       pendingResult
+                    8 |         which triggers an error.
+                    9 |       </p>
+                 > 10 |       <CachedCookiesReader />
+                      |       ^
+                   11 |     </>
+                   12 |   )
+                   13 | }
                  To debug the issue, start the app in development mode by running \`next dev\`, then open "/use-cache-cookies-third-party" in your browser to investigate the error.
                  Error occurred prerendering page "/use-cache-cookies-third-party". Read more: https://nextjs.org/docs/messages/prerender-error
 
@@ -1745,15 +1734,14 @@ Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
               if (isDebugPrerender) {
                 expect(output).toMatchInlineSnapshot(`
                  "Error: Route /use-cache-headers-third-party used \`headers()\` inside "use cache". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use \`headers()\` outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache
-                     at Object.then (webpack:///<next-src>)
                      at Page (webpack:///app/use-cache-headers-third-party/page.tsx:10:7)
-                   15 |     then(onfulfilled, onrejected) {
-                   16 |       if (!pendingResult) {
-                 > 17 |         pendingResult = Promise.resolve(fn())
-                      |                                         ^
-                   18 |       }
-                   19 |
-                   20 |       pendingResult
+                    8 |         which triggers an error.
+                    9 |       </p>
+                 > 10 |       <CachedHeadersReader />
+                      |       ^
+                   11 |     </>
+                   12 |   )
+                   13 | }
                  To debug the issue, start the app in development mode by running \`next dev\`, then open "/use-cache-headers-third-party" in your browser to investigate the error.
                  Error occurred prerendering page "/use-cache-headers-third-party". Read more: https://nextjs.org/docs/messages/prerender-error
 
@@ -1845,15 +1833,14 @@ Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
               if (isDebugPrerender) {
                 expect(output).toMatchInlineSnapshot(`
                  "Error: Route /use-cache-connection-third-party used \`connection()\` inside "use cache". The \`connection()\` function is used to indicate the subsequent code must only run when there is an actual request, but caches must be able to be produced before a request, so this function is not allowed in this scope. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache
-                     at Object.then (webpack:///<next-src>)
                      at Page (webpack:///app/use-cache-connection-third-party/page.tsx:10:7)
-                   15 |     then(onfulfilled, onrejected) {
-                   16 |       if (!pendingResult) {
-                 > 17 |         pendingResult = Promise.resolve(fn())
-                      |                                         ^
-                   18 |       }
-                   19 |
-                   20 |       pendingResult
+                    8 |         which triggers an error.
+                    9 |       </p>
+                 > 10 |       <CachedConnectionCaller />
+                      |       ^
+                   11 |     </>
+                   12 |   )
+                   13 | }
                  To debug the issue, start the app in development mode by running \`next dev\`, then open "/use-cache-connection-third-party" in your browser to investigate the error.
                  Error occurred prerendering page "/use-cache-connection-third-party". Read more: https://nextjs.org/docs/messages/prerender-error
 
