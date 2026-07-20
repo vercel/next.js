@@ -93,7 +93,7 @@ The provider forwards the Promise through context:
 ```tsx filename="app/user-provider.tsx" switcher
 'use client'
 
-import { createContext, use, useContext } from 'react'
+import { createContext, useContext } from 'react'
 
 type User = { id: string; name: string }
 
@@ -104,7 +104,7 @@ export function useUser() {
   if (!userPromise) {
     throw new Error('useUser must be used within a UserProvider')
   }
-  return use(userPromise)
+  return userPromise
 }
 
 export function UserProvider({
@@ -123,7 +123,7 @@ export function UserProvider({
 ```js filename="app/user-provider.js" switcher
 'use client'
 
-import { createContext, use, useContext } from 'react'
+import { createContext, useContext } from 'react'
 
 const UserContext = createContext(null)
 
@@ -132,7 +132,7 @@ export function useUser() {
   if (!userPromise) {
     throw new Error('useUser must be used within a UserProvider')
   }
-  return use(userPromise)
+  return userPromise
 }
 
 export function UserProvider({ children, userPromise }) {
@@ -142,15 +142,17 @@ export function UserProvider({ children, userPromise }) {
 }
 ```
 
-Finally, call the `useUser()` hook in any Client Component. It unwraps the Promise with `use()` internally, so the component suspends until the data is ready:
+Finally, call the `useUser()` hook in any Client Component and unwrap the Promise with `use()`, which suspends the component until the data is ready:
 
 ```tsx filename="app/profile.tsx" switcher
 'use client'
 
+import { use } from 'react'
 import { useUser } from './user-provider'
 
 export function Profile() {
-  const user = useUser()
+  const userPromise = useUser()
+  const user = use(userPromise)
 
   return '...'
 }
@@ -159,14 +161,18 @@ export function Profile() {
 ```jsx filename="app/profile.js" switcher
 'use client'
 
+import { use } from 'react'
 import { useUser } from './user-provider'
 
 export function Profile() {
-  const user = useUser()
+  const userPromise = useUser()
+  const user = use(userPromise)
 
   return '...'
 }
 ```
+
+You can also move the `use()` call into the `useUser` hook so components just call `const user = useUser()`. That reads cleanly, but calling `use()` in the component keeps it clear where the component suspends.
 
 Wrap the consumer in a `<Suspense>` boundary to show a fallback while the Promise resolves:
 
