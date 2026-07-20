@@ -38,7 +38,9 @@ export class NextStartInstance extends NextInstance {
     })
   }
 
-  public async start(options: { skipBuild?: boolean } = {}) {
+  public async start(
+    options: { skipBuild?: boolean; env?: Record<string, string> } = {}
+  ) {
     if (this.childProcess) {
       throw new Error('next already started')
     }
@@ -51,6 +53,7 @@ export class NextStartInstance extends NextInstance {
       env: {
         ...process.env,
         ...this.env,
+        ...options.env,
         NODE_ENV: this.env.NODE_ENV || ('' as any),
         ...(this.forcedPort
           ? {

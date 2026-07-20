@@ -1292,6 +1292,11 @@ export async function ncc_gzip_size(task, opts) {
 }
 // eslint-disable-next-line camelcase
 externals['http-proxy'] = 'next/dist/compiled/http-proxy'
+// The patched http-proxy (patches/http-proxy@1.18.1.patch) uses Next.js'
+// parseUrl instead of the deprecated url.parse. Keep that import pointing at
+// next's own dist instead of bundling a copy.
+externals['next/dist/shared/lib/router/utils/parse-url'] =
+  'next/dist/shared/lib/router/utils/parse-url'
 export async function ncc_http_proxy(task, opts) {
   await task
     .source(relative(__dirname, require.resolve('http-proxy')))

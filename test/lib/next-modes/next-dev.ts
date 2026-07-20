@@ -20,7 +20,7 @@ export class NextDevInstance extends NextInstance {
     return this._cliOutput || ''
   }
 
-  public async start() {
+  public async start(options: { env?: Record<string, string> } = {}) {
     if (this.childProcess) {
       throw new Error('next already started')
     }
@@ -60,6 +60,7 @@ export class NextDevInstance extends NextInstance {
           env: {
             ...process.env,
             ...this.env,
+            ...options.env,
             NODE_ENV: this.env.NODE_ENV || ('' as any),
             PORT: this.forcedPort || '0',
             __NEXT_TEST_MODE: 'e2e',
