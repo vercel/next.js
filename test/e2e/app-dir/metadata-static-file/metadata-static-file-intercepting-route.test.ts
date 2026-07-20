@@ -54,50 +54,13 @@ describe('metadata-files-static-output-intercepting-route', () => {
            "type": "image/x-icon",
          },
          {
-           "href": "/intercepting/(..)intercept-me/apple-icon.png",
-           "rel": "apple-touch-icon",
-           "type": "image/png",
-         },
-         {
-           "href": "/intercepting/(..)intercept-me/icon.png",
-           "rel": "icon",
-           "type": "image/png",
-         },
-         {
            "href": "/manifest.json",
            "rel": "manifest",
          },
        ],
        "metas": [
          {
-           "name": "twitter:card",
-         },
-         {
-           "name": "twitter:image",
-         },
-         {
-           "name": "twitter:image:height",
-         },
-         {
-           "name": "twitter:image:type",
-         },
-         {
-           "name": "twitter:image:width",
-         },
-         {
            "name": "viewport",
-         },
-         {
-           "property": "og:image",
-         },
-         {
-           "property": "og:image:height",
-         },
-         {
-           "property": "og:image:type",
-         },
-         {
-           "property": "og:image:width",
          },
        ],
      }

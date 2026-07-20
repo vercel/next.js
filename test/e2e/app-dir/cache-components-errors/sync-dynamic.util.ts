@@ -24,20 +24,20 @@ export function registerSyncDynamicTests(ctx: CacheComponentsErrorsContext) {
           const browser = await next.browser(pathname)
 
           await expect(browser).toDisplayCollapsedRedbox(`
-             {
-               "code": "E1295",
-               "description": "Next.js encountered the unstable value Math.random() while prerendering.",
-               "environmentLabel": "Server",
-               "label": "Blocking Route",
-               "source": "app/sync-random-with-fallback/page.tsx (37:23) @ RandomReadingComponent
-             > 37 |   const random = Math.random()
-                  |                       ^",
-               "stack": [
-                 "RandomReadingComponent app/sync-random-with-fallback/page.tsx (37:23)",
-                 "Page app/sync-random-with-fallback/page.tsx (18:11)",
-               ],
-             }
-            `)
+           {
+             "code": "E1432",
+             "description": "Next.js encountered the unstable value Math.random() while prerendering.",
+             "environmentLabel": "Server",
+             "label": "Blocking Route",
+             "source": "app/sync-random-with-fallback/page.tsx (37:23) @ RandomReadingComponent
+           > 37 |   const random = Math.random()
+                |                       ^",
+             "stack": [
+               "RandomReadingComponent app/sync-random-with-fallback/page.tsx (37:23)",
+               "Page app/sync-random-with-fallback/page.tsx (18:11)",
+             ],
+           }
+          `)
         })
       } else {
         it('should error the build if Math.random() happens before some component outside a Suspense boundary is complete', async () => {
@@ -176,21 +176,21 @@ export function registerSyncDynamicTests(ctx: CacheComponentsErrorsContext) {
           const browser = await next.browser(pathname)
 
           await expect(browser).toDisplayCollapsedRedbox(`
-             {
-               "code": "E1295",
-               "description": "Next.js encountered the unstable value Math.random() while prerendering.",
-               "environmentLabel": "Server",
-               "label": "Blocking Route",
-               "source": "app/sync-random-without-fallback/page.tsx (32:15) @ getRandomNumber
-             > 32 |   return Math.random()
-                  |               ^",
-               "stack": [
-                 "getRandomNumber app/sync-random-without-fallback/page.tsx (32:15)",
-                 "RandomReadingComponent app/sync-random-without-fallback/page.tsx (40:18)",
-                 "Page app/sync-random-without-fallback/page.tsx (18:11)",
-               ],
-             }
-            `)
+           {
+             "code": "E1432",
+             "description": "Next.js encountered the unstable value Math.random() while prerendering.",
+             "environmentLabel": "Server",
+             "label": "Blocking Route",
+             "source": "app/sync-random-without-fallback/page.tsx (32:15) @ getRandomNumber
+           > 32 |   return Math.random()
+                |               ^",
+             "stack": [
+               "getRandomNumber app/sync-random-without-fallback/page.tsx (32:15)",
+               "RandomReadingComponent app/sync-random-without-fallback/page.tsx (40:18)",
+               "Page app/sync-random-without-fallback/page.tsx (18:11)",
+             ],
+           }
+          `)
         })
       } else {
         it('should error the build if Math.random() happens before some component outside a Suspense boundary is complete', async () => {

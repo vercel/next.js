@@ -97,7 +97,7 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
             await expect(browser).toDisplayCollapsedRedbox(`
              [
                {
-                 "code": "E1405",
+                 "code": "E1433",
                  "description": "Next.js encountered URL data useSearchParams() in a Client Component outside of Suspense.",
                  "environmentLabel": "Server",
                  "label": "Blocking Route",
@@ -110,10 +110,19 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                  ],
                },
                {
-                 "code": "E1401",
-                 "description": "Next.js encountered uncached data during prerendering.",
+                 "code": "E1440",
+                 "description": "Route "/client-hook-abort-reasons/normal/use-search-params/[id]": Next.js encountered uncached data during prerendering.
+
+             \`fetch(...)\` or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
+
+             Ways to fix this:
+               - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+               - [cache] Cache the data access with \`"use cache"\` (does not apply to \`connection()\`)
+               - [block] Set \`export const instant = false\` to allow a blocking route
+
+             Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic",
                  "environmentLabel": "Server",
-                 "label": "Blocking Route",
+                 "label": "Console Error",
                  "source": "app/client-hook-abort-reasons/data.tsx (2:9) @ DataSlot
              > 2 |   await new Promise((resolve) => setTimeout(resolve, 0))
                  |         ^",
@@ -134,7 +143,7 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
             await expect(browser).toDisplayCollapsedRedbox(`
              [
                {
-                 "code": "E1405",
+                 "code": "E1433",
                  "description": "Next.js encountered URL data usePathname() in a Client Component outside of Suspense.",
                  "environmentLabel": "Server",
                  "label": "Blocking Route",
@@ -147,10 +156,19 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                  ],
                },
                {
-                 "code": "E1401",
-                 "description": "Next.js encountered uncached data during prerendering.",
+                 "code": "E1440",
+                 "description": "Route "/client-hook-abort-reasons/normal/use-pathname/[id]": Next.js encountered uncached data during prerendering.
+
+             \`fetch(...)\` or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
+
+             Ways to fix this:
+               - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+               - [cache] Cache the data access with \`"use cache"\` (does not apply to \`connection()\`)
+               - [block] Set \`export const instant = false\` to allow a blocking route
+
+             Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic",
                  "environmentLabel": "Server",
-                 "label": "Blocking Route",
+                 "label": "Console Error",
                  "source": "app/client-hook-abort-reasons/data.tsx (2:9) @ DataSlot
              > 2 |   await new Promise((resolve) => setTimeout(resolve, 0))
                  |         ^",
@@ -171,7 +189,7 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
             await expect(browser).toDisplayCollapsedRedbox(`
              [
                {
-                 "code": "E1405",
+                 "code": "E1433",
                  "description": "Next.js encountered URL data useParams() in a Client Component outside of Suspense.",
                  "environmentLabel": "Server",
                  "label": "Blocking Route",
@@ -184,10 +202,19 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                  ],
                },
                {
-                 "code": "E1401",
-                 "description": "Next.js encountered uncached data during prerendering.",
+                 "code": "E1440",
+                 "description": "Route "/client-hook-abort-reasons/normal/use-params/[id]": Next.js encountered uncached data during prerendering.
+
+             \`fetch(...)\` or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
+
+             Ways to fix this:
+               - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+               - [cache] Cache the data access with \`"use cache"\` (does not apply to \`connection()\`)
+               - [block] Set \`export const instant = false\` to allow a blocking route
+
+             Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic",
                  "environmentLabel": "Server",
-                 "label": "Blocking Route",
+                 "label": "Console Error",
                  "source": "app/client-hook-abort-reasons/data.tsx (2:9) @ DataSlot
              > 2 |   await new Promise((resolve) => setTimeout(resolve, 0))
                  |         ^",
@@ -208,7 +235,7 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
             await expect(browser).toDisplayCollapsedRedbox(`
              [
                {
-                 "code": "E1405",
+                 "code": "E1433",
                  "description": "Next.js encountered URL data useSelectedLayoutSegments() in a Client Component outside of Suspense.",
                  "environmentLabel": "Server",
                  "label": "Blocking Route",
@@ -221,10 +248,19 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                  ],
                },
                {
-                 "code": "E1401",
-                 "description": "Next.js encountered uncached data during prerendering.",
+                 "code": "E1440",
+                 "description": "Route "/client-hook-abort-reasons/normal/use-selected-layout-segments/[id]": Next.js encountered uncached data during prerendering.
+
+             \`fetch(...)\` or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
+
+             Ways to fix this:
+               - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+               - [cache] Cache the data access with \`"use cache"\` (does not apply to \`connection()\`)
+               - [block] Set \`export const instant = false\` to allow a blocking route
+
+             Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic",
                  "environmentLabel": "Server",
-                 "label": "Blocking Route",
+                 "label": "Console Error",
                  "source": "app/client-hook-abort-reasons/data.tsx (2:9) @ DataSlot
              > 2 |   await new Promise((resolve) => setTimeout(resolve, 0))
                  |         ^",
@@ -245,7 +281,7 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
             await expect(browser).toDisplayCollapsedRedbox(`
              [
                {
-                 "code": "E1405",
+                 "code": "E1433",
                  "description": "Next.js encountered URL data useSelectedLayoutSegment() in a Client Component outside of Suspense.",
                  "environmentLabel": "Server",
                  "label": "Blocking Route",
@@ -258,10 +294,19 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                  ],
                },
                {
-                 "code": "E1401",
-                 "description": "Next.js encountered uncached data during prerendering.",
+                 "code": "E1440",
+                 "description": "Route "/client-hook-abort-reasons/normal/use-selected-layout-segment/[id]": Next.js encountered uncached data during prerendering.
+
+             \`fetch(...)\` or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
+
+             Ways to fix this:
+               - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+               - [cache] Cache the data access with \`"use cache"\` (does not apply to \`connection()\`)
+               - [block] Set \`export const instant = false\` to allow a blocking route
+
+             Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic",
                  "environmentLabel": "Server",
-                 "label": "Blocking Route",
+                 "label": "Console Error",
                  "source": "app/client-hook-abort-reasons/data.tsx (2:9) @ DataSlot
              > 2 |   await new Promise((resolve) => setTimeout(resolve, 0))
                  |         ^",
@@ -1764,7 +1809,7 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
             // the snapshots.
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1287",
+               "code": "E1434",
                "description": "Next.js encountered the unstable value Date.now() in a Client Component.",
                "environmentLabel": "Server",
                "label": "Blocking Route",
@@ -1790,7 +1835,7 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
             // the snapshots.
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1287",
+               "code": "E1434",
                "description": "Next.js encountered the unstable value Date.now() in a Client Component.",
                "environmentLabel": "Server",
                "label": "Blocking Route",
@@ -1817,7 +1862,7 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
             await expect(browser).toDisplayCollapsedRedbox(`
              [
                {
-                 "code": "E1287",
+                 "code": "E1434",
                  "description": "Next.js encountered the unstable value Date.now() in a Client Component.",
                  "environmentLabel": "Server",
                  "label": "Blocking Route",
@@ -1830,7 +1875,7 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                  ],
                },
                {
-                 "code": "E1405",
+                 "code": "E1433",
                  "description": "Next.js encountered URL data useParams() in a Client Component outside of Suspense.",
                  "environmentLabel": "Server",
                  "label": "Blocking Route",
@@ -1858,7 +1903,7 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
             await expect(browser).toDisplayCollapsedRedbox(`
              [
                {
-                 "code": "E1287",
+                 "code": "E1434",
                  "description": "Next.js encountered the unstable value Date.now() in a Client Component.",
                  "environmentLabel": "Server",
                  "label": "Blocking Route",
@@ -1871,10 +1916,19 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                  ],
                },
                {
-                 "code": "E1401",
-                 "description": "Next.js encountered uncached data during prerendering.",
+                 "code": "E1440",
+                 "description": "Route "/client-hook-abort-reasons/sync-io/use-selected-layout-segments/[id]": Next.js encountered uncached data during prerendering.
+
+             \`fetch(...)\` or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
+
+             Ways to fix this:
+               - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+               - [cache] Cache the data access with \`"use cache"\` (does not apply to \`connection()\`)
+               - [block] Set \`export const instant = false\` to allow a blocking route
+
+             Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic",
                  "environmentLabel": "Server",
-                 "label": "Blocking Route",
+                 "label": "Console Error",
                  "source": "app/client-hook-abort-reasons/data.tsx (2:9) @ DataSlot
              > 2 |   await new Promise((resolve) => setTimeout(resolve, 0))
                  |         ^",
@@ -1895,7 +1949,7 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
             await expect(browser).toDisplayCollapsedRedbox(`
              [
                {
-                 "code": "E1287",
+                 "code": "E1434",
                  "description": "Next.js encountered the unstable value Date.now() in a Client Component.",
                  "environmentLabel": "Server",
                  "label": "Blocking Route",
@@ -1908,7 +1962,7 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                  ],
                },
                {
-                 "code": "E1405",
+                 "code": "E1433",
                  "description": "Next.js encountered URL data useSelectedLayoutSegment() in a Client Component outside of Suspense.",
                  "environmentLabel": "Server",
                  "label": "Blocking Route",
@@ -1921,10 +1975,19 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                  ],
                },
                {
-                 "code": "E1401",
-                 "description": "Next.js encountered uncached data during prerendering.",
+                 "code": "E1440",
+                 "description": "Route "/client-hook-abort-reasons/sync-io/use-selected-layout-segment/[id]": Next.js encountered uncached data during prerendering.
+
+             \`fetch(...)\` or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
+
+             Ways to fix this:
+               - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+               - [cache] Cache the data access with \`"use cache"\` (does not apply to \`connection()\`)
+               - [block] Set \`export const instant = false\` to allow a blocking route
+
+             Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic",
                  "environmentLabel": "Server",
-                 "label": "Blocking Route",
+                 "label": "Console Error",
                  "source": "app/client-hook-abort-reasons/data.tsx (2:9) @ DataSlot
              > 2 |   await new Promise((resolve) => setTimeout(resolve, 0))
                  |         ^",

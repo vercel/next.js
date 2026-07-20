@@ -40,37 +40,55 @@ export function registerDynamicRootAndBoundaryTests(
         const browser = await next.browser(pathname)
 
         await expect(browser).toDisplayCollapsedRedbox(`
-           [
-             {
-               "code": "E1401",
-               "description": "Next.js encountered uncached data during prerendering.",
-               "environmentLabel": "Server",
-               "label": "Blocking Route",
-               "source": "app/dynamic-root/page.tsx (63:26) @ fetchRandom
-           > 63 |   const response = await fetch(
-                |                          ^",
-               "stack": [
-                 "fetchRandom app/dynamic-root/page.tsx (63:26)",
-                 "FetchingComponent app/dynamic-root/page.tsx (46:50)",
-                 "Page app/dynamic-root/page.tsx (23:9)",
-               ],
-             },
-             {
-               "code": "E1401",
-               "description": "Next.js encountered uncached data during prerendering.",
-               "environmentLabel": "Server",
-               "label": "Blocking Route",
-               "source": "app/dynamic-root/page.tsx (63:26) @ fetchRandom
-           > 63 |   const response = await fetch(
-                |                          ^",
-               "stack": [
-                 "fetchRandom app/dynamic-root/page.tsx (63:26)",
-                 "FetchingComponent app/dynamic-root/page.tsx (46:50)",
-                 "Page app/dynamic-root/page.tsx (28:7)",
-               ],
-             },
-           ]
-          `)
+         [
+           {
+             "code": "E1440",
+             "description": "Route "/dynamic-root": Next.js encountered uncached data during prerendering.
+
+         \`fetch(...)\` or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
+
+         Ways to fix this:
+           - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+           - [cache] Cache the data access with \`"use cache"\` (does not apply to \`connection()\`)
+           - [block] Set \`export const instant = false\` to allow a blocking route
+
+         Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic",
+             "environmentLabel": "Server",
+             "label": "Console Error",
+             "source": "app/dynamic-root/page.tsx (63:26) @ fetchRandom
+         > 63 |   const response = await fetch(
+              |                          ^",
+             "stack": [
+               "fetchRandom app/dynamic-root/page.tsx (63:26)",
+               "FetchingComponent app/dynamic-root/page.tsx (46:50)",
+               "Page app/dynamic-root/page.tsx (23:9)",
+             ],
+           },
+           {
+             "code": "E1440",
+             "description": "Route "/dynamic-root": Next.js encountered uncached data during prerendering.
+
+         \`fetch(...)\` or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
+
+         Ways to fix this:
+           - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+           - [cache] Cache the data access with \`"use cache"\` (does not apply to \`connection()\`)
+           - [block] Set \`export const instant = false\` to allow a blocking route
+
+         Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic",
+             "environmentLabel": "Server",
+             "label": "Console Error",
+             "source": "app/dynamic-root/page.tsx (63:26) @ fetchRandom
+         > 63 |   const response = await fetch(
+              |                          ^",
+             "stack": [
+               "fetchRandom app/dynamic-root/page.tsx (63:26)",
+               "FetchingComponent app/dynamic-root/page.tsx (46:50)",
+               "Page app/dynamic-root/page.tsx (28:7)",
+             ],
+           },
+         ]
+        `)
       })
     } else {
       it('should error the build if cache components happens in the root (outside a Suspense)', async () => {
@@ -88,102 +106,143 @@ export function registerDynamicRootAndBoundaryTests(
         if (isTurbopack) {
           if (isDebugPrerender) {
             expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/dynamic-root": Next.js encountered uncached or runtime data during prerendering.
+             "Error: Route "/dynamic-root": Next.js encountered uncached or runtime data during prerendering.
 
-               \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
+             \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
 
-               Ways to fix this:
-                 - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                   https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
-                 - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
-                   https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
-                 - [block] Set \`export const instant = false\` to allow a blocking route
-                   https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
-                   at fetchRandom (app/dynamic-root/page.tsx:62:16)
-                   at FetchingComponent (app/dynamic-root/page.tsx:46:56)
-                   at Page (app/dynamic-root/page.tsx:23:9)
-                 60 |   // Hide uncached I/O behind a runtime API call, to ensure we still get the
-                 61 |   // correct owner stack for the error.
-               > 62 |   await cookies()
-                    |                ^
-                 63 |   const response = await fetch(
-                 64 |     'https://next-data-api-endpoint.vercel.app/api/random?b=' + entropy
-                 65 |   )
-               To debug the issue, start the app in development mode by running \`next dev\`, then open "/dynamic-root" in your browser to investigate the error.
-               Error: Route "/dynamic-root": Next.js encountered uncached or runtime data during prerendering.
+             Ways to fix this:
+               - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+               - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
+               - [block] Set \`export const instant = false\` to allow a blocking route
 
-               \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
+             Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic
+                 at fetchRandom (app/dynamic-root/page.tsx:62:16)
+                 at FetchingComponent (app/dynamic-root/page.tsx:46:56)
+                 at Page (app/dynamic-root/page.tsx:23:9)
+               60 |   // Hide uncached I/O behind a runtime API call, to ensure we still get the
+               61 |   // correct owner stack for the error.
+             > 62 |   await cookies()
+                  |                ^
+               63 |   const response = await fetch(
+               64 |     'https://next-data-api-endpoint.vercel.app/api/random?b=' + entropy
+               65 |   )
+             To debug the issue, start the app in development mode by running \`next dev\`, then open "/dynamic-root" in your browser to investigate the error.
+             Error: Route "/dynamic-root": Next.js encountered uncached or runtime data during prerendering.
 
-               Ways to fix this:
-                 - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                   https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
-                 - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
-                   https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
-                 - [block] Set \`export const instant = false\` to allow a blocking route
-                   https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
-                   at fetchRandom (app/dynamic-root/page.tsx:62:16)
-                   at FetchingComponent (app/dynamic-root/page.tsx:46:56)
-                   at Page (app/dynamic-root/page.tsx:28:7)
-                 60 |   // Hide uncached I/O behind a runtime API call, to ensure we still get the
-                 61 |   // correct owner stack for the error.
-               > 62 |   await cookies()
-                    |                ^
-                 63 |   const response = await fetch(
-                 64 |     'https://next-data-api-endpoint.vercel.app/api/random?b=' + entropy
-                 65 |   )
-               To debug the issue, start the app in development mode by running \`next dev\`, then open "/dynamic-root" in your browser to investigate the error.
-               Error occurred prerendering page "/dynamic-root". Read more: https://nextjs.org/docs/messages/prerender-error
+             \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
 
-               > Export encountered errors on 1 path:
-               	/dynamic-root/page: /dynamic-root"
-              `)
+             Ways to fix this:
+               - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+               - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
+               - [block] Set \`export const instant = false\` to allow a blocking route
+
+             Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic
+                 at fetchRandom (app/dynamic-root/page.tsx:62:16)
+                 at FetchingComponent (app/dynamic-root/page.tsx:46:56)
+                 at Page (app/dynamic-root/page.tsx:28:7)
+               60 |   // Hide uncached I/O behind a runtime API call, to ensure we still get the
+               61 |   // correct owner stack for the error.
+             > 62 |   await cookies()
+                  |                ^
+               63 |   const response = await fetch(
+               64 |     'https://next-data-api-endpoint.vercel.app/api/random?b=' + entropy
+               65 |   )
+             To debug the issue, start the app in development mode by running \`next dev\`, then open "/dynamic-root" in your browser to investigate the error.
+             Error occurred prerendering page "/dynamic-root". Read more: https://nextjs.org/docs/messages/prerender-error
+
+             > Export encountered errors on 1 path:
+             	/dynamic-root/page: /dynamic-root"
+            `)
           } else {
             expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/dynamic-root": Next.js encountered uncached or runtime data during prerendering.
+             "Error: Route "/dynamic-root": Next.js encountered uncached or runtime data during prerendering.
 
-               \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
+             \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
 
-               Ways to fix this:
-                 - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                   https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
-                 - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
-                   https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
-                 - [block] Set \`export const instant = false\` to allow a blocking route
-                   https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
-                   at <unknown> (app/dynamic-root/indirection.tsx:7:34)
-                   at main (<anonymous>)
-                   at body (<anonymous>)
-                   at html (<anonymous>)
-                  5 | }
-                  6 |
-               >  7 | export function IndirectionTwo({ children }) {
-                    |                                  ^
-                  8 |   return children
-                  9 | }
-                 10 |
-               To get a more detailed stack trace and pinpoint the issue, try one of the following:
-                 - Start the app in development mode by running \`next dev\`, then open "/dynamic-root" in your browser to investigate the error.
-                 - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
-               Error: Route "/dynamic-root": Next.js encountered uncached or runtime data during prerendering.
+             Ways to fix this:
+               - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+               - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
+               - [block] Set \`export const instant = false\` to allow a blocking route
 
-               \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
+             Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic
+                 at <unknown> (app/dynamic-root/indirection.tsx:7:34)
+                 at H (../../../packages/next/dist/esm/client/components/layout-router.js:266:34)
+                 at a (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
+                 at b (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
+                 at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
+                 at I (../../../packages/next/dist/esm/client/components/layout-router.js:389:32)
+                 at c (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
+                 at F (../../../packages/next/dist/esm/client/components/layout-router.js:100:9)
+                 at G (../../../packages/next/dist/esm/client/components/layout-router.js:249:39)
+                 at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:418:49)
+                 at main (<anonymous>)
+                 at body (<anonymous>)
+                 at html (<anonymous>)
+                 at H (../../../packages/next/dist/esm/client/components/layout-router.js:266:34)
+                 at d (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
+                 at e (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
+                 at f (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:18:9)
+                 at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
+                 at I (../../../packages/next/dist/esm/client/components/layout-router.js:389:32)
+                 at g (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
+                 at F (../../../packages/next/dist/esm/client/components/layout-router.js:100:9)
+                 at G (../../../packages/next/dist/esm/client/components/layout-router.js:249:39)
+                 at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:418:49)
+                5 | }
+                6 |
+             >  7 | export function IndirectionTwo({ children }) {
+                  |                                  ^
+                8 |   return children
+                9 | }
+               10 |
+             To get a more detailed stack trace and pinpoint the issue, try one of the following:
+               - Start the app in development mode by running \`next dev\`, then open "/dynamic-root" in your browser to investigate the error.
+               - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
+             Error: Route "/dynamic-root": Next.js encountered uncached or runtime data during prerendering.
 
-               Ways to fix this:
-                 - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                   https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
-                 - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
-                   https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
-                 - [block] Set \`export const instant = false\` to allow a blocking route
-                   https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
-                   at main (<anonymous>)
-                   at body (<anonymous>)
-                   at html (<anonymous>)
-               To get a more detailed stack trace and pinpoint the issue, try one of the following:
-                 - Start the app in development mode by running \`next dev\`, then open "/dynamic-root" in your browser to investigate the error.
-                 - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
-               Error occurred prerendering page "/dynamic-root". Read more: https://nextjs.org/docs/messages/prerender-error
-               Export encountered an error on /dynamic-root/page: /dynamic-root, exiting the build."
-              `)
+             \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
+
+             Ways to fix this:
+               - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+               - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
+               - [block] Set \`export const instant = false\` to allow a blocking route
+
+             Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic
+                 at H (../../../packages/next/dist/esm/client/components/layout-router.js:266:34)
+                 at h (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
+                 at i (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
+                 at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
+                 at I (../../../packages/next/dist/esm/client/components/layout-router.js:389:32)
+                 at j (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
+                 at F (../../../packages/next/dist/esm/client/components/layout-router.js:100:9)
+                 at G (../../../packages/next/dist/esm/client/components/layout-router.js:249:39)
+                 at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:418:49)
+                 at main (<anonymous>)
+                 at body (<anonymous>)
+                 at html (<anonymous>)
+                 at H (../../../packages/next/dist/esm/client/components/layout-router.js:266:34)
+                 at k (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
+                 at l (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
+                 at m (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:18:9)
+                 at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
+                 at I (../../../packages/next/dist/esm/client/components/layout-router.js:389:32)
+                 at n (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
+                 at F (../../../packages/next/dist/esm/client/components/layout-router.js:100:9)
+                 at G (../../../packages/next/dist/esm/client/components/layout-router.js:249:39)
+                 at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:418:49)
+               264 | /**
+               265 |  * InnerLayoutRouter handles rendering the provided segment based on the cache.
+             > 266 |  */ function InnerLayoutRouter({ tree, segmentPath, debugNameContext, cacheNode: maybeCacheNode, params, url, isActive }) {
+                   |                                  ^
+               267 |     const context = useContext(GlobalLayoutRouterContext);
+               268 |     const parentNavPromises = useContext(NavigationPromisesContext);
+               269 |     if (!context) {
+             To get a more detailed stack trace and pinpoint the issue, try one of the following:
+               - Start the app in development mode by running \`next dev\`, then open "/dynamic-root" in your browser to investigate the error.
+               - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
+             Error occurred prerendering page "/dynamic-root". Read more: https://nextjs.org/docs/messages/prerender-error
+             Export encountered an error on /dynamic-root/page: /dynamic-root, exiting the build."
+            `)
           }
         } else {
           if (isDebugPrerender) {

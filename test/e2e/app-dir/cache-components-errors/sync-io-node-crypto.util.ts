@@ -21,20 +21,20 @@ export function registerSyncIoNodeCryptoTests(
 
         if (isTurbopack) {
           await expect(browser).toDisplayCollapsedRedbox(`
-             {
-               "code": "E1295",
-               "description": "Next.js encountered the unstable value require('node:crypto').generateKeyPairSync(...) while prerendering.",
-               "environmentLabel": "Server",
-               "label": "Blocking Route",
-               "source": "app/sync-io-node-crypto/generate-key-pair-sync/page.tsx (20:24) @ SyncIOComponent
-             > 20 |   const first = crypto.generateKeyPairSync('rsa', keyGenOptions)
-                  |                        ^",
-               "stack": [
-                 "SyncIOComponent app/sync-io-node-crypto/generate-key-pair-sync/page.tsx (20:24)",
-                 "Page app/sync-io-node-crypto/generate-key-pair-sync/page.tsx (12:9)",
-               ],
-             }
-            `)
+           {
+             "code": "E1432",
+             "description": "Next.js encountered the unstable value require('node:crypto').generateKeyPairSync(...) while prerendering.",
+             "environmentLabel": "Server",
+             "label": "Blocking Route",
+             "source": "app/sync-io-node-crypto/generate-key-pair-sync/page.tsx (20:24) @ SyncIOComponent
+           > 20 |   const first = crypto.generateKeyPairSync('rsa', keyGenOptions)
+                |                        ^",
+             "stack": [
+               "SyncIOComponent app/sync-io-node-crypto/generate-key-pair-sync/page.tsx (20:24)",
+               "Page app/sync-io-node-crypto/generate-key-pair-sync/page.tsx (12:9)",
+             ],
+           }
+          `)
         } else {
           await expect(browser).toDisplayCollapsedRedbox(`
              {
@@ -187,20 +187,20 @@ export function registerSyncIoNodeCryptoTests(
 
         if (isTurbopack) {
           await expect(browser).toDisplayCollapsedRedbox(`
-             {
-               "code": "E1295",
-               "description": "Next.js encountered the unstable value require('node:crypto').generateKeySync(...) while prerendering.",
-               "environmentLabel": "Server",
-               "label": "Blocking Route",
-               "source": "app/sync-io-node-crypto/generate-key-sync/page.tsx (21:6) @ SyncIOComponent
-             > 21 |     .generateKeySync('hmac', {
-                  |      ^",
-               "stack": [
-                 "SyncIOComponent app/sync-io-node-crypto/generate-key-sync/page.tsx (21:6)",
-                 "Page app/sync-io-node-crypto/generate-key-sync/page.tsx (12:9)",
-               ],
-             }
-            `)
+           {
+             "code": "E1432",
+             "description": "Next.js encountered the unstable value require('node:crypto').generateKeySync(...) while prerendering.",
+             "environmentLabel": "Server",
+             "label": "Blocking Route",
+             "source": "app/sync-io-node-crypto/generate-key-sync/page.tsx (21:6) @ SyncIOComponent
+           > 21 |     .generateKeySync('hmac', {
+                |      ^",
+             "stack": [
+               "SyncIOComponent app/sync-io-node-crypto/generate-key-sync/page.tsx (21:6)",
+               "Page app/sync-io-node-crypto/generate-key-sync/page.tsx (12:9)",
+             ],
+           }
+          `)
         } else {
           await expect(browser).toDisplayCollapsedRedbox(`
              {
@@ -353,20 +353,20 @@ export function registerSyncIoNodeCryptoTests(
 
         if (isTurbopack) {
           await expect(browser).toDisplayCollapsedRedbox(`
-             {
-               "code": "E1295",
-               "description": "Next.js encountered the unstable value require('node:crypto').generatePrimeSync(...) while prerendering.",
-               "environmentLabel": "Server",
-               "label": "Blocking Route",
-               "source": "app/sync-io-node-crypto/generate-prime-sync/page.tsx (20:39) @ SyncIOComponent
-             > 20 |   const first = new Uint8Array(crypto.generatePrimeSync(128))
-                  |                                       ^",
-               "stack": [
-                 "SyncIOComponent app/sync-io-node-crypto/generate-prime-sync/page.tsx (20:39)",
-                 "Page app/sync-io-node-crypto/generate-prime-sync/page.tsx (12:9)",
-               ],
-             }
-            `)
+           {
+             "code": "E1432",
+             "description": "Next.js encountered the unstable value require('node:crypto').generatePrimeSync(...) while prerendering.",
+             "environmentLabel": "Server",
+             "label": "Blocking Route",
+             "source": "app/sync-io-node-crypto/generate-prime-sync/page.tsx (20:39) @ SyncIOComponent
+           > 20 |   const first = new Uint8Array(crypto.generatePrimeSync(128))
+                |                                       ^",
+             "stack": [
+               "SyncIOComponent app/sync-io-node-crypto/generate-prime-sync/page.tsx (20:39)",
+               "Page app/sync-io-node-crypto/generate-prime-sync/page.tsx (12:9)",
+             ],
+           }
+          `)
         } else {
           await expect(browser).toDisplayCollapsedRedbox(`
              {
@@ -519,20 +519,20 @@ export function registerSyncIoNodeCryptoTests(
 
         if (isTurbopack) {
           await expect(browser).toDisplayCollapsedRedbox(`
-             {
-               "code": "E1295",
-               "description": "Next.js encountered the unstable value crypto.getRandomValues() while prerendering.",
-               "environmentLabel": "Server",
-               "label": "Blocking Route",
-               "source": "app/sync-io-node-crypto/get-random-values/page.tsx (21:10) @ SyncIOComponent
-             > 21 |   crypto.getRandomValues(first)
-                  |          ^",
-               "stack": [
-                 "SyncIOComponent app/sync-io-node-crypto/get-random-values/page.tsx (21:10)",
-                 "Page app/sync-io-node-crypto/get-random-values/page.tsx (12:9)",
-               ],
-             }
-            `)
+           {
+             "code": "E1432",
+             "description": "Next.js encountered the unstable value crypto.getRandomValues() while prerendering.",
+             "environmentLabel": "Server",
+             "label": "Blocking Route",
+             "source": "app/sync-io-node-crypto/get-random-values/page.tsx (21:10) @ SyncIOComponent
+           > 21 |   crypto.getRandomValues(first)
+                |          ^",
+             "stack": [
+               "SyncIOComponent app/sync-io-node-crypto/get-random-values/page.tsx (21:10)",
+               "Page app/sync-io-node-crypto/get-random-values/page.tsx (12:9)",
+             ],
+           }
+          `)
         } else {
           await expect(browser).toDisplayCollapsedRedbox(`
              {
@@ -685,20 +685,20 @@ export function registerSyncIoNodeCryptoTests(
 
         if (isTurbopack) {
           await expect(browser).toDisplayCollapsedRedbox(`
-             {
-               "code": "E1295",
-               "description": "Next.js encountered the unstable value require('node:crypto').randomBytes(size) while prerendering.",
-               "environmentLabel": "Server",
-               "label": "Blocking Route",
-               "source": "app/sync-io-node-crypto/random-bytes/page.tsx (20:24) @ SyncIOComponent
-             > 20 |   const first = crypto.randomBytes(8)
-                  |                        ^",
-               "stack": [
-                 "SyncIOComponent app/sync-io-node-crypto/random-bytes/page.tsx (20:24)",
-                 "Page app/sync-io-node-crypto/random-bytes/page.tsx (12:9)",
-               ],
-             }
-            `)
+           {
+             "code": "E1432",
+             "description": "Next.js encountered the unstable value require('node:crypto').randomBytes(size) while prerendering.",
+             "environmentLabel": "Server",
+             "label": "Blocking Route",
+             "source": "app/sync-io-node-crypto/random-bytes/page.tsx (20:24) @ SyncIOComponent
+           > 20 |   const first = crypto.randomBytes(8)
+                |                        ^",
+             "stack": [
+               "SyncIOComponent app/sync-io-node-crypto/random-bytes/page.tsx (20:24)",
+               "Page app/sync-io-node-crypto/random-bytes/page.tsx (12:9)",
+             ],
+           }
+          `)
         } else {
           await expect(browser).toDisplayCollapsedRedbox(`
              {
@@ -851,20 +851,20 @@ export function registerSyncIoNodeCryptoTests(
 
         if (isTurbopack) {
           await expect(browser).toDisplayCollapsedRedbox(`
-             {
-               "code": "E1295",
-               "description": "Next.js encountered the unstable value require('node:crypto').randomFillSync(...) while prerendering.",
-               "environmentLabel": "Server",
-               "label": "Blocking Route",
-               "source": "app/sync-io-node-crypto/random-fill-sync/page.tsx (21:10) @ SyncIOComponent
-             > 21 |   crypto.randomFillSync(first, 4, 8)
-                  |          ^",
-               "stack": [
-                 "SyncIOComponent app/sync-io-node-crypto/random-fill-sync/page.tsx (21:10)",
-                 "Page app/sync-io-node-crypto/random-fill-sync/page.tsx (12:9)",
-               ],
-             }
-            `)
+           {
+             "code": "E1432",
+             "description": "Next.js encountered the unstable value require('node:crypto').randomFillSync(...) while prerendering.",
+             "environmentLabel": "Server",
+             "label": "Blocking Route",
+             "source": "app/sync-io-node-crypto/random-fill-sync/page.tsx (21:10) @ SyncIOComponent
+           > 21 |   crypto.randomFillSync(first, 4, 8)
+                |          ^",
+             "stack": [
+               "SyncIOComponent app/sync-io-node-crypto/random-fill-sync/page.tsx (21:10)",
+               "Page app/sync-io-node-crypto/random-fill-sync/page.tsx (12:9)",
+             ],
+           }
+          `)
         } else {
           await expect(browser).toDisplayCollapsedRedbox(`
              {
@@ -1017,20 +1017,20 @@ export function registerSyncIoNodeCryptoTests(
 
         if (isTurbopack) {
           await expect(browser).toDisplayCollapsedRedbox(`
-             {
-               "code": "E1295",
-               "description": "Next.js encountered the unstable value require('node:crypto').randomInt(min, max) while prerendering.",
-               "environmentLabel": "Server",
-               "label": "Blocking Route",
-               "source": "app/sync-io-node-crypto/random-int-between/page.tsx (20:24) @ SyncIOComponent
-             > 20 |   const first = crypto.randomInt(128, 256)
-                  |                        ^",
-               "stack": [
-                 "SyncIOComponent app/sync-io-node-crypto/random-int-between/page.tsx (20:24)",
-                 "Page app/sync-io-node-crypto/random-int-between/page.tsx (12:9)",
-               ],
-             }
-            `)
+           {
+             "code": "E1432",
+             "description": "Next.js encountered the unstable value require('node:crypto').randomInt(min, max) while prerendering.",
+             "environmentLabel": "Server",
+             "label": "Blocking Route",
+             "source": "app/sync-io-node-crypto/random-int-between/page.tsx (20:24) @ SyncIOComponent
+           > 20 |   const first = crypto.randomInt(128, 256)
+                |                        ^",
+             "stack": [
+               "SyncIOComponent app/sync-io-node-crypto/random-int-between/page.tsx (20:24)",
+               "Page app/sync-io-node-crypto/random-int-between/page.tsx (12:9)",
+             ],
+           }
+          `)
         } else {
           await expect(browser).toDisplayCollapsedRedbox(`
              {
@@ -1183,20 +1183,20 @@ export function registerSyncIoNodeCryptoTests(
 
         if (isTurbopack) {
           await expect(browser).toDisplayCollapsedRedbox(`
-             {
-               "code": "E1295",
-               "description": "Next.js encountered the unstable value require('node:crypto').randomInt(min, max) while prerendering.",
-               "environmentLabel": "Server",
-               "label": "Blocking Route",
-               "source": "app/sync-io-node-crypto/random-int-up-to/page.tsx (20:24) @ SyncIOComponent
-             > 20 |   const first = crypto.randomInt(128)
-                  |                        ^",
-               "stack": [
-                 "SyncIOComponent app/sync-io-node-crypto/random-int-up-to/page.tsx (20:24)",
-                 "Page app/sync-io-node-crypto/random-int-up-to/page.tsx (12:9)",
-               ],
-             }
-            `)
+           {
+             "code": "E1432",
+             "description": "Next.js encountered the unstable value require('node:crypto').randomInt(min, max) while prerendering.",
+             "environmentLabel": "Server",
+             "label": "Blocking Route",
+             "source": "app/sync-io-node-crypto/random-int-up-to/page.tsx (20:24) @ SyncIOComponent
+           > 20 |   const first = crypto.randomInt(128)
+                |                        ^",
+             "stack": [
+               "SyncIOComponent app/sync-io-node-crypto/random-int-up-to/page.tsx (20:24)",
+               "Page app/sync-io-node-crypto/random-int-up-to/page.tsx (12:9)",
+             ],
+           }
+          `)
         } else {
           await expect(browser).toDisplayCollapsedRedbox(`
              {
@@ -1349,20 +1349,20 @@ export function registerSyncIoNodeCryptoTests(
 
         if (isTurbopack) {
           await expect(browser).toDisplayCollapsedRedbox(`
-             {
-               "code": "E1295",
-               "description": "Next.js encountered the unstable value require('node:crypto').randomUUID() while prerendering.",
-               "environmentLabel": "Server",
-               "label": "Blocking Route",
-               "source": "app/sync-io-node-crypto/random-uuid/page.tsx (20:24) @ SyncIOComponent
-             > 20 |   const first = crypto.randomUUID()
-                  |                        ^",
-               "stack": [
-                 "SyncIOComponent app/sync-io-node-crypto/random-uuid/page.tsx (20:24)",
-                 "Page app/sync-io-node-crypto/random-uuid/page.tsx (12:9)",
-               ],
-             }
-            `)
+           {
+             "code": "E1432",
+             "description": "Next.js encountered the unstable value require('node:crypto').randomUUID() while prerendering.",
+             "environmentLabel": "Server",
+             "label": "Blocking Route",
+             "source": "app/sync-io-node-crypto/random-uuid/page.tsx (20:24) @ SyncIOComponent
+           > 20 |   const first = crypto.randomUUID()
+                |                        ^",
+             "stack": [
+               "SyncIOComponent app/sync-io-node-crypto/random-uuid/page.tsx (20:24)",
+               "Page app/sync-io-node-crypto/random-uuid/page.tsx (12:9)",
+             ],
+           }
+          `)
         } else {
           await expect(browser).toDisplayCollapsedRedbox(`
              {
