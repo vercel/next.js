@@ -144,51 +144,49 @@ export function registerErrorAttributionTests(
           } else {
             if (isTurbopack) {
               expect(output).toMatchInlineSnapshot(`
-                 "Error: Route "/sync-attribution/guarded-async-unguarded-clientsync": Next.js encountered the unstable value \`new Date()\` in a Client Component.
+               "Error: Route "/sync-attribution/guarded-async-unguarded-clientsync": Next.js encountered the unstable value \`new Date()\` in a Client Component.
 
-                 This value would be evaluated during the prerender, instead of recomputed on each visit.
+               This value would be evaluated during the prerender, instead of recomputed on each visit.
 
-                 Ways to fix this:
-                   - [stream] Wrap the Client Component in \`<Suspense fallback={...}>\`
-                     https://nextjs.org/docs/messages/blocking-prerender-current-time-client#wrap-in-or-move-into-suspense
-                   - [defer] Move the read into a \`useEffect\` or event handler
-                     https://nextjs.org/docs/messages/blocking-prerender-current-time-client#move-into-effect-or-event-handler
-                   - [measure] If the value is for telemetry, use a timing API such as \`performance.now()\`
-                     https://nextjs.org/docs/messages/blocking-prerender-current-time-client#for-telemetry-use-a-timing-api
-                     at <unknown> (app/sync-attribution/guarded-async-unguarded-clientsync/client.tsx:5:16)
-                   3 | export function SyncIO() {
-                   4 |   // This is a sync IO access that should not cause an error
-                 > 5 |   const data = new Date().toISOString()
-                     |                ^
-                   6 |
-                   7 |   return (
-                   8 |     <main>
-                 To get a more detailed stack trace and pinpoint the issue, try one of the following:
-                   - Start the app in development mode by running \`next dev\`, then open "/sync-attribution/guarded-async-unguarded-clientsync" in your browser to investigate the error.
-                   - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
-                 Error occurred prerendering page "/sync-attribution/guarded-async-unguarded-clientsync". Read more: https://nextjs.org/docs/messages/prerender-error
-                 Export encountered an error on /sync-attribution/guarded-async-unguarded-clientsync/page: /sync-attribution/guarded-async-unguarded-clientsync, exiting the build."
-                `)
+               Ways to fix this:
+                 - [stream] Wrap the Client Component in \`<Suspense fallback={...}>\`
+                 - [defer] Move the read into a \`useEffect\` or event handler
+                 - [measure] If the value is for telemetry, use a timing API such as \`performance.now()\`
+
+               Learn more: https://nextjs.org/docs/messages/blocking-prerender-current-time-client
+                   at <unknown> (app/sync-attribution/guarded-async-unguarded-clientsync/client.tsx:5:16)
+                 3 | export function SyncIO() {
+                 4 |   // This is a sync IO access that should not cause an error
+               > 5 |   const data = new Date().toISOString()
+                   |                ^
+                 6 |
+                 7 |   return (
+                 8 |     <main>
+               To get a more detailed stack trace and pinpoint the issue, try one of the following:
+                 - Start the app in development mode by running \`next dev\`, then open "/sync-attribution/guarded-async-unguarded-clientsync" in your browser to investigate the error.
+                 - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
+               Error occurred prerendering page "/sync-attribution/guarded-async-unguarded-clientsync". Read more: https://nextjs.org/docs/messages/prerender-error
+               Export encountered an error on /sync-attribution/guarded-async-unguarded-clientsync/page: /sync-attribution/guarded-async-unguarded-clientsync, exiting the build."
+              `)
             } else {
               expect(output).toMatchInlineSnapshot(`
-                 "Error: Route "/sync-attribution/guarded-async-unguarded-clientsync": Next.js encountered the unstable value \`new Date()\` in a Client Component.
+               "Error: Route "/sync-attribution/guarded-async-unguarded-clientsync": Next.js encountered the unstable value \`new Date()\` in a Client Component.
 
-                 This value would be evaluated during the prerender, instead of recomputed on each visit.
+               This value would be evaluated during the prerender, instead of recomputed on each visit.
 
-                 Ways to fix this:
-                   - [stream] Wrap the Client Component in \`<Suspense fallback={...}>\`
-                     https://nextjs.org/docs/messages/blocking-prerender-current-time-client#wrap-in-or-move-into-suspense
-                   - [defer] Move the read into a \`useEffect\` or event handler
-                     https://nextjs.org/docs/messages/blocking-prerender-current-time-client#move-into-effect-or-event-handler
-                   - [measure] If the value is for telemetry, use a timing API such as \`performance.now()\`
-                     https://nextjs.org/docs/messages/blocking-prerender-current-time-client#for-telemetry-use-a-timing-api
-                     at a (<next-dist-dir>)
-                 To get a more detailed stack trace and pinpoint the issue, try one of the following:
-                   - Start the app in development mode by running \`next dev\`, then open "/sync-attribution/guarded-async-unguarded-clientsync" in your browser to investigate the error.
-                   - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
-                 Error occurred prerendering page "/sync-attribution/guarded-async-unguarded-clientsync". Read more: https://nextjs.org/docs/messages/prerender-error
-                 Export encountered an error on /sync-attribution/guarded-async-unguarded-clientsync/page: /sync-attribution/guarded-async-unguarded-clientsync, exiting the build."
-                `)
+               Ways to fix this:
+                 - [stream] Wrap the Client Component in \`<Suspense fallback={...}>\`
+                 - [defer] Move the read into a \`useEffect\` or event handler
+                 - [measure] If the value is for telemetry, use a timing API such as \`performance.now()\`
+
+               Learn more: https://nextjs.org/docs/messages/blocking-prerender-current-time-client
+                   at a (<next-dist-dir>)
+               To get a more detailed stack trace and pinpoint the issue, try one of the following:
+                 - Start the app in development mode by running \`next dev\`, then open "/sync-attribution/guarded-async-unguarded-clientsync" in your browser to investigate the error.
+                 - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
+               Error occurred prerendering page "/sync-attribution/guarded-async-unguarded-clientsync". Read more: https://nextjs.org/docs/messages/prerender-error
+               Export encountered an error on /sync-attribution/guarded-async-unguarded-clientsync/page: /sync-attribution/guarded-async-unguarded-clientsync, exiting the build."
+              `)
             }
           }
         })
@@ -209,17 +207,9 @@ export function registerErrorAttributionTests(
           await expect(browser).toDisplayCollapsedRedbox(`
            {
              "code": "E1427",
-             "description": "Route "/sync-attribution/unguarded-async-guarded-clientsync": Next.js encountered runtime data during prerendering.
-
-           \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
-
-           Ways to fix this:
-             - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-             - [block] Set \`export const instant = false\` to allow a blocking route
-
-           Learn more: https://nextjs.org/docs/messages/blocking-prerender-runtime",
+             "description": "Next.js encountered runtime data during prerendering.",
              "environmentLabel": "Server",
-             "label": "Console Error",
+             "label": "Blocking Route",
              "source": "app/sync-attribution/unguarded-async-guarded-clientsync/page.tsx (34:18) @ RequestData
            > 34 |   ;(await cookies()).get('foo')
                 |                  ^",
@@ -274,28 +264,62 @@ export function registerErrorAttributionTests(
                 `)
             } else {
               expect(output).toMatchInlineSnapshot(`
-                 "Error: Route "/sync-attribution/unguarded-async-guarded-clientsync": Next.js encountered uncached or runtime data during prerendering.
+               "Error: Route "/sync-attribution/unguarded-async-guarded-clientsync": Next.js encountered uncached or runtime data during prerendering.
 
-                 \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
+               \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
 
-                 Ways to fix this:
-                   - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                     https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
-                   - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
-                     https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
-                   - [block] Set \`export const instant = false\` to allow a blocking route
-                     https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
-                     at a (<anonymous>)
-                     at main (<anonymous>)
-                     at main (<anonymous>)
-                     at body (<anonymous>)
-                     at html (<anonymous>)
-                 To get a more detailed stack trace and pinpoint the issue, try one of the following:
-                   - Start the app in development mode by running \`next dev\`, then open "/sync-attribution/unguarded-async-guarded-clientsync" in your browser to investigate the error.
-                   - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
-                 Error occurred prerendering page "/sync-attribution/unguarded-async-guarded-clientsync". Read more: https://nextjs.org/docs/messages/prerender-error
-                 Export encountered an error on /sync-attribution/unguarded-async-guarded-clientsync/page: /sync-attribution/unguarded-async-guarded-clientsync, exiting the build."
-                `)
+               Ways to fix this:
+                 - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+                 - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
+                 - [block] Set \`export const instant = false\` to allow a blocking route
+
+               Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic
+                   at a (<anonymous>)
+                   at main (<anonymous>)
+                   at H (../../../packages/next/dist/esm/client/components/layout-router.js:266:34)
+                   at b (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
+                   at c (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
+                   at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
+                   at I (../../../packages/next/dist/esm/client/components/layout-router.js:389:32)
+                   at d (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
+                   at F (../../../packages/next/dist/esm/client/components/layout-router.js:100:9)
+                   at G (../../../packages/next/dist/esm/client/components/layout-router.js:249:39)
+                   at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:418:49)
+                   at main (<anonymous>)
+                   at body (<anonymous>)
+                   at html (<anonymous>)
+                   at H (../../../packages/next/dist/esm/client/components/layout-router.js:266:34)
+                   at e (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
+                   at f (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
+                   at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
+                   at I (../../../packages/next/dist/esm/client/components/layout-router.js:389:32)
+                   at g (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
+                   at F (../../../packages/next/dist/esm/client/components/layout-router.js:100:9)
+                   at G (../../../packages/next/dist/esm/client/components/layout-router.js:249:39)
+                   at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:418:49)
+                   at H (../../../packages/next/dist/esm/client/components/layout-router.js:266:34)
+                   at h (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
+                   at i (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
+                   at j (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:18:9)
+                   at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
+                   at I (../../../packages/next/dist/esm/client/components/layout-router.js:389:32)
+                   at k (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
+                   at F (../../../packages/next/dist/esm/client/components/layout-router.js:100:9)
+                   at G (../../../packages/next/dist/esm/client/components/layout-router.js:249:39)
+                   at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:418:49)
+                 264 | /**
+                 265 |  * InnerLayoutRouter handles rendering the provided segment based on the cache.
+               > 266 |  */ function InnerLayoutRouter({ tree, segmentPath, debugNameContext, cacheNode: maybeCacheNode, params, url, isActive }) {
+                     |                                  ^
+                 267 |     const context = useContext(GlobalLayoutRouterContext);
+                 268 |     const parentNavPromises = useContext(NavigationPromisesContext);
+                 269 |     if (!context) {
+               To get a more detailed stack trace and pinpoint the issue, try one of the following:
+                 - Start the app in development mode by running \`next dev\`, then open "/sync-attribution/unguarded-async-guarded-clientsync" in your browser to investigate the error.
+                 - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
+               Error occurred prerendering page "/sync-attribution/unguarded-async-guarded-clientsync". Read more: https://nextjs.org/docs/messages/prerender-error
+               Export encountered an error on /sync-attribution/unguarded-async-guarded-clientsync/page: /sync-attribution/unguarded-async-guarded-clientsync, exiting the build."
+              `)
             }
           } else {
             if (isDebugPrerender) {
@@ -484,51 +508,49 @@ export function registerErrorAttributionTests(
           } else {
             if (isTurbopack) {
               expect(output).toMatchInlineSnapshot(`
-                 "Error: Route "/sync-attribution/unguarded-async-unguarded-clientsync": Next.js encountered the unstable value \`new Date()\` in a Client Component.
+               "Error: Route "/sync-attribution/unguarded-async-unguarded-clientsync": Next.js encountered the unstable value \`new Date()\` in a Client Component.
 
-                 This value would be evaluated during the prerender, instead of recomputed on each visit.
+               This value would be evaluated during the prerender, instead of recomputed on each visit.
 
-                 Ways to fix this:
-                   - [stream] Wrap the Client Component in \`<Suspense fallback={...}>\`
-                     https://nextjs.org/docs/messages/blocking-prerender-current-time-client#wrap-in-or-move-into-suspense
-                   - [defer] Move the read into a \`useEffect\` or event handler
-                     https://nextjs.org/docs/messages/blocking-prerender-current-time-client#move-into-effect-or-event-handler
-                   - [measure] If the value is for telemetry, use a timing API such as \`performance.now()\`
-                     https://nextjs.org/docs/messages/blocking-prerender-current-time-client#for-telemetry-use-a-timing-api
-                     at <unknown> (app/sync-attribution/unguarded-async-unguarded-clientsync/client.tsx:5:16)
-                   3 | export function SyncIO() {
-                   4 |   // This is a sync IO access that should not cause an error
-                 > 5 |   const data = new Date().toISOString()
-                     |                ^
-                   6 |
-                   7 |   return (
-                   8 |     <main>
-                 To get a more detailed stack trace and pinpoint the issue, try one of the following:
-                   - Start the app in development mode by running \`next dev\`, then open "/sync-attribution/unguarded-async-unguarded-clientsync" in your browser to investigate the error.
-                   - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
-                 Error occurred prerendering page "/sync-attribution/unguarded-async-unguarded-clientsync". Read more: https://nextjs.org/docs/messages/prerender-error
-                 Export encountered an error on /sync-attribution/unguarded-async-unguarded-clientsync/page: /sync-attribution/unguarded-async-unguarded-clientsync, exiting the build."
-                `)
+               Ways to fix this:
+                 - [stream] Wrap the Client Component in \`<Suspense fallback={...}>\`
+                 - [defer] Move the read into a \`useEffect\` or event handler
+                 - [measure] If the value is for telemetry, use a timing API such as \`performance.now()\`
+
+               Learn more: https://nextjs.org/docs/messages/blocking-prerender-current-time-client
+                   at <unknown> (app/sync-attribution/unguarded-async-unguarded-clientsync/client.tsx:5:16)
+                 3 | export function SyncIO() {
+                 4 |   // This is a sync IO access that should not cause an error
+               > 5 |   const data = new Date().toISOString()
+                   |                ^
+                 6 |
+                 7 |   return (
+                 8 |     <main>
+               To get a more detailed stack trace and pinpoint the issue, try one of the following:
+                 - Start the app in development mode by running \`next dev\`, then open "/sync-attribution/unguarded-async-unguarded-clientsync" in your browser to investigate the error.
+                 - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
+               Error occurred prerendering page "/sync-attribution/unguarded-async-unguarded-clientsync". Read more: https://nextjs.org/docs/messages/prerender-error
+               Export encountered an error on /sync-attribution/unguarded-async-unguarded-clientsync/page: /sync-attribution/unguarded-async-unguarded-clientsync, exiting the build."
+              `)
             } else {
               expect(output).toMatchInlineSnapshot(`
-                 "Error: Route "/sync-attribution/unguarded-async-unguarded-clientsync": Next.js encountered the unstable value \`new Date()\` in a Client Component.
+               "Error: Route "/sync-attribution/unguarded-async-unguarded-clientsync": Next.js encountered the unstable value \`new Date()\` in a Client Component.
 
-                 This value would be evaluated during the prerender, instead of recomputed on each visit.
+               This value would be evaluated during the prerender, instead of recomputed on each visit.
 
-                 Ways to fix this:
-                   - [stream] Wrap the Client Component in \`<Suspense fallback={...}>\`
-                     https://nextjs.org/docs/messages/blocking-prerender-current-time-client#wrap-in-or-move-into-suspense
-                   - [defer] Move the read into a \`useEffect\` or event handler
-                     https://nextjs.org/docs/messages/blocking-prerender-current-time-client#move-into-effect-or-event-handler
-                   - [measure] If the value is for telemetry, use a timing API such as \`performance.now()\`
-                     https://nextjs.org/docs/messages/blocking-prerender-current-time-client#for-telemetry-use-a-timing-api
-                     at a (<next-dist-dir>)
-                 To get a more detailed stack trace and pinpoint the issue, try one of the following:
-                   - Start the app in development mode by running \`next dev\`, then open "/sync-attribution/unguarded-async-unguarded-clientsync" in your browser to investigate the error.
-                   - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
-                 Error occurred prerendering page "/sync-attribution/unguarded-async-unguarded-clientsync". Read more: https://nextjs.org/docs/messages/prerender-error
-                 Export encountered an error on /sync-attribution/unguarded-async-unguarded-clientsync/page: /sync-attribution/unguarded-async-unguarded-clientsync, exiting the build."
-                `)
+               Ways to fix this:
+                 - [stream] Wrap the Client Component in \`<Suspense fallback={...}>\`
+                 - [defer] Move the read into a \`useEffect\` or event handler
+                 - [measure] If the value is for telemetry, use a timing API such as \`performance.now()\`
+
+               Learn more: https://nextjs.org/docs/messages/blocking-prerender-current-time-client
+                   at a (<next-dist-dir>)
+               To get a more detailed stack trace and pinpoint the issue, try one of the following:
+                 - Start the app in development mode by running \`next dev\`, then open "/sync-attribution/unguarded-async-unguarded-clientsync" in your browser to investigate the error.
+                 - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
+               Error occurred prerendering page "/sync-attribution/unguarded-async-unguarded-clientsync". Read more: https://nextjs.org/docs/messages/prerender-error
+               Export encountered an error on /sync-attribution/unguarded-async-unguarded-clientsync/page: /sync-attribution/unguarded-async-unguarded-clientsync, exiting the build."
+              `)
             }
           }
         })

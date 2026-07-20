@@ -454,20 +454,14 @@ export function registerUseCacheTests(ctx: CacheComponentsErrorsContext) {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
                "code": "E1427",
-               "description": "Route "/use-cache-low-expire/fast": Next.js encountered runtime data during prerendering.
-
-             \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
-
-             Ways to fix this:
-               - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-               - [block] Set \`export const instant = false\` to allow a blocking route
-
-             Learn more: https://nextjs.org/docs/messages/blocking-prerender-runtime",
+               "description": "Next.js encountered runtime data during prerendering.",
                "environmentLabel": "Server",
-               "label": "Console Error",
-               "source": null,
+               "label": "Blocking Route",
+               "source": "app/use-cache-low-expire/fast/page.tsx (3:16) @ Page
+             > 3 | export default async function Page() {
+                 |                ^",
                "stack": [
-                 "Page [Prerender] <anonymous>",
+                 "Page app/use-cache-low-expire/fast/page.tsx (3:16)",
                ],
              }
             `)
@@ -515,26 +509,52 @@ export function registerUseCacheTests(ctx: CacheComponentsErrorsContext) {
                   `)
               } else {
                 expect(output).toMatchInlineSnapshot(`
-                   "Error: Route "/use-cache-low-expire/fast": Next.js encountered uncached or runtime data during prerendering.
+                 "Error: Route "/use-cache-low-expire/fast": Next.js encountered uncached or runtime data during prerendering.
 
-                   \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
+                 \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
 
-                   Ways to fix this:
-                     - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                       https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
-                     - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
-                       https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
-                     - [block] Set \`export const instant = false\` to allow a blocking route
-                       https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
-                       at main (<anonymous>)
-                       at body (<anonymous>)
-                       at html (<anonymous>)
-                   To get a more detailed stack trace and pinpoint the issue, try one of the following:
-                     - Start the app in development mode by running \`next dev\`, then open "/use-cache-low-expire/fast" in your browser to investigate the error.
-                     - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
-                   Error occurred prerendering page "/use-cache-low-expire/fast". Read more: https://nextjs.org/docs/messages/prerender-error
-                   Export encountered an error on /use-cache-low-expire/fast/page: /use-cache-low-expire/fast, exiting the build."
-                  `)
+                 Ways to fix this:
+                   - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+                   - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
+                   - [block] Set \`export const instant = false\` to allow a blocking route
+
+                 Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic
+                     at H (../../../packages/next/dist/esm/client/components/layout-router.js:266:34)
+                     at a (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
+                     at b (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
+                     at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
+                     at I (../../../packages/next/dist/esm/client/components/layout-router.js:389:32)
+                     at c (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
+                     at F (../../../packages/next/dist/esm/client/components/layout-router.js:100:9)
+                     at G (../../../packages/next/dist/esm/client/components/layout-router.js:249:39)
+                     at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:418:49)
+                     ... collapsed 9 duplicate lines matching above lines ...
+                     at main (<anonymous>)
+                     at body (<anonymous>)
+                     at html (<anonymous>)
+                     at H (../../../packages/next/dist/esm/client/components/layout-router.js:266:34)
+                     at d (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
+                     at e (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
+                     at f (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:18:9)
+                     at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
+                     at I (../../../packages/next/dist/esm/client/components/layout-router.js:389:32)
+                     at g (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
+                     at F (../../../packages/next/dist/esm/client/components/layout-router.js:100:9)
+                     at G (../../../packages/next/dist/esm/client/components/layout-router.js:249:39)
+                     at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:418:49)
+                   264 | /**
+                   265 |  * InnerLayoutRouter handles rendering the provided segment based on the cache.
+                 > 266 |  */ function InnerLayoutRouter({ tree, segmentPath, debugNameContext, cacheNode: maybeCacheNode, params, url, isActive }) {
+                       |                                  ^
+                   267 |     const context = useContext(GlobalLayoutRouterContext);
+                   268 |     const parentNavPromises = useContext(NavigationPromisesContext);
+                   269 |     if (!context) {
+                 To get a more detailed stack trace and pinpoint the issue, try one of the following:
+                   - Start the app in development mode by running \`next dev\`, then open "/use-cache-low-expire/fast" in your browser to investigate the error.
+                   - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
+                 Error occurred prerendering page "/use-cache-low-expire/fast". Read more: https://nextjs.org/docs/messages/prerender-error
+                 Export encountered an error on /use-cache-low-expire/fast/page: /use-cache-low-expire/fast, exiting the build."
+                `)
               }
             } else {
               if (isDebugPrerender) {
@@ -582,20 +602,14 @@ Ways to fix this:
             await expect(browser).toDisplayCollapsedRedbox(`
              {
                "code": "E1427",
-               "description": "Route "/use-cache-low-expire/slow": Next.js encountered runtime data during prerendering.
-
-             \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
-
-             Ways to fix this:
-               - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-               - [block] Set \`export const instant = false\` to allow a blocking route
-
-             Learn more: https://nextjs.org/docs/messages/blocking-prerender-runtime",
+               "description": "Next.js encountered runtime data during prerendering.",
                "environmentLabel": "Server",
-               "label": "Console Error",
-               "source": null,
+               "label": "Blocking Route",
+               "source": "app/use-cache-low-expire/slow/page.tsx (3:16) @ Page
+             > 3 | export default async function Page() {
+                 |                ^",
                "stack": [
-                 "Page [Prerender] <anonymous>",
+                 "Page app/use-cache-low-expire/slow/page.tsx (3:16)",
                ],
              }
             `)
@@ -643,26 +657,52 @@ Ways to fix this:
                   `)
               } else {
                 expect(output).toMatchInlineSnapshot(`
-                   "Error: Route "/use-cache-low-expire/slow": Next.js encountered uncached or runtime data during prerendering.
+                 "Error: Route "/use-cache-low-expire/slow": Next.js encountered uncached or runtime data during prerendering.
 
-                   \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
+                 \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
 
-                   Ways to fix this:
-                     - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                       https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
-                     - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
-                       https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
-                     - [block] Set \`export const instant = false\` to allow a blocking route
-                       https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
-                       at main (<anonymous>)
-                       at body (<anonymous>)
-                       at html (<anonymous>)
-                   To get a more detailed stack trace and pinpoint the issue, try one of the following:
-                     - Start the app in development mode by running \`next dev\`, then open "/use-cache-low-expire/slow" in your browser to investigate the error.
-                     - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
-                   Error occurred prerendering page "/use-cache-low-expire/slow". Read more: https://nextjs.org/docs/messages/prerender-error
-                   Export encountered an error on /use-cache-low-expire/slow/page: /use-cache-low-expire/slow, exiting the build."
-                  `)
+                 Ways to fix this:
+                   - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+                   - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
+                   - [block] Set \`export const instant = false\` to allow a blocking route
+
+                 Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic
+                     at H (../../../packages/next/dist/esm/client/components/layout-router.js:266:34)
+                     at a (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
+                     at b (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
+                     at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
+                     at I (../../../packages/next/dist/esm/client/components/layout-router.js:389:32)
+                     at c (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
+                     at F (../../../packages/next/dist/esm/client/components/layout-router.js:100:9)
+                     at G (../../../packages/next/dist/esm/client/components/layout-router.js:249:39)
+                     at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:418:49)
+                     ... collapsed 9 duplicate lines matching above lines ...
+                     at main (<anonymous>)
+                     at body (<anonymous>)
+                     at html (<anonymous>)
+                     at H (../../../packages/next/dist/esm/client/components/layout-router.js:266:34)
+                     at d (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
+                     at e (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
+                     at f (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:18:9)
+                     at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
+                     at I (../../../packages/next/dist/esm/client/components/layout-router.js:389:32)
+                     at g (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
+                     at F (../../../packages/next/dist/esm/client/components/layout-router.js:100:9)
+                     at G (../../../packages/next/dist/esm/client/components/layout-router.js:249:39)
+                     at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:418:49)
+                   264 | /**
+                   265 |  * InnerLayoutRouter handles rendering the provided segment based on the cache.
+                 > 266 |  */ function InnerLayoutRouter({ tree, segmentPath, debugNameContext, cacheNode: maybeCacheNode, params, url, isActive }) {
+                       |                                  ^
+                   267 |     const context = useContext(GlobalLayoutRouterContext);
+                   268 |     const parentNavPromises = useContext(NavigationPromisesContext);
+                   269 |     if (!context) {
+                 To get a more detailed stack trace and pinpoint the issue, try one of the following:
+                   - Start the app in development mode by running \`next dev\`, then open "/use-cache-low-expire/slow" in your browser to investigate the error.
+                   - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
+                 Error occurred prerendering page "/use-cache-low-expire/slow". Read more: https://nextjs.org/docs/messages/prerender-error
+                 Export encountered an error on /use-cache-low-expire/slow/page: /use-cache-low-expire/slow, exiting the build."
+                `)
               }
             } else {
               if (isDebugPrerender) {
@@ -869,20 +909,14 @@ Ways to fix this:
             await expect(browser).toDisplayCollapsedRedbox(`
              {
                "code": "E1427",
-               "description": "Route "/use-cache-revalidate-0/fast": Next.js encountered runtime data during prerendering.
-
-             \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
-
-             Ways to fix this:
-               - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-               - [block] Set \`export const instant = false\` to allow a blocking route
-
-             Learn more: https://nextjs.org/docs/messages/blocking-prerender-runtime",
+               "description": "Next.js encountered runtime data during prerendering.",
                "environmentLabel": "Server",
-               "label": "Console Error",
-               "source": null,
+               "label": "Blocking Route",
+               "source": "app/use-cache-revalidate-0/fast/page.tsx (3:16) @ Page
+             > 3 | export default async function Page() {
+                 |                ^",
                "stack": [
-                 "Page [Prerender] <anonymous>",
+                 "Page app/use-cache-revalidate-0/fast/page.tsx (3:16)",
                ],
              }
             `)
@@ -930,26 +964,52 @@ Ways to fix this:
                   `)
               } else {
                 expect(output).toMatchInlineSnapshot(`
-                   "Error: Route "/use-cache-revalidate-0/fast": Next.js encountered uncached or runtime data during prerendering.
+                 "Error: Route "/use-cache-revalidate-0/fast": Next.js encountered uncached or runtime data during prerendering.
 
-                   \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
+                 \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
 
-                   Ways to fix this:
-                     - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                       https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
-                     - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
-                       https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
-                     - [block] Set \`export const instant = false\` to allow a blocking route
-                       https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
-                       at main (<anonymous>)
-                       at body (<anonymous>)
-                       at html (<anonymous>)
-                   To get a more detailed stack trace and pinpoint the issue, try one of the following:
-                     - Start the app in development mode by running \`next dev\`, then open "/use-cache-revalidate-0/fast" in your browser to investigate the error.
-                     - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
-                   Error occurred prerendering page "/use-cache-revalidate-0/fast". Read more: https://nextjs.org/docs/messages/prerender-error
-                   Export encountered an error on /use-cache-revalidate-0/fast/page: /use-cache-revalidate-0/fast, exiting the build."
-                  `)
+                 Ways to fix this:
+                   - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+                   - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
+                   - [block] Set \`export const instant = false\` to allow a blocking route
+
+                 Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic
+                     at H (../../../packages/next/dist/esm/client/components/layout-router.js:266:34)
+                     at a (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
+                     at b (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
+                     at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
+                     at I (../../../packages/next/dist/esm/client/components/layout-router.js:389:32)
+                     at c (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
+                     at F (../../../packages/next/dist/esm/client/components/layout-router.js:100:9)
+                     at G (../../../packages/next/dist/esm/client/components/layout-router.js:249:39)
+                     at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:418:49)
+                     ... collapsed 9 duplicate lines matching above lines ...
+                     at main (<anonymous>)
+                     at body (<anonymous>)
+                     at html (<anonymous>)
+                     at H (../../../packages/next/dist/esm/client/components/layout-router.js:266:34)
+                     at d (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
+                     at e (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
+                     at f (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:18:9)
+                     at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
+                     at I (../../../packages/next/dist/esm/client/components/layout-router.js:389:32)
+                     at g (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
+                     at F (../../../packages/next/dist/esm/client/components/layout-router.js:100:9)
+                     at G (../../../packages/next/dist/esm/client/components/layout-router.js:249:39)
+                     at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:418:49)
+                   264 | /**
+                   265 |  * InnerLayoutRouter handles rendering the provided segment based on the cache.
+                 > 266 |  */ function InnerLayoutRouter({ tree, segmentPath, debugNameContext, cacheNode: maybeCacheNode, params, url, isActive }) {
+                       |                                  ^
+                   267 |     const context = useContext(GlobalLayoutRouterContext);
+                   268 |     const parentNavPromises = useContext(NavigationPromisesContext);
+                   269 |     if (!context) {
+                 To get a more detailed stack trace and pinpoint the issue, try one of the following:
+                   - Start the app in development mode by running \`next dev\`, then open "/use-cache-revalidate-0/fast" in your browser to investigate the error.
+                   - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
+                 Error occurred prerendering page "/use-cache-revalidate-0/fast". Read more: https://nextjs.org/docs/messages/prerender-error
+                 Export encountered an error on /use-cache-revalidate-0/fast/page: /use-cache-revalidate-0/fast, exiting the build."
+                `)
               }
             } else {
               if (isDebugPrerender) {
@@ -997,20 +1057,14 @@ Ways to fix this:
             await expect(browser).toDisplayCollapsedRedbox(`
              {
                "code": "E1427",
-               "description": "Route "/use-cache-revalidate-0/slow": Next.js encountered runtime data during prerendering.
-
-             \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
-
-             Ways to fix this:
-               - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-               - [block] Set \`export const instant = false\` to allow a blocking route
-
-             Learn more: https://nextjs.org/docs/messages/blocking-prerender-runtime",
+               "description": "Next.js encountered runtime data during prerendering.",
                "environmentLabel": "Server",
-               "label": "Console Error",
-               "source": null,
+               "label": "Blocking Route",
+               "source": "app/use-cache-revalidate-0/slow/page.tsx (3:16) @ Page
+             > 3 | export default async function Page() {
+                 |                ^",
                "stack": [
-                 "Page [Prerender] <anonymous>",
+                 "Page app/use-cache-revalidate-0/slow/page.tsx (3:16)",
                ],
              }
             `)
@@ -1058,26 +1112,52 @@ Ways to fix this:
                   `)
               } else {
                 expect(output).toMatchInlineSnapshot(`
-                   "Error: Route "/use-cache-revalidate-0/slow": Next.js encountered uncached or runtime data during prerendering.
+                 "Error: Route "/use-cache-revalidate-0/slow": Next.js encountered uncached or runtime data during prerendering.
 
-                   \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
+                 \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
 
-                   Ways to fix this:
-                     - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                       https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
-                     - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
-                       https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
-                     - [block] Set \`export const instant = false\` to allow a blocking route
-                       https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
-                       at main (<anonymous>)
-                       at body (<anonymous>)
-                       at html (<anonymous>)
-                   To get a more detailed stack trace and pinpoint the issue, try one of the following:
-                     - Start the app in development mode by running \`next dev\`, then open "/use-cache-revalidate-0/slow" in your browser to investigate the error.
-                     - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
-                   Error occurred prerendering page "/use-cache-revalidate-0/slow". Read more: https://nextjs.org/docs/messages/prerender-error
-                   Export encountered an error on /use-cache-revalidate-0/slow/page: /use-cache-revalidate-0/slow, exiting the build."
-                  `)
+                 Ways to fix this:
+                   - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+                   - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
+                   - [block] Set \`export const instant = false\` to allow a blocking route
+
+                 Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic
+                     at H (../../../packages/next/dist/esm/client/components/layout-router.js:266:34)
+                     at a (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
+                     at b (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
+                     at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
+                     at I (../../../packages/next/dist/esm/client/components/layout-router.js:389:32)
+                     at c (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
+                     at F (../../../packages/next/dist/esm/client/components/layout-router.js:100:9)
+                     at G (../../../packages/next/dist/esm/client/components/layout-router.js:249:39)
+                     at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:418:49)
+                     ... collapsed 9 duplicate lines matching above lines ...
+                     at main (<anonymous>)
+                     at body (<anonymous>)
+                     at html (<anonymous>)
+                     at H (../../../packages/next/dist/esm/client/components/layout-router.js:266:34)
+                     at d (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
+                     at e (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
+                     at f (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:18:9)
+                     at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
+                     at I (../../../packages/next/dist/esm/client/components/layout-router.js:389:32)
+                     at g (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
+                     at F (../../../packages/next/dist/esm/client/components/layout-router.js:100:9)
+                     at G (../../../packages/next/dist/esm/client/components/layout-router.js:249:39)
+                     at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:418:49)
+                   264 | /**
+                   265 |  * InnerLayoutRouter handles rendering the provided segment based on the cache.
+                 > 266 |  */ function InnerLayoutRouter({ tree, segmentPath, debugNameContext, cacheNode: maybeCacheNode, params, url, isActive }) {
+                       |                                  ^
+                   267 |     const context = useContext(GlobalLayoutRouterContext);
+                   268 |     const parentNavPromises = useContext(NavigationPromisesContext);
+                   269 |     if (!context) {
+                 To get a more detailed stack trace and pinpoint the issue, try one of the following:
+                   - Start the app in development mode by running \`next dev\`, then open "/use-cache-revalidate-0/slow" in your browser to investigate the error.
+                   - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
+                 Error occurred prerendering page "/use-cache-revalidate-0/slow". Read more: https://nextjs.org/docs/messages/prerender-error
+                 Export encountered an error on /use-cache-revalidate-0/slow/page: /use-cache-revalidate-0/slow, exiting the build."
+                `)
               }
             } else {
               if (isDebugPrerender) {
@@ -1283,29 +1363,12 @@ Ways to fix this:
           await expect(browser).toDisplayCollapsedRedbox(`
            {
              "code": "E1427",
-             "description": "Route "/use-cache-params/[slug]": Next.js encountered runtime data during prerendering.
-
-           \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
-
-           Ways to fix this:
-             - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-             - [block] Set \`export const instant = false\` to allow a blocking route
-
-           Learn more: https://nextjs.org/docs/messages/blocking-prerender-runtime",
+             "description": "Next.js encountered runtime data during prerendering.",
              "environmentLabel": "Server",
-             "label": "Console Error",
-             "source": "../../../packages/next/dist/compiled/react-server-dom-turbopack/cjs/react-server-dom-turbopack-client.node.development.js (550:19) @ Object.resolveToJSON
-           > 550 |             value.then(function (partValue) {
-                 |                   ^",
+             "label": "Blocking Route",
+             "source": null,
              "stack": [
-               "Promise.then <anonymous>",
-               "Object.resolveToJSON ../../../packages/next/dist/compiled/react-server-dom-turbopack/cjs/react-server-dom-turbopack-client.node.development.js (550:19)",
-               "JSON.stringify <anonymous>",
-               "serializeModel ../../../packages/next/dist/compiled/react-server-dom-turbopack/cjs/react-server-dom-turbopack-client.node.development.js (771:21)",
-               "processReply ../../../packages/next/dist/compiled/react-server-dom-turbopack/cjs/react-server-dom-turbopack-client.node.development.js (779:18)",
-               "<anonymous> ../../../packages/next/dist/compiled/react-server-dom-turbopack/cjs/react-server-dom-turbopack-client.node.development.js (5450:21)",
-               "exports.encodeReply ../../../packages/next/dist/compiled/react-server-dom-turbopack/cjs/react-server-dom-turbopack-client.node.development.js (5449:14)",
-               "Page app/use-cache-params/[slug]/page.tsx (1:16)",
+               "Page [Prerender] <anonymous>",
              ],
            }
           `)
@@ -1351,26 +1414,52 @@ Ways to fix this:
                 `)
             } else {
               expect(output).toMatchInlineSnapshot(`
-                 "Error: Route "/use-cache-params/[slug]": Next.js encountered uncached or runtime data during prerendering.
+               "Error: Route "/use-cache-params/[slug]": Next.js encountered uncached or runtime data during prerendering.
 
-                 \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
+               \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
 
-                 Ways to fix this:
-                   - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                     https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
-                   - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
-                     https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
-                   - [block] Set \`export const instant = false\` to allow a blocking route
-                     https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
-                     at main (<anonymous>)
-                     at body (<anonymous>)
-                     at html (<anonymous>)
-                 To get a more detailed stack trace and pinpoint the issue, try one of the following:
-                   - Start the app in development mode by running \`next dev\`, then open "/use-cache-params/[slug]" in your browser to investigate the error.
-                   - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
-                 Error occurred prerendering page "/use-cache-params/[slug]". Read more: https://nextjs.org/docs/messages/prerender-error
-                 Export encountered an error on /use-cache-params/[slug]/page: /use-cache-params/[slug], exiting the build."
-                `)
+               Ways to fix this:
+                 - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+                 - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
+                 - [block] Set \`export const instant = false\` to allow a blocking route
+
+               Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic
+                   at H (../../../packages/next/dist/esm/client/components/layout-router.js:266:34)
+                   at a (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
+                   at b (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
+                   at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
+                   at I (../../../packages/next/dist/esm/client/components/layout-router.js:389:32)
+                   at c (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
+                   at F (../../../packages/next/dist/esm/client/components/layout-router.js:100:9)
+                   at G (../../../packages/next/dist/esm/client/components/layout-router.js:249:39)
+                   at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:418:49)
+                   ... collapsed 9 duplicate lines matching above lines ...
+                   at main (<anonymous>)
+                   at body (<anonymous>)
+                   at html (<anonymous>)
+                   at H (../../../packages/next/dist/esm/client/components/layout-router.js:266:34)
+                   at d (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
+                   at e (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
+                   at f (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:18:9)
+                   at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
+                   at I (../../../packages/next/dist/esm/client/components/layout-router.js:389:32)
+                   at g (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
+                   at F (../../../packages/next/dist/esm/client/components/layout-router.js:100:9)
+                   at G (../../../packages/next/dist/esm/client/components/layout-router.js:249:39)
+                   at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:418:49)
+                 264 | /**
+                 265 |  * InnerLayoutRouter handles rendering the provided segment based on the cache.
+               > 266 |  */ function InnerLayoutRouter({ tree, segmentPath, debugNameContext, cacheNode: maybeCacheNode, params, url, isActive }) {
+                     |                                  ^
+                 267 |     const context = useContext(GlobalLayoutRouterContext);
+                 268 |     const parentNavPromises = useContext(NavigationPromisesContext);
+                 269 |     if (!context) {
+               To get a more detailed stack trace and pinpoint the issue, try one of the following:
+                 - Start the app in development mode by running \`next dev\`, then open "/use-cache-params/[slug]" in your browser to investigate the error.
+                 - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
+               Error occurred prerendering page "/use-cache-params/[slug]". Read more: https://nextjs.org/docs/messages/prerender-error
+               Export encountered an error on /use-cache-params/[slug]/page: /use-cache-params/[slug], exiting the build."
+              `)
             }
           } else {
             if (isDebugPrerender) {
@@ -1406,11 +1495,6 @@ Ways to fix this:
              "stack": [
                "throwAnError app/use-cache-runtime-error/page.tsx (15:9)",
                "ThrowingComponent app/use-cache-runtime-error/page.tsx (21:3)",
-               "resolveErrorDev ../../../packages/next/dist/compiled/react-server-dom-turbopack/cjs/react-server-dom-turbopack-client.node.development.js (3506:51)",
-               "processFullStringRow ../../../packages/next/dist/compiled/react-server-dom-turbopack/cjs/react-server-dom-turbopack-client.node.development.js (4673:23)",
-               "processFullBinaryRow ../../../packages/next/dist/compiled/react-server-dom-turbopack/cjs/react-server-dom-turbopack-client.node.development.js (4616:7)",
-               "processBinaryChunk ../../../packages/next/dist/compiled/react-server-dom-turbopack/cjs/react-server-dom-turbopack-client.node.development.js (4839:19)",
-               "progress ../../../packages/next/dist/compiled/react-server-dom-turbopack/cjs/react-server-dom-turbopack-client.node.development.js (5025:9)",
              ],
            }
           `)
@@ -1453,12 +1537,17 @@ Ways to fix this:
               `)
           } else {
             expect(output).toMatchInlineSnapshot(`
-               "⨯ Error: Kaputt!
-                   at a (<next-dist-dir>)
-                   at b (<next-dist-dir>) {
-                 digest: '<error-digest>'
-               }"
-              `)
+             "⨯ Error: Kaputt!
+                 at a (<next-dist-dir>)
+                 at b (<next-dist-dir>)
+                 at eR (../../../packages/next/dist/compiled/next-server/app-page.runtime.prod.js:9:63015)
+                 at eH (../../../packages/next/dist/compiled/next-server/app-page.runtime.prod.js:9:69835)
+                 at eK (../../../packages/next/dist/compiled/next-server/app-page.runtime.prod.js:9:79424)
+                 at eQ (../../../packages/next/dist/compiled/next-server/app-page.runtime.prod.js:9:80167)
+                 at <unknown> (../../../packages/next/dist/compiled/next-server/app-page.runtime.prod.js:9:81692) {
+               digest: '<error-digest>'
+             }"
+            `)
           }
         })
       }
@@ -1480,11 +1569,6 @@ Ways to fix this:
                 |         ^",
              "stack": [
                "throwAnError app/use-cache-catch-error/page.tsx (19:9)",
-               "resolveErrorDev ../../../packages/next/dist/compiled/react-server-dom-turbopack/cjs/react-server-dom-turbopack-client.node.development.js (3506:51)",
-               "processFullStringRow ../../../packages/next/dist/compiled/react-server-dom-turbopack/cjs/react-server-dom-turbopack-client.node.development.js (4673:23)",
-               "processFullBinaryRow ../../../packages/next/dist/compiled/react-server-dom-turbopack/cjs/react-server-dom-turbopack-client.node.development.js (4616:7)",
-               "processBinaryChunk ../../../packages/next/dist/compiled/react-server-dom-turbopack/cjs/react-server-dom-turbopack-client.node.development.js (4839:19)",
-               "progress ../../../packages/next/dist/compiled/react-server-dom-turbopack/cjs/react-server-dom-turbopack-client.node.development.js (5025:9)",
                "Page app/use-cache-catch-error/page.tsx (11:7)",
              ],
            }
@@ -1527,15 +1611,20 @@ Ways to fix this:
               `)
           } else {
             expect(output).toMatchInlineSnapshot(`
-               "⨯ Error: Kaputt!
-                   at a (<next-dist-dir>)
-                   at b (<next-dist-dir>) {
-                 digest: '<error-digest>'
-               }
-               [Error: An error occurred in the Server Components render. The specific message is omitted in production builds to avoid leaking sensitive details. A digest property is included on this error instance which may provide additional details about the nature of the error.] {
-                 digest: '<error-digest>'
-               }"
-              `)
+             "⨯ Error: Kaputt!
+                 at a (<next-dist-dir>)
+                 at b (<next-dist-dir>)
+                 at eR (../../../packages/next/dist/compiled/next-server/app-page.runtime.prod.js:9:63015)
+                 at eH (../../../packages/next/dist/compiled/next-server/app-page.runtime.prod.js:9:69835)
+                 at eK (../../../packages/next/dist/compiled/next-server/app-page.runtime.prod.js:9:79424)
+                 at eQ (../../../packages/next/dist/compiled/next-server/app-page.runtime.prod.js:9:80167)
+                 at <unknown> (../../../packages/next/dist/compiled/next-server/app-page.runtime.prod.js:9:81692) {
+               digest: '<error-digest>'
+             }
+             [Error: An error occurred in the Server Components render. The specific message is omitted in production builds to avoid leaking sensitive details. A digest property is included on this error instance which may provide additional details about the nature of the error.] {
+               digest: '<error-digest>'
+             }"
+            `)
           }
         })
       }

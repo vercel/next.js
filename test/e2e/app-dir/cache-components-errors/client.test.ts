@@ -82,18 +82,9 @@ describe('Cache Components Errors - Client Components', () => {
           await expect(browser).toDisplayCollapsedRedbox(`
            {
              "code": "E1440",
-             "description": "Route "/client-awaited-io": Next.js encountered uncached data during prerendering.
-
-           \`fetch(...)\` or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
-
-           Ways to fix this:
-             - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-             - [cache] Cache the data access with \`"use cache"\` (does not apply to \`connection()\`)
-             - [block] Set \`export const instant = false\` to allow a blocking route
-
-           Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic",
+             "description": "Next.js encountered uncached data during prerendering.",
              "environmentLabel": "Server",
-             "label": "Console Error",
+             "label": "Blocking Route",
              "source": "app/client-awaited-io/client.tsx (6:19) @ Client
            > 6 |   const data = use(io)
                |                   ^",
@@ -154,12 +145,30 @@ describe('Cache Components Errors - Client Components', () => {
 
                Ways to fix this:
                  - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                   https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
                  - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
-                   https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
                  - [block] Set \`export const instant = false\` to allow a blocking route
-                   https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
+
+               Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic
                    at <unknown> (app/client-awaited-io/client.tsx:5:26)
+                   at H (../../../packages/next/dist/esm/client/components/layout-router.js:266:34)
+                   at a (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
+                   at b (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
+                   at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
+                   at I (../../../packages/next/dist/esm/client/components/layout-router.js:389:32)
+                   at c (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
+                   at F (../../../packages/next/dist/esm/client/components/layout-router.js:100:9)
+                   at G (../../../packages/next/dist/esm/client/components/layout-router.js:249:39)
+                   at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:418:49)
+                   at H (../../../packages/next/dist/esm/client/components/layout-router.js:266:34)
+                   at d (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
+                   at e (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
+                   at f (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:18:9)
+                   at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
+                   at I (../../../packages/next/dist/esm/client/components/layout-router.js:389:32)
+                   at g (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
+                   at F (../../../packages/next/dist/esm/client/components/layout-router.js:100:9)
+                   at G (../../../packages/next/dist/esm/client/components/layout-router.js:249:39)
+                   at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:418:49)
                    at body (<anonymous>)
                    at html (<anonymous>)
                  3 | import { use } from 'react'
@@ -213,11 +222,10 @@ describe('Cache Components Errors - Client Components', () => {
 
                Ways to fix this:
                  - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                   https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
                  - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
-                   https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
                  - [block] Set \`export const instant = false\` to allow a blocking route
-                   https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
+
+               Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic
                    at a (<next-dist-dir>)
                    at b (<next-dist-dir>)
                    at c (<next-dist-dir>)
@@ -327,10 +335,29 @@ describe('Cache Components Errors - Client Components', () => {
 
                Ways to fix this:
                  - [stream] Wrap the component in \`<Suspense fallback={...}>\` so the hook value streams in after prerendering
-                   https://nextjs.org/docs/messages/blocking-prerender-client-hook#wrap-in-or-move-into-suspense
                  - [block] Set \`export const instant = false\` to allow a blocking route
-                   https://nextjs.org/docs/messages/blocking-prerender-client-hook#allow-blocking-route
+
+               Learn more: https://nextjs.org/docs/messages/blocking-prerender-client-hook
                    at <unknown> (app/client-use-search-params/client.tsx:6:3)
+                   at H (../../../packages/next/dist/esm/client/components/layout-router.js:266:34)
+                   at a (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
+                   at b (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
+                   at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
+                   at I (../../../packages/next/dist/esm/client/components/layout-router.js:389:32)
+                   at c (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
+                   at F (../../../packages/next/dist/esm/client/components/layout-router.js:100:9)
+                   at G (../../../packages/next/dist/esm/client/components/layout-router.js:249:39)
+                   at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:418:49)
+                   at H (../../../packages/next/dist/esm/client/components/layout-router.js:266:34)
+                   at d (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
+                   at e (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
+                   at f (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:18:9)
+                   at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
+                   at I (../../../packages/next/dist/esm/client/components/layout-router.js:389:32)
+                   at g (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
+                   at F (../../../packages/next/dist/esm/client/components/layout-router.js:100:9)
+                   at G (../../../packages/next/dist/esm/client/components/layout-router.js:249:39)
+                   at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:418:49)
                    at body (<anonymous>)
                    at html (<anonymous>)
                  4 |
@@ -361,9 +388,9 @@ describe('Cache Components Errors - Client Components', () => {
 
                Ways to fix this:
                  - [stream] Wrap the component in \`<Suspense fallback={...}>\` so the hook value streams in after prerendering
-                   https://nextjs.org/docs/messages/blocking-prerender-client-hook#wrap-in-or-move-into-suspense
                  - [block] Set \`export const instant = false\` to allow a blocking route
-                   https://nextjs.org/docs/messages/blocking-prerender-client-hook#allow-blocking-route
+
+               Learn more: https://nextjs.org/docs/messages/blocking-prerender-client-hook
                    at a (<next-dist-dir>)
                    at b (<next-dist-dir>)
                    at c (<next-dist-dir>)
@@ -476,10 +503,30 @@ describe('Cache Components Errors - Client Components', () => {
 
                Ways to fix this:
                  - [stream] Wrap the component in \`<Suspense fallback={...}>\` so the hook value streams in after prerendering
-                   https://nextjs.org/docs/messages/blocking-prerender-client-hook#wrap-in-or-move-into-suspense
                  - [block] Set \`export const instant = false\` to allow a blocking route
-                   https://nextjs.org/docs/messages/blocking-prerender-client-hook#allow-blocking-route
+
+               Learn more: https://nextjs.org/docs/messages/blocking-prerender-client-hook
                    at <unknown> (app/client-use-pathname/[id]/client.tsx:6:3)
+                   at H (../../../packages/next/dist/esm/client/components/layout-router.js:266:34)
+                   at a (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
+                   at b (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
+                   at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
+                   at I (../../../packages/next/dist/esm/client/components/layout-router.js:389:32)
+                   at c (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
+                   at F (../../../packages/next/dist/esm/client/components/layout-router.js:100:9)
+                   at G (../../../packages/next/dist/esm/client/components/layout-router.js:249:39)
+                   at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:418:49)
+                   ... collapsed 9 duplicate lines matching above lines ...
+                   at H (../../../packages/next/dist/esm/client/components/layout-router.js:266:34)
+                   at d (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
+                   at e (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
+                   at f (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:18:9)
+                   at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
+                   at I (../../../packages/next/dist/esm/client/components/layout-router.js:389:32)
+                   at g (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
+                   at F (../../../packages/next/dist/esm/client/components/layout-router.js:100:9)
+                   at G (../../../packages/next/dist/esm/client/components/layout-router.js:249:39)
+                   at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:418:49)
                    at body (<anonymous>)
                    at html (<anonymous>)
                  4 |
@@ -510,9 +557,9 @@ describe('Cache Components Errors - Client Components', () => {
 
                Ways to fix this:
                  - [stream] Wrap the component in \`<Suspense fallback={...}>\` so the hook value streams in after prerendering
-                   https://nextjs.org/docs/messages/blocking-prerender-client-hook#wrap-in-or-move-into-suspense
                  - [block] Set \`export const instant = false\` to allow a blocking route
-                   https://nextjs.org/docs/messages/blocking-prerender-client-hook#allow-blocking-route
+
+               Learn more: https://nextjs.org/docs/messages/blocking-prerender-client-hook
                    at a (<next-dist-dir>)
                    at b (<next-dist-dir>)
                    at c (<next-dist-dir>)
@@ -524,6 +571,7 @@ describe('Cache Components Errors - Client Components', () => {
                    at i (<next-dist-dir>)
                    at j (<next-dist-dir>)
                    at k (<next-dist-dir>)
+                   ... collapsed 10 duplicate lines matching above lines ...
                    at l (<next-dist-dir>)
                    at m (<next-dist-dir>)
                    at n (<next-dist-dir>)
@@ -535,16 +583,6 @@ describe('Cache Components Errors - Client Components', () => {
                    at t (<next-dist-dir>)
                    at u (<next-dist-dir>)
                    at v (<next-dist-dir>)
-                   at w (<next-dist-dir>)
-                   at x (<next-dist-dir>)
-                   at y (<next-dist-dir>)
-                   at z (<next-dist-dir>)
-                   at a (<next-dist-dir>)
-                   at b (<next-dist-dir>)
-                   at c (<next-dist-dir>)
-                   at d (<next-dist-dir>)
-                   at e (<next-dist-dir>)
-                   at f (<next-dist-dir>)
                    at body (<anonymous>)
                    at html (<anonymous>) {
                  digest: 'CLIENT_HOOK_DYNAMIC'
