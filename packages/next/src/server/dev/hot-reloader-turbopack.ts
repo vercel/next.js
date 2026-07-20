@@ -84,6 +84,7 @@ import type { ModernSourceMapPayload } from '../lib/source-maps'
 import { isDeferredEntry } from '../../build/entries'
 import { isMetadataRouteFile } from '../../lib/metadata/is-metadata-route'
 import { setBundlerFindSourceMapImplementation } from '../patch-error-inspect'
+import { setBundlerFindSourceMapURLImplementation } from '../lib/source-maps'
 import { getNextErrorFeedbackMiddleware } from '../../next-devtools/server/get-next-error-feedback-middleware'
 import {
   formatIssue,
@@ -279,6 +280,18 @@ function getSourceMapFromTurbopack(
   }
 }
 
+function getSourceMapURLFromTurbopack(
+  project: Project,
+  sourceURL: string
+): string | null {
+  let sourceMapFilePath: string | null = null
+  try {
+    sourceMapFilePath = project.getSourceMapFilePathSync(sourceURL)
+  } catch (err) {}
+
+  return sourceMapFilePath
+}
+
 export async function createHotReloaderTurbopack(
   opts: SetupOpts & { isSrcDir: boolean },
   serverFields: ServerFields,
@@ -409,6 +422,9 @@ export async function createHotReloaderTurbopack(
   setBundlerFindSourceMapImplementation(
     getSourceMapFromTurbopack.bind(null, project)
   )
+  setBundlerFindSourceMapURLImplementation(
+    getSourceMapURLFromTurbopack.bind(null, project)
+  )
 
   // Set up code frame renderer using native bindings
   const { installCodeFrameSupport } =
@@ -417,6 +433,7 @@ export async function createHotReloaderTurbopack(
 
   opts.onDevServerCleanup?.(async () => {
     setBundlerFindSourceMapImplementation(() => undefined)
+    setBundlerFindSourceMapURLImplementation(() => null)
     await project.onExit()
     await lockfile?.unlock()
   })

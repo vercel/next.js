@@ -177,11 +177,16 @@ function getSourcemappedFrameIfPossible(
   stack: IgnorableStackFrame
   code: string | null
 } {
-  const sourceMapCacheEntry = sourceMapCache.get(frame.file)
+  // React's fake eval'd scripts for Server Component stack frames use virtual
+  // URLs like `about://React/Server/file:///path/to/chunk.js?42` with positions
+  // padded to match the underlying chunk, so they resolve via the real chunk's
+  // source map.
+  const fileKey = devirtualizeReactServerURL(frame.file)
+  const sourceMapCacheEntry = sourceMapCache.get(fileKey)
   let sourceMapConsumer: SyncSourceMapConsumer
   let sourceMapPayload: ModernSourceMapPayload
   if (sourceMapCacheEntry === undefined) {
-    let sourceURL = frame.file
+    let sourceURL = fileKey
     // e.g. "/Users/foo/APP/.next/server/chunks/ssr/[root-of-the-server]__2934a0._.js"
     // or "C:\Users\foo\APP\.next\server\chunks\ssr\[root-of-the-server]__2934a0._.js"
     // will be keyed by Node.js as "file:///APP/.next/server/chunks/ssr/[root-of-the-server]__2934a0._.js".
@@ -189,8 +194,8 @@ function getSourcemappedFrameIfPossible(
     //
     // But frame.file might also be "webpack-internal:///(rsc)/./app/bad-sourcemap/page.js" or
     // "<anonymous>" or "node:internal/process/task_queues" here
-    if (path.isAbsolute(frame.file)) {
-      sourceURL = url.pathToFileURL(frame.file).toString()
+    if (path.isAbsolute(sourceURL)) {
+      sourceURL = url.pathToFileURL(sourceURL).toString()
     }
     let maybeSourceMapPayload: ModernSourceMapPayload | undefined
     try {
@@ -204,7 +209,7 @@ function getSourcemappedFrameIfPossible(
       )
       // If loading fails once, it'll fail every time.
       // So set the cache to avoid duplicate errors.
-      sourceMapCache.set(frame.file, null)
+      sourceMapCache.set(fileKey, null)
       // Don't even fall back to the bundler because it might be not as strict
       // with regards to parsing and then we fail later once we consume the
       // source map payload.
@@ -228,10 +233,9 @@ function getSourcemappedFrameIfPossible(
       // is sufficient to compute relative paths but is actually wrong (the
       // chunk and sourcemap have different content hashes). We are using the
       // node API to read the sourcemap and it doesn't give us access to the
-      // URI. Devirtualize `about://React/Server/file:///path/to/chunk.js?4` to
-      // `file:///path/to/chunk.js` so that relative `sources` in the source map
-      // resolve against the real chunk URL, not the virtual one.
-      const sourceMapURL = devirtualizeReactServerURL(sourceURL) + '.map'
+      // URI. `sourceURL` is already devirtualized so that relative `sources`
+      // resolve against the real chunk URL, not React's virtual one.
+      const sourceMapURL = sourceURL + '.map'
       sourceMapConsumer = new SyncSourceMapConsumer(
         sourceMapPayload,
         // @ts-expect-error: our typings don't include this parameter but it is here.
@@ -245,10 +249,10 @@ function getSourcemappedFrameIfPossible(
       )
       // If creating the consumer fails once, it'll fail every time.
       // So set the cache to avoid duplicate errors.
-      sourceMapCache.set(frame.file, null)
+      sourceMapCache.set(fileKey, null)
       return createUnsourcemappedFrame(frame)
     }
-    sourceMapCache.set(frame.file, {
+    sourceMapCache.set(fileKey, {
       map: sourceMapConsumer,
       payload: sourceMapPayload,
     })
