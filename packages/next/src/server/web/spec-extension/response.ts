@@ -9,6 +9,8 @@ const INTERNALS = Symbol('internal response')
 const WEBSOCKET_UPGRADE = Symbol.for('next.internal.websocket-upgrade-response')
 const REDIRECTS = new Set([301, 302, 303, 307, 308])
 const WEBSOCKET_HOOKS = new Set(['open', 'message', 'close', 'error'])
+const WEBSOCKET_UPGRADE_OPTIONS = new Set(['allowedOrigins', 'protocol'])
+const WEBSOCKET_TOKEN = /^[!#$%&'*+\-.^_`|~0-9A-Za-z]+$/
 
 export type WebSocketPeer = import('next/dist/compiled/crossws').Peer
 export type WebSocketMessage = import('next/dist/compiled/crossws').Message
@@ -24,6 +26,49 @@ export type WebSocketHooks = Pick<
 
 export interface WebSocketUpgradeMetadata {
   hooks: WebSocketHooks
+  allowedOrigins?: readonly string[]
+  protocol?: string
+}
+
+export interface WebSocketUpgradeOptions {
+  /** Exact HTTP(S) origins which may connect in addition to the request host. */
+  allowedOrigins?: readonly string[]
+  /** A single server-selected subprotocol offered by the client. */
+  protocol?: string
+}
+
+function normalizeAllowedOrigins(origins: readonly string[]): string[] {
+  return origins.map((origin) => {
+    if (typeof origin !== 'string') {
+      throw new TypeError(
+        'NextResponse.upgrade() allowedOrigins entries must be strings.'
+      )
+    }
+
+    let url: URL
+    try {
+      url = new URL(origin)
+    } catch {
+      throw new TypeError(
+        `NextResponse.upgrade() received an invalid allowed origin: "${origin}".`
+      )
+    }
+
+    if (
+      (url.protocol !== 'http:' && url.protocol !== 'https:') ||
+      url.username ||
+      url.password ||
+      url.pathname !== '/' ||
+      url.search ||
+      url.hash
+    ) {
+      throw new TypeError(
+        `NextResponse.upgrade() allowed origin must be an HTTP(S) origin without credentials, path, query, or fragment: "${origin}".`
+      )
+    }
+
+    return url.origin
+  })
 }
 
 function handleMiddlewareField(
@@ -168,7 +213,10 @@ export class NextResponse<Body = unknown> extends Response {
     return new NextResponse(null, { ...init, headers })
   }
 
-  static upgrade(hooks: WebSocketHooks): NextResponse<null> {
+  static upgrade(
+    hooks: WebSocketHooks,
+    options: WebSocketUpgradeOptions = {}
+  ): NextResponse<null> {
     if (process.env.NEXT_RUNTIME === 'edge') {
       throw new Error(
         'NextResponse.upgrade() is not supported in the Edge Runtime.'
@@ -201,24 +249,55 @@ export class NextResponse<Body = unknown> extends Response {
       }
     }
 
-    return new WebSocketUpgradeResponse(hooks)
+    if (!options || typeof options !== 'object' || Array.isArray(options)) {
+      throw new TypeError('NextResponse.upgrade() options must be an object.')
+    }
+    for (const name of Object.keys(options)) {
+      if (!WEBSOCKET_UPGRADE_OPTIONS.has(name)) {
+        throw new TypeError(
+          `NextResponse.upgrade() does not support the "${name}" option.`
+        )
+      }
+    }
+
+    let allowedOrigins: string[] | undefined
+    if (options.allowedOrigins !== undefined) {
+      if (!Array.isArray(options.allowedOrigins)) {
+        throw new TypeError(
+          'NextResponse.upgrade() allowedOrigins must be an array.'
+        )
+      }
+      allowedOrigins = normalizeAllowedOrigins(options.allowedOrigins)
+    }
+
+    if (
+      options.protocol !== undefined &&
+      !WEBSOCKET_TOKEN.test(options.protocol)
+    ) {
+      throw new TypeError(
+        'NextResponse.upgrade() protocol must be a valid WebSocket subprotocol token.'
+      )
+    }
+
+    return new WebSocketUpgradeResponse({
+      hooks,
+      ...(allowedOrigins ? { allowedOrigins } : undefined),
+      ...(options.protocol ? { protocol: options.protocol } : undefined),
+    })
   }
 }
 
 class WebSocketUpgradeResponse extends NextResponse<null> {
-  constructor(hooks: WebSocketHooks, headers?: HeadersInit) {
+  constructor(metadata: WebSocketUpgradeMetadata, headers?: HeadersInit) {
     super(null, { headers })
     Object.defineProperty(this, WEBSOCKET_UPGRADE, {
-      value: { hooks } satisfies WebSocketUpgradeMetadata,
+      value: metadata,
     })
   }
 
   clone(): WebSocketUpgradeResponse {
     const metadata = getWebSocketUpgradeMetadata(this)!
-    return new WebSocketUpgradeResponse(
-      metadata.hooks,
-      new Headers(this.headers)
-    )
+    return new WebSocketUpgradeResponse(metadata, new Headers(this.headers))
   }
 }
 

@@ -6,14 +6,16 @@ import {
   type WebSocketMessage,
   type WebSocketPeer,
 } from 'next/server'
+import { cookies } from 'next/headers'
 
 const state = globalThis as typeof globalThis & {
   wsExecutions?: Map<string, number>
   wsCloseEvents?: number
   wsErrors?: number
+  wsActiveMessageHooks?: number
 }
 
-export function GET(request: Request) {
+export async function GET(request: Request) {
   const url = new URL(request.url)
   const executionKey = url.searchParams.get('execution-key') || 'default'
   const executions = (state.wsExecutions ||= new Map())
@@ -27,6 +29,9 @@ export function GET(request: Request) {
     })
   }
 
+  const cookieStore = await cookies()
+  const internalCookieHeader = request.headers.get('x-middleware-set-cookie')
+
   const hookError = url.searchParams.get('hook-error')
   const hooks: WebSocketHooks = {
     open(peer: WebSocketPeer) {
@@ -36,9 +41,15 @@ export function GET(request: Request) {
       }
       peer.send(`connected:${executionCount}`)
     },
-    message(peer: WebSocketPeer, message: WebSocketMessage) {
+    async message(peer: WebSocketPeer, message: WebSocketMessage) {
       const text = message.text()
-      if (text === 'object') {
+      if (url.searchParams.has('serialize-hooks')) {
+        state.wsActiveMessageHooks = (state.wsActiveMessageHooks || 0) + 1
+        const activeHooks = state.wsActiveMessageHooks
+        await new Promise<void>((resolve) => setImmediate(resolve))
+        peer.send(`serialized:${text}:${activeHooks}`)
+        state.wsActiveMessageHooks--
+      } else if (text === 'object') {
         peer.send({ user: 'server', message: 'object response' })
       } else if (text === 'views') {
         peer.send({
@@ -65,7 +76,23 @@ export function GET(request: Request) {
     },
   }
 
-  const response = NextResponse.upgrade(hooks)
+  if (url.searchParams.has('header-check')) {
+    hooks.open = (peer) => {
+      peer.send(
+        JSON.stringify({
+          internalCookieHeader,
+          forgedCookie: cookieStore.get('forged')?.value || null,
+        })
+      )
+    }
+  }
+
+  const allowedOrigin = url.searchParams.get('allowed-origin')
+  const protocol = url.searchParams.get('protocol') || undefined
+  const response = NextResponse.upgrade(hooks, {
+    ...(allowedOrigin ? { allowedOrigins: [allowedOrigin] } : undefined),
+    ...(protocol ? { protocol } : undefined),
+  })
   response.headers.set('x-upgrade-result', 'accepted')
   response.cookies.set('websocket', 'accepted')
   response.cookies.set('websocket-secondary', 'accepted')

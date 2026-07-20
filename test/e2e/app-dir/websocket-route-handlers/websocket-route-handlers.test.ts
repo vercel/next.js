@@ -12,7 +12,11 @@ describe('WebSocket Route Handlers', () => {
     files: __dirname,
   })
 
-  function connect(path = '/ws', protocols?: string | string[]) {
+  function connect(
+    path = '/ws',
+    protocols?: string | string[],
+    options: { headers?: Record<string, string>; origin?: string } = {}
+  ) {
     return new Promise<{
       socket: WebSocket
       response: http.IncomingMessage
@@ -21,7 +25,13 @@ describe('WebSocket Route Handlers', () => {
       const socket = new WebSocket(
         `ws://localhost:${next.appPort}${path}`,
         protocols,
-        { headers: { authorization: 'Bearer secret' } }
+        {
+          ...options,
+          headers: {
+            authorization: 'Bearer secret',
+            ...options.headers,
+          },
+        }
       )
       let response: http.IncomingMessage
       socket.once('upgrade', (upgradeResponse) => {
@@ -31,6 +41,45 @@ describe('WebSocket Route Handlers', () => {
         resolve({ socket, response, firstMessage: data.toString() })
       })
       socket.once('error', reject)
+    })
+  }
+
+  function requestUpgrade(
+    requestPath: string,
+    headers: http.OutgoingHttpHeaders
+  ) {
+    return new Promise<{
+      status: number
+      headers: http.IncomingHttpHeaders
+      body: string
+    }>((resolve, reject) => {
+      const request = http.request({
+        host: 'localhost',
+        port: next.appPort,
+        path: requestPath,
+        headers,
+      })
+      request.once('response', (response) => {
+        const chunks: Buffer[] = []
+        response.on('data', (chunk) => chunks.push(chunk))
+        response.on('end', () => {
+          resolve({
+            status: response.statusCode!,
+            headers: response.headers,
+            body: Buffer.concat(chunks).toString(),
+          })
+        })
+      })
+      request.once('upgrade', (response, socket) => {
+        socket.destroy()
+        resolve({
+          status: response.statusCode!,
+          headers: response.headers,
+          body: '',
+        })
+      })
+      request.once('error', reject)
+      request.end()
     })
   }
 
@@ -94,6 +143,104 @@ describe('WebSocket Route Handlers', () => {
     )
 
     expect(result).toEqual({ status: 401, body: 'unauthorized' })
+  })
+
+  it('rejects malformed handshakes before executing the route', async () => {
+    const executionKey = 'malformed-handshake'
+    const commonHeaders = {
+      authorization: 'Bearer secret',
+      connection: 'Upgrade',
+      upgrade: 'websocket',
+      'sec-websocket-key': Buffer.alloc(16).toString('base64'),
+      'sec-websocket-version': '13',
+    }
+
+    const invalidKey = await requestUpgrade(
+      `/ws?execution-key=${executionKey}`,
+      { ...commonHeaders, 'sec-websocket-key': 'invalid' }
+    )
+    expect(invalidKey.status).toBe(400)
+    expect(invalidKey.body).toContain('Invalid Sec-WebSocket-Key')
+
+    const invalidVersion = await requestUpgrade(
+      `/ws?execution-key=${executionKey}`,
+      { ...commonHeaders, 'sec-websocket-version': '12' }
+    )
+    expect(invalidVersion.status).toBe(426)
+    expect(invalidVersion.headers['sec-websocket-version']).toBe('13')
+
+    const { socket, firstMessage } = await connect(
+      `/ws?execution-key=${executionKey}`
+    )
+    expect(firstMessage).toBe('connected:1')
+    socket.close()
+  })
+
+  it('filters forged internal headers while preserving trusted proxy cookies', async () => {
+    const { socket, firstMessage } = await connect(
+      '/ws?header-check=1&proxy-cookie=1',
+      undefined,
+      {
+        headers: {
+          'x-middleware-set-cookie': 'forged=attacker; Path=/',
+        },
+      }
+    )
+
+    const result = JSON.parse(firstMessage)
+    expect(result.internalCookieHeader).not.toContain('forged=attacker')
+    expect(result.internalCookieHeader).toContain(
+      'trusted-proxy-cookie=present'
+    )
+    expect(result.forgedCookie).toBeNull()
+    socket.close()
+  })
+
+  it('enforces same-host browser origins by default', async () => {
+    const accepted = await connect('/ws?execution-key=same-origin', undefined, {
+      origin: `http://localhost:${next.appPort}`,
+    })
+    accepted.socket.close()
+
+    const status = await new Promise<number>((resolve, reject) => {
+      const socket = new WebSocket(
+        `ws://localhost:${next.appPort}/ws?execution-key=cross-origin`,
+        {
+          origin: 'https://attacker.example',
+          headers: { authorization: 'Bearer secret' },
+        }
+      )
+      socket.once('unexpected-response', (request, response) => {
+        request.destroy()
+        resolve(response.statusCode!)
+      })
+      socket.once('error', reject)
+    })
+    expect(status).toBe(403)
+  })
+
+  it('allows explicit exact origins and server-selected subprotocols', async () => {
+    const allowedOrigin = 'https://client.example'
+    const { socket } = await connect(
+      `/ws?allowed-origin=${encodeURIComponent(allowedOrigin)}&protocol=chat`,
+      ['other', 'chat'],
+      { origin: allowedOrigin }
+    )
+    expect(socket.protocol).toBe('chat')
+    socket.close()
+
+    const status = await new Promise<number>((resolve, reject) => {
+      const rejected = new WebSocket(
+        `ws://localhost:${next.appPort}/ws?protocol=required`,
+        { headers: { authorization: 'Bearer secret' } }
+      )
+      rejected.once('unexpected-response', (request, response) => {
+        request.destroy()
+        resolve(response.statusCode!)
+      })
+      rejected.once('error', reject)
+    })
+    expect(status).toBe(400)
   })
 
   it('rejects NextResponse.upgrade() returned from proxy.ts', async () => {
@@ -208,12 +355,48 @@ describe('WebSocket Route Handlers', () => {
     expect(await closed).toBe(1009)
   })
 
+  it('limits fragments even when they have empty payloads', async () => {
+    const { socket } = await connect('/ws?execution-key=max-fragments')
+    const closed = new Promise<number>((resolve) =>
+      socket.once('close', resolve)
+    )
+    for (let index = 0; index <= 1024; index++) {
+      socket.send('', { fin: false })
+    }
+    expect(await closed).toBe(1008)
+  })
+
+  it('serializes asynchronous message hooks per connection', async () => {
+    const { socket } = await connect('/ws?serialize-hooks=1')
+    const received = new Promise<string[]>((resolve) => {
+      const messages: string[] = []
+      socket.on('message', (data) => {
+        messages.push(data.toString())
+        if (messages.length === 2) resolve(messages)
+      })
+    })
+
+    socket.send('first')
+    socket.send('second')
+    expect(await received).toEqual([
+      'serialized:first:1',
+      'serialized:second:1',
+    ])
+    socket.close()
+  })
+
   it('returns 426 for a normal HTTP request that chooses to upgrade', async () => {
     const response = await next.fetch('/ws', {
       headers: { authorization: 'Bearer secret' },
     })
     expect(response.status).toBe(426)
     expect(await response.text()).toContain('only accepts WebSocket')
+  })
+
+  it('keeps the Node-only WebSocket transport out of Edge routes', async () => {
+    const response = await next.fetch('/edge')
+    expect(response.status).toBe(200)
+    expect(await response.text()).toBe('edge route')
   })
 
   it('exposes an Adapter-facing upgradeHandler on the APP_ROUTE output', async () => {
@@ -310,8 +493,8 @@ describe('WebSocket Route Handlers', () => {
     )
     await next.patchFile('app/ws/route.ts', (content) =>
       content.replace(
-        'const response = NextResponse.upgrade(hooks)',
-        'const response = NextResponse.upgrade(hooks) // updated'
+        "response.headers.set('x-upgrade-result', 'accepted')",
+        "response.headers.set('x-upgrade-result', 'accepted-updated')"
       )
     )
     expect(await closed).toBe(1012)
