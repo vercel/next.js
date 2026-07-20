@@ -339,6 +339,9 @@ export interface Project {
   getSourceMap(filePath: string): Promise<string | null>
   getSourceMapSync(filePath: string): string | null
 
+  getSourceMapFilePath(filePath: string): Promise<string | null>
+  getSourceMapFilePathSync(filePath: string): string | null
+
   traceSource(
     stackFrame: TurbopackStackFrame,
     currentDirectoryFileUrl: string

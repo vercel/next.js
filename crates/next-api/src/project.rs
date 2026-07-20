@@ -76,8 +76,8 @@ use turbopack_core::{
         chunk_group_info::{ChunkGroupEntry, EntryHeuristics},
     },
     output::{
-        ExpandOutputAssetsInput, ExpandedOutputAssets, OutputAsset, OutputAssets,
-        expand_output_assets,
+        ExpandOutputAssetsInput, ExpandedOutputAssets, OptionOutputAsset, OutputAsset,
+        OutputAssets, expand_output_assets,
     },
     reference::all_assets_from_entries,
     reference_type::{CommonJsReferenceSubType, ReferenceType},
@@ -914,6 +914,17 @@ impl ProjectContainer {
             map.get_source_map(file_path, section)
         } else {
             FileContent::NotFound.cell()
+        }
+    }
+
+    /// Gets the [`OutputAsset`] that generates the source map for a particular `file_path` (i.e.
+    /// the chunk asset itself). If `dev` mode is disabled, this will always return [`None`].
+    #[turbo_tasks::function]
+    pub fn get_source_map_asset(&self, file_path: FileSystemPath) -> Vc<OptionOutputAsset> {
+        if let Some(map) = self.versioned_content_map {
+            map.get_asset(file_path)
+        } else {
+            Vc::cell(None)
         }
     }
 }
