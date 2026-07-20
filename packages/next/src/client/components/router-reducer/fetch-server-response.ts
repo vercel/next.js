@@ -27,6 +27,11 @@ import {
   NEXT_DID_POSTPONE_HEADER,
   NEXT_HTML_REQUEST_ID_HEADER,
   NEXT_REQUEST_ID_HEADER,
+  type PURPOSE_HEADER,
+  type PURPOSE_PREFETCH,
+  type PREFER_HEADER,
+  type PREFER_RETURN_MINIMAL,
+  type PREFER_RETURN_REPRESENTATION,
 } from '../app-router-headers'
 import { callServer } from '../../app-call-server'
 import { findSourceMapURL } from '../../app-find-source-map-url'
@@ -113,6 +118,13 @@ export type RequestHeaders = {
   [NEXT_URL]?: string
   [NEXT_ROUTER_PREFETCH_HEADER]?: '1' | '2' | '3'
   [NEXT_ROUTER_SEGMENT_PREFETCH_HEADER]?: string
+  // Set on prefetch requests when Cache Components is enabled, for
+  // infrastructure in front of the application server (e.g. a CDN or proxy).
+  // See app-router-headers.ts for details.
+  [PURPOSE_HEADER]?: typeof PURPOSE_PREFETCH
+  [PREFER_HEADER]?:
+    | typeof PREFER_RETURN_MINIMAL
+    | typeof PREFER_RETURN_REPRESENTATION
   'x-deployment-id'?: string
   [NEXT_HMR_REFRESH_HEADER]?: '1'
   // A header that is only added in test mode to assert on fetch priority

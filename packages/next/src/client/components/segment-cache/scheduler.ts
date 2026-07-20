@@ -1831,6 +1831,16 @@ function pingSegmentBundle(
   if (!needsFetch) {
     return
   }
+  // On a route that opted into Partial Prefetching, per-segment requests
+  // fetch data beyond the reusable shell — they only ever happen during the
+  // Speculative phase (the Shell phase issues a single combined RuntimeShell
+  // request instead; see accumulateSegmentBundle) — so they may trigger
+  // regeneration of a partial fallback. Per-segment requests on routes
+  // without Partial Prefetching only ever fetch the static shell. The hint
+  // propagates to the root of the route tree from any segment that opted in,
+  // same as the strategy coercion in pingRoute.
+  const isSpeculative =
+    (route.tree.prefetchHints & PrefetchHint.SubtreeHasPartialPrefetching) !== 0
   spawnPrefetchSubtask(
     fetchSegmentsOnCacheMiss(
       task,
@@ -1838,7 +1848,8 @@ function pingSegmentBundle(
       routeKey,
       tree,
       segments,
-      segmentCount
+      segmentCount,
+      isSpeculative
     )
   )
 }

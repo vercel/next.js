@@ -21,6 +21,11 @@ import {
   NEXT_ROUTER_STALE_TIME_HEADER,
   NEXT_ROUTER_STATE_TREE_HEADER,
   NEXT_URL,
+  PREFER_HEADER,
+  PREFER_RETURN_MINIMAL,
+  PREFER_RETURN_REPRESENTATION,
+  PURPOSE_HEADER,
+  PURPOSE_PREFETCH,
   RSC_CONTENT_TYPE_HEADER,
   RSC_HEADER,
 } from '../app-router-headers'
@@ -1816,6 +1821,15 @@ export async function fetchRouteOnCacheMiss(
   if (nextUrl !== null) {
     headers[NEXT_URL] = nextUrl
   }
+  if (process.env.__NEXT_CACHE_COMPONENTS) {
+    // Mark the request as a prefetch for infrastructure in front of the
+    // application server (e.g. a CDN or proxy). See app-router-headers.ts for
+    // details. The route tree request is never speculative: it fetches a
+    // small, static description of the route's structure, and must not
+    // trigger regeneration of a partial fallback.
+    headers[PURPOSE_HEADER] = PURPOSE_PREFETCH
+    headers[PREFER_HEADER] = PREFER_RETURN_MINIMAL
+  }
 
   try {
     const url = new URL(pathname + search, location.origin)
@@ -2120,7 +2134,8 @@ export async function fetchSegmentsOnCacheMiss(
   routeKey: RouteCacheKey,
   tree: RouteTree,
   segments: SegmentBundle,
-  segmentCount: number
+  segmentCount: number,
+  isSpeculative: boolean
 ): Promise<PrefetchSubtaskResult<null> | null> {
   // This function is allowed to use async/await because it contains the actual
   // fetch that gets issued on a cache miss. Notice it writes the result to the
@@ -2131,7 +2146,12 @@ export async function fetchSegmentsOnCacheMiss(
   // on completion.
   let result
   try {
-    result = await fetchSegmentsOnCacheMissImpl(route, routeKey, tree)
+    result = await fetchSegmentsOnCacheMissImpl(
+      route,
+      routeKey,
+      tree,
+      isSpeculative
+    )
   } catch (error) {
     // The connection failed, or the response couldn't be decoded. Reject the
     // pending entries so they don't stay Pending forever, and get retried once
@@ -2191,7 +2211,8 @@ export async function fetchSegmentsOnCacheMiss(
       routeKey,
       tree,
       segments,
-      segmentCount
+      segmentCount,
+      isSpeculative
     )
   }
 
@@ -2219,7 +2240,8 @@ export async function fetchSegmentsOnCacheMiss(
 async function fetchSegmentsOnCacheMissImpl(
   route: FulfilledRouteCacheEntry,
   routeKey: RouteCacheKey,
-  tree: RouteTree
+  tree: RouteTree,
+  isSpeculative: boolean
 ): Promise<{
   serverResponse: SegmentPrefetchResponse
   responseSize: number
@@ -2251,6 +2273,18 @@ async function fetchSegmentsOnCacheMissImpl(
   }
   if (nextUrl !== null) {
     headers[NEXT_URL] = nextUrl
+  }
+  if (process.env.__NEXT_CACHE_COMPONENTS) {
+    // Mark the request as a prefetch for infrastructure in front of the
+    // application server (e.g. a CDN or proxy). See app-router-headers.ts
+    // for details. Speculative requests fetch data beyond the route's
+    // reusable shell and may trigger regeneration of a partial fallback
+    // (`return=representation`); shell requests must not
+    // (`return=minimal`). The caller decides which kind this is.
+    headers[PURPOSE_HEADER] = PURPOSE_PREFETCH
+    headers[PREFER_HEADER] = isSpeculative
+      ? PREFER_RETURN_REPRESENTATION
+      : PREFER_RETURN_MINIMAL
   }
 
   const requestUrl = isOutputExportMode
@@ -2430,7 +2464,8 @@ async function retryUpgradeableFallbackPrefetch(
   routeKey: RouteCacheKey,
   tree: RouteTree,
   segments: SegmentBundle,
-  segmentCount: number
+  segmentCount: number,
+  isSpeculative: boolean
 ): Promise<void> {
   for (let attempt = 0; attempt < MAX_FALLBACK_RETRIES; attempt++) {
     await new Promise<void>((resolve) =>
@@ -2442,7 +2477,12 @@ async function retryUpgradeableFallbackPrefetch(
 
     let result
     try {
-      result = await fetchSegmentsOnCacheMissImpl(route, routeKey, tree)
+      result = await fetchSegmentsOnCacheMissImpl(
+        route,
+        routeKey,
+        tree,
+        isSpeculative
+      )
     } catch {
       // A hard failure (connection dropped, or the response couldn't be
       // decoded). Re-issuing the identical request won't fix it, so give up.
@@ -2528,18 +2568,42 @@ export async function fetchSegmentPrefetchesUsingDynamicRequest(
       // We omit the prefetch header from a full prefetch because it's essentially
       // just a navigation request that happens ahead of time — it should include
       // all the same data in the response.
+      //
+      // For the same reason, we also omit the Cache Components prefetch
+      // headers (purpose/prefer): a full prefetch only reaches this point on
+      // a route that hasn't opted into Partial Prefetching (the scheduler
+      // coerces full prefetches on opted-in routes to the PPR strategy), so
+      // it's a legacy dynamic prefetch that must be indistinguishable from
+      // the navigation request it stands in for.
       break
     }
     case FetchStrategy.PPRRuntime: {
       headers[NEXT_ROUTER_PREFETCH_HEADER] = '2'
+      if (process.env.__NEXT_CACHE_COMPONENTS) {
+        // A runtime prefetch fetches data beyond the reusable shell, and may
+        // trigger regeneration of a partial fallback. See
+        // app-router-headers.ts for details on these headers.
+        headers[PURPOSE_HEADER] = PURPOSE_PREFETCH
+        headers[PREFER_HEADER] = PREFER_RETURN_REPRESENTATION
+      }
       break
     }
     case FetchStrategy.RuntimeShell: {
       headers[NEXT_ROUTER_PREFETCH_HEADER] = '3'
+      if (process.env.__NEXT_CACHE_COMPONENTS) {
+        // A shell prefetch is satisfiable by a partial fallback shell and
+        // must not trigger regeneration of the full page. See
+        // app-router-headers.ts for details on these headers.
+        headers[PURPOSE_HEADER] = PURPOSE_PREFETCH
+        headers[PREFER_HEADER] = PREFER_RETURN_MINIMAL
+      }
       break
     }
     case FetchStrategy.LoadingBoundary: {
       headers[NEXT_ROUTER_PREFETCH_HEADER] = '1'
+      // No Cache Components prefetch headers: this strategy is only used on
+      // routes that don't support per-segment prefetching, which don't have
+      // partial fallback shells for a proxy to act on.
       break
     }
     default: {
