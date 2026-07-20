@@ -583,8 +583,11 @@ export default function UserProvider({
   children: React.ReactNode
   userPromise: Promise<User>
 }) {
-  return <UserContext.Provider value={userPromise}>{children}</UserContext.Provider>
-}
+return (
+  <UserContext.Provider value={userPromise}>
+    {children}
+  </UserContext.Provider>
+)}
 ```
 
 ```jsx filename="app/user-provider.js" switcher
