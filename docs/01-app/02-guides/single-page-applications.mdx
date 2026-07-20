@@ -369,7 +369,7 @@ function ProjectData({ id }) {
 
 Inside `<Suspense>`, `params.then()` resolves the `id` and passes it to `ProjectData`, which seeds the `fallback` with the `getProject(id)` promise. Only that subtree suspends while the data loads.
 
-The Client Component reads the data with `useSWR` using the same key. Passing `suspense: true` opts into SWR's [Suspense mode](https://swr.vercel.app/docs/suspense), so it suspends at the boundary above until the seeded Promise resolves and `data` is always defined:
+The Client Component reads the data with `useSWR` using the same key:
 
 ```tsx filename="app/projects/[id]/project-view.tsx" switcher
 'use client'
@@ -380,9 +380,9 @@ const fetcher = (url: string) => fetch(url).then((res) => res.json())
 
 export function ProjectView({ id }: { id: string }) {
   // This key must match the `fallback` key exactly.
-  const { data } = useSWR(`/api/projects/${id}`, fetcher, { suspense: true })
+  const { data } = useSWR(`/api/projects/${id}`, fetcher)
 
-  return <h1>{data.name}</h1>
+  return <h1>{data?.name}</h1>
 }
 ```
 
@@ -395,9 +395,9 @@ const fetcher = (url) => fetch(url).then((res) => res.json())
 
 export function ProjectView({ id }) {
   // This key must match the `fallback` key exactly.
-  const { data } = useSWR(`/api/projects/${id}`, fetcher, { suspense: true })
+  const { data } = useSWR(`/api/projects/${id}`, fetcher)
 
-  return <h1>{data.name}</h1>
+  return <h1>{data?.name}</h1>
 }
 ```
 
