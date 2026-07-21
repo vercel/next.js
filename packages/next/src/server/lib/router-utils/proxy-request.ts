@@ -19,6 +19,10 @@ export async function proxyRequest(
   parsedUrl.search = stringifyQuery(req as any, query)
 
   const target = url.format(parsedUrl)
+  // Keep in mind that a WHATWG URL's hostname and the parsedUrl's hostname
+  // are not strictly equal due to lowercasing, IDN translation, IPv4 and IPv6 normalization, etc.
+  // We just make sure this is a valid URL since http-proxy doesn't validate.
+  new URL(target)
   const HttpProxy =
     require('next/dist/compiled/http-proxy') as typeof import('next/dist/compiled/http-proxy')
 

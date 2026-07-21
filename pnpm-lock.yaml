@@ -38,7 +38,7 @@ patchedDependencies:
     hash: cb53bfa5effb15b3a361e176003df667cadf757b27b7c9b458c2f0fce86ea893
     path: patches/@vercel__blob.patch
   http-proxy@1.18.1:
-    hash: 3aac1c597fabd03f9fb4e3fd6e689b87012758d4fed06f296541f9dc3b8d7b39
+    hash: 34b797595c63312eb8cb6e01f4b521bf5eea00315c5e48a31c3d89d866efd50f
     path: patches/http-proxy@1.18.1.patch
   minizlib@3.1.0:
     hash: 587688821244aaee46680929cd869947377a284ac1b30c9ae8660a5ea7d2be67
@@ -392,7 +392,7 @@ importers:
         version: 5.1.18
       http-proxy:
         specifier: 1.18.1
-        version: 1.18.1(patch_hash=3aac1c597fabd03f9fb4e3fd6e689b87012758d4fed06f296541f9dc3b8d7b39)
+        version: 1.18.1(patch_hash=34b797595c63312eb8cb6e01f4b521bf5eea00315c5e48a31c3d89d866efd50f)
       husky:
         specifier: 9.0.11
         version: 9.0.11
@@ -1494,7 +1494,7 @@ importers:
         version: 5.1.1
       http-proxy:
         specifier: 1.18.1
-        version: 1.18.1(patch_hash=3aac1c597fabd03f9fb4e3fd6e689b87012758d4fed06f296541f9dc3b8d7b39)
+        version: 1.18.1(patch_hash=34b797595c63312eb8cb6e01f4b521bf5eea00315c5e48a31c3d89d866efd50f)
       http-proxy-agent:
         specifier: 5.0.0
         version: 5.0.0
@@ -28862,7 +28862,7 @@ snapshots:
   http-proxy-middleware@2.0.7(@types/express@4.17.21):
     dependencies:
       '@types/http-proxy': 1.17.17
-      http-proxy: 1.18.1(patch_hash=3aac1c597fabd03f9fb4e3fd6e689b87012758d4fed06f296541f9dc3b8d7b39)
+      http-proxy: 1.18.1(patch_hash=34b797595c63312eb8cb6e01f4b521bf5eea00315c5e48a31c3d89d866efd50f)
       is-glob: 4.0.3
       is-plain-obj: 3.0.0
       micromatch: 4.0.8
@@ -28871,7 +28871,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  http-proxy@1.18.1(patch_hash=3aac1c597fabd03f9fb4e3fd6e689b87012758d4fed06f296541f9dc3b8d7b39):
+  http-proxy@1.18.1(patch_hash=34b797595c63312eb8cb6e01f4b521bf5eea00315c5e48a31c3d89d866efd50f):
     dependencies:
       eventemitter3: 4.0.7
       follow-redirects: 1.9.0

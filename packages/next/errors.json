@@ -1441,5 +1441,6 @@
   "1440": "Route \"%s\": Next.js encountered uncached data during prerendering.\\n\\n\\`fetch(...)\\` or \\`connection()\\` accessed outside of \\`<Suspense>\\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.\\n\\nWays to fix this:\\n  - [stream] Provide a placeholder with \\`<Suspense fallback={...}>\\` around the data access\\n  - [cache] Cache the data access with \\`\"use cache\"\\` (does not apply to \\`connection()\\`)\\n  - [block] Set \\`export const instant = false\\` to allow a blocking route\\n\\nLearn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic",
   "1441": "DevValidationScheduler requires at least one active validation",
   "1442": "The Server Reference ID did not match the expected format. Received %s.\\nRead more: https://nextjs.org/docs/messages/failed-to-find-server-action",
-  "1443": "Unsupported body type: %s"
+  "1443": "Unsupported body type: %s",
+  "1444": "Invalid target hostname \"%s\" for proxy request, expected \"%s\""
 }
