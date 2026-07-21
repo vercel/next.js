@@ -54,10 +54,13 @@ class TestProfile {
   cachingEnabled
 
   constructor({ group = '', type = '', testPattern = '' } = {}) {
+    // NEXT_TEST_PASSED_FILE is only set by jobs that opt into result caching
+    // (flake-detection jobs must not set it; `main()` throws on that
+    // combination).
     this.cachingEnabled = !!(
       process.env.CI &&
       process.env.GITHUB_SHA &&
-      !process.env.NEXT_FLAKE_DETECTION &&
+      process.env.NEXT_TEST_PASSED_FILE &&
       !process.env.NEXT_TEST_SKIP_RESULT_CACHE
     )
 
@@ -366,10 +369,16 @@ async function main() {
 
   // The CI workflow only runs its passed-tests cache save step when
   // NEXT_TEST_PASSED_FILE is set, and `actions/cache/save` warns if the file
-  // is missing. Create it eagerly (even when result caching turns out to be
-  // disabled, or when we exit before running any test) so those jobs save an
-  // empty file instead of warning.
+  // is missing. Create it eagerly (even when we exit before running any test)
+  // so those jobs save an empty file instead of warning.
   if (process.env.NEXT_TEST_PASSED_FILE) {
+    if (process.env.NEXT_FLAKE_DETECTION) {
+      throw new Error(
+        'NEXT_TEST_PASSED_FILE must not be set when NEXT_FLAKE_DETECTION is enabled: ' +
+          'flake detection disables the test result cache, so the file would never be used. ' +
+          'Remove the `testPassedFile` input from the flake-detection job.'
+      )
+    }
     try {
       fs.closeSync(fs.openSync(process.env.NEXT_TEST_PASSED_FILE, 'a'))
     } catch (err) {
