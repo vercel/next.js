@@ -1094,9 +1094,7 @@ export abstract class RouteModule<
         nextConfig satisfies DeepReadonly<NextConfigRuntime> as NextConfigRuntime,
       routerServerContext,
       deploymentId,
-      clientAssetToken: nextConfig.experimental.supportsImmutableAssets
-        ? ''
-        : deploymentId,
+      clientAssetToken: nextConfig.supportsImmutableAssets ? '' : deploymentId,
     }
   }
 
