@@ -290,7 +290,7 @@ export function Profile() {
 
 The `fallback` data can be prerendered and included in the initial HTML response, then immediately read in the child components using `useSWR`. SWR’s polling, revalidation, and caching still run **client-side only**, so it preserves all the interactivity you rely on for an SPA.
 
-Because Next.js seeds the `fallback` on the server, `useSWR` has data on first render, so there's no need for conditional logic to handle an `undefined` `data`. Note that `isLoading` still flips to `true` while SWR revalidates on the client, even though the seeded `data` is present, so avoid gating the whole render on `isLoading`. To suspend at the closest `<Suspense>` boundary instead, enable SWR's [Suspense mode](https://swr.vercel.app/docs/suspense).
+Because Next.js seeds the `fallback` on the server, `useSWR` has data on first render, so there's no need for conditional logic to handle an `undefined` `data`. The seeded data counts as loaded, so [`isLoading`](https://swr.vercel.app/docs/advanced/understanding#combining-with-isloading-and-isvalidating-for-better-ux) stays `false`. A client-side revalidation surfaces as `isValidating` instead, which you can use to show a background-refresh indicator.
 
 |                      | SWR                 | RSC                 | RSC + SWR           |
 | -------------------- | ------------------- | ------------------- | ------------------- |
