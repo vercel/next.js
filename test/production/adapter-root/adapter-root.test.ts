@@ -13,6 +13,9 @@ describe('adapter-root', () => {
       files: path.join(__dirname, 'fixture'),
       subDir: 'sub',
       skipStart: true,
+      // The workspace file would be treated as the workspace root, changing
+      // the repoRoot this test asserts on.
+      deleteWorkspaceFile: true,
       overrideFiles: setEnvVar
         ? undefined
         : {
