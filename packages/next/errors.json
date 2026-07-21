@@ -1442,5 +1442,8 @@
   "1441": "DevValidationScheduler requires at least one active validation",
   "1442": "The Server Reference ID did not match the expected format. Received %s.\\nRead more: https://nextjs.org/docs/messages/failed-to-find-server-action",
   "1443": "Unsupported body type: %s",
-  "1444": "Invalid target hostname \"%s\" for proxy request, expected \"%s\""
+  "1444": "Invalid target hostname \"%s\" for proxy request, expected \"%s\"",
+  "1445": "Invariant: Missing `__NEXT_PRIVATE_ORIGIN` environment variable.",
+  "1446": "Missing initURL",
+  "1447": "Could not determine origin for forwarded Server Actions request. This can happen if port or hostname are not configured for this server."
 }
