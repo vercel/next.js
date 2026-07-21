@@ -115,6 +115,77 @@ describe.each(
       env.name,
       () => {
         describe('app router', () => {
+          if (env.name === 'root context') {
+            it('should trace inline Server Action', async () => {
+              const browser = await next.browser('/app/param/server-action')
+              await browser.elementById('run-inline-server-action').click()
+
+              await retry(async () => {
+                const span = getCollector()
+                  .getSpans()
+                  .find(
+                    (candidate) =>
+                      candidate.attributes?.['next.span_type'] ===
+                      'AppRender.executeServerAction'
+                  )
+
+                expect(span).toEqual(
+                  expect.objectContaining({
+                    name: 'AppRender.executeServerAction',
+                    attributes: expect.objectContaining({
+                      'next.span_name': 'run Server Action <inline action>',
+                      'next.span_type': 'AppRender.executeServerAction',
+                      'next.span_category': 'application',
+                      'next.server_action.name': '<inline action>',
+                      ...(isNextDev
+                        ? {
+                            'next.server_action.file':
+                              'app/app/[param]/server-action/page.tsx',
+                          }
+                        : {}),
+                    }),
+                    status: { code: 0 },
+                  })
+                )
+              })
+            })
+
+            it('should trace exported Server Action', async () => {
+              const browser = await next.browser('/app/param/server-action')
+              await browser.elementById('run-exported-server-action').click()
+
+              await retry(async () => {
+                const span = getCollector()
+                  .getSpans()
+                  .find(
+                    (candidate) =>
+                      candidate.attributes?.['next.server_action.name'] ===
+                      'exportedServerAction'
+                  )
+
+                expect(span).toEqual(
+                  expect.objectContaining({
+                    name: 'AppRender.executeServerAction',
+                    attributes: expect.objectContaining({
+                      'next.span_name':
+                        'run Server Action exportedServerAction',
+                      'next.span_type': 'AppRender.executeServerAction',
+                      'next.span_category': 'application',
+                      'next.server_action.name': 'exportedServerAction',
+                      ...(isNextDev
+                        ? {
+                            'next.server_action.file':
+                              'app/app/[param]/server-action/actions.ts',
+                          }
+                        : {}),
+                    }),
+                    status: { code: 0 },
+                  })
+                )
+              })
+            })
+          }
+
           it('should handle RSC with fetch', async () => {
             await next.fetch('/app/param/rsc-fetch', env.fetchInit)
 
