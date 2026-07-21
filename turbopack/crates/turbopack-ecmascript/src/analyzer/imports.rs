@@ -32,11 +32,11 @@ use crate::{
         is_unresolved, is_unresolved_id,
     },
     magic_identifier::{MAGIC_IDENTIFIER_DEFAULT_EXPORT, MAGIC_IDENTIFIER_DEFAULT_EXPORT_ATOM},
+    module_fragments::{PartId, find_turbopack_part_id_in_asserts},
     references::{
         esm::{EsmAssetReference, EsmExport, Liveness},
         util::{SpecifiedChunkingType, parse_chunking_type_annotation},
     },
-    tree_shake::{PartId, find_turbopack_part_id_in_asserts},
 };
 
 #[turbo_tasks::value]
@@ -522,6 +522,10 @@ impl ImportMap {
             SpecifiedModuleType::CommonJs => false,
             SpecifiedModuleType::EcmaScript => true,
         }
+    }
+
+    pub fn is_cjs(&self, specified_type: SpecifiedModuleType) -> bool {
+        !self.is_esm(specified_type)
     }
 
     pub fn get_import<'a>(&self, arena: &'a Bump, id: &Id) -> Option<JsValue<'a>> {

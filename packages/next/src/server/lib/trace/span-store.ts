@@ -74,6 +74,10 @@ export function isLocalSpanRecordingEnabled(): boolean {
 }
 
 export function isRequestInsightsEnabled(): boolean {
+  if (!process.env.__NEXT_DEV_SERVER) {
+    return false
+  }
+
   const value = process.env.__NEXT_REQUEST_INSIGHTS
   return isEnabledEnvValue(value)
 }

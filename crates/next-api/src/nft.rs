@@ -61,7 +61,7 @@ pub async fn trace_endpoint(
     project: ResolvedVc<Project>,
     page_name: Option<RcStr>,
     module_graph: ResolvedVc<ModuleGraph>,
-    entry_module: ResolvedVc<Box<dyn Module>>,
+    entry_modules: Vc<Modules>,
 ) -> Result<Vc<EndpointTraceResult>> {
     let span = tracing::info_span!("trace endpoint", path = debug(&page_name));
     async {
@@ -78,7 +78,7 @@ pub async fn trace_endpoint(
         // Collect referenced assets and externals from module graph
         let all_modules = traced_modules_for_entries(
             *module_graph,
-            Vc::cell(vec![entry_module]),
+            entry_modules,
             traced_entries,
             tracing_exclude_glob(page_name.clone(), project_path.clone(), next_config)
                 .await?

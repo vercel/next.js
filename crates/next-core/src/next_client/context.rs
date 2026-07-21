@@ -283,11 +283,11 @@ pub async fn get_client_module_options_context(
     let enable_webpack_loaders =
         *webpack_loader_options(project_path.clone(), next_config, loader_conditions).await?;
 
-    let tree_shaking_mode_for_user_code = *next_config
-        .tree_shaking_mode_for_user_code(next_mode.is_development())
+    let module_fragments_enabled_for_user_code = *next_config
+        .module_fragments_enabled_for_user_code(next_mode.is_development())
         .await?;
-    let tree_shaking_mode_for_foreign_code = *next_config
-        .tree_shaking_mode_for_foreign_code(next_mode.is_development())
+    let module_fragments_enabled_for_foreign_code = *next_config
+        .module_fragments_enabled_for_foreign_code(next_mode.is_development())
         .await?;
     let target_browsers = env.runtime_versions();
 
@@ -374,6 +374,7 @@ pub async fn get_client_module_options_context(
             enable_import_as_bytes: *next_config.turbopack_import_type_bytes().await?,
             source_maps,
             infer_module_side_effects: *next_config.turbopack_infer_module_side_effects().await?,
+            cjs_tree_shaking: *next_config.turbopack_cjs_tree_shaking().await?,
             preset_env_config,
             ..Default::default()
         },
@@ -386,7 +387,8 @@ pub async fn get_client_module_options_context(
         static_url_tag: Some(rcstr!("client")),
         environment: Some(env),
         execution_context: Some(execution_context),
-        tree_shaking_mode: tree_shaking_mode_for_user_code,
+        follow_reexports: true,
+        module_fragments_enabled: module_fragments_enabled_for_user_code,
         enable_postcss_transform,
         side_effect_free_packages: Some(
             side_effect_free_packages_glob(next_config.optimize_package_imports())
@@ -412,7 +414,8 @@ pub async fn get_client_module_options_context(
         enable_webpack_loaders: foreign_enable_webpack_loaders,
         enable_postcss_transform: enable_foreign_postcss_transform,
         module_rules: foreign_next_client_rules,
-        tree_shaking_mode: tree_shaking_mode_for_foreign_code,
+        follow_reexports: true,
+        module_fragments_enabled: module_fragments_enabled_for_foreign_code,
         // NOTE(WEB-1016) PostCSS transforms should also apply to foreign code.
         ..module_options_context.clone()
     };
@@ -482,6 +485,7 @@ pub struct ClientChunkingContextOptions {
     pub no_mangling: Vc<bool>,
     pub scope_hoisting: Vc<bool>,
     pub nested_async_chunking: Vc<bool>,
+    pub shared_runtime: Vc<bool>,
     pub debug_ids: Vc<bool>,
     pub worker_asset_prefix: Vc<Option<RcStr>>,
     pub should_use_absolute_url_references: Vc<bool>,
@@ -493,6 +497,7 @@ pub struct ClientChunkingContextOptions {
     pub chunking_first_page_load_priority: Option<u32>,
     pub chunking_priority_boost_percent: Option<u32>,
     pub chunking_request_cost: Option<u64>,
+    pub generate_component_chunks: Vc<bool>,
 }
 
 /// Next.js' chunk-load retry policy for the Turbopack browser runtime.
@@ -524,6 +529,7 @@ pub async fn get_client_chunking_context(
         no_mangling,
         scope_hoisting,
         nested_async_chunking,
+        shared_runtime,
         debug_ids,
         worker_asset_prefix,
         should_use_absolute_url_references,
@@ -535,6 +541,7 @@ pub async fn get_client_chunking_context(
         chunking_first_page_load_priority,
         chunking_priority_boost_percent,
         chunking_request_cost,
+        generate_component_chunks,
     } = options;
 
     let next_mode = mode.await?;
@@ -604,6 +611,10 @@ pub async fn get_client_chunking_context(
                     first_page_load_priority: chunking_first_page_load_priority,
                     priority_boost_percent: chunking_priority_boost_percent,
                     request_cost: chunking_request_cost,
+                    // Generate component chunks alongside the merged chunk so that the browser
+                    // runtime can fetch an already-cached one instead of the whole merged chunk.
+                    generate_component_chunks: *generate_component_chunks.await?,
+                    min_component_chunk_size: 20_000,
                     ..Default::default()
                 },
             )
@@ -616,7 +627,8 @@ pub async fn get_client_chunking_context(
                 },
             )
             .chunk_content_hashing(ContentHashing::Direct { length: 13 })
-            .module_merging(*scope_hoisting.await?);
+            .module_merging(*scope_hoisting.await?)
+            .shared_runtime(*shared_runtime.await?);
     }
 
     Ok(Vc::upcast(builder.build()))

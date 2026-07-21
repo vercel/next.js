@@ -11,6 +11,8 @@ export type MatchOptions = {
    * application was not configured for additional locales.
    */
   i18n?: LocaleAnalysisResult | undefined
+
+  rscOnly?: boolean
 }
 
 export interface RouteMatcherManager {

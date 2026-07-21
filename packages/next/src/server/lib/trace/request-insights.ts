@@ -9,6 +9,8 @@ export { isRequestInsightsEnabled } from './span-store'
 
 const MAX_REQUEST_INSIGHTS = 100
 const REQUEST_INSIGHTS_STORE_KEY = Symbol.for('@next/request-insights-store')
+const CLIENT_COMPONENT_LOADING_SPAN_TYPE =
+  'NextNodeServer.clientComponentLoading'
 
 type RequestInsightsListener = (insight: RequestInsight) => void
 type RequestInsightIdentity = {
@@ -32,6 +34,7 @@ const SAFE_SPAN_ATTRIBUTE_KEYS = new Set([
   'next.route',
   'next.rsc',
   'next.segment',
+  'next.span_category',
   'next.span_name',
   'next.span_type',
 ])
@@ -40,6 +43,10 @@ const SENSITIVE_PARAM_NAME_RE =
 
 class InMemoryRequestInsightsStore {
   private readonly requests = new Map<string, RequestInsight>()
+  private readonly requestTimings = new Map<
+    string,
+    { startTime: number; durationMs: number }
+  >()
   private readonly requestOrder: string[] = []
   private readonly listeners = new Set<RequestInsightsListener>()
 
@@ -54,19 +61,15 @@ class InMemoryRequestInsightsStore {
     )
 
     const spanStartTime = span.startTime ?? span.timestamp
-    const spanEndTime = span.durationMs
-      ? spanStartTime + span.durationMs
-      : spanStartTime
-    const requestEndTime = insight.durationMs
-      ? insight.startTime + insight.durationMs
-      : insight.startTime
-
     insight.htmlRequestId = span.htmlRequestId ?? insight.htmlRequestId
     insight.route = insight.route ?? span.route
     insight.url = insight.url ?? sanitizeUrl(span.url)
-    insight.startTime = Math.min(insight.startTime, spanStartTime)
-    insight.durationMs =
-      Math.max(requestEndTime, spanEndTime) - insight.startTime
+    this.updateTiming(
+      insight,
+      spanStartTime,
+      span.durationMs,
+      span.attributes?.['next.span_type'] === 'BaseServer.handleRequest'
+    )
     insight.status =
       insight.status === 'error' || span.status === 'error'
         ? 'error'
@@ -103,15 +106,7 @@ class InMemoryRequestInsightsStore {
 
     const fetchStartTime = fetch.startTime ?? Date.now()
     const insight = this.getOrCreateRequest(identity, fetchStartTime)
-    const fetchEndTime = fetch.durationMs
-      ? fetchStartTime + fetch.durationMs
-      : fetchStartTime
-    const requestEndTime = insight.durationMs
-      ? insight.startTime + insight.durationMs
-      : insight.startTime
-
-    insight.durationMs =
-      Math.max(requestEndTime, fetchEndTime) - insight.startTime
+    this.updateTiming(insight, fetchStartTime, fetch.durationMs, false)
     this.recordFetchForInsight(insight, sanitizeFetchInsight(fetch))
     this.notify(insight)
   }
@@ -133,7 +128,35 @@ class InMemoryRequestInsightsStore {
 
   clear(): void {
     this.requests.clear()
+    this.requestTimings.clear()
     this.requestOrder.length = 0
+  }
+
+  private updateTiming(
+    insight: RequestInsight,
+    startTime: number,
+    durationMs: number | undefined,
+    isRequestSpan: boolean
+  ): void {
+    if (isRequestSpan && durationMs !== undefined) {
+      const requestTiming = { startTime, durationMs }
+      this.requestTimings.set(insight.requestId, requestTiming)
+      insight.startTime = requestTiming.startTime
+      insight.durationMs = requestTiming.durationMs
+      return
+    }
+
+    const requestTiming = this.requestTimings.get(insight.requestId)
+    if (requestTiming) {
+      insight.startTime = requestTiming.startTime
+      insight.durationMs = requestTiming.durationMs
+      return
+    }
+
+    const endTime = startTime + (durationMs ?? 0)
+    const requestEndTime = insight.startTime + (insight.durationMs ?? 0)
+    insight.startTime = Math.min(insight.startTime, startTime)
+    insight.durationMs = Math.max(requestEndTime, endTime) - insight.startTime
   }
 
   private notify(insight: RequestInsight): void {
@@ -197,12 +220,19 @@ class InMemoryRequestInsightsStore {
       const requestId = this.requestOrder.shift()
       if (requestId) {
         this.requests.delete(requestId)
+        this.requestTimings.delete(requestId)
       }
     }
   }
 }
 
 export function recordRequestInsightSpan(span: SpanStoreRecord): void {
+  if (
+    span.attributes?.['next.span_type'] === CLIENT_COMPONENT_LOADING_SPAN_TYPE
+  ) {
+    return
+  }
+
   getRequestInsightsStore().recordSpan(span)
 }
 

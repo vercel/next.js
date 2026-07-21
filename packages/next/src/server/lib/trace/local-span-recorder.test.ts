@@ -6,6 +6,7 @@ import { runInNewContext } from 'node:vm'
 import { setFlagsFromString } from 'node:v8'
 import { SpanStatusCode, trace } from 'next/dist/compiled/@opentelemetry/api'
 import { createLocalSpan } from './local-span-recorder'
+import { runWithRequestInsightsIdentity } from './request-insights-identity'
 import { setSpanRecorderForTest, type SpanStoreRecord } from './span-store'
 
 const originalDevServer = process.env.__NEXT_DEV_SERVER
@@ -115,6 +116,47 @@ describe('local recording span', () => {
             },
           }),
         ],
+      }),
+    ])
+  })
+
+  it('uses the request insights identity before the work store exists', () => {
+    runWithRequestInsightsIdentity(
+      {
+        requestId: 'request-1',
+        htmlRequestId: 'html-1',
+        url: '/dashboard?tab=overview',
+      },
+      () => {
+        const span = createLocalSpan({ name: 'test.request-root' })
+        span.end()
+      }
+    )
+
+    expect(spanRecords).toEqual([
+      expect.objectContaining({
+        name: 'test.request-root',
+        requestId: 'request-1',
+        htmlRequestId: 'html-1',
+        url: '/dashboard?tab=overview',
+      }),
+    ])
+  })
+
+  it('records explicit performance timestamps', () => {
+    const startTime = performance.now() - 10
+    const span = createLocalSpan({
+      name: 'test.local-span.explicit-time',
+      startTime,
+    })
+
+    span.end(startTime + 0.2)
+
+    expect(spanRecords).toEqual([
+      expect.objectContaining({
+        name: 'test.local-span.explicit-time',
+        startTime: performance.timeOrigin + startTime,
+        durationMs: expect.closeTo(0.2, 3),
       }),
     ])
   })
