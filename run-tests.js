@@ -132,6 +132,11 @@ class TestProfile {
     if (!file) return new Set()
     try {
       const data = fs.readFileSync(file, 'utf8')
+      // The file is created eagerly on startup, so it's empty when no test
+      // passed (or none ran at all) in the earlier attempt.
+      if (data === '') {
+        return new Set()
+      }
       // Tolerate a partial trailing line from a hard kill mid-append by
       // requiring an explicit '\0' terminator. Lines without it are
       // dropped.
@@ -358,6 +363,19 @@ async function getTestTimings() {
 async function main() {
   // Ensure we have the arguments awaited from yargs.
   argv = await argv
+
+  // The CI workflow only runs its passed-tests cache save step when
+  // NEXT_TEST_PASSED_FILE is set, and `actions/cache/save` warns if the file
+  // is missing. Create it eagerly (even when result caching turns out to be
+  // disabled, or when we exit before running any test) so those jobs save an
+  // empty file instead of warning.
+  if (process.env.NEXT_TEST_PASSED_FILE) {
+    try {
+      fs.closeSync(fs.openSync(process.env.NEXT_TEST_PASSED_FILE, 'a'))
+    } catch (err) {
+      console.log(`Test result cache: create failed (${err.message})`)
+    }
+  }
 
   // `.github/workflows/build_reusable.yml` sets this, we should use it unless
   // it's overridden by an explicit `--concurrency` argument.

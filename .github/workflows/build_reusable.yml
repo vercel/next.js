@@ -91,6 +91,14 @@ on:
         required: false
         type: boolean
         default: false
+      testPassedFile:
+        description: >
+          Path to the file where `run-tests.js` memoizes passed tests across
+          retry attempts. Set it only for jobs whose afterBuild runs
+          run-tests.js; when empty, the passed-tests cache steps are skipped.
+        required: false
+        type: string
+        default: ''
       browser:
         description: 'Browser to use for tests'
         required: false
@@ -134,8 +142,9 @@ env:
   KV_REST_API_URL: ${{ secrets.KV_REST_API_URL }}
   KV_REST_API_TOKEN: ${{ secrets.KV_REST_API_TOKEN }}
   NEXT_TEST_JOB: 1
-  # Per-job memoization of passed test files.
-  NEXT_TEST_PASSED_FILE: .next-test-passed.txt
+  # Per-job memoization of passed test files. Empty for jobs that don't run
+  # run-tests.js; the passed-tests cache steps are skipped for those.
+  NEXT_TEST_PASSED_FILE: ${{ inputs.testPassedFile }}
   VERCEL_TEST_TOKEN: ${{ secrets.VERCEL_TEST_TOKEN }}
   VERCEL_TEST_TEAM: vtest314-next-e2e-tests
   VERCEL_ADAPTER_TEST_TOKEN: ${{ secrets.VERCEL_ADAPTER_TEST_TOKEN }}
@@ -404,7 +413,7 @@ jobs:
       # Restore the list of tests that already passed in an earlier
       # attempt of this same workflow run.
       - name: Restore passed-tests cache
-        if: ${{ inputs.afterBuild }}
+        if: ${{ env.NEXT_TEST_PASSED_FILE != '' }}
         uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
           path: ${{ env.NEXT_TEST_PASSED_FILE }}
@@ -424,7 +433,7 @@ jobs:
       # Save the passed-tests file so the next attempt (if any) can skip
       # them. `always()` makes this run on success, failure, or cancellation.
       - name: Save passed-tests cache
-        if: ${{ always() && inputs.afterBuild }}
+        if: ${{ always() && env.NEXT_TEST_PASSED_FILE != '' }}
         uses: actions/cache/save@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
           path: ${{ env.NEXT_TEST_PASSED_FILE }}

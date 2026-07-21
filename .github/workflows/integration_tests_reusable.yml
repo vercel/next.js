@@ -110,6 +110,7 @@ jobs:
           --retries ${{ inputs.num_retries }} \
           --type ${{ inputs.test_type }}
       stepName: test-${{ inputs.name }}-${{ matrix.group }}
+      testPassedFile: '.next-test-passed.txt'
       timeout_minutes: ${{ inputs.e2e_timeout_minutes }}
     secrets: inherit
 
@@ -146,6 +147,7 @@ jobs:
           --retries ${{ inputs.num_retries }} \
           --type integration
       stepName: test-${{ inputs.name }}-integration-${{ matrix.group }}
+      testPassedFile: '.next-test-passed.txt'
       timeout_minutes: ${{ inputs.integration_timeout_minutes }}
     secrets: inherit
 
