@@ -1,15 +1,10 @@
 import * as fs from 'fs'
 import * as path from 'path'
 import * as url from 'url'
+import { SourceMap } from 'module'
 import { nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 import WebSocket from 'ws'
-// Next.js' vendored synchronous source-map fork. Its type declarations
-// forward to the `source-map` package, which only resolves from within
-// packages/next, not from the test tsconfig — hence `require`.
-const {
-  SourceMapConsumer: SyncSourceMapConsumer,
-} = require('next/dist/compiled/source-map')
 
 interface InspectorTarget {
   title: string
@@ -272,15 +267,15 @@ describe('app-dir - server source maps - fake frame source maps', () => {
           const column =
             callIndex - (scriptSource.lastIndexOf('\n', callIndex) + 1)
 
-          const consumer = new SyncSourceMapConsumer(sourceMap)
-          const original = consumer.originalPositionFor({ line, column })
-          if (original.source !== null) {
+          const consumer = new SourceMap(sourceMap)
+          const original = consumer.findEntry(line - 1, column)
+          if (original.originalSource !== undefined) {
             // Relative sources resolve against the map's own URL. Sources in
             // `data:` maps are already absolute.
             mappedSources.add(
               mapURL === null
-                ? original.source
-                : new URL(original.source, mapURL).href
+                ? original.originalSource
+                : new URL(original.originalSource, mapURL).href
             )
           }
         }
