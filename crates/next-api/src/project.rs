@@ -76,8 +76,8 @@ use turbopack_core::{
         chunk_group_info::{ChunkGroupEntry, EntryHeuristics},
     },
     output::{
-        ExpandOutputAssetsInput, ExpandedOutputAssets, OutputAsset, OutputAssets,
-        expand_output_assets,
+        ExpandOutputAssetsInput, ExpandedOutputAssets, OptionOutputAsset, OutputAsset,
+        OutputAssets, expand_output_assets,
     },
     reference::all_assets_from_entries,
     reference_type::{CommonJsReferenceSubType, ReferenceType},
@@ -914,6 +914,29 @@ impl ProjectContainer {
             map.get_source_map(file_path, section)
         } else {
             FileContent::NotFound.cell()
+        }
+    }
+
+    /// Gets the [`OutputAsset`] that generates the source map for a particular `file_path` (i.e.
+    /// the chunk asset itself). If `dev` mode is disabled, this will always return [`None`].
+    #[turbo_tasks::function]
+    pub fn get_source_map_asset(&self, file_path: FileSystemPath) -> Vc<OptionOutputAsset> {
+        if let Some(map) = self.versioned_content_map {
+            map.get_asset(file_path)
+        } else {
+            // The `versioned_content_map` is a dev-only path→asset index (see
+            // `Project::versioned_content_map`), so there's no lookup available in production.
+            //
+            // To make this work outside dev we'd need a path→asset index over the emitted output
+            // graph (walk `all_assets_from_entries` keyed by `OutputAsset::path()`), analogous to
+            // `VersionedContentMap` but populated in build mode too. Source maps *are* written to
+            // disk in prod (server maps default-on, client maps behind
+            // `productionBrowserSourceMaps`), and the resolved chunk asset's referenced
+            // `SourceMapAsset::path()` is the authoritative `.map` location in every
+            // mode (it already accounts for content-hashed prod client chunks, whose
+            // map path is derived from the map's own content — not `<chunk>.map`), so
+            // once the chunk asset is resolvable here the file-path lookup works unchanged.
+            Vc::cell(None)
         }
     }
 }

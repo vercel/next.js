@@ -485,6 +485,14 @@ export declare function projectGetSourceMapSync(
   project: { __napiType: 'Project' },
   filePath: RcStr
 ): string | null
+export declare function projectGetSourceMapFilePath(
+  project: { __napiType: 'Project' },
+  filePath: RcStr
+): Promise<string | null>
+export declare function projectGetSourceMapFilePathSync(
+  project: { __napiType: 'Project' },
+  filePath: RcStr
+): string | null
 export declare function projectWriteAnalyzeData(
   project: { __napiType: 'Project' },
   appDirOnly: boolean

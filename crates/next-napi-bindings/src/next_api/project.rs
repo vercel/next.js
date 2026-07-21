@@ -58,14 +58,15 @@ use turbo_tasks::{
 };
 use turbo_tasks_backend::db_invalidation::invalidation_reasons;
 use turbo_tasks_fs::{
-    DiskFileSystem, FileContent, FileSystem, FileSystemPath, invalidation, util::uri_from_file,
+    DiskFileSystem, FileContent, FileSystem, FileSystemPath, invalidation, rebase,
+    util::uri_from_file,
 };
 use turbo_unix_path::{get_relative_path_to, sys_to_unix, unix_to_sys};
 use turbopack_core::{
     PROJECT_FILESYSTEM_NAME, SOURCE_URL_PROTOCOL,
     issue::PlainIssue,
-    output::{OutputAsset, OutputAssets},
-    source_map::{SourceMap, Token},
+    output::{OutputAsset, OutputAssets, OutputAssetsReference},
+    source_map::{GenerateSourceMap, SourceMap, SourceMapAsset, Token},
     version::{PartialUpdate, TotalUpdate, Update, VersionState},
 };
 use turbopack_ecmascript_hmr_protocol::{ClientUpdateInstruction, Issue, ResourceIdentifier};
@@ -2181,12 +2182,46 @@ pub struct StackFrame {
 #[derive(Clone)]
 pub struct OptionStackFrame(Option<StackFrame>);
 
-#[turbo_tasks::function]
-pub async fn get_source_map_rope(
+/// The chunk asset that owns the source map for a given `source_url`, along with the referenced
+/// [`SourceMapAsset`] and the optional module `section` (the `id` query param).
+///
+/// Callers can derive the source map *content* from `chunk` (via [`GenerateSourceMap`]) or its
+/// *file path* from `source_map`'s [`OutputAsset::path`].
+struct ResolvedSourceMapAsset {
+    chunk: ResolvedVc<Box<dyn OutputAsset>>,
+    source_map: ResolvedVc<SourceMapAsset>,
+    section: Option<RcStr>,
+}
+
+/// Returns the [`SourceMapAsset`] referenced by `chunk` (chunks reference their source map as a
+/// sibling output asset), or `None` if the chunk has no source map.
+async fn source_map_asset_of(
+    chunk: ResolvedVc<Box<dyn OutputAsset>>,
+) -> Result<Option<ResolvedVc<SourceMapAsset>>> {
+    let references = (*chunk).references().await?;
+    for referenced in references.assets.await?.iter() {
+        if let Some(source_map) = ResolvedVc::try_downcast_type::<SourceMapAsset>(*referenced) {
+            return Ok(Some(source_map));
+        }
+    }
+    Ok(None)
+}
+
+/// Resolves the chunk asset that owns the source map for the given `source_url`, trying the server
+/// chunk first and falling back to a client chunk.
+///
+/// The server-vs-client decision is based on whether a chunk asset *exists at that path and
+/// references a [`SourceMapAsset`]* — we deliberately avoid *generating* the source map here
+/// (that's potentially expensive and is only needed by the content getter), so the file-path getter
+/// never pays for source-map codegen.
+///
+/// Returns `Ok(None)` when the url is outside the dist dir. `bail`s when no such chunk exists in
+/// either location (i.e. is missing a sourcemap).
+async fn resolve_source_map_asset(
     container: Vc<ProjectContainer>,
-    source_url: RcStr,
-) -> Result<Vc<FileContent>> {
-    let (file_path_sys, module) = match Url::parse(&source_url) {
+    source_url: &RcStr,
+) -> Result<Option<ResolvedSourceMapAsset>> {
+    let (file_path_sys, module) = match Url::parse(source_url) {
         Ok(url) => match url.scheme() {
             "file" => {
                 let path = match url.to_file_path() {
@@ -2211,10 +2246,10 @@ pub async fn get_source_map_rope(
 
     let chunk_base_unix =
         match file_path_sys.strip_prefix(container.project().dist_dir_absolute().await?.as_str()) {
-            Some(relative_path) => sys_to_unix(relative_path),
+            Some(relative_path) => RcStr::from(sys_to_unix(relative_path).into_owned()),
             None => {
                 // File doesn't exist within the dist dir
-                return Ok(FileContent::NotFound.cell());
+                return Ok(None);
             }
         };
 
@@ -2224,26 +2259,59 @@ pub async fn get_source_map_rope(
         .await?
         .join(&chunk_base_unix)?;
 
+    if let Some(chunk) = *container.get_source_map_asset(server_path).await?
+        && let Some(source_map) = source_map_asset_of(chunk).await?
+    {
+        return Ok(Some(ResolvedSourceMapAsset {
+            chunk,
+            source_map,
+            section: module,
+        }));
+    }
+
+    // If the chunk doesn't exist as a server chunk, try a client chunk.
+    // TODO: Properly tag all server chunks and use the `isServer` query param.
+    // Currently, this is inaccurate as it does not cover RSC server
+    // chunks.
     let client_path = container
         .project()
         .client_relative_path()
         .await?
         .join(&chunk_base_unix)?;
 
-    let mut map = container.get_source_map(server_path, module.clone());
-
-    if !map.await?.is_content() {
-        // If the chunk doesn't exist as a server chunk, try a client chunk.
-        // TODO: Properly tag all server chunks and use the `isServer` query param.
-        // Currently, this is inaccurate as it does not cover RSC server
-        // chunks.
-        map = container.get_source_map(client_path, module);
-        if !map.await?.is_content() {
-            bail!("chunk/module '{}' is missing a sourcemap", source_url);
-        }
+    if let Some(chunk) = *container.get_source_map_asset(client_path).await?
+        && let Some(source_map) = source_map_asset_of(chunk).await?
+    {
+        return Ok(Some(ResolvedSourceMapAsset {
+            chunk,
+            source_map,
+            section: module,
+        }));
     }
 
-    Ok(map)
+    bail!("chunk/module '{}' is missing a sourcemap", source_url);
+}
+
+#[turbo_tasks::function]
+pub async fn get_source_map_rope(
+    container: Vc<ProjectContainer>,
+    source_url: RcStr,
+) -> Result<Vc<FileContent>> {
+    let Some(ResolvedSourceMapAsset { chunk, section, .. }) =
+        resolve_source_map_asset(container, &source_url).await?
+    else {
+        return Ok(FileContent::NotFound.cell());
+    };
+
+    let Some(generate_source_map) = ResolvedVc::try_sidecast::<Box<dyn GenerateSourceMap>>(chunk)
+    else {
+        bail!("chunk/module '{}' is missing a sourcemap", source_url);
+    };
+
+    Ok(match section {
+        Some(section) => generate_source_map.by_section(section),
+        None => generate_source_map.generate_source_map(),
+    })
 }
 
 #[turbo_tasks::function(operation, root)]
@@ -2252,6 +2320,60 @@ pub fn get_source_map_rope_operation(
     file_path: RcStr,
 ) -> Vc<FileContent> {
     get_source_map_rope(*container, file_path)
+}
+
+/// Resolves the `file://` URL of the source map for `source_url` (i.e. the location of the chunk's
+/// `.map`), working for both client and server chunk paths.
+#[turbo_tasks::function]
+pub async fn get_source_map_file_path(
+    container: Vc<ProjectContainer>,
+    source_url: RcStr,
+) -> Result<Vc<Option<RcStr>>> {
+    let Some(ResolvedSourceMapAsset { source_map, .. }) =
+        resolve_source_map_asset(container, &source_url).await?
+    else {
+        return Ok(Vc::cell(None));
+    };
+
+    // Use the `SourceMapAsset`'s own `path()` rather than deriving `<chunk>.map` by string
+    // manipulation: it's authoritative in every mode, whereas the `<chunk>.map` derivation breaks
+    // for content-hashed chunks (prod client), where the map is hashed from the map's own content —
+    // see `SourceMapAsset::path` / `BrowserChunkingContext::chunk_path`.
+    let source_map_path = source_map.path().owned().await?;
+
+    // Server source maps live under `node_root` (a `DiskFileSystem`) and can be turned into a
+    // `file://` URL directly. Client source maps live under `client_relative_path` (a
+    // `VirtualFileSystem`), which is not disk-backed; they are emitted to disk by rebasing onto the
+    // client output path (which is `node_root` in dev — see `Project::emit_all_output_assets`).
+    // Mirror that rebasing so we always hand back the on-disk location.
+    let project = container.project();
+    let node_root = project.node_root().owned().await?;
+    let disk_source_map_path = if source_map_path.is_inside_ref(&node_root) {
+        source_map_path
+    } else {
+        let client_relative_path = project.client_relative_path().owned().await?;
+        if source_map_path.is_inside_ref(&client_relative_path) {
+            rebase(source_map_path, client_relative_path, node_root.clone())
+                .owned()
+                .await?
+        } else {
+            // Not under a known output root (e.g. produced on some other filesystem); we can't map
+            // it to a disk `file://` URL.
+            return Ok(Vc::cell(None));
+        }
+    };
+
+    let uri = uri_from_file(disk_source_map_path, None).await?;
+
+    Ok(Vc::cell(Some(RcStr::from(uri))))
+}
+
+#[turbo_tasks::function(operation, root)]
+pub fn get_source_map_file_path_operation(
+    container: ResolvedVc<ProjectContainer>,
+    file_path: RcStr,
+) -> Vc<Option<RcStr>> {
+    get_source_map_file_path(*container, file_path)
 }
 
 #[turbo_tasks::function(operation, root)]
@@ -2439,6 +2561,39 @@ pub fn project_get_source_map_sync(
 ) -> napi::Result<Option<String>> {
     within_runtime_if_available(|| {
         tokio::runtime::Handle::current().block_on(project_get_source_map(project, file_path))
+    })
+}
+
+#[tracing::instrument(level = "info", name = "get SourceMap file path for asset", skip_all)]
+#[napi]
+pub async fn project_get_source_map_file_path(
+    #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
+    file_path: RcStr,
+) -> napi::Result<Option<String>> {
+    let container = project.container;
+    let ctx = &project.turbopack_ctx;
+    ctx.turbo_tasks()
+        .run(async move {
+            let source_map_file_path = get_source_map_file_path_operation(container, file_path)
+                .read_strongly_consistent()
+                .await?;
+            Ok(source_map_file_path.as_ref().map(|s| s.to_string()))
+        })
+        // HACK: Don't use `TurbopackInternalError`, this function is race-condition prone (the
+        // source files may have changed or been deleted), so these probably aren't internal errors?
+        // Ideally we should differentiate.
+        .await
+        .map_err(|e| napi::Error::from_reason(PrettyPrintError(&e.into()).to_string()))
+}
+
+#[napi]
+pub fn project_get_source_map_file_path_sync(
+    #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
+    file_path: RcStr,
+) -> napi::Result<Option<String>> {
+    within_runtime_if_available(|| {
+        tokio::runtime::Handle::current()
+            .block_on(project_get_source_map_file_path(project, file_path))
     })
 }
 
