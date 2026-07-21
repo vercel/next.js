@@ -10,9 +10,12 @@
 //! [`StructuredSourceMap`] instead stores the map's fields:
 //! - fields we never modify are kept as verbatim raw JSON snippets ([`Rope`]s), so producers' bytes
 //!   round-trip untouched and re-emission is pure rope sharing;
-//! - `sources` is typed, because URL rewrites (see [`super::utils`]) modify it;
-//! - `sourcesContent` entries are individual, already-JSON-escaped [`Rope`]s that are shared — not
-//!   copied — into every map that embeds them;
+//! - `sources` also stays a verbatim snippet until a URL rewrite (see [`super::utils`]) actually
+//!   changes an entry — only then is it decoded, so external maps that fail to decode (or are never
+//!   rewritten) round-trip byte-for-byte, matching the pre-structured pipeline;
+//! - `sourcesContent` of maps built from swc objects is a list of individually pre-escaped
+//!   [`Rope`]s that are shared — not copied — into every map that embeds them; for maps parsed from
+//!   external bytes it stays a verbatim snippet and is never decoded;
 //! - `mappings` stays a raw snippet since it is usually the largest skeleton field.
 //!
 //! [`StructuredSourceMap::to_rope`] emits fields in the same order as `swc_sourcemap`'s
@@ -37,12 +40,9 @@ pub struct StructuredSourceMap {
     // Declaration order mirrors `swc_sourcemap`'s `RawSourceMap`, which is the emission order.
     version: Option<Rope>,
     file: Option<Rope>,
-    /// Typed because URL rewrites modify it.
-    sources: Option<Vec<Option<String>>>,
+    sources: Option<SourcesField>,
     source_root: Option<Rope>,
-    /// One entry per `sources` entry: the JSON value of the source's content — an escaped
-    /// string literal (including quotes) or the literal `null`. Shared into every emitted map.
-    sources_content: Option<Vec<Rope>>,
+    sources_content: Option<SourcesContentField>,
     sections: Option<Rope>,
     names: Option<Rope>,
     scopes: Option<Rope>,
@@ -56,17 +56,41 @@ pub struct StructuredSourceMap {
     debug_id: Option<Rope>,
 }
 
+/// The `sources` field. Kept verbatim until a rewrite actually changes an entry, so maps whose
+/// `sources` cannot be decoded (or are never rewritten) round-trip byte-for-byte.
+#[derive(Clone, Debug, PartialEq, Eq, Encode, Decode, TraceRawVcs, NonLocalValue)]
+enum SourcesField {
+    /// The field's verbatim JSON value.
+    Raw(Rope),
+    /// Decoded form, produced only by [`StructuredSourceMap::rewrite_sources`] when an entry
+    /// changed.
+    Rewritten(Vec<Option<String>>),
+}
+
+/// The `sourcesContent` field.
+#[derive(Clone, Debug, PartialEq, Eq, Encode, Decode, TraceRawVcs, NonLocalValue)]
+enum SourcesContentField {
+    /// The field's verbatim JSON value (maps parsed from external bytes). Never decoded — this
+    /// tolerates content JSON that does not decode into Rust strings, e.g. lone surrogate
+    /// escapes.
+    Raw(Rope),
+    /// One entry per source: the pre-escaped JSON value of the source's content — a string
+    /// literal (including quotes) or the literal `null`. Shared into every emitted map (maps
+    /// built via [`StructuredSourceMap::from_swc_map`]).
+    Escaped(Vec<Rope>),
+}
+
 /// Deserialization mirror of [`StructuredSourceMap`]. Unknown fields are dropped, matching the
 /// previous behavior of source map rewrites (`SourceMapJson`).
 #[derive(Deserialize)]
 struct RawFields {
     version: Option<Box<RawValue>>,
     file: Option<Box<RawValue>>,
-    sources: Option<Vec<Option<String>>>,
+    sources: Option<Box<RawValue>>,
     #[serde(rename = "sourceRoot")]
     source_root: Option<Box<RawValue>>,
     #[serde(rename = "sourcesContent")]
-    sources_content: Option<Vec<Option<String>>>,
+    sources_content: Option<Box<RawValue>>,
     sections: Option<Box<RawValue>>,
     names: Option<Box<RawValue>>,
     scopes: Option<Box<RawValue>>,
@@ -118,7 +142,7 @@ impl StructuredSourceMap {
         let mut skeleton = Vec::new();
         map.to_writer(&mut skeleton)?;
         let mut result = Self::from_json_slice(&skeleton)?;
-        result.sources_content = has_contents.then_some(contents);
+        result.sources_content = has_contents.then_some(SourcesContentField::Escaped(contents));
         Ok(result)
     }
 
@@ -133,14 +157,9 @@ impl StructuredSourceMap {
         Ok(StructuredSourceMap {
             version: into_rope(fields.version),
             file: into_rope(fields.file),
-            sources: fields.sources,
+            sources: into_rope(fields.sources).map(SourcesField::Raw),
             source_root: into_rope(fields.source_root),
-            sources_content: fields.sources_content.map(|contents| {
-                contents
-                    .iter()
-                    .map(|content| escape_content(content.as_deref()))
-                    .collect()
-            }),
+            sources_content: into_rope(fields.sources_content).map(SourcesContentField::Raw),
             sections: into_rope(fields.sections),
             names: into_rope(fields.names),
             scopes: into_rope(fields.scopes),
@@ -157,17 +176,32 @@ impl StructuredSourceMap {
 
     /// Rewrites each `sources` entry, keeping every other field (including the shared
     /// `sourcesContent` ropes) intact. `rewrite` returns `None` to leave an entry unchanged.
+    ///
+    /// `sources` is only decoded if a rewrite actually changes an entry; if it cannot be decoded
+    /// (e.g. non-string entries in an external map) the map is returned unchanged, matching the
+    /// previous rewriters which silently skipped maps they could not parse.
     pub fn rewrite_sources(
         &self,
         mut rewrite: impl FnMut(&str) -> Result<Option<String>>,
     ) -> Result<Self> {
         let mut result = self.clone();
-        if let Some(sources) = &mut result.sources {
-            for source in sources.iter_mut().flatten() {
-                if let Some(new_source) = rewrite(source)? {
-                    *source = new_source;
-                }
+        let mut sources: Vec<Option<String>> = match &self.sources {
+            None => return Ok(result),
+            Some(SourcesField::Rewritten(sources)) => sources.clone(),
+            Some(SourcesField::Raw(raw)) => match serde_json::from_slice(&raw.to_bytes()) {
+                Ok(sources) => sources,
+                Err(_) => return Ok(result),
+            },
+        };
+        let mut changed = false;
+        for source in sources.iter_mut().flatten() {
+            if let Some(new_source) = rewrite(source)? {
+                *source = new_source;
+                changed = true;
             }
+        }
+        if changed {
+            result.sources = Some(SourcesField::Rewritten(sources));
         }
         Ok(result)
     }
@@ -182,7 +216,7 @@ impl StructuredSourceMap {
             builder: &mut RopeBuilder,
             first: &mut bool,
             key: &'static str,
-            raw_json: &Option<Rope>,
+            raw_json: Option<&Rope>,
         ) {
             if let Some(value) = raw_json {
                 if !*first {
@@ -199,64 +233,91 @@ impl StructuredSourceMap {
         let mut builder = RopeBuilder::default();
         let mut first = true;
         builder += "{";
-        field(&mut builder, &mut first, "version", &self.version);
-        field(&mut builder, &mut first, "file", &self.file);
-        if let Some(sources) = &self.sources {
-            if !first {
-                builder += ",";
+        field(&mut builder, &mut first, "version", self.version.as_ref());
+        field(&mut builder, &mut first, "file", self.file.as_ref());
+        match &self.sources {
+            None => {}
+            Some(SourcesField::Raw(raw)) => {
+                field(&mut builder, &mut first, "sources", Some(raw));
             }
-            first = false;
-            builder += "\"sources\":";
-            builder += &Rope::from(
-                serde_json::to_vec(sources).expect("string serialization is infallible"),
-            );
-        }
-        field(&mut builder, &mut first, "sourceRoot", &self.source_root);
-        if let Some(contents) = &self.sources_content {
-            if !first {
-                builder += ",";
-            }
-            first = false;
-            builder += "\"sourcesContent\":[";
-            for (i, content) in contents.iter().enumerate() {
-                if i > 0 {
+            Some(SourcesField::Rewritten(sources)) => {
+                if !first {
                     builder += ",";
                 }
-                builder += content;
+                first = false;
+                builder += "\"sources\":";
+                builder += &Rope::from(
+                    serde_json::to_vec(sources).expect("string serialization is infallible"),
+                );
             }
-            builder += "]";
         }
-        field(&mut builder, &mut first, "sections", &self.sections);
-        field(&mut builder, &mut first, "names", &self.names);
-        field(&mut builder, &mut first, "scopes", &self.scopes);
+        field(
+            &mut builder,
+            &mut first,
+            "sourceRoot",
+            self.source_root.as_ref(),
+        );
+        match &self.sources_content {
+            None => {}
+            Some(SourcesContentField::Raw(raw)) => {
+                field(&mut builder, &mut first, "sourcesContent", Some(raw));
+            }
+            Some(SourcesContentField::Escaped(contents)) => {
+                if !first {
+                    builder += ",";
+                }
+                first = false;
+                builder += "\"sourcesContent\":[";
+                for (i, content) in contents.iter().enumerate() {
+                    if i > 0 {
+                        builder += ",";
+                    }
+                    builder += content;
+                }
+                builder += "]";
+            }
+        }
+        field(&mut builder, &mut first, "sections", self.sections.as_ref());
+        field(&mut builder, &mut first, "names", self.names.as_ref());
+        field(&mut builder, &mut first, "scopes", self.scopes.as_ref());
         field(
             &mut builder,
             &mut first,
             "rangeMappings",
-            &self.range_mappings,
+            self.range_mappings.as_ref(),
         );
-        field(&mut builder, &mut first, "mappings", &self.mappings);
-        field(&mut builder, &mut first, "ignoreList", &self.ignore_list);
+        field(&mut builder, &mut first, "mappings", self.mappings.as_ref());
+        field(
+            &mut builder,
+            &mut first,
+            "ignoreList",
+            self.ignore_list.as_ref(),
+        );
         field(
             &mut builder,
             &mut first,
             "x_facebook_offsets",
-            &self.x_facebook_offsets,
+            self.x_facebook_offsets.as_ref(),
         );
         field(
             &mut builder,
             &mut first,
             "x_metro_module_paths",
-            &self.x_metro_module_paths,
+            self.x_metro_module_paths.as_ref(),
         );
         field(
             &mut builder,
             &mut first,
             "x_facebook_sources",
-            &self.x_facebook_sources,
+            self.x_facebook_sources.as_ref(),
         );
-        field(&mut builder, &mut first, "debug_id", &self.debug_id_old);
-        field(&mut builder, &mut first, "debugId", &self.debug_id);
+        field(
+            &mut builder,
+            &mut first,
+            "debug_id",
+            self.debug_id_old.as_ref(),
+        );
+        field(&mut builder, &mut first, "debugId", self.debug_id.as_ref());
         builder += "}";
         builder.build()
     }
@@ -321,6 +382,52 @@ mod tests {
         let input = r#"{"version":3,"sources":["a.js",null],"sourcesContent":["let a = \"x\";\n",null],"names":["a"],"mappings":"AAAA"}"#;
         let structured = StructuredSourceMap::from_json(&Rope::from(input))?;
         assert_eq!(structured.to_rope().to_bytes().as_ref(), input.as_bytes());
+        Ok(())
+    }
+
+    /// External maps may contain JSON that does not decode into Rust strings — lone surrogate
+    /// escapes (produced by transpilers slicing source text mid-code-point) or non-string
+    /// entries. These passed through the pre-structured pipeline verbatim and must not become
+    /// parse errors or be rewritten.
+    #[test]
+    fn tolerates_undecodable_sources_and_contents() -> Result<()> {
+        let input = r#"{"version":3,"sources":["a.js",7],"sourcesContent":["x\ud800y",42,null],"mappings":"AAAA"}"#;
+        let structured = StructuredSourceMap::from_json(&Rope::from(input))?;
+        assert_eq!(structured.to_rope().to_bytes().as_ref(), input.as_bytes());
+        Ok(())
+    }
+
+    /// Non-canonical (but valid) escaping in external maps must round-trip byte-for-byte.
+    #[test]
+    fn preserves_noncanonical_escaping() -> Result<()> {
+        let input =
+            r#"{"version":3,"sources":["a\/b.js"],"sourcesContent":["c\/dé"],"mappings":"AAAA"}"#;
+        let structured = StructuredSourceMap::from_json(&Rope::from(input))?;
+        assert_eq!(structured.to_rope().to_bytes().as_ref(), input.as_bytes());
+        Ok(())
+    }
+
+    /// A rewrite over a map whose `sources` cannot be decoded leaves the map untouched instead
+    /// of failing, matching the previous rewriters which silently skipped unparsable maps.
+    #[test]
+    fn rewrite_leaves_undecodable_sources_untouched() -> Result<()> {
+        let input =
+            r#"{"version":3,"sources":[{"weird":1}],"sourcesContent":["text"],"mappings":"AAAA"}"#;
+        let structured = StructuredSourceMap::from_json(&Rope::from(input))?;
+        let rewritten = structured.rewrite_sources(|_| Ok(Some("nope".to_string())))?;
+        assert_eq!(rewritten.to_rope().to_bytes().as_ref(), input.as_bytes());
+        Ok(())
+    }
+
+    /// A rewrite that changes nothing must keep the map byte-identical (the verbatim `sources`
+    /// bytes are retained rather than re-serialized).
+    #[test]
+    fn noop_rewrite_is_byte_identical() -> Result<()> {
+        let input =
+            r#"{"version":3,"sources":["a\/b.js"],"sourcesContent":["text"],"mappings":"AAAA"}"#;
+        let structured = StructuredSourceMap::from_json(&Rope::from(input))?;
+        let rewritten = structured.rewrite_sources(|_| Ok(None))?;
+        assert_eq!(rewritten.to_rope().to_bytes().as_ref(), input.as_bytes());
         Ok(())
     }
 
