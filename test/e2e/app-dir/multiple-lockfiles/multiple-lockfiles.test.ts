@@ -17,6 +17,9 @@ describe('multiple-lockfiles', () => {
     // So that ../package-lock.json doesn't leave the isolated testDir
     subDir: 'test',
     skipDeployment: true,
+    // The workspace file would be treated as the root and suppress the
+    // warning.
+    deleteWorkspaceFile: true,
   })
 
   if (skipped) {

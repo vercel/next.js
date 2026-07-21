@@ -18,6 +18,9 @@ describe('multiple-lockfiles - has-turbo-root', () => {
     // So that ../package-lock.json doesn't leave the isolated testDir
     subDir: 'test',
     skipDeployment: true,
+    // The workspace file would suppress the warning itself, so the test
+    // wouldn't be exercising `turbopack.root`.
+    deleteWorkspaceFile: true,
   })
 
   if (skipped) {
