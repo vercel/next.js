@@ -20,7 +20,7 @@ Prefetching downloads a route's JavaScript, CSS, and RSC payload before the user
 
 The regular App Router prefetches a route all or nothing: the full route when it's static, and nothing for a dynamic route without a [`loading.js`](/docs/app/api-reference/file-conventions/loading).
 
-[Cache Components](/docs/app/getting-started/caching) with [**Partial Prefetching**](/docs/app/api-reference/config/next-config-js/partialPrefetching) enabled takes a different approach, prefetching one reusable [**App Shell**](/docs/app/glossary#app-shell) per route rather than a separate prefetch per link. The shell contains the route's static output, and for a route that reads [`cookies()`](/docs/app/api-reference/functions/cookies) or [`headers()`](/docs/app/api-reference/functions/headers) (session data), it also carries UI gated behind that session data.
+[Cache Components](/docs/app/getting-started/caching) with [Partial Prefetching](/docs/app/api-reference/config/next-config-js/partialPrefetching) enabled takes a different approach, prefetching one reusable [**App Shell**](/docs/app/glossary#app-shell) per route rather than a separate prefetch per link. The shell contains the route's static output, and for a route that reads [`cookies()`](/docs/app/api-reference/functions/cookies) or [`headers()`](/docs/app/api-reference/functions/headers) (session data), it also carries UI gated behind that session data.
 
 Any number of links to the same route share that one shell, fetched once as a [`<Link>`](/docs/app/api-reference/components/link) enters the viewport and reused for the rest.
 
