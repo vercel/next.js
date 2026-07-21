@@ -820,8 +820,8 @@ export function createPatchedFetcher(
               fetchUrl,
               isRequestInput ? (input as RequestInit) : init
             )
-          } catch (err) {
-            console.error(`Failed to generate cache key for`, input)
+          } catch (cause) {
+            console.error(`Failed to generate cache key for`, input, cause)
           }
         }
 

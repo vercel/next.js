@@ -55,6 +55,50 @@ export interface CacheHandlerValue {
   value: IncrementalCacheValue | null
 }
 
+function toHex(buffer: ArrayBufferView | ArrayBuffer): string {
+  // Hex-encode body bytes losslessly: decoding as UTF-8 would collapse
+  // distinct bytes (0xff/0xfe to U+FFFD) and collide; Buffer isn't on edge.
+  const bytes = isArrayBuffer(buffer)
+    ? new Uint8Array(buffer)
+    : new Uint8Array(buffer.buffer, buffer.byteOffset, buffer.byteLength)
+  let hex = ''
+  for (const byte of bytes) {
+    hex += byte.toString(16).padStart(2, '0')
+  }
+  return hex
+}
+
+type Body = NonNullable<RequestInit['body'] | Request['body']>
+
+// Duck typing to support Edge runtime
+// TODO: Switch to instanceof checks once Edge runtime is removed.
+
+function isArrayBuffer(
+  buffer: ArrayBuffer | ArrayBufferView
+): buffer is ArrayBuffer {
+  return !('buffer' in buffer)
+}
+
+function isBodyByteSequence(
+  body: Body
+): body is ArrayBufferView<ArrayBuffer> | ArrayBuffer {
+  return typeof body === 'object' && 'byteLength' in body
+}
+
+function isBodyReadableStream(body: Body): body is ReadableStream {
+  return typeof (body as any).getReader === 'function'
+}
+
+function isBodyFormDataOrURLSearchParams(
+  body: Body
+): body is FormData | URLSearchParams {
+  return typeof (body as any).keys === 'function'
+}
+
+function isBodyBlob(body: Body): body is Blob {
+  return typeof (body as any).arrayBuffer === 'function'
+}
+
 export class CacheHandler {
   // eslint-disable-next-line
   constructor(_ctx: CacheHandlerContext) {}
@@ -79,6 +123,21 @@ export class CacheHandler {
 
   public resetRequestCache(): void {}
 }
+
+async function hashString(cacheString: string): Promise<string> {
+  if (process.env.NEXT_RUNTIME === 'edge') {
+    const encoder = new TextEncoder()
+    const buffer = encoder.encode(cacheString)
+    return toHex(await crypto.subtle.digest('SHA-256', buffer))
+  } else {
+    const crypto = require('crypto') as typeof import('crypto')
+    return crypto.createHash('sha256').update(cacheString).digest('hex')
+  }
+}
+
+// this should be bumped anytime a fix is made to cache entries
+// that should bust the cache
+const MAIN_KEY_PREFIX = 'v4'
 
 export class IncrementalCache implements IncrementalCacheType {
   readonly dev?: boolean
@@ -288,28 +347,34 @@ export class IncrementalCache implements IncrementalCacheType {
     return this.cacheHandler?.revalidateTag(tags, durations)
   }
 
+  async generateSimpleCacheKey(input: string): Promise<string> {
+    const cacheString = JSON.stringify([
+      MAIN_KEY_PREFIX,
+      this.fetchCacheKeyPrefix || '',
+      input,
+    ])
+
+    return hashString(cacheString)
+  }
+
   // x-ref: https://github.com/facebook/react/blob/2655c9354d8e1c54ba888444220f63e836925caa/packages/react/src/ReactFetch.js#L23
   async generateCacheKey(
     url: string,
     init: RequestInit | Request = {}
   ): Promise<string> {
-    // this should be bumped anytime a fix is made to cache entries
-    // that should bust the cache
-    const MAIN_KEY_PREFIX = 'v3'
-
     const bodyChunks: string[] = []
 
     const encoder = new TextEncoder()
-    const decoder = new TextDecoder()
 
-    if (init.body) {
-      // handle Uint8Array body
-      if (init.body instanceof Uint8Array) {
-        bodyChunks.push(decoder.decode(init.body))
-        ;(init as any)._ogBody = init.body
-      } // handle ReadableStream body
-      else if (typeof (init.body as any).getReader === 'function') {
-        const readableBody = init.body as ReadableStream<Uint8Array | string>
+    // Will be set implementing https://fetch.spec.whatwg.org/#concept-bodyinit-extract
+    let bodyType: string | null = null
+    const body = init.body
+    if (body) {
+      if (isBodyByteSequence(body)) {
+        bodyChunks.push(`bytes:${toHex(body)}`)
+        ;(init as any)._ogBody = body
+      } else if (isBodyReadableStream(body)) {
+        const readableBody = body
 
         const chunks: Uint8Array[] = []
 
@@ -317,19 +382,12 @@ export class IncrementalCache implements IncrementalCacheType {
           await readableBody.pipeTo(
             new WritableStream({
               write(chunk) {
-                if (typeof chunk === 'string') {
-                  chunks.push(encoder.encode(chunk))
-                  bodyChunks.push(chunk)
-                } else {
-                  chunks.push(chunk)
-                  bodyChunks.push(decoder.decode(chunk, { stream: true }))
-                }
+                chunks.push(
+                  typeof chunk === 'string' ? encoder.encode(chunk) : chunk
+                )
               },
             })
           )
-
-          // Flush the decoder.
-          bodyChunks.push(decoder.decode())
 
           // Create a new buffer with all the chunks.
           const length = chunks.reduce((total, arr) => total + arr.length, 0)
@@ -342,46 +400,54 @@ export class IncrementalCache implements IncrementalCacheType {
             offset += chunk.length
           }
 
+          bodyChunks.push(`bytes:${toHex(arrayBuffer)}`)
           ;(init as any)._ogBody = arrayBuffer
         } catch (err) {
           console.error('Problem reading body', err)
         }
-      } // handle FormData or URLSearchParams bodies
-      else if (typeof (init.body as any).keys === 'function') {
-        const formData = init.body as FormData
-        ;(init as any)._ogBody = init.body
-        for (const key of new Set([...formData.keys()])) {
-          const values = formData.getAll(key)
-          bodyChunks.push(
-            `${key}=${(
-              await Promise.all(
-                values.map(async (val) => {
-                  if (typeof val === 'string') {
-                    return val
-                  } else {
-                    return await val.text()
-                  }
-                })
-              )
-            ).join(',')}`
-          )
+      } else if (isBodyFormDataOrURLSearchParams(body)) {
+        bodyType =
+          String(body) === '[object FormData]'
+            ? // We don't need a boundary because we're not actually using this for a Content-Type header
+              'multipart/form-data; boundary='
+            : 'application/x-www-form-urlencoded;charset=UTF-8'
+        const iterable = body
+        ;(init as any)._ogBody = body
+        // Separate, tagged chunks so `["a","b"]` can't collide with `["a,b"]`.
+        for (const [key, val] of iterable.entries()) {
+          bodyChunks.push(`key:${key}`)
+          if (typeof val === 'string') {
+            bodyChunks.push(`str:${val}`)
+          } else {
+            bodyChunks.push(
+              'file',
+              val.name,
+              val.type,
+              `bytes:${toHex(await val.arrayBuffer())}`
+            )
+          }
         }
         // handle blob body
-      } else if (typeof (init.body as any).arrayBuffer === 'function') {
-        const blob = init.body as Blob
+      } else if (isBodyBlob(body)) {
+        const blob = body
         const arrayBuffer = await blob.arrayBuffer()
-        bodyChunks.push(await blob.text())
+        bodyChunks.push('blob', blob.type, `bytes:${toHex(arrayBuffer)}`)
         ;(init as any)._ogBody = new Blob([arrayBuffer], { type: blob.type })
-      } else if (typeof init.body === 'string') {
-        bodyChunks.push(init.body)
-        ;(init as any)._ogBody = init.body
+        bodyType = blob.type
+      } else if (typeof body === 'string') {
+        bodyChunks.push(`str:${body}`)
+        ;(init as any)._ogBody = body
+        bodyType = 'text/plain;charset=UTF-8'
+      } else {
+        body satisfies never
+        throw new Error(`Unsupported body type: ${typeof body}`)
       }
     }
 
     const headers =
       typeof (init.headers || {}).keys === 'function'
         ? Object.fromEntries(init.headers as Headers)
-        : Object.assign({}, init.headers)
+        : Object.assign({} as Record<string, string>, init.headers)
 
     // w3c trace context headers can break request caching and deduplication
     // so we remove them from the cache key
@@ -393,6 +459,9 @@ export class IncrementalCache implements IncrementalCacheType {
       this.fetchCacheKeyPrefix || '',
       url,
       init.method,
+      // Ensures default Content-Type is part of the cache key
+      // TODO: Only necessary when headers are not used from the Request instance
+      bodyType,
       headers,
       init.mode,
       init.redirect,
@@ -404,18 +473,7 @@ export class IncrementalCache implements IncrementalCacheType {
       bodyChunks,
     ])
 
-    if (process.env.NEXT_RUNTIME === 'edge') {
-      function bufferToHex(buffer: ArrayBuffer): string {
-        return Array.prototype.map
-          .call(new Uint8Array(buffer), (b) => b.toString(16).padStart(2, '0'))
-          .join('')
-      }
-      const buffer = encoder.encode(cacheString)
-      return bufferToHex(await crypto.subtle.digest('SHA-256', buffer))
-    } else {
-      const crypto = require('crypto') as typeof import('crypto')
-      return crypto.createHash('sha256').update(cacheString).digest('hex')
-    }
+    return hashString(cacheString)
   }
 
   async get(
