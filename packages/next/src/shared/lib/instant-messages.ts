@@ -11,9 +11,8 @@ export function createUnrenderedSegmentError(
       `\n\n${label}:\n${missingFiles.map((p) => `  ${p}`).join('\n')}` +
       `\n\nWays to fix this:` +
       `\n  - [render] Render the dropped segment` +
-      `\n    https://nextjs.org/docs/messages/instant-unrendered-segment#render-the-dropped-segment` +
       `\n  - [ignore] Set \`export const instant = false\` to opt the dropped segment out of instant-navigation validation` +
-      `\n    https://nextjs.org/docs/messages/instant-unrendered-segment#skip-validation-on-the-segment`
+      `\n\nLearn more: https://nextjs.org/docs/messages/instant-unrendered-segment`
   }
   return new Error(message)
 }
@@ -24,10 +23,8 @@ export function createLinkPrefetchPartialError(pathname: string): Error {
       `This will lead to slower, more expensive prefetches.\n\n` +
       `Ways to fix this:\n` +
       `  - [upgrade] Opt into Partial Prefetching by exporting \`const prefetch = 'partial'\` from the page or layout, or by setting \`partialPrefetching: true\` in next.config to opt the whole app in\n` +
-      `    https://nextjs.org/docs/messages/instant-link-prefetch-partial#opt-into-partial-prefetching\n` +
       `  - [disable] Remove \`prefetch={true}\` from the <Link> to use the default prefetch\n` +
-      `    https://nextjs.org/docs/messages/instant-link-prefetch-partial#use-the-default-prefetch\n` +
-      `  - [ignore] Set \`export const instant = false\` to opt the route out of instant-navigation validation\n` +
-      `    https://nextjs.org/docs/messages/instant-link-prefetch-partial#disable-validation-on-this-route`
+      `  - [ignore] Set \`export const instant = false\` to opt the route out of instant-navigation validation\n\n` +
+      `Learn more: https://nextjs.org/docs/messages/instant-link-prefetch-partial`
   )
 }

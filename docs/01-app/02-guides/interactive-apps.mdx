@@ -285,6 +285,8 @@ The consumer passes a callback (`changeAction`), and the design component runs i
 
 The `data-pending` attribute on the `ChipGroup` root element lets ancestor components react through CSS without any coordination. The board on the home page uses `group-has-data-pending:opacity-50` to dim while the transition runs, without replacing the board with a skeleton. Because `ChipGroup` renders inside the `group` element, the attribute is available to any ancestor for styling.
 
+> **Good to know:** `group-has-data-pending:` and `has-data-pending:` compile to the CSS [`:has()`](https://developer.mozilla.org/en-US/docs/Web/CSS/:has) selector, which the browser re-evaluates over the anchored subtree whenever `data-pending` toggles. That stays cheap here because the board toggles it only twice per filter, and dragging (Step 5) deliberately skips it. Reach for client state instead when a broad `:has()` anchor toggles on a high-frequency interaction like dragging or scrolling, where repeated recalculation over a large subtree adds up.
+
 The "Frontend" chip now highlights on the current frame. The board dims while the filtered data loads, then updates with the filtered tasks.
 
 ### Step 4: Add comments with instant feedback

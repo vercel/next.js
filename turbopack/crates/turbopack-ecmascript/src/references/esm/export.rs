@@ -32,9 +32,9 @@ use crate::{
     chunk::{EcmascriptChunkPlaceable, EcmascriptExports},
     code_gen::{CodeGeneration, CodeGenerationHoistedStmt},
     magic_identifier::MAGIC_IDENTIFIER_DEFAULT_EXPORT_ATOM,
+    module_fragments::part::module::EcmascriptModulePartAsset,
     references::esm::base::ReferencedAsset,
     runtime_functions::{TURBOPACK_DYNAMIC, TURBOPACK_ESM},
-    tree_shake::part::module::EcmascriptModulePartAsset,
     utils::module_id_to_lit,
 };
 
