@@ -235,13 +235,12 @@ export default class DevServer extends Server {
     const { pagesDir, appDir } = findPagesDir(this.dir)
 
     const ensurer: RouteEnsurer = {
-      ensure: async (match, pathname, options) => {
+      ensure: async (match, pathname) => {
         await this.ensurePage({
           definition: match.definition,
           page: match.definition.page,
           clientOnly: false,
           url: pathname,
-          rscOnly: options?.rscOnly,
         })
       },
     }
@@ -983,7 +982,6 @@ export default class DevServer extends Server {
     appPaths?: ReadonlyArray<string> | null
     definition: RouteDefinition | undefined
     url?: string
-    rscOnly?: boolean
   }): Promise<void> {
     await this.bundlerService.ensurePage(opts)
   }
