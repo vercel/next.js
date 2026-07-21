@@ -85,6 +85,29 @@ the lock; do not time it. A trustworthy verdict requires a production build
 The GREEN under the lock is the deterministic verdict; each gate keeps it
 trustworthy.
 
+## Reporting to the user
+
+This loop is meant to run unattended — ideally across many navigations in one
+pass — so it doesn't stop to ask after each route. What matters is how you word
+and present the results, not how often you interrupt. The mechanics below — the
+rig, RED, GREEN, the gates — are your scaffolding; the user never needs to hear
+those words.
+
+- **Speak their language.** Describe the gap and the result in terms of what the
+  user sees: "navigating to the dashboard waited on the charts query before
+  anything painted; now the layout and skeletons paint instantly and the charts
+  stream in" — not RED/GREEN, the lock, or the phase letters.
+- **Show, don't tell.** When you report a route, drive the browser (or attach
+  before/after screenshots) so the user watches the shell commit immediately and
+  the data stream in, rather than reading a claim. Identical before and after
+  means the fix did nothing — roll it back.
+- **Present a run as a list of results,** one line per navigation — which route,
+  what's now instant, what streams — not a transcript of the loop.
+- **Only surface a question for a genuine fork:** a fix that would change
+  behavior, a security-sensitive read, or a route that's dynamic by design (a
+  runtime-prefetch candidate, not a shell to grow). A clean instant fix is not a
+  fork — keep going.
+
 ## The workflow
 
 ```

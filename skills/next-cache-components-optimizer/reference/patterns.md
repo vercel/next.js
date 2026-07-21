@@ -14,9 +14,13 @@ Every blocking read has the same fix shape: keep the static parts in the prerend
 | Dynamic `generateMetadata`                                                      | [runtime](https://nextjs.org/docs/messages/blocking-prerender-metadata-runtime) / [uncached](https://nextjs.org/docs/messages/blocking-prerender-metadata-dynamic) data |
 | Dynamic `generateViewport`                                                      | [runtime](https://nextjs.org/docs/messages/blocking-prerender-viewport-runtime) / [uncached](https://nextjs.org/docs/messages/blocking-prerender-viewport-dynamic) data |
 
-Each insight page lists its related insights, so any one is an entry point to the rest. For **where** to place the boundary — and why one inherited from a parent layout can sit too high and still block a client navigation — see [Choosing where to place the boundary](https://nextjs.org/docs/messages/blocking-prerender-runtime#choosing-where-to-place-the-boundary) and the [Instant Navigation guide](https://nextjs.org/docs/app/guides/instant-navigation).
+Each insight page lists its related insights, so any one is an entry point to the rest. For **where** to place the boundary, see [Choosing where to place the boundary](https://nextjs.org/docs/messages/blocking-prerender-runtime#choosing-where-to-place-the-boundary) and the [Instant Navigation guide](https://nextjs.org/docs/app/guides/instant-navigation).
 
-One thing those pages don't stress: keep the **LCP element** (usually the main heading) out of any boundary so it paints in the shell instead of waiting on a stream.
+A few things those pages don't stress for the instant-navigation goal:
+
+- **Put the boundary below the lowest layout the source and destination routes share.** A boundary in the root layout passes a page-load check but leaves sibling client navigations blocking. Prefer several per-read boundaries inside the page over one coarse layout boundary, so more real content stays in the shell and each part streams independently.
+- **Keep the LCP element** (usually the main heading) out of any boundary, so it paints in the shell instead of waiting on a stream.
+- **A green check isn't always instant.** `export const instant = false` opts the segment out of validation while the navigation still blocks, and a `<Suspense>` above the document `<body>` prerenders an empty shell — both quiet the signal without making the route instant. Neither is a fix.
 
 ## Can't push the read down? Runtime-prefetch the whole route
 
