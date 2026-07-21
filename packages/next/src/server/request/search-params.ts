@@ -43,7 +43,6 @@ import {
   throwWithStaticGenerationBailoutErrorWithDynamicError,
   throwForSearchParamsAccessInUseCache,
 } from './utils'
-import { RenderStage } from '../app-render/staged-rendering'
 
 export type SearchParams = { [key: string]: string | string[] | undefined }
 
@@ -87,13 +86,10 @@ export function createSearchParamsFromClient(
         return makeUntrackedSearchParams(underlyingSearchParams)
       }
       case 'request':
-        // Client searchParams are not runtime prefetchable
-        const isRuntimePrefetchable = false
         return createRenderSearchParams(
           underlyingSearchParams,
           workStore,
-          workUnitStore,
-          isRuntimePrefetchable
+          workUnitStore
         )
       default:
         workUnitStore satisfies never
@@ -104,21 +100,18 @@ export function createSearchParamsFromClient(
 
 // generateMetadata always runs in RSC context so it is equivalent to a Server Page Component
 export function createServerSearchParamsForMetadata(
-  underlyingSearchParams: SearchParams,
-  isRuntimePrefetchable: boolean
+  underlyingSearchParams: SearchParams
 ): Promise<SearchParams> {
   const metadataVaryParamsAccumulator = getMetadataVaryParamsAccumulator()
   return createServerSearchParamsForServerPage(
     underlyingSearchParams,
-    metadataVaryParamsAccumulator,
-    isRuntimePrefetchable
+    metadataVaryParamsAccumulator
   )
 }
 
 export function createServerSearchParamsForServerPage(
   underlyingSearchParams: SearchParams,
-  varyParamsAccumulator: VaryParamsAccumulator | null,
-  isRuntimePrefetchable: boolean
+  varyParamsAccumulator: VaryParamsAccumulator | null
 ): Promise<SearchParams> {
   const workStore = workAsyncStorage.getStore()
   if (!workStore) {
@@ -150,15 +143,13 @@ export function createServerSearchParamsForServerPage(
         return createRuntimePrerenderSearchParams(
           underlyingSearchParams,
           workUnitStore,
-          varyParamsAccumulator,
-          isRuntimePrefetchable
+          varyParamsAccumulator
         )
       case 'request':
         return createRenderSearchParams(
           underlyingSearchParams,
           workStore,
-          workUnitStore,
-          isRuntimePrefetchable
+          workUnitStore
         )
       default:
         workUnitStore satisfies never
@@ -247,8 +238,7 @@ function createStaticPrerenderSearchParams(
 function createRuntimePrerenderSearchParams(
   underlyingSearchParams: SearchParams,
   workUnitStore: PrerenderStoreModernRuntime,
-  varyParamsAccumulator: VaryParamsAccumulator | null,
-  isRuntimePrefetchable: boolean
+  varyParamsAccumulator: VaryParamsAccumulator | null
 ): Promise<SearchParams> {
   const underlyingSearchParamsWithVarying =
     varyParamsAccumulator !== null
@@ -260,18 +250,14 @@ function createRuntimePrerenderSearchParams(
   if (!stagedRendering) {
     return result
   }
-  const searchParamsStages = RENDER_STAGES_BY_DATA_KIND.runtimeLinkData
-  const stage = isRuntimePrefetchable
-    ? searchParamsStages.early
-    : searchParamsStages.late
-  return stagedRendering.waitForStage(stage).then(() => result)
+  const searchParamsStage = RENDER_STAGES_BY_DATA_KIND.runtimeLinkData
+  return stagedRendering.waitForStage(searchParamsStage).then(() => result)
 }
 
 function createRenderSearchParams(
   underlyingSearchParams: SearchParams,
   workStore: WorkStore,
-  requestStore: RequestStore,
-  isRuntimePrefetchable: boolean
+  requestStore: RequestStore
 ): Promise<SearchParams> {
   const { asyncApiPromises, validationSamples } = requestStore
 
@@ -288,7 +274,6 @@ function createRenderSearchParams(
     return createStagedRenderSearchParams(
       workStore,
       asyncApiPromises,
-      isRuntimePrefetchable,
       underlyingSearchParams,
       userspaceSearchParams
     )
@@ -319,13 +304,10 @@ function createRenderSearchParams(
 function createStagedRenderSearchParams(
   workStore: WorkStore,
   asyncApiPromises: NonNullable<RequestStore['asyncApiPromises']>,
-  isRuntimePrefetchable: boolean,
   underlyingSearchParams: SearchParams,
   userspaceSearchParams: SearchParams
 ): Promise<SearchParams> {
-  const trigger = isRuntimePrefetchable
-    ? asyncApiPromises.earlySharedSearchParamsParent
-    : asyncApiPromises.sharedSearchParamsParent
+  const trigger = asyncApiPromises.sharedSearchParamsParent
 
   if (process.env.NODE_ENV === 'development') {
     // We wrap each instance of searchParams in a `new Promise()`.
@@ -567,7 +549,7 @@ function makeUntrackedSearchParamsWithDevWarningsImpl(
   const promise = makeDevtoolsIOAwarePromise(
     proxiedUnderlying,
     requestStore,
-    RenderStage.Runtime
+    RENDER_STAGES_BY_DATA_KIND.runtimeLinkData
   )
 
   promise.then(

@@ -467,13 +467,7 @@ export function resolveCssChunkingMode(
 
 export interface ExperimentalConfig {
   /**
-   * A string that is incorporated into content-addressed output filenames
-   * (chunks, assets) for both Webpack and Turbopack. Changing this value
-   * forces all output hashes to change, which is useful for invalidating
-   * cached assets across deployments without modifying source files.
-   *
-   * When `NEXT_HASH_SALT` environment variable is also set, the two values are
-   * concatenated (`outputHashSalt + NEXT_HASH_SALT`) to form the effective salt.
+   * @deprecated Use the top-level `outputHashSalt` option instead.
    */
   outputHashSalt?: string
 
@@ -512,14 +506,6 @@ export interface ExperimentalConfig {
   useOffline?: boolean
   optimisticRouting?: boolean
   instrumentationClientRouterTransitionEvents?: boolean
-  /**
-   * Enables App Shell prefetching: a route's reusable, param-free loading
-   * state is prefetched once per session and served instantly for any
-   * concrete navigation. Routes marked as fully static (no per-request
-   * server work) are unaffected; the App Shell phase only runs for
-   * runtime-prefetchable routes.
-   */
-  appShells?: boolean
   varyParams?: boolean
   prefetchInlining?:
     | boolean
@@ -566,6 +552,12 @@ export interface ExperimentalConfig {
    * Do not enable in user-facing production deployments.
    */
   exposeTestingApiInProductionBuild?: boolean
+  /**
+   * Show Request Insights in the dev tools indicator. Request Insights records
+   * the local framework spans needed to explain App Router request, render,
+   * fetch, and cache behavior without requiring an external OTEL collector.
+   */
+  requestInsights?: boolean
   extensionAlias?: Record<string, any>
   allowedRevalidateHeaderKeys?: string[]
   fetchCacheKeyPrefix?: string
@@ -711,6 +703,12 @@ export interface ExperimentalConfig {
   strictRouteTypes?: boolean
 
   /**
+   * Runs the project-local TypeScript CLI instead of using TypeScript's
+   * programmatic API for build-time type checking and config loading.
+   */
+  useTypeScriptCli?: boolean
+
+  /**
    * Displays an indicator when a React Transition has no other indicator rendered.
    * This includes displaying an indicator on client-side navigations.
    */
@@ -730,10 +728,11 @@ export interface ExperimentalConfig {
    *
    * - `false`: disable eviction.
    * - `'full'`: after every snapshot, drop as much memory as possible.
+   * - `'auto'`: evict after a snapshot when we expect to save a lot of memory or the system is under pressure
    *
-   * Defaults to `'full'`
+   * Defaults to `'auto'`
    */
-  turbopackMemoryEviction?: false | 'full'
+  turbopackMemoryEviction?: false | 'full' | 'auto'
 
   /**
    * Selects the backend used by Turbopack for Node.js evaluation, e.g. webpack
@@ -759,14 +758,23 @@ export interface ExperimentalConfig {
   turbopackImportTypeBytes?: boolean
 
   /**
-   * Enable support for `with {type: "text"}` for ESM imports.
-   */
-  turbopackImportTypeText?: boolean
-
-  /**
    * Enable scope hoisting. Defaults to true in build mode. Always disabled in development mode.
    */
   turbopackScopeHoisting?: boolean
+
+  /**
+   * (`next --turbopack` only) Emit each merged production chunk's constituent component chunks
+   * alongside it, so the browser runtime can load only the ones it doesn't already have.
+   * Defaults to `false`. Only applies in build mode.
+   */
+  turbopackGenerateComponentChunks?: boolean
+
+  /**
+   * Share the browser runtime across routes in a single `runtime.js` asset and inline the
+   * per-route chunk-group bootstrap into the HTML, dropping the per-route runtime. Defaults to
+   * false. Only applies to production builds; has no effect in development mode.
+   */
+  turbopackSharedRuntime?: boolean
 
   /**
    * (`next --turbopack` only) Traffic-related hints for the production chunker. These change the
@@ -869,9 +877,10 @@ export interface ExperimentalConfig {
   turbopackInputSourceMaps?: boolean
 
   /**
-   * Enable tree shaking for the turbopack dev server and build.
+   * Currently in active development. This splits modules into fragments and
+   * chunks only import the used fragments of the modules.
    */
-  turbopackTreeShaking?: boolean
+  turbopackModuleFragments?: boolean
 
   /**
    * Enable removing unused imports for turbopack dev server and build.
@@ -891,6 +900,13 @@ export interface ExperimentalConfig {
    * Defaults to `true`
    */
   turbopackInferModuleSideEffects?: boolean
+
+  /**
+   * Enable tree shaking of unused exports from analyzable CommonJS modules in Turbopack.
+   *
+   * Defaults to `false`
+   */
+  turbopackCjsTreeShaking?: boolean
 
   /**
    * Set this to `false` to disable the automatic configuration of the babel loader when a Babel
@@ -1196,7 +1212,7 @@ export interface ExperimentalConfig {
   serverComponentsHmrCache?: boolean
 
   /**
-   * Cancels the render and validation work for a Server Component HMR refresh
+   * Cancels the render and validation work for a Server Components HMR refresh
    * once a newer refresh supersedes it. Development only.
    */
   serverComponentsHmrCancellation?: boolean
@@ -1350,9 +1366,7 @@ export interface ExperimentalConfig {
   runtimeServerDeploymentId?: boolean
 
   /**
-   * Whether the deployment environment supports immutable assets (assets deployed to
-   * `_next/static/immutable` don't need a `?dpl` parameter and can be safely requested across
-   * deployments.)
+   * @deprecated Use the top-level `supportsImmutableAssets` option instead.
    */
   supportsImmutableAssets?: boolean
 
@@ -1679,6 +1693,13 @@ export interface NextConfig {
   deploymentId?: string
 
   /**
+   * Whether the deployment environment supports immutable assets (assets deployed to
+   * `_next/static/immutable` don't need a `?dpl` parameter and can be safely requested across
+   * deployments.)
+   */
+  supportsImmutableAssets?: boolean
+
+  /**
    * Deploy a Next.js application under a sub-path of a domain
    *
    * @see [Base path configuration](https://nextjs.org/docs/app/api-reference/config/next-config-js/basePath)
@@ -1953,6 +1974,17 @@ export interface NextConfig {
    */
   outputFileTracingIncludes?: Record<string, string[]>
 
+  /**
+   * A string that is incorporated into content-addressed output filenames
+   * (chunks, assets) for both Webpack and Turbopack. Changing this value
+   * forces all output hashes to change, which is useful for invalidating
+   * cached assets across deployments without modifying source files.
+   *
+   * When `NEXT_HASH_SALT` environment variable is also set, the two values are
+   * concatenated (`outputHashSalt + NEXT_HASH_SALT`) to form the effective salt.
+   */
+  outputHashSalt?: string
+
   watchOptions?: {
     pollIntervalMs?: number
   }
@@ -2087,7 +2119,7 @@ export const defaultConfig = Object.freeze({
   },
   adapterPath: process.env.NEXT_ADAPTER_PATH || undefined,
   experimental: {
-    appNewScrollHandler: false,
+    appNewScrollHandler: true,
     coldCacheBadge: false,
     useSkewCookie: false,
     cssChunking: true,
@@ -2138,6 +2170,7 @@ export const defaultConfig = Object.freeze({
     fullySpecified: false,
     swcTraceProfiling: false,
     forceSwcTransforms: false,
+    requestInsights: false,
     swcPlugins: undefined,
     largePageDataBytes: 128 * 1000, // 128KB by default
     disablePostcssPresetEnv: undefined,
@@ -2152,6 +2185,7 @@ export const defaultConfig = Object.freeze({
     webpackMemoryOptimizations: false,
     optimizeServerReact: true,
     strictRouteTypes: false,
+    useTypeScriptCli: false,
     viewTransition: false,
     removeUncaughtErrorAndRejectionListeners: false,
     validateRSCRequestHeaders: true,
@@ -2219,6 +2253,7 @@ export async function normalizeConfig(phase: string, config: any) {
 export interface NextConfigRuntime {
   // Can be undefined, particularly when experimental.runtimeServerDeploymentId is true
   deploymentId?: NextConfigComplete['deploymentId']
+  supportsImmutableAssets?: NextConfigComplete['supportsImmutableAssets']
 
   configFileName?: string
   // Should only be included when using isExperimentalCompile
@@ -2262,7 +2297,6 @@ export interface NextConfigRuntime {
     | 'dynamicOnHover'
     | 'useOffline'
     | 'optimisticRouting'
-    | 'appShells'
     | 'inlineCss'
     | 'prefetchInlining'
     | 'authInterrupts'
@@ -2298,8 +2332,8 @@ export interface NextConfigRuntime {
     | 'maxPostponedStateSize'
     | 'cachedNavigations'
     | 'exposeTestingApiInProductionBuild'
-    | 'supportsImmutableAssets'
     | 'instantInsights'
+    | 'requestInsights'
   > & {
     // Pick on @internal fields generates invalid .d.ts files
     /** @internal */
@@ -2331,7 +2365,6 @@ export function getNextConfigRuntime(
     dynamicOnHover: ex.dynamicOnHover,
     useOffline: ex.useOffline,
     optimisticRouting: ex.optimisticRouting,
-    appShells: ex.appShells,
     inlineCss: ex.inlineCss,
     prefetchInlining: ex.prefetchInlining,
     authInterrupts: ex.authInterrupts,
@@ -2368,8 +2401,8 @@ export function getNextConfigRuntime(
     maxPostponedStateSize: ex.maxPostponedStateSize,
     cachedNavigations: ex.cachedNavigations,
     exposeTestingApiInProductionBuild: ex.exposeTestingApiInProductionBuild,
-    supportsImmutableAssets: ex.supportsImmutableAssets,
     instantInsights: ex.instantInsights,
+    requestInsights: ex.requestInsights,
 
     trustHostHeader: ex.trustHostHeader,
     isExperimentalCompile: ex.isExperimentalCompile,
@@ -2379,6 +2412,7 @@ export function getNextConfigRuntime(
     deploymentId: config.experimental.runtimeServerDeploymentId
       ? ''
       : config.deploymentId,
+    supportsImmutableAssets: config.supportsImmutableAssets,
 
     configFileName: undefined,
     env: undefined,

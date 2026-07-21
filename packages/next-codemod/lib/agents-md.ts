@@ -15,6 +15,54 @@ interface NextjsVersionResult {
   error?: string
 }
 
+const AGENT_RULES_START_MARKER = '<!-- BEGIN:nextjs-agent-rules -->'
+
+/**
+ * After an upgrade, refresh the managed agent-rules block in
+ * AGENTS.md / CLAUDE.md so its content matches the Next.js version
+ * that is now installed.
+ *
+ * Delegates to the installed package's own generator
+ * (`next/dist/server/lib/generate-agent-files`), so the block text is
+ * always the one shipped with that version — this codemod never
+ * carries its own copy. Returns `'refreshed'` when a file was
+ * rewritten, `'current'` when the block was already up to date, and
+ * `'skipped'` when there is nothing to do: the project never adopted
+ * the managed block, or the installed Next.js predates the generator
+ * (< 16.3).
+ */
+export function refreshAgentRulesBlock(
+  cwd: string
+): 'refreshed' | 'current' | 'skipped' {
+  const hostsBlock = ['AGENTS.md', 'CLAUDE.md'].some((file) => {
+    try {
+      return fs
+        .readFileSync(path.join(cwd, file), 'utf-8')
+        .includes(AGENT_RULES_START_MARKER)
+    } catch {
+      return false
+    }
+  })
+  if (!hostsBlock) return 'skipped'
+
+  let writeAgentFiles: (dir: string) => { agentsMd: string; claudeMd: string }
+  try {
+    const generatorPath = require.resolve(
+      'next/dist/server/lib/generate-agent-files',
+      { paths: [cwd] }
+    )
+    writeAgentFiles = require(generatorPath).writeAgentFiles
+    if (typeof writeAgentFiles !== 'function') return 'skipped'
+  } catch {
+    return 'skipped'
+  }
+
+  const result = writeAgentFiles(cwd)
+  return result.agentsMd === 'updated' || result.claudeMd === 'updated'
+    ? 'refreshed'
+    : 'current'
+}
+
 export function getNextjsVersion(cwd: string): NextjsVersionResult {
   try {
     const nextPkgPath = require.resolve('next/package.json', { paths: [cwd] })

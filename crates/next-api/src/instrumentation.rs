@@ -200,12 +200,12 @@ impl InstrumentationEndpoint {
     #[turbo_tasks::function]
     async fn trace_result(self: Vc<Self>) -> Result<Vc<EndpointTraceResult>> {
         let this = self.await?;
-        let userland_module = self.entry_module();
+        let userland_module = self.entry_module().to_resolved().await?;
         Ok(trace_endpoint(
             *this.project,
             None,
-            this.project.module_graph(userland_module),
-            userland_module,
+            this.project.module_graph(*userland_module),
+            Vc::cell(vec![userland_module]),
         ))
     }
 }

@@ -2,7 +2,7 @@ use anyhow::Result;
 use either::Either;
 use indoc::formatdoc;
 use itertools::Itertools;
-use rustc_hash::FxHashMap;
+use rustc_hash::{FxHashMap, FxHashSet};
 use serde::Serialize;
 use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
@@ -13,7 +13,10 @@ use turbo_tasks::{
 use turbo_tasks_fs::{File, FileContent, FileSystemPath};
 use turbopack_core::{
     asset::{Asset, AssetContent},
-    chunk::{ChunkingContext, CrossOrigin, ModuleChunkItemIdExt, ModuleId as TurbopackModuleId},
+    chunk::{
+        ChunkingContext, CrossOrigin, ModuleChunkItemIdExt, ModuleId as TurbopackModuleId,
+        OutputChunk,
+    },
     module_graph::async_module_info::AsyncModulesInfo,
     output::{OutputAsset, OutputAssets, OutputAssetsReference, OutputAssetsWithReferenced},
 };
@@ -86,9 +89,23 @@ pub struct ManifestNodeEntry {
     /// Export name.
     pub name: RcStr,
     /// Chunks for the module. JS and CSS.
-    pub chunks: Vec<RcStr>,
+    pub chunks: Vec<ClientChunk>,
     // TODO(WEB-434)
     pub r#async: bool,
+}
+
+/// One entry in a `ManifestNodeEntry.chunks` array, as consumed by React's Flight client via
+/// `__turbopack_load_by_url__`.
+///
+/// Most chunks are a plain URL string. A *merged* chunk (one that bundles several component
+/// chunks) is instead emitted as a `[url, componentChunkPaths, componentChunkSizes]` array. This
+/// us to dynamically choose to load the whole chunk or individual components of it, as neeeded.
+/// The sizes (bytes of the emitted files) feed the runtime's split-vs-whole cost heuristic.
+#[derive(Serialize, Debug, Clone)]
+#[serde(untagged)]
+pub enum ClientChunk {
+    Path(RcStr),
+    Merged(RcStr, Vec<RcStr>, Vec<u64>),
 }
 
 #[turbo_tasks::value(shared)]
@@ -100,6 +117,7 @@ pub struct ClientReferenceManifest {
     pub client_references_chunks: ResolvedVc<ClientReferencesChunks>,
     pub client_chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     pub ssr_chunking_context: Option<ResolvedVc<Box<dyn ChunkingContext>>>,
+    pub rsc_chunking_context: Option<ResolvedVc<Box<dyn ChunkingContext>>>,
     pub async_module_info: ResolvedVc<AsyncModulesInfo>,
     pub next_config: ResolvedVc<NextConfig>,
     pub runtime: NextRuntime,
@@ -156,6 +174,7 @@ async fn build_manifest(
         client_references_chunks,
         client_chunking_context,
         ssr_chunking_context,
+        rsc_chunking_context,
         async_module_info,
         next_config,
         runtime,
@@ -255,6 +274,8 @@ async fn build_manifest(
         let mut ssr_chunk_path_cache: FxHashMap<ResolvedVc<Box<dyn OutputAsset>>, FileSystemPath> =
             FxHashMap::default();
 
+        let mut client_reference_chunk_paths: FxHashSet<RcStr> = FxHashSet::default();
+
         for (client_reference_module, client_reference_module_ref) in client_references_ecmascript {
             let app_client_reference_ty =
                 ClientReferenceType::EcmascriptClientReference(client_reference_module);
@@ -277,25 +298,43 @@ async fn build_manifest(
                     cached_chunk_paths(&mut client_chunk_path_cache, client_chunks.iter().copied())
                         .await?;
 
-                let chunk_paths = client_chunks_paths
-                    .filter_map(|(_, chunk_path)| {
+                let js_chunks = client_chunks_paths
+                    .filter_map(|(chunk, chunk_path)| {
                         client_relative_path
                             .get_path_to(&chunk_path)
-                            .map(ToString::to_string)
+                            .map(|path| (chunk, path.to_string()))
                     })
                     // It's possible that a chunk also emits CSS files, that will
                     // be handled separately.
-                    .filter(|path| path.ends_with(".js"))
-                    .map(|path| {
-                        format!(
+                    .filter(|(_, path)| path.ends_with(".js"))
+                    .collect::<Vec<_>>();
+
+                for (_, path) in &js_chunks {
+                    client_reference_chunk_paths.insert(RcStr::from(path.as_str()));
+                }
+
+                let chunk_paths = js_chunks
+                    .into_iter()
+                    .map(async |(chunk, path)| {
+                        let url = RcStr::from(format!(
                             "{}{}{}",
                             prefix_path,
                             path.split('/').map(encode_uri_component).format("/"),
                             suffix_path
-                        )
+                        ));
+                        // If this is a merged chunk, emit its component chunk paths alongside the
+                        // URL so the browser runtime can split it during navigation.
+                        let components =
+                            client_chunk_components(chunk, &client_relative_path).await?;
+                        Ok(if components.is_empty() {
+                            ClientChunk::Path(url)
+                        } else {
+                            let (paths, sizes) = components.into_iter().unzip();
+                            ClientChunk::Merged(url, paths, sizes)
+                        })
                     })
-                    .map(RcStr::from)
-                    .collect::<Vec<_>>();
+                    .try_join()
+                    .await?;
 
                 let is_async = async_modules.contains(&ResolvedVc::upcast(client_module));
 
@@ -304,15 +343,12 @@ async fn build_manifest(
                 (Vec::new(), false)
             };
 
+            let mut ssr_is_async = false;
             if let Some(ssr_chunking_context) = *ssr_chunking_context {
                 let ssr_module = client_reference_module_ref.ssr_module;
                 let ssr_chunk_item_id = ssr_module.chunk_item_id(*ssr_chunking_context).await?;
 
-                let rsc_chunk_item_id = client_reference_module
-                    .chunk_item_id(*ssr_chunking_context)
-                    .await?;
-
-                let (ssr_chunks_paths, ssr_is_async) = if *runtime == NextRuntime::Edge {
+                let (ssr_chunks_paths, ssr_module_is_async) = if *runtime == NextRuntime::Edge {
                     // the chunks get added to the middleware-manifest.json instead
                     // of this file because the
                     // edge runtime doesn't support dynamically
@@ -344,26 +380,7 @@ async fn build_manifest(
                 } else {
                     (Vec::new(), false)
                 };
-
-                let rsc_is_async = if *runtime == NextRuntime::Edge {
-                    false
-                } else {
-                    async_modules.contains(&ResolvedVc::upcast(client_reference_module))
-                };
-
-                entry_manifest.client_modules.module_exports.insert(
-                    get_client_reference_module_key(&server_path, "*"),
-                    ManifestNodeEntry {
-                        name: rcstr!("*"),
-                        id: (&client_chunk_item_id).into(),
-                        chunks: client_chunks_paths,
-                        // This should of course be client_is_async, but SSR can become
-                        // async due to ESM externals, and
-                        // the ssr_manifest_node is currently ignored
-                        // by React.
-                        r#async: client_is_async || ssr_is_async,
-                    },
-                );
+                ssr_is_async = ssr_module_is_async;
 
                 let mut ssr_manifest_node = ManifestNode::default();
                 ssr_manifest_node.module_exports.insert(
@@ -371,11 +388,39 @@ async fn build_manifest(
                     ManifestNodeEntry {
                         name: rcstr!("*"),
                         id: (&ssr_chunk_item_id).into(),
-                        chunks: ssr_chunks_paths,
-                        // See above
+                        chunks: ssr_chunks_paths
+                            .into_iter()
+                            .map(ClientChunk::Path)
+                            .collect(),
+                        // See below
                         r#async: client_is_async || ssr_is_async,
                     },
                 );
+
+                match runtime {
+                    NextRuntime::NodeJs => {
+                        entry_manifest
+                            .ssr_module_mapping
+                            .insert((&client_chunk_item_id).into(), ssr_manifest_node);
+                    }
+                    NextRuntime::Edge => {
+                        entry_manifest
+                            .edge_ssr_module_mapping
+                            .insert((&client_chunk_item_id).into(), ssr_manifest_node);
+                    }
+                }
+            }
+
+            if let Some(rsc_chunking_context) = *rsc_chunking_context {
+                let rsc_chunk_item_id = client_reference_module
+                    .chunk_item_id(*rsc_chunking_context)
+                    .await?;
+
+                let rsc_is_async = if *runtime == NextRuntime::Edge {
+                    false
+                } else {
+                    async_modules.contains(&ResolvedVc::upcast(client_reference_module))
+                };
 
                 let mut rsc_manifest_node = ManifestNode::default();
                 rsc_manifest_node.module_exports.insert(
@@ -391,21 +436,31 @@ async fn build_manifest(
                 match runtime {
                     NextRuntime::NodeJs => {
                         entry_manifest
-                            .ssr_module_mapping
-                            .insert((&client_chunk_item_id).into(), ssr_manifest_node);
-                        entry_manifest
                             .rsc_module_mapping
                             .insert((&client_chunk_item_id).into(), rsc_manifest_node);
                     }
                     NextRuntime::Edge => {
                         entry_manifest
-                            .edge_ssr_module_mapping
-                            .insert((&client_chunk_item_id).into(), ssr_manifest_node);
-                        entry_manifest
                             .edge_rsc_module_mapping
                             .insert((&client_chunk_item_id).into(), rsc_manifest_node);
                     }
                 }
+            }
+
+            if ssr_chunking_context.is_some() || rsc_chunking_context.is_some() {
+                entry_manifest.client_modules.module_exports.insert(
+                    get_client_reference_module_key(&server_path, "*"),
+                    ManifestNodeEntry {
+                        name: rcstr!("*"),
+                        id: (&client_chunk_item_id).into(),
+                        chunks: client_chunks_paths,
+                        // This should of course be client_is_async, but SSR can become
+                        // async due to ESM externals, and
+                        // the ssr_manifest_node is currently ignored
+                        // by React.
+                        r#async: client_is_async || ssr_is_async,
+                    },
+                );
             }
         }
 
@@ -436,6 +491,11 @@ async fn build_manifest(
                     .await?;
             // Inlining breaks HMR so it is always disabled in dev.
             let inlined_css = *next_config.inline_css().await? && mode.is_production();
+            // Component chunks are also exposed via `clientModules[].chunks`, so when the feature
+            // is on we drop them from `entryJSFiles` to avoid double-listing. When it's off the
+            // manifest must match the non-component-chunk output exactly.
+            let generate_component_chunks =
+                *next_config.turbopack_generate_component_chunks().await?;
 
             for (chunk, chunk_path) in client_chunks_with_path {
                 if let Some(path) = client_relative_path.get_path_to(&chunk_path) {
@@ -461,7 +521,10 @@ async fn build_manifest(
                             inlined: inlined_css,
                             content,
                         });
-                    } else {
+                    } else if !mode.is_production()
+                        || !generate_component_chunks
+                        || !client_reference_chunk_paths.contains(&path)
+                    {
                         entry_js_files.insert(path);
                     }
                 }
@@ -520,6 +583,35 @@ impl From<&TurbopackModuleId> for ModuleId {
             TurbopackModuleId::Number(number) => ModuleId::Number(*number as _),
         }
     }
+}
+
+async fn client_chunk_components(
+    chunk: ResolvedVc<Box<dyn OutputAsset>>,
+    client_relative_path: &FileSystemPath,
+) -> Result<Vec<(RcStr, u64)>> {
+    let Some(output_chunk) = ResolvedVc::try_sidecast::<Box<dyn OutputChunk>>(chunk) else {
+        return Ok(Vec::new());
+    };
+    let Some(component_chunks) = output_chunk.runtime_info().await?.module_chunks else {
+        return Ok(Vec::new());
+    };
+    let component_assets = component_chunks.await?;
+    let mut components = Vec::with_capacity(component_assets.len());
+    for component in component_assets.iter() {
+        let component_path = component.path().await?;
+        if let Some(rel) = client_relative_path.get_path_to(&component_path)
+            && rel.ends_with(".js")
+        {
+            let size = component
+                .content()
+                .file_content()
+                .await?
+                .as_content()
+                .map_or(0, |file| file.content().len() as u64);
+            components.push((RcStr::from(rel), size));
+        }
+    }
+    Ok(components)
 }
 
 /// See next.js/packages/next/src/lib/client-reference.ts

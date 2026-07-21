@@ -21,7 +21,6 @@ import type { WorkStore } from './work-async-storage.external'
 import { NEXT_HMR_REFRESH_HASH_COOKIE } from '../../client/components/app-router-headers'
 import { InvariantError } from '../../shared/lib/invariant-error'
 import type { StagedRenderingController } from './staged-rendering'
-import { isEarlyRenderStage, RenderStage } from './staged-rendering'
 import type { ValidationBoundaryTracking } from './instant-validation/boundary-tracking'
 import type { InstantValidationSampleTracking } from './instant-validation/instant-samples'
 
@@ -103,47 +102,12 @@ export type InstantValidationSamples = {
 
 export type AsyncApiPromises = {
   cookies: Promise<ReadonlyRequestCookies>
-  earlyCookies: Promise<ReadonlyRequestCookies>
-
   mutableCookies: Promise<ReadonlyRequestCookies>
-  earlyMutableCookies: Promise<ReadonlyRequestCookies>
-
   headers: Promise<ReadonlyHeaders>
-  earlyHeaders: Promise<ReadonlyHeaders>
-
   sharedParamsParent: Promise<string>
-  earlySharedParamsParent: Promise<string>
-
   sharedSearchParamsParent: Promise<string>
-  earlySharedSearchParamsParent: Promise<string>
-
-  // Connection is not a runtime promise and doesn't
-  // need to distinguish between early and late
   connection: Promise<undefined>
-
-  // IO is not a runtime promise and doesn't
-  // need to distinguish between early and late
   io: Promise<undefined>
-}
-
-/**
- * Returns true if the current render stage is an early stage (EarlyStatic or
- * EarlyRuntime). The early stages are for runtime-prefetchable segments. When
- * true, runtime APIs should use the early promise variant that resolves at
- * EarlyRuntime rather than Runtime.
- */
-export function isInEarlyRenderStage(requestStore: RequestStore): boolean {
-  const stagedRendering = requestStore.stagedRendering
-  if (stagedRendering) {
-    const { currentStage } = stagedRendering
-    if (currentStage === RenderStage.Before) {
-      throw new InvariantError(
-        'Cannot determine late/early stage before starting the render'
-      )
-    }
-    return isEarlyRenderStage(currentStage)
-  }
-  return false
 }
 
 /**

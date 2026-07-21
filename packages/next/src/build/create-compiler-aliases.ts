@@ -180,6 +180,22 @@ export function createWebpackAliases({
               `next/dist/${moduleId}.browser`,
             ])
           ),
+
+          // When the Instant Navigation Testing API is disabled (production
+          // build without `experimental.exposeTestingApiInProductionBuild`),
+          // swap the navigation lock implementation for an inert shim so the
+          // testing machinery does not ship in the browser bundle. Same
+          // resolved-path matching as the browser-variant swap above.
+          ...(!dev &&
+          config.experimental.exposeTestingApiInProductionBuild !== true
+            ? {
+                [path.join(
+                  NEXT_PROJECT_ROOT_DIST,
+                  'client/components/segment-cache/navigation-testing-lock.js'
+                ) + '$']:
+                  'next/dist/client/components/segment-cache/navigation-testing-lock.disabled',
+              }
+            : {}),
         }
       : {}),
 

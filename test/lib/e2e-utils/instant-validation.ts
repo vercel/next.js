@@ -2,15 +2,28 @@ import { retry } from '../next-test-utils'
 import { getDeterministicOutput } from '../../e2e/app-dir/cache-components-errors/utils'
 import { inspect } from 'util'
 
-export type ValidationEvent = ValidationStartEvent | ValidationEndEvent
+export type ValidationEvent =
+  | ValidationStartEvent
+  | ValidationEndEvent
+  | ValidationAbortedEvent
 
 type ValidationStartEvent = {
   type: 'validation_start'
   requestId: string
   url: string
+  /** Only reported for development validation. */
+  responseFinished?: boolean
 }
 type ValidationEndEvent = {
   type: 'validation_end'
+  requestId: string
+  url: string
+}
+// Emitted when detached validation is aborted. It can appear without a start
+// when cancellation happens before validation runs, or after a start instead
+// of an end when in-flight validation is cancelled.
+type ValidationAbortedEvent = {
+  type: 'validation_aborted'
   requestId: string
   url: string
 }

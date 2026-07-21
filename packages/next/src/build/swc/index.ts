@@ -550,7 +550,7 @@ function bindingToApi(
         pages: {
           originalName: string
           htmlEndpoint: NapiEndpoint
-          rscEndpoint: NapiEndpoint
+          rscHmrEndpoint: NapiEndpoint
         }[]
       }
     | {
@@ -864,9 +864,12 @@ function bindingToApi(
       this._nativeEndpoint = nativeEndpoint
     }
 
-    async writeToDisk(): Promise<TurbopackResult<WrittenEndpoint>> {
+    async writeToDisk(
+      rscOnly?: boolean
+    ): Promise<TurbopackResult<WrittenEndpoint>> {
       return (await binding.endpointWriteToDisk(
-        this._nativeEndpoint
+        this._nativeEndpoint,
+        rscOnly
       )) as TurbopackResult<WrittenEndpoint>
     }
 
@@ -1210,7 +1213,7 @@ function bindingToApi(
             pages: nativeRoute.pages.map((page) => ({
               originalName: page.originalName,
               htmlEndpoint: new EndpointImpl(page.htmlEndpoint),
-              rscEndpoint: new EndpointImpl(page.rscEndpoint),
+              rscHmrEndpoint: new EndpointImpl(page.rscHmrEndpoint),
             })),
           }
           break

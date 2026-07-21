@@ -179,7 +179,6 @@ async function requestHandler(
         serverComponentsHmrCancellation: false,
         useCacheTimeout: nextConfig.experimental.useCacheTimeout,
         cachedNavigations: nextConfig.experimental.cachedNavigations ?? false,
-        appShells: nextConfig.experimental.appShells,
         clientTraceMetadata:
           nextConfig.experimental.clientTraceMetadata || ([] as any),
         clientParamParsingOrigins:

@@ -519,7 +519,6 @@ async function exportAppImpl(
       authInterrupts: !!nextConfig.experimental.authInterrupts,
       useCacheTimeout: nextConfig.experimental.useCacheTimeout,
       cachedNavigations: nextConfig.experimental.cachedNavigations ?? false,
-      appShells: nextConfig.experimental.appShells,
       maxPostponedStateSizeBytes: parseMaxPostponedStateSize(
         nextConfig.experimental.maxPostponedStateSize
       ),
@@ -716,7 +715,7 @@ async function exportAppImpl(
           worker.exportPages({
             buildId,
             deploymentId: nextConfig.deploymentId,
-            clientAssetToken: nextConfig.experimental.supportsImmutableAssets
+            clientAssetToken: nextConfig.supportsImmutableAssets
               ? ''
               : nextConfig.deploymentId,
             exportPaths: batch,
