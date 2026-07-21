@@ -538,11 +538,6 @@ describe('app-dir - server source maps', () => {
   })
 
   it('thrown errors from "use cache" have a sourcemapped stack with a codeframe', async () => {
-    // Errors thrown inside "use cache" functions cross a Flight boundary:
-    // the logged error object is deserialized by the consuming Flight client,
-    // and its stack is rebuilt through React's eval'd fake frame functions
-    // (`about://React/Cache/...` sourceURLs). This covers sourcemapping of
-    // fake stack frames.
     if (isNextDev) {
       const outputIndex = next.cliOutput.length
       await next.render('/rsc-error-throw-cached')

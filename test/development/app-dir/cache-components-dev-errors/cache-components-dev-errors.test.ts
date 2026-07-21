@@ -95,9 +95,6 @@ describe('Cache Components Dev Errors', () => {
     expect(stripAnsi(next.cliOutput.slice(outputIndex))).toContain(
       'https://nextjs.org/docs/messages/blocking-prerender-dynamic'
     )
-    // The logged error's stack is built from React's fake stack frame
-    // functions for the Prerender environment, and must be source-mapped
-    // with a codeframe like any other frame.
     expect(stripAnsi(next.cliOutput.slice(outputIndex))).toContain(
       '\n    at Page (app/no-accessed-data/page.js:2:9)' +
         '\n  1 | export default async function Page() {' +
