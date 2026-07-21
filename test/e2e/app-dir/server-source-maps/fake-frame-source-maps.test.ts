@@ -12,7 +12,6 @@ interface InspectorTarget {
   webSocketDebuggerUrl: string
 }
 
-/** Minimal Chrome DevTools Protocol client on top of `ws`. */
 class CDPSession {
   private ws: WebSocket
   private lastId = 0
@@ -62,16 +61,6 @@ class CDPSession {
   }
 }
 
-/**
- * Resolves a script's source map the way a debugger frontend can:
- * - a self-contained `data:` URL,
- * - a URL resolved against the script's location and read from disk
- *   (`file:`/relative, like the references emitted into build output),
- * - or served by the debugged target via `Network.loadNetworkResource`.
- * Debugger frontends cannot be assumed to fetch arbitrary http(s) URLs
- * themselves; the dedicated Chrome DevTools frontend for Node.js targets
- * does not.
- */
 /** CJS script "URLs" from the inspector are plain file paths. */
 function scriptURLToFileURL(scriptURL: string): string {
   return scriptURL.startsWith('file://')
@@ -79,6 +68,11 @@ function scriptURLToFileURL(scriptURL: string): string {
     : url.pathToFileURL(scriptURL).href
 }
 
+/**
+ * Debugger frontends cannot be assumed to fetch arbitrary http(s) URLs
+ * themselves (the dedicated Chrome DevTools frontend for Node.js targets
+ * does not), so http(s) maps are loaded through the debugged target.
+ */
 async function resolveSourceMapLikeADebugger(
   session: CDPSession,
   scriptURL: string,
@@ -138,8 +132,7 @@ describe('app-dir - server source maps - fake frame source maps', () => {
     dependencies,
     files: path.join(__dirname, 'fixtures/default'),
     skipDeployment: true,
-    // Expose the inspector on a random port so that the test can observe
-    // the server's scripts the same way an attached debugger would.
+    // Expose the inspector on a random port.
     startArgs: ['--inspect=0'],
   })
 
@@ -188,8 +181,8 @@ describe('app-dir - server source maps - fake frame source maps', () => {
   }
 
   function expectWellFormedSource(source: string): void {
-    // Sources must be proper URLs. Guards against mangled concatenations
-    // like `file:/cwd-relative/path` that substring assertions would hide.
+    // Guards against mangled concatenations like `file:/cwd-relative/path`
+    // that substring assertions would hide.
     expect(source).toMatch(/^(file:\/\/\/|turbopack:\/\/|webpack:\/\/)/)
   }
 
@@ -229,9 +222,6 @@ describe('app-dir - server source maps - fake frame source maps', () => {
           expect(fakeScripts.length).toBeGreaterThan(0)
         })
 
-        // Every fake frame script must carry a source map so that debuggers
-        // can reveal the original callsite of Server Components stack
-        // frames.
         for (const script of fakeScripts) {
           expect({
             url: script.url,
@@ -284,8 +274,6 @@ describe('app-dir - server source maps - fake frame source maps', () => {
           expectWellFormedSource(source)
         }
 
-        // The rendered page's own Server Component frames must resolve
-        // exactly to its original source file.
         const testDirURL = url.pathToFileURL(fs.realpathSync(next.testDir))
         expect([...mappedSources]).toContain(
           `${testDirURL.href}/app/rsc-error-log/page.js`
@@ -320,9 +308,8 @@ describe('app-dir - server source maps - fake frame source maps', () => {
           expect(serverScripts.length).toBeGreaterThan(0)
         })
 
-        // Every declared source map reference of the build output must
-        // resolve, like clicking a frame in a debugger would. Sources in
-        // these maps are relative and resolve against the map's own URL.
+        // Sources in these maps are relative and resolve against the map's
+        // own URL.
         const resolvedSources = new Set<string>()
         const mappedScripts: typeof serverScripts = []
         for (const script of serverScripts) {
@@ -346,8 +333,7 @@ describe('app-dir - server source maps - fake frame source maps', () => {
         }
 
         // The build output must reference source maps at all
-        // (`serverSourceMaps` is enabled in the fixture), and the rendered
-        // page's original source file must be resolvable from them.
+        // (`serverSourceMaps` is enabled in the fixture).
         expect(mappedScripts.length).toBeGreaterThan(0)
         const testDirURL = url.pathToFileURL(fs.realpathSync(next.testDir))
         expect([...resolvedSources]).toContain(
