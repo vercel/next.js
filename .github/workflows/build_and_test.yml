@@ -404,7 +404,6 @@ jobs:
           -g ${{ matrix.group }}
       testTimingsArtifact: 'test-timings'
       stepName: 'test-turbopack-dev-react-${{ matrix.react }}-${{ matrix.group }}'
-      testPassedFile: '.next-test-passed.txt'
       runs_on_labels: '["ubuntu-latest-16-core-arm-oss"]'
     secrets: inherit
 
@@ -444,7 +443,6 @@ jobs:
         node run-tests.js --timings --require-timings -g ${{ matrix.group }} --type production
       testTimingsArtifact: 'test-timings'
       stepName: 'test-turbopack-production-react-${{ matrix.react }}-${{ matrix.group }}'
-      testPassedFile: '.next-test-passed.txt'
       runs_on_labels: '["ubuntu-latest-16-core-arm-oss"]'
     secrets: inherit
 
@@ -493,7 +491,6 @@ jobs:
           -g ${{ matrix.group }}
       testTimingsArtifact: 'test-timings'
       stepName: 'test-rspack-dev-react-${{ matrix.react }}-${{ matrix.group }}'
-      testPassedFile: '.next-test-passed.txt'
     secrets: inherit
 
   test-rspack-production:
@@ -537,7 +534,6 @@ jobs:
         node run-tests.js --timings --require-timings -g ${{ matrix.group }} --type production
       testTimingsArtifact: 'test-timings'
       stepName: 'test-rspack-production-react-${{ matrix.react }}-${{ matrix.group }}'
-      testPassedFile: '.next-test-passed.txt'
     secrets: inherit
 
   test-next-swc-wasm:
@@ -562,7 +558,6 @@ jobs:
           test/production/pages-dir/production/test/index.test.ts \
           test/e2e/streaming-ssr/index.test.ts
       stepName: 'test-next-swc-wasm'
-      testPassedFile: '.next-test-passed.txt'
     secrets: inherit
 
   #[NOTE] currently this only checks building wasi target
@@ -601,7 +596,6 @@ jobs:
       nodeVersion: ${{ matrix.node }}
       afterBuild: node run-tests.js --type unit
       stepName: 'test-unit-${{ matrix.node }}'
-      testPassedFile: '.next-test-passed.txt'
 
     secrets: inherit
 
@@ -627,7 +621,6 @@ jobs:
         export __NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES=true
         NEXT_TEST_MODE=dev NODE_OPTIONS=--experimental-transform-types node run-tests.js test/e2e/app-dir/next-config-ts-native-ts/**/*.test.ts test/e2e/app-dir/next-config-ts-native-mts/**/*.test.ts
       stepName: 'test-next-config-ts-native-ts-dev-${{ matrix.node }}'
-      testPassedFile: '.next-test-passed.txt'
 
     secrets: inherit
 
@@ -652,7 +645,6 @@ jobs:
         export __NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES=true
         NEXT_TEST_MODE=start NODE_OPTIONS=--experimental-transform-types node run-tests.js test/e2e/app-dir/next-config-ts-native-ts/**/*.test.ts test/e2e/app-dir/next-config-ts-native-mts/**/*.test.ts
       stepName: 'test-next-config-ts-native-ts-prod-${{ matrix.node }}'
-      testPassedFile: '.next-test-passed.txt'
 
     secrets: inherit
 
@@ -672,7 +664,6 @@ jobs:
       nodeVersion: ${{ matrix.node }}
       afterBuild: node run-tests.js --type unit
       stepName: 'test-unit-windows-${{ matrix.node }}'
-      testPassedFile: '.next-test-passed.txt'
       runs_on_labels: '["windows-latest-8-core-oss"]'
 
     secrets: inherit
@@ -757,7 +748,6 @@ jobs:
           --group ${{ matrix.group }} \
           --preview-builds-base-url "${{ vars.PREVIEW_BUILDS_BASE_URL }}"
       stepName: 'test-new-tests-deploy-${{matrix.group}}'
-      testPassedFile: '.next-test-passed.txt'
 
     secrets: inherit
 
@@ -793,7 +783,6 @@ jobs:
           --group ${{ matrix.group }} \
           --preview-builds-base-url "${{ vars.PREVIEW_BUILDS_BASE_URL }}"
       stepName: 'test-new-tests-deploy-cache-components-${{matrix.group}}'
-      testPassedFile: '.next-test-passed.txt'
 
     secrets: inherit
 
@@ -834,7 +823,6 @@ jobs:
           --type development
       testTimingsArtifact: 'test-timings'
       stepName: 'test-dev-react-${{ matrix.react }}-${{ matrix.group }}'
-      testPassedFile: '.next-test-passed.txt'
       runs_on_labels: '["ubuntu-latest-16-core-arm-oss"]'
     secrets: inherit
 
@@ -858,7 +846,6 @@ jobs:
           test/e2e/app-dir/proxy-runtime-nodejs/proxy-runtime-nodejs.test.ts \
           test/development/app-dir/segment-explorer/segment-explorer.test.ts
       stepName: 'test-dev-windows'
-      testPassedFile: '.next-test-passed.txt'
       runs_on_labels: '["windows-latest-8-core-oss"]'
     secrets: inherit
 
@@ -885,7 +872,6 @@ jobs:
           test/production/create-next-app/index.test.ts \
           test/production/create-next-app/package-manager/pnpm.test.ts
       stepName: 'test-integration-windows'
-      testPassedFile: '.next-test-passed.txt'
       runs_on_labels: '["windows-latest-8-core-oss"]'
     secrets: inherit
 
@@ -910,7 +896,6 @@ jobs:
           test/e2e/app-dir/non-root-project-monorepo/non-root-project-monorepo.test.ts \
           test/e2e/app-dir/proxy-runtime-nodejs/proxy-runtime-nodejs.test.ts
       stepName: 'test-prod-windows'
-      testPassedFile: '.next-test-passed.txt'
       runs_on_labels: '["windows-latest-8-core-oss"]'
     secrets: inherit
 
@@ -947,7 +932,6 @@ jobs:
         node run-tests.js --timings --require-timings -g ${{ matrix.group }} --type production
       testTimingsArtifact: 'test-timings'
       stepName: 'test-prod-react-${{ matrix.react }}-${{ matrix.group }}'
-      testPassedFile: '.next-test-passed.txt'
       runs_on_labels: '["ubuntu-latest-16-core-arm-oss"]'
     secrets: inherit
 
@@ -985,7 +969,6 @@ jobs:
         TURBOPACK_BUILD=1 NEXT_TEST_MODE=start BROWSER_NAME=safari DEVICE_NAME='iPhone XR' node run-tests.js \
           test/production/prerender-prefetch/index.test.ts
       stepName: 'test-firefox-safari'
-      testPassedFile: '.next-test-passed.txt'
     secrets: inherit
 
   test-cache-components-dev:
@@ -1022,7 +1005,6 @@ jobs:
           --type development
       testTimingsArtifact: 'test-timings'
       stepName: 'test-cache-components-dev-${{ matrix.group }}'
-      testPassedFile: '.next-test-passed.txt'
     secrets: inherit
 
   test-cache-components-prod:
@@ -1059,7 +1041,6 @@ jobs:
           --type production
       testTimingsArtifact: 'test-timings'
       stepName: 'test-cache-components-prod-${{ matrix.group }}'
-      testPassedFile: '.next-test-passed.txt'
     secrets: inherit
 
   # We block merging unless this job passes. This is enforced by a "require

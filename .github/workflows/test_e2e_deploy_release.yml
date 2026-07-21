@@ -137,7 +137,6 @@ jobs:
       skipNativeBuild: 'yes'
       skipNativeInstall: 'no'
       stepName: 'test-deploy-webpack-${{ matrix.group }}'
-      testPassedFile: '.next-test-passed.txt'
       timeout_minutes: 180
       runs_on_labels: '["ubuntu-latest"]'
       overrideProxyAddress: ${{ inputs.overrideProxyAddress || '' }}
@@ -185,7 +184,6 @@ jobs:
       skipNativeBuild: 'yes'
       skipNativeInstall: 'no'
       stepName: 'test-deploy-turbopack-${{ matrix.group }}'
-      testPassedFile: '.next-test-passed.txt'
       timeout_minutes: 180
       runs_on_labels: '["ubuntu-latest"]'
       overrideProxyAddress: ${{ inputs.overrideProxyAddress || '' }}
@@ -230,7 +228,6 @@ jobs:
       skipNativeBuild: 'yes'
       skipNativeInstall: 'no'
       stepName: 'test-deploy-deploy-${{ matrix.group }}'
-      testPassedFile: '.next-test-passed.txt'
       testReportsArtifactPrefix: 'adapter-test-reports'
       timeout_minutes: 180
       runs_on_labels: '["ubuntu-latest"]'
