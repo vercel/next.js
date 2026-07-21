@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { cacheLife, cacheTag } from "next/cache";
 import { CacheStateWatcher } from "../cache-state-watcher";
 import { Suspense } from "react";
 import { RevalidateFrom } from "../revalidate-from";
@@ -9,13 +10,42 @@ type TimeData = {
   timeZone: string;
 };
 
+type CachedTime = {
+  time: TimeData;
+  generatedAt: number;
+};
+
 // Map the friendly route segment to an IANA timezone for the time API.
 const timeZones = {
   cet: "Europe/Amsterdam",
   gmt: "Etc/UTC",
 } as const;
 
-export const revalidate = 500;
+// How long the cached time stays fresh (seconds). Shared with the countdown UI.
+const REVALIDATE_SECONDS = 500;
+
+// Cache the upstream time in the `remote` cache handler (Redis) rather than the
+// default in-memory cache, so it's shared across instances and survives
+// restarts. `updateTag("time-data")` invalidates it on demand.
+async function getCurrentTime(
+  ianaTimeZone: string,
+): Promise<CachedTime | null> {
+  "use cache: remote";
+  cacheTag("time-data");
+  cacheLife({ stale: 60, revalidate: REVALIDATE_SECONDS, expire: 3600 });
+
+  const response = await fetch(
+    `https://timeapi.io/api/time/current/zone?timeZone=${ianaTimeZone}`,
+  );
+
+  if (!response.ok) {
+    return null;
+  }
+
+  // `Date.now()` is allowed here because this is a cached function: the value
+  // is baked into the remote cache entry and refreshes when it revalidates.
+  return { time: await response.json(), generatedAt: Date.now() };
+}
 
 export function generateStaticParams() {
   return Object.keys(timeZones).map((timezone) => ({ timezone }));
@@ -29,21 +59,13 @@ export default async function Page({ params }: PageProps<"/[timezone]">) {
     notFound();
   }
 
-  const data = await fetch(
-    `https://timeapi.io/api/time/current/zone?timeZone=${ianaTimeZone}`,
-    {
-      next: { tags: ["time-data"] },
-    },
-  );
+  const cached = await getCurrentTime(ianaTimeZone);
 
-  if (!data.ok) {
+  if (!cached) {
     notFound();
   }
 
-  const timeData: TimeData = await data.json();
-  // Captured when this cache entry is (re)generated, so the freshness
-  // countdown reflects the age of the cached entry.
-  const generatedAt = Date.now();
+  const { time: timeData, generatedAt } = cached;
 
   return (
     <>
@@ -60,7 +82,7 @@ export default async function Page({ params }: PageProps<"/[timezone]">) {
         </div>
         <Suspense fallback={null}>
           <CacheStateWatcher
-            revalidateAfter={revalidate * 1000}
+            revalidateAfter={REVALIDATE_SECONDS * 1000}
             time={generatedAt}
           />
         </Suspense>

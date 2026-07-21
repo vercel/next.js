@@ -1,8 +1,11 @@
 # Next.js Redis Cache Integration Example
 
-This example is tailored for self-hosted setups and demonstrates how to use Redis as a shared cache. It implements a custom Next.js [`cacheHandler`](https://nextjs.org/docs/app/api-reference/config/next-config-js/cacheHandler) directly against the [`redis`](https://github.com/redis/node-redis) client, so no third-party adapter is required.
+This example is tailored for self-hosted setups and demonstrates how to back Next.js caching with Redis, using no third-party adapter. It wires up **both** of Next.js's cache handler APIs against the [`redis`](https://github.com/redis/node-redis) client, storing everything in a single Redis instance:
 
-The handler lives in [`cache-handler.js`](./cache-handler.js) and implements the `get`, `set`, `revalidateTag`, and `resetRequestCache` methods. It's wired up in [`next.config.js`](./next.config.js), which also sets `cacheMaxMemorySize: 0` to disable the default in-memory cache so Redis is the single shared source of truth across instances.
+- **[`cacheHandler`](https://nextjs.org/docs/app/api-reference/config/next-config-js/cacheHandler) (singular)** — the ISR / incremental cache for pages, route handlers, and images. Implemented in [`cache-handler.js`](./cache-handler.js) with `get`, `set`, `revalidateTag`, and `resetRequestCache`.
+- **[`cacheHandlers`](https://nextjs.org/docs/app/api-reference/config/next-config-js/cacheHandlers) (plural)** — the [`'use cache'`](https://nextjs.org/docs/app/api-reference/directives/use-cache) family. The [`remote`](https://nextjs.org/docs/app/api-reference/directives/use-cache-remote) handler in [`remote-cache-handler.js`](./remote-cache-handler.js) stores `'use cache: remote'` entries with `get`, `set`, `refreshTags`, `getExpiration`, and `updateTags`.
+
+Both are configured in [`next.config.js`](./next.config.js), which enables `cacheComponents: true` (required for `'use cache'`) and sets `cacheMaxMemorySize: 0` so Redis is the single shared source of truth across instances.
 
 Check out this [repository](https://github.com/ezeparziale/nextjs-k8s) that contains a comprehensive setup for Kubernetes.
 
@@ -28,7 +31,7 @@ Once you have installed the dependencies, you can begin running the example Redi
 docker compose up -d
 ```
 
-Then, build and start the Next.js app as usual. The custom cache handler is only used for production builds (`next start`), so run:
+Then, build and start the Next.js app as usual. The custom cache handlers are only used for production builds (`next start`), so run:
 
 ```bash
 npm run build
@@ -39,28 +42,32 @@ To see the cache logs, set `NEXT_PRIVATE_DEBUG_CACHE=1` when starting the app.
 
 ## How it works
 
-- **The cache handler:** [`cache-handler.js`](./cache-handler.js) connects to Redis, stores each cache entry as JSON under a `nextjs:cache:` prefix, and tracks which keys belong to each tag in a Redis set (`nextjs:tag:<tag>`). `revalidateTag` then deletes every key associated with a tag.
+The `/[timezone]` page renders a mostly static shell and, inside it, a `'use cache: remote'` function (`getCurrentTime`) that fetches the current time. This exercises both handlers at once:
 
-- **Building without Redis:** The handler skips connecting to Redis during `next build` (it checks `NEXT_PHASE`) and falls back gracefully (returning `null` / no-op) when Redis is unavailable, so the app still builds and runs, just without a shared cache.
+- **ISR cache (`cache-handler.js`):** stores the prerendered page entries as JSON under a `nextjs:cache:` prefix, and tracks which keys belong to each tag in a Redis set (`nextjs:tag:<tag>`). `revalidateTag` deletes every key associated with a tag.
 
-- **Redis server setup:** Ensure your Redis server is running and properly configured before starting your Next.js application. Configure the connection by setting `REDIS_URL` (defaults to `redis://localhost:6379`).
+- **Remote cache (`remote-cache-handler.js`):** stores each `'use cache: remote'` entry under a `nextjs:use-cache:` prefix (the streamed value is base64-encoded). Tag revalidation is timestamp-based: `updateTags` records `nextjs:use-cache-tag:<tag>` = now, and `getExpiration` reports the latest time so Next treats older entries as stale. Clicking **Revalidate** calls [`updateTag('time-data')`](https://nextjs.org/docs/app/api-reference/functions/updateTag), which regenerates the remote entry.
+
+- **Building without Redis:** both handlers skip connecting during `next build` (they check `NEXT_PHASE`) and degrade gracefully when Redis is unavailable, so the app still builds and runs, just without a shared cache.
+
+- **Redis server setup:** ensure your Redis server is running before starting the app. Configure the connection with `REDIS_URL` (defaults to `redis://localhost:6379`).
 
 > **Note:** This example fetches the current time from a public API (`timeapi.io`) purely as sample data to demonstrate caching and revalidation. It is included for learning purposes only. If you reuse it, review and respect that API's terms of use and rate limits, and swap in your own data source for real applications.
 
 ## Documentation
 
-For detailed information on configuring a custom cache handler, see the official Next.js documentation:
+For detailed information, see the official Next.js documentation:
 
-- [`cacheHandler` configuration ↗](https://nextjs.org/docs/app/api-reference/config/next-config-js/cacheHandler)
+- [`cacheHandler` (ISR / incremental cache) ↗](https://nextjs.org/docs/app/api-reference/config/next-config-js/cacheHandler)
+- [`cacheHandlers` (`'use cache'`) ↗](https://nextjs.org/docs/app/api-reference/config/next-config-js/cacheHandlers)
+- [`'use cache: remote'` ↗](https://nextjs.org/docs/app/api-reference/directives/use-cache-remote)
 - [Self-hosting: configuring caching ↗](https://nextjs.org/docs/app/guides/self-hosting#configuring-caching)
 
 ## Development and Production Considerations
 
-- This example covers the server cache (`cacheHandler`) used for ISR, route handler responses, and optimized images. If you're configuring backends for the `'use cache'` directive instead, see [`cacheHandlers`](https://nextjs.org/docs/app/api-reference/config/next-config-js/cacheHandlers) (plural).
-
 - The provided `compose.yaml` is intended for local development. For production deployment, refer to the official [Redis installation](https://redis.io/docs/install/) and [management](https://redis.io/docs/management/) guidelines.
 
-- **Inspecting the cache:** The `redis-stack` image bundles RedisInsight on port `8001`. Open it in your browser (linked from the example UI) to watch cache keys appear and expire.
+- **Inspecting the cache:** The `redis-stack` image bundles RedisInsight on port `8001`. Open it in your browser (linked from the example UI) to watch both the `nextjs:cache:` (ISR) and `nextjs:use-cache:` (remote) keys appear and expire.
 
 - **Clearing Redis Cache:** To clear the Redis cache, use RedisInsight Workbench or the following CLI command:
 
