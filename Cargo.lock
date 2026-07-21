@@ -10195,6 +10195,7 @@ dependencies = [
  "codspeed-criterion-compat",
  "concurrent-queue",
  "dashmap 6.1.0",
+ "fs-err",
  "futures",
  "include_dir",
  "indexmap 2.13.0",

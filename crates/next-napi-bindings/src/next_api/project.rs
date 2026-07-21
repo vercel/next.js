@@ -427,14 +427,16 @@ pub fn project_new(
 
     // The root path must be canonicalized before DiskFileSystem is constructed, but do it early,
     // before we use it for creating a trace file or anything else. The root path always exists.
-    options.root_path = canonicalize_to_rcstr(Path::new(&*options.root_path))
-        .map_err(|e| napi::Error::from_reason(PrettyPrintError(&e).to_string()))?;
+    options.root_path = canonicalize_to_rcstr(Path::new(&*options.root_path)).map_err(|e| {
+        napi::Error::from_reason(PrettyPrintError(&anyhow::Error::from(e)).to_string())
+    })?;
     // The dist dir (e.g. `.next`) may not exist yet, and `canonicalize` requires an existing path.
     create_dir_all(Path::new(&*options.dist_dir))
         .with_context(|| format!("failed to create dist directory {:?}", options.dist_dir))
         .map_err(|e| napi::Error::from_reason(PrettyPrintError(&e).to_string()))?;
-    options.dist_dir = canonicalize_to_rcstr(Path::new(&*options.dist_dir))
-        .map_err(|e| napi::Error::from_reason(PrettyPrintError(&e).to_string()))?;
+    options.dist_dir = canonicalize_to_rcstr(Path::new(&*options.dist_dir)).map_err(|e| {
+        napi::Error::from_reason(PrettyPrintError(&anyhow::Error::from(e)).to_string())
+    })?;
 
     if let Some(dhat_profiler) = DhatProfilerGuard::try_init() {
         exit.on_exit(async move {
@@ -2481,13 +2483,13 @@ pub async fn project_get_source_for_asset(
 #[napi]
 pub async fn project_get_source_map(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
-    file_path: RcStr,
+    source_map_url: RcStr,
 ) -> napi::Result<Option<String>> {
     let container = project.container;
     let ctx = &project.turbopack_ctx;
     // Normalization canonicalizes (an untracked read), so it must happen here, outside of the
     // cached turbo-tasks functions below.
-    let (file_path_sys, module) = parse_and_canonicalize_source_url(&file_path)
+    let (file_path_sys, module) = parse_and_canonicalize_source_url(&source_map_url)
         .map_err(|e| napi::Error::from_reason(PrettyPrintError(&e).to_string()))?;
     ctx.turbo_tasks()
         .run(async move {

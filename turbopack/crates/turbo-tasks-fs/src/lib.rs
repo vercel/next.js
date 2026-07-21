@@ -191,12 +191,16 @@ pub fn validate_path_length(path: &Path) -> io::Result<()> {
 /// The returned path is in the format [`DiskFileSystem::new`] expects: an absolute,
 /// symlink-resolved path (a verbatim/extended `\\?\`-prefixed path on Windows). `path` must already
 /// exist on disk. Returns an error if it cannot be canonicalized or is not valid unicode.
-pub fn canonicalize_to_rcstr(path: &Path) -> Result<RcStr> {
-    std::fs::canonicalize(path)
-        .with_context(|| format!("failed to canonicalize {path:?}"))?
+pub fn canonicalize_to_rcstr(path: &Path) -> io::Result<RcStr> {
+    fs_err::canonicalize(path)?
         .into_string()
         .map(RcStr::from)
-        .map_err(|p| anyhow!("canonicalized path {p:?} is not valid unicode"))
+        .map_err(|p| {
+            io::Error::new(
+                ErrorKind::InvalidFilename,
+                anyhow!("canonicalized path {p:?} is not valid unicode"),
+            )
+        })
 }
 
 trait ConcurrencyLimitedExt {
@@ -733,8 +737,12 @@ impl DiskFileSystem {
         /// Canonicalization here is an untracked read of state the watcher can't see (outside the
         /// root), and is not portable across machines, hence it is `session_dependent`.
         #[turbo_tasks::function(fs, session_dependent)]
-        fn canonicalize_untracked(sys_path: RcStr) -> Vc<OptionRcStr> {
-            Vc::cell(canonicalize_to_rcstr(Path::new(&*sys_path)).ok())
+        async fn canonicalize_untracked(sys_path: RcStr) -> Vc<OptionRcStr> {
+            Vc::cell(
+                retry_blocking(|| canonicalize_to_rcstr(Path::new(&*sys_path)))
+                    .await
+                    .ok(),
+            )
         }
 
         let root_sys_path = self.inner.root_path();
@@ -1020,6 +1028,9 @@ impl FileSystem for DiskFileSystem {
         };
 
         let mut link_type = LinkType::default();
+        // TODO(bgw): Reading the type here is silly, the callers could do it.
+        // The reason `LinkContent` contains the type information is just for the `write_link`
+        // codepath, which needs to know if it can create a Windows junction point or not.
         let file_type = target_fs_path.get_type().await?;
         if matches!(&*file_type, FileSystemEntryType::Directory) {
             link_type |= LinkType::DIRECTORY;
