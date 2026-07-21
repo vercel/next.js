@@ -134,10 +134,7 @@ import {
   isAppRouteRouteModule,
 } from './route-modules/checks'
 import { NextDataPathnameNormalizer } from './normalizers/request/next-data'
-import {
-  getIsPossibleServerAction,
-  getServerActionRequestMetadata,
-} from './lib/server-action-request-meta'
+import { getIsPossibleServerAction } from './lib/server-action-request-meta'
 import { isInterceptionRouteAppPath } from '../shared/lib/router/utils/interception-routes'
 import { toRoute } from './lib/to-route'
 import type { DeepReadonly } from '../shared/lib/deep-readonly'
@@ -2665,22 +2662,6 @@ export default abstract class Server<
   ): Promise<LoadComponentsReturnType<ErrorModule> | null>
   protected abstract getRoutesManifest(): NormalizedRouteManifest | undefined
 
-  protected matchOptions(req: ServerRequest, pathname: string): MatchOptions {
-    return {
-      i18n: this.i18nProvider?.fromRequest(req, pathname),
-      // Only actual navigations and fetch actions compile the SSR-free output
-      // — never prefetches. With cache components, a prefetch triggers a dev
-      // validation render that consumes the Flight payload through
-      // `ssrModuleMapping`, which the SSR-free output doesn't emit. Fetch
-      // actions always respond with a Flight payload, unlike no-JS form
-      // actions, which respond with an HTML document.
-      rscOnly:
-        (!!getRequestMeta(req, 'isRSCRequest') &&
-          !getRequestMeta(req, 'isPrefetchRSCRequest')) ||
-        getServerActionRequestMetadata(req).isFetchAction,
-    }
-  }
-
   private async renderToResponseImpl(
     ctx: RequestContext<ServerRequest, ServerResponse>
   ): Promise<ResponsePayload | null> {
@@ -2701,7 +2682,9 @@ export default abstract class Server<
     }
     delete query[NEXT_RSC_UNION_QUERY]
 
-    const options = this.matchOptions(req, pathname)
+    const options: MatchOptions = {
+      i18n: this.i18nProvider?.fromRequest(req, pathname),
+    }
 
     const existingMatch = getRequestMeta(ctx.req, 'match')
 
