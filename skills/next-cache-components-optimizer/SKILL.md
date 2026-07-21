@@ -19,11 +19,10 @@ Set up an agentic optimization loop that drives a Next.js route from "not
 instant" to "instant" and keeps it there. The loop is test-driven: encode the
 goal as a failing `@next/playwright` `instant()` test, work it to green, and
 ship the test as the regression guard. Run it once per target route. Work the
-phases P → G in order; each ends in a gate. Fix recipes live in two lazily-read
-references: `reference/patterns.md` (before→after for each blocker type) and
-`reference/real-app-patterns.md` (parallel routes, auth gates, the empty-shell
-and responsive-skeleton failure modes). Read one only when its phase points
-there.
+phases P → G in order; each ends in a gate. Production shapes (parallel routes,
+auth gates, the empty-shell and responsive-skeleton failure modes) live in a
+lazily-read reference, `reference/real-app-patterns.md`; read it only when phase
+D points there.
 
 ## What is invariant, and what is yours
 
@@ -117,7 +116,7 @@ those words.
 - [ ] B  BASELINE     unlocked: the marker renders for the test user         → test-template.md
 - [ ] C  RED          locked instant(): the shell does not commit            → test-template.md
 - [ ] C-gate          VERIFY-RED: stop until the RED is trustworthy          → reference/red-test-robustness.md
-- [ ] D  FIX          push each Suspense boundary down to the data it guards → reference/patterns.md
+- [ ] D  FIX          push each Suspense boundary down to the data it guards → below
 - [ ]      D1 reuse the route's existing loading UI; do not hand-build skeletons
 - [ ]      D2 the shell matches the real render at every breakpoint  → reference/real-app-patterns.md
 - [ ] E  PARITY       the refactor changed only whether the route is instant
@@ -284,11 +283,28 @@ Render `children` unconditionally; move the top-level `await` into a
 The page that consumes the shell should be sync (no top-level `await`), with
 its dynamic data behind `<Suspense>`. `fallback={null}` is correct only when
 the gate renders nothing on success. For data, the fallback must be a real
-loading skeleton (see D1). Every other blocker shape (`cookies()`/`headers()`,
-uncached fetch or database reads, dynamic params, `searchParams`, metadata,
-non-deterministic values like `connection()`, LCP placement, granularity below
-shared layouts) maps to its blocking-prerender insight in
-`reference/patterns.md`.
+loading skeleton (see D1).
+
+Every other blocker shape — `cookies()`/`headers()`, uncached fetch or database
+reads, `searchParams`, metadata, viewport, non-deterministic values (`Date.now()`,
+`Math.random()`, `crypto.randomUUID()`) — surfaces its own insight when you hit
+it, with a `https://nextjs.org/docs/messages/<slug>` link. `next dev` shows it in
+the overlay as a fix card, no build needed; if you'd rather see it from a build,
+scope it to the route you're on with `next build --debug-build-paths app/<route>/**`
+(and `--debug-prerender` to report every blocker past the first) instead of
+rebuilding the app. Open that page and apply its recipe; don't improvise from the
+inline message. A few things those
+per-error pages don't stress for the instant-navigation goal:
+
+- **A boundary in the root layout isn't enough for client navigations.** It
+  passes a page-load check but leaves sibling client navigations blocking; put
+  the boundary below the lowest layout the source and destination routes share.
+- **Keep the LCP element** (usually the main heading) out of any boundary, so it
+  paints in the shell instead of waiting on a stream.
+- **A green check isn't always instant.** `export const instant = false` opts
+  the segment out of validation while the navigation still blocks, and a
+  `<Suspense>` above the document `<body>` prerenders an empty shell — neither
+  makes the route instant.
 
 ### D1: reuse the route's existing loading UI; do not hand-build skeletons
 
@@ -337,10 +353,28 @@ this gate is as machine-checkable as the others. Detail:
 **When the read can't be pushed down** (an ID minted per request, an
 all-dynamic page, a per-request auth/scope read the whole subtree needs), there
 is no shell to grow. Don't force one: opt the route into **runtime prefetching**
-(`prefetch = 'allow-runtime'` on every leaf segment + a _full_ prefetch on the
-link) so the prefetch runs the dynamic render ahead of the click and the soft
-nav commits the real content. Doc links and the `instant()`-specific gotchas:
-`reference/patterns.md`.
+so the prefetch runs the dynamic render ahead of the click and the soft nav
+commits the real content. See [Runtime Prefetching](https://nextjs.org/docs/app/guides/runtime-prefetching)
+for the mechanism (`prefetch = 'allow-runtime'` on the route plus a full
+`<Link prefetch={true}>`) and the [dynamic-data-during-prefetching insight](https://nextjs.org/docs/messages/instant-link-prefetch-partial)
+for adoption. The `instant()`-specific gotchas the docs don't cover:
+
+- **The full prefetch is mandatory.** An auto/PPR prefetch bails before the
+  runtime spawn (`subtreeHasSpeculativePrefetch`); only `prefetch={true}` /
+  `kind: 'full'` reaches it. If you set `prefetch = 'allow-runtime'` and it's
+  still RED, the link is doing an auto prefetch.
+- **All leaf slots must agree.** `allow-runtime` on the content segment but
+  nothing on a sibling `@header`/`@sidebar` leaf leaves the route's runtime entry
+  incomplete, so the lock falls back to the shell. Flip every leaf together.
+- **Prefetch the canonical URL.** A link whose href 307-redirects can't be
+  prefetched — the prefetch receives the redirect, not the tree. Point the link
+  and the prefetch at the final URL.
+- **Don't blanket the full prefetch.** It fetches _all_ the target's dynamic
+  data; issuing it on hover for every link is wasteful. Scope `kind: 'full'` to
+  the runtime-prefetch targets only.
+- **Marker must be a committed node, not RSC bytes.** The content is often a
+  client component, so its text isn't in the prefetch response. Assert a
+  `data-testid` that renders when the client subtree commits.
 
 ## E. PARITY: the refactor changed only whether the route is instant
 
@@ -405,10 +439,6 @@ three hold, you are not done.
 - `reference/red-test-robustness.md`: the C-gate and phase F. The taxonomy of
   untrustworthy REDs, the checklist, the differential recipe, the vacuous-pass
   failure mode, and worked cases.
-- `reference/patterns.md`: each blocker shape (`cookies()`/`headers()`,
-  uncached data, URL data, `Date.now()`/`Math.random()`/crypto, metadata,
-  viewport) linked to its blocking-prerender insight, plus the runtime-prefetch
-  escape hatch and its `instant()`-specific gotchas.
 - `reference/real-app-patterns.md`: parallel routes, deferring an auth gate,
   initial-load vs soft-navigation shells, the empty-shell failure mode, the
   responsive-skeleton mismatch, edge cases.

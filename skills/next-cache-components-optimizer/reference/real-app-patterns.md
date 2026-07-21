@@ -1,6 +1,6 @@
 # Real-app patterns
 
-The rest of this skill models a single linear `layout → page` tree. Production App Router routes add **parallel routes, shared layout UI, and auth gates**, which is where most of the real static-shell work happens. These patterns bridge that gap. Read the skill's `SKILL.md` and `patterns.md` first.
+The rest of this skill models a single linear `layout → page` tree. Production App Router routes add **parallel routes, shared layout UI, and auth gates**, which is where most of the real static-shell work happens. These patterns bridge that gap. Read the skill's `SKILL.md` first.
 
 ## Parallel routes: each slot is its own boundary
 
