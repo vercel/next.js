@@ -292,7 +292,7 @@ it: the build prints a `https://nextjs.org/docs/messages/<slug>` link. The
 default build output is often abbreviated and may carry no usable stack trace;
 add `--debug-prerender` for the full failing frame and to report every blocker
 past the first. Scope the build to the route you're on with
-`next build --debug-build-paths app/<route>/**` rather than rebuilding the app.
+`next build --debug-build-paths "app/<route>/**"` rather than rebuilding the app.
 Open that page and apply its recipe; don't improvise from the inline message. A few things those
 per-error pages don't stress for the instant-navigation goal:
 
