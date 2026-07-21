@@ -779,6 +779,16 @@ export async function handleAction({
         let actionModId: string | number | undefined
         let boundActionArguments: unknown[] = []
 
+        const defaultBodySizeLimit = '1 MB'
+        const bodySizeLimit =
+          serverActions?.bodySizeLimit ?? defaultBodySizeLimit
+        const bodySizeLimitBytes =
+          bodySizeLimit !== defaultBodySizeLimit
+            ? (
+                require('next/dist/compiled/bytes') as typeof import('next/dist/compiled/bytes')
+              ).parse(bodySizeLimit)
+            : 1024 * 1024 // 1 MB
+
         if (
           // The type check here ensures that `req` is correctly typed, and the
           // environment variable check provides dead code elimination.
@@ -788,8 +798,6 @@ export async function handleAction({
           if (!req.body) {
             throw new Error('invariant: Missing request body.')
           }
-
-          // TODO: add body limit
 
           // Use react-server-dom-webpack/server
           const {
@@ -803,7 +811,42 @@ export async function handleAction({
 
           if (isMultipartAction) {
             // TODO-APP: Add streaming support
-            const formData = await req.request.formData()
+            // Read the body stream with size tracking to enforce bodySizeLimitBytes.
+            // We cannot call req.request.formData() directly as that would bypass
+            // the body size limit entirely.
+            const edgeChunks: Uint8Array[] = []
+            let edgeBodySize = 0
+            const edgeReader = req.body.getReader()
+            while (true) {
+              const { done, value } = await edgeReader.read()
+              if (done) break
+              edgeBodySize += value.byteLength
+              if (edgeBodySize > bodySizeLimitBytes) {
+                const { ApiError } =
+                  require('../api-utils') as typeof import('../api-utils')
+                throw new ApiError(
+                  413,
+                  `Body exceeded ${bodySizeLimit} limit.\n` +
+                    `To configure the body size limit for Server Actions, see: https://nextjs.org/docs/app/api-reference/next-config-js/serverActions#bodysizelimit`
+                )
+              }
+              edgeChunks.push(value)
+            }
+            // Reconstruct a Blob from the buffered chunks and parse formData from it.
+            // Note: we must pass the original Content-Type as an explicit header
+            // rather than relying on the Blob's `type`. The Blob constructor
+            // normalizes `type` to ASCII lowercase per the File API spec, which
+            // would lowercase the multipart boundary parameter (e.g.
+            // `boundary=----WebKitFormBoundaryAbCdEf`). The body bytes contain the
+            // original mixed-case boundary delimiter, so a lowercased boundary
+            // would fail to match and `formData()` would throw. An explicit header
+            // on the Request takes precedence over the Blob's normalized type.
+            const edgeBodyBlob = new Blob(edgeChunks as BlobPart[])
+            const formData = await new Request('http://n/', {
+              method: 'POST',
+              headers: { 'content-type': req.headers['content-type'] ?? '' },
+              body: edgeBodyBlob,
+            }).formData()
             if (isFetchAction) {
               // A fetch action with a multipart body.
 
@@ -882,6 +925,7 @@ export async function handleAction({
             // which can happen for very simple JSON-like values that don't need multiple flight rows.
 
             const chunks: Buffer[] = []
+            let nonMultipartBodySize = 0
             const reader = req.body.getReader()
             while (true) {
               const { done, value } = await reader.read()
@@ -889,6 +933,16 @@ export async function handleAction({
                 break
               }
 
+              nonMultipartBodySize += value.byteLength
+              if (nonMultipartBodySize > bodySizeLimitBytes) {
+                const { ApiError } =
+                  require('../api-utils') as typeof import('../api-utils')
+                throw new ApiError(
+                  413,
+                  `Body exceeded ${bodySizeLimit} limit.\n` +
+                    `To configure the body size limit for Server Actions, see: https://nextjs.org/docs/app/api-reference/next-config-js/serverActions#bodysizelimit`
+                )
+              }
               chunks.push(value)
             }
 
@@ -930,16 +984,6 @@ export async function handleAction({
           const body: import('node:stream').Readable = actionBodyFromMeta
             ? Readable.from(actionBodyFromMeta)
             : req.body
-
-          const defaultBodySizeLimit = '1 MB'
-          const bodySizeLimit =
-            serverActions?.bodySizeLimit ?? defaultBodySizeLimit
-          const bodySizeLimitBytes =
-            bodySizeLimit !== defaultBodySizeLimit
-              ? (
-                  require('next/dist/compiled/bytes') as typeof import('next/dist/compiled/bytes')
-                ).parse(bodySizeLimit)
-              : 1024 * 1024 // 1 MB
 
           let size = 0
           const sizeLimitTransform = new Transform({
