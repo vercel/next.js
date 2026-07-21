@@ -525,19 +525,19 @@ export function registerSuspenseBoundariesTests(
 
            \`params\` or \`searchParams\` accessed outside of \`<Suspense>\` may prevent the navigation from being instant, leading to a slower user experience.
 
-           Ways to fix this:
-             - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-               https://nextjs.org/docs/messages/instant-shell-url-data#wrap-in-or-move-into-suspense
-             - [block] Set \`export const instant = false\` to allow a blocking route
-               https://nextjs.org/docs/messages/instant-shell-url-data#allow-blocking-route
-               at Page (app/suspense-in-root/static/missing-suspense-around-search-params/page.tsx:7:18)
-              5 |
-              6 | export default async function Page({ searchParams }) {
-           >  7 |   const search = await searchParams
-                |                  ^
-              8 |   return (
-              9 |     <main>
-             10 |       <p> {
+            Ways to fix this:
+              - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+              - [block] Set \`export const instant = false\` to allow a blocking route
+
+            Learn more: https://nextjs.org/docs/messages/instant-shell-url-data
+                at Page (app/suspense-in-root/static/missing-suspense-around-search-params/page.tsx:7:18)
+               5 |
+               6 | export default async function Page({ searchParams }) {
+            >  7 |   const search = await searchParams
+                 |                  ^
+               8 |   return (
+               9 |     <main>
+              10 |       <p> {
              [cause]: Instant Validation:  
                  at instant (app/suspense-in-root/static/missing-suspense-around-search-params/page.tsx:1:24)
              > 1 | export const instant = {
@@ -651,9 +651,9 @@ export function registerSuspenseBoundariesTests(
 
            Ways to fix this:
              - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-               https://nextjs.org/docs/messages/instant-shell-url-data#wrap-in-or-move-into-suspense
              - [block] Set \`export const instant = false\` to allow a blocking route
-               https://nextjs.org/docs/messages/instant-shell-url-data#allow-blocking-route
+
+           Learn more: https://nextjs.org/docs/messages/instant-shell-url-data
                at body (<anonymous>)
                at html (<anonymous>)
                at a (<anonymous>)
