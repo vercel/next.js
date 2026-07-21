@@ -13,7 +13,7 @@ substitute your project's e2e auth helper, URL helper, and real testids/trigger 
 
 ## Soft navigation (client-side navigation)
 
-Drive a real `<Link>` click. The committed shell is the destination's prefetched static shell.
+Drive a real `<Link>` click. The committed shell is the destination's prefetched App Shell.
 Under the lock the router initiates and awaits the route prefetch itself, so no manual warming is
 needed; if the shell is intermittently absent, treat it as a real blocker or marker bug (C-gate),
 never as a warming race. Do not add waits or hovers.
