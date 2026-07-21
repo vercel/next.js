@@ -244,7 +244,7 @@ struct DiskFileSystemInner {
     pub root: RcStr,
     #[turbo_tasks(debug_ignore, trace_ignore)]
     #[bincode(skip)]
-    mutex_map: MutexMap<PathBuf>,
+    mutex_map: MutexMap<Arc<PathBuf>>,
     #[turbo_tasks(debug_ignore, trace_ignore)]
     #[bincode(skip)]
     invalidator_map: InvalidatorMap,
@@ -353,9 +353,9 @@ impl DiskFileSystemInner {
         Ok(())
     }
 
-    async fn lock_path(&self, full_path: &Path) -> PathLockGuard<'_> {
+    async fn lock_path(&self, full_path: Arc<PathBuf>) -> PathLockGuard<'_> {
         let lock1 = self.invalidation_lock.read().await;
-        let lock2 = self.mutex_map.lock(full_path.to_path_buf()).await;
+        let lock2 = self.mutex_map.lock(full_path).await;
         PathLockGuard(lock1, lock2)
     }
 
@@ -619,7 +619,7 @@ impl DiskFileSystem {
 #[allow(dead_code, reason = "we need to hold onto the locks")]
 struct PathLockGuard<'a>(
     #[allow(dead_code)] RwLockReadGuard<'a, ()>,
-    #[allow(dead_code)] mutex_map::MutexMapGuard<'a, PathBuf>,
+    #[allow(dead_code)] mutex_map::MutexMapGuard<'a, Arc<PathBuf>>,
 );
 
 fn format_absolute_fs_path(path: &Path, name: &str, root_path: &Path) -> Option<String> {
@@ -716,11 +716,11 @@ impl FileSystem for DiskFileSystem {
         if self.inner.is_path_denied(&fs_path) {
             return Ok(FileContent::NotFound.cell());
         }
-        let full_path = self.to_sys_path(&fs_path);
+        let full_path = Arc::new(self.to_sys_path(&fs_path));
 
         self.inner.register_read_invalidator(&full_path).await?;
 
-        let _lock = self.inner.lock_path(&full_path).await;
+        let _lock = self.inner.lock_path(full_path.clone()).await;
         let content = match retry_blocking(|| File::from_path(&full_path))
             .instrument(tracing::info_span!("read file", name = ?full_path))
             .concurrency_limited(&self.inner.read_semaphore)
@@ -830,12 +830,12 @@ impl FileSystem for DiskFileSystem {
         if self.inner.is_path_denied(&fs_path) {
             return Ok(LinkContent::NotFound.cell());
         }
-        let full_path = self.to_sys_path(&fs_path);
+        let full_path = Arc::new(self.to_sys_path(&fs_path));
 
         self.inner.register_read_invalidator(&full_path).await?;
 
-        let _lock = self.inner.lock_path(&full_path).await;
-        let link_path = match retry_blocking(|| std::fs::read_link(&full_path))
+        let _lock = self.inner.lock_path(full_path.clone()).await;
+        let link_path = match retry_blocking(|| std::fs::read_link(&**full_path))
             .instrument(tracing::info_span!("read symlink", name = ?full_path))
             .concurrency_limited(&self.inner.read_semaphore)
             .await
@@ -1016,9 +1016,9 @@ impl FileSystem for DiskFileSystem {
                 &self,
                 content: &ReadRef<PersistedFileContent>,
             ) -> anyhow::Result<()> {
-                let full_path = validate_path_length(&self.full_path)?;
+                let full_path = Arc::new(validate_path_length(&self.full_path)?.into_owned());
 
-                let _lock = self.inner.lock_path(&full_path).await;
+                let _lock = self.inner.lock_path(full_path.clone()).await;
 
                 // We perform an untracked comparison here, so that this write is not dependent
                 // on a read's Vc<FileContent> (and the memory it holds). Our untracked read can
@@ -1037,7 +1037,6 @@ impl FileSystem for DiskFileSystem {
                 match &**content {
                     PersistedFileContent::Content(..) => {
                         let content = content.clone();
-                        let full_path = full_path.into_owned();
 
                         let mut missing_parent_dir = false;
                         let do_write = || {
@@ -1045,7 +1044,7 @@ impl FileSystem for DiskFileSystem {
                                 std::fs::create_dir_all(parent)?;
                                 missing_parent_dir = false;
                             }
-                            let mut f = std::fs::File::create(&full_path).inspect_err(|err| {
+                            let mut f = std::fs::File::create(&**full_path).inspect_err(|err| {
                                 if err.kind() == ErrorKind::NotFound {
                                     // create the parent dirs in the next attempt
                                     missing_parent_dir = true;
@@ -1064,7 +1063,7 @@ impl FileSystem for DiskFileSystem {
                                     .is_some_and(|v| v == "1" || v == "true")
                             });
                             if *WRITE_VERSION {
-                                let mut full_path = full_path.clone();
+                                let mut full_path = (*full_path).clone();
                                 let hash = hash_xxh3_hash64(file);
                                 let ext = full_path.extension();
                                 let ext = if let Some(ext) = ext {
@@ -1073,7 +1072,7 @@ impl FileSystem for DiskFileSystem {
                                     format!("{hash:016x}")
                                 };
                                 full_path.set_extension(ext);
-                                let mut f = std::fs::File::create(&full_path)?;
+                                let mut f = std::fs::File::create(full_path)?;
                                 std::io::copy(&mut file.read(), &mut f)?;
                                 #[cfg(unix)]
                                 f.set_permissions(file.meta.permissions.into())?;
@@ -1091,7 +1090,7 @@ impl FileSystem for DiskFileSystem {
                             .with_context(|| format!("failed to write to {full_path:?}"))?;
                     }
                     PersistedFileContent::NotFound => {
-                        retry_blocking(|| std::fs::remove_file(&full_path))
+                        retry_blocking(|| std::fs::remove_file(&**full_path))
                             .instrument(tracing::info_span!("remove file", name = ?full_path))
                             .concurrency_limited(&self.inner.write_semaphore)
                             .await
@@ -1211,9 +1210,9 @@ impl FileSystem for DiskFileSystem {
 
         impl CapturedWriteLinkEffect {
             async fn apply_inner(&self, content: &ReadRef<LinkContent>) -> anyhow::Result<()> {
-                let full_path = validate_path_length(&self.full_path)?;
+                let full_path = Arc::new(validate_path_length(&self.full_path)?.into_owned());
 
-                let _lock = self.inner.lock_path(&full_path).await;
+                let _lock = self.inner.lock_path(full_path.clone()).await;
 
                 enum OsSpecificLinkContent {
                     Link {
@@ -1252,7 +1251,7 @@ impl FileSystem for DiskFileSystem {
                     LinkContent::NotFound => OsSpecificLinkContent::NotFound,
                 };
 
-                let old_content = match retry_blocking(|| std::fs::read_link(&full_path))
+                let old_content = match retry_blocking(|| std::fs::read_link(&**full_path))
                     .instrument(tracing::info_span!("read symlink before write", name = ?full_path))
                     .concurrency_limited(&self.inner.read_semaphore)
                     .await
@@ -1279,8 +1278,6 @@ impl FileSystem for DiskFileSystem {
                         is_directory,
                         ..
                     } => {
-                        let full_path = full_path.into_owned();
-
                         #[derive(thiserror::Error, Debug)]
                         #[error("{msg}: {source}")]
                         struct SymlinkCreationError {
@@ -1316,12 +1313,12 @@ impl FileSystem for DiskFileSystem {
                                 has_old_content = false;
                             }
                             #[cfg(not(windows))]
-                            let io_result = std::os::unix::fs::symlink(&target, &full_path);
+                            let io_result = std::os::unix::fs::symlink(&target, &**full_path);
                             #[cfg(windows)]
                             let io_result = if is_directory {
-                                std::os::windows::fs::junction_point(&target, &full_path)
+                                std::os::windows::fs::junction_point(&target, &**full_path)
                             } else {
-                                std::os::windows::fs::symlink_file(&target, &full_path)
+                                std::os::windows::fs::symlink_file(&target, &**full_path)
                             };
                             io_result.map_err(|err| {
                                 match err.kind() {
@@ -1411,7 +1408,7 @@ impl FileSystem for DiskFileSystem {
 
     #[turbo_tasks::function(fs, session_dependent)]
     async fn metadata(&self, fs_path: FileSystemPath) -> Result<Vc<FileMeta>> {
-        let full_path = self.to_sys_path(&fs_path);
+        let full_path = Arc::new(self.to_sys_path(&fs_path));
 
         // Check if path is denied - if so, return an error (metadata shouldn't be readable)
         if self.inner.is_path_denied(&fs_path) {
@@ -1420,8 +1417,8 @@ impl FileSystem for DiskFileSystem {
 
         self.inner.register_read_invalidator(&full_path).await?;
 
-        let _lock = self.inner.lock_path(&full_path).await;
-        let meta = retry_blocking(|| std::fs::metadata(&full_path))
+        let _lock = self.inner.lock_path(full_path.clone()).await;
+        let meta = retry_blocking(|| std::fs::metadata(&**full_path))
             .instrument(tracing::info_span!("read metadata", name = ?full_path))
             .concurrency_limited(&self.inner.read_semaphore)
             .await
