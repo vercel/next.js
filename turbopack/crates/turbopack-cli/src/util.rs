@@ -2,10 +2,9 @@ use std::{env::current_dir, path::PathBuf};
 
 use anyhow::{Context, Result};
 use bincode::{Decode, Encode};
-use dunce::canonicalize;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{Vc, trace::TraceRawVcs};
-use turbo_tasks_fs::{DiskFileSystem, FileSystem};
+use turbo_tasks_fs::{DiskFileSystem, FileSystem, canonicalize_to_rcstr};
 
 #[turbo_tasks::task_input]
 #[derive(Clone, Debug, Hash, PartialEq, Eq, TraceRawVcs, Encode, Decode)]
@@ -27,21 +26,14 @@ pub fn normalize_dirs(
     project_dir: &Option<PathBuf>,
     root_dir: &Option<PathBuf>,
 ) -> Result<NormalizedDirs> {
-    let project_dir: RcStr = project_dir
-        .as_ref()
-        .map(canonicalize)
-        .unwrap_or_else(current_dir)
-        .context("project directory can't be found")?
-        .to_str()
-        .context("project directory contains invalid characters")?
-        .into();
+    let project_dir = match project_dir.as_ref() {
+        Some(dir) => canonicalize_to_rcstr(dir),
+        None => canonicalize_to_rcstr(&current_dir().context("current directory can't be found")?),
+    }
+    .context("project directory can't be found")?;
 
     let root_dir = match root_dir.as_ref() {
-        Some(root) => canonicalize(root)
-            .context("root directory can't be found")?
-            .to_str()
-            .context("root directory contains invalid characters")?
-            .into(),
+        Some(root) => canonicalize_to_rcstr(root).context("root directory can't be found")?,
         None => project_dir.clone(),
     };
 

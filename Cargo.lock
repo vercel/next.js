@@ -4971,6 +4971,7 @@ dependencies = [
  "turbo-rcstr",
  "turbo-tasks",
  "turbo-tasks-backend",
+ "turbo-tasks-fs",
  "turbo-tasks-malloc",
  "turbopack-node",
  "turbopack-trace-utils",
@@ -5412,6 +5413,12 @@ dependencies = [
  "indexmap 2.13.0",
  "memchr",
 ]
+
+[[package]]
+name = "omnipath"
+version = "0.1.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "80adb31078122c880307e9cdfd4e3361e6545c319f9b9dcafcb03acd3b51a575"
 
 [[package]]
 name = "once_cell"
@@ -10188,13 +10195,14 @@ dependencies = [
  "codspeed-criterion-compat",
  "concurrent-queue",
  "dashmap 6.1.0",
- "dunce",
+ "fs-err",
  "futures",
  "include_dir",
  "indexmap 2.13.0",
  "jsonc-parser",
  "mime",
  "notify",
+ "omnipath",
  "parking_lot",
  "rand 0.10.1",
  "regex",
@@ -10204,6 +10212,7 @@ dependencies = [
  "serde_json",
  "serde_path_to_error",
  "sha2",
+ "smallvec",
  "tempfile",
  "thiserror 1.0.69",
  "tokio",
@@ -10216,6 +10225,7 @@ dependencies = [
  "turbo-tasks-hash",
  "turbo-tasks-testing",
  "turbo-unix-path",
+ "url",
  "urlencoding",
 ]
 
@@ -10419,7 +10429,6 @@ dependencies = [
  "clap",
  "codspeed-criterion-compat",
  "console-subscriber",
- "dunce",
  "futures",
  "owo-colors",
  "regex",
@@ -10915,7 +10924,6 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "bincode 2.0.1",
- "dunce",
  "rustc-hash 2.1.1",
  "serde",
  "serde_json",

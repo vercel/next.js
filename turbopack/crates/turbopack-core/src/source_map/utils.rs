@@ -7,9 +7,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::value::RawValue;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, turbofmt};
-use turbo_tasks_fs::{
-    DiskFileSystem, FileContent, FileSystemPath, rope::Rope, util::uri_from_path_buf,
-};
+use turbo_tasks_fs::{DiskFileSystem, FileContent, FileSystemPath, rope::Rope};
 use url::Url;
 
 use crate::SOURCE_URL_PROTOCOL_STR;
@@ -281,7 +279,14 @@ pub async fn absolute_fileify_source_map(
     transform_relative_files(map, &context_path, |context_fs, src_rest| {
         let path = context_path.join(src_rest)?;
 
-        Ok(uri_from_path_buf(context_fs.to_sys_path(&path)))
+        // `to_sys_path` returns a win32 path on Windows. `Url::from_file_path` can also handle
+        // verbatim (`\\?\`-prefixed) disk and UNC paths, in case that conversion failed.
+        let sys_path = context_fs.to_sys_path(&path);
+        Ok(Url::from_file_path(&sys_path)
+            .map_err(|()| {
+                anyhow::anyhow!("path {sys_path:?} cannot be converted to a file:// URI")
+            })?
+            .into())
     })
     .await
 }
