@@ -1656,7 +1656,6 @@ export async function createHotReloaderTurbopack(
       definition,
       isApp,
       url: requestUrl,
-      rscOnly,
       subscribeToChanges = true,
     }) {
       // When there is no route definition this is an internal file not a route the user added.
@@ -1803,7 +1802,6 @@ export async function createHotReloaderTurbopack(
               entrypoints: currentEntrypoints,
               manifestLoader,
               readyIds,
-              rscOnly,
               devRewrites: opts.fsChecker.rewrites,
               productionRewrites: undefined,
               logErrors: true,
