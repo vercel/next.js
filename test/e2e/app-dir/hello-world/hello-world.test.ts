@@ -8,7 +8,7 @@ describe('hello-world', () => {
   // Recommended for tests that check HTML. Cheerio is a HTML parser that has a jQuery like API.
   it('should work using cheerio', async () => {
     const $ = await next.render$('/')
-    expect($('p').text()).toBe('hello world')
+    expect($('p').text()).toBe('goodbye world')
   })
 
   // Recommended for tests that need a full browser.
