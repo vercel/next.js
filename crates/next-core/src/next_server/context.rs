@@ -486,11 +486,11 @@ pub async fn get_server_module_options_context(
     let enable_webpack_loaders =
         *webpack_loader_options(project_path.clone(), next_config, loader_conditions).await?;
 
-    let tree_shaking_mode_for_user_code = *next_config
-        .tree_shaking_mode_for_user_code(next_mode.is_development())
+    let module_fragments_enabled_for_user_code = *next_config
+        .module_fragments_enabled_for_user_code(next_mode.is_development())
         .await?;
-    let tree_shaking_mode_for_foreign_code = *next_config
-        .tree_shaking_mode_for_foreign_code(next_mode.is_development())
+    let module_fragments_enabled_for_foreign_code = *next_config
+        .module_fragments_enabled_for_foreign_code(next_mode.is_development())
         .await?;
 
     let tsconfig_path = next_config
@@ -589,7 +589,8 @@ pub async fn get_server_module_options_context(
             lightningcss_features: *next_config.lightningcss_feature_flags().await?,
             ..Default::default()
         },
-        tree_shaking_mode: tree_shaking_mode_for_user_code,
+        follow_reexports: true,
+        module_fragments_enabled: module_fragments_enabled_for_user_code,
         side_effect_free_packages: Some(
             side_effect_free_packages_glob(next_config.optimize_package_imports())
                 .to_resolved()
@@ -652,7 +653,8 @@ pub async fn get_server_module_options_context(
                 enable_webpack_loaders: foreign_enable_webpack_loaders,
                 // NOTE(WEB-1016) PostCSS transforms should also apply to foreign code.
                 enable_postcss_transform: enable_foreign_postcss_transform,
-                tree_shaking_mode: tree_shaking_mode_for_foreign_code,
+                follow_reexports: true,
+                module_fragments_enabled: module_fragments_enabled_for_foreign_code,
                 ..module_options_context.clone()
             };
 
@@ -717,7 +719,8 @@ pub async fn get_server_module_options_context(
                 enable_webpack_loaders: foreign_enable_webpack_loaders,
                 // NOTE(WEB-1016) PostCSS transforms should also apply to foreign code.
                 enable_postcss_transform: enable_foreign_postcss_transform,
-                tree_shaking_mode: tree_shaking_mode_for_foreign_code,
+                follow_reexports: true,
+                module_fragments_enabled: module_fragments_enabled_for_foreign_code,
                 ..module_options_context.clone()
             };
             let internal_module_options_context = ModuleOptionsContext {
@@ -800,7 +803,8 @@ pub async fn get_server_module_options_context(
                 enable_webpack_loaders: foreign_enable_webpack_loaders,
                 // NOTE(WEB-1016) PostCSS transforms should also apply to foreign code.
                 enable_postcss_transform: enable_foreign_postcss_transform,
-                tree_shaking_mode: tree_shaking_mode_for_foreign_code,
+                follow_reexports: true,
+                module_fragments_enabled: module_fragments_enabled_for_foreign_code,
                 ..module_options_context.clone()
             };
             let internal_module_options_context = ModuleOptionsContext {
@@ -877,7 +881,8 @@ pub async fn get_server_module_options_context(
                 enable_webpack_loaders: foreign_enable_webpack_loaders,
                 // NOTE(WEB-1016) PostCSS transforms should also apply to foreign code.
                 enable_postcss_transform: enable_foreign_postcss_transform,
-                tree_shaking_mode: tree_shaking_mode_for_foreign_code,
+                follow_reexports: true,
+                module_fragments_enabled: module_fragments_enabled_for_foreign_code,
                 ..module_options_context.clone()
             };
             let internal_module_options_context = ModuleOptionsContext {
@@ -965,7 +970,8 @@ pub async fn get_server_module_options_context(
                 enable_webpack_loaders: foreign_enable_webpack_loaders,
                 // NOTE(WEB-1016) PostCSS transforms should also apply to foreign code.
                 enable_postcss_transform: enable_foreign_postcss_transform,
-                tree_shaking_mode: tree_shaking_mode_for_foreign_code,
+                follow_reexports: true,
+                module_fragments_enabled: module_fragments_enabled_for_foreign_code,
                 ..module_options_context.clone()
             };
             let internal_module_options_context = ModuleOptionsContext {

@@ -18,16 +18,16 @@ use crate::{
         EcmascriptChunkItemContent, EcmascriptChunkPlaceable, EcmascriptExports,
         ecmascript_chunk_item,
     },
+    module_fragments::{
+        Key, SplitResult, get_part_id, part_of_module, side_effects::module::SideEffectsModule,
+        split_module,
+    },
     parse::ParseResult,
     references::{
         FollowExportsResult, analyze_ecmascript_module, esm::FoundExportType,
         exports::compute_ecmascript_module_exports, follow_reexports,
     },
     rename::module::EcmascriptModuleRenameModule,
-    tree_shake::{
-        Key, SplitResult, get_part_id, part_of_module, side_effects::module::SideEffectsModule,
-        split_module,
-    },
 };
 
 /// A reference to part of an ES module.

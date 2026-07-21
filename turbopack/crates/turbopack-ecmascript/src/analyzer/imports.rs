@@ -32,11 +32,11 @@ use crate::{
         is_unresolved, is_unresolved_id,
     },
     magic_identifier::{MAGIC_IDENTIFIER_DEFAULT_EXPORT, MAGIC_IDENTIFIER_DEFAULT_EXPORT_ATOM},
+    module_fragments::{PartId, find_turbopack_part_id_in_asserts},
     references::{
         esm::{EsmAssetReference, EsmExport, Liveness},
         util::{SpecifiedChunkingType, parse_chunking_type_annotation},
     },
-    tree_shake::{PartId, find_turbopack_part_id_in_asserts},
 };
 
 #[turbo_tasks::value]

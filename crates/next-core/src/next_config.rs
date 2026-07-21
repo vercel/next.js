@@ -29,11 +29,8 @@ use turbopack_core::{
     module_graph::{chunk_group_info::EntryHeuristics, style_groups::StyleGroupsAlgorithm},
     resolve::ResolveAliasMap,
 };
-use turbopack_ecmascript::{
-    OptionTreeShaking, TreeShakingMode,
-    transform::{
-        OptionReactCompilerCompilationMode, ReactCompilerCompilationMode, ReactCompilerTarget,
-    },
+use turbopack_ecmascript::transform::{
+    OptionReactCompilerCompilationMode, ReactCompilerCompilationMode, ReactCompilerTarget,
 };
 use turbopack_ecmascript_plugins::transform::{
     emotion::EmotionTransformConfig, relay::RelayConfig,
@@ -1369,7 +1366,7 @@ pub struct ExperimentalConfig {
     turbopack_plugin_runtime_strategy: Option<TurbopackPluginRuntimeStrategy>,
     turbopack_source_maps: Option<bool>,
     turbopack_input_source_maps: Option<bool>,
-    turbopack_tree_shaking: Option<bool>,
+    turbopack_module_fragments: Option<bool>,
     turbopack_scope_hoisting: Option<bool>,
     turbopack_generate_component_chunks: Option<bool>,
     turbopack_shared_runtime: Option<bool>,
@@ -2409,26 +2406,19 @@ impl NextConfig {
     }
 
     #[turbo_tasks::function]
-    pub fn tree_shaking_mode_for_foreign_code(
-        &self,
-        _is_development: bool,
-    ) -> Vc<OptionTreeShaking> {
-        OptionTreeShaking(match self.experimental.turbopack_tree_shaking {
-            Some(false) => Some(TreeShakingMode::ReexportsOnly),
-            Some(true) => Some(TreeShakingMode::ModuleFragments),
-            None => Some(TreeShakingMode::ReexportsOnly),
-        })
-        .cell()
+    pub fn module_fragments_enabled_for_foreign_code(&self, _is_development: bool) -> Vc<bool> {
+        Vc::cell(matches!(
+            self.experimental.turbopack_module_fragments,
+            Some(true)
+        ))
     }
 
     #[turbo_tasks::function]
-    pub fn tree_shaking_mode_for_user_code(&self, _is_development: bool) -> Vc<OptionTreeShaking> {
-        OptionTreeShaking(match self.experimental.turbopack_tree_shaking {
-            Some(false) => Some(TreeShakingMode::ReexportsOnly),
-            Some(true) => Some(TreeShakingMode::ModuleFragments),
-            None => Some(TreeShakingMode::ReexportsOnly),
-        })
-        .cell()
+    pub fn module_fragments_enabled_for_user_code(&self, _is_development: bool) -> Vc<bool> {
+        Vc::cell(matches!(
+            self.experimental.turbopack_module_fragments,
+            Some(true)
+        ))
     }
 
     #[turbo_tasks::function]

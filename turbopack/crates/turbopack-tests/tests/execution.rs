@@ -49,7 +49,7 @@ use turbopack_core::{
     },
 };
 use turbopack_css::chunk::CssChunkType;
-use turbopack_ecmascript::{TreeShakingMode, chunk::EcmascriptChunkType};
+use turbopack_ecmascript::chunk::EcmascriptChunkType;
 use turbopack_ecmascript_runtime::RuntimeType;
 use turbopack_node::{
     child_process_backend,
@@ -264,8 +264,10 @@ async fn run(resource: PathBuf, snapshot_mode: IssueSnapshotMode) -> Result<JsRe
 )]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 struct TestOptions {
-    #[serde(default = "default_tree_shaking_mode")]
-    tree_shaking_mode: Option<TreeShakingMode>,
+    #[serde(default = "default_true")]
+    follow_reexports: bool,
+    #[serde(default)]
+    module_fragments_enabled: bool,
     #[serde(default = "default_true")]
     remove_unused_imports: bool,
     #[serde(default = "default_true")]
@@ -278,10 +280,6 @@ struct TestOptions {
     production_chunking: bool,
 }
 
-fn default_tree_shaking_mode() -> Option<TreeShakingMode> {
-    Some(TreeShakingMode::ReexportsOnly)
-}
-
 fn default_true() -> bool {
     true
 }
@@ -289,7 +287,8 @@ fn default_true() -> bool {
 impl Default for TestOptions {
     fn default() -> Self {
         Self {
-            tree_shaking_mode: default_tree_shaking_mode(),
+            follow_reexports: default_true(),
+            module_fragments_enabled: false,
             remove_unused_exports: default_true(),
             remove_unused_imports: default_true(),
             scope_hoisting: default_true(),
@@ -448,11 +447,13 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
                 ..Default::default()
             },
             environment: Some(env),
-            tree_shaking_mode: options.tree_shaking_mode,
+            follow_reexports: options.follow_reexports,
+            module_fragments_enabled: options.module_fragments_enabled,
             rules: vec![(
                 ContextCondition::InNodeModules,
                 ModuleOptionsContext {
-                    tree_shaking_mode: options.tree_shaking_mode,
+                    follow_reexports: options.follow_reexports,
+                    module_fragments_enabled: options.module_fragments_enabled,
                     ..Default::default()
                 }
                 .resolved_cell(),

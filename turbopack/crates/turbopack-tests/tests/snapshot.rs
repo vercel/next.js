@@ -56,7 +56,7 @@ use turbopack_core::{
     reference_type::{EntryReferenceSubType, ReferenceType, ReferenceTypeCondition},
 };
 use turbopack_ecmascript::{
-    AnalyzeMode, CustomTransformer, EcmascriptInputTransform, TransformPlugin, TreeShakingMode,
+    AnalyzeMode, CustomTransformer, EcmascriptInputTransform, TransformPlugin,
     chunk::EcmascriptChunkType, transform::ReactCompilerCompilationMode,
 };
 use turbopack_ecmascript_plugins::transform::{
@@ -87,7 +87,9 @@ struct SnapshotOptions {
     #[serde(default)]
     environment: SnapshotEnvironment,
     #[serde(default)]
-    tree_shaking_mode: Option<TreeShakingMode>,
+    follow_reexports: bool,
+    #[serde(default)]
+    module_fragments_enabled: bool,
     #[serde(default)]
     remove_unused_imports: bool,
     #[serde(default)]
@@ -135,7 +137,8 @@ impl Default for SnapshotOptions {
             runtime: Default::default(),
             runtime_type: default_runtime_type(),
             environment: Default::default(),
-            tree_shaking_mode: None,
+            follow_reexports: false,
+            module_fragments_enabled: false,
             remove_unused_imports: false,
             remove_unused_exports: false,
             cjs_tree_shaking: false,
@@ -425,14 +428,16 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
                 ContextCondition::InNodeModules,
                 ModuleOptionsContext {
                     environment: Some(env),
-                    tree_shaking_mode: options.tree_shaking_mode,
+                    follow_reexports: options.follow_reexports,
+                    module_fragments_enabled: options.module_fragments_enabled,
                     analyze_mode: AnalyzeMode::CodeGenerationAndTracing,
                     ..Default::default()
                 }
                 .resolved_cell(),
             )],
             module_rules: vec![module_rules],
-            tree_shaking_mode: options.tree_shaking_mode,
+            follow_reexports: options.follow_reexports,
+            module_fragments_enabled: options.module_fragments_enabled,
             analyze_mode: AnalyzeMode::CodeGenerationAndTracing,
             ..Default::default()
         }
