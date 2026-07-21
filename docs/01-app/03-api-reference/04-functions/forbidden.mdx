@@ -75,6 +75,8 @@ export default async function AdminPage() {
 ## Good to know
 
 - The `forbidden` function cannot be called in the [root layout](/docs/app/api-reference/file-conventions/layout#root-layout).
+- You do not need to write `return forbidden()` — it throws (its TypeScript [`never`](https://www.typescriptlang.org/docs/handbook/2/functions.html#never) return type), so execution stops. A `try/catch` around the call swallows the interrupt and no forbidden UI renders; use [`unstable_rethrow`](/docs/app/api-reference/functions/unstable_rethrow) to let it through.
+- A `forbidden()` left in an un-awaited promise throws where nothing catches it, so no forbidden UI renders. In development the server logs `⨯ unhandledRejection: NEXT_HTTP_ERROR_FALLBACK;403`. Always `await` the function that may call it.
 
 ## Examples
 
@@ -154,7 +156,7 @@ export default function ProjectsPage() {
 }
 ```
 
-Because `forbidden()` is thrown during rendering, it propagates up to the nearest [`forbidden`](/docs/app/api-reference/file-conventions/forbidden) boundary and replaces the UI, even after the shell has started streaming.
+When the session lacks access, `getProjects` calls `forbidden()`, which throws. Because this happens during rendering, the exception propagates to the nearest [`forbidden`](/docs/app/api-reference/file-conventions/forbidden) boundary, which renders in place of the streamed-in content, even though the page shell has already been sent.
 
 Add a `forbidden.tsx` alongside the route to define that UI:
 
@@ -180,7 +182,7 @@ export default function Forbidden() {
 }
 ```
 
-The trade-off is the HTTP status code. Because the check fires inside the `<Suspense>` boundary, the response has already begun streaming as a `200`, and the status can't change once streaming has started. This is usually fine for a page, where the user sees the `forbidden` UI regardless; if you need the response itself to carry a `403`, the check has to resolve before anything streams. See [Status codes](/docs/app/api-reference/file-conventions/loading#status-codes).
+The trade-off is the HTTP status code. Because the check fires inside the `<Suspense>` boundary, the response has already begun streaming as a `200`, and the status can't change once streaming has started. This is usually fine for a page, where the user sees the `forbidden` UI regardless. To return a real `403` status, the check has to run before the response streams. With [Cache Components](/docs/app/getting-started/caching), every dynamic route streams a static shell first, so run that check in [`proxy`](/docs/app/api-reference/file-conventions/proxy) instead. See [Status codes](/docs/app/api-reference/file-conventions/loading#status-codes).
 
 ### Role-based route protection
 
