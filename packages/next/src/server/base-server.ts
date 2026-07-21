@@ -131,7 +131,6 @@ import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
 import { matchNextDataPathname } from './lib/match-next-data-pathname'
 import getRouteFromAssetPath from '../shared/lib/router/utils/get-route-from-asset-path'
 import { getRouteMatcher } from '../shared/lib/router/utils/route-matcher'
-import { getRouteRegex } from '../shared/lib/router/utils/route-regex'
 import { RSCPathnameNormalizer } from './normalizers/request/rsc'
 import { stripFlightHeaders } from './app-render/strip-flight-headers'
 import {
