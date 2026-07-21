@@ -12,7 +12,7 @@ This guide explains how prefetching works, what Next.js prefetches for you, and 
 - [Controlling prefetching](#controlling-prefetching)
 - [Troubleshooting](#troubleshooting)
 
-> **Using Cache Components?** With [`cacheComponents`](/docs/app/api-reference/config/next-config-js/cacheComponents) enabled, `<Link>` defaults to prefetching a per-route [App Shell](/docs/app/glossary#app-shell) rather than the full page. Prefetching more than the shell takes two opt-ins: the link sets `prefetch={true}` and the destination route sets [`prefetch = 'allow-runtime'`](/docs/app/api-reference/file-conventions/route-segment-config/prefetch#allow-runtime). See [Adopting Partial Prefetching](/docs/app/guides/adopting-partial-prefetching) for the behavior change and the recommended adoption path.
+> **Using Partial Prefetching?** With [`partialPrefetching`](/docs/app/api-reference/config/next-config-js/partialPrefetching) enabled, `<Link>` defaults to prefetching a per-route [App Shell](/docs/app/glossary#app-shell) rather than the full page. See [Partial Prefetching](#partial-prefetching) below and [Adopting Partial Prefetching](/docs/app/guides/adopting-partial-prefetching) for the adoption path.
 
 ## How does prefetching work?
 
@@ -24,7 +24,7 @@ When navigating to the new page, there's no full page reload or browser loading 
 
 ## What Next.js prefetches automatically
 
-Next.js prefetches automatically in production. As each `<Link>` enters the viewport, Next.js prefetches the route behind it and schedules the work so a page full of links doesn't flood the network. How much of each route it prefetches depends on whether the route is static or dynamic, and changes when [Cache Components](/docs/app/getting-started/caching) is enabled.
+Next.js prefetches automatically in production. As each `<Link>` enters the viewport, Next.js prefetches the route behind it and schedules the work so a page full of links doesn't flood the network. How much of each route it prefetches depends on whether the route is static or dynamic, and changes when [Partial Prefetching](#partial-prefetching) is enabled.
 
 ### Prefetching static vs. dynamic routes
 
@@ -78,9 +78,9 @@ The scheduler prioritizes likely navigations while minimizing unused downloads.
 
 Next.js stores prefetched React Server Component payloads in memory, keyed by route segments. When navigating between sibling routes (e.g. `/dashboard/settings` → `/dashboard/analytics`), Next.js reuses the parent layout and only fetches the updated leaf page.
 
-### Cache Components
+### Partial Prefetching
 
-With [Cache Components](/docs/app/getting-started/caching) enabled, prefetching switches from the all-or-nothing model above to a per-route [App Shell](/docs/app/glossary#app-shell):
+With [Partial Prefetching](/docs/app/glossary#partial-prefetching) enabled via the [`partialPrefetching`](/docs/app/api-reference/config/next-config-js/partialPrefetching) config (which requires [Cache Components](/docs/app/getting-started/caching)), prefetching switches from the all-or-nothing model above to a per-route [App Shell](/docs/app/glossary#app-shell):
 
 - **One shell per route, shared across links.** `<Link>` prefetches the route's App Shell, which holds its static and session output. Any number of links to the same route reuse that one shell, fetched once as the first link enters the viewport, so a page with many links makes fewer prefetch requests than prefetching each route in full.
 - **The rest streams in.** Uncached data streams in after navigation, behind the shell's `<Suspense>` boundaries. A link can also resolve its URL data (`searchParams`, `params`) at prefetch time with [`prefetch={true}`](/docs/app/guides/runtime-prefetching).
