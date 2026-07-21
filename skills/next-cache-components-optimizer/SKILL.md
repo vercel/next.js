@@ -105,7 +105,10 @@ those words.
 - **Only surface a question for a genuine fork:** a fix that would change
   behavior, a security-sensitive read, or a route that's dynamic by design (a
   runtime-prefetch candidate, not a shell to grow). A clean instant fix is not a
-  fork — keep going.
+  fork — keep going. With no one to ask (an unattended run), don't block: take
+  the safe default and note the assumption — for a cache-freshness choice,
+  defer the read behind `<Suspense>` (always fresh, still instant) rather than
+  guess a `cacheLife`.
 
 ## The workflow
 
