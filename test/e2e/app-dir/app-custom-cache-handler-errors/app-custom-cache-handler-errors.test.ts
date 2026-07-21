@@ -1,5 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import { hasErrorToast, retry, waitForNoRedbox } from 'next-test-utils'
+import { hasErrorToast, retry, waitFor, waitForNoRedbox } from 'next-test-utils'
 import stripAnsi from 'strip-ansi'
 
 describe('app-custom-cache-handler-errors - get throws', () => {
@@ -54,14 +54,19 @@ describe('app-custom-cache-handler-errors - get throws', () => {
     }
 
     await retry(async () => {
-      expect(next.cliOutput.slice(outputIndex)).toContain('unhandledRejection:')
+      expect(next.cliOutput.slice(outputIndex)).toContain(
+        '⨯ Error: CustomCacheHandler.get failed'
+      )
     })
+
+    // Give a potential unhandled rejection a chance to be reported before
+    // asserting its absence.
+    await waitFor(1000)
 
     const cliOutput = stripAnsi(next.cliOutput.slice(outputIndex))
 
-    if (isNextDev) {
-      const errorBlock =
-        'Error: CustomCacheHandler.get failed' +
+    const errorBlock = isNextDev
+      ? 'Error: CustomCacheHandler.get failed' +
         '\n    at Object.get (throwing-cache-handler.js:24:13)' +
         '\n    at async CachedData (app/page.tsx:19:14)' +
         "\n  17 |   const { input = 'default' } = await searchParams" +
@@ -72,26 +77,22 @@ describe('app-custom-cache-handler-errors - get throws', () => {
         '\n  21 |' +
         '\n  22 | export default function Page({ {' +
         "\n  digest: '"
-
-      expect(cliOutput).toContain('⨯ ' + errorBlock)
-
-      // The same error is additionally reported as two unhandled rejections.
-      expect(cliOutput).toContain('⨯ unhandledRejection: ' + errorBlock)
-      expect(cliOutput).toContain('⨯ unhandledRejection:  ' + errorBlock)
-    } else {
-      // In production, the frames below the cache handler frame are bundled
-      // code, and are therefore not stable across bundlers and builds.
-      const errorBlock =
+      : // In production, the frames below the cache handler frame are bundled
+        // code, and are therefore not stable across bundlers and builds.
         'Error: CustomCacheHandler.get failed' +
         '\n    at Object.get (throwing-cache-handler.js:24:13)' +
         '\n    at '
 
-      expect(cliOutput).toContain('⨯ ' + errorBlock)
-      expect(cliOutput).toContain("  digest: '")
+    expect(cliOutput).toContain('⨯ ' + errorBlock)
 
-      // The same error is additionally reported as an unhandled rejection.
-      expect(cliOutput).toContain('⨯ unhandledRejection:  ' + errorBlock)
+    if (!isNextDev) {
+      expect(cliOutput).toContain("  digest: '")
     }
+
+    // The error must be logged exactly once, as a rendering error, and in
+    // particular not additionally as an unhandled rejection.
+    expect(cliOutput).not.toContain('unhandledRejection')
+    expect(cliOutput.split(errorBlock).length - 1).toBe(1)
   })
 })
 
