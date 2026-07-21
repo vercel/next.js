@@ -95,7 +95,9 @@ use turbopack_swc_utils::emitter::IssueEmitter;
 use unreachable::Unreachable;
 use worker::{WorkerAssetReference, WorkerGlobalPlaceholder, WorkerGlobalsReplacementCodeGen};
 
-pub use crate::references::esm::export::{FollowExportsResult, follow_reexports};
+pub use crate::references::esm::export::{
+    FollowExportsResult, apply_reexport_tree_shaking, follow_reexports,
+};
 use crate::{
     AnalyzeMode, EcmascriptModuleAsset, EcmascriptModuleAssetType, EcmascriptParsable,
     ModuleTypeResult, TypeofWindow,
@@ -459,6 +461,7 @@ struct AnalysisState<'a> {
     // the object allocation.
     first_webpack_exports_info: bool,
     module_fragments_enabled: bool,
+    follow_reexports: bool,
     import_externals: bool,
     ignore_dynamic_requests: bool,
     url_rewrite_behavior: Option<UrlRewriteBehavior>,
@@ -857,6 +860,7 @@ async fn analyze_ecmascript_module_internal(
             first_import_meta: true,
             first_webpack_exports_info: true,
             module_fragments_enabled: options.module_fragments_enabled,
+            follow_reexports: options.follow_reexports,
             import_externals: options.import_externals,
             ignore_dynamic_requests: options.ignore_dynamic_requests,
             url_rewrite_behavior: options.url_rewrite_behavior,
@@ -1659,6 +1663,8 @@ async fn handle_dynamic_import<'a, G: Fn(BumpVec<'a, Effect<'a>>) + Send + Sync>
         origin,
         source,
         ignore_dynamic_requests,
+        follow_reexports,
+        module_fragments_enabled,
         ..
     } = state;
 
@@ -1705,6 +1711,7 @@ async fn handle_dynamic_import<'a, G: Fn(BumpVec<'a, Effect<'a>>) + Send + Sync>
         error_mode,
         state.import_externals,
         export_usage,
+        follow_reexports && !module_fragments_enabled,
     )
     .await
 }
@@ -1722,6 +1729,7 @@ async fn handle_dynamic_import_with_linked_args(
     error_mode: ResolveErrorMode,
     import_externals: bool,
     export_usage: ExportUsage,
+    follow_reexports: bool,
 ) -> Result<()> {
     if linked_args.len() == 1 || linked_args.len() == 2 {
         let pat = js_value_to_pattern(&linked_args[0]);
@@ -1780,6 +1788,7 @@ async fn handle_dynamic_import_with_linked_args(
                 import_externals,
                 export_usage,
                 resolve_override,
+                follow_reexports,
             )
             .await?,
             ast_path.to_vec().into(),
@@ -2084,6 +2093,7 @@ where
                 error_mode,
                 state.import_externals,
                 export_usage,
+                state.follow_reexports && !state.module_fragments_enabled,
             )
             .await?;
         }
