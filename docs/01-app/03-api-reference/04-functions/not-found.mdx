@@ -76,7 +76,7 @@ if (!user) {
 return <Profile user={user} />
 ```
 
-Like any exception, it travels up the call stack until something catches it. A `try/catch` around the call swallows it, and the not-found UI won't render. If you need to catch errors near the call, use [`unstable_rethrow`](/docs/app/api-reference/functions/unstable_rethrow) to let the interrupt through first.
+Like any exception, it travels up the call stack until something catches it. A `try/catch` around the call suppresses it, and the not-found UI won't render. If you need to catch errors near the call, use [`unstable_rethrow`](/docs/app/api-reference/functions/unstable_rethrow) to let the interrupt through first.
 
 ## Examples
 
@@ -190,7 +190,7 @@ export default function NotFound() {
 }
 ```
 
-The trade-off is the HTTP status code. Because the check fires inside the `<Suspense>` boundary, the response has already begun streaming as a `200`, and the status can't change once streaming has started. The `noindex` tag keeps a soft 404 out of search results. To return a real `404` status, the resource has to be checked before the response streams. With [Cache Components](/docs/app/getting-started/caching), every dynamic route streams a static shell first, so run that check in [`proxy`](/docs/app/api-reference/file-conventions/proxy) instead. See [Status codes](/docs/app/api-reference/file-conventions/loading#status-codes).
+The trade-off is the HTTP status code. Because the check runs inside the `<Suspense>` boundary, the response has already begun streaming as a `200`, and the status can't change once streaming has started. The `noindex` tag keeps a soft 404 out of search results. To return a real `404` status, the resource has to be checked before the response streams. With [Cache Components](/docs/app/getting-started/caching), every dynamic route streams a static shell first, so run that check in [`proxy`](/docs/app/api-reference/file-conventions/proxy) instead. See [Status codes](/docs/app/api-reference/file-conventions/loading#status-codes).
 
 ### Serving a 404 from a Route Handler
 
