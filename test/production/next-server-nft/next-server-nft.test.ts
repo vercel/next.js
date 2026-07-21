@@ -4,6 +4,9 @@ import fs from 'fs'
 import { NextAdapter } from 'next'
 
 function normalizeNFT(base: string, files: string[]): string[] {
+  const actualArch = `${process.platform}-${process.arch}`
+  const placeholderArch = '<PLATFORM>-<ARCH>'
+
   const result = [
     ...new Set(
       files
@@ -33,15 +36,10 @@ function normalizeNFT(base: string, files: string[]): string[] {
         })
         .map((file: string) => {
           // Normalize sharp, different architectures have different files
-          if (file.includes('/node_modules/@img/sharp-libvips-')) {
-            return '/node_modules/@img/sharp-libvips-*'
-          }
-          if (
-            file.match(
-              /\/node_modules\/@img\/sharp-\w+-\w+\/lib\/sharp-\w+-\w+.node$/
-            )
-          ) {
-            return '/node_modules/@img/sharp-*/sharp-*.node'
+          if (file.includes('/node_modules/@img/sharp')) {
+            file = file
+              .replaceAll(actualArch, placeholderArch)
+              .replace(/-\d+\.\d+\.\d+\.node$/, '-<VERSION>.node')
           }
 
           // Strip double node_modules to simplify output
@@ -134,8 +132,9 @@ async function readNormalizedNFT(next, name) {
         expect(traceGrouped).toMatchInlineSnapshot(`
          [
            "/node_modules/@img/colour/*",
-           "/node_modules/@img/sharp-*/sharp-*.node",
-           "/node_modules/@img/*",
+           "/node_modules/@img/sharp-<PLATFORM>-<ARCH>/*",
+           "/node_modules/@img/sharp-<PLATFORM>-<ARCH>/lib/sharp-<PLATFORM>-<ARCH>-<VERSION>.node",
+           "/node_modules/@img/sharp-libvips-<PLATFORM>-<ARCH>/*",
            "/node_modules/@next/env/*",
            "/node_modules/@swc/helpers/*",
            "/node_modules/client-only/*",

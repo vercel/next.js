@@ -7,7 +7,6 @@ import imageSizeOf from 'next/dist/compiled/image-size'
 import { detector } from 'next/dist/compiled/image-detector/detector.js'
 import isAnimated from 'next/dist/compiled/is-animated'
 import { join } from 'path'
-
 import { getImageBlurSvg } from '../shared/lib/image-blur-svg'
 import type { ImageConfigComplete } from '../shared/lib/image-config'
 import { hasLocalMatch } from '../shared/lib/match-local-pattern'
@@ -59,7 +58,7 @@ const BYPASS_TYPES = [SVG, ICO, ICNS, BMP, JXL, HEIC]
 const BLUR_IMG_SIZE = 8 // should match `next-image-loader`
 const BLUR_QUALITY = 70 // should match `next-image-loader`
 
-let _sharp: typeof import('sharp')
+let _sharp: typeof import('sharp').default
 
 async function initCacheEntries(
   cacheDir: string
@@ -92,7 +91,7 @@ export function getSharp(
     return _sharp
   }
   try {
-    _sharp = require('sharp') as typeof import('sharp')
+    _sharp = require('sharp') as typeof import('sharp').default
     if (typeof operationCache === 'boolean') {
       _sharp.cache(operationCache)
     }
@@ -819,7 +818,10 @@ export async function optimizeImage({
 
   if (contentType === AVIF) {
     transformer.avif({
-      quality: Math.max(quality - 20, 1),
+      // Scale the quality to try and match webp. This ratio was derived
+      // from sharp's default 80 (webp) and 50 (avif), and then verified
+      // using dssim and ssimulacra2 visual quality tests.
+      quality: Math.max(Math.round(quality * (50 / 80)), 1),
       effort: 3,
     })
   } else if (contentType === WEBP) {
