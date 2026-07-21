@@ -555,7 +555,8 @@ impl DiskFileSystem {
             // Unlike `std::fs::canonicalize`, this is a purely lexical operation: it does not
             // resolve symlinks or 8.3 short name format.
             #[cfg(windows)]
-            let normalized_sys_path = windows::to_verbatim_with_case_folded_disk(sys_path).ok()?;
+            let normalized_sys_path =
+                crate::windows::to_verbatim_with_case_folded_disk(sys_path).ok()?;
 
             normalized_sys_path
                 .strip_prefix(self.inner.root_path())

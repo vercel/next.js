@@ -40,8 +40,6 @@ use std::{fmt::Debug, fs::FileType, path::PathBuf};
 use anyhow::Result;
 use auto_hash_map::AutoMap;
 use bincode::{Decode, Encode};
-#[cfg(windows)]
-use omnipath::WinPathExt;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
     NonLocalValue, ResolvedVc, ValueToString, Vc, trace::TraceRawVcs, turbobail, turbofmt,
