@@ -340,8 +340,9 @@ describe('request insights tracing', () => {
     expect(startActiveSpan).toHaveBeenCalledWith(
       AppRenderSpan.fetch,
       expect.any(Object),
-      expect.any(Function)
+      expect.anything()
     )
+    expect(typeof startActiveSpan.mock.calls[0].at(-1)).toBe('function')
     expect(getRequestInsightsSnapshot().requests[0].operations).toEqual([])
   })
 
