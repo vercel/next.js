@@ -54,6 +54,7 @@ import {
   ROUTES_MANIFEST,
   PRERENDER_MANIFEST,
   PREVIEW_PROPS_MANIFEST,
+  SERVER_DIRECTORY,
 } from '../../../shared/lib/constants'
 
 import { getMiddlewareRouteMatcher } from '../../../shared/lib/router/utils/middleware-route-matcher'
@@ -332,9 +333,10 @@ async function startWatcher(
 
   const previewPropsManifestPath = path.join(
     distDir,
-    'server',
+    SERVER_DIRECTORY,
     PREVIEW_PROPS_MANIFEST
   )
+  fs.mkdirSync(path.join(distDir, SERVER_DIRECTORY), { recursive: true })
   await fs.promises.writeFile(
     previewPropsManifestPath,
     JSON.stringify(opts.fsChecker.previewProps, null, 2)
