@@ -413,6 +413,7 @@ jobs:
             next-test-passed-${{ steps.var.outputs.input_step_key }}-${{ github.run_id }}-
 
       - run: ${{ inputs.afterBuild }}
+        id: after-build
         # defaults.run.shell sets a stronger options (`-leo pipefail`)
         # Set this back to github action's weaker defaults:
         # https://docs.github.com/en/actions/writing-workflows/workflow-syntax-for-github-actions#jobsjob_idstepsshell
@@ -423,11 +424,15 @@ jobs:
 
       # Save the passed-tests file so the next attempt (if any) can skip
       # them. `always()` makes this run on success, failure, or cancellation.
+      # run-tests.js emits the `passed_tests_file` step output when it creates
+      # the file (before running any test), so this step is skipped for jobs
+      # that never run run-tests.js or that disable the result cache (e.g.
+      # flake detection) instead of warning about a missing path.
       - name: Save passed-tests cache
-        if: ${{ always() && inputs.afterBuild }}
+        if: ${{ always() && steps.after-build.outputs.passed_tests_file != '' }}
         uses: actions/cache/save@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
-          path: ${{ env.NEXT_TEST_PASSED_FILE }}
+          path: ${{ steps.after-build.outputs.passed_tests_file }}
           key: next-test-passed-${{ steps.var.outputs.input_step_key }}-${{ github.run_id }}-attempt${{ github.run_attempt }}
 
       - name: Upload test result artifacts
