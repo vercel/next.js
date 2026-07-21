@@ -14,9 +14,9 @@ use turbopack_core::{
 
 use crate::{
     EcmascriptModuleAsset, EcmascriptParsable, ModuleTypeResult, SpecifiedModuleType,
-    TreeShakingMode,
     analyzer::imports::{ImportAnnotations, ImportedSymbol},
     chunk::EcmascriptExports,
+    module_fragments::{part_of_module, split_module},
     parse::ParseResult,
     references::{
         TURBOPACK_HELPER_WTF8,
@@ -24,7 +24,6 @@ use crate::{
         type_issue::SpecifiedModuleTypeIssue,
     },
     runtime_functions::{TURBOPACK_EXPORT_NAMESPACE, TURBOPACK_EXPORT_VALUE},
-    tree_shake::{part_of_module, split_module},
 };
 
 #[turbo_tasks::value]
@@ -110,10 +109,7 @@ pub async fn compute_ecmascript_module_exports(
                     }
                     ImportedSymbol::Symbol(name) => Some(ModulePart::export((&**name).into())),
                     ImportedSymbol::PartEvaluation(part_id) | ImportedSymbol::Part(part_id) => {
-                        if !matches!(
-                            options.tree_shaking_mode,
-                            Some(TreeShakingMode::ModuleFragments)
-                        ) {
+                        if !options.module_fragments_enabled {
                             bail!(
                                 "Internal imports only exist in reexports only mode when \
                                  importing {:?} from {}",
@@ -126,11 +122,9 @@ pub async fn compute_ecmascript_module_exports(
                         }
                         Some(ModulePart::internal(*part_id))
                     }
-                    ImportedSymbol::Exports => matches!(
-                        options.tree_shaking_mode,
-                        Some(TreeShakingMode::ModuleFragments)
-                    )
-                    .then(ModulePart::exports),
+                    ImportedSymbol::Exports => {
+                        options.module_fragments_enabled.then(ModulePart::exports)
+                    }
                 },
                 eval_context
                     .imports
@@ -139,7 +133,7 @@ pub async fn compute_ecmascript_module_exports(
                     .cloned()
                     .unwrap_or_default(),
                 import_externals,
-                options.tree_shaking_mode,
+                options.module_fragments_enabled,
                 resolve_override,
             )
             .await?

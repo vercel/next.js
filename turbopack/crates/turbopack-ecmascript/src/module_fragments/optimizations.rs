@@ -4,7 +4,7 @@ use petgraph::{Direction, Graph, visit::EdgeRef};
 use rustc_hash::{FxHashMap, FxHashSet};
 use turbo_tasks::FxIndexSet;
 
-use crate::tree_shake::graph::{Dependency, ItemId};
+use crate::module_fragments::graph::{Dependency, ItemId};
 
 pub(super) struct GraphOptimizer<'a> {
     pub graph_ix: &'a FxIndexSet<ItemId>,

@@ -233,6 +233,8 @@ export type SharedCacheResult =
       readonly hangingPromise: Promise<never>
     }
 
+function ignoreReject() {}
+
 /**
  * Manages the deferred promise for a shared cache result, tracks which maps
  * it's registered in, and drives cleanup from resolve/reject.
@@ -265,6 +267,11 @@ class ResolvableSharedCacheResult {
   }
 
   reject(error: unknown): void {
+    // The promise stored in the dedup maps has no consumer unless a concurrent
+    // invocation joined it, so we attach a noop catch handler to prevent the
+    // rejection from being reported as unhandled. The leader rethrows the
+    // error into the render, which is where it's surfaced.
+    this.deferred.promise.catch(ignoreReject)
     this.deferred.reject(error)
     this.cleanup()
   }
