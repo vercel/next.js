@@ -879,23 +879,21 @@ ${ENDGROUP}`)
   /** @type {number | null} */
   let passedTestsFd = null
   if (profile.cachingEnabled) {
-    if (process.env.NEXT_TEST_PASSED_FILE) {
-      try {
-        passedTestsFd = fs.openSync(process.env.NEXT_TEST_PASSED_FILE, 'a')
-        // Tell the workflow that the file exists. Its "Save passed-tests
-        // cache" step (see `.github/workflows/build_reusable.yml`) only runs
-        // when this output is present, so jobs that never get here (no
-        // run-tests.js, or result caching disabled) skip the save instead of
-        // warning about a missing path.
-        if (process.env.GITHUB_OUTPUT) {
-          fs.appendFileSync(
-            process.env.GITHUB_OUTPUT,
-            `passed_tests_file=${process.env.NEXT_TEST_PASSED_FILE}\n`
-          )
-        }
-      } catch (err) {
-        console.log(`Test result cache: open failed (${err.message})`)
+    try {
+      passedTestsFd = fs.openSync(process.env.NEXT_TEST_PASSED_FILE, 'a')
+      // Tell the workflow that the file exists. Its "Save passed-tests
+      // cache" step (see `.github/workflows/build_reusable.yml`) only runs
+      // when this output is present, so jobs that never get here (no
+      // run-tests.js, or result caching disabled) skip the save instead of
+      // warning about a missing path.
+      if (process.env.GITHUB_OUTPUT) {
+        fs.appendFileSync(
+          process.env.GITHUB_OUTPUT,
+          `passed_tests_file=${process.env.NEXT_TEST_PASSED_FILE}\n`
+        )
       }
+    } catch (err) {
+      console.log(`Test result cache: open failed (${err.message})`)
     }
   }
   /** @param {string} file */
