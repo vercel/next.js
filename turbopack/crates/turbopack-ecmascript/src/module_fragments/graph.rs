@@ -35,7 +35,7 @@ use super::{
 };
 use crate::{
     magic_identifier::{self, MAGIC_IDENTIFIER_DEFAULT_EXPORT_ATOM},
-    tree_shake::optimizations::GraphOptimizer,
+    module_fragments::optimizations::GraphOptimizer,
 };
 
 /// The id of an item
