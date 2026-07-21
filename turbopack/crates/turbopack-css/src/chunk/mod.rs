@@ -11,7 +11,6 @@ use turbo_tasks_fs::{
     rope::{Rope, RopeBuilder},
 };
 use turbopack_core::{
-    source_map::structured::StructuredSourceMap,
     asset::{Asset, AssetContent},
     chunk::{
         AsyncModuleInfo, Chunk, ChunkItem, ChunkItemBatchGroup, ChunkItemExt,
@@ -32,6 +31,7 @@ use turbopack_core::{
     server_fs::ServerFileSystem,
     source_map::{
         GenerateSourceMap,
+        structured::StructuredSourceMap,
         utils::{absolute_fileify_structured_source_map, relative_fileify_structured_source_map},
     },
 };

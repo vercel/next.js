@@ -17,10 +17,9 @@ use turbo_tasks_fs::{
 use turbo_tasks_hash::{DeterministicHash, DeterministicHasher, hash_xxh3_hash128};
 
 use crate::{
-    source_map::structured::StructuredSourceMap,
     debug_id::generate_debug_id,
     output::OutputAsset,
-    source_map::{GenerateSourceMap, SourceMap, SourceMapAsset},
+    source_map::{GenerateSourceMap, SourceMap, SourceMapAsset, structured::StructuredSourceMap},
     source_pos::SourcePos,
 };
 

@@ -10,7 +10,6 @@ use turbo_tasks::{
 };
 use turbo_tasks_fs::{FileSystemPath, rope::Rope};
 use turbopack_core::{
-    source_map::structured::StructuredSourceMap,
     chunk::{
         AsyncModuleInfo, ChunkItem, ChunkItemWithAsyncModuleInfo, ChunkType, ChunkingContext,
         ChunkingContextExt, ModuleId, SourceMapSourceType,
@@ -21,7 +20,10 @@ use turbopack_core::{
     module::Module,
     module_graph::ModuleGraph,
     output::OutputAssetsReference,
-    source_map::utils::{absolute_fileify_structured_source_map, relative_fileify_structured_source_map},
+    source_map::{
+        structured::StructuredSourceMap,
+        utils::{absolute_fileify_structured_source_map, relative_fileify_structured_source_map},
+    },
 };
 
 use crate::{
@@ -171,16 +173,10 @@ impl EcmascriptChunkItemContent {
             (RewriteSourcePath::AbsoluteFilePath(path), Some(map)) => {
                 Some(absolute_fileify_structured_source_map(map, path.clone()).await?)
             }
-            (RewriteSourcePath::RelativeFilePath(path, relative_path), Some(map)) => {
-                Some(
-                    relative_fileify_structured_source_map(
-                        map,
-                        path.clone(),
-                        relative_path.clone(),
-                    )
+            (RewriteSourcePath::RelativeFilePath(path, relative_path), Some(map)) => Some(
+                relative_fileify_structured_source_map(map, path.clone(), relative_path.clone())
                     .await?,
-                )
-            }
+            ),
             (_, map) => map.clone(),
         };
 

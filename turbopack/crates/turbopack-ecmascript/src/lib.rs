@@ -84,7 +84,6 @@ use turbo_tasks::{
 };
 use turbo_tasks_fs::{FileJsonContent, FileSystemPath, glob::Glob, rope::Rope};
 use turbopack_core::{
-    source_map::structured::StructuredSourceMap,
     chunk::{
         AsyncModuleInfo, ChunkItem, ChunkableModule, ChunkingContext, EvaluatableAsset,
         MergeableModule, MergeableModuleExposure, MergeableModules, MergeableModulesExposed,
@@ -99,7 +98,7 @@ use turbopack_core::{
     reference_type::InnerAssets,
     resolve::{FindContextFileResult, find_context_file, origin::ResolveOrigin, package_json},
     source::Source,
-    source_map::GenerateSourceMap,
+    source_map::{GenerateSourceMap, structured::StructuredSourceMap},
 };
 
 use crate::{

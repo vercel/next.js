@@ -8,11 +8,11 @@
 //! chunk's source map copied it again.
 //!
 //! [`StructuredSourceMap`] instead stores the map's fields:
-//! - fields we never modify are kept as verbatim raw JSON snippets ([`Rope`]s), so producers'
-//!   bytes round-trip untouched and re-emission is pure rope sharing;
+//! - fields we never modify are kept as verbatim raw JSON snippets ([`Rope`]s), so producers' bytes
+//!   round-trip untouched and re-emission is pure rope sharing;
 //! - `sources` is typed, because URL rewrites (see [`super::utils`]) modify it;
-//! - `sourcesContent` entries are individual, already-JSON-escaped [`Rope`]s that are shared —
-//!   not copied — into every map that embeds them;
+//! - `sourcesContent` entries are individual, already-JSON-escaped [`Rope`]s that are shared — not
+//!   copied — into every map that embeds them;
 //! - `mappings` stays a raw snippet since it is usually the largest skeleton field.
 //!
 //! [`StructuredSourceMap::to_rope`] emits fields in the same order as `swc_sourcemap`'s

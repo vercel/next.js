@@ -9,7 +9,6 @@ use turbo_tasks::{FxIndexMap, FxIndexSet, ResolvedVc, TryJoinIterExt, ValueToStr
 use turbo_tasks_fs::{FileContent, rope::Rope};
 use turbopack::{ModuleAssetContext, module_options::CustomModuleType};
 use turbopack_core::{
-    source_map::structured::StructuredSourceMap,
     asset::Asset,
     chunk::{AsyncModuleInfo, ChunkableModule, ChunkingContext},
     code_builder::CodeBuilder,
@@ -23,7 +22,7 @@ use turbopack_core::{
     module_graph::ModuleGraph,
     reference_type::ReferenceType,
     source::{OptionSource, Source},
-    source_map::GenerateSourceMap,
+    source_map::{GenerateSourceMap, structured::StructuredSourceMap},
 };
 use turbopack_ecmascript::{
     EcmascriptInputTransforms,

@@ -21,7 +21,6 @@ use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{FxIndexMap, ResolvedVc, ValueToString, Vc};
 use turbo_tasks_fs::{FileContent, FileSystemPath};
 use turbopack_core::{
-    source_map::structured::StructuredSourceMap,
     SOURCE_URL_PROTOCOL,
     asset::{Asset, AssetContent},
     chunk::{ChunkingContext, MinifyType},
@@ -34,7 +33,7 @@ use turbopack_core::{
     reference_type::ImportContext,
     resolve::origin::ResolveOrigin,
     source::Source,
-    source_map::utils::add_default_ignore_list,
+    source_map::{structured::StructuredSourceMap, utils::add_default_ignore_list},
     source_pos::SourcePos,
 };
 

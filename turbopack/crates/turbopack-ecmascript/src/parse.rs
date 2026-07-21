@@ -36,12 +36,11 @@ use turbo_tasks::{PrettyPrintError, ResolvedVc, ValueToString, Vc, turbofmt, uti
 use turbo_tasks_fs::{FileContent, FileSystemPath, rope::Rope};
 use turbo_tasks_hash::hash_xxh3_hash64;
 use turbopack_core::{
-    source_map::structured::StructuredSourceMap,
     SOURCE_URL_PROTOCOL,
     asset::{Asset, AssetContent},
     issue::{Issue, IssueExt, IssueSeverity, IssueSource, IssueStage, StyledString},
     source::Source,
-    source_map::utils::add_default_ignore_list,
+    source_map::{structured::StructuredSourceMap, utils::add_default_ignore_list},
 };
 use turbopack_swc_utils::emitter::IssueEmitter;
 

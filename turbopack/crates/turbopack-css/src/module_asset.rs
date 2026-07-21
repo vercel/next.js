@@ -7,7 +7,6 @@ use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{FxIndexMap, ResolvedVc, Vc, turbofmt};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
-    source_map::structured::StructuredSourceMap,
     chunk::{AsyncModuleInfo, ChunkableModule, ChunkingContext, ModuleChunkItemIdExt},
     context::{AssetContext, ProcessResult},
     ident::AssetIdent,
@@ -17,6 +16,7 @@ use turbopack_core::{
     reference_type::{CssReferenceSubType, ReferenceType},
     resolve::{origin::ResolveOrigin, parse::Request},
     source::{OptionSource, Source},
+    source_map::structured::StructuredSourceMap,
 };
 use turbopack_ecmascript::{
     chunk::{
@@ -370,10 +370,7 @@ impl ResolveOrigin for EcmascriptCssModule {
     }
 }
 
-fn generate_minimal_source_map(
-    filename: String,
-    source: String,
-) -> Result<StructuredSourceMap> {
+fn generate_minimal_source_map(filename: String, source: String) -> Result<StructuredSourceMap> {
     let mut mappings = vec![];
     // Start from 1 because 0 is reserved for dummy spans in SWC.
     let mut pos = 1;
