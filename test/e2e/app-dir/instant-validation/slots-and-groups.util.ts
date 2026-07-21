@@ -907,9 +907,9 @@ export function registerSlotsAndGroupsTests(ctx: InstantValidationCaseContext) {
 
            Ways to fix this:
              - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-               https://nextjs.org/docs/messages/blocking-prerender-runtime#wrap-in-or-move-into-suspense
              - [block] Set \`export const instant = false\` to allow a blocking route
-               https://nextjs.org/docs/messages/blocking-prerender-runtime#allow-blocking-route
+
+           Learn more: https://nextjs.org/docs/messages/blocking-prerender-runtime
                at body (<anonymous>)
                at html (<anonymous>)
                at a (<anonymous>)

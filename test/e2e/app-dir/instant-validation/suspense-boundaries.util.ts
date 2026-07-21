@@ -527,9 +527,9 @@ export function registerSuspenseBoundariesTests(
 
            Ways to fix this:
              - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-               https://nextjs.org/docs/messages/instant-shell-url-data#wrap-in-or-move-into-suspense
              - [block] Set \`export const instant = false\` to allow a blocking route
-               https://nextjs.org/docs/messages/instant-shell-url-data#allow-blocking-route
+
+           Learn more: https://nextjs.org/docs/messages/instant-shell-url-data
                at Page (app/suspense-in-root/static/missing-suspense-around-search-params/page.tsx:7:18)
               5 |
               6 | export default async function Page({ searchParams }) {
@@ -645,24 +645,24 @@ export function registerSuspenseBoundariesTests(
       if (partialPrefetching) {
         expect(extractBuildValidationError(result.cliOutput))
           .toMatchInlineSnapshot(`
-           "Error: Route "/suspense-in-root/static/missing-suspense-around-search-params": Next.js encountered URL data during prerendering or a navigation.
+         "Error: Route "/suspense-in-root/static/missing-suspense-around-search-params": Next.js encountered URL data during prerendering or a navigation.
 
-           \`params\` or \`searchParams\` accessed outside of \`<Suspense>\` may prevent the navigation from being instant, leading to a slower user experience.
+         \`params\` or \`searchParams\` accessed outside of \`<Suspense>\` may prevent the navigation from being instant, leading to a slower user experience.
 
-           Ways to fix this:
-             - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-               https://nextjs.org/docs/messages/instant-shell-url-data#wrap-in-or-move-into-suspense
-             - [block] Set \`export const instant = false\` to allow a blocking route
-               https://nextjs.org/docs/messages/instant-shell-url-data#allow-blocking-route
-               at body (<anonymous>)
-               at html (<anonymous>)
-               at a (<anonymous>)
-           Build-time instant validation failed for route "/suspense-in-root/static/missing-suspense-around-search-params".
-           To get a more detailed stack trace and pinpoint the issue, try one of the following:
-             - Start the app in development mode by running \`next dev\`, then open "/suspense-in-root/static/missing-suspense-around-search-params" in your browser to investigate the error.
-             - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
-           Stopping prerender due to instant validation errors."
-          `)
+         Ways to fix this:
+           - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+           - [block] Set \`export const instant = false\` to allow a blocking route
+
+         Learn more: https://nextjs.org/docs/messages/instant-shell-url-data
+             at body (<anonymous>)
+             at html (<anonymous>)
+             at a (<anonymous>)
+         Build-time instant validation failed for route "/suspense-in-root/static/missing-suspense-around-search-params".
+         To get a more detailed stack trace and pinpoint the issue, try one of the following:
+           - Start the app in development mode by running \`next dev\`, then open "/suspense-in-root/static/missing-suspense-around-search-params" in your browser to investigate the error.
+           - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
+         Stopping prerender due to instant validation errors."
+        `)
       } else {
         expect(extractBuildValidationError(result.cliOutput))
           .toMatchInlineSnapshot(`
