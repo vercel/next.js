@@ -1,6 +1,6 @@
 # Real-app patterns
 
-The rest of this skill models a single linear `layout → page` tree. Production App Router routes add **parallel routes, shared layout UI, and auth gates**, which is where most of the real static-shell work happens. These patterns bridge that gap. Read the skill's `SKILL.md` and `patterns.md` first.
+The rest of this skill models a single linear `layout → page` tree. Production App Router routes add **parallel routes, shared layout UI, and auth gates**, which is where most of the real static-shell work happens. These patterns bridge that gap. Read the skill's `SKILL.md` first.
 
 ## Parallel routes: each slot is its own boundary
 
@@ -39,7 +39,7 @@ The fix is the same push-down as everywhere else: **share the real responsive la
 
 ## Deferring an auth gate / top-level `await` in a layout
 
-A top-level `await` in a layout blocks everything below it (the most common blocker, `patterns.md` #1-#2). Auth gates are the most common real instance:
+A top-level `await` in a layout blocks everything below it (the most common blocker; see [Runtime data during prerendering](https://nextjs.org/docs/messages/blocking-prerender-runtime)). Auth gates are the most common real instance:
 
 ```tsx
 // ❌ Before: the await + redirect at the top blocks the whole settings frame
@@ -74,15 +74,6 @@ async function AuthGate() {
 
 The shell prerenders as if authorized (the session read suspends before `redirect()` is reached, so the redirect only happens at request time), and `{children}` is now in the shell instead of behind the gate. (`fallback={null}` is correct here: `AuthGate` renders nothing on success.)
 
-## Dev-overlay observation (optional)
-
-Trustworthy measurement uses the production-build rig (SKILL.md phase A; `next dev`'s `instant()` is unreliable for blocking routes). As an additional observation channel while authoring, the dev overlay can shorten iteration:
-
-1. `export const instant = true` on the target route (safe; see "Edge cases").
-2. Run `next dev`. The Navigation Inspector is available automatically when `cacheComponents` is enabled; no extra flag is needed. (`instantInsights.validationLevel` defaults to `'warning'`, dev-only; it need not be raised to use the inspector.)
-3. Open Next.js DevTools → **Navigation Inspector** → **Start Capturing**, then refresh to freeze the initial static UI, or click a link to freeze the destination's prefetched UI. Each suspended boundary is an uncovered dynamic read with its source frame. Fix and repeat.
-4. **Continue Rendering** lets the stream finish so you can compare the shell against the resolved UI.
-
 ## Initial-load shell vs soft-navigation shell
 
 The `test-template.md` specs drive a `<Link>` click for soft navigations and `page.goto()` for initial loads. The two shells can differ for the same route:
@@ -93,6 +84,5 @@ To assert the soft-navigation shell, drive a real `<Link>` click (through menus 
 
 ## Edge cases
 
-- **`instant = true` does not fail the build under a `warning` level.** `true` opts in at the default level; only a per-route `{ level: 'experimental-error' }` or a global `experimental-*-error` level fails builds. So `true` is a safe permanent regression marker.
 - **A `React.cache` (or custom memoization) wrapper around `cookies()`/`headers()` still suspends.** Memoizing the call does not make it shell-safe: the underlying request read still returns a pending promise during prerender. Only the **`use cache`** directive, keyed on static or param inputs, puts data in the shell.
 - **Playwright cannot see a `display: contents` or fragment fallback.** Such a fallback reads as hidden, so `instant()` assertions cannot `toBeVisible()` it. Give fallbacks a real wrapper element with a `data-testid`.
