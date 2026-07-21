@@ -228,10 +228,7 @@ async function deleteFromCacheDir(cacheDir: string, cacheKey: string) {
  * https://en.wikipedia.org/wiki/List_of_file_signatures
  */
 export async function detectContentType(
-  buffer: Buffer,
-  skipMetadata: boolean | null | undefined,
-  concurrency?: number | null | undefined,
-  operationCache?: boolean | null | undefined
+  buffer: Buffer
 ): Promise<string | null> {
   if (buffer.byteLength === 0) {
     return null
@@ -309,19 +306,7 @@ export async function detectContentType(
     return JP2
   }
 
-  const format = detector(buffer)
-
-  if (!format && !skipMetadata) {
-    const sharp = getSharp(concurrency, operationCache)
-    const meta = await sharp(buffer)
-      .metadata()
-      .catch((_) => null)
-
-    const t = meta?.mediaType
-    if (t && [AVIF, WEBP, JPEG, PNG, GIF, SVG, TIFF].includes(t)) {
-      return t
-    }
-  }
+  const format = detector(buffer.subarray(0, 1024))
 
   switch (format) {
     case 'webp':
@@ -1055,7 +1040,6 @@ export async function imageOptimizer(
       | 'imgOptOperationCache'
       | 'imgOptMaxInputPixels'
       | 'imgOptSequentialRead'
-      | 'imgOptSkipMetadata'
       | 'imgOptTimeoutInSeconds'
     >
     images: Pick<
@@ -1083,12 +1067,7 @@ export async function imageOptimizer(
     getMaxAge(imageUpstream.cacheControl)
   )
 
-  const upstreamType = await detectContentType(
-    upstreamBuffer,
-    nextConfig.experimental.imgOptSkipMetadata,
-    nextConfig.experimental.imgOptConcurrency,
-    nextConfig.experimental.imgOptOperationCache
-  )
+  const upstreamType = await detectContentType(upstreamBuffer)
 
   if (
     !upstreamType ||
