@@ -211,25 +211,30 @@ The Suspense view shows the same single late reveal wherever the slow child live
 The problem is that **one boundary wraps several pieces that load at different speeds**, so React can only reveal them together. Give each independently-paced piece its own boundary so each reveals as soon as its own data is ready:
 
 ```tsx filename="app/dashboard/page.tsx"
-<Suspense fallback={<StatsSkeleton />}>
-  <Stats />
-</Suspense>
-<Suspense fallback={<ActivitySkeleton />}>
-  <ActivityFeed teamIds={user.teamIds} />
-</Suspense>
-<Suspense fallback={<WhoIsOnlineSkeleton />}>
-  <WhoIsOnline teamIds={user.teamIds} />
-</Suspense>
+return (
+  <>
+    <Header user={user} teams={teams} notifications={notifications} />
+
+    <Suspense fallback={<StatsSkeleton />}>
+      <Stats />
+    </Suspense>
+    <Suspense fallback={<ActivitySkeleton />}>
+      <ActivityFeed teamIds={user.teamIds} />
+    </Suspense>
+    <Suspense fallback={<WhoIsOnlineSkeleton />}>
+      <WhoIsOnline teamIds={user.teamIds} />
+    </Suspense>
+  </>
+)
 ```
 
 See [Parallel streaming with sibling boundaries](/docs/app/guides/streaming#parallel-streaming-with-sibling-boundaries).
 
 Reload again. The Suspense view now shows three reveal events at different times. The `Stats` and `ActivityFeed` sections paint as soon as their own data is ready, and only the `WhoIsOnline` region keeps its fallback until it resolves.
 
-Splitting has two things to get right,
+The split turned one fallback into three. The `Header` renders from the shell data, so it is on screen at once, and only `Stats`, `ActivityFeed`, and `WhoIsOnline` wait behind a boundary.
 
-- keep everything that does not need the slow data (headings, layout, chrome) outside the boundaries, so only the data-dependent parts ever show a fallback, and
-- size each fallback to match the content it replaces, so a reveal swaps in place instead of shifting the page as sections pop in.
+Push each boundary down to the part that actually awaits data, and leave the rest outside. Size each fallback to match its content, so a reveal swaps in place instead of shifting the page as sections arrive.
 
 <details>
   <summary>Nesting boundaries does not serialize them</summary>
@@ -259,8 +264,6 @@ Both `RandomRoll` reads start together. On the **Server Components** track they 
 </details>
 
 {/* TODO: screenshot, Suspense view: three staggered reveals (after) */}
-
-One reveal is now several. Content shows sooner, but a page that fills in piece by piece can read as busier, even slower, than the single reveal it replaced. That is what the two rules above prevent: chrome stays in the static frame and fallbacks hold their space, so the reveals do not reshuffle the layout.
 
 The more of the page that is already there on load, the less has to stream behind a fallback at all.
 
