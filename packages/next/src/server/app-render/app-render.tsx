@@ -2856,6 +2856,7 @@ async function renderToHTMLOrFlightImpl(
 
     const rootParams = getRootParams(loaderTree, ctx.getDynamicParamFromSegment)
     const fallbackParams = getRequestMeta(req, 'fallbackParams') || null
+    const hmrRefreshHash = getRequestMeta(req, 'hmrRefreshHash')
 
     const createRequestStore = createRequestStoreForRender.bind(
       null,
@@ -2869,7 +2870,8 @@ async function renderToHTMLOrFlightImpl(
       isHmrRefresh,
       serverComponentsHmrCache,
       renderResumeDataCache,
-      fallbackParams
+      fallbackParams,
+      hmrRefreshHash
     )
     const requestStore = createRequestStore()
 
