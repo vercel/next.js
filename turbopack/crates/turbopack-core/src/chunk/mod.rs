@@ -16,7 +16,7 @@ use bincode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    FxIndexSet, NonLocalValue, ReadRef, ResolvedVc, TaskInput, Upcast, ValueToString, Vc,
+    FxIndexSet, NonLocalValue, ReadRef, ResolvedVc, Upcast, ValueToString, Vc,
     debug::ValueDebugFormat, trace::TraceRawVcs,
 };
 use turbo_tasks_hash::DeterministicHash;
@@ -30,6 +30,7 @@ pub use crate::chunk::{
         AssetSuffix, ChunkGroupResult, ChunkGroupType, ChunkingConfig, ChunkingConfigs,
         ChunkingContext, ChunkingContextExt, EntryChunkGroupResult, MangleType, MinifyType,
         SourceMapSourceType, SourceMapsType, UnusedReferences, UrlBehavior,
+        WorkerConfigurationOptions,
     },
     data::{ChunkData, ChunkDataOption, ChunksData},
     evaluate::{EvaluatableAsset, EvaluatableAssetExt, EvaluatableAssets},
@@ -46,19 +47,9 @@ use crate::{
     output::{OutputAssets, OutputAssetsReference},
 };
 
+#[turbo_tasks::task_input]
 #[derive(
-    Debug,
-    TaskInput,
-    Clone,
-    Copy,
-    PartialEq,
-    Eq,
-    Hash,
-    TraceRawVcs,
-    DeterministicHash,
-    NonLocalValue,
-    Encode,
-    Decode,
+    Debug, Clone, Copy, PartialEq, Eq, Hash, TraceRawVcs, DeterministicHash, Encode, Decode,
 )]
 pub enum ContentHashing {
     /// Direct content hashing: Embeds the chunk content hash directly into the referencing chunk.
@@ -72,7 +63,7 @@ pub enum ContentHashing {
 }
 
 #[turbo_tasks::value(shared)]
-#[derive(Debug, Default, Clone, Copy, Hash, Serialize, Deserialize, TaskInput)]
+#[derive(Debug, Default, Clone, Copy, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum CrossOrigin {
     #[default]
@@ -103,6 +94,30 @@ impl TryFrom<Option<&str>> for CrossOrigin {
                 "invalid crossOrigin value `{value}`; supported values are `anonymous` and \
                  `use-credentials`"
             ),
+        }
+    }
+}
+
+#[turbo_tasks::value(shared)]
+#[derive(Debug, Clone, Copy, Hash, Serialize, Deserialize)]
+pub struct ChunkLoadRetry {
+    /// Number of retry attempts after the initial load fails. `0` disables retries.
+    pub max_retry_attempts: u32,
+    /// Base delay before a retry, in milliseconds.
+    pub base_delay_ms: u32,
+    /// Maximum random jitter added to the base delay, in milliseconds.
+    pub max_jitter_ms: u32,
+}
+
+impl Default for ChunkLoadRetry {
+    fn default() -> Self {
+        // Retry a transient failure once after a short jittered delay. Network
+        // blips (a brief connection reset, a short CDN hiccup) often succeed on
+        // a second try.
+        Self {
+            max_retry_attempts: 1,
+            base_delay_ms: 200,
+            max_jitter_ms: 400,
         }
     }
 }
@@ -186,9 +201,8 @@ impl MergeableModules {
 }
 
 /// Whether a given module needs to be exposed (depending on how it is imported by other modules)
-#[derive(
-    Copy, Clone, Debug, PartialEq, Eq, TraceRawVcs, NonLocalValue, TaskInput, Hash, Encode, Decode,
-)]
+#[turbo_tasks::task_input]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, TraceRawVcs, Hash, Encode, Decode)]
 pub enum MergeableModuleExposure {
     // This module is only used from within the current group, and only individual exports are
     // used (and no namespace object is required).
@@ -293,11 +307,10 @@ pub trait OutputChunk: Asset {
     Eq,
     PartialEq,
     ValueDebugFormat,
-    NonLocalValue,
     Encode,
     Decode,
-    TaskInput,
 )]
+#[turbo_tasks::task_input]
 pub enum TracedMode {
     /// Going from bundled to unbundled code, i.e. an external dependency or readFile static assets.
     Entry,
@@ -525,6 +538,7 @@ pub trait ChunkType: ValueToString {
         chunking_context: Vc<Box<dyn ChunkingContext>>,
         chunk_items: Vec<ChunkItemOrBatchWithAsyncModuleInfo>,
         batch_groups: Vec<ResolvedVc<ChunkItemBatchGroup>>,
+        component_chunks: Vec<ResolvedVc<Box<dyn Chunk>>>,
     ) -> Vc<Box<dyn Chunk>>;
 
     #[turbo_tasks::function]
@@ -560,9 +574,8 @@ impl AsyncModuleInfo {
     }
 }
 
-#[derive(
-    Debug, Clone, Copy, PartialEq, Eq, Hash, TraceRawVcs, TaskInput, NonLocalValue, Encode, Decode,
-)]
+#[turbo_tasks::task_input]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, TraceRawVcs, Encode, Decode)]
 pub struct ChunkItemWithAsyncModuleInfo {
     pub chunk_item: ResolvedVc<Box<dyn ChunkItem>>,
     pub chunk_type: ResolvedVc<Box<dyn ChunkType>>,

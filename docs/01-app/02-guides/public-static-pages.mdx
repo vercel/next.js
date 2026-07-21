@@ -102,7 +102,7 @@ However, if this component is rendered at request time, fetching its data will d
 
 Even though the header is rendered instantly, it can't be sent to the browser until the product list has finished fetching.
 
-To protect us from this performance cliff, the first time we **await** this uncached data Next.js shows a [warning](/docs/messages/blocking-route): accessing uncached data outside of `<Suspense>` prevents the route from being prerendered.
+To protect us from this performance cliff, the first time we **await** this uncached data Next.js shows a [warning](/docs/messages/blocking-prerender-dynamic): accessing uncached data outside of `<Suspense>` prevents the route from being prerendered.
 
 At this point, we have to decide how to **unblock** the response. Either:
 

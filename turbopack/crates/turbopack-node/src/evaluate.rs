@@ -1,4 +1,4 @@
-use std::{iter, process::ExitStatus, sync::Arc, time::Duration};
+use std::{iter, process::ExitStatus, time::Duration};
 
 use anyhow::{Result, bail};
 use async_trait::async_trait;
@@ -9,13 +9,12 @@ use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use serde_json::Value as JsonValue;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    Completion, FxIndexMap, NonLocalValue, OperationVc, PrettyPrintError, ResolvedVc, TaskInput,
-    TryJoinIterExt, ValueToString, Vc, duration_span, fxindexmap, mark_top_level_task,
-    parallel::available_parallelism, take_effects, trace::TraceRawVcs,
+    Completion, FxIndexMap, OperationVc, PrettyPrintError, ResolvedVc, TryJoinIterExt, Vc,
+    duration_span, fxindexmap, parallel::available_parallelism,
+    resolve_strongly_consistent_and_take_and_apply_effects, trace::TraceRawVcs,
 };
 use turbo_tasks_env::{EnvMap, ProcessEnv};
 use turbo_tasks_fs::{File, FileContent, FileSystemPath, to_sys_path};
-use turbo_tasks_hash::{DeterministicHash, Xxh3Hash64Hasher};
 use turbopack_core::{
     asset::AssetContent,
     changed::content_changed,
@@ -27,7 +26,7 @@ use turbopack_core::{
     module::Module,
     module_graph::{
         GraphEntries, ModuleGraph,
-        chunk_group_info::{ChunkGroup, ChunkGroupEntry},
+        chunk_group_info::{ChunkGroup, ChunkGroupEntry, EntryHeuristics},
     },
     output::{OutputAsset, OutputAssets},
     reference_type::{InnerAssets, ReferenceType},
@@ -151,14 +150,15 @@ async fn emit_evaluate_pool_assets_operation(
         main_entry_ident,
     } = &*entries.await?;
 
-    let module_ident = main_entry_ident.to_string().await?;
-    let module_ident_hash = {
-        let mut hasher = Xxh3Hash64Hasher::new();
-        module_ident.deterministic_hash(&mut hasher);
-        hasher.finish()
-    };
-    let file_name = format!("{module_ident_hash:016x}.js");
-    let entrypoint = chunking_context.output_root().await?.join(&file_name)?;
+    let entrypoint = chunking_context
+        .chunk_path(
+            None,
+            **main_entry_ident,
+            Some(rcstr!("pool_entry")),
+            rcstr!(".js"),
+        )
+        .owned()
+        .await?;
 
     let bootstrap = chunking_context.root_entry_chunk_group_asset(
         entrypoint.clone(),
@@ -179,7 +179,7 @@ async fn emit_evaluate_pool_assets_operation(
     Ok(EmittedEvaluatePoolAssets {
         bootstrap: bootstrap.to_resolved().await?,
         output_root,
-        entrypoint: entrypoint.clone(),
+        entrypoint,
     }
     .cell())
 }
@@ -191,24 +191,22 @@ async fn create_evaluate_pool_assets_operation(
     module_graph: ResolvedVc<ModuleGraph>,
 ) -> Result<Vc<EmittedEvaluatePoolAssets>> {
     let operation = emit_evaluate_pool_assets_operation(entries, chunking_context, module_graph);
-    let assets = operation.resolve().strongly_consistent().await?;
-    let effects = Arc::new(take_effects(operation).await?);
-
-    // HACK: `Effects::apply` normally panics if not called at the top-level. We want to apply most
-    // effects outside of turbo-task functions to avoid re-executing effects during invalidations.
+    // Apply the effects here (inside this producing task) via the bounded-retry helper, draining
+    // them from the nested emit operation. Returning the serializable `EmittedEvaluatePoolAssets`
+    // (rather than a `serialization = "skip"` wrapper carrying the effects) keeps this task's
+    // output restorable from the persistent cache, so a warm restart does not re-run the
+    // effect-producing tasks.
     //
-    // That's not possible here because we lazily create the pool, so instead, use
-    // `mark_top_level_task` to avoid the debug assertion. The consequence is that these effects
-    // might get evaluated more than once if this function is invalidated.
-    mark_top_level_task();
-    effects.apply().await?;
+    // HACK: applying effects from inside a task means they may get re-applied if this task is
+    // invalidated. That's acceptable because the pool is created lazily; we can't move the
+    // apply to a true top-level task without eagerly reading the operation.
+    let assets = resolve_strongly_consistent_and_take_and_apply_effects(operation).await?;
 
     Ok(*assets)
 }
 
-#[derive(
-    Clone, Copy, Hash, Debug, PartialEq, Eq, TaskInput, NonLocalValue, TraceRawVcs, Encode, Decode,
-)]
+#[turbo_tasks::task_input]
+#[derive(Clone, Copy, Hash, Debug, PartialEq, Eq, TraceRawVcs, Encode, Decode)]
 pub enum EnvVarTracking {
     WholeEnvTracked,
     Untracked,
@@ -229,6 +227,8 @@ pub async fn get_evaluate_pool(
     env_var_tracking: EnvVarTracking,
 ) -> Result<Vc<EvaluatePool>> {
     let assets_op = create_evaluate_pool_assets_operation(entries, chunking_context, module_graph);
+    // Effects are applied inside `create_evaluate_pool_assets_operation`; a plain strongly
+    // consistent read suffices here.
     let assets = assets_op.read_strongly_consistent().await?;
 
     let EmittedEvaluatePoolAssets {
@@ -422,14 +422,19 @@ pub struct EvaluateEntries {
 impl EvaluateEntries {
     #[turbo_tasks::function]
     pub async fn graph_entries(self: Vc<Self>) -> Result<Vc<GraphEntries>> {
-        Ok(Vc::cell(vec![ChunkGroupEntry::Entry(
-            self.await?
-                .entries
-                .iter()
-                .cloned()
-                .map(ResolvedVc::upcast)
-                .collect(),
-        )]))
+        Ok(
+            GraphEntries::from_chunk_groups(vec![ChunkGroupEntry::Entry {
+                modules: self
+                    .await?
+                    .entries
+                    .iter()
+                    .cloned()
+                    .map(ResolvedVc::upcast)
+                    .collect(),
+                heuristics: EntryHeuristics::default(),
+            }])
+            .cell(),
+        )
     }
 }
 

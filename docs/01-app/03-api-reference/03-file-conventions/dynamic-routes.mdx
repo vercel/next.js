@@ -162,7 +162,10 @@ The sections below demonstrate both patterns.
 
 All params are runtime data. Param access must be wrapped by Suspense fallback UI. Next.js generates a static shell at build time, and content loads on each request.
 
-> **Good to know**: You can also use [`loading.tsx`](/docs/app/api-reference/file-conventions/loading) for page-level fallback UI.
+> **Good to know**:
+>
+> - You can also use [`loading.tsx`](/docs/app/api-reference/file-conventions/loading) for page-level fallback UI.
+> - In layouts, avoid awaiting `params` at the top level. Doing so prevents the layout from being prerendered. Instead, pass the params promise down to the component that needs it and await there. See [Maximizing the static shell](/docs/app/getting-started/caching#maximizing-the-static-shell) for examples.
 
 ```tsx filename="app/blog/[slug]/page.tsx"
 import { Suspense } from 'react'

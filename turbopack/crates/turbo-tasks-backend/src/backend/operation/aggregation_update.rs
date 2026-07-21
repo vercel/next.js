@@ -3434,16 +3434,6 @@ impl AggregationUpdateQueue {
             }
         }
     }
-
-    #[cfg(not(feature = "trace_aggregation_update_stats"))]
-    pub fn execute_with_stats(mut self, ctx: &mut impl ExecuteContext<'_>) {
-        loop {
-            ctx.operation_suspend_point(&self);
-            if self.process(ctx) {
-                return;
-            }
-        }
-    }
 }
 
 impl Operation for AggregationUpdateQueue {

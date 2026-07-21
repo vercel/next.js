@@ -92,6 +92,8 @@ export function DynamicPanel({
   sharePanelSizeGlobally = true,
   sharePanelPositionGlobally = true,
   containerProps,
+  onClose,
+  keepBehindErrorOverlay = false,
 }: {
   header: React.ReactNode
   children: React.ReactNode
@@ -119,6 +121,8 @@ export function DynamicPanel({
         width: number
       }
   closeOnClickOutside?: boolean
+  onClose?: (reason: 'escape' | 'outside') => void
+  keepBehindErrorOverlay?: boolean
 }) {
   const { setPanel } = usePanelRouterContext()
   const { name, mounted } = usePanelContext()
@@ -142,6 +146,10 @@ export function DynamicPanel({
     triggerRef,
     mounted,
     (reason) => {
+      if (onClose) {
+        onClose(reason)
+        return
+      }
       switch (reason) {
         case 'escape': {
           setPanel('panel-selector')
@@ -188,6 +196,9 @@ export function DynamicPanel({
 
   const isResizable = sizeConfig.kind === 'resizable'
 
+  const isKeptBehindErrorOverlay =
+    keepBehindErrorOverlay && state.isErrorOverlayOpen
+
   const resolvedDimensions = useResolvedDimensions(
     isResizable ? sizeConfig.minWidth : undefined,
     isResizable ? sizeConfig.minHeight : undefined,
@@ -228,8 +239,13 @@ export function DynamicPanel({
         tabIndex={-1}
         ref={resizeContainerRef}
         className="dynamic-panel-container"
+        inert={isKeptBehindErrorOverlay || undefined}
         style={
           {
+            // While the error overlay is open, drop below it (2147483646) so the
+            // overlay's blur+dim backdrop covers this panel. Otherwise inherit the
+            // z-index from .dynamic-panel-container in dynamic-panel.css.
+            zIndex: isKeptBehindErrorOverlay ? 2147483645 : undefined,
             '--panel-top': positionStyle.top,
             '--panel-bottom': positionStyle.bottom,
             '--panel-left': positionStyle.left,

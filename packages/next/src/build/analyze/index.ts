@@ -43,6 +43,9 @@ export default async function analyze({
   port = 4000,
 }: AnalyzeOptions): Promise<void> {
   try {
+    // analyze is Turbopack-only. Mirror what parseBundlerArgs does for build/dev
+    // so every process.env.TURBOPACK consumer in this run agrees with the bundler choice.
+    process.env.TURBOPACK ??= '1'
     const config: NextConfigComplete = await loadConfig(PHASE_ANALYZE, dir, {
       silent: false,
       reactProductionProfiling,
@@ -203,8 +206,7 @@ function startServer(dir: string, port: number): Promise<void> {
 
     server.on('error', onError)
 
-    // Listen on localhost (both IPv4 and IPv6)
-    server.listen(port, () => {
+    server.listen(port, 'localhost', () => {
       const address = server.address()
       if (address == null) {
         reject(new Error('Unable to get server address'))

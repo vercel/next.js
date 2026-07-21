@@ -42,7 +42,7 @@ auto-hash-map = { workspace = true }
 bitfield = { workspace = true }
 crossbeam-utils = { workspace = true }
 dashmap = { workspace = true, features = ["raw-api"]}
-either = { workspace = true }
+fs-err = { workspace = true }
 hashbrown = { workspace = true, features = ["raw"] }
 indexmap = { workspace = true }
 lzzzz = { workspace = true, optional = true }
@@ -65,12 +65,14 @@ turbo-tasks-malloc = { workspace = true, default-features = false }
 thread_local = { workspace = true }
 
 [dev-dependencies]
+async-trait = { workspace = true }
 criterion = { workspace = true, features = ["async_tokio"] }
 futures = { workspace = true }
 indoc = { workspace = true }
 regex = { workspace = true }
 tempfile = { workspace = true }
 triomphe = { workspace = true }
+thiserror = { workspace = true }
 turbo-tasks-malloc = { workspace = true , features = ["custom_allocator"]}
 rstest = { workspace = true }
 turbo-tasks-testing = { workspace = true }

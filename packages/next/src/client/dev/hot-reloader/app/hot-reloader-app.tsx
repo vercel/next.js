@@ -37,6 +37,7 @@ import {
   type GlobalErrorState,
 } from '../../../components/app-router-instance'
 import { InvariantError } from '../../../../shared/lib/invariant-error'
+import { markErrorAsAlreadyLoggedOnServer } from '../../../../next-devtools/shared/forward-logs-shared'
 import { getOrCreateDebugChannelReadableWriterPair } from '../../debug-channel'
 // TODO: Explicitly import from client.browser (doesn't work with Webpack).
 // eslint-disable-next-line import/no-extraneous-dependencies
@@ -52,7 +53,14 @@ const createFromReadableStream =
   createFromReadableStreamBrowser as (typeof import('react-server-dom-webpack/client.browser'))['createFromReadableStream']
 
 let mostRecentCompilationHash: any = null
-let __nextDevClientId = Math.round(Math.random() * 100 + Date.now())
+// The dev client id is only read by the browser-side HMR websocket connection.
+// Compute it only in the browser: there is no client during SSR, and calling
+// `Math.random()`/`Date.now()` at module scope would be tracked as sync IO by
+// Cache Components and advance the render stage.
+let __nextDevClientId =
+  typeof window !== 'undefined'
+    ? Math.round(Math.random() * 100 + Date.now())
+    : 0
 let reloading = false
 let webpackStartMsSinceEpoch: number | null = null
 const turbopackHmr: TurbopackHmr | null = process.env.TURBOPACK
@@ -314,6 +322,8 @@ export function processMessage(
         dispatcher.onDevIndicator(message.devIndicator)
       if ('devToolsConfig' in message)
         dispatcher.onDevToolsConfig(message.devToolsConfig)
+      if ('requestInsights' in message && message.requestInsights)
+        dispatcher.onRequestInsightsSnapshot(message.requestInsights)
 
       const hasErrors = Boolean(errors && errors.length)
       // Compilation with errors (e.g. syntax error or missing modules).
@@ -468,6 +478,10 @@ export function processMessage(
       dispatcher.onDevToolsConfig(message.data)
       return
     }
+    case HMR_MESSAGE_SENT_TO_BROWSER.REQUEST_INSIGHTS_UPDATE: {
+      dispatcher.onRequestInsightsUpdate(message.insight)
+      return
+    }
     case HMR_MESSAGE_SENT_TO_BROWSER.REACT_DEBUG_CHUNK: {
       const { requestId, chunk } = message
       const { writer } = getOrCreateDebugChannelReadableWriterPair(requestId)
@@ -534,6 +548,10 @@ export function processMessage(
                 configurable: true,
               })
             }
+            // These errors originated on the server and were already logged
+            // there. Mark them so the browser-to-terminal log forwarding
+            // doesn't replay them back to the CLI as duplicates.
+            markErrorAsAlreadyLoggedOnServer(error)
             console.error(error)
           }
         },

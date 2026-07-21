@@ -13,10 +13,14 @@ use next_core::{
     mode::NextMode,
     next_app::{AppPage, AppPath},
     next_client::{
-        ClientChunkingContextOptions, get_client_chunking_context, get_client_compile_time_info,
+        ClientChunkingContextOptions, ClientContextType, ServiceWorkerChunkingContextOptions,
+        get_client_chunking_context, get_client_compile_time_info,
+        get_client_module_options_context, get_client_resolve_options_context,
+        get_service_worker_chunking_context,
     },
     next_config::{
-        ModuleIds as ModuleIdStrategyConfig, NextConfig, TurbopackPluginRuntimeStrategy,
+        DIST_PROFILES_DIR_NAME, ModuleIds as ModuleIdStrategyConfig, NextConfig, OutputType,
+        TurbopackPluginRuntimeStrategy,
     },
     next_edge::context::EdgeChunkingContextOptions,
     next_server::{
@@ -36,7 +40,7 @@ use tracing::{Instrument, field::Empty};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     Completion, Completions, FxIndexMap, NonLocalValue, OperationValue, OperationVc, ReadRef,
-    ResolvedVc, State, TaskInput, TransientInstance, TryFlatJoinIterExt, TryJoinIterExt, Vc,
+    ResolvedVc, State, TransientInstance, TryFlatJoinIterExt, TryJoinIterExt, Vc,
     debug::ValueDebugFormat, fxindexmap, trace::TraceRawVcs,
 };
 use turbo_tasks_env::{EnvMap, ProcessEnv};
@@ -69,7 +73,7 @@ use turbopack_core::{
         binding_usage_info::{
             BindingUsageInfo, OptionBindingUsageInfo, compute_binding_usage_info,
         },
-        chunk_group_info::ChunkGroupEntry,
+        chunk_group_info::{ChunkGroupEntry, EntryHeuristics},
     },
     output::{
         ExpandOutputAssetsInput, ExpandedOutputAssets, OutputAsset, OutputAssets,
@@ -95,6 +99,7 @@ use crate::{
     entrypoints::Entrypoints,
     instrumentation::InstrumentationEndpoint,
     middleware::MiddlewareEndpoint,
+    output_mode::{OptionOutputModeState, OutputModeState},
     pages::PagesProject,
     route::{
         Endpoint, EndpointGroup, EndpointGroupEntry, EndpointGroupKey, EndpointGroups, Endpoints,
@@ -103,17 +108,16 @@ use crate::{
     versioned_content_map::VersionedContentMap,
 };
 
+#[turbo_tasks::task_input]
 #[derive(
     Debug,
     Serialize,
     Deserialize,
     Clone,
-    TaskInput,
     PartialEq,
     Eq,
     Hash,
     TraceRawVcs,
-    NonLocalValue,
     OperationValue,
     Encode,
     Decode,
@@ -125,6 +129,7 @@ pub struct DraftModeOptions {
     pub preview_mode_signing_key: RcStr,
 }
 
+#[turbo_tasks::task_input]
 #[derive(
     Debug,
     Default,
@@ -132,12 +137,10 @@ pub struct DraftModeOptions {
     Deserialize,
     Copy,
     Clone,
-    TaskInput,
     PartialEq,
     Eq,
     Hash,
     TraceRawVcs,
-    NonLocalValue,
     OperationValue,
     Encode,
     Decode,
@@ -152,18 +155,17 @@ pub struct WatchOptions {
     pub poll_interval: Option<Duration>,
 }
 
+#[turbo_tasks::task_input]
 #[derive(
     Debug,
     Default,
     Serialize,
     Deserialize,
     Clone,
-    TaskInput,
     PartialEq,
     Eq,
     Hash,
     TraceRawVcs,
-    NonLocalValue,
     OperationValue,
     Encode,
     Decode,
@@ -175,20 +177,8 @@ pub struct DebugBuildPaths {
 }
 
 /// Target for HMR operations - client-side (browser) or server-side (Node.js).
-#[derive(
-    Debug,
-    Default,
-    Copy,
-    Clone,
-    TaskInput,
-    PartialEq,
-    Eq,
-    Hash,
-    TraceRawVcs,
-    NonLocalValue,
-    Encode,
-    Decode,
-)]
+#[turbo_tasks::task_input]
+#[derive(Debug, Default, Copy, Clone, PartialEq, Eq, Hash, TraceRawVcs, Encode, Decode)]
 pub enum HmrTarget {
     #[default]
     Client,
@@ -439,17 +429,16 @@ pub struct PartialProjectOptions {
     pub debug_build_paths: Option<DebugBuildPaths>,
 }
 
+#[turbo_tasks::task_input]
 #[derive(
     Debug,
     Serialize,
     Deserialize,
     Clone,
-    TaskInput,
     PartialEq,
     Eq,
     Hash,
     TraceRawVcs,
-    NonLocalValue,
     OperationValue,
     Encode,
     Decode,
@@ -478,6 +467,7 @@ pub struct ProjectContainer {
     name: RcStr,
     options_state: State<Option<ProjectOptions>>,
     versioned_content_map: Option<ResolvedVc<VersionedContentMap>>,
+    output_mode_state: Option<ResolvedVc<OutputModeState>>,
 }
 
 #[turbo_tasks::value_impl]
@@ -490,6 +480,13 @@ impl ProjectContainer {
             // is assumed to be operating over a static snapshot
             versioned_content_map: if dev {
                 Some(VersionedContentMap::new())
+            } else {
+                None
+            },
+            // only dev serves pages on demand, so only dev can defer the
+            // Client Component SSR output of a page
+            output_mode_state: if dev {
+                Some(OutputModeState::new())
             } else {
                 None
             },
@@ -878,6 +875,7 @@ impl ProjectContainer {
                 NextMode::Build.resolved_cell()
             },
             versioned_content_map: self.versioned_content_map,
+            output_mode_state: self.output_mode_state,
             build_id,
             encryption_key,
             preview_props,
@@ -962,6 +960,11 @@ pub struct Project {
     mode: ResolvedVc<NextMode>,
 
     versioned_content_map: Option<ResolvedVc<VersionedContentMap>>,
+
+    /// Tracks which app pages must emit full HTML output in development. Like
+    /// [`Project::versioned_content_map`], this is the same cell across
+    /// `Project` re-creations, so the state survives options changes.
+    output_mode_state: Option<ResolvedVc<OutputModeState>>,
 
     build_id: RcStr,
 
@@ -1070,6 +1073,11 @@ impl Project {
     }
 
     #[turbo_tasks::function]
+    pub fn output_mode_state(&self) -> Vc<OptionOutputModeState> {
+        Vc::cell(self.output_mode_state)
+    }
+
+    #[turbo_tasks::function]
     pub fn project_fs(&self) -> Result<Vc<DiskFileSystem>> {
         let denied_path = match join_path(&self.project_path, &self.dist_dir_root) {
             Some(dist_dir_root) => dist_dir_root.into(),
@@ -1082,10 +1090,16 @@ impl Project {
             }
         };
 
+        // CPU profiles are written to `.next-profiles/` at the project root (see `--cpu-prof`).
+        // Deny access to it so the bundler doesn't traverse into the profiling output directory.
+        let denied_profiles_path = join_path(&self.project_path, DIST_PROFILES_DIR_NAME)
+            .unwrap()
+            .into();
+
         Ok(DiskFileSystem::new_with_denied_paths(
             PROJECT_FILESYSTEM_NAME,
             *self.root_path,
-            vec![denied_path],
+            vec![denied_path, denied_profiles_path],
         ))
     }
 
@@ -1204,7 +1218,7 @@ impl Project {
     pub async fn issue_filter(self: Vc<Self>) -> Result<Vc<IssueFilter>> {
         let ignore_rules = self.next_config().turbopack_ignore_issue_rules().await?;
         Ok(IssueFilter::warnings_and_foreign_errors()
-            .with_ignore_rules(ignore_rules.to_vec())
+            .with_ignore_rules(ReadRef::into_owned(ignore_rules))
             .cell())
     }
 
@@ -1226,6 +1240,14 @@ impl Project {
     #[turbo_tasks::function]
     pub(super) fn should_write_routes_hashes_manifest(&self) -> Result<Vc<bool>> {
         Ok(Vc::cell(self.write_routes_hashes_manifest))
+    }
+
+    #[turbo_tasks::function]
+    pub(super) async fn should_write_nft_manifests(&self) -> Result<Vc<bool>> {
+        Ok(Vc::cell(
+            self.mode.await?.is_production()
+                && *self.next_config.output().await? != Some(OutputType::Export),
+        ))
     }
 
     #[turbo_tasks::function]
@@ -1437,22 +1459,25 @@ impl Project {
 
     #[turbo_tasks::function]
     pub async fn get_all_entries(self: Vc<Self>) -> Result<Vc<GraphEntries>> {
-        let mut modules = self
+        let endpoint_entries = self
             .get_all_endpoints(false)
             .await?
             .iter()
-            .map(async |endpoint| Ok(endpoint.entries().owned().await?))
-            .try_flat_join()
+            .map(|endpoint| endpoint.entries().owned())
+            .try_join()
             .await?;
-        modules.extend(self.client_main_modules().await?.iter().cloned());
-        modules.extend(
-            self.additional_traced_modules()
-                .await?
-                .iter()
-                .cloned()
-                .map(|m| ChunkGroupEntry::Entry(vec![m])),
+
+        let result = GraphEntries::concatenate(
+            endpoint_entries
+                .into_iter()
+                .chain(std::iter::once(self.client_main_modules().owned().await?))
+                .chain(std::iter::once(GraphEntries::new(
+                    vec![],
+                    self.additional_traced_modules().owned().await?,
+                ))),
         );
-        Ok(Vc::cell(modules))
+
+        Ok(result.cell())
     }
 
     #[turbo_tasks::function]
@@ -1460,14 +1485,15 @@ impl Project {
         self: Vc<Self>,
         graphs: Vc<ModuleGraph>,
     ) -> Result<Vc<GraphEntries>> {
-        let modules = self
-            .get_all_endpoints(false)
-            .await?
-            .iter()
-            .map(async |endpoint| Ok(endpoint.additional_entries(graphs).owned().await?))
-            .try_flat_join()
-            .await?;
-        Ok(Vc::cell(modules))
+        let result = GraphEntries::concatenate(
+            self.get_all_endpoints(false)
+                .await?
+                .iter()
+                .map(|endpoint| endpoint.additional_entries(graphs).owned())
+                .try_join()
+                .await?,
+        );
+        Ok(result.cell())
     }
 
     #[turbo_tasks::function]
@@ -1476,12 +1502,14 @@ impl Project {
         entry: ResolvedVc<Box<dyn Module>>,
     ) -> Result<Vc<ModuleGraph>> {
         Ok(if *self.per_page_module_graph().await? {
-            let is_production = self.next_mode().await?.is_production();
             ModuleGraph::from_graphs(
                 vec![SingleModuleGraph::new_with_entry(
-                    ChunkGroupEntry::Entry(vec![entry]),
-                    is_production,
-                    is_production,
+                    ChunkGroupEntry::Entry {
+                        modules: vec![entry],
+                        heuristics: EntryHeuristics::default(),
+                    },
+                    /* include_traced */ *self.should_write_nft_manifests().await?,
+                    /* include_binding_usage */ self.next_mode().await?.is_production(),
                 )],
                 None,
             )
@@ -1497,7 +1525,6 @@ impl Project {
         evaluatable_assets: Vc<EvaluatableAssets>,
     ) -> Result<Vc<ModuleGraph>> {
         Ok(if *self.per_page_module_graph().await? {
-            let is_production = self.next_mode().await?.is_production();
             let entries = evaluatable_assets
                 .await?
                 .iter()
@@ -1506,9 +1533,13 @@ impl Project {
                 .collect();
             ModuleGraph::from_graphs(
                 vec![SingleModuleGraph::new_with_entries(
-                    ResolvedVc::cell(vec![ChunkGroupEntry::Entry(entries)]),
-                    is_production,
-                    is_production,
+                    GraphEntries::from_chunk_groups(vec![ChunkGroupEntry::Entry {
+                        modules: entries,
+                        heuristics: EntryHeuristics::default(),
+                    }])
+                    .resolved_cell(),
+                    /* include_traced */ *self.should_write_nft_manifests().await?,
+                    /* include_binding_usage */ self.next_mode().await?.is_production(),
                 )],
                 None,
             )
@@ -1591,6 +1622,7 @@ impl Project {
         self: Vc<Self>,
     ) -> Result<Vc<Box<dyn ChunkingContext>>> {
         let css_url_suffix = self.next_config().asset_suffix_path();
+        let chunking_heuristics = self.next_config().chunking_heuristics().await?;
         Ok(get_client_chunking_context(ClientChunkingContextOptions {
             mode: self.next_mode(),
             root_path: self.project_root_path().owned().await?,
@@ -1602,6 +1634,7 @@ impl Project {
                 .owned()
                 .await?,
             asset_prefix: self.next_config().computed_asset_prefix(),
+            service_worker_scope_base_path: self.next_config().base_path(),
             environment: self.client_compile_time_info().environment(),
             module_id_strategy: self.module_ids(),
             export_usage: self.export_usage(),
@@ -1613,6 +1646,7 @@ impl Project {
             nested_async_chunking: self
                 .next_config()
                 .turbo_nested_async_chunking(self.next_mode(), true),
+            shared_runtime: self.next_config().turbo_shared_runtime(self.next_mode()),
             debug_ids: self.next_config().turbopack_debug_ids(),
             worker_asset_prefix: self.next_config().turbopack_worker_asset_prefix(),
             should_use_absolute_url_references: self.next_config().inline_css(),
@@ -1621,7 +1655,57 @@ impl Project {
             cross_origin: self.next_config().cross_origin(),
             chunk_loading_global: self.next_config().turbopack_chunk_loading_global(),
             style_groups_algorithm: self.next_config().css_chunking().owned().await?,
+            chunking_first_page_load_priority: chunking_heuristics.first_page_load_priority,
+            chunking_priority_boost_percent: chunking_heuristics.priority_boost_percent,
+            chunking_request_cost: chunking_heuristics.request_cost,
+            generate_component_chunks: self.next_config().turbopack_generate_component_chunks(),
         }))
+    }
+
+    #[turbo_tasks::function]
+    pub(super) async fn service_worker_chunking_context(
+        self: Vc<Self>,
+    ) -> Result<Vc<Box<dyn ChunkingContext>>> {
+        Ok(get_service_worker_chunking_context(
+            ServiceWorkerChunkingContextOptions {
+                mode: self.next_mode(),
+                root_path: self.project_root_path().owned().await?,
+                output_root: self.node_root().owned().await?,
+                output_root_to_root_path: self.node_root_to_root_path().owned().await?,
+                environment: self.client_compile_time_info().environment(),
+                minify: self.next_config().turbo_minify(self.next_mode()),
+                source_maps: self.next_config().client_source_maps(self.next_mode()),
+                no_mangling: self.no_mangling(),
+                hash_salt: self.next_config().output_hash_salt().to_resolved().await?,
+            },
+        ))
+    }
+
+    #[turbo_tasks::function]
+    pub(super) async fn service_worker_asset_context(
+        self: Vc<Self>,
+    ) -> Result<Vc<Box<dyn AssetContext>>> {
+        Ok(Vc::upcast(ModuleAssetContext::new(
+            TransitionOptions::default().cell(),
+            self.client_compile_time_info(),
+            get_client_module_options_context(
+                self.project_path().owned().await?,
+                self.execution_context(),
+                self.client_compile_time_info().environment(),
+                ClientContextType::Other,
+                self.next_mode(),
+                self.next_config(),
+                self.encryption_key(),
+            ),
+            get_client_resolve_options_context(
+                self.project_path().owned().await?,
+                ClientContextType::Other,
+                self.next_mode(),
+                self.next_config(),
+                self.execution_context(),
+            ),
+            Layer::new_with_user_friendly_name(rcstr!("service-worker"), rcstr!("Service Worker")),
+        )))
     }
 
     #[turbo_tasks::function]
@@ -2056,6 +2140,8 @@ impl Project {
                 self.encryption_key(),
                 self.edge_compile_time_info().environment(),
                 self.client_compile_time_info().environment(),
+                // There is no NFT on edge
+                false,
             ),
             get_edge_resolve_options_context(
                 self.project_path().owned().await?,
@@ -2119,6 +2205,7 @@ impl Project {
                 self.encryption_key(),
                 self.server_compile_time_info().environment(),
                 self.client_compile_time_info().environment(),
+                *self.should_write_nft_manifests().await?,
             ),
             get_server_resolve_options_context(
                 self.project_path().owned().await?,
@@ -2234,6 +2321,7 @@ impl Project {
                 self.encryption_key(),
                 self.server_compile_time_info().environment(),
                 self.client_compile_time_info().environment(),
+                *self.should_write_nft_manifests().await?,
             ),
             get_server_resolve_options_context(
                 self.project_path().owned().await?,
@@ -2297,6 +2385,8 @@ impl Project {
                 self.encryption_key(),
                 self.edge_compile_time_info().environment(),
                 self.client_compile_time_info().environment(),
+                // There is no NFT on edge
+                false,
             ),
             get_edge_resolve_options_context(
                 self.project_path().owned().await?,
@@ -2522,17 +2612,19 @@ impl Project {
     #[turbo_tasks::function]
     pub async fn client_main_modules(self: Vc<Self>) -> Result<Vc<GraphEntries>> {
         let pages_project = self.pages_project();
-        let mut modules = vec![ChunkGroupEntry::Entry(vec![
-            pages_project.client_main_module().to_resolved().await?,
-        ])];
+        let mut chunk_groups = vec![ChunkGroupEntry::Entry {
+            modules: vec![pages_project.client_main_module().to_resolved().await?],
+            heuristics: EntryHeuristics::high_priority(),
+        }];
 
         if let Some(app_project) = *self.app_project().await? {
-            modules.push(ChunkGroupEntry::Entry(vec![
-                app_project.client_main_module().to_resolved().await?,
-            ]));
+            chunk_groups.push(ChunkGroupEntry::Entry {
+                modules: vec![app_project.client_main_module().to_resolved().await?],
+                heuristics: EntryHeuristics::high_priority(),
+            });
         }
 
-        Ok(Vc::cell(modules))
+        Ok(GraphEntries::from_chunk_groups(chunk_groups).cell())
     }
 
     /// Gets the module id strategy for the project.
@@ -2658,9 +2750,8 @@ async fn whole_app_module_graph_operation(
     let span_clone = span.clone();
     async move {
         let next_mode = project.next_mode();
-        let next_mode_ref = next_mode.await?;
-        let should_trace = next_mode_ref.is_production();
-        let should_read_binding_usage = next_mode_ref.is_production();
+        let should_trace = *project.should_write_nft_manifests().await?;
+        let should_read_binding_usage = next_mode.await?.is_production();
         let base_single_module_graph = SingleModuleGraph::new_with_entries(
             project.get_all_entries().to_resolved().await?,
             should_trace,

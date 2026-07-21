@@ -5,9 +5,7 @@ use bincode::{Decode, Encode};
 use next_taskless::{expand_next_js_template, expand_next_js_template_no_imports};
 use serde::{Deserialize, de::DeserializeOwned};
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{
-    FxIndexMap, NonLocalValue, TaskInput, Vc, fxindexset, trace::TraceRawVcs, turbobail,
-};
+use turbo_tasks::{FxIndexMap, NonLocalValue, Vc, fxindexset, trace::TraceRawVcs, turbobail};
 use turbo_tasks_fs::{File, FileContent, FileJsonContent, FileSystem, FileSystemPath, rope::Rope};
 use turbopack::module_options::RuleCondition;
 use turbopack_core::{
@@ -205,7 +203,8 @@ pub fn free_var_references_with_vercel_system_env_warnings(
     FreeVarReferences(entries)
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, TaskInput, TraceRawVcs, Encode, Decode)]
+#[turbo_tasks::task_input]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, TraceRawVcs, Encode, Decode)]
 pub enum PathType {
     PagesPage,
     PagesApi,
@@ -327,6 +326,7 @@ pub fn pages_function_name(page: impl Display) -> String {
     format!("pages{page}")
 }
 
+#[turbo_tasks::task_input]
 #[derive(
     Default,
     PartialEq,
@@ -339,8 +339,6 @@ pub fn pages_function_name(page: impl Display) -> String {
     Hash,
     PartialOrd,
     Ord,
-    TaskInput,
-    NonLocalValue,
     Encode,
     Decode,
 )]

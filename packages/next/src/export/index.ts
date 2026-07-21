@@ -482,6 +482,7 @@ async function exportAppImpl(
     distDir,
     basePath: nextConfig.basePath,
     cacheComponents: nextConfig.cacheComponents ?? false,
+    partialPrefetching: nextConfig.partialPrefetching,
     validationLevel: nextConfig.experimental.instantInsights.validationLevel,
     trailingSlash: nextConfig.trailingSlash,
     locales: i18n?.locales,
@@ -521,6 +522,8 @@ async function exportAppImpl(
       maxPostponedStateSizeBytes: parseMaxPostponedStateSize(
         nextConfig.experimental.maxPostponedStateSize
       ),
+      exposeTestingApi:
+        nextConfig.experimental.exposeTestingApiInProductionBuild === true,
     },
     reactMaxHeadersLength: nextConfig.reactMaxHeadersLength,
   }
@@ -712,7 +715,7 @@ async function exportAppImpl(
           worker.exportPages({
             buildId,
             deploymentId: nextConfig.deploymentId,
-            clientAssetToken: nextConfig.experimental.supportsImmutableAssets
+            clientAssetToken: nextConfig.supportsImmutableAssets
               ? ''
               : nextConfig.deploymentId,
             exportPaths: batch,

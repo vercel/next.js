@@ -71,7 +71,7 @@ type OmitFirstArgument<F> = F extends (
 
 // Do not rename or format. sync-react script relies on this line.
 // prettier-ignore
-const nextjsReactPeerVersion = "19.2.6";
+const nextjsReactPeerVersion = "19.2.7";
 
 const ROOT_PACKAGE_MANAGER: string =
   require('../../../package.json').packageManager
@@ -259,8 +259,8 @@ export class NextInstance {
           'react-dom': reactVersion,
           '@types/react': '19.2.2',
           '@types/react-dom': '19.2.1',
-          typescript: 'latest',
-          '@types/node': 'latest',
+          typescript: '6.0.3',
+          '@types/node': '26.1.0',
           ...this.dependencies,
           ...this.packageJson?.dependencies,
         }
@@ -310,7 +310,7 @@ export class NextInstance {
                     ? // since we can't get the build id as a build artifact,
                       // add it in build logs
                       {
-                        'post-build': `node -e 'console.log("BUILD" + "_ID: " + fs.readFileSync("${this.distDir}/BUILD_ID") + "\\nDEPLOYMENT" + "_ID: " + process.env.NEXT_DEPLOYMENT_ID + "\\nNEXT_SUPPORTS_IMMUTABLE" + "_ASSETS: " + (process.env.NEXT_SUPPORTS_IMMUTABLE_ASSETS ? 1 : 0))'`,
+                        'post-build': `node -e 'console.log("BUILD" + "_ID: " + fs.readFileSync("${this.distDir}/BUILD_ID") + "\\nDEPLOYMENT" + "_ID: " + process.env.NEXT_DEPLOYMENT_ID + "\\nNEXT_SUPPORTS_IMMUTABLE" + "_ASSETS: " + ((process.env.VERCEL_IMMUTABLE_STATIC_FILES_ENABLED && process.env.NEXT_ENABLE_ADAPTER==="1") ? 1 : 0))'`,
                       }
                     : {}),
                   ...pkgScripts,

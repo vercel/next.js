@@ -119,6 +119,7 @@ impl Asset for NftJsonAsset {
             let output_root_ref = this.project.output_fs().root().await?;
             let project_root_ref = this.project.project_fs().root().await?;
             let next_config = this.project.next_config();
+            let hash_salt = next_config.output_hash_salt();
 
             let client_root = this.project.client_fs().root();
             let client_root = client_root.owned().await?;
@@ -173,7 +174,11 @@ impl Asset for NftJsonAsset {
                     let (referenced_chunk_path, hash) = match referenced {
                         AssetOrModule::Asset(v) => (
                             Either::Left(v.path().await?),
-                            Either::Left(v.content().hash(HashAlgorithm::Xxh3Hash128Hex).await?),
+                            Either::Left(
+                                v.content()
+                                    .hash(hash_salt, HashAlgorithm::Xxh3Hash128Hex)
+                                    .await?,
+                            ),
                         ),
                         AssetOrModule::Module(v) => {
                             let ident = module_data
@@ -235,7 +240,10 @@ impl Asset for NftJsonAsset {
                         Ok((
                             relative_path,
                             Either::Left(
-                                file_path.read().hash(HashAlgorithm::Xxh3Hash128Hex).await?,
+                                file_path
+                                    .read()
+                                    .hash(hash_salt, HashAlgorithm::Xxh3Hash128Hex)
+                                    .await?,
                             ),
                         ))
                     })
@@ -266,7 +274,10 @@ impl Asset for NftJsonAsset {
             // non-adapter consumers (which includes output:standalone) don't experience a breaking
             // change, but instead we just add it as a separate field that only build-complete
             // reads.
-            let entry_hash = chunk.content().hash(HashAlgorithm::Xxh3Hash128Hex).await?;
+            let entry_hash = chunk
+                .content()
+                .hash(hash_salt, HashAlgorithm::Xxh3Hash128Hex)
+                .await?;
             let json = json!({
               "version": 1,
               "files": files,

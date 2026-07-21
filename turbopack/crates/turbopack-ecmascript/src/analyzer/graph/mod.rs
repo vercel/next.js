@@ -11,8 +11,8 @@ pub use crate::analyzer::graph::{
     eval_context::EvalContext,
 };
 use crate::{
-    AnalyzeMode,
-    analyzer::{JsValue, graph::visitor::Analyzer},
+    AnalyzeMode, SpecifiedModuleType,
+    analyzer::{Bump, JsValue, graph::visitor::Analyzer},
     code_gen::CodeGen,
 };
 
@@ -21,8 +21,8 @@ mod eval_context;
 mod visitor;
 
 #[derive(Debug)]
-pub struct VarGraph {
-    pub values: FxHashMap<Id, JsValue>,
+pub struct VarGraph<'a> {
+    pub values: FxHashMap<Id, JsValue<'a>>,
 
     /// Map [`JsValue::FreeVar`] names to their [`Id`] to facilitate lookups into [`Self::values`].
     ///
@@ -30,50 +30,59 @@ pub struct VarGraph {
     /// non-trivial values.
     pub free_var_ids: FxHashMap<Atom, Id>,
 
-    pub effects: Vec<Effect>,
+    pub effects: Vec<Effect<'a>>,
     // Some unconditional codegens, usually for ESM items.
     pub code_gens: Vec<CodeGen>,
 }
 
-impl VarGraph {
-    pub fn normalize(&mut self) {
+impl<'a> VarGraph<'a> {
+    pub fn normalize(&mut self, arena: &'a Bump) {
         for value in self.values.values_mut() {
-            value.normalize();
+            value.normalize(arena);
         }
         for effect in self.effects.iter_mut() {
-            effect.normalize();
+            effect.normalize(arena);
         }
     }
 }
 
-pub fn create_graph(
+pub fn create_graph<'a>(
+    arena: &'a Bump,
     m: &Program,
     eval_context: &EvalContext,
     analyze_mode: AnalyzeMode,
     supports_block_scoping: bool,
-) -> VarGraph {
-    let mut graph = VarGraph {
-        values: Default::default(),
-        free_var_ids: Default::default(),
+    specified_module_type: SpecifiedModuleType,
+    cjs_tree_shaking: bool,
+) -> VarGraph<'a> {
+    let mut analyzer = Analyzer {
+        arena,
+        analyze_mode,
+        data: VarGraph {
+            values: Default::default(),
+            free_var_ids: Default::default(),
+            effects: Default::default(),
+            code_gens: Default::default(),
+        },
+        eval_context,
+        state: Default::default(),
         effects: Default::default(),
+        hoisted_effects: Default::default(),
         code_gens: Default::default(),
+        supports_block_scoping,
     };
 
-    m.visit_with_ast_path(
-        &mut Analyzer {
-            analyze_mode,
-            data: &mut graph,
-            eval_context,
-            state: Default::default(),
-            effects: Default::default(),
-            hoisted_effects: Default::default(),
-            code_gens: Default::default(),
-            supports_block_scoping,
-        },
-        &mut Default::default(),
-    );
+    // CommonJS export recognition runs only for a CommonJS module that emits code, and only
+    // when the `turbopackCjsTreeShaking` experimental flag is enabled.
+    if cjs_tree_shaking && analyze_mode.is_code_gen() && eval_context.is_cjs(specified_module_type)
+    {
+        analyzer.enable_cjs_exports();
+    }
 
-    graph.normalize();
+    m.visit_with_ast_path(&mut analyzer, &mut Default::default());
+
+    let mut graph = analyzer.data;
+    graph.normalize(arena);
 
     graph
 }

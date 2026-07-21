@@ -12,8 +12,8 @@ use serde_with::serde_as;
 use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    Completion, OperationVc, ReadRef, ResolvedVc, TaskInput, TryJoinIterExt, ValueToString,
-    ValueToStringRef, Vc, trace::TraceRawVcs,
+    Completion, OperationVc, ReadRef, ResolvedVc, TryJoinIterExt, ValueToString, ValueToStringRef,
+    Vc, trace::TraceRawVcs,
 };
 use turbo_tasks_env::ProcessEnv;
 use turbo_tasks_fs::{
@@ -29,9 +29,10 @@ use turbopack_core::{
     file_source::FileSource,
     ident::AssetIdent,
     issue::{Issue, IssueExt, IssueSeverity, IssueSource, IssueStage, StyledString},
+    module::Module,
     module_graph::{
         ModuleGraph, SingleModuleGraph,
-        chunk_group_info::{ChunkGroup, ChunkGroupEntry},
+        chunk_group_info::{ChunkGroup, ChunkGroupEntry, EntryHeuristics},
     },
     output::{ExpandOutputAssetsInput, OutputAsset, OutputAssets, expand_output_assets},
     reference_type::{EcmaScriptModulesReferenceSubType, InnerAssets, ReferenceType},
@@ -437,9 +438,8 @@ pub enum InfoMessage {
     },
 }
 
-#[derive(
-    Debug, Clone, TaskInput, Hash, PartialEq, Eq, Deserialize, TraceRawVcs, Encode, Decode,
-)]
+#[turbo_tasks::task_input]
+#[derive(Debug, Clone, Hash, PartialEq, Eq, Deserialize, TraceRawVcs, Encode, Decode)]
 #[serde(rename_all = "camelCase")]
 pub struct WebpackResolveOptions {
     alias_fields: Option<Vec<RcStr>>,
@@ -495,7 +495,8 @@ pub enum ResponseMessage {
     },
 }
 
-#[derive(Clone, PartialEq, Eq, Hash, TaskInput, Debug, TraceRawVcs, Encode, Decode)]
+#[turbo_tasks::task_input]
+#[derive(Clone, PartialEq, Eq, Hash, Debug, TraceRawVcs, Encode, Decode)]
 pub struct WebpackLoaderContext {
     pub entries: ResolvedVc<EvaluateEntries>,
     pub cwd: FileSystemPath,
@@ -752,7 +753,10 @@ impl EvaluateContext for WebpackLoaderContext {
                 // Build a module graph from the resolved module and its
                 // transitive dependencies
                 let single_graph = SingleModuleGraph::new_with_entry(
-                    ChunkGroupEntry::Entry(vec![module]),
+                    ChunkGroupEntry::Entry {
+                        modules: vec![module],
+                        heuristics: EntryHeuristics::default(),
+                    },
                     false,
                     false,
                 );
@@ -762,8 +766,16 @@ impl EvaluateContext for WebpackLoaderContext {
                     .await?;
 
                 // Generate a full Node.js bundle using the real runtime
-                let output_root = self.chunking_context.output_root().owned().await?;
-                let entry_path = output_root.join("importModule.js")?;
+                let entry_path = self
+                    .chunking_context
+                    .chunk_path(
+                        None,
+                        module.ident(),
+                        Some(rcstr!("importModule")),
+                        rcstr!(".js"),
+                    )
+                    .owned()
+                    .await?;
 
                 let bootstrap = self.chunking_context.root_entry_chunk_group_asset(
                     entry_path.clone(),
@@ -780,6 +792,7 @@ impl EvaluateContext for WebpackLoaderContext {
                     true,
                 )
                 .await?;
+                let output_root = self.chunking_context.output_root().owned().await?;
 
                 let mut chunks = Vec::new();
                 for asset in all_assets {

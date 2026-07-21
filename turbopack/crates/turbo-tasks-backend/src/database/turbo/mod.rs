@@ -8,7 +8,8 @@ use std::{
 use anyhow::{Ok, Result};
 use smallvec::SmallVec;
 use turbo_persistence::{
-    ArcBytes, CompactConfig, DbConfig, KeyBase, StoreKey, TurboPersistence, ValueBuffer,
+    ArcBytes, CommitStats, CompactConfig, DbConfig, KeyBase, StoreKey, TurboPersistence,
+    ValueBuffer,
 };
 use turbo_tasks::{
     message_queue::{TimingEvent, TraceEvent},
@@ -16,10 +17,7 @@ use turbo_tasks::{
     turbo_tasks,
 };
 
-use crate::database::{
-    key_value_database::{KeySpace, KeyValueDatabase},
-    write_batch::{ConcurrentWriteBatch, WriteBuffer},
-};
+use crate::database::{key_value_database::KeySpace, write_batch::WriteBuffer};
 
 mod parallel_scheduler;
 pub(crate) use parallel_scheduler::TurboTasksParallelScheduler;
@@ -50,7 +48,7 @@ pub const COMPACT_CONFIG: CompactConfig = CompactConfig {
 };
 
 pub struct TurboKeyValueDatabase {
-    db: Arc<TurboPersistence<TurboTasksParallelScheduler, FAMILIES>>,
+    db: TurboPersistence<TurboTasksParallelScheduler, FAMILIES>,
     is_ci: bool,
     is_short_session: bool,
     is_fresh: bool,
@@ -68,67 +66,71 @@ impl TurboKeyValueDatabase {
             !skip_compaction || is_short_session,
             "skip_compaction=true requires is_short_session=true"
         );
-        let db = Arc::new(TurboPersistence::open_with_config(
-            versioned_path,
-            db_config(),
-        )?);
+        let db = TurboPersistence::open_with_config(versioned_path, db_config())?;
+        let is_fresh = db.is_empty();
         Ok(Self {
-            db: db.clone(),
+            db,
             is_ci,
             is_short_session,
-            is_fresh: db.is_empty(),
+            is_fresh,
             skip_compaction,
         })
     }
-}
 
-impl KeyValueDatabase for TurboKeyValueDatabase {
-    fn is_empty(&self) -> bool {
+    /// Construct an empty, read-only database that never touches the filesystem. Used for the
+    /// in-process "noop" backing storage. Reads return None; writes would bail (but no callers
+    /// write — see `BackendOptions::storage_mode = None`).
+    pub fn empty_in_memory() -> Self {
+        Self {
+            db: TurboPersistence::empty_in_memory_with_config(db_config()),
+            is_ci: false,
+            is_short_session: true,
+            is_fresh: true,
+            skip_compaction: true,
+        }
+    }
+
+    pub fn is_empty(&self) -> bool {
         self.db.is_empty()
     }
 
-    type ValueBuffer<'l>
-        = ArcBytes
-    where
-        Self: 'l;
-
-    fn get(&self, key_space: KeySpace, key: &[u8]) -> Result<Option<Self::ValueBuffer<'_>>> {
+    pub fn get(&self, key_space: KeySpace, key: &[u8]) -> Result<Option<ArcBytes>> {
         self.db.get(key_space as usize, &key)
     }
 
-    fn batch_get(
-        &self,
-        key_space: KeySpace,
-        keys: &[&[u8]],
-    ) -> Result<Vec<Option<Self::ValueBuffer<'_>>>> {
+    pub fn batch_get(&self, key_space: KeySpace, keys: &[&[u8]]) -> Result<Vec<Option<ArcBytes>>> {
         self.db.batch_get(key_space as usize, keys)
     }
 
-    fn get_multiple(
-        &self,
-        key_space: KeySpace,
-        key: &[u8],
-    ) -> Result<SmallVec<[Self::ValueBuffer<'_>; 1]>> {
+    /// Looks up a key and returns all matching values.
+    ///
+    /// Useful for keyspaces where keys are hashes and collisions are possible (e.g., TaskCache).
+    pub fn get_multiple(&self, key_space: KeySpace, key: &[u8]) -> Result<SmallVec<[ArcBytes; 1]>> {
         self.db.get_multiple(key_space as usize, &key)
     }
 
-    type ConcurrentWriteBatch<'l>
-        = TurboWriteBatch<'l>
-    where
-        Self: 'l;
-
-    fn write_batch(&self) -> Result<Self::ConcurrentWriteBatch<'_>> {
+    pub fn write_batch(&self) -> Result<TurboWriteBatch<'_>> {
         Ok(TurboWriteBatch {
             batch: self.db.write_batch()?,
             db: &self.db,
         })
     }
 
-    fn prevent_writes(&self) {}
+    /// Called when the database has been invalidated via
+    /// [`crate::kv_backing_storage::TurboBackingStorage::invalidate`].
+    ///
+    /// This typically means that we'll restart the process or `turbo-tasks` soon with a fresh
+    /// database. If this happens, there's no point in writing anything else to disk, or flushing
+    /// during [`TurboKeyValueDatabase::shutdown`].
+    pub fn prevent_writes(&self) {}
 
-    fn compact(&self) -> Result<bool> {
+    /// Triggers compaction of the database.
+    ///
+    /// Returns `Ok(Some(stats))` with the bytes written/deleted if compaction actually merged
+    /// files, `Ok(None)` if there was nothing to compact.
+    pub fn compact(&self) -> Result<Option<CommitStats>> {
         if self.is_short_session || self.db.is_empty() {
-            return Ok(false);
+            return Ok(None);
         }
         do_compact(
             &self.db,
@@ -137,11 +139,13 @@ impl KeyValueDatabase for TurboKeyValueDatabase {
         )
     }
 
-    fn has_unrecoverable_write_error(&self) -> bool {
+    /// Returns true if the database is in an unrecoverable error state where a previous write or
+    /// compaction failed and the rollback also failed, permanently disabling further writes.
+    pub fn has_unrecoverable_write_error(&self) -> bool {
         self.db.has_unrecoverable_write_error()
     }
 
-    fn shutdown(&self) -> Result<()> {
+    pub fn shutdown(&self) -> Result<()> {
         // Compact the database on shutdown
         // (Avoid compacting a fresh database since we don't have any usage info yet)
         if !self.is_fresh && !self.skip_compaction {
@@ -166,16 +170,16 @@ fn do_compact(
     db: &TurboPersistence<TurboTasksParallelScheduler, FAMILIES>,
     message: &'static str,
     max_merge_segment_count: usize,
-) -> Result<bool> {
+) -> Result<Option<CommitStats>> {
     let start = Instant::now();
     // SystemTime for wall-clock timestamps in trace events (Instant has no
     // defined epoch so it can't be used for cross-process trace correlation).
     let wall_start = SystemTime::now();
-    let ran = db.compact(&CompactConfig {
+    let stats = db.compact(&CompactConfig {
         max_merge_segment_count,
         ..COMPACT_CONFIG
     })?;
-    if ran {
+    if let Some(stats) = stats {
         let elapsed = start.elapsed();
         // avoid spamming the event queue with information about fast operations
         if elapsed > Duration::from_secs(10) {
@@ -192,10 +196,13 @@ fn do_compact(
             "turbopack-compaction",
             wall_start_ms,
             wall_end_ms,
-            vec![],
+            serde_json::json!([
+                ["bytes_written", stats.bytes_written],
+                ["bytes_deleted", stats.bytes_deleted],
+            ]),
         )));
     }
-    Ok(ran)
+    Ok(stats)
 }
 
 pub struct TurboWriteBatch<'a> {
@@ -205,38 +212,34 @@ pub struct TurboWriteBatch<'a> {
         TurboTasksParallelScheduler,
         FAMILIES,
     >,
-    db: &'a Arc<TurboPersistence<TurboTasksParallelScheduler, FAMILIES>>,
+    db: &'a TurboPersistence<TurboTasksParallelScheduler, FAMILIES>,
 }
 
-impl<'a> ConcurrentWriteBatch<'a> for TurboWriteBatch<'a> {
-    type ValueBuffer<'l>
-        = ArcBytes
-    where
-        Self: 'l,
-        'a: 'l;
-
-    fn get<'l>(&'l self, key_space: KeySpace, key: &[u8]) -> Result<Option<Self::ValueBuffer<'l>>>
-    where
-        'a: 'l,
-    {
+impl<'a> TurboWriteBatch<'a> {
+    pub fn get(&self, key_space: KeySpace, key: &[u8]) -> Result<Option<ArcBytes>> {
         self.db.get(key_space as usize, &key)
     }
 
-    fn commit(self) -> Result<()> {
-        self.db.commit_write_batch(self.batch)?;
-        Ok(())
+    pub fn commit(self) -> Result<CommitStats> {
+        self.db.commit_write_batch(self.batch)
     }
 
-    fn put(&self, key_space: KeySpace, key: WriteBuffer<'_>, value: WriteBuffer<'_>) -> Result<()> {
+    pub fn put(
+        &self,
+        key_space: KeySpace,
+        key: WriteBuffer<'_>,
+        value: WriteBuffer<'_>,
+    ) -> Result<()> {
         self.batch
             .put(key_space as u32, key.into_static(), value.into())
     }
 
-    fn delete(&self, key_space: KeySpace, key: WriteBuffer<'_>) -> Result<()> {
-        self.batch.delete(key_space as u32, key.into_static())
-    }
-
-    unsafe fn flush(&self, key_space: KeySpace) -> Result<()> {
+    /// Flushes a key space of the write batch, reducing the amount of buffered memory used.
+    /// Does not commit any data persistently.
+    ///
+    /// Safety: Caller must ensure that no concurrent put operation is happening on the flushed
+    /// key space.
+    pub unsafe fn flush(&self, key_space: KeySpace) -> Result<()> {
         unsafe { self.batch.flush(key_space as u32) }
     }
 }

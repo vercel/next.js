@@ -5,8 +5,7 @@ use swc_core::{
     quote,
 };
 use turbo_tasks::{
-    NonLocalValue, ResolvedVc, TaskInput, ValueToString, Vc, debug::ValueDebugFormat,
-    trace::TraceRawVcs,
+    NonLocalValue, ResolvedVc, ValueToString, Vc, debug::ValueDebugFormat, trace::TraceRawVcs,
 };
 use turbopack_core::{
     chunk::{ChunkingContext, ChunkingType, ModuleChunkItemIdExt},
@@ -33,9 +32,8 @@ use crate::{
 /// Determines how to treat `new URL(...)` rewrites.
 /// This allows to construct url depends on the different building context,
 /// e.g. SSR, CSR, or Node.js.
-#[derive(
-    Copy, Clone, Debug, Eq, PartialEq, Hash, TraceRawVcs, TaskInput, NonLocalValue, Encode, Decode,
-)]
+#[turbo_tasks::task_input]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash, TraceRawVcs, Encode, Decode)]
 pub enum UrlRewriteBehavior {
     /// Omits base, resulting in a relative URL.
     Relative,

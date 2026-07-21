@@ -47,7 +47,7 @@ describe('instant validation - level manual-error', () => {
 
   // Validation level is 'experimental-manual-error'. Implicit validation
   // does NOT fire on bare pages — only segments that explicitly opt in via
-  // `unstable_instant` are validated. When they are validated, the level is
+  // `instant` are validated. When they are validated, the level is
   // error (applies in dev AND build), unless de-escalated by a per-segment
   // `level: 'warning'` override.
   //
@@ -70,16 +70,16 @@ describe('instant validation - level manual-error', () => {
            "cause": [
              {
                "label": "Caused by: Instant Validation",
-               "source": "app/explicit-error/page.tsx (8:33) @ unstable_instant
-         >  8 | export const unstable_instant = { level: 'experimental-error' as const }
-              |                                 ^",
+               "source": "app/explicit-error/page.tsx (8:24) @ instant
+         >  8 | export const instant = { level: 'experimental-error' as const }
+              |                        ^",
                "stack": [
-                 "unstable_instant app/explicit-error/page.tsx (8:33)",
+                 "instant app/explicit-error/page.tsx (8:24)",
                  "Set.forEach <anonymous>",
                ],
              },
            ],
-           "code": "E1264",
+           "code": "E1437",
            "description": "Next.js encountered uncached data during a navigation.",
            "environmentLabel": "Server",
            "label": "Instant",
@@ -100,16 +100,16 @@ describe('instant validation - level manual-error', () => {
            "cause": [
              {
                "label": "Caused by: Instant Validation",
-               "source": "app/explicit-true/page.tsx (9:33) @ unstable_instant
-         >  9 | export const unstable_instant = true
-              |                                 ^",
+               "source": "app/explicit-true/page.tsx (9:24) @ instant
+         >  9 | export const instant = true
+              |                        ^",
                "stack": [
-                 "unstable_instant app/explicit-true/page.tsx (9:33)",
+                 "instant app/explicit-true/page.tsx (9:24)",
                  "Set.forEach <anonymous>",
                ],
              },
            ],
-           "code": "E1264",
+           "code": "E1437",
            "description": "Next.js encountered uncached data during a navigation.",
            "environmentLabel": "Server",
            "label": "Instant",
@@ -130,16 +130,16 @@ describe('instant validation - level manual-error', () => {
            "cause": [
              {
                "label": "Caused by: Instant Validation",
-               "source": "app/explicit-warning/page.tsx (8:33) @ unstable_instant
-         >  8 | export const unstable_instant = { level: 'warning' as const }
-              |                                 ^",
+               "source": "app/explicit-warning/page.tsx (8:24) @ instant
+         >  8 | export const instant = { level: 'warning' as const }
+              |                        ^",
                "stack": [
-                 "unstable_instant app/explicit-warning/page.tsx (8:33)",
+                 "instant app/explicit-warning/page.tsx (8:24)",
                  "Set.forEach <anonymous>",
                ],
              },
            ],
-           "code": "E1264",
+           "code": "E1437",
            "description": "Next.js encountered uncached data during a navigation.",
            "environmentLabel": "Server",
            "label": "Instant",
@@ -160,7 +160,7 @@ describe('instant validation - level manual-error', () => {
       })
 
       it('layered: bare page under layout-with-instant-false has no errors', async () => {
-        // The intermediate layout exports `unstable_instant = false`, but
+        // The intermediate layout exports `instant = false`, but
         // that only opts the layout out — it doesn't pull descendants into
         // validation. Under manual-error, the bare descendant has no
         // explicit opt-in, so no implicit validation runs.
@@ -185,11 +185,11 @@ describe('instant validation - level manual-error', () => {
          \`fetch(...)\` or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
 
          Ways to fix this:
-           - Cache the data access with \`"use cache"\`
-           - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-           - Set \`export const instant = false\` to allow a blocking route
+           - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+           - [cache] Cache the data access with \`"use cache"\` (does not apply to \`connection()\`)
+           - [block] Set \`export const instant = false\` to allow a blocking route
 
-         Learn more: https://nextjs.org/docs/messages/blocking-route
+         Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic
              at a (<anonymous>)
              at body (<anonymous>)
              at html (<anonymous>)
@@ -211,11 +211,11 @@ describe('instant validation - level manual-error', () => {
          \`fetch(...)\` or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
 
          Ways to fix this:
-           - Cache the data access with \`"use cache"\`
-           - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-           - Set \`export const instant = false\` to allow a blocking route
+           - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+           - [cache] Cache the data access with \`"use cache"\` (does not apply to \`connection()\`)
+           - [block] Set \`export const instant = false\` to allow a blocking route
 
-         Learn more: https://nextjs.org/docs/messages/blocking-route
+         Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic
              at a (<anonymous>)
              at body (<anonymous>)
              at html (<anonymous>)
@@ -240,7 +240,7 @@ describe('instant validation - level manual-error', () => {
 
       it('layered: bare page under layout-with-instant-false skips build validation', async () => {
         // Under manual-error, the bare descendant has no explicit
-        // `unstable_instant` opt-in, so no implicit validation runs.
+        // `instant` opt-in, so no implicit validation runs.
         const result = await prerender('/layered')
         expectBuildValidationSkipped(result)
       })

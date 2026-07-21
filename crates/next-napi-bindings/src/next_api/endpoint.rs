@@ -6,6 +6,7 @@ use napi::{JsFunction, bindgen_prelude::External};
 use napi_derive::napi;
 use next_api::{
     operation::OptionEndpoint,
+    output_mode::mark_as_ssr,
     paths::AssetPath,
     route::{
         Endpoint, EndpointOutputPaths, endpoint_client_changed_operation,
@@ -14,7 +15,9 @@ use next_api::{
 };
 use tracing::Instrument;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{Completion, Effects, OperationVc, ReadRef, Vc};
+use turbo_tasks::{
+    Completion, Effects, OperationVc, ReadRef, Vc, read_strongly_consistent_and_apply_effects,
+};
 use turbopack_core::issue::{IssueFilter, PlainIssue};
 
 use crate::next_api::utils::{
@@ -107,16 +110,16 @@ impl Deref for ExternalEndpoint {
 /// `node_modules` reshuffle), this falls back to a default filter rather than
 /// propagating the error.  In this scenario we believe the caller will already be observing the
 /// same error
-async fn issue_filter_from_endpoint(endpoint_op: OperationVc<OptionEndpoint>) -> Vc<IssueFilter> {
-    match endpoint_op.connect().await {
-        Ok(endpoint_option) => {
-            if let Some(ep) = &*endpoint_option {
-                ep.project().issue_filter()
-            } else {
-                IssueFilter::warnings_and_foreign_errors().cell()
-            }
-        }
-        Err(_) => IssueFilter::warnings_and_foreign_errors().cell(),
+async fn issue_filter_from_endpoint(
+    endpoint_op: OperationVc<OptionEndpoint>,
+) -> ReadRef<IssueFilter> {
+    if let Ok(ep_option) = endpoint_op.connect().await
+        && let Some(ep) = &*ep_option
+        && let Ok(filter) = ep.project().issue_filter().await
+    {
+        filter
+    } else {
+        ReadRef::new_owned(IssueFilter::warnings_and_foreign_errors())
     }
 }
 
@@ -134,7 +137,7 @@ async fn get_written_endpoint_with_issues_operation(
     let write_to_disk_op = endpoint_write_to_disk_operation(endpoint_op);
     let filter = issue_filter_from_endpoint(endpoint_op).await;
     let (written, issues, effects) =
-        strongly_consistent_catch_collectables(write_to_disk_op, filter).await?;
+        strongly_consistent_catch_collectables(write_to_disk_op, &filter).await?;
     Ok(WrittenEndpointWithIssues {
         written,
         issues,
@@ -147,6 +150,8 @@ async fn get_written_endpoint_with_issues_operation(
 #[napi]
 pub async fn endpoint_write_to_disk(
     #[napi(ts_arg_type = "{ __napiType: \"Endpoint\" }")] endpoint: External<ExternalEndpoint>,
+    // Only passed for app page HTML endpoints
+    rsc_only: Option<bool>,
 ) -> napi::Result<TurbopackResult<NapiWrittenEndpoint>> {
     let ctx = endpoint.turbopack_ctx();
     let endpoint_op = ***endpoint;
@@ -154,16 +159,19 @@ pub async fn endpoint_write_to_disk(
         .turbopack_ctx()
         .turbo_tasks()
         .run(async move {
+            if rsc_only == Some(false) {
+                mark_as_ssr(endpoint_op).await?;
+            }
             let written_entrypoint_with_issues_op =
                 get_written_endpoint_with_issues_operation(endpoint_op);
+            let read = read_strongly_consistent_and_apply_effects(
+                written_entrypoint_with_issues_op,
+                |v| &v.effects,
+            )
+            .await?;
             let WrittenEndpointWithIssues {
-                written,
-                issues,
-                effects,
-            } = &*written_entrypoint_with_issues_op
-                .read_strongly_consistent()
-                .await?;
-            effects.apply().await?;
+                written, issues, ..
+            } = &*read;
 
             Ok((written.clone(), issues.clone()))
         })
@@ -190,8 +198,9 @@ pub fn endpoint_server_changed_subscribe(
         move || {
             async move {
                 let issues_and_diags_op = subscribe_issues_and_diags_operation(endpoint, issues);
-                let result = issues_and_diags_op.read_strongly_consistent().await?;
-                result.effects.apply().await?;
+                let result =
+                    read_strongly_consistent_and_apply_effects(issues_and_diags_op, |v| &v.effects)
+                        .await?;
                 Ok(result)
             }
             .instrument(tracing::info_span!("server changes subscription"))
@@ -244,7 +253,7 @@ async fn subscribe_issues_and_diags_operation(
     // payload, but we still need the catch path to avoid the FATAL.
     let filter = issue_filter_from_endpoint(endpoint_op).await;
     let (changed_value, issues, effects) =
-        strongly_consistent_catch_collectables(changed_op, filter).await?;
+        strongly_consistent_catch_collectables(changed_op, &filter).await?;
     Ok(EndpointIssuesAndDiags {
         changed: changed_value,
         issues: if should_include_issues {

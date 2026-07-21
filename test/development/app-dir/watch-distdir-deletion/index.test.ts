@@ -18,10 +18,19 @@ describe('app-dir watch-distdir-deletion', () => {
     const warmupRes = await next.fetch('/')
     expect(warmupRes.status).toBe(200)
 
-    // Delete .next (which also removes .next/dev, the watched distDir)
+    // Delete .next (which also removes .next/dev, the watched distDir). The dev
+    // server may still be flushing manifests into .next/dev from the warmup
+    // compilation, and those writes race the recursive delete: fs.rm unlinks
+    // the directory's contents and then rmdir's it, but a file written
+    // concurrently makes the rmdir throw ENOTEMPTY. maxRetries makes this
+    // single delete resilient to that brief window by re-attempting the failed
+    // rmdir until the flush settles. force ignores entries an earlier attempt
+    // already removed.
     await fs.promises.rm(path.join(next.testDir, '.next'), {
       recursive: true,
       force: true,
+      maxRetries: 10,
+      retryDelay: 200,
     })
 
     // Wait for restart message and server to come back up

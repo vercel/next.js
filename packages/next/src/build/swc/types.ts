@@ -12,11 +12,14 @@ import type {
   TraceServerHandle,
   TraceQueryOptions,
   TraceQueryResult,
+  MemoryEvictionMode,
 } from './generated-native'
 
 export type { TraceServerHandle, TraceQueryOptions, TraceQueryResult }
 
 export type { NapiTurboEngineOptions as TurboEngineOptions }
+
+export type { MemoryEvictionMode }
 
 export type Lockfile = { __napiType: 'Lockfile' }
 
@@ -29,7 +32,7 @@ export interface Binding {
   turbo: {
     createProject(
       options: ProjectOptions,
-      turboEngineOptions?: NapiTurboEngineOptions,
+      turboEngineOptions: NapiTurboEngineOptions,
       callbacks?: TurbopackProjectCallbacks
     ): Promise<Project>
     startTurbopackTraceServerHandle(
@@ -365,7 +368,7 @@ export type Route =
       pages: {
         originalName: string
         htmlEndpoint: Endpoint
-        rscEndpoint: Endpoint
+        rscHmrEndpoint: Endpoint
       }[]
     }
   | {
@@ -384,8 +387,14 @@ export type Route =
     }
 
 export interface Endpoint {
-  /** Write files for the endpoint to disk. */
-  writeToDisk(): Promise<TurbopackResult<WrittenEndpoint>>
+  /**
+   * Write files for the endpoint to disk.
+   *
+   * `rscOnly` must only be passed for app page HTML endpoints. When true,
+   * the page is compiled without its Client Component SSR chunks unless it
+   * has previously been written for a document render.
+   */
+  writeToDisk(rscOnly?: boolean): Promise<TurbopackResult<WrittenEndpoint>>
 
   /**
    * Listen to client-side changes to the endpoint.
@@ -511,7 +520,7 @@ export type AppRoute =
   | {
       type: 'app-page'
       htmlEndpoint: Endpoint
-      rscEndpoint: Endpoint
+      rscHmrEndpoint: Endpoint
     }
   | {
       type: 'app-route'

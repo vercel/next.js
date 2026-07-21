@@ -529,7 +529,13 @@ export default nextConfig
 
 ### Handling a Custom `Service Worker`
 
-If you used CRA’s service worker (e.g., `serviceWorker.js` from `create-react-app`), you can learn how to create [Progressive Web Applications (PWAs)](/docs/app/guides/progressive-web-apps) with Next.js.
+If you used CRA’s service worker (e.g., `serviceWorker.js` from `create-react-app`), you can register this service worker using the following syntax:
+
+```ts
+await navigator.serviceWorker.register(new URL('../serviceWorker.js', import.meta.url), ...)
+```
+
+Learn more about how to create [Progressive Web Applications (PWAs)](/docs/app/guides/progressive-web-apps) with Next.js.
 
 ### Proxying API Requests
 

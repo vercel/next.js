@@ -95,7 +95,6 @@ import { setHttpClientAndAgentOptions } from './setup-http-agent-env'
 
 import { isPagesAPIRouteMatch } from './route-matches/pages-api-route-match'
 import type { PagesAPIRouteMatch } from './route-matches/pages-api-route-match'
-import type { MatchOptions } from './route-matcher-managers/route-matcher-manager'
 import { BubbledError, getTracer } from './lib/trace/tracer'
 import { NextNodeServerSpan } from './lib/trace/constants'
 import { nodeFs } from './lib/node-fs-methods'
@@ -222,8 +221,13 @@ export default class NextNodeServer extends BaseServer<
     if (this.renderOpts.nextScriptWorkers) {
       process.env.__NEXT_SCRIPT_WORKERS = JSON.stringify(true)
     }
-    if (this.nextConfig.experimental.useNodeStreams) {
-      process.env.__NEXT_USE_NODE_STREAMS = 'true'
+    if (
+      (isDev || process.env.__NEXT_DEV_SERVER) &&
+      this.nextConfig.experimental.requestInsights
+    ) {
+      process.env.__NEXT_REQUEST_INSIGHTS = 'true'
+    } else {
+      delete process.env.__NEXT_REQUEST_INSIGHTS
     }
 
     if (!this.minimalMode) {
@@ -586,6 +590,7 @@ export default class NextNodeServer extends BaseServer<
         res: ServerResponse,
         ctx: {
           waitUntil: ReturnType<BaseServer['getWaitUntil']>
+          requestMeta?: RequestMeta
         }
       ) => Promise<void>
     }
@@ -597,6 +602,11 @@ export default class NextNodeServer extends BaseServer<
     addRequestMeta(req.originalRequest, 'distDir', this.distDir)
     await module.handler(req.originalRequest, res.originalResponse, {
       waitUntil: this.getWaitUntil(),
+      requestMeta: {
+        ...getRequestMeta(req.originalRequest),
+        query,
+        params: match.params,
+      },
     })
     return true
   }
@@ -645,8 +655,7 @@ export default class NextNodeServer extends BaseServer<
           {
             buildId: this.buildId,
             deploymentId: this.deploymentId,
-            clientAssetToken: this.nextConfig.experimental
-              .supportsImmutableAssets
+            clientAssetToken: this.nextConfig.supportsImmutableAssets
               ? ''
               : this.deploymentId,
           }
@@ -664,8 +673,7 @@ export default class NextNodeServer extends BaseServer<
           {
             buildId: this.buildId,
             deploymentId: this.deploymentId,
-            clientAssetToken: this.nextConfig.experimental
-              .supportsImmutableAssets
+            clientAssetToken: this.nextConfig.supportsImmutableAssets
               ? undefined
               : this.deploymentId,
             customServer: this.serverOptions.customServer || undefined,
@@ -1105,9 +1113,7 @@ export default class NextNodeServer extends BaseServer<
       // next.js core assumes page path without trailing slash
       pathname = removeTrailingSlash(pathname)
 
-      const options: MatchOptions = {
-        i18n: this.i18nProvider?.fromRequest(req, pathname),
-      }
+      const options = super.matchOptions(req, pathname)
       const match = await this.matchers.match(pathname, options)
 
       // If we don't have a match, try to render it anyways.
@@ -1727,19 +1733,25 @@ export default class NextNodeServer extends BaseServer<
         Boolean(requestData.body)
 
       try {
-        result = await adapterFn({
-          handler:
-            middlewareModule.proxy ||
-            middlewareModule.middleware ||
-            middlewareModule,
-          request: {
-            ...requestData,
-            body: hasRequestBody
-              ? requestData.body.cloneBodyStream()
-              : undefined,
-          },
-          page: 'middleware',
-        })
+        // Node.js middleware runs in-process, inside the active
+        // `handleRequest` span. Detach that span so the middleware span
+        // becomes a sibling root (or parents to an incoming traceparent),
+        // matching edge middleware which runs in a detached sandbox.
+        result = await getTracer().runWithDetachedContext(() =>
+          adapterFn({
+            handler:
+              middlewareModule.proxy ||
+              middlewareModule.middleware ||
+              middlewareModule,
+            request: {
+              ...requestData,
+              body: hasRequestBody
+                ? requestData.body.cloneBodyStream()
+                : undefined,
+            },
+            page: 'middleware',
+          })
+        )
       } finally {
         if (hasRequestBody) {
           await requestData.body.finalize()
@@ -1756,7 +1768,7 @@ export default class NextNodeServer extends BaseServer<
         request: requestData,
         useCache: true,
         onWarning: params.onWarning,
-        clientAssetToken: this.nextConfig.experimental.supportsImmutableAssets
+        clientAssetToken: this.nextConfig.supportsImmutableAssets
           ? ''
           : this.deploymentId,
       })
@@ -2078,7 +2090,7 @@ export default class NextNodeServer extends BaseServer<
         params.req,
         'serverComponentsHmrCache'
       ),
-      clientAssetToken: this.nextConfig.experimental.supportsImmutableAssets
+      clientAssetToken: this.nextConfig.supportsImmutableAssets
         ? ''
         : this.deploymentId,
     })

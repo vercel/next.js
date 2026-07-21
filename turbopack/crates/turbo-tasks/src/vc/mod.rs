@@ -3,6 +3,7 @@ mod cell_mode;
 pub(crate) mod default;
 mod local;
 pub(crate) mod operation;
+mod ord;
 mod raw;
 mod read;
 pub(crate) mod resolved;
@@ -11,7 +12,7 @@ mod traits;
 use std::{
     any::Any,
     fmt::Debug,
-    future::{Future, IntoFuture},
+    future::Future,
     hash::{Hash, Hasher},
     marker::PhantomData,
     ops::Deref,
@@ -24,7 +25,9 @@ use bincode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 use shrink_to_fit::ShrinkToFit;
 
-pub use self::{
+#[cfg(debug_assertions)]
+use crate::debug::{ValueDebug, ValueDebugFormat, ValueDebugFormatString};
+pub use crate::vc::{
     cast::{VcCast, VcValueTraitCast, VcValueTypeCast},
     cell_mode::{
         VcCellCompareMode, VcCellHashedCompareMode, VcCellKeyedCompareMode, VcCellMode,
@@ -33,13 +36,12 @@ pub use self::{
     default::ValueDefault,
     local::NonLocalValue,
     operation::{OperationValue, OperationVc, ResolveOperationVcFuture},
-    raw::{CellId, RawVc, ReadRawVcFuture, ResolveRawVcFuture},
+    ord::OrdResolvedVc,
+    raw::{CellId, RawVc, RawVcUnpacked, ReadRawVcFuture, ResolveRawVcFuture},
     read::{ReadOwnedVcFuture, ReadVcFuture, VcDefaultRead, VcRead, VcTransparentRead},
     resolved::ResolvedVc,
     traits::{Dynamic, Upcast, UpcastStrict, VcValueTrait, VcValueType},
 };
-#[cfg(debug_assertions)]
-use crate::debug::{ValueDebug, ValueDebugFormat, ValueDebugFormatString};
 use crate::{
     keyed::{KeyedAccess, KeyedEq},
     registry,
@@ -355,9 +357,12 @@ where
     pub async fn debug_identifier(vc: Self) -> Result<String> {
         let resolved = vc.to_resolved().await?;
         let raw_vc: RawVc = resolved.node.node;
-        if let RawVc::TaskCell(task_id, CellId { type_id, index }) = raw_vc {
-            let value_ty = registry::get_value_type(type_id);
-            Ok(format!("{}#{}: {}", value_ty.ty.name, index, task_id))
+        if let Some((task_id, cell_id)) = raw_vc.as_task_cell() {
+            let value_name = registry::get_value_type(cell_id.type_id()).ty.name;
+            Ok(format!(
+                "{value_name}#{index}: {task_id}",
+                index = cell_id.index(),
+            ))
         } else {
             unreachable!()
         }
@@ -387,7 +392,7 @@ where
     /// usecases.
     ///
     /// # Example
-    /// ```rust
+    /// ```ignore
     /// // In generic code where T might be the same as K
     /// fn process_foo(vc: ResolvedVc<impl Upcast<Box<dyn MyTrait>>>) -> Vc<Foo> {
     ///    let my_trait: ResolvedVc<Box<dyn MyTrait>> = Vc::upcast_non_strict(vc);
@@ -453,7 +458,7 @@ where
     /// local or non-local cells, so this function is mostly useful inside tests and internally in
     /// turbo-tasks.
     pub fn is_local(self) -> bool {
-        self.node.is_local()
+        self.node.is_local_output()
     }
 }
 
@@ -493,23 +498,25 @@ where
 }
 
 macro_rules! into_future {
-    ($ty:ty) => {
-        impl<T> IntoFuture for $ty
+    ($ty:ty, |$this:ident| $into_future:expr $(,)?) => {
+        impl<T> ::std::future::IntoFuture for $ty
         where
-            T: VcValueType,
+            T: $crate::VcValueType,
         {
-            type Output = <ReadVcFuture<T> as Future>::Output;
-            type IntoFuture = ReadVcFuture<T>;
+            type Output = <$crate::ReadVcFuture<T> as ::std::future::Future>::Output;
+            type IntoFuture = $crate::ReadVcFuture<T>;
             fn into_future(self) -> Self::IntoFuture {
-                self.node.into_read().into()
+                let $this = self;
+                $into_future
             }
         }
     };
 }
+pub(crate) use into_future;
 
-into_future!(Vc<T>);
-into_future!(&Vc<T>);
-into_future!(&mut Vc<T>);
+into_future!(Vc<T>, |this| this.node.into_read().into());
+into_future!(&Vc<T>, |this| this.node.into_read().into());
+into_future!(&mut Vc<T>, |this| this.node.into_read().into());
 
 impl<T> Vc<T>
 where

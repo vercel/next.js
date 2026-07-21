@@ -11,7 +11,10 @@ use rustc_hash::FxHashSet;
 use serde::Deserialize;
 use serde_json::json;
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{Effects, OperationVc, ResolvedVc, TurboTasks, Vc, take_effects, turbofmt};
+use turbo_tasks::{
+    Effects, OperationVc, ResolvedVc, TurboTasks, Vc, read_strongly_consistent_and_apply_effects,
+    take_effects, turbofmt,
+};
 use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
 use turbo_tasks_env::DotenvProcessEnv;
 use turbo_tasks_fs::{
@@ -45,16 +48,16 @@ use turbopack_core::{
     issue::{CollectibleIssuesExt, IssueFilter, IssueSeverity},
     module::Module,
     module_graph::{
-        ModuleGraph, SingleModuleGraph,
+        GraphEntries, ModuleGraph, SingleModuleGraph,
         binding_usage_info::compute_binding_usage_info,
-        chunk_group_info::{ChunkGroup, ChunkGroupEntry},
+        chunk_group_info::{ChunkGroup, ChunkGroupEntry, EntryHeuristics},
     },
     output::{OutputAsset, OutputAssets, OutputAssetsReference, OutputAssetsWithReferenced},
     reference_type::{EntryReferenceSubType, ReferenceType, ReferenceTypeCondition},
 };
 use turbopack_ecmascript::{
-    AnalyzeMode, CustomTransformer, EcmascriptInputTransform, TransformPlugin, TreeShakingMode,
-    chunk::EcmascriptChunkType,
+    AnalyzeMode, CustomTransformer, EcmascriptInputTransform, TransformPlugin,
+    chunk::EcmascriptChunkType, transform::ReactCompilerCompilationMode,
 };
 use turbopack_ecmascript_plugins::transform::{
     emotion::{EmotionTransformConfig, EmotionTransformer},
@@ -84,21 +87,31 @@ struct SnapshotOptions {
     #[serde(default)]
     environment: SnapshotEnvironment,
     #[serde(default)]
-    tree_shaking_mode: Option<TreeShakingMode>,
+    follow_reexports: bool,
+    #[serde(default)]
+    module_fragments_enabled: bool,
     #[serde(default)]
     remove_unused_imports: bool,
     #[serde(default)]
     remove_unused_exports: bool,
     #[serde(default)]
+    cjs_tree_shaking: bool,
+    #[serde(default)]
     scope_hoisting: bool,
     #[serde(default)]
+    shared_runtime: bool,
+    #[serde(default)]
     production_chunking: bool,
+    #[serde(default)]
+    single_chunk: bool,
     #[serde(default)]
     enable_debug_ids: bool,
     #[serde(default)]
     source_map_source_type: SourceMapSourceType,
     #[serde(default = "default_chunk_loading_global")]
     chunk_loading_global: String,
+    #[serde(default)]
+    enable_rust_react_compiler: bool,
 }
 
 #[derive(Debug, Deserialize, Default)]
@@ -124,14 +137,19 @@ impl Default for SnapshotOptions {
             runtime: Default::default(),
             runtime_type: default_runtime_type(),
             environment: Default::default(),
-            tree_shaking_mode: None,
+            follow_reexports: false,
+            module_fragments_enabled: false,
             remove_unused_imports: false,
             remove_unused_exports: false,
+            cjs_tree_shaking: false,
             scope_hoisting: false,
+            shared_runtime: false,
             production_chunking: false,
+            single_chunk: false,
             enable_debug_ids: false,
             source_map_source_type: SourceMapSourceType::default(),
             chunk_loading_global: default_chunk_loading_global(),
+            enable_rust_react_compiler: false,
         }
     }
 }
@@ -234,7 +252,7 @@ async fn run(resource: PathBuf) -> Result<()> {
 
             let plain_issues = out_op
                 .peek_issues()
-                .get_plain_issues(IssueFilter::everything())
+                .get_plain_issues(&IssueFilter::everything())
                 .await?;
 
             snapshot_issues(plain_issues, out_vc.join("issues")?, &REPO_ROOT)
@@ -249,11 +267,11 @@ async fn run(resource: PathBuf) -> Result<()> {
             Ok(take_effects(op).await?.cell())
         }
 
-        extract_effects(inner_operation(resource.to_str().unwrap().into()))
-            .read_strongly_consistent()
-            .await?
-            .apply()
-            .await?;
+        read_strongly_consistent_and_apply_effects(
+            extract_effects(inner_operation(resource.to_str().unwrap().into())),
+            |e| e,
+        )
+        .await?;
 
         Ok(())
     })
@@ -398,7 +416,11 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
                 })),
                 ignore_dynamic_requests: true,
                 infer_module_side_effects: true,
+                cjs_tree_shaking: options.cjs_tree_shaking,
                 enable_exports_info_inlining: true,
+                enable_rust_react_compiler: options
+                    .enable_rust_react_compiler
+                    .then_some(ReactCompilerCompilationMode::Infer),
                 ..Default::default()
             },
             environment: Some(env),
@@ -406,14 +428,16 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
                 ContextCondition::InNodeModules,
                 ModuleOptionsContext {
                     environment: Some(env),
-                    tree_shaking_mode: options.tree_shaking_mode,
+                    follow_reexports: options.follow_reexports,
+                    module_fragments_enabled: options.module_fragments_enabled,
                     analyze_mode: AnalyzeMode::CodeGenerationAndTracing,
                     ..Default::default()
                 }
                 .resolved_cell(),
             )],
             module_rules: vec![module_rules],
-            tree_shaking_mode: options.tree_shaking_mode,
+            follow_reexports: options.follow_reexports,
+            module_fragments_enabled: options.module_fragments_enabled,
             analyze_mode: AnalyzeMode::CodeGenerationAndTracing,
             ..Default::default()
         }
@@ -456,7 +480,11 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
             .collect();
 
     let single_graph = SingleModuleGraph::new_with_entries(
-        ResolvedVc::cell(vec![ChunkGroupEntry::Entry(entry_modules.clone())]),
+        GraphEntries::from_chunk_groups(vec![ChunkGroupEntry::Entry {
+            modules: entry_modules.clone(),
+            heuristics: EntryHeuristics::default(),
+        }])
+        .resolved_cell(),
         false,
         true,
     );
@@ -499,6 +527,7 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
             )
             .minify_type(options.minify_type)
             .module_merging(options.scope_hoisting)
+            .shared_runtime(options.shared_runtime)
             .export_usage(if options.remove_unused_exports {
                 Some(binding_usage.unwrap().connect().to_resolved().await?)
             } else {
@@ -507,6 +536,10 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
             .debug_ids(options.enable_debug_ids)
             .source_map_source_type(options.source_map_source_type)
             .chunk_loading_global(options.chunk_loading_global.into());
+
+            if options.single_chunk {
+                builder = builder.single_chunk().await?;
+            }
 
             if options.remove_unused_imports {
                 builder = builder.unused_references(
@@ -585,6 +618,27 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
 
     // TODO: Load runtime entries from snapshots
     let chunks = match options.runtime {
+        Runtime::Browser if options.single_chunk => OutputAssetsWithReferenced {
+            assets: ResolvedVc::cell(vec![
+                chunking_context
+                    .entry_chunk_group(
+                        // `expected` expects a completely flat output directory.
+                        chunk_root_path
+                            .join(entry_module.ident().await?.path.file_stem().unwrap())?
+                            .with_extension("entry.js"),
+                        ChunkGroup::Entry(entry_modules),
+                        module_graph,
+                        OutputAssets::empty(),
+                        OutputAssets::empty(),
+                        AvailabilityInfo::root(),
+                    )
+                    .await?
+                    .asset,
+            ]),
+            referenced_assets: ResolvedVc::cell(vec![]),
+            references: ResolvedVc::cell(vec![]),
+        }
+        .cell(),
         Runtime::Browser => chunking_context.evaluated_chunk_group_assets(
             entry_module.ident(),
             ChunkGroup::Entry(entry_modules.into_iter().collect()),

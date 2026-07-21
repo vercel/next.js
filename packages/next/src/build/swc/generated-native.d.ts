@@ -58,7 +58,7 @@ export interface NapiTaskMessage {
 export declare function recvTaskMessageInWorker(
   workerId: number
 ): Promise<NapiTaskMessage>
-export declare function sendTaskMessage(message: NapiTaskMessage): Promise<void>
+export declare function sendTaskMessage(message: NapiTaskMessage): void
 export interface NapiLocation {
   line: number
   column?: number
@@ -67,15 +67,20 @@ export interface NapiCodeFrameLocation {
   start: NapiLocation
   end?: NapiLocation
 }
+export const enum NapiCodeFrameColorMode {
+  Error = 0,
+  Warning = 1,
+  Info = 2,
+}
 export interface NapiCodeFrameOptions {
   /** Number of lines to show above the error (default: 2) */
   linesAbove?: number
   /** Number of lines to show below the error (default: 3) */
   linesBelow?: number
-  /** Maximum width of the output in columns (default: 100) */
+  /** Maximum width of the output in columns (default: 240) */
   maxWidth?: number
   /** Whether to use ANSI colors (default: false) */
-  color?: boolean
+  color?: NapiCodeFrameColorMode | boolean
   /**
    * Whether to highlight code syntax (default: follows color)
    *
@@ -163,9 +168,10 @@ export interface NapiWrittenEndpoint {
   serverPaths: Array<NapiAssetPath>
   config: NapiEndpointConfig
 }
-export declare function endpointWriteToDisk(endpoint: {
-  __napiType: 'Endpoint'
-}): Promise<TurbopackResult>
+export declare function endpointWriteToDisk(
+  endpoint: { __napiType: 'Endpoint' },
+  rscOnly?: boolean | undefined | null
+): Promise<TurbopackResult>
 export declare function endpointServerChangedSubscribe(
   endpoint: { __napiType: 'Endpoint' },
   issues: boolean,
@@ -309,8 +315,6 @@ export interface NapiDefineEnv {
   nodejs: Array<NapiOptionEnvVar>
 }
 export interface NapiTurboEngineOptions {
-  /** An upper bound of memory that turbopack will attempt to stay under. */
-  memoryLimit?: number
   /** Track dependencies between tasks. If false, any change during build will error. */
   dependencyTracking?: boolean
   /** Whether the project is running in a CI environment. */
@@ -319,6 +323,8 @@ export interface NapiTurboEngineOptions {
   isShortSession?: boolean
   /** Whether to skip database compaction during shutdown. */
   skipCompaction?: boolean
+  /** Turbopack memory eviction mode for the persistent cache. */
+  turbopackMemoryEviction: MemoryEvictionMode
 }
 export declare function projectNew(
   options: NapiProjectOptions,
@@ -359,7 +365,7 @@ export interface AppPageNapiRoute {
   /** The relative path from project_path to the route file */
   originalName?: RcStr
   htmlEndpoint?: ExternalObject<ExternalEndpoint>
-  rscEndpoint?: ExternalObject<ExternalEndpoint>
+  rscHmrEndpoint?: ExternalObject<ExternalEndpoint>
 }
 export interface NapiRoute {
   /** The router path */
@@ -371,7 +377,7 @@ export interface NapiRoute {
   pages?: Array<AppPageNapiRoute>
   endpoint?: ExternalObject<ExternalEndpoint>
   htmlEndpoint?: ExternalObject<ExternalEndpoint>
-  rscEndpoint?: ExternalObject<ExternalEndpoint>
+  rscHmrEndpoint?: ExternalObject<ExternalEndpoint>
   dataEndpoint?: ExternalObject<ExternalEndpoint>
 }
 export interface NapiMiddleware {
@@ -532,6 +538,28 @@ export interface NapiNextTurbopackCallbacksJsObject {
 export interface TurbopackInternalErrorOpts {
   message: string
   anonymizedLocation?: string
+}
+/**
+ * Turbopack's memory eviction strategy for the persistent cache, mirroring the
+ * `experimental.turbopackMemoryEviction` config option.
+ *
+ * This is a napi-facing mirror of [`EvictionMode`] (the backend crate can't
+ * depend on napi). Keep the variants in sync; the `From` impl below is
+ * exhaustive, so adding a variant to one enum forces updating the other.
+ */
+export const enum MemoryEvictionMode {
+  /** Never evict. */
+  Off = 'off',
+  /**
+   * Evict after a snapshot only once enough memory has been allocated since
+   * the last eviction to justify the cost of restoring evicted tasks.
+   */
+  Auto = 'auto',
+  /**
+   * After every snapshot, evict all evictable tasks from memory, reloading
+   * them from disk on demand.
+   */
+  Full = 'full',
 }
 export declare function rootTaskDispose(rootTask: {
   __napiType: 'RootTask'

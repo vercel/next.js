@@ -2,6 +2,7 @@
 
 import { spawn } from 'node:child_process'
 import { once } from 'node:events'
+import { existsSync } from 'node:fs'
 import { access, copyFile, mkdir, readFile, writeFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
 import { performance } from 'node:perf_hooks'
@@ -16,7 +17,7 @@ const MINIMAL_SERVER = resolve(
 )
 
 type Scenario = 'minimal-server' | 'e2e'
-type StreamMode = 'web' | 'node' | 'both'
+type StreamMode = 'node'
 
 type CliOptions = {
   scenario: Scenario
@@ -54,7 +55,7 @@ type BenchStats = {
 }
 
 type FullRoutePhaseResult = {
-  mode: 'web' | 'node'
+  mode: StreamMode
   route: string
   phase: 'single-client' | 'under-load'
   requests: number
@@ -65,7 +66,7 @@ type FullRoutePhaseResult = {
 }
 
 type FullRunResult = {
-  mode: 'web' | 'node'
+  mode: StreamMode
   routeResults: FullRoutePhaseResult[]
 }
 
@@ -91,6 +92,11 @@ function parseRoutes(rawRoutes: string | undefined): string[] {
   if (!rawRoutes) {
     return [
       '/',
+      '/attributes',
+      '/tailwind',
+      '/dashboard',
+      '/docs',
+      '/blog',
       '/streaming/light',
       '/streaming/medium',
       '/streaming/heavy',
@@ -130,9 +136,8 @@ Options:
 Benchmark options:
   --app-dir=<path>                              (default: bench/basic-app)
   --routes=/,/streaming/light,...               (default: built-in stress suite)
-  --stream-mode=web|node|both                   (default: both)
+  --stream-mode=node                            (default: node)
   --build=true|false                             (default: true)
-                                                 When stream-mode=both, build is forced to true.
   --warmup-requests=<number>                    (default: 50)
                                                  Batch size per warmup iteration.
   --warmup-until-stable=true|false              (default: true)
@@ -178,15 +183,9 @@ function parseCli(): CliOptions {
     )
   }
 
-  const streamModeRaw = args.get('stream-mode') ?? 'both'
-  if (
-    streamModeRaw !== 'web' &&
-    streamModeRaw !== 'node' &&
-    streamModeRaw !== 'both'
-  ) {
-    throw new Error(
-      `Invalid --stream-mode value: ${streamModeRaw}. Use web|node|both`
-    )
+  const streamModeRaw = args.get('stream-mode') ?? 'node'
+  if (streamModeRaw !== 'node') {
+    throw new Error(`Invalid --stream-mode value: ${streamModeRaw}. Use node`)
   }
 
   const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
@@ -197,13 +196,6 @@ function parseCli(): CliOptions {
 
   const routes = parseRoutes(args.get('routes'))
   const build = parseBoolean(args.get('build') ?? 'true')
-  const shouldForceBuild = streamModeRaw === 'both' && !build
-
-  if (shouldForceBuild) {
-    console.warn(
-      '[bench/render-pipeline] forcing --build=true for stream-mode=both to avoid comparing stale build output.'
-    )
-  }
 
   return {
     scenario: scenarioRaw,
@@ -212,7 +204,7 @@ function parseCli(): CliOptions {
     appDir: resolve(REPO_ROOT, args.get('app-dir') ?? 'bench/basic-app'),
     routes,
     streamMode: streamModeRaw,
-    build: build || shouldForceBuild,
+    build,
     warmupRequests: parseNumberArg(args, 'warmup-requests', 50),
     warmupUntilStable: parseBoolean(args.get('warmup-until-stable') ?? 'true'),
     serialRequests: parseNumberArg(args, 'serial-requests', 120),
@@ -275,15 +267,8 @@ async function ensureNextBuilt() {
   }
 }
 
-function configForMode(mode: 'web' | 'node'): string {
-  if (mode === 'web') {
-    return 'module.exports = {}\n'
-  }
-  return `module.exports = {
-  experimental: {
-    useNodeStreams: true,
-  },
-}\n`
+function defaultConfig(): string {
+  return 'module.exports = {}\n'
 }
 
 async function waitForServerReady(
@@ -404,50 +389,6 @@ function printFullResults(label: string, results: FullRunResult[]) {
       }
     }
   }
-
-  if (results.length === 2) {
-    const web = results.find((result) => result.mode === 'web')
-    const node = results.find((result) => result.mode === 'node')
-    if (web && node) {
-      console.log('\nComparison (node vs web)')
-
-      const joinKeys = new Set(
-        web.routeResults.map((entry) => `${entry.route}|${entry.phase}`)
-      )
-
-      for (const key of joinKeys) {
-        const [route, phase] = key.split('|') as [
-          string,
-          'single-client' | 'under-load',
-        ]
-        const webEntry = web.routeResults.find(
-          (entry) => entry.route === route && entry.phase === phase
-        )
-        const nodeEntry = node.routeResults.find(
-          (entry) => entry.route === route && entry.phase === phase
-        )
-
-        if (!webEntry || !nodeEntry) continue
-
-        const throughputDelta =
-          ((nodeEntry.throughputRps - webEntry.throughputRps) /
-            webEntry.throughputRps) *
-          100
-        const p95Delta =
-          ((webEntry.latency.p95 - nodeEntry.latency.p95) /
-            webEntry.latency.p95) *
-          100
-
-        console.log(`  ${route} (${phase})`)
-        console.log(
-          `    throughput delta: ${throughputDelta >= 0 ? '+' : ''}${throughputDelta.toFixed(2)}%`
-        )
-        console.log(
-          `    p95 latency delta: ${p95Delta >= 0 ? '+' : ''}${p95Delta.toFixed(2)}% (positive is better)`
-        )
-      }
-    }
-  }
 }
 
 function buildNodeArgs(
@@ -540,7 +481,7 @@ async function runWarmup(
 
 async function runRoutePhases(
   options: CliOptions,
-  mode: 'web' | 'node',
+  mode: StreamMode,
   label: string
 ): Promise<FullRoutePhaseResult[]> {
   const routeResults: FullRoutePhaseResult[] = []
@@ -614,7 +555,7 @@ async function runRoutePhases(
 
 async function runMinimalServerSession(
   options: CliOptions,
-  mode: 'web' | 'node',
+  mode: StreamMode,
   modeArtifactDir: string,
   routeSubset: CliOptions
 ): Promise<FullRoutePhaseResult[]> {
@@ -658,7 +599,7 @@ async function runMinimalServerSession(
 
 async function runMinimalServerModeBenchmark(
   options: CliOptions,
-  mode: 'web' | 'node'
+  mode: StreamMode
 ): Promise<FullRunResult> {
   const nextConfigPath = resolve(options.appDir, 'next.config.js')
   const originalConfig = await readFile(nextConfigPath, 'utf8')
@@ -667,9 +608,10 @@ async function runMinimalServerModeBenchmark(
   await mkdir(modeArtifactDir, { recursive: true })
 
   try {
-    await writeFile(nextConfigPath, configForMode(mode))
+    await writeFile(nextConfigPath, defaultConfig())
 
     if (options.build) {
+      await ensureGeneratedClientGraph(options)
       console.log(`\n[minimal-server/${mode}] building app fixture...`)
       await runCommand('node', [NEXT_BIN, 'build'], options.appDir, {
         ...process.env,
@@ -723,27 +665,26 @@ async function runMinimalServerBenchmarks(
   await ensureNextBuilt()
   await mkdir(options.artifactDir, { recursive: true })
 
-  const modes: Array<'web' | 'node'> =
-    options.streamMode === 'both' ? ['web', 'node'] : [options.streamMode]
-
   const results: FullRunResult[] = []
-  for (let i = 0; i < modes.length; i++) {
-    if (i > 0) {
-      console.log('[minimal-server] waiting 2s for port cleanup...')
-      await sleep(2000)
-    }
-    results.push(await runMinimalServerModeBenchmark(options, modes[i]))
-  }
+  results.push(await runMinimalServerModeBenchmark(options, options.streamMode))
   return results
 }
 
 // ---------------------------------------------------------------------------
+async function ensureGeneratedClientGraph(options: CliOptions): Promise<void> {
+  const generator = resolve(options.appDir, 'scripts/generate-client-graph.mjs')
+  if (!existsSync(generator)) return
+  await runCommand('node', [generator], options.appDir, {
+    ...process.env,
+  })
+}
+
 // Scenario: e2e (real production server via next build + next start)
 // ---------------------------------------------------------------------------
 
 async function runE2EServerSession(
   options: CliOptions,
-  mode: 'web' | 'node',
+  mode: StreamMode,
   modeArtifactDir: string,
   routeSubset: CliOptions
 ): Promise<FullRoutePhaseResult[]> {
@@ -786,7 +727,7 @@ async function runE2EServerSession(
 
 async function runE2EModeBenchmark(
   options: CliOptions,
-  mode: 'web' | 'node'
+  mode: StreamMode
 ): Promise<FullRunResult> {
   const nextConfigPath = resolve(options.appDir, 'next.config.js')
   const originalConfig = await readFile(nextConfigPath, 'utf8')
@@ -795,9 +736,10 @@ async function runE2EModeBenchmark(
   await mkdir(modeArtifactDir, { recursive: true })
 
   try {
-    await writeFile(nextConfigPath, configForMode(mode))
+    await writeFile(nextConfigPath, defaultConfig())
 
     if (options.build) {
+      await ensureGeneratedClientGraph(options)
       console.log(`\n[e2e/${mode}] building app fixture...`)
       await runCommand('node', [NEXT_BIN, 'build'], options.appDir, {
         ...process.env,
@@ -844,17 +786,8 @@ async function runE2EBenchmarks(options: CliOptions): Promise<FullRunResult[]> {
   await ensureNextBuilt()
   await mkdir(options.artifactDir, { recursive: true })
 
-  const modes: Array<'web' | 'node'> =
-    options.streamMode === 'both' ? ['web', 'node'] : [options.streamMode]
-
   const results: FullRunResult[] = []
-  for (let i = 0; i < modes.length; i++) {
-    if (i > 0) {
-      console.log('[e2e] waiting 2s for port cleanup...')
-      await sleep(2000)
-    }
-    results.push(await runE2EModeBenchmark(options, modes[i]))
-  }
+  results.push(await runE2EModeBenchmark(options, options.streamMode))
   return results
 }
 

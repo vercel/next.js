@@ -15,13 +15,14 @@ import {
   type PrerenderStoreModernServer,
   type PrerenderStorePPR,
 } from '../app-render/work-unit-async-storage.external'
-import { makeHangingPromise } from '../dynamic-rendering-utils'
+import {
+  makeHangingPromise,
+  RENDER_STAGES_BY_DATA_KIND,
+} from '../dynamic-rendering-utils'
 import { InvariantError } from '../../shared/lib/invariant-error'
-import { RenderStage } from '../app-render/staged-rendering'
 
 export function createServerPathnameForMetadata(
-  underlyingPathname: string,
-  isRuntimePrefetchable: boolean
+  underlyingPathname: string
 ): Promise<string> {
   const workStore = workAsyncStorage.getStore()
   if (!workStore) {
@@ -55,13 +56,17 @@ export function createServerPathnameForMetadata(
           'createServerPathnameForMetadata should not be called inside generateStaticParams.'
         )
       case 'prerender-runtime': {
+        // TODO(app-shells): whether or not this is included in the shell
+        // should depend on whether this route has params.
+        // if there's no params, it can be included.
+        // for now, we defensively exclude it to match the earlier pessimistic
+        // behavior of always resolving in the runtime stage
+        // (i.e. assuming that we have non-static params in the pathname)
         const { stagedRendering } = workUnitStore
         if (stagedRendering) {
-          const stage = isRuntimePrefetchable
-            ? RenderStage.EarlyRuntime
-            : RenderStage.Runtime
+          const pathnameStage = RENDER_STAGES_BY_DATA_KIND.runtimeLinkData
           return stagedRendering.delayUntilStage(
-            stage,
+            pathnameStage,
             undefined,
             underlyingPathname
           )
@@ -70,6 +75,7 @@ export function createServerPathnameForMetadata(
         }
       }
       case 'request':
+        // TODO(app-shells): this should be delayed if there's non-static params
         return createRenderPathname(underlyingPathname)
       default:
         workUnitStore satisfies never
