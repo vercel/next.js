@@ -190,7 +190,7 @@ The same reveal also appears on the **Scheduler** track in the Performance panel
 
 {/* TODO: screenshot, Suspense view: one late reveal (before) */}
 
-In the demo the boundary and its children sit in one file. In a real app the boundary is often far from the child that gates it: a layout wraps everything in one `<Suspense>`, while the slow data lives in a deeply nested component.
+Here the boundary and its children sit in one file. In production it might look more like this: a layout wraps a region in one `<Suspense>`, and the slow read lives in a component nested deep inside it.
 
 ```txt
 app/dashboard/layout.tsx
@@ -208,7 +208,7 @@ app/dashboard/layout.tsx
 
 The Suspense view shows the same single late reveal wherever the slow child lives.
 
-The problem is that **one boundary wraps several pieces that load at different speeds**, so React can only reveal them together. Give each independently-paced piece its own boundary so each reveals as soon as its own data is ready:
+A boundary reveals its contents once all of its members are ready, and that is often fine. In some cases, though, more content can be revealed sooner: here `Stats` and `ActivityFeed` are ready long before `WhoIsOnline`, yet the single boundary makes them wait for it. Give each section its own boundary so it reveals as soon as its own data is ready:
 
 ```tsx filename="app/dashboard/page.tsx"
 return (
@@ -232,9 +232,29 @@ See [Parallel streaming with sibling boundaries](/docs/app/guides/streaming#para
 
 Reload again. The Suspense view now shows three reveal events at different times. The `Stats` and `ActivityFeed` sections paint as soon as their own data is ready, and only the `WhoIsOnline` region keeps its fallback until it resolves.
 
-The split turned one fallback into three. The `Header` renders from the shell data, so it is on screen at once, and only `Stats`, `ActivityFeed`, and `WhoIsOnline` wait behind a boundary.
+Each skeleton still stands in for a whole section, its frame and its data. Push the boundary lower to show the frame right away and suspend only the data. `ActivityFeed` can render its heading and wrap just the list:
 
-Push each boundary down to the part that actually awaits data, and leave the rest outside. Size each fallback to match its content, so a reveal swaps in place instead of shifting the page as sections arrive.
+```tsx filename="app/dashboard/components/activity-feed.tsx"
+export function ActivityFeed({ teamIds }: { teamIds: string[] }) {
+  return (
+    <section>
+      <h2>Recent activity</h2>
+      <Suspense fallback={<ActivityListSkeleton />}>
+        <ActivityList teamIds={teamIds} />
+      </Suspense>
+    </section>
+  )
+}
+
+async function ActivityList({ teamIds }: { teamIds: string[] }) {
+  const activities = await getActivity(teamIds)
+  // ...renders the rows
+}
+```
+
+Now the heading is on screen with the rest of the shell, and only the list streams. The page stops wrapping `ActivityFeed` in a boundary, because the boundary lives inside it.
+
+Splitting is only worth it when you can show more up front, the chrome and frames, and scope the skeleton to just the data that is still loading. Start with one boundary, lower it as far as the page benefits, and size each fallback to minimize layout shift.
 
 <details>
   <summary>Nesting boundaries does not serialize them</summary>
