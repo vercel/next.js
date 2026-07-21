@@ -178,8 +178,9 @@ impl StructuredSourceMap {
     /// `sourcesContent` ropes) intact. `rewrite` returns `None` to leave an entry unchanged.
     ///
     /// `sources` is only decoded if a rewrite actually changes an entry; if it cannot be decoded
-    /// (e.g. non-string entries in an external map) the map is returned unchanged, matching the
-    /// previous rewriters which silently skipped maps they could not parse.
+    /// (e.g. non-string entries in an external map) the map is returned unchanged. (The previous
+    /// rewriters dropped such maps from the output entirely; keeping the map verbatim loses no
+    /// information, and this branch is unreachable for internally generated maps anyway.)
     pub fn rewrite_sources(
         &self,
         mut rewrite: impl FnMut(&str) -> Result<Option<String>>,
