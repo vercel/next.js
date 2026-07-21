@@ -1,6 +1,6 @@
 ---
 title: Ensuring instant navigations
-description: Learn how to structure your app to prefetch and prerender more content so page loads and client navigations are instant.
+description: Learn how to structure your app to prefetch and prerender more content, providing instant page loads and client navigations.
 nav_title: Instant navigation
 related:
   title: Learn more
@@ -13,7 +13,7 @@ related:
     - app/guides/prefetching
 ---
 
-This guide explains what makes a navigation instant, how to write a route that navigates instantly, how to visualize what's in the initial UI, and how to lock the behavior in with end-to-end tests.
+This guide walks through understanding instant navigations, writing a route that navigates instantly, visualizing what's in the initial UI, and locking the behavior in with end-to-end tests.
 
 ## What "instant" means
 
@@ -68,7 +68,7 @@ To prefetch with the user's session (cookies, headers, the full URL), opt the de
 
 ### Validate instant navigation
 
-By **default** (`validationLevel: 'warning'`), Cache Components apps validate every Page and Default segment in development. Validation surfaces what would keep navigations into a segment from being instant: which navigations would block, where a `<Suspense>` boundary is missing, and which data is reaching the user uncached.
+By **default** (`validationLevel: 'warning'`), Cache Components apps validate every Page and Default segment in development. Validation surfaces what would keep navigations into a segment from being instant — which navigations would block, where a `<Suspense>` boundary is missing, and which data is reaching the user uncached.
 
 To opt out of automatic validation and only validate segments that explicitly export `instant`, set [`validationLevel`](/docs/app/api-reference/file-conventions/route-segment-config/instant#configuring-validation-defaults) to `'manual-warning'`:
 
@@ -207,7 +207,7 @@ As you develop a route, the Next.js DevTools let you see what your users see on 
 
 The [React DevTools Suspense panel](https://react.dev/learn/react-developer-tools) complements this: it lists the `<Suspense>` boundaries in the tree and lets you toggle each one between its fallback and resolved state, so you can see exactly which boundary covers which part of the page.
 
-{/* TODO: add a screenshot of the React DevTools Suspense panel listing boundaries with toggle controls */}
+{/* TODO: screenshot — React DevTools Suspense panel listing boundaries with toggle controls */}
 
 The Navigation Inspector is available when Cache Components is enabled:
 
@@ -275,7 +275,7 @@ Toggle **Pause on navigations** off when you're done inspecting loading states. 
 
 ## Prevent regressions with e2e tests
 
-Validation catches structural problems during development, but as the codebase grows, the structural checks can only tell you that a shell exists. They can't tell you whether the right content is in it. E2E tests close that gap: they assert on what the user actually sees when the navigation completes, and catch regressions before they ship.
+Validation catches structural problems during development, but as the codebase grows, the structural checks can only tell you that a shell exists. They can't tell you whether the right content is in it. E2E tests close that gap: they assert on what the user actually sees when the navigation completes, catching regressions before they ship.
 
 The `@next/playwright` package includes an `instant()` helper for this. Install it alongside `@playwright/test`:
 
@@ -444,7 +444,7 @@ Validation passes. Open the DevTools and try a client navigation. The featured s
 
 ### Iterate on loading states
 
-{/* TODO: add a before/after diagram showing a single high-up Suspense boundary being refined down to smaller boundaries closer to the data */}
+{/* TODO: diagram — before/after illustration showing a single high-up Suspense boundary being refined down to smaller boundaries closer to the data */}
 
 Validation passing means the navigation is instant. It does not mean the loading states are good. A `<Suspense>` boundary placed high in the tree (say, wrapping the whole page) might satisfy validation, but it replaces most of the page with a single fallback on every navigation.
 
