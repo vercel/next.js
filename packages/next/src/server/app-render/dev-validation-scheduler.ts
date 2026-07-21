@@ -84,12 +84,12 @@ export function beginDevValidation(
  * actually pass through the event-loop poll phase where HTTP requests arrive.
  */
 export async function yieldToForegroundRequest(
-  validationSignal: AbortSignal | undefined
+  validationSignal: AbortSignal
 ): Promise<boolean> {
-  if (validationSignal?.aborted) {
+  if (validationSignal.aborted) {
     return false
   }
 
   await new Promise<void>((resolve) => unpatchedSetImmediate(resolve))
-  return validationSignal?.aborted !== true
+  return !validationSignal.aborted
 }

@@ -181,6 +181,7 @@ import { isNodeNextRequest, isNodeNextResponse } from '../base-http/helpers'
 import { waitForResponseToFinish } from './wait-for-response'
 import {
   beginDevValidation,
+  type DevValidationGeneration,
   yieldToForegroundRequest,
 } from './dev-validation-scheduler'
 import { signalFromNodeResponse } from '../web/spec-extension/adapters/next-request'
@@ -4433,9 +4434,10 @@ function runDevValidationInBackground(
   createRequestStore: () => RequestStore,
   getPayload: (requestStore: RequestStore) => Promise<RSCPayload>,
   onError: (error: unknown) => void,
-  validationAbortSignal: AbortSignal,
-  onSettled: () => void
+  validationGeneration: DevValidationGeneration
 ): void {
+  const validationAbortSignal = validationGeneration.signal
+
   void consoleAsyncStorage
     .run({ dim: true }, async () => {
       const result = await resultPromise
@@ -4444,7 +4446,7 @@ function runDevValidationInBackground(
       // validation, re-rendering and analyzing it would only waste server
       // work. In-flight `'use cache'` fills are left running (we don't await
       // `cacheReady` below).
-      if (validationAbortSignal?.aborted) {
+      if (validationAbortSignal.aborted) {
         logValidationAborted(ctx)
         return
       }
@@ -4478,7 +4480,7 @@ function runDevValidationInBackground(
         await cacheSignal.cacheReady()
       }
 
-      if (validationAbortSignal?.aborted) {
+      if (validationAbortSignal.aborted) {
         logValidationAborted(ctx)
         return
       }
@@ -4529,7 +4531,7 @@ function runDevValidationInBackground(
 
       // A newer render may have superseded this work while we prepared the
       // validation inputs above (which can itself render).
-      if (validationAbortSignal?.aborted) {
+      if (validationAbortSignal.aborted) {
         logValidationAborted(ctx)
         return
       }
@@ -4549,7 +4551,7 @@ function runDevValidationInBackground(
     .catch((err) => {
       // Superseded validation is intentionally torn down. Don't log errors
       // caused by its abort signal.
-      if (validationAbortSignal?.aborted) {
+      if (validationAbortSignal.aborted) {
         return
       }
       console.error(
@@ -4558,7 +4560,7 @@ function runDevValidationInBackground(
         })
       )
     })
-    .finally(onSettled)
+    .finally(() => validationGeneration.finish())
 }
 
 /**
@@ -4617,7 +4619,7 @@ async function prepareValidationInputs(
   createRequestStore: () => RequestStore,
   getPayload: (requestStore: RequestStore) => Promise<RSCPayload>,
   onError: (error: unknown) => void,
-  validationAbortSignal: AbortSignal | undefined
+  validationAbortSignal: AbortSignal
 ): Promise<PrepareValidationInputsResult> {
   // Check if we can re-use the main render for validation.
   let inputsFromNavigation: DevValidationInputs | null
@@ -4671,7 +4673,7 @@ async function prepareValidationInputsInPartialPrefetching(
   getPayload: (requestStore: RequestStore) => Promise<RSCPayload>,
   onError: (error: unknown) => void,
   inputsFromNavigation: DevValidationInputs | null,
-  validationAbortSignal: AbortSignal | undefined
+  validationAbortSignal: AbortSignal
 ): Promise<PrepareValidationInputsResult> {
   const loaderTree = ctx.componentMod.routeModule.userland.loaderTree
   const needsInstantValidation =
@@ -4765,7 +4767,7 @@ async function prepareValidationInputsInLegacyPrefetching(
   getPayload: (requestStore: RequestStore) => Promise<RSCPayload>,
   onError: (error: unknown) => void,
   inputsFromNavigation: DevValidationInputs | null,
-  validationAbortSignal: AbortSignal | undefined
+  validationAbortSignal: AbortSignal
 ): Promise<PrepareValidationInputsResult> {
   const loaderTree = ctx.componentMod.routeModule.userland.loaderTree
   const needsInstantValidation =
@@ -5268,7 +5270,7 @@ async function renderWithWarmCachesForValidationInDev(
   prerenderResumeDataCache: ReturnType<typeof createPrerenderResumeDataCache>,
   prefetchMode: PrefetchingMode,
   shouldRenderWithAppShell: boolean,
-  validationAbortSignal: AbortSignal | undefined
+  validationAbortSignal: AbortSignal
 ): Promise<DevValidationInputs> {
   const { ComponentMod, setReactDebugChannel } = ctx.renderOpts
   const { clientModules } = getClientReferenceManifest()
@@ -5325,7 +5327,7 @@ async function renderWithWarmCachesForValidationInDev(
       return accumulateStreamChunks(
         sourceStream,
         stageController,
-        validationAbortSignal ?? null
+        validationAbortSignal
       )
     },
     () => stageController.advanceStage(RenderStage.Static),
@@ -5359,7 +5361,7 @@ async function prerenderWithWarmCachesForStaticValidationInDev(
   getPayload: (requestStore: RequestStore) => Promise<RSCPayload>,
   onError: (error: unknown) => void,
   prerenderResumeDataCache: ReturnType<typeof createPrerenderResumeDataCache>,
-  validationAbortSignal: AbortSignal | undefined
+  validationAbortSignal: AbortSignal
 ): Promise<DevValidationInputs> {
   // This function is currently only used in partialPrefetching.
   const prefetchMode = PrefetchingMode.Partial
@@ -5373,9 +5375,7 @@ async function prerenderWithWarmCachesForStaticValidationInDev(
   const finalReactController = new AbortController()
   const finalDataController = new AbortController()
 
-  if (validationAbortSignal) {
-    abortWhenSignalAborts(validationAbortSignal, finalReactController)
-  }
+  abortWhenSignalAborts(validationAbortSignal, finalReactController)
 
   const stageController = new StagedRenderingController({
     abortSignal: finalDataController.signal,
@@ -5596,8 +5596,7 @@ async function stagedRenderWithCachesInDev({
         createRequestStore,
         getPayload,
         onError,
-        validationGeneration.signal,
-        validationGeneration.finish
+        validationGeneration
       )
       validationWasScheduled = true
     } else {
@@ -6001,14 +6000,13 @@ async function runValidationInDev(
         '</VALIDATION_MESSAGE>'
     )
     try {
-      const validationAbortSignal: AbortSignal | undefined = args[6]
+      const validationAbortSignal: AbortSignal = args[6]
       // Keep validation in flight for scheduler E2E tests without relying on
       // timing-sensitive user code. Aborts end the delay immediately.
       const validationDelay = Number(
         process.env.NEXT_TEST_DEV_VALIDATION_DELAY_MS
       )
       if (
-        validationAbortSignal !== undefined &&
         Number.isFinite(validationDelay) &&
         validationDelay > 0 &&
         !validationAbortSignal.aborted
@@ -6027,13 +6025,13 @@ async function runValidationInDev(
         })
       }
 
-      if (validationAbortSignal?.aborted) {
+      if (validationAbortSignal.aborted) {
         return
       }
       return await runValidationInDevImpl(...args)
     } finally {
-      const validationAbortSignal: AbortSignal | undefined = args[6]
-      if (validationAbortSignal?.aborted) {
+      const validationAbortSignal: AbortSignal = args[6]
+      if (validationAbortSignal.aborted) {
         logValidationAborted(ctx)
       } else {
         console.log(
@@ -6061,7 +6059,7 @@ async function runValidationInDevImpl(
   ctx: AppRenderContext,
   fallbackRouteParams: OpaqueFallbackRouteParams | null,
   devRenderDidError: boolean,
-  validationAbortSignal: AbortSignal | undefined
+  validationAbortSignal: AbortSignal
 ): Promise<void> {
   const { componentMod: ComponentMod, getDynamicParamFromSegment } = ctx
   const loaderTree = ComponentMod.routeModule.userland.loaderTree
@@ -6130,7 +6128,7 @@ async function runValidationInDevImpl(
   //================================
   {
     // The request may have been aborted during the client module warmup above.
-    if (validationAbortSignal?.aborted) {
+    if (validationAbortSignal.aborted) {
       return
     }
 
@@ -6152,7 +6150,7 @@ async function runValidationInDevImpl(
     )
     // A newer render superseded this validation while its render ran, so its
     // result is stale. Don't surface errors for a page the user left.
-    if (validationAbortSignal?.aborted) {
+    if (validationAbortSignal.aborted) {
       return
     }
     if (result.length > 0) {
@@ -6194,7 +6192,7 @@ async function runValidationInDevImpl(
 
     // A newer render superseded this work. Don't surface stale validation
     // errors for a page the user left.
-    if (validationAbortSignal?.aborted) {
+    if (validationAbortSignal.aborted) {
       return
     }
     if (result.length > 0) {
@@ -6221,7 +6219,7 @@ async function validateStaticShell(
   fallbackRouteParams: OpaqueFallbackRouteParams | null,
   debugChunks: Uint8Array[] | null,
   hmrRefreshHash: string | undefined,
-  validationAbortSignal: AbortSignal | undefined
+  validationAbortSignal: AbortSignal
 ): Promise<unknown[]> {
   const debug =
     process.env.NEXT_PRIVATE_DEBUG_VALIDATION === '1' ? console.log : undefined
@@ -6479,7 +6477,7 @@ async function validateStagedShell(
   trackDynamicHole:
     | typeof trackDynamicHoleInStaticShell
     | typeof trackDynamicHoleInRuntimeShell,
-  validationAbortSignal: AbortSignal | undefined
+  validationAbortSignal: AbortSignal
 ): Promise<Array<unknown>> {
   const { implicitTags, nonce, workStore } = ctx
 
@@ -6488,10 +6486,10 @@ async function validateStagedShell(
   )
   const clientReactController = new AbortController()
   const clientRenderController = new AbortController()
-  const clientReactSignal =
-    validationAbortSignal === undefined
-      ? clientReactController.signal
-      : AbortSignal.any([clientReactController.signal, validationAbortSignal])
+  const clientReactSignal = AbortSignal.any([
+    clientReactController.signal,
+    validationAbortSignal,
+  ])
 
   const preinitScripts = () => {}
   const { ServerInsertedHTMLProvider } = createServerInsertedHTML()
