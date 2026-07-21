@@ -234,6 +234,13 @@ type InternalLinkProps = {
 // isn't generated yet. It will be replaced when type generation runs.
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 export type LinkProps<RouteInferType = any> = InternalLinkProps
+
+// Resolved for `className`/`children` when `NavLink` sets `__navActive`.
+type LinkActiveState = {
+  isActive: boolean
+  isPending: boolean
+}
+
 type LinkPropsRequired = RequiredKeys<LinkProps>
 type LinkPropsOptional = OptionalKeys<Omit<InternalLinkProps, 'locale'>>
 
@@ -339,8 +346,11 @@ function formatStringOrUrl(urlObjOrString: UrlObject | string): string {
  */
 export default function LinkComponent(
   props: LinkProps & {
-    children: React.ReactNode
+    children: React.ReactNode | ((state: LinkActiveState) => React.ReactNode)
+    className?: string | ((state: LinkActiveState) => string)
     ref: React.Ref<HTMLAnchorElement>
+    /** @internal Set by `NavLink`. Enables active-aware `className`/`children`. */
+    __navActive?: boolean
   }
 ) {
   const [linkStatus, setOptimisticLinkStatus] = useOptimistic(IDLE_LINK_STATUS)
@@ -366,10 +376,29 @@ export default function LinkComponent(
     transitionTypes,
     ref: forwardedRef,
     unstable_dynamicOnHover,
+    className: classNameProp,
+    __navActive,
     ...restProps
   } = props
 
-  children = childrenProp
+  // Resolving function `className`/`children` here (inside `Link`) is what lets
+  // them read `isPending`, which a userland wrapper cannot do. Only `NavLink`
+  // sets `__navActive`, so a plain `Link` never invokes function props and keeps
+  // its original behavior.
+  const isNavLink = __navActive !== undefined
+  const navState = {
+    isActive: __navActive ?? false,
+    isPending: linkStatus.pending,
+  }
+  const className =
+    isNavLink && typeof classNameProp === 'function'
+      ? classNameProp(navState)
+      : (classNameProp as string | undefined)
+
+  children =
+    isNavLink && typeof childrenProp === 'function'
+      ? childrenProp(navState)
+      : (childrenProp as React.ReactNode)
 
   if (
     legacyBehavior &&
@@ -786,7 +815,7 @@ export default function LinkComponent(
     link = React.cloneElement(child, childProps)
   } else {
     link = (
-      <a {...restProps} {...childProps}>
+      <a {...restProps} {...childProps} className={className}>
         {children}
       </a>
     )

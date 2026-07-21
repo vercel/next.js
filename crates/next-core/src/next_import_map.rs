@@ -198,6 +198,14 @@ pub async fn get_next_client_import_map(
             );
             insert_exact_alias_or_js(
                 &mut import_map,
+                rcstr!("next/nav-link"),
+                request_to_import_mapping(
+                    project_path.clone(),
+                    rcstr!("next/dist/client/app-dir/nav-link"),
+                ),
+            );
+            insert_exact_alias_or_js(
+                &mut import_map,
                 rcstr!("next/form"),
                 request_to_import_mapping(
                     project_path.clone(),
@@ -352,6 +360,14 @@ pub async fn get_next_server_import_map(
             );
             insert_exact_alias_or_js(
                 &mut import_map,
+                rcstr!("next/nav-link"),
+                request_to_import_mapping(
+                    project_path.clone(),
+                    rcstr!("next/dist/client/app-dir/nav-link"),
+                ),
+            );
+            insert_exact_alias_or_js(
+                &mut import_map,
                 rcstr!("next/form"),
                 request_to_import_mapping(
                     project_path.clone(),
@@ -415,6 +431,7 @@ pub async fn get_next_edge_import_map(
         rcstr!("next/headers") => rcstr!("next/dist/api/headers"),
         rcstr!("next/image") => rcstr!("next/dist/api/image"),
         rcstr!("next/link") => rcstr!("next/dist/api/link"),
+        rcstr!("next/nav-link") => rcstr!("next/dist/api/nav-link"),
         rcstr!("next/navigation") => rcstr!("next/dist/api/navigation"),
         rcstr!("next/router") => rcstr!("next/dist/api/router"),
         rcstr!("next/script") => rcstr!("next/dist/api/script"),
@@ -475,6 +492,14 @@ pub async fn get_next_edge_import_map(
                 request_to_import_mapping(
                     project_path.clone(),
                     rcstr!("next/dist/client/app-dir/link"),
+                ),
+            );
+            insert_exact_alias_or_js(
+                &mut import_map,
+                rcstr!("next/nav-link"),
+                request_to_import_mapping(
+                    project_path.clone(),
+                    rcstr!("next/dist/client/app-dir/nav-link"),
                 ),
             );
         }
@@ -987,7 +1012,8 @@ async fn apply_vendored_react_aliases_server(
         alias.extend(
             fxindexmap! {rcstr!("next/error") => rcstr!("next/dist/api/error.react-server"),
             rcstr!("next/navigation") => rcstr!("next/dist/api/navigation.react-server"),
-            rcstr!("next/link") => rcstr!("next/dist/client/app-dir/link.react-server"),},
+            rcstr!("next/link") => rcstr!("next/dist/client/app-dir/link.react-server"),
+            rcstr!("next/nav-link") => rcstr!("next/dist/client/app-dir/nav-link.react-server"),},
         );
     }
 
@@ -1018,7 +1044,8 @@ async fn rsc_aliases(
         alias.extend(
             fxindexmap! {rcstr!("next/error") => rcstr!("next/dist/api/error.react-server"),
             rcstr!("next/navigation") => rcstr!("next/dist/api/navigation.react-server"),
-            rcstr!("next/link") => rcstr!("next/dist/client/app-dir/link.react-server"),},
+            rcstr!("next/link") => rcstr!("next/dist/client/app-dir/link.react-server"),
+            rcstr!("next/nav-link") => rcstr!("next/dist/client/app-dir/nav-link.react-server"),},
         );
     }
 

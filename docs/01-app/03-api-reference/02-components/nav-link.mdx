@@ -1,0 +1,225 @@
+---
+title: NavLink Component
+description: Enable active-aware navigation links with the built-in `next/nav-link` component.
+related:
+  title: Next Steps
+  description: Learn more about the features mentioned in this page by reading the API Reference.
+  links:
+    - app/api-reference/components/link
+    - app/api-reference/functions/use-link-status
+    - app/api-reference/functions/use-pathname
+    - app/api-reference/functions/use-selected-layout-segment
+---
+
+`<NavLink>` extends [`<Link>`](/docs/app/api-reference/components/link) to know whether it points at the current route. It sets `data-active` for styling and `aria-current="page"` on the exact page, and lets `className` and `children` be functions of `{ isActive, isPending }`, so you can style a link or swap its content without wiring up [`usePathname()`](/docs/app/api-reference/functions/use-pathname) yourself.
+
+```tsx filename="app/ui/nav.tsx" switcher
+'use client'
+
+import NavLink from 'next/nav-link'
+
+export function Nav() {
+  return (
+    <nav>
+      <NavLink href="/" className="link data-active:active">
+        Home
+      </NavLink>
+      <NavLink
+        href="/blog"
+        className={({ isActive, isPending }) =>
+          `link ${isActive ? 'active' : ''} ${isPending ? 'pending' : ''}`
+        }
+      >
+        {({ isActive }) => (isActive ? 'Blog (current)' : 'Blog')}
+      </NavLink>
+    </nav>
+  )
+}
+```
+
+```jsx filename="app/ui/nav.js" switcher
+'use client'
+
+import NavLink from 'next/nav-link'
+
+export function Nav() {
+  return (
+    <nav>
+      <NavLink href="/" className="link data-active:active">
+        Home
+      </NavLink>
+      <NavLink
+        href="/blog"
+        className={({ isActive, isPending }) =>
+          `link ${isActive ? 'active' : ''} ${isPending ? 'pending' : ''}`
+        }
+      >
+        {({ isActive }) => (isActive ? 'Blog (current)' : 'Blog')}
+      </NavLink>
+    </nav>
+  )
+}
+```
+
+> **Good to know:** `<NavLink>` is available in the App Router only.
+
+## Reference
+
+`<NavLink>` accepts every [`<Link>` prop](/docs/app/api-reference/components/link#reference), plus the following:
+
+| Prop        | Example                           | Type                                  | Default |
+| ----------- | --------------------------------- | ------------------------------------- | ------- |
+| `exact`     | `exact`                           | `boolean`                             | `false` |
+| `className` | `className={({ isActive }) => …}` | `string` or `(state) => string`       | -       |
+| `children`  | `children={({ isActive }) => …}`  | `ReactNode` or `(state) => ReactNode` | -       |
+
+### `exact`
+
+Controls how `href` is compared to the current pathname:
+
+- Default: active on `href` and any nested path, so `/blog` is active on `/blog/post`. `/` stays exact so it is not active on every route.
+- `exact`: active only when the pathname equals `href`. Use it for a link that should not stay active on nested routes, such as a `/blog` overview tab that turns off once you open `/blog/post`.
+
+```tsx
+<NavLink href="/blog" exact>
+  Blog
+</NavLink>
+```
+
+### `data-active` and `aria-current`
+
+`<NavLink>` reflects its state with two attributes on the rendered `<a>`, and you set neither yourself:
+
+- `data-active` is present whenever the link is active, including an ancestor matched by [prefix](#exact). Use it to [style](#active-styling) the visual active state.
+- `aria-current="page"` is set only on the exact current page. A prefix-matched ancestor is not the current page, so it gets `data-active` but not `aria-current`. An assistive technology never announces two links as the current page at once.
+
+For a `<NavLink href="/blog">`, the rendered `<a>` depends on the route:
+
+```html
+<!-- On /blog (exact match) -->
+<a href="/blog" data-active aria-current="page">Blog</a>
+
+<!-- On /blog/post (prefix match) -->
+<a href="/blog" data-active>Blog</a>
+```
+
+## Examples
+
+### Active styling
+
+`<NavLink>` sets `data-active` on the active link, including an ancestor matched by [prefix](#exact), so you can style the active state in CSS with no render prop, straight from a Server Component:
+
+```tsx
+<NavLink href="/blog">Blog</NavLink>
+```
+
+```css
+a[data-active] {
+  font-weight: bold;
+}
+```
+
+`aria-current="page"` is set only on the exact current page, so an `[aria-current='page']` selector matches only the exact page, not nested routes.
+
+#### With Tailwind
+
+Use the `data-active:` variant:
+
+```tsx
+<NavLink href="/blog" className="rounded px-3 data-active:font-bold">
+  Blog
+</NavLink>
+```
+
+### `className` and `children` as functions
+
+Pass a function to `className` or `children` to receive `{ isActive, isPending }` and decide what to render:
+
+```tsx
+<NavLink
+  href="/inbox"
+  className={({ isActive, isPending }) =>
+    `${isActive ? 'text-blue-600' : ''} ${isPending ? 'opacity-50' : ''}`
+  }
+>
+  {({ isActive }) => (isActive ? <InboxFilled /> : <Inbox />)}
+</NavLink>
+```
+
+`isPending` is `true` while a navigation to the link is in progress, the same value provided by [`useLinkStatus`](/docs/app/api-reference/functions/use-link-status).
+
+> **A function `className` or `children` must be used in a Client Component.** The function cannot be passed to a Client Component from the server, so add the `"use client"` directive to the file that renders the `NavLink`. A string `className` works from a Server Component.
+
+### Pending UI with `useLinkStatus`
+
+The render-prop `isPending` covers the link itself. For a pending indicator nested deeper in the link, such as a spinner beside the label, call [`useLinkStatus`](/docs/app/api-reference/functions/use-link-status) from a component rendered inside the `NavLink`, the same as with [`Link`](/docs/app/api-reference/components/link). `NavLink` extends `Link`, so the hook works inside it.
+
+```tsx filename="app/ui/nav-item.tsx" switcher
+'use client'
+
+import NavLink from 'next/nav-link'
+import { useLinkStatus } from 'next/link'
+
+function Spinner() {
+  const { pending } = useLinkStatus()
+  return pending ? <span className="spinner" aria-hidden /> : null
+}
+
+export function NavItem() {
+  return (
+    <NavLink href="/dashboard" className="data-active:font-bold">
+      Dashboard <Spinner />
+    </NavLink>
+  )
+}
+```
+
+```jsx filename="app/ui/nav-item.js" switcher
+'use client'
+
+import NavLink from 'next/nav-link'
+import { useLinkStatus } from 'next/link'
+
+function Spinner() {
+  const { pending } = useLinkStatus()
+  return pending ? <span className="spinner" aria-hidden /> : null
+}
+
+export function NavItem() {
+  return (
+    <NavLink href="/dashboard" className="data-active:font-bold">
+      Dashboard <Spinner />
+    </NavLink>
+  )
+}
+```
+
+> **Good to know:** The render-prop `isPending` and `useLinkStatus` read the same status. Use the render prop for the link's own `className`/`children`, and call `useLinkStatus` inside a nested component (like the `Spinner` above) so it reads the pending status directly instead of taking it as a prop.
+
+## Behavior
+
+`NavLink` resolves its active state from the current pathname on both the server and the client, so the correct `data-active`, `aria-current`, and classes are in the initial HTML.
+
+### Query strings
+
+`<NavLink>` matches the pathname and ignores the query string, so `/dashboard?tab=one` and `/dashboard?tab=two` both match `href="/dashboard"`. Query params are request-time data, and matching on them would opt the link out of the static shell that keeps the active state flicker-free.
+
+For active state that depends on a query param, such as tabs or filters, read [`useSearchParams()`](/docs/app/api-reference/functions/use-search-params) in a Client Component and compare it yourself. The [Interactive apps guide](/docs/app/guides/interactive-apps#step-3-filter-with-pending-feedback) builds this pattern with pending feedback.
+
+### Cache Components
+
+Under [`cacheComponents`](/docs/app/api-reference/config/next-config-js/cacheComponents), `NavLink` does not require a [`Suspense`](https://react.dev/reference/react/Suspense) boundary and does not force its layout to render dynamically. It reads the pathname without the dynamic-API check that makes a hand-written [`usePathname`](/docs/app/api-reference/functions/use-pathname) nav hang, so a nav in a static layout stays in the [App Shell](/docs/app/glossary#app-shell).
+
+On a route prerendered with a dynamic param not covered by [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params), the pathname is not known at build time. `NavLink` renders inactive in that prerender and applies the active class on the client after hydration. This is a first-paint flicker, not a missing boundary. To apply the class before hydration, set it from an inline script as shown in [Preventing flash before hydration](/docs/app/guides/preventing-flash-before-hydration).
+
+### Rewrites
+
+Matching compares against the pathname in the URL, so `NavLink` reflects the address bar. A statically prerendered page reached through a [rewrite](/docs/app/api-reference/config/next-config-js/rewrites) or [Proxy](/docs/app/api-reference/file-conventions/proxy) can produce a hydration mismatch, the same one [`usePathname`](/docs/app/api-reference/functions/use-pathname#avoid-hydration-mismatch-with-rewrites) has, because the prerender is for the source path rather than the browser path.
+
+This is distinct from the flicker above: the flicker is a missing class that fills in, while a mismatch is a server value that disagrees with the client. To fix it, either base the active state on the matched route with [`useSelectedLayoutSegment`](/docs/app/api-reference/functions/use-selected-layout-segment), or keep matching the URL and defer the active read to the client with the [`usePathname` client-deferred pattern](/docs/app/api-reference/functions/use-pathname#avoid-hydration-mismatch-with-rewrites).
+
+## Version History
+
+| Version   | Changes                     |
+| --------- | --------------------------- |
+| `v16.3.0` | `<NavLink>` was introduced. |
