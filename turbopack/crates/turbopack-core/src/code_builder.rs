@@ -14,7 +14,7 @@ use turbo_tasks_fs::{
     File, FileContent,
     rope::{Rope, RopeBuilder},
 };
-use turbo_tasks_hash::hash_xxh3_hash128;
+use turbo_tasks_hash::{DeterministicHash, DeterministicHasher, hash_xxh3_hash128};
 
 use crate::{
     source_map::structured::StructuredSourceMap,
@@ -32,8 +32,8 @@ pub enum SectionMap {
     Structured(StructuredSourceMap),
 }
 
-impl turbo_tasks_hash::DeterministicHash for SectionMap {
-    fn deterministic_hash<H: turbo_tasks_hash::DeterministicHasher>(&self, state: &mut H) {
+impl DeterministicHash for SectionMap {
+    fn deterministic_hash<H: DeterministicHasher>(&self, state: &mut H) {
         match self {
             SectionMap::Raw(map) => {
                 state.write_u8(0);

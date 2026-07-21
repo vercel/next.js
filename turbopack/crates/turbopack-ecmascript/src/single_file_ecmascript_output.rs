@@ -14,7 +14,7 @@ use turbopack_core::{
     source_map::{GenerateSourceMap, SourceMapAsset},
 };
 
-use crate::parse::generate_js_source_map;
+use crate::parse::generate_js_structured_source_map;
 
 /// An EcmaScript OutputAsset composed of one file, no parsing and no references. Includes a source
 /// map to the original file.
@@ -113,7 +113,7 @@ impl GenerateSourceMap for SingleFileEcmascriptOutput {
         let sm: Arc<SourceMap> = Default::default();
         sm.new_source_file(FileName::Custom(source_path).into(), file_source);
 
-        let map = generate_js_source_map(
+        let map = generate_js_structured_source_map(
             &*sm,
             mappings,
             None::<&Rope>,
@@ -121,7 +121,7 @@ impl GenerateSourceMap for SingleFileEcmascriptOutput {
             true,
             Default::default(),
         )?;
-        Ok(FileContent::Content(File::from(map)).cell())
+        Ok(FileContent::Content(File::from(map.to_rope())).cell())
     }
 }
 

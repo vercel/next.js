@@ -223,107 +223,11 @@ fn unencoded_str_to_raw_value(unencoded: &str) -> Box<RawValue> {
     .expect("serde_json::to_string should produce valid JSON")
 }
 
-/// Helper function to transform turbopack:/// file references in a sourcemap.
-/// Handles parsing the sourcemap, resolving the filesystem, applying transformations, and
-/// serializing back.
-/// The transform function is given the source string as found in the sourcemap (i.e. a URI).
-async fn transform_relative_files<F>(
-    map: Option<&Rope>,
-    context_path: &FileSystemPath,
-    mut transform: F,
-) -> Result<Option<Rope>>
-where
-    F: FnMut(&DiskFileSystem, &str) -> Result<String>,
-{
-    let Some(map) = map else {
-        return Ok(None);
-    };
-
-    let Ok(mut map): serde_json::Result<SourceMapJson> = serde_json::from_reader(map.read()) else {
-        // Silently ignore invalid sourcemaps
-        return Ok(None);
-    };
-
-    let context_fs = context_path.fs;
-    let context_fs = &*ResolvedVc::try_downcast_type::<DiskFileSystem>(context_fs)
-        .context("Expected the chunking context to have a DiskFileSystem")?
-        .await?;
-
-    let prefix = format!("{}///[{}]/", SOURCE_URL_PROTOCOL_STR, context_fs.name());
-
-    let mut apply_transform = |src: &mut String| -> Result<()> {
-        if let Some(src_rest) = src.strip_prefix(&prefix) {
-            *src = transform(context_fs, src_rest)?;
-        }
-        Ok(())
-    };
-
-    for src in map.sources.iter_mut().flatten().flatten() {
-        apply_transform(src)?;
-    }
-    for section in map.sections.iter_mut().flatten() {
-        for src in section.map.sources.iter_mut().flatten().flatten() {
-            apply_transform(src)?;
-        }
-    }
-
-    Ok(Some(Rope::from(serde_json::to_vec(&map)?)))
-}
-
-/// Turns `turbopack:///[project]` references in sourcemap sources into absolute `file://` uris. This
-/// is useful for debugging environments.
-pub async fn absolute_fileify_source_map(
-    map: Option<&Rope>,
-    context_path: FileSystemPath,
-) -> Result<Option<Rope>> {
-    transform_relative_files(map, &context_path, |context_fs, src_rest| {
-        let path = context_path.join(src_rest)?;
-
-        // `to_sys_path` returns a win32 path on Windows. `Url::from_file_path` can also handle
-        // verbatim (`\\?\`-prefixed) disk and UNC paths, in case that conversion failed.
-        let sys_path = context_fs.to_sys_path(&path);
-        Ok(Url::from_file_path(&sys_path)
-            .map_err(|()| {
-                anyhow::anyhow!("path {sys_path:?} cannot be converted to a file:// URI")
-            })?
-            .into())
-    })
-    .await
-}
-
 fn uri_encode_path(path: &str) -> String {
     path.split('/')
         .map(|s| urlencoding::encode(s))
         .collect::<Vec<_>>()
         .join("/")
-}
-/// Turns `turbopack:///[project]` references in sourcemap sources into relative './' prefixed uris.
-/// This is useful in server environments and especially build environments.
-pub async fn relative_fileify_source_map(
-    map: Option<&Rope>,
-    context_path: FileSystemPath,
-    relative_path_to_output_root: RcStr,
-) -> Result<Option<Rope>> {
-    let relative_path_to_output_root = relative_path_to_output_root
-        .split('/')
-        .map(|s| urlencoding::encode(s))
-        .collect::<Vec<_>>()
-        .join("/");
-    transform_relative_files(map, &context_path, |_context_fs, src_rest| {
-        // NOTE: we just include the relative path prefix here instead of using `sourceRoot`
-        // since the spec on sourceRoot is broken.
-
-        // TODO(bgw): this shouldn't be necessary to uri encode since the strings we get out of the
-        // source map should already be uri encoded, however in the case of the turbopack scheme in
-        // particular we are inconsistent so be defensive here.
-        let src_rest = uri_encode_path(src_rest);
-        if relative_path_to_output_root.is_empty() {
-            Ok(src_rest.to_string())
-        } else {
-            Ok(format!("{relative_path_to_output_root}/{src_rest}",))
-        }
-    })
-    .await
 }
 
 /// Applies the standard `turbopack:///[fs]/` source-URL transform to a structured map,

@@ -20,6 +20,8 @@
 //! identically to what `swc_sourcemap::SourceMap::to_writer` would have produced (pinned by the
 //! golden tests below).
 
+use std::sync::LazyLock;
+
 use anyhow::Result;
 use bincode::{Decode, Encode};
 use serde::Deserialize;
@@ -82,7 +84,7 @@ struct RawFields {
     debug_id: Option<Box<RawValue>>,
 }
 
-fn snippet(value: Option<Box<RawValue>>) -> Option<Rope> {
+fn into_rope(value: Option<Box<RawValue>>) -> Option<Rope> {
     value.map(|v| Rope::from(v.get().as_bytes().to_vec()))
 }
 
@@ -92,7 +94,10 @@ fn escape_content(content: Option<&str>) -> Rope {
         Some(text) => {
             Rope::from(serde_json::to_vec(text).expect("string serialization is infallible"))
         }
-        None => Rope::from("null"),
+        None => {
+            static NULL: LazyLock<Rope> = LazyLock::new(|| Rope::from("null"));
+            NULL.clone()
+        }
     }
 }
 
@@ -126,27 +131,27 @@ impl StructuredSourceMap {
     pub fn from_json_slice(map: &[u8]) -> Result<Self> {
         let fields: RawFields = serde_json::from_slice(map)?;
         Ok(StructuredSourceMap {
-            version: snippet(fields.version),
-            file: snippet(fields.file),
+            version: into_rope(fields.version),
+            file: into_rope(fields.file),
             sources: fields.sources,
-            source_root: snippet(fields.source_root),
+            source_root: into_rope(fields.source_root),
             sources_content: fields.sources_content.map(|contents| {
                 contents
                     .iter()
                     .map(|content| escape_content(content.as_deref()))
                     .collect()
             }),
-            sections: snippet(fields.sections),
-            names: snippet(fields.names),
-            scopes: snippet(fields.scopes),
-            range_mappings: snippet(fields.range_mappings),
-            mappings: snippet(fields.mappings),
-            ignore_list: snippet(fields.ignore_list),
-            x_facebook_offsets: snippet(fields.x_facebook_offsets),
-            x_metro_module_paths: snippet(fields.x_metro_module_paths),
-            x_facebook_sources: snippet(fields.x_facebook_sources),
-            debug_id_old: snippet(fields.debug_id_old),
-            debug_id: snippet(fields.debug_id),
+            sections: into_rope(fields.sections),
+            names: into_rope(fields.names),
+            scopes: into_rope(fields.scopes),
+            range_mappings: into_rope(fields.range_mappings),
+            mappings: into_rope(fields.mappings),
+            ignore_list: into_rope(fields.ignore_list),
+            x_facebook_offsets: into_rope(fields.x_facebook_offsets),
+            x_metro_module_paths: into_rope(fields.x_metro_module_paths),
+            x_facebook_sources: into_rope(fields.x_facebook_sources),
+            debug_id_old: into_rope(fields.debug_id_old),
+            debug_id: into_rope(fields.debug_id),
         })
     }
 
@@ -170,13 +175,16 @@ impl StructuredSourceMap {
     /// Serializes the map. Field order matches `swc_sourcemap`'s serializer; `sourcesContent`
     /// and `mappings` ropes are shared, not copied, into the result.
     pub fn to_rope(&self) -> Rope {
+        // `key` is a literal identifier and `raw_json` holds a complete, valid JSON value
+        // (parsed as `RawValue` or produced by `serde_json` serialization), so neither needs
+        // escaping here.
         fn field(
             builder: &mut RopeBuilder,
             first: &mut bool,
             key: &'static str,
-            value: &Option<Rope>,
+            raw_json: &Option<Rope>,
         ) {
-            if let Some(value) = value {
+            if let Some(value) = raw_json {
                 if !*first {
                     *builder += ",";
                 }
