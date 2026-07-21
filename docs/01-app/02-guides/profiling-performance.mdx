@@ -12,25 +12,25 @@ related:
 
 Browsers ship dev tools that measure and show what your app actually did. This guide uses the [Chrome Performance panel](https://developer.chrome.com/docs/devtools/performance/reference) and the [React Developer Tools](https://react.dev/learn/react-developer-tools) extension to profile a Next.js app and find what makes it slow.
 
-The goal is to use these tools instead of guessing from the source or scattering `console.log` timings. This guide is a how-to for finding and fixing problems.
+The goal is to use these tools instead of guessing from the source or scattering `console.log` timings. This guide is a how-to for finding and fixing problems by hand, and the same loop can be [automated with a skill](#automate-the-loop-with-a-skill).
 
 ## The DevTools
 
-The Performance panel records a timeline of what the browser did during a session: every task, render, and network request, each with a start time and duration. You [record a session](https://developer.chrome.com/docs/devtools/performance/reference#record) by starting the recording, reloading the page or interacting with it, then stopping.
+The Performance panel records a timeline of what the browser did during a session: tasks, renders, and network requests, with their start times and durations. You [record a session](https://developer.chrome.com/docs/devtools/performance/reference#record) by starting the recording, reloading the page or interacting with it, then stopping.
 
 React annotates that timeline with its own tracks: **Scheduler**, **Components**, and **Server Components**.
 
-For a reference on what each track, subtrack, and marker shows, see [React Performance Tracks](https://react.dev/reference/dev-tools/react-performance-tracks).
+For a reference on what the tracks, subtracks, and markers show, see [React Performance Tracks](https://react.dev/reference/dev-tools/react-performance-tracks).
 
-React DevTools also adds a **Suspense** view that marks when each `<Suspense>` boundary swaps its fallback for content. Together they show the three problems this guide covers: **sequential awaits on the server**, **content held behind a single boundary**, and **work that runs on the frame of a keystroke**.
+React DevTools also adds a **Suspense** view that marks when a `<Suspense>` boundary swaps its fallback for content. Together they show the three problems this guide covers: **sequential awaits on the server**, **content held behind a single boundary**, and **work that runs on the frame of a keystroke**.
 
 > **Good to know:** You need Chrome with the Performance panel open and the React Developer Tools extension installed. The React tracks appear in development or a profiling build (the **Server Components** track is development-only) and need no extra configuration or instrumentation.
 
 ## Profiling
 
-The examples profile a small demo dashboard, one problem per step, each following the same loop: record the app, read one track, recognize the pattern, apply the fix, then record again to confirm the fix worked.
+The examples profile a small demo dashboard, one problem per step, following the same loop: record the app, read one track, recognize the pattern, apply the fix, then record again to confirm the fix worked.
 
-The demo is structured so each pattern is easy to see. Real apps bury the same patterns in more code, but the workflow is the same.
+The demo is structured so the patterns are easy to see. Real apps bury the same patterns in more code, but the workflow is the same.
 
 Follow along with the demo: [performance-profiling-playground](https://github.com/OWNER/REPO), clone the repository, install dependencies and start the dev server.
 {/* TODO: set the demo repository URL */}
@@ -49,18 +49,18 @@ export default async function DashboardPage() {
 }
 ```
 
-Record a page load in the Performance panel and open the **Server Components** track. Observe the three spans: `getTeams` starts only when `getUser` resolves, and `getNotifications` only when `getTeams` does. Each `await` has to resolve before the page can render any components. This is a **data waterfall**.
+Record a page load in the Performance panel and open the **Server Components** track. Observe the three spans: `getTeams` starts only when `getUser` resolves, and `getNotifications` only when `getTeams` does. The awaits run one after another, so the page cannot render until the last one resolves. This is a **data waterfall**.
 
 Reads that do not depend on one another could be started at the same time instead, which would cut the total down to just the slowest read.
 
 > **Good to know:** Running independent reads at the same time is concurrency, not parallelism. These reads are I/O-bound, so each `await` mostly waits on a network or database response, and a single thread can keep several requests in flight at once. They overlap their waiting instead of taking turns.
 
-The Performance panel can save the recording as JSON, where every span carries its own start and duration, so the tracks can be read programmatically, not only on screen.
+The Performance panel can save the recording as JSON, where the spans carry their own start and duration, so the tracks can be read programmatically, not only on screen.
 
 <details>
   <summary>Read the Server Components track as data</summary>
 
-In the Performance panel, **Save profile** writes the whole recording to JSON, and each bar you saw is an event in it. A single read looks like this:
+In the Performance panel, **Save profile** writes the whole recording to JSON, and the bars you saw are events in it. A single read looks like this:
 
 ```json
 {
@@ -389,15 +389,17 @@ export const Results = memo(function Results({
 
 On its own, `useDeferredValue` is not enough here. Typing updates `query`, which re-renders `Explorer` on every keystroke, and that re-renders `Results` with it, filter and all. Wrapping `Results` in [`memo`](https://react.dev/reference/react/memo) lets it skip the urgent keystroke render, because its props (`issues` and the lagging `deferredQuery`) have not changed yet. The filter then runs once `deferredQuery` catches up, as a deferred, interruptible task. You need both: `useDeferredValue` to defer the work, and `memo` to stop the keystroke render from doing it anyway.
 
+> **Good to know:** [React Compiler](https://react.dev/learn/react-compiler) adds this memoization for you. With it enabled you can drop the manual `memo` and `useMemo` and keep only `useDeferredValue`, which the compiler does not insert.
+
 Record again. The keystroke task is short (the input and its paint fit in one frame), and the filtering runs afterward as a separate, lower-priority task on the main thread.
 
 {/* TODO: screenshot, main thread: short keystroke, deferred filter (after) */}
 
-[Building interactive apps](/docs/app/guides/interactive-apps) goes deeper on keeping interactions responsive: transitions, optimistic updates, and memoizing the list so it does not re-render on every keystroke.
+[Building interactive apps](/docs/app/guides/interactive-apps) goes deeper on keeping interactions responsive with transitions and optimistic updates.
 
 ## Automate the loop with a skill
 
-Every step above is the same loop: one capture, one track, recognize the pattern. It does not need a human watching, so an agent can run it.
+The loop is mechanical: capture, read one track, spot the pattern. An agent can drive it, not just a person.
 
 [`agent-browser`](https://www.npmjs.com/package/agent-browser) drives a real Chrome with React DevTools from the command line. It runs the same captures you did by hand (start and stop a performance trace, read the Suspense boundary classifier, record a render profile) and returns them as JSON an agent can parse.
 
