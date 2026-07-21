@@ -114,6 +114,7 @@
       "test/e2e/app-dir/app-client-cache/client-cache.parallel-routes.test.ts",
       "test/e2e/app-dir/app-compilation/index.test.ts",
       "test/e2e/app-dir/app-css/index.test.ts",
+      "test/e2e/app-dir/app-custom-cache-handler-errors/**/*",
       "test/e2e/app-dir/app-custom-cache-handler/index.test.ts",
       "test/e2e/app-dir/app-edge-root-layout/index.test.ts",
       "test/e2e/app-dir/app-edge/app-edge.test.ts",
