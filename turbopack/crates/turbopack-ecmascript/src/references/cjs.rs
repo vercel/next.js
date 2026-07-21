@@ -2,7 +2,10 @@ use anyhow::Result;
 use bincode::{Decode, Encode};
 use swc_core::{
     common::util::take::Take,
-    ecma::ast::{CallExpr, Expr, ExprOrSpread, Lit},
+    ecma::{
+        ast::{CallExpr, Expr, ExprOrSpread, Lit, Prop, PropOrSpread},
+        utils::prop_name_eq,
+    },
     quote,
 };
 use turbo_rcstr::{RcStr, rcstr};
@@ -408,9 +411,10 @@ impl From<CjsRequireCacheAccess> for CodeGen {
     }
 }
 
-/// Removes each named `exports.NAME = …` write the module graph proved unused.
-/// Built by the analyzer for statically-analyzable CommonJS modules; recognition
-/// happens inline during the walk (see `analyzer::graph::visitor`).
+/// Removes each named `exports.NAME = …` write (or `Object.defineProperty`
+/// export) the module graph proved unused. Built by the analyzer for
+/// statically-analyzable CommonJS modules; recognition happens inline during the
+/// walk (see `analyzer::graph::visitor`).
 #[derive(
     PartialEq, Eq, TraceRawVcs, ValueDebugFormat, NonLocalValue, Hash, Debug, Encode, Decode,
 )]
@@ -421,13 +425,14 @@ pub struct CjsExportsDropCodeGen {
     has_es_module: bool,
 }
 
-/// A single named `exports.NAME = …` write.
+/// A single named CommonJS export write.
 #[derive(
     PartialEq, Eq, TraceRawVcs, ValueDebugFormat, NonLocalValue, Hash, Debug, Encode, Decode,
 )]
 pub struct DroppableCjsExportAssignment {
     pub name: RcStr,
-    /// Path to the `exports.NAME = …` assignment expression.
+    /// Path to the write: an `exports.NAME = …` assignment expression or an
+    /// `Object.defineProperty(exports, "NAME", …)` call.
     pub path: AstPath,
 }
 
@@ -469,9 +474,21 @@ impl CjsExportsDropCodeGen {
                 drop.path,
                 visit_mut_expr,
                 |expr: &mut Expr| {
-                    if let Expr::Assign(assign) = expr {
-                        let value = assign.right.take();
-                        *expr = *value;
+                    match expr {
+                        // `exports.NAME = <value>` → `<value>` (keep side effects).
+                        Expr::Assign(assign) => {
+                            let value = assign.right.take();
+                            *expr = *value;
+                        }
+                        // `Object.defineProperty(exports, …)`: keep an eager
+                        // `value`'s side effects; a getter is lazy, drop the call.
+                        Expr::Call(call) => {
+                            *expr = match take_define_property_value(call) {
+                                Some(value) => *value,
+                                None => quote!("0" as Expr),
+                            };
+                        }
+                        _ => {}
                     }
                 }
             ));
@@ -479,6 +496,24 @@ impl CjsExportsDropCodeGen {
 
         Ok(CodeGeneration::visitors(visitors))
     }
+}
+
+/// Takes the `value: <expr>` out of an `Object.defineProperty` descriptor, if it
+/// has one. A descriptor without `value` is a getter, so there's nothing to keep.
+fn take_define_property_value(call: &mut CallExpr) -> Option<Box<Expr>> {
+    let descriptor = call.args.get_mut(2)?;
+    let Expr::Object(descriptor) = &mut *descriptor.expr else {
+        return None;
+    };
+    descriptor.props.iter_mut().find_map(|prop| {
+        let PropOrSpread::Prop(prop) = prop else {
+            return None;
+        };
+        let Prop::KeyValue(kv) = &mut **prop else {
+            return None;
+        };
+        prop_name_eq(&kv.key, "value").then(|| kv.value.take())
+    })
 }
 
 impl From<CjsExportsDropCodeGen> for CodeGen {

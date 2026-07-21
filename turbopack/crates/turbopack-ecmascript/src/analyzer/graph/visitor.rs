@@ -21,7 +21,10 @@ use crate::{
     AnalyzeMode,
     analyzer::{
         Bump, BumpVec, ConstantValue, JsValue, WellKnownFunctionKind,
-        cjs_ast::{is_exports_object, is_global},
+        cjs_ast::{
+            as_exports_define_property, define_property_sets_es_module, is_exports_object,
+            is_global,
+        },
         graph::{ConditionalKind, Effect, EffectArg, EffectsBlock, EvalContext, VarGraph},
         is_unresolved_id,
     },
@@ -1032,6 +1035,21 @@ impl<'a> Analyzer<'a, '_> {
         }
     }
 
+    /// Visits a call/new argument, guarding it as a CJS export target when `guard`
+    /// is set so a bare `exports` / `module` reference there doesn't taint.
+    fn visit_arg_maybe_cjs_export_target<'ast: 'r, 'r>(
+        &mut self,
+        guard: bool,
+        arg: &'ast ExprOrSpread,
+        ast_path: &mut AstNodePath<AstParentNodeRef<'r>>,
+    ) {
+        if guard {
+            self.with_cjs_export_target(|this| arg.visit_with_ast_path(this, ast_path));
+        } else {
+            arg.visit_with_ast_path(self, ast_path);
+        }
+    }
+
     fn check_call_expr_for_effects<'ast: 'r, 'n, 'r>(
         &mut self,
         callee: &'n Callee,
@@ -1039,11 +1057,15 @@ impl<'a> Analyzer<'a, '_> {
         span: Span,
         ast_path: &mut AstNodePath<AstParentNodeRef<'r>>,
         n: CallOrNewExpr<'ast>,
+        // Index of the `exports` export-target arg to guard from tainting; other
+        // args (incl. descriptor getter/value bodies) taint normally.
+        cjs_export_target_arg: Option<usize>,
     ) {
         let new = n.as_new().is_some();
         let args = BumpVec::from_iter_in(
             self.arena,
             args.enumerate().map(|(i, arg)| {
+                let guard_cjs_export_target = cjs_export_target_arg == Some(i);
                 let mut ast_path = ast_path.with_guard(match n {
                     CallOrNewExpr::Call(n) => AstParentNodeRef::CallExpr(n, CallExprField::Args(i)),
                     CallOrNewExpr::New(n) => AstParentNodeRef::NewExpr(n, NewExprField::Args(i)),
@@ -1088,7 +1110,11 @@ impl<'a> Analyzer<'a, '_> {
                     };
                     if let Some(path) = block_path {
                         let old_effects = take(&mut self.effects);
-                        arg.visit_with_ast_path(self, &mut ast_path);
+                        self.visit_arg_maybe_cjs_export_target(
+                            guard_cjs_export_target,
+                            arg,
+                            &mut ast_path,
+                        );
                         let effects = replace(&mut self.effects, old_effects);
                         EffectArg::Closure(
                             value,
@@ -1101,11 +1127,19 @@ impl<'a> Analyzer<'a, '_> {
                             ),
                         )
                     } else {
-                        arg.visit_with_ast_path(self, &mut ast_path);
+                        self.visit_arg_maybe_cjs_export_target(
+                            guard_cjs_export_target,
+                            arg,
+                            &mut ast_path,
+                        );
                         EffectArg::Value(value)
                     }
                 } else {
-                    arg.visit_with_ast_path(self, &mut ast_path);
+                    self.visit_arg_maybe_cjs_export_target(
+                        guard_cjs_export_target,
+                        arg,
+                        &mut ast_path,
+                    );
                     EffectArg::Spread
                 }
             }),
@@ -1237,6 +1271,28 @@ impl<'a> Analyzer<'a, '_> {
             as_parent_path(ast_path).into(),
         );
     }
+
+    /// Records a top-level `Object.defineProperty(exports, "NAME", …)` export so
+    /// an unused one can be dropped; the `__esModule` marker sets the interop flag.
+    fn recognize_cjs_define_property(
+        &mut self,
+        name: &str,
+        n: &CallExpr,
+        ast_path: &AstNodePath<AstParentNodeRef<'_>>,
+    ) {
+        // Only top-level defines can be dropped.
+        if self.is_in_fn() || self.is_in_nested_block_scope() {
+            self.taint_cjs_exports();
+            return;
+        }
+        if name == "__esModule" {
+            if define_property_sets_es_module(n) {
+                self.set_cjs_has_es_module();
+            }
+            return;
+        }
+        self.record_cjs_export(RcStr::from(name), as_parent_path(ast_path).into());
+    }
 }
 
 impl VisitAstPath for Analyzer<'_, '_> {
@@ -1336,6 +1392,17 @@ impl VisitAstPath for Analyzer<'_, '_> {
         n: &'ast CallExpr,
         ast_path: &mut AstNodePath<AstParentNodeRef<'r>>,
     ) {
+        // `Object.defineProperty(exports, …)` is a CommonJS export write; recognize
+        // it so unused entries drop (its `exports` argument is guarded below).
+        let is_cjs_define_property = if self.cjs_exports_enabled()
+            && let Some(name) = as_exports_define_property(n, self.eval_context.unresolved_mark)
+        {
+            self.recognize_cjs_define_property(&name, n, ast_path);
+            true
+        } else {
+            false
+        };
+
         // We handle `define(function (require) {})` here.
         if let Callee::Expr(callee) = &n.callee
             && n.args.len() == 1
@@ -1366,12 +1433,19 @@ impl VisitAstPath for Analyzer<'_, '_> {
             n.callee.visit_with_ast_path(self, &mut ast_path);
         }
 
+        // Guard only the `exports` target arg; the descriptor is visited normally.
+        let cjs_export_target_arg = if is_cjs_define_property {
+            Some(0)
+        } else {
+            None
+        };
         self.check_call_expr_for_effects(
             &n.callee,
             n.args.iter(),
             n.span(),
             ast_path,
             CallOrNewExpr::Call(n),
+            cjs_export_target_arg,
         );
     }
 
@@ -1392,6 +1466,7 @@ impl VisitAstPath for Analyzer<'_, '_> {
             n.span(),
             ast_path,
             CallOrNewExpr::New(n),
+            None,
         );
     }
 
