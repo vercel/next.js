@@ -1,6 +1,7 @@
 import type { FetchEventResult } from '../../web/types'
 import type { TextMapSetter } from '@opentelemetry/api'
 import type { SpanTypes } from './constants'
+import type { RequestInsightsRuntime } from './request-insights'
 import { LogSpanAllowList, NextVanillaSpanAllowlist } from './constants'
 
 import type {
@@ -14,15 +15,21 @@ import type {
 import { isThenable } from '../../../shared/lib/is-thenable'
 
 const NEXT_OTEL_PERFORMANCE_PREFIX = process.env.NEXT_OTEL_PERFORMANCE_PREFIX
+const REQUEST_INSIGHTS_RUNTIME_KEY = Symbol.for(
+  '@next/request-insights-runtime'
+)
+
+type GlobalWithRequestInsightsRuntime = typeof globalThis & {
+  [REQUEST_INSIGHTS_RUNTIME_KEY]?: RequestInsightsRuntime
+}
 
 let api: typeof import('next/dist/compiled/@opentelemetry/api')
-let requestInsightsFacade: typeof import('./request-insights') | undefined
 
-function getRequestInsightsFacade() {
+function getRequestInsightsRuntime() {
   if (process.env.__NEXT_DEV_SERVER) {
-    requestInsightsFacade ??=
-      require('./request-insights') as typeof import('./request-insights')
-    return requestInsightsFacade
+    return (globalThis as GlobalWithRequestInsightsRuntime)[
+      REQUEST_INSIGHTS_RUNTIME_KEY
+    ]
   } else {
     return undefined
   }
@@ -277,7 +284,7 @@ class NextTracerImpl implements NextTracer {
    * edge middleware which runs in a detached sandbox.
    */
   public runWithDetachedContext<T>(fn: () => T): T {
-    const requestInsights = getRequestInsightsFacade()
+    const requestInsights = getRequestInsightsRuntime()
     const run = () => {
       if (!NEXT_OTEL_PERFORMANCE_PREFIX && !this.isOpenTelemetryEnabled()) {
         return fn()
@@ -285,8 +292,8 @@ class NextTracerImpl implements NextTracer {
       return context.with(ROOT_CONTEXT, fn)
     }
 
-    return requestInsights
-      ? requestInsights.runWithDetachedRequestInsightContext(run)
+    return requestInsights?.isActive()
+      ? requestInsights.runDetached(run)
       : run()
   }
 
@@ -350,10 +357,9 @@ class NextTracerImpl implements NextTracer {
   ): T
   public trace<T>(...args: Array<any>) {
     const [type, fnOrOptions, fnOrEmpty] = args
-    const requestInsights = getRequestInsightsFacade()
+    const requestInsights = getRequestInsightsRuntime()
     const openTelemetryEnabled = this.isOpenTelemetryEnabled()
-    const requestInsightsActive =
-      requestInsights?.isRequestInsightsActive() ?? false
+    const requestInsightsActive = requestInsights?.isActive() ?? false
 
     if (
       !NEXT_OTEL_PERFORMANCE_PREFIX &&
@@ -392,7 +398,7 @@ class NextTracerImpl implements NextTracer {
     }
 
     const operation = requestInsightsActive
-      ? requestInsights?.beginRequestInsightOperation({
+      ? requestInsights?.beginOperation({
           type,
           name: spanName,
           category: 'nextjs',
@@ -437,7 +443,7 @@ class NextTracerImpl implements NextTracer {
             }
           }
         } finally {
-          requestInsights?.endRequestInsightOperation(
+          requestInsights?.endOperation(
             operation,
             failed ? { status: 'error', error } : { status: 'ok' }
           )
@@ -516,7 +522,7 @@ class NextTracerImpl implements NextTracer {
       }
 
       return requestInsights
-        ? requestInsights.runWithRequestInsightOperation(operation, invoke)
+        ? requestInsights.runWithOperation(operation, invoke)
         : invoke()
     }
 
