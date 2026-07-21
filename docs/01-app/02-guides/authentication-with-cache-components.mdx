@@ -41,9 +41,9 @@ With Cache Components enabled, instant navigation validation flags every route t
 
 ## Step 1: Read the current user
 
-Reading the current user reads the session cookie, then looks the user up. Because a request read can't be part of the static shell, it always sits behind a [`<Suspense>`](/docs/app/api-reference/file-conventions/loading) boundary, where it streams in on demand.
+Reading the current user reads the session cookie, then looks the user up. A request read can't be part of the static shell, so it always sits behind a [`<Suspense>`](/docs/app/api-reference/file-conventions/loading) boundary and streams in on every navigation.
 
-That works, but it means streaming the section to the client on every navigation. Giving the read a cache lifetime lets the framework prefetch this UI ahead of time instead.
+Because a user session is valid for a period of time, adding a cache lifetime lets the framework prefetch that content ahead of time.
 
 The server-side directives can't give it that lifetime, though: neither a plain [`use cache`](/docs/app/api-reference/directives/use-cache) nor [`use cache: remote`](/docs/app/api-reference/directives/use-cache-remote) can call `cookies()`, and you can't [extract the value and pass it in](/docs/app/getting-started/caching#passing-runtime-values-to-cached-functions) either, because:
 
@@ -172,9 +172,7 @@ export function UserProvider({
   userPromise: Promise<User>
   children: ReactNode
 }) {
-  return (
-    <UserContext.Provider value={userPromise}>{children}</UserContext.Provider>
-  )
+  return <UserContext value={userPromise}>{children}</UserContext>
 }
 
 export function useUser() {
@@ -204,7 +202,7 @@ async function Dashboard() {
 }
 ```
 
-Client Components read the user with `useUser()`, no prop drilling and no second session read. Keep the read behind a `<Suspense>` boundary, since `use()` suspends until the promise resolves:
+Client Components call `useUser()` to get the current user. Because `use()` suspends until the promise resolves, keep the component behind a `<Suspense>` boundary:
 
 ```tsx filename="app/user-badge.tsx"
 'use client'

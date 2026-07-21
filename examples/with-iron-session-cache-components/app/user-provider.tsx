@@ -13,9 +13,7 @@ export function UserProvider({
   userPromise: Promise<User>;
   children: ReactNode;
 }) {
-  return (
-    <UserContext.Provider value={userPromise}>{children}</UserContext.Provider>
-  );
+  return <UserContext value={userPromise}>{children}</UserContext>;
 }
 
 export function useUser() {
