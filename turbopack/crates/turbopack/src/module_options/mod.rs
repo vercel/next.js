@@ -266,7 +266,8 @@ impl ModuleOptions {
             environment,
             ref module_rules,
             execution_context,
-            tree_shaking_mode,
+            follow_reexports,
+            module_fragments_enabled,
             keep_last_successful_parse,
             analyze_mode,
             ..
@@ -326,7 +327,8 @@ impl ModuleOptions {
         }
 
         let ecmascript_options = EcmascriptOptions {
-            tree_shaking_mode,
+            follow_reexports,
+            module_fragments_enabled,
             url_rewrite_behavior: esm_url_rewrite_behavior,
             import_externals,
             ignore_dynamic_requests,

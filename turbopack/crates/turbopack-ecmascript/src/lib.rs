@@ -20,6 +20,7 @@ pub mod magic_identifier;
 pub mod manifest;
 mod merged_module;
 pub mod minify;
+pub mod module_fragments;
 pub mod parse;
 mod path_visitor;
 pub mod references;
@@ -33,7 +34,6 @@ mod swc_comments;
 pub mod text;
 pub mod text_source_transform;
 pub mod transform;
-pub mod tree_shake;
 pub mod typescript;
 pub mod utils;
 pub mod webpack;
@@ -159,29 +159,6 @@ pub enum SpecifiedModuleType {
     Encode,
     Decode,
 )]
-#[serde(rename_all = "kebab-case")]
-pub enum TreeShakingMode {
-    ModuleFragments,
-    #[default]
-    ReexportsOnly,
-}
-
-#[turbo_tasks::task_input]
-#[derive(
-    PartialOrd,
-    Ord,
-    PartialEq,
-    Eq,
-    Hash,
-    Debug,
-    Clone,
-    Copy,
-    Default,
-    Deserialize,
-    TraceRawVcs,
-    Encode,
-    Decode,
-)]
 pub enum AnalyzeMode {
     /// For bundling only, no tracing of referenced files.
     #[default]
@@ -209,9 +186,6 @@ impl AnalyzeMode {
     }
 }
 
-#[turbo_tasks::value(transparent)]
-pub struct OptionTreeShaking(pub Option<TreeShakingMode>);
-
 /// The constant to replace `typeof window` with.
 #[turbo_tasks::task_input]
 #[derive(Copy, Clone, PartialEq, Eq, Debug, Hash, TraceRawVcs, Encode, Decode)]
@@ -223,8 +197,10 @@ pub enum TypeofWindow {
 #[turbo_tasks::value(shared)]
 #[derive(Debug, Default, Copy, Clone)]
 pub struct EcmascriptOptions {
-    /// variant of tree shaking to use
-    pub tree_shaking_mode: Option<TreeShakingMode>,
+    /// Whether re-exports are followed for tree shaking.
+    pub follow_reexports: bool,
+    /// Whether module fragments tree shaking is enabled.
+    pub module_fragments_enabled: bool,
     /// module is forced to a specific type (happens e. g. for .cjs and .mjs)
     pub specified_module_type: SpecifiedModuleType,
     /// Determines how to treat `new URL(...)` rewrites.

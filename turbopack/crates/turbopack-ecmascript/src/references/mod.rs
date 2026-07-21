@@ -98,7 +98,7 @@ use worker::{WorkerAssetReference, WorkerGlobalPlaceholder, WorkerGlobalsReplace
 pub use crate::references::esm::export::{FollowExportsResult, follow_reexports};
 use crate::{
     AnalyzeMode, EcmascriptModuleAsset, EcmascriptModuleAssetType, EcmascriptParsable,
-    ModuleTypeResult, TreeShakingMode, TypeofWindow,
+    ModuleTypeResult, TypeofWindow,
     analyzer::{
         Bump, BumpVec, ConstantNumber, ConstantString, ConstantValue as JsConstantValue, JsValue,
         JsValueUrlKind, Modified, ObjectPart, RequireContextValue, ThreadLocal,
@@ -113,6 +113,7 @@ use crate::{
     },
     code_gen::{CodeGen, CodeGens, IntoCodeGenReference},
     errors,
+    module_fragments::{part_of_module, split_module},
     parse::ParseResult,
     references::{
         amd::{
@@ -148,7 +149,6 @@ use crate::{
         TURBOPACK_RUNTIME_FUNCTION_SHORTCUTS,
     },
     source_map::parse_source_map_comment,
-    tree_shake::{part_of_module, split_module},
     utils::{AstPathRange, js_value_to_pattern, module_value_to_well_known_object},
 };
 
@@ -458,7 +458,7 @@ struct AnalysisState<'a> {
     // There can be many references to __webpack_exports_info__, but only the first should hoist
     // the object allocation.
     first_webpack_exports_info: bool,
-    tree_shaking_mode: Option<TreeShakingMode>,
+    module_fragments_enabled: bool,
     import_externals: bool,
     ignore_dynamic_requests: bool,
     url_rewrite_behavior: Option<UrlRewriteBehavior>,
@@ -856,7 +856,7 @@ async fn analyze_ecmascript_module_internal(
             var_cache: Default::default(),
             first_import_meta: true,
             first_webpack_exports_info: true,
-            tree_shaking_mode: options.tree_shaking_mode,
+            module_fragments_enabled: options.module_fragments_enabled,
             import_externals: options.import_externals,
             ignore_dynamic_requests: options.ignore_dynamic_requests,
             url_rewrite_behavior: options.url_rewrite_behavior,
@@ -1310,10 +1310,7 @@ async fn analyze_ecmascript_module_internal(
                             ast_path.to_vec().into(),
                         )
                     } else {
-                        if matches!(
-                            options.tree_shaking_mode,
-                            Some(TreeShakingMode::ReexportsOnly)
-                        ) {
+                        if options.follow_reexports && !options.module_fragments_enabled {
                             // TODO move this logic into Effect creation itself and don't create new
                             // references after the fact here.
                             let original_reference = r.await?;
@@ -1397,10 +1394,7 @@ async fn analyze_ecmascript_module_internal(
     analysis
         .build(
             import_references,
-            matches!(
-                options.tree_shaking_mode,
-                Some(TreeShakingMode::ReexportsOnly)
-            ),
+            options.follow_reexports && !options.module_fragments_enabled,
         )
         .await
 }
@@ -3374,7 +3368,7 @@ async fn handle_free_var_reference(
                         // level function could set ImportUsage properly here
                         ImportUsage::TopLevel,
                         state.import_externals,
-                        state.tree_shaking_mode,
+                        state.module_fragments_enabled,
                         None,
                     )
                     .await?
