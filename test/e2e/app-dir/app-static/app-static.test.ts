@@ -4064,6 +4064,53 @@ describe('app-dir static/dynamic handling', () => {
     }, 'success')
   })
 
+  it('should not cache similar iterable request bodies', async () => {
+    const clearCacheResponse = await next.fetch(
+      '/variable-revalidate/post-method-iterable/revalidate',
+      { method: 'POST' }
+    )
+    expect(clearCacheResponse.status).toBe(200)
+
+    await retry(
+      async () => {
+        const res = await next.fetch(
+          '/variable-revalidate/post-method-iterable'
+        )
+        expect(res.status).toBe(200)
+        const html = await res.text()
+        const $ = cheerio.load(html)
+
+        const dataEmptyBody1 = $('#data-empty-body1').text()
+        const dataEmptyBody2 = $('#data-empty-body2').text()
+        const dataEmptyBody3 = $('#data-empty-body3').text()
+        const dataIterableBody1 = $('#data-iterable-body1').text()
+        const dataIterableBody2 = $('#data-iterable-body2').text()
+
+        expect(dataEmptyBody1).not.toBe(dataEmptyBody2)
+        expect(dataEmptyBody1).not.toBe(dataEmptyBody3)
+        expect(dataEmptyBody2).not.toBe(dataEmptyBody3)
+
+        expect(dataIterableBody1).not.toBe(dataIterableBody2)
+
+        const res2 = await next.fetch(
+          '/variable-revalidate/post-method-iterable'
+        )
+        expect(res2.status).toBe(200)
+        const html2 = await res2.text()
+        const $2 = cheerio.load(html2)
+
+        expect($2('#data-empty-body1').text()).toBe(dataEmptyBody1)
+        expect($2('#data-empty-body2').text()).toBe(dataEmptyBody2)
+        expect($2('#data-empty-body3').text()).toBe(dataEmptyBody3)
+        expect($2('#data-iterable-body1').text()).toBe(dataIterableBody1)
+        expect($2('#data-iterable-body2').text()).toBe(dataIterableBody2)
+      },
+      // TODO: Unreliable on Vercel
+      isNextDeploy ? 3000 : 500,
+      500
+    )
+  })
+
   it('should cache correctly with post method and revalidate edge', async () => {
     await check(async () => {
       const res = await fetchViaHTTP(
