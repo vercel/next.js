@@ -288,10 +288,10 @@ loading skeleton (see D1).
 Every other blocker shape — `cookies()`/`headers()`, uncached fetch or database
 reads, `searchParams`, metadata, viewport, non-deterministic values (`Date.now()`,
 `Math.random()`, `crypto.randomUUID()`) — surfaces its own insight when you hit
-it, with a `https://nextjs.org/docs/messages/<slug>` link. `next dev` shows it in
-the overlay as a fix card, no build needed; if you'd rather see it from a build,
-scope it to the route you're on with `next build --debug-build-paths app/<route>/**`
-(and `--debug-prerender` to report every blocker past the first) instead of
+it: the build prints a `https://nextjs.org/docs/messages/<slug>` link, and
+`--debug-prerender` prints the failing frame with it. Scope the build to the
+route you're on with `next build --debug-build-paths app/<route>/**` (add
+`--debug-prerender` to report every blocker past the first) rather than
 rebuilding the app. Open that page and apply its recipe; don't improvise from the
 inline message. A few things those
 per-error pages don't stress for the instant-navigation goal:

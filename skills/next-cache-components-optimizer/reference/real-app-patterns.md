@@ -74,10 +74,6 @@ async function AuthGate() {
 
 The shell prerenders as if authorized (the session read suspends before `redirect()` is reached, so the redirect only happens at request time), and `{children}` is now in the shell instead of behind the gate. (`fallback={null}` is correct here: `AuthGate` renders nothing on success.)
 
-## Dev-overlay observation (optional)
-
-Trustworthy measurement uses the production-build rig (SKILL.md phase A; `next dev`'s `instant()` is unreliable for blocking routes). While authoring, the Next.js DevTools **Navigation Inspector** (available in `next dev` when `cacheComponents` is enabled) can shorten iteration by freezing the shell and pointing at each suspended boundary with its source frame — see the [Instant Navigation guide](https://nextjs.org/docs/app/guides/instant-navigation) for how to drive it. Treat it as an observation channel only; the verdict still comes from the rig.
-
 ## Initial-load shell vs soft-navigation shell
 
 The `test-template.md` specs drive a `<Link>` click for soft navigations and `page.goto()` for initial loads. The two shells can differ for the same route:
