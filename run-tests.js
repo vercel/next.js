@@ -886,10 +886,15 @@ ${ENDGROUP}`)
   /** @type {number | null} */
   let passedTestsFd = null
   if (profile.cachingEnabled) {
-    try {
-      passedTestsFd = fs.openSync(process.env.NEXT_TEST_PASSED_FILE, 'a')
-    } catch (err) {
-      console.log(`Test result cache: open failed (${err.message})`)
+    // Jobs that don't opt into result caching via `testPassedFile` (see
+    // `.github/workflows/build_reusable.yml`) leave NEXT_TEST_PASSED_FILE
+    // unset; there's nothing to record for them.
+    if (process.env.NEXT_TEST_PASSED_FILE) {
+      try {
+        passedTestsFd = fs.openSync(process.env.NEXT_TEST_PASSED_FILE, 'a')
+      } catch (err) {
+        console.log(`Test result cache: open failed (${err.message})`)
+      }
     }
   }
   /** @param {string} file */
