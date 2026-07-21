@@ -240,6 +240,9 @@ export async function adapter(
       CurCacheHandler: params.incrementalCacheHandler,
       minimalMode: process.env.NODE_ENV !== 'development',
       fetchCacheKeyPrefix: process.env.__NEXT_FETCH_CACHE_KEY_PREFIX,
+      // define-env inlines this as a real array literal, not a string.
+      cacheKeyExcludedHeaders: process.env
+        .__NEXT_CACHE_KEY_EXCLUDED_HEADERS as unknown as string[] | undefined,
       dev: process.env.NODE_ENV === 'development',
       requestHeaders: params.request.headers as any,
 

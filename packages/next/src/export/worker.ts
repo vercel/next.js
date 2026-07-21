@@ -386,6 +386,7 @@ export async function exportPages(
     cacheHandler,
     cacheMaxMemorySize,
     fetchCacheKeyPrefix,
+    cacheKeyExcludedHeaders: nextConfig.experimental.cacheKeyExcludedHeaders,
     distDir,
     dir,
     // skip writing to disk in minimal mode for now, pending some

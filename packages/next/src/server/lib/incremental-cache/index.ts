@@ -90,6 +90,7 @@ export class IncrementalCache implements IncrementalCacheType {
   readonly allowedRevalidateHeaderKeys?: string[]
   readonly minimalMode?: boolean
   readonly fetchCacheKeyPrefix?: string
+  readonly cacheKeyExcludedHeaders?: string[]
   readonly isOnDemandRevalidate?: boolean
   readonly revalidatedTags?: readonly string[]
 
@@ -115,6 +116,7 @@ export class IncrementalCache implements IncrementalCacheType {
     fetchCacheKeyPrefix,
     CurCacheHandler,
     allowedRevalidateHeaderKeys,
+    cacheKeyExcludedHeaders,
   }: {
     fs?: CacheFs
     dev: boolean
@@ -126,6 +128,7 @@ export class IncrementalCache implements IncrementalCacheType {
     maxMemoryCacheSize?: number
     getPrerenderManifest: () => DeepReadonly<PrerenderManifest>
     fetchCacheKeyPrefix?: string
+    cacheKeyExcludedHeaders?: string[]
     CurCacheHandler?: typeof CacheHandler
   }) {
     this.hasCustomCacheHandler = Boolean(CurCacheHandler)
@@ -176,6 +179,9 @@ export class IncrementalCache implements IncrementalCacheType {
     this.prerenderManifest = getPrerenderManifest()
     this.cacheControls = new SharedCacheControls(this.prerenderManifest)
     this.fetchCacheKeyPrefix = fetchCacheKeyPrefix
+    this.cacheKeyExcludedHeaders = cacheKeyExcludedHeaders?.map((h) =>
+      h.toLowerCase()
+    )
     let revalidatedTags: string[] = []
 
     if (
@@ -378,15 +384,27 @@ export class IncrementalCache implements IncrementalCacheType {
       }
     }
 
-    const headers =
+    const headers: Record<string, string> =
       typeof (init.headers || {}).keys === 'function'
         ? Object.fromEntries(init.headers as Headers)
-        : Object.assign({}, init.headers)
+        : Object.assign({}, init.headers as Record<string, string>)
 
-    // w3c trace context headers can break request caching and deduplication
-    // so we remove them from the cache key
-    if ('traceparent' in headers) delete headers['traceparent']
-    if ('tracestate' in headers) delete headers['tracestate']
+    const fetchCacheKeyExcludedHeaders = (init as RequestInit).next
+      ?.cacheKeyExcludedHeaders
+
+    // Headers excluded from the cache key. The w3c trace context headers
+    // (traceparent/tracestate) are always excluded because they can break
+    // request caching and deduplication. The global
+    // (experimental.cacheKeyExcludedHeaders, pre-lowercased in the
+    // constructor) and per-fetch (next.cacheKeyExcludedHeaders) lists are
+    // additive on top of the built-ins.
+    const excluded = new Set<string>(['traceparent', 'tracestate'])
+    for (const h of this.cacheKeyExcludedHeaders ?? []) excluded.add(h)
+    for (const h of fetchCacheKeyExcludedHeaders ?? [])
+      excluded.add(h.toLowerCase())
+    for (const key of Object.keys(headers)) {
+      if (excluded.has(key.toLowerCase())) delete headers[key]
+    }
 
     const cacheString = JSON.stringify([
       MAIN_KEY_PREFIX,

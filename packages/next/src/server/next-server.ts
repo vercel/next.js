@@ -450,6 +450,8 @@ export default class NextNodeServer extends BaseServer<
       minimalMode: this.minimalMode,
       serverDistDir: this.serverDistDir,
       fetchCacheKeyPrefix: this.nextConfig.experimental.fetchCacheKeyPrefix,
+      cacheKeyExcludedHeaders:
+        this.nextConfig.experimental.cacheKeyExcludedHeaders,
       maxMemoryCacheSize: this.nextConfig.cacheMaxMemorySize,
       flushToDisk:
         !this.minimalMode && this.nextConfig.experimental.isrFlushToDisk,

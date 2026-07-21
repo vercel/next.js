@@ -352,6 +352,8 @@ export function getDefineEnv({
       config.experimental.trustHostHeader ?? false,
     'process.env.__NEXT_ALLOWED_REVALIDATE_HEADERS':
       config.experimental.allowedRevalidateHeaderKeys ?? [],
+    'process.env.__NEXT_CACHE_KEY_EXCLUDED_HEADERS':
+      config.experimental.cacheKeyExcludedHeaders ?? [],
     ...(isNodeServer || isEdgeServer
       ? {
           'process.env.__NEXT_RELATIVE_DIST_DIR': config.distDir,

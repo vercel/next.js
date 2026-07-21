@@ -1,0 +1,54 @@
+---
+title: cacheKeyExcludedHeaders
+description: Configure request headers that are excluded from the fetch Data Cache key across all fetch requests in your application.
+version: experimental
+---
+
+`cacheKeyExcludedHeaders` is an experimental option that lets you declare request header names that should be ignored when computing the fetch [Data Cache](/docs/app/getting-started/caching) key. Use it for per-request-varying headers — such as trace or correlation IDs — that are forwarded on every request but have no effect on the response body.
+
+Excluded headers are still sent to the origin server. They are only removed from the string that Next.js hashes to identify a cached response.
+
+## Usage
+
+```ts filename="next.config.ts" switcher
+import type { NextConfig } from 'next'
+
+const nextConfig: NextConfig = {
+  experimental: {
+    cacheKeyExcludedHeaders: ['x-request-id', 'sentry-trace'],
+  },
+}
+
+export default nextConfig
+```
+
+```js filename="next.config.js" switcher
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  experimental: {
+    cacheKeyExcludedHeaders: ['x-request-id', 'sentry-trace'],
+  },
+}
+
+module.exports = nextConfig
+```
+
+## Behavior
+
+- **Additive union.** The effective exclusion set is the union of the built-in exclusions (`traceparent`, `tracestate`), the headers listed here, and any per-request headers passed via [`fetch`'s `next.cacheKeyExcludedHeaders` option](/docs/app/api-reference/functions/fetch#optionsnextcachekeyexcludedheaders). You cannot remove built-in exclusions.
+- **Case-insensitive.** Header names are lowercased before matching, so `Sentry-Trace` and `sentry-trace` are treated identically.
+- **Exact names only.** Glob patterns and prefix matches are not supported. Each entry must be a full header name.
+
+> **Warning:** Only exclude headers that do **not** affect the response body. Excluding a header that the origin uses to vary its response — such as `authorization`, `cookie`, `accept-language`, or `accept-encoding` — will cause **cross-context cache poisoning**: one user's response may be served to another user.
+
+## Per-request exclusions
+
+To exclude headers for a single `fetch` call rather than globally, use the [`next.cacheKeyExcludedHeaders`](/docs/app/api-reference/functions/fetch#optionsnextcachekeyexcludedheaders) option on the individual request:
+
+```ts
+fetch('https://...', {
+  next: { cacheKeyExcludedHeaders: ['x-request-id'] },
+})
+```
+
+Per-request exclusions are additive to the global list configured here.

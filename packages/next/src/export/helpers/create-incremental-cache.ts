@@ -13,6 +13,7 @@ export async function createIncrementalCache({
   cacheHandler,
   cacheMaxMemorySize,
   fetchCacheKeyPrefix,
+  cacheKeyExcludedHeaders,
   distDir,
   dir,
   flushToDisk,
@@ -22,6 +23,7 @@ export async function createIncrementalCache({
   cacheHandler?: string
   cacheMaxMemorySize: number
   fetchCacheKeyPrefix?: string
+  cacheKeyExcludedHeaders?: string[]
   distDir: string
   dir: string
   flushToDisk?: boolean
@@ -59,6 +61,7 @@ export async function createIncrementalCache({
     flushToDisk,
     maxMemoryCacheSize: cacheMaxMemorySize,
     fetchCacheKeyPrefix,
+    cacheKeyExcludedHeaders,
     getPrerenderManifest: () => ({
       version: 4,
       routes: {},
