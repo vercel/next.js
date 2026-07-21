@@ -132,6 +132,12 @@ class TestProfile {
     if (!file) return new Set()
     try {
       const data = fs.readFileSync(file, 'utf8')
+      // The file is created (in append mode) before any test runs, so it's
+      // empty when no test passed (or none ran at all) in the earlier
+      // attempt.
+      if (data === '') {
+        return new Set()
+      }
       // Tolerate a partial trailing line from a hard kill mid-append by
       // requiring an explicit '\0' terminator. Lines without it are
       // dropped.
@@ -875,6 +881,17 @@ ${ENDGROUP}`)
   if (profile.cachingEnabled) {
     try {
       passedTestsFd = fs.openSync(process.env.NEXT_TEST_PASSED_FILE, 'a')
+      // Tell the workflow that the file exists. Its "Save passed-tests
+      // cache" step (see `.github/workflows/build_reusable.yml`) only runs
+      // when this output is present, so jobs that never get here (no
+      // run-tests.js, or result caching disabled) skip the save instead of
+      // warning about a missing path.
+      if (process.env.GITHUB_OUTPUT) {
+        fs.appendFileSync(
+          process.env.GITHUB_OUTPUT,
+          `passed_tests_file=${process.env.NEXT_TEST_PASSED_FILE}\n`
+        )
+      }
     } catch (err) {
       console.log(`Test result cache: open failed (${err.message})`)
     }
