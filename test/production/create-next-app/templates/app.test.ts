@@ -93,7 +93,6 @@ describe('create-next-app --app (App Router)', () => {
         nextTgzFilename,
         {
           cwd,
-          stdio: 'inherit',
         }
       )
 

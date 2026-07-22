@@ -80,8 +80,9 @@ export const run = async (
       },
     })
     if (!expectFailure) {
-      child.stdout!.on('data', (chunk) => process.stdout.write(chunk))
-      child.stderr!.on('data', (chunk) => process.stderr.write(chunk))
+      // Streams are null for callers that pass their own `stdio`.
+      child.stdout?.on('data', (chunk) => process.stdout.write(chunk))
+      child.stderr?.on('data', (chunk) => process.stderr.write(chunk))
     }
 
     let failure: execa.ExecaError | null = null
