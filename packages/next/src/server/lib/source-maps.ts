@@ -11,6 +11,12 @@ const findSourceMap =
     ? noSourceMap
     : (require('module') as typeof import('module')).findSourceMap
 
+// Edge runtime does not implement `url`
+const url =
+  process.env.NEXT_RUNTIME === 'edge'
+    ? null
+    : (require('url') as typeof import('url'))
+
 /**
  * https://tc39.es/source-map/#index-map
  */
@@ -161,22 +167,42 @@ export function filterStackFrameDEV(
 const invalidSourceMap = Symbol('invalid-source-map')
 const sourceMapURLs = new LRUCache<string | typeof invalidSourceMap>(
   512 * 1024 * 1024,
-  (url) =>
-    url === invalidSourceMap
+  (sourceMapURL) =>
+    sourceMapURL === invalidSourceMap
       ? // Ideally we'd account for key length. So we just guestimate a small source map
         // so that we don't create a huge cache with empty source maps.
         8 * 1024
       : // these URLs contain only ASCII characters so .length is equal to Buffer.byteLength
-        url.length
+        sourceMapURL.length
 )
 export function findSourceMapURLDEV(
   scriptNameOrSourceURL: string
 ): string | null {
   let sourceMapURL = sourceMapURLs.get(scriptNameOrSourceURL)
   if (sourceMapURL === undefined) {
+    let lookupURL = scriptNameOrSourceURL
+    if (
+      url !== null &&
+      scriptNameOrSourceURL.startsWith('file://') &&
+      // Scripts with a query in their URL are eval'd (e.g. server HMR
+      // modules) and keyed verbatim by their `//# sourceURL`.
+      !scriptNameOrSourceURL.includes('?')
+    ) {
+      // React percent-decodes `file:` URLs when it serializes stack frames
+      // that were already revived from another environment, e.g. frames of a
+      // `"use cache"` error being forwarded to the SSR render. Node.js keys
+      // scripts by `pathToFileURL` output, which percent-encodes characters
+      // like `[`, so chunk names like `[root-of-the-server]` wouldn't match
+      // without canonicalizing through the same functions Node.js uses.
+      try {
+        lookupURL = url.pathToFileURL(
+          url.fileURLToPath(scriptNameOrSourceURL)
+        ).href
+      } catch {}
+    }
     let sourceMapPayload: ModernSourceMapPayload | undefined
     try {
-      sourceMapPayload = findSourceMap(scriptNameOrSourceURL)?.payload
+      sourceMapPayload = findSourceMap(lookupURL)?.payload
     } catch (cause) {
       console.error(
         `${scriptNameOrSourceURL}: Invalid source map. Only conformant source maps can be used to find the original code. Cause: ${cause}`

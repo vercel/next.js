@@ -282,6 +282,87 @@ describe('app-dir - server source maps - fake frame source maps', () => {
         session.close()
       }
     })
+
+    it('stacks of rejections caught across environments resolve in a debugger', async () => {
+      // A "use cache" rejection handed to a client component is revived with
+      // fake stack frames once, serialized again towards the SSR render, and
+      // caught and logged there by app code. A debugger binds the logged
+      // frame to the script React eval'd for it; resolving the frame through
+      // that script's source map must reach the original `throw` site.
+      const target = await findServerInspectorTarget()
+      const session = await CDPSession.connect(target.webSocketDebuggerUrl)
+      try {
+        const scriptsByURL = new Map<
+          string,
+          { scriptId: string; sourceMapURL: string }
+        >()
+        const logs: string[] = []
+        session.onEvent = (method, params) => {
+          if (
+            method === 'Debugger.scriptParsed' &&
+            typeof params.url === 'string'
+          ) {
+            scriptsByURL.set(params.url, {
+              scriptId: params.scriptId,
+              sourceMapURL: params.sourceMapURL ?? '',
+            })
+          } else if (method === 'Runtime.consoleAPICalled') {
+            for (const arg of params.args ?? []) {
+              if (typeof arg.value === 'string') {
+                logs.push(arg.value)
+              }
+            }
+          }
+        }
+        await session.send('Runtime.enable')
+        await session.send('Debugger.enable', { maxScriptsCacheSize: 1 })
+
+        await next.render('/rsc-error-caught-cached')
+
+        let log: string | undefined
+        await retry(async () => {
+          log = logs.find(
+            (value) =>
+              value.includes('rsc-error-caught-cached') &&
+              value.includes('at throwsInCache')
+          )
+          expect(log).toBeDefined()
+        })
+
+        const frame = log!.match(/at throwsInCache \((.+):(\d+):(\d+)\)/)!
+        expect(frame).not.toBeNull()
+        const [, frameURL, line1, column1] = frame
+
+        const script = scriptsByURL.get(frameURL)
+        expect(script).toBeDefined()
+        expect({
+          frameURL,
+          hasSourceMap: script!.sourceMapURL !== '',
+        }).toEqual({ frameURL, hasSourceMap: true })
+
+        const { sourceMap, mapURL } = await resolveSourceMapLikeADebugger(
+          session,
+          frameURL,
+          script!.sourceMapURL
+        )
+        const entry = new SourceMap(sourceMap).findEntry(
+          Number(line1) - 1,
+          Number(column1) - 1
+        )
+        // Relative sources resolve against the map's own URL. Sources in
+        // `data:` maps are already absolute.
+        const source =
+          entry.originalSource === undefined
+            ? null
+            : mapURL === null
+              ? entry.originalSource
+              : new URL(entry.originalSource, mapURL).href
+        expect(source).toMatch(/\/app\/rsc-error-caught-cached\/page\.js$/)
+        expect(entry.originalLine + 1).toBe(6)
+      } finally {
+        session.close()
+      }
+    })
   } else {
     it('server chunk source maps are resolvable by an attached debugger', async () => {
       await next.render('/rsc-error-log')
