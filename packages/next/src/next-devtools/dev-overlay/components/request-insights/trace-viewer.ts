@@ -3,6 +3,10 @@ import type {
   RequestInsightFetch,
   RequestInsightSpan,
 } from '../../../shared/request-insights'
+import {
+  RSC_AWAIT_SPAN_TYPE,
+  RSC_COMPONENT_SPAN_TYPE,
+} from '../../../shared/request-insights'
 
 export type TraceItem = {
   id: string
@@ -39,6 +43,8 @@ const DEFAULT_VISIBLE_SPAN_TYPES = new Set([
   'NextNodeServer.createComponentTree',
   'AppRender.startRSCStream',
   'AppRender.renderRSCResponse',
+  RSC_COMPONENT_SPAN_TYPE,
+  RSC_AWAIT_SPAN_TYPE,
   'AppRender.waitForRSC',
   'AppRender.renderToNodeFizzStream',
   'AppRender.waitForHTMLCompletion',
@@ -310,7 +316,9 @@ function getFetchIndex(span: RequestInsightSpan): number | undefined {
 }
 
 function getSpanCategory(span: RequestInsightSpan): 'nextjs' | 'application' {
-  const category = span.attributes?.['next.span_category']
+  const category =
+    span.attributes?.['next.span.category'] ??
+    span.attributes?.['next.span_category']
   if (category === 'nextjs' || category === 'application') {
     return category
   }

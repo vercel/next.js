@@ -6,6 +6,17 @@ type RequestInsightAttributeValue =
   | Array<null | undefined | number>
   | Array<null | undefined | boolean>
 
+export const RSC_COMPONENT_SPAN_TYPE = 'ReactServerComponents.component'
+export const RSC_AWAIT_SPAN_TYPE = 'ReactServerComponents.await'
+
+export type RequestInsightRscTiming = {
+  name: string
+  environment: string
+  startTime: number
+  durationMs: number
+  kind: 'component' | 'await'
+}
+
 export type RequestInsightSpan = {
   name: string
   startTime: number

@@ -2,8 +2,10 @@ import {
   clearRequestInsightsForTest,
   getRequestInsightsSnapshot,
   recordRequestInsightFetch,
+  recordRequestInsightRscTimings,
   subscribeRequestInsights,
 } from './request-insights'
+import { collectRscDebugTimings } from './rsc-debug-timing'
 import { recordSpan } from './span-store'
 
 const originalRequestInsights = process.env.__NEXT_REQUEST_INSIGHTS
@@ -14,6 +16,17 @@ function restoreEnv(name: string, value: string | undefined) {
     delete process.env[name]
   } else {
     process.env[name] = value
+  }
+}
+
+function streamChunks(chunks: string[], onDrain?: () => void) {
+  return {
+    async *[Symbol.asyncIterator]() {
+      for (const chunk of chunks) {
+        yield chunk
+      }
+      onDrain?.()
+    },
   }
 }
 
@@ -368,5 +381,190 @@ describe('request insights', () => {
         ],
       })
     )
+  })
+
+  it('reconstructs sanitized RSC component and await timing from split streams', async () => {
+    const regular = streamChunks([
+      '2:o4,abcd1:D"$a"\n1:D"$',
+      'b"\n1:D"$c"\n1:D"$e"\n1:D"$f"\n',
+      '1:D"$ffff"\n3:D{"name":"Incomplete',
+    ])
+    const debug = streamChunks([
+      ':N1700000000',
+      '000\na:{"time":10,"stack":["secret-time-stack"]}\n',
+      'b:{"name":"DelayedPage","env":"Server","props":{"secret":"secret-prop"},"stack":["secret-component-stack"]}\n',
+      'c:{"time":15}\nd:J{"name":"setTimeout","start":15,"end":215,"env":"Server","value":"secret-value","url":"https://secret.example"}\n',
+      'e:{"awaited":"$d","env":"Server","stack":["secret-await-stack"]}\nf:{"time":215}\nmalformed\n',
+    ])
+
+    const timings = await collectRscDebugTimings(regular, debug)
+
+    expect(timings).toEqual([
+      {
+        name: 'DelayedPage',
+        environment: 'Server',
+        startTime: 1700000000010,
+        durationMs: 5,
+        kind: 'component',
+      },
+      {
+        name: 'setTimeout',
+        environment: 'Server',
+        startTime: 1700000000015,
+        durationMs: 200,
+        kind: 'await',
+      },
+    ])
+
+    const serialized = JSON.stringify(timings)
+    expect(serialized).not.toContain('secret')
+    expect(serialized).not.toContain('https://')
+    expect(serialized).not.toContain('stack')
+    expect(serialized).not.toContain('props')
+    expect(serialized).not.toContain('value')
+  })
+
+  it('joins RSC references after out-of-order stream completion', async () => {
+    let releaseRegular: (() => void) | undefined
+    const regularReady = new Promise<void>((resolve) => {
+      releaseRegular = resolve
+    })
+    let debugDrained = false
+
+    const regular = {
+      async *[Symbol.asyncIterator]() {
+        await regularReady
+        yield '1:D"$a"\n1:D"$b"\n1:D"$c"\n'
+      },
+    }
+    const debug = streamChunks(
+      [
+        ':N1000\na:{"time":1}\nb:{"name":"Page","env":"Server"}\nc:{"time":3}\n',
+      ],
+      () => {
+        debugDrained = true
+        releaseRegular?.()
+      }
+    )
+
+    await expect(collectRscDebugTimings(regular, debug)).resolves.toEqual([
+      {
+        name: 'Page',
+        environment: 'Server',
+        startTime: 1001,
+        durationMs: 2,
+        kind: 'component',
+      },
+    ])
+    expect(debugDrained).toBe(true)
+  })
+
+  it('caps RSC timing entries while continuing to drain both streams', async () => {
+    let regularRows = ''
+    let debugRows = ':N1000\n'
+    let nextId = 1
+
+    for (let index = 0; index < 501; index++) {
+      const startId = (nextId++).toString(16)
+      const componentId = (nextId++).toString(16)
+      const endId = (nextId++).toString(16)
+      debugRows += `${startId}:{"time":${index * 3}}\n`
+      debugRows += `${componentId}:{"name":"Component${index}"}\n`
+      debugRows += `${endId}:{"time":${index * 3 + 1}}\n`
+      regularRows += `1:D"$${startId}"\n1:D"$${componentId}"\n1:D"$${endId}"\n`
+    }
+
+    let regularDrained = false
+    let debugDrained = false
+    const timings = await collectRscDebugTimings(
+      streamChunks([regularRows], () => {
+        regularDrained = true
+      }),
+      streamChunks([debugRows], () => {
+        debugDrained = true
+      })
+    )
+
+    expect(timings).toHaveLength(500)
+    expect(regularDrained).toBe(true)
+    expect(debugDrained).toBe(true)
+  })
+
+  it('records RSC timings in one batch and attaches a late aggregate span', () => {
+    process.env.__NEXT_REQUEST_INSIGHTS = 'true'
+    const listener = jest.fn()
+    const unsubscribe = subscribeRequestInsights(listener)
+
+    recordRequestInsightRscTimings(
+      {
+        requestId: 'req_rsc',
+        htmlRequestId: 'html_rsc',
+        route: '/delayed',
+      },
+      [
+        {
+          name: 'DelayedPage',
+          environment: 'Server',
+          startTime: 110,
+          durationMs: 5,
+          kind: 'component',
+        },
+        {
+          name: 'setTimeout',
+          environment: 'Server',
+          startTime: 115,
+          durationMs: 200,
+          kind: 'await',
+        },
+      ]
+    )
+
+    expect(listener).toHaveBeenCalledTimes(1)
+    expect(getRequestInsightsSnapshot().requests[0].spans).toEqual([
+      expect.objectContaining({ parentSpanId: undefined }),
+      expect.objectContaining({ parentSpanId: undefined }),
+    ])
+
+    recordSpan({
+      name: 'AppRender.renderRSCResponse',
+      requestId: 'req_rsc',
+      htmlRequestId: 'html_rsc',
+      route: '/delayed',
+      startTime: 100,
+      durationMs: 220,
+      spanId: 'aggregate-rsc',
+      attributes: {
+        'next.span_type': 'AppRender.renderRSCResponse',
+      },
+    })
+
+    const rscSpans = getRequestInsightsSnapshot().requests[0].spans.filter(
+      (span) => span.attributes?.['next.rsc.kind'] !== undefined
+    )
+    expect(rscSpans).toEqual([
+      expect.objectContaining({
+        name: 'ReactServerComponents.component',
+        parentSpanId: 'aggregate-rsc',
+        attributes: {
+          'next.span.category': 'application',
+          'next.span_name': 'DelayedPage',
+          'next.span_type': 'ReactServerComponents.component',
+          'next.rsc.kind': 'component',
+          'next.rsc.environment': 'Server',
+        },
+      }),
+      expect.objectContaining({
+        name: 'ReactServerComponents.await',
+        parentSpanId: 'aggregate-rsc',
+        attributes: {
+          'next.span.category': 'application',
+          'next.span_name': 'setTimeout',
+          'next.span_type': 'ReactServerComponents.await',
+          'next.rsc.kind': 'await',
+          'next.rsc.environment': 'Server',
+        },
+      }),
+    ])
+    unsubscribe()
   })
 })

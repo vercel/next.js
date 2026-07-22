@@ -185,7 +185,7 @@ type NextAttributeNames =
   | 'next.page'
   | 'next.rsc'
   | 'next.segment'
-  | 'next.span_category'
+  | 'next.span.category'
   | 'next.span_name'
   | 'next.span_type'
   | 'next.server_action.name'
