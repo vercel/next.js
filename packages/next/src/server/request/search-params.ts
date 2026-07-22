@@ -14,6 +14,7 @@ import {
   postponeWithTracking,
   annotateDynamicAccess,
 } from '../app-render/dynamic-rendering'
+import { dynamicAccessAsyncStorage } from '../app-render/dynamic-access-async-storage.external'
 
 import {
   workUnitAsyncStorage,
@@ -387,9 +388,9 @@ function makeHangingSearchParams(
     '`searchParams`'
   )
 
-  const proxiedPromise = new Proxy(promise, {
+  const proxyHandler: ProxyHandler<Promise<SearchParams>> = {
     get(target, prop, receiver) {
-      if (Object.hasOwn(promise, prop)) {
+      if (Object.hasOwn(target, prop)) {
         // The promise has this property directly. we must return it.
         // We know it isn't a dynamic access because it can only be something
         // that was previously written to the promise and thus not an underlying searchParam value
@@ -397,11 +398,32 @@ function makeHangingSearchParams(
       }
 
       switch (prop) {
-        case 'then': {
-          const expression =
-            '`await searchParams`, `searchParams.then`, or similar'
-          annotateDynamicAccess(expression, prerenderStore)
-          return ReflectAdapter.get(target, prop, receiver)
+        case 'then':
+        case 'catch':
+        case 'finally': {
+          const originalMethod = ReflectAdapter.get(target, prop, receiver)
+          return {
+            [prop]: (...args: unknown[]) => {
+              const expression =
+                '`await searchParams`, `searchParams.then`, or similar'
+              annotateDynamicAccess(expression, prerenderStore)
+              // Mirror `makeHangingParams`: when this never-resolving promise
+              // is awaited while a `use cache` key is being encoded
+              // (dynamicAccessAsyncStorage is set), abort so the surrounding
+              // cache bails out to a dynamic hole instead of hanging on it.
+              // Without this, a private cache that reads `searchParams` would
+              // stall the App Shell cache-warming render. Re-wrapping the
+              // result propagates the same behavior to promises derived via
+              // `.then`/`.catch`/`.finally` that are then passed into a cache.
+              const dynamicAccessStore = dynamicAccessAsyncStorage.getStore()
+              if (dynamicAccessStore) {
+                dynamicAccessStore.abortController.abort(
+                  new Error('Accessed `searchParams` during prerendering.')
+                )
+              }
+              return new Proxy(originalMethod.apply(target, args), proxyHandler)
+            },
+          }[prop]
         }
         case 'status': {
           const expression =
@@ -415,7 +437,9 @@ function makeHangingSearchParams(
         }
       }
     },
-  })
+  }
+
+  const proxiedPromise = new Proxy(promise, proxyHandler)
 
   CachedSearchParams.set(prerenderStore, proxiedPromise)
   return proxiedPromise
