@@ -7,6 +7,9 @@ const mockedGoogleFontResponses = require.resolve(
 
 describe('next/font/google fetch error', () => {
   const isDev = (global as any).isNextDev
+  // Turbopack bounds the fetch with retries and an enriched message; the
+  // webpack/JS path still emits the original wording (updated in a follow-up).
+  const isTurbopack = !!process.env.IS_TURBOPACK_TEST
 
   if ((global as any).isNextDeploy) {
     it('should skip next deploy for now', () => {})
@@ -50,14 +53,18 @@ describe('next/font/google fetch error', () => {
       expect(sizeAdjust).toMatchInlineSnapshot(`"107.12%"`)
 
       expect(next.cliOutput.slice(outputIndex)).toInclude(
-        'Failed to download `Inter` from Google Fonts. Using fallback font instead.'
+        isTurbopack
+          ? 'Failed to download `Inter` from Google Fonts after 4 attempts. Using a fallback font instead.'
+          : 'Failed to download `Inter` from Google Fonts. Using fallback font instead.'
       )
     })
   } else {
     it('should error when not in dev', async () => {
       await expect(next.start()).rejects.toThrow('next build failed')
       expect(next.cliOutput).toInclude(
-        'Failed to fetch `Inter` from Google Fonts.'
+        isTurbopack
+          ? 'Failed to fetch `Inter` from Google Fonts after 4 attempts.'
+          : 'Failed to fetch `Inter` from Google Fonts.'
       )
     })
   }
