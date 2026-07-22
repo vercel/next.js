@@ -275,10 +275,6 @@ function getSourceMapFromTurbopack(
   if (sourceMapJson === null) {
     return undefined
   } else {
-    // Turbopack rewrites source map `sources` in Rust before serialization, based on the chunking
-    // context's source_map_source_type. In dev, all Next.js server contexts (Node.js and edge) use
-    // AbsoluteFileUri, which converts `turbopack:///[project]/...` into absolute `file://` URIs, so
-    // the payload's sources are already absolute by the time `getSourceMapSync` returns.
     return JSON.parse(sourceMapJson)
   }
 }
