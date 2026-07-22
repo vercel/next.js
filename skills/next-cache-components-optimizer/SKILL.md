@@ -283,10 +283,11 @@ Render `children` unconditionally; move the top-level `await` into a
 `<Suspense fallback={null}>`-wrapped child. Mechanism and before→after:
 `reference/real-app-patterns.md`, "Deferring an auth gate".
 
-The page that consumes the shell should be sync (no top-level `await`), with
-its dynamic data behind `<Suspense>`. `fallback={null}` is correct only when
-the gate renders nothing on success. For data, the fallback must be a real
-loading skeleton (see D1).
+**Fix the page below the shell too, not just the layout.** A page-level
+top-level `await` (commonly `await params`) blocks just like the layout's, so
+make the page sync and push its dynamic reads into a `<Suspense>`-wrapped leaf
+as well. `fallback={null}` is correct only when a gate renders nothing on
+success; for data, the fallback must be a real loading skeleton (see D1).
 
 Every other blocker shape — `cookies()`/`headers()`, uncached fetch or database
 reads, `searchParams`, metadata, viewport, non-deterministic values (`Date.now()`,
