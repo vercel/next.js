@@ -37,6 +37,7 @@ fn main() -> Result<()> {
             sst_size,
             flags,
             block_count,
+            tombstones,
         } in meta_file.entries
         {
             println!(
@@ -45,6 +46,7 @@ fn main() -> Result<()> {
                 u64::MAX / (max_hash - min_hash + 1)
             );
             println!("    AMQF {amqf_entries} entries = {} KiB", amqf_size / 1024);
+            println!("    TOMBSTONES = {tombstones}");
             println!(
                 "    {} KiB = {block_count} blocks (avg {} bytes/block)",
                 sst_size / 1024,
