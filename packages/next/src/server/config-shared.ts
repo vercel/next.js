@@ -876,6 +876,15 @@ export interface ExperimentalConfig {
   turbopackInputSourceMaps?: boolean
 
   /**
+   * When enabled (Turbopack dev only), browser source maps omit the inlined
+   * `sourcesContent` for project files and instead point `sourceRoot` at an
+   * on-demand dev endpoint (`/__nextjs_source-content`). This produces much
+   * smaller source maps; the browser fetches original file content lazily.
+   * Defaults to false.
+   */
+  turbopackServeSourceContent?: boolean
+
+  /**
    * Currently in active development. This splits modules into fragments and
    * chunks only import the used fragments of the modules.
    */

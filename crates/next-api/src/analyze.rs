@@ -16,7 +16,7 @@ use turbo_tasks_fs::{
 };
 use turbopack_analyze::split_chunk::{split_output_asset_into_parts, split_traced_file_into_parts};
 use turbopack_core::{
-    SOURCE_URL_PROTOCOL,
+    SOURCE_URL_PROTOCOL_STR,
     asset::{Asset, AssetContent},
     chunk::{ChunkingType, TracedMode},
     module::Module,
@@ -410,7 +410,7 @@ pub async fn analyze_output_assets(
 
     let mut builder = AnalyzeDataBuilder::new();
 
-    let prefix = format!("{SOURCE_URL_PROTOCOL}///");
+    let prefix = format!("{SOURCE_URL_PROTOCOL_STR}///");
 
     // Process the output assets and extract chunk parts.
     // Also creates sources for the chunk parts.

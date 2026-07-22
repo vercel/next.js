@@ -31,6 +31,7 @@ import * as Log from '../../build/output/log'
 import { BLOCKED_PAGES } from '../../shared/lib/constants'
 import {
   getOverlayMiddleware,
+  getSourceContentMiddleware,
   getSourceMapMiddleware,
   getOriginalStackFrames,
 } from './middleware-turbopack'
@@ -1016,6 +1017,7 @@ export async function createHotReloaderTurbopack(
       isSrcDir: opts.isSrcDir,
     }),
     getSourceMapMiddleware(project),
+    getSourceContentMiddleware(project),
     getNextErrorFeedbackMiddleware(opts.telemetry),
     getDevOverlayFontMiddleware(),
     getDisableDevIndicatorMiddleware(),

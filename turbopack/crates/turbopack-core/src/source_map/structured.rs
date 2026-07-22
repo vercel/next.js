@@ -361,6 +361,73 @@ impl StructuredSourceMap {
         Ok(result)
     }
 
+    /// Rewrites sources for on-demand dev-server source content: for every source that
+    /// `rewrite` maps to a new value, the source string is replaced and its `sourcesContent`
+    /// entry is dropped (so the consumer fetches it on demand), and the map's `sourceRoot` is
+    /// set to `source_root` (only if at least one source was rewritten). Sources that `rewrite`
+    /// returns `None` for keep their URL and inlined content untouched.
+    ///
+    /// Unlike [`Self::rewrite_sources`], this drops the shared content ropes for rewritten
+    /// sources rather than sharing them. It requires `sourcesContent` in the per-source
+    /// [`SourcesContentField::Escaped`] form (produced by [`Self::from_swc_map`], the form of all
+    /// internally generated module maps); maps whose content is still a raw blob, or whose
+    /// `sources` cannot be decoded, are returned unchanged.
+    pub fn rewrite_for_dev_server_content(
+        &self,
+        source_root: &str,
+        mut rewrite: impl FnMut(&str) -> Result<Option<String>>,
+    ) -> Result<Self> {
+        let mut result = self.clone();
+
+        let mut sources: Vec<Option<String>> = match &self.sources {
+            None => return Ok(result),
+            Some(SourcesField::Rewritten(sources)) => sources.clone(),
+            Some(SourcesField::Raw(raw)) => match serde_json::from_slice(&raw.to_bytes()) {
+                Ok(sources) => sources,
+                Err(_) => return Ok(result),
+            },
+        };
+
+        // Content dropping is per-index, which requires the escaped (per-source) form. If content
+        // is a single raw blob we can't null individual entries, so leave the map untouched.
+        let mut contents = match &self.sources_content {
+            Some(SourcesContentField::Escaped(contents)) => Some(contents.clone()),
+            // No content to drop; still allow source/`sourceRoot` rewriting.
+            None => None,
+            Some(SourcesContentField::Raw(_)) => return Ok(result),
+        };
+        static NULL: LazyLock<Rope> = LazyLock::new(|| Rope::from("null"));
+        if let Some(contents) = contents.as_mut()
+            && contents.len() < sources.len()
+        {
+            contents.resize(sources.len(), NULL.clone());
+        }
+
+        let mut changed = false;
+        for (i, source) in sources.iter_mut().enumerate() {
+            if let Some(source) = source
+                && let Some(new_source) = rewrite(source)?
+            {
+                *source = new_source;
+                if let Some(contents) = contents.as_mut() {
+                    contents[i] = NULL.clone();
+                }
+                changed = true;
+            }
+        }
+
+        if changed {
+            result.sources = Some(SourcesField::Rewritten(sources));
+            if let Some(contents) = contents {
+                result.sources_content = Some(SourcesContentField::Escaped(contents));
+            }
+            result.source_root = Some(Rope::from(
+                serde_json::to_vec(source_root).expect("string serialization is infallible"),
+            ));
+        }
+        Ok(result)
+    }
+
     /// Serializes the map. Field order matches `swc_sourcemap`'s serializer; `sourcesContent`
     /// and `mappings` ropes are shared, not copied, into the result.
     pub fn to_rope(&self) -> Rope {
@@ -607,6 +674,49 @@ mod tests {
             let reparsed = StructuredSourceMap::from_json_slice(&expected)?;
             assert_eq!(split, reparsed, "field-level equality, case: {case}");
         }
+        Ok(())
+    }
+
+    #[test]
+    fn rewrite_for_dev_server_content_drops_content_and_sets_source_root() -> Result<()> {
+        // A map with one project source (rewritten + content dropped) and one that stays.
+        let mut builder = swc_sourcemap::SourceMapBuilder::new(None);
+        let a = builder.add_source("turbopack:///[project]/app/page.tsx".into());
+        let b = builder.add_source("turbopack:///[next]/dist/runtime.js".into());
+        builder.set_source_contents(a, Some("first party source".into()));
+        builder.set_source_contents(b, Some("framework source".into()));
+        builder.add_raw(0, 0, 0, 0, Some(a), None, false);
+        builder.add_raw(0, 1, 0, 0, Some(b), None, false);
+        let structured = StructuredSourceMap::from_swc_map(builder.into_sourcemap())?;
+
+        let rewritten = structured.rewrite_for_dev_server_content(
+            "/__nextjs_source-content/[project]/",
+            |src| {
+                Ok(src
+                    .strip_prefix("turbopack:///[project]/")
+                    .map(|rest| rest.to_string()))
+            },
+        )?;
+
+        let json: serde_json::Value = serde_json::from_slice(&rewritten.to_rope().to_bytes())?;
+        // First-party source: relativized, content dropped, sourceRoot set.
+        assert_eq!(json["sources"][0], "app/page.tsx");
+        assert_eq!(json["sourcesContent"][0], serde_json::Value::Null);
+        assert_eq!(json["sourceRoot"], "/__nextjs_source-content/[project]/");
+        // Framework source: URL and content untouched.
+        assert_eq!(json["sources"][1], "turbopack:///[next]/dist/runtime.js");
+        assert_eq!(json["sourcesContent"][1], "framework source");
+        Ok(())
+    }
+
+    #[test]
+    fn rewrite_for_dev_server_content_noop_leaves_map_untouched() -> Result<()> {
+        // No source matches the rewrite → map is byte-identical (no sourceRoot added).
+        let input = r#"{"version":3,"sources":["turbopack:///[next]/a.js"],"sourcesContent":["x"],"mappings":"AAAA"}"#;
+        let structured = StructuredSourceMap::from_json(&Rope::from(input))?;
+        // `from_json` produces a `Raw` content field, which this method leaves untouched.
+        let rewritten = structured.rewrite_for_dev_server_content("/root/", |_| Ok(None))?;
+        assert_eq!(rewritten.to_rope().to_bytes().as_ref(), input.as_bytes());
         Ok(())
     }
 

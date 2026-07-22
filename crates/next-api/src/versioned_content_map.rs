@@ -9,6 +9,7 @@ use turbo_tasks::{
 };
 use turbo_tasks_fs::{FileContent, FileSystemPath};
 use turbopack_core::{
+    PROJECT_FILESYSTEM_NAME_STR, SOURCE_URL_PROTOCOL_STR,
     asset::Asset,
     output::{ExpandedOutputAssets, OptionOutputAsset, OutputAsset},
     source_map::GenerateSourceMap,
@@ -266,6 +267,103 @@ type GetEntriesResultT = Vec<(FileSystemPath, ResolvedVc<Box<dyn OutputAsset>>)>
 
 #[turbo_tasks::value(transparent)]
 struct GetEntriesResult(GetEntriesResultT);
+
+/// Collects the set of project-relative source file paths referenced by the `sources` of every
+/// source map among `assets`. Only `turbopack:///[project]/…` sources are included (relativized to
+/// their project path); virtual (`[next]`/`[turbopack]`), `node_modules`, and non-project sources
+/// are skipped since those keep their content inlined and are never fetched on demand.
+///
+/// This is a pure query. The napi layer reads the result and folds it into the (non-turbo-tasks)
+/// admission filter that gates the on-demand source-content endpoint.
+#[turbo_tasks::function]
+pub async fn referenced_source_paths(assets: Vc<ExpandedOutputAssets>) -> Result<Vc<Vec<RcStr>>> {
+    let prefix = format!("{SOURCE_URL_PROTOCOL_STR}///[{PROJECT_FILESYSTEM_NAME_STR}]/");
+    let assets_ref = assets.await?;
+    let per_asset = assets_ref
+        .iter()
+        .map(|&asset| {
+            let prefix = prefix.clone();
+            async move {
+                let Some(generate_source_map) =
+                    ResolvedVc::try_sidecast::<Box<dyn GenerateSourceMap>>(asset)
+                else {
+                    return Ok(Vec::new());
+                };
+                let map = generate_source_map.generate_source_map().await?;
+                let Some(map) = map.as_content() else {
+                    return Ok(Vec::new());
+                };
+                let map = map.content().to_str()?;
+                Ok(collect_project_sources(&map, &prefix))
+            }
+        })
+        .try_join()
+        .await?;
+
+    let mut result = FxHashSet::default();
+    for paths in per_asset {
+        result.extend(paths);
+    }
+    Ok(Vc::cell(result.into_iter().collect()))
+}
+
+/// Parses a source map JSON string and returns the project-relative source paths it references
+/// (across the top-level map and any sections).
+///
+/// Handles both source map shapes the pipeline can produce:
+/// - stage-1 form: `sources` are absolute `turbopack:///[project]/<rel>` URIs (stripped of the
+///   `prefix`).
+/// - dev-server stage-2 form: `sources` are already `<rel>` and the map carries `sourceRoot ==
+///   "/__nextjs_source-content/[project]/"` (the served browser chunk map). These relative sources
+///   are exactly the project-relative paths to admit.
+fn collect_project_sources(map: &str, prefix: &str) -> Vec<RcStr> {
+    fn decode(rest: &str) -> RcStr {
+        // Percent-decode to match the on-disk (POSIX-like, unencoded) path format used by the
+        // content endpoint's filesystem-root join.
+        let decoded = urlencoding::decode(rest)
+            .map(|c| c.into_owned())
+            .unwrap_or_else(|_| rest.to_string());
+        RcStr::from(decoded)
+    }
+
+    fn collect_from_value(value: &serde_json::Value, prefix: &str, out: &mut Vec<RcStr>) {
+        let is_dev_server_map =
+            value.get("sourceRoot").and_then(|r| r.as_str()) == Some(SOURCE_CONTENT_SOURCE_ROOT);
+
+        if let Some(sources) = value.get("sources").and_then(|s| s.as_array()) {
+            for src in sources {
+                let Some(src) = src.as_str() else {
+                    continue;
+                };
+                if let Some(rest) = src.strip_prefix(prefix) {
+                    out.push(decode(rest));
+                } else if is_dev_server_map && !src.contains("://") && !src.contains("node_modules")
+                {
+                    // Relative project source resolved via the dev-server sourceRoot.
+                    out.push(decode(src));
+                }
+            }
+        }
+        if let Some(sections) = value.get("sections").and_then(|s| s.as_array()) {
+            for section in sections {
+                if let Some(inner) = section.get("map") {
+                    collect_from_value(inner, prefix, out);
+                }
+            }
+        }
+    }
+
+    let Ok(value) = serde_json::from_str::<serde_json::Value>(map) else {
+        return Vec::new();
+    };
+    let mut out = Vec::new();
+    collect_from_value(&value, prefix, &mut out);
+    out
+}
+
+/// The `sourceRoot` emitted for dev-server on-demand source content. Must match the value produced
+/// in `crates/next-core/src/next_client/context.rs` and consumed by the JS content middleware.
+const SOURCE_CONTENT_SOURCE_ROOT: &str = "/__nextjs_source-content/[project]/";
 
 #[turbo_tasks::function(operation, root)]
 async fn get_entries(assets: OperationVc<ExpandedOutputAssets>) -> Result<Vc<GetEntriesResult>> {

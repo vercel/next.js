@@ -5116,6 +5116,7 @@ dependencies = [
  "next-custom-transforms",
  "next-taskless",
  "owo-colors",
+ "qfilter",
  "rand 0.10.1",
  "regex",
  "rustc-hash 2.1.1",

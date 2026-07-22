@@ -36,7 +36,7 @@ use turbo_tasks::{PrettyPrintError, ResolvedVc, ValueToString, Vc, turbofmt, uti
 use turbo_tasks_fs::{FileContent, FileSystemPath, rope::Rope};
 use turbo_tasks_hash::hash_xxh3_hash64;
 use turbopack_core::{
-    SOURCE_URL_PROTOCOL,
+    SOURCE_URL_PROTOCOL_STR,
     asset::{Asset, AssetContent},
     issue::{Issue, IssueExt, IssueSeverity, IssueSource, IssueStage, StyledString},
     source::Source,
@@ -250,7 +250,7 @@ impl SourceMapGenConfig for InlineSourcesContentConfig {
     fn file_name_to_source(&self, f: &FileName) -> String {
         match f {
             FileName::Custom(s) => {
-                format!("{SOURCE_URL_PROTOCOL}///{s}")
+                format!("{SOURCE_URL_PROTOCOL_STR}///{s}")
             }
             _ => f.to_string(),
         }

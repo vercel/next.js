@@ -298,6 +298,43 @@ pub async fn relative_fileify_source_map(
     .await
 }
 
+/// Rewrites `turbopack:///[project]` sources into relative, uri-encoded paths and points the map's
+/// `sourceRoot` at `source_root_base` (a URL prefix, e.g. a dev-server endpoint). The inlined
+/// `sourcesContent` for those project sources is dropped so the consumer (e.g. browser devtools)
+/// fetches the file content on demand from `<source_root_base><relativePath>`.
+///
+/// Non-`[project]` sources (node_modules, `[next]`, `[turbopack]`, broken dummies) keep their
+/// absolute `turbopack:///` URIs and their inlined content untouched.
+///
+/// The browser chunk map is *sectioned*, so this operates on each section's map (and the top-level
+/// map, if it carries sources directly) — `sourceRoot` on the outer sectioned object is ignored by
+/// consumers.
+pub async fn dev_server_source_map(
+    map: &StructuredSourceMap,
+    context_path: FileSystemPath,
+    source_root_base: RcStr,
+) -> Result<StructuredSourceMap> {
+    let context_fs = context_path.fs;
+    let context_fs = &*ResolvedVc::try_downcast_type::<DiskFileSystem>(context_fs)
+        .context("Expected the chunking context to have a DiskFileSystem")?
+        .await?;
+
+    let prefix = format!("{}///[{}]/", SOURCE_URL_PROTOCOL_STR, context_fs.name());
+
+    map.rewrite_for_dev_server_content(&source_root_base, |src| {
+        match src.strip_prefix(&prefix) {
+            // `node_modules` files live under the project root but are ignore-listed and should
+            // keep their `turbopack:///[project]/` URI + inlined content, so that stack-frame
+            // tracing and ignore-list matching (which key off the source URL) keep working. Only
+            // first-party project files are served on demand.
+            Some(src_rest) if !src_rest.contains("node_modules/") => {
+                Ok(Some(uri_encode_path(src_rest)))
+            }
+            _ => Ok(None),
+        }
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use std::path::Path;

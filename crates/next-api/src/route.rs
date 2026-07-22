@@ -11,6 +11,7 @@ use turbo_tasks::{
 use turbopack_core::{
     module_graph::{GraphEntries, ModuleGraph},
     output::OutputAssets,
+    reference::all_assets_from_entries,
 };
 
 use crate::{operation::OptionEndpoint, paths::AssetPath, project::Project};
@@ -254,6 +255,21 @@ pub async fn endpoint_write_to_disk_operation(
         endpoint_write_to_disk(*endpoint)
     } else {
         EndpointOutputPaths::NotFound.cell()
+    })
+}
+
+/// The project-relative source file paths referenced by the source maps of an endpoint's output
+/// assets. Used by the napi layer to populate the on-demand source-content admission filter.
+#[turbo_tasks::function(operation, root)]
+pub async fn endpoint_referenced_source_paths_operation(
+    endpoint: OperationVc<OptionEndpoint>,
+) -> Result<Vc<Vec<RcStr>>> {
+    Ok(if let Some(endpoint) = *endpoint.connect().await? {
+        let output_assets = endpoint.output().await?.output_assets;
+        let expanded = all_assets_from_entries(*output_assets);
+        crate::versioned_content_map::referenced_source_paths(expanded)
+    } else {
+        Vc::cell(Vec::new())
     })
 }
 

@@ -1605,6 +1605,9 @@ impl Project {
             unused_references: self.unused_references(),
             minify: self.next_config().turbo_minify(self.next_mode()),
             source_maps: self.next_config().client_source_maps(self.next_mode()),
+            serve_source_content: self
+                .next_config()
+                .turbopack_serve_source_content(self.next_mode()),
             no_mangling: self.no_mangling(),
             scope_hoisting: self.next_config().turbo_scope_hoisting(self.next_mode()),
             nested_async_chunking: self

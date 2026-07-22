@@ -476,6 +476,34 @@ export declare function projectGetSourceForAsset(
   project: { __napiType: 'Project' },
   filePath: RcStr
 ): Promise<string | null>
+/**
+ * Reads a project source file and renders a code frame for `location` in a single native call.
+ *
+ * This fuses [`project_get_source_for_asset`] + `code_frame_columns`: the (potentially large)
+ * source string is read and rendered entirely in Rust, so only the small rendered frame crosses
+ * the napi boundary. It is the entrypoint used by the dev error overlay when tracing a stack
+ * frame back to its original source.
+ *
+ * Returns `None` when the file can't be read or the location is out of range.
+ */
+export declare function projectGetCodeFrameForAsset(
+  project: { __napiType: 'Project' },
+  filePath: RcStr,
+  location: NapiCodeFrameLocation,
+  options?: NapiCodeFrameOptions | undefined | null
+): Promise<string | null>
+/**
+ * Reads a project source file for the on-demand source-content dev endpoint.
+ *
+ * Unlike [`project_get_source_for_asset`], this is gated by the emitted-source-paths admission
+ * filter: it only serves files that a source map actually referenced. Combined with the
+ * filesystem-root sandbox (`root().join()`), this prevents reading arbitrary project files or
+ * escaping the project root via path traversal.
+ */
+export declare function projectGetSourceContent(
+  project: { __napiType: 'Project' },
+  filePath: RcStr
+): Promise<string | null>
 export declare function projectGetSourceMap(
   project: { __napiType: 'Project' },
   filePath: RcStr

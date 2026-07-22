@@ -478,7 +478,7 @@ pub async fn load_next_js_json_file<T: DeserializeOwned>(
     let content = &*file_path.read().await?;
 
     match content.parse_json_ref() {
-        FileJsonContent::Unparsable(e) => bail!("File is not valid JSON: {e}"),
+        FileJsonContent::Unparsable(e) => turbobail!("File '{file_path}' is not valid JSON: {e}"),
         FileJsonContent::NotFound => turbobail!("File not found: {file_path:?}",),
         FileJsonContent::Content(value) => Ok(serde_json::from_value(value)?),
     }

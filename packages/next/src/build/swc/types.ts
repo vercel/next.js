@@ -336,6 +336,26 @@ export interface Project {
 
   getSourceForAsset(filePath: string): Promise<string | null>
 
+  /**
+   * Reads a project source file and renders a code frame for `location` in a
+   * single native call, so the (potentially large) source string is never
+   * laundered through JavaScript just to be handed back to the native code-frame
+   * renderer. Returns null if the file can't be read or the location is out of
+   * range.
+   */
+  getCodeFrameForAsset(
+    filePath: string,
+    location: NapiCodeFrameLocation,
+    options?: NapiCodeFrameOptions
+  ): Promise<string | null>
+
+  /**
+   * Reads a project source file for the on-demand source-content dev endpoint.
+   * Only returns content for files that a source map actually referenced
+   * (admission-filtered) and that resolve within the project root.
+   */
+  getSourceContent(filePath: string): Promise<string | null>
+
   getSourceMap(filePath: string): Promise<string | null>
   getSourceMapSync(filePath: string): string | null
 

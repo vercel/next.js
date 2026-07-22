@@ -455,7 +455,7 @@ impl ChunkingContext for NodeJsChunkingContext {
 
     #[turbo_tasks::function]
     fn source_map_source_type(&self) -> Vc<SourceMapSourceType> {
-        self.source_map_source_type.cell()
+        self.source_map_source_type.clone().cell()
     }
 
     #[turbo_tasks::function]

@@ -1,4 +1,5 @@
 import { findSourceMap as nativeFindSourceMap } from 'module'
+import * as fs from 'fs'
 import * as path from 'path'
 import * as url from 'url'
 import type * as util from 'util'
@@ -59,6 +60,54 @@ type SourceMapCache = Map<
   string,
   null | { map: SyncSourceMapConsumer; payload: ModernSourceMapPayload }
 >
+
+/**
+ * When a source map omits inlined `sourcesContent` (e.g. Turbopack dev with
+ * `experimental.turbopackServeSourceContent`), server-side code frames read the original file
+ * directly from disk. This is only valid for `file://`/absolute sources that live under the
+ * project root — virtual schemes (`turbopack:///`, `webpack://`, `node:`, …) keep their content
+ * inlined, so `sourceContentFor` already returns it and we never reach here for them.
+ *
+ * Reads are cached per file for the lifetime of the process image of the source; this is a
+ * best-effort synchronous read inside error inspection, so any failure degrades to `null`.
+ */
+const diskSourceContentCache = new Map<string, string | null>()
+
+function readSourceContentFromDiskSync(source: string): string | null {
+  // Only `file://` URIs and absolute paths are safe to read directly; everything else is virtual.
+  let filePath: string
+  if (source.startsWith('file://')) {
+    try {
+      filePath = url.fileURLToPath(source)
+    } catch {
+      return null
+    }
+  } else if (path.isAbsolute(source)) {
+    filePath = source
+  } else {
+    return null
+  }
+
+  const cached = diskSourceContentCache.get(filePath)
+  if (cached !== undefined) {
+    return cached
+  }
+
+  let content: string | null = null
+  try {
+    // Constrain reads to the project root, mirroring the browser endpoint's sandbox.
+    const projectRoot = process.cwd()
+    const relative = path.relative(projectRoot, filePath)
+    if (!relative.startsWith('..') && !path.isAbsolute(relative)) {
+      content = fs.readFileSync(filePath, 'utf8')
+    }
+  } catch {
+    content = null
+  }
+
+  diskSourceContentCache.set(filePath, content)
+  return content
+}
 
 function frameToString(
   methodName: string | null,
@@ -331,11 +380,16 @@ function getSourcemappedFrameIfPossible(
     stack: originalFrame,
     get code() {
       if (codeFrame === undefined) {
-        const sourceContent: string | null =
+        let sourceContent: string | null =
           sourceMapConsumer.sourceContentFor(
             sourcePosition.source,
             /* returnNullOnMissing */ true
           ) ?? null
+        // If the map omitted inlined content for this source (e.g. on-demand source content in
+        // Turbopack dev), fall back to reading the original `file://` source from disk.
+        if (sourceContent === null) {
+          sourceContent = readSourceContentFromDiskSync(sourcePosition.source)
+        }
         codeFrame = getOriginalCodeFrame(
           originalFrame,
           sourceContent,

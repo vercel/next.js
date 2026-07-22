@@ -21,7 +21,7 @@ use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{FxIndexMap, ResolvedVc, ValueToString, Vc};
 use turbo_tasks_fs::{FileContent, FileSystemPath};
 use turbopack_core::{
-    SOURCE_URL_PROTOCOL,
+    SOURCE_URL_PROTOCOL_STR,
     asset::{Asset, AssetContent},
     chunk::{ChunkingContext, MinifyType},
     environment::Environment,
@@ -736,7 +736,7 @@ fn generate_css_source_map(
     let mut builder = SourceMapBuilder::new(None);
 
     for src in source_map.get_sources() {
-        builder.add_source(format!("{SOURCE_URL_PROTOCOL}///{src}").into());
+        builder.add_source(format!("{SOURCE_URL_PROTOCOL_STR}///{src}").into());
     }
 
     for (idx, content) in source_map.get_sources_content().iter().enumerate() {
