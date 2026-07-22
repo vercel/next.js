@@ -131,7 +131,7 @@ node scripts/sandbox-e2e.mjs --pr <url> --label <slug> \
   builds racing).
 - CPU profiles are captured by default: one profile pass per arm runs
   strictly AFTER the timed runs (it cannot touch the numbers), costs
-  ~10-15 min extra VM wall-clock, and lands in `<runDir>/prof-vm<N>/`
+  ~45-60 min extra VM wall-clock, and lands in `<runDir>/prof-vm<N>/`
   as standard V8 `.cpuprofile` files. Cross-VM profile diffs are
   highly stable (observed 16/16 sign agreement on real movers), so one
   profiled cell suffices to rank hot paths. Analysis caveats:
@@ -239,7 +239,10 @@ collected and interim per-route effects with confidence. Relay to the
 user: the run dir and expected duration right after launching,
 notable interim shifts if they ask how it's going, and the full
 verdict from the final analysis when the completion notification
-arrives.
+arrives. The analysis names metrics that were `not captured on this
+run` — repeat that in the verdict when it limits what the data can
+say (document metrics absent means the payload mechanism is
+unverified, not verified-identical).
 
 While a run is active, open any reply with a one-line status per run:
 read the tail of the launcher's output and quote its latest progress

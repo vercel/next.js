@@ -161,6 +161,9 @@ export function analyzeE2eRows(rows, baseName, candName, metrics) {
         : 'arms differ (A/B mode)');
   }
 
+  // "Absent" must be distinguishable from "identical": metrics the run
+  // never captured are named at the end instead of silently missing.
+  const captured = new Set();
   for (const phase of [...new Set(rows.map(r => `${r.route ?? ''} ${r.phase}`))].sort()) {
     console.log(`\n${phase}`);
     const inPhase = r => `${r.route ?? ''} ${r.phase}` === phase;
@@ -177,9 +180,14 @@ export function analyzeE2eRows(rows, baseName, candName, metrics) {
       }
       const s = bootLevelStats(perBoot);
       if (s !== null && s.pairs > 0) {
+        captured.add(metric);
         console.log(formatStat(metric, candName, baseName, s));
       }
     }
+  }
+  const absent = metrics.filter(m => !captured.has(m));
+  if (absent.length > 0) {
+    console.log(`\nnot captured on this run: ${absent.join(', ')}`);
   }
   return true;
 }
