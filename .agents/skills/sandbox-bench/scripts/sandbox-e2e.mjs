@@ -1386,6 +1386,12 @@ wc -l /vercel/sandbox/results.jsonl`
     }
 
     if (cfg.profile) {
+      writeStatus({
+        vms: {
+          ...statusState.vms,
+          [vm]: { ...statusState.vms[vm], state: 'profiling' },
+        },
+      })
       // Profiled passes run strictly AFTER the timed runs — profiling
       // overhead must never touch the numbers.
       const prof = `set -e
@@ -1459,9 +1465,10 @@ function analyze(cfg) {
   // mechanical (sqlite integrity, pairing shape, artifact hashes).
   const db = openDb()
   const { runId, samples, artifacts } = importRun(db, outDir)
-  const problems = verifyDb(db, runId)
-  if (problems.length) {
-    throw new Error(`results db verify FAILED:\n  ${problems.join('\n  ')}`)
+  const { failures, notes } = verifyDb(db, runId)
+  for (const n of notes) console.log(`note: ${n}`)
+  if (failures.length) {
+    throw new Error(`results db verify FAILED:\n  ${failures.join('\n  ')}`)
   }
   console.error(
     `results db: ${samples} samples, ${artifacts} artifacts as ${runId} (verify ok)`
@@ -1662,6 +1669,10 @@ try {
         cand: cfg.arms[1].name,
         label: cfg.label,
         nextRef: cfg.nextRef,
+        vms: cfg.vms,
+        blocks: cfg.blocks,
+        runs: cfg.runs,
+        routes: cfg.routes,
         pr: cfg.runContext.pr,
         arms: cfg.runContext.arms,
         benchEnv: cfg.benchEnv || undefined,

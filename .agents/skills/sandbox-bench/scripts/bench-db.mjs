@@ -63,6 +63,19 @@ CREATE TABLE IF NOT EXISTS artifacts(
   data        BLOB NOT NULL,
   UNIQUE(run_id, boot, arm, name)
 );
+CREATE TABLE IF NOT EXISTS boots(
+  run_id  TEXT NOT NULL REFERENCES runs(run_id) ON DELETE CASCADE,
+  boot    INTEGER NOT NULL,
+  vm_name TEXT,
+  UNIQUE(run_id, boot)
+);
+CREATE TABLE IF NOT EXISTS source_files(
+  run_id TEXT NOT NULL REFERENCES runs(run_id) ON DELETE CASCADE,
+  name   TEXT NOT NULL,
+  sha256 TEXT NOT NULL,
+  rows   INTEGER NOT NULL,
+  UNIQUE(run_id, name)
+);
 CREATE INDEX IF NOT EXISTS idx_samples_run ON samples(run_id);
 CREATE INDEX IF NOT EXISTS idx_measurements_sample ON measurements(sample_id);
 CREATE INDEX IF NOT EXISTS idx_artifacts_run ON artifacts(run_id);
@@ -133,7 +146,10 @@ function walk(dir) {
 
 // Import one run dir: replaces the run's rows wholesale so re-imports
 // (recovery, added boots, new artifacts) converge on the same state.
-export function importRun(db, dir) {
+// A re-import that would SHRINK a run (fewer boots or samples than the
+// db already holds — e.g. a cleaned-up run dir) is refused without
+// force: claims must never silently lose data underneath them.
+export function importRun(db, dir, { force = false } = {}) {
   const runId = path.basename(path.resolve(dir))
   const files = fs
     .readdirSync(dir)
@@ -150,6 +166,11 @@ export function importRun(db, dir) {
   }
   const meta = readJson('meta.json')
   const status = readJson('status.json')
+  const prev = db
+    .prepare(
+      'SELECT COUNT(DISTINCT boot) boots, COUNT(*) n FROM samples WHERE run_id = ?'
+    )
+    .get(runId)
   db.exec('BEGIN')
   try {
     db.prepare('DELETE FROM runs WHERE run_id = ?').run(runId)
@@ -162,14 +183,36 @@ export function importRun(db, dir) {
     )
     let samples = 0
     let pendingRows = []
+    const fileInfos = []
     for (const [boot, file] of files.entries()) {
-      for (const line of fs.readFileSync(file, 'utf8').trim().split('\n')) {
+      const content = fs.readFileSync(file, 'utf8')
+      let fileRows = 0
+      for (const line of content.trim().split('\n')) {
         if (!line) continue
         const row = JSON.parse(line)
         const micro = row.payload !== undefined
         if (micro) kind = 'micro'
         pendingRows.push({ boot, row, micro })
+        fileRows++
       }
+      fileInfos.push({
+        boot,
+        name: path.basename(file),
+        sha256: crypto.createHash('sha256').update(content).digest('hex'),
+        rows: fileRows,
+      })
+    }
+    if (
+      !force &&
+      prev.n > 0 &&
+      (files.length < prev.boots || pendingRows.length < prev.n)
+    ) {
+      throw new Error(
+        `re-import of ${runId} would shrink it ` +
+          `(${prev.boots} boots/${prev.n} samples in db, ` +
+          `${files.length} boots/${pendingRows.length} samples in ${dir}) — ` +
+          'pass --force only if the db copy is known bad'
+      )
     }
     db.prepare(
       `INSERT INTO runs
@@ -184,6 +227,25 @@ export function importRun(db, dir) {
       harnessSha(),
       meta ? JSON.stringify(meta) : null
     )
+    // Provenance: which sandbox VM produced each boot (from
+    // status.json, matched by the index in the VM name), and the exact
+    // bytes each boot's JSONL contributed.
+    const vmByIndex = new Map()
+    for (const name of Object.keys(status?.vms ?? {})) {
+      const idx = name.match(/-(\d+)-[a-z0-9]+$/)?.[1]
+      if (idx !== undefined) vmByIndex.set(Number(idx), name)
+    }
+    const insBoot = db.prepare(
+      'INSERT INTO boots (run_id, boot, vm_name) VALUES (?,?,?)'
+    )
+    const insFile = db.prepare(
+      'INSERT INTO source_files (run_id, name, sha256, rows) VALUES (?,?,?,?)'
+    )
+    for (const f of fileInfos) {
+      const n = Number(f.name.match(/^results-vm(\d+)\.jsonl$/)?.[1])
+      insBoot.run(runId, f.boot, vmByIndex.get(n) ?? null)
+      insFile.run(runId, f.name, f.sha256, f.rows)
+    }
     for (const { boot, row, micro } of pendingRows) {
       const { lastInsertRowid: sid } = insSample.run(
         runId,
@@ -277,9 +339,12 @@ export function runMeta(db, runId) {
 
 // Integrity checks. Everything here is mechanical: SQLite-level
 // integrity, referential health, per-run shape (one fingerprint per
-// arm, paired sample counts), and artifact hashes.
+// arm, paired sample counts), and artifact hashes. Failures are
+// data-integrity violations; notes are true facts a reader must not
+// gloss over (e.g. a recovered run that is legitimately partial).
 export function verify(db, runId) {
   const problems = []
+  const notes = []
   const ic = db.prepare('PRAGMA integrity_check').all()
   if (!(ic.length === 1 && ic[0].integrity_check === 'ok')) {
     problems.push(`sqlite integrity_check: ${JSON.stringify(ic)}`)
@@ -318,6 +383,21 @@ export function verify(db, runId) {
         )
       }
     }
+    const planned = (() => {
+      try {
+        return JSON.parse(
+          db.prepare('SELECT meta FROM runs WHERE run_id = ?').get(run_id).meta
+        ).vms
+      } catch {
+        return undefined
+      }
+    })()
+    const gotBoots = db
+      .prepare('SELECT COUNT(DISTINCT boot) c FROM samples WHERE run_id = ?')
+      .get(run_id).c
+    if (planned && gotBoots < planned) {
+      notes.push(`${run_id}: partial run (${gotBoots}/${planned} boots)`)
+    }
     if (arms.length === 2 && arms[0].n !== arms[1].n) {
       problems.push(
         `${run_id}: unpaired sample counts ` +
@@ -338,7 +418,7 @@ export function verify(db, runId) {
       }
     }
   }
-  return problems
+  return { failures: problems, notes }
 }
 
 export function exportRuns(db, outFile, runIds) {
@@ -374,6 +454,8 @@ export function exportRuns(db, outFile, runIds) {
     'errors',
   ])
   const copyMeas = copy('measurements', ['sample_id', 'metric', 'value'])
+  const copyBoot = copy('boots', ['run_id', 'boot', 'vm_name'])
+  const copyFile = copy('source_files', ['run_id', 'name', 'sha256', 'rows'])
   const copyArt = copy('artifacts', [
     'run_id',
     'boot',
@@ -403,6 +485,16 @@ export function exportRuns(db, outFile, runIds) {
       .all(runId)) {
       copyArt(a)
     }
+    for (const b of db
+      .prepare('SELECT * FROM boots WHERE run_id = ?')
+      .all(runId)) {
+      copyBoot(b)
+    }
+    for (const f of db
+      .prepare('SELECT * FROM source_files WHERE run_id = ?')
+      .all(runId)) {
+      copyFile(f)
+    }
   }
   out.exec('COMMIT')
   out.close()
@@ -423,30 +515,36 @@ function isMain() {
 if (isMain()) {
   const [cmd, ...rest] = process.argv.slice(2)
   const db = openDb()
-  if (cmd === 'import') {
-    if (rest.length === 0) {
-      console.error('usage: bench-db.mjs import <runDir...>')
+  const report = ({ failures, notes }, label) => {
+    for (const n of notes) console.log(`note: ${n}`)
+    if (failures.length) {
+      console.error(`VERIFY FAILED:\n  ${failures.join('\n  ')}`)
       process.exit(1)
     }
-    for (const dir of rest) {
-      const r = importRun(db, dir)
+    console.log(`verify: ok${label ? ` (${label})` : ''}`)
+  }
+  if (cmd === 'import') {
+    const force = rest.includes('--force')
+    const dirs = rest.filter((a) => a !== '--force')
+    if (dirs.length === 0) {
+      console.error('usage: bench-db.mjs import [--force] <runDir...>')
+      process.exit(1)
+    }
+    for (const dir of dirs) {
+      let r
+      try {
+        r = importRun(db, dir, { force })
+      } catch (e) {
+        console.error(`IMPORT REFUSED: ${e.message}`)
+        process.exit(1)
+      }
       console.log(
         `${r.runId}: ${r.boots} boots, ${r.samples} samples, ${r.artifacts} artifacts`
       )
     }
-    const problems = verify(db)
-    if (problems.length) {
-      console.error(`VERIFY FAILED:\n  ${problems.join('\n  ')}`)
-      process.exit(1)
-    }
-    console.log('verify: ok')
+    report(verify(db))
   } else if (cmd === 'verify') {
-    const problems = verify(db, rest[0])
-    if (problems.length) {
-      console.error(`VERIFY FAILED:\n  ${problems.join('\n  ')}`)
-      process.exit(1)
-    }
-    console.log(`verify: ok (${rest[0] ?? 'all runs'})`)
+    report(verify(db, rest[0]), rest[0] ?? 'all runs')
   } else if (cmd === 'export') {
     const [out, ...ids] = rest
     if (!out || ids.length === 0) {

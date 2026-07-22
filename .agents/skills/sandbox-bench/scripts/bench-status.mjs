@@ -35,15 +35,15 @@ for (const dir of dirs) {
     continue
   }
   const fresh = fs.statSync(sf).mtimeMs > Date.now() - DAY
-  if (!all && !fresh && (st.phase === 'done' || st.phase === 'failed')) {
-    continue
-  }
   let alive = false
   if (st.pid) {
     try {
       process.kill(st.pid, 0)
       alive = true
     } catch {}
+  }
+  if (!all && !fresh && !alive) {
+    continue
   }
   const ageMin = st.updatedAt
     ? Math.round((Date.now() - new Date(st.updatedAt).getTime()) / 60000)
@@ -56,6 +56,14 @@ for (const dir of dirs) {
     action = 'complete — bench-analyze.mjs re-reads it any time'
   } else if (alive) {
     action = 'RUNNING — leave it alone'
+  } else if (
+    (rows > 0 || st.phase === 'measuring') &&
+    ageMin !== null &&
+    ageMin > 150
+  ) {
+    action =
+      'DEAD and its VMs have expired — whatever was collected is in the ' +
+      'run dir/results db; relaunch if more data is needed'
   } else if (rows > 0 || st.phase === 'measuring') {
     action =
       `DEAD but VMs may still hold data — node scripts/bench-collect.mjs ${dir}` +

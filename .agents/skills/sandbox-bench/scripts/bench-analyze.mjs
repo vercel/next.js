@@ -27,9 +27,10 @@ if (fs.existsSync(target)) {
 } else {
   runId = path.basename(target)
 }
-const problems = verify(db, runId)
-if (problems.length) {
-  console.error(`RESULTS DB VERIFY FAILED:\n  ${problems.join('\n  ')}`)
+const { failures, notes } = verify(db, runId)
+for (const n of notes) console.log(`note: ${n}`)
+if (failures.length) {
+  console.error(`RESULTS DB VERIFY FAILED:\n  ${failures.join('\n  ')}`)
   process.exit(1)
 }
 const rows = loadRows(db, runId)

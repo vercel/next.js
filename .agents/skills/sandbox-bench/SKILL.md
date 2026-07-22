@@ -4,7 +4,8 @@ description: >
   Benchmark React or Next.js changes on Vercel Sandbox VMs with paired
   A/B statistics: react PR/commit vs base, or Next.js PR/commit vs base,
   measured end-to-end through the bench/render-pipeline app (rps,
-  latency, p95, TTFB, RSS). Use whenever the user asks to bench, perf
+  latency, p95; TTFB, RSS and document/Flight bytes when the Next
+  side captures them). Use whenever the user asks to bench, perf
   test, or A/B a React PR, a react-server-dom / Flight / vendored React
   change, or a Next.js PR ("is this PR faster", "does this regress
   RSC?", "measure the perf impact of <commit>"), even if they don't say
@@ -100,12 +101,14 @@ ref can move between gate and bench).
 ### 3. Launch the bench (background, non-blocking)
 
 ```sh
-node scripts/sandbox-e2e.mjs --pr <url> --label <slug> \
-  2>&1 | grep --line-buffered -v '^live '; exit ${pipestatus[1]}
+bash -c 'node scripts/sandbox-e2e.mjs --pr <url> --label <slug> \
+  2>&1 | grep --line-buffered -v "^live "; exit ${PIPESTATUS[0]}'
 ```
 
 - Run it as a background task and proceed on its completion
-  notification. Never hold a foreground wait; never poll in a loop.
+  notification. Never hold a foreground wait; never poll in a loop —
+  the rule is about control flow, not status relay: reading the
+  output tail to answer "how's it going" is always fine.
 - The harness handles the invariants internally: both arms in the same
   VM, interleaved ABBA, paired per (vm, run); detached remote
   execution (transport drops don't kill runs); build fingerprints
