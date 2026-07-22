@@ -26,6 +26,7 @@ export const enum HMR_MESSAGE_SENT_TO_BROWSER {
   REMOVED_PAGE = 'removedPage',
   RELOAD_PAGE = 'reloadPage',
   SERVER_COMPONENT_CHANGES = 'serverComponentChanges',
+  STATIC_PARAMS_CHANGED = 'staticParamsChanged',
   MIDDLEWARE_CHANGES = 'middlewareChanges',
   CLIENT_CHANGES = 'clientChanges',
   SERVER_ONLY_CHANGES = 'serverOnlyChanges',
@@ -119,6 +120,14 @@ export interface ServerComponentChangesMessage {
   hash: string
 }
 
+/**
+ * Sent in dev when a route's set of statically-known params changed, e.g.
+ * because `generateStaticParams` was added, removed, or edited.
+ */
+export interface StaticParamsChangedMessage {
+  type: HMR_MESSAGE_SENT_TO_BROWSER.STATIC_PARAMS_CHANGED
+}
+
 export interface MiddlewareChangesMessage {
   type: HMR_MESSAGE_SENT_TO_BROWSER.MIDDLEWARE_CHANGES
 }
@@ -200,6 +209,7 @@ export type HmrMessageSentToBrowser =
   | RemovedPageMessage
   | ReloadPageMessage
   | ServerComponentChangesMessage
+  | StaticParamsChangedMessage
   | ClientChangesMessage
   | MiddlewareChangesMessage
   | ServerOnlyChangesMessage
