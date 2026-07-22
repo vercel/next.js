@@ -177,16 +177,15 @@ function getSourcemappedFrameIfPossible(
   stack: IgnorableStackFrame
   code: string | null
 } {
-  // React's fake eval'd scripts for Server Component stack frames use virtual
-  // URLs like `about://React/Server/file:///path/to/chunk.js?42` with positions
-  // padded to match the underlying chunk, so they resolve via the real chunk's
-  // source map.
-  const fileKey = devirtualizeReactServerURL(frame.file)
-  const sourceMapCacheEntry = sourceMapCache.get(fileKey)
+  const sourceMapCacheEntry = sourceMapCache.get(frame.file)
   let sourceMapConsumer: SyncSourceMapConsumer
   let sourceMapPayload: ModernSourceMapPayload
   if (sourceMapCacheEntry === undefined) {
-    let sourceURL = fileKey
+    // React's fake eval'd scripts for Server Component stack frames use
+    // virtual URLs like `about://React/Server/file:///path/to/chunk.js?42`
+    // with positions padded to match the underlying chunk, so they resolve
+    // via the real chunk's source map.
+    let sourceURL = devirtualizeReactServerURL(frame.file)
     // e.g. "/Users/foo/APP/.next/server/chunks/ssr/[root-of-the-server]__2934a0._.js"
     // or "C:\Users\foo\APP\.next\server\chunks\ssr\[root-of-the-server]__2934a0._.js"
     // will be keyed by Node.js as "file:///APP/.next/server/chunks/ssr/[root-of-the-server]__2934a0._.js".
@@ -209,7 +208,7 @@ function getSourcemappedFrameIfPossible(
       )
       // If loading fails once, it'll fail every time.
       // So set the cache to avoid duplicate errors.
-      sourceMapCache.set(fileKey, null)
+      sourceMapCache.set(frame.file, null)
       // Don't even fall back to the bundler because it might be not as strict
       // with regards to parsing and then we fail later once we consume the
       // source map payload.
@@ -249,10 +248,10 @@ function getSourcemappedFrameIfPossible(
       )
       // If creating the consumer fails once, it'll fail every time.
       // So set the cache to avoid duplicate errors.
-      sourceMapCache.set(fileKey, null)
+      sourceMapCache.set(frame.file, null)
       return createUnsourcemappedFrame(frame)
     }
-    sourceMapCache.set(fileKey, {
+    sourceMapCache.set(frame.file, {
       map: sourceMapConsumer,
       payload: sourceMapPayload,
     })
