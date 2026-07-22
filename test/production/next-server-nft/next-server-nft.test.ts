@@ -457,7 +457,6 @@ async function readNormalizedNFT(next, name) {
         expect(trace).toMatchInlineSnapshot(`
          [
            "/node_modules/client-only/index.js",
-           "/node_modules/next/dist/client/components/app-router-headers.js",
            "/node_modules/next/dist/compiled/@opentelemetry/api/index.js",
            "/node_modules/next/dist/compiled/next-server/server.runtime.prod.js",
            "/node_modules/next/dist/compiled/source-map/source-map.js",
@@ -627,7 +626,6 @@ async function readNormalizedNFT(next, name) {
            "./.next/server/server-reference-manifest.json",
            "/node_modules/@swc/helpers/cjs/_interop_require_default.cjs",
            "/node_modules/next/dist/build/adapter/setup-node-env.external.js",
-           "/node_modules/next/dist/client/components/app-router-headers.js",
            "/node_modules/next/dist/client/components/hooks-server-context.js",
            "/node_modules/next/dist/client/components/static-generation-bailout.js",
            "/node_modules/next/dist/client/lib/console.js",
