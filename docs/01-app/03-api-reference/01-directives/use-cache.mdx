@@ -314,7 +314,7 @@ async function getData() {
 }
 ```
 
-> **Good to know:** A `use cache` with a zero `revalidate` or a short `expire` (under 5 minutes), nested inside another `use cache` that has no explicit `cacheLife`, is not allowed during prerendering and fails the build with [`nested-use-cache-no-explicit-cachelife`](/docs/messages/nested-use-cache-no-explicit-cachelife). Add [`cacheLife()`](/docs/app/api-reference/functions/cacheLife) to the **outer** `use cache` to choose whether it prerenders or stays dynamic.
+Nesting a short-lived use cache inside one without an explicit [cacheLife](/docs/app/api-reference/functions/cacheLife) fails the build during prerendering. See [Nested short-lived caches](/docs/app/api-reference/functions/cacheLife#nested-short-lived-caches) for the rule and fix.
 
 ### On-demand revalidation
 
