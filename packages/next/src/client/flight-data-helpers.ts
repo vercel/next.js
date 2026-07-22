@@ -8,6 +8,7 @@ import type {
   FullTransportNode,
   TransportSegment,
 } from '../shared/lib/rsc-transport'
+import type { BaseUrlPart } from '../shared/lib/relative-href'
 import {
   getCacheKeyForDynamicParam,
   parseDynamicParamFromURLPart,
@@ -65,6 +66,12 @@ export function createInitialRSCPayloadFromFallbackPrerender(
   }
   if (fallbackInitialRSCPayload.b) {
     payload.b = fallbackInitialRSCPayload.b
+  }
+  if (fallbackInitialRSCPayload.U) {
+    payload.U = fillInFallbackMatchedRoute(
+      fallbackInitialRSCPayload.U,
+      renderedPathname
+    )
   }
   return payload
 }
@@ -133,6 +140,23 @@ function fillInFallbackTransportTree(
     newNode.c = newChildren
   }
   return newNode
+}
+
+/**
+ * Fills in the parts of the prerendered matched route (see
+ * `InitialRSCPayload.U`) whose values were fallback params of the prerender
+ * (null parts). Each part corresponds positionally to one URL path part, so
+ * the values come straight from the rendered pathname — the same way
+ * `fillInFallbackTransportTree` fills the router tree's params.
+ */
+function fillInFallbackMatchedRoute(
+  matchedRoute: BaseUrlPart[],
+  renderedPathname: string
+): BaseUrlPart[] {
+  const pathnameParts = renderedPathname.split('/').filter((p) => p !== '')
+  return matchedRoute.map((part, i) =>
+    part === null ? (pathnameParts[i] ?? null) : part
+  )
 }
 
 export function getNextFlightSegmentPath(
