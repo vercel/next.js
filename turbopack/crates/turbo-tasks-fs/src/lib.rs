@@ -359,9 +359,9 @@ impl DiskFileSystemInner {
 
     /// registers the path as an invalidator for the current task,
     /// has to be called within a turbo-tasks function
-    async fn register_read_invalidator(&self, path: &Path) -> Result<()> {
+    async fn register_read_invalidator(&self, path: &Arc<PathBuf>) -> Result<()> {
         if let Some(invalidator) = turbo_tasks::get_invalidator() {
-            self.invalidator_map.insert(path.to_owned(), invalidator);
+            self.invalidator_map.insert(path.clone(), invalidator);
             self.watcher
                 .ensure_watched_file(path, self.root_path())
                 .await?;
@@ -390,10 +390,9 @@ impl DiskFileSystemInner {
 
     /// registers the path as an invalidator for the current task,
     /// has to be called within a turbo-tasks function
-    async fn register_dir_invalidator(&self, path: &Path) -> Result<()> {
+    async fn register_dir_invalidator(&self, path: &Arc<PathBuf>) -> Result<()> {
         if let Some(invalidator) = turbo_tasks::get_invalidator() {
-            self.dir_invalidator_map
-                .insert(path.to_owned(), invalidator);
+            self.dir_invalidator_map.insert(path.clone(), invalidator);
             self.watcher
                 .ensure_watched_dir(path, self.root_path())
                 .await?;
@@ -507,7 +506,7 @@ impl DiskFileSystemInner {
         }
 
         for path in parent_dirs_to_invalidate {
-            if let Some(path_invalidators) = dir_invalidator_map.remove(&path) {
+            if let Some(path_invalidators) = dir_invalidator_map.remove(path.as_path()) {
                 let reason_for_path = reason(&path);
                 invalidators.extend(
                     path_invalidators
@@ -901,12 +900,12 @@ impl FileSystem for DiskFileSystem {
         if self.inner.is_path_denied(&fs_path) {
             return Ok(RawDirectoryContent::not_found());
         }
-        let full_path = self.to_sys_path_raw(&fs_path);
+        let full_path = Arc::new(self.to_sys_path_raw(&fs_path));
 
         self.inner.register_dir_invalidator(&full_path).await?;
 
         // we use the sync std function here as it's a lot faster (600%) in node-file-trace
-        let read_dir = match retry_blocking(|| std::fs::read_dir(&full_path))
+        let read_dir = match retry_blocking(|| std::fs::read_dir(&*full_path))
             .instrument(tracing::info_span!("read directory", name = ?full_path))
             .concurrency_limited(&self.inner.read_semaphore)
             .await
