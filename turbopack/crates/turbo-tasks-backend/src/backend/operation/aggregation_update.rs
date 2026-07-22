@@ -29,7 +29,10 @@ use turbo_tasks::{FxIndexMap, TaskExecutionReason, TaskId, TaskPriority, event::
 use crate::{
     backend::{
         TaskDataCategory,
-        operation::{ExecuteContext, Operation, TaskGuard, invalidate::make_task_dirty},
+        operation::{
+            ExecuteContext, Operation, TaskGuard, connect_child::resurrect_deleted,
+            invalidate::make_task_dirty,
+        },
         storage_schema::TaskStorageAccessors,
     },
     data::{ActivenessState, AggregationNumber, CollectibleRef},
@@ -279,6 +282,15 @@ pub enum AggregationUpdateJob {
         upper_id: TaskId,
         lost_follower_ids: TaskIdVec,
         retry: u16,
+    },
+    /// Adjust the persistent `parent_count` of each task in `task_ids` by `delta`
+    AdjustParentCount { task_ids: TaskIdVec, delta: i32 },
+    /// Adjust the session-only `transient_ref_count` of each task in `task_ids` by `delta`
+    AdjustTransientRefCount {
+        #[bincode(skip, default = "unreachable_decode")]
+        task_ids: TaskIdVec,
+        #[bincode(skip, default = "unreachable_decode")]
+        delta: i32,
     },
     /// Notifies an upper task about changed data from an inner task.
     AggregatedDataUpdate(Box<AggregatedDataUpdateJob>),
@@ -872,7 +884,8 @@ mod encode_jobs {
                 AggregationUpdateJob::IncreaseActiveCount { .. }
                 | AggregationUpdateJob::IncreaseActiveCounts { .. }
                 | AggregationUpdateJob::DecreaseActiveCount { .. }
-                | AggregationUpdateJob::DecreaseActiveCounts { .. } => {
+                | AggregationUpdateJob::DecreaseActiveCounts { .. }
+                | AggregationUpdateJob::AdjustTransientRefCount { .. } => {
                     AggregationUpdateJobItem {
                         job: AggregationUpdateJob::Noop,
                         #[cfg(feature = "trace_aggregation_update_queue")]
@@ -1437,6 +1450,39 @@ impl AggregationUpdateQueue {
                             ctx,
                         );
                     }
+                }
+                AggregationUpdateJob::AdjustParentCount { task_ids, delta } => {
+                    // Apply the persistent parent_count delta to each task. Maintained here (rather
+                    // than inline at the edge sites) so the update rides the durable queue: a
+                    // snapshot captures it mid-flight and it replays to completion on restart,
+                    // keeping the count crash-consistent.
+                    //
+                    // A count reaching 0 means the task lost its last persistent parent and may be
+                    // collectible. Outside GC we don't record it (the collectibility is derived
+                    // from the durable `parent_count` directly). During a GC
+                    // pass, the collector runs this decrement (via
+                    // `CleanupOldEdges` on a collected task) and needs to
+                    // discover the newly-parentless children to cascade into:
+                    // `note_gc_parent_count_zeroed` records them on the GC
+                    // context (a no-op for every normal context).
+                    ctx.for_each_task_meta(task_ids, "AdjustParentCount", |mut task, ctx| {
+                        if task.update_and_get_parent_count(delta) == 0 {
+                            let id = task.id();
+                            ctx.note_gc_parent_count_zeroed(id);
+                        }
+                    });
+                }
+                AggregationUpdateJob::AdjustTransientRefCount { task_ids, delta } => {
+                    // Session-only sibling of AdjustParentCount for edges from a transient parent.
+                    // Not persisted/replayed, and reaching 0 is not a collection trigger (only
+                    // losing a persistent parent is).
+                    ctx.for_each_task_meta(
+                        task_ids,
+                        "AdjustTransientRefCount",
+                        |mut task, _ctx| {
+                            task.update_and_get_transient_ref_count(delta);
+                        },
+                    );
                 }
                 AggregationUpdateJob::DecreaseActiveCount { task } => {
                     self.decrease_active_count(ctx, task);
@@ -3140,12 +3186,18 @@ impl AggregationUpdateQueue {
         #[cfg(feature = "trace_aggregation_update")]
         let _span = trace_span!("increase active count").entered();
 
-        let mut task = ctx.task(
+        let task = ctx.task(
             task_id,
             // For performance reasons this should stay Meta and not All.
             // persistent_task_type is now set eagerly in initialize_new_task.
             AGGREGATION_UPDATE_CATEGORY,
         );
+        // Revive the task first if GC soft-deleted it, so the rest of this function (and the
+        // scheduling it drives) sees a live, re-dirtied task. A no-op on the common not-deleted
+        // path (one flag read on the guard we hold), so it is unconditional — only a direct-child
+        // connect can actually observe a deleted task here, but checking always is cheaper than
+        // threading a flag through the job.
+        let mut task = resurrect_deleted(task, task_id, AGGREGATION_UPDATE_CATEGORY, self, ctx);
         self.check_optimization_pending(&task);
         let state = task.get_activeness_mut_or_insert_with(|| ActivenessState::new(task_id));
         let is_new = state.is_empty();

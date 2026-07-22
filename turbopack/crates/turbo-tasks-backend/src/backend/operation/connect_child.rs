@@ -9,11 +9,73 @@ use crate::{
             aggregation_update::{
                 AggregationUpdateJob, AggregationUpdateQueue, get_aggregation_number, is_root_node,
             },
+            invalidate::make_task_dirty_internal,
         },
         storage_schema::TaskStorageAccessors,
     },
     data::{InProgressState, InProgressStateInner},
 };
+
+/// Revive `task_id` if it was GC-soft-deleted, given a guard the caller already holds during the
+/// connect handshake. The caller passes that guard **by value** and unconditionally rebinds the
+/// result: `guard = resurrect_deleted(guard, ..)`. When the task is not deleted (the common case)
+/// this is a no-op that returns the same guard untouched — one `deleted()` flag read, no extra
+/// acquisition. Otherwise it revives the task and returns a freshly re-acquired guard of
+/// `category`.
+///
+/// On the revival path the guard is dropped and an `All` guard re-acquired (needed for the
+/// `immutable()` read), under which `deleted` is **re-checked** — double-checked locking: between
+/// the peek and this re-acquire, a concurrent connect of the same task could have already revived
+/// it. When still deleted, the clear and the re-dirty happen **under that single `All` guard
+/// without an intervening drop**, so no operation can observe the intermediate `!deleted && !dirty`
+/// state (a task that looks live but still holds the stale/empty edges GC scrubbed). A **mutable**
+/// task is cleared and made dirty so it re-executes and rebuilds those edges; an **immutable** task
+/// cannot be made dirty (invariant in `make_task_dirty`) and does not need to be — its output is
+/// deterministic and its edges self-contained — so clearing the marker alone suffices.
+///
+/// GC is the only producer of the `deleted` flag and runs under an exclusion, so once cleared here
+/// it cannot be re-set concurrently.
+pub(super) fn resurrect_deleted<'e, C: ExecuteContext<'e>>(
+    guard: C::TaskGuardImpl,
+    task_id: TaskId,
+    category: TaskDataCategory,
+    queue: &mut AggregationUpdateQueue,
+    ctx: &mut C,
+) -> C::TaskGuardImpl {
+    // Common path: not deleted — hand the guard straight back, no drop/re-acquire.
+    if !guard.deleted() {
+        return guard;
+    }
+    // Release the caller's guard so we can re-acquire `All` for the `immutable()` read.
+    drop(guard);
+    {
+        // `MustExist`: the task is resident here (the early `deleted()` peek only proceeds for a
+        // soft-deleted, still-resident task). `MustExist` no longer asserts `!deleted()`, so
+        // opening this deliberately-deleted task is fine.
+        let mut task = ctx.task(task_id, TaskDataCategory::All);
+        // Double-check under the re-acquired guard: a concurrent connect may have revived it in the
+        // gap.
+        if task.deleted() {
+            // Clear + re-dirty atomically under this single guard so no observer sees `!deleted`
+            // before the task has been re-validated.
+            task.set_deleted(false);
+            if !task.immutable() {
+                make_task_dirty_internal(
+                    task,
+                    task_id,
+                    true,
+                    #[cfg(feature = "task_dirty_cause")]
+                    turbo_tasks::TaskDirtyCause::Resurrected,
+                    queue,
+                    ctx,
+                );
+            }
+        }
+    }
+    // Hand back a guard of the caller's category so it can continue the handshake. The task is
+    // resident (we only reach here for a soft-deleted, still-resident task).
+    ctx.task(task_id, category)
+}
 
 #[derive(Encode, Decode, Clone, Default)]
 #[allow(clippy::large_enum_variant)]
@@ -32,7 +94,6 @@ impl ConnectChildOperation {
         mut ctx: impl ExecuteContext<'_>,
     ) {
         if let Some(parent_task_id) = parent_task_id {
-            // The parent is the currently-executing task; it must already exist.
             let mut parent_task = ctx.task(parent_task_id, TaskDataCategory::Meta);
             let Some(InProgressState::InProgress(box InProgressStateInner {
                 new_children, ..
@@ -64,7 +125,7 @@ impl ConnectChildOperation {
 
         let mut queue = AggregationUpdateQueue::new();
 
-        // Handle the transient to persistent boundary by making the persistent task a root task
+        // Handle the transient to persistent boundary by making the persistent task a root task.
         let should_make_root =
             parent_task_id.is_none_or(|id| id.is_transient() && !child_task_id.is_transient());
 
@@ -76,11 +137,27 @@ impl ConnectChildOperation {
                     distance: None,
                 });
             }
+            // Resurrection (if the child was GC-soft-deleted) rides the child guard
+            // `increase_active_count` takes anyway.
             queue.push(AggregationUpdateJob::IncreaseActiveCount {
                 task: child_task_id,
             });
         } else {
-            let mut child_task = ctx.get_or_create_task(child_task_id, TaskDataCategory::Meta);
+            // Connecting a genuinely-new child: this may be the first time the child's storage is
+            // materialized (threads can race to first-touch a freshly-created task), so it may
+            // legitimately not be resident yet — the one create-capable open here.
+            let child_task = ctx.get_or_create_task(child_task_id, TaskDataCategory::Meta);
+
+            // Revive the child if GC soft-deleted it, before the schedule/root decisions below
+            // (matching the resurrect-first order). No-op on the common not-deleted path.
+            let mut child_task = resurrect_deleted(
+                child_task,
+                child_task_id,
+                TaskDataCategory::Meta,
+                &mut queue,
+                &mut ctx,
+            );
+
             let has_output = child_task.has_output();
             // An already constructed top-level task was made a root when it was first connected.
             // It may still be dirty and need to run; this only avoids repeating the idempotent
@@ -107,12 +184,10 @@ impl ConnectChildOperation {
             }
         }
 
-        if !queue.is_empty() {
-            ConnectChildOperation::UpdateAggregation {
-                aggregation_update: queue,
-            }
-            .execute(&mut ctx);
+        ConnectChildOperation::UpdateAggregation {
+            aggregation_update: queue,
         }
+        .execute(&mut ctx);
 
         if let Some(parent_task_id) = parent_task_id {
             let mut parent_task = ctx.task(parent_task_id, TaskDataCategory::Meta);

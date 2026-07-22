@@ -735,6 +735,18 @@ pub trait Backend: Sized + Sync + Send {
         // Do nothing by default
     }
 
+    /// Pin a task against garbage collection (via [`prevent_gc`](crate::prevent_gc)). A pinned task
+    /// is treated as a GC root, keeping alive references that escape the tracked task graph. The
+    /// default is a no-op for backends without GC.
+    fn pin_task_for_gc(&self, _task: TaskId, _turbo_tasks: &TurboTasks<Self>) {
+        // Do nothing by default
+    }
+
+    /// Removes a pin added by [`pin_task_for_gc`](Backend::pin_task_for_gc).
+    fn unpin_task_for_gc(&self, _task: TaskId, _turbo_tasks: &TurboTasks<Self>) {
+        // Do nothing by default
+    }
+
     fn create_transient_task(
         &self,
         task_type: TransientTaskType,

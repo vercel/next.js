@@ -24,11 +24,6 @@ pub enum SnapshotItem {
         task_type_hash: Option<TaskTypeHash>,
     },
     /// Tombstone a GC-collected task (see [`TaskDeletion`]).
-    ///
-    /// Not yet constructed: this PR lands the persistence-side delete mechanism (the
-    /// `save_snapshot` handling below + its tests). The GC pass that emits `Delete` for
-    /// soft-deleted tasks lands in a later PR in the stack.
-    #[allow(dead_code)]
     Delete(TaskDeletion),
 }
 

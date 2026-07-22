@@ -518,6 +518,81 @@ impl Storage {
         }
     }
 
+    /// Read-only access to a resident task without inserting a blank entry for a missing key
+    /// (unlike [`Storage::access_mut`]). Returns `None` if the task is not resident. The closure
+    /// runs while a shard read lock is held, so it must be cheap and must not re-enter the map.
+    pub fn with_task<R>(&self, key: TaskId, f: impl FnOnce(&TaskStorage) -> R) -> Option<R> {
+        let task = self.map.get(&key)?;
+        Some(f(task.value()))
+    }
+
+    /// Mutable access to a resident task **without** inserting a blank entry for a missing key
+    /// (unlike [`Storage::access_mut`], which resurrects a blank `TaskStorage`). Returns `None` if
+    /// the task is not resident. Used by the non-inserting
+    /// [`ExecuteContext::resident_task`](crate::backend::operation::ExecuteContext::resident_task)
+    /// path (GC pin/unpin), where a missing entry means the caller is referencing an
+    /// already-collected task and inserting a blank would be a bug.
+    pub fn access_mut_if_resident(&self, key: TaskId) -> Option<StorageWriteGuard<'_>> {
+        let inner = self.map.get_mut(&key)?;
+        Some(StorageWriteGuard {
+            storage: self,
+            inner: inner.into(),
+        })
+    }
+
+    /// The number of **persistent** (non-transient) tasks resident in the map. GC only collects
+    /// persistent tasks (transient tasks are never collected), so this is the metric that must
+    /// return to a flat baseline across re-rooting; the raw `resident_task_count` also includes
+    /// transient roots (e.g. `run_once`/Once tasks) that GC never touches.
+    pub fn resident_persistent_task_count(&self) -> usize {
+        let mut persistent = 0;
+        for shard in self.map.shards() {
+            let shard = shard.read();
+            for bucket in unsafe { shard.iter() } {
+                let (task_id, _) = unsafe { bucket.as_ref() };
+                if !task_id.is_transient() {
+                    persistent += 1;
+                }
+            }
+        }
+        persistent
+    }
+
+    /// The number of shards in the resident map. GC seeds one `ScanShard` job per index; the slice
+    /// returned by `map.shards()` is fixed for the map's lifetime, so an index is a stable handle
+    /// to one shard (the same property `shard_modified_counts` and the `snapshots` map already
+    /// rely on).
+    pub fn shard_count(&self) -> usize {
+        self.map.shards().len()
+    }
+
+    /// Scans a **single** shard by index, invoking `on_candidate` for each resident, non-transient
+    /// task whose storage passes the cheap [`TaskStorage::gc_maybe_collectible`] pre-filter (a
+    /// handful of field reads, the same shape as the eviction scan).
+    ///
+    /// GC drives one of these per shard as a job in its main pool, so discovered candidates flow
+    /// straight into the same queue the collect jobs drain — the cascade starts while later shards
+    /// are still being scanned, instead of after a whole-map barrier. `on_candidate` runs while the
+    /// shard **read lock is held**, so it must be cheap and must not re-enter the map; GC only
+    /// enqueues the id.
+    ///
+    /// The scan only sees resident tasks; disk-only garbage is collected after it is next restored.
+    ///
+    /// # Panics
+    ///
+    /// If `index >= self.shard_count()`.
+    pub fn gc_scan_shard(&self, index: usize, mut on_candidate: impl FnMut(TaskId)) {
+        let shard = self.map.shards()[index].read();
+        // SAFETY: we hold the shard read lock for the duration of iteration.
+        for bucket in unsafe { shard.iter() } {
+            // SAFETY: the read lock guard outlives the bucket reference.
+            let (task_id, shared_value) = unsafe { bucket.as_ref() };
+            if !task_id.is_transient() && shared_value.get().gc_maybe_collectible() {
+                on_candidate(*task_id);
+            }
+        }
+    }
+
     pub fn access_pair_mut(
         &self,
         key1: TaskId,
@@ -585,6 +660,30 @@ impl Storage {
                 let (task_id, task) = unsafe { bucket.as_mut() };
                 if task_id.is_transient() {
                     evicted.unevictable_reasons[UnevictableReason::Transient.index()] += 1;
+                    continue;
+                }
+                // GC hard-delete: a task still flagged `deleted` here was collected and its on-disk
+                // copy was tombstoned by the snapshot that just committed (its `deleted` flag is
+                // re-checked under this shard write lock — a resurrection between the snapshot and
+                // now clears the flag, in which case we fall through to normal eviction). Its whole
+                // map entry + task_cache mapping can now be dropped. This is the reclaim path for
+                // the background `ReadWrite` loop; the shutdown drain snapshot drops the whole map
+                // wholesale instead, so it never reaches here.
+                if task.get().flags.deleted() {
+                    if let Some(task_type) = task.get().get_persistent_task_type() {
+                        // Best-effort inline; defer on contention (same lock-order caution as
+                        // below).
+                        match try_lock_and_remove(&self.task_cache, task_type.as_ref()) {
+                            TryLockAndRemove::Removed | TryLockAndRemove::NotFound => {}
+                            TryLockAndRemove::WouldBlock => {
+                                deferred_task_cache_removals.push(task_type.clone());
+                            }
+                        }
+                    }
+                    unsafe {
+                        shard.erase(bucket);
+                    }
+                    evicted.full += 1;
                     continue;
                 }
                 let (key_evictability, value_evictability) = task.get().evictability();
@@ -819,6 +918,30 @@ impl StorageWriteGuard<'_> {
                 }
             }
         }
+    }
+
+    /// Clears all modified/new flags for a GC-collected task that was **never persisted**
+    /// (`new_task`), dropping it out of the next snapshot's modified scan (decrementing the shard
+    /// modified count to match). There is nothing on disk to tombstone, so the snapshot must skip
+    /// it entirely; eviction still removes the (soft-`deleted`) task from memory. Must be called
+    /// outside snapshot mode (GC runs before the snapshot starts), so it only touches the
+    /// pre-snapshot `modified` flags + shard count, mirroring `track_modification`'s `bumped`.
+    pub fn discard_modifications_for_gc_new_task(&mut self) {
+        debug_assert!(
+            !self.storage.snapshot_mode(),
+            "discard_modifications_for_gc_new_task must run before the snapshot starts"
+        );
+        debug_assert!(
+            self.inner.flags.new_task(),
+            "only a never-persisted (new_task) collected task may be discarded this way"
+        );
+        if self.inner.flags.any_modified() {
+            let shard_idx = self.storage.shard_index(self.inner.key());
+            self.storage.shard_modified_counts[shard_idx].fetch_sub(1, Ordering::Relaxed);
+        }
+        self.inner.flags.set_meta_modified(false);
+        self.inner.flags.set_data_modified(false);
+        self.inner.flags.set_new_task(false);
     }
 }
 
