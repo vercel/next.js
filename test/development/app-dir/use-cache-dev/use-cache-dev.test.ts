@@ -2,25 +2,9 @@ import { nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 
 describe('use-cache-dev', () => {
-  const { next, skipped, isNextStart, isTurbopack } = nextTestSetup({
+  const { next, isTurbopack } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
   })
-
-  if (skipped) {
-    return
-  }
-
-  if (isNextStart) {
-    // Every test below is dev-only now that the HMR refresh hash is sourced on
-    // the server instead of a client cookie (the removed "next start" cookie
-    // test was the only non-dev case). This placeholder keeps the suite from
-    // being empty in non-dev modes. TODO: Move this whole suite to
-    // `test/development/app-dir/use-cache-dev` (a dev-only location) in a
-    // separate PR, and delete this placeholder. It's kept separate to keep this
-    // PR's diff readable.
-    return it('has no production-mode assertions', () => {})
-  }
 
   it('should update cached data after editing a file', async () => {
     const browser = await next.browser('/')
