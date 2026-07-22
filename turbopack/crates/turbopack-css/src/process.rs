@@ -19,7 +19,7 @@ use swc_core::base::sourcemap::SourceMapBuilder;
 use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{FxIndexMap, ResolvedVc, ValueToString, Vc};
-use turbo_tasks_fs::{File, FileContent, FileSystemPath, rope::Rope};
+use turbo_tasks_fs::{FileContent, FileSystemPath};
 use turbopack_core::{
     SOURCE_URL_PROTOCOL,
     asset::{Asset, AssetContent},
@@ -33,7 +33,7 @@ use turbopack_core::{
     reference_type::ImportContext,
     resolve::origin::ResolveOrigin,
     source::Source,
-    source_map::utils::add_default_ignore_list,
+    source_map::{structured::StructuredSourceMap, utils::add_default_ignore_list},
     source_pos::SourcePos,
 };
 
@@ -46,7 +46,7 @@ use crate::{
     },
 };
 
-pub type CssOutput = (ToCssResult, Option<Rope>);
+pub type CssOutput = (ToCssResult, Option<StructuredSourceMap>);
 
 #[turbo_tasks::value(transparent)]
 struct LightningCssTargets(
@@ -191,12 +191,13 @@ pub enum CssWithPlaceholderResult {
 }
 
 #[turbo_tasks::value(shared, serialization = "skip")]
+#[allow(clippy::large_enum_variant)] // This is a turbo-tasks value
 pub enum FinalCssResult {
     Ok {
         #[turbo_tasks(trace_ignore)]
         output_code: String,
 
-        source_map: ResolvedVc<FileContent>,
+        source_map: Option<StructuredSourceMap>,
     },
     Unparsable,
     NotFound,
@@ -329,11 +330,7 @@ pub async fn finalize_css(
 
             Ok(FinalCssResult::Ok {
                 output_code: result.code,
-                source_map: if let Some(srcmap) = srcmap {
-                    FileContent::Content(File::from(srcmap)).resolved_cell()
-                } else {
-                    FileContent::NotFound.resolved_cell()
-                },
+                source_map: srcmap,
             }
             .cell())
         }
@@ -733,7 +730,9 @@ impl lightningcss::visitor::Visitor<'_> for CssValidator {
     }
 }
 
-fn generate_css_source_map(source_map: &parcel_sourcemap::SourceMap) -> Result<Rope> {
+fn generate_css_source_map(
+    source_map: &parcel_sourcemap::SourceMap,
+) -> Result<StructuredSourceMap> {
     let mut builder = SourceMapBuilder::new(None);
 
     for src in source_map.get_sources() {
@@ -758,9 +757,7 @@ fn generate_css_source_map(source_map: &parcel_sourcemap::SourceMap) -> Result<R
 
     let mut map = builder.into_sourcemap();
     add_default_ignore_list(&mut map);
-    let mut result = vec![];
-    map.to_writer(&mut result)?;
-    Ok(Rope::from(result))
+    StructuredSourceMap::from_swc_map(map)
 }
 
 #[turbo_tasks::value]

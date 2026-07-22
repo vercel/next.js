@@ -98,7 +98,7 @@ use turbopack_core::{
     reference_type::InnerAssets,
     resolve::{FindContextFileResult, find_context_file, origin::ResolveOrigin, package_json},
     source::Source,
-    source_map::GenerateSourceMap,
+    source_map::{GenerateSourceMap, structured::StructuredSourceMap},
 };
 
 use crate::{
@@ -933,7 +933,7 @@ impl ResolveOrigin for EcmascriptModuleAsset {
 #[turbo_tasks::value(shared)]
 pub struct EcmascriptModuleContent {
     pub inner_code: Rope,
-    pub source_map: Option<Rope>,
+    pub source_map: Option<StructuredSourceMap>,
     pub is_esm: bool,
     pub strict: bool,
     pub additional_ids: SmallVec<[ModuleId; 1]>,
