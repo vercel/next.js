@@ -112,8 +112,7 @@ async function applyInstallSecuritySettings(installDir, isolationRoot) {
 
 /**
  * pnpm only honors overrides at the workspace root, so they go into the
- * `pnpm-workspace.yaml` that governs the install. Guarded by
- * test/production/isolated-install-overrides.
+ * `pnpm-workspace.yaml` that governs the install.
  *
  * @param {string} installDir
  * @param {string} isolationRoot
@@ -353,6 +352,23 @@ async function createNextInstall({
         await rootSpan
           .traceChild('run generic install command', combinedDependencies)
           .traceAsyncFn(() => installDependencies(installDir, tmpDir))
+
+        // `next` depends on `@next/env` at the repo's current version, which
+        // the registry doesn't have until a release finishes propagating.
+        // Failing here keeps tests deterministic (and actually testing the
+        // local packages) instead of failing during canary publish windows.
+        const envDir = await fs.realpath(
+          path.join(
+            await fs.realpath(path.join(installDir, 'node_modules/next')),
+            '../@next/env'
+          )
+        )
+        if (!envDir.includes('@next+env@file')) {
+          throw new Error(
+            `@next/env resolved from the npm registry instead of the local tarball (${envDir}), ` +
+              'the workspace overrides were not applied to the install'
+          )
+        }
       }
 
       if (useRspack) {
