@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use anyhow::{Context, Result, bail};
 use async_trait::async_trait;
 use bincode::{Decode, Encode};
@@ -2712,6 +2714,7 @@ impl NextConfig {
         FetchClientConfig {
             connect_timeout: Duration::from_secs(10),
             timeout: Duration::from_secs(30),
+            max_retries: 3,
             ..Default::default()
         }
         .cell()

@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{Completion, FxIndexMap, ResolvedVc, Vc};
 use turbo_tasks_env::{CommandLineProcessEnv, ProcessEnv};
-use turbo_tasks_fetch::{FetchClientConfig, HttpResponseBody, MAX_FETCH_RETRIES};
+use turbo_tasks_fetch::{FetchClientConfig, HttpResponseBody};
 use turbo_tasks_fs::{
     DiskFileSystem, File, FileContent, FileSystem, FileSystemPath,
     json::parse_json_with_source_context,
@@ -268,6 +268,7 @@ impl NextFontGoogleCssModuleReplacer {
                 .await?,
             ),
             None => {
+                let attempts = self.fetch_client.await?.max_retries + 1;
                 match *self.next_mode.await? {
                     // If we're in production mode, we want to fail the build to ensure proper font
                     // rendering.
@@ -287,7 +288,7 @@ impl NextFontGoogleCssModuleReplacer {
                                      `next/font/local`, or make sure the endpoint is reachable \
                                      during the build.",
                                     options.await?.font_family,
-                                    MAX_FETCH_RETRIES + 1,
+                                    attempts,
                                 )
                                 .into(),
                             )
@@ -315,7 +316,7 @@ impl NextFontGoogleCssModuleReplacer {
                                      a proxy that blocks `fonts.googleapis.com`, self-host the \
                                      font with `next/font/local`.",
                                     options.await?.font_family,
-                                    MAX_FETCH_RETRIES + 1,
+                                    attempts,
                                 )
                                 .into(),
                             )

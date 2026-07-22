@@ -17,10 +17,6 @@ use turbo_tasks::{
 use crate::{FetchError, FetchResult, HttpResponse, HttpResponseBody};
 
 const MAX_CLIENTS: usize = 16;
-/// Number of times a transient fetch failure (connection error / timeout) is retried before giving
-/// up and surfacing the error to the caller. The total number of attempts made is
-/// `MAX_FETCH_RETRIES + 1`.
-pub const MAX_FETCH_RETRIES: u32 = 3;
 static CLIENT_CACHE: LazyLock<Cache<ReadRef<FetchClientConfig>, reqwest::Client>> =
     LazyLock::new(|| Cache::new(MAX_CLIENTS));
 
@@ -49,6 +45,11 @@ pub struct FetchClientConfig {
     /// An overall cap on top of `connect_timeout` (and always larger than it) that bounds a
     /// connection which establishes but then stalls. Defaults to 60 seconds.
     pub timeout: Duration,
+    /// Number of times to retry a transient failure (connection error, timeout, or a 5xx
+    /// response) before surfacing the error to the caller. The total number of attempts made is
+    /// `max_retries + 1`. This is generic, so it defaults to 0 (no retries); callers that fetch
+    /// from a reliable endpoint can opt into retries (e.g. Google Fonts uses a small value).
+    pub max_retries: u32,
 }
 
 impl Default for FetchClientConfig {
@@ -57,6 +58,7 @@ impl Default for FetchClientConfig {
             min_cache_control: Duration::from_secs(60 * 60),
             connect_timeout: Duration::from_secs(10),
             timeout: Duration::from_secs(60),
+            max_retries: 0,
         }
     }
 }
@@ -178,6 +180,7 @@ impl FetchClientConfig {
         let url_ref = &*url;
         let this = self.await?;
         let min_cache_control_secs = this.min_cache_control;
+        let max_retries = this.max_retries;
         let response_result: reqwest::Result<(HttpResponse, Option<u64>)> = async move {
             let reqwest_client = this.try_get_cached_reqwest_client()?;
 
@@ -200,8 +203,11 @@ impl FetchClientConfig {
                     match result {
                         Ok(response) => break response,
                         Err(err)
-                            if attempt < MAX_FETCH_RETRIES
-                                && (err.is_connect() || err.is_timeout() || err.is_request()) =>
+                            if attempt < max_retries
+                                && (err.is_connect()
+                                    || err.is_timeout()
+                                    || err.is_request()
+                                    || err.status().is_some_and(|s| s.is_server_error())) =>
                         {
                             attempt += 1;
                         }
