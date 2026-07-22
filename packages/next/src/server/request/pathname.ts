@@ -71,7 +71,15 @@ export function createServerPathnameForMetadata(
             underlyingPathname
           )
         } else {
-          return createRenderPathname(underlyingPathname)
+          if (workUnitStore.isSessionShell) {
+            return makeHangingPromise<string>(
+              workUnitStore.renderSignal,
+              workStore.route,
+              '`pathname`'
+            )
+          } else {
+            return createRenderPathname(underlyingPathname)
+          }
         }
       }
       case 'request':
