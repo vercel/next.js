@@ -232,7 +232,7 @@ fn uri_encode_path(path: &str) -> String {
 
 /// Applies the standard `turbopack:///[fs]/` source-URL transform to a structured map,
 /// sharing every other field (notably `sourcesContent`) with the input.
-async fn transform_structured_sources<F>(
+async fn transform_relative_files<F>(
     map: &StructuredSourceMap,
     context_path: &FileSystemPath,
     mut transform: F,
@@ -256,12 +256,12 @@ where
     })
 }
 
-/// [`absolute_fileify_source_map`] for structured maps.
-pub async fn absolute_fileify_structured_source_map(
+/// Turns `turbopack:///[project]` references in the map's sources into absolute `file://` uris.
+pub async fn absolute_fileify_source_map(
     map: &StructuredSourceMap,
     context_path: FileSystemPath,
 ) -> Result<StructuredSourceMap> {
-    transform_structured_sources(map, &context_path.clone(), |context_fs, src_rest| {
+    transform_relative_files(map, &context_path.clone(), |context_fs, src_rest| {
         let path = context_path.join(src_rest)?;
 
         // `to_sys_path` returns a win32 path on Windows. `Url::from_file_path` can also handle
@@ -276,8 +276,8 @@ pub async fn absolute_fileify_structured_source_map(
     .await
 }
 
-/// [`relative_fileify_source_map`] for structured maps.
-pub async fn relative_fileify_structured_source_map(
+/// Turns `turbopack:///[project]` references in the map's sources into `./`-relative uris.
+pub async fn relative_fileify_source_map(
     map: &StructuredSourceMap,
     context_path: FileSystemPath,
     relative_path_to_output_root: RcStr,
@@ -287,7 +287,7 @@ pub async fn relative_fileify_structured_source_map(
         .map(|s| urlencoding::encode(s))
         .collect::<Vec<_>>()
         .join("/");
-    transform_structured_sources(map, &context_path, |_context_fs, src_rest| {
+    transform_relative_files(map, &context_path, |_context_fs, src_rest| {
         let src_rest = uri_encode_path(src_rest);
         if relative_path_to_output_root.is_empty() {
             Ok(src_rest.to_string())

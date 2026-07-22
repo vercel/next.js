@@ -32,7 +32,7 @@ use turbopack_core::{
     source_map::{
         GenerateSourceMap,
         structured::StructuredSourceMap,
-        utils::{absolute_fileify_structured_source_map, relative_fileify_structured_source_map},
+        utils::{absolute_fileify_source_map, relative_fileify_source_map},
     },
 };
 
@@ -103,14 +103,11 @@ impl CssChunk {
                 &content.source_map,
             ) {
                 (SourceMapSourceType::AbsoluteFileUri, Some(map)) => Some(
-                    absolute_fileify_structured_source_map(
-                        map,
-                        chunking_context.root_path().owned().await?,
-                    )
-                    .await?,
+                    absolute_fileify_source_map(map, chunking_context.root_path().owned().await?)
+                        .await?,
                 ),
                 (SourceMapSourceType::RelativeUri, Some(map)) => Some(
-                    relative_fileify_structured_source_map(
+                    relative_fileify_source_map(
                         map,
                         chunking_context.root_path().owned().await?,
                         chunking_context
@@ -123,7 +120,7 @@ impl CssChunk {
                 (_, map) => map.clone(),
             };
 
-            body.push_structured_source(&content.inner_code, source_map);
+            body.push_source(&content.inner_code, source_map);
 
             if !close.is_empty() {
                 writeln!(body, "{close}")?;

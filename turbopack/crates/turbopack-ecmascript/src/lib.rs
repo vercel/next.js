@@ -110,7 +110,7 @@ use crate::{
     },
     code_gen::{CodeGeneration, CodeGenerationHoistedStmt, CodeGens, ModifiableAst},
     merged_module::MergedEcmascriptModule,
-    parse::{IdentCollector, ParseResult, generate_js_structured_source_map, parse},
+    parse::{IdentCollector, ParseResult, generate_js_source_map, parse},
     path_visitor::ApplyVisitors,
     references::{
         analyze_ecmascript_module,
@@ -2151,7 +2151,7 @@ async fn emit_content(
             .map(|map| map.content())
             .collect::<Vec<_>>();
 
-        Some(generate_js_structured_source_map(
+        Some(generate_js_source_map(
             &*source_map,
             mappings,
             original_source_maps,

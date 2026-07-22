@@ -31,6 +31,18 @@ pub enum SectionMap {
     Structured(Box<StructuredSourceMap>),
 }
 
+impl From<Rope> for SectionMap {
+    fn from(map: Rope) -> Self {
+        SectionMap::Raw(map)
+    }
+}
+
+impl From<StructuredSourceMap> for SectionMap {
+    fn from(map: StructuredSourceMap) -> Self {
+        SectionMap::Structured(Box::new(map))
+    }
+}
+
 impl DeterministicHash for SectionMap {
     fn deterministic_hash<H: DeterministicHasher>(&self, state: &mut H) {
         match self {
@@ -198,15 +210,8 @@ impl CodeBuilder {
     /// Pushes original user code with an optional source map if one is
     /// available. If it's not, this is no different than pushing Synthetic
     /// code.
-    pub fn push_source(&mut self, code: &Rope, map: Option<Rope>) {
-        self.push_map(map.map(SectionMap::Raw));
-        self.code += code;
-    }
-
-    /// Like [`CodeBuilder::push_source`] for a structured map whose `sourcesContent` stays
-    /// shared when the resulting code's map is emitted.
-    pub fn push_structured_source(&mut self, code: &Rope, map: Option<StructuredSourceMap>) {
-        self.push_map(map.map(|map| SectionMap::Structured(Box::new(map))));
+    pub fn push_source<M: Into<SectionMap>>(&mut self, code: &Rope, map: Option<M>) {
+        self.push_map(map.map(Into::into));
         self.code += code;
     }
 

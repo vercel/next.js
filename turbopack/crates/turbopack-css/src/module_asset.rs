@@ -23,7 +23,7 @@ use turbopack_ecmascript::{
         EcmascriptChunkItemContent, EcmascriptChunkItemOptions, EcmascriptChunkPlaceable,
         EcmascriptExports, ecmascript_chunk_item,
     },
-    parse::generate_js_structured_source_map,
+    parse::generate_js_source_map,
     runtime_functions::{TURBOPACK_EXPORT_VALUE, TURBOPACK_IMPORT},
     utils::StringifyJs,
 };
@@ -386,7 +386,6 @@ fn generate_minimal_source_map(filename: String, source: String) -> Result<Struc
     }
     let sm: Arc<SourceMap> = Default::default();
     sm.new_source_file(FileName::Custom(filename).into(), source);
-    let map =
-        generate_js_structured_source_map(&*sm, mappings, None, true, true, Default::default())?;
+    let map = generate_js_source_map(&*sm, mappings, None, true, true, Default::default())?;
     Ok(map)
 }

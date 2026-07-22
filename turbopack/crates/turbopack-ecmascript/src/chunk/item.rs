@@ -22,7 +22,7 @@ use turbopack_core::{
     output::OutputAssetsReference,
     source_map::{
         structured::StructuredSourceMap,
-        utils::{absolute_fileify_structured_source_map, relative_fileify_structured_source_map},
+        utils::{absolute_fileify_source_map, relative_fileify_source_map},
     },
 };
 
@@ -170,16 +170,15 @@ impl EcmascriptChunkItemContent {
 
         let source_map = match (&self.rewrite_source_path, &self.source_map) {
             (RewriteSourcePath::AbsoluteFilePath(path), Some(map)) => {
-                Some(absolute_fileify_structured_source_map(map, path.clone()).await?)
+                Some(absolute_fileify_source_map(map, path.clone()).await?)
             }
-            (RewriteSourcePath::RelativeFilePath(path, relative_path), Some(map)) => Some(
-                relative_fileify_structured_source_map(map, path.clone(), relative_path.clone())
-                    .await?,
-            ),
+            (RewriteSourcePath::RelativeFilePath(path, relative_path), Some(map)) => {
+                Some(relative_fileify_source_map(map, path.clone(), relative_path.clone()).await?)
+            }
             (_, map) => map.clone(),
         };
 
-        code.push_structured_source(&self.inner_code, source_map);
+        code.push_source(&self.inner_code, source_map);
 
         if let Some(opts) = &self.options.async_module {
             write!(

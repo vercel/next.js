@@ -179,7 +179,7 @@ pub enum ParseResult {
 /// `original_source_maps_complete` indicates whether the `original_source_maps` cover the whole
 /// map, i.e. whether every module that ended up in `mappings` had an original sourcemap.
 #[instrument(level = "info", name = "generate source map", skip_all)]
-pub fn generate_js_structured_source_map<'a>(
+pub fn generate_js_source_map<'a>(
     files_map: &impl Files,
     mappings: Vec<(BytePos, LineCol)>,
     original_source_maps: impl IntoIterator<Item = &'a Rope>,

@@ -31,7 +31,7 @@ use turbopack_core::{
     code_builder::{Code, CodeBuilder},
 };
 
-use crate::parse::{IdentCollector, generate_js_structured_source_map};
+use crate::parse::{IdentCollector, generate_js_source_map};
 
 #[instrument(level = "info", name = "minify ecmascript code", skip_all)]
 pub fn minify(code: Code, source_maps: bool, mangle: Option<MangleType>) -> Result<Code> {
@@ -148,9 +148,9 @@ pub fn minify(code: Code, source_maps: bool, mangle: Option<MangleType>) -> Resu
     let mut builder = CodeBuilder::new(source_maps.is_some(), generate_debug_id);
     if let Some(original_map) = source_maps.as_ref() {
         src_map_buf.shrink_to_fit();
-        builder.push_structured_source(
+        builder.push_source(
             &src.into(),
-            Some(generate_js_structured_source_map(
+            Some(generate_js_source_map(
                 &*cm,
                 src_map_buf,
                 Some(original_map),
@@ -163,7 +163,7 @@ pub fn minify(code: Code, source_maps: bool, mangle: Option<MangleType>) -> Resu
             )?),
         );
     } else {
-        builder.push_source(&src.into(), None);
+        builder.push_source(&src.into(), None::<turbo_tasks_fs::rope::Rope>);
     }
     Ok(builder.build())
 }
