@@ -23,6 +23,9 @@ describe('not-found-non-document', () => {
       expect(res.headers.get('content-type')).toContain('text/html')
     } else {
       expect(res.headers.get('content-type')).toContain('text/plain')
+      expect(res.headers.get('cache-control')).toBe(
+        'private, no-cache, no-store, max-age=0, must-revalidate'
+      )
       expect(await res.text()).toBe('Not Found')
       expect(next.cliOutput.slice(outputIndex)).not.toContain(
         '__not-found-component-rendered__'
@@ -44,6 +47,9 @@ describe('not-found-non-document', () => {
         expect(res.headers.get('content-type')).toContain('text/html')
       } else {
         expect(res.headers.get('content-type')).toContain('text/plain')
+        expect(res.headers.get('cache-control')).toBe(
+          'private, no-cache, no-store, max-age=0, must-revalidate'
+        )
         expect(await res.text()).toBe('Not Found')
       }
     }

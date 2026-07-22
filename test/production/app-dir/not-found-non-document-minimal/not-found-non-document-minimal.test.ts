@@ -23,6 +23,9 @@ describe('not-found-non-document-minimal', () => {
     })
     expect(res.status).toBe(404)
     expect(res.headers.get('content-type')).toContain('text/plain')
+    expect(res.headers.get('cache-control')).toBe(
+      'private, no-cache, no-store, max-age=0, must-revalidate'
+    )
     expect(await res.text()).toBe('Not Found')
   })
 
