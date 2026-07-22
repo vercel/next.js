@@ -19,10 +19,11 @@ Set up an agentic optimization loop that drives a Next.js route from "not
 instant" to "instant" and keeps it there. The loop is test-driven: encode the
 goal as a failing `@next/playwright` `instant()` test, work it to green, and
 ship the test as the regression guard. Run it once per target route. Work the
-phases P → G in order; each ends in a gate. Production shapes (parallel routes,
-auth gates, the empty-shell and responsive-skeleton failure modes) live in a
-lazily-read reference, `reference/real-app-patterns.md`; read it only when phase
-D points there.
+phases P → G in order; each ends in a gate. Fix recipes live in two lazily-read
+references — `reference/patterns.md` (before→after for each blocker type) and
+`reference/real-app-patterns.md` (parallel routes, auth gates, the empty-shell
+and responsive-skeleton failure modes). Read one only when its phase points
+there.
 
 ## What is invariant, and what is yours
 
@@ -119,7 +120,7 @@ those words.
 - [ ] B  BASELINE     unlocked: the marker renders for the test user         → test-template.md
 - [ ] C  RED          locked instant(): the shell does not commit            → test-template.md
 - [ ] C-gate          VERIFY-RED: stop until the RED is trustworthy          → reference/red-test-robustness.md
-- [ ] D  FIX          push each Suspense boundary down to the data it guards → below
+- [ ] D  FIX          push each Suspense boundary down to the data it guards → reference/patterns.md
 - [ ]      D1 reuse the route's existing loading UI; do not hand-build skeletons
 - [ ]      D2 the shell matches the real render at every breakpoint  → reference/real-app-patterns.md
 - [ ] E  PARITY       the refactor changed only whether the route is instant
@@ -283,10 +284,11 @@ Render `children` unconditionally; move the top-level `await` into a
 `<Suspense fallback={null}>`-wrapped child. Mechanism and before→after:
 `reference/real-app-patterns.md`, "Deferring an auth gate".
 
-The page that consumes the shell should be sync (no top-level `await`), with
-its dynamic data behind `<Suspense>`. `fallback={null}` is correct only when
-the gate renders nothing on success. For data, the fallback must be a real
-loading skeleton (see D1).
+**Fix the page below the shell too, not only the layout.** A page-level
+top-level `await` (commonly `await params`) blocks the same way the layout's
+does, so make the page sync and push its dynamic reads into a
+`<Suspense>`-wrapped leaf as well. `fallback={null}` is correct only when a gate renders nothing on
+success; for data, the fallback must be a real loading skeleton (see D1).
 
 Every other blocker shape — `cookies()`/`headers()`, uncached fetch or database
 reads, `searchParams`, metadata, viewport, non-deterministic values (`Date.now()`,
@@ -296,8 +298,12 @@ default build output is often abbreviated and may carry no usable stack trace;
 add `--debug-prerender` for the full failing frame and to report every blocker
 past the first. Scope the build to the route you're on with
 `next build --debug-build-paths "app/<route>/**"` rather than rebuilding the app.
-Open that page and apply its recipe; don't improvise from the inline message. A few things those
-per-error pages don't stress for the instant-navigation goal:
+Open that page and apply its recipe; don't improvise from the inline message.
+
+The before→after recipe for each shape is in `reference/patterns.md`, which maps it to the insight
+that explains it.
+
+A few things those per-error pages don't stress for the instant-navigation goal:
 
 - **A boundary in the root layout isn't enough for client navigations.** It
   passes a page-load check but leaves sibling client navigations blocking; put

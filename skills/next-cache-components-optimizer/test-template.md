@@ -107,13 +107,19 @@ await instant(page, async () => {
 await expect(page.getByTestId('<b>-content')).toBeVisible() // streams after release
 ```
 
-The same three assertions apply to the initial-load `page.goto()` form. The cookie gates the
-deferred content identically for both: on a soft navigation the client lock gates dynamic-data
-writes; on an initial load the server honors the cookie on the document request (set via
-`addCookies()` before navigation, scoped by `baseURL`) and suspends dynamic data, independent of
-whether the route was previously rendered or cached. So the initial-load `toHaveCount(0)` gated
-half is as valid as the soft-nav one; it needs no fresh browser context and no cache-busting
-query param. The mechanism is in `reference/red-test-robustness.md`.
+The two **gated-half** assertions (shell visible, deferred content `toHaveCount(0)`) apply to the
+initial-load `page.goto()` form too. The cookie gates the deferred content identically for both:
+on a soft navigation the client lock gates dynamic-data writes; on an initial load the server
+honors the cookie on the document request (set via `addCookies()` before navigation, scoped by
+`baseURL`) and suspends dynamic data, independent of whether the route was previously rendered or
+cached. So the initial-load `toHaveCount(0)` gated half is as valid as the soft-nav one; it needs
+no fresh browser context and no cache-busting query param.
+
+The **post-release** assertion (`getByTestId('<b>-content').toBeVisible()` after the `instant()`
+block) is soft-nav only. On an initial load the document was already emitted under the lock, so
+nothing streams in after release; drop that assertion from the initial-load test, or
+`page.reload()` first to fetch an unlocked document. The mechanism is in
+`reference/red-test-robustness.md`.
 
 ## Baseline scaffold: do not ship
 

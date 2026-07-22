@@ -20,16 +20,6 @@ Along the way, Next.js surfaces [instant navigation](/docs/app/guides/instant-na
 
 > **Good to know**: Partial Prefetching only works when [`cacheComponents`](/docs/app/api-reference/config/next-config-js/cacheComponents) is enabled.
 
-## What changes for `<Link>`
-
-| `<Link>` prop                       | Before (Cache Components default)                              | After Partial Prefetching                                                                                                                  |
-| ----------------------------------- | -------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
-| `<Link href="/x">`                  | Prefetched the cached page render.                             | Loads the shared App Shell for `/x`.                                                                                                       |
-| `<Link href="/x" prefetch>`         | Prefetched the cached page render **and** any dynamic content. | Loads the App Shell. If `/x` opts into [runtime prefetching](/docs/app/guides/runtime-prefetching), also prefetches per-link runtime data. |
-| `<Link href="/x" prefetch={false}>` | Disabled prefetching for this link.                            | Unchanged. Still disabled.                                                                                                                 |
-
-The App Shell is shared across every link to a given route, regardless of dynamic params, so rendering many `<Link>`s to the same destination doesn't multiply the work.
-
 ## Use the adoption skill (recommended)
 
 The [`next-partial-prefetching-adoption`](https://github.com/vercel/next.js/tree/canary/skills/next-partial-prefetching-adoption) skill drives this adoption with a coding agent. It audits your `<Link prefetch={true}>` calls with you, enables the flag, and sweeps every route for the insights this guide covers.
@@ -72,6 +62,16 @@ export default nextConfig
 ```
 
 After enabling the flag, every `<Link>` prefetches its destination's App Shell, and `<Link prefetch={true}>` no longer includes the route's dynamic content. Audit those links next to preserve what they delivered. A new project has no legacy links to audit and is done here.
+
+## What changes for `<Link>`
+
+| `<Link>` prop                       | Before (Cache Components default)                              | After Partial Prefetching                                                                                                                  |
+| ----------------------------------- | -------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| `<Link href="/x">`                  | Prefetched the cached page render.                             | Loads the shared App Shell for `/x`.                                                                                                       |
+| `<Link href="/x" prefetch>`         | Prefetched the cached page render **and** any dynamic content. | Loads the App Shell. If `/x` opts into [runtime prefetching](/docs/app/guides/runtime-prefetching), also prefetches per-link runtime data. |
+| `<Link href="/x" prefetch={false}>` | Disabled prefetching for this link.                            | Unchanged. Still disabled.                                                                                                                 |
+
+The App Shell is shared across every link to a given route, regardless of dynamic params, so rendering many `<Link>`s to the same destination doesn't multiply the work.
 
 ## Auditing `<Link prefetch={true}>` calls
 
@@ -308,7 +308,7 @@ Each card is clickable and opens a page with patterns, code samples, and trade-o
    }
    ```
 
-2. Deploy the change. Links to the adopted destination load the App Shell, and the insight keeps firing for the destinations you haven't reached.
+2. Deploy the change. Links to the adopted destination load the App Shell, and the insight keeps surfacing for the destinations you haven't reached.
 3. Repeat until every destination in scope is adopted, then [enable the flag](#enable-partial-prefetching).
 
 The per-route `prefetch = 'partial'` exports are now redundant. Remove them in one pass with the [`remove-partial-prefetch`](/docs/app/guides/upgrading/codemods#remove-partial-prefetch) codemod, which strips `export const prefetch = 'partial'` from every `page` and `layout`:
