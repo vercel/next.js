@@ -422,6 +422,15 @@ export default abstract class Server<
       : undefined
   }
 
+  /**
+   * The hash of the most recent server component change (dev only), used to
+   * revalidate `"use cache"` entries after an edit. Overridden by the dev
+   * server; returns `undefined` otherwise.
+   */
+  protected getServerComponentsHmrRefreshHash(): string | undefined {
+    return undefined
+  }
+
   protected abstract loadEnvConfig(params: {
     dev: boolean
     forceReload: boolean
@@ -1544,6 +1553,20 @@ export default abstract class Server<
           req,
           'serverComponentsHmrCache',
           this.getServerComponentsHmrCache()
+        )
+      }
+
+      // Attach the server components HMR refresh hash here, alongside the HMR
+      // cache, so it reaches every render that passes through this request
+      // handling, including internal renders (e.g. dev validation/warmup) that
+      // don't re-enter the top-level request handler. It's included in `"use
+      // cache"` keys so cached entries revalidate after an edit, for every
+      // client.
+      if (!getRequestMeta(req, 'hmrRefreshHash')) {
+        addRequestMeta(
+          req,
+          'hmrRefreshHash',
+          this.getServerComponentsHmrRefreshHash()
         )
       }
 

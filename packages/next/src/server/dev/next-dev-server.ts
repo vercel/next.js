@@ -231,6 +231,10 @@ export default class DevServer extends Server {
     return this.serverComponentsHmrCache
   }
 
+  protected override getServerComponentsHmrRefreshHash(): string | undefined {
+    return this.bundlerService.getServerComponentsHmrRefreshHash()
+  }
+
   protected getRouteMatchers(): RouteMatcherManager {
     const { pagesDir, appDir } = findPagesDir(this.dir)
 

@@ -115,6 +115,14 @@ export interface RequestMeta {
   serverComponentsHmrCache?: ServerComponentsHmrCache
 
   /**
+   * The hash of the most recent server component change (dev only), set by the
+   * router-server from the hot-reloader. Included in `"use cache"` cache keys
+   * so that cached entries are revalidated after an edit, for every client,
+   * regardless of whether it runs the HMR client.
+   */
+  hmrRefreshHash?: string
+
+  /**
    * Equals the segment path that was used for the prefetch RSC request.
    */
   segmentPrefetchRSCRequest?: string

@@ -805,7 +805,8 @@ export class AppRouteRouteModule extends RouteModule<
       req.nextUrl,
       implicitTags,
       undefined,
-      context.previewProps
+      context.previewProps,
+      context.renderOpts.hmrRefreshHash
     )
 
     const workStore = createWorkStore(staticGenerationContext)

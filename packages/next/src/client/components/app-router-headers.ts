@@ -12,7 +12,6 @@ export const NEXT_ROUTER_PREFETCH_HEADER = 'next-router-prefetch' as const
 export const NEXT_ROUTER_SEGMENT_PREFETCH_HEADER =
   'next-router-segment-prefetch' as const
 export const NEXT_HMR_REFRESH_HEADER = 'next-hmr-refresh' as const
-export const NEXT_HMR_REFRESH_HASH_COOKIE = '__next_hmr_refresh_hash__' as const
 export const NEXT_URL = 'next-url' as const
 export const RSC_CONTENT_TYPE_HEADER = 'text/x-component' as const
 

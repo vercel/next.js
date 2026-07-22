@@ -1445,5 +1445,6 @@
   "1444": "Invalid target hostname \"%s\" for proxy request, expected \"%s\"",
   "1445": "Invariant: Missing `__NEXT_PRIVATE_ORIGIN` environment variable.",
   "1446": "Missing initURL",
-  "1447": "Could not determine origin for forwarded Server Actions request. This can happen if port or hostname are not configured for this server."
+  "1447": "Could not determine origin for forwarded Server Actions request. This can happen if port or hostname are not configured for this server.",
+  "1448": "Error in the \"%s\" app-route HMR subscription"
 }

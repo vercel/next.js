@@ -31,7 +31,6 @@ import type { McpPageMetadataResponse } from '../../../../shared/lib/mcp-page-me
 import { useUntrackedPathname } from '../../../components/navigation-untracked'
 import reportHmrLatency from '../../report-hmr-latency'
 import { TurbopackHmr } from '../turbopack-hot-reloader-common'
-import { NEXT_HMR_REFRESH_HASH_COOKIE } from '../../../components/app-router-headers'
 import {
   publicAppRouterInstance,
   type GlobalErrorState,
@@ -412,13 +411,8 @@ export function processMessage(
         JSON.stringify({
           event: 'server-component-reload-page',
           clientId: __nextDevClientId,
-          hash: message.hash,
         })
       )
-
-      // Store the latest hash in a session cookie so that it's sent back to the
-      // server with any subsequent requests.
-      document.cookie = `${NEXT_HMR_REFRESH_HASH_COOKIE}=${message.hash};path=/`
 
       if (
         RuntimeErrorHandler.hadRuntimeError ||

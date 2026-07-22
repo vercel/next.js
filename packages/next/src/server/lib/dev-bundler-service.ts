@@ -64,6 +64,10 @@ export class DevBundlerService {
     return await this.bundler.hotReloader.ensurePage(definition)
   }
 
+  public getServerComponentsHmrRefreshHash(): string | undefined {
+    return this.bundler.hotReloader.getServerComponentsHmrRefreshHash()
+  }
+
   public logErrorWithOriginalStack =
     this.bundler.logErrorWithOriginalStack.bind(this.bundler)
 
