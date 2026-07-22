@@ -1,5 +1,5 @@
 import { isNextDev } from 'e2e-utils'
-import { retry } from 'next-test-utils'
+import { retry, waitForNoRedbox } from 'next-test-utils'
 import { getDeterministicOutput, getPrerenderOutput } from './utils'
 import type { CacheComponentsErrorsContext } from './shared.util'
 
@@ -1252,6 +1252,50 @@ Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
              ],
            }
           `)
+        })
+
+        it('should clear the redbox after adding generateStaticParams via HMR', async () => {
+          // Regression test for NAR-491: after adding `generateStaticParams`
+          // that covers the requested slug, the slug is no longer a fallback
+          // param, so the blocking-route validation must clear. This requires
+          // the render to pick up the fresh `fallbackParams`. Because
+          // `generateStaticParams` is recomputed in the background (the static
+          // paths cache serves the previous result until then), the render
+          // triggered by the edit itself still uses the stale `fallbackParams`;
+          // a follow-up HMR update, sent once the recompute lands, is what
+          // syncs them.
+          const browser = await next.browser('/use-cache-params/foo')
+
+          await expect(browser).toDisplayCollapsedRedbox(`
+             {
+               "code": "E1427",
+               "description": "Next.js encountered runtime data during prerendering.",
+               "environmentLabel": "Server",
+               "label": "Blocking Route",
+               "source": null,
+               "stack": [
+                 "Page [Prerender] <anonymous>",
+               ],
+             }
+            `)
+
+          // The recompute is deliberately delayed so it resolves only after the
+          // edit's own HMR refresh has re-rendered with the stale fallback
+          // params. That way the redbox can only clear via the follow-up static
+          // paths sync update, not the edit's refresh itself, which keeps this
+          // an accurate regression test.
+          await next.patchFile(
+            'app/use-cache-params/[slug]/page.tsx',
+            (content) =>
+              `export async function generateStaticParams() {\n` +
+              `  await new Promise((resolve) => setTimeout(resolve, 2000))\n` +
+              `  return [{ slug: 'foo' }]\n` +
+              `}\n\n` +
+              content,
+            async () => {
+              await waitForNoRedbox(browser)
+            }
+          )
         })
       } else {
         it('should error the build', async () => {

@@ -865,24 +865,6 @@ export default class DevServer extends Server {
               )
             }
           }
-
-          // Since generateStaticParams run on the background, when accessing the
-          // fallbackParams during the render, it is still set to the previous
-          // result from the cache. Therefore when the result has changed, re-render
-          // the Server Component to sync the fallbackParams with the new result.
-          if (
-            isAppPath &&
-            this.nextConfig.cacheComponents &&
-            // Ensure this is not the first invocation.
-            result &&
-            // Ideally, we would want to compare the whole objects, but that is too expensive.
-            result.prerenderedRoutes?.length !== prerenderedRoutes?.length
-          ) {
-            this.bundlerService.sendHmrMessage({
-              type: HMR_MESSAGE_SENT_TO_BROWSER.SERVER_COMPONENT_CHANGES,
-              hash: `generateStaticParams-${Date.now()}`,
-            })
-          }
         }
 
         if (!isAppPath && this.nextConfig.output === 'export') {
@@ -961,6 +943,33 @@ export default class DevServer extends Server {
           }
         }
         this.staticPathsCache.set(pathname, value)
+
+        // Since generateStaticParams runs in the background, the fallbackParams
+        // accessed during a render are derived from the previous result served
+        // by the static paths cache. Now that the cache holds the new result,
+        // trigger an HMR refresh so the next render picks up the new
+        // fallbackParams (e.g. so blocking-route validation reflects params
+        // that just became statically known).
+        //
+        // TODO: Give this its own HMR message instead of reusing
+        // `SERVER_COMPONENT_CHANGES`, which requires a `hash` whose value is
+        // meaningless here (a timestamp) and only serves to trigger a client
+        // refresh.
+        if (
+          isAppPath &&
+          this.nextConfig.cacheComponents &&
+          // Ensure this is not the first invocation.
+          result &&
+          // Comparing lengths rather than the whole objects, which is too
+          // expensive.
+          result.prerenderedRoutes?.length !== prerenderedRoutes?.length
+        ) {
+          this.bundlerService.sendHmrMessage({
+            type: HMR_MESSAGE_SENT_TO_BROWSER.SERVER_COMPONENT_CHANGES,
+            hash: `generateStaticParams-${Date.now()}`,
+          })
+        }
+
         return value
       })
       .catch((err) => {
