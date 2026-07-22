@@ -3764,11 +3764,23 @@ async function renderToStream(
             )
 
           const debugChannel = setReactDebugChannel && createNodeDebugChannel()
+          const requestInsightsIdentity =
+            process.env.NODE_ENV !== 'production'
+              ? getRequestInsightsIdentity()
+              : undefined
+          let requestInsightsDebugStream: AnyStream | undefined
 
           if (debugChannel) {
-            const [readableSsr, readableBrowser] = teeStream(
+            const [readableSsr, readableBrowserAndInsights] = teeStream(
               debugChannel.clientSide.readable
             )
+            let readableBrowser = readableBrowserAndInsights
+
+            if (requestInsightsIdentity) {
+              const tee = teeStream(readableBrowserAndInsights)
+              readableBrowser = tee[0]
+              requestInsightsDebugStream = tee[1]
+            }
 
             reactDebugStream = readableSsr
 
@@ -3793,6 +3805,23 @@ async function renderToStream(
               }
             )
           )
+
+          if (
+            process.env.NODE_ENV !== 'production' &&
+            requestInsightsIdentity &&
+            requestInsightsDebugStream
+          ) {
+            const { collectAndRecordRscDebugTimings } =
+              require('../lib/trace/rsc-debug-timing') as typeof import('../lib/trace/rsc-debug-timing')
+            void collectAndRecordRscDebugTimings(
+              requestInsightsIdentity,
+              reactServerResult.tee() as AsyncIterable<Uint8Array>,
+              requestInsightsDebugStream as AsyncIterable<Uint8Array>
+            )
+          } else {
+            // RSC timing collection is development-only and requires both
+            // Request Insights and React's debug channel.
+          }
         } else {
           // MARK: webStreams RSC
           // This is a dynamic render. We don't do dynamic tracking because we're not prerendering

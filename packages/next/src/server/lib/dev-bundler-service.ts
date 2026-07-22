@@ -9,7 +9,10 @@ import {
   type HmrMessageSentToBrowser,
   type NextJsHotReloaderInterface,
 } from '../dev/hot-reloader-types'
-import { subscribeRequestInsights } from './trace/request-insights'
+import {
+  isRequestInsightsEnabled,
+  subscribeRequestInsights,
+} from './trace/request-insights'
 import { DevBundlerServiceSpan } from './trace/constants'
 import { getTracer } from './trace/tracer'
 

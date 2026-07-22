@@ -1367,7 +1367,7 @@ async function executeActionAndPrepareForRender<
       {
         attributes: {
           'next.span_name': `run Server Action ${serverActionName}`,
-          'next.span_category': 'application',
+          'next.span.category': 'application',
           'next.server_action.name': serverActionName,
           'next.server_action.file': serverAction?.file || undefined,
         },

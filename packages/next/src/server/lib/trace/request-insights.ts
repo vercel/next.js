@@ -2,8 +2,13 @@ import type { AttributeValue } from 'next/dist/compiled/@opentelemetry/api'
 import type {
   RequestInsight,
   RequestInsightFetch,
+  RequestInsightRscTiming,
   RequestInsightServerAction,
   RequestInsightsSnapshot,
+} from '../../../next-devtools/shared/request-insights'
+import {
+  RSC_AWAIT_SPAN_TYPE,
+  RSC_COMPONENT_SPAN_TYPE,
 } from '../../../next-devtools/shared/request-insights'
 import type { SpanStoreRecord } from './span-store'
 export { isRequestInsightsEnabled } from './span-store'
@@ -12,6 +17,7 @@ const MAX_REQUEST_INSIGHTS = 100
 const REQUEST_INSIGHTS_STORE_KEY = Symbol.for('@next/request-insights-store')
 const CLIENT_COMPONENT_LOADING_SPAN_TYPE =
   'NextNodeServer.clientComponentLoading'
+const RENDER_RSC_RESPONSE_SPAN_TYPE = 'AppRender.renderRSCResponse'
 
 type RequestInsightsListener = (insight: RequestInsight) => void
 type RequestInsightIdentity = {
@@ -34,6 +40,8 @@ const SAFE_SPAN_ATTRIBUTE_KEYS = new Set([
   'next.fetch.idx',
   'next.route',
   'next.rsc',
+  'next.rsc.environment',
+  'next.rsc.kind',
   'next.server_action.file',
   'next.server_action.name',
   'next.segment',
@@ -94,6 +102,13 @@ class InMemoryRequestInsightsStore {
       error: span.error,
     })
 
+    if (
+      span.attributes?.['next.span_type'] === RENDER_RSC_RESPONSE_SPAN_TYPE &&
+      span.spanId
+    ) {
+      attachPendingRscTimings(insight, span.spanId)
+    }
+
     const serverAction = getServerActionInsight(span)
     if (serverAction) {
       insight.serverAction = serverAction
@@ -116,6 +131,47 @@ class InMemoryRequestInsightsStore {
     const insight = this.getOrCreateRequest(identity, fetchStartTime)
     this.updateTiming(insight, fetchStartTime, fetch.durationMs, false)
     this.recordFetchForInsight(insight, sanitizeFetchInsight(fetch))
+    this.notify(insight)
+  }
+
+  recordRscTimings(
+    identity: RequestInsightIdentity,
+    timings: RequestInsightRscTiming[]
+  ): void {
+    if (!identity.requestId || timings.length === 0) {
+      return
+    }
+
+    const insight = this.getOrCreateRequest(identity, timings[0].startTime)
+    const parentSpanId = findRenderRscResponseSpanId(insight)
+
+    for (const timing of timings) {
+      const spanType =
+        timing.kind === 'component'
+          ? RSC_COMPONENT_SPAN_TYPE
+          : RSC_AWAIT_SPAN_TYPE
+      const attributes: NonNullable<
+        RequestInsight['spans'][number]['attributes']
+      > = {
+        'next.span.category': 'application',
+        'next.span_name': timing.name,
+        'next.span_type': spanType,
+        'next.rsc.kind': timing.kind,
+      }
+      if (timing.environment !== '') {
+        attributes['next.rsc.environment'] = timing.environment
+      }
+
+      insight.spans.push({
+        name: spanType,
+        startTime: timing.startTime,
+        durationMs: timing.durationMs,
+        status: 'ok',
+        parentSpanId,
+        attributes,
+      })
+    }
+
     this.notify(insight)
   }
 
@@ -251,6 +307,13 @@ export function recordRequestInsightFetch(
   getRequestInsightsStore().recordFetch(identity, fetch)
 }
 
+export function recordRequestInsightRscTimings(
+  identity: RequestInsightIdentity,
+  timings: RequestInsightRscTiming[]
+): void {
+  getRequestInsightsStore().recordRscTimings(identity, timings)
+}
+
 export function getRequestInsightsSnapshot(): RequestInsightsSnapshot {
   return getRequestInsightsStore().getSnapshot()
 }
@@ -272,6 +335,36 @@ function getRequestInsightsStore(): InMemoryRequestInsightsStore {
 
   return (globalStore[REQUEST_INSIGHTS_STORE_KEY] ??=
     new InMemoryRequestInsightsStore())
+}
+
+function findRenderRscResponseSpanId(
+  insight: RequestInsight
+): string | undefined {
+  for (let index = insight.spans.length - 1; index >= 0; index--) {
+    const span = insight.spans[index]
+    if (
+      span.attributes?.['next.span_type'] === RENDER_RSC_RESPONSE_SPAN_TYPE &&
+      span.spanId
+    ) {
+      return span.spanId
+    }
+  }
+  return undefined
+}
+
+function attachPendingRscTimings(
+  insight: RequestInsight,
+  parentSpanId: string
+): void {
+  for (const span of insight.spans) {
+    const spanType = span.attributes?.['next.span_type']
+    if (
+      span.parentSpanId === undefined &&
+      (spanType === RSC_COMPONENT_SPAN_TYPE || spanType === RSC_AWAIT_SPAN_TYPE)
+    ) {
+      span.parentSpanId = parentSpanId
+    }
+  }
 }
 
 function getFetchInsight(span: SpanStoreRecord): RequestInsightFetch | null {

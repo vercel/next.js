@@ -625,7 +625,7 @@ describe('request insights', () => {
   })
 
   it('attributes delayed server component work to RSC rendering', async () => {
-    await next.render('/delayed')
+    const html = await next.render('/delayed')
 
     const snapshot = (await next
       .fetch('/_next/development/request-insights')
@@ -650,11 +650,43 @@ describe('request insights', () => {
           'AppRender.renderToNodeFizzStream' &&
         span.parentSpanId === renderSpan?.spanId
     )
+    const componentSpan = request?.spans.find(
+      (span) =>
+        span.attributes?.['next.span_type'] ===
+          'ReactServerComponents.component' &&
+        span.attributes?.['next.span_name'] === 'DelayedPage'
+    )
+    const awaitSpan = request?.spans.find(
+      (span) =>
+        span.attributes?.['next.span_type'] === 'ReactServerComponents.await'
+    )
 
+    expect(html).toContain('loaded')
+    expect(request?.status).toBe('ok')
     expect(renderRSCResponseSpan).toBeDefined()
     expect(renderHTMLShellSpan).toBeDefined()
     expect(renderRSCResponseSpan!.durationMs).toBeGreaterThanOrEqual(150)
     expect(renderHTMLShellSpan!.durationMs).toBeGreaterThanOrEqual(150)
+
+    if (!isCacheComponentsEnabled) {
+      expect(componentSpan).toBeDefined()
+      expect(awaitSpan).toBeDefined()
+      expect(awaitSpan!.durationMs).toBeGreaterThanOrEqual(150)
+
+      for (const span of [componentSpan!, awaitSpan!]) {
+        expect(span.parentSpanId).toBe(renderRSCResponseSpan!.spanId)
+        expect(span.startTime).toBeGreaterThanOrEqual(request!.startTime)
+        expect(span.startTime + span.durationMs!).toBeLessThanOrEqual(
+          request!.startTime + request!.durationMs!
+        )
+        expect(span.startTime).toBeGreaterThanOrEqual(
+          renderRSCResponseSpan!.startTime
+        )
+        expect(span.startTime + span.durationMs!).toBeLessThanOrEqual(
+          renderRSCResponseSpan!.startTime + renderRSCResponseSpan!.durationMs!
+        )
+      }
+    }
   })
 
   it('identifies client-dispatched Server Actions without retaining arguments', async () => {
