@@ -1,10 +1,10 @@
-// Same violation as `bare/page.tsx`, but with `unstable_instant = false`.
+// Same violation as `bare/page.tsx`, but with `instant = false`.
 // The explicit opt-out should suppress implicit validation entirely — no
 // instant redbox in dev, no markers in build, despite the runtime data
 // access at the top of the page.
 import { connection } from 'next/server'
 
-export const unstable_instant = false
+export const instant = false
 
 export default async function Page() {
   await connection()

@@ -11,7 +11,7 @@ use anyhow::Result;
 use turbo_tasks::{
     ResolvedVc, State, TurboTasks, Vc, unmark_top_level_task_may_leak_eventually_consistent_state,
 };
-use turbo_tasks_backend::{BackendOptions, GitVersionInfo, TurboBackingStorage, TurboTasksBackend};
+use turbo_tasks_backend::{BackendOptions, EvictionMode, GitVersionInfo, TurboTasksBackend};
 
 /// Creates a fresh per-call persistence directory rooted under
 /// `CARGO_TARGET_TMPDIR/.cache/`, with the test `name` as a prefix so failed
@@ -34,10 +34,7 @@ fn create_test_persistence_dir(name: &str) -> tempfile::TempDir {
 fn create_tt_with_workers(
     name: &str,
     num_workers: usize,
-) -> (
-    Arc<TurboTasks<TurboTasksBackend<TurboBackingStorage>>>,
-    tempfile::TempDir,
-) {
+) -> (Arc<TurboTasks<TurboTasksBackend>>, tempfile::TempDir) {
     let dir = create_test_persistence_dir(name);
     let tt = TurboTasks::new(TurboTasksBackend::new(
         BackendOptions {
@@ -46,7 +43,7 @@ fn create_tt_with_workers(
             // Avoid racing with the background snapshot loop; the test drives
             // snapshot_and_evict_for_testing manually.
             storage_mode: Some(turbo_tasks_backend::StorageMode::ReadWriteOnShutdown),
-            evict_after_snapshot: true,
+            eviction_mode: EvictionMode::Full,
             ..Default::default()
         },
         turbo_tasks_backend::turbo_backing_storage(
@@ -65,12 +62,7 @@ fn create_tt_with_workers(
     (tt, dir)
 }
 
-fn create_tt(
-    name: &str,
-) -> (
-    Arc<TurboTasks<TurboTasksBackend<TurboBackingStorage>>>,
-    tempfile::TempDir,
-) {
+fn create_tt(name: &str) -> (Arc<TurboTasks<TurboTasksBackend>>, tempfile::TempDir) {
     create_tt_with_workers(name, 2)
 }
 
@@ -96,7 +88,7 @@ async fn eviction_recompute() {
         let initial_random = read.random;
 
         // Trigger snapshot + eviction
-        let (had_data, counts) = tt2.backend().snapshot_and_evict_for_testing(&*tt2);
+        let (had_data, counts) = tt2.backend().snapshot_and_evict_for_testing(&tt2);
         println!("snapshot had_data={had_data}, evicted: {counts:?}");
         assert!(had_data, "snapshot should have persisted data");
 
@@ -137,7 +129,7 @@ async fn eviction_deep_chain() {
         let initial_random = read.random;
 
         // Snapshot + evict — expect multiple intermediate tasks evicted
-        let (had_data, counts) = tt2.backend().snapshot_and_evict_for_testing(&*tt2);
+        let (had_data, counts) = tt2.backend().snapshot_and_evict_for_testing(&tt2);
         println!("deep_chain: snapshot had_data={had_data}, evicted: {counts:?}");
         assert!(had_data, "snapshot should have persisted data");
         assert!(
@@ -155,7 +147,7 @@ async fn eviction_deep_chain() {
         let random_after_first = read.random;
 
         // Evict again and change again
-        let (had_data2, counts2) = tt2.backend().snapshot_and_evict_for_testing(&*tt2);
+        let (had_data2, counts2) = tt2.backend().snapshot_and_evict_for_testing(&tt2);
         println!("deep_chain (2nd): snapshot had_data={had_data2}, evicted: {counts2:?}");
 
         state.set(0);
@@ -193,7 +185,7 @@ async fn eviction_dependency_chain() {
         let initial_random = read.random;
 
         // Snapshot + evict
-        let (had_data, counts) = tt2.backend().snapshot_and_evict_for_testing(&*tt2);
+        let (had_data, counts) = tt2.backend().snapshot_and_evict_for_testing(&tt2);
         println!("snapshot had_data={had_data}, evicted: {counts:?}");
         assert!(had_data, "snapshot should have persisted data");
         assert!(
@@ -210,7 +202,7 @@ async fn eviction_dependency_chain() {
         let random_after_first = read.random;
 
         // Evict again
-        let (had_data2, counts2) = tt2.backend().snapshot_and_evict_for_testing(&*tt2);
+        let (had_data2, counts2) = tt2.backend().snapshot_and_evict_for_testing(&tt2);
         println!("snapshot (2nd) had_data={had_data2}, evicted: {counts2:?}");
 
         // Change again
@@ -230,7 +222,7 @@ async fn eviction_dependency_chain() {
 #[turbo_tasks::value(transparent)]
 struct Step(State<u32>);
 
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 fn create_state(initial: u32) -> Vc<Step> {
     Step(State::new(initial)).cell()
 }
@@ -241,7 +233,7 @@ struct Output {
     random: u32,
 }
 
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 async fn compute(input: ResolvedVc<Step>) -> Result<Vc<Output>> {
     let value = *input.await?.get();
     Ok(Output {
@@ -259,7 +251,7 @@ async fn double(input: ResolvedVc<Step>) -> Result<Vc<u32>> {
 }
 
 /// Outer function that depends on `double`
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 async fn compute_chain(input: ResolvedVc<Step>) -> Result<Vc<Output>> {
     let doubled = double(input);
     let value = *doubled.connect().await?;
@@ -274,25 +266,25 @@ async fn compute_chain(input: ResolvedVc<Step>) -> Result<Vc<Output>> {
 // Deep chain helpers — each layer reads the previous layer's output
 // =========================================================================
 
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 async fn add_one(input: ResolvedVc<Step>) -> Result<Vc<u32>> {
     let value = *input.await?.get();
     Ok(Vc::cell(value + 1))
 }
 
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 async fn times_three(input: ResolvedVc<u32>) -> Result<Vc<u32>> {
     let value = *input.await?;
     Ok(Vc::cell(value * 3))
 }
 
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 async fn plus_ten(input: ResolvedVc<u32>) -> Result<Vc<u32>> {
     let value = *input.await?;
     Ok(Vc::cell(value + 10))
 }
 
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 async fn deep_chain(input: ResolvedVc<Step>) -> Result<Vc<Output>> {
     // input → add_one → times_three → plus_ten → Output
     // For input=10: (10+1)*3+10 = 43
@@ -324,7 +316,7 @@ struct SessionCounter {
 /// Because this task is only resolved (not directly read) by the top-level
 /// transient task, it has no transient dependents and is eligible for eviction
 /// consideration — but should be blocked by the session-stateful flag.
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 fn create_session_counter(initial: u32) -> Vc<SessionCounter> {
     SessionCounter { count: initial }.cell()
 }
@@ -333,7 +325,7 @@ fn create_session_counter(initial: u32) -> Vc<SessionCounter> {
 /// doesn't need to resolve it directly (which would add a transient dependent
 /// edge to create_session_counter, preventing us from testing the
 /// session-stateful eviction gate).
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 async fn read_session_counter(initial: u32) -> Result<Vc<Output>> {
     let counter = create_session_counter(initial)
         .resolve()
@@ -378,7 +370,7 @@ async fn eviction_session_stateful_survives() {
         assert_eq!(normal_read.value, 43);
 
         // Snapshot + evict
-        let (had_data, counts) = tt2.backend().snapshot_and_evict_for_testing(&*tt2);
+        let (had_data, counts) = tt2.backend().snapshot_and_evict_for_testing(&tt2);
         println!("session_stateful: snapshot had_data={had_data}, evicted: {counts:?}");
         assert!(had_data, "snapshot should have persisted data");
         // The normal intermediate tasks (add_one, times_three, plus_ten) should be
@@ -428,7 +420,7 @@ async fn eviction_transient_reader_invalidated() {
         // (this run_once closure), so it may be blocked from full eviction. But we
         // still exercise the evict path — some tasks (like create_state) may be
         // data-only evicted.
-        let (had_data, counts) = tt2.backend().snapshot_and_evict_for_testing(&*tt2);
+        let (had_data, counts) = tt2.backend().snapshot_and_evict_for_testing(&tt2);
         println!("transient_reader: snapshot had_data={had_data}, evicted: {counts:?}");
         assert!(had_data, "snapshot should have persisted data");
 
@@ -444,7 +436,7 @@ async fn eviction_transient_reader_invalidated() {
         );
 
         // Second eviction cycle
-        let (_, counts2) = tt2.backend().snapshot_and_evict_for_testing(&*tt2);
+        let (_, counts2) = tt2.backend().snapshot_and_evict_for_testing(&tt2);
         println!("transient_reader (2nd): evicted: {counts2:?}");
 
         state.set(0);
@@ -465,14 +457,14 @@ async fn eviction_transient_reader_invalidated() {
 
 /// Adds an offset to a value — the offset parameter makes each call a unique
 /// memoized task, creating truly independent intermediate tasks for fan-out.
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 async fn add_offset(input: ResolvedVc<Step>, offset: u32) -> Result<Vc<u32>> {
     let value = *input.await?.get();
     Ok(Vc::cell(value.wrapping_add(offset)))
 }
 
 /// Multiplies by a factor — unique per factor argument.
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 async fn multiply(input: ResolvedVc<u32>, factor: u32) -> Result<Vc<u32>> {
     let value = *input.await?;
     Ok(Vc::cell(value.wrapping_mul(factor)))
@@ -482,7 +474,7 @@ async fn multiply(input: ResolvedVc<u32>, factor: u32) -> Result<Vc<u32>> {
 /// single state. Each chain uses unique arguments (offset/factor) so they
 /// produce distinct memoized tasks — `width * 2` intermediate persistent tasks
 /// that are candidates for eviction.
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 async fn fan_out(input: ResolvedVc<Step>, width: u32) -> Result<Vc<u32>> {
     let mut total = 0u32;
     for i in 0..width {
@@ -517,9 +509,7 @@ async fn eviction_stress_concurrent() {
     // worker threads, but fast enough to race with restores.
     let eviction_handle = tokio::task::spawn_blocking(move || {
         while !stop_clone.load(Ordering::Relaxed) {
-            tt_evict
-                .backend()
-                .snapshot_and_evict_for_testing(&*tt_evict);
+            tt_evict.backend().snapshot_and_evict_for_testing(&tt_evict);
             eviction_cycles_clone.fetch_add(1, Ordering::Relaxed);
             std::thread::sleep(std::time::Duration::from_millis(1));
         }
@@ -626,7 +616,7 @@ fn create_session_alive() -> Vc<SessionAlive> {
 /// run_once — and is eligible for the eviction sweep. The `Step` input
 /// gives us a knob to invalidate this reader (forcing re-read of the
 /// writer's cell) without invalidating `create_session_alive` itself.
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 async fn read_session_alive_id(state: ResolvedVc<Step>) -> Result<Vc<AlivePtr>> {
     let _state = *state.await?.get();
     let v = create_session_alive().resolve().await?;
@@ -687,7 +677,7 @@ async fn eviction_persistable_never_preserves_live_cell() {
         // Snapshot + evict. `create_session_alive`'s `cell_data` should retain
         // the SessionAlive cell as residue (Evictability::Never), while
         // clearing `data_restored` and persisted data flag bits.
-        let (had_data, counts) = tt2.backend().snapshot_and_evict_for_testing(&*tt2);
+        let (had_data, counts) = tt2.backend().snapshot_and_evict_for_testing(&tt2);
         println!("persistable_never: snapshot had_data={had_data}, evicted: {counts:?}");
         assert!(had_data, "snapshot should have persisted data");
 

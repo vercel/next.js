@@ -7,7 +7,7 @@ import { ReactNode } from 'react'
 // path: the inner depth defers a missing-boundary fallback, this
 // (shallower) depth has nothing to report, and the deferred fallback
 // surfaces only after the loop has exhausted every depth.
-export const unstable_instant = { level: 'experimental-error' }
+export const instant = { level: 'experimental-error' }
 
 export default function Layout({ children }: { children: ReactNode }) {
   return <main>{children}</main>

@@ -130,7 +130,7 @@ impl CssChunk {
         }
 
         for external_import in external_imports {
-            writeln!(code, "{}", &external_import)?;
+            writeln!(code, "{}", external_import)?;
         }
 
         let built = &body.build();
@@ -532,6 +532,7 @@ impl ChunkType for CssChunkType {
         chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
         chunk_items_or_batches: Vec<ChunkItemOrBatchWithAsyncModuleInfo>,
         _batch_groups: Vec<ResolvedVc<ChunkItemBatchGroup>>,
+        _component_chunks: Vec<ResolvedVc<Box<dyn Chunk>>>,
     ) -> Result<Vc<Box<dyn Chunk>>> {
         let mut chunk_items = Vec::new();
         // TODO operate with batches

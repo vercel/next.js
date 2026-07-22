@@ -149,8 +149,7 @@ async function runPlaywright(
       hasPagesDir: !!pagesDir,
       appDir: appDir || undefined,
       pagesDir: pagesDir || undefined,
-      rootParams:
-        !!nextConfig.experimental.rootParams || !!nextConfig.cacheComponents,
+      useTypeScriptCli: Boolean(nextConfig.experimental.useTypeScriptCli),
     })
 
     const isUsingTypeScript = !!typeScriptVersion

@@ -5,17 +5,17 @@
 
 mod util;
 
-use std::{env, path::PathBuf};
+use std::{env, fs::canonicalize, path::PathBuf};
 
 use anyhow::{Context, Result};
 use bincode::{Decode, Encode};
-use dunce::canonicalize;
 use serde::Deserialize;
 use tracing_subscriber::{Registry, layer::SubscriberExt, util::SubscriberInitExt};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    Completion, Effects, NonLocalValue, OperationVc, ReadRef, ResolvedVc, TaskInput, TurboTasks,
-    Vc, debug::ValueDebugFormat, fxindexmap, take_effects, trace::TraceRawVcs,
+    Completion, Effects, NonLocalValue, OperationVc, ReadRef, ResolvedVc, TurboTasks, Vc,
+    debug::ValueDebugFormat, fxindexmap, read_strongly_consistent_and_apply_effects, take_effects,
+    trace::TraceRawVcs,
 };
 use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
 use turbo_tasks_env::CommandLineProcessEnv;
@@ -48,7 +48,7 @@ use turbopack_core::{
     },
 };
 use turbopack_css::chunk::CssChunkType;
-use turbopack_ecmascript::{TreeShakingMode, chunk::EcmascriptChunkType};
+use turbopack_ecmascript::chunk::EcmascriptChunkType;
 use turbopack_ecmascript_runtime::RuntimeType;
 use turbopack_node::{
     child_process_backend,
@@ -81,8 +81,8 @@ struct JsResult {
     jest_result: JestRunResult,
 }
 
-#[turbo_tasks::value]
-#[derive(Copy, Clone, Debug, Hash, TaskInput)]
+#[turbo_tasks::value(task_input)]
+#[derive(Copy, Clone, Debug, Hash)]
 enum IssueSnapshotMode {
     Snapshots,
     NoSnapshots,
@@ -219,7 +219,7 @@ async fn run(resource: PathBuf, snapshot_mode: IssueSnapshotMode) -> Result<JsRe
         effects: Effects,
     }
 
-    #[turbo_tasks::function(operation)]
+    #[turbo_tasks::function(operation, root)]
     async fn run_inner_operation(
         resource: RcStr,
         snapshot_mode: IssueSnapshotMode,
@@ -237,7 +237,7 @@ async fn run(resource: PathBuf, snapshot_mode: IssueSnapshotMode) -> Result<JsRe
 
     /// Wrapper operation that collects all effects (including snapshot issue file writes) from
     /// [`run_inner_operation`].
-    #[turbo_tasks::function(operation)]
+    #[turbo_tasks::function(operation, root)]
     async fn run_inner_operation_with_effects(
         resource: RcStr,
         snapshot_mode: IssueSnapshotMode,
@@ -249,11 +249,9 @@ async fn run(resource: PathBuf, snapshot_mode: IssueSnapshotMode) -> Result<JsRe
     }
 
     tt.run_once(async move {
+        let op = run_inner_operation_with_effects(resource.to_str().unwrap().into(), snapshot_mode);
         let result_with_effects =
-            run_inner_operation_with_effects(resource.to_str().unwrap().into(), snapshot_mode)
-                .read_strongly_consistent()
-                .await?;
-        result_with_effects.effects.apply().await?;
+            read_strongly_consistent_and_apply_effects(op, |v| &v.effects).await?;
 
         Ok((*result_with_effects.result).clone())
     })
@@ -265,8 +263,10 @@ async fn run(resource: PathBuf, snapshot_mode: IssueSnapshotMode) -> Result<JsRe
 )]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 struct TestOptions {
-    #[serde(default = "default_tree_shaking_mode")]
-    tree_shaking_mode: Option<TreeShakingMode>,
+    #[serde(default = "default_true")]
+    follow_reexports: bool,
+    #[serde(default)]
+    module_fragments_enabled: bool,
     #[serde(default = "default_true")]
     remove_unused_imports: bool,
     #[serde(default = "default_true")]
@@ -279,10 +279,6 @@ struct TestOptions {
     production_chunking: bool,
 }
 
-fn default_tree_shaking_mode() -> Option<TreeShakingMode> {
-    Some(TreeShakingMode::ReexportsOnly)
-}
-
 fn default_true() -> bool {
     true
 }
@@ -290,7 +286,8 @@ fn default_true() -> bool {
 impl Default for TestOptions {
     fn default() -> Self {
         Self {
-            tree_shaking_mode: default_tree_shaking_mode(),
+            follow_reexports: default_true(),
+            module_fragments_enabled: false,
             remove_unused_exports: default_true(),
             remove_unused_imports: default_true(),
             scope_hoisting: default_true(),
@@ -326,7 +323,7 @@ async fn prepare_test(resource: RcStr) -> Result<Vc<PreparedTest>> {
     let relative_path = resource_path.strip_prefix(&*REPO_ROOT).with_context(|| {
         format!(
             "stripping repo root {:?} from resource path {:?}",
-            &*REPO_ROOT,
+            REPO_ROOT,
             resource_path.display()
         )
     })?;
@@ -358,7 +355,7 @@ async fn prepare_test(resource: RcStr) -> Result<Vc<PreparedTest>> {
     .cell())
 }
 
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<Vc<RunTestResult>> {
     let PreparedTest {
         path,
@@ -449,11 +446,13 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
                 ..Default::default()
             },
             environment: Some(env),
-            tree_shaking_mode: options.tree_shaking_mode,
+            follow_reexports: options.follow_reexports,
+            module_fragments_enabled: options.module_fragments_enabled,
             rules: vec![(
                 ContextCondition::InNodeModules,
                 ModuleOptionsContext {
-                    tree_shaking_mode: options.tree_shaking_mode,
+                    follow_reexports: options.follow_reexports,
+                    module_fragments_enabled: options.module_fragments_enabled,
                     ..Default::default()
                 }
                 .resolved_cell(),
@@ -638,7 +637,7 @@ async fn snapshot_issues(
 
     let plain_issues = run_result_op
         .peek_issues()
-        .get_plain_issues(IssueFilter::everything())
+        .get_plain_issues(&IssueFilter::everything())
         .await?;
 
     turbopack_test_utils::snapshot::snapshot_issues(plain_issues, path.join("issues")?, &REPO_ROOT)

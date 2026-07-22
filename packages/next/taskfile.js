@@ -46,11 +46,6 @@ export async function copy_docs(task, opts) {
     .target('dist/docs')
 }
 
-export async function copy_skills(task, opts) {
-  const skillsSource = join(__dirname, '../../skills')
-  await task.source(join(skillsSource, '**/*')).target('dist/skills')
-}
-
 export async function copy_styled_jsx_assets(task, opts) {
   // we copy the styled-jsx types so that we can reference them
   // in the next-env.d.ts file so it doesn't matter if the styled-jsx
@@ -123,6 +118,17 @@ export async function ncc_vercel_routing_utils(task, opts) {
       target: 'es5',
     })
     .target('src/compiled/@vercel/routing-utils')
+}
+
+externals['@vercel/detect-agent'] = 'next/dist/compiled/@vercel/detect-agent'
+export async function ncc_vercel_detect_agent(task, opts) {
+  await task
+    .source(relative(__dirname, require.resolve('@vercel/detect-agent')))
+    .ncc({
+      packageName: '@vercel/detect-agent',
+      externals,
+    })
+    .target('src/compiled/@vercel/detect-agent')
 }
 
 externals['busboy'] = 'next/dist/compiled/busboy'
@@ -1197,6 +1203,11 @@ export async function ncc_gzip_size(task, opts) {
     .target('src/compiled/gzip-size')
 }
 externals['http-proxy'] = 'next/dist/compiled/http-proxy'
+// The patched http-proxy (patches/http-proxy@1.18.1.patch) uses Next.js'
+// parseUrl instead of the deprecated url.parse. Keep that import pointing at
+// next's own dist instead of bundling a copy.
+externals['next/dist/shared/lib/router/utils/parse-url'] =
+  'next/dist/shared/lib/router/utils/parse-url'
 export async function ncc_http_proxy(task, opts) {
   await task
     .source(relative(__dirname, require.resolve('http-proxy')))
@@ -1899,7 +1910,17 @@ externals['@vercel/nft'] = 'next/dist/compiled/@vercel/nft'
 export async function ncc_nft(task, opts) {
   await task
     .source(relative(__dirname, require.resolve('@vercel/nft')))
-    .ncc({ packageName: '@vercel/nft', externals })
+    .ncc({
+      packageName: '@vercel/nft',
+      externals: Object.keys(externals).reduce((acc, key) => {
+        // @vercel/nft uses glob@13, while next/dist/compiled/glob is glob@7
+        // glob@13 -> path-scurry@2 -> lru-cache@11 which is incompatible
+        if (key !== 'glob' && key !== 'lru-cache') {
+          acc[key] = externals[key]
+        }
+        return acc
+      }, {}),
+    })
     .target('src/compiled/@vercel/nft')
 }
 
@@ -2198,13 +2219,7 @@ export async function ncc_safe_stable_stringify(task, opts) {
 
 export async function precompile(task, opts) {
   await task.parallel(
-    [
-      'browser_polyfills',
-      'copy_ncced',
-      'copy_styled_jsx_assets',
-      'copy_docs',
-      'copy_skills',
-    ],
+    ['browser_polyfills', 'copy_ncced', 'copy_styled_jsx_assets', 'copy_docs'],
     opts
   )
 }
@@ -2361,6 +2376,7 @@ export async function ncc(task, opts) {
       'ncc_rsc_poison_packages',
       'ncc_modelcontextprotocol_sdk',
       'ncc_vercel_routing_utils',
+      'ncc_vercel_detect_agent',
     ],
     opts
   )
@@ -2701,16 +2717,6 @@ export async function build(task, opts) {
     ['precompile', 'compile', 'check_error_codes', 'generate_types'],
     opts
   )
-  // Write git commit hash to dist for stale build detection during tests
-  try {
-    const { stdout: commitHash } = await execa('git', ['rev-parse', 'HEAD'])
-    await fs.writeFile(
-      join(__dirname, 'dist', '.build-commit'),
-      commitHash.trim()
-    )
-  } catch (err) {
-    console.warn(`Warning: Could not write build commit hash: ${err.message}`)
-  }
 }
 
 export async function generate_types(task, opts) {

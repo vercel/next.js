@@ -550,7 +550,7 @@ function bindingToApi(
         pages: {
           originalName: string
           htmlEndpoint: NapiEndpoint
-          rscEndpoint: NapiEndpoint
+          rscHmrEndpoint: NapiEndpoint
         }[]
       }
     | {
@@ -1027,6 +1027,25 @@ function bindingToApi(
       nextConfigSerializable.turbopack = turbopack
     }
 
+    // Serialize `experimental.turbopackChunkingHeuristics` route patterns: convert each RegExp to
+    // {source, flags} since RegExp objects are not JSON-serializable.
+    const chunkingHeuristics =
+      nextConfigSerializable.experimental?.turbopackChunkingHeuristics
+    if (chunkingHeuristics) {
+      const regexComponents = (regex: RegExp) => ({
+        source: regex.source,
+        flags: regex.flags,
+      })
+      nextConfigSerializable.experimental = {
+        ...nextConfigSerializable.experimental,
+        turbopackChunkingHeuristics: {
+          ...chunkingHeuristics,
+          priorityRoutes:
+            chunkingHeuristics.priorityRoutes?.map(regexComponents),
+        },
+      }
+    }
+
     return JSON.stringify(nextConfigSerializable, null, 2)
   }
 
@@ -1191,7 +1210,7 @@ function bindingToApi(
             pages: nativeRoute.pages.map((page) => ({
               originalName: page.originalName,
               htmlEndpoint: new EndpointImpl(page.htmlEndpoint),
-              rscEndpoint: new EndpointImpl(page.rscEndpoint),
+              rscHmrEndpoint: new EndpointImpl(page.rscHmrEndpoint),
             })),
           }
           break
@@ -1255,7 +1274,7 @@ function bindingToApi(
     return new ProjectImpl(
       await binding.projectNew(
         await rustifyProjectOptions(options),
-        turboEngineOptions || {},
+        turboEngineOptions,
         {
           throwTurbopackInternalError: (
             require('../../shared/lib/turbopack/internal-error') as typeof import('../../shared/lib/turbopack/internal-error')
@@ -1390,7 +1409,7 @@ async function loadWasm(importPath = '') {
     turbo: {
       createProject(
         _options: ProjectOptions,
-        _turboEngineOptions?: TurboEngineOptions | undefined,
+        _turboEngineOptions: TurboEngineOptions,
         _callbacks?: import('./types').TurbopackProjectCallbacks | undefined
       ): Promise<Project> {
         throw new Error(

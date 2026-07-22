@@ -27,24 +27,22 @@ use tracing::{Instrument, Span, instrument};
 use turbo_tasks_hash::{DeterministicHash, hash_xxh3_hash128};
 
 use crate::{
-    Completion, InvalidationReason, InvalidationReasonSet, OutputContent, ReadCellOptions,
-    ReadOutputOptions, ResolvedVc, SharedReference, TaskId, TraitMethod, ValueTypeId, Vc, VcRead,
-    VcValueTrait, VcValueType,
+    CellId, Completion, InvalidationReason, InvalidationReasonSet, OutputContent, RawVc,
+    ReadCellOptions, ReadOutputOptions, ResolvedVc, SharedReference, TaskId, TraitMethod,
+    ValueTypeId, Vc, VcRead, VcValueTrait, VcValueType,
     backend::{
         Backend, CellContent, CellHash, TaskCollectiblesMap, TaskExecutionSpec, TransientTaskType,
         TurboTasksExecutionError, TypedCellContent, VerificationMode,
     },
     capture_future::CaptureFuture,
-    dyn_task_inputs::StackDynTaskInputs,
+    dyn_task_inputs::DynTaskInputsStorage,
     event::{Event, EventListener},
-    id::{ExecutionId, LocalTaskId, TRANSIENT_TASK_BIT, TraitTypeId},
-    id_factory::IdFactoryWithReuse,
+    id::{ExecutionId, LocalTaskId, TraitTypeId},
     keyed::KeyedEq,
     local_task_tracker::LocalTaskTracker,
     macro_helpers::NativeFunction,
     message_queue::{CompilationEvent, CompilationEventQueue},
     priority_runner::{Executor, PriorityRunner},
-    raw_vc::{CellId, RawVc},
     registry,
     serialization_invalidation::SerializationInvalidator,
     task::local_task::{LocalTask, LocalTaskSpec, LocalTaskType},
@@ -53,16 +51,21 @@ use crate::{
     util::{IdFactory, StaticOrArc},
 };
 
-/// Common base trait for [`TurboTasksApi`] and [`TurboTasksBackendApi`]. Provides APIs for creating
-/// tasks from function calls.
+/// Common base trait for [`TurboTasksApi`] and [`TurboTasks`]. Provides APIs for creating tasks
+/// from function calls.
 pub trait TurboTasksCallApi: Sync + Send {
     /// Calls a native function with arguments. Resolves arguments when needed
     /// with a wrapper task.
+    ///
+    /// `inputs_resolved` is `TaskInput::is_resolved(&args)` computed at the macro callsite on
+    /// the concrete tuple type — when [`InputResolution::Resolved`], the fast path skips wrapper
+    /// task creation.
     fn dynamic_call(
         &self,
         native_fn: &'static NativeFunction,
         this: Option<RawVc>,
-        arg: &mut dyn StackDynTaskInputs,
+        arg: &mut dyn DynTaskInputsStorage,
+        inputs_resolved: InputResolution,
         persistence: TaskPersistence,
     ) -> RawVc;
     /// Call a native function with arguments.
@@ -71,16 +74,21 @@ pub trait TurboTasksCallApi: Sync + Send {
         &self,
         native_fn: &'static NativeFunction,
         this: Option<RawVc>,
-        arg: &mut dyn StackDynTaskInputs,
+        arg: &mut dyn DynTaskInputsStorage,
         persistence: TaskPersistence,
     ) -> RawVc;
     /// Calls a trait method with arguments. First input is the `self` object.
-    /// Uses a wrapper task to resolve
+    /// Uses a wrapper task to resolve.
+    ///
+    /// `inputs_resolved` is the macro-site `InputResolution` of the *exposed* tuple; when filtering
+    /// is involved, the post-filter value is computed inside the filter functor and supersedes
+    /// this argument.
     fn trait_call(
         &self,
         trait_method: &'static TraitMethod,
         this: RawVc,
-        arg: &mut dyn StackDynTaskInputs,
+        arg: &mut dyn DynTaskInputsStorage,
+        inputs_resolved: InputResolution,
         persistence: TaskPersistence,
     ) -> RawVc;
 
@@ -175,7 +183,6 @@ pub trait TurboTasksApi: TurboTasksCallApi + Sync + Send {
         verification_mode: VerificationMode,
     );
     fn mark_own_task_as_finished(&self, task: TaskId);
-    fn mark_own_task_as_session_dependent(&self, task: TaskId);
 
     fn connect_task(&self, task: TaskId);
 
@@ -228,46 +235,6 @@ impl<T> Unused<T> {
     }
 }
 
-/// A subset of the [`TurboTasks`] API that's exposed to [`Backend`] implementations.
-pub trait TurboTasksBackendApi<B: Backend + 'static>: TurboTasksCallApi + Sync + Send {
-    fn pin(&self) -> Arc<dyn TurboTasksBackendApi<B>>;
-
-    fn get_fresh_persistent_task_id(&self) -> Unused<TaskId>;
-    fn get_fresh_transient_task_id(&self) -> Unused<TaskId>;
-    /// # Safety
-    ///
-    /// The caller must ensure that the task id is not used anymore.
-    unsafe fn reuse_persistent_task_id(&self, id: Unused<TaskId>);
-    /// # Safety
-    ///
-    /// The caller must ensure that the task id is not used anymore.
-    unsafe fn reuse_transient_task_id(&self, id: Unused<TaskId>);
-
-    /// Schedule a task for execution.
-    fn schedule(&self, task: TaskId, priority: TaskPriority);
-
-    /// Returns the priority of the current task.
-    fn get_current_task_priority(&self) -> TaskPriority;
-
-    /// Schedule a foreground backend job for execution.
-    fn schedule_backend_foreground_job(&self, job: B::BackendJob);
-
-    /// Schedule a background backend job for execution.
-    ///
-    /// Background jobs are not counted towards activeness of the system. The system is considered
-    /// idle even with active background jobs.
-    fn schedule_backend_background_job(&self, job: B::BackendJob);
-
-    /// Returns the duration from the start of the program to the given instant.
-    fn program_duration_until(&self, instant: Instant) -> Duration;
-
-    /// Returns true if the system is idle.
-    fn is_idle(&self) -> bool;
-
-    /// Returns a reference to the backend.
-    fn backend(&self) -> &B;
-}
-
 #[allow(clippy::manual_non_exhaustive)]
 pub struct UpdateInfo {
     pub duration: Duration,
@@ -297,6 +264,33 @@ impl Display for TaskPersistence {
             TaskPersistence::Persistent => write!(f, "persistent"),
             TaskPersistence::Transient => write!(f, "transient"),
         }
+    }
+}
+
+/// Whether a task call's inputs are already resolved, decided on the concrete input tuple at the
+/// call site. Travels alongside [`TaskPersistence`] through [`dynamic_call`] / [`trait_call`].
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
+pub enum InputResolution {
+    /// All inputs (and `this`, where applicable) are resolved — eligible for the synchronous fast
+    /// path with no async resolution task.
+    Resolved,
+    /// At least one input is unresolved and must be resolved in a local task first.
+    Unresolved,
+}
+
+impl InputResolution {
+    #[inline]
+    pub fn from_is_resolved(is_resolved: bool) -> Self {
+        if is_resolved {
+            Self::Resolved
+        } else {
+            Self::Unresolved
+        }
+    }
+
+    #[inline]
+    pub fn is_resolved(self) -> bool {
+        matches!(self, Self::Resolved)
     }
 }
 
@@ -411,6 +405,7 @@ pub enum TaskPriority {
     Invalidation {
         priority: Reverse<u32>,
     },
+    Recomputation,
 }
 
 impl TaskPriority {
@@ -446,6 +441,7 @@ impl TaskPriority {
                     *self
                 }
             }
+            TaskPriority::Recomputation => TaskPriority::Recomputation,
         }
     }
 }
@@ -455,6 +451,7 @@ impl Display for TaskPriority {
         match self {
             TaskPriority::Initial => write!(f, "initial"),
             TaskPriority::Invalidation { priority } => write!(f, "invalidation({})", priority.0),
+            TaskPriority::Recomputation => write!(f, "recomputation"),
         }
     }
 }
@@ -476,8 +473,6 @@ enum ScheduledTask {
 pub struct TurboTasks<B: Backend + 'static> {
     this: Weak<Self>,
     backend: B,
-    task_id_factory: IdFactoryWithReuse<TaskId>,
-    transient_task_id_factory: IdFactoryWithReuse<TaskId>,
     execution_id_factory: IdFactory<ExecutionId>,
     stopped: AtomicBool,
     currently_scheduled_foreground_jobs: AtomicUsize,
@@ -494,7 +489,6 @@ pub struct TurboTasks<B: Backend + 'static> {
     event_foreground_done: Event,
     /// Event that is triggered when all background jobs are done
     event_background_done: Event,
-    program_start: Instant,
     compilation_events: CompilationEventQueue,
 }
 
@@ -603,18 +597,10 @@ impl<B: Backend + 'static> TurboTasks<B> {
     // so we probably want to make sure that all tasks are joined
     // when trying to drop turbo tasks
     pub fn new(backend: B) -> Arc<Self> {
-        let task_id_factory = IdFactoryWithReuse::new(
-            TaskId::MIN,
-            TaskId::try_from(TRANSIENT_TASK_BIT - 1).unwrap(),
-        );
-        let transient_task_id_factory =
-            IdFactoryWithReuse::new(TaskId::try_from(TRANSIENT_TASK_BIT).unwrap(), TaskId::MAX);
         let execution_id_factory = IdFactory::new(ExecutionId::MIN, ExecutionId::MAX);
         let this = Arc::new_cyclic(|this| Self {
             this: this.clone(),
             backend,
-            task_id_factory,
-            transient_task_id_factory,
             execution_id_factory,
             stopped: AtomicBool::new(false),
             currently_scheduled_foreground_jobs: AtomicUsize::new(0),
@@ -632,7 +618,6 @@ impl<B: Backend + 'static> TurboTasks<B> {
             event_background_done: Event::new(|| {
                 || "TurboTasks::event_background_done".to_string()
             }),
-            program_start: Instant::now(),
             compilation_events: CompilationEventQueue::default(),
         });
         this.backend.startup(&*this);
@@ -759,10 +744,10 @@ impl<B: Backend + 'static> TurboTasks<B> {
         &self,
         native_fn: &'static NativeFunction,
         this: Option<RawVc>,
-        arg: &mut dyn StackDynTaskInputs,
+        arg: &mut dyn DynTaskInputsStorage,
         persistence: TaskPersistence,
     ) -> RawVc {
-        RawVc::TaskOutput(self.backend.get_or_create_task(
+        RawVc::task_output(self.backend.get_or_create_task(
             native_fn,
             this,
             arg,
@@ -776,12 +761,11 @@ impl<B: Backend + 'static> TurboTasks<B> {
         &self,
         native_fn: &'static NativeFunction,
         this: Option<RawVc>,
-        arg: &mut dyn StackDynTaskInputs,
+        arg: &mut dyn DynTaskInputsStorage,
+        inputs_resolved: InputResolution,
         persistence: TaskPersistence,
     ) -> RawVc {
-        if this.is_none_or(|this| this.is_resolved())
-            && native_fn.arg_meta.is_resolved(arg.as_ref())
-        {
+        if inputs_resolved.is_resolved() && this.is_none_or(|this| this.is_resolved()) {
             return self.native_call(native_fn, this, arg, persistence);
         }
         // Need async resolution — must move the arg to the heap now
@@ -798,20 +782,33 @@ impl<B: Backend + 'static> TurboTasks<B> {
         &self,
         trait_method: &'static TraitMethod,
         this: RawVc,
-        arg: &mut dyn StackDynTaskInputs,
+        arg: &mut dyn DynTaskInputsStorage,
+        inputs_resolved: InputResolution,
         persistence: TaskPersistence,
     ) -> RawVc {
         // avoid creating a wrapper task if self is already resolved
         // for resolved cells we already know the value type so we can lookup the
         // function
-        if let RawVc::TaskCell(_, CellId { type_id, .. }) = this {
-            match registry::get_value_type(type_id).get_trait_method(trait_method) {
+        if let Some((_, cell_id)) = this.as_task_cell() {
+            match registry::get_value_type(cell_id.type_id()).get_trait_method(trait_method) {
                 Some(native_fn) => {
                     if let Some(filter) = native_fn.arg_meta.filter_owned {
-                        let mut arg = (filter)(arg);
-                        return self.dynamic_call(native_fn, Some(this), &mut arg, persistence);
+                        let (resolved, mut arg) = (filter)(arg);
+                        return self.dynamic_call(
+                            native_fn,
+                            Some(this),
+                            &mut arg,
+                            resolved,
+                            persistence,
+                        );
                     } else {
-                        return self.dynamic_call(native_fn, Some(this), arg, persistence);
+                        return self.dynamic_call(
+                            native_fn,
+                            Some(this),
+                            arg,
+                            inputs_resolved,
+                            persistence,
+                        );
                     }
                 }
                 None => {
@@ -833,7 +830,7 @@ impl<B: Backend + 'static> TurboTasks<B> {
     }
 
     #[track_caller]
-    pub(crate) fn schedule(&self, task_id: TaskId, priority: TaskPriority) {
+    pub fn schedule(&self, task_id: TaskId, priority: TaskPriority) {
         self.begin_foreground_job();
         self.scheduled_tasks.fetch_add(1, Ordering::AcqRel);
 
@@ -878,7 +875,7 @@ impl<B: Backend + 'static> TurboTasks<B> {
             priority,
         );
 
-        RawVc::LocalOutput(execution_id, local_task_id, persistence)
+        RawVc::local_output(execution_id, local_task_id, persistence)
     }
 
     fn begin_foreground_job(&self) {
@@ -1094,26 +1091,6 @@ impl<B: Backend + 'static> TurboTasks<B> {
     }
 
     #[track_caller]
-    pub(crate) fn schedule_foreground_job<T>(&self, func: T)
-    where
-        T: AsyncFnOnce(Arc<TurboTasks<B>>) -> Arc<TurboTasks<B>> + Send + 'static,
-        T::CallOnceFuture: Send,
-    {
-        let mut this = self.pin();
-        this.begin_foreground_job();
-        tokio::spawn(
-            TURBO_TASKS
-                .scope(this.clone(), async move {
-                    if !this.stopped.load(Ordering::Acquire) {
-                        this = func(this.clone()).await;
-                    }
-                    this.finish_foreground_job();
-                })
-                .in_current_span(),
-        );
-    }
-
-    #[track_caller]
     pub(crate) fn schedule_background_job<T>(&self, func: T)
     where
         T: AsyncFnOnce(Arc<TurboTasks<B>>) -> Arc<TurboTasks<B>> + Send + 'static,
@@ -1146,6 +1123,26 @@ impl<B: Backend + 'static> TurboTasks<B> {
 
     pub fn backend(&self) -> &B {
         &self.backend
+    }
+
+    pub fn get_current_task_priority(&self) -> TaskPriority {
+        CURRENT_TASK_STATE
+            .try_with(|task_state| task_state.read().unwrap().priority)
+            .unwrap_or(TaskPriority::initial())
+    }
+
+    pub fn is_idle(&self) -> bool {
+        self.currently_scheduled_foreground_jobs
+            .load(Ordering::Acquire)
+            == 0
+    }
+
+    #[track_caller]
+    pub fn schedule_backend_background_job(&self, job: B::BackendJob) {
+        self.schedule_background_job(async move |this| {
+            this.backend.run_backend_job(job, &*this).await;
+            this
+        })
     }
 }
 
@@ -1339,16 +1336,17 @@ impl<B: Backend + 'static> TurboTasksCallApi for TurboTasks<B> {
         &self,
         native_fn: &'static NativeFunction,
         this: Option<RawVc>,
-        arg: &mut dyn StackDynTaskInputs,
+        arg: &mut dyn DynTaskInputsStorage,
+        inputs_resolved: InputResolution,
         persistence: TaskPersistence,
     ) -> RawVc {
-        self.dynamic_call(native_fn, this, arg, persistence)
+        self.dynamic_call(native_fn, this, arg, inputs_resolved, persistence)
     }
     fn native_call(
         &self,
         native_fn: &'static NativeFunction,
         this: Option<RawVc>,
-        arg: &mut dyn StackDynTaskInputs,
+        arg: &mut dyn DynTaskInputsStorage,
         persistence: TaskPersistence,
     ) -> RawVc {
         self.native_call(native_fn, this, arg, persistence)
@@ -1357,10 +1355,11 @@ impl<B: Backend + 'static> TurboTasksCallApi for TurboTasks<B> {
         &self,
         trait_method: &'static TraitMethod,
         this: RawVc,
-        arg: &mut dyn StackDynTaskInputs,
+        arg: &mut dyn DynTaskInputsStorage,
+        inputs_resolved: InputResolution,
         persistence: TaskPersistence,
     ) -> RawVc {
-        self.trait_call(trait_method, this, arg, persistence)
+        self.trait_call(trait_method, this, arg, inputs_resolved, persistence)
     }
 
     #[track_caller]
@@ -1568,10 +1567,6 @@ impl<B: Backend + 'static> TurboTasksApi for TurboTasks<B> {
         self.backend.mark_own_task_as_finished(task, self);
     }
 
-    fn mark_own_task_as_session_dependent(&self, task: TaskId) {
-        self.backend.mark_own_task_as_session_dependent(task, self);
-    }
-
     /// Creates a future that inherits the current task id and task state. The current global task
     /// will wait for this future to be dropped before exiting.
     fn spawn_detached_for_testing(&self, fut: Pin<Box<dyn Future<Output = ()> + Send + 'static>>) {
@@ -1621,70 +1616,6 @@ impl<B: Backend + 'static> TurboTasksApi for TurboTasks<B> {
 
     fn is_tracking_dependencies(&self) -> bool {
         self.backend.is_tracking_dependencies()
-    }
-}
-
-impl<B: Backend + 'static> TurboTasksBackendApi<B> for TurboTasks<B> {
-    fn pin(&self) -> Arc<dyn TurboTasksBackendApi<B>> {
-        self.pin()
-    }
-    fn backend(&self) -> &B {
-        &self.backend
-    }
-
-    #[track_caller]
-    fn schedule_backend_background_job(&self, job: B::BackendJob) {
-        self.schedule_background_job(async move |this| {
-            this.backend.run_backend_job(job, &*this).await;
-            this
-        })
-    }
-
-    #[track_caller]
-    fn schedule_backend_foreground_job(&self, job: B::BackendJob) {
-        self.schedule_foreground_job(async move |this| {
-            this.backend.run_backend_job(job, &*this).await;
-            this
-        })
-    }
-
-    #[track_caller]
-    fn schedule(&self, task: TaskId, priority: TaskPriority) {
-        self.schedule(task, priority)
-    }
-
-    fn get_current_task_priority(&self) -> TaskPriority {
-        CURRENT_TASK_STATE
-            .try_with(|task_state| task_state.read().unwrap().priority)
-            .unwrap_or(TaskPriority::initial())
-    }
-
-    fn program_duration_until(&self, instant: Instant) -> Duration {
-        instant - self.program_start
-    }
-
-    fn get_fresh_persistent_task_id(&self) -> Unused<TaskId> {
-        // SAFETY: This is a fresh id from the factory
-        unsafe { Unused::new_unchecked(self.task_id_factory.get()) }
-    }
-
-    fn get_fresh_transient_task_id(&self) -> Unused<TaskId> {
-        // SAFETY: This is a fresh id from the factory
-        unsafe { Unused::new_unchecked(self.transient_task_id_factory.get()) }
-    }
-
-    unsafe fn reuse_persistent_task_id(&self, id: Unused<TaskId>) {
-        unsafe { self.task_id_factory.reuse(id.into()) }
-    }
-
-    unsafe fn reuse_transient_task_id(&self, id: Unused<TaskId>) {
-        unsafe { self.transient_task_id_factory.reuse(id.into()) }
-    }
-
-    fn is_idle(&self) -> bool {
-        self.currently_scheduled_foreground_jobs
-            .load(Ordering::Acquire)
-            == 0
     }
 }
 
@@ -1818,20 +1749,22 @@ pub async fn run_once_with_reason<T: Send + 'static>(
 pub fn dynamic_call(
     func: &'static NativeFunction,
     this: Option<RawVc>,
-    arg: &mut dyn StackDynTaskInputs,
+    arg: &mut dyn DynTaskInputsStorage,
+    inputs_resolved: InputResolution,
     persistence: TaskPersistence,
 ) -> RawVc {
-    with_turbo_tasks(|tt| tt.dynamic_call(func, this, arg, persistence))
+    with_turbo_tasks(|tt| tt.dynamic_call(func, this, arg, inputs_resolved, persistence))
 }
 
 /// Calls [`TurboTasks::trait_call`] for the current turbo tasks instance.
 pub fn trait_call(
     trait_method: &'static TraitMethod,
     this: RawVc,
-    arg: &mut dyn StackDynTaskInputs,
+    arg: &mut dyn DynTaskInputsStorage,
+    inputs_resolved: InputResolution,
     persistence: TaskPersistence,
 ) -> RawVc {
-    with_turbo_tasks(|tt| tt.trait_call(trait_method, this, arg, persistence))
+    with_turbo_tasks(|tt| tt.trait_call(trait_method, this, arg, inputs_resolved, persistence))
 }
 
 pub fn turbo_tasks() -> Arc<dyn TurboTasksApi> {
@@ -1861,43 +1794,12 @@ pub fn turbo_tasks_future_scope<T>(
     TURBO_TASKS.scope(tt, f)
 }
 
-pub fn with_turbo_tasks_for_testing<T>(
-    tt: Arc<dyn TurboTasksApi>,
-    current_task: TaskId,
-    execution_id: ExecutionId,
-    f: impl Future<Output = T>,
-) -> impl Future<Output = T> {
-    TURBO_TASKS.scope(
-        tt,
-        CURRENT_TASK_STATE.scope(
-            Arc::new(RwLock::new(CurrentTaskState::new(
-                current_task,
-                execution_id,
-                TaskPriority::initial(),
-                false, // in_top_level_task
-            ))),
-            f,
-        ),
-    )
-}
-
 /// Spawns the given future within the context of the current task.
 ///
 /// Beware: this method is not safe to use in production code. It is only
 /// intended for use in tests and for debugging purposes.
 pub fn spawn_detached_for_testing(f: impl Future<Output = ()> + Send + 'static) {
     turbo_tasks().spawn_detached_for_testing(Box::pin(f));
-}
-
-pub fn current_task_for_testing() -> Option<TaskId> {
-    CURRENT_TASK_STATE.with(|ts| ts.read().unwrap().task_id)
-}
-
-/// Marks the current task as dirty when restored from filesystem cache.
-pub fn mark_session_dependent() {
-    with_turbo_tasks(|tt| {
-        tt.mark_own_task_as_session_dependent(current_task("turbo_tasks::mark_session_dependent()"))
-    });
 }
 
 /// Marks the current task as finished. This excludes it from waiting for
@@ -2080,12 +1982,13 @@ impl CurrentCellRef {
     ///
     /// ```
     /// #[turbo_tasks::value(transparent, eq = "manual")]
+    /// #[derive(Clone)]
     /// struct Wrapper(Vec<u32>);
     ///
     /// impl PartialEq for Wrapper {
-    ///     fn eq(&self, other: Wrapper) {
+    ///     fn eq(&self, other: &Wrapper) -> bool {
     ///         // Example: order doesn't matter for equality
-    ///         let (mut this, mut other) = (self.clone(), other.clone());
+    ///         let (mut this, mut other) = (self.0.clone(), other.0.clone());
     ///         this.sort_unstable();
     ///         other.sort_unstable();
     ///         this == other
@@ -2159,7 +2062,8 @@ impl CurrentCellRef {
             {
                 return None;
             }
-            let content_hash = hash_xxh3_hash128(&new_value);
+            let content_hash = hash_xxh3_hash128(&new_value).to_le_bytes();
+
             Some((new_value, None, Some(content_hash)))
         });
     }
@@ -2183,7 +2087,8 @@ impl CurrentCellRef {
                     return None;
                 }
             }
-            let content_hash = hash_xxh3_hash128(extract_sr_value::<T>(&new_shared_reference));
+            let content_hash =
+                hash_xxh3_hash128(extract_sr_value::<T>(&new_shared_reference)).to_le_bytes();
             Some((new_shared_reference, None, Some(content_hash)))
         });
     }
@@ -2300,7 +2205,7 @@ impl CurrentCellRef {
 
 impl From<CurrentCellRef> for RawVc {
     fn from(cell: CurrentCellRef) -> Self {
-        RawVc::TaskCell(cell.current_task, cell.index)
+        RawVc::task_cell(cell.current_task, cell.index)
     }
 }
 
@@ -2320,10 +2225,15 @@ pub fn find_cell_by_id(ty: ValueTypeId) -> CurrentCellRef {
         let map = ts.cell_counters.as_mut().unwrap();
         let current_index = map.entry(ty).or_default();
         let index = *current_index;
+        assert!(
+            index <= CellId::MAX_CELL_INDEX,
+            "task allocated more than {} cells of a single type",
+            CellId::MAX_CELL_INDEX as u64 + 1,
+        );
         *current_index += 1;
         CurrentCellRef {
             current_task,
-            index: CellId { type_id: ty, index },
+            index: CellId::new(ty, index),
         }
     })
 }

@@ -89,6 +89,9 @@ import type { PrerenderManifest } from '../../build'
 import { getRouteRegex } from '../../shared/lib/router/utils/route-regex'
 import type { PrerenderedRoute } from '../../build/static-paths/types'
 import { HMR_MESSAGE_SENT_TO_BROWSER } from './hot-reloader-types'
+import { registerLocalSpanRecorder } from '../lib/trace/local-span-recorder'
+
+registerLocalSpanRecorder()
 
 // Load ReactDevOverlay only when needed
 let PagesDevOverlayBridgeImpl: PagesDevOverlayBridgeType
@@ -807,8 +810,6 @@ export default class DevServer extends Server {
           pathname,
           config: {
             pprConfig: this.nextConfig.experimental.ppr,
-            partialFallbacks:
-              this.nextConfig.experimental.partialFallbacks === true,
             configFileName,
             cacheComponents: Boolean(this.nextConfig.cacheComponents),
           },

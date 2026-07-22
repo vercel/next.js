@@ -1,4 +1,4 @@
-import { nextTestSetup, isNextDev } from 'e2e-utils'
+import { isReact18, nextTestSetup, isNextDev } from 'e2e-utils'
 import { join } from 'path'
 import { retry } from 'next-test-utils'
 
@@ -52,7 +52,7 @@ describe('react-current-version', () => {
       const browser = await next.browser('/')
       expect(await browser.eval('window.didHydrate')).toBe(true)
       expect(await browser.elementById('react-dom-version').text()).toMatch(
-        /19/
+        isReact18 ? /^18\./ : /^19\./
       )
     })
 

@@ -13,6 +13,8 @@ This guide will explain how prefetching works and show common implementation pat
 - [Extending or ejecting link](#extending-or-ejecting-link)
 - [Disabled prefetch](#disabled-prefetch)
 
+> **Using [Partial Prefetching](/docs/app/api-reference/config/next-config-js/partialPrefetching)?** `<Link>` defaults to prefetching a per-route [App Shell](/docs/app/glossary#app-shell) rather than the full page. Set `prefetch={true}` on a `<Link>` to also prefetch the destination page's content. See [Adopting Partial Prefetching](/docs/app/guides/adopting-partial-prefetching) for the behavior change and the recommended adoption path.
+
 ## How does prefetching work?
 
 When navigating between routes, the browser requests assets for the page like HTML and JavaScript files. Prefetching is the process of fetching these resources _ahead_ of time, before you navigate to a new route.
@@ -49,10 +51,10 @@ export default function NavLink() {
 }
 ```
 
-| **Context**       | **Prefetched payload**           | **Client Cache TTL**                                                           |
-| ----------------- | -------------------------------- | ------------------------------------------------------------------------------ |
-| No `loading.js`   | Entire page                      | Until app reload                                                               |
-| With `loading.js` | Layout to first loading boundary | 30s ([configurable](/docs/app/api-reference/config/next-config-js/staleTimes)) |
+| **Context**       | **Prefetched payload**           | **Client Cache TTL**                                                                              |
+| ----------------- | -------------------------------- | ------------------------------------------------------------------------------------------------- |
+| No `loading.js`   | Entire page                      | 5 min ([`staleTimes.static`](/docs/app/api-reference/config/next-config-js/staleTimes))           |
+| With `loading.js` | Layout to first loading boundary | Off by default ([`staleTimes.dynamic`](/docs/app/api-reference/config/next-config-js/staleTimes)) |
 
 Automatic prefetching runs only in production. Disable with `prefetch={false}` or use the wrapper in [Disabled Prefetch](#disabled-prefetch).
 
@@ -78,7 +80,7 @@ export function PricingCard() {
 }
 ```
 
-If the intent is to prefetch a URL when a component loads, see the extending or rejecting a link [example].
+To prefetch a URL when a component loads, see [Extending or ejecting link](#extending-or-ejecting-link).
 
 ## Hover-triggered prefetch
 
@@ -203,13 +205,15 @@ Next.js maintains a small task queue, which prefetches in the following order:
 
 The scheduler prioritizes likely navigations while minimizing unused downloads. Pending prefetches resume through the same queue when the app recovers from an offline period; see [Handling connectivity drops](/docs/app/guides/offline-support).
 
-### Partial Prerendering (PPR)
+### Cache Components
 
-When PPR is enabled, a page is divided into a [static shell](/docs/app/guides/streaming#the-static-shell) and a streamed dynamic section:
+With [Cache Components](/docs/app/getting-started/caching) and [Partial Prefetching](/docs/app/api-reference/config/next-config-js/partialPrefetching) enabled, the prefetching strategy uses an [App Shell](/docs/app/glossary#app-shell) to make client navigations instant:
 
-- The shell, which can be prefetched, streams immediately
-- Uncached data streams when ready
-- Data invalidations (`revalidateTag`, `revalidatePath`) silently refresh associated prefetches
+- The App Shell holds the route's static and session output.
+- Uncached data streams in when ready.
+- Data invalidations (`revalidateTag`, `revalidatePath`) silently refresh associated prefetches.
+
+A link can also resolve its URL data (`searchParams`, `params`) at prefetch time. See [Runtime prefetching](/docs/app/guides/runtime-prefetching).
 
 ## Troubleshooting
 

@@ -10,7 +10,7 @@ use rustc_hash::{FxHashMap, FxHashSet};
 use smallvec::SmallVec;
 use swc_core::{
     atoms::Wtf8Atom,
-    common::{BytePos, Mark, Span, Spanned, SyntaxContext, comments::Comments},
+    common::{BytePos, GLOBALS, Mark, Span, Spanned, SyntaxContext, comments::Comments},
     ecma::{
         ast::*,
         atoms::{Atom, atom},
@@ -27,16 +27,16 @@ use super::{JsValue, ModuleValue, top_level_await::has_top_level_await};
 use crate::{
     SpecifiedModuleType,
     analyzer::{
-        ConstantValue, ObjectPart,
+        Bump, ConstantValue, ObjectPart,
         graph::{AssignmentScope, AssignmentScopes, EvalContext},
-        is_unresolved,
+        is_unresolved, is_unresolved_id,
     },
     magic_identifier::{MAGIC_IDENTIFIER_DEFAULT_EXPORT, MAGIC_IDENTIFIER_DEFAULT_EXPORT_ATOM},
+    module_fragments::{PartId, find_turbopack_part_id_in_asserts},
     references::{
         esm::{EsmAssetReference, EsmExport, Liveness},
         util::{SpecifiedChunkingType, parse_chunking_type_annotation},
     },
-    tree_shake::{PartId, find_turbopack_part_id_in_asserts},
 };
 
 #[turbo_tasks::value]
@@ -160,7 +160,7 @@ impl ImportAnnotations {
         }
     }
 
-    pub fn parse_dynamic(with: &JsValue) -> Option<ImportAnnotations> {
+    pub fn parse_dynamic(with: &JsValue<'_>) -> Option<ImportAnnotations> {
         let mut map = BTreeMap::new();
 
         let JsValue::Object { parts, .. } = with else {
@@ -524,15 +524,20 @@ impl ImportMap {
         }
     }
 
-    pub fn get_import(&self, id: &Id) -> Option<JsValue> {
+    pub fn is_cjs(&self, specified_type: SpecifiedModuleType) -> bool {
+        !self.is_esm(specified_type)
+    }
+
+    pub fn get_import<'a>(&self, arena: &'a Bump, id: &Id) -> Option<JsValue<'a>> {
         if let Some((i, i_sym)) = self.imports.get(id) {
             let r = &self.references[*i];
             return Some(JsValue::member(
-                Box::new(JsValue::Module(ModuleValue {
+                arena,
+                JsValue::Module(ModuleValue {
                     module: r.module_path.clone(),
                     annotations: r.annotations.clone(),
-                })),
-                Box::new(i_sym.clone().into()),
+                }),
+                i_sym.clone().into(),
             ));
         }
         if let Some(i) = self.namespace_imports.get(id) {
@@ -593,6 +598,7 @@ impl ImportMap {
                                     self.exports_ids.get(name).cloned().with_context(|| {
                                         format!("Exported binding {name} not found in exports_ids")
                                     })?,
+                                    eval_context.unresolved_mark,
                                 )
                             },
                         ),
@@ -620,7 +626,7 @@ impl ImportMap {
 
     /// Returns the liveness of a given export identifier. An export is live if it might change
     /// values after module evaluation.
-    pub fn get_export_ident_liveness(&self, id: Id) -> Liveness {
+    pub fn get_export_ident_liveness(&self, id: Id, unresolved_mark: Mark) -> Liveness {
         if let Some(assignment_scopes) = self.assignment_scopes.get(&id) {
             // If all assignments are in module scope, the export is not live.
             if *assignment_scopes != AssignmentScopes::AllInModuleEvalScope {
@@ -633,6 +639,15 @@ impl ImportMap {
             // - A free variable or
             // - an imported variable
             // In those cases, we just assume that the value is live since we don't know anything
+            debug_assert!(
+                self.imports.contains_key(&id)
+                    || self.namespace_imports.contains_key(&id)
+                    || !GLOBALS.is_set()
+                    || is_unresolved_id(&id, unresolved_mark),
+                "export ident {id:?} without an assignment scope should be a free variable or an \
+                 imported variable"
+            );
+
             Liveness::Live
         }
     }
@@ -1076,6 +1091,7 @@ impl Visit for Analyzer<'_> {
             }
         };
 
+        self.register_assignment_scope(id.clone());
         self.data.exports.insert(
             rcstr!("default"),
             Export::LocalBinding(RcStr::from(id.0.as_str()), false),
@@ -1090,18 +1106,20 @@ impl Visit for Analyzer<'_> {
     fn visit_export_default_expr(&mut self, n: &ExportDefaultExpr) {
         self.data.has_exports = true;
 
+        let default_id = (
+            MAGIC_IDENTIFIER_DEFAULT_EXPORT_ATOM.clone(),
+            SyntaxContext::empty(),
+        );
+
         self.data.exports.insert(
             rcstr!("default"),
             Export::LocalBinding(MAGIC_IDENTIFIER_DEFAULT_EXPORT.clone(), false),
         );
-        self.data.exports_ids.insert(
-            rcstr!("default"),
-            (
-                // `EsmModuleItem::code_generation` inserts this variable.
-                MAGIC_IDENTIFIER_DEFAULT_EXPORT_ATOM.clone(),
-                SyntaxContext::empty(),
-            ),
-        );
+        self.data
+            .exports_ids
+            .insert(rcstr!("default"), default_id.clone());
+
+        self.register_assignment_scope(default_id);
         n.visit_children_with(self);
     }
 
@@ -1464,7 +1482,7 @@ fn get_import_symbol_from_export(specifier: &ExportSpecifier) -> ImportedSymbol 
 
 #[cfg(test)]
 mod tests {
-    use swc_core::{atoms::Atom, common::DUMMY_SP, ecma::ast::*};
+    use swc_core::{atoms::Atom, common::DUMMY_SP};
 
     use super::*;
 

@@ -72,7 +72,7 @@ describe('NEXT_HASH_SALT', () => {
   })
 })
 
-describe('experimental.outputHashSalt', () => {
+describe('outputHashSalt', () => {
   // Uses the fixture's next.config.js which reads OUTPUT_HASH_SALT_CONFIG from env,
   // allowing multiple builds with different config salts from a single next instance.
   const { next } = nextTestSetup({
@@ -83,11 +83,14 @@ describe('experimental.outputHashSalt', () => {
   async function buildWithSalts(opts: {
     configSalt?: string
     envSalt?: string
+    experimentalAdapterSalt?: string
     adapterSalt?: string
   }) {
     const env: Record<string, string> = {}
     if (opts.configSalt) env.OUTPUT_HASH_SALT_CONFIG = opts.configSalt
     if (opts.envSalt) env.NEXT_HASH_SALT = opts.envSalt
+    if (opts.experimentalAdapterSalt)
+      env.EXPERIMENTAL_OUTPUT_HASH_SALT_CONFIG = opts.experimentalAdapterSalt
     if (opts.adapterSalt) env.ADAPTER_HASH_SALT = opts.adapterSalt
     await next.clean()
     await next.build({ env })
@@ -99,6 +102,7 @@ describe('experimental.outputHashSalt', () => {
 
   let noSaltChunks: string[]
   let configOnlyChunks: string[]
+  let experimentalAdapterChunks: string[]
   let envOnlyChunks: string[]
   let adapterEnvOnlyChunks: string[]
   let configAndEnvChunks: string[]
@@ -109,6 +113,9 @@ describe('experimental.outputHashSalt', () => {
     async () => {
       noSaltChunks = await buildWithSalts({})
       configOnlyChunks = await buildWithSalts({ configSalt: 'config-salt' })
+      experimentalAdapterChunks = await buildWithSalts({
+        experimentalAdapterSalt: 'experimental-adapter-salt',
+      })
       envOnlyChunks = await buildWithSalts({ envSalt: 'env-salt' })
       adapterEnvOnlyChunks = await buildWithSalts({
         adapterSalt: 'adapter-salt',
@@ -146,5 +153,9 @@ describe('experimental.outputHashSalt', () => {
   it('env-and-adapter-env salt differs', () => {
     expect(envAndAdapterEnvChunks).not.toEqual(envOnlyChunks)
     expect(envAndAdapterEnvChunks).not.toEqual(adapterEnvOnlyChunks)
+  })
+
+  it('adapter experimental config salt changes filenames compared to no salt', () => {
+    expect(experimentalAdapterChunks).not.toEqual(noSaltChunks)
   })
 })

@@ -1,10 +1,10 @@
-// Same violation as `bare/page.tsx`, but with `unstable_instant = { level:
+// Same violation as `bare/page.tsx`, but with `instant = { level:
 // 'warning' }`. Explicit warning-level opt-in: instant validation fires
 // in dev (and takes priority over the static-shell error since instant
 // is active); build does not validate.
 import { connection } from 'next/server'
 
-export const unstable_instant = { level: 'warning' as const }
+export const instant = { level: 'warning' as const }
 
 export default async function Page() {
   await connection()

@@ -27,7 +27,7 @@ import _pkg from 'next/package.json'
 import type { SpawnOptions, ChildProcess } from 'child_process'
 import type { RequestInit, Response } from 'node-fetch'
 import type { NextServer } from 'next/dist/server/next'
-import { Playwright } from 'next-webdriver'
+import type { Playwright } from './browsers/playwright'
 import { recursiveReadDir } from 'next/dist/lib/recursive-readdir'
 
 import { shouldUseTurbopack } from './turbo'
@@ -39,6 +39,7 @@ import escapeRegex from 'escape-string-regexp'
 import './add-redbox-matchers'
 import { NextInstance } from 'e2e-utils'
 import { ClientReferenceManifest } from 'next/dist/build/webpack/plugins/flight-manifest-plugin'
+import { RequiredServerFilesManifest } from 'next/dist/build'
 
 export { shouldUseTurbopack }
 
@@ -1182,7 +1183,7 @@ export function getRedboxTitle(browser: Playwright): Promise<string | null> {
     const root = portal.shadowRoot
     return (
       root.querySelector(
-        '[data-nextjs-dialog-header] .nextjs__container_errors__error_title'
+        '[data-nextjs-dialog-header] [data-nextjs-error-label-group]'
       )?.innerText ?? null
     )
   })
@@ -2124,7 +2125,7 @@ export const getCacheHeader = (curRes: Response) =>
   curRes.headers.get('x-nextjs-cache') || curRes.headers.get('x-vercel-cache')
 
 export function getDeploymentId(appDir: string, isDev: boolean) {
-  let requiredServerFiles
+  let requiredServerFiles: RequiredServerFilesManifest | undefined
   if (!isDev) {
     // File isn't written in dev, but it might still exist because it was created by a prior
     // production build.
@@ -2142,7 +2143,7 @@ export function getDeploymentId(appDir: string, isDev: boolean) {
     requiredServerFiles?.config?.deploymentId
 
   const assetToken: string | undefined = requiredServerFiles?.config
-    ?.experimental?.supportsImmutableAssets
+    ?.supportsImmutableAssets
     ? undefined
     : deploymentId
 

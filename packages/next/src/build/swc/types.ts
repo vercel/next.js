@@ -12,11 +12,14 @@ import type {
   TraceServerHandle,
   TraceQueryOptions,
   TraceQueryResult,
+  MemoryEvictionMode,
 } from './generated-native'
 
 export type { TraceServerHandle, TraceQueryOptions, TraceQueryResult }
 
 export type { NapiTurboEngineOptions as TurboEngineOptions }
+
+export type { MemoryEvictionMode }
 
 export type Lockfile = { __napiType: 'Lockfile' }
 
@@ -29,7 +32,7 @@ export interface Binding {
   turbo: {
     createProject(
       options: ProjectOptions,
-      turboEngineOptions?: NapiTurboEngineOptions,
+      turboEngineOptions: NapiTurboEngineOptions,
       callbacks?: TurbopackProjectCallbacks
     ): Promise<Project>
     startTurbopackTraceServerHandle(
@@ -365,7 +368,7 @@ export type Route =
       pages: {
         originalName: string
         htmlEndpoint: Endpoint
-        rscEndpoint: Endpoint
+        rscHmrEndpoint: Endpoint
       }[]
     }
   | {
@@ -511,7 +514,7 @@ export type AppRoute =
   | {
       type: 'app-page'
       htmlEndpoint: Endpoint
-      rscEndpoint: Endpoint
+      rscHmrEndpoint: Endpoint
     }
   | {
       type: 'app-route'

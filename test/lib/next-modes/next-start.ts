@@ -6,12 +6,18 @@ import { Span } from 'next/dist/trace'
 import stripAnsi from 'strip-ansi'
 import { quote as shellQuote } from 'shell-quote'
 import { shouldUseTurbopack } from 'next-test-utils'
+import { RequiredServerFilesManifest } from 'next/dist/build'
 
 export class NextStartInstance extends NextInstance {
   private _buildId: string
   private _deploymentId: string | undefined
   private _supportsImmutableAssets: boolean = false
   private _cliOutput: string = ''
+
+  // Tracks which phase of `start()` currently owns `childProcess`, so a retry
+  // can tell a leftover `next build` from an interrupted attempt apart from an
+  // already-running server.
+  private _phase: 'building' | 'serving' | undefined = undefined
 
   private _prerenderFinishedTimeMS: number | null = null
 
@@ -60,13 +66,34 @@ export class NextStartInstance extends NextInstance {
     })
   }
 
-  public async start(options: { skipBuild?: boolean } = {}) {
-    if (this.childProcess) {
-      throw new Error('next already started')
+  // When a previous test attempt was interrupted (typically by exceeding the
+  // per-test timeout) while `next build` was still running, the build process
+  // is still tracked here. Since `jest.retryTimes` re-runs the test body in the
+  // same process, stop the orphaned build so the caller can continue instead of
+  // failing the retry. If a server is genuinely running, throw
+  // `serverRunningError` instead.
+  private async stopLeftoverBuildOrThrow(serverRunningError: string) {
+    if (!this.childProcess) {
+      return
     }
 
+    if (this._phase === 'building') {
+      require('console').warn(
+        'Found a leftover `next build` process from an interrupted test attempt; stopping it before continuing.'
+      )
+      await this.stop()
+    } else {
+      throw new Error(serverRunningError)
+    }
+  }
+
+  public async start(
+    options: { skipBuild?: boolean; env?: Record<string, string> } = {}
+  ) {
+    await this.stopLeftoverBuildOrThrow('next already started')
+
     this._cliOutput = ''
-    const spawnOpts = this.getSpawnOpts()
+    const spawnOpts = this.getSpawnOpts(options.env)
 
     let startArgs = ['pnpm', 'next', 'start']
 
@@ -86,6 +113,7 @@ export class NextStartInstance extends NextInstance {
     }
 
     if (!options.skipBuild) {
+      this._phase = 'building'
       const buildArgs = this.getBuildArgs()
       console.log('running', shellQuote(buildArgs))
       await new Promise<void>((resolve, reject) => {
@@ -144,15 +172,15 @@ export class NextStartInstance extends NextInstance {
             ),
             'utf8'
           )
-        )
+        ) as RequiredServerFilesManifest
         this._deploymentId =
           requiredServerFiles.config?.deploymentId || undefined
         this._supportsImmutableAssets =
-          requiredServerFiles.config?.experimental?.supportsImmutableAssets ||
-          false
+          requiredServerFiles.config?.supportsImmutableAssets || false
       } catch {}
     }
 
+    this._phase = 'serving'
     console.log('running', shellQuote(startArgs))
     await new Promise<void>((resolve, reject) => {
       try {
@@ -249,16 +277,15 @@ export class NextStartInstance extends NextInstance {
   public async build(
     options: { env?: Record<string, string>; args?: string[] } = {}
   ) {
-    if (this.childProcess) {
-      throw new Error(
-        `can not run export while server is running, use next.stop() first`
-      )
-    }
+    await this.stopLeftoverBuildOrThrow(
+      'can not run export while server is running, use next.stop() first'
+    )
 
     let result = await new Promise<{
       exitCode: NodeJS.Signals | number | null
       cliOutput: string
     }>((resolve) => {
+      this._phase = 'building'
       const curOutput = this._cliOutput.length
       const spawnOpts = this.getSpawnOpts(options.env)
       const buildArgs = this.getBuildArgs(options.args)
@@ -303,8 +330,7 @@ export class NextStartInstance extends NextInstance {
       )
       this._deploymentId = requiredServerFiles.config?.deploymentId || undefined
       this._supportsImmutableAssets =
-        requiredServerFiles.config?.experimental?.supportsImmutableAssets ||
-        false
+        requiredServerFiles.config?.supportsImmutableAssets || false
     } catch {}
 
     return result

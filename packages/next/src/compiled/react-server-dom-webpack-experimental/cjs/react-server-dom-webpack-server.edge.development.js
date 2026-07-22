@@ -12,6 +12,7 @@
 "production" !== process.env.NODE_ENV &&
   (function () {
     function voidHandler() {}
+    function noop() {}
     function getIteratorFn(maybeIterable) {
       if (null === maybeIterable || "object" !== typeof maybeIterable)
         return null;
@@ -20,33 +21,12 @@
         maybeIterable["@@iterator"];
       return "function" === typeof maybeIterable ? maybeIterable : null;
     }
-    function _defineProperty(obj, key, value) {
-      a: if ("object" == typeof key && key) {
-        var e = key[Symbol.toPrimitive];
-        if (void 0 !== e) {
-          key = e.call(key, "string");
-          if ("object" != typeof key) break a;
-          throw new TypeError("@@toPrimitive must return a primitive value.");
-        }
-        key = String(key);
-      }
-      key = "symbol" == typeof key ? key : key + "";
-      key in obj
-        ? Object.defineProperty(obj, key, {
-            value: value,
-            enumerable: !0,
-            configurable: !0,
-            writable: !0
-          })
-        : (obj[key] = value);
-      return obj;
-    }
     function handleErrorInNextTick(error) {
       setTimeout(function () {
         throw error;
       });
     }
-    function writeChunkAndReturn(destination, chunk) {
+    function writeChunk(destination, chunk) {
       if (0 !== chunk.byteLength)
         if (4096 < chunk.byteLength)
           0 < writtenBytes &&
@@ -72,6 +52,9 @@
           currentView.set(chunk, writtenBytes);
           writtenBytes += chunk.byteLength;
         }
+    }
+    function writeChunkAndReturn(destination, chunk) {
+      writeChunk(destination, chunk);
       return !0;
     }
     function completeWriting(destination) {
@@ -514,7 +497,6 @@
       temporaryReferences.set(reference, id);
       return reference;
     }
-    function noop() {}
     function trackUsedThenable(thenableState, thenable, index) {
       index = thenableState[index];
       void 0 === index
@@ -525,7 +507,12 @@
         case "fulfilled":
           return thenable.value;
         case "rejected":
-          throw thenable.reason;
+          thenableState = thenable.reason;
+          if (void 0 === thenableState && !("reason" in thenable))
+            throw Error(
+              "A rejected Promise was passed to React without a `reason` property. React threw a generic error from where the Promise was used to assist in identifying the problematic Promise. Make sure that instrumented Promises correctly set the `reason` property when setting `status` to `'rejected'`."
+            );
+          throw thenableState;
         default:
           "string" === typeof thenable.status
             ? thenable.then(noop, noop)
@@ -1350,8 +1337,8 @@
                   : tryStreamTask(request, streamTask),
                 enqueueFlush(request),
                 reader.read().then(progress, error);
-            } catch (x$0) {
-              error(x$0);
+            } catch (x$6) {
+              error(x$6);
             }
       }
       function error(reason) {
@@ -1440,8 +1427,8 @@
                 tryStreamTask(request, streamTask),
                 enqueueFlush(request),
                 callIteratorInDEV(iterator, progress, error);
-            } catch (x$1) {
-              error(x$1);
+            } catch (x$7) {
+              error(x$7);
             }
       }
       function error(reason) {
@@ -1453,7 +1440,7 @@
           erroredTask(request, streamTask, reason),
           enqueueFlush(request),
           "function" === typeof iterator.throw &&
-            iterator.throw(reason).then(error, error));
+            iterator.throw(reason).then(noop, noop));
       }
       function abortIterable() {
         if (streamTask.status === PENDING$1) {
@@ -1467,7 +1454,7 @@
             : (erroredTask(request, streamTask, signal.reason),
               enqueueFlush(request));
           "function" === typeof iterator.throw &&
-            iterator.throw(reason).then(error, error);
+            iterator.throw(reason).then(noop, noop);
         }
       }
       var isIterator = iterable === iterator,
@@ -1582,43 +1569,49 @@
       result.$$typeof === REACT_ELEMENT_TYPE && (result._store.validated = 1);
       var iteratorFn = getIteratorFn(result);
       if (iteratorFn) {
-        var multiShot = _defineProperty({}, Symbol.iterator, function () {
-          var iterator = iteratorFn.call(result);
-          iterator !== result ||
-            ("[object GeneratorFunction]" ===
-              Object.prototype.toString.call(Component) &&
-              "[object Generator]" ===
-                Object.prototype.toString.call(result)) ||
-            callWithDebugContextInDEV(request, task, function () {
-              console.error(
-                "Returning an Iterator from a Server Component is not supported since it cannot be looped over more than once. "
-              );
-            });
-          return iterator;
-        });
-        multiShot._debugInfo = result._debugInfo;
-        return multiShot;
+        var $jscomp$compprop0 = {};
+        $jscomp$compprop0 =
+          (($jscomp$compprop0[Symbol.iterator] = function () {
+            var iterator = iteratorFn.call(result);
+            iterator !== result ||
+              ("[object GeneratorFunction]" ===
+                Object.prototype.toString.call(Component) &&
+                "[object Generator]" ===
+                  Object.prototype.toString.call(result)) ||
+              callWithDebugContextInDEV(request, task, function () {
+                console.error(
+                  "Returning an Iterator from a Server Component is not supported since it cannot be looped over more than once. "
+                );
+              });
+            return iterator;
+          }),
+          $jscomp$compprop0);
+        $jscomp$compprop0._debugInfo = result._debugInfo;
+        return $jscomp$compprop0;
       }
       return "function" !== typeof result[ASYNC_ITERATOR] ||
         ("function" === typeof ReadableStream &&
           result instanceof ReadableStream)
         ? result
-        : ((multiShot = _defineProperty({}, ASYNC_ITERATOR, function () {
-            var iterator = result[ASYNC_ITERATOR]();
-            iterator !== result ||
-              ("[object AsyncGeneratorFunction]" ===
-                Object.prototype.toString.call(Component) &&
-                "[object AsyncGenerator]" ===
-                  Object.prototype.toString.call(result)) ||
-              callWithDebugContextInDEV(request, task, function () {
-                console.error(
-                  "Returning an AsyncIterator from a Server Component is not supported since it cannot be looped over more than once. "
-                );
-              });
-            return iterator;
-          })),
-          (multiShot._debugInfo = result._debugInfo),
-          multiShot);
+        : (($jscomp$compprop0 = {}),
+          ($jscomp$compprop0 =
+            (($jscomp$compprop0[ASYNC_ITERATOR] = function () {
+              var iterator = result[ASYNC_ITERATOR]();
+              iterator !== result ||
+                ("[object AsyncGeneratorFunction]" ===
+                  Object.prototype.toString.call(Component) &&
+                  "[object AsyncGenerator]" ===
+                    Object.prototype.toString.call(result)) ||
+                callWithDebugContextInDEV(request, task, function () {
+                  console.error(
+                    "Returning an AsyncIterator from a Server Component is not supported since it cannot be looped over more than once. "
+                  );
+                });
+              return iterator;
+            }),
+            $jscomp$compprop0)),
+          ($jscomp$compprop0._debugInfo = result._debugInfo),
+          $jscomp$compprop0);
     }
     function renderFunctionComponent(
       request,
@@ -2054,32 +2047,6 @@
         ping: function () {
           return pingTask(request, task);
         },
-        toJSON: function (parentPropertyName, value) {
-          var parent = this,
-            originalValue = parent[parentPropertyName];
-          "object" !== typeof originalValue ||
-            originalValue === value ||
-            originalValue instanceof Date ||
-            callWithDebugContextInDEV(request, task, function () {
-              "Object" !== objectName(originalValue)
-                ? "string" === typeof jsxChildrenParents.get(parent)
-                  ? console.error(
-                      "%s objects cannot be rendered as text children. Try formatting it using toString().%s",
-                      objectName(originalValue),
-                      describeObjectForErrorMessage(parent, parentPropertyName)
-                    )
-                  : console.error(
-                      "Only plain objects can be passed to Client Components from Server Components. %s objects are not supported.%s",
-                      objectName(originalValue),
-                      describeObjectForErrorMessage(parent, parentPropertyName)
-                    )
-                : console.error(
-                    "Only plain objects can be passed to Client Components from Server Components. Objects with toJSON methods are not supported. Convert it manually to a simple value before passing it to props.%s",
-                    describeObjectForErrorMessage(parent, parentPropertyName)
-                  );
-            });
-          return renderModel(request, task, parent, parentPropertyName, value);
-        },
         thenableState: null,
         timed: !1
       };
@@ -2090,6 +2057,74 @@
       task.debugTask = debugTask;
       abortSet.add(task);
       return task;
+    }
+    function resolveModel(request, task, parent, parentPropertyName, value) {
+      var jsonValue = value;
+      null !== value &&
+        "object" === typeof value &&
+        "function" === typeof value.toJSON &&
+        (jsonValue = value.toJSON(parentPropertyName));
+      var originalValue = parent[parentPropertyName];
+      "object" !== typeof originalValue ||
+        originalValue === jsonValue ||
+        originalValue instanceof Date ||
+        callWithDebugContextInDEV(request, task, function () {
+          ArrayBuffer.isView(originalValue)
+            ? console.error(
+                "Binary data with a toJSON method, such as a Node.js Buffer, is serialized through toJSON instead of as binary. Pass a Uint8Array or ArrayBuffer to send binary data.%s",
+                describeObjectForErrorMessage(parent, parentPropertyName)
+              )
+            : "Object" !== objectName(originalValue)
+              ? "string" === typeof jsxChildrenParents.get(parent)
+                ? console.error(
+                    "%s objects cannot be rendered as text children. Try formatting it using toString().%s",
+                    objectName(originalValue),
+                    describeObjectForErrorMessage(parent, parentPropertyName)
+                  )
+                : console.error(
+                    "Only plain objects can be passed to Client Components from Server Components. %s objects are not supported.%s",
+                    objectName(originalValue),
+                    describeObjectForErrorMessage(parent, parentPropertyName)
+                  )
+              : console.error(
+                  "Only plain objects can be passed to Client Components from Server Components. Objects with toJSON methods are not supported. Convert it manually to a simple value before passing it to props.%s",
+                  describeObjectForErrorMessage(parent, parentPropertyName)
+                );
+        });
+      value = renderModel(request, task, parent, parentPropertyName, jsonValue);
+      if (null === value || "object" !== typeof value) return value;
+      if (isArrayImpl(value)) {
+        var _resolved = [];
+        for (jsonValue = 0; jsonValue < value.length; jsonValue++)
+          _resolved[jsonValue] = resolveModel(
+            request,
+            task,
+            value,
+            "" + jsonValue,
+            value[jsonValue]
+          );
+        return _resolved;
+      }
+      jsonValue = {};
+      for (_resolved in value)
+        if (hasOwnProperty.call(value, _resolved)) {
+          var resolvedValue = resolveModel(
+            request,
+            task,
+            value,
+            _resolved,
+            value[_resolved]
+          );
+          _resolved === __PROTO__$1
+            ? Object.defineProperty(jsonValue, _resolved, {
+                value: resolvedValue,
+                enumerable: !0,
+                writable: !0,
+                configurable: !0
+              })
+            : (jsonValue[_resolved] = resolvedValue);
+        }
+      return jsonValue;
     }
     function serializeByValueID(id) {
       return "$" + id.toString(16);
@@ -2994,8 +3029,16 @@
       id = id.toString(16) + ":" + tag + tainted.toString(16) + ",";
       id = stringToChunk(id);
       debug
-        ? request.completedDebugChunks.push(id, typedArray)
-        : request.completedRegularChunks.push(id, typedArray);
+        ? request.completedDebugChunks.push(
+            NEXT_TWO_CHUNKS_ARE_ATOMIC,
+            id,
+            typedArray
+          )
+        : request.completedRegularChunks.push(
+            NEXT_TWO_CHUNKS_ARE_ATOMIC,
+            id,
+            typedArray
+          );
     }
     function emitTextChunk(request, id, text, debug) {
       if (null === byteLengthOfChunk)
@@ -3008,8 +3051,16 @@
       id = id.toString(16) + ":T" + binaryLength.toString(16) + ",";
       id = stringToChunk(id);
       debug
-        ? request.completedDebugChunks.push(id, text)
-        : request.completedRegularChunks.push(id, text);
+        ? request.completedDebugChunks.push(
+            NEXT_TWO_CHUNKS_ARE_ATOMIC,
+            id,
+            text
+          )
+        : request.completedRegularChunks.push(
+            NEXT_TWO_CHUNKS_ARE_ATOMIC,
+            id,
+            text
+          );
     }
     function renderDebugModel(
       request,
@@ -3305,6 +3356,12 @@
         return value;
       }
       if ("string" === typeof value) {
+        if (1e6 < value.length)
+          return (
+            "This string of length " +
+            value.length +
+            " has been omitted by React to avoid sending too much data from the server."
+          );
         if (1024 <= value.length) {
           if (0 >= counter.objectLimit)
             return serializeDeferredObject(request, value);
@@ -3606,7 +3663,14 @@
                                       value,
                                       !1
                                     )
-                                  : ((value = stringify(value, task.toJSON)),
+                                  : ((value = resolveModel(
+                                      request,
+                                      task,
+                                      { "": value },
+                                      "",
+                                      value
+                                    )),
+                                    (value = stringify(value)),
                                     emitModelChunk(request, task.id, value));
     }
     function erroredTask(request, task, error) {
@@ -3748,9 +3812,20 @@
             var debugChunks = request.completedDebugChunks, i = 0;
             i < debugChunks.length;
             i++
-          )
-            request.pendingDebugChunks--,
-              writeChunkAndReturn(debugDestination, debugChunks[i]);
+          ) {
+            var item = debugChunks[i];
+            if (item === NEXT_TWO_CHUNKS_ARE_ATOMIC) {
+              if (i + 2 >= debugChunks.length)
+                throw Error(
+                  "A chunk pair is incomplete. This is a bug in React."
+                );
+              request.pendingDebugChunks -= 2;
+              writeChunk(debugDestination, debugChunks[i + 1]);
+              writeChunk(debugDestination, debugChunks[i + 2]);
+              i += 2;
+            } else
+              request.pendingDebugChunks--, writeChunk(debugDestination, item);
+          }
           debugChunks.splice(0, i);
         } finally {
           completeWriting(debugDestination);
@@ -3795,18 +3870,33 @@
               debugChunks = 0;
               debugChunks < _debugChunks.length;
               debugChunks++
-            )
-              if (
-                (request.pendingDebugChunks--,
-                !writeChunkAndReturn(
+            ) {
+              var _item = _debugChunks[debugChunks];
+              importsChunks = void 0;
+              if (_item === NEXT_TWO_CHUNKS_ARE_ATOMIC) {
+                if (debugChunks + 2 >= _debugChunks.length)
+                  throw Error(
+                    "A chunk pair is incomplete. This is a bug in React."
+                  );
+                request.pendingDebugChunks -= 2;
+                writeChunk(debugDestination, _debugChunks[debugChunks + 1]);
+                importsChunks = writeChunkAndReturn(
                   debugDestination,
-                  _debugChunks[debugChunks]
-                ))
-              ) {
+                  _debugChunks[debugChunks + 2]
+                );
+                debugChunks += 2;
+              } else
+                request.pendingDebugChunks--,
+                  (importsChunks = writeChunkAndReturn(
+                    debugDestination,
+                    _item
+                  ));
+              if (!importsChunks) {
                 request.destination = null;
                 debugChunks++;
                 break;
               }
+            }
             _debugChunks.splice(0, debugChunks);
           }
           var regularChunks = request.completedRegularChunks;
@@ -3814,18 +3904,30 @@
             debugChunks = 0;
             debugChunks < regularChunks.length;
             debugChunks++
-          )
-            if (
-              (request.pendingChunks--,
-              !writeChunkAndReturn(
+          ) {
+            var _item2 = regularChunks[debugChunks];
+            _debugChunks = void 0;
+            if (_item2 === NEXT_TWO_CHUNKS_ARE_ATOMIC) {
+              if (debugChunks + 2 >= regularChunks.length)
+                throw Error(
+                  "A chunk pair is incomplete. This is a bug in React."
+                );
+              request.pendingChunks -= 2;
+              writeChunk(debugDestination, regularChunks[debugChunks + 1]);
+              _debugChunks = writeChunkAndReturn(
                 debugDestination,
-                regularChunks[debugChunks]
-              ))
-            ) {
+                regularChunks[debugChunks + 2]
+              );
+              debugChunks += 2;
+            } else
+              request.pendingChunks--,
+                (_debugChunks = writeChunkAndReturn(debugDestination, _item2));
+            if (!_debugChunks) {
               request.destination = null;
               debugChunks++;
               break;
             }
+          }
           regularChunks.splice(0, debugChunks);
           var errorChunks = request.completedErrorChunks;
           for (debugChunks = 0; debugChunks < errorChunks.length; debugChunks++)
@@ -3843,10 +3945,10 @@
         }
       }
       0 === request.pendingChunks &&
-        ((importsChunks = request.debugDestination),
+        ((regularChunks = request.debugDestination),
         0 === request.pendingDebugChunks
-          ? (null !== importsChunks &&
-              (importsChunks.close(), (request.debugDestination = null)),
+          ? (null !== regularChunks &&
+              (regularChunks.close(), (request.debugDestination = null)),
             cleanupTaintQueue(request),
             request.status < ABORTING &&
               request.cacheController.abort(
@@ -3861,7 +3963,7 @@
             null !== request.debugDestination &&
               (request.debugDestination.close(),
               (request.debugDestination = null)))
-          : null !== importsChunks &&
+          : null !== regularChunks &&
             null !== request.destination &&
             ((request.status = CLOSED),
             request.destination.close(),
@@ -3976,9 +4078,9 @@
             onAllReady();
             flushCompletedChunks(request);
           }
-        } catch (error$2) {
-          logRecoverableError(request, error$2, null),
-            fatalError(request, error$2);
+        } catch (error$8) {
+          logRecoverableError(request, error$8, null),
+            fatalError(request, error$8);
         }
     }
     function fromHex(str) {
@@ -4112,6 +4214,16 @@
         null !== listeners && rejectChunk(response, listeners, error);
       }
     }
+    function createResolvedModelChunk(response, value, id) {
+      var $jscomp$compprop2 = {};
+      return new ReactPromise(
+        "resolved_model",
+        value,
+        (($jscomp$compprop2.id = id),
+        ($jscomp$compprop2[RESPONSE_SYMBOL] = response),
+        $jscomp$compprop2)
+      );
+    }
     function resolveModelChunk(response, chunk, value, id) {
       if ("pending" !== chunk.status)
         (chunk = chunk.reason),
@@ -4123,7 +4235,9 @@
           rejectListeners = chunk.reason;
         chunk.status = "resolved_model";
         chunk.value = value;
-        chunk.reason = _defineProperty({ id: id }, RESPONSE_SYMBOL, response);
+        value = {};
+        chunk.reason =
+          ((value.id = id), (value[RESPONSE_SYMBOL] = response), value);
         if (null !== resolveListeners)
           switch ((initializeModelChunk(chunk), chunk.status)) {
             case "fulfilled":
@@ -4132,13 +4246,21 @@
             case "blocked":
             case "pending":
               if (chunk.value)
-                for (value = 0; value < resolveListeners.length; value++)
-                  chunk.value.push(resolveListeners[value]);
+                for (
+                  response = 0;
+                  response < resolveListeners.length;
+                  response++
+                )
+                  chunk.value.push(resolveListeners[response]);
               else chunk.value = resolveListeners;
               if (chunk.reason) {
                 if (rejectListeners)
-                  for (value = 0; value < rejectListeners.length; value++)
-                    chunk.reason.push(rejectListeners[value]);
+                  for (
+                    resolveListeners = 0;
+                    resolveListeners < rejectListeners.length;
+                    resolveListeners++
+                  )
+                    chunk.reason.push(rejectListeners[resolveListeners]);
               } else chunk.reason = rejectListeners;
               break;
             case "rejected":
@@ -4148,12 +4270,15 @@
       }
     }
     function createResolvedIteratorResultChunk(response, value, done) {
+      var $jscomp$compprop4 = {};
       return new ReactPromise(
         "resolved_model",
         (done ? '{"done":true,"value":' : '{"done":false,"value":') +
           value +
           "}",
-        _defineProperty({ id: -1 }, RESPONSE_SYMBOL, response)
+        (($jscomp$compprop4.id = -1),
+        ($jscomp$compprop4[RESPONSE_SYMBOL] = response),
+        $jscomp$compprop4)
       );
     }
     function resolveIteratorResultChunk(response, chunk, value, done) {
@@ -4398,11 +4523,7 @@
         ((chunk = response._formData.data.get(response._prefix + id)),
         (chunk =
           "string" === typeof chunk
-            ? new ReactPromise(
-                "resolved_model",
-                chunk,
-                _defineProperty({ id: id }, RESPONSE_SYMBOL, response)
-              )
+            ? createResolvedModelChunk(response, chunk, id)
             : response._closed
               ? new ReactPromise("rejected", null, response._closedReason)
               : new ReactPromise("pending", null, null)),
@@ -4728,11 +4849,7 @@
         flightController = {
           enqueueModel: function (json) {
             if (null === previousBlockedChunk) {
-              var chunk = new ReactPromise(
-                "resolved_model",
-                json,
-                _defineProperty({ id: -1 }, RESPONSE_SYMBOL, response)
-              );
+              var chunk = createResolvedModelChunk(response, json, -1);
               initializeModelChunk(chunk);
               "fulfilled" === chunk.status
                 ? enqueue(chunk.value)
@@ -4788,7 +4905,9 @@
       var buffer = [],
         closed = !1,
         nextWriteIndex = 0,
-        iterable = _defineProperty({}, ASYNC_ITERATOR, function () {
+        $jscomp$compprop5 = {};
+      $jscomp$compprop5 =
+        (($jscomp$compprop5[ASYNC_ITERATOR] = function () {
           var nextReadIndex = 0;
           return new FlightIterator(function (arg) {
             if (void 0 !== arg)
@@ -4806,8 +4925,11 @@
             }
             return buffer[nextReadIndex++];
           });
-        });
-      iterator = iterator ? iterable[ASYNC_ITERATOR]() : iterable;
+        }),
+        $jscomp$compprop5);
+      iterator = iterator
+        ? $jscomp$compprop5[ASYNC_ITERATOR]()
+        : $jscomp$compprop5;
       resolveStream(response, reference, iterator, {
         enqueueModel: function (value) {
           nextWriteIndex === buffer.length
@@ -5722,6 +5844,7 @@
       CLOSING = 13,
       CLOSED = 14,
       PRERENDER = 21,
+      NEXT_TWO_CHUNKS_ARE_ATOMIC = Symbol(),
       TaintRegistryObjects = ReactSharedInternalsServer.TaintRegistryObjects,
       TaintRegistryValues = ReactSharedInternalsServer.TaintRegistryValues,
       TaintRegistryByteLengths =
@@ -5805,44 +5928,44 @@
     };
     exports.decodeAction = function (body, serverManifest) {
       var formData = new FormData(),
-        action = null,
-        seenActions = new Set();
+        maybeActionKey = null;
       body.forEach(function (value, key) {
         key.startsWith("$ACTION_")
           ? key.startsWith("$ACTION_REF_")
-            ? seenActions.has(key) ||
-              (seenActions.add(key),
-              (value = "$ACTION_" + key.slice(12) + ":"),
-              (value = decodeBoundActionMetaData(body, serverManifest, value)),
-              (action = loadServerReference(serverManifest, value)))
-            : key.startsWith("$ACTION_ID_") &&
-              !seenActions.has(key) &&
-              (seenActions.add(key),
-              (value = key.slice(11)),
-              (action = loadServerReference(serverManifest, {
-                id: value,
-                bound: null
-              })))
+            ? (maybeActionKey = key)
+            : key.startsWith("$ACTION_ID_") && (maybeActionKey = key)
           : formData.append(key, value);
       });
-      return null === action
-        ? null
-        : action.then(function (fn) {
-            return fn.bind(null, formData);
-          });
+      if (null === maybeActionKey) return null;
+      var actionKey = maybeActionKey,
+        action = null;
+      if (actionKey.startsWith("$ACTION_REF_"))
+        (actionKey = "$ACTION_" + actionKey.slice(12) + ":"),
+          (body = decodeBoundActionMetaData(body, serverManifest, actionKey)),
+          (action = loadServerReference(serverManifest, body));
+      else if (actionKey.startsWith("$ACTION_ID_"))
+        (body = actionKey.slice(11)),
+          (action = loadServerReference(serverManifest, {
+            id: body,
+            bound: null
+          }));
+      else throw Error("Cannot handle action key. This is a bug in React.");
+      return action.then(function (fn) {
+        return fn.bind(null, formData);
+      });
     };
     exports.decodeFormState = function (actionResult, body, serverManifest) {
       var keyPath = body.get("$ACTION_KEY");
       if ("string" !== typeof keyPath) return Promise.resolve(null);
-      var metaData = null;
+      var actionKey = null;
       body.forEach(function (value, key) {
-        key.startsWith("$ACTION_REF_") &&
-          ((value = "$ACTION_" + key.slice(12) + ":"),
-          (metaData = decodeBoundActionMetaData(body, serverManifest, value)));
+        key.startsWith("$ACTION_REF_") && (actionKey = key);
       });
-      if (null === metaData) return Promise.resolve(null);
-      var referenceId = metaData.id;
-      return Promise.resolve(metaData.bound).then(function (bound) {
+      if (null === actionKey) return Promise.resolve(null);
+      var formFieldPrefix = "$ACTION_" + actionKey.slice(12) + ":";
+      body = decodeBoundActionMetaData(body, serverManifest, formFieldPrefix);
+      var referenceId = body.id;
+      return Promise.resolve(body.bound).then(function (bound) {
         return null === bound
           ? null
           : [actionResult, keyPath, referenceId, bound.length - 1];
@@ -5893,7 +6016,7 @@
       function error(reason) {
         reportGlobalError(response$jscomp$0, reason);
         "function" === typeof iterator.throw &&
-          iterator.throw(reason).then(error, error);
+          iterator.throw(reason).then(noop, noop);
       }
       var iterator = iterable[ASYNC_ITERATOR](),
         response$jscomp$0 = createResponse(

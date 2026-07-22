@@ -670,8 +670,11 @@ export abstract class RouteModule<
         '../lib/router-utils/instrumentation-globals.external.js'
       )
       // ensure instrumentation is registered and pass
-      // onRequestError below
-      ensureInstrumentationRegistered(absoluteProjectDir, this.distDir)
+      // onRequestError below. Awaited so any caller of `RouteModule.prepare`
+      // that bypasses `BaseServer.handleRequest` (where this is also awaited
+      // via `prepareImpl`) still observes the instrumentation hook completing
+      // before the userland route handler runs.
+      await ensureInstrumentationRegistered(absoluteProjectDir, this.distDir)
     }
     const manifests = this.loadManifests(srcPage, absoluteProjectDir)
     const { routesManifest, prerenderManifest, serverFilesManifest } = manifests
@@ -1091,9 +1094,7 @@ export abstract class RouteModule<
         nextConfig satisfies DeepReadonly<NextConfigRuntime> as NextConfigRuntime,
       routerServerContext,
       deploymentId,
-      clientAssetToken: nextConfig.experimental.supportsImmutableAssets
-        ? ''
-        : deploymentId,
+      clientAssetToken: nextConfig.supportsImmutableAssets ? '' : deploymentId,
     }
   }
 
@@ -1138,7 +1139,15 @@ export abstract class RouteModule<
       isFallback,
       isRoutePPREnabled,
       isOnDemandRevalidate,
-      isPrefetch: req.headers.purpose === 'prefetch',
+      // A Next.js Segment Cache prefetch uses the `Next-Router-Prefetch`
+      // header (surfaced as the `isPrefetchRSCRequest` request meta), not the
+      // standard browser `purpose: prefetch` header. Recognize both so the
+      // response cache treats segment prefetches as prefetches — most
+      // importantly, so a prefetch that misses serves a fallback shell rather
+      // than joining an in-flight background (concrete) revalidation.
+      isPrefetch:
+        req.headers.purpose === 'prefetch' ||
+        getRequestMeta(req, 'isPrefetchRSCRequest') === true,
       // Use x-invocation-id header to scope the in-memory cache to a single
       // revalidation request in minimal mode.
       invocationID: req.headers['x-invocation-id'] as string | undefined,

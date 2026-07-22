@@ -85,7 +85,12 @@ impl AllocationCounters {
 pub struct TurboMalloc;
 
 impl TurboMalloc {
-    // Returns the current amount of memory
+    /// Returns the current amount of live memory (bytes allocated minus freed)
+    /// tracked across all threads.
+    ///
+    /// For efficiency reasons every thread only synchronizes with this counter after ~100K bytes of
+    /// allocations or deallocations.  So this could be off by as much as 100K*number of thread in
+    /// either direction.
     pub fn memory_usage() -> usize {
         get()
     }

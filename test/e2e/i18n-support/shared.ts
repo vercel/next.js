@@ -4,7 +4,6 @@ import glob from 'glob'
 import fs from 'fs-extra'
 import cheerio from 'cheerio'
 import { join } from 'path'
-import webdriver from 'next-webdriver'
 import escapeRegex from 'escape-string-regexp'
 import assert from 'assert'
 import {
@@ -174,7 +173,7 @@ export function runTests(ctx) {
   })
 
   it('should have domainLocales available on useRouter', async () => {
-    const browser = await webdriver(ctx.appPort, `${ctx.basePath || '/'}`)
+    const browser = await ctx.browser(`${ctx.basePath || '/'}`)
     expect(
       JSON.parse(await browser.elementByCss('#router-domain-locales').text())
     ).toEqual([
@@ -208,8 +207,7 @@ export function runTests(ctx) {
     const basePath = ctx.basePath || ''
     const queryKey = 'query'
     const queryValue = '1'
-    const browser = await webdriver(
-      ctx.appPort,
+    const browser = await ctx.browser(
       `${basePath}/fr?${queryKey}=${queryValue}`
     )
 
@@ -250,7 +248,7 @@ export function runTests(ctx) {
   it('should not add duplicate locale key when navigating back to root path with hash', async () => {
     const basePath = ctx.basePath || ''
     const hashValue = '#anchor-1'
-    const browser = await webdriver(ctx.appPort, `${basePath}/fr${hashValue}`)
+    const browser = await ctx.browser(`${basePath}/fr${hashValue}`)
 
     expect(await browser.eval(() => document.location.pathname)).toBe(
       `${basePath}/fr`
@@ -283,10 +281,7 @@ export function runTests(ctx) {
   })
 
   it('should handle navigating back to different casing of locale', async () => {
-    const browser = await webdriver(
-      ctx.appPort,
-      `${ctx.basePath || ''}/FR/links`
-    )
+    const browser = await ctx.browser(`${ctx.basePath || ''}/FR/links`)
 
     expect(await browser.eval(() => document.location.pathname)).toBe(
       `${ctx.basePath || ''}/FR/links`
@@ -329,7 +324,7 @@ export function runTests(ctx) {
   })
 
   it('should navigate to page with same name as development buildId', async () => {
-    const browser = await webdriver(ctx.appPort, `${ctx.basePath || '/'}`)
+    const browser = await ctx.browser(`${ctx.basePath || '/'}`)
 
     await browser.eval(`(function() {
       window.beforeNav = 1
@@ -361,7 +356,7 @@ export function runTests(ctx) {
   // this test can not currently be tested in browser without modifying the
   // host resolution since it needs a domain to test locale domains behavior
   it.skip('should redirect to locale domain correctly client-side', async () => {
-    const browser = await webdriver(ctx.appPort, `${ctx.basePath || '/'}`)
+    const browser = await ctx.browser(`${ctx.basePath || '/'}`)
 
     await browser.eval(`(function() {
       window.next.router.push(
@@ -382,10 +377,7 @@ export function runTests(ctx) {
       ctx.basePath || '/'
     )
 
-    await browser.get(
-      // @ts-expect-error found when converting to TypeScript
-      browser.initUrl
-    )
+    await browser.get(browser.initUrl)
     await browser.waitForElementByCss('#index')
 
     await browser.eval(`(function() {
@@ -411,10 +403,7 @@ export function runTests(ctx) {
   // this test can not currently be tested in browser without modifying the
   // host resolution since it needs a domain to test locale domains behavior
   it.skip('should render the correct href for locale domain', async () => {
-    let browser = await webdriver(
-      ctx.appPort,
-      `${ctx.basePath || ''}/links?nextLocale=go`
-    )
+    let browser = await ctx.browser(`${ctx.basePath || ''}/links?nextLocale=go`)
 
     for (const [element, pathname] of [
       ['#to-another', '/another'],
@@ -431,10 +420,7 @@ export function runTests(ctx) {
       await browser.elementByCss('#to-external').getAttribute('href')
     ).toBe('https://nextjs.org/')
 
-    browser = await webdriver(
-      ctx.appPort,
-      `${ctx.basePath || ''}/links?nextLocale=go-BE`
-    )
+    browser = await ctx.browser(`${ctx.basePath || ''}/links?nextLocale=go-BE`)
 
     for (const [element, pathname] of [
       ['#to-another', '/another'],
@@ -457,7 +443,7 @@ export function runTests(ctx) {
   // The page is accessible on subpath as well as on the domain url without subpath.
   // Once this is not the case the test will need to be changed to access it via domain.
   it('should prerender with the correct href for locale domain', async () => {
-    let browser = await webdriver(ctx.appPort, `${ctx.basePath || ''}/go`)
+    let browser = await ctx.browser(`${ctx.basePath || ''}/go`)
 
     for (const [element, pathname] of [
       ['#to-another', '/another'],
@@ -474,7 +460,7 @@ export function runTests(ctx) {
       await browser.elementByCss('#to-external').getAttribute('href')
     ).toBe('https://nextjs.org/')
 
-    browser = await webdriver(ctx.appPort, `${ctx.basePath || ''}/go-BE`)
+    browser = await ctx.browser(`${ctx.basePath || ''}/go-BE`)
 
     for (const [element, pathname] of [
       ['#to-another', '/another'],
@@ -495,10 +481,7 @@ export function runTests(ctx) {
   })
 
   it('should render the correct href with locale domains but not on a locale domain', async () => {
-    let browser = await webdriver(
-      ctx.appPort,
-      `${ctx.basePath || ''}/links?nextLocale=go`
-    )
+    let browser = await ctx.browser(`${ctx.basePath || ''}/links?nextLocale=go`)
 
     let baseURL = await browser.url()
     for (const [element, pathname] of [
@@ -515,10 +498,7 @@ export function runTests(ctx) {
       expect(hrefPathname).toBe(`${ctx.basePath || ''}/go${pathname}`)
     }
 
-    browser = await webdriver(
-      ctx.appPort,
-      `${ctx.basePath || ''}/links?nextLocale=go-BE`
-    )
+    browser = await ctx.browser(`${ctx.basePath || ''}/links?nextLocale=go-BE`)
 
     baseURL = await browser.url()
     for (const [element, pathname] of [
@@ -537,7 +517,7 @@ export function runTests(ctx) {
   })
 
   it('should navigate through history with query correctly', async () => {
-    const browser = await webdriver(ctx.appPort, `${ctx.basePath || '/'}`)
+    const browser = await ctx.browser(`${ctx.basePath || '/'}`)
 
     await browser.eval(`(function() {
       window.beforeNav = 1
@@ -599,7 +579,7 @@ export function runTests(ctx) {
   }
 
   it('should resolve href correctly when dynamic route matches locale prefixed', async () => {
-    const browser = await webdriver(ctx.appPort, `${ctx.basePath}/nl`)
+    const browser = await ctx.browser(`${ctx.basePath}/nl`)
     await browser.eval('window.beforeNav = 1')
 
     await browser.eval(`(function() {
@@ -622,8 +602,7 @@ export function runTests(ctx) {
   })
 
   it('should use default locale when no locale is in href with locale false', async () => {
-    const browser = await webdriver(
-      ctx.appPort,
+    const browser = await ctx.browser(
       `${ctx.basePath}/nl/locale-false?nextLocale=fr`
     )
 
@@ -671,7 +650,7 @@ export function runTests(ctx) {
     })
   } else {
     it('should preload all locales data correctly', async () => {
-      const browser = await webdriver(ctx.appPort, `${ctx.basePath}/mixed`)
+      const browser = await ctx.browser(`${ctx.basePath}/mixed`)
 
       await browser.eval(`(function() {
         document.querySelector('#to-gsp-en-us').scrollIntoView()
@@ -728,7 +707,7 @@ export function runTests(ctx) {
   })
 
   it('should not have hydration mis-match from hash', async () => {
-    const browser = await webdriver(ctx.appPort, `${ctx.basePath}/en#`)
+    const browser = await ctx.browser(`${ctx.basePath}/en#`)
 
     expect(await browser.elementByCss('html').getAttribute('lang')).toBe('en')
     expect(await browser.elementByCss('#router-locale').text()).toBe('en')
@@ -1859,7 +1838,7 @@ export function runTests(ctx) {
 
   it('should navigate to auto-export dynamic page', async () => {
     for (const locale of nonDomainLocales) {
-      const browser = await webdriver(ctx.appPort, `${ctx.basePath}/${locale}`)
+      const browser = await ctx.browser(`${ctx.basePath}/${locale}`)
       await browser.eval('window.beforeNav = 1')
 
       await browser
@@ -2152,10 +2131,7 @@ export function runTests(ctx) {
   })
 
   it('should navigate with locale prop correctly', async () => {
-    const browser = await webdriver(
-      ctx.appPort,
-      `${ctx.basePath}/links?nextLocale=fr`
-    )
+    const browser = await ctx.browser(`${ctx.basePath}/links?nextLocale=fr`)
     await addDefaultLocaleCookie(browser)
     await browser.eval('window.beforeNav = 1')
 
@@ -2272,10 +2248,7 @@ export function runTests(ctx) {
   })
 
   it('should navigate with locale prop correctly GSP', async () => {
-    const browser = await webdriver(
-      ctx.appPort,
-      `${ctx.basePath}/links?nextLocale=nl`
-    )
+    const browser = await ctx.browser(`${ctx.basePath}/links?nextLocale=nl`)
     await addDefaultLocaleCookie(browser)
     await browser.eval('window.beforeNav = 1')
 
@@ -2366,8 +2339,7 @@ export function runTests(ctx) {
   })
 
   it('should navigate with locale false correctly', async () => {
-    const browser = await webdriver(
-      ctx.appPort,
+    const browser = await ctx.browser(
       `${ctx.basePath}/locale-false?nextLocale=fr`
     )
     await addDefaultLocaleCookie(browser)
@@ -2491,8 +2463,7 @@ export function runTests(ctx) {
   })
 
   it('should navigate with locale false correctly GSP', async () => {
-    const browser = await webdriver(
-      ctx.appPort,
+    const browser = await ctx.browser(
       `${ctx.basePath}/locale-false?nextLocale=nl`
     )
     await addDefaultLocaleCookie(browser)
@@ -2590,7 +2561,7 @@ export function runTests(ctx) {
 
   it('should update asPath on the client correctly', async () => {
     for (const check of ['en', 'En']) {
-      const browser = await webdriver(ctx.appPort, `${ctx.basePath}/${check}`)
+      const browser = await ctx.browser(`${ctx.basePath}/${check}`)
 
       expect(await browser.elementByCss('html').getAttribute('lang')).toBe('en')
       expect(await browser.elementByCss('#router-locale').text()).toBe('en')
@@ -2604,8 +2575,7 @@ export function runTests(ctx) {
 
   if (!ctx.isDev) {
     it('should handle fallback correctly after generating', async () => {
-      const browser = await webdriver(
-        ctx.appPort,
+      const browser = await ctx.browser(
         `${ctx.basePath}/en/gsp/fallback/hello-fallback`
       )
 
@@ -2982,10 +2952,7 @@ export function runTests(ctx) {
       expect(res.status).toBe(skippedLocales.includes(locale) ? 404 : 200)
 
       if (skippedLocales.includes(locale)) {
-        const browser = await webdriver(
-          ctx.appPort,
-          `${ctx.basePath}/${locale}/not-found`
-        )
+        const browser = await ctx.browser(`${ctx.basePath}/${locale}/not-found`)
         expect(await browser.elementByCss('html').getAttribute('lang')).toBe(
           locale
         )
@@ -3006,7 +2973,7 @@ export function runTests(ctx) {
   })
 
   it('should transition on client properly for page that starts with locale', async () => {
-    const browser = await webdriver(ctx.appPort, `${ctx.basePath}/fr`)
+    const browser = await ctx.browser(`${ctx.basePath}/fr`)
     await browser.eval(`(function() {
       window.beforeNav = 1
       window.next.router.push('/frank')
@@ -3033,7 +3000,7 @@ export function runTests(ctx) {
   })
 
   it('should 404 for GSP that returned notFound on client-transition', async () => {
-    const browser = await webdriver(ctx.appPort, `${ctx.basePath}/en`)
+    const browser = await ctx.browser(`${ctx.basePath}/en`)
     await browser.eval(`(function() {
       window.beforeNav = 1
       window.next.router.push('/not-found')
@@ -3053,7 +3020,7 @@ export function runTests(ctx) {
   })
 
   it('should render 404 for fallback page that returned 404 on client transition', async () => {
-    const browser = await webdriver(ctx.appPort, `${ctx.basePath}/en`, {
+    const browser = await ctx.browser(`${ctx.basePath}/en`, {
       retryWaitHydration: true,
     })
     await browser.eval(`(function() {
@@ -3084,8 +3051,7 @@ export function runTests(ctx) {
   })
 
   it('should render 404 for fallback page that returned 404', async () => {
-    const browser = await webdriver(
-      ctx.appPort,
+    const browser = await ctx.browser(
       `${ctx.basePath}/en/not-found/fallback/first`,
       {
         retryWaitHydration: true,
@@ -3116,7 +3082,7 @@ export function runTests(ctx) {
   })
 
   it('should render 404 for blocking fallback page that returned 404 on client transition', async () => {
-    const browser = await webdriver(ctx.appPort, `${ctx.basePath}/en`, {
+    const browser = await ctx.browser(`${ctx.basePath}/en`, {
       retryWaitHydration: true,
     })
     await browser.eval(`(function() {
@@ -3147,8 +3113,7 @@ export function runTests(ctx) {
   })
 
   it('should render 404 for blocking fallback page that returned 404', async () => {
-    const browser = await webdriver(
-      ctx.appPort,
+    const browser = await ctx.browser(
       `${ctx.basePath}/en/not-found/blocking-fallback/first`,
       {
         retryWaitHydration: true,
@@ -3257,10 +3222,7 @@ export function runTests(ctx) {
   })
 
   it('should load getStaticProps fallback non-prerender page correctly (default locale no prefix', async () => {
-    const browser = await webdriver(
-      ctx.appPort,
-      `${ctx.basePath}/gsp/fallback/another`
-    )
+    const browser = await ctx.browser(`${ctx.basePath}/gsp/fallback/another`)
 
     await browser.waitForElementByCss('#props')
 
@@ -3400,10 +3362,7 @@ export function runTests(ctx) {
   })
 
   it('should load getStaticProps fallback non-prerender page correctly', async () => {
-    const browser = await webdriver(
-      ctx.appPort,
-      `${ctx.basePath}/en/gsp/fallback/another`
-    )
+    const browser = await ctx.browser(`${ctx.basePath}/en/gsp/fallback/another`)
 
     await browser.waitForElementByCss('#props')
 
@@ -3445,7 +3404,7 @@ export function runTests(ctx) {
   })
 
   it('should navigate client side for default locale with no prefix', async () => {
-    const browser = await webdriver(ctx.appPort, `${ctx.basePath || '/'}`)
+    const browser = await ctx.browser(`${ctx.basePath || '/'}`)
     await addDefaultLocaleCookie(browser)
 
     const checkIndexValues = async () => {
@@ -3525,8 +3484,7 @@ export function runTests(ctx) {
   })
 
   it('should load getStaticProps fallback non-prerender page another locale correctly', async () => {
-    const browser = await webdriver(
-      ctx.appPort,
+    const browser = await ctx.browser(
       `${ctx.basePath}/nl-NL/gsp/fallback/another`
     )
 
@@ -3552,8 +3510,7 @@ export function runTests(ctx) {
   })
 
   it('should load getStaticProps non-fallback correctly', async () => {
-    const browser = await webdriver(
-      ctx.appPort,
+    const browser = await ctx.browser(
       `${ctx.basePath}/en-US/gsp/no-fallback/first`
     )
 
@@ -3582,8 +3539,7 @@ export function runTests(ctx) {
   })
 
   it('should load getStaticProps non-fallback correctly another locale', async () => {
-    const browser = await webdriver(
-      ctx.appPort,
+    const browser = await ctx.browser(
       `${ctx.basePath}/nl-NL/gsp/no-fallback/second`
     )
 
@@ -3711,7 +3667,7 @@ export function runTests(ctx) {
   })
 
   it('should navigate to another page and back correctly with locale', async () => {
-    const browser = await webdriver(ctx.appPort, `${ctx.basePath}/en`)
+    const browser = await ctx.browser(`${ctx.basePath}/en`)
 
     await browser.eval('window.beforeNav = "hi"')
 
@@ -3747,7 +3703,7 @@ export function runTests(ctx) {
   })
 
   it('should navigate to getStaticProps page and back correctly with locale', async () => {
-    const browser = await webdriver(ctx.appPort, `${ctx.basePath}/en`)
+    const browser = await ctx.browser(`${ctx.basePath}/en`)
 
     await browser.eval('window.beforeNav = "hi"')
 

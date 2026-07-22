@@ -2353,11 +2353,11 @@
   },
   "test/e2e/app-dir/catch-error/catch-error-react-compiler.test.ts": {
     "passed": [
-      "app-dir - unstable_catchError with react compiler should recover Client Component error after reset",
-      "app-dir - unstable_catchError with react compiler should recover Client Component error after unstable_retry",
-      "app-dir - unstable_catchError with react compiler should recover Server Component error after unstable_retry",
-      "app-dir - unstable_catchError with react compiler should recover after reset on Pages Router",
-      "app-dir - unstable_catchError with react compiler should throw when unstable_retry is called on Pages Router"
+      "app-dir - catchError with react compiler should recover Client Component error after reset",
+      "app-dir - catchError with react compiler should recover Client Component error after retry",
+      "app-dir - catchError with react compiler should recover Server Component error after retry",
+      "app-dir - catchError with react compiler should recover after reset on Pages Router",
+      "app-dir - catchError with react compiler should throw when retry is called on Pages Router"
     ],
     "failed": [],
     "pending": [],
@@ -2366,11 +2366,11 @@
   },
   "test/e2e/app-dir/catch-error/catch-error.test.ts": {
     "passed": [
-      "app-dir - unstable_catchError should recover Client Component error after reset",
-      "app-dir - unstable_catchError should recover Client Component error after unstable_retry",
-      "app-dir - unstable_catchError should recover Server Component error after unstable_retry",
-      "app-dir - unstable_catchError should recover after reset on Pages Router",
-      "app-dir - unstable_catchError should throw when unstable_retry is called on Pages Router"
+      "app-dir - catchError should recover Client Component error after reset",
+      "app-dir - catchError should recover Client Component error after retry",
+      "app-dir - catchError should recover Server Component error after retry",
+      "app-dir - catchError should recover after reset on Pages Router",
+      "app-dir - catchError should throw when retry is called on Pages Router"
     ],
     "failed": [],
     "pending": [],
@@ -3118,8 +3118,8 @@
       "app-dir - errors error component should trigger error component when null is thrown during server components rendering",
       "app-dir - errors error component should trigger error component when undefined is thrown during server components rendering",
       "app-dir - errors error component should use default error boundary for prod and overlay for dev when no error component specified",
-      "app-dir - errors error component unstable_retry should recover Client Component error after unstable_retry",
-      "app-dir - errors error component unstable_retry should recover Server Component error after unstable_retry"
+      "app-dir - errors error component retry should recover Client Component error after retry",
+      "app-dir - errors error component retry should recover Server Component error after retry"
     ],
     "failed": [],
     "pending": [],
@@ -3540,7 +3540,7 @@
   },
   "test/e2e/app-dir/instant-validation-client/instant-validation-client.test.ts": {
     "passed": [
-      "app dir - instant-validation-client should error when a client component exports unstable_instant"
+      "app dir - instant-validation-client should error when a client component exports instant"
     ],
     "failed": [],
     "pending": [],
@@ -5920,8 +5920,7 @@
       "partial-fallback-shell-upgrade should not keep upgrading once only fully dynamic params remain",
       "partial-fallback-shell-upgrade should not upgrade a route shell when no params were prerendered",
       "partial-fallback-shell-upgrade should upgrade a generic shell into the most specific prerendered shell",
-      "partial-fallback-shell-upgrade should upgrade the fallback shell to a route shell",
-      "partial-fallback-shell-upgrade when disabled should keep serving the generic shell when partialFallbacks is disabled"
+      "partial-fallback-shell-upgrade should upgrade the fallback shell to a route shell"
     ],
     "failed": [],
     "pending": [],
@@ -22007,9 +22006,9 @@
       "NEXT_HASH_SALT should produce chunk files",
       "NEXT_HASH_SALT should produce css files",
       "NEXT_HASH_SALT should produce image files",
-      "experimental.outputHashSalt combined salt differs from config-only salt",
-      "experimental.outputHashSalt combined salt differs from env-var-only salt",
-      "experimental.outputHashSalt config salt changes filenames compared to no salt"
+      "outputHashSalt combined salt differs from config-only salt",
+      "outputHashSalt combined salt differs from env-var-only salt",
+      "outputHashSalt config salt changes filenames compared to no salt"
     ],
     "failed": [],
     "pending": [],
@@ -22363,15 +22362,6 @@
     "passed": [
       "upload-trace should fail gracefully when no profiles directory exists",
       "upload-trace should upload profiles and trace to the mock endpoint after build"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/production/app-dir/use-node-streams-env-precedence/use-node-streams-env-precedence.test.ts": {
-    "passed": [
-      "use-node-streams env precedence should respect explicit useNodeStreams=false even when env flag is true"
     ],
     "failed": [],
     "pending": [],
