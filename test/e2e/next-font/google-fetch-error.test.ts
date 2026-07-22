@@ -7,8 +7,6 @@ const mockedGoogleFontResponses = require.resolve(
 
 describe('next/font/google fetch error', () => {
   const isDev = (global as any).isNextDev
-  // Turbopack bounds the fetch with retries and an enriched message; the
-  // webpack/JS path still emits the original wording (updated in a follow-up).
   const isTurbopack = !!process.env.IS_TURBOPACK_TEST
 
   if ((global as any).isNextDeploy) {
