@@ -1,3 +1,4 @@
+mod batch_schedule;
 mod fs_api;
 #[cfg(test)]
 mod mock_fs_api;
@@ -11,7 +12,7 @@ use std::{
         Arc, LazyLock,
         mpsc::{Receiver, RecvTimeoutError, channel},
     },
-    time::{Duration, Instant},
+    time::Duration,
 };
 
 use anyhow::{Context, Result};
@@ -31,7 +32,7 @@ use tokio::sync::{RwLock, RwLockWriteGuard};
 use tracing::instrument;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    FxIndexSet, InvalidationReason, InvalidationReasonKind, Invalidator, NonLocalValue, TaskInput,
+    FxIndexSet, InvalidationReason, InvalidationReasonKind, Invalidator, ResolvedVc, TraitRef,
     TurboTasksApi, spawn_thread, trace::TraceRawVcs, util::StaticOrArc,
 };
 
@@ -40,7 +41,7 @@ use crate::{
     invalidation::{WatchChange, WatchStart},
     invalidator_map::InvalidatorMap,
     path_map::OrderedPathMapExt,
-    watcher::fs_api::DiskFileSystemWatcherApi,
+    watcher::{batch_schedule::BatchSchedule, fs_api::DiskFileSystemWatcherApi},
 };
 
 /// Overrides [`DiskWatcherConfig::recursive_mode`]. Users shouldn't need to set this, this is
@@ -59,9 +60,8 @@ static FORCED_WATCH_RECURSIVE_MODE: LazyLock<Option<DiskWatcherRecursiveMode>> =
     },
 );
 
-#[derive(
-    Clone, Copy, Debug, Default, Eq, PartialEq, Hash, TraceRawVcs, NonLocalValue, Encode, Decode,
-)]
+#[turbo_tasks::task_input]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Hash, TraceRawVcs, Encode, Decode)]
 pub struct DiskWatcherConfig {
     /// Whether to let the [`notify::Watcher`] recurse into subdirectories itself, or to track and
     /// watch each directory we care about ourselves.
@@ -85,12 +85,52 @@ pub struct DiskWatcherConfig {
     /// This costs an extra allocation per invalidated path, so it's only worth enabling when
     /// something actually consumes the reasons.
     pub report_invalidation_reason: bool,
+
+    /// How long to keep a batch of filesystem events open, waiting for more events, before
+    /// flushing invalidations. Batching coalesces bursts (e.g. a `git checkout`) into a single
+    /// invalidation pass and avoids reading half-written files.
+    ///
+    /// If set too low (<10ms), this is known to cause partial file reads on Linux where `inotify`
+    /// has very low latency.
+    pub batch_delay: Duration,
+    /// When [`DiskWatcherPathMatcher::match_path`] returns `true`, we will extend the batch by
+    /// [`Self::extended_batch_delay_duration`].
+    pub extended_batch_delay_matcher: Option<ResolvedVc<Box<dyn DiskWatcherPathMatcher>>>,
+    /// The idle period required to close a batch once [`Self::extended_batch_delay_matcher`] has
+    /// matched. Unused when there is no matcher.
+    pub extended_batch_delay_duration: Duration,
+
+    /// If a single batch stays open at least this long, emit a `FilesystemSettlingEvent`
+    /// compilation event so the user knows why work has stalled. Repeated events within the same
+    /// batch back off exponentially, up to [`Self::settling_event_max_delay`].
+    pub settling_event_initial_delay: Duration,
+    /// Upper bound for the exponentially increasing interval between repeated
+    /// `FilesystemSettlingEvent`s within a single batch.
+    pub settling_event_max_delay: Duration,
 }
 
-impl TaskInput for DiskWatcherConfig {
-    fn is_transient(&self) -> bool {
-        false
+impl Default for DiskWatcherConfig {
+    fn default() -> Self {
+        Self {
+            recursive_mode: None,
+            poll_interval: None,
+            report_invalidation_reason: false,
+            batch_delay: Duration::from_millis(10),
+            extended_batch_delay_matcher: None,
+            extended_batch_delay_duration: Duration::from_millis(200),
+            settling_event_initial_delay: Duration::from_secs(5),
+            settling_event_max_delay: Duration::from_secs(60),
+        }
     }
+}
+
+/// Matches absolute paths reported by the filesystem watcher. See
+/// [`DiskWatcherConfig::extended_batch_delay_matcher`].
+#[turbo_tasks::value_trait]
+pub trait DiskWatcherPathMatcher {
+    /// Called on the watcher thread once per path of every incoming event, so this should be
+    /// cheap and must not block.
+    fn match_path(&self, path: &Path) -> bool;
 }
 
 /// Equivalent to [`notify::RecursiveMode`], but implements traits needed by [`turbo_tasks`].
@@ -101,7 +141,8 @@ impl TaskInput for DiskWatcherConfig {
 ///
 /// When using [`Self::NonRecursive`], we only track previously read files and their parent
 /// directories.
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Hash, TraceRawVcs, NonLocalValue, Encode, Decode)]
+#[turbo_tasks::task_input]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Hash, TraceRawVcs, Encode, Decode)]
 pub enum DiskWatcherRecursiveMode {
     Recursive,
     NonRecursive,
@@ -146,15 +187,6 @@ impl DiskWatcherConfig {
         }
     }
 }
-
-/// How long to extend an invalidation batch by when receiving new events, before flushing. This
-/// reduces invalidations if the same file or directory is modified many times.
-///
-/// Linux watching is too fast, so we need a longer delay there to avoid reading wip files.
-#[cfg(target_os = "linux")]
-const BATCH_DELAY: Duration = Duration::from_millis(10);
-#[cfg(not(target_os = "linux"))]
-const BATCH_DELAY: Duration = Duration::from_millis(1);
 
 pub(crate) struct DiskWatcher {
     state: State,
@@ -459,6 +491,13 @@ impl DiskWatcher {
 
     pub async fn start_watching<FsApi: DiskFileSystemWatcherApi>(fs: Arc<FsApi>) -> Result<()> {
         let watcher: &Self = fs.watcher();
+
+        // read in the turbo-task context and before acquiring the lock
+        let extended_batch_delay_matcher = match watcher.config.extended_batch_delay_matcher {
+            Some(matcher) => Some(matcher.into_trait_ref().await?),
+            None => None,
+        };
+
         let state_guard = watcher.state.write().await;
 
         // bail out if we're already watching
@@ -513,7 +552,7 @@ impl DiskWatcher {
 
         spawn_thread({
             let fs = fs.clone();
-            move || Self::watch_thread(fs, rx)
+            move || Self::watch_thread(fs, rx, extended_batch_delay_matcher)
         });
 
         // Updating `self.state` is done last. If we panic while setting up the watcher, it'll
@@ -551,24 +590,20 @@ impl DiskWatcher {
     fn watch_thread<FsApi: DiskFileSystemWatcherApi>(
         fs: Arc<FsApi>,
         rx: Receiver<notify::Result<notify::Event>>,
+        extended_batch_delay_matcher: Option<TraitRef<Box<dyn DiskWatcherPathMatcher>>>,
     ) {
         let watcher: &Self = fs.watcher();
-        let report_invalidation_reason = watcher.config.report_invalidation_reason;
+        let config = &watcher.config;
+        let report_invalidation_reason = config.report_invalidation_reason;
         let mut batch = BatchedInvalidations::new(
             watcher.state.recursive_mode(),
-            watcher.config.poll_interval.is_some(),
+            config.poll_interval.is_some(),
         );
+        let mut schedule = BatchSchedule::new(config);
 
         'outer: loop {
-            let mut deadline: Option<Instant> = None;
             loop {
-                let event_result = match deadline {
-                    None => rx.recv().map_err(|_| RecvTimeoutError::Disconnected),
-                    Some(deadline) => {
-                        rx.recv_timeout(deadline.saturating_duration_since(Instant::now()))
-                    }
-                };
-                match event_result {
+                match schedule.recv_event(&rx, &*fs) {
                     Ok(Ok(event)) => {
                         // TODO: We might benefit from some user-facing diagnostics if it rescans
                         // occur frequently (i.e. more than X times in Y minutes)
@@ -613,13 +648,23 @@ impl DiskWatcher {
                             // no need to process the rest of the batch as we just
                             // invalidated everything
                             batch.clear();
+                            schedule.reset();
                             break;
                         }
 
-                        // Only an event that contributes to the batch keeps it open for another
-                        // `BATCH_DELAY`.
+                        // Any event that contributes to the batch keeps it open for another
+                        // `batch_delay`. A path matching `extended_batch_delay_matcher` (e.g. a
+                        // package-manager install target) keeps it open for
+                        // `extended_batch_delay_duration` instead.
+                        let mut delay = config.batch_delay;
+                        if let Some(matcher) = &extended_batch_delay_matcher
+                            && event.paths.iter().any(|path| matcher.match_path(path))
+                        {
+                            delay = delay.max(config.extended_batch_delay_duration);
+                        }
+
                         if batch.add_event(event) {
-                            deadline = Some(Instant::now() + BATCH_DELAY);
+                            schedule.extend(delay);
                         }
                     }
                     // Error raised by notify watcher itself
@@ -629,16 +674,16 @@ impl DiskWatcher {
                         let flags = InvalidationFlags::PATH_AND_CHILDREN
                             | InvalidationFlags::PATH_AND_CHILDREN_DIR;
                         if paths.is_empty() {
-                            batch.mark(fs.root_path().into(), flags);
+                            batch.mark(Box::from(fs.root_path()), flags);
                         } else {
                             for path in paths {
                                 batch.mark(path.into_boxed_path(), flags);
                             }
                         }
-                        deadline = Some(Instant::now() + BATCH_DELAY);
+                        schedule.extend(config.batch_delay);
                     }
                     Err(RecvTimeoutError::Timeout) => {
-                        // The batch is complete: break out to invalidate the collected paths.
+                        // the batch is complete: break out to invalidate the collected paths.
                         break;
                     }
                     Err(RecvTimeoutError::Disconnected) => {
@@ -1016,7 +1061,10 @@ impl InvalidationReasonKind for InvalidateRescanKind {
 
 #[cfg(test)]
 mod tests {
-    use std::{fs, time::SystemTime};
+    use std::{
+        fs,
+        time::{Instant, SystemTime},
+    };
 
     use rstest::rstest;
     use turbo_tasks::TurboTasks;
@@ -1078,6 +1126,7 @@ mod tests {
                 recursive_mode: Some(recursive_mode),
                 poll_interval,
                 report_invalidation_reason: true,
+                ..Default::default()
             });
             let sub_dir = fs.root_path.join("sub");
             let file_path = sub_dir.join("file.txt");
