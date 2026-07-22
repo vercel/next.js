@@ -2,7 +2,6 @@ import { existsSync } from 'fs'
 import { basename, extname, join, relative, isAbsolute, resolve } from 'path'
 import { pathToFileURL } from 'url'
 import findUp from 'next/dist/compiled/find-up'
-import semver from 'next/dist/compiled/semver'
 import * as Log from '../build/output/log'
 import * as ciEnvironment from '../server/ci-info'
 import {
@@ -11,6 +10,7 @@ import {
   PHASE_EXPORT,
   PHASE_PRODUCTION_BUILD,
   PHASE_PRODUCTION_SERVER,
+  PHASE_INFO,
   type PHASE_TYPE,
 } from '../shared/lib/constants'
 import {
@@ -45,6 +45,8 @@ import { dset } from '../shared/lib/dset'
 import { normalizeZodErrors } from '../shared/lib/zod'
 import { HTML_LIMITED_BOT_UA_RE_STRING } from '../shared/lib/router/utils/is-bot'
 import { findDir } from '../lib/find-pages-dir'
+import { INFINITE_CACHE } from '../lib/constants'
+import { validateAndNormalizeCacheLifeProfile } from './use-cache/cache-life-profile'
 import { resolveCacheHandlerPathToFilesystem } from '../lib/format-dynamic-import-path'
 import { interopDefault } from '../lib/interop-default'
 import { djb2Hash } from '../shared/lib/hash'
@@ -108,6 +110,23 @@ function normalizeNextConfigZodErrors(
   }
 
   return [warnings, fatalErrors]
+}
+
+// Infinity means "never", but turns into null when serialized as JSON (e.g.
+// for build workers or the prerender manifest), unlike INFINITE_CACHE.
+function normalizeInfiniteDuration(
+  value: number | undefined,
+  name: string
+): number | undefined {
+  if (value === undefined || Number.isFinite(value)) {
+    return value
+  }
+  if (value === Infinity) {
+    return INFINITE_CACHE
+  }
+  throw new Error(
+    `Invalid "${name}" provided, expected a finite number of seconds or Infinity, received ${value}`
+  )
 }
 
 export function warnOptionHasBeenDeprecated(
@@ -425,18 +444,22 @@ function assignDefaultsAndValidate(
   }
 
   // Normalize the user-facing `turbopackMemoryEviction` (`false | 'full' |
-  // undefined`) into the `turbopackMemoryEvictionMode` enum expected by napi
-  // (`'off' | 'full'`).
-  let turbopackMemoryEvictionMode: 'off' | 'full'
-  if (result.experimental.turbopackMemoryEviction === false) {
-    turbopackMemoryEvictionMode = 'off'
-  } else if (result.experimental.turbopackMemoryEviction === 'full') {
-    turbopackMemoryEvictionMode = 'full'
-  } else {
-    // Not set by the user: fall back to the env var if present, otherwise 'off'.
-    const rawEnv = process.env.TURBO_ENGINE_EVICT_AFTER_SNAPSHOT
-    turbopackMemoryEvictionMode =
-      rawEnv == null || rawEnv === '1' || rawEnv === 'true' ? 'full' : 'off'
+  // 'auto' | undefined`) into the `turbopackMemoryEvictionMode` enum expected by
+  // napi (`'off' | 'full' | 'auto'`).
+  let turbopackMemoryEvictionMode: 'off' | 'full' | 'auto'
+
+  switch (result.experimental.turbopackMemoryEviction) {
+    case false:
+      turbopackMemoryEvictionMode = 'off'
+      break
+    case 'full':
+    case 'auto':
+      turbopackMemoryEvictionMode = result.experimental.turbopackMemoryEviction
+      break
+    case undefined:
+    default:
+      // Not set by the user, or an invalid value, use the default.
+      turbopackMemoryEvictionMode = 'auto'
   }
   ;(result as NextConfigComplete).experimental.turbopackMemoryEvictionMode =
     turbopackMemoryEvictionMode as MemoryEvictionMode
@@ -490,7 +513,7 @@ function assignDefaultsAndValidate(
   // Turbopack-only; strict mode and `false` (single-chunk-per-module) are webpack-only.
   // Only validate during build/dev — `next start` doesn't pick a bundler and would otherwise
   // see `process.env.TURBOPACK` unset and reject a valid `cssChunking: "graph"` config.
-  if (phase !== PHASE_PRODUCTION_SERVER) {
+  if (phase !== PHASE_PRODUCTION_SERVER && phase !== PHASE_INFO) {
     const cssChunkingValue = result.experimental.cssChunking
     const cssChunkingMode = resolveCssChunkingMode(cssChunkingValue)
     if (cssChunkingMode === 'graph' && !process.env.TURBOPACK) {
@@ -545,35 +568,6 @@ function assignDefaultsAndValidate(
     throw new Error(
       `\`partialPrefetching\` requires \`cacheComponents\` to be enabled. Please update your ${configFileName} accordingly.`
     )
-  }
-
-  if (result.experimental.appShells) {
-    // App Shells is tested in combination with the experimental flags it
-    // expects to ship alongside. All of these are on track to become
-    // defaults, so we don't support enabling App Shells against arbitrary
-    // subsets of them — the validation goes away once each becomes a
-    // default.
-    // Note: `prefetchInlining` is intentionally NOT required. App Shells works
-    // correctly whether or not prefetch inlining is enabled, so disabling it
-    // (e.g. to exercise non-inlined prefetch paths) must not force App Shells off.
-    const missing: string[] = []
-    if (!result.cacheComponents) {
-      missing.push('`cacheComponents`')
-    }
-    if (!result.experimental.varyParams) {
-      missing.push('`experimental.varyParams`')
-    }
-    if (!result.experimental.optimisticRouting) {
-      missing.push('`experimental.optimisticRouting`')
-    }
-    if (!result.experimental.cachedNavigations) {
-      missing.push('`experimental.cachedNavigations`')
-    }
-    if (missing.length > 0) {
-      throw new Error(
-        `\`experimental.appShells\` requires the following to also be enabled: ${missing.join(', ')}. Please update your ${configFileName} accordingly.`
-      )
-    }
   }
 
   if (result.experimental.ppr) {
@@ -1156,8 +1150,8 @@ function assignDefaultsAndValidate(
   }
 
   if (process.env.NEXT_HASH_SALT) {
-    result.experimental.outputHashSalt =
-      (result.experimental.outputHashSalt ?? '') + process.env.NEXT_HASH_SALT
+    result.outputHashSalt =
+      (result.outputHashSalt ?? '') + (process.env.NEXT_HASH_SALT ?? '')
   }
 
   const tracingRoot = result?.outputFileTracingRoot
@@ -1375,10 +1369,42 @@ function assignDefaultsAndValidate(
     }
   }
 
+  result.expireTime = normalizeInfiniteDuration(result.expireTime, 'expireTime')
+  const staleTimes = result.experimental.staleTimes
+  if (staleTimes) {
+    staleTimes.dynamic = normalizeInfiniteDuration(
+      staleTimes.dynamic,
+      'experimental.staleTimes.dynamic'
+    )
+    staleTimes.static = normalizeInfiniteDuration(
+      staleTimes.static,
+      'experimental.staleTimes.static'
+    )
+  }
+
   if (result.cacheLife) {
-    result.cacheLife = {
-      ...defaultConfig.cacheLife,
-      ...result.cacheLife,
+    const userCacheLifeProfiles: NonNullable<NextConfig['cacheLife']> =
+      result.cacheLife
+    // The default profiles are cloned because the backfill below mutates the
+    // default profile, and multiple next() instances in the same process must
+    // not observe each other's config through the shared objects.
+    const cacheLifeProfiles: NonNullable<NextConfig['cacheLife']> = {
+      ...structuredClone(defaultConfig.cacheLife),
+      ...userCacheLifeProfiles,
+    }
+    result.cacheLife = cacheLifeProfiles
+
+    // Only validate values the user wrote themselves. Backfilling the
+    // default profile below can produce a revalidate that's larger than a
+    // user-provided expire (e.g. for `default: { expire: 0 }`), which is
+    // fine — the expire wins — but would fail validation.
+    for (const [profileName, profile] of Object.entries(
+      userCacheLifeProfiles
+    )) {
+      cacheLifeProfiles[profileName] = validateAndNormalizeCacheLifeProfile(
+        profile,
+        { kind: 'config', profileName }
+      )
     }
     const defaultDefault = defaultConfig.cacheLife?.['default']
     if (
@@ -1409,7 +1435,7 @@ function assignDefaultsAndValidate(
   }
 
   if (result.cacheHandlers) {
-    const allowedHandlerNameRegex = /[a-z-]/
+    const allowedHandlerNameRegex = /^[a-z-]+$/
 
     if (typeof result.cacheHandlers !== 'object') {
       throw new Error(
@@ -1583,52 +1609,6 @@ function assignDefaultsAndValidate(
     result.experimental.useCache = result.cacheComponents
   }
 
-  // Node.js version gate for turbopackPluginRuntimeStrategy: 'workerThreads'.
-  // Older Node.js versions have memory safety bugs in worker threads. Bun and
-  // Deno are not affected by this check.
-  {
-    const strategy = result.experimental.turbopackPluginRuntimeStrategy
-    const isForced = strategy === 'forceWorkerThreads'
-    if (strategy === 'workerThreads' || isForced) {
-      // Normalize 'forceWorkerThreads' → 'workerThreads' for Rust/serde
-      result.experimental.turbopackPluginRuntimeStrategy = 'workerThreads'
-
-      const isBun = !!process.versions.bun
-      const isDeno = !!process.versions.deno
-      if (!isBun && !isDeno) {
-        const nodeVersion = process.versions.node
-        const WORKER_THREADS_SAFE_RANGE = '>=24.13.1 <25.0.0 || >=25.4.0'
-        if (
-          !semver.satisfies(nodeVersion, WORKER_THREADS_SAFE_RANGE, {
-            includePrerelease: true,
-          })
-        ) {
-          if (isForced) {
-            Log.warn(
-              `\`experimental.turbopackPluginRuntimeStrategy = ` +
-                `'forceWorkerThreads'\` has been enabled, but you're using ` +
-                `Node.js ${nodeVersion}, which has known memory safety bugs ` +
-                `with worker threads used from the Node-API. You may ` +
-                `experience crashes, segmentation faults, or other ` +
-                `instability. Upgrade to Node.js ${WORKER_THREADS_SAFE_RANGE}.`
-            )
-          } else {
-            Log.warn(
-              `\`experimental.turbopackPluginRuntimeStrategy = ` +
-                `'workerThreads'\` is set but has been ` +
-                `ignored because you're using Node.js ${nodeVersion}, which ` +
-                `has memory safety bugs in worker threads. Falling back to ` +
-                `'childProcesses'. Upgrade to Node.js ` +
-                `${WORKER_THREADS_SAFE_RANGE}.`
-            )
-            result.experimental.turbopackPluginRuntimeStrategy =
-              'childProcesses'
-          }
-        }
-      }
-    }
-  }
-
   // Store the distDirRoot in the config before it is modified for development mode
   ;(result as NextConfigComplete).distDirRoot = result.distDir
 
@@ -1654,7 +1634,10 @@ function assignDefaultsAndValidate(
  * consumers don't each need to know the current framework default (which may
  * evolve over time).
  */
-function finalizeConfig(config: NextConfigComplete): NextConfigComplete {
+function finalizeConfig(
+  config: NextConfigComplete,
+  bundler: Bundler | undefined
+): NextConfigComplete {
   config.experimental.instantInsights = {
     validationLevel:
       config.experimental.instantInsights?.validationLevel ?? 'warning',
@@ -1668,7 +1651,39 @@ function finalizeConfig(config: NextConfigComplete): NextConfigComplete {
     config.deploymentId &&
     process.env.__NEXT_SUPPORTS_IMMUTABLE_ASSETS
   ) {
-    config.experimental.supportsImmutableAssets = true
+    config.supportsImmutableAssets = true
+  }
+
+  // Normalize again for Adapters that only set config.experimental.supportsImmutableAssets for now.
+  if (
+    config.supportsImmutableAssets !==
+    config.experimental?.supportsImmutableAssets
+  ) {
+    config.supportsImmutableAssets =
+      config.supportsImmutableAssets ??
+      config.experimental?.supportsImmutableAssets
+  }
+
+  if (bundler !== undefined && bundler !== Bundler.Turbopack) {
+    // Silently ignore that flag for Webpack/Rspack since the server code assumes that all files
+    // in `static/chunks` are always immutable without checking the manifest.
+    config.supportsImmutableAssets = false
+  }
+
+  if (
+    config.supportsImmutableAssets &&
+    (config.output === 'export' || config.output === 'standalone')
+  ) {
+    // supportsImmutableAssets is designed to work with adapters. Disable it for output=export and
+    // output=standalone, which are currently using a non-adapter codepath.
+    // Particularly output=export should just run through the adapter, with only static assets.
+    // TODO remove again once output=export (and output=standalone) are using adapters.
+    config.supportsImmutableAssets = false
+  }
+
+  if (config.experimental.outputHashSalt !== undefined) {
+    config.outputHashSalt =
+      (config.outputHashSalt ?? '') + config.experimental.outputHashSalt
   }
 
   return config
@@ -1897,7 +1912,8 @@ async function loadConfigImpl(
         phase,
         silent,
         dir
-      )
+      ),
+      bundler
     )
 
     // Cache the custom config result
@@ -2009,6 +2025,14 @@ async function loadConfigImpl(
     // Check deprecation warnings on the actual user config before merging with defaults
     checkDeprecations(userConfig, configFileName, silent, dir)
 
+    if (
+      userConfig.supportsImmutableAssets === undefined &&
+      userConfig.experimental?.supportsImmutableAssets !== undefined
+    ) {
+      userConfig.supportsImmutableAssets =
+        userConfig.experimental.supportsImmutableAssets
+    }
+
     // Always validate the config against schema in non minimal mode
     if (!process.env.NEXT_MINIMAL && !silent) {
       await validateConfigSchema(
@@ -2030,16 +2054,6 @@ async function loadConfigImpl(
         `The "target" property is no longer supported in ${configFileName}.\n` +
           'See more info here https://nextjs.org/docs/messages/deprecated-target-config'
       )
-    }
-
-    if (
-      userConfig.experimental?.supportsImmutableAssets &&
-      bundler !== undefined &&
-      bundler !== Bundler.Turbopack
-    ) {
-      // Silently ignore that flag for Webpack/Rspack since the server code assumes that all files
-      // in `static/chunks` are always immutable without checking the manifest.
-      userConfig.experimental.supportsImmutableAssets = undefined
     }
 
     if (reactProductionProfiling) {
@@ -2101,8 +2115,22 @@ async function loadConfigImpl(
     )
 
     const finalConfig = finalizeConfig(
-      await applyModifyConfig(completeConfig, phase, silent, dir)
+      await applyModifyConfig(completeConfig, phase, silent, dir),
+      bundler
     )
+
+    // Normalize so that also Adapters can still see userConfig.experimental.supportsImmutableAssets for now
+    if (
+      userConfig.supportsImmutableAssets === undefined ||
+      userConfig.experimental?.supportsImmutableAssets === undefined
+    ) {
+      const value =
+        userConfig.supportsImmutableAssets ??
+        userConfig.experimental?.supportsImmutableAssets
+      userConfig.supportsImmutableAssets = value
+      userConfig.experimental ??= {}
+      userConfig.experimental.supportsImmutableAssets = value
+    }
 
     // Cache the final result
     configCache.set(cacheKey, {
@@ -2160,7 +2188,8 @@ async function loadConfigImpl(
   setHttpClientAndAgentOptions(completeConfig)
 
   const finalConfig = finalizeConfig(
-    await applyModifyConfig(completeConfig, phase, silent, dir)
+    await applyModifyConfig(completeConfig, phase, silent, dir),
+    bundler
   )
 
   // Cache the default config result
@@ -2270,6 +2299,26 @@ function enforceExperimentalFeatures(
     }
   }
 
+  // TODO: Remove this once serverComponentsHmrCancellation is the default.
+  if (
+    process.env.__NEXT_EXPERIMENTAL_SERVER_COMPONENTS_HMR_CANCELLATION ===
+      'true' &&
+    // We do respect an explicit value in the user config.
+    (config.experimental.serverComponentsHmrCancellation === undefined ||
+      (isDefaultConfig && !config.experimental.serverComponentsHmrCancellation))
+  ) {
+    config.experimental.serverComponentsHmrCancellation = true
+
+    if (configuredExperimentalFeatures) {
+      addConfiguredExperimentalFeature(
+        configuredExperimentalFeatures,
+        'serverComponentsHmrCancellation',
+        true,
+        'enabled by `__NEXT_EXPERIMENTAL_SERVER_COMPONENTS_HMR_CANCELLATION`'
+      )
+    }
+  }
+
   // Enable cachedNavigations by default when cacheComponents is enabled.
   // cachedNavigations relies on Cache Components rendering to do anything
   // useful, so the two features are tied together: we only flip the default
@@ -2287,47 +2336,26 @@ function enforceExperimentalFeatures(
     config.experimental.cachedNavigations = true
   }
 
-  // Enable appShells by default when cacheComponents is enabled, unless
-  // explicitly disabled. App Shells builds on Cache Components rendering, so
-  // the two features are tied together: we only flip the default for projects
-  // that are already using Cache Components. Done silently for the same reasons
-  // as the cachedNavigations default above.
-  //
-  // We only auto-enable when App Shells's required dependencies are satisfied.
-  // If a project has explicitly disabled one of them, we leave App Shells off
-  // rather than force it on — otherwise the validation in
-  // `assignDefaultsAndValidate` would turn a previously-valid config into a
-  // hard error. Users who want App Shells in that situation can still enable it
-  // explicitly and get the actionable validation message. `prefetchInlining` is
-  // intentionally not part of this gate (App Shells works without it). This runs
-  // after the cachedNavigations default above so that dependency is already set.
-  // TODO: Remove this once appShells is unconditionally the default.
+  // appNewScrollHandler defaults to `true`. The env var lets us opt back out to
+  // keep test coverage of the old scroll handler on the non-experimental CI
+  // shards. Like the other env-var experimental toggles, opting out is surfaced
+  // in the reported experimental features.
+  // TODO: Remove this once the appNewScrollHandler opt-out is no longer needed
+  // for test coverage.
   if (
-    config.cacheComponents &&
-    config.experimental.varyParams !== false &&
-    config.experimental.optimisticRouting !== false &&
-    config.experimental.cachedNavigations !== false &&
-    (config.experimental.appShells === undefined ||
-      (isDefaultConfig && !config.experimental.appShells))
-  ) {
-    config.experimental.appShells = true
-  }
-
-  // TODO: Remove this once appNewScrollHandler is the default.
-  if (
-    process.env.__NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER === 'true' &&
+    process.env.__NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER === 'false' &&
     // We do respect an explicit value in the user config.
     (config.experimental.appNewScrollHandler === undefined ||
-      (isDefaultConfig && !config.experimental.appNewScrollHandler))
+      (isDefaultConfig && config.experimental.appNewScrollHandler))
   ) {
-    config.experimental.appNewScrollHandler = true
+    config.experimental.appNewScrollHandler = false
 
     if (configuredExperimentalFeatures) {
       addConfiguredExperimentalFeature(
         configuredExperimentalFeatures,
         'appNewScrollHandler',
-        true,
-        'enabled by `__NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER`'
+        false,
+        'disabled by `__NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER`'
       )
     }
   }

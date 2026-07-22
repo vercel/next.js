@@ -123,7 +123,12 @@ async function createFlightRouterStateFromLoaderTreeImpl(
   } else if (prefetchConfig === 'force-disabled') {
     prefetchHints |= PrefetchHint.PrefetchDisabled
   } else if (prefetchConfig === 'allow-runtime') {
-    prefetchHints |= PrefetchHint.HasRuntimePrefetch
+    // 'allow-runtime' participates in the two-phase (Shell then Speculative)
+    // prefetch flow, so it counts as Partial Prefetching. HasRuntimePrefetch
+    // additionally marks it as needing a runtime request pass.
+    prefetchHints |=
+      PrefetchHint.HasRuntimePrefetch |
+      PrefetchHint.SubtreeHasPartialPrefetching
   }
 
   // Mark the segment as "eager" unless its effective prefetch strategy is

@@ -222,6 +222,14 @@ export default class NextNodeServer extends BaseServer<
     if (this.renderOpts.nextScriptWorkers) {
       process.env.__NEXT_SCRIPT_WORKERS = JSON.stringify(true)
     }
+    if (
+      (isDev || process.env.__NEXT_DEV_SERVER) &&
+      this.nextConfig.experimental.requestInsights
+    ) {
+      process.env.__NEXT_REQUEST_INSIGHTS = 'true'
+    } else {
+      delete process.env.__NEXT_REQUEST_INSIGHTS
+    }
 
     if (!this.minimalMode) {
       this.imageResponseCache = new ResponseCache(this.minimalMode)
@@ -648,8 +656,7 @@ export default class NextNodeServer extends BaseServer<
           {
             buildId: this.buildId,
             deploymentId: this.deploymentId,
-            clientAssetToken: this.nextConfig.experimental
-              .supportsImmutableAssets
+            clientAssetToken: this.nextConfig.supportsImmutableAssets
               ? ''
               : this.deploymentId,
           }
@@ -667,8 +674,7 @@ export default class NextNodeServer extends BaseServer<
           {
             buildId: this.buildId,
             deploymentId: this.deploymentId,
-            clientAssetToken: this.nextConfig.experimental
-              .supportsImmutableAssets
+            clientAssetToken: this.nextConfig.supportsImmutableAssets
               ? undefined
               : this.deploymentId,
             customServer: this.serverOptions.customServer || undefined,
@@ -1730,19 +1736,25 @@ export default class NextNodeServer extends BaseServer<
         Boolean(requestData.body)
 
       try {
-        result = await adapterFn({
-          handler:
-            middlewareModule.proxy ||
-            middlewareModule.middleware ||
-            middlewareModule,
-          request: {
-            ...requestData,
-            body: hasRequestBody
-              ? requestData.body.cloneBodyStream()
-              : undefined,
-          },
-          page: 'middleware',
-        })
+        // Node.js middleware runs in-process, inside the active
+        // `handleRequest` span. Detach that span so the middleware span
+        // becomes a sibling root (or parents to an incoming traceparent),
+        // matching edge middleware which runs in a detached sandbox.
+        result = await getTracer().runWithDetachedContext(() =>
+          adapterFn({
+            handler:
+              middlewareModule.proxy ||
+              middlewareModule.middleware ||
+              middlewareModule,
+            request: {
+              ...requestData,
+              body: hasRequestBody
+                ? requestData.body.cloneBodyStream()
+                : undefined,
+            },
+            page: 'middleware',
+          })
+        )
       } finally {
         if (hasRequestBody) {
           await requestData.body.finalize()
@@ -1759,7 +1771,7 @@ export default class NextNodeServer extends BaseServer<
         request: requestData,
         useCache: true,
         onWarning: params.onWarning,
-        clientAssetToken: this.nextConfig.experimental.supportsImmutableAssets
+        clientAssetToken: this.nextConfig.supportsImmutableAssets
           ? ''
           : this.deploymentId,
       })
@@ -2081,7 +2093,7 @@ export default class NextNodeServer extends BaseServer<
         params.req,
         'serverComponentsHmrCache'
       ),
-      clientAssetToken: this.nextConfig.experimental.supportsImmutableAssets
+      clientAssetToken: this.nextConfig.supportsImmutableAssets
         ? ''
         : this.deploymentId,
     })

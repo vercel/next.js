@@ -13,7 +13,6 @@ import {
   workUnitAsyncStorage,
   type PrerenderStoreModern,
   type RequestStore,
-  isInEarlyRenderStage,
 } from '../app-render/work-unit-async-storage.external'
 import {
   postponeWithTracking,
@@ -24,13 +23,12 @@ import { StaticGenBailoutError } from '../../client/components/static-generation
 import {
   makeDevtoolsIOAwarePromise,
   makeHangingPromise,
-  getSessionDataStage,
+  RENDER_STAGES_BY_DATA_KIND,
 } from '../dynamic-rendering-utils'
 import { createDedupedByCallsiteServerErrorLoggerDev } from '../create-deduped-by-callsite-server-error-logger'
 import { isRequestApiAllowedInCurrentPhase } from './utils'
 import { applyOwnerStack } from '../dynamic-rendering-utils'
 import { InvariantError } from '../../shared/lib/invariant-error'
-import { RenderStage } from '../app-render/staged-rendering'
 
 export function cookies(): Promise<ReadonlyRequestCookies> {
   const callingExpression = 'cookies'
@@ -103,7 +101,7 @@ export function cookies(): Promise<ReadonlyRequestCookies> {
           const { stagedRendering } = workUnitStore
           if (stagedRendering) {
             return stagedRendering.delayUntilStage(
-              getSessionDataStage(stagedRendering),
+              RENDER_STAGES_BY_DATA_KIND.sessionData,
               'cookies',
               workUnitStore.cookies
             )
@@ -139,15 +137,10 @@ export function cookies(): Promise<ReadonlyRequestCookies> {
               workStore?.route
             )
           } else if (workUnitStore.asyncApiPromises) {
-            const early = isInEarlyRenderStage(workUnitStore)
             if (underlyingCookies === workUnitStore.mutableCookies) {
-              return early
-                ? workUnitStore.asyncApiPromises.earlyMutableCookies
-                : workUnitStore.asyncApiPromises.mutableCookies
+              return workUnitStore.asyncApiPromises.mutableCookies
             } else {
-              return early
-                ? workUnitStore.asyncApiPromises.earlyCookies
-                : workUnitStore.asyncApiPromises.cookies
+              return workUnitStore.asyncApiPromises.cookies
             }
           } else {
             return makeUntrackedCookies(underlyingCookies)
@@ -211,16 +204,11 @@ function makeUntrackedCookiesWithDevWarnings(
   route?: string
 ): Promise<ReadonlyRequestCookies> {
   if (requestStore.asyncApiPromises) {
-    const early = isInEarlyRenderStage(requestStore)
     let promise: Promise<ReadonlyRequestCookies>
     if (underlyingCookies === requestStore.mutableCookies) {
-      promise = early
-        ? requestStore.asyncApiPromises.earlyMutableCookies
-        : requestStore.asyncApiPromises.mutableCookies
+      promise = requestStore.asyncApiPromises.mutableCookies
     } else if (underlyingCookies === requestStore.cookies) {
-      promise = early
-        ? requestStore.asyncApiPromises.earlyCookies
-        : requestStore.asyncApiPromises.cookies
+      promise = requestStore.asyncApiPromises.cookies
     } else {
       throw new InvariantError(
         'Received an underlying cookies object that does not match either `cookies` or `mutableCookies`'
@@ -237,7 +225,7 @@ function makeUntrackedCookiesWithDevWarnings(
   const promise = makeDevtoolsIOAwarePromise(
     underlyingCookies,
     requestStore,
-    RenderStage.ShellRuntime
+    RENDER_STAGES_BY_DATA_KIND.sessionData
   )
 
   const proxiedPromise = instrumentCookiesPromiseWithDevWarnings(promise, route)

@@ -12,7 +12,6 @@ import {
   NOT_FOUND_SEGMENT_KEY,
 } from '../../../shared/lib/segment'
 import { matchSegment } from '../match-segments'
-import type { NavigationLockState } from '../segment-cache/navigation-testing-lock'
 import { createHrefFromUrl } from './create-href-from-url'
 import { fetchServerResponse } from './fetch-server-response'
 import { dispatchAppRouterAction } from '../use-action-queue'
@@ -104,6 +103,11 @@ const enum NavigationTaskStatus {
  */
 const enum NavigationTaskExitStatus {
   /**
+   * The request was superseded by a newer navigation and aborted. No retry is
+   * needed; the newer request owns the tree from here.
+   */
+  Canceled = -1,
+  /**
    * No additional navigation is required.
    */
   Done = 0,
@@ -137,7 +141,18 @@ export type NavigationRequestAccumulation = {
   scrollRef: ScrollRef | null
 }
 
-export type NavigationLock = NavigationLockState | null
+/**
+ * A locked navigation's withheld-data gate, for the Instant Navigation Testing
+ * API. Captured — as an immutable promise — when the navigation begins (via
+ * `beginLockedNavigation`) or when router work spawns a dynamic write outside
+ * a navigation (via `getCurrentNavigationLock`), and threaded to the write,
+ * which awaits it before applying dynamic data. Resolves when a newer locked
+ * navigation begins or the lock is released. Because the capture happens at
+ * spawn time, a newer navigation's rollover releases this write rather than
+ * re-gating it. Threaded as `NavigationLock | null`; null whenever the testing
+ * API is not active.
+ */
+export type NavigationLock = Promise<void>
 
 const noop = () => {}
 
@@ -1411,7 +1426,8 @@ export function spawnDynamicRequests(
   // server-patch retry logic so it can inherit the intent if the original
   // transition hasn't committed yet.
   navigateType: 'push' | 'replace',
-  navigationLock: NavigationLock
+  navigationLock: NavigationLock | null,
+  signal: AbortSignal | undefined
 ): void {
   const dynamicRequestTree = task.dynamicRequestTree
   if (dynamicRequestTree === null) {
@@ -1436,7 +1452,8 @@ export function spawnDynamicRequests(
     nextUrl,
     freshnessPolicy,
     routeCacheEntry,
-    navigationLock
+    navigationLock,
+    signal
   )
 
   const separateRefreshUrls = accumulation.separateRefreshUrls
@@ -1489,7 +1506,8 @@ export function spawnDynamicRequests(
             nextUrl,
             freshnessPolicy,
             routeCacheEntry,
-            navigationLock
+            navigationLock,
+            signal
           )
         )
       }
@@ -1538,6 +1556,14 @@ async function finishNavigationTask(
   }
 
   switch (exitStatus) {
+    case NavigationTaskExitStatus.Canceled: {
+      // This navigation was superseded and its request aborted. Its cache nodes
+      // may already be reused by the newer navigation, so leave them untouched
+      // for the newer request to fulfill. If the tree was abandoned entirely,
+      // it can be garbage collected along with its unresolved promises. We do
+      // not retry or hard-navigate.
+      return
+    }
     case NavigationTaskExitStatus.Done: {
       // The task has completely finished. There's no missing data. Exit.
       previousNavigationDidMismatch = false
@@ -1758,7 +1784,8 @@ async function fetchMissingDynamicData(
   nextUrl: string | null,
   freshnessPolicy: FreshnessPolicy,
   routeCacheEntry: FulfilledRouteCacheEntry | null,
-  navigationLock: NavigationLock
+  navigationLock: NavigationLock | null,
+  signal: AbortSignal | undefined
 ): Promise<{
   exitStatus: NavigationTaskExitStatus
   url: URL
@@ -1769,6 +1796,7 @@ async function fetchMissingDynamicData(
       flightRouterState: dynamicRequestTree,
       nextUrl,
       isHmrRefresh: freshnessPolicy === FreshnessPolicy.HMRRefresh,
+      signal,
     })
     if (typeof result === 'string') {
       // fetchServerResponse will return an href to indicate that the SPA
@@ -1794,8 +1822,8 @@ async function fetchMissingDynamicData(
     // If the navigation lock is active, wait for it to be released before
     // writing the dynamic data. This allows tests to assert on the prefetched
     // UI state.
-    if (process.env.__NEXT_EXPOSE_TESTING_API) {
-      await waitForNavigationLock(navigationLock)
+    if (process.env.__NEXT_EXPOSE_TESTING_API && navigationLock !== null) {
+      await navigationLock
     }
 
     // TODO: Implement Shell extraction as part of Cached Navigations.
@@ -1913,6 +1941,17 @@ async function fetchMissingDynamicData(
       seed,
     }
   } catch {
+    if (signal?.aborted) {
+      // A newer HMR refresh superseded this one and aborted its request. Treat
+      // it as canceled rather than a failure, so we don't retry or
+      // hard-navigate.
+      return {
+        exitStatus: NavigationTaskExitStatus.Canceled,
+        url,
+        seed: null,
+      }
+    }
+
     // This shouldn't happen because fetchServerResponse's entire body is
     // wrapped in a try/catch. If it does, though, it implies the server failed
     // to respond with any tree at all. So we must fall back to a hard retry.
@@ -2271,25 +2310,50 @@ function createDeferredRsc<
 }
 
 /**
- * Helper for the Instant Navigation Testing API. Snapshots the lock that is
- * active when a navigation starts, so the navigation can wait for the same lock
- * even if another lock is acquired before its dynamic response is applied.
+ * Helper for the Instant Navigation Testing API. Captures the withheld-data
+ * gate of the locked navigation that is current when router work spawns a
+ * dynamic write, so the write awaits that same gate even if a newer locked
+ * navigation rolls the lock over before its response is applied.
  *
  * Not exposed in production builds by default.
  */
-export function getCurrentNavigationLock(): NavigationLock {
+export function getCurrentNavigationLock(): NavigationLock | null {
   if (process.env.__NEXT_EXPOSE_TESTING_API) {
-    const { getCurrentNavigationLock: getCurrentLock } =
+    const { getCurrentNavigationGate } =
       require('../segment-cache/navigation-testing-lock') as typeof import('../segment-cache/navigation-testing-lock')
-    return getCurrentLock()
+    return getCurrentNavigationGate()
   }
   return null
 }
 
-async function waitForNavigationLock(lock: NavigationLock): Promise<void> {
+/**
+ * Helper for the Instant Navigation Testing API. Signals that a new locked
+ * navigation is beginning: force-resolves the previous locked navigation's
+ * withheld-data gate (without ending the scope) and returns a fresh gate for
+ * this navigation, which the caller threads to its dynamic-data write. See
+ * `beginLockedNavigation` in `navigation-testing-lock`.
+ *
+ * Not exposed in production builds by default.
+ */
+export function beginLockedNavigation(): NavigationLock | null {
   if (process.env.__NEXT_EXPOSE_TESTING_API) {
-    const { waitForNavigationLockIfActive } =
+    const { beginLockedNavigation: begin } =
       require('../segment-cache/navigation-testing-lock') as typeof import('../segment-cache/navigation-testing-lock')
-    await waitForNavigationLockIfActive(lock)
+    return begin()
+  }
+  return null
+}
+
+/**
+ * Helper for the Instant Navigation Testing API. Called during a history
+ * traversal: resets the testing lock to a fresh pending scope, releasing any
+ * withheld data from prior navigations. See `resetNavigationLockToPending` in
+ * `navigation-testing-lock`.
+ */
+export function resetNavigationLockToPending(): void {
+  if (process.env.__NEXT_EXPOSE_TESTING_API) {
+    const { resetNavigationLockToPending: reset } =
+      require('../segment-cache/navigation-testing-lock') as typeof import('../segment-cache/navigation-testing-lock')
+    reset()
   }
 }

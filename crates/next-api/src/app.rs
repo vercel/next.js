@@ -1061,10 +1061,10 @@ pub fn app_entry_point_to_route(
                         }
                         .resolved_cell(),
                     ),
-                    rsc_endpoint: ResolvedVc::upcast(
+                    rsc_hmr_endpoint: ResolvedVc::upcast(
                         AppEndpoint {
                             ty: AppEndpointType::Page {
-                                ty: AppPageEndpointType::Rsc,
+                                ty: AppPageEndpointType::RscHmr,
                                 loader_tree,
                             },
                             app_project,
@@ -1109,7 +1109,7 @@ pub fn app_entry_point_to_route(
 #[derive(Copy, Clone, PartialEq, Eq, Debug, TraceRawVcs, NonLocalValue, Encode, Decode)]
 enum AppPageEndpointType {
     Html,
-    Rsc,
+    RscHmr,
 }
 
 #[derive(Clone, PartialEq, Eq, Debug, TraceRawVcs, NonLocalValue, Encode, Decode)]
@@ -1315,26 +1315,30 @@ impl AppEndpoint {
                 .await?;
 
         // We only need the client runtime entries for pages not for Route Handlers
-        let (availability_info, client_shared_chunks) = if is_app_page {
-            let client_shared_chunk_group = get_app_client_shared_chunk_group(
-                AssetIdent::from_path(project.project_path().owned().await?)
-                    .with_modifier(rcstr!("client-shared-chunks"))
-                    .into_vc(),
-                this.app_project.client_runtime_entries(),
-                *module_graphs.full,
-                *client_chunking_context,
-            );
+        let (availability_info, client_shared_chunks, client_chunk_group_bootstrap_params) =
+            if is_app_page {
+                let client_shared_chunk_group = get_app_client_shared_chunk_group(
+                    AssetIdent::from_path(project.project_path().owned().await?)
+                        .with_modifier(rcstr!("client-shared-chunks"))
+                        .into_vc(),
+                    this.app_project.client_runtime_entries(),
+                    *module_graphs.full,
+                    *client_chunking_context,
+                );
 
-            client_assets.extend(client_shared_chunk_group.all_assets().await?);
+                client_assets.extend(client_shared_chunk_group.all_assets().await?);
 
-            let client_shared_chunk_group = client_shared_chunk_group.await?;
-            (
-                client_shared_chunk_group.availability_info,
-                client_shared_chunk_group.assets.owned().await?,
-            )
-        } else {
-            (AvailabilityInfo::root(), vec![])
-        };
+                let client_shared_chunk_group = client_shared_chunk_group.await?;
+                (
+                    client_shared_chunk_group.availability_info,
+                    client_shared_chunk_group.assets.owned().await?,
+                    client_shared_chunk_group
+                        .chunk_group_bootstrap_params
+                        .clone(),
+                )
+            } else {
+                (AvailabilityInfo::root(), vec![], None)
+            };
 
         let client_references_chunks = get_app_client_references_chunks(
             *client_references,
@@ -1446,6 +1450,12 @@ impl AppEndpoint {
                 m.insert(app_entry.original_name.clone(), page_hmr_chunks);
                 m
             };
+            let chunk_loading_global = (*project
+                .next_config()
+                .turbopack_chunk_loading_global()
+                .await?)
+                .clone()
+                .unwrap_or_else(|| rcstr!("TURBOPACK"));
             let build_manifest = BuildManifest {
                 output_path: node_root.join(&format!(
                     "server/app{manifest_path_prefix}/build-manifest.json",
@@ -1455,6 +1465,14 @@ impl AppEndpoint {
                 root_main_files: client_shared_chunks,
                 polyfill_files: polyfill_output_asset.into_iter().collect(),
                 root_main_files_per_page,
+                pages_chunk_group_bootstrap_params: client_chunk_group_bootstrap_params
+                    .map(|params| {
+                        let mut m = FxIndexMap::default();
+                        m.insert(app_entry.original_name.clone(), params);
+                        m
+                    })
+                    .unwrap_or_default(),
+                chunk_loading_global,
             };
             server_assets.insert(ResolvedVc::upcast(build_manifest.resolved_cell()));
         }
@@ -1484,7 +1502,7 @@ impl AppEndpoint {
 
         let server_action_manifest = create_server_actions_manifest(
             actions,
-            project.project_path().owned().await?,
+            project,
             node_root.clone(),
             app_entry.original_name.clone(),
             runtime,
@@ -1493,9 +1511,7 @@ impl AppEndpoint {
                 NextRuntime::NodeJs => Vc::upcast(this.app_project.rsc_module_context()),
             },
             *module_graphs.full,
-            this.app_project
-                .project()
-                .runtime_chunking_context(process_client_assets, runtime),
+            project.runtime_chunking_context(process_client_assets, runtime),
         )
         .await?;
         if emit_rsc_manifests {
@@ -1997,11 +2013,21 @@ impl AppEndpoint {
             )
             .await?;
 
+        // The server actions loader is a separate graph entry that is not reachable from
+        // rsc_entry, but it is chunked into the endpoint output, so its modules (e.g. externals
+        // imported by actions) must be traced as well.
+        let mut entry_modules = vec![rsc_entry];
+        entry_modules.extend(
+            self.additional_entries(*module_graphs.base)
+                .await?
+                .all_modules(),
+        );
+
         Ok(trace_endpoint(
             this.app_project.project(),
             Some(app_function_name(&app_entry.original_name).into()),
             *module_graphs.full,
-            *rsc_entry,
+            Vc::cell(entry_modules),
         ))
     }
 }
@@ -2050,10 +2076,10 @@ impl Endpoint for AppEndpoint {
                 tracing::info_span!("app endpoint HTML", name = page_name)
             }
             AppEndpointType::Page {
-                ty: AppPageEndpointType::Rsc,
+                ty: AppPageEndpointType::RscHmr,
                 ..
             } => {
-                tracing::info_span!("app endpoint RSC", name = page_name)
+                tracing::info_span!("app endpoint RSC HMR", name = page_name)
             }
             AppEndpointType::Route { .. } => {
                 tracing::info_span!("app endpoint route", name = page_name)

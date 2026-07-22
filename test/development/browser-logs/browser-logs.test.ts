@@ -5,7 +5,7 @@ import { retry } from 'next-test-utils'
 
 const bundlerName = process.env.IS_TURBOPACK_TEST ? 'Turbopack' : 'Webpack'
 const enableNewScrollHandler =
-  process.env.__NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER === 'true'
+  process.env.__NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER !== 'false'
 const innerScrollAndMaybeFocusHandlerName = enableNewScrollHandler
   ? 'InnerScrollHandlerNew'
   : 'InnerScrollAndFocusHandlerOld'

@@ -881,10 +881,30 @@ export function readOrCreateSegmentCacheEntry(
       // reused like normal; otherwise the prefetch would discard the entry it
       // just fetched on every scheduler pass and refetch forever. See
       // navigation-testing-lock.ts.
-      const { getCurrentNavigationLock } =
+      const { getCurrentNavigationLock, trackNavigationLockPrefetchEntry } =
         require('./navigation-testing-lock') as typeof import('./navigation-testing-lock')
       const lock = getCurrentNavigationLock()
       if (lock !== null && lock.ownedEntries.has(existingEntry)) {
+        // Track-on-reuse: when this navigation reuses an in-flight (Pending)
+        // entry it didn't spawn — e.g. a runtime-prefetch (PPRRuntime) upgrade
+        // started by an earlier prefetch in the scope — register it on this
+        // navigation's prefetch so the navigation awaits it before reading.
+        // Without this, the navigation can read while that upgrade is still
+        // pending and fall back to a less-specific fulfilled entry (the shell),
+        // never surfacing the resolved value.
+        //
+        // This is content-neutral: the entry is found by the concrete vary-path
+        // (not by strategy), so it's whatever the navigation would read at this
+        // key anyway. Tracking only controls whether we await it now versus
+        // suspend on it during the render, so it can't surface an entry the
+        // navigation wouldn't otherwise read. Tracking is deduped, so it's a
+        // no-op if we already spawned/tracked this entry.
+        if (existingEntry.status === EntryStatus.Pending) {
+          trackNavigationLockPrefetchEntry(
+            navigationLockPrefetch,
+            existingEntry
+          )
+        }
         return existingEntry
       }
     } else {
@@ -2609,10 +2629,11 @@ export async function fetchSegmentPrefetchesUsingDynamicRequest(
     // staleAt that corresponds to whatever payload the spawned entries get
     // filled with below.
     let staleAtForSpawnedEntries = staleAt
-    if (!process.env.__NEXT_APP_SHELLS || cacheData === null) {
-      // NOTE: cacheData is always set when Cached Navigations is enabled, and
-      // therefore when App Shells is enabled. This null check can be removed
-      // when those flags fully land.
+    if (cacheData === null) {
+      // No shell can be extracted without cache metadata (only present when
+      // Cached Navigations is enabled). For routes without a distinct App Shell
+      // the extraction below is a no-op anyway (`resolveShellStageData` returns
+      // null), so this just short-circuits that case.
       serverDataThatSatisfiesSpawnedEntries = serverData
     } else {
       const shellStageData = await resolveShellStageData(
@@ -2969,18 +2990,21 @@ export function writeDynamicRenderResponseIntoCache(
 
     const head = flightDataEntry.head
     if (head !== null && metadataTree !== null) {
-      // When Cache Components is enabled, the server conservatively marks
-      // the head as partial during static generation (isPossiblyPartialHead
-      // in app-render.tsx), even for fully static pages where the head is
-      // actually complete. When the response is non-partial, we override
-      // this since the server confirmed no dynamic content exists.
+      // When Cache Components is enabled, the server's `isHeadPartial` flag
+      // (isPossiblyPartialHead in app-render.tsx) is unreliable: it's computed
+      // before the head is serialized, so it's conservatively `true` for every
+      // statically-generated PPR page — even pages whose head is actually
+      // complete — and it's `false` for runtime/dynamic responses whose head is
+      // actually partial (e.g. a route with an async `generateMetadata`). So we
+      // ignore it and derive the head's partiality from whether the response
+      // itself was partial, exactly as we do for segments (see
+      // `writeSeedDataIntoCache`). A non-partial response carries a complete
+      // head; a partial (postponed) one does not.
       //
-      // Without Cache Components, the server always sends the correct
-      // isHeadPartial value, so no override is needed.
-      const isHeadPartial =
-        !isResponsePartial && process.env.__NEXT_CACHE_COMPONENTS
-          ? false
-          : flightDataEntry.isHeadPartial
+      // Without Cache Components, the server sends the correct isHeadPartial.
+      const isHeadPartial = process.env.__NEXT_CACHE_COMPONENTS
+        ? isResponsePartial
+        : flightDataEntry.isHeadPartial
 
       fulfillEntrySpawnedByRuntimePrefetch(
         now,

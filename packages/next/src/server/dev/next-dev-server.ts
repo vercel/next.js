@@ -89,6 +89,9 @@ import type { PrerenderManifest } from '../../build'
 import { getRouteRegex } from '../../shared/lib/router/utils/route-regex'
 import type { PrerenderedRoute } from '../../build/static-paths/types'
 import { HMR_MESSAGE_SENT_TO_BROWSER } from './hot-reloader-types'
+import { registerLocalSpanRecorder } from '../lib/trace/local-span-recorder'
+
+registerLocalSpanRecorder()
 
 // Load ReactDevOverlay only when needed
 let PagesDevOverlayBridgeImpl: PagesDevOverlayBridgeType
@@ -226,6 +229,10 @@ export default class DevServer extends Server {
 
   protected override getServerComponentsHmrCache() {
     return this.serverComponentsHmrCache
+  }
+
+  protected override getServerComponentsHmrRefreshHash(): string | undefined {
+    return this.bundlerService.getServerComponentsHmrRefreshHash()
   }
 
   protected getRouteMatchers(): RouteMatcherManager {
@@ -862,24 +869,6 @@ export default class DevServer extends Server {
               )
             }
           }
-
-          // Since generateStaticParams run on the background, when accessing the
-          // fallbackParams during the render, it is still set to the previous
-          // result from the cache. Therefore when the result has changed, re-render
-          // the Server Component to sync the fallbackParams with the new result.
-          if (
-            isAppPath &&
-            this.nextConfig.cacheComponents &&
-            // Ensure this is not the first invocation.
-            result &&
-            // Ideally, we would want to compare the whole objects, but that is too expensive.
-            result.prerenderedRoutes?.length !== prerenderedRoutes?.length
-          ) {
-            this.bundlerService.sendHmrMessage({
-              type: HMR_MESSAGE_SENT_TO_BROWSER.SERVER_COMPONENT_CHANGES,
-              hash: `generateStaticParams-${Date.now()}`,
-            })
-          }
         }
 
         if (!isAppPath && this.nextConfig.output === 'export') {
@@ -958,6 +947,27 @@ export default class DevServer extends Server {
           }
         }
         this.staticPathsCache.set(pathname, value)
+
+        // Since generateStaticParams runs in the background, the fallbackParams
+        // accessed during a render are derived from the previous result served
+        // by the static paths cache. Now that the cache holds the new result,
+        // trigger a refresh so the next render picks up the new fallbackParams
+        // (e.g. so blocking-route validation reflects params that just became
+        // statically known).
+        if (
+          isAppPath &&
+          this.nextConfig.cacheComponents &&
+          // Ensure this is not the first invocation.
+          result &&
+          // Comparing lengths rather than the whole objects, which is too
+          // expensive.
+          result.prerenderedRoutes?.length !== prerenderedRoutes?.length
+        ) {
+          this.bundlerService.sendHmrMessage({
+            type: HMR_MESSAGE_SENT_TO_BROWSER.STATIC_PARAMS_CHANGED,
+          })
+        }
+
         return value
       })
       .catch((err) => {

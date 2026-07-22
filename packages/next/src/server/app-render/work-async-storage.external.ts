@@ -4,7 +4,7 @@ import type { FetchMetrics } from '../base-http'
 import type { DeepReadonly } from '../../shared/lib/deep-readonly'
 import type { AppSegmentConfig } from '../../build/segment-config/app/app-segment-config'
 import type { AfterContext } from '../after/after-context'
-import type { CacheLife } from '../use-cache/cache-life'
+import type { ResolvedCacheLifeProfiles } from '../config-shared'
 import type { SharedCacheResult } from '../use-cache/use-cache-wrapper'
 import type { ValidationLevel } from '../config-shared'
 
@@ -29,7 +29,7 @@ export interface WorkStore {
   readonly route: string
 
   readonly incrementalCache?: IncrementalCache
-  readonly cacheLifeProfiles?: { [profile: string]: CacheLife }
+  readonly cacheLifeProfiles: ResolvedCacheLifeProfiles
   readonly useCacheTimeout: number
   readonly staticPageGenerationTimeout: number
 
@@ -116,6 +116,14 @@ export interface WorkStore {
   isDraftMode?: boolean
   isUnstableNoStore?: boolean
   isPrefetchRequest?: boolean
+
+  /**
+   * Dev-only request identity used by local request insights. requestId
+   * identifies one server request, while htmlRequestId groups requests that
+   * originated from the same browser page.
+   */
+  requestId?: string
+  htmlRequestId?: string
 
   /**
    * This only exists because it's needed in use-cache-wrapper

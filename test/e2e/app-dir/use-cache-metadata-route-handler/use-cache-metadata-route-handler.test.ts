@@ -31,6 +31,27 @@ describe('use-cache-metadata-route-handler', () => {
     }
   })
 
+  it('should prerender a page that shares a segment with an opengraph image that uses a custom font', async () => {
+    const res = await next.fetch('/first-post')
+    expect(res.status).toBe(200)
+    expect(await res.text()).toContain('First Post')
+
+    const imageRes = await next.fetch('/first-post/opengraph-image')
+    expect(imageRes.status).toBe(200)
+    expect(imageRes.headers.get('content-type')).toBe('image/png')
+
+    expect(next.cliOutput).not.toContain(
+      'Unexpected cache miss after cache warming phase'
+    )
+
+    if (isNextStart) {
+      // The image route uses generateStaticParams, so the build is expected
+      // to prerender it for each param.
+      expect(next.cliOutput).toMatch(/● \/first-post\/opengraph-image/)
+      expect(next.cliOutput).toMatch(/● \/second-post\/opengraph-image/)
+    }
+  })
+
   it('should generate an icon image with a metadata route handler that uses "use cache"', async () => {
     const res = await next.fetch('/icon')
     expect(res.status).toBe(200)

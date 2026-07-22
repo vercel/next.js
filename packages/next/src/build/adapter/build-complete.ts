@@ -553,8 +553,7 @@ export async function handleBuildComplete({
       const staticFiles = await recursiveReadDir(path.join(distDir, 'static'))
 
       const clientHashes: Record<string, string> | undefined =
-        bundler === Bundler.Turbopack &&
-        config.experimental.supportsImmutableAssets
+        bundler === Bundler.Turbopack && config.supportsImmutableAssets
           ? JSON.parse(
               await fs.readFile(
                 path.join(distDir, 'immutable-static-hashes.json'),
@@ -657,7 +656,8 @@ export async function handleBuildComplete({
           ? normalizeAppPath(route)
           : route === '/index'
             ? '/'
-            : route
+            : route.replace(/\/index$/, '')
+        const functionConfig = functionsConfigManifest.functions[pathname] || {}
         const edgeEntrypointRelativePath = page.entrypoint
         const edgeEntrypointPath = path.join(
           distDir,
@@ -683,6 +683,7 @@ export async function handleBuildComplete({
           // Computing assetsHash for edge functions isn't implemented for now
           wasmAssets: {},
           config: {
+            maxDuration: functionConfig.maxDuration,
             env: page.env,
             preferredRegion: page.regions,
           },
@@ -774,6 +775,8 @@ export async function handleBuildComplete({
 
       const rscFallbackPath = path.join(distDir, 'server', 'rsc-fallback.json')
 
+      const emittedStaticFilePathnames = new Set<string>()
+
       if (appPageKeys && appPageKeys.length > 0 && pageKeys.length > 0) {
         await fs.writeFile(rscFallbackPath, '{}')
       }
@@ -810,6 +813,7 @@ export async function handleBuildComplete({
               } satisfies AdapterOutput['STATIC_FILE']
 
               outputs.staticFiles.push(localeOutput)
+              emittedStaticFilePathnames.add(localeOutput.pathname)
 
               if (appPageKeys && appPageKeys.length > 0) {
                 outputs.staticFiles.push({
@@ -831,6 +835,7 @@ export async function handleBuildComplete({
             } satisfies AdapterOutput['STATIC_FILE']
 
             outputs.staticFiles.push(staticOutput)
+            emittedStaticFilePathnames.add(staticOutput.pathname)
 
             if (appPageKeys && appPageKeys.length > 0) {
               outputs.staticFiles.push({
@@ -842,8 +847,12 @@ export async function handleBuildComplete({
               })
             }
           }
-          // if was a static file output don't create page output as well
-          continue
+          if (page !== '/404') {
+            // If it was a static file output don't create page output as well.
+            // However, don't skip the 404 output to be able to add it to other Pages routes so that
+            // they can render 404s at runtime.
+            continue
+          }
         }
 
         const { assets, assetsHashes } = await handleTraceFiles(
@@ -1036,7 +1045,8 @@ export async function handleBuildComplete({
               existingOutput.assetsHashes,
               path.relative(repoRoot, pageFile),
               pageFile,
-              bundler
+              bundler,
+              config.outputHashSalt || ''
             )
             continue
           }
@@ -1824,10 +1834,16 @@ export async function handleBuildComplete({
         if (!prerenderManifest.routes[errorDocPath]) {
           for (const currentDocPath of [
             errorDocPath,
-            ...(config.i18n?.locales?.map((locale) =>
-              path.posix.join('/', locale, errorDoc)
-            ) || []),
+            ...(config.i18n?.locales
+              ?.filter((locale) => locale !== config.i18n?.defaultLocale)
+              .map((locale) => path.posix.join('/', locale, errorDoc)) || []),
           ]) {
+            // skip if this static file was already emitted for an
+            // auto-static-optimized page above to avoid duplicate entries
+            if (emittedStaticFilePathnames.has(currentDocPath)) {
+              continue
+            }
+
             const currentFilePath = path.join(
               pagesDistDir,
               `${currentDocPath}.html`
@@ -2154,6 +2170,7 @@ async function getSharedNodeAssets({
   const pagesSharedNodeAssetsHashes: Record<string, string> = {}
   const appPagesSharedNodeAssets: Record<string, string> = {}
   const appPagesSharedNodeAssetsHashes: Record<string, string> = {}
+  const salt = config.outputHashSalt || ''
 
   const moduleTypes = ['app-page', 'pages'] as const
 
@@ -2185,7 +2202,8 @@ async function getSharedNodeAssets({
           pagesSharedNodeAssetsHashes,
           rootRelativeFilePath,
           path.join(repoRoot, rootRelativeFilePath),
-          bundler
+          bundler,
+          salt
         )
       } else {
         await pushAsset(
@@ -2193,7 +2211,8 @@ async function getSharedNodeAssets({
           appPagesSharedNodeAssetsHashes,
           rootRelativeFilePath,
           path.join(repoRoot, rootRelativeFilePath),
-          bundler
+          bundler,
+          salt
         )
       }
     }
@@ -2210,7 +2229,8 @@ async function getSharedNodeAssets({
     sharedNodeAssetsHashes,
     path.relative(repoRoot, setupNodeStubPath),
     require.resolve('next/dist/build/adapter/setup-node-env.external'),
-    bundler
+    bundler,
+    salt
   )
 
   // Turbopack handles this automatically and these files are listed in the nft.json files.
@@ -2299,7 +2319,8 @@ async function getSharedNodeAssets({
         sharedNodeAssetsHashes,
         path.relative(repoRoot, absoluteFilePath),
         absoluteFilePath,
-        bundler
+        bundler,
+        salt
       )
     }
   }
@@ -2322,6 +2343,7 @@ async function getSharedNodeAssets({
       fileOutputPath,
       path.join(distDir, 'server', 'instrumentation.js'),
       bundler,
+      salt,
       instrumentationEntryHash
     )
   }
@@ -2336,7 +2358,8 @@ async function getSharedNodeAssets({
       sharedNodeAssetsHashes,
       fileOutputPath,
       filePath,
-      bundler
+      bundler,
+      salt
     )
   }
 
@@ -2356,13 +2379,14 @@ async function pushAsset(
   targetFilePath: string,
   sourceFilePath: string,
   bundler: Bundler,
+  salt: string,
   hashOverride?: string
 ) {
   if (!(targetFilePath in assets)) {
     assets[targetFilePath] = sourceFilePath
     if (bundler === Bundler.Turbopack) {
       assetsHashes[targetFilePath] =
-        hashOverride ?? (await hashFile(sourceFilePath))
+        hashOverride ?? (await hashFile(salt, sourceFilePath))
     }
   }
 }
@@ -2395,8 +2419,9 @@ async function loadNFT(
   return { entryHash }
 }
 
-async function hashFile(filePath: string): Promise<string> {
+async function hashFile(salt: string, filePath: string): Promise<string> {
   const hash = crypto.createHash('sha256')
+  hash.update(salt)
   try {
     // Try symlink first, since readFile just transparently resolves those (or fails if it's a
     // directory symlink).

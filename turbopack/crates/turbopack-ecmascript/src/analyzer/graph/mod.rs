@@ -11,7 +11,7 @@ pub use crate::analyzer::graph::{
     eval_context::EvalContext,
 };
 use crate::{
-    AnalyzeMode,
+    AnalyzeMode, SpecifiedModuleType,
     analyzer::{Bump, JsValue, graph::visitor::Analyzer},
     code_gen::CodeGen,
 };
@@ -52,6 +52,8 @@ pub fn create_graph<'a>(
     eval_context: &EvalContext,
     analyze_mode: AnalyzeMode,
     supports_block_scoping: bool,
+    specified_module_type: SpecifiedModuleType,
+    cjs_tree_shaking: bool,
 ) -> VarGraph<'a> {
     let mut analyzer = Analyzer {
         arena,
@@ -69,6 +71,13 @@ pub fn create_graph<'a>(
         code_gens: Default::default(),
         supports_block_scoping,
     };
+
+    // CommonJS export recognition runs only for a CommonJS module that emits code, and only
+    // when the `turbopackCjsTreeShaking` experimental flag is enabled.
+    if cjs_tree_shaking && analyze_mode.is_code_gen() && eval_context.is_cjs(specified_module_type)
+    {
+        analyzer.enable_cjs_exports();
+    }
 
     m.visit_with_ast_path(&mut analyzer, &mut Default::default());
 

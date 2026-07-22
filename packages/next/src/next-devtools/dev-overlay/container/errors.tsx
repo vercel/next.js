@@ -34,7 +34,10 @@ import {
   type GuidanceKind,
   type GuidanceVariant,
 } from '../components/instant/instant-guidance'
-import { BLOCKING_ROUTE_NAVIGATION_EXPLANATION } from '../components/instant/instant-guidance-data'
+import {
+  BLOCKING_ROUTE_NAVIGATION_EXPLANATION,
+  BLOCKING_ROUTE_LINK_EXPLANATION,
+} from '../components/instant/instant-guidance-data'
 import { UnrenderedSegmentInfo } from '../components/instant/unrendered-segment-info'
 import { CodeFrame } from '../components/code-frame/code-frame'
 import { ErrorOverlayCallStack } from '../components/errors/error-overlay-call-stack/error-overlay-call-stack'
@@ -151,7 +154,7 @@ type HydrationErrorDetails = {
 
 type BlockingRouteErrorDetails = {
   type: 'blocking-route'
-  variant: 'dynamic' | 'runtime'
+  variant: GuidanceVariant
   inNavigation: boolean
 }
 
@@ -162,12 +165,12 @@ type ClientHookErrorDetails = {
 
 type DynamicMetadataErrorDetails = {
   type: 'dynamic-metadata'
-  variant: 'dynamic' | 'runtime'
+  variant: GuidanceVariant
 }
 
 type DynamicViewportErrorDetails = {
   type: 'dynamic-viewport'
-  variant: 'dynamic' | 'runtime'
+  variant: GuidanceVariant
 }
 
 type SyncIOErrorDetails = {
@@ -349,12 +352,23 @@ function InstantRuntimeError({
   )
 }
 
-export function isRuntimeVariant(message: string): boolean {
-  // Discriminates between `createRuntimeBodyError` and `createDynamicBodyError`
-  return (
+export function getGuidanceVariant(message: string): GuidanceVariant {
+  // Discriminates between `createLinkBodyErrorInNavigation`,
+  // `createRuntimeBodyError`, and `createDynamicBodyError` (and their
+  // in-navigation variants).
+  if (
+    message.includes('encountered URL data') &&
+    !message.includes('encountered uncached data')
+  ) {
+    return 'link'
+  }
+  if (
     message.includes('encountered runtime data') &&
     !message.includes('encountered uncached data')
-  )
+  ) {
+    return 'runtime'
+  }
+  return 'dynamic'
 }
 
 const SYNC_IO_APIS = [
@@ -427,12 +441,13 @@ export function getBlockingRouteErrorDetails(
   }
 
   const isBlockingPageLoadError =
-    message.includes('/blocking-prerender-runtime#') ||
-    message.includes('/blocking-prerender-dynamic#')
+    message.includes('/blocking-prerender-runtime') ||
+    message.includes('/blocking-prerender-dynamic') ||
+    message.includes('/instant-shell-url-data')
   if (isBlockingPageLoadError) {
     return {
       type: 'blocking-route',
-      variant: isRuntimeVariant(message) ? 'runtime' : 'dynamic',
+      variant: getGuidanceVariant(message),
       inNavigation,
     }
   }
@@ -443,7 +458,7 @@ export function getBlockingRouteErrorDetails(
   if (isDynamicMetadataError) {
     return {
       type: 'dynamic-metadata',
-      variant: isRuntimeVariant(message) ? 'runtime' : 'dynamic',
+      variant: getGuidanceVariant(message),
     }
   }
 
@@ -453,7 +468,7 @@ export function getBlockingRouteErrorDetails(
   if (isBlockingViewportError) {
     return {
       type: 'dynamic-viewport',
-      variant: isRuntimeVariant(message) ? 'runtime' : 'dynamic',
+      variant: getGuidanceVariant(message),
     }
   }
 
@@ -850,22 +865,26 @@ export function Errors({
           errorCode={errorCode}
           errorType={errorType}
           errorMessage={
-            errorDetails.variant === 'runtime'
-              ? errorDetails.inNavigation
-                ? 'Next.js encountered runtime data during a navigation.'
-                : 'Next.js encountered runtime data during prerendering.'
-              : errorDetails.inNavigation
-                ? 'Next.js encountered uncached data during a navigation.'
-                : 'Next.js encountered uncached data during prerendering.'
+            errorDetails.variant === 'link'
+              ? 'Next.js encountered URL data outside of Suspense.'
+              : errorDetails.variant === 'runtime'
+                ? errorDetails.inNavigation
+                  ? 'Next.js encountered runtime data during a navigation.'
+                  : 'Next.js encountered runtime data during prerendering.'
+                : errorDetails.inNavigation
+                  ? 'Next.js encountered uncached data during a navigation.'
+                  : 'Next.js encountered uncached data during prerendering.'
           }
           headerChildren={
             <InstantHeaderExplanation
               kind="blocking-route"
               variant={errorDetails.variant}
               explanation={
-                errorDetails.inNavigation
-                  ? BLOCKING_ROUTE_NAVIGATION_EXPLANATION
-                  : undefined
+                errorDetails.variant === 'link'
+                  ? BLOCKING_ROUTE_LINK_EXPLANATION
+                  : errorDetails.inNavigation
+                    ? BLOCKING_ROUTE_NAVIGATION_EXPLANATION
+                    : undefined
               }
             />
           }
@@ -944,7 +963,11 @@ export function Errors({
           errorCode={errorCode}
           errorType={errorType}
           errorMessage={
-            errorDetails.variant === 'runtime' ? (
+            errorDetails.variant === 'link' ? (
+              <>
+                Next.js encountered URL data in <code>generateMetadata()</code>.
+              </>
+            ) : errorDetails.variant === 'runtime' ? (
               <>
                 Next.js encountered runtime data in{' '}
                 <code>generateMetadata()</code>.
@@ -996,7 +1019,11 @@ export function Errors({
           errorCode={errorCode}
           errorType={errorType}
           errorMessage={
-            errorDetails.variant === 'runtime' ? (
+            errorDetails.variant === 'link' ? (
+              <>
+                Next.js encountered URL data in <code>generateViewport()</code>.
+              </>
+            ) : errorDetails.variant === 'runtime' ? (
               <>
                 Next.js encountered runtime data in{' '}
                 <code>generateViewport()</code>.
