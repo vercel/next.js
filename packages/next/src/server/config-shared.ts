@@ -566,7 +566,6 @@ export interface ExperimentalConfig {
   imgOptTimeoutInSeconds?: number
   imgOptMaxInputPixels?: number
   imgOptSequentialRead?: boolean | null
-  imgOptSkipMetadata?: boolean | null
   optimisticClientCache?: boolean
   /**
    * @deprecated use config.expireTime instead
@@ -877,9 +876,10 @@ export interface ExperimentalConfig {
   turbopackInputSourceMaps?: boolean
 
   /**
-   * Enable tree shaking for the turbopack dev server and build.
+   * Currently in active development. This splits modules into fragments and
+   * chunks only import the used fragments of the modules.
    */
-  turbopackTreeShaking?: boolean
+  turbopackModuleFragments?: boolean
 
   /**
    * Enable removing unused imports for turbopack dev server and build.
@@ -899,6 +899,13 @@ export interface ExperimentalConfig {
    * Defaults to `true`
    */
   turbopackInferModuleSideEffects?: boolean
+
+  /**
+   * Enable tree shaking of unused exports from analyzable CommonJS modules in Turbopack.
+   *
+   * Defaults to `false`
+   */
+  turbopackCjsTreeShaking?: boolean
 
   /**
    * Set this to `false` to disable the automatic configuration of the babel loader when a Babel
@@ -2147,7 +2154,6 @@ export const defaultConfig = Object.freeze({
     imgOptTimeoutInSeconds: 7,
     imgOptMaxInputPixels: 268_402_689, // https://sharp.pixelplumbing.com/api-constructor#:~:text=%5Boptions.limitInputPixels%5D
     imgOptSequentialRead: null,
-    imgOptSkipMetadata: null,
     isrFlushToDisk: true,
     workerThreads: false,
     proxyTimeout: undefined,
@@ -2315,7 +2321,6 @@ export interface NextConfigRuntime {
     | 'imgOptOperationCache'
     | 'imgOptMaxInputPixels'
     | 'imgOptSequentialRead'
-    | 'imgOptSkipMetadata'
     | 'imgOptTimeoutInSeconds'
     | 'proxyClientMaxBodySize'
     | 'proxyTimeout'
@@ -2384,7 +2389,6 @@ export function getNextConfigRuntime(
     imgOptOperationCache: ex.imgOptOperationCache,
     imgOptMaxInputPixels: ex.imgOptMaxInputPixels,
     imgOptSequentialRead: ex.imgOptSequentialRead,
-    imgOptSkipMetadata: ex.imgOptSkipMetadata,
     imgOptTimeoutInSeconds: ex.imgOptTimeoutInSeconds,
     proxyClientMaxBodySize: ex.proxyClientMaxBodySize,
     proxyTimeout: ex.proxyTimeout,

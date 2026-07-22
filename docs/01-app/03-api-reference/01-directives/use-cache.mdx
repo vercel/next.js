@@ -193,7 +193,7 @@ Cached functions execute in an isolated environment. The following constraints e
 
 ### Request-time APIs
 
-Cached functions and components **cannot** directly access runtime APIs like `cookies()`, `headers()`, or `searchParams`. Instead, read these values outside the cached scope and pass them as arguments.
+Cached functions and components **cannot** access runtime APIs like `cookies()`, `headers()`, or `searchParams`, and the restriction follows the call stack: a helper the cached function calls that reads one of these fails the same way, with the [`next-request-in-use-cache`](/docs/messages/next-request-in-use-cache) error. On a dynamically rendered route this surfaces when the route runs, so it can pass `next build` and fail under `next start`. Read these values outside the cached scope and pass them as arguments.
 
 ### Runtime caching considerations
 
@@ -313,6 +313,8 @@ async function getData() {
   return fetch('/api/data')
 }
 ```
+
+Nesting a short-lived use cache inside one without an explicit [cacheLife](/docs/app/api-reference/functions/cacheLife) fails the build during prerendering. See [Nested short-lived caches](/docs/app/api-reference/functions/cacheLife#nested-short-lived-caches) for the rule and fix.
 
 ### On-demand revalidation
 

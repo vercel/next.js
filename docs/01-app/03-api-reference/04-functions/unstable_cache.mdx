@@ -72,20 +72,20 @@ export default async function Page({
 ```
 
 ```jsx filename="app/page.jsx" switcher
-import { unstable_cache } from 'next/cache';
+import { unstable_cache } from 'next/cache'
 
-export default async function Page({ params } }) {
+export default async function Page({ params }) {
   const { userId } = await params
   const getCachedUser = unstable_cache(
     async () => {
-      return { id: userId };
+      return { id: userId }
     },
     [userId], // add the user ID to the cache key
     {
-      tags: ["users"],
+      tags: ['users'],
       revalidate: 60,
     }
-  );
+  )
 
   //...
 }

@@ -152,7 +152,6 @@ export async function handleRouteType({
   entrypoints,
   manifestLoader,
   readyIds,
-  rscOnly,
   devRewrites,
   productionRewrites,
   hooks,
@@ -171,8 +170,6 @@ export async function handleRouteType({
   logErrors: boolean
 
   readyIds?: ReadyIds // dev
-
-  rscOnly?: boolean
 
   // hooks.subscribeToChanges may be omitted to skip HMR subscriptions for
   // one-shot compilations (e.g. the compile_route MCP tool).
@@ -349,9 +346,7 @@ export async function handleRouteType({
     case 'app-page': {
       const key = getEntryKey('app', 'server', page)
 
-      const writtenEndpoint = await route.htmlEndpoint.writeToDisk(
-        rscOnly ?? false
-      )
+      const writtenEndpoint = await route.htmlEndpoint.writeToDisk()
       hooks?.handleWrittenEndpoint(key, writtenEndpoint, false)
 
       if (dev) {
@@ -412,6 +407,34 @@ export async function handleRouteType({
 
       const writtenEndpoint = await route.endpoint.writeToDisk()
       hooks?.handleWrittenEndpoint(key, writtenEndpoint, false)
+
+      if (dev) {
+        // Advance the hot-reloader's HMR refresh hash whenever this route
+        // handler is recompiled, so its `"use cache"` entries are invalidated
+        // after an edit. Subscribing runs `subscribeToClientChanges`, which
+        // bumps the `hmrHash` counter on each change; that counter is returned
+        // by `getServerComponentsHmrRefreshHash` and folded into cache keys by
+        // `getHmrRefreshHash`. Unlike app pages there is no RSC for a connected
+        // browser to refetch, so `createMessage` returns nothing; the
+        // subscription exists only to advance the hash.
+        hooks?.subscribeToChanges(
+          key,
+          /** includeIssues= */ true,
+          route.endpoint,
+          () => undefined,
+          (error) => {
+            // This subscription only advances the refresh hash, so there is
+            // nothing to send the browser when it fails. `subscribeToChanges`
+            // drops the subscription on error and re-creates it the next time
+            // this route is ensured, so just log it.
+            console.error(
+              new Error(`Error in the "${page}" app-route HMR subscription`, {
+                cause: error,
+              })
+            )
+          }
+        )
+      }
 
       const type = writtenEndpoint.type
 
