@@ -138,7 +138,11 @@ type InternalLinkProps = {
    *   - `"auto"`, `null`, `undefined` (default): Prefetch behavior depends on static vs dynamic routes:
    *     - Static routes: fully prefetched
    *     - Dynamic routes: partial prefetch to the nearest segment with a `loading.js`
-   *   - `true`: Always prefetch the full route and data.
+   *   - `true` or `"prefetch"`: Always prefetch the full route and data.
+   *   - `"navigation"`: Prefetch at navigation depth. Like `prefetch={true}`,
+   *     but the per-link runtime prefetch also renders through
+   *     `await unstable_navigation()`, so content gated only on the
+   *     navigation stage is included.
    *   - `false`: Disable prefetching on both viewport and hover.
    * - In the **Pages Router**:
    *   - `true` (default): Prefetches the route and data in the background on viewport or hover.
@@ -153,7 +157,7 @@ type InternalLinkProps = {
    * </Link>
    * ```
    */
-  prefetch?: boolean | 'auto' | null
+  prefetch?: boolean | 'auto' | 'prefetch' | 'navigation' | null
 
   /**
    * (unstable) Switch to a full prefetch on hover. Effectively the same as
@@ -382,7 +386,15 @@ export default function LinkComponent(
 
   const prefetchEnabled = prefetchProp !== false
   const prefetchIntent: RouterTransitionPrefetchIntent =
-    prefetchProp === false ? 'none' : prefetchProp === true ? 'full' : 'auto'
+    prefetchProp === false
+      ? 'none'
+      : // 'prefetch' is a strict alias of `true`: it's the string spelling of
+        // the prefetch stage, for symmetry with 'navigation'.
+        prefetchProp === true || prefetchProp === 'prefetch'
+        ? 'full'
+        : prefetchProp === 'navigation'
+          ? 'navigation'
+          : 'auto'
 
   const fetchStrategy =
     prefetchIntent !== 'none'
@@ -491,11 +503,13 @@ export default function LinkComponent(
         if (
           props[key] != null &&
           valType !== 'boolean' &&
-          props[key] !== 'auto'
+          props[key] !== 'auto' &&
+          props[key] !== 'prefetch' &&
+          props[key] !== 'navigation'
         ) {
           throw createPropError({
             key,
-            expected: '`boolean | "auto"`',
+            expected: '`boolean | "auto" | "prefetch" | "navigation"`',
             actual: valType,
           })
         }
@@ -611,8 +625,14 @@ export default function LinkComponent(
         React.useMemo(() => {
           // Only capture when a warning might actually need it. Otherwise leave
           // it `undefined` so consumers can detect the opt-out and degrade
-          // gracefully.
-          if (fetchStrategy === FetchStrategy.Full) {
+          // gracefully. Full can warn when the target route hasn't opted into
+          // Partial Prefetching; PPRNavigation can warn when the target route
+          // doesn't have runtime prefetching enabled. (Both warnings fire at
+          // navigation time; see navigateToKnownRoute.)
+          if (
+            fetchStrategy === FetchStrategy.Full ||
+            fetchStrategy === FetchStrategy.PPRNavigation
+          ) {
             return React.captureOwnerStack()
           }
           return undefined
@@ -815,6 +835,14 @@ function getFetchStrategyFromPrefetchIntent(
       return FetchStrategy.Full
     }
 
+    if (prefetchIntent === 'navigation') {
+      // `"navigation"`: like `prefetch={true}`, but the per-link runtime
+      // prefetch also renders through `unstable_navigation()` on the server.
+      // Where runtime prefetching isn't enabled on the target route, the
+      // scheduler degrades this to the `prefetch={true}` behavior.
+      return FetchStrategy.PPRNavigation
+    }
+
     // `"auto"`: the default mode, where we will prefetch partially if the link is in the viewport.
     prefetchIntent satisfies 'auto'
     return FetchStrategy.PPR
@@ -823,7 +851,9 @@ function getFetchStrategyFromPrefetchIntent(
       ? // We default to PPR, and we'll discover whether or not the route supports it with the initial prefetch.
         FetchStrategy.PPR
       : // In the old implementation without runtime prefetches, `prefetch={true}` (`'full'`) forces all dynamic
-        // data to be prefetched, preserving backwards-compatibility.
+        // data to be prefetched, preserving backwards-compatibility. Without
+        // Cache Components there are no runtime prefetches, so
+        // `prefetch="navigation"` (`'navigation'`) is treated as `'full'`.
         FetchStrategy.Full
   }
 }

@@ -41,10 +41,8 @@ import type { NormalizedSearch } from '../segment-cache/cache-key'
 import { getDeploymentId } from '../../../shared/lib/deployment-id'
 import { getNavigationBuildId } from '../../navigation-build-id'
 import { NEXT_NAV_DEPLOYMENT_ID_HEADER } from '../../../lib/constants'
-import {
-  stripIsPartialByte,
-  createNonTaskyPrefetchResponseStream,
-} from '../segment-cache/cache'
+import { createNonTaskyPrefetchResponseStream } from '../segment-cache/cache'
+import { stripIsPartialByte } from '../../../shared/lib/segment-cache/response-decoding'
 import { UnknownDynamicStaleTime } from '../segment-cache/bfcache'
 
 const createFromReadableStream =
@@ -111,7 +109,7 @@ export type RequestHeaders = {
   [RSC_HEADER]?: '1'
   [NEXT_ROUTER_STATE_TREE_HEADER]?: string
   [NEXT_URL]?: string
-  [NEXT_ROUTER_PREFETCH_HEADER]?: '1' | '2' | '3'
+  [NEXT_ROUTER_PREFETCH_HEADER]?: '1' | '2' | '3' | '4'
   [NEXT_ROUTER_SEGMENT_PREFETCH_HEADER]?: string
   'x-deployment-id'?: string
   [NEXT_HMR_REFRESH_HEADER]?: '1'

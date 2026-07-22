@@ -432,6 +432,13 @@ interface ParsedRequestHeaders {
    * param-independent shell of the route. Implies isRuntimePrefetchRequest.
    */
   readonly isAppShellPrefetchRequest: boolean
+  /**
+   * Navigation-depth prefetch: a runtime prefetch that renders through the
+   * navigation gate (`unstable_navigation()` resolves instead of hanging),
+   * but not through real dynamic APIs like `connection()`. Implies
+   * isRuntimePrefetchRequest.
+   */
+  readonly isNavigationPrefetchRequest: boolean
   readonly isRouteTreePrefetchRequest: boolean
   readonly isHmrRefresh: boolean
   readonly isRSCRequest: boolean
@@ -455,11 +462,18 @@ function parseRequestHeaders(
   const isAppShellPrefetchRequest =
     isRSCRequest && headers[NEXT_ROUTER_PREFETCH_HEADER] === '3'
 
-  // App Shell prefetches are a subtype of runtime prefetch — same code path,
-  // but with less resolved content (omitting link data)
+  const isNavigationPrefetchRequest =
+    isRSCRequest && headers[NEXT_ROUTER_PREFETCH_HEADER] === '4'
+
+  // App Shell and navigation-depth prefetches are subtypes of runtime
+  // prefetch — same code path, but stopping at different stages (an App
+  // Shell omits link data; a navigation-depth prefetch renders through the
+  // navigation gate)
   const isRuntimePrefetchRequest =
     isRSCRequest &&
-    (headers[NEXT_ROUTER_PREFETCH_HEADER] === '2' || isAppShellPrefetchRequest)
+    (headers[NEXT_ROUTER_PREFETCH_HEADER] === '2' ||
+      isAppShellPrefetchRequest ||
+      isNavigationPrefetchRequest)
 
   const isHmrRefresh = headers[NEXT_HMR_REFRESH_HEADER] !== undefined
 
@@ -511,6 +525,7 @@ function parseRequestHeaders(
     isPrefetchRequest,
     isRuntimePrefetchRequest,
     isAppShellPrefetchRequest,
+    isNavigationPrefetchRequest,
     isRouteTreePrefetchRequest,
     isHmrRefresh,
     isRSCRequest,
@@ -657,6 +672,7 @@ async function generateDynamicRSCPayload(
     staticStageByteLengthPromise?: Promise<number>
     shellByteLengthPromise?: Promise<number | null>
     shellUsedSessionDataPromise?: Promise<boolean>
+    earliestDeferredRenderStagePromise?: Promise<RenderStage | null>
     runtimePrefetchStream?: ReadableStream<Uint8Array>
   }
 ): Promise<RSCPayload> {
@@ -805,6 +821,9 @@ async function generateDynamicRSCPayload(
   }
   if (options?.shellUsedSessionDataPromise !== undefined) {
     baseResponse.u = options.shellUsedSessionDataPromise
+  }
+  if (options?.earliestDeferredRenderStagePromise !== undefined) {
+    baseResponse.n = options.earliestDeferredRenderStagePromise
   }
 
   if (options?.runtimePrefetchStream !== undefined) {
@@ -1164,6 +1183,7 @@ async function spawnRuntimePrefetchWithFilledCaches(
       type: 'rewindable-session-shell',
       shellUsedSessionDataDeferred: createPromiseWithResolvers(),
       shellByteLengthDeferred: createPromiseWithResolvers(),
+      earliestDeferredRenderStageDeferred: createPromiseWithResolvers(),
     }
 
     const { result } = await finalRuntimeServerPrerender(
@@ -1176,9 +1196,14 @@ async function spawnRuntimePrefetchWithFilledCaches(
             ? mode.shellByteLengthDeferred.promise
             : undefined,
         shellUsedSessionDataPromise: mode.shellUsedSessionDataDeferred.promise,
+        earliestDeferredRenderStagePromise:
+          mode.earliestDeferredRenderStageDeferred.promise,
       }),
       prerenderResumeDataCache,
       rootParams,
+      // The embedded runtime prefetch may not render content belonging to
+      // stages beyond Runtime, like a regular runtime prefetch request.
+      getRuntimePrerenderFinalStage(mode),
       requestStore.headers,
       requestStore.cookies,
       requestStore.draftMode,
@@ -1496,7 +1521,8 @@ async function generateRuntimePrefetchResult(
   req: BaseNextRequest,
   ctx: AppRenderContext,
   requestStore: RequestStore,
-  isShellPrefetch: boolean
+  isShellPrefetch: boolean,
+  isNavigationPrefetch: boolean
 ): Promise<RenderResult> {
   const { workStore, renderOpts, htmlRequestId, requestId } = ctx
   const {
@@ -1539,27 +1565,38 @@ async function generateRuntimePrefetchResult(
   // but we're not going to persist this anywhere.
   const prerenderResumeDataCache = createPrerenderResumeDataCache()
 
+  const mode: RuntimePrerenderMode = isShellPrefetch
+    ? {
+        type: 'session-shell-only',
+        shellUsedSessionDataDeferred: createPromiseWithResolvers(),
+        earliestDeferredRenderStageDeferred: createPromiseWithResolvers(),
+      }
+    : {
+        type: 'rewindable-session-shell',
+        shellUsedSessionDataDeferred: createPromiseWithResolvers(),
+        shellByteLengthDeferred: createPromiseWithResolvers(),
+        earliestDeferredRenderStageDeferred: createPromiseWithResolvers(),
+      }
+
+  // A navigation-depth prefetch renders through the navigation gate
+  // (`unstable_navigation()` resolves instead of hanging). Every other
+  // runtime prefetch's ceiling is the final stage its mode renders to.
+  const allowedRenderStage: PrerenderStoreModernRuntime['allowedRenderStage'] =
+    isNavigationPrefetch
+      ? RenderStage.Dynamic
+      : getRuntimePrerenderFinalStage(mode)
+
   await prospectiveRuntimeServerPrerender(
     ctx,
     isShellPrefetch,
     generateDynamicRSCPayload.bind(null, ctx),
     prerenderResumeDataCache,
     rootParams,
+    allowedRenderStage,
     requestStore.headers,
     requestStore.cookies,
     requestStore.draftMode
   )
-
-  const mode: RuntimePrerenderMode = isShellPrefetch
-    ? {
-        type: 'session-shell-only',
-        shellUsedSessionDataDeferred: createPromiseWithResolvers(),
-      }
-    : {
-        type: 'rewindable-session-shell',
-        shellUsedSessionDataDeferred: createPromiseWithResolvers(),
-        shellByteLengthDeferred: createPromiseWithResolvers(),
-      }
 
   const debugChannel = setReactDebugChannel
     ? createWebDebugChannel()
@@ -1578,9 +1615,12 @@ async function generateRuntimePrefetchResult(
           ? mode.shellByteLengthDeferred.promise
           : undefined,
       shellUsedSessionDataPromise: mode.shellUsedSessionDataDeferred.promise,
+      earliestDeferredRenderStagePromise:
+        mode.earliestDeferredRenderStageDeferred.promise,
     }),
     prerenderResumeDataCache,
     rootParams,
+    allowedRenderStage,
     requestStore.headers,
     requestStore.cookies,
     requestStore.draftMode,
@@ -1601,6 +1641,7 @@ async function prospectiveRuntimeServerPrerender(
   getPayload: () => Promise<RSCPayload>,
   resumeDataCache: PrerenderResumeDataCache | null,
   rootParams: Params,
+  allowedRenderStage: PrerenderStoreModernRuntime['allowedRenderStage'],
   headers: PrerenderStoreModernRuntime['headers'],
   cookies: PrerenderStoreModernRuntime['cookies'],
   draftMode: PrerenderStoreModernRuntime['draftMode']
@@ -1649,6 +1690,11 @@ async function prospectiveRuntimeServerPrerender(
     // No stage sequencing needed for prospective renders.
     stagedRendering: null,
     isSessionShell: isShellPrefetch,
+    allowedRenderStage,
+    // Only the final prerender's deferrals are reported in the response, but
+    // they're tracked here too because `checkAndRecordStageDeferral` records
+    // them unconditionally.
+    earliestDeferredRenderStage: null,
     // These are not present in regular prerenders, but allowed in a runtime
     // prerender.
     // Any cache keyed on headers() or cookies() needs to be invalidated.
@@ -1759,12 +1805,27 @@ type RuntimePrerenderMode =
   | {
       type: 'session-shell-only'
       shellUsedSessionDataDeferred: PromiseWithResolvers<boolean>
+      earliestDeferredRenderStageDeferred: PromiseWithResolvers<RenderStage | null>
     }
   | {
       type: 'rewindable-session-shell'
       shellUsedSessionDataDeferred: PromiseWithResolvers<boolean>
       shellByteLengthDeferred: PromiseWithResolvers<number | null>
+      earliestDeferredRenderStageDeferred: PromiseWithResolvers<RenderStage | null>
     }
+
+/**
+ * The final stage a runtime prerender of the given mode advances to. A
+ * session-shell-only render stops before the stages where link data is
+ * resolved.
+ */
+function getRuntimePrerenderFinalStage(
+  mode: RuntimePrerenderMode
+): RenderStage.ShellRuntime | RenderStage.Runtime {
+  return mode.type === 'session-shell-only'
+    ? RenderStage.ShellRuntime
+    : RenderStage.Runtime
+}
 
 async function finalRuntimeServerPrerender(
   mode: RuntimePrerenderMode,
@@ -1772,6 +1833,7 @@ async function finalRuntimeServerPrerender(
   getPayload: () => Promise<RSCPayload>,
   resumeDataCache: PrerenderResumeDataCache | null,
   rootParams: Params,
+  allowedRenderStage: PrerenderStoreModernRuntime['allowedRenderStage'],
   headers: PrerenderStoreModernRuntime['headers'],
   cookies: PrerenderStoreModernRuntime['cookies'],
   draftMode: PrerenderStoreModernRuntime['draftMode'],
@@ -1799,10 +1861,7 @@ async function finalRuntimeServerPrerender(
     // that we go through here (i.e. < Dynamic)
     syncIO: SyncIOMode.AllowedInDynamic,
     // we only reach the runtime stage if we're doing a rewindable render
-    finalStage:
-      mode.type === 'session-shell-only'
-        ? RenderStage.ShellRuntime
-        : RenderStage.Runtime,
+    finalStage: getRuntimePrerenderFinalStage(mode),
   })
 
   const varyParamsAccumulator = createResponseVaryParamsAccumulator()
@@ -1828,6 +1887,11 @@ async function finalRuntimeServerPrerender(
     varyParamsAccumulator,
     stagedRendering: finalStageController,
     isSessionShell: mode.type === 'session-shell-only',
+    allowedRenderStage,
+    // Set to the earliest deferred stage if content is deferred during this
+    // render (e.g. an `unstable_navigation()` call hangs). Reported in the
+    // response via `earliestDeferredRenderStageDeferred`.
+    earliestDeferredRenderStage: null,
     // These are not present in regular prerenders, but allowed in a runtime
     // prerender.
     headers: HeadersAdapter.fresh(headers),
@@ -1958,6 +2022,19 @@ async function finalRuntimeServerPrerender(
             : null
         )
       }
+
+      // Report the earliest render stage whose content was deferred — content
+      // is deferred when its stage is beyond the allowed render stage (e.g.
+      // `RenderStage.Dynamic` if at least one `unstable_navigation()` call
+      // hung) — or null if nothing was deferred, so the client cache can
+      // record the entry's effective stage.
+      // This must resolve here, before the render is aborted in the last
+      // task, so that the resolution flushes into the stream.
+      // Note: for a navigation-depth prefetch this is null by construction,
+      // since `unstable_navigation()` resolves instead of hanging.
+      mode.earliestDeferredRenderStageDeferred.resolve(
+        finalServerPrerenderStore.earliestDeferredRenderStage
+      )
 
       staleTimeIterable.close()
       finishAccumulatingVaryParams(varyParamsAccumulator)
@@ -2696,6 +2773,7 @@ async function renderToHTMLOrFlightImpl(
     isPrefetchRequest,
     isRuntimePrefetchRequest,
     isAppShellPrefetchRequest,
+    isNavigationPrefetchRequest,
     isRSCRequest,
     isHmrRefresh,
     nonce,
@@ -2938,7 +3016,8 @@ async function renderToHTMLOrFlightImpl(
           req,
           ctx,
           requestStore,
-          isAppShellPrefetchRequest
+          isAppShellPrefetchRequest,
+          isNavigationPrefetchRequest
         )
       } else {
         if (

@@ -2152,10 +2152,12 @@ export default abstract class Server<
       const prefetchHeaderValue = headers[NEXT_ROUTER_PREFETCH_HEADER]
       const routerPrefetch =
         prefetchHeaderValue !== undefined
-          ? // We only recognize '1', '2', and '3'. Strip all other values here.
+          ? // We only recognize '1', '2', '3', and '4'. Strip all other
+            // values here.
             prefetchHeaderValue === '1' ||
             prefetchHeaderValue === '2' ||
-            prefetchHeaderValue === '3'
+            prefetchHeaderValue === '3' ||
+            prefetchHeaderValue === '4'
             ? prefetchHeaderValue
             : undefined
           : // For runtime prefetches, we always perform a dynamic request,

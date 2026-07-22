@@ -319,10 +319,15 @@ export function getSegmentVaryPathForRequest(
   if (tree.isPage) {
     // Only a runtime prefetch will include search params in the vary path.
     // Static prefetches never include search params, so they can be reused
-    // across all possible search param values.
+    // across all possible search param values. A navigation-depth runtime
+    // prefetch (PPRNavigation) is a runtime prefetch, so it varies on search
+    // params exactly like PPRRuntime — which also means PPRRuntime and
+    // PPRNavigation entries share cache keys, and upgrading an entry's
+    // recorded strategy between the two never changes where it's stored.
     const doesVaryOnSearchParams =
       fetchStrategy === FetchStrategy.Full ||
-      fetchStrategy === FetchStrategy.PPRRuntime
+      fetchStrategy === FetchStrategy.PPRRuntime ||
+      fetchStrategy === FetchStrategy.PPRNavigation
 
     if (!doesVaryOnSearchParams) {
       // The response from the the server will not vary on search params. Clone
