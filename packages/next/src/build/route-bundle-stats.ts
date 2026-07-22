@@ -1,12 +1,9 @@
 import path from 'path'
 import { promises as fs, statSync } from 'fs'
-import {
-  APP_PATHS_MANIFEST,
-  CLIENT_REFERENCE_MANIFEST,
-  SERVER_DIRECTORY,
-} from '../shared/lib/constants'
+import { APP_PATHS_MANIFEST, SERVER_DIRECTORY } from '../shared/lib/constants'
 import type { BuildManifest } from '../server/get-page-files'
 import { filterAndSortList } from './utils'
+import { readRscManifest } from './read-rsc-manifest'
 
 const ROUTE_BUNDLE_STATS_FILE = 'route-bundle-stats.json'
 
@@ -67,36 +64,16 @@ function buildRouteToAppPathsMap(
   return routeToAppPaths
 }
 
-// Reads the manfiest file and gets the entry JS files. The manifest file is
-// a JavaScript file that sets a global variable (__RSC_MANIFEST). We require()
-// it with a save/restore of the global
+// Reads the entry JS files from a route's __RSC_MANIFEST entry. The key is the
+// app path (e.g. /blog/[slug]/page), which may be either the pagePath or appRoute form.
 function readEntryJSFiles(
   distDir: string,
   pagePath: string,
   appRoute: string
 ): Record<string, string[]> | undefined {
-  const manifestFile = path.join(
-    distDir,
-    SERVER_DIRECTORY,
-    'app',
-    `${pagePath}_${CLIENT_REFERENCE_MANIFEST}.js`
-  )
-  try {
-    const g = global as Record<string, unknown>
-    const prev = g.__RSC_MANIFEST
-    g.__RSC_MANIFEST = undefined
-    require(manifestFile)
-    const rscManifest = g.__RSC_MANIFEST as
-      | Record<string, { entryJSFiles?: Record<string, string[]> }>
-      | undefined
-    g.__RSC_MANIFEST = prev
-
-    // The key in __RSC_MANIFEST is the app path (e.g. /blog/[slug]/page)
-    const manifestEntry = rscManifest?.[pagePath] ?? rscManifest?.[appRoute]
-    return manifestEntry?.entryJSFiles
-  } catch {
-    return undefined
-  }
+  const rscManifest = readRscManifest(distDir, pagePath)
+  const manifestEntry = rscManifest?.[pagePath] ?? rscManifest?.[appRoute]
+  return manifestEntry?.entryJSFiles
 }
 
 function collectPagesRouterStats(
