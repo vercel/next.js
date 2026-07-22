@@ -1,3 +1,0 @@
-p {
-  color: red;
-}

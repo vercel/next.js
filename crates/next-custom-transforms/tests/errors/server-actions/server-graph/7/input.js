@@ -1,3 +1,0 @@
-const foo = () => {
-  'use server'
-}

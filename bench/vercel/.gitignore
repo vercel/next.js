@@ -1,5 +1,0 @@
-.vercel
-.next
-*.tgz
-yarn.lock
-.env

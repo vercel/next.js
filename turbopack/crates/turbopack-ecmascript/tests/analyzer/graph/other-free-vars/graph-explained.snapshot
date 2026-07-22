@@ -1,5 +1,0 @@
-O (const after eval) = FreeVar(Object)
-
-a (const after eval) = FreeVar(Object)["keys"](O)
-
-b (const after eval) = O["keys"](FreeVar(Object))
