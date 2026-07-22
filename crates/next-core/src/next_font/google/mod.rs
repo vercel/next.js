@@ -20,7 +20,7 @@ use turbopack_core::{
     asset::AssetContent,
     context::AssetContext,
     ident::Layer,
-    issue::{IssueExt, IssueSeverity, StyledString},
+    issue::{IssueExt, IssueSeverity},
     module_graph::{ModuleGraph, SingleModuleGraph},
     reference_type::{InnerAssets, ReferenceType},
     resolve::{
@@ -49,7 +49,7 @@ use crate::{
             stylesheet::build_stylesheet,
             util::{get_font_axes, get_stylesheet_url},
         },
-        issue::NextFontIssue,
+        issue::GoogleFontsFetchIssue,
         util::{
             FontCssProperties, FontFamilyType, can_use_next_font, get_request_hash, get_request_id,
             get_scoped_font_family,
@@ -269,64 +269,15 @@ impl NextFontGoogleCssModuleReplacer {
             ),
             None => {
                 let attempts = self.fetch_client.await?.max_retries + 1;
-                match *self.next_mode.await? {
-                    // If we're in production mode, we want to fail the build to ensure proper font
-                    // rendering.
-                    NextMode::Build => {
-                        NextFontIssue {
-                            path: css_virtual_path.clone(),
-                            title: StyledString::Line(vec![
-                                StyledString::Code(rcstr!("next/font:")),
-                                StyledString::Text(rcstr!(" error:")),
-                            ])
-                            .resolved_cell(),
-                            description: StyledString::Text(
-                                format!(
-                                    "Failed to fetch `{}` from Google Fonts after {} \
-                                     attempts.\nIf you are offline or behind a proxy that blocks \
-                                     `fonts.googleapis.com`, self-host the font with \
-                                     `next/font/local`, or make sure the endpoint is reachable \
-                                     during the build.",
-                                    options.await?.font_family,
-                                    attempts,
-                                )
-                                .into(),
-                            )
-                            .resolved_cell(),
-                            severity: IssueSeverity::Error,
-                        }
-                        .resolved_cell()
-                        .emit();
-                    }
-                    // Inform the user of the failure to retrieve the stylesheet / font, but don't
-                    // propagate this error. We don't want e.g. offline connections to prevent page
-                    // renders during development.
-                    NextMode::Development => {
-                        NextFontIssue {
-                            path: css_virtual_path.clone(),
-                            title: StyledString::Line(vec![
-                                StyledString::Code(rcstr!("next/font:")),
-                                StyledString::Text(rcstr!(" warning:")),
-                            ])
-                            .resolved_cell(),
-                            description: StyledString::Text(
-                                format!(
-                                    "Failed to download `{}` from Google Fonts after {} attempts. \
-                                     Using a fallback font instead.\nIf you are offline or behind \
-                                     a proxy that blocks `fonts.googleapis.com`, self-host the \
-                                     font with `next/font/local`.",
-                                    options.await?.font_family,
-                                    attempts,
-                                )
-                                .into(),
-                            )
-                            .resolved_cell(),
-                            severity: IssueSeverity::Warning,
-                        }
-                        .resolved_cell()
-                        .emit();
-                    }
+                let is_dev = matches!(*self.next_mode.await?, NextMode::Development);
+                GoogleFontsFetchIssue {
+                    path: css_virtual_path.clone(),
+                    font_family: options.await?.font_family.clone(),
+                    attempts,
+                    is_dev,
                 }
+                .resolved_cell()
+                .emit();
 
                 None
             }
