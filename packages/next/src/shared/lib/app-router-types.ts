@@ -12,6 +12,7 @@ export type LoadingModuleData =
   | null
 
 import type { VaryParamsIterable } from './segment-cache/vary-params-decoding'
+import type { BaseUrlPart } from './relative-href'
 
 /** viewport metadata node */
 export type HeadData = React.ReactNode
@@ -453,6 +454,18 @@ export type InitialRSCPayload = {
   c: string[]
   /** initialRenderedSearch */
   q: string
+  /**
+   * matchedRoute — the current page's URL path parts, one per entry,
+   * derived from the matched route (see `getMatchedRoute`). Consumed by
+   * `unstable_useRelativeHref` during SSR and hydration; after the first
+   * router state update the client resolves against the actual pathname
+   * instead. Absent when the route has no statically resolvable path
+   * (every path to a page goes through a catch-all). A null part is a
+   * fallback param of the prerender, filled in from the actual URL before
+   * hydration. Like `c`, sent as parts rather than a joined path so
+   * crawlers don't interpret it as a URL to follow.
+   */
+  u?: BaseUrlPart[]
   /** couldBeIntercepted */
   i: boolean
   /** initialFlightData */

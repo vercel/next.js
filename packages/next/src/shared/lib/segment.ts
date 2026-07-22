@@ -87,3 +87,23 @@ export function getSelectedLayoutSegmentPath(
 export const PAGE_SEGMENT_KEY = '__PAGE__'
 export const DEFAULT_SEGMENT_KEY = '__DEFAULT__'
 export const NOT_FOUND_SEGMENT_KEY = '/_not-found'
+
+/**
+ * Whether a static segment belongs to a framework-internal route that never
+ * appears in URL space: the built-in 404 route and the app error route.
+ * These routes render at arbitrary URLs, so their segments must not be
+ * treated as URL path parts (see e.g. `unstable_useRelativeHref`, which
+ * resolves against the actual URL on such routes). Depending on how
+ * next-app-loader built the tree, the segments come in slash-prefixed or
+ * bare form (see UNDERSCORE_NOT_FOUND_ROUTE / UNDERSCORE_GLOBAL_ERROR_ROUTE
+ * in entry-constants.ts). User segments can't collide with these names —
+ * underscore-prefixed folders are private and excluded from routing.
+ */
+export function isFrameworkInternalRouteSegment(segment: string): boolean {
+  return (
+    segment === '/_not-found' ||
+    segment === '_not-found' ||
+    segment === '/_global-error' ||
+    segment === '_global-error'
+  )
+}

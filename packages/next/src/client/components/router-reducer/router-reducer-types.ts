@@ -1,5 +1,6 @@
 import type { CacheNode, ScrollRef } from '../../../shared/lib/app-router-types'
 import type { FlightRouterState } from '../../../shared/lib/app-router-types'
+import type { BaseUrlPart } from '../../../shared/lib/relative-href'
 import type { NavigationSeed } from '../segment-cache/navigation'
 import type { FetchServerResponseResult } from './fetch-server-response'
 import type { FreshnessPolicy } from './ppr-navigations'
@@ -254,6 +255,18 @@ export type AppRouterState = {
    * The previous next-url that was used previous to a dynamic navigation.
    */
   previousNextUrl: string | null
+
+  /**
+   * The current page's URL path parts as computed by the server for the
+   * initial render (see `InitialRSCPayload.u`). Consumed by
+   * `unstable_useRelativeHref`, so that SSR and hydration render identical
+   * hrefs. Only `createInitialRouterState` populates it — every other place
+   * that creates a router state must set it to null, so that after the
+   * first state transition the hook resolves against the pathname, the
+   * same source `usePathname` reads. Also null on the initial render when
+   * the route has no statically resolvable path.
+   */
+  initialMatchedRoute: BaseUrlPart[] | null
 
   debugInfo: Array<unknown> | null
 }

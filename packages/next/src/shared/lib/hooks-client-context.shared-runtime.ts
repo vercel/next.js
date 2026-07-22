@@ -2,6 +2,7 @@
 
 import { createContext } from 'react'
 import type { Params } from '../../server/request/params'
+import type { FlightRouterState } from './app-router-types'
 import { ReadonlyURLSearchParams } from '../../client/components/readonly-url-search-params'
 
 export const SearchParamsContext = createContext<URLSearchParams | null>(null)
@@ -26,6 +27,12 @@ export type NavigationPromises = {
     InstrumentedPromise<string | null>
   >
   selectedLayoutSegmentsPromises?: Map<string, InstrumentedPromise<string[]>>
+  // Shared by every unstable_useRelativeHref instance: conceptually they
+  // all block on the same thing — the resolved router state — so one
+  // promise suffices. Its name attributes the dependency to the hook in
+  // the Suspense DevTools; unlike the other promises here, its value is
+  // not the hook's return value.
+  relativeHref: InstrumentedPromise<FlightRouterState>
 }
 
 export const NavigationPromisesContext =

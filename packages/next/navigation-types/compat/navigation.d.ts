@@ -47,4 +47,13 @@ declare module 'next/navigation' {
    * If used from `pages/`, the hook will return `null`.
    */
   export function useSelectedLayoutSegment(): string | null
+
+  /**
+   * A [Client Component](https://nextjs.org/docs/app/building-your-application/rendering/client-components) hook
+   * that computes a relative URL reference from the current page to a target
+   * route pattern.
+   *
+   * If used from `pages/`, the hook will return `null`.
+   */
+  export function unstable_useRelativeHref(target: string): string | null
 }

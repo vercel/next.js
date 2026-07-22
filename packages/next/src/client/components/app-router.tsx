@@ -11,6 +11,8 @@ import {
   GlobalLayoutRouterContext,
 } from '../../shared/lib/app-router-context.shared-runtime'
 import type { CacheNode } from '../../shared/lib/app-router-types'
+import { splitPathSegments } from '../../shared/lib/relative-href'
+import { getPrerenderFallbackParams } from './navigation-dynamic-rendering'
 import { ACTION_RESTORE } from './router-reducer/router-reducer-types'
 import type {
   AppHistoryState,
@@ -452,7 +454,14 @@ function Router({
     }
   }, [])
 
-  const { cache, tree, nextUrl, focusAndScrollRef, previousNextUrl } = state
+  const {
+    cache,
+    tree,
+    nextUrl,
+    focusAndScrollRef,
+    previousNextUrl,
+    initialMatchedRoute,
+  } = state
 
   const matchingHead = useMemo(() => {
     return findHeadInCache(cache, tree[1])
@@ -498,13 +507,44 @@ function Router({
   }, [tree, cache, canonicalUrl])
 
   const globalLayoutRouterContext = useMemo(() => {
+    // The current page's URL path parts, for unstable_useRelativeHref:
+    // the server-computed matched route on the initial render (so SSR and
+    // hydration resolve hrefs identically), the URL pathname — the same
+    // source usePathname reads — after the first router state update, or
+    // on the initial render when the route has no statically resolvable
+    // path. Resolved here, once per state, rather than per hook call.
+    let matchedRoute
+    if (initialMatchedRoute !== null) {
+      matchedRoute = initialMatchedRoute
+    } else {
+      // During a prerender with fallback params the pathname is a
+      // placeholder, not a real URL, so it doesn't yield a usable base:
+      // pass null and the hook deopts to dynamic rendering.
+      // `getPrerenderFallbackParams` is server-only (undefined in the
+      // browser) and only returns params during a prerender that has
+      // unknown ones — at request time, and on the client, the pathname
+      // is always real.
+      const fallbackParams = getPrerenderFallbackParams?.()
+      matchedRoute =
+        fallbackParams != null && fallbackParams.size > 0
+          ? null
+          : splitPathSegments(pathname)
+    }
     return {
       tree,
       focusAndScrollRef,
       nextUrl,
       previousNextUrl,
+      matchedRoute,
     }
-  }, [tree, focusAndScrollRef, nextUrl, previousNextUrl])
+  }, [
+    tree,
+    focusAndScrollRef,
+    nextUrl,
+    previousNextUrl,
+    initialMatchedRoute,
+    pathname,
+  ])
 
   let head
   if (matchingHead !== null) {
@@ -603,10 +643,10 @@ function Router({
                 value={globalLayoutRouterContext}
               >
                 {/* TODO: We should be able to remove this context. useRouter
-                    should import from app-router-instance instead. It's only
-                    necessary because useRouter is shared between Pages and
-                    App Router. We should fork that module, then remove this
-                    context provider. */}
+                  should import from app-router-instance instead. It's only
+                  necessary because useRouter is shared between Pages and
+                  App Router. We should fork that module, then remove this
+                  context provider. */}
                 <AppRouterContext.Provider value={publicAppRouterInstance}>
                   <LayoutRouterContext.Provider value={layoutRouterContext}>
                     {content}
