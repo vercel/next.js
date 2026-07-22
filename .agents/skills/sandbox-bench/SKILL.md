@@ -277,7 +277,7 @@ hit their ~2h timeout.
   `results.jsonl` down when done, then remove the VM and analyze with
   `bench-analyze.mjs`.
 - **Leaked VMs** after any crash: `node scripts/sandbox-sweep.mjs`
-  lists this skill's VMs (matched by sbench-* name AND the
+  lists this skill's VMs (matched by sbench-\* name AND the
   purpose=sandbox-bench tag, and only when older than --min-age-hours,
   default 3, so healthy in-flight runs are never touched); `--yes`
   removes them by exact listed name.
