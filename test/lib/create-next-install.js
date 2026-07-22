@@ -256,9 +256,8 @@ async function createNextInstall({
         combinedDependencies['next-rspack'] = pkgPaths.get('next-rspack')
       }
 
-      // Resolves transitive workspace deps (e.g. `next`'s dependency on
-      // `@next/env`) from local tarballs. Written to `overrides` for npm,
-      // `resolutions` for yarn, and the workspace yaml for pnpm.
+      // Build overrides to resolve transitive workspace deps from local
+      // tarballs. Write all three formats so npm, pnpm, and yarn all work.
       const workspacePkgOverrides = {}
       for (const [name, tarballPath] of pkgPaths.entries()) {
         if (!combinedDependencies[name]) {
