@@ -112,8 +112,8 @@ async function applyInstallSecuritySettings(installDir, isolationRoot) {
 
 /**
  * pnpm only honors overrides at the workspace root, so they go into the
- * `pnpm-workspace.yaml` that governs the install (the only location pnpm 11
- * reads them from). Guarded by test/production/isolated-install-overrides.
+ * `pnpm-workspace.yaml` that governs the install. Guarded by
+ * test/production/isolated-install-overrides.
  *
  * @param {string} installDir
  * @param {string} isolationRoot
