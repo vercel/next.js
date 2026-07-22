@@ -200,6 +200,7 @@ enum SnapshotReason {
     InitialSnapshotTimeout,
     RegularSnapshotInterval,
     IdleTimeout,
+    MemoryPressure,
 }
 
 impl SnapshotReason {
@@ -210,6 +211,7 @@ impl SnapshotReason {
             SnapshotReason::InitialSnapshotTimeout => "initial snapshot timeout",
             SnapshotReason::RegularSnapshotInterval => "regular snapshot interval",
             SnapshotReason::IdleTimeout => "idle timeout",
+            SnapshotReason::MemoryPressure => "memory-pressure",
         }
     }
 
@@ -2919,6 +2921,17 @@ impl TurboTasksBackend {
                             .unwrap_or(Duration::from_secs(1))
                     });
 
+                    /// Prototype: net live bytes above which a snapshot + eviction cycle is
+                    /// triggered immediately instead of waiting for the periodic interval or
+                    /// an idle timeout. Disabled unless the env var is set.
+                    static EVICT_ABOVE_BYTES: LazyLock<Option<usize>> = LazyLock::new(|| {
+                        std::env::var("TURBO_ENGINE_EVICT_ABOVE_MB")
+                            .ok()
+                            .and_then(|v| v.parse::<usize>().ok())
+                            .map(|mb| mb * 1024 * 1024)
+                    });
+
+                    let mut pressure_cooldown_until = Instant::now();
                     let mut last_snapshot = self.start_time;
                     let mut idle_start_listener = self.idle_start_event.listen();
                     let mut idle_end_listener = self.idle_end_event.listen();
@@ -2938,6 +2951,8 @@ impl TurboTasksBackend {
                         const FIRST_SNAPSHOT_WAIT: Duration = Duration::from_secs(300);
                         const SNAPSHOT_INTERVAL: Duration = Duration::from_secs(120);
                         let idle_timeout = *IDLE_TIMEOUT;
+                        const PRESSURE_CHECK_INTERVAL: Duration = Duration::from_secs(1);
+                        const PRESSURE_COOLDOWN: Duration = Duration::from_secs(30);
                         let (time, mut reason) = if is_first {
                             (FIRST_SNAPSHOT_WAIT, SnapshotReason::InitialSnapshotTimeout)
                         } else {
@@ -2961,6 +2976,8 @@ impl TurboTasksBackend {
                             } else {
                                 far_future()
                             };
+                            let mut pressure_check =
+                                tokio::time::Instant::now() + PRESSURE_CHECK_INTERVAL;
                             loop {
                                 tokio::select! {
                                     _ = &mut stop_listener => {
@@ -2987,8 +3004,25 @@ impl TurboTasksBackend {
                                             break;
                                         }
                                     },
+                                    // Pinned deadline: an inline `sleep()` would be recreated on
+                                    // every select iteration and starve under frequent idle events.
+                                    _ = tokio::time::sleep_until(pressure_check), if EVICT_ABOVE_BYTES.is_some() => {
+                                        pressure_check =
+                                            tokio::time::Instant::now() + PRESSURE_CHECK_INTERVAL;
+                                        if let Some(budget) = *EVICT_ABOVE_BYTES
+                                            && Instant::now() >= pressure_cooldown_until
+                                            && turbo_tasks_malloc::TurboMalloc::memory_usage() > budget
+                                        {
+                                            reason = SnapshotReason::MemoryPressure;
+                                            break;
+                                        }
+                                    },
                                 }
                             }
+                        }
+                        let pressure_triggered = matches!(reason, SnapshotReason::MemoryPressure);
+                        if pressure_triggered {
+                            pressure_cooldown_until = Instant::now() + PRESSURE_COOLDOWN;
                         }
 
                         // Persistence exists to save work; accumulated compilation time is
@@ -3065,7 +3099,9 @@ impl TurboTasksBackend {
                                 // `eviction_control` owns the mode + threshold decision. On a
                                 // skipped cycle its baseline and `ran_eviction` stay untouched
                                 // so growth accumulates toward the next cycle.
-                                let ran_eviction = if eviction_control.should_evict(new_data) {
+                                let ran_eviction = if pressure_triggered
+                                    || eviction_control.should_evict(new_data)
+                                {
                                     // NOTE: we do not check for idle here, eviction is fast and
                                     // when enabled we should expect it to reclaim substantial
                                     // memory so racing with execution is as likely to save time as
@@ -3074,7 +3110,14 @@ impl TurboTasksBackend {
                                         background_span.id(),
                                         self.eviction_recency(),
                                     );
-                                    log_eviction_counts("idle/interval", &counts);
+                                    log_eviction_counts(
+                                        if pressure_triggered {
+                                            "pressure"
+                                        } else {
+                                            "idle/interval"
+                                        },
+                                        &counts,
+                                    );
                                     // Sample the post-eviction floor as the new baseline.
                                     eviction_control.record_eviction();
                                     true
