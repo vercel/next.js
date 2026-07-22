@@ -111,6 +111,46 @@ async function applyInstallSecuritySettings(installDir, isolationRoot) {
 }
 
 /**
+ * pnpm only honors `overrides` at the workspace root. When a fixture creates
+ * its own `pnpm-workspace.yaml` above the install dir, the tarball overrides
+ * in the install dir's `package.json` are ignored and workspace packages like
+ * `@next/env` are fetched from the registry at the repo's current version,
+ * which doesn't exist there while a canary release is still propagating.
+ *
+ * @param {string} installDir
+ * @param {string} isolationRoot
+ * @param {Map<string, string>} pkgPaths
+ * @returns {Promise<void>}
+ */
+async function applyWorkspaceRootOverrides(
+  installDir,
+  isolationRoot,
+  pkgPaths
+) {
+  const workspaceFile = await findConfigFile(
+    'pnpm-workspace.yaml',
+    installDir,
+    isolationRoot
+  )
+  if (
+    workspaceFile === null ||
+    path.dirname(workspaceFile) === path.resolve(installDir)
+  ) {
+    return
+  }
+
+  const workspaceConfig =
+    /** @type {Record<string, any>} */ (
+      yaml.load(await fs.readFile(workspaceFile, 'utf8'))
+    ) ?? {}
+  workspaceConfig.overrides = {
+    ...Object.fromEntries(pkgPaths),
+    ...(workspaceConfig.overrides || {}),
+  }
+  await fs.writeFile(workspaceFile, yaml.dump(workspaceConfig))
+}
+
+/**
  *
  * @param {object} param0
  * @param {import('@next/telemetry').Span} param0.parentSpan
@@ -310,6 +350,7 @@ async function createNextInstall({
           : installCommand
         : null
 
+      await applyWorkspaceRootOverrides(installDir, isolationRoot, pkgPaths)
       await applyInstallSecuritySettings(installDir, isolationRoot)
 
       if (installString !== null) {
