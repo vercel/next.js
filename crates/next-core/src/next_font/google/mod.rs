@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{Completion, FxIndexMap, ResolvedVc, Vc};
 use turbo_tasks_env::{CommandLineProcessEnv, ProcessEnv};
-use turbo_tasks_fetch::{FetchClientConfig, HttpResponseBody};
+use turbo_tasks_fetch::{FetchClientConfig, HttpResponseBody, MAX_FETCH_RETRIES};
 use turbo_tasks_fs::{
     DiskFileSystem, File, FileContent, FileSystem, FileSystemPath,
     json::parse_json_with_source_context,
@@ -281,8 +281,13 @@ impl NextFontGoogleCssModuleReplacer {
                             .resolved_cell(),
                             description: StyledString::Text(
                                 format!(
-                                    "Failed to fetch `{}` from Google Fonts.",
-                                    options.await?.font_family
+                                    "Failed to fetch `{}` from Google Fonts after {} \
+                                     attempts.\nIf you are offline or behind a proxy that blocks \
+                                     `fonts.googleapis.com`, self-host the font with \
+                                     `next/font/local`, or make sure the endpoint is reachable \
+                                     during the build.",
+                                    options.await?.font_family,
+                                    MAX_FETCH_RETRIES + 1,
                                 )
                                 .into(),
                             )
@@ -305,9 +310,12 @@ impl NextFontGoogleCssModuleReplacer {
                             .resolved_cell(),
                             description: StyledString::Text(
                                 format!(
-                                    "Failed to download `{}` from Google Fonts. Using fallback \
-                                     font instead.",
-                                    options.await?.font_family
+                                    "Failed to download `{}` from Google Fonts after {} attempts. \
+                                     Using a fallback font instead.\nIf you are offline or behind \
+                                     a proxy that blocks `fonts.googleapis.com`, self-host the \
+                                     font with `next/font/local`.",
+                                    options.await?.font_family,
+                                    MAX_FETCH_RETRIES + 1,
                                 )
                                 .into(),
                             )
