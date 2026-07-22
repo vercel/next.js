@@ -95,6 +95,14 @@ describe('Cache Components Dev Errors', () => {
     expect(stripAnsi(next.cliOutput.slice(outputIndex))).toContain(
       'https://nextjs.org/docs/messages/blocking-prerender-dynamic'
     )
+    expect(stripAnsi(next.cliOutput.slice(outputIndex))).toContain(
+      '\n    at Page (app/no-accessed-data/page.js:2:9)' +
+        '\n  1 | export default async function Page() {' +
+        '\n> 2 |   await new Promise((r) => setTimeout(r, 200))' +
+        '\n    |         ^' +
+        '\n  3 |   return <p>Page</p>' +
+        '\n  4 | }'
+    )
 
     await expect(browser).toDisplayCollapsedRedbox(`
      {
