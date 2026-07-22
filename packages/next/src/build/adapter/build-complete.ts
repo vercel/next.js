@@ -1572,6 +1572,9 @@ export async function handleBuildComplete({
           )?.routeKeys || {}
         const allowQuery = Object.values(routeKeys)
         const partialFallback =
+          // Partial fallback shells are only emitted when Partial Prefetching
+          // is enabled in the app's Next.js config.
+          Boolean(config.partialPrefetching) &&
           isAppPage &&
           remainingPrerenderableParams !== undefined &&
           remainingPrerenderableParams.length > 0 &&
