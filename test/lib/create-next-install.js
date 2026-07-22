@@ -111,31 +111,27 @@ async function applyInstallSecuritySettings(installDir, isolationRoot) {
 }
 
 /**
- * pnpm only honors `overrides` at the workspace root. When a fixture creates
- * its own `pnpm-workspace.yaml` above the install dir, the tarball overrides
- * in the install dir's `package.json` are ignored and workspace packages like
- * `@next/env` are fetched from the registry at the repo's current version,
- * which doesn't exist there while a canary release is still propagating.
+ * pnpm 10 no longer reads `overrides` (or the `pnpm` field) from
+ * `package.json` — `pnpm-workspace.yaml` is the only location it honors. So
+ * the overrides written to the install dir's `package.json` don't apply and
+ * pnpm fetches workspace packages like `@next/env` from the registry at the
+ * repo's current version, which doesn't exist there while a canary release is
+ * still propagating. Write them to the `pnpm-workspace.yaml` that governs the
+ * install instead: the one from the fixture if it creates its own workspace
+ * root, otherwise the one `applyInstallSecuritySettings` ensures exists.
  *
  * @param {string} installDir
  * @param {string} isolationRoot
- * @param {Map<string, string>} pkgPaths
+ * @param {Record<string, string>} overrides
  * @returns {Promise<void>}
  */
-async function applyWorkspaceRootOverrides(
-  installDir,
-  isolationRoot,
-  pkgPaths
-) {
+async function applyWorkspaceOverrides(installDir, isolationRoot, overrides) {
   const workspaceFile = await findConfigFile(
     'pnpm-workspace.yaml',
     installDir,
     isolationRoot
   )
-  if (
-    workspaceFile === null ||
-    path.dirname(workspaceFile) === path.resolve(installDir)
-  ) {
+  if (workspaceFile === null) {
     return
   }
 
@@ -144,7 +140,7 @@ async function applyWorkspaceRootOverrides(
       yaml.load(await fs.readFile(workspaceFile, 'utf8'))
     ) ?? {}
   workspaceConfig.overrides = {
-    ...Object.fromEntries(pkgPaths),
+    ...overrides,
     ...(workspaceConfig.overrides || {}),
   }
   await fs.writeFile(workspaceFile, yaml.dump(workspaceConfig))
@@ -350,8 +346,12 @@ async function createNextInstall({
           : installCommand
         : null
 
-      await applyWorkspaceRootOverrides(installDir, isolationRoot, pkgPaths)
       await applyInstallSecuritySettings(installDir, isolationRoot)
+      await applyWorkspaceOverrides(
+        installDir,
+        isolationRoot,
+        workspacePkgOverrides
+      )
 
       if (installString !== null) {
         console.log('running install command', installString)
