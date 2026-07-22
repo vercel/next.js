@@ -108,6 +108,103 @@ describe('use-cache-dev', () => {
       )
     })
 
+    // These two currently fail in both Turbopack and Webpack. Dev "use cache"
+    // invalidation relies on the __next_hmr_refresh_hash__ cookie that the
+    // browser HMR client sets after an edit; a client that fetches directly
+    // (curl, a plain fetch, a second device) never sends that cookie, so the
+    // "use cache" key does not change across the edit and the stale entry is
+    // reused. Change these to `it` once editing a file invalidates cached data
+    // for requests that do not carry the cookie, covering both route handlers
+    // and pages.
+    it.failing(
+      'should update cached data used by a route handler after editing a file',
+      async () => {
+        const initialData = await next
+          .fetch('/api/cached')
+          .then((res) => res.json())
+
+        expect(initialData.text).toBe('foo')
+        expect(initialData.uncachedText).toBe('foo')
+        expect(initialData.mathRandom).toEqual(expect.any(Number))
+
+        // A subsequent fetch returns the same cached value.
+        const cachedData = await next
+          .fetch('/api/cached')
+          .then((res) => res.json())
+
+        expect(cachedData.text).toBe('foo')
+        expect(cachedData.mathRandom).toBe(initialData.mathRandom)
+
+        // Edit the source literals inside and outside of "use cache".
+        await next.patchFile('app/api/cached/route.ts', (content) =>
+          content.replaceAll('foo', 'bar')
+        )
+
+        // Wait until the route handler module has recompiled. The uncached
+        // value is read outside of "use cache", so it reflects the edited
+        // source. This ensures we then assert the cached value against the
+        // post-edit module, not a request that raced the recompilation.
+        await retry(async () => {
+          const recompiledData = await next
+            .fetch('/api/cached')
+            .then((res) => res.json())
+
+          expect(recompiledData.uncachedText).toBe('bar')
+        })
+
+        const newData = await next
+          .fetch('/api/cached')
+          .then((res) => res.json())
+
+        // The cached function should return the edited value and recompute its
+        // random value due to a cache miss.
+        expect(newData.text).toBe('bar')
+        expect(newData.mathRandom).not.toBe(initialData.mathRandom)
+      }
+    )
+
+    it.failing(
+      'should update cached data used by a page fetched without a cookie after editing a file',
+      async () => {
+        // `next.render$` fetches directly, without the browser HMR client, so
+        // the request does not carry the __next_hmr_refresh_hash__ cookie.
+        let $ = await next.render$('/cached-page')
+        const initialText = $('#text').text()
+        const initialMathRandom = $('#mathRandom').text()
+
+        expect(initialText).toBe('foo')
+        expect($('#uncachedText').text()).toBe('foo')
+
+        // A subsequent fetch returns the same cached value.
+        $ = await next.render$('/cached-page')
+
+        expect($('#text').text()).toBe('foo')
+        expect($('#mathRandom').text()).toBe(initialMathRandom)
+
+        // Edit the source literals inside and outside of "use cache".
+        await next.patchFile('app/cached-page/page.tsx', (content) =>
+          content.replaceAll('foo', 'bar')
+        )
+
+        // Wait until the page module has recompiled. The uncached value is read
+        // outside of "use cache", so it reflects the edited source. This
+        // ensures we then assert the cached value against the post-edit module,
+        // not a request that raced the recompilation.
+        await retry(async () => {
+          const $$ = await next.render$('/cached-page')
+
+          expect($$('#uncachedText').text()).toBe('bar')
+        })
+
+        $ = await next.render$('/cached-page')
+
+        // The cached function should return the edited value and recompute its
+        // random value due to a cache miss.
+        expect($('#text').text()).toBe('bar')
+        expect($('#mathRandom').text()).not.toBe(initialMathRandom)
+      }
+    )
+
     it('should return cached data after reload', async () => {
       let $ = await next.render$('/')
       const initialContent = $('#container').text()
