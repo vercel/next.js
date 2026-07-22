@@ -712,7 +712,7 @@ impl Storage {
                     for (cell_id, shared_ref) in storage.audit_iter_cell_data() {
                         entries.push(AuditCellEntry {
                             task_id: *task_id,
-                            type_id: cell_id.type_id,
+                            type_id: cell_id.type_id(),
                             strong_count: triomphe::Arc::strong_count(&shared_ref.0),
                         });
                     }

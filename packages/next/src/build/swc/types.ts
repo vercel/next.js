@@ -13,6 +13,7 @@ import type {
   TraceQueryOptions,
   TraceQueryResult,
   MemoryEvictionMode,
+  NapiMemoryReport,
 } from './generated-native'
 
 export type { TraceServerHandle, TraceQueryOptions, TraceQueryResult }
@@ -353,6 +354,8 @@ export interface Project {
   ): AsyncIterableIterator<TurbopackResult<CompilationEvent>>
 
   invalidateFileSystemCache(): Promise<void>
+
+  getMemoryReport(): Promise<NapiMemoryReport>
 
   shutdown(): Promise<void>
 

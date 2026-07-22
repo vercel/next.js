@@ -33,6 +33,7 @@ import { BLOCKED_PAGES } from '../../shared/lib/constants'
 import {
   getOverlayMiddleware,
   getSourceMapMiddleware,
+  getMemoryReportMiddleware,
   getOriginalStackFrames,
 } from './middleware-turbopack'
 import { PageNotFoundError } from '../../shared/lib/utils'
@@ -1026,6 +1027,7 @@ export async function createHotReloaderTurbopack(
       isSrcDir: opts.isSrcDir,
     }),
     getSourceMapMiddleware(project),
+    getMemoryReportMiddleware(project),
     getNextErrorFeedbackMiddleware(opts.telemetry),
     getDevOverlayFontMiddleware(),
     getDisableDevIndicatorMiddleware(),

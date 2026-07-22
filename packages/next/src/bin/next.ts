@@ -798,4 +798,31 @@ internal
   )
   .usage('[directory] [options]')
 
+internal
+  .command('turbopack-memory')
+  .description(
+    'Dump a memory report from a running Next.js dev server (Turbopack).'
+  )
+  .argument(
+    '[directory]',
+    `A directory on which to look for the running dev server. ${italic(
+      'If no directory is provided, the current directory will be used.'
+    )}`
+  )
+  .addOption(
+    new Option('--format <format>', 'Output format.')
+      .choices(['json', 'markdown'])
+      .default('json')
+  )
+  .option(
+    '--url <url>',
+    'Connect to a dev server at the given URL instead of discovering via the lock file.'
+  )
+  .action((directory: string, options: { format?: string; url?: string }) =>
+    import('../cli/internal/next-turbopack-memory.js').then((mod) =>
+      mod.nextTurbopackMemory(options, directory)
+    )
+  )
+  .usage('[directory] [options]')
+
 program.parse(process.argv)

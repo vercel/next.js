@@ -503,6 +503,124 @@ export function getSourceMapMiddleware(project: Project) {
   }
 }
 
+export function getMemoryReportMiddleware(project: Project) {
+  return async function (
+    req: IncomingMessage,
+    res: ServerResponse,
+    next: () => void
+  ): Promise<void> {
+    const { pathname, searchParams } = new URL(req.url!, 'http://n')
+
+    if (pathname !== '/__nextjs_turbopack-memory') {
+      return next()
+    }
+
+    const format = searchParams.get('format') ?? 'json'
+
+    if (format !== 'json' && format !== 'markdown') {
+      return middlewareResponse.badRequest(
+        res,
+        `Invalid format "${format}". Expected "json" or "markdown".`
+      )
+    }
+
+    try {
+      const turbopackReport = await project.getMemoryReport()
+
+      // Augment with Node.js process-level stats and uptime.
+      const mem = process.memoryUsage()
+      const report = {
+        ...turbopackReport,
+        uptimeSecs: process.uptime(),
+        process: {
+          pid: process.pid,
+          nodeVersion: process.version,
+          rssBytes: mem.rss,
+          heapUsedBytes: mem.heapUsed,
+          heapTotalBytes: mem.heapTotal,
+          externalBytes: mem.external,
+        },
+      }
+
+      if (format === 'markdown') {
+        res.setHeader('Content-Type', 'text/markdown; charset=utf-8')
+        res.end(renderMemoryReportMarkdown(report))
+      } else {
+        res.setHeader('Content-Type', 'application/json; charset=utf-8')
+        res.end(JSON.stringify(report, null, 2))
+      }
+    } catch (cause) {
+      return middlewareResponse.internalServerError(
+        res,
+        new Error('Failed to collect memory report', { cause })
+      )
+    }
+  }
+}
+
+function formatBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes.toLocaleString('en-US')} B`
+  if (bytes < 1024 * 1024)
+    return `${(bytes / 1024).toLocaleString('en-US', { maximumFractionDigits: 1 })} KB`
+  if (bytes < 1024 * 1024 * 1024)
+    return `${(bytes / 1024 / 1024).toLocaleString('en-US', { maximumFractionDigits: 1 })} MB`
+  return `${(bytes / 1024 / 1024 / 1024).toLocaleString('en-US', { maximumFractionDigits: 2 })} GB`
+}
+const formatCount = (n: number) => n.toLocaleString('en-US')
+
+/**
+ * Render the strong-count memory audit as markdown: a Transient and a
+ * Persistent section, each with a per-value-type table ranked by
+ * `strongCountSum`, plus dependency-chain samples for the top transient
+ * offenders.
+ */
+function renderMemoryReportMarkdown(report: any): string {
+  let md = `# Turbopack Memory Report\n\n`
+  md += `Uptime: ${(report.uptimeSecs / 60).toFixed(1)} minutes  \n`
+  md += `PID: ${report.process.pid}\n\n`
+
+  md += `## Process Memory\n\n`
+  md += `| Metric | Value |\n|--------|------:|\n`
+  md += `| RSS | ${formatBytes(report.process.rssBytes)} |\n`
+  md += `| Node Heap Used | ${formatBytes(report.process.heapUsedBytes)} |\n`
+  md += `| Node Heap Total | ${formatBytes(report.process.heapTotalBytes)} |\n`
+  md += `| Node External | ${formatBytes(report.process.externalBytes)} |\n`
+
+  md += renderAuditSection('Transient (eviction skips these)', report.transient)
+  md += renderAuditSection(
+    'Persistent (survived eviction: unevictable cells or tasks)',
+    report.persistent
+  )
+
+  return md
+}
+
+function renderAuditSection(title: string, section: any): string {
+  let md = `\n## ${title}\n\n`
+  md += `Tasks: ${formatCount(section.taskCount)}  ·  `
+  md += `Cells: ${formatCount(section.cellCount)}  ·  `
+  md += `Distinct value types: ${formatCount(section.distinctValueTypes)}  ·  `
+  md += `Total strong count: ${formatCount(section.totalStrongCountSum)}\n\n`
+
+  md += `| Type | Strong Count | Cells | Max SC | Tasks |\n`
+  md += `|------|-------------:|------:|-------:|------:|\n`
+  for (const t of section.byType) {
+    md += `| \`${t.type}\` | ${formatCount(t.strongCountSum)} | ${formatCount(t.cells)} | ${formatCount(t.maxStrongCount)} | ${formatCount(t.distinctTasks)} |\n`
+  }
+
+  if (section.sampleChains.length > 0) {
+    md += `\n### Samples\n\n`
+    for (const sample of section.sampleChains) {
+      md += `**Rank ${sample.rank} — \`${sample.type}\`** (${sample.task})\n\n`
+      if (sample.chain) {
+        md += '```\n' + sample.chain + '\n```\n\n'
+      }
+    }
+  }
+
+  return md
+}
+
 export async function getOriginalStackFrames({
   project,
   projectPath,

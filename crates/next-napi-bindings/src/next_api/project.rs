@@ -2642,3 +2642,94 @@ pub async fn turbopack_database_compact(path: String, next_version: String) -> n
         .map_err(|e| napi::Error::from_reason(format!("Database compaction failed: {e}")))?;
     Ok(())
 }
+
+/// On-demand memory audit of everything resident in the Turbopack task storage.
+/// See [`turbo_tasks_backend::TurboTasksBackend::collect_memory_report`].
+#[napi(object)]
+pub struct NapiMemoryReport {
+    pub transient: NapiAuditSection,
+    pub persistent: NapiAuditSection,
+}
+
+#[napi(object)]
+pub struct NapiAuditSection {
+    pub task_count: f64,
+    pub cell_count: f64,
+    pub distinct_value_types: f64,
+    pub total_strong_count_sum: f64,
+    pub by_type: Vec<NapiTypeAudit>,
+    pub sample_chains: Vec<NapiSampleChain>,
+}
+
+#[napi(object)]
+pub struct NapiTypeAudit {
+    #[napi(js_name = "type")]
+    pub type_name: String,
+    pub strong_count_sum: f64,
+    pub cells: f64,
+    pub max_strong_count: f64,
+    pub distinct_tasks: f64,
+}
+
+#[napi(object)]
+pub struct NapiSampleChain {
+    pub rank: f64,
+    #[napi(js_name = "type")]
+    pub type_name: String,
+    pub task: String,
+    pub chain: String,
+}
+
+fn napi_audit_section(section: turbo_tasks_backend::AuditSection) -> NapiAuditSection {
+    NapiAuditSection {
+        task_count: section.task_count as f64,
+        cell_count: section.cell_count as f64,
+        distinct_value_types: section.distinct_value_types as f64,
+        total_strong_count_sum: section.total_strong_count_sum as f64,
+        by_type: section
+            .by_type
+            .into_iter()
+            .map(|t| NapiTypeAudit {
+                type_name: t.type_name.to_string(),
+                strong_count_sum: t.strong_count_sum as f64,
+                cells: t.cells as f64,
+                max_strong_count: t.max_strong_count as f64,
+                distinct_tasks: t.distinct_tasks as f64,
+            })
+            .collect(),
+        sample_chains: section
+            .sample_chains
+            .into_iter()
+            .map(|s| NapiSampleChain {
+                rank: s.rank as f64,
+                type_name: s.type_name.to_string(),
+                task: s.task,
+                chain: s.chain,
+            })
+            .collect(),
+    }
+}
+
+/// Collect an on-demand memory report from the running Turbopack backend.
+///
+/// This iterates all tasks under per-shard read locks, so it runs on a blocking
+/// thread to avoid stalling the async runtime.
+#[napi]
+pub async fn project_get_memory_report(
+    #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
+) -> napi::Result<NapiMemoryReport> {
+    let report = tokio::task::spawn_blocking(move || {
+        project
+            .turbopack_ctx
+            .turbo_tasks()
+            .backend()
+            .collect_memory_report()
+    })
+    .await
+    .context("panicked while collecting memory report")?;
+
+    Ok(NapiMemoryReport {
+        transient: napi_audit_section(report.transient),
+        persistent: napi_audit_section(report.persistent),
+    })
+}

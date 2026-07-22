@@ -848,6 +848,10 @@ function bindingToApi(
       return binding.projectInvalidateFileSystemCache(this._nativeProject)
     }
 
+    getMemoryReport() {
+      return binding.projectGetMemoryReport(this._nativeProject)
+    }
+
     shutdown(): Promise<void> {
       return binding.projectShutdown(this._nativeProject)
     }

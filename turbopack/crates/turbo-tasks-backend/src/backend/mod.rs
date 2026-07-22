@@ -195,6 +195,64 @@ impl SnapshotReason {
     }
 }
 
+/// On-demand memory audit of everything resident in the task storage, produced
+/// by [`TurboTasksBackend::collect_memory_report`].
+///
+/// Retention is measured by `strong_count` (the live `triomphe::Arc` reference
+/// count of each cell's data), not by an estimate of serialized size. The
+/// report is split into a transient and a persistent section (see
+/// [`AuditSection`]).
+#[derive(Debug, serde::Serialize)]
+pub struct MemoryReport {
+    /// Tasks eviction skips entirely (per-route accumulation lives here).
+    pub transient: AuditSection,
+    /// Cells that survived eviction: unevictable cells or unevictable tasks.
+    pub persistent: AuditSection,
+}
+
+/// One transient-or-persistent slice of a [`MemoryReport`], with per-value-type
+/// aggregates ranked by `strong_count_sum` descending.
+#[derive(Debug, serde::Serialize)]
+pub struct AuditSection {
+    /// Number of tasks (of this transient/persistent kind) in storage.
+    pub task_count: u64,
+    /// Number of cells contributed by those tasks.
+    pub cell_count: u64,
+    /// Number of distinct value types across those cells.
+    pub distinct_value_types: u64,
+    /// Sum of `strong_count` across all cells in this section.
+    pub total_strong_count_sum: u64,
+    /// Per-value-type aggregates, ranked by `strong_count_sum` descending.
+    pub by_type: Vec<TypeAudit>,
+    /// Sample tasks for the top-ranked types. For the transient section each
+    /// carries a dependency `chain`; for the persistent section `chain` is
+    /// empty and `task` carries a human-readable description instead.
+    pub sample_chains: Vec<SampleChain>,
+}
+
+/// Per-value-type aggregate within an [`AuditSection`].
+#[derive(Debug, serde::Serialize)]
+pub struct TypeAudit {
+    #[serde(rename = "type")]
+    pub type_name: &'static str,
+    pub strong_count_sum: u64,
+    pub cells: u64,
+    pub max_strong_count: u64,
+    pub distinct_tasks: u64,
+}
+
+/// A sampled task for one of the top-ranked types in an [`AuditSection`].
+#[derive(Debug, serde::Serialize)]
+pub struct SampleChain {
+    pub rank: u64,
+    #[serde(rename = "type")]
+    pub type_name: &'static str,
+    /// Debug/description string identifying the sampled task.
+    pub task: String,
+    /// Dependency-chain trace (transient section only; empty otherwise).
+    pub chain: String,
+}
+
 pub struct TurboTasksBackend {
     options: BackendOptions,
 
@@ -328,7 +386,6 @@ impl TurboTasksBackend {
             }
         };
         let counts = self.storage.evict_after_snapshot(None);
-        self.dump_memory_audit_to_tmp();
         (had_new_data, counts)
     }
 
@@ -1700,66 +1757,55 @@ impl TurboTasksBackend {
         )
     }
 
-    /// Debug dump: enumerate every cell of every task (transient and
-    /// persistent), aggregate by value type, and emit two ranked tables plus
-    /// sample dependency chains for the top offenders in each.
+    /// Collect an on-demand memory audit of everything currently resident in
+    /// the task storage.
     ///
-    /// Called synchronously at the end of each eviction cycle (see
-    /// [`Self::dump_memory_audit_to_tmp`]). Used to track down memory that
-    /// survives `evict_after_snapshot`:
-    /// - **Transient** section catches the per-route accumulation pattern (eviction skips these
-    ///   tasks entirely).
-    /// - **Persistent** section catches cells that *should* be evictable but aren't —
-    ///   `Evictability::Never` / `Expensive` cells, or tasks blocked from eviction by flags like
-    ///   `data_modified` or `data_restoring`.
-    fn dump_memory_audit(&self, cycle: u64, w: &mut dyn std::io::Write) -> std::io::Result<()> {
-        use std::time::{SystemTime, UNIX_EPOCH};
-
+    /// Enumerates every cell of every task (transient and persistent),
+    /// aggregates by value type ranked by `strong_count` (the number of live
+    /// `triomphe::Arc` references to the cell's data — a cheap, real proxy for
+    /// retention), and splits the result into two sections:
+    /// - **Transient** — tasks eviction skips entirely; catches the per-route accumulation pattern.
+    ///   Sample dependency chains are attached for the top offenders.
+    /// - **Persistent** — cells that *should* have been evictable but weren't
+    ///   (`Evictability::Never` / `Expensive` cells, or tasks blocked by flags like `data_modified`
+    ///   / `data_restoring`).
+    ///
+    /// This iterates all tasks under per-shard read locks, so it may take some
+    /// time on large graphs. It is exposed on-demand (see the NAPI
+    /// `projectGetMemoryReport` binding and the dev-server
+    /// `/__nextjs_turbopack-memory` endpoint) rather than run automatically.
+    pub fn collect_memory_report(&self) -> MemoryReport {
         let raw = self.storage.audit_all_cells();
-        let pid = std::process::id();
-        let ts = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .map(|d| d.as_secs())
-            .unwrap_or(0);
         let (transient_cells, persistent_cells): (Vec<_>, Vec<_>) =
             raw.cells.iter().partition(|e| e.task_id.is_transient());
 
-        writeln!(
-            w,
-            "=== Memory Audit (pid={pid}, cycle={cycle}, ts={ts}) ==="
-        )?;
-        writeln!(
-            w,
-            "transient: tasks={}  cells={}    persistent: tasks={}  cells={}",
-            raw.transient_task_count,
-            transient_cells.len(),
-            raw.persistent_task_count,
-            persistent_cells.len(),
-        )?;
-
-        writeln!(w, "\n--- TRANSIENT (eviction skips these) ---")?;
-        self.write_audit_section(w, &transient_cells, /* include_chain = */ true)?;
-
-        writeln!(
-            w,
-            "\n--- PERSISTENT (survived eviction: unevictable cells or unevictable tasks) ---"
-        )?;
-        self.write_audit_section(w, &persistent_cells, /* include_chain = */ false)?;
-        Ok(())
+        MemoryReport {
+            transient: self.audit_section(
+                raw.transient_task_count,
+                &transient_cells,
+                /* include_chain = */ true,
+            ),
+            persistent: self.audit_section(
+                raw.persistent_task_count,
+                &persistent_cells,
+                /* include_chain = */ false,
+            ),
+        }
     }
 
-    /// Render one ranked-by-strong-count section of the memory audit.
+    /// Aggregate one set of cells (transient or persistent) into a ranked
+    /// [`AuditSection`].
     ///
-    /// If `include_chain` is true, emits a `DebugTraceTransientTask` Display
-    /// for the top-10 sample tasks — only meaningful for transient tasks.
-    /// For persistent samples we just emit `debug_get_task_description`,
-    /// which is enough to identify which task is holding the cell.
-    fn write_audit_section(
+    /// If `include_chain` is true, a `DebugTraceTransientTask` trace is attached
+    /// to each top-10 sample — only meaningful for transient tasks. For
+    /// persistent samples the chain is left empty and the sample carries only
+    /// `debug_get_task_description`, which is enough to identify the holder.
+    fn audit_section(
         &self,
-        w: &mut dyn std::io::Write,
+        task_count: usize,
         cells: &[&storage::AuditCellEntry],
         include_chain: bool,
-    ) -> std::io::Result<()> {
+    ) -> AuditSection {
         #[derive(Default)]
         struct TypeAggregate {
             cells: usize,
@@ -1769,9 +1815,9 @@ impl TurboTasksBackend {
             sample_task: Option<TaskId>,
         }
 
-        let mut by_type: FxHashMap<ValueTypeId, TypeAggregate> = FxHashMap::default();
+        let mut by_type_map: FxHashMap<ValueTypeId, TypeAggregate> = FxHashMap::default();
         for e in cells {
-            let agg = by_type.entry(e.type_id).or_default();
+            let agg = by_type_map.entry(e.type_id).or_default();
             agg.cells += 1;
             agg.strong_count_sum += e.strong_count as u64;
             if e.strong_count > agg.strong_count_max {
@@ -1781,99 +1827,56 @@ impl TurboTasksBackend {
             agg.sample_task.get_or_insert(e.task_id);
         }
 
-        let mut ranked: Vec<(ValueTypeId, TypeAggregate)> = by_type.into_iter().collect();
+        let mut ranked: Vec<(ValueTypeId, TypeAggregate)> = by_type_map.into_iter().collect();
         ranked.sort_by_key(|b| Reverse(b.1.strong_count_sum));
 
-        let strong_sum_total: u64 = ranked.iter().map(|(_, a)| a.strong_count_sum).sum();
-        writeln!(
-            w,
-            "distinct_value_types={}  total_strong_count_sum={}",
-            ranked.len(),
-            strong_sum_total,
-        )?;
-        writeln!(
-            w,
-            "{:>4}  {:>14}  {:>10}  {:>8}  {:>8}  type_name",
-            "rank", "strong_sum", "cells", "max_sc", "tasks",
-        )?;
-        for (i, (type_id, agg)) in ranked.iter().take(50).enumerate() {
-            let name = get_value_type(*type_id).ty.name;
-            writeln!(
-                w,
-                "{:>4}  {:>14}  {:>10}  {:>8}  {:>8}  {}",
-                i + 1,
-                agg.strong_count_sum,
-                agg.cells,
-                agg.strong_count_max,
-                agg.distinct_tasks.len(),
-                name,
-            )?;
-        }
+        let total_strong_count_sum: u64 = ranked.iter().map(|(_, a)| a.strong_count_sum).sum();
 
+        let by_type: Vec<TypeAudit> = ranked
+            .iter()
+            .map(|(type_id, agg)| TypeAudit {
+                type_name: get_value_type(*type_id).ty.name,
+                strong_count_sum: agg.strong_count_sum,
+                cells: agg.cells as u64,
+                max_strong_count: agg.strong_count_max as u64,
+                distinct_tasks: agg.distinct_tasks.len() as u64,
+            })
+            .collect();
+
+        // Sample the top-10 types to trace which task holds the cell.
+        let mut sample_chains = Vec::new();
         for (i, (type_id, agg)) in ranked.iter().take(10).enumerate() {
             let Some(sample) = agg.sample_task else {
                 continue;
             };
             let type_name = get_value_type(*type_id).ty.name;
-            if include_chain {
-                let Some(task_type) = self.debug_get_cached_task_type(sample) else {
-                    writeln!(
-                        w,
-                        "\n  Sample rank {} ({}, task {:?}): [no cached task type]",
-                        i + 1,
-                        type_name,
-                        sample,
-                    )?;
-                    continue;
-                };
-                let cell_id = CellId {
-                    type_id: *type_id,
-                    index: 0,
-                };
-                let trace = self.debug_trace_transient_task(&task_type, Some(cell_id));
-                writeln!(
-                    w,
-                    "\n  Sample chain rank {} ({}, sample task {:?}):\n{}",
-                    i + 1,
-                    type_name,
-                    sample,
-                    trace,
-                )?;
+            let (task, chain) = if include_chain {
+                match self.debug_get_cached_task_type(sample) {
+                    Some(task_type) => {
+                        let cell_id = CellId::new(*type_id, 0);
+                        let trace = self.debug_trace_transient_task(&task_type, Some(cell_id));
+                        (format!("{sample:?}"), trace.to_string())
+                    }
+                    None => (format!("{sample:?}"), "[no cached task type]".to_string()),
+                }
             } else {
-                let desc = self.debug_get_task_description(sample);
-                writeln!(w, "  Sample rank {} ({}): {}", i + 1, type_name, desc,)?;
-            }
+                (self.debug_get_task_description(sample), String::new())
+            };
+            sample_chains.push(SampleChain {
+                rank: (i + 1) as u64,
+                type_name,
+                task,
+                chain,
+            });
         }
-        Ok(())
-    }
 
-    /// Write a memory audit report to
-    /// `/tmp/turbo-tasks-audit-<pid>-<cycle>.txt`. Best-effort: errors are
-    /// logged via `tracing::warn!` and otherwise swallowed — the audit must
-    /// not break eviction.
-    fn dump_memory_audit_to_tmp(&self) {
-        use std::{
-            fs::File,
-            io::BufWriter,
-            sync::atomic::{AtomicU64, Ordering},
-        };
-        static CYCLE: AtomicU64 = AtomicU64::new(0);
-        let cycle = CYCLE.fetch_add(1, Ordering::Relaxed);
-        let path = format!(
-            "/tmp/turbo-tasks-audit-{}-{:05}.txt",
-            std::process::id(),
-            cycle,
-        );
-        let file = match File::create(&path) {
-            Ok(f) => f,
-            Err(e) => {
-                tracing::warn!(?path, error = %e, "failed to create memory audit file");
-                return;
-            }
-        };
-        let mut w = BufWriter::new(file);
-        if let Err(e) = self.dump_memory_audit(cycle, &mut w) {
-            tracing::warn!(?path, error = %e, "failed to write memory audit");
+        AuditSection {
+            task_count: task_count as u64,
+            cell_count: cells.len() as u64,
+            distinct_value_types: by_type.len() as u64,
+            total_strong_count_sum,
+            by_type,
+            sample_chains,
         }
     }
 
@@ -3168,7 +3171,6 @@ impl TurboTasksBackend {
                                     self.storage.evict_after_snapshot(background_span.id());
                                     // Sample the post-eviction floor as the new baseline.
                                     eviction_control.record_eviction();
-                                    self.dump_memory_audit_to_tmp();
                                     true
                                 } else {
                                     false

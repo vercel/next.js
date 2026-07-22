@@ -512,6 +512,44 @@ export declare function turbopackDatabaseCompact(
   nextVersion: string
 ): Promise<void>
 /**
+ * On-demand memory audit of everything resident in the Turbopack task storage.
+ * See [`turbo_tasks_backend::TurboTasksBackend::collect_memory_report`].
+ */
+export interface NapiMemoryReport {
+  transient: NapiAuditSection
+  persistent: NapiAuditSection
+}
+export interface NapiAuditSection {
+  taskCount: number
+  cellCount: number
+  distinctValueTypes: number
+  totalStrongCountSum: number
+  byType: Array<NapiTypeAudit>
+  sampleChains: Array<NapiSampleChain>
+}
+export interface NapiTypeAudit {
+  type: string
+  strongCountSum: number
+  cells: number
+  maxStrongCount: number
+  distinctTasks: number
+}
+export interface NapiSampleChain {
+  rank: number
+  type: string
+  task: string
+  chain: string
+}
+/**
+ * Collect an on-demand memory report from the running Turbopack backend.
+ *
+ * This iterates all tasks under per-shard read locks, so it runs on a blocking
+ * thread to avoid stalling the async runtime.
+ */
+export declare function projectGetMemoryReport(project: {
+  __napiType: 'Project'
+}): Promise<NapiMemoryReport>
+/**
  * A version of [`NapiNextTurbopackCallbacks`] that can accepted as an argument to a napi function.
  *
  * This can be converted into a [`NapiNextTurbopackCallbacks`] with
