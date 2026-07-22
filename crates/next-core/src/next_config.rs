@@ -2704,10 +2704,11 @@ impl NextConfig {
 
     #[turbo_tasks::function]
     pub fn fetch_client(&self) -> Vc<FetchClientConfig> {
-        // Used for the Google Fonts fetch, which downloads from a fast CDN at compile time. Bound
-        // it tightly: a short connect timeout fails fast when a proxy or captive portal hangs the
-        // connection (so `next build`/`next dev` fall back instead of blocking indefinitely), while
-        // the total timeout stays generous enough for a slow-but-working network during a build.
+        // Used for the Google Fonts fetch.
+        // Use timeouts to prevent indefinite/long hangs.
+        // `next dev` will fall back to system fonts if this fails.
+        // `next build` will fail if this times out.
+        // TODO: Use a less aggressive timeout for build than dev.
         FetchClientConfig {
             connect_timeout: std::time::Duration::from_secs(5),
             timeout: std::time::Duration::from_secs(30),
