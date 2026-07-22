@@ -354,17 +354,19 @@ async function createNextInstall({
 
         // `@next/env` is a dependency of `next`, so it only resolves to the
         // local tarball if the overrides were applied.
-        const envDir = await fs.realpath(
-          path.join(
-            await fs.realpath(path.join(installDir, 'node_modules/next')),
-            '../@next/env'
+        if (!combinedDependencies['@next/env']) {
+          const envDir = await fs.realpath(
+            path.join(
+              await fs.realpath(path.join(installDir, 'node_modules/next')),
+              '../@next/env'
+            )
           )
-        )
-        if (!envDir.includes('@next+env@file')) {
-          throw new Error(
-            `@next/env resolved from the npm registry instead of the local tarball (${envDir}), ` +
-              'the workspace overrides were not applied to the install'
-          )
+          if (!envDir.includes('@next+env@file')) {
+            throw new Error(
+              `@next/env resolved from the npm registry instead of the local tarball (${envDir}), ` +
+                'the workspace overrides were not applied to the install'
+            )
+          }
         }
       }
 
