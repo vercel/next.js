@@ -1,7 +1,9 @@
 import type { Socket } from 'net'
 import { mkdir, writeFile } from 'fs/promises'
+import { realpathSync } from 'fs'
 import * as inspector from 'inspector'
-import { join, extname, relative } from 'path'
+import { join, extname, relative, isAbsolute } from 'path'
+import { pathToFileURL } from 'url'
 
 import ws from 'next/dist/compiled/ws'
 
@@ -281,15 +283,34 @@ function getSourceMapFromTurbopack(
 }
 
 function getSourceMapURLFromTurbopack(
-  project: Project,
-  sourceURL: string
+  distDir: string,
+  scriptNameOrSourceURL: string
 ): string | null {
-  let sourceMapFilePath: string | null = null
-  try {
-    sourceMapFilePath = project.getSourceMapFilePathSync(sourceURL)
-  } catch (err) {}
+  // React invokes this with the raw stack-frame filename, which for the server
+  // chunks we can source-map is the script's `getScriptNameOrSourceURL()`, i.e.
+  // an absolute filesystem path (React only wraps it into a `file:`/
+  // `about://React/...` URL for the fake script's own `//# sourceURL`, after
+  // this lookup). Anything else (`webpack-internal://`, `node:internal/...`,
+  // `<anonymous>`, ...) is not something we have an emitted source map for.
+  if (!isAbsolute(scriptNameOrSourceURL)) {
+    return null
+  }
 
-  return sourceMapFilePath
+  // Only chunks emitted into `distDir` have an on-disk source map to point at.
+  const relativePath = relative(distDir, scriptNameOrSourceURL)
+  if (
+    relativePath.startsWith('..') ||
+    // On Windows an absolute path on a different drive is returned unchanged
+    // rather than as a `..`-prefixed relative path.
+    isAbsolute(relativePath)
+  ) {
+    return null
+  }
+
+  // The emitted source map lives next to its chunk with a `.map` suffix (see
+  // `SourceMapAsset::path`). Encode through `pathToFileURL` so any special
+  // characters in the path are escaped into a well-formed `file:` URL.
+  return pathToFileURL(scriptNameOrSourceURL + '.map').href
 }
 
 export async function createHotReloaderTurbopack(
@@ -422,8 +443,13 @@ export async function createHotReloaderTurbopack(
   setBundlerFindSourceMapImplementation(
     getSourceMapFromTurbopack.bind(null, project)
   )
+
+  let canonicalDistDir = distDir
+  try {
+    canonicalDistDir = realpathSync(distDir)
+  } catch {}
   setBundlerFindSourceMapURLImplementation(
-    getSourceMapURLFromTurbopack.bind(null, project)
+    getSourceMapURLFromTurbopack.bind(null, canonicalDistDir)
   )
 
   // Set up code frame renderer using native bindings

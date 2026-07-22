@@ -158,7 +158,11 @@ export function filterStackFrameDEV(
   }
 }
 
-type FindSourceMapURL = (sourceURL: string) => string | null
+// `scriptNameOrSourceURL` is what React forwards from the stack frame: the
+// script's `getScriptNameOrSourceURL()`, which for the server chunks we can
+// map is an absolute filesystem path, not a URL. The returned value is the
+// source map's URL (`file:` or `data:`).
+type FindSourceMapURL = (scriptNameOrSourceURL: string) => string | null
 // Find the URL of a source map using the bundler's API.
 // Shared via `globalThis` because this module is compiled both into the server
 // runtime bundles (which call `findSourceMapURLDEV`) and into `next/dist/server`
@@ -175,11 +179,13 @@ export function setBundlerFindSourceMapURLImplementation(
     findSourceMapURLImplementation
 }
 
-function bundlerFindSourceMapURL(sourceURL: string): string | null {
+function bundlerFindSourceMapURL(scriptNameOrSourceURL: string): string | null {
   const implementation: FindSourceMapURL | undefined = (globalThis as any)[
     bundlerFindSourceMapURLSymbol
   ]
-  return implementation === undefined ? null : implementation(sourceURL)
+  return implementation === undefined
+    ? null
+    : implementation(scriptNameOrSourceURL)
 }
 
 const invalidSourceMap = Symbol('invalid-source-map')
