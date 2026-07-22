@@ -2705,19 +2705,21 @@ impl NextConfig {
     }
 
     #[turbo_tasks::function]
-    pub fn fetch_client(&self) -> Vc<FetchClientConfig> {
-        // Used for the Google Fonts fetch.
-        // Use timeouts to prevent indefinite/long hangs.
-        // `next dev` will fall back to system fonts if this fails.
-        // `next build` will fail if this times out.
-        // TODO: Use a less aggressive timeout for build than dev.
-        FetchClientConfig {
-            connect_timeout: Duration::from_secs(10),
-            timeout: Duration::from_secs(30),
-            max_retries: 3,
+    pub async fn fetch_client(&self, next_mode: Vc<NextMode>) -> Result<Vc<FetchClientConfig>> {
+        // Bounds the Google Fonts fetch. Dev fails fast and falls back to a system font;
+        // build tolerates a slower network since a missing font fails the build.
+        let (connect_timeout, timeout) = if matches!(*next_mode.await?, NextMode::Development) {
+            (Duration::from_secs(5), Duration::from_secs(10))
+        } else {
+            (Duration::from_secs(10), Duration::from_secs(30))
+        };
+        Ok(FetchClientConfig {
+            connect_timeout,
+            timeout,
+            max_retries: 1,
             ..Default::default()
         }
-        .cell()
+        .cell())
     }
 
     #[turbo_tasks::function]

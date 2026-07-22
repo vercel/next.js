@@ -52,7 +52,7 @@ describe('next/font/google fetch error', () => {
 
       expect(next.cliOutput.slice(outputIndex)).toInclude(
         isTurbopack
-          ? 'Failed to download Inter from Google Fonts after 4 attempts. Using a fallback font instead.'
+          ? 'Failed to download Inter from Google Fonts. Using a fallback font instead.'
           : 'Failed to download `Inter` from Google Fonts. Using fallback font instead.'
       )
     })
@@ -61,7 +61,7 @@ describe('next/font/google fetch error', () => {
       await expect(next.start()).rejects.toThrow('next build failed')
       expect(next.cliOutput).toInclude(
         isTurbopack
-          ? 'Failed to fetch Inter from Google Fonts after 4 attempts.'
+          ? 'Failed to fetch Inter from Google Fonts.'
           : 'Failed to fetch `Inter` from Google Fonts.'
       )
     })

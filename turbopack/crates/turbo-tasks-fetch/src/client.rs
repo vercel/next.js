@@ -34,21 +34,13 @@ pub struct FetchClientConfig {
     /// will be clamped to this value. This prevents pathologically short timeouts from causing an
     /// invalidation bomb. Defaults to 1 hour.
     pub min_cache_control: Duration,
-    /// Maximum time to wait for a connection (DNS + TCP + TLS, including a proxy `CONNECT`
-    /// tunnel) to be established. A short value fails fast when a host hangs rather than refuses
-    /// — an unreachable endpoint, or a captive portal / proxy that drops packets — instead of
-    /// blocking compilation until the OS-level connect timeout fires (~75s). Kept below `timeout`.
-    /// This is generic; callers should override it (e.g. Google Fonts uses a tighter value).
-    /// Defaults to 10 seconds.
+    /// Maximum time to establish a connection (DNS + TCP + TLS). Defaults to 10 seconds.
     pub connect_timeout: Duration,
-    /// Maximum time for the entire request: connection, sending, and reading the full response.
-    /// An overall cap on top of `connect_timeout` (and always larger than it) that bounds a
-    /// connection which establishes but then stalls. Defaults to 60 seconds.
+    /// Maximum time for the entire request. Always larger than `connect_timeout`. Defaults to
+    /// 60 seconds.
     pub timeout: Duration,
-    /// Number of times to retry a transient failure (connection error, timeout, or a 5xx
-    /// response) before surfacing the error to the caller. The total number of attempts made is
-    /// `max_retries + 1`. This is generic, so it defaults to 0 (no retries); callers that fetch
-    /// from a reliable endpoint can opt into retries (e.g. Google Fonts uses a small value).
+    /// Times to retry a transient failure (connection error, timeout, or 5xx) before surfacing
+    /// it. Total attempts is `max_retries + 1`. Defaults to 0.
     pub max_retries: u32,
 }
 
@@ -194,8 +186,6 @@ impl FetchClientConfig {
                 let mut attempt = 0;
                 loop {
                     let request = builder.try_clone().expect("request should be cloneable");
-                    // Each attempt is its own span (not a log event) so retries are visible as
-                    // nested, timed spans in the trace viewer (https://trace.nextjs.org/).
                     let result = {
                         let _span = duration_span!("fetch attempt", url = url_ref, attempt);
                         request.send().await.and_then(|r| r.error_for_status())

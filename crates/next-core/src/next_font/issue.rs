@@ -43,7 +43,6 @@ impl Issue for NextFontIssue {
 pub(crate) struct GoogleFontsFetchIssue {
     pub(crate) path: FileSystemPath,
     pub(crate) font_family: RcStr,
-    pub(crate) attempts: u32,
     pub(crate) is_dev: bool,
 }
 
@@ -82,21 +81,13 @@ impl Issue for GoogleFontsFetchIssue {
             StyledString::Line(vec![
                 StyledString::Text(rcstr!("Failed to download ")),
                 StyledString::Code(self.font_family.clone()),
-                StyledString::Text(
-                    format!(
-                        " from Google Fonts after {} attempts. Using a fallback font instead.",
-                        self.attempts
-                    )
-                    .into(),
-                ),
+                StyledString::Text(rcstr!(" from Google Fonts. Using a fallback font instead.")),
             ])
         } else {
             StyledString::Line(vec![
                 StyledString::Text(rcstr!("Failed to fetch ")),
                 StyledString::Code(self.font_family.clone()),
-                StyledString::Text(
-                    format!(" from Google Fonts after {} attempts.", self.attempts).into(),
-                ),
+                StyledString::Text(rcstr!(" from Google Fonts.")),
             ])
         };
         let guidance = StyledString::Line(vec![

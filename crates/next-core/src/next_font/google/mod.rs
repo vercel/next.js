@@ -268,12 +268,10 @@ impl NextFontGoogleCssModuleReplacer {
                 .await?,
             ),
             None => {
-                let attempts = self.fetch_client.await?.max_retries + 1;
                 let is_dev = matches!(*self.next_mode.await?, NextMode::Development);
                 GoogleFontsFetchIssue {
                     path: css_virtual_path.clone(),
                     font_family: options.await?.font_family.clone(),
-                    attempts,
                     is_dev,
                 }
                 .resolved_cell()
