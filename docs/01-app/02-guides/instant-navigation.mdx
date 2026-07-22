@@ -277,7 +277,7 @@ Toggle **Pause on navigations** off when you're done inspecting loading states. 
 
 Validation catches structural problems during development, but as the codebase grows, the structural checks can only tell you that a shell exists. They can't tell you whether the right content is in it. E2E tests close that gap: they assert on what the user actually sees when the navigation completes, catching regressions before they ship.
 
-The `@next/playwright` package includes an `instant()` helper for this. Install it alongside `@playwright/test`:
+The [`@next/playwright`](https://www.npmjs.com/package/@next/playwright) package includes an `instant()` helper for this. Install it alongside `@playwright/test`:
 
 ```bash package="pnpm"
 pnpm add -D @next/playwright @playwright/test
