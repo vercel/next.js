@@ -111,13 +111,9 @@ async function applyInstallSecuritySettings(installDir, isolationRoot) {
 }
 
 /**
- * pnpm reads `overrides` exclusively from `pnpm-workspace.yaml`, so writes
- * them into the one that governs the install: the fixture's own workspace
- * root when it creates one, otherwise the file
- * `applyInstallSecuritySettings` ensures exists in the install dir. Without
- * this, pnpm fetches workspace packages like `@next/env` from the registry
- * at the repo's current version, which doesn't exist there while a canary
- * release is still propagating.
+ * pnpm only honors overrides at the workspace root, so they go into the
+ * `pnpm-workspace.yaml` that governs the install (the only location pnpm 11
+ * reads them from). Guarded by test/production/isolated-install-overrides.
  *
  * @param {string} installDir
  * @param {string} isolationRoot
@@ -261,11 +257,9 @@ async function createNextInstall({
         combinedDependencies['next-rspack'] = pkgPaths.get('next-rspack')
       }
 
-      // Overrides that resolve transitive workspace deps (e.g. `next`'s
-      // dependency on `@next/env`) from local tarballs. Each package manager
-      // reads these from a different place: npm from `overrides` and yarn
-      // from `resolutions` in `package.json`, pnpm from `overrides` in
-      // `pnpm-workspace.yaml` (written by `applyWorkspaceOverrides`).
+      // Resolves transitive workspace deps (e.g. `next`'s dependency on
+      // `@next/env`) from local tarballs. Written to `overrides` for npm,
+      // `resolutions` for yarn, and the workspace yaml for pnpm.
       const workspacePkgOverrides = {}
       for (const [name, tarballPath] of pkgPaths.entries()) {
         if (!combinedDependencies[name]) {
