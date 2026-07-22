@@ -190,7 +190,6 @@ impl FetchClientConfig {
                 let _span = duration_span!("fetch request", url = url_ref);
                 let mut attempt = 0;
                 loop {
-                    // A GET request without a body is always cloneable.
                     let request = builder.try_clone().expect("request should be cloneable");
                     // Each attempt is its own span (not a log event) so retries are visible as
                     // nested, timed spans in the trace viewer (https://trace.nextjs.org/).
