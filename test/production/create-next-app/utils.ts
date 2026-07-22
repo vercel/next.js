@@ -1,8 +1,7 @@
 import execa from 'execa'
 import { join } from 'path'
-import { rm } from 'fs/promises'
 import { spawn } from 'child_process'
-import { fetchViaHTTP, findPort, killApp, waitFor } from 'next-test-utils'
+import { fetchViaHTTP, findPort, killApp } from 'next-test-utils'
 import {
   resolveTestPkgPaths,
   serializeTestPkgPathsEnv,
@@ -40,12 +39,6 @@ export const DEFAULT_FILES = [
   'node_modules/next',
 ]
 
-const isCanaryPublishRace = (output: string) =>
-  // npm, pnpm, yarn, and bun wordings, respectively.
-  /No matching version found|No candidates found|No version matching/.test(
-    output
-  ) && /@next\/|eslint-config-next/.test(output)
-
 export const run = async (
   args: string[],
   nextJSVersion: string,
@@ -56,70 +49,27 @@ export const run = async (
         env?: Record<string, string>
       }
 ) => {
-  // Tests with options.reject false are expected to exit(1) so stay silent.
-  const expectFailure = options.reject === false
-
-  for (let attempt = 1; ; attempt++) {
-    const child = execa('node', [CNA_PATH].concat(args), {
-      ...options,
-      env: {
-        ...process.env,
-        // CNA detects the package manager from `npm_config_user_agent`. CI
-        // runs jest directly (no `npm_config_user_agent` set) so CNA falls
-        // back to npm. Locally the test runs under pnpm, which would make
-        // CNA use pnpm and produce a `.pnpm`-based `node_modules/` that
-        // doesn't survive being copied into the isolated test directory.
-        // Clear the variable to mirror CI behavior across environments.
-        npm_config_user_agent: undefined,
-        // Forward all packed workspace tarballs so CNA can install siblings
-        // (`next-rspack`, `eslint-config-next`, ...) from their own tarballs
-        // when running tests directly (without `run-tests.js`).
-        NEXT_TEST_PKG_PATHS: serializeTestPkgPathsEnv(),
-        ...options.env,
-        NEXT_PRIVATE_TEST_VERSION: nextJSVersion,
-      },
-    })
-    if (!expectFailure) {
-      // Streams are null for callers that pass their own `stdio`.
-      child.stdout?.on('data', (chunk) => process.stdout.write(chunk))
-      child.stderr?.on('data', (chunk) => process.stderr.write(chunk))
-    }
-
-    let failure: execa.ExecaError | null = null
-    let result: execa.ExecaReturnValue
-    try {
-      result = await child
-    } catch (err) {
-      failure = err as execa.ExecaError
-      result = failure
-    }
-
-    // Right after a canary release, `next@canary` can be resolvable from the
-    // npm registry before the `@next/*` packages it depends on have finished
-    // propagating, failing the install. Checked on success too because CNA
-    // exits 0 when only the install step fails.
-    if (
-      attempt < 3 &&
-      !expectFailure &&
-      isCanaryPublishRace(result.all ?? '')
-    ) {
-      console.warn(
-        'create-next-app install hit a canary publish race, retrying'
-      )
-      const cwd = (options as execa.Options).cwd
-      if (cwd && args[0] && !args[0].startsWith('-')) {
-        // CNA refuses to scaffold into the partially created project dir.
-        await rm(join(cwd, args[0]), { recursive: true, force: true })
-      }
-      await waitFor(30_000)
-      continue
-    }
-
-    if (failure) {
-      throw failure
-    }
-    return result
-  }
+  return execa('node', [CNA_PATH].concat(args), {
+    // tests with options.reject false are expected to exit(1) so don't inherit
+    stdio: options.reject === false ? 'pipe' : 'inherit',
+    ...options,
+    env: {
+      ...process.env,
+      // CNA detects the package manager from `npm_config_user_agent`. CI
+      // runs jest directly (no `npm_config_user_agent` set) so CNA falls
+      // back to npm. Locally the test runs under pnpm, which would make
+      // CNA use pnpm and produce a `.pnpm`-based `node_modules/` that
+      // doesn't survive being copied into the isolated test directory.
+      // Clear the variable to mirror CI behavior across environments.
+      npm_config_user_agent: undefined,
+      // Forward all packed workspace tarballs so CNA can install siblings
+      // (`next-rspack`, `eslint-config-next`, ...) from their own tarballs
+      // when running tests directly (without `run-tests.js`).
+      NEXT_TEST_PKG_PATHS: serializeTestPkgPathsEnv(),
+      ...options.env,
+      NEXT_PRIVATE_TEST_VERSION: nextJSVersion,
+    },
+  })
 }
 
 export const command = (cmd: string, args: string[]) =>

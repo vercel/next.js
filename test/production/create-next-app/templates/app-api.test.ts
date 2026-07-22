@@ -129,6 +129,7 @@ describe('create-next-app --api (Headless App)', () => {
         nextTgzFilename,
         {
           cwd,
+          stdio: 'inherit',
         }
       )
 

@@ -892,19 +892,6 @@ export async function waitForRedbox(browser: Playwright) {
     // loaded CI machines. Match the 30s budget used for HMR updates.
     await redbox.waitFor({ timeout: 30000 })
   } catch (errorCause) {
-    // Log client state to tell a slow overlay apart from an update that was
-    // never delivered (e.g. a dropped file-watcher event). Logged instead of
-    // put in the message, which tests snapshot as a negative assertion.
-    try {
-      const clientState = await browser.eval(`JSON.stringify({
-        hmrState: window.__HMR_STATE ?? null,
-        hasPortal: !!document.querySelector('nextjs-portal'),
-        pathname: location.pathname,
-      })`)
-      require('console').error(
-        `waitForRedbox timed out, client state: ${clientState}`
-      )
-    } catch {}
     const error = new Error('Expected Redbox but found no visible one.')
     Error.captureStackTrace(error, waitForRedbox)
     throw error
