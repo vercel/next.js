@@ -181,10 +181,9 @@ function getSourcemappedFrameIfPossible(
   let sourceMapConsumer: SyncSourceMapConsumer
   let sourceMapPayload: ModernSourceMapPayload
   if (sourceMapCacheEntry === undefined) {
-    // React's fake eval'd scripts for Server Component stack frames use
-    // virtual URLs like `about://React/Server/file:///path/to/chunk.js?42`
-    // with positions padded to match the underlying chunk, so they resolve
-    // via the real chunk's source map.
+    // Fake frame scripts (`about://React/Server/file:///path/to/chunk.js?42`)
+    // have their positions padded to match the underlying chunk, so they
+    // resolve via the chunk's source map.
     let sourceURL = devirtualizeReactServerURL(frame.file)
     // e.g. "/Users/foo/APP/.next/server/chunks/ssr/[root-of-the-server]__2934a0._.js"
     // or "C:\Users\foo\APP\.next\server\chunks\ssr\[root-of-the-server]__2934a0._.js"

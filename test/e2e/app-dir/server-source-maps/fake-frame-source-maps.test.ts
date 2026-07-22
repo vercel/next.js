@@ -230,11 +230,9 @@ describe('app-dir - server source maps - fake frame source maps', () => {
         }
 
         if (isTurbopack) {
-          // Turbopack must reference the emitted source map files instead of
-          // inlining a payload copy into every fake script. Guards against
-          // silently degrading to `data:` URLs, e.g. when the bundler
-          // implementation isn't registered in one of the compiled copies of
-          // the resolver.
+          // The resolver silently falls back to inlining `data:` URLs, so a
+          // defect in the `file:` URL derivation keeps all behavior-based
+          // assertions green. Only this assertion catches it.
           for (const script of fakeScripts) {
             expect({
               url: script.url,
