@@ -35,14 +35,46 @@ function shouldIgnorePath(modulePath: string): boolean {
   )
 }
 
-const currentSourcesByFile: Map<string, Promise<string | null>> = new Map()
+/**
+ * Code frame rendering options. The defaults match terminal consumers; only
+ * the overlay HTTP path opts in to always-on colors and the wide max width.
+ */
+type CodeFrameOptions = {
+  /** Defaults to `process.stdout.isTTY`. */
+  colors?: boolean
+  /** Defaults to the dev server's terminal width. */
+  maxWidth?: number
+}
+
+/**
+ * The result of tracing a compiled frame back to its original source.
+ *
+ * `getCodeFrame` renders the original code frame lazily. The two trace paths
+ * implement it differently: the native path already holds the source in-process
+ * (from inline `sourcesContent` or disk) and renders in JS, while the bundler
+ * path fuses read+render in a single native call so the (potentially large)
+ * source string never crosses the napi boundary.
+ */
+type TracedSource = {
+  frame: IgnorableStackFrame
+  getCodeFrame: (
+    options: CodeFrameOptions
+  ) => string | null | Promise<string | null>
+}
+
+/**
+ * A code frame that is already known to be empty (node internals, ignored
+ * frames, or frames without a resolvable original file).
+ */
+const NO_CODE_FRAME = (): null => null
+
 /**
  * @returns 1-based lines and 1-based columns
  */
 async function batchedTraceSource(
   project: Project,
   frame: TurbopackStackFrame
-): Promise<{ frame: IgnorableStackFrame; source: string | null } | undefined> {
+): Promise<TracedSource | undefined> {
   const file = frame.file
     ? // TODO(veil): Why are the frames sent encoded?
       decodeURIComponent(frame.file)
@@ -62,7 +94,7 @@ async function batchedTraceSource(
         ignored: true,
         arguments: [],
       },
-      source: null,
+      getCodeFrame: NO_CODE_FRAME,
     }
   }
 
@@ -79,11 +111,10 @@ async function batchedTraceSource(
         ignored: shouldIgnorePath(file),
         arguments: [],
       },
-      source: null,
+      getCodeFrame: NO_CODE_FRAME,
     }
   }
 
-  let source = null
   const originalFile = sourceFrame.originalFile
 
   // Don't look up source for node_modules or internals. These can often be large bundled files.
@@ -91,19 +122,6 @@ async function batchedTraceSource(
     // Check the sourcemap's ignoreList (e.g. from 3rd party packages)
     !!sourceFrame.isIgnored ||
     shouldIgnorePath(originalFile ?? sourceFrame.file)
-  if (originalFile && !ignored) {
-    let sourcePromise = currentSourcesByFile.get(originalFile)
-    if (!sourcePromise) {
-      sourcePromise = project.getSourceForAsset(originalFile)
-      currentSourcesByFile.set(originalFile, sourcePromise)
-      setTimeout(() => {
-        // Cache file reads for 100ms, as frames will often reference the same
-        // files and can be large.
-        currentSourcesByFile.delete(originalFile!)
-      }, 100)
-    }
-    source = await sourcePromise
-  }
 
   const ignorableFrame: IgnorableStackFrame = {
     file: sourceFrame.file,
@@ -119,9 +137,29 @@ async function batchedTraceSource(
     arguments: [],
   }
 
+  if (!originalFile || ignored || ignorableFrame.line1 == null) {
+    return { frame: ignorableFrame, getCodeFrame: NO_CODE_FRAME }
+  }
+
   return {
     frame: ignorableFrame,
-    source,
+    // Fuse read + render in the native layer: the (potentially large) source
+    // string is never laundered through JavaScript just to be handed back to
+    // the native code-frame renderer.
+    getCodeFrame: (options: CodeFrameOptions) =>
+      project.getCodeFrameForAsset(
+        originalFile,
+        {
+          start: {
+            line: ignorableFrame.line1 as number,
+            column: ignorableFrame.column1 ?? undefined,
+          },
+        },
+        {
+          color: options.colors ?? process.stdout?.isTTY ?? false,
+          maxWidth: options.maxWidth,
+        }
+      ),
   }
 }
 
@@ -189,7 +227,7 @@ function createStackFrame(
  */
 async function nativeTraceSource(
   frame: TurbopackStackFrame
-): Promise<{ frame: IgnorableStackFrame; source: string | null } | undefined> {
+): Promise<TracedSource | undefined> {
   const sourceURL = frame.file
   let sourceMapPayload: ModernSourceMapPayload | undefined
   try {
@@ -253,10 +291,23 @@ async function nativeTraceSource(
           frame
         )
       } else {
+        // `originalPosition.source` is resolved against the map's `sourceRoot` by the consumer,
+        // but `applicableSourceMap.sources` holds the raw (pre-`sourceRoot`) entries. Strip the
+        // `sourceRoot` prefix before matching so the ignore-list lookup works when a `sourceRoot`
+        // is present (e.g. the on-demand source-content dev maps).
+        const sourceRoot = applicableSourceMap.sourceRoot ?? ''
+        const rawSource =
+          sourceRoot && originalPosition.source?.startsWith(sourceRoot)
+            ? originalPosition.source.slice(sourceRoot.length)
+            : originalPosition.source
         // TODO: O(n^2). Consider moving `ignoreList` into a Set
-        const sourceIndex = applicableSourceMap.sources.indexOf(
-          originalPosition.source!
-        )
+        let sourceIndex = applicableSourceMap.sources.indexOf(rawSource!)
+        if (sourceIndex === -1 && rawSource !== originalPosition.source) {
+          // Fall back to the fully-resolved form in case `sources` already includes `sourceRoot`.
+          sourceIndex = applicableSourceMap.sources.indexOf(
+            originalPosition.source!
+          )
+        }
         ignored =
           applicableSourceMap.ignoreList?.includes(sourceIndex) ??
           // When sourcemap is not available, fallback to checking `frame.file`.
@@ -284,23 +335,16 @@ async function nativeTraceSource(
 
       return {
         frame: originalStackFrame,
-        source: sourceContent,
+        // The source is already in-process (inline `sourcesContent` or, when a
+        // map omits it, read from disk by the source-map consumer setup), so we
+        // render the code frame here rather than round-tripping to native.
+        getCodeFrame: (options: CodeFrameOptions) =>
+          getOriginalCodeFrame(originalStackFrame, sourceContent, options),
       }
     }
   }
 
   return undefined
-}
-
-/**
- * Code frame rendering options. The defaults match terminal consumers; only
- * the overlay HTTP path opts in to always-on colors and the wide max width.
- */
-type CodeFrameOptions = {
-  /** Defaults to `process.stdout.isTTY`. */
-  colors?: boolean
-  /** Defaults to the dev server's terminal width. */
-  maxWidth?: number
 }
 
 async function createOriginalStackFrame(
@@ -329,10 +373,24 @@ async function createOriginalStackFrame(
     )
   }
 
-  /** undefined = not yet computed */
-  let originalCodeFrame: string | null | undefined
-
   const tracedFrame = traced.frame
+  // Render the code frame now. For the bundler trace path this is a single
+  // fused native call (read + render) so the source string never crosses into
+  // JS; for the native path it renders from the already in-process source.
+  // A render failure (e.g. the file changed/was deleted) must not fail the
+  // whole trace — degrade to no code frame.
+  let originalCodeFrame: string | null = null
+  if (!tracedFrame.ignored) {
+    try {
+      originalCodeFrame = await traced.getCodeFrame({
+        colors: codeFrameOptions?.colors,
+        maxWidth: codeFrameOptions?.maxWidth,
+      })
+    } catch {
+      originalCodeFrame = null
+    }
+  }
+
   return {
     originalStackFrame: {
       arguments: tracedFrame.arguments,
@@ -342,15 +400,7 @@ async function createOriginalStackFrame(
       ignored: tracedFrame.ignored,
       methodName: tracedFrame.methodName,
     },
-    get originalCodeFrame() {
-      if (originalCodeFrame === undefined) {
-        originalCodeFrame = getOriginalCodeFrame(tracedFrame, traced.source, {
-          colors: codeFrameOptions?.colors,
-          maxWidth: codeFrameOptions?.maxWidth,
-        })
-      }
-      return originalCodeFrame
-    },
+    originalCodeFrame,
   }
 }
 
@@ -506,6 +556,61 @@ export function getSourceMapMiddleware(project: Project) {
           }
         )
       )
+    }
+
+    middlewareResponse.noContent(res)
+  }
+}
+
+/**
+ * Prefix of the on-demand source-content dev endpoint. Browser source maps emitted in dev
+ * (when `experimental.turbopackServeSourceContent` is enabled) set their `sourceRoot` to this
+ * value, so DevTools fetches original file content lazily from
+ * `/__nextjs_source-content/[project]/<relative-path>`.
+ *
+ * Keep in sync with the `sourceRoot` produced in `crates/next-core/src/next_client/context.rs`.
+ */
+export const SOURCE_CONTENT_MIDDLEWARE_PREFIX =
+  '/__nextjs_source-content/[project]/'
+
+export function getSourceContentMiddleware(project: Project) {
+  return async function (
+    req: IncomingMessage,
+    res: ServerResponse,
+    next: () => void
+  ): Promise<void> {
+    const { pathname } = new URL(req.url!, 'http://n')
+
+    if (!pathname.startsWith(SOURCE_CONTENT_MIDDLEWARE_PREFIX)) {
+      return next()
+    }
+
+    // The relative project path follows the `[project]/` marker. It is URL-encoded by the browser;
+    // our internal filesystem paths are POSIX-like and unencoded, so decode before resolving.
+    const encodedPath = pathname.slice(SOURCE_CONTENT_MIDDLEWARE_PREFIX.length)
+    let filePath: string
+    try {
+      filePath = decodeURIComponent(encodedPath)
+    } catch {
+      return middlewareResponse.badRequest(res)
+    }
+
+    if (!filePath) {
+      return middlewareResponse.badRequest(res)
+    }
+
+    try {
+      // The native endpoint is gated by the emitted-source-paths admission filter and sandboxed to
+      // the project root, so it returns null for files not referenced by a source map or for any
+      // path-traversal attempt.
+      const content = await project.getSourceContent(filePath)
+
+      if (content !== null) {
+        return middlewareResponse.text(res, content)
+      }
+    } catch {
+      // Reading source is race-condition prone (the file may have changed/been deleted). Treat any
+      // failure as "not available" rather than surfacing a 500 to devtools.
     }
 
     middlewareResponse.noContent(res)

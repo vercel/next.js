@@ -9,7 +9,8 @@ use next_api::{
     paths::AssetPath,
     route::{
         Endpoint, EndpointOutputPaths, endpoint_client_changed_operation,
-        endpoint_server_changed_operation, endpoint_write_to_disk_operation,
+        endpoint_referenced_source_paths_operation, endpoint_server_changed_operation,
+        endpoint_write_to_disk_operation,
     },
 };
 use tracing::Instrument;
@@ -152,6 +153,7 @@ pub async fn endpoint_write_to_disk(
 ) -> napi::Result<TurbopackResult<NapiWrittenEndpoint>> {
     let ctx = endpoint.turbopack_ctx();
     let endpoint_op = ***endpoint;
+    let harvest_ctx = ctx.clone();
     let (written, issues) = endpoint
         .turbopack_ctx()
         .turbo_tasks()
@@ -166,6 +168,18 @@ pub async fn endpoint_write_to_disk(
             let WrittenEndpointWithIssues {
                 written, issues, ..
             } = &*read;
+
+            // Record the project source files referenced by this endpoint's source maps so the
+            // on-demand source-content dev endpoint is allowed to serve them. Best-effort: a
+            // failure here must not fail the write.
+            if let Ok(paths) = endpoint_referenced_source_paths_operation(endpoint_op)
+                .read_strongly_consistent()
+                .await
+            {
+                for path in paths.iter() {
+                    harvest_ctx.insert_source_path(path);
+                }
+            }
 
             Ok((written.clone(), issues.clone()))
         })

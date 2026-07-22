@@ -294,12 +294,18 @@ pub struct ChunkingConfig {
 pub struct ChunkingConfigs(FxHashMap<ResolvedVc<Box<dyn ChunkType>>, ChunkingConfig>);
 
 #[turbo_tasks::value(shared)]
-#[derive(Debug, Clone, Copy, Hash, Default, Deserialize)]
+#[derive(Debug, Clone, Hash, Default, Deserialize)]
 pub enum SourceMapSourceType {
     AbsoluteFileUri,
     RelativeUri,
     #[default]
     TurbopackUri,
+    /// Project sources are emitted as relative paths with `sourceRoot` set to
+    /// the contained base URL, and their inlined `sourcesContent` is dropped so
+    /// the consumer (e.g. a dev server / browser devtools) fetches file content
+    /// on demand from `<sourceRoot><relativePath>`. Non-project sources keep
+    /// their absolute URIs and inlined content.
+    DevServerContentEndpoint(RcStr),
 }
 
 #[turbo_tasks::value(transparent, cell = "keyed")]

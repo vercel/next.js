@@ -1392,6 +1392,8 @@ pub struct ExperimentalConfig {
     turbopack_source_maps: Option<bool>,
     turbopack_input_source_maps: Option<bool>,
     turbopack_module_fragments: Option<bool>,
+    turbopack_serve_source_content: Option<bool>,
+    turbopack_tree_shaking: Option<bool>,
     turbopack_scope_hoisting: Option<bool>,
     turbopack_shared_runtime: Option<bool>,
     /// Custom URL prefix for Web Worker URLs (the entrypoint and the module
@@ -2635,6 +2637,21 @@ impl NextConfig {
             (false, _) => SourceMapsType::None,
         }
         .cell())
+    }
+
+    /// Whether Turbopack dev browser source maps should omit inlined
+    /// `sourcesContent` for project files and serve it on demand via the dev
+    /// server (`experimental.turbopackServeSourceContent`). Only meaningful in
+    /// Development mode.
+    #[turbo_tasks::function]
+    pub async fn turbopack_serve_source_content(&self, mode: Vc<NextMode>) -> Result<Vc<bool>> {
+        Ok(Vc::cell(
+            matches!(&*mode.await?, NextMode::Development)
+                && self
+                    .experimental
+                    .turbopack_serve_source_content
+                    .unwrap_or(false),
+        ))
     }
 
     #[turbo_tasks::function]

@@ -22,7 +22,7 @@ use turbopack_core::{
     output::OutputAssetsReference,
     source_map::{
         structured::StructuredSourceMap,
-        utils::{absolute_fileify_source_map, relative_fileify_source_map},
+        utils::{absolute_fileify_source_map, dev_server_source_map, relative_fileify_source_map},
     },
 };
 
@@ -39,6 +39,10 @@ use crate::{
 pub enum RewriteSourcePath {
     AbsoluteFilePath(FileSystemPath),
     RelativeFilePath(FileSystemPath, RcStr),
+    /// Relativize `[project]` sources and point `sourceRoot` at the contained base URL, dropping
+    /// their inlined content so it is fetched on demand. Carries the project root path and the
+    /// `sourceRoot` base URL.
+    DevServerContentEndpoint(FileSystemPath, RcStr),
     #[default]
     None,
 }
@@ -79,7 +83,7 @@ impl EcmascriptChunkItemContent {
         let strict = content.strict;
 
         Ok(EcmascriptChunkItemContent {
-            rewrite_source_path: match *chunking_context.source_map_source_type().await? {
+            rewrite_source_path: match &*chunking_context.source_map_source_type().await? {
                 SourceMapSourceType::AbsoluteFileUri => {
                     RewriteSourcePath::AbsoluteFilePath(chunking_context.root_path().owned().await?)
                 }
@@ -91,6 +95,12 @@ impl EcmascriptChunkItemContent {
                         .await?,
                 ),
                 SourceMapSourceType::TurbopackUri => RewriteSourcePath::None,
+                SourceMapSourceType::DevServerContentEndpoint(source_root_base) => {
+                    RewriteSourcePath::DevServerContentEndpoint(
+                        chunking_context.root_path().owned().await?,
+                        source_root_base.clone(),
+                    )
+                }
             },
             inner_code: content.inner_code.clone(),
             source_map: content.source_map.clone(),
@@ -175,6 +185,10 @@ impl EcmascriptChunkItemContent {
             (RewriteSourcePath::RelativeFilePath(path, relative_path), Some(map)) => {
                 Some(relative_fileify_source_map(map, path.clone(), relative_path.clone()).await?)
             }
+            (RewriteSourcePath::DevServerContentEndpoint(path, source_root_base), Some(map)) => {
+                Some(dev_server_source_map(map, path.clone(), source_root_base.clone()).await?)
+            }
+            // `RewriteSourcePath::None`, or any rewrite mode with no source map to rewrite.
             (_, map) => map.clone(),
         };
 
