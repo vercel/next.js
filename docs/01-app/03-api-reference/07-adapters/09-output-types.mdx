@@ -178,12 +178,12 @@ ISR-enabled routes and static prerenders:
 `response` describes how complete the response is before request-time work:
 
 - `empty`: no initial page response can be served
-- `initial`: an initial response can be served, but it is not the completed page UI
+- `initial`: an initial response can be served, but it is not the completed page UI. In practice, this only applies to UI routes that are partially prerenderable
 - `complete`: the response is complete; this can include a zero-byte response body, such as a `204` Route Handler response
 
 `compute` describes the request-time compute needed to serve the completed response:
 
-- `blocking`: compute must finish before a response can be served
+- `blocking`: no initial response can be sent before request-time compute starts; once started, the response can stream while compute continues
 - `resuming`: an initial response is served while postponed work resumes on the server
 - `static`: no server compute is required per request
 
