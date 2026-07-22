@@ -32,6 +32,7 @@ impl ConnectChildOperation {
         mut ctx: impl ExecuteContext<'_>,
     ) {
         if let Some(parent_task_id) = parent_task_id {
+            // The parent is the currently-executing task; it must already exist.
             let mut parent_task = ctx.task(parent_task_id, TaskDataCategory::Meta);
             let Some(InProgressState::InProgress(box InProgressStateInner {
                 new_children, ..
@@ -79,7 +80,7 @@ impl ConnectChildOperation {
                 task: child_task_id,
             });
         } else {
-            let mut child_task = ctx.task(child_task_id, TaskDataCategory::Meta);
+            let mut child_task = ctx.get_or_create_task(child_task_id, TaskDataCategory::Meta);
             let has_output = child_task.has_output();
             // An already constructed top-level task was made a root when it was first connected.
             // It may still be dirty and need to run; this only avoids repeating the idempotent

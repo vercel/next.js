@@ -409,7 +409,7 @@ impl TurboBackingStorage {
         task_id: TaskId,
         category: SpecificTaskDataCategory,
         storage: &mut TaskStorage,
-    ) -> Result<()> {
+    ) -> Result<bool> {
         let inner = &*self.inner;
         let Some(bytes) = inner
             .database
@@ -418,12 +418,13 @@ impl TurboBackingStorage {
                 format!("Looking up task storage for {task_id} from database failed")
             })?
         else {
-            return Ok(());
+            return Ok(false);
         };
         let mut decoder = new_turbo_bincode_decoder(bytes.borrow());
         storage
             .decode(category, &mut decoder)
-            .map_err(|e| anyhow::anyhow!("Failed to decode {category:?}: {e:?}"))
+            .map_err(|e| anyhow::anyhow!("Failed to decode {category:?}: {e:?}"))?;
+        Ok(true)
     }
 
     pub(crate) fn batch_lookup_data(
