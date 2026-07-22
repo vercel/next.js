@@ -28,7 +28,7 @@ use crate::{
 #[derive(Clone, Debug, PartialEq, Eq, Encode, Decode, TraceRawVcs, NonLocalValue)]
 pub enum SectionMap {
     Raw(Rope),
-    Structured(StructuredSourceMap),
+    Structured(Box<StructuredSourceMap>),
 }
 
 impl DeterministicHash for SectionMap {
@@ -206,7 +206,7 @@ impl CodeBuilder {
     /// Like [`CodeBuilder::push_source`] for a structured map whose `sourcesContent` stays
     /// shared when the resulting code's map is emitted.
     pub fn push_structured_source(&mut self, code: &Rope, map: Option<StructuredSourceMap>) {
-        self.push_map(map.map(SectionMap::Structured));
+        self.push_map(map.map(|map| SectionMap::Structured(Box::new(map))));
         self.code += code;
     }
 

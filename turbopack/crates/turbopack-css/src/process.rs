@@ -191,6 +191,7 @@ pub enum CssWithPlaceholderResult {
 }
 
 #[turbo_tasks::value(shared, serialization = "skip")]
+#[allow(clippy::large_enum_variant)] // This is a turbo-tasks value
 pub enum FinalCssResult {
     Ok {
         #[turbo_tasks(trace_ignore)]
