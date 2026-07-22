@@ -251,14 +251,43 @@ async function requestHandler(
       headers.set('Vary', varyHeader)
     }
 
-    // Add existing headers
-    for (const [key, value] of Object.entries({
-      ...baseRes.getHeaders(),
-      ...metadata.headers,
-    })) {
-      if (value !== undefined) {
-        if (Array.isArray(value)) {
-          // Handle multiple header values
+    // Add existing headers from both sources, iterating separately to avoid
+    // spread shadowing (where metadata.headers would overwrite baseRes values
+    // for the same key, e.g. Vary).
+    const headerSources = [baseRes.getHeaders(), metadata.headers]
+    for (const source of headerSources) {
+      if (!source) continue
+      for (const [key, value] of Object.entries(source)) {
+        if (value === undefined) continue
+        if (key.toLowerCase() === 'vary') {
+          // Merge Vary values to preserve any previously set entries,
+          // handling both string and array values with case-insensitive dedup.
+          const existing = headers.get('Vary') || ''
+          const existingValues = new Set(
+            existing.split(',').map((v) => v.trim().toLowerCase())
+          )
+          const newValues = Array.isArray(value) ? value : [value]
+          const additions: string[] = []
+          for (const v of newValues) {
+            const items = String(v)
+              .split(',')
+              .map((i) => i.trim())
+            for (const item of items) {
+              if (item && !existingValues.has(item.toLowerCase())) {
+                existingValues.add(item.toLowerCase())
+                additions.push(item)
+              }
+            }
+          }
+          if (additions.length > 0) {
+            headers.set(
+              'Vary',
+              existing
+                ? `${existing}, ${additions.join(', ')}`
+                : additions.join(', ')
+            )
+          }
+        } else if (Array.isArray(value)) {
           for (const v of value) {
             headers.append(key, String(v))
           }
