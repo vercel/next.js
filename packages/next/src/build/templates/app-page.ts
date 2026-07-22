@@ -585,6 +585,7 @@ export async function handler(
     (prerenderInfo.fallbackRootParams?.length ?? 0) > 0
 
   let ssgCacheKey: string | null = null
+  let usesCompletedShellCacheKey = false
   if (
     !isDraftMode &&
     isSSG &&
@@ -597,17 +598,19 @@ export async function handler(
     // partial fallbacks we instead derive the cache key from the shell
     // that matched this request so `/prefix/[one]/[two]` can specialize into
     // `/prefix/c/[two]` without promoting all the way to `/prefix/c/foo`.
+    // This includes entries with unresolved ROOT params: those requests are
+    // served blocking (no shell can be shared across root branches), but
+    // the entry they produce is still keyed by the completed shell — root
+    // params and any other prerenderable params resolve into the key while
+    // params that `generateStaticParams` can never provide stay as
+    // placeholders and must not partition the cache.
     const fallbackPathname = prerenderMatch
       ? typeof prerenderInfo?.fallback === 'string'
         ? prerenderInfo.fallback
         : prerenderMatch.source
       : null
 
-    if (
-      fallbackPathname &&
-      prerenderInfo?.fallbackRouteParams?.length &&
-      !hasUnresolvedRootFallbackParams
-    ) {
+    if (fallbackPathname && prerenderInfo?.fallbackRouteParams?.length) {
       if (remainingPrerenderableParams.length > 0) {
         const completedShellCacheKey = buildCompletedShellCacheKey(
           fallbackPathname,
@@ -618,10 +621,10 @@ export async function handler(
         // If applying the current request params doesn't make the shell any
         // more complete, then this shell is already at its most complete
         // form and should remain shared rather than creating a new cache entry.
-        ssgCacheKey =
-          completedShellCacheKey !== fallbackPathname
-            ? completedShellCacheKey
-            : null
+        if (completedShellCacheKey !== fallbackPathname) {
+          ssgCacheKey = completedShellCacheKey
+          usesCompletedShellCacheKey = true
+        }
       }
     } else {
       ssgCacheKey = resolvedPathname
@@ -1494,9 +1497,22 @@ export async function handler(
                 effectiveFallbackRouteParams.length <
                   (prerenderInfo?.fallbackRouteParams?.length ?? 0)
               ? createOpaqueFallbackRouteParams(effectiveFallbackRouteParams)
-              : isDebugFallbackShell
-                ? getFallbackRouteParams(normalizedSrcPage, routeModule)
-                : null
+              : // A render cached under a completed shell cache key must keep
+                // deferring the params the key leaves as placeholders (the
+                // ones `generateStaticParams` can never provide) so they
+                // resume per request instead of baking into the shared entry.
+                // This is the blocking analog of the background shell
+                // upgrade above and is likewise self-hosted only: in minimal
+                // mode the platform proxy owns this contract by stripping
+                // never-prerenderable params from the request, which defers
+                // them through the placeholder handling instead.
+                !isMinimalMode &&
+                  usesCompletedShellCacheKey &&
+                  remainingFallbackRouteParams.length > 0
+                ? createOpaqueFallbackRouteParams(remainingFallbackRouteParams)
+                : isDebugFallbackShell
+                  ? getFallbackRouteParams(normalizedSrcPage, routeModule)
+                  : null
 
         // For staged dynamic rendering (Cached Navigations) and debug static
         // shell rendering, pass the fallback params via request meta so the
