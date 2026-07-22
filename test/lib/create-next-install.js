@@ -352,12 +352,8 @@ async function createNextInstall({
           .traceChild('run generic install command', combinedDependencies)
           .traceAsyncFn(() => installDependencies(installDir, tmpDir))
 
-        // `@next/env` is a runtime dependency of `next`, so it's the one
-        // workspace package that every install resolves transitively — i.e.
-        // through the overrides. If it came from the registry the overrides
-        // were not applied, and installs would break whenever the registry
-        // doesn't have the repo's version (e.g. mid-release) — or worse,
-        // silently test published packages instead of the local build.
+        // `@next/env` is a dependency of `next`, so it only resolves to the
+        // local tarball if the overrides were applied.
         const envDir = await fs.realpath(
           path.join(
             await fs.realpath(path.join(installDir, 'node_modules/next')),

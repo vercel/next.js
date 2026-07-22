@@ -25,9 +25,8 @@ const detectContentType = async (buffer: Buffer, attempt = 0) => {
   maxBlockedMs = Math.max(maxBlockedMs, performance.now() - lastTick)
 
   if (maxBlockedMs > 1) {
-    // Keep the 1ms bound (GHSA-q8wf-6r8g-63ch) but retry: the sampled gaps
-    // also include JIT warmup and OS scheduling noise, while a real
-    // regression blocks deterministically and fails every attempt.
+    // The sampled gaps also include JIT warmup and scheduler noise; a real
+    // regression (GHSA-q8wf-6r8g-63ch) fails every attempt.
     if (attempt >= 4) {
       throw new Error(
         `detectContentType blocked the event loop for ${maxBlockedMs.toFixed(1)}ms`

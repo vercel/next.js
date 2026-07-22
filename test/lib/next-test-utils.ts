@@ -888,8 +888,7 @@ export async function retry<T>(
 export async function waitForRedbox(browser: Playwright) {
   const redbox = browser.locateRedbox()
   try {
-    // Producing the error may involve a compile, which can take a while on
-    // loaded CI machines. Match the 30s budget used for HMR updates.
+    // Producing the error may involve a compile.
     await redbox.waitFor({ timeout: 30000 })
   } catch (errorCause) {
     const error = new Error('Expected Redbox but found no visible one.')
