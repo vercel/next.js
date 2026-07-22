@@ -1,20 +1,20 @@
 import type {
   RequestInsight,
   RequestInsightFetch,
-  RequestInsightSpan,
+  RequestInsightOperation,
 } from '../../../shared/request-insights'
 
 export type TraceItem = {
   id: string
-  spanId?: string
-  parentSpanId?: string
-  spanType?: string
+  operationId?: number
+  parentOperationId?: number
+  operationType?: string
   category: 'nextjs' | 'application'
   label: string
   startTime: number
   durationMs?: number
-  status: 'ok' | 'error' | 'pending'
-  kind: 'span' | 'fetch'
+  status: 'ok' | 'error'
+  kind: 'operation' | 'fetch'
   depth: number
 }
 
@@ -25,8 +25,8 @@ export type TraceRange = {
 
 type UnnestedTraceItem = Omit<TraceItem, 'depth'>
 
-const FETCH_SPAN_TYPE = 'AppRender.fetch'
-const DEFAULT_VISIBLE_SPAN_TYPES = new Set([
+const FETCH_OPERATION_TYPE = 'AppRender.fetch'
+const DEFAULT_VISIBLE_OPERATION_TYPES = new Set([
   'BaseServer.handleRequest',
   'Middleware.execute',
   'NextNodeServer.matchRoute',
@@ -42,7 +42,7 @@ const DEFAULT_VISIBLE_SPAN_TYPES = new Set([
   'AppRender.waitForRSC',
   'AppRender.renderToNodeFizzStream',
   'AppRender.waitForHTMLCompletion',
-  FETCH_SPAN_TYPE,
+  FETCH_OPERATION_TYPE,
   'NextNodeServer.waitForFirstResponseChunk',
   'NextNodeServer.startResponse',
   'Render.getServerSideProps',
@@ -55,7 +55,7 @@ const DEFAULT_VISIBLE_SPAN_TYPES = new Set([
 ])
 const FIZZ_WORD = /\bFizz\b/gi
 const FLIGHT_WORD = /\bFlight\b/gi
-const SPAN_WORD_CASE: Record<string, string> = {
+const OPERATION_WORD_CASE: Record<string, string> = {
   api: 'API',
   fizz: 'HTML',
   flight: 'RSC',
@@ -72,43 +72,18 @@ export function getTraceItems(
   request: RequestInsight,
   verbose: boolean
 ): TraceItem[] {
-  const fetchSpansByIndex = new Map<number, RequestInsightSpan>()
-
-  for (const span of request.spans) {
-    const fetchIndex = getFetchIndex(span)
-    if (isFetchSpan(span) && fetchIndex !== undefined) {
-      fetchSpansByIndex.set(fetchIndex, span)
-    }
-  }
-
-  const fetchIndexes = new Set(
-    request.fetches
-      .map((fetch) => fetch.index)
-      .filter((index): index is number => index !== undefined)
-  )
   const items: UnnestedTraceItem[] = []
 
-  request.spans.forEach((span, index) => {
-    const fetchIndex = getFetchIndex(span)
-    if (
-      isFetchSpan(span) &&
-      fetchIndex !== undefined &&
-      fetchIndexes.has(fetchIndex)
-    ) {
-      return
-    }
+  for (const operation of request.operations) {
+    items.push(getOperationTraceItem(operation))
+  }
 
-    items.push(getSpanTraceItem(span, index))
-  })
-
-  request.fetches.forEach((fetch, index) => {
-    const matchingSpan =
-      fetch.index === undefined ? undefined : fetchSpansByIndex.get(fetch.index)
-    const item = getFetchTraceItem(fetch, index, matchingSpan)
+  for (const fetch of request.fetches) {
+    const item = getFetchTraceItem(fetch)
     if (item) {
       items.push(item)
     }
-  })
+  }
 
   const nestedItems = nestTraceItems(items)
   return verbose ? nestedItems : getDefaultTraceItems(nestedItems)
@@ -144,69 +119,64 @@ export function getTracePosition(
   return { left, width, offsetMs }
 }
 
-function getSpanTraceItem(
-  span: RequestInsightSpan,
-  index: number
+function getOperationTraceItem(
+  operation: RequestInsightOperation
 ): UnnestedTraceItem {
-  const type = span.attributes?.['next.span_type']
-
   return {
-    id: `span:${span.spanId ?? index}:${span.startTime}`,
-    spanId: span.spanId,
-    parentSpanId: span.parentSpanId,
-    spanType: typeof type === 'string' ? type : undefined,
-    category: getSpanCategory(span),
-    label: getSpanLabel(span),
-    startTime: span.startTime,
-    durationMs: span.durationMs,
-    status: span.status ?? 'pending',
-    kind: 'span',
+    id: `operation:${operation.id}`,
+    operationId: operation.id,
+    parentOperationId: operation.parentId,
+    operationType: operation.type,
+    category: operation.category,
+    label: getOperationLabel(operation),
+    startTime: operation.startTime,
+    durationMs: operation.durationMs,
+    status: operation.status,
+    kind: 'operation',
   }
 }
 
 function getFetchTraceItem(
-  fetch: RequestInsightFetch,
-  index: number,
-  matchingSpan: RequestInsightSpan | undefined
+  fetch: RequestInsightFetch
 ): UnnestedTraceItem | null {
-  const startTime = fetch.startTime ?? matchingSpan?.startTime
+  const startTime = fetch.startTime
   if (startTime === undefined) {
     return null
   }
 
   return {
-    id: `fetch:${matchingSpan?.spanId ?? fetch.index ?? index}:${startTime}`,
-    spanId: matchingSpan?.spanId,
-    parentSpanId: matchingSpan?.parentSpanId,
-    spanType: FETCH_SPAN_TYPE,
-    category: matchingSpan ? getSpanCategory(matchingSpan) : 'application',
+    id: `fetch:${fetch.id}`,
+    parentOperationId: fetch.parentOperationId,
+    operationType: FETCH_OPERATION_TYPE,
+    category: 'application',
     label: `${fetch.method ?? 'GET'} ${getUrlPath(fetch.url)}`,
     startTime,
-    durationMs: fetch.durationMs ?? matchingSpan?.durationMs,
-    status:
-      fetch.statusCode && fetch.statusCode >= 400
-        ? 'error'
-        : (matchingSpan?.status ?? 'ok'),
+    durationMs: fetch.durationMs,
+    status: fetch.statusCode && fetch.statusCode >= 400 ? 'error' : 'ok',
     kind: 'fetch',
   }
 }
 
 function nestTraceItems(items: UnnestedTraceItem[]): TraceItem[] {
   const sortedItems = [...items].sort(compareTraceItems)
-  const itemBySpanId = new Map<string, UnnestedTraceItem>()
+  const itemByOperationId = new Map<number, UnnestedTraceItem>()
   const childrenByItemId = new Map<string, UnnestedTraceItem[]>()
   const roots: UnnestedTraceItem[] = []
 
   for (const item of sortedItems) {
-    if (item.spanId && !itemBySpanId.has(item.spanId)) {
-      itemBySpanId.set(item.spanId, item)
+    if (
+      item.operationId !== undefined &&
+      !itemByOperationId.has(item.operationId)
+    ) {
+      itemByOperationId.set(item.operationId, item)
     }
   }
 
   for (const item of sortedItems) {
-    const parent = item.parentSpanId
-      ? itemBySpanId.get(item.parentSpanId)
-      : undefined
+    const parent =
+      item.parentOperationId !== undefined
+        ? itemByOperationId.get(item.parentOperationId)
+        : undefined
 
     if (!parent || parent.id === item.id) {
       roots.push(item)
@@ -238,7 +208,7 @@ function nestTraceItems(items: UnnestedTraceItem[]): TraceItem[] {
     append(root, 0)
   }
 
-  // Cyclic or otherwise malformed parent references should not hide spans.
+  // Cyclic or otherwise malformed parent references should not hide operations.
   for (const item of sortedItems) {
     append(item, 0)
   }
@@ -247,13 +217,13 @@ function nestTraceItems(items: UnnestedTraceItem[]): TraceItem[] {
 }
 
 function getDefaultTraceItems(items: TraceItem[]): TraceItem[] {
-  const itemBySpanId = new Map<string, TraceItem>()
-  const visibleDepthBySpanId = new Map<string, number>()
+  const itemByOperationId = new Map<number, TraceItem>()
+  const visibleDepthByOperationId = new Map<number, number>()
   const visibleItems: TraceItem[] = []
 
   for (const item of items) {
-    if (item.spanId) {
-      itemBySpanId.set(item.spanId, item)
+    if (item.operationId !== undefined) {
+      itemByOperationId.set(item.operationId, item)
     }
   }
 
@@ -263,31 +233,34 @@ function getDefaultTraceItems(items: TraceItem[]): TraceItem[] {
     }
 
     let depth = 0
-    let parent = item.parentSpanId
-      ? itemBySpanId.get(item.parentSpanId)
-      : undefined
+    let parent =
+      item.parentOperationId !== undefined
+        ? itemByOperationId.get(item.parentOperationId)
+        : undefined
     const visited = new Set<string>()
 
     while (parent && !visited.has(parent.id)) {
       visited.add(parent.id)
-      const parentDepth = parent.spanId
-        ? visibleDepthBySpanId.get(parent.spanId)
-        : undefined
+      const parentDepth =
+        parent.operationId !== undefined
+          ? visibleDepthByOperationId.get(parent.operationId)
+          : undefined
 
       if (parentDepth !== undefined) {
         depth = parentDepth + 1
         break
       }
 
-      parent = parent.parentSpanId
-        ? itemBySpanId.get(parent.parentSpanId)
-        : undefined
+      parent =
+        parent.parentOperationId !== undefined
+          ? itemByOperationId.get(parent.parentOperationId)
+          : undefined
     }
 
     const visibleItem = { ...item, depth }
     visibleItems.push(visibleItem)
-    if (visibleItem.spanId) {
-      visibleDepthBySpanId.set(visibleItem.spanId, depth)
+    if (visibleItem.operationId !== undefined) {
+      visibleDepthByOperationId.set(visibleItem.operationId, depth)
     }
   }
 
@@ -296,9 +269,9 @@ function getDefaultTraceItems(items: TraceItem[]): TraceItem[] {
 
 function isDefaultVisible(item: TraceItem): boolean {
   return (
-    item.spanType === undefined ||
+    item.category === 'application' ||
     item.status === 'error' ||
-    DEFAULT_VISIBLE_SPAN_TYPES.has(item.spanType)
+    DEFAULT_VISIBLE_OPERATION_TYPES.has(item.operationType ?? '')
   )
 }
 
@@ -313,37 +286,8 @@ function compareTraceItems(
   )
 }
 
-function isFetchSpan(span: RequestInsightSpan): boolean {
-  return span.attributes?.['next.span_type'] === FETCH_SPAN_TYPE
-}
-
-function getFetchIndex(span: RequestInsightSpan): number | undefined {
-  const index = span.attributes?.['next.fetch.idx']
-  return typeof index === 'number' ? index : undefined
-}
-
-function getSpanCategory(span: RequestInsightSpan): 'nextjs' | 'application' {
-  const category = span.attributes?.['next.span_category']
-  if (category === 'nextjs' || category === 'application') {
-    return category
-  }
-
-  if (span.attributes?.['next.span_type'] === FETCH_SPAN_TYPE) {
-    return 'application'
-  }
-
-  return typeof span.attributes?.['next.span_type'] === 'string'
-    ? 'nextjs'
-    : 'application'
-}
-
-function getSpanLabel(span: RequestInsightSpan): string {
-  const explicitName = span.attributes?.['next.span_name']
-  const name =
-    typeof explicitName === 'string' && explicitName.trim().length > 0
-      ? explicitName
-      : span.name
-  const displayName = name
+function getOperationLabel(operation: RequestInsightOperation): string {
+  const displayName = operation.name
     .replace(FIZZ_WORD, 'HTML')
     .replace(FLIGHT_WORD, 'RSC')
 
@@ -366,7 +310,9 @@ function getSpanLabel(span: RequestInsightSpan): string {
     .replace(/[_-]+/g, ' ')
     .trim()
     .split(/\s+/)
-    .map((word) => SPAN_WORD_CASE[word.toLowerCase()] ?? word.toLowerCase())
+    .map(
+      (word) => OPERATION_WORD_CASE[word.toLowerCase()] ?? word.toLowerCase()
+    )
     .filter(
       (word, index, allWords) =>
         !(

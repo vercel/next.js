@@ -113,8 +113,11 @@ import {
   SpanStatusCode,
 } from './lib/trace/tracer'
 import { BaseServerSpan } from './lib/trace/constants'
-import { runWithRequestInsightsIdentity } from './lib/trace/request-insights-identity'
-import { isRequestInsightsEnabled } from './lib/trace/span-store'
+import {
+  finishRequestInsightSession,
+  runWithRequestInsightsSession,
+  setRequestInsightsEnabled,
+} from './lib/trace/request-insights'
 import { I18NProvider } from './lib/i18n-provider'
 import { sendResponse } from './send-response'
 import { normalizeNextQueryParam } from './web/utils'
@@ -470,11 +473,10 @@ export default abstract class Server<
     // TODO: should conf be normalized to prevent missing
     // values from causing issues as this can be user provided
     this.nextConfig = conf as NextConfigRuntime
-    if (
-      (dev || process.env.__NEXT_DEV_SERVER) &&
-      this.nextConfig.experimental.requestInsights
-    ) {
-      process.env.__NEXT_REQUEST_INSIGHTS = 'true'
+    if (process.env.__NEXT_DEV_SERVER) {
+      setRequestInsightsEnabled(
+        dev && !!this.nextConfig.experimental.requestInsights
+      )
     }
 
     if (this.nextConfig.experimental.runtimeServerDeploymentId) {
@@ -988,7 +990,11 @@ export default abstract class Server<
         )
       })
 
-    if (!isRequestInsightsEnabled()) {
+    if (
+      !process.env.__NEXT_DEV_SERVER ||
+      !this.dev ||
+      !this.nextConfig.experimental.requestInsights
+    ) {
       return handleRequest()
     }
 
@@ -997,19 +1003,41 @@ export default abstract class Server<
       typeof requestIdHeader === 'string' ? requestIdHeader : nanoid()
     const htmlRequestIdHeader = req.headers[NEXT_HTML_REQUEST_ID_HEADER]
 
-    // The request root and route-matching spans start before App Render creates
-    // its workStore. Carry their identity in this outer scope; App Render copies
-    // it into the workStore so the complete timeline uses one request ID.
-    return runWithRequestInsightsIdentity(
+    const requestInsights = {
+      requestId,
+      htmlRequestId:
+        typeof htmlRequestIdHeader === 'string'
+          ? htmlRequestIdHeader
+          : requestId,
+    }
+    addRequestMeta(req, 'requestInsights', requestInsights)
+
+    return runWithRequestInsightsSession(
       {
-        requestId,
-        htmlRequestId:
-          typeof htmlRequestIdHeader === 'string'
-            ? htmlRequestIdHeader
-            : requestId,
+        ...requestInsights,
         url: req.url,
+        method,
       },
-      handleRequest
+      async () => {
+        let error: unknown
+        let didError = false
+        try {
+          await handleRequest()
+        } catch (caughtError) {
+          didError = true
+          error = caughtError
+          throw caughtError
+        } finally {
+          finishRequestInsightSession({
+            route: getRequestMeta(req, 'match')?.definition.pathname,
+            method,
+            statusCode: res.statusCode,
+            isRsc: getRequestMeta(req, 'isRSCRequest') ?? false,
+            status: didError ? 'error' : undefined,
+            error,
+          })
+        }
+      }
     )
   }
 

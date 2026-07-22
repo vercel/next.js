@@ -1,4 +1,7 @@
-import type { RequestInsight } from '../../../shared/request-insights'
+import type {
+  RequestInsight,
+  RequestInsightOperation,
+} from '../../../shared/request-insights'
 import { getActiveRequestId, isPageLoadRequest } from './request-list'
 import { getTraceItems, getTracePosition, getTraceRange } from './trace-viewer'
 
@@ -11,8 +14,21 @@ function createRequest(
     startTime: 100,
     durationMs: 100,
     status: 'ok',
-    spans: [],
+    operations: [],
     fetches: [],
+    ...overrides,
+  }
+}
+
+function createOperation(
+  overrides: Partial<RequestInsightOperation> &
+    Pick<RequestInsightOperation, 'id' | 'name' | 'startTime'>
+): RequestInsightOperation {
+  return {
+    type: overrides.name,
+    category: 'nextjs',
+    durationMs: 10,
+    status: 'ok',
     ...overrides,
   }
 }
@@ -52,36 +68,36 @@ describe('request insights trace viewer', () => {
     ).toBe(false)
   })
 
-  it('orders spans by their recorded parent-child hierarchy', () => {
+  it('orders operations by their recorded parent-child hierarchy', () => {
     const request = createRequest({
-      spans: [
-        {
+      operations: [
+        createOperation({
+          id: 3,
           name: 'second child',
-          spanId: 'child-2',
-          parentSpanId: 'root',
+          parentId: 0,
           startTime: 150,
           durationMs: 20,
-        },
-        {
+        }),
+        createOperation({
+          id: 2,
           name: 'grandchild',
-          spanId: 'grandchild',
-          parentSpanId: 'child-1',
+          parentId: 1,
           startTime: 115,
           durationMs: 5,
-        },
-        {
+        }),
+        createOperation({
+          id: 0,
           name: 'root',
-          spanId: 'root',
           startTime: 100,
           durationMs: 100,
-        },
-        {
+        }),
+        createOperation({
+          id: 1,
           name: 'first child',
-          spanId: 'child-1',
-          parentSpanId: 'root',
+          parentId: 0,
           startTime: 110,
           durationMs: 30,
-        },
+        }),
       ],
     })
 
@@ -98,142 +114,128 @@ describe('request insights trace viewer', () => {
     ])
   })
 
-  it('filters collected spans for presentation without changing collection', () => {
+  it('filters collected operations for presentation without changing collection', () => {
     const request = createRequest({
-      spans: [
-        {
+      operations: [
+        createOperation({
+          id: 1,
           name: 'GET',
-          spanId: 'root',
+          type: 'BaseServer.handleRequest',
           startTime: 100,
           durationMs: 100,
-          attributes: { 'next.span_type': 'BaseServer.handleRequest' },
-        },
-        {
+        }),
+        createOperation({
+          id: 2,
           name: 'prepare request',
-          spanId: 'prepare',
-          parentSpanId: 'root',
+          type: 'BaseServer.prepareRequest',
+          parentId: 1,
           startTime: 101,
           durationMs: 5,
-          attributes: { 'next.span_type': 'BaseServer.prepareRequest' },
-        },
-        {
+        }),
+        createOperation({
+          id: 3,
           name: 'match route',
-          spanId: 'match',
-          parentSpanId: 'prepare',
+          type: 'NextNodeServer.matchRoute',
+          parentId: 2,
           startTime: 106,
           durationMs: 5,
-          attributes: { 'next.span_type': 'NextNodeServer.matchRoute' },
-        },
-        {
+        }),
+        createOperation({
+          id: 4,
           name: 'compile and prepare route',
-          spanId: 'ensure',
-          parentSpanId: 'match',
+          type: 'DevRouteMatcherManager.ensureRoute',
+          parentId: 3,
           startTime: 107,
           durationMs: 2,
-          attributes: {
-            'next.span_type': 'DevRouteMatcherManager.ensureRoute',
-          },
-        },
-        {
+        }),
+        createOperation({
+          id: 5,
           name: 'compile route',
-          spanId: 'compile-route',
-          parentSpanId: 'ensure',
+          type: 'DevBundlerService.ensurePage',
+          parentId: 4,
           startTime: 107.1,
           durationMs: 1.5,
-          attributes: {
-            'next.span_type': 'DevBundlerService.ensurePage',
-          },
-        },
-        {
+        }),
+        createOperation({
+          id: 6,
           name: 'render',
-          spanId: 'base-render',
-          parentSpanId: 'match',
+          type: 'BaseServer.render',
+          parentId: 3,
           startTime: 110,
           durationMs: 85,
-          attributes: { 'next.span_type': 'BaseServer.render' },
-        },
-        {
+        }),
+        createOperation({
+          id: 7,
           name: 'resolve page components',
-          spanId: 'resolve-page-components',
-          parentSpanId: 'base-render',
+          type: 'NextNodeServer.findPageComponents',
+          parentId: 6,
           startTime: 110.1,
           durationMs: 2,
-          attributes: {
-            'next.span_type': 'NextNodeServer.findPageComponents',
-          },
-        },
-        {
+        }),
+        createOperation({
+          id: 8,
           name: 'LoadComponents.loadComponents',
-          spanId: 'load-components',
-          parentSpanId: 'resolve-page-components',
+          type: 'LoadComponents.loadComponents',
+          parentId: 7,
           startTime: 110.2,
           durationMs: 1,
-          attributes: {
-            'next.span_type': 'LoadComponents.loadComponents',
-          },
-        },
-        {
+        }),
+        createOperation({
+          id: 9,
           name: 'prepare app page response',
-          spanId: 'prepare-app-page',
-          parentSpanId: 'base-render',
+          type: 'AppRender.prepareAppPageResponse',
+          parentId: 6,
           startTime: 111,
           durationMs: 1,
-          attributes: {
-            'next.span_type': 'AppRender.prepareAppPageResponse',
-          },
-        },
-        {
+        }),
+        createOperation({
+          id: 10,
           name: 'initialize app render',
-          spanId: 'initialize-app-render',
-          parentSpanId: 'base-render',
+          type: 'AppRender.initializeRender',
+          parentId: 6,
           startTime: 112,
           durationMs: 1,
-          attributes: { 'next.span_type': 'AppRender.initializeRender' },
-        },
-        {
+        }),
+        createOperation({
+          id: 11,
           name: 'render route (app) /',
-          spanId: 'render',
-          parentSpanId: 'base-render',
+          type: 'AppRender.getBodyResult',
+          parentId: 6,
           startTime: 113,
           durationMs: 80,
-          attributes: { 'next.span_type': 'AppRender.getBodyResult' },
-        },
-        {
+        }),
+        createOperation({
+          id: 12,
           name: 'render RSC response',
-          spanId: 'render-rsc',
-          parentSpanId: 'render',
+          type: 'AppRender.renderRSCResponse',
+          parentId: 11,
           startTime: 113.5,
           durationMs: 75,
-          attributes: { 'next.span_type': 'AppRender.renderRSCResponse' },
-        },
-        {
+        }),
+        createOperation({
+          id: 13,
           name: 'wait for RSC render task',
-          spanId: 'wait-rsc',
-          parentSpanId: 'render',
+          type: 'AppRender.waitForRSC',
+          parentId: 11,
           startTime: 114,
           durationMs: 5,
-          attributes: { 'next.span_type': 'AppRender.waitForRSC' },
-        },
-        {
+        }),
+        createOperation({
+          id: 14,
           name: 'render HTML shell',
-          spanId: 'render-html-shell',
-          parentSpanId: 'render',
+          type: 'AppRender.renderToNodeFizzStream',
+          parentId: 11,
           startTime: 120,
           durationMs: 5,
-          attributes: {
-            'next.span_type': 'AppRender.renderToNodeFizzStream',
-          },
-        },
-        {
+        }),
+        createOperation({
+          id: 15,
           name: 'wait for HTML completion',
-          spanId: 'wait-html-completion',
-          parentSpanId: 'render',
+          type: 'AppRender.waitForHTMLCompletion',
+          parentId: 11,
           startTime: 125,
           durationMs: 65,
-          attributes: {
-            'next.span_type': 'AppRender.waitForHTMLCompletion',
-          },
-        },
+        }),
       ],
     })
 
@@ -275,44 +277,33 @@ describe('request insights trace viewer', () => {
     ])
   })
 
-  it('gives every displayed span a human readable name', () => {
+  it('gives every displayed operation a human readable name', () => {
     const request = createRequest({
-      spans: [
-        {
+      operations: [
+        createOperation({
+          id: 1,
           name: 'AppRender.renderToNodeFizzStream',
+          type: 'AppRender.renderToNodeFizzStream',
           startTime: 100,
-          durationMs: 10,
-          attributes: {
-            'next.span_name': 'AppRender.renderToNodeFizzStream',
-            'next.span_type': 'AppRender.renderToNodeFizzStream',
-          },
-        },
-        {
-          name: 'AppRender.waitForFizzRenderTask',
+        }),
+        createOperation({
+          id: 2,
+          name: 'wait for Fizz render task',
+          type: 'AppRender.waitForFizzRenderTask',
           startTime: 110,
-          durationMs: 10,
-          attributes: {
-            'next.span_name': 'wait for Fizz render task',
-            'next.span_type': 'AppRender.waitForFizzRenderTask',
-          },
-        },
-        {
+        }),
+        createOperation({
+          id: 3,
           name: 'AppRender.renderToNodeFlightStream',
+          type: 'AppRender.renderToNodeFlightStream',
           startTime: 120,
-          durationMs: 10,
-          attributes: {
-            'next.span_name': 'AppRender.renderToNodeFlightStream',
-            'next.span_type': 'AppRender.renderToNodeFlightStream',
-          },
-        },
-        {
-          name: 'AppRender.renderToReadableStream',
+        }),
+        createOperation({
+          id: 4,
+          name: 'render HTML stream',
+          type: 'AppRender.renderToReadableStream',
           startTime: 130,
-          durationMs: 10,
-          attributes: {
-            'next.span_name': 'render HTML stream',
-          },
-        },
+        }),
       ],
     })
     const expectedLabels = [
@@ -327,84 +318,60 @@ describe('request insights trace viewer', () => {
     )
   })
 
-  it('uses exactly Next.js and Application categories', () => {
+  it('uses the typed Next.js and Application categories', () => {
     const request = createRequest({
-      spans: [
-        {
+      operations: [
+        createOperation({
+          id: 1,
           name: 'render',
+          type: 'BaseServer.render',
+          category: 'nextjs',
           startTime: 100,
-          durationMs: 10,
-          attributes: {
-            'next.span_category': 'nextjs',
-            'next.span_type': 'BaseServer.render',
-          },
-        },
-        {
+        }),
+        createOperation({
+          id: 2,
           name: 'generateMetadata /',
+          type: 'ResolveMetadata.generateMetadata',
+          category: 'application',
           startTime: 110,
-          durationMs: 10,
-          attributes: {
-            'next.span_category': 'application',
-            'next.span_type': 'ResolveMetadata.generateMetadata',
-          },
-        },
-        {
-          name: 'custom database span',
+        }),
+        createOperation({
+          id: 3,
+          name: 'custom database operation',
+          type: 'database.query',
+          category: 'application',
           startTime: 120,
-          durationMs: 10,
-        },
+        }),
       ],
     })
 
     expect(
-      getTraceItems(request, true).map(({ label, category }) => ({
+      getTraceItems(request, false).map(({ label, category }) => ({
         label,
         category,
       }))
     ).toEqual([
       { label: 'render', category: 'nextjs' },
       { label: 'generate metadata /', category: 'application' },
-      { label: 'custom database span', category: 'application' },
+      { label: 'custom database operation', category: 'application' },
     ])
   })
 
-  it('merges fetch metrics into the matching fetch span', () => {
+  it('uses fetch records directly and nests them under their parent operation', () => {
     const request = createRequest({
-      spans: [
-        {
+      operations: [
+        createOperation({
+          id: 1,
           name: 'root',
-          spanId: 'root',
+          type: 'BaseServer.handleRequest',
           startTime: 100,
           durationMs: 100,
-        },
-        {
-          name: 'fetch GET https://example.com/api',
-          spanId: 'fetch-span',
-          parentSpanId: 'root',
-          startTime: 120,
-          durationMs: 30,
-          attributes: {
-            'next.span_category': 'application',
-            'next.span_type': 'AppRender.fetch',
-            'next.fetch.idx': 1,
-          },
-        },
-        {
-          name: 'internal fetch GET https://example.com/internal',
-          spanId: 'internal-fetch-span',
-          parentSpanId: 'root',
-          startTime: 155,
-          durationMs: 10,
-          attributes: {
-            'next.span_category': 'nextjs',
-            'next.span_type': 'AppRender.fetch',
-            'next.fetch.idx': 2,
-          },
-        },
+        }),
       ],
       fetches: [
         {
-          index: 1,
+          id: 1,
+          parentOperationId: 1,
           method: 'GET',
           url: 'https://example.com/api',
           startTime: 120,
@@ -412,9 +379,11 @@ describe('request insights trace viewer', () => {
           cacheStatus: 'miss',
         },
         {
-          index: 2,
+          id: 2,
+          parentOperationId: 1,
           method: 'GET',
           url: 'https://example.com/internal',
+          statusCode: 500,
           startTime: 155,
           durationMs: 10,
           cacheStatus: 'miss',
@@ -423,41 +392,54 @@ describe('request insights trace viewer', () => {
     })
 
     expect(getTraceItems(request, false)).toEqual([
-      expect.objectContaining({ label: 'root', depth: 0, kind: 'span' }),
       expect.objectContaining({
+        label: 'root',
+        depth: 0,
+        kind: 'operation',
+        operationId: 1,
+      }),
+      expect.objectContaining({
+        id: 'fetch:1',
         label: 'GET /api',
         depth: 1,
         kind: 'fetch',
-        spanId: 'fetch-span',
+        parentOperationId: 1,
         durationMs: 25,
         category: 'application',
+        status: 'ok',
       }),
       expect.objectContaining({
+        id: 'fetch:2',
         label: 'GET /internal',
         depth: 1,
         kind: 'fetch',
-        spanId: 'internal-fetch-span',
+        parentOperationId: 1,
         durationMs: 10,
-        category: 'nextjs',
+        category: 'application',
+        status: 'error',
       }),
     ])
   })
 
-  it('uses the request time range and clips outlier spans', () => {
+  it('uses the request time range and clips outlier operations', () => {
     const request = createRequest({
       startTime: 100,
       durationMs: 50,
-      spans: [
-        {
-          name: 'early span',
+      operations: [
+        createOperation({
+          id: 1,
+          name: 'early operation',
+          type: 'BaseServer.handleRequest',
           startTime: 90,
           durationMs: 20,
-        },
-        {
-          name: 'late span',
+        }),
+        createOperation({
+          id: 2,
+          name: 'late operation',
+          type: 'BaseServer.handleRequest',
           startTime: 140,
           durationMs: 30,
-        },
+        }),
       ],
     })
     const items = getTraceItems(request, false)

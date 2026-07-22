@@ -8,8 +8,6 @@ import type {
   TextMapGetter,
   TextMapPropagator,
 } from '@opentelemetry/api'
-import type { WorkStore } from '../../app-render/work-async-storage.external'
-import type { WorkUnitStore } from '../../app-render/work-unit-async-storage.external'
 import {
   ROOT_CONTEXT,
   context,
@@ -18,27 +16,27 @@ import {
   trace,
 } from '@opentelemetry/api'
 
-import { setSpanRecorderForTest, type SpanStoreRecord } from './span-store'
-import { registerLocalSpanRecorder } from './local-span-recorder'
 import {
   AppRenderSpan,
   BaseServerSpan,
   LoadComponentsSpan,
   NodeSpan,
 } from './constants'
-import { SpanKind, SpanStatusCode, getTracer } from './tracer'
+import {
+  clearRequestInsightsForTest,
+  finishRequestInsightSession,
+  getRequestInsightsSnapshot,
+  runWithRequestInsightsSession,
+} from './request-insights'
+import {
+  registerRequestInsightsRuntime,
+  unregisterRequestInsightsRuntimeForTest,
+} from './request-insights-runtime'
+import { getTracer } from './tracer'
 
 const customContextKey = createContextKey('next.tracer.test.custom-context')
-const originalRequestInsights = process.env.__NEXT_REQUEST_INSIGHTS
 const originalDevServer = process.env.__NEXT_DEV_SERVER
 const originalOtelVerbose = process.env.NEXT_OTEL_VERBOSE
-const spanRecords: SpanStoreRecord[] = []
-
-function getSpanRecords(filter: { name?: string } = {}): SpanStoreRecord[] {
-  return spanRecords.filter(
-    (span) => filter.name === undefined || span.name === filter.name
-  )
-}
 
 const getter: TextMapGetter<Record<string, string | undefined>> = {
   keys: (carrier) => Object.keys(carrier),
@@ -157,21 +155,19 @@ describe('withPropagatedContext', () => {
   })
 })
 
-describe('local span recording', () => {
+describe('request insights tracing', () => {
   beforeEach(() => {
     process.env.__NEXT_DEV_SERVER = '1'
-    delete process.env.__NEXT_REQUEST_INSIGHTS
     delete process.env.NEXT_OTEL_VERBOSE
-    setSpanRecorderForTest((span) => spanRecords.push(span))
-    registerLocalSpanRecorder()
+    trace.disable()
+    registerRequestInsightsRuntime().setEnabled(true)
   })
 
   afterEach(() => {
-    if (originalRequestInsights === undefined) {
-      delete process.env.__NEXT_REQUEST_INSIGHTS
-    } else {
-      process.env.__NEXT_REQUEST_INSIGHTS = originalRequestInsights
-    }
+    clearRequestInsightsForTest()
+    unregisterRequestInsightsRuntimeForTest()
+    trace.disable()
+
     if (originalDevServer === undefined) {
       delete process.env.__NEXT_DEV_SERVER
     } else {
@@ -182,50 +178,85 @@ describe('local span recording', () => {
     } else {
       process.env.NEXT_OTEL_VERBOSE = originalOtelVerbose
     }
-    trace.disable()
-    setSpanRecorderForTest(undefined)
-    spanRecords.length = 0
   })
 
-  it('does not mirror spans by default', () => {
-    setSpanRecorderForTest(undefined)
+  it('observes operations without substituting an OTel span', () => {
+    let receivedSpan: unknown = 'not-called'
 
-    const result = getTracer().trace(NodeSpan.runHandler, () => 'result')
+    runRequest(() => {
+      const result = getTracer().trace(
+        BaseServerSpan.render,
+        { spanName: 'render dashboard' },
+        (span) => {
+          receivedSpan = span
+          expect(getTracer().getActiveScopeSpan()).toBeUndefined()
+          return 'result'
+        }
+      )
 
-    expect(result).toBe('result')
-    expect(getSpanRecords()).toEqual([])
-  })
+      expect(result).toBe('result')
+    })
 
-  it('records non-vanilla trace and wrapped spans for request insights', () => {
-    process.env.__NEXT_REQUEST_INSIGHTS = 'true'
-
-    getTracer().trace(BaseServerSpan.render, () => undefined)
-    const wrappedLoadComponents = getTracer().wrap(
-      LoadComponentsSpan.loadComponents,
-      () => undefined
-    )
-    wrappedLoadComponents()
-
-    expect(getSpanRecords()).toEqual([
+    expect(receivedSpan).toBeUndefined()
+    expect(getRequestInsightsSnapshot().requests[0].operations).toEqual([
       expect.objectContaining({
-        name: BaseServerSpan.render,
-        attributes: expect.objectContaining({
-          'next.span_category': 'nextjs',
-        }),
-      }),
-      expect.objectContaining({
-        name: LoadComponentsSpan.loadComponents,
-        attributes: expect.objectContaining({
-          'next.span_category': 'nextjs',
-        }),
+        type: BaseServerSpan.render,
+        name: 'render dashboard',
+        category: 'nextjs',
+        status: 'ok',
       }),
     ])
   })
 
-  it('only exports non-vanilla spans when verbose tracing is enabled', () => {
-    process.env.__NEXT_REQUEST_INSIGHTS = 'true'
-    const exportedSpans: string[] = []
-    const delegateSpan = trace.wrapSpanContext({
+  it('passes through the exact provider span while observing the operation', () => {
+    const providerSpan = trace.wrapSpanContext({
+      traceId: '0123456789abcdef0123456789abcdef',
+      spanId: '0123456789abcdef',
+      traceFlags: 1,
+    })
+    const end = jest.spyOn(providerSpan, 'end')
+    trace.setGlobalTracerProvider({
+      getTracer() {
+        return {
+          startSpan() {
+            return providerSpan
+          },
+          startActiveSpan(...args: unknown[]) {
+            const callback = args.at(-1) as (
+              span: typeof providerSpan
+            ) => unknown
+            return callback(providerSpan)
+          },
+        }
+      },
+    })
+    let receivedSpan: unknown
+
+    runRequest(() => {
+      getTracer().trace(NodeSpan.runHandler, (span) => {
+        receivedSpan = span
+      })
+    })
+
+    expect(receivedSpan).toBe(providerSpan)
+    expect(end).toHaveBeenCalledTimes(1)
+    expect(getRequestInsightsSnapshot().requests[0].operations).toEqual([
+      expect.objectContaining({
+        type: NodeSpan.runHandler,
+        name: NodeSpan.runHandler,
+      }),
+    ])
+    expect(getRequestInsightsSnapshot().requests[0].operations[0]).not.toEqual(
+      expect.objectContaining({
+        traceId: expect.anything(),
+        spanId: expect.anything(),
+      })
+    )
+  })
+
+  it('observes non-allowlisted operations without exporting them', () => {
+    const exportedOperations: string[] = []
+    const providerSpan = trace.wrapSpanContext({
       traceId: '0123456789abcdef0123456789abcdef',
       spanId: '0123456789abcdef',
       traceFlags: 1,
@@ -234,442 +265,211 @@ describe('local span recording', () => {
       getTracer() {
         return {
           startSpan(name: string) {
-            exportedSpans.push(name)
-            return delegateSpan
+            exportedOperations.push(name)
+            return providerSpan
           },
           startActiveSpan(...args: unknown[]) {
-            exportedSpans.push(args[0] as string)
+            exportedOperations.push(args[0] as string)
             const callback = args.at(-1) as (
-              span: typeof delegateSpan
+              span: typeof providerSpan
             ) => unknown
-            return callback(delegateSpan)
+            return callback(providerSpan)
           },
         }
       },
     })
 
-    getTracer().trace(BaseServerSpan.render, () => undefined)
-    expect(exportedSpans).toEqual([])
+    runRequest(() => {
+      getTracer().trace(BaseServerSpan.render, () => undefined)
+      expect(exportedOperations).toEqual([])
 
-    getTracer().trace(NodeSpan.runHandler, () => undefined)
-    expect(exportedSpans).toEqual([NodeSpan.runHandler])
+      getTracer().trace(NodeSpan.runHandler, () => undefined)
+      expect(exportedOperations).toEqual([NodeSpan.runHandler])
 
-    process.env.NEXT_OTEL_VERBOSE = '1'
-    getTracer().trace(BaseServerSpan.render, () => undefined)
-    expect(exportedSpans).toEqual([NodeSpan.runHandler, BaseServerSpan.render])
+      process.env.NEXT_OTEL_VERBOSE = '1'
+      getTracer().trace(BaseServerSpan.render, () => undefined)
+    })
+
+    expect(exportedOperations).toEqual([
+      NodeSpan.runHandler,
+      BaseServerSpan.render,
+    ])
+    expect(
+      getRequestInsightsSnapshot().requests[0].operations.map(
+        (operation) => operation.type
+      )
+    ).toEqual([
+      BaseServerSpan.render,
+      NodeSpan.runHandler,
+      BaseServerSpan.render,
+    ])
   })
 
-  it('does not record or export hidden spans', () => {
-    process.env.__NEXT_REQUEST_INSIGHTS = 'true'
-    let receivedSpan: unknown = 'not-called'
-    const startSpan = jest.fn()
-    const startActiveSpan = jest.fn()
+  it('excludes hidden spans and generic AppRender.fetch spans', () => {
+    const providerSpan = trace.wrapSpanContext({
+      traceId: '0123456789abcdef0123456789abcdef',
+      spanId: '0123456789abcdef',
+      traceFlags: 1,
+    })
+    const startSpan = jest.fn(() => providerSpan)
+    const startActiveSpan = jest.fn((...args: unknown[]) => {
+      const callback = args.at(-1) as (span: typeof providerSpan) => unknown
+      return callback(providerSpan)
+    })
     trace.setGlobalTracerProvider({
       getTracer() {
         return { startSpan, startActiveSpan }
       },
     })
+    let hiddenSpan: unknown = 'not-called'
+    let fetchSpan: unknown = 'not-called'
 
-    getTracer().trace(BaseServerSpan.render, { hideSpan: true }, (span) => {
-      receivedSpan = span
+    runRequest(() => {
+      getTracer().trace(BaseServerSpan.render, { hideSpan: true }, (span) => {
+        hiddenSpan = span
+      })
+      getTracer().trace(AppRenderSpan.fetch, (span) => {
+        fetchSpan = span
+      })
     })
 
-    expect(receivedSpan).toBeUndefined()
-    expect(getSpanRecords()).toEqual([])
+    expect(hiddenSpan).toBeUndefined()
+    expect(fetchSpan).toBe(providerSpan)
     expect(startSpan).not.toHaveBeenCalled()
-    expect(startActiveSpan).not.toHaveBeenCalled()
+    expect(startActiveSpan).toHaveBeenCalledTimes(1)
+    expect(startActiveSpan).toHaveBeenCalledWith(
+      AppRenderSpan.fetch,
+      expect.any(Object),
+      expect.anything()
+    )
+    expect(typeof startActiveSpan.mock.calls[0].at(-1)).toBe('function')
+    expect(getRequestInsightsSnapshot().requests[0].operations).toEqual([])
   })
 
-  it('bypasses local span handling outside the dev server', () => {
-    delete process.env.__NEXT_DEV_SERVER
+  it('keeps the request session but clears operation parentage when detached', () => {
+    runRequest(() => {
+      getTracer().trace(
+        BaseServerSpan.render,
+        { spanName: 'outer operation' },
+        () => {
+          getTracer().trace(
+            AppRenderSpan.getBodyResult,
+            { spanName: 'nested operation' },
+            () => undefined
+          )
+          getTracer().runWithDetachedContext(() =>
+            getTracer().trace(
+              LoadComponentsSpan.loadComponents,
+              { spanName: 'detached operation' },
+              () => undefined
+            )
+          )
+        }
+      )
+    })
+
+    const operations = getRequestInsightsSnapshot().requests[0].operations
+    expect(operations).toHaveLength(3)
+    const outer = operations.find(
+      (operation) => operation.name === 'outer operation'
+    )
+    const nested = operations.find(
+      (operation) => operation.name === 'nested operation'
+    )
+    const detached = operations.find(
+      (operation) => operation.name === 'detached operation'
+    )
+
+    expect(outer?.parentId).toBeUndefined()
+    expect(nested?.parentId).toBe(outer?.id)
+    expect(detached?.parentId).toBeUndefined()
+  })
+
+  it('records thrown, rejected, and callback errors before propagating them', async () => {
+    await runWithRequestInsightsSession(
+      {
+        requestId: 'tracer-request',
+        htmlRequestId: 'tracer-html',
+        url: '/tracer',
+        method: 'GET',
+      },
+      async () => {
+        expect(() =>
+          getTracer().trace(
+            BaseServerSpan.render,
+            { spanName: 'thrown operation' },
+            () => {
+              throw new TypeError('thrown boom')
+            }
+          )
+        ).toThrow('thrown boom')
+
+        await expect(
+          getTracer().trace(
+            AppRenderSpan.getBodyResult,
+            { spanName: 'rejected operation' },
+            async () => {
+              throw new RangeError('rejected boom')
+            }
+          )
+        ).rejects.toThrow('rejected boom')
+
+        getTracer().trace(
+          NodeSpan.runHandler,
+          { spanName: 'callback operation' },
+          (_span, done) => {
+            done?.(new Error('callback boom'))
+          }
+        )
+
+        finishRequestInsightSession({ statusCode: 500 })
+      }
+    )
+
+    expect(getRequestInsightsSnapshot().requests[0].operations).toEqual([
+      expect.objectContaining({
+        name: 'thrown operation',
+        status: 'error',
+        error: { type: 'TypeError', message: 'thrown boom' },
+      }),
+      expect.objectContaining({
+        name: 'rejected operation',
+        status: 'error',
+        error: { type: 'RangeError', message: 'rejected boom' },
+      }),
+      expect.objectContaining({
+        name: 'callback operation',
+        status: 'error',
+        error: { type: 'Error', message: 'callback boom' },
+      }),
+    ])
+  })
+
+  it('does not observe framework operations outside a request session', () => {
     let receivedSpan: unknown = 'not-called'
 
-    const result = getTracer().trace(NodeSpan.runHandler, (span) => {
+    const result = getTracer().trace(BaseServerSpan.render, (span) => {
       receivedSpan = span
       return 'result'
     })
 
     expect(result).toBe('result')
     expect(receivedSpan).toBeUndefined()
-    expect(getSpanRecords()).toEqual([])
-  })
-
-  it('records sync trace calls without an OTel provider', () => {
-    const result = getTracer().trace(
-      NodeSpan.runHandler,
-      {
-        spanName: 'test.sync',
-        attributes: {
-          'next.route': '/products/[id]',
-        },
-      },
-      () => 'result'
-    )
-
-    expect(result).toBe('result')
-    expect(getSpanRecords({ name: 'test.sync' })).toEqual([
-      expect.objectContaining({
-        name: 'test.sync',
-        route: '/products/[id]',
-        status: 'ok',
-        traceId: expect.stringMatching(/^[0-9a-f]{32}$/),
-        spanId: expect.stringMatching(/^[0-9a-f]{16}$/),
-        durationMs: expect.any(Number),
-        attributes: expect.objectContaining({
-          'next.route': '/products/[id]',
-          'next.span_category': 'nextjs',
-          'next.span_name': 'test.sync',
-          'next.span_type': NodeSpan.runHandler,
-        }),
-      }),
-    ])
-  })
-
-  it('records app render fetch spans without an OTel provider', async () => {
-    const result = await getTracer().trace(
-      AppRenderSpan.fetch,
-      {
-        kind: SpanKind.CLIENT,
-        spanName: 'fetch GET https://example.vercel.sh/',
-        attributes: {
-          'next.span_category': 'application',
-          'http.url': 'https://example.vercel.sh/',
-          'http.method': 'GET',
-          'net.peer.name': 'example.vercel.sh',
-        },
-      },
-      async () => 'response'
-    )
-
-    expect(result).toBe('response')
-    expect(
-      getSpanRecords({ name: 'fetch GET https://example.vercel.sh/' })
-    ).toEqual([
-      expect.objectContaining({
-        name: 'fetch GET https://example.vercel.sh/',
-        status: 'ok',
-        attributes: expect.objectContaining({
-          'next.span_name': 'fetch GET https://example.vercel.sh/',
-          'next.span_type': AppRenderSpan.fetch,
-          'next.span_category': 'application',
-          'http.url': 'https://example.vercel.sh/',
-          'http.method': 'GET',
-          'net.peer.name': 'example.vercel.sh',
-        }),
-      }),
-    ])
-  })
-
-  it('mirrors span mutations made through the OTel span API', () => {
-    const result = getTracer().trace(
-      NodeSpan.runHandler,
-      { spanName: 'test.mutated' },
-      (span) => {
-        span?.setAttribute('http.status_code', 200)
-        span?.setAttributes({
-          'next.route': '/mutated',
-        })
-        span?.addEvent('test.event', {
-          'next.phase': 'render',
-        })
-        span?.updateName('test.mutated.updated')
-        return 'result'
-      }
-    )
-
-    expect(result).toBe('result')
-    expect(getSpanRecords({ name: 'test.mutated.updated' })).toEqual([
-      expect.objectContaining({
-        name: 'test.mutated.updated',
-        route: '/mutated',
-        attributes: expect.objectContaining({
-          'http.status_code': 200,
-          'next.route': '/mutated',
-        }),
-        events: [
-          expect.objectContaining({
-            name: 'test.event',
-            attributes: {
-              'next.phase': 'render',
-            },
-          }),
-        ],
-      }),
-    ])
-  })
-
-  it('mirrors span status without a thrown error', () => {
-    const result = getTracer().trace(
-      NodeSpan.runHandler,
-      { spanName: 'test.status' },
-      (span) => {
-        span?.setStatus({
-          code: SpanStatusCode.ERROR,
-          message: 'status failed',
-        })
-        return 'result'
-      }
-    )
-
-    expect(result).toBe('result')
-    expect(getSpanRecords({ name: 'test.status' })).toEqual([
-      expect.objectContaining({
-        name: 'test.status',
-        status: 'error',
-        error: {
-          message: 'status failed',
-        },
-      }),
-    ])
-  })
-
-  it('records async trace calls when the returned promise settles', async () => {
-    const result = await getTracer().trace(
-      NodeSpan.runHandler,
-      { spanName: 'test.async' },
-      async () => {
-        await Promise.resolve()
-        return 'result'
-      }
-    )
-
-    expect(result).toBe('result')
-    expect(getSpanRecords({ name: 'test.async' })).toEqual([
-      expect.objectContaining({
-        name: 'test.async',
-        status: 'ok',
-        durationMs: expect.any(Number),
-      }),
-    ])
-  })
-
-  it('records callback trace calls when done is called', () => {
-    const result = getTracer().trace(
-      NodeSpan.runHandler,
-      { spanName: 'test.callback' },
-      (_span, done) => {
-        done?.()
-        return 'result'
-      }
-    )
-
-    expect(result).toBe('result')
-    expect(getSpanRecords({ name: 'test.callback' })).toEqual([
-      expect.objectContaining({
-        name: 'test.callback',
-        status: 'ok',
-        durationMs: expect.any(Number),
-      }),
-    ])
-  })
-
-  it('records callback trace calls consistently with an OTel provider', () => {
-    const delegateSpan = trace.wrapSpanContext({
-      traceId: '0123456789abcdef0123456789abcdef',
-      spanId: '0123456789abcdef',
-      traceFlags: 1,
-    })
-    trace.setGlobalTracerProvider({
-      getTracer() {
-        return {
-          startSpan() {
-            return delegateSpan
-          },
-          startActiveSpan(...args: unknown[]) {
-            const callback = args.at(-1) as (
-              span: typeof delegateSpan
-            ) => unknown
-            return callback(delegateSpan)
-          },
-        }
-      },
-    })
-
-    const result = getTracer().trace(
-      NodeSpan.runHandler,
-      { spanName: 'test.callback.provider' },
-      (_span, done) => {
-        done?.()
-        return 'result'
-      }
-    )
-
-    expect(result).toBe('result')
-    expect(getSpanRecords({ name: 'test.callback.provider' })).toEqual([
-      expect.objectContaining({
-        status: 'ok',
-        traceId: '0123456789abcdef0123456789abcdef',
-        spanId: '0123456789abcdef',
-      }),
-    ])
-  })
-
-  it('records direct spans with active local parent identity', () => {
-    const parentSpan = getTracer().startSpan(NodeSpan.runHandler, {
-      attributes: { 'next.page': 'parent' },
-    })
-    let childSpanId: string | undefined
-
-    getTracer().withSpan(parentSpan, () => {
-      expect(getTracer().getActiveScopeSpan()).toBe(parentSpan)
-
-      const childSpan = getTracer().startSpan(AppRenderSpan.fetch, {
-        attributes: {
-          'next.page': 'child',
-          'next.span_category': 'application',
-        },
-      })
-      childSpanId = childSpan.spanContext().spanId
-      childSpan.end()
-    })
-    parentSpan.end()
-
-    const records = getSpanRecords()
-    const parentRecord = records.find(
-      (record) => record.attributes?.['next.page'] === 'parent'
-    )
-    const childRecord = records.find(
-      (record) => record.attributes?.['next.page'] === 'child'
-    )
-
-    expect(parentRecord).toEqual(
-      expect.objectContaining({
-        name: NodeSpan.runHandler,
-        parentSpanId: undefined,
-        attributes: expect.objectContaining({
-          'next.span_category': 'nextjs',
-        }),
-      })
-    )
-    expect(childRecord).toEqual(
-      expect.objectContaining({
-        name: AppRenderSpan.fetch,
-        spanId: childSpanId,
-        traceId: parentRecord?.traceId,
-        parentSpanId: parentRecord?.spanId,
-        attributes: expect.objectContaining({
-          'next.span_category': 'application',
-        }),
-      })
-    )
-  })
-
-  it('records thrown errors before rethrowing', () => {
-    expect(() =>
-      getTracer().trace(NodeSpan.runHandler, { spanName: 'test.error' }, () => {
-        throw new Error('boom')
-      })
-    ).toThrow('boom')
-
-    expect(getSpanRecords({ name: 'test.error' })).toEqual([
-      expect.objectContaining({
-        name: 'test.error',
-        status: 'error',
-        error: {
-          type: 'Error',
-          message: 'boom',
-        },
-      }),
-    ])
-  })
-
-  it('groups local spans by existing async storage without adding extra attributes', () => {
-    jest.isolateModules(() => {
-      const previousAsyncLocalStorage = (globalThis as any).AsyncLocalStorage
-      let setIsolatedSpanRecorderForTest:
-        | typeof setSpanRecorderForTest
-        | undefined
-      try {
-        const { AsyncLocalStorage } =
-          require('node:async_hooks') as typeof import('node:async_hooks')
-        ;(globalThis as any).AsyncLocalStorage = AsyncLocalStorage
-
-        const { workAsyncStorage } =
-          require('../../app-render/work-async-storage.external') as typeof import('../../app-render/work-async-storage.external')
-        const { workUnitAsyncStorage } =
-          require('../../app-render/work-unit-async-storage.external') as typeof import('../../app-render/work-unit-async-storage.external')
-        ;({ setSpanRecorderForTest: setIsolatedSpanRecorderForTest } =
-          require('./span-store') as typeof import('./span-store'))
-        setIsolatedSpanRecorderForTest((span) => spanRecords.push(span))
-        const { registerLocalSpanRecorder: registerIsolatedLocalSpanRecorder } =
-          require('./local-span-recorder') as typeof import('./local-span-recorder')
-        registerIsolatedLocalSpanRecorder()
-        const { getTracer: getIsolatedTracer } =
-          require('./tracer') as typeof import('./tracer')
-
-        const workStore = {
-          isStaticGeneration: false,
-          page: '/products/[id]/page',
-          route: '/products/[id]',
-          cacheComponentsEnabled: true,
-        } as WorkStore
-        const requestStore = {
-          type: 'request',
-          phase: 'render',
-          isHmrRefresh: true,
-        } as WorkUnitStore
-
-        workAsyncStorage.run(workStore, () =>
-          workUnitAsyncStorage.run(requestStore, () => {
-            getIsolatedTracer().trace(
-              NodeSpan.runHandler,
-              { spanName: 'test.als.outer' },
-              (outerSpan) => {
-                expect(getIsolatedTracer().getActiveScopeSpan()).toBe(outerSpan)
-                getIsolatedTracer().trace(
-                  NodeSpan.runHandler,
-                  { spanName: 'test.als.inner' },
-                  (innerSpan) => {
-                    expect(getIsolatedTracer().getActiveScopeSpan()).toBe(
-                      innerSpan
-                    )
-                    return 'result'
-                  }
-                )
-              }
-            )
-          })
-        )
-
-        const records = getSpanRecords()
-        const traceIds = new Set(records.map((record) => record.traceId))
-        const outerRecord = records.find(
-          (record) => record.name === 'test.als.outer'
-        )
-        const innerRecord = records.find(
-          (record) => record.name === 'test.als.inner'
-        )
-
-        expect(records).toHaveLength(2)
-        expect(traceIds.size).toBe(1)
-        expect(innerRecord?.parentSpanId).toBe(outerRecord?.spanId)
-        expect(records).toEqual(
-          expect.arrayContaining([
-            expect.objectContaining({
-              name: 'test.als.inner',
-              attributes: expect.objectContaining({
-                'next.span_name': 'test.als.inner',
-                'next.span_type': NodeSpan.runHandler,
-              }),
-            }),
-            expect.objectContaining({
-              name: 'test.als.outer',
-            }),
-          ])
-        )
-        expect(
-          records.some(
-            (record) => record.attributes?.['next.work_unit.type'] !== undefined
-          )
-        ).toBe(false)
-      } finally {
-        setIsolatedSpanRecorderForTest?.(undefined)
-        if (previousAsyncLocalStorage === undefined) {
-          delete (globalThis as any).AsyncLocalStorage
-        } else {
-          ;(globalThis as any).AsyncLocalStorage = previousAsyncLocalStorage
-        }
-      }
-    })
+    expect(getRequestInsightsSnapshot()).toEqual({ requests: [] })
   })
 })
+
+function runRequest(fn: () => void): void {
+  runWithRequestInsightsSession(
+    {
+      requestId: 'tracer-request',
+      htmlRequestId: 'tracer-html',
+      url: '/tracer',
+      method: 'GET',
+    },
+    () => {
+      fn()
+      finishRequestInsightSession({ route: '/tracer', statusCode: 200 })
+    }
+  )
+}

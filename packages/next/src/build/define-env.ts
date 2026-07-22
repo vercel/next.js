@@ -187,7 +187,7 @@ export function getDefineEnv({
       config.experimental.coldCacheBadge
     ),
     'process.env.__NEXT_REQUEST_INSIGHTS':
-      dev && !!config.experimental.requestInsights,
+      !isEdgeServer && dev && !!config.experimental.requestInsights,
     'process.env.__NEXT_USE_CACHE': isUseCacheEnabled,
     'process.env.__NEXT_USE_NODE_STREAMS': isEdgeServer ? false : true,
 

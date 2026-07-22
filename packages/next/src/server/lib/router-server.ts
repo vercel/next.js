@@ -62,10 +62,7 @@ import {
   isChromeDevtoolsWorkspaceUrl,
 } from './chrome-devtools-workspace'
 import { getNextConfigRuntime, type NextConfigComplete } from '../config-shared'
-import {
-  getRequestInsightsSnapshot,
-  isRequestInsightsEnabled,
-} from './trace/request-insights'
+import { getRequestInsightsSnapshot } from './trace/request-insights'
 
 const debug = setupDebug('next:router-server:main')
 const isNextFont = (pathname: string | null) =>
@@ -246,10 +243,6 @@ export async function initialize(opts: {
     }
 
     if (opts.dev && req.url) {
-      if (config.experimental.requestInsights) {
-        process.env.__NEXT_REQUEST_INSIGHTS = 'true'
-      }
-
       const urlParts = req.url.split('?', 1)
       const pathname = removePathPrefix(urlParts[0] || '', config.basePath)
 
@@ -267,10 +260,7 @@ export async function initialize(opts: {
         }
 
         res.setHeader('Content-Type', 'application/json; charset=utf-8')
-        if (
-          !config.experimental.requestInsights &&
-          !isRequestInsightsEnabled()
-        ) {
+        if (!config.experimental.requestInsights) {
           res.statusCode = 404
           res.end(
             JSON.stringify({

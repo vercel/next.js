@@ -31,10 +31,7 @@ import { HMR_MESSAGE_SENT_TO_BROWSER } from './hot-reloader-types'
 import { devIndicatorServerState } from './dev-indicator-server-state'
 import { createBinaryHmrMessageData } from './messages'
 import type { NextConfigComplete } from '../config-shared'
-import {
-  getRequestInsightsSnapshot,
-  isRequestInsightsEnabled,
-} from '../lib/trace/request-insights'
+import { getRequestInsightsSnapshot } from '../lib/trace/request-insights'
 
 function isMiddlewareStats(stats: webpack.Stats) {
   for (const key of stats.compilation.entrypoints.keys()) {
@@ -211,10 +208,9 @@ export class WebpackHotMiddleware {
         },
         devIndicator: devIndicatorServerState,
         devToolsConfig: this.devToolsConfig,
-        requestInsights:
-          this.config.experimental.requestInsights || isRequestInsightsEnabled()
-            ? getRequestInsightsSnapshot()
-            : undefined,
+        requestInsights: this.config.experimental.requestInsights
+          ? getRequestInsightsSnapshot()
+          : undefined,
       })
     }
   }

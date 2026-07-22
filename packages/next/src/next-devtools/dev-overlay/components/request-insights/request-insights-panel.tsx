@@ -164,7 +164,7 @@ function RequestOverview({
       <span>{overview.kind}</span>
       <span>{overview.fetchSummary}</span>
       <span>{overview.cacheSummary}</span>
-      <span>{overview.spanSummary}</span>
+      <span>{overview.operationSummary}</span>
     </div>
   )
 }
@@ -190,14 +190,14 @@ function Trace({
       <div className="request-insights-section-heading">
         <div className="request-insights-section-title">Trace</div>
         <div className="request-insights-section-note">
-          {items.length} span{items.length === 1 ? '' : 's'} ·{' '}
+          {items.length} operation{items.length === 1 ? '' : 's'} ·{' '}
           {formatDuration(range.durationMs)}
         </div>
       </div>
       <div className="request-insights-trace-viewport">
         <div className="request-insights-trace">
           <div className="request-insights-trace-header">
-            <span>Span</span>
+            <span>Operation</span>
             <span className="request-insights-trace-axis">
               {ticks.map((tick, index) => (
                 <span
@@ -285,10 +285,10 @@ function FetchTable({ fetches }: { fetches: RequestInsightFetch[] }) {
             <span>Cache</span>
             <span>Reason</span>
           </div>
-          {fetches.map((fetch, index) => {
+          {fetches.map((fetch) => {
             const urlParts = formatUrl(fetch.url)
             return (
-              <div className="request-insights-fetch" key={index}>
+              <div className="request-insights-fetch" key={fetch.id}>
                 <span className="request-insights-method">
                   {fetch.method ?? 'GET'}
                 </span>
@@ -316,17 +316,12 @@ function FetchTable({ fetches }: { fetches: RequestInsightFetch[] }) {
 }
 
 function getRequestOverview(request: RequestInsight) {
-  const method =
-    getFirstStringAttribute(request, 'http.method') ??
-    getMethodFromName(request.spans[0]?.name) ??
-    'GET'
-  const statusCode = getFirstNumberAttribute(request, 'http.status_code')
-  const isRsc = getFirstBooleanAttribute(request, 'next.rsc')
-  const erroredSpan = request.spans.find(
-    (span) => span.status === 'error' || span.error
+  const method = request.method ?? 'GET'
+  const erroredOperation = request.operations.find(
+    (operation) => operation.status === 'error' || operation.error
   )
-  const errorSummary = erroredSpan
-    ? `${erroredSpan.name}: ${erroredSpan.error?.message ?? erroredSpan.error?.type ?? 'error'}`
+  const errorSummary = erroredOperation
+    ? `${erroredOperation.name}: ${erroredOperation.error?.message ?? erroredOperation.error?.type ?? 'error'}`
     : undefined
   const cacheCounts = request.fetches.reduce(
     (counts, fetch) => {
@@ -342,9 +337,9 @@ function getRequestOverview(request: RequestInsight) {
 
   return {
     method,
-    statusCode,
-    statusLabel: statusCode ?? request.status,
-    kind: isRsc ? 'RSC request' : 'HTML request',
+    statusCode: request.statusCode,
+    statusLabel: request.statusCode ?? request.status,
+    kind: request.isRsc ? 'RSC request' : 'HTML request',
     fetchSummary: request.fetches.length
       ? `${request.fetches.length} fetch${request.fetches.length === 1 ? '' : 'es'}`
       : 'No fetches',
@@ -356,7 +351,7 @@ function getRequestOverview(request: RequestInsight) {
           : `Cache ${cacheCounts.hit} hit, ${cacheCounts.miss} miss, ${cacheCounts.skip} skip${
               cacheCounts.unknown ? `, ${cacheCounts.unknown} unknown` : ''
             }`,
-    spanSummary: `${request.spans.length} span${request.spans.length === 1 ? '' : 's'}`,
+    operationSummary: `${request.operations.length} operation${request.operations.length === 1 ? '' : 's'}`,
     errorSummary,
   }
 }
@@ -407,49 +402,6 @@ function getCacheSummary(fetch: RequestInsightFetch): string {
 
   const reason = fetch.cacheReason ? `, ${fetch.cacheReason}` : ''
   return ` (${fetch.cacheStatus}${reason})`
-}
-
-function getFirstStringAttribute(
-  request: RequestInsight,
-  key: string
-): string | undefined {
-  for (const span of request.spans) {
-    const value = span.attributes?.[key]
-    if (typeof value === 'string') {
-      return value
-    }
-  }
-}
-
-function getFirstNumberAttribute(
-  request: RequestInsight,
-  key: string
-): number | undefined {
-  for (const span of request.spans) {
-    const value = span.attributes?.[key]
-    if (typeof value === 'number') {
-      return value
-    }
-  }
-}
-
-function getFirstBooleanAttribute(
-  request: RequestInsight,
-  key: string
-): boolean | undefined {
-  for (const span of request.spans) {
-    const value = span.attributes?.[key]
-    if (typeof value === 'boolean') {
-      return value
-    }
-  }
-}
-
-function getMethodFromName(name: string | undefined): string | undefined {
-  const match = name?.match(
-    /^(?:RSC )?(GET|HEAD|POST|PUT|PATCH|DELETE|OPTIONS)\b/
-  )
-  return match?.[1]
 }
 
 function formatUrl(url: string | undefined): { path: string; host?: string } {

@@ -4,10 +4,6 @@ import type {
 } from '../app-render/work-async-storage.external'
 
 import { AppRenderSpan, NextNodeServerSpan } from './trace/constants'
-import {
-  isRequestInsightsEnabled,
-  recordRequestInsightFetch,
-} from './trace/request-insights'
 import { getTracer, SpanKind } from './trace/tracer'
 import {
   CACHE_ONE_YEAR_SECONDS,
@@ -146,24 +142,19 @@ function trackFetchMetric(
     'next.fetch.cache_reason': metric.cacheReason,
   })
 
-  if (isRequestInsightsEnabled() && workStore.requestId) {
-    recordRequestInsightFetch(
-      {
-        requestId: workStore.requestId,
-        htmlRequestId: workStore.htmlRequestId,
-        route: workStore.route,
-      },
-      {
-        url: metric.url,
-        method: metric.method,
-        statusCode: metric.status,
-        startTime: metric.start,
-        durationMs: metric.end - metric.start,
-        cacheStatus: metric.cacheStatus,
-        cacheReason: metric.cacheReason,
-        index: metric.idx,
-      }
-    )
+  if (process.env.__NEXT_REQUEST_INSIGHTS) {
+    const { recordRequestInsightFetch } =
+      require('./trace/request-insights') as typeof import('./trace/request-insights')
+    recordRequestInsightFetch({
+      url: metric.url,
+      method: metric.method,
+      statusCode: metric.status,
+      startTime: metric.start,
+      durationMs: metric.end - metric.start,
+      cacheStatus: metric.cacheStatus,
+      cacheReason: metric.cacheReason,
+      index: metric.idx,
+    })
   }
 
   if (!workStore.shouldTrackFetchMetrics) {
