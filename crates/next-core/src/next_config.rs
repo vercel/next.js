@@ -2710,7 +2710,7 @@ impl NextConfig {
         // `next build` will fail if this times out.
         // TODO: Use a less aggressive timeout for build than dev.
         FetchClientConfig {
-            connect_timeout: std::time::Duration::from_secs(5),
+            connect_timeout: Duration::from_secs(10),
             timeout: Duration::from_secs(30),
             ..Default::default()
         }
