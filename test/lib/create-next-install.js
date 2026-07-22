@@ -111,6 +111,36 @@ async function applyInstallSecuritySettings(installDir, isolationRoot) {
 }
 
 /**
+ * pnpm only honors overrides at the workspace root, so they go into the
+ * `pnpm-workspace.yaml` that governs the install.
+ *
+ * @param {string} installDir
+ * @param {string} isolationRoot
+ * @param {Record<string, string>} overrides
+ * @returns {Promise<void>}
+ */
+async function applyWorkspaceOverrides(installDir, isolationRoot, overrides) {
+  const workspaceFile = await findConfigFile(
+    'pnpm-workspace.yaml',
+    installDir,
+    isolationRoot
+  )
+  if (workspaceFile === null) {
+    return
+  }
+
+  const workspaceConfig =
+    /** @type {Record<string, any>} */ (
+      yaml.load(await fs.readFile(workspaceFile, 'utf8'))
+    ) ?? {}
+  workspaceConfig.overrides = {
+    ...overrides,
+    ...(workspaceConfig.overrides || {}),
+  }
+  await fs.writeFile(workspaceFile, yaml.dump(workspaceConfig))
+}
+
+/**
  *
  * @param {object} param0
  * @param {import('@next/telemetry').Span} param0.parentSpan
@@ -276,13 +306,6 @@ async function createNextInstall({
               ...workspacePkgOverrides,
               ...(packageJson.overrides || {}),
             },
-            pnpm: {
-              ...(packageJson.pnpm || {}),
-              overrides: {
-                ...workspacePkgOverrides,
-                ...(packageJson.pnpm?.overrides || {}),
-              },
-            },
             resolutions: {
               ...workspacePkgOverrides,
               ...(resolutions || {}),
@@ -311,6 +334,10 @@ async function createNextInstall({
         : null
 
       await applyInstallSecuritySettings(installDir, isolationRoot)
+      await applyWorkspaceOverrides(installDir, isolationRoot, {
+        ...workspacePkgOverrides,
+        ...(resolutions || {}),
+      })
 
       if (installString !== null) {
         console.log('running install command', installString)
@@ -324,6 +351,23 @@ async function createNextInstall({
         await rootSpan
           .traceChild('run generic install command', combinedDependencies)
           .traceAsyncFn(() => installDependencies(installDir, tmpDir))
+
+        // `@next/env` is a dependency of `next`, so it only resolves to the
+        // local tarball if the overrides were applied.
+        if (!combinedDependencies['@next/env']) {
+          const envDir = await fs.realpath(
+            path.join(
+              await fs.realpath(path.join(installDir, 'node_modules/next')),
+              '../@next/env'
+            )
+          )
+          if (!envDir.includes('@next+env@file')) {
+            throw new Error(
+              `@next/env resolved from the npm registry instead of the local tarball (${envDir}), ` +
+                'the workspace overrides were not applied to the install'
+            )
+          }
+        }
       }
 
       if (useRspack) {
