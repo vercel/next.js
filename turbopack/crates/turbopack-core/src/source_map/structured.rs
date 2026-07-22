@@ -125,6 +125,134 @@ fn escape_content(content: Option<&str>) -> Rope {
     }
 }
 
+/// A serde [`Serializer`](serde::Serializer) that splits a struct into its top-level fields,
+/// each serialized to its own JSON value. This lets [`StructuredSourceMap::from_serialize`]
+/// capture a source map's fields directly from its `Serialize` implementation without
+/// materializing — and then re-parsing — the whole serialized document.
+struct FieldSplit;
+
+#[derive(Debug)]
+struct FieldSplitError(String);
+
+impl std::fmt::Display for FieldSplitError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.0.fmt(f)
+    }
+}
+
+impl std::error::Error for FieldSplitError {}
+
+impl serde::ser::Error for FieldSplitError {
+    fn custom<T: std::fmt::Display>(msg: T) -> Self {
+        FieldSplitError(msg.to_string())
+    }
+}
+
+struct FieldSplitStruct {
+    fields: Vec<(&'static str, Vec<u8>)>,
+}
+
+impl serde::ser::SerializeStruct for FieldSplitStruct {
+    type Ok = Vec<(&'static str, Vec<u8>)>;
+    type Error = FieldSplitError;
+
+    fn serialize_field<T: ?Sized + serde::Serialize>(
+        &mut self,
+        key: &'static str,
+        value: &T,
+    ) -> Result<(), FieldSplitError> {
+        let bytes = serde_json::to_vec(value).map_err(serde::ser::Error::custom)?;
+        self.fields.push((key, bytes));
+        Ok(())
+    }
+
+    fn end(self) -> Result<Self::Ok, FieldSplitError> {
+        Ok(self.fields)
+    }
+}
+
+macro_rules! not_a_struct {
+    ($($f:ident($($arg:ty),*) -> $ret:ty;)*) => {
+        $(fn $f(self, $(_: $arg),*) -> Result<$ret, FieldSplitError> {
+            Err(serde::ser::Error::custom("expected a struct"))
+        })*
+    };
+}
+
+impl serde::Serializer for FieldSplit {
+    type Ok = Vec<(&'static str, Vec<u8>)>;
+    type Error = FieldSplitError;
+    type SerializeSeq = serde::ser::Impossible<Self::Ok, Self::Error>;
+    type SerializeTuple = serde::ser::Impossible<Self::Ok, Self::Error>;
+    type SerializeTupleStruct = serde::ser::Impossible<Self::Ok, Self::Error>;
+    type SerializeTupleVariant = serde::ser::Impossible<Self::Ok, Self::Error>;
+    type SerializeMap = serde::ser::Impossible<Self::Ok, Self::Error>;
+    type SerializeStruct = FieldSplitStruct;
+    type SerializeStructVariant = serde::ser::Impossible<Self::Ok, Self::Error>;
+
+    fn serialize_struct(
+        self,
+        _name: &'static str,
+        len: usize,
+    ) -> Result<FieldSplitStruct, FieldSplitError> {
+        Ok(FieldSplitStruct {
+            fields: Vec::with_capacity(len),
+        })
+    }
+
+    not_a_struct! {
+        serialize_bool(bool) -> Self::Ok;
+        serialize_i8(i8) -> Self::Ok;
+        serialize_i16(i16) -> Self::Ok;
+        serialize_i32(i32) -> Self::Ok;
+        serialize_i64(i64) -> Self::Ok;
+        serialize_u8(u8) -> Self::Ok;
+        serialize_u16(u16) -> Self::Ok;
+        serialize_u32(u32) -> Self::Ok;
+        serialize_u64(u64) -> Self::Ok;
+        serialize_f32(f32) -> Self::Ok;
+        serialize_f64(f64) -> Self::Ok;
+        serialize_char(char) -> Self::Ok;
+        serialize_str(&str) -> Self::Ok;
+        serialize_bytes(&[u8]) -> Self::Ok;
+        serialize_none() -> Self::Ok;
+        serialize_unit() -> Self::Ok;
+        serialize_unit_struct(&'static str) -> Self::Ok;
+        serialize_unit_variant(&'static str, u32, &'static str) -> Self::Ok;
+        serialize_seq(Option<usize>) -> Self::SerializeSeq;
+        serialize_tuple(usize) -> Self::SerializeTuple;
+        serialize_tuple_struct(&'static str, usize) -> Self::SerializeTupleStruct;
+        serialize_tuple_variant(&'static str, u32, &'static str, usize) -> Self::SerializeTupleVariant;
+        serialize_map(Option<usize>) -> Self::SerializeMap;
+        serialize_struct_variant(&'static str, u32, &'static str, usize) -> Self::SerializeStructVariant;
+    }
+
+    fn serialize_some<T: ?Sized + serde::Serialize>(
+        self,
+        _value: &T,
+    ) -> Result<Self::Ok, FieldSplitError> {
+        Err(serde::ser::Error::custom("expected a struct"))
+    }
+
+    fn serialize_newtype_struct<T: ?Sized + serde::Serialize>(
+        self,
+        _name: &'static str,
+        value: &T,
+    ) -> Result<Self::Ok, FieldSplitError> {
+        value.serialize(self)
+    }
+
+    fn serialize_newtype_variant<T: ?Sized + serde::Serialize>(
+        self,
+        _name: &'static str,
+        _variant_index: u32,
+        _variant: &'static str,
+        _value: &T,
+    ) -> Result<Self::Ok, FieldSplitError> {
+        Err(serde::ser::Error::custom("expected a struct"))
+    }
+}
+
 impl StructuredSourceMap {
     /// Builds from a [`swc_sourcemap::SourceMap`], taking the `sourcesContent` entries out of
     /// the map before serializing the (now small) remainder. This is the cheap constructor for
@@ -172,6 +300,43 @@ impl StructuredSourceMap {
             debug_id_old: into_rope(fields.debug_id_old),
             debug_id: into_rope(fields.debug_id),
         })
+    }
+
+    /// Builds directly from a value's [`serde::Serialize`] implementation (e.g.
+    /// `swc_sourcemap::lazy::RawSourceMap`), capturing each top-level field's serialized JSON
+    /// value without materializing — and then re-parsing — the whole document. The result is
+    /// byte-equivalent to `Self::from_json_slice(&serde_json::to_vec(value)?)`.
+    ///
+    /// Errors if the value does not serialize as a struct or contains a field this type does
+    /// not know about; callers should fall back to serializing and [`Self::from_json`] then.
+    pub fn from_serialize<T: serde::Serialize>(value: &T) -> Result<Self> {
+        let fields = value
+            .serialize(FieldSplit)
+            .map_err(|error| anyhow::anyhow!("failed to split source map fields: {error}"))?;
+        let mut result = StructuredSourceMap::default();
+        for (key, bytes) in fields {
+            let rope = Rope::from(bytes);
+            match key {
+                "version" => result.version = Some(rope),
+                "file" => result.file = Some(rope),
+                "sources" => result.sources = Some(SourcesField::Raw(rope)),
+                "sourceRoot" => result.source_root = Some(rope),
+                "sourcesContent" => result.sources_content = Some(SourcesContentField::Raw(rope)),
+                "sections" => result.sections = Some(rope),
+                "names" => result.names = Some(rope),
+                "scopes" => result.scopes = Some(rope),
+                "rangeMappings" => result.range_mappings = Some(rope),
+                "mappings" => result.mappings = Some(rope),
+                "ignoreList" => result.ignore_list = Some(rope),
+                "x_facebook_offsets" => result.x_facebook_offsets = Some(rope),
+                "x_metro_module_paths" => result.x_metro_module_paths = Some(rope),
+                "x_facebook_sources" => result.x_facebook_sources = Some(rope),
+                "debug_id" => result.debug_id_old = Some(rope),
+                "debugId" => result.debug_id = Some(rope),
+                other => anyhow::bail!("unknown source map field `{other}`"),
+            }
+        }
+        Ok(result)
     }
 
     /// Rewrites each `sources` entry, keeping every other field (including the shared
@@ -429,6 +594,31 @@ mod tests {
         let structured = StructuredSourceMap::from_json(&Rope::from(input))?;
         let rewritten = structured.rewrite_sources(|_| Ok(None))?;
         assert_eq!(rewritten.to_rope().to_bytes().as_ref(), input.as_bytes());
+        Ok(())
+    }
+
+    /// `from_serialize` must produce exactly what serializing the value and parsing it back
+    /// would — including undecodable raw values that swc's lazy decoder passes through.
+    #[test]
+    fn from_serialize_matches_serialized_roundtrip() -> Result<()> {
+        let cases: &[&str] = &[
+            r#"{"version":3,"sources":["a.js",7],"sourcesContent":["x\ud800y",42,null],"names":["n"],"mappings":"AAAA"}"#,
+            r#"{"version":3,"sources":[],"mappings":""}"#,
+            r#"{"version":3,"file":"out.js","sources":["a\/b.js"],"sourceRoot":"","sourcesContent":["c\/d"],"names":[],"mappings":"AAAA;;AACA","ignoreList":[0]}"#,
+        ];
+        for case in cases {
+            let lazy = swc_sourcemap::lazy::decode(case.as_bytes())?.into_source_map()?;
+            let raw = lazy.into_raw_sourcemap();
+            let expected = serde_json::to_vec(&raw)?;
+            let split = StructuredSourceMap::from_serialize(&raw)?;
+            assert_eq!(
+                split.to_rope().to_bytes().as_ref(),
+                &expected[..],
+                "case: {case}"
+            );
+            let reparsed = StructuredSourceMap::from_json_slice(&expected)?;
+            assert_eq!(split, reparsed, "field-level equality, case: {case}");
+        }
         Ok(())
     }
 
