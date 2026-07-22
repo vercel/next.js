@@ -2711,7 +2711,7 @@ impl NextConfig {
         // TODO: Use a less aggressive timeout for build than dev.
         FetchClientConfig {
             connect_timeout: std::time::Duration::from_secs(5),
-            timeout: std::time::Duration::from_secs(30),
+            timeout: Duration::from_secs(30),
             ..Default::default()
         }
         .cell()
