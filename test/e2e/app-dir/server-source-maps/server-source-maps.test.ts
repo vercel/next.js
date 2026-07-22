@@ -571,8 +571,7 @@ describe('app-dir - server source maps', () => {
           'Error: rsc-error-throw-cached'
         )
       })
-      // Runtime stacks are not sourcemapped in production, but fake frames
-      // must not leak virtual `about://React/` URLs into logged stacks.
+      // React only creates fake stack frames in development.
       expect(
         normalizeCliOutput(next.cliOutput.slice(outputIndex))
       ).not.toContain('about://React/')
