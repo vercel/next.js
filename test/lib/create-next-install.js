@@ -111,14 +111,13 @@ async function applyInstallSecuritySettings(installDir, isolationRoot) {
 }
 
 /**
- * pnpm 10 no longer reads `overrides` (or the `pnpm` field) from
- * `package.json` — `pnpm-workspace.yaml` is the only location it honors. So
- * the overrides written to the install dir's `package.json` don't apply and
- * pnpm fetches workspace packages like `@next/env` from the registry at the
- * repo's current version, which doesn't exist there while a canary release is
- * still propagating. Write them to the `pnpm-workspace.yaml` that governs the
- * install instead: the one from the fixture if it creates its own workspace
- * root, otherwise the one `applyInstallSecuritySettings` ensures exists.
+ * pnpm reads `overrides` exclusively from `pnpm-workspace.yaml`, so writes
+ * them into the one that governs the install: the fixture's own workspace
+ * root when it creates one, otherwise the file
+ * `applyInstallSecuritySettings` ensures exists in the install dir. Without
+ * this, pnpm fetches workspace packages like `@next/env` from the registry
+ * at the repo's current version, which doesn't exist there while a canary
+ * release is still propagating.
  *
  * @param {string} installDir
  * @param {string} isolationRoot
@@ -262,8 +261,11 @@ async function createNextInstall({
         combinedDependencies['next-rspack'] = pkgPaths.get('next-rspack')
       }
 
-      // Build overrides to resolve transitive workspace deps from local
-      // tarballs. Write all three formats so npm, pnpm, and yarn all work.
+      // Overrides that resolve transitive workspace deps (e.g. `next`'s
+      // dependency on `@next/env`) from local tarballs. Each package manager
+      // reads these from a different place: npm from `overrides` and yarn
+      // from `resolutions` in `package.json`, pnpm from `overrides` in
+      // `pnpm-workspace.yaml` (written by `applyWorkspaceOverrides`).
       const workspacePkgOverrides = {}
       for (const [name, tarballPath] of pkgPaths.entries()) {
         if (!combinedDependencies[name]) {
@@ -312,13 +314,6 @@ async function createNextInstall({
               ...workspacePkgOverrides,
               ...(packageJson.overrides || {}),
             },
-            pnpm: {
-              ...(packageJson.pnpm || {}),
-              overrides: {
-                ...workspacePkgOverrides,
-                ...(packageJson.pnpm?.overrides || {}),
-              },
-            },
             resolutions: {
               ...workspacePkgOverrides,
               ...(resolutions || {}),
@@ -347,11 +342,10 @@ async function createNextInstall({
         : null
 
       await applyInstallSecuritySettings(installDir, isolationRoot)
-      await applyWorkspaceOverrides(
-        installDir,
-        isolationRoot,
-        workspacePkgOverrides
-      )
+      await applyWorkspaceOverrides(installDir, isolationRoot, {
+        ...workspacePkgOverrides,
+        ...(resolutions || {}),
+      })
 
       if (installString !== null) {
         console.log('running install command', installString)
