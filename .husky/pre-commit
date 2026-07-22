@@ -1,1 +1,2 @@
+export PATH="$PATH:/c/Users/Tabrej ansari/AppData/Roaming/npm"
 pnpm lint-staged

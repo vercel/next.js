@@ -56,6 +56,15 @@ async function registerInstrumentation(projectDir: string, distDir: string) {
   if (instrumentation?.register) {
     try {
       await instrumentation.register()
+      // After register() the user's SDK has armed require-in-the-middle hooks.
+      // Built-in modules loaded before register() (e.g. `http`, `https` imported
+      // by start-server.ts at module top-level) are already in the require cache
+      // and will never be re-required naturally, so OpenTelemetry
+      // HttpInstrumentation never gets a chance to patch them.
+      // process.getBuiltinModule() (Node >= 20.16) re-triggers pending hooks for
+      // already-loaded built-in modules without any observable side effects.
+      // See: https://github.com/vercel/next.js/issues/95894
+      touchBuiltinModulesForInstrumentation()
       extendInstrumentationAfterRegistration()
     } catch (err: any) {
       err.message = `An error occurred while loading instrumentation hook: ${err.message}`
@@ -90,4 +99,37 @@ export function ensureInstrumentationRegistered(
     )
   }
   return registerInstrumentationPromise
+}
+
+/**
+ * Re-triggers require-in-the-middle hooks for built-in modules that may have
+ * been loaded before instrumentation.register() was called.
+ *
+ * OpenTelemetry's HttpInstrumentation (and other built-in module
+ * instrumentations) patch modules via require-in-the-middle, which intercepts
+ * Module.prototype.require. If `http`/`https` are already in the require cache
+ * when the hook is armed inside register(), no future require() call will flow
+ * through the hook and the patch is never applied — making HttpInstrumentation
+ * silently ineffective for all incoming requests.
+ *
+ * process.getBuiltinModule() (Node >= 20.16) causes the module system to pass
+ * the already-loaded built-in through any registered require hooks, applying
+ * pending patches without any observable side effects on older call sites.
+ *
+ * Graceful degradation: on Node < 20.16 the function is a no-op. Users on
+ * older Node versions can work around the issue via
+ * NODE_OPTIONS="--require ./otel-preload.cjs".
+ */
+export function touchBuiltinModulesForInstrumentation(): void {
+  if (typeof (process as any).getBuiltinModule !== 'function') {
+    // Node < 20.16 — process.getBuiltinModule is not available.
+    return
+  }
+  // Touch the built-in modules most commonly instrumented by OTel and similar
+  // libraries. getBuiltinModule() is synchronous and has no side effects beyond
+  // triggering pending require hooks.
+  const builtins = ['http', 'https', 'net', 'dns'] as const
+  for (const mod of builtins) {
+    ;(process as any).getBuiltinModule(mod)
+  }
 }
