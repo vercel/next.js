@@ -475,7 +475,7 @@ Each refactor should pair with a before/after capture to verify the change actua
 For agents to see what their changes actually render, pair this with [agent-browser](https://github.com/vercel-labs/agent-browser). It exposes the Next.js DevTools (including PPR shells) as shell commands agents can read and drive, so the loop becomes: make a change, snapshot the shell, check what's in it, adjust.
 
 {/* TODO: distribution of the skill/plugin */}
-The [`next-cache-components-optimizer`](https://github.com/vercel/next.js/tree/canary/skills/next-cache-components-optimizer) skill packages this loop: shared preflight, the three levers, plan-mode gating, before/after capture verify, and a no-shell bailout when the route is fully blocking. It picks between two sub-loops based on the request: page-render (grow the static shell of a single page) or in-app navigation (capture the destination's suspended boundaries after a click).
+The [`next-cache-components-optimizer`](https://github.com/vercel/next.js/tree/canary/skills/next-cache-components-optimizer) skill packages this loop: it encodes the goal as a failing `@next/playwright` `instant()` test and works it to green one route at a time, for both initial load (hard navigation) and client-side navigation (soft navigation), then ships the test as a regression guard.
 
 ## Opting out
 

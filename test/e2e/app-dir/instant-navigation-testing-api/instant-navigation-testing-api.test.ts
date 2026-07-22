@@ -1100,6 +1100,33 @@ describe('instant-navigation-testing-api', () => {
     expect(await fetchedData.textContent()).toContain('api response')
   })
 
+  if (isNextDev) {
+    it('lets dev-server requests through during instant scope', async () => {
+      const page = await openPage(next, '/')
+
+      await instant(page, async () => {
+        await page.click('#link-to-client-fetch')
+
+        // The out-of-band fetch to /api/data is blocked by the lock
+        const loading = page.locator('[data-testid="fetched-data-loading"]')
+        await loading.waitFor({ state: 'visible' })
+
+        // But dev-server requests (hot-reloader middleware endpoints like the
+        // error overlay and source maps) bypass the lock and resolve while the
+        // scope is still active. Without the bypass this evaluate would hang
+        // until the scope ends.
+        const status = await page.evaluate(() =>
+          fetch('/__nextjs_server_status').then((res) => res.status)
+        )
+        expect(status).toBe(200)
+
+        // The blocked fetch still hasn't resolved
+        const fetchedData = page.locator('[data-testid="fetched-data"]')
+        expect(await fetchedData.count()).toBe(0)
+      })
+    })
+  }
+
   it('clears cookie even when callback throws', async () => {
     const page = await openPage(next, '/')
 

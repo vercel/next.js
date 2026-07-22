@@ -18,7 +18,7 @@ import { Bundler, GetTemplateFileArgs, InstallTemplateArgs } from "./types";
 
 // Do not rename or format. sync-react script relies on this line.
 // prettier-ignore
-const nextjsReactPeerVersion = "19.2.7";
+const nextjsReactPeerVersion = "19.2.8";
 function sorted(obj: Record<string, string>) {
   return Object.keys(obj)
     .sort()
