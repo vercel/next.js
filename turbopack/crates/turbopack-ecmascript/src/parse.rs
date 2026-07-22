@@ -226,9 +226,7 @@ pub fn generate_js_structured_source_map<'a>(
         // TODO: Enable this when we have a way to handle the ignore list
         // add_default_ignore_list(&mut map);
         let map = map.into_raw_sourcemap();
-        // Splitting the fields out of the `Serialize` impl avoids materializing and re-parsing
-        // the serialized map (which embeds every source's text). The fallback keeps behavior
-        // identical if the raw map ever gains a field the structured form does not know.
+        // The fallback covers raw maps with fields the structured form does not know.
         StructuredSourceMap::from_serialize(&map)
             .or_else(|_| StructuredSourceMap::from_json_slice(&serde_json::to_vec(&map)?))
     } else {

@@ -1,22 +1,14 @@
-//! A source map kept in structured form until it is actually emitted.
+//! A source map kept in structured form until it is actually emitted, so that rewriting or
+//! embedding a map shares its ropes instead of copying its bytes. `sourcesContent` in
+//! particular (the full original source text) would otherwise be copied for every chunking
+//! context that rewrites the `sources` URLs and for every chunk source map that embeds the
+//! module's map.
 //!
-//! Historically module source maps were serialized to a JSON [`Rope`] immediately after code
-//! generation and treated as opaque bytes from then on. Because `sourcesContent` (the full
-//! original source text) is inlined into that JSON, every subsequent per-chunking-context
-//! rewrite of the `sources` URLs had to copy the entire map — duplicating each module's source
-//! text once per layer and again per chunking context — and every embedding of the map into a
-//! chunk's source map copied it again.
-//!
-//! [`StructuredSourceMap`] instead stores the map's fields:
-//! - fields we never modify are kept as verbatim raw JSON snippets ([`Rope`]s), so producers' bytes
-//!   round-trip untouched and re-emission is pure rope sharing;
-//! - `sources` also stays a verbatim snippet until a URL rewrite (see [`super::utils`]) actually
-//!   changes an entry — only then is it decoded, so external maps that fail to decode (or are never
-//!   rewritten) round-trip byte-for-byte, matching the pre-structured pipeline;
-//! - `sourcesContent` of maps built from swc objects is a list of individually pre-escaped
-//!   [`Rope`]s that are shared — not copied — into every map that embeds them; for maps parsed from
-//!   external bytes it stays a verbatim snippet and is never decoded;
-//! - `mappings` stays a raw snippet since it is usually the largest skeleton field.
+//! Fields are stored as verbatim raw JSON snippets ([`Rope`]s) and only decoded when something
+//! actually needs their values: `sources` is decoded lazily by
+//! [`StructuredSourceMap::rewrite_sources`] when a rewrite changes an entry, and `sourcesContent`
+//! of maps built from swc objects is a list of individually pre-escaped [`Rope`]s that are shared
+//! into every map that embeds them.
 //!
 //! [`StructuredSourceMap::to_rope`] emits fields in the same order as `swc_sourcemap`'s
 //! serializer, so maps built via [`StructuredSourceMap::from_swc_map`] serialize byte-for-byte
@@ -80,8 +72,7 @@ enum SourcesContentField {
     Escaped(Vec<Rope>),
 }
 
-/// Deserialization mirror of [`StructuredSourceMap`]. Unknown fields are dropped, matching the
-/// previous behavior of source map rewrites (`SourceMapJson`).
+/// Deserialization mirror of [`StructuredSourceMap`]. Unknown fields are dropped.
 #[derive(Deserialize)]
 struct RawFields {
     version: Option<Box<RawValue>>,
@@ -343,9 +334,7 @@ impl StructuredSourceMap {
     /// `sourcesContent` ropes) intact. `rewrite` returns `None` to leave an entry unchanged.
     ///
     /// `sources` is only decoded if a rewrite actually changes an entry; if it cannot be decoded
-    /// (e.g. non-string entries in an external map) the map is returned unchanged. (The previous
-    /// rewriters dropped such maps from the output entirely; keeping the map verbatim loses no
-    /// information, and this branch is unreachable for internally generated maps anyway.)
+    /// (e.g. non-string entries in an external map) the map is returned unchanged.
     pub fn rewrite_sources(
         &self,
         mut rewrite: impl FnMut(&str) -> Result<Option<String>>,
@@ -491,8 +480,7 @@ impl StructuredSourceMap {
 
 impl DeterministicHash for StructuredSourceMap {
     fn deterministic_hash<H: DeterministicHasher>(&self, state: &mut H) {
-        // Hashing the serialized form covers every field and matches the previous behavior of
-        // hashing the serialized map rope.
+        // Hashing the serialized form covers every field.
         self.to_rope().deterministic_hash(state);
     }
 }

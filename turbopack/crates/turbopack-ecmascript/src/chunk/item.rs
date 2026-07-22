@@ -168,7 +168,6 @@ impl EcmascriptChunkItemContent {
             code += " try {\n";
         }
 
-        // Only the `sources` URLs are rewritten; the shared `sourcesContent` ropes are untouched.
         let source_map = match (&self.rewrite_source_path, &self.source_map) {
             (RewriteSourcePath::AbsoluteFilePath(path), Some(map)) => {
                 Some(absolute_fileify_structured_source_map(map, path.clone()).await?)

@@ -98,7 +98,6 @@ impl CssChunk {
             let close = write_import_context(&mut body, content.import_context).await?;
 
             let chunking_context = self.chunking_context();
-            // Only the `sources` URLs are rewritten; `sourcesContent` ropes stay shared.
             let source_map = match (
                 *chunking_context.source_map_source_type().await?,
                 &content.source_map,
