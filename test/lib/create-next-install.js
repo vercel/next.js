@@ -352,10 +352,12 @@ async function createNextInstall({
           .traceChild('run generic install command', combinedDependencies)
           .traceAsyncFn(() => installDependencies(installDir, tmpDir))
 
-        // `next` depends on `@next/env` at the repo's current version, which
-        // the registry doesn't have until a release finishes propagating.
-        // Failing here keeps tests deterministic (and actually testing the
-        // local packages) instead of failing during canary publish windows.
+        // `@next/env` is a runtime dependency of `next`, so it's the one
+        // workspace package that every install resolves transitively — i.e.
+        // through the overrides. If it came from the registry the overrides
+        // were not applied, and installs would break whenever the registry
+        // doesn't have the repo's version (e.g. mid-release) — or worse,
+        // silently test published packages instead of the local build.
         const envDir = await fs.realpath(
           path.join(
             await fs.realpath(path.join(installDir, 'node_modules/next')),
