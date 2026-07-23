@@ -2,7 +2,6 @@ import type { Socket } from 'net'
 import { mkdir, writeFile } from 'fs/promises'
 import * as inspector from 'inspector'
 import { join, extname, relative } from 'path'
-import { pathToFileURL } from 'url'
 
 import ws from 'next/dist/compiled/ws'
 
@@ -263,32 +262,8 @@ function setupServerHmr(
   return serverHmrSubscriptions
 }
 
-/**
- * Replaces turbopack:///[project] with the specified project in the `source` field.
- */
-function rewriteTurbopackSources(
-  projectRoot: string,
-  sourceMap: ModernSourceMapPayload
-): void {
-  if ('sections' in sourceMap) {
-    for (const section of sourceMap.sections) {
-      rewriteTurbopackSources(projectRoot, section.map)
-    }
-  } else {
-    for (let i = 0; i < sourceMap.sources.length; i++) {
-      sourceMap.sources[i] = pathToFileURL(
-        join(
-          projectRoot,
-          sourceMap.sources[i].replace(/turbopack:\/\/\/\[project\]/, '')
-        )
-      ).toString()
-    }
-  }
-}
-
 function getSourceMapFromTurbopack(
   project: Project,
-  projectRoot: string,
   sourceURL: string
 ): ModernSourceMapPayload | undefined {
   let sourceMapJson: string | null = null
@@ -300,11 +275,7 @@ function getSourceMapFromTurbopack(
   if (sourceMapJson === null) {
     return undefined
   } else {
-    const payload: ModernSourceMapPayload = JSON.parse(sourceMapJson)
-    // The sourcemap from Turbopack is not yet written to disk so its `sources`
-    // are not absolute paths yet. We need to rewrite them to be absolute paths.
-    rewriteTurbopackSources(projectRoot, payload)
-    return payload
+    return JSON.parse(sourceMapJson)
   }
 }
 
@@ -436,7 +407,7 @@ export async function createHotReloaderTurbopack(
     parentSpan: hotReloaderSpan,
   })
   setBundlerFindSourceMapImplementation(
-    getSourceMapFromTurbopack.bind(null, project, projectPath)
+    getSourceMapFromTurbopack.bind(null, project)
   )
 
   // Set up code frame renderer using native bindings
