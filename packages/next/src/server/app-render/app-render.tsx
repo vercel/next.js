@@ -4468,6 +4468,14 @@ function runDevValidationInBackground(
         return
       }
 
+      // Wait for a validation slot so that a fast sequence of requests to
+      // distinct documents cannot pile up unbounded concurrent validation
+      // renders, each retaining its full working set until it settles.
+      if (!(await validationGeneration.admit())) {
+        logValidationAborted(ctx)
+        return
+      }
+
       if (!(await yieldToForegroundRequest(validationAbortSignal))) {
         logValidationAborted(ctx)
         return
