@@ -56,12 +56,8 @@ const cMinPent = [261.63, 311.13, 349.23, 392.0, 466.16, 523.25, 622.25];
 const gMinPent = [196.0, 233.08, 261.63, 293.66, 349.23, 392.0, 466.16];
 // A minor pentatonic
 const aMinPent = [220.0, 261.63, 293.66, 329.63, 392.0, 440.0, 523.25];
-// D minor scale
-const dMinScale = [293.66, 329.63, 349.23, 392.0, 440.0, 466.16, 523.25, 587.33];
 // F major pentatonic
 const fMajPent = [174.61, 196.0, 220.0, 261.63, 293.66, 349.23, 392.0];
-// Bb major scale (jazz)
-const bbMajScale = [233.08, 261.63, 293.66, 311.13, 349.23, 392.0, 440.0, 466.16];
 
 export const genreConfigs: Record<string, GenreConfig> = {
   electronic: {

@@ -1,5 +1,5 @@
 import { Skeleton } from '@/components/ui/skeleton';
-import { GenreCard, GenreGrid, GenreGridSkeleton } from '@/features/genre/components/genre-card';
+import { GenreCard, GenreGrid } from '@/features/genre/components/genre-card';
 import { getGenres } from '@/features/genre/genre-queries';
 
 export async function GenreBrowse() {

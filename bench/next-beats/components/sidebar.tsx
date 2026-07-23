@@ -12,7 +12,6 @@ import { getPlaylists } from '@/features/playlist/playlist-queries';
 import { CurrentUserAvatar, CurrentUserAvatarSkeleton } from '@/features/user/components/current-user-avatar';
 import { LogOutButton } from '@/features/user/components/log-out-button';
 import { signOut } from '@/features/user/user-actions';
-import { Crossfade } from './ui/crossfade';
 import type { Route } from 'next';
 
 const sidebarLink =
