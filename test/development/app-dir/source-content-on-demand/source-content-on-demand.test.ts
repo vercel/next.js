@@ -147,6 +147,13 @@ const isTurbopack = Boolean(process.env.IS_TURBOPACK_TEST)
         expect(next.cliOutput).toMatch(
           /ThrowsServerPage \(.*__nextjs_source-content\/\[project\]\/app\/throws-server\/page\.tsx/
         )
+        // The terminal error must still include a rendered code frame with the
+        // offending line — server maps omit inlined content, so this only works
+        // if the terminal (patch-error-inspect) path reads source from turbopack.
+        // Regression guard: without the native fallback this shows no code frame.
+        expect(next.cliOutput).toContain(
+          "throw new Error('boom from throws server page')"
+        )
       })
       expect(next.cliOutput).not.toMatch(/ThrowsServerPage \(.*\.next\//)
     })
