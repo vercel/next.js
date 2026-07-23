@@ -3,6 +3,7 @@
 import { updateTag } from 'next/cache';
 import { z } from 'zod';
 import { SEED_PLAYLIST_IDS } from '@/features/playlist/playlist-constants';
+import { isSlowEnabled } from '@/components/demo/demo-slow';
 import { verifyAuth } from '@/features/user/user-queries';
 import { db } from '@/lib/db';
 import { delay } from '@/lib/utils';
@@ -22,7 +23,7 @@ const colors = [
 
 export async function createPlaylist(formData: FormData) {
   const userId = await verifyAuth();
-  await delay(300);
+  await delay(300, await isSlowEnabled());
   const parsed = createPlaylistSchema.safeParse({ name: formData.get('name') });
   if (!parsed.success) {
     return { error: parsed.error.issues[0].message, ok: false as const };
@@ -43,7 +44,7 @@ export async function createPlaylist(formData: FormData) {
 
 export async function addToPlaylist(playlistId: string, trackId: string) {
   const userId = await verifyAuth();
-  await delay(200);
+  await delay(200, await isSlowEnabled());
   if (SEED_PLAYLIST_IDS.has(playlistId)) return { error: "Can't modify a demo playlist", ok: false as const };
   const existing = db.playlistTracks.find(pt => pt.playlistId === playlistId && pt.trackId === trackId);
   if (existing) return { error: 'Already in this playlist', ok: false as const };
@@ -60,7 +61,7 @@ export async function addToPlaylist(playlistId: string, trackId: string) {
 
 export async function removeFromPlaylist(playlistId: string, trackId: string) {
   const userId = await verifyAuth();
-  await delay(200);
+  await delay(200, await isSlowEnabled());
   if (SEED_PLAYLIST_IDS.has(playlistId)) return { error: "Can't modify a demo playlist", ok: false as const };
   const index = db.playlistTracks.findIndex(pt => pt.playlistId === playlistId && pt.trackId === trackId);
   if (index !== -1) db.playlistTracks.splice(index, 1);
@@ -73,7 +74,7 @@ export async function deletePlaylist(playlistId: string) {
   const userId = await verifyAuth();
   const id = z.string().min(1).parse(playlistId);
   if (SEED_PLAYLIST_IDS.has(id)) return { error: "Can't delete a demo playlist", ok: false as const };
-  await delay(300);
+  await delay(300, await isSlowEnabled());
   const index = db.playlists.findIndex(p => p.id === id);
   if (index !== -1) db.playlists.splice(index, 1);
   for (let i = db.playlistTracks.length - 1; i >= 0; i--) {

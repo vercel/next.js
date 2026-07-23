@@ -34,7 +34,7 @@ export function AddToPlaylistMenu({
       <Ariakit.Menu
         store={menu}
         className="border-divider dark:border-divider-dark z-50 w-56 rounded-xl border bg-white p-2 shadow-xl outline-none dark:bg-black"
-        style={{ viewTransitionName: 'none' }}
+        style={{ viewTransitionName: 'add-to-playlist-menu' }}
         gutter={8}
         unmountOnHide
       >

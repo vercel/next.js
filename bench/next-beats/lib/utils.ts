@@ -5,8 +5,9 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-export function delay(ms: number) {
-  return new Promise(resolve => setTimeout(resolve, ms));
+// Artificial latency to simulate a slow DB, gated by the demo's Slow toggle.
+export function delay(ms: number, enabled = true) {
+  return enabled ? new Promise(resolve => setTimeout(resolve, ms)) : Promise.resolve();
 }
 
 export function formatDuration(seconds: number): string {

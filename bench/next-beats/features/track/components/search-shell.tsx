@@ -9,7 +9,7 @@ import { Spinner } from '@/components/ui/spinner';
 import { useSyncInputToSearchParam } from '@/hooks/use-sync-input-to-search-param';
 import type { Route } from 'next';
 
-export function SearchInput() {
+export function SearchShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
   const inputId = useId();
@@ -18,8 +18,8 @@ export function SearchInput() {
   useSyncInputToSearchParam(inputRef, 'q');
 
   return (
-    <Boundary label="SearchInput">
-      <div className="relative">
+    <Boundary label="SearchShell">
+      <div className="relative mb-8 flex items-center">
         {isPending ? (
           <Spinner className="pointer-events-none absolute top-1/2 left-4 -translate-y-1/2 opacity-40" />
         ) : (
@@ -30,20 +30,25 @@ export function SearchInput() {
           id={inputId}
           type="search"
           name="q"
-          autoFocus
           autoComplete="off"
           aria-label="Search tracks"
           placeholder="What do you want to listen to?"
           suppressHydrationWarning
-          onChange={e => {
-            const value = e.target.value;
+          onChange={event => {
+            const value = event.target.value;
             startTransition(() => {
-              router.replace(value ? (`/search?q=${encodeURIComponent(value)}` as Route) : '/search');
+              router.replace((value ? `/search?q=${encodeURIComponent(value)}` : '/search') as Route, { scroll: false });
             });
           }}
           className="!rounded-full !py-3 !pr-4 !pl-12 !text-base"
         />
         <SeedFromSearchParam targetId={inputId} param="q" />
+      </div>
+      <div
+        className="transition-opacity duration-200 ease-out data-pending:opacity-60"
+        data-pending={isPending ? '' : undefined}
+      >
+        {children}
       </div>
     </Boundary>
   );

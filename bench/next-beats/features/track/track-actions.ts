@@ -2,6 +2,7 @@
 
 import { revalidateTag, updateTag } from 'next/cache';
 import { z } from 'zod';
+import { isSlowEnabled } from '@/components/demo/demo-slow';
 import { verifyAuth } from '@/features/user/user-queries';
 import { db } from '@/lib/db';
 import { delay } from '@/lib/utils';
@@ -10,7 +11,7 @@ const trackIdSchema = z.string().min(1);
 
 export async function toggleFavorite(trackId: string) {
   const userId = await verifyAuth();
-  await delay(200);
+  await delay(200, await isSlowEnabled());
   const id = trackIdSchema.parse(trackId);
 
   const index = db.favorites.findIndex(f => f.userId === userId && f.trackId === id);

@@ -7,7 +7,7 @@ export function PlaylistTrackList({ playlistId, tracks }: { playlistId: string; 
   return (
     <div className="flex flex-col gap-0.5">
       {tracks.map((track, i) => (
-        <ViewTransition key={track.id}>
+        <ViewTransition key={track.id} default="none" enter="auto" exit="auto">
           <div className="flex items-center transition-opacity has-data-pending:opacity-30">
             <div className="min-w-0 flex-1">
               <TrackRow track={track} index={i} queue={tracks} />

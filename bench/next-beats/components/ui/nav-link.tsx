@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useSelectedLayoutSegments } from 'next/navigation';
 import { Suspense, useState } from 'react';
 import { Boundary } from '@/components/demo/boundary';
-import { usePrefetchDefault } from '@/components/demo/prefetch-provider';
+import { usePrefetchDefault } from '@/components/demo/use-prefetch-default';
 import type { Route } from 'next';
 
 type Props<T extends string = string> = Omit<React.ComponentProps<typeof Link>, 'href' | 'prefetch'> & {
@@ -31,27 +31,24 @@ export function NavLink<T extends string>(props: Props<T>) {
 
 function ActiveLink<T extends string>(props: Props<T>) {
   const segments = useSelectedLayoutSegments();
-  const prefetch = usePrefetchDefault();
   const want = props.href.toString().split('?')[0].split('#')[0].split('/').filter(Boolean);
   const isActive = want.length === segments.length && want.every((s, i) => s === segments[i]);
-  return <NavLinkShell {...props} isActive={isActive} prefetch={prefetch} />;
+  return <NavLinkShell {...props} isActive={isActive} />;
 }
 
 function NavLinkShell<T extends string>({
   href,
   isActive,
-  prefetch = true,
   hoverPrefetch = false,
   onMouseEnter,
   onFocus,
   ...rest
-}: Props<T> & { isActive: boolean; prefetch?: boolean }) {
+}: Props<T> & { isActive: boolean }) {
   const [intent, setIntent] = useState(false);
-  // With prefetch off (demo toggle) nothing prefetches. Eager links get the full
-  // runtime prefetch up front; hover-gated links sit at the deduped App Shell
-  // (one shared prefetch for the whole list) and upgrade to the per-link runtime
-  // prefetch only once the user signals intent.
-  const resolvedPrefetch = !prefetch ? false : hoverPrefetch ? (intent ? true : null) : true;
+  const prefetch = usePrefetchDefault();
+  // `prefetch` is already `true` or `null` (App Shell only) from the demo toggle.
+  // Hover-gated links stay at `null` until intent, then upgrade to the full prefetch.
+  const resolvedPrefetch = !prefetch ? null : hoverPrefetch ? (intent ? true : null) : true;
   const showIntent = () => setIntent(true);
   return (
     <Link

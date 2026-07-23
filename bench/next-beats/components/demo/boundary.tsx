@@ -1,63 +1,51 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
-import { useBoundaryMode } from './boundary-provider';
+import { cloneElement, createContext, isValidElement, useContext, useEffect, useState } from 'react';
+
+export type BoundaryMode = 'off' | 'on';
+
+type BoundaryContextType = {
+  mode: BoundaryMode;
+  toggleMode: () => void;
+};
+
+const BoundaryContext = createContext<BoundaryContextType | null>(null);
+
+export function BoundaryProvider({ children }: { children: React.ReactNode }) {
+  const [mode, setMode] = useState<BoundaryMode>('off');
+  const toggleMode = () => setMode(prev => (prev === 'off' ? 'on' : 'off'));
+
+  useEffect(() => {
+    document.documentElement.classList.toggle('boundary-mode', mode === 'on');
+  }, [mode]);
+
+  return <BoundaryContext.Provider value={{ mode, toggleMode }}>{children}</BoundaryContext.Provider>;
+}
+
+export function useBoundaryMode() {
+  const ctx = useContext(BoundaryContext);
+  if (!ctx) throw new Error('useBoundaryMode must be used within BoundaryProvider');
+  return ctx;
+}
 
 type Props = {
   children: React.ReactNode;
   label?: string;
 };
 
+// Tags the child's own DOM node so CSS outlines it — no wrapper, so layout is untouched.
 export function Boundary({ children, label }: Props) {
   const { mode } = useBoundaryMode();
-  const containerRef = useRef<HTMLDivElement>(null);
-  const [isSmall, setIsSmall] = useState(false);
+  const name = label ?? 'Client';
 
-  useEffect(() => {
-    if (mode === 'off') return;
-    const checkSize = () => {
-      if (containerRef.current) {
-        const { width, height } = containerRef.current.getBoundingClientRect();
-        setIsSmall(width < 36 && height < 36);
-      }
-    };
+  if (isValidElement(children) && typeof children.type === 'string') {
+    return cloneElement(children as React.ReactElement<{ 'data-component'?: string }>, { 'data-component': name });
+  }
 
-    checkSize();
-    const observer = new ResizeObserver(checkSize);
-    if (containerRef.current) observer.observe(containerRef.current);
-    return () => observer.disconnect();
-  }, [mode]);
-
+  // No host node to tag (Suspense/portal/conditional): wrap, and only in boundary mode.
   if (mode === 'off') {
     return <>{children}</>;
   }
 
-  if (isSmall) {
-    return (
-      <div className="group/boundary relative" style={{ viewTransitionName: 'none' }}>
-        <div ref={containerRef}>{children}</div>
-        <div className="absolute -top-1 -right-1 flex items-center">
-          <span className="pointer-events-none absolute right-full mr-1 hidden rounded bg-[#4f6ef7] px-1.5 py-0.5 font-mono text-[10px] leading-none font-semibold whitespace-nowrap text-white shadow group-hover/boundary:block">
-            {label || 'Client'}
-          </span>
-          <div className="h-2.5 w-2.5 rounded-full bg-[#4f6ef7]" />
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div
-      ref={containerRef}
-      className="relative rounded-md border-2 border-[#4f6ef7]"
-      style={{ viewTransitionName: 'none' }}
-    >
-      {label && (
-        <span className="absolute -top-px left-2 -translate-y-full rounded-t bg-[#4f6ef7] px-1.5 py-0.5 font-mono text-[10px] leading-none font-semibold text-white">
-          {label}
-        </span>
-      )}
-      {children}
-    </div>
-  );
+  return <div data-component={name}>{children}</div>;
 }

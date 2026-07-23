@@ -12,6 +12,7 @@ import { getPlaylists } from '@/features/playlist/playlist-queries';
 import { CurrentUserAvatar, CurrentUserAvatarSkeleton } from '@/features/user/components/current-user-avatar';
 import { LogOutButton } from '@/features/user/components/log-out-button';
 import { signOut } from '@/features/user/user-actions';
+import { Crossfade } from './ui/crossfade';
 import type { Route } from 'next';
 
 const sidebarLink =
@@ -19,10 +20,7 @@ const sidebarLink =
 
 export function Sidebar() {
   return (
-    <aside
-      style={{ viewTransitionName: 'sidebar' }}
-      className="hidden w-[4.5rem] flex-col gap-2 p-2 sm:flex lg:w-[17.5rem]"
-    >
+    <aside className="hidden w-[4.5rem] flex-col gap-2 p-2 sm:flex lg:w-[17.5rem]">
       <div className="bg-card dark:bg-card-dark rounded-lg p-3 lg:p-4">
         <div className="mb-4 hidden items-center justify-between lg:flex">
           <Link
@@ -103,7 +101,13 @@ async function SidebarPlaylists() {
   return (
     <div className="flex flex-col gap-0.5">
       {playlists.map(pl => (
-        <NavLink key={pl.id} hoverPrefetch href={`/playlist/${pl.id}` as Route} aria-label={pl.name} className={sidebarLink}>
+        <NavLink
+          key={pl.id}
+          hoverPrefetch
+          href={`/playlist/${pl.id}` as Route}
+          aria-label={pl.name}
+          className={sidebarLink}
+        >
           <span className={`inline-block h-3 w-3 shrink-0 rounded-sm bg-gradient-to-br ${pl.coverColor}`} />
           <span className="hidden truncate lg:inline">{pl.name}</span>
         </NavLink>

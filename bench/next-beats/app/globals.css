@@ -117,8 +117,7 @@
   }
 }
 
-/* Play button reveal on card hover. On touch devices the button shows
-   always — the hover-reveal pattern would otherwise eat the first tap. */
+/* hover-reveals on desktop; always shown on touch (else the first tap is eaten) */
 .card-play-btn {
   opacity: 1;
   transform: translateY(0);
@@ -138,8 +137,7 @@
   }
 }
 
-/* ---- View Transition Recipes ---- */
-
+/* View transition recipes */
 :root {
   --duration-exit: 150ms;
   --duration-enter: 210ms;
@@ -215,22 +213,40 @@
   }
 }
 
+/* let cursor/clicks pass through the snapshot overlay to pinned chrome */
+::view-transition {
+  pointer-events: none;
+}
+
+/* No root cross-fade: `new(root)` is a live capture, so unnamed regions
+   (sidebar, chrome) keep rendering hover/active styles during transitions
+   instead of freezing behind a stale snapshot. Content still animates via
+   its classed ViewTransition groups. */
+::view-transition-old(root) {
+  display: none;
+}
+::view-transition-new(root) {
+  animation: none;
+}
+
 /* Exclude persistent elements from view transition animations */
 ::view-transition-group(mobile-nav),
-::view-transition-group(sidebar),
 ::view-transition-group(player-bar),
 ::view-transition-group(player-bar-desktop),
 ::view-transition-group(theme-toggle),
-::view-transition-group(demo-toolbar) {
+::view-transition-group(demo-toolbar),
+::view-transition-group(add-to-playlist-menu),
+::view-transition-group(track-controls) {
   animation: none;
   z-index: 100;
 }
 
-::view-transition-old(sidebar) {
-  display: none;
+/* The `toaster` name lives on the always-mounted wrapper in components/theme/toaster.tsx */
+::view-transition-group(toaster) {
+  animation: none;
+  z-index: 200;
 }
 
-::view-transition-new(sidebar),
 ::view-transition-old(mobile-nav),
 ::view-transition-new(mobile-nav),
 ::view-transition-old(player-bar),
@@ -240,13 +256,17 @@
 ::view-transition-old(theme-toggle),
 ::view-transition-new(theme-toggle),
 ::view-transition-old(demo-toolbar),
-::view-transition-new(demo-toolbar) {
+::view-transition-new(demo-toolbar),
+::view-transition-old(add-to-playlist-menu),
+::view-transition-new(add-to-playlist-menu),
+::view-transition-old(track-controls),
+::view-transition-new(track-controls),
+::view-transition-old(toaster),
+::view-transition-new(toaster) {
   animation: none;
 }
 
-/* ── Client Boundary Visualizer ── */
-
-/* ── Equalizer animation for now-playing indicator ── */
+/* Equalizer (now-playing indicator) */
 @keyframes eq1 {
   0%,
   100% {
@@ -272,5 +292,36 @@
   }
   50% {
     height: 11px;
+  }
+}
+
+/* Client Component boundaries (demo): toggled by the `boundary-mode` class on <html>.
+   In @layer base so Tailwind position/radius utilities win — the outline must never
+   move the element it marks (e.g. an `absolute` play button). */
+@layer base {
+  html.boundary-mode [data-component] {
+    position: relative;
+    outline: 2px solid #4f6ef7;
+    outline-offset: -2px;
+    border-radius: 6px;
+  }
+
+  html.boundary-mode [data-component]::before {
+    content: attr(data-component);
+    position: absolute;
+    top: 0;
+    left: 0.5rem;
+    transform: translateY(-100%);
+    z-index: 9999;
+    padding: 1px 6px;
+    border-radius: 4px 4px 0 0;
+    background: #4f6ef7;
+    color: #fff;
+    font-family: var(--font-geist-mono), monospace;
+    font-size: 10px;
+    font-weight: 600;
+    line-height: 1.4;
+    white-space: nowrap;
+    pointer-events: none;
   }
 }

@@ -9,7 +9,7 @@ export async function TrackControls({ id }: { id: string }) {
   const track = await getTrack(id);
 
   return (
-    <div className="mb-8 flex items-center gap-4">
+    <div className="mb-8 flex items-center gap-4" style={{ viewTransitionName: 'track-controls' }}>
       <PlayButton track={track} className="!h-14 !w-14 [&_svg]:!h-6 [&_svg]:!w-6" />
       <FavoriteButton trackId={track.id} isFavorite={track.isFavorite} size="lg" />
       <AddToPlaylistMenu trackId={track.id} itemsPromise={getPlaylistMenuItems(track.id)} size="lg" />

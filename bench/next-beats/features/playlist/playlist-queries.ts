@@ -2,6 +2,7 @@ import 'server-only';
 
 import { cacheTag } from 'next/cache';
 import { notFound } from 'next/navigation';
+import { isSlowEnabled } from '@/components/demo/demo-slow';
 import { getCurrentUser } from '@/features/user/user-queries';
 import { db } from '@/lib/db';
 import { delay } from '@/lib/utils';
@@ -12,14 +13,14 @@ const visibleTo = (userId: string) => (p: { userId: string | null }) => p.userId
 
 export async function getPlaylists() {
   const userId = await getCurrentUser();
-  return getPlaylistsForUser(userId);
+  return getPlaylistsForUser(userId, await isSlowEnabled());
 }
 
-async function getPlaylistsForUser(userId: string) {
+async function getPlaylistsForUser(userId: string, slow: boolean) {
   'use cache';
   cacheTag(`playlists:${userId}`);
 
-  await delay(1500);
+  await delay(500, slow);
   return db.playlists
     .filter(visibleTo(userId))
     .sort(byCreatedAtDesc)
@@ -32,16 +33,40 @@ async function getPlaylistsForUser(userId: string) {
     }));
 }
 
-export async function getPlaylist(id: string) {
+export async function searchPlaylists(query: string) {
   const userId = await getCurrentUser();
-  return getPlaylistForUser(id, userId);
+  return searchPlaylistsForUser(userId, query, await isSlowEnabled());
 }
 
-async function getPlaylistForUser(id: string, userId: string) {
+async function searchPlaylistsForUser(userId: string, query: string, slow: boolean) {
+  'use cache';
+  cacheTag(`playlists:${userId}`);
+
+  await delay(400, slow);
+  const q = query.toLowerCase();
+  return db.playlists
+    .filter(visibleTo(userId))
+    .filter(p => p.name.toLowerCase().includes(q))
+    .sort(byCreatedAtDesc)
+    .map(p => ({
+      coverColor: p.coverColor,
+      description: p.description,
+      id: p.id,
+      name: p.name,
+      trackCount: db.playlistTracks.filter(pt => pt.playlistId === p.id).length,
+    }));
+}
+
+export async function getPlaylist(id: string) {
+  const userId = await getCurrentUser();
+  return getPlaylistForUser(id, userId, await isSlowEnabled());
+}
+
+async function getPlaylistForUser(id: string, userId: string, slow: boolean) {
   'use cache';
   cacheTag(`playlist-${id}`);
 
-  await delay(500);
+  await delay(500, slow);
   const row = db.playlists.find(p => p.id === id && visibleTo(userId)(p));
   if (!row) notFound();
   const tracks = db.playlistTracks

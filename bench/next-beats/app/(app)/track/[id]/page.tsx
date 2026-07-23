@@ -2,10 +2,10 @@ import { Suspense } from 'react';
 import { Crossfade } from '@/components/ui/crossfade';
 import ErrorBoundary from '@/components/ui/error-boundary';
 import { PageWrapper } from '@/components/ui/page-layout';
-import { MoreFromGenre, MoreFromGenreSkeleton } from '@/features/track/components/more-from-genre';
 import { TrackControls, TrackControlsSkeleton } from '@/features/track/components/track-controls';
 import { TrackHeader, TrackHeaderSkeleton } from '@/features/track/components/track-header';
-import { getTrack } from '@/features/track/track-queries';
+import { TrackList, TrackListSkeleton } from '@/features/track/components/track-row';
+import { getRecommendedTracks, getTrack } from '@/features/track/track-queries';
 import type { Metadata } from 'next';
 
 export async function generateMetadata({ params }: PageProps<'/track/[id]'>): Promise<Metadata> {
@@ -36,15 +36,18 @@ export default function TrackPage({ params }: PageProps<'/track/[id]'>) {
           ))}
         </Crossfade>
       </Suspense>
-      <ErrorBoundary title="Couldn't load similar tracks">
-        <Suspense fallback={<MoreFromGenreSkeleton />}>
-          <Crossfade>
-            {params.then(({ id }) => (
-              <MoreFromGenre trackId={id} />
-            ))}
-          </Crossfade>
-        </Suspense>
-      </ErrorBoundary>
+      <section>
+        <h2 className="mb-4">More songs you might like</h2>
+        <ErrorBoundary title="Couldn't load recommendations">
+          <Suspense fallback={<TrackListSkeleton count={3} />}>
+            <Crossfade>
+              {params.then(async ({ id }) => (
+                <TrackList tracks={await getRecommendedTracks(id)} animateItems />
+              ))}
+            </Crossfade>
+          </Suspense>
+        </ErrorBoundary>
+      </section>
     </PageWrapper>
   );
 }

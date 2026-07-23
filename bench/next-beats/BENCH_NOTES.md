@@ -27,6 +27,13 @@ deterministic, offline benchmark it was adapted as follows:
 - **Telemetry removed.** `@vercel/analytics` / `@vercel/speed-insights` dropped
   to avoid network noise. Secrets (`.env.local`) were never copied.
 
+The fixture tracks the upstream demo; it was last synced at upstream commit
+`489df10`. Note that upstream gates its artificial DB latency behind a demo
+"Slow" cookie toggle (off by default), so out of the box queries resolve
+without added sleeps — benchmark numbers measure render work, not `setTimeout`.
+Enable the toggle in the in-app demo toolbar if you want the simulated-latency
+behavior back.
+
 ## Setup
 
 No setup step. The seed data is a TypeScript module (`lib/seed-data.ts`) loaded

@@ -1,19 +1,14 @@
-'use client';
-
-import Link from 'next/link';
 import { ViewTransition } from 'react';
-import { usePrefetchDefault } from '@/components/demo/prefetch-provider';
+import { PrefetchLink } from '@/components/ui/prefetch-link';
 import { Skeleton } from '@/components/ui/skeleton';
 import { PlayButton } from '@/features/track/components/play-button';
 import { NowPlayingTrackTitle } from '@/features/track/components/track-interactions';
 import type { Track } from '@/types/track';
 
 export function AlbumCard({ track }: { track: Track }) {
-  const prefetch = usePrefetchDefault();
   return (
-    <Link
+    <PrefetchLink
       href={`/track/${track.id}`}
-      prefetch={prefetch}
       className="group bg-card/50 hover:bg-card dark:bg-card-dark/50 dark:hover:bg-card-dark flex flex-col gap-3 rounded-lg p-3 transition-colors"
     >
       <div className="relative">
@@ -42,7 +37,7 @@ export function AlbumCard({ track }: { track: Track }) {
         <NowPlayingTrackTitle trackId={track.id}>{track.title}</NowPlayingTrackTitle>
         <span className="text-muted truncate text-xs">{track.artist}</span>
       </div>
-    </Link>
+    </PrefetchLink>
   );
 }
 

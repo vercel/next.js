@@ -11,7 +11,7 @@ export async function FavoritesFeed() {
   return (
     <div className="flex flex-col gap-0.5">
       {tracks.map((track, i) => (
-        <ViewTransition key={track.id}>
+        <ViewTransition key={track.id} default="none" enter="auto" exit="auto">
           <TrackRow track={track} index={i} queue={tracks} />
         </ViewTransition>
       ))}

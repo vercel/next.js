@@ -1,7 +1,4 @@
-'use client';
-
-import Link from 'next/link';
-import { usePrefetchDefault } from '@/components/demo/prefetch-provider';
+import { PrefetchLink } from '@/components/ui/prefetch-link';
 import { cn } from '@/lib/utils';
 import type { Route } from 'next';
 import type { ReactNode } from 'react';
@@ -17,11 +14,9 @@ export function IconButtonLink({
   className?: string;
   children: ReactNode;
 }) {
-  const prefetch = usePrefetchDefault();
   return (
-    <Link
+    <PrefetchLink
       href={href as Route}
-      prefetch={prefetch}
       className={cn(
         'text-gray rounded-full p-1 transition-colors hover:bg-black/10 hover:text-black dark:hover:bg-white/10 dark:hover:text-white',
         className,
@@ -30,7 +25,7 @@ export function IconButtonLink({
       title={label}
     >
       {children}
-    </Link>
+    </PrefetchLink>
   );
 }
 

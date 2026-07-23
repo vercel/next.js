@@ -1,7 +1,4 @@
-'use client';
-
-import Link from 'next/link';
-import { usePrefetchDefault } from '@/components/demo/prefetch-provider';
+import { PrefetchLink } from '@/components/ui/prefetch-link';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { GenreSummary } from '@/types/genre';
 
@@ -15,25 +12,21 @@ const genreColors: Record<string, string> = {
 };
 
 export function GenrePill({ genre }: { genre: string }) {
-  const prefetch = usePrefetchDefault();
   return (
-    <Link
+    <PrefetchLink
       href={`/genre/${genre}`}
-      prefetch={prefetch}
       className="bg-accent/10 text-accent hover:bg-accent/20 rounded-full px-3 py-1 text-xs font-medium capitalize transition-colors"
     >
       {genre}
-    </Link>
+    </PrefetchLink>
   );
 }
 
 export function GenreCard({ genre }: { genre: GenreSummary }) {
-  const prefetch = usePrefetchDefault();
   const gradient = genreColors[genre.genre] ?? 'from-gray-500 to-gray-700';
   return (
-    <Link
+    <PrefetchLink
       href={`/genre/${genre.genre}`}
-      prefetch={prefetch}
       className="group relative overflow-hidden rounded-lg transition-transform hover:scale-[1.02]"
     >
       <div className={`flex h-28 items-end bg-gradient-to-br p-4 ${gradient}`}>
@@ -42,7 +35,7 @@ export function GenreCard({ genre }: { genre: GenreSummary }) {
           <p className="text-xs text-white/70">{genre.count} tracks</p>
         </div>
       </div>
-    </Link>
+    </PrefetchLink>
   );
 }
 

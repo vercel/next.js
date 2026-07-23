@@ -86,13 +86,21 @@ export function AddToPlaylistButtons({
   trackId: string;
   items: { label: string; value: string; active: boolean }[];
 }) {
-  async function togglePlaylistAction(playlistId: string, currentlyActive: boolean) {
+  async function togglePlaylistAction(playlistId: string, currentlyActive: boolean, label: string) {
     if (currentlyActive) {
       const result = await removeFromPlaylist(playlistId, trackId);
-      if (result?.error) toast.error(result.error);
+      if (result?.error) {
+        toast.error(result.error);
+      } else {
+        toast.success(`Removed from ${label}`);
+      }
     } else {
       const result = await addToPlaylist(playlistId, trackId);
-      if (result?.error) toast.error(result.error);
+      if (result?.error) {
+        toast.error(result.error);
+      } else {
+        toast.success(`Added to ${label}`);
+      }
     }
   }
 
@@ -110,14 +118,14 @@ function PlaylistToggleItem({
   toggleAction,
 }: {
   item: { label: string; value: string; active: boolean };
-  toggleAction: (value: string, active: boolean) => void | Promise<void>;
+  toggleAction: (value: string, active: boolean, label: string) => void | Promise<void>;
 }) {
   const [optimisticActive, setOptimisticActive] = useOptimistic(item.active);
 
   function handleClick() {
     startTransition(async () => {
       setOptimisticActive(!optimisticActive);
-      await toggleAction(item.value, optimisticActive);
+      await toggleAction(item.value, optimisticActive, item.label);
     });
   }
 

@@ -1,17 +1,12 @@
-'use client';
-
-import Link from 'next/link';
 import { ViewTransition } from 'react';
-import { usePrefetchDefault } from '@/components/demo/prefetch-provider';
+import { PrefetchLink } from '@/components/ui/prefetch-link';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { PlaylistSummary } from '@/types/playlist';
 
 export function PlaylistCard({ playlist }: { playlist: PlaylistSummary }) {
-  const prefetch = usePrefetchDefault();
   return (
-    <Link
+    <PrefetchLink
       href={`/playlist/${playlist.id}`}
-      prefetch={prefetch}
       className="group bg-card/50 hover:bg-card dark:bg-card-dark/50 dark:hover:bg-card-dark flex flex-col gap-3 rounded-lg p-3 transition-colors"
     >
       <ViewTransition name={`playlist-art-${playlist.id}`} default="none">
@@ -39,7 +34,7 @@ export function PlaylistCard({ playlist }: { playlist: PlaylistSummary }) {
           {playlist.trackCount} {playlist.trackCount === 1 ? 'track' : 'tracks'}
         </span>
       </div>
-    </Link>
+    </PrefetchLink>
   );
 }
 

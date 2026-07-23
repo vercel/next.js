@@ -1,3 +1,4 @@
+import { ViewTransition } from 'react';
 import { AlbumArt } from '@/components/ui/album-art';
 import { Collapsible } from '@/components/ui/collapsible';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -45,27 +46,28 @@ export function TrackList({
   tracks,
   showIndex = false,
   collapseAfter,
+  animateItems = false,
 }: {
   tracks: TrackT[];
   showIndex?: boolean;
   collapseAfter?: number;
+  animateItems?: boolean;
 }) {
   const shouldCollapse = collapseAfter !== undefined && tracks.length > collapseAfter;
   const visible = shouldCollapse ? tracks.slice(0, collapseAfter) : tracks;
   const overflow = shouldCollapse ? tracks.slice(collapseAfter) : [];
 
+  const row = (track: TrackT, index?: number) => {
+    const item = <TrackRow key={track.id} track={track} index={index} queue={tracks} />;
+    return animateItems ? <ViewTransition key={track.id}>{item}</ViewTransition> : item;
+  };
+
   return (
     <>
-      <div className="flex flex-col gap-0.5">
-        {visible.map((track, i) => (
-          <TrackRow key={track.id} track={track} index={showIndex ? i : undefined} queue={tracks} />
-        ))}
-      </div>
+      <div className="flex flex-col gap-0.5">{visible.map((track, i) => row(track, showIndex ? i : undefined))}</div>
       {overflow.length > 0 && (
         <Collapsible showMoreLabel={`Show ${overflow.length} more`}>
-          {overflow.map((track, i) => (
-            <TrackRow key={track.id} track={track} index={showIndex ? visible.length + i : undefined} queue={tracks} />
-          ))}
+          {overflow.map((track, i) => row(track, showIndex ? visible.length + i : undefined))}
         </Collapsible>
       )}
     </>
