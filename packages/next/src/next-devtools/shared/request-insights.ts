@@ -1,3 +1,12 @@
+import type { RequestInsightKind } from '../../shared/lib/request-insights'
+
+export {
+  getRequestInsightKey,
+  getRequestInsightKind,
+  type RequestInsightIdentity,
+  type RequestInsightKind,
+} from '../../shared/lib/request-insights'
+
 type RequestInsightAttributeValue =
   | string
   | number
@@ -5,23 +14,6 @@ type RequestInsightAttributeValue =
   | Array<null | undefined | string>
   | Array<null | undefined | number>
   | Array<null | undefined | boolean>
-
-export type RequestInsightKind = 'request' | 'instant-insights'
-
-export type RequestInsightIdentity = {
-  requestId: string
-  kind?: RequestInsightKind
-}
-
-export function getRequestInsightKind(
-  insight: Pick<RequestInsightIdentity, 'kind'>
-): RequestInsightKind {
-  return insight.kind ?? 'request'
-}
-
-export function getRequestInsightKey(insight: RequestInsightIdentity): string {
-  return `${getRequestInsightKind(insight)}:${insight.requestId}`
-}
 
 export type RequestInsightSpan = {
   name: string

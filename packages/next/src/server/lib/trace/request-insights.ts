@@ -2,13 +2,13 @@ import type { AttributeValue } from 'next/dist/compiled/@opentelemetry/api'
 import type {
   RequestInsight,
   RequestInsightFetch,
-  RequestInsightKind,
   RequestInsightsSnapshot,
 } from '../../../next-devtools/shared/request-insights'
+import type { RequestInsightKind } from '../../../shared/lib/request-insights'
 import {
   getRequestInsightKey,
   getRequestInsightKind,
-} from '../../../next-devtools/shared/request-insights'
+} from '../../../shared/lib/request-insights'
 import type { SpanStoreRecord } from './span-store'
 export { isRequestInsightsEnabled } from './span-store'
 
