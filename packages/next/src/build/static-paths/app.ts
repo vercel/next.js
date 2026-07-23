@@ -31,6 +31,7 @@ import { throwEmptyGenerateStaticParamsError } from '../../shared/lib/errors/emp
 import type { AppRouteModule } from '../../server/route-modules/app-route/module.compiled'
 import type { NormalizedAppRoute } from '../../shared/lib/router/routes/app'
 import { interceptionPrefixFromParamType } from '../../shared/lib/router/utils/interception-prefix-from-param-type'
+import { isPlainObject } from '../../shared/lib/is-plain-object'
 import {
   type GenerateStaticParamsStore,
   workUnitAsyncStorage,
@@ -642,11 +643,7 @@ async function callGenerateStaticParams(
   }
 
   for (const [index, params] of generatedParams.entries()) {
-    if (
-      params === null ||
-      typeof params !== 'object' ||
-      Array.isArray(params)
-    ) {
+    if (!isPlainObject(params)) {
       throw new Error(
         `Invalid value at index ${index} returned from generateStaticParams for "${page}". Expected an object, but received type ${getValueType(params)}. See more info here: https://nextjs.org/docs/messages/generate-static-params`
       )
