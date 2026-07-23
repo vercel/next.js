@@ -107,29 +107,24 @@ export function ensureInstrumentationRegistered(
  *
  * OpenTelemetry's HttpInstrumentation (and other built-in module
  * instrumentations) patch modules via require-in-the-middle, which intercepts
- * Module.prototype.require. If `http`/`https` are already in the require cache
+ * Module.prototype.require and Module._load. If `http`/`https` are already loaded
  * when the hook is armed inside register(), no future require() call will flow
  * through the hook and the patch is never applied — making HttpInstrumentation
  * silently ineffective for all incoming requests.
  *
- * process.getBuiltinModule() (Node >= 20.16) causes the module system to pass
- * the already-loaded built-in through any registered require hooks, applying
- * pending patches without any observable side effects on older call sites.
- *
- * Graceful degradation: on Node < 20.16 the function is a no-op. Users on
- * older Node versions can work around the issue via
- * NODE_OPTIONS="--require ./otel-preload.cjs".
+ * Calling require() on the built-in modules causes require-in-the-middle to
+ * intercept the call and execute any registered hooks for these modules.
  */
 export function touchBuiltinModulesForInstrumentation(): void {
-  if (typeof (process as any).getBuiltinModule !== 'function') {
-    // Node < 20.16 — process.getBuiltinModule is not available.
-    return
-  }
   // Touch the built-in modules most commonly instrumented by OTel and similar
-  // libraries. getBuiltinModule() is synchronous and has no side effects beyond
-  // triggering pending require hooks.
+  // libraries. require() triggers pending require hooks.
   const builtins = ['http', 'https', 'net', 'dns'] as const
   for (const mod of builtins) {
-    ;(process as any).getBuiltinModule(mod)
+    try {
+      ;(touchBuiltinModulesForInstrumentation as any).require(mod)
+    } catch (err) {
+      // Ignore errors if the module is not available or cannot be loaded
+    }
   }
 }
+;(touchBuiltinModulesForInstrumentation as any).require = require
