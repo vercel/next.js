@@ -1041,6 +1041,10 @@ pub struct ServerChunkingContextOptions {
     pub unused_references: Vc<UnusedReferences>,
     pub minify: Vc<bool>,
     pub source_maps: Vc<SourceMapsType>,
+    /// When true (dev only), server source maps omit inlined `sourcesContent` for project files
+    /// and point `sourceRoot` at the on-demand dev-server content endpoint, matching the
+    /// client chunking context. See [`SourceMapSourceType::DevServerContentEndpoint`].
+    pub serve_source_content: Vc<bool>,
     pub no_mangling: Vc<bool>,
     pub scope_hoisting: Vc<bool>,
     pub nested_async_chunking: Vc<bool>,
@@ -1069,6 +1073,7 @@ pub async fn get_server_chunking_context_with_client_assets(
         unused_references,
         minify,
         source_maps,
+        serve_source_content,
         no_mangling,
         scope_hoisting,
         nested_async_chunking,
@@ -1128,7 +1133,7 @@ pub async fn get_server_chunking_context_with_client_assets(
     .worker_forwarded_globals(worker_forwarded_globals());
 
     builder = builder.source_map_source_type(if next_mode.is_development() {
-        SourceMapSourceType::AbsoluteFileUri
+        crate::util::dev_source_map_source_type(*serve_source_content.await?)
     } else {
         SourceMapSourceType::RelativeUri
     });
@@ -1173,6 +1178,7 @@ pub async fn get_server_chunking_context(
         unused_references,
         minify,
         source_maps,
+        serve_source_content,
         no_mangling,
         scope_hoisting,
         nested_async_chunking,
@@ -1235,7 +1241,9 @@ pub async fn get_server_chunking_context(
     .worker_forwarded_globals(worker_forwarded_globals());
 
     if next_mode.is_development() {
-        builder = builder.source_map_source_type(SourceMapSourceType::AbsoluteFileUri);
+        builder = builder.source_map_source_type(crate::util::dev_source_map_source_type(
+            *serve_source_content.await?,
+        ));
     } else {
         builder = builder
             .source_map_source_type(SourceMapSourceType::RelativeUri)

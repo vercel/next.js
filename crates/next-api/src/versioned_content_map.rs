@@ -1,3 +1,5 @@
+use std::sync::LazyLock;
+
 use anyhow::Result;
 use bincode::{Decode, Encode};
 use next_core::emit_assets;
@@ -208,6 +210,34 @@ impl VersionedContentMap {
         }
     }
 
+    /// The union of the first-party project source paths referenced by every live output-asset
+    /// set's source maps. This is the admission set for the on-demand source-content dev endpoint:
+    /// a file may be served only if some currently-emitted source map references it.
+    ///
+    /// Built lazily on demand and turbo-tasks cached; recomputation is localized to the asset sets
+    /// whose maps actually changed (each set's `referenced_source_paths` is independently cached).
+    #[turbo_tasks::function]
+    pub async fn referenced_source_paths(&self) -> Result<Vc<ProjectSourcePaths>> {
+        let operations = {
+            let map = self.map_op_to_compute_entry.get();
+            map.keys().copied().collect::<Vec<_>>()
+        };
+        let per_operation = operations
+            .into_iter()
+            .map(|assets_operation| async move {
+                // Reconnect the operation so it stays live in this computation.
+                referenced_source_paths(assets_operation.connect()).await
+            })
+            .try_join()
+            .await?;
+
+        let mut result = FxHashSet::default();
+        for paths in per_operation {
+            result.extend(paths.iter().cloned());
+        }
+        Ok(Vc::cell(result))
+    }
+
     #[turbo_tasks::function]
     pub async fn get_asset(self: Vc<Self>, path: FileSystemPath) -> Result<Vc<OptionOutputAsset>> {
         let result = self.raw_get(path.clone()).await?;
@@ -268,34 +298,39 @@ type GetEntriesResultT = Vec<(FileSystemPath, ResolvedVc<Box<dyn OutputAsset>>)>
 #[turbo_tasks::value(transparent)]
 struct GetEntriesResult(GetEntriesResultT);
 
+/// The set of project-relative source file paths referenced by an emitted source map, used to gate
+/// the on-demand source-content dev endpoint (only referenced files may be served).
+#[turbo_tasks::value(transparent)]
+pub struct ProjectSourcePaths(FxHashSet<RcStr>);
+
 /// Collects the set of project-relative source file paths referenced by the `sources` of every
-/// source map among `assets`. Only `turbopack:///[project]/…` sources are included (relativized to
-/// their project path); virtual (`[next]`/`[turbopack]`), `node_modules`, and non-project sources
-/// are skipped since those keep their content inlined and are never fetched on demand.
+/// source map among `assets`. Only first-party project sources are included (see
+/// [`is_first_party_project_source`]); virtual (`[next]`/`[turbopack]`), `node_modules`, and
+/// non-project sources are skipped since those keep their content inlined and are never fetched on
+/// demand.
 ///
-/// This is a pure query. The napi layer reads the result and folds it into the (non-turbo-tasks)
-/// admission filter that gates the on-demand source-content endpoint.
+/// The result is turbo-tasks cached and invalidated with the underlying maps, so it is built lazily
+/// on the first content request and only recomputed when a map actually changes. The napi content
+/// endpoint reads it directly as its admission set — there is no separately-maintained filter.
 #[turbo_tasks::function]
-pub async fn referenced_source_paths(assets: Vc<ExpandedOutputAssets>) -> Result<Vc<Vec<RcStr>>> {
-    let prefix = format!("{SOURCE_URL_PROTOCOL_STR}///[{PROJECT_FILESYSTEM_NAME_STR}]/");
+pub async fn referenced_source_paths(
+    assets: Vc<ExpandedOutputAssets>,
+) -> Result<Vc<ProjectSourcePaths>> {
     let assets_ref = assets.await?;
     let per_asset = assets_ref
         .iter()
-        .map(|&asset| {
-            let prefix = prefix.clone();
-            async move {
-                let Some(generate_source_map) =
-                    ResolvedVc::try_sidecast::<Box<dyn GenerateSourceMap>>(asset)
-                else {
-                    return Ok(Vec::new());
-                };
-                let map = generate_source_map.generate_source_map().await?;
-                let Some(map) = map.as_content() else {
-                    return Ok(Vec::new());
-                };
-                let map = map.content().to_str()?;
-                Ok(collect_project_sources(&map, &prefix))
-            }
+        .map(|&asset| async move {
+            let Some(generate_source_map) =
+                ResolvedVc::try_sidecast::<Box<dyn GenerateSourceMap>>(asset)
+            else {
+                return Ok(Vec::new());
+            };
+            let map = generate_source_map.generate_source_map().await?;
+            let Some(map) = map.as_content() else {
+                return Ok(Vec::new());
+            };
+            let map = map.content().to_str()?;
+            Ok(collect_project_sources(&map))
         })
         .try_join()
         .await?;
@@ -304,60 +339,85 @@ pub async fn referenced_source_paths(assets: Vc<ExpandedOutputAssets>) -> Result
     for paths in per_asset {
         result.extend(paths);
     }
-    Ok(Vc::cell(result.into_iter().collect()))
+    Ok(Vc::cell(result))
 }
 
-/// Parses a source map JSON string and returns the project-relative source paths it references
-/// (across the top-level map and any sections).
+/// The `turbopack:///[project]/` prefix that stage-1 (server chunk) maps use for first-party
+/// sources.
+static PROJECT_SOURCE_PREFIX: LazyLock<String> =
+    LazyLock::new(|| format!("{SOURCE_URL_PROTOCOL_STR}///[{PROJECT_FILESYSTEM_NAME_STR}]/"));
+
+/// Whether `rest` (a `[project]`-relative source path) is a first-party project file that is served
+/// on demand — i.e. not inside `node_modules`. Keep in sync with the emitter predicate in
+/// `turbopack-core`'s `source_map::utils::dev_server_source_map`.
+fn is_first_party_project_source(rest: &str) -> bool {
+    !rest.contains("node_modules/")
+}
+
+/// Percent-decode a source path to the on-disk (POSIX-like, unencoded) format used by the content
+/// endpoint's filesystem-root join.
+fn decode_source_path(rest: &str) -> RcStr {
+    RcStr::from(
+        urlencoding::decode(rest)
+            .map(|c| c.into_owned())
+            .unwrap_or_else(|_| rest.to_string()),
+    )
+}
+
+/// Deserialization mirror capturing only the fields needed to enumerate sources. `mappings` and
+/// `sourcesContent` (the large fields) are held as opaque [`RawValue`]s so serde never decodes
+/// them — this is much cheaper than a full `serde_json::Value` DOM parse of the whole map.
+#[derive(serde::Deserialize)]
+struct SourcesOnlyMap<'a> {
+    #[serde(borrow, default)]
+    sources: Vec<Option<&'a str>>,
+    #[serde(borrow, rename = "sourceRoot", default)]
+    source_root: Option<&'a str>,
+    #[serde(borrow, default)]
+    sections: Vec<SourcesOnlySection<'a>>,
+}
+
+#[derive(serde::Deserialize)]
+struct SourcesOnlySection<'a> {
+    #[serde(borrow)]
+    map: SourcesOnlyMap<'a>,
+}
+
+/// Parses a source map JSON string and returns the first-party project-relative source paths it
+/// references (across the top-level map and any sections).
 ///
 /// Handles both source map shapes the pipeline can produce:
 /// - stage-1 form: `sources` are absolute `turbopack:///[project]/<rel>` URIs (stripped of the
-///   `prefix`).
+///   project prefix).
 /// - dev-server stage-2 form: `sources` are already `<rel>` and the map carries `sourceRoot ==
 ///   "/__nextjs_source-content/[project]/"` (the served browser chunk map). These relative sources
 ///   are exactly the project-relative paths to admit.
-fn collect_project_sources(map: &str, prefix: &str) -> Vec<RcStr> {
-    fn decode(rest: &str) -> RcStr {
-        // Percent-decode to match the on-disk (POSIX-like, unencoded) path format used by the
-        // content endpoint's filesystem-root join.
-        let decoded = urlencoding::decode(rest)
-            .map(|c| c.into_owned())
-            .unwrap_or_else(|_| rest.to_string());
-        RcStr::from(decoded)
-    }
-
-    fn collect_from_value(value: &serde_json::Value, prefix: &str, out: &mut Vec<RcStr>) {
-        let is_dev_server_map =
-            value.get("sourceRoot").and_then(|r| r.as_str()) == Some(SOURCE_CONTENT_SOURCE_ROOT);
-
-        if let Some(sources) = value.get("sources").and_then(|s| s.as_array()) {
-            for src in sources {
-                let Some(src) = src.as_str() else {
-                    continue;
-                };
-                if let Some(rest) = src.strip_prefix(prefix) {
-                    out.push(decode(rest));
-                } else if is_dev_server_map && !src.contains("://") && !src.contains("node_modules")
-                {
-                    // Relative project source resolved via the dev-server sourceRoot.
-                    out.push(decode(src));
+fn collect_project_sources(map: &str) -> Vec<RcStr> {
+    fn collect_from_map(map: &SourcesOnlyMap<'_>, out: &mut Vec<RcStr>) {
+        let is_dev_server_map = map.source_root == Some(SOURCE_CONTENT_SOURCE_ROOT);
+        for src in map.sources.iter().flatten() {
+            if let Some(rest) = src.strip_prefix(PROJECT_SOURCE_PREFIX.as_str()) {
+                if is_first_party_project_source(rest) {
+                    out.push(decode_source_path(rest));
                 }
+            } else if is_dev_server_map
+                && !src.contains("://")
+                && is_first_party_project_source(src)
+            {
+                // Relative project source resolved via the dev-server sourceRoot.
+                out.push(decode_source_path(src));
             }
         }
-        if let Some(sections) = value.get("sections").and_then(|s| s.as_array()) {
-            for section in sections {
-                if let Some(inner) = section.get("map") {
-                    collect_from_value(inner, prefix, out);
-                }
-            }
+        for section in &map.sections {
+            collect_from_map(&section.map, out);
         }
     }
 
-    let Ok(value) = serde_json::from_str::<serde_json::Value>(map) else {
+    let Ok(parsed) = serde_json::from_str::<SourcesOnlyMap<'_>>(map) else {
         return Vec::new();
     };
     let mut out = Vec::new();
-    collect_from_value(&value, prefix, &mut out);
+    collect_from_map(&parsed, &mut out);
     out
 }
 

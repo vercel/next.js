@@ -10,6 +10,7 @@ use turbo_tasks_fs::{File, FileContent, FileJsonContent, FileSystem, FileSystemP
 use turbopack::module_options::RuleCondition;
 use turbopack_core::{
     asset::AssetContent,
+    chunk::SourceMapSourceType,
     compile_time_info::{
         CompileTimeDefineValue, CompileTimeDefines, DefinableNameSegment, FreeVarReference,
         FreeVarReferences,
@@ -26,6 +27,27 @@ use crate::{
 };
 
 const NEXT_TEMPLATE_PATH: &str = "dist/esm/build/templates";
+
+/// The `sourceRoot` (and dev-server URL prefix) used for on-demand source content. Dev source maps
+/// emit first-party `[project]` sources relative to this, dropping their inlined `sourcesContent`,
+/// and the dev server serves the original file content from `<prefix><relative-path>`.
+///
+/// This single definition is the source of truth shared by the client/server chunking contexts.
+/// The napi content endpoint and the JS content middleware carry their own copies (cross-crate /
+/// cross-language) that must be kept in sync with this value.
+pub const SOURCE_CONTENT_ENDPOINT_PREFIX: &str = "/__nextjs_source-content/[project]/";
+
+/// The [`SourceMapSourceType`] a dev chunking context should use given whether on-demand source
+/// content serving is enabled. When enabled, project sources are emitted relative to the on-demand
+/// content endpoint with their inlined content dropped; otherwise they keep absolute `file://` URIs
+/// with inlined content.
+pub fn dev_source_map_source_type(serve_source_content: bool) -> SourceMapSourceType {
+    if serve_source_content {
+        SourceMapSourceType::DevServerContentEndpoint(rcstr!("/__nextjs_source-content/[project]/"))
+    } else {
+        SourceMapSourceType::AbsoluteFileUri
+    }
+}
 
 /// As opposed to [`EnvMap`], this map allows for `None` values, which means that the variables
 /// should be replace with undefined.

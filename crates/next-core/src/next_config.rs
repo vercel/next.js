@@ -1370,7 +1370,6 @@ pub struct ExperimentalConfig {
     turbopack_input_source_maps: Option<bool>,
     turbopack_module_fragments: Option<bool>,
     turbopack_serve_source_content: Option<bool>,
-    turbopack_tree_shaking: Option<bool>,
     turbopack_scope_hoisting: Option<bool>,
     turbopack_generate_component_chunks: Option<bool>,
     turbopack_shared_runtime: Option<bool>,

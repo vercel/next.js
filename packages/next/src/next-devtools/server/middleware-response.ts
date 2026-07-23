@@ -43,6 +43,7 @@ export const middlewareResponse = {
   text(res: ServerResponse, data: string) {
     res
       .setHeader('Content-Type', 'text/plain; charset=utf-8')
+      .setHeader('X-Content-Type-Options', 'nosniff')
       .end(Buffer.from(data))
   },
 }

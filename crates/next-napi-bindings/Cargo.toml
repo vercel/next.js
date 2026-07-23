@@ -48,7 +48,6 @@ napi-derive = { workspace = true }
 next-code-frame = { workspace = true  }
 next-custom-transforms = { workspace = true }
 next-taskless = { workspace = true }
-qfilter = { workspace = true }
 rand = { workspace = true }
 rustc-hash = { workspace = true }
 serde = "1"

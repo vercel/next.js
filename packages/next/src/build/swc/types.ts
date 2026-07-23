@@ -350,6 +350,17 @@ export interface Project {
   ): Promise<string | null>
 
   /**
+   * Synchronous variant of `getCodeFrameForAsset` for callers that cannot await,
+   * such as the synchronous `Error.prepareStackTrace` server code-frame path.
+   * Reads + renders in turbopack (caching lives in turbo-tasks).
+   */
+  getCodeFrameForAssetSync(
+    filePath: string,
+    location: NapiCodeFrameLocation,
+    options?: NapiCodeFrameOptions
+  ): string | null
+
+  /**
    * Reads a project source file for the on-demand source-content dev endpoint.
    * Only returns content for files that a source map actually referenced
    * (admission-filtered) and that resolve within the project root.

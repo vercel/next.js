@@ -826,6 +826,19 @@ function bindingToApi(
       )
     }
 
+    getCodeFrameForAssetSync(
+      filePath: string,
+      location: NapiCodeFrameLocation,
+      options?: NapiCodeFrameOptions
+    ): string | null {
+      return binding.projectGetCodeFrameForAssetSync(
+        this._nativeProject,
+        filePath,
+        location,
+        options
+      )
+    }
+
     getSourceContent(filePath: string): Promise<string | null> {
       return binding.projectGetSourceContent(this._nativeProject, filePath)
     }

@@ -1692,6 +1692,9 @@ impl Project {
             unused_references: self.unused_references(),
             minify: self.next_config().turbo_minify(self.next_mode()),
             source_maps: self.next_config().server_source_maps(),
+            serve_source_content: self
+                .next_config()
+                .turbopack_serve_source_content(self.next_mode()),
             no_mangling: self.no_mangling(),
             scope_hoisting: self.next_config().turbo_scope_hoisting(self.next_mode()),
             nested_async_chunking: self
@@ -2557,6 +2560,20 @@ impl Project {
             Ok(map.keys_in_path(self.hmr_root_path(target).owned().await?))
         } else {
             bail!("must be in dev mode to hmr")
+        }
+    }
+
+    /// The admission set for the on-demand source-content dev endpoint: the project-relative source
+    /// paths referenced by any currently-emitted source map. See
+    /// [`VersionedContentMap::referenced_source_paths`]. Empty outside dev.
+    #[turbo_tasks::function]
+    pub async fn referenced_source_paths(
+        self: Vc<Self>,
+    ) -> Result<Vc<crate::versioned_content_map::ProjectSourcePaths>> {
+        if let Some(map) = self.await?.versioned_content_map {
+            Ok(map.referenced_source_paths())
+        } else {
+            Ok(Vc::cell(Default::default()))
         }
     }
 

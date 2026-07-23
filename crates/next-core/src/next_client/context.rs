@@ -15,7 +15,7 @@ use turbopack_browser::{
 use turbopack_core::{
     chunk::{
         AssetSuffix, ChunkLoadRetry, ChunkingConfig, ChunkingContext, ContentHashing, CrossOrigin,
-        MangleType, MinifyType, SourceMapSourceType, SourceMapsType, UnusedReferences, UrlBehavior,
+        MangleType, MinifyType, SourceMapsType, UnusedReferences, UrlBehavior,
         chunk_id_strategy::ModuleIdStrategy,
     },
     compile_time_info::{CompileTimeDefines, CompileTimeInfo, FreeVarReference, FreeVarReferences},
@@ -600,19 +600,14 @@ pub async fn get_client_chunking_context(
     }
 
     if next_mode.is_development() {
-        let source_map_source_type = if *serve_source_content.await? {
-            // Emit `[project]`-relative sources with `sourceRoot` pointing at the dev server's
-            // on-demand content endpoint, so the browser fetches original file content lazily
-            // instead of embedding it in every source map.
-            SourceMapSourceType::DevServerContentEndpoint(rcstr!(
-                "/__nextjs_source-content/[project]/"
-            ))
-        } else {
-            SourceMapSourceType::AbsoluteFileUri
-        };
+        // Emit `[project]`-relative sources with `sourceRoot` pointing at the dev server's
+        // on-demand content endpoint (when enabled), so the browser fetches original file content
+        // lazily instead of embedding it in every source map.
         builder = builder
             .hot_module_replacement()
-            .source_map_source_type(source_map_source_type)
+            .source_map_source_type(crate::util::dev_source_map_source_type(
+                *serve_source_content.await?,
+            ))
             .dynamic_chunk_content_loading(true);
     } else {
         builder = builder

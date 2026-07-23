@@ -493,12 +493,26 @@ export declare function projectGetCodeFrameForAsset(
   options?: NapiCodeFrameOptions | undefined | null
 ): Promise<string | null>
 /**
+ * Synchronous variant of [`project_get_code_frame_for_asset`], for callers that cannot await —
+ * notably `patch-error-inspect`'s synchronous `Error.prepareStackTrace` path. Blocks on the async
+ * implementation the same way [`project_get_source_map_sync`] does. Reading + rendering the frame
+ * in turbopack (rather than a JS-side disk read) keeps file caching in turbo-tasks.
+ */
+export declare function projectGetCodeFrameForAssetSync(
+  project: { __napiType: 'Project' },
+  filePath: RcStr,
+  location: NapiCodeFrameLocation,
+  options?: NapiCodeFrameOptions | undefined | null
+): string | null
+/**
  * Reads a project source file for the on-demand source-content dev endpoint.
  *
- * Unlike [`project_get_source_for_asset`], this is gated by the emitted-source-paths admission
- * filter: it only serves files that a source map actually referenced. Combined with the
- * filesystem-root sandbox (`root().join()`), this prevents reading arbitrary project files or
- * escaping the project root via path traversal.
+ * Unlike [`project_get_source_for_asset`], this is gated by an admission set: it only serves files
+ * that a currently-emitted source map actually referenced (see
+ * [`Project::referenced_source_paths`]). Combined with the filesystem-root sandbox
+ * (`root().join()`), this prevents reading arbitrary project files or escaping the project root
+ * via path traversal. The admission set is a turbo-tasks query built lazily on first request and
+ * invalidated with the maps — there is no eagerly-maintained filter.
  */
 export declare function projectGetSourceContent(
   project: { __napiType: 'Project' },
@@ -506,7 +520,7 @@ export declare function projectGetSourceContent(
 ): Promise<string | null>
 export declare function projectGetSourceMap(
   project: { __napiType: 'Project' },
-  filePath: RcStr
+  sourceMapUrl: RcStr
 ): Promise<string | null>
 export declare function projectGetSourceMapSync(
   project: { __napiType: 'Project' },
