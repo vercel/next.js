@@ -2855,10 +2855,22 @@ impl TurboTasksBackend {
     /// Counts a regret if this task's data was evicted recently (still-needed data was
     /// dropped). Called from the recompute/restore paths.
     fn count_eviction_regret(&self, task: &impl TaskGuard) {
+        if let Some(&evicted) = task.get_last_evicted_epoch() {
+            self.count_eviction_regret_epoch(evicted);
+        }
+    }
+
+    /// Storage-level variant of [`Self::count_eviction_regret`], for call sites that hold a
+    /// raw storage guard instead of a `TaskGuard`.
+    pub(crate) fn count_eviction_regret_storage(&self, storage: &TaskStorage) {
+        if let Some(&evicted) = storage.get_last_evicted_epoch() {
+            self.count_eviction_regret_epoch(evicted);
+        }
+    }
+
+    fn count_eviction_regret_epoch(&self, evicted_epoch: u32) {
         const REGRET_WINDOW_EPOCHS: u32 = 12; // 60s
-        if let Some(&evicted) = task.get_last_evicted_epoch()
-            && self.recency_epoch().saturating_sub(evicted) <= REGRET_WINDOW_EPOCHS
-        {
+        if self.recency_epoch().saturating_sub(evicted_epoch) <= REGRET_WINDOW_EPOCHS {
             EVICTION_REGRETS.fetch_add(1, Ordering::Relaxed);
         }
     }
