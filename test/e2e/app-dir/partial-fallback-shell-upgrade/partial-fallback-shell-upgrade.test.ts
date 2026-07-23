@@ -34,6 +34,8 @@ function createSplitHTMLFetcher(next: NextInstance) {
 
 describe('partial-fallback-shell-upgrade', () => {
   const { next, isNextDev } = nextTestSetup({
+    // Deployed shell upgrades require `partialFallback` metadata, which the
+    // adapter only emits when Partial Prefetching is enabled in the fixture.
     files: path.join(__dirname, 'fixtures', 'default'),
     // The latest changes to support this behavior on deployed infra are available in the adapter,
     // and are not being backported to the CLI
