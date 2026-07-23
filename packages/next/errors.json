@@ -1449,5 +1449,9 @@
   "1448": "Error in the \"%s\" app-route HMR subscription",
   "1449": "Accessed `searchParams` during prerendering.",
   "1450": "Invalid value returned from generateStaticParams for \"%s\". Expected an array, but received type %s. See more info here: https://nextjs.org/docs/messages/generate-static-params",
-  "1451": "Invalid value at index %s returned from generateStaticParams for \"%s\". Expected an object, but received type %s. See more info here: https://nextjs.org/docs/messages/generate-static-params"
+  "1451": "Invalid value at index %s returned from generateStaticParams for \"%s\". Expected an object, but received type %s. See more info here: https://nextjs.org/docs/messages/generate-static-params",
+  "1452": "Page \"%s\" is missing \"generateStaticParams()\" so it cannot be used with \"output: export\" config. See more info here: https://nextjs.org/docs/messages/generate-static-params",
+  "1453": "Page \"%s\" is missing exported function \"generateStaticParams()\", which is required with \"output: export\" config. See more info here: https://nextjs.org/docs/messages/generate-static-params",
+  "1454": "Page \"%s\" returned an empty array from \"generateStaticParams()\". With \"output: export\", at least one route must be generated. See more info here: https://nextjs.org/docs/messages/generate-static-params",
+  "1455": "Page \"%s\" returned incomplete params from \"generateStaticParams()\". With \"output: export\", every params object must include all dynamic route parameters. Missing: %s. See more info here: https://nextjs.org/docs/messages/generate-static-params"
 }
