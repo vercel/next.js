@@ -1,4 +1,5 @@
-import { dirname } from 'path'
+import { existsSync } from 'fs'
+import { dirname, join } from 'path'
 import findUp from 'next/dist/compiled/find-up'
 import * as Log from '../build/output/log'
 
@@ -50,6 +51,12 @@ export function findRootDirAndLockFiles(cwd: string): {
 
     // dirname('/')==='/' so if we happen to reach the FS root (as might happen in a container we need to quit to avoid looping forever
     if (parentDir === currentDir) break
+
+    // A `.git` entry marks a repository boundary. A checkout nested inside
+    // another checkout (e.g. a git worktree placed in a directory of the
+    // main checkout) is a workspace of its own; lockfiles above the boundary
+    // belong to a different repository.
+    if (existsSync(join(currentDir, '.git'))) break
 
     const newLockFile = findWorkRoot(parentDir)
 
