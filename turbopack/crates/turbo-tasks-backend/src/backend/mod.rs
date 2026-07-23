@@ -15,7 +15,7 @@ use std::{
     pin::Pin,
     sync::{
         Arc, LazyLock,
-        atomic::{AtomicBool, Ordering},
+        atomic::{AtomicBool, AtomicU64, Ordering},
     },
     time::SystemTime,
 };
@@ -166,6 +166,33 @@ pub enum TurboTasksBackendJob {
 }
 
 /// Why a snapshot/persist is being performed.
+/// Cumulative count of eviction regrets: tasks whose data was re-demanded within 60s of
+/// being evicted. High regret means eviction moments are poorly chosen.
+static EVICTION_REGRETS: AtomicU64 = AtomicU64::new(0);
+static EVICTION_REGRETS_LAST: AtomicU64 = AtomicU64::new(0);
+
+/// Logs one line per eviction sweep with drop counts and regrets accumulated since the
+/// previous sweep. Only active when `TURBO_ENGINE_EVICT_LOG` is set.
+fn log_eviction_counts(trigger: &str, counts: &crate::backend::storage::EvictionCounts) {
+    static LOG: LazyLock<bool> =
+        LazyLock::new(|| std::env::var("TURBO_ENGINE_EVICT_LOG").is_ok_and(|v| v == "1"));
+    if !*LOG {
+        return;
+    }
+    let total = EVICTION_REGRETS.load(Ordering::Relaxed);
+    let last = EVICTION_REGRETS_LAST.swap(total, Ordering::Relaxed);
+    eprintln!(
+        "[evict:{trigger}] full={} data={} meta={} skipped_recent={} regrets_since_last={} \
+         regrets_total={}",
+        counts.full,
+        counts.data_and_meta + counts.data_only,
+        counts.meta_only,
+        counts.skipped_recently_read,
+        total - last,
+        total,
+    );
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum SnapshotReason {
     Test,
@@ -301,6 +328,28 @@ impl TurboTasksBackend {
         )
     }
 
+    /// Coarse session-time epoch used for read-recency tracking (5-second buckets).
+    fn recency_epoch(&self) -> u32 {
+        (self.start_time.elapsed().as_secs() / 5) as u32
+    }
+
+    /// Recency parameters for an eviction sweep, if `TURBO_ENGINE_EVICT_MIN_AGE_SECS` is set:
+    /// tasks read within that many seconds keep their value data.
+    fn eviction_recency(&self) -> Option<crate::backend::storage::EvictionRecency> {
+        static MIN_AGE_EPOCHS: LazyLock<Option<u32>> = LazyLock::new(|| {
+            std::env::var("TURBO_ENGINE_EVICT_MIN_AGE_SECS")
+                .ok()
+                .and_then(|v| v.parse::<u64>().ok())
+                .map(|secs| (secs / 5).max(1) as u32)
+        });
+        let min_age = (*MIN_AGE_EPOCHS)?;
+        let current_epoch = self.recency_epoch();
+        Some(crate::backend::storage::EvictionRecency {
+            min_epoch: current_epoch.saturating_sub(min_age),
+            current_epoch,
+        })
+    }
+
     /// Perform a snapshot and then evict all evictable tasks from memory.
     ///
     /// This is exposed for integration tests that need to verify the
@@ -326,7 +375,9 @@ impl TurboTasksBackend {
                 return (false, EvictionCounts::default());
             }
         };
-        let counts = self.storage.evict_after_snapshot(None);
+        let counts = self
+            .storage
+            .evict_after_snapshot(None, self.eviction_recency());
         (had_new_data, counts)
     }
 
@@ -838,6 +889,7 @@ impl TurboTasksBackend {
             task.get_cell_data(&cell).cloned()
         };
         if let Some(content) = content {
+            self.stamp_read_epoch(&mut task);
             if tracking.should_track(false) {
                 add_cell_dependency(task_id, task, reader, reader_task, cell, tracking.key());
             }
@@ -900,6 +952,7 @@ impl TurboTasksBackend {
         )
         .entered();
 
+        self.count_eviction_regret(&task);
         let _ = task.add_scheduled(
             TaskExecutionReason::CellNotAvailable,
             EventDescription::new(|| task.get_task_desc_fn()),
@@ -2791,6 +2844,25 @@ impl TurboTasksBackend {
         removed_cell_data
     }
 
+    /// Stamps the read-recency epoch on a task, skipping the write when already current.
+    fn stamp_read_epoch(&self, task: &mut impl TaskGuard) {
+        let epoch = self.recency_epoch();
+        if task.get_last_read_epoch().copied() != Some(epoch) {
+            task.set_last_read_epoch(epoch);
+        }
+    }
+
+    /// Counts a regret if this task's data was evicted recently (still-needed data was
+    /// dropped). Called from the recompute/restore paths.
+    fn count_eviction_regret(&self, task: &impl TaskGuard) {
+        const REGRET_WINDOW_EPOCHS: u32 = 12; // 60s
+        if let Some(&evicted) = task.get_last_evicted_epoch()
+            && self.recency_epoch().saturating_sub(evicted) <= REGRET_WINDOW_EPOCHS
+        {
+            EVICTION_REGRETS.fetch_add(1, Ordering::Relaxed);
+        }
+    }
+
     /// Prints the standard message emitted when the background persisting process stops due to an
     /// unrecoverable write error. The caller is responsible for returning from the background job.
     fn log_unrecoverable_persist_error() {
@@ -2986,7 +3058,11 @@ impl TurboTasksBackend {
                                     // when enabled we should expect it to reclaim substantial
                                     // memory so racing with execution is as likely to save time as
                                     // cost it.
-                                    self.storage.evict_after_snapshot(background_span.id());
+                                    let counts = self.storage.evict_after_snapshot(
+                                        background_span.id(),
+                                        self.eviction_recency(),
+                                    );
+                                    log_eviction_counts("idle/interval", &counts);
                                     // Sample the post-eviction floor as the new baseline.
                                     eviction_control.record_eviction();
                                     true

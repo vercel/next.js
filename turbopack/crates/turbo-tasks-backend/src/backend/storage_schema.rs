@@ -133,6 +133,16 @@ struct TaskStorageSchema {
     #[field(storage = "counter_map", category = "meta", filter_transient)]
     aggregated_dirty_containers: CounterMap<TaskId, i32, 3>,
 
+    /// Coarse session-time epoch of the most recent read of this task's output or cells
+    /// (transient). Absent = not read this session. Lets eviction skip recently-used tasks.
+    #[field(storage = "direct", category = "transient")]
+    pub last_read_epoch: u32,
+
+    /// Epoch at which this task's value data was last evicted (transient). Used to count
+    /// eviction regret: re-reads shortly after eviction indicate the task was still needed.
+    #[field(storage = "direct", category = "transient")]
+    pub last_evicted_epoch: u32,
+
     /// Count of clean containers in current session (transient).
     /// Absent = 0, present = actual count.
     #[field(storage = "direct", category = "transient")]
