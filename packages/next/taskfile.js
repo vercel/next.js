@@ -3030,10 +3030,10 @@ export async function next_bundle_server(task, opts) {
   })
 }
 
-// The `app-worker` bundle currently has only one entry, the use-cache probe
-// worker, which is dev-only. We therefore build just the four dev variants
-// (turbo × experimental). If a future worker entry needs to run in prod,
-// add the matching prod tasks then.
+// The `app-worker` bundle holds the dev-only worker entries (the use-cache
+// probe worker and the dev validation worker). We therefore build just the four
+// dev variants (turbo × experimental). If a future worker entry needs to run in
+// prod, add the matching prod tasks then.
 export async function next_bundle_app_worker_dev(task, opts) {
   await task.source('dist').webpack({
     watch: opts.dev,

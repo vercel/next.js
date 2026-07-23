@@ -37,10 +37,20 @@ type CodeFrameRenderer = (
   colors: boolean
 ) => string | null
 
-let codeFrameRenderer: CodeFrameRenderer | undefined
+// The code-frame renderer is stored on `globalThis` rather than in a module
+// variable because this module is bundled into several runtimes (the dev
+// server, the app-page runtime bundle, and the dev worker bundles) that each
+// get their own copy. `Error.prepareStackTrace` is a single process-global, so
+// whichever copy patched it last is the one that renders errors, which may not
+// be the copy `setCodeFrameRenderer` was called on. Sharing the renderer
+// through a `globalThis` symbol lets any copy install it and any copy read it.
+const CODE_FRAME_RENDERER = Symbol.for('next.dev.codeFrameRenderer')
+type GlobalWithCodeFrameRenderer = typeof globalThis & {
+  [CODE_FRAME_RENDERER]?: CodeFrameRenderer
+}
 
 export function setCodeFrameRenderer(renderer: CodeFrameRenderer): void {
-  codeFrameRenderer = renderer
+  ;(globalThis as GlobalWithCodeFrameRenderer)[CODE_FRAME_RENDERER] = renderer
 }
 
 function getOriginalCodeFrame(
@@ -48,6 +58,9 @@ function getOriginalCodeFrame(
   source: string | null,
   colors: boolean = process.stdout.isTTY
 ): string | null {
+  const codeFrameRenderer = (globalThis as GlobalWithCodeFrameRenderer)[
+    CODE_FRAME_RENDERER
+  ]
   if (!codeFrameRenderer) {
     // No renderer available - gracefully degrade
     return null
