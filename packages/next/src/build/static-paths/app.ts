@@ -937,17 +937,26 @@ export async function buildAppStaticPaths({
     }
   }
 
+  // In non-PPR mode, a nested generateStaticParams that returns `[]` for some
+  // parent params produces incomplete param combinations that are missing a
+  // child segment's param (e.g. `{ lang: 'fr' }` for `/[lang]/thing/[slug]`
+  // when the `fr` branch returned no slugs). These combinations cannot be
+  // prerendered as concrete routes — they're served on-demand instead — so
+  // they must be dropped before prerendering:
+  //   1. `validateParams` would otherwise throw on the missing param, and
+  //   2. a single incomplete combination must not prevent the *complete*
+  //      sibling combinations (e.g. `/en/thing/a`) from being prerendered.
+  // PPR keeps every combination because it uses them to generate fallback
+  // shells (see `generateAllParamCombinations` below).
+  const completeRouteParams = isRoutePPREnabled
+    ? routeParams
+    : routeParams.filter((params) =>
+        pathnameRouteParamSegments.every(({ paramName }) => paramName in params)
+      )
+
   // Determine if all the segments have had their parameters provided.
   const hadAllParamsGenerated =
-    pathnameRouteParamSegments.length === 0 ||
-    (routeParams.length > 0 &&
-      routeParams.every((params) => {
-        for (const { paramName } of pathnameRouteParamSegments) {
-          if (paramName in params) continue
-          return false
-        }
-        return true
-      }))
+    pathnameRouteParamSegments.length === 0 || completeRouteParams.length > 0
 
   // TODO: dynamic params should be allowed to be granular per segment but
   // we need additional information stored/leveraged in the prerender
@@ -973,7 +982,7 @@ export async function buildAppStaticPaths({
   const rootParamSet = new Set(rootParamKeys)
 
   if (hadAllParamsGenerated || isRoutePPREnabled) {
-    let paramsToProcess = routeParams
+    let paramsToProcess = completeRouteParams
 
     if (isRoutePPREnabled) {
       // Discover all unique combinations of the routeParams so we can generate
