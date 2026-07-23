@@ -1146,5 +1146,8 @@
   "1145": "Unsupported body type: %s",
   "1146": "Invalid target hostname \"%s\" for proxy request, expected \"%s\"",
   "1147": "Missing initURL",
-  "1148": "Could not determine origin for forwarded Server Actions request. This can happen if port or hostname are not configured for this server."
+  "1148": "Could not determine origin for forwarded Server Actions request. This can happen if port or hostname are not configured for this server.",
+  "1149": "Could not parse output from TypeScript's --showConfig.",
+  "1150": "TypeScript %s does not provide the compiler API required by Next.js. Enable %s in your Next.js config to use the TypeScript CLI, or install TypeScript 6 instead.",
+  "1151": "TypeScript CLI interrupted by %s"
 }
