@@ -10,6 +10,11 @@ pub fn memory_pressure() -> Option<u8> {
     platform::memory_pressure()
 }
 
+/// See [`super::TurboMalloc::process_footprint`].
+pub fn process_footprint() -> Option<usize> {
+    platform::process_footprint()
+}
+
 fn clamp_percent(value: f64) -> u8 {
     if !value.is_finite() {
         return 0;
@@ -34,6 +39,16 @@ mod platform {
         }
         let content = std::fs::read_to_string("/proc/meminfo").ok()?;
         parse_meminfo(&content)
+    }
+
+    /// Reads the process resident set size from `/proc/self/statm` (pages),
+    /// the closest Linux analog of a physical footprint.
+    pub fn process_footprint() -> Option<usize> {
+        let statm = std::fs::read_to_string("/proc/self/statm").ok()?;
+        let rss_pages: usize = statm.split_whitespace().nth(1)?.parse().ok()?;
+        // Safety: sysconf(_SC_PAGESIZE) is always callable.
+        let page_size = usize::try_from(unsafe { libc::sysconf(libc::_SC_PAGESIZE) }).ok()?;
+        Some(rss_pages * page_size)
     }
 
     fn parse_psi(content: &str) -> Option<u8> {
@@ -161,10 +176,31 @@ mod platform {
         let pressure = 100.0 - f64::from(level);
         Some(clamp_percent(pressure))
     }
+
+    /// Reads the process physical footprint (the value shown in Activity
+    /// Monitor's Memory column and used by the jetsam OOM killer) via
+    /// `proc_pid_rusage`.
+    pub fn process_footprint() -> Option<usize> {
+        let mut info: libc::rusage_info_v4 = unsafe { std::mem::zeroed() };
+        // Safety: RUSAGE_INFO_V4 writes a rusage_info_v4-sized buffer; we pass
+        // a properly sized and zeroed struct for our own pid.
+        let ret = unsafe {
+            libc::proc_pid_rusage(
+                std::process::id() as libc::c_int,
+                libc::RUSAGE_INFO_V4,
+                &mut info as *mut libc::rusage_info_v4 as *mut libc::rusage_info_t,
+            )
+        };
+        (ret == 0).then(|| info.ri_phys_footprint as usize)
+    }
 }
 
 #[cfg(windows)]
 mod platform {
+    pub fn process_footprint() -> Option<usize> {
+        None
+    }
+
     use windows_sys::Win32::System::SystemInformation::{GlobalMemoryStatusEx, MEMORYSTATUSEX};
 
     /// Reads `MEMORYSTATUSEX::dwMemoryLoad`, which is the approximate
@@ -190,5 +226,32 @@ mod platform {
 mod platform {
     pub fn memory_pressure() -> Option<u8> {
         None
+    }
+
+    pub fn process_footprint() -> Option<usize> {
+        None
+    }
+}
+
+#[cfg(test)]
+mod footprint_tests {
+    #[test]
+    fn process_footprint_is_reasonable() {
+        let fp = super::process_footprint();
+        #[cfg(any(
+            target_os = "macos",
+            all(target_os = "linux", not(target_family = "wasm"))
+        ))]
+        {
+            let fp = fp.expect("footprint available on this platform");
+            // A running test binary occupies somewhere between 1MB and 1TB.
+            assert!(fp > 1 << 20, "footprint too small: {fp}");
+            assert!(fp < 1 << 40, "footprint too large: {fp}");
+        }
+        #[cfg(not(any(
+            target_os = "macos",
+            all(target_os = "linux", not(target_family = "wasm"))
+        )))]
+        assert!(fp.is_none());
     }
 }

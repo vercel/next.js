@@ -335,6 +335,14 @@ impl TurboTasksBackend {
         )
     }
 
+    /// Memory metric compared against the `TURBO_ENGINE_EVICT_ABOVE_MB` budget: the OS-visible
+    /// process footprint where available (that is what OOM decisions are based on), falling
+    /// back to live allocator bytes.
+    fn budget_memory_usage() -> usize {
+        turbo_tasks_malloc::TurboMalloc::process_footprint()
+            .unwrap_or_else(turbo_tasks_malloc::TurboMalloc::memory_usage)
+    }
+
     /// Coarse session-time epoch used for read-recency tracking (5-second buckets).
     fn recency_epoch(&self) -> u32 {
         (self.start_time.elapsed().as_secs() / 5) as u32
@@ -3022,7 +3030,7 @@ impl TurboTasksBackend {
                                             tokio::time::Instant::now() + PRESSURE_CHECK_INTERVAL;
                                         if let Some(budget) = *EVICT_ABOVE_BYTES
                                             && Instant::now() >= pressure_cooldown_until
-                                            && turbo_tasks_malloc::TurboMalloc::memory_usage() > budget
+                                            && Self::budget_memory_usage() > budget
                                         {
                                             reason = SnapshotReason::MemoryPressure;
                                             break;
@@ -3032,8 +3040,7 @@ impl TurboTasksBackend {
                             }
                         }
                         let pressure_triggered = matches!(reason, SnapshotReason::MemoryPressure);
-                        let usage_before_cycle =
-                            pressure_triggered.then(turbo_tasks_malloc::TurboMalloc::memory_usage);
+                        let usage_before_cycle = pressure_triggered.then(Self::budget_memory_usage);
 
                         // Persistence exists to save work; accumulated compilation time is
                         // the proxy for how much work a snapshot would save. Skip periodic
@@ -3134,10 +3141,16 @@ impl TurboTasksBackend {
                                             },
                                         );
                                         log_eviction_counts("pressure", &counts);
-                                        if window == 0
-                                            || turbo_tasks_malloc::TurboMalloc::memory_usage()
-                                                <= budget
-                                        {
+                                        if window == 0 {
+                                            break;
+                                        }
+                                        // Freed memory only leaves the footprint once the
+                                        // allocator purges it back to the OS; force that and
+                                        // give the accounting a moment to settle before deciding
+                                        // whether the protected window must shrink.
+                                        TurboMalloc::collect(true);
+                                        std::thread::sleep(Duration::from_millis(300));
+                                        if Self::budget_memory_usage() <= budget {
                                             break;
                                         }
                                         window /= 4;
@@ -3148,8 +3161,7 @@ impl TurboTasksBackend {
                                     // back-to-back while cycles reclaim memory (persisting fresh
                                     // data unlocks it for the next sweep), back off when stuck
                                     // (remaining memory belongs to in-flight work).
-                                    let usage_after =
-                                        turbo_tasks_malloc::TurboMalloc::memory_usage();
+                                    let usage_after = Self::budget_memory_usage();
                                     let usage_before =
                                         usage_before_cycle.expect("set when pressure_triggered");
                                     // Persisting fresh data counts as progress even when

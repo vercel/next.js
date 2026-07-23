@@ -143,6 +143,14 @@ impl TurboMalloc {
     pub fn memory_pressure() -> Option<u8> {
         memory_pressure::memory_pressure()
     }
+
+    /// OS-visible physical memory attributed to this process (Activity Monitor's Memory
+    /// column on macOS, RSS on Linux) — the number OOM decisions are based on, unlike
+    /// [`Self::memory_usage`] which only counts live allocator bytes. `None` when the
+    /// platform does not expose it.
+    pub fn process_footprint() -> Option<usize> {
+        memory_pressure::process_footprint()
+    }
 }
 
 /// Get the allocator for this platform that we should wrap with TurboMalloc.
