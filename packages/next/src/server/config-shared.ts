@@ -1186,6 +1186,17 @@ export interface ExperimentalConfig {
   }
 
   /**
+   * Runs development Cache Components validation on a worker thread rather than
+   * the main thread, keeping the dev server's event loop responsive during
+   * rapid navigation. This covers static-shell validation (which runs on
+   * initial load and HMR refresh) as well as instant-navigation validation
+   * (when `instant` is configured). Enabled by default; set to `false` to run
+   * validation in-process, as an escape hatch to isolate a problem or fall back
+   * if the worker misbehaves.
+   */
+  devValidationWorker?: boolean
+
+  /**
    * The number of times to retry static generation (per page) before giving up.
    */
   staticGenerationRetryCount?: number
@@ -2115,6 +2126,7 @@ export const defaultConfig = Object.freeze({
   experimental: {
     appNewScrollHandler: true,
     coldCacheBadge: false,
+    devValidationWorker: true,
     useSkewCookie: false,
     cssChunking: true,
     multiZoneDraftMode: false,

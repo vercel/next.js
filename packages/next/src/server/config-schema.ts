@@ -436,6 +436,7 @@ export const experimentalSchema = {
         .optional(),
     })
     .optional(),
+  devValidationWorker: z.boolean().optional(),
   staticGenerationRetryCount: z.number().int().optional(),
   staticGenerationMaxConcurrency: z.number().int().optional(),
   staticGenerationMinPagesPerWorker: z.number().int().optional(),
