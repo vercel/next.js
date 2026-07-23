@@ -857,7 +857,7 @@ export default class DevServer extends Server {
           if (this.nextConfig.output === 'export') {
             if (!prerenderedRoutes) {
               throw new Error(
-                `Page "${page}" is missing exported function "generateStaticParams()", which is required with "output: export" config.`
+                `Page "${page}" is missing exported function "generateStaticParams()", which is required with "output: export" config. See more info here: https://nextjs.org/docs/messages/generate-static-params`
               )
             }
 
