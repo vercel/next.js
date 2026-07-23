@@ -336,7 +336,6 @@ export const experimentalSchema = {
   swcTraceProfiling: z.boolean().optional(),
   // NonNullable<webpack.Configuration['experiments']>['buildHttp']
   urlImports: z.any().optional(),
-  viewTransition: z.boolean().optional(),
   workerThreads: z.boolean().optional(),
   webVitalsAttribution: z
     .array(

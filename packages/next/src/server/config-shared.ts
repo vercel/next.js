@@ -1136,11 +1136,6 @@ export interface ExperimentalConfig {
   lightningCssFeatures?: LightningCssFeatures
 
   /**
-   * Enables view transitions by using the {@link https://react.dev/reference/react/ViewTransition ViewTransition} Component.
-   */
-  viewTransition?: boolean
-
-  /**
    * Enables `fetch` requests to be proxied to the experimental test proxy server
    */
   testProxy?: boolean
@@ -2184,7 +2179,6 @@ export const defaultConfig = Object.freeze({
     optimizeServerReact: true,
     strictRouteTypes: false,
     useTypeScriptCli: false,
-    viewTransition: false,
     removeUncaughtErrorAndRejectionListeners: false,
     validateRSCRequestHeaders: true,
     staleTimes: {
