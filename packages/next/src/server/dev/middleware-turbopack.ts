@@ -226,6 +226,7 @@ function createStackFrame(
  * @returns 1-based lines and 1-based columns
  */
 async function nativeTraceSource(
+  project: Project,
   frame: TurbopackStackFrame
 ): Promise<TracedSource | undefined> {
   const sourceURL = frame.file
@@ -335,11 +336,40 @@ async function nativeTraceSource(
 
       return {
         frame: originalStackFrame,
-        // The source is already in-process (inline `sourcesContent` or, when a
-        // map omits it, read from disk by the source-map consumer setup), so we
-        // render the code frame here rather than round-tripping to native.
-        getCodeFrame: (options: CodeFrameOptions) =>
-          getOriginalCodeFrame(originalStackFrame, sourceContent, options),
+        getCodeFrame: (options: CodeFrameOptions) => {
+          // When the map inlines content, render it in-process. When it omits
+          // content (dev with `experimental.turbopackServeSourceContent`), the
+          // resolved source is prefixed with the on-demand content `sourceRoot`;
+          // read + render it from turbopack in one native call instead.
+          if (
+            sourceContent === null &&
+            originalStackFrame.file?.startsWith(
+              SOURCE_CONTENT_MIDDLEWARE_PREFIX
+            ) &&
+            originalStackFrame.line1 != null
+          ) {
+            return project.getCodeFrameForAsset(
+              originalStackFrame.file.slice(
+                SOURCE_CONTENT_MIDDLEWARE_PREFIX.length
+              ),
+              {
+                start: {
+                  line: originalStackFrame.line1,
+                  column: originalStackFrame.column1 ?? undefined,
+                },
+              },
+              {
+                color: options.colors ?? process.stdout?.isTTY ?? false,
+                maxWidth: options.maxWidth,
+              }
+            )
+          }
+          return getOriginalCodeFrame(
+            originalStackFrame,
+            sourceContent,
+            options
+          )
+        },
       }
     }
   }
@@ -354,7 +384,7 @@ async function createOriginalStackFrame(
   codeFrameOptions?: CodeFrameOptions
 ): Promise<OriginalStackFrameResponse | null> {
   const traced =
-    (await nativeTraceSource(frame)) ??
+    (await nativeTraceSource(project, frame)) ??
     // TODO(veil): When would the bundler know more than native?
     // If it's faster, try the bundler first and fall back to native later.
     (await batchedTraceSource(project, frame))

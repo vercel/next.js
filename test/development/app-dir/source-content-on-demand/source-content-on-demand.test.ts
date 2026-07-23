@@ -150,5 +150,21 @@ const isTurbopack = Boolean(process.env.IS_TURBOPACK_TEST)
       })
       expect(next.cliOutput).not.toMatch(/ThrowsServerPage \(.*\.next\//)
     })
+
+    it('renders a code frame for server (SSR) errors even though the map omits content', async () => {
+      // The server error overlay resolves original stack frames via the native
+      // trace path. When the server map omits inlined content, that path must
+      // read the original source from turbopack to render the code frame; a
+      // regression here shows up as an empty code frame in the redbox.
+      const browser = await next.browser('/throws-server')
+
+      await retry(async () => {
+        const description = await getRedboxDescription(browser)
+        expect(description).toContain('boom from throws server page')
+        const source = await getRedboxSource(browser)
+        expect(source ?? '').toContain('app/throws-server/page.tsx')
+        expect(source ?? '').toContain('boom from throws server page')
+      })
+    })
   }
 )
