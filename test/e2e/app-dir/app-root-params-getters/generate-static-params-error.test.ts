@@ -26,10 +26,11 @@ describe('app-root-param-getters - generateStaticParams error', () => {
          "description": "Route /[lang]/[locale] used \`import('next/root-params').lang()\` inside \`generateStaticParams\`, but the \`lang\` parameter was not provided by a parent \`generateStaticParams\`. In \`generateStaticParams\`, root params are only available for segments nested below the segment that provides them.",
          "environmentLabel": null,
          "label": "Runtime Error",
-         "source": "app/[lang]/[locale]/layout.tsx (16:23) @ generateStaticParams
-       > 16 |   const l = await lang()
-            |                       ^",
+         "source": "../../../packages/next/root-params.js (2:45) @ lang
+       > 2 | export function lang() { return getRootParam('lang'); }
+           |                                             ^",
          "stack": [
+           "lang ../../../packages/next/root-params.js (2:45)",
            "generateStaticParams app/[lang]/[locale]/layout.tsx (16:23)",
          ],
        }
