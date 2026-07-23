@@ -12,7 +12,7 @@ React's `<ViewTransition>` component integrates with the browser's [View Transit
 
 This guide walks through four patterns that cover the most common cases: morphing shared elements, animating loading states, adding directional navigation, and crossfading content within the same route.
 
-## Use the skill (recommended)
+## Use the react-view-transitions skill
 
 The [`react-view-transitions`](https://github.com/vercel-labs/agent-skills/tree/main/skills/react-view-transitions) skill teaches a coding agent the patterns in this guide, plus the CSS recipes and troubleshooting for applying them to an existing app.
 
@@ -28,6 +28,8 @@ Then give the agent this prompt:
 Add view transitions to this app using the react-view-transitions skill.
 ```
 
+To apply the patterns yourself, follow the walkthrough below.
+
 ## Example
 
 As an example, we'll build a photography gallery called _Frames_.
@@ -39,26 +41,12 @@ You can find the resources used in this example here:
 - [Demo](https://react-view-transitions-demo.labs.vercel.dev)
 - [Code](https://github.com/vercel-labs/react-view-transitions-demo)
 
-Before starting, enable view transitions in your Next.js config:
-
-```ts filename="next.config.ts"
-import type { NextConfig } from 'next'
-
-const nextConfig: NextConfig = {
-  experimental: {
-    viewTransition: true,
-  },
-}
-
-export default nextConfig
-```
-
-App Router uses [React canary releases](https://react.dev/blog/2023/05/03/react-canaries), which contain all stable React 19 changes as well as newer features like `ViewTransition`. You do not need to install `react@canary` yourself.
+View transitions work in the App Router with no configuration. The App Router uses [React canary releases](https://react.dev/blog/2023/05/03/react-canaries), which contain all stable React 19 changes as well as newer features like `ViewTransition`. You do not need to install `react@canary` yourself.
 
 > [!NOTE]
-> React's integration requires the second-generation View Transitions API (Chromium 125+, Safari 18.2+, Firefox 144+), though some animations may behave differently in Safari. Without browser support, your application works normally, the transitions simply do not animate.
+> React's integration uses newer View Transitions API features (transition types and `view-transition-class`), available in Chromium 125+ and recent Safari and Firefox versions. Some animations may behave differently in Safari. Without browser support, your application works normally; the transitions do not animate.
 
-Then import the `ViewTransition` component from React:
+Import the `ViewTransition` component from React:
 
 ```tsx
 import { ViewTransition } from 'react'
@@ -115,11 +103,11 @@ The `name` prop creates identity. React finds elements with the same name on the
 
 If we click a thumbnail now, the image scales and repositions from its grid cell to the hero slot. Navigating back reverses the morph. The user sees one object moving, not two objects swapping.
 
-The morph plays when the destination content renders in the same commit as the navigation — the case with prefetched (cached) pages. If the destination suspends into a fallback first, no pair forms, and the content animates with its enter animation instead when it arrives.
+The morph plays when the destination content renders in the same commit as the navigation, which is the case with prefetched (cached) pages. If the destination suspends into a fallback first, no pair forms, and the content animates with its enter animation instead when it arrives.
 
 #### Customizing the morph animation
 
-The morph works without any CSS. To customize it, add `share="morph"`. This assigns the `morph` class to the view transition, which you can target with CSS pseudo-elements. For example, to soften the morph mid-flight with a [`blur`](https://developer.mozilla.org/en-US/docs/Web/CSS/filter-function/blur) keyframe:
+The morph works without any CSS. To customize it, add `share="morph"` together with `default="none"`. The `share` prop assigns the `morph` class to the view transition, which you can target with CSS pseudo-elements. For example, to soften the morph mid-flight with a [`blur`](https://developer.mozilla.org/en-US/docs/Web/CSS/filter-function/blur) keyframe:
 
 ```tsx
 <ViewTransition name={`photo-${photo.id}`} share="morph" default="none">
@@ -127,7 +115,7 @@ The morph works without any CSS. To customize it, add `share="morph"`. This assi
 </ViewTransition>
 ```
 
-Apply the same props to both sides of the pair. `default="none"` keeps each named image from running its own cross-fade on every unrelated transition — without it, every named `<ViewTransition>` animates whenever any transition runs on the page. When you add `default="none"` to a named pair, keep the explicit `share`: with `default="none"` and no `share` prop, the pair silently stops morphing.
+Add the same props to both Step 1 snippets (`photo-grid.tsx` and `photo-content.tsx`). `default="none"` keeps each named image from running its own crossfade on every unrelated transition. Without it, every named `<ViewTransition>` animates whenever any transition runs on the page. When you add `default="none"` to a named pair, keep the explicit `share`. With `default="none"` and no `share` prop, the pair silently stops morphing.
 
 ```css filename="app/globals.css"
 ::view-transition-group(.morph) {
@@ -177,7 +165,7 @@ export default async function PhotoPage({ params }) {
 }
 ```
 
-The `default="none"` prop prevents this `ViewTransition` from animating during unrelated transitions, like the shared element morph from Step 1. Without it, every transition on the page would trigger every `ViewTransition`'s animation.
+As in Step 1, `default="none"` prevents this `ViewTransition` from animating during unrelated transitions, like the shared element morph.
 
 The CSS animations use asymmetric timing. The exit is fast (150ms). The enter fade is slower (210ms) and delayed until the exit completes, while its slide movement runs longer (400ms):
 
@@ -269,9 +257,9 @@ Then wrap page content in a `ViewTransition` that maps transition types to direc
 </ViewTransition>
 ```
 
-The `enter` and `exit` props accept an object keyed by transition type. When a navigation carries the `nav-forward` type, the exit animation slides old content left and the enter animation slides new content in from the right. The `default: "none"` ensures that transitions without a type — browser back/forward, `router.refresh()`, Suspense reveals — produce no directional animation.
+The `enter` and `exit` props accept an object keyed by transition type. When a navigation carries the `nav-forward` type, the exit animation slides old content left and the enter animation slides new content in from the right. The `default: "none"` ensures that transitions without a type (browser back/forward, `router.refresh()`, Suspense reveals) produce no directional animation.
 
-Wrap every participating page the same way: for the gallery to slide out on forward navigation and back in on `nav-back`, its page needs the same wrapper. Put the wrapper in each `page.tsx`, not the layout — layouts persist across navigations, so enter and exit never fire there:
+Wrap every participating page the same way. For the gallery to slide out on forward navigation and back in on `nav-back`, its page needs the same wrapper. Put the wrapper in each `page.tsx`, not the layout. Layouts persist across navigations, so enter and exit never fire there:
 
 ```tsx filename="app/page.tsx"
 <ViewTransition
@@ -361,6 +349,8 @@ The `display: none` on the old snapshot prevents a flash where both old and new 
 
 If we navigate forward to a photo, content slides left. If we click the "← Gallery" link (tagged with `nav-back`), content slides right. The header stays fixed throughout both transitions.
 
+Browser-initiated back navigations (the back button or swipe gestures) do not carry a transition type, so the directional slide does not play. The shared element morph from Step 1 still applies if both pages have matching `name` props.
+
 #### Keeping the page interactive
 
 While a transition runs, the `::view-transition` overlay captures pointer events, so clicks during the animation are lost. Let them pass through to the live page:
@@ -371,9 +361,7 @@ While a transition runs, the `::view-transition` overlay captures pointer events
 }
 ```
 
-This restores interactivity for unnamed content. Named participants — like the anchored header — are skipped by hit-testing for the transition's duration regardless, so keep transitions short and avoid naming elements the user clicks rapidly.
-
-Browser-initiated back navigations (the back button or swipe gestures) do not carry a transition type, so the directional slide does not play. The shared element morph from Step 1 still applies if both pages have matching `name` props.
+This restores interactivity for unnamed content. Hit-testing still skips named participants (like the anchored header) for the transition's duration, so keep transitions short and avoid naming elements the user clicks rapidly.
 
 #### Respecting reduced motion
 
@@ -443,7 +431,6 @@ Each pattern answers a different question for the user:
 
 For API details and more patterns:
 
-- [View transition configuration](/docs/app/api-reference/config/next-config-js/viewTransition)
 - [Link `transitionTypes` prop](/docs/app/api-reference/components/link#transitiontypes)
 - [`useRouter`](/docs/app/api-reference/functions/use-router), which also supports `transitionTypes` in `push()` and `replace()`
 - [React `ViewTransition` component](https://react.dev/reference/react/ViewTransition)
