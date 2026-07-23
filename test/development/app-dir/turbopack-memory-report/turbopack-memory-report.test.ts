@@ -14,10 +14,8 @@ describe('turbopack-memory-report', () => {
   function expectAuditSection(section: any) {
     expect(typeof section.taskCount).toBe('number')
     expect(typeof section.cellCount).toBe('number')
-    expect(typeof section.distinctValueTypes).toBe('number')
-    expect(typeof section.totalStrongCountSum).toBe('number')
     expect(Array.isArray(section.byType)).toBe(true)
-    expect(Array.isArray(section.sampleChains)).toBe(true)
+    expect(Array.isArray(section.byTaskType)).toBe(true)
 
     for (const t of section.byType) {
       expect(typeof t.type).toBe('string')
@@ -34,11 +32,30 @@ describe('turbopack-memory-report', () => {
       )
     }
 
-    for (const sample of section.sampleChains) {
-      expect(typeof sample.rank).toBe('number')
-      expect(typeof sample.type).toBe('string')
-      expect(typeof sample.task).toBe('string')
-      expect(typeof sample.chain).toBe('string')
+    for (const t of section.byTaskType) {
+      expect(typeof t.taskType).toBe('string')
+      expect(typeof t.taskCount).toBe('number')
+      expect(typeof t.tasksWithCells).toBe('number')
+      // A task can't have more with-cells than total.
+      expect(t.tasksWithCells).toBeLessThanOrEqual(t.taskCount)
+
+      expect(Array.isArray(t.unevictableReasons)).toBe(true)
+      let unevictableTotal = 0
+      for (const r of t.unevictableReasons) {
+        expect(typeof r.reason).toBe('string')
+        expect(typeof r.count).toBe('number')
+        expect(r.count).toBeGreaterThan(0)
+        unevictableTotal += r.count
+      }
+      // Unevictable tasks are a subset of the task type's tasks.
+      expect(unevictableTotal).toBeLessThanOrEqual(t.taskCount)
+    }
+
+    // byTaskType is ranked by taskCount descending.
+    for (let i = 1; i < section.byTaskType.length; i++) {
+      expect(section.byTaskType[i - 1].taskCount).toBeGreaterThanOrEqual(
+        section.byTaskType[i].taskCount
+      )
     }
   }
 
@@ -73,6 +90,9 @@ describe('turbopack-memory-report', () => {
       // There should be persistent cells after rendering a route.
       expect(report.persistent.cellCount).toBeGreaterThan(0)
       expect(report.persistent.byType.length).toBeGreaterThan(0)
+      // And persistent tasks grouped by task type.
+      expect(report.persistent.taskCount).toBeGreaterThan(0)
+      expect(report.persistent.byTaskType.length).toBeGreaterThan(0)
     })
 
     it('should reject an invalid format', async () => {
@@ -94,6 +114,8 @@ describe('turbopack-memory-report', () => {
       expect(body).toContain('## Process Memory')
       expect(body).toContain('## Transient')
       expect(body).toContain('## Persistent')
+      expect(body).toContain('### Cells by value type')
+      expect(body).toContain('### Tasks by task type')
     })
   })
 

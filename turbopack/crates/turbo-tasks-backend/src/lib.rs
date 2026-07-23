@@ -17,8 +17,8 @@ use turbo_persistence::{CompactConfig, TurboPersistence};
 use crate::database::turbo::{self, TurboKeyValueDatabase};
 pub use crate::{
     backend::{
-        AuditSection, BackendOptions, EvictionMode, MemoryReport, SampleChain, StorageMode,
-        TurboTasksBackend, TypeAudit,
+        AuditSection, BackendOptions, EvictionMode, MemoryReport, StorageMode, TaskTypeAudit,
+        TurboTasksBackend, TypeAudit, UnevictableReasonCount,
     },
     database::{
         db_invalidation,

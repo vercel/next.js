@@ -558,6 +558,21 @@ export function getMemoryReportMiddleware(project: Project) {
   }
 }
 
+/** The Turbopack report augmented with Node.js process-level stats. */
+type MemoryReportResponse = Awaited<ReturnType<Project['getMemoryReport']>> & {
+  uptimeSecs: number
+  process: {
+    pid: number
+    nodeVersion: string
+    rssBytes: number
+    heapUsedBytes: number
+    heapTotalBytes: number
+    externalBytes: number
+  }
+}
+
+type AuditSection = MemoryReportResponse['transient']
+
 function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes.toLocaleString('en-US')} B`
   if (bytes < 1024 * 1024)
@@ -570,11 +585,11 @@ const formatCount = (n: number) => n.toLocaleString('en-US')
 
 /**
  * Render the strong-count memory audit as markdown: a Transient and a
- * Persistent section, each with a per-value-type table ranked by
- * `strongCountSum`, plus dependency-chain samples for the top transient
- * offenders.
+ * Persistent section, each with a per-value-type cell table (ranked by
+ * `strongCountSum`) and a per-task-type table (ranked by `taskCount`, which
+ * also surfaces tasks retained with no cells).
  */
-function renderMemoryReportMarkdown(report: any): string {
+function renderMemoryReportMarkdown(report: MemoryReportResponse): string {
   let md = `# Turbopack Memory Report\n\n`
   md += `Uptime: ${(report.uptimeSecs / 60).toFixed(1)} minutes  \n`
   md += `PID: ${report.process.pid}\n\n`
@@ -595,27 +610,27 @@ function renderMemoryReportMarkdown(report: any): string {
   return md
 }
 
-function renderAuditSection(title: string, section: any): string {
+function renderAuditSection(title: string, section: AuditSection): string {
   let md = `\n## ${title}\n\n`
   md += `Tasks: ${formatCount(section.taskCount)}  ·  `
-  md += `Cells: ${formatCount(section.cellCount)}  ·  `
-  md += `Distinct value types: ${formatCount(section.distinctValueTypes)}  ·  `
-  md += `Total strong count: ${formatCount(section.totalStrongCountSum)}\n\n`
+  md += `Cells: ${formatCount(section.cellCount)}\n\n`
 
+  md += `### Cells by value type\n\n`
   md += `| Type | Strong Count | Cells | Max SC | Tasks |\n`
   md += `|------|-------------:|------:|-------:|------:|\n`
   for (const t of section.byType) {
     md += `| \`${t.type}\` | ${formatCount(t.strongCountSum)} | ${formatCount(t.cells)} | ${formatCount(t.maxStrongCount)} | ${formatCount(t.distinctTasks)} |\n`
   }
 
-  if (section.sampleChains.length > 0) {
-    md += `\n### Samples\n\n`
-    for (const sample of section.sampleChains) {
-      md += `**Rank ${sample.rank} — \`${sample.type}\`** (${sample.task})\n\n`
-      if (sample.chain) {
-        md += '```\n' + sample.chain + '\n```\n\n'
-      }
-    }
+  md += `\n### Tasks by task type\n\n`
+  md += `| Task type | Tasks | With cells | Unevictable (reason × count) |\n`
+  md += `|-----------|------:|-----------:|------------------------------|\n`
+  for (const t of section.byTaskType) {
+    const reasons =
+      t.unevictableReasons
+        .map((r) => `${r.reason}: ${formatCount(r.count)}`)
+        .join(', ') || '—'
+    md += `| \`${t.taskType}\` | ${formatCount(t.taskCount)} | ${formatCount(t.tasksWithCells)} | ${reasons} |\n`
   }
 
   return md

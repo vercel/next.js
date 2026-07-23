@@ -478,7 +478,7 @@ export declare function projectGetSourceForAsset(
 ): Promise<string | null>
 export declare function projectGetSourceMap(
   project: { __napiType: 'Project' },
-  filePath: RcStr
+  sourceMapUrl: RcStr
 ): Promise<string | null>
 export declare function projectGetSourceMapSync(
   project: { __napiType: 'Project' },
@@ -522,10 +522,8 @@ export interface NapiMemoryReport {
 export interface NapiAuditSection {
   taskCount: number
   cellCount: number
-  distinctValueTypes: number
-  totalStrongCountSum: number
   byType: Array<NapiTypeAudit>
-  sampleChains: Array<NapiSampleChain>
+  byTaskType: Array<NapiTaskTypeAudit>
 }
 export interface NapiTypeAudit {
   type: string
@@ -534,11 +532,15 @@ export interface NapiTypeAudit {
   maxStrongCount: number
   distinctTasks: number
 }
-export interface NapiSampleChain {
-  rank: number
-  type: string
-  task: string
-  chain: string
+export interface NapiTaskTypeAudit {
+  taskType: string
+  taskCount: number
+  tasksWithCells: number
+  unevictableReasons: Array<NapiUnevictableReasonCount>
+}
+export interface NapiUnevictableReasonCount {
+  reason: string
+  count: number
 }
 /**
  * Collect an on-demand memory report from the running Turbopack backend.

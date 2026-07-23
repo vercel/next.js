@@ -2655,10 +2655,8 @@ pub struct NapiMemoryReport {
 pub struct NapiAuditSection {
     pub task_count: f64,
     pub cell_count: f64,
-    pub distinct_value_types: f64,
-    pub total_strong_count_sum: f64,
     pub by_type: Vec<NapiTypeAudit>,
-    pub sample_chains: Vec<NapiSampleChain>,
+    pub by_task_type: Vec<NapiTaskTypeAudit>,
 }
 
 #[napi(object)]
@@ -2672,20 +2670,23 @@ pub struct NapiTypeAudit {
 }
 
 #[napi(object)]
-pub struct NapiSampleChain {
-    pub rank: f64,
-    #[napi(js_name = "type")]
-    pub type_name: String,
-    pub task: String,
-    pub chain: String,
+pub struct NapiTaskTypeAudit {
+    pub task_type: String,
+    pub task_count: f64,
+    pub tasks_with_cells: f64,
+    pub unevictable_reasons: Vec<NapiUnevictableReasonCount>,
+}
+
+#[napi(object)]
+pub struct NapiUnevictableReasonCount {
+    pub reason: String,
+    pub count: f64,
 }
 
 fn napi_audit_section(section: turbo_tasks_backend::AuditSection) -> NapiAuditSection {
     NapiAuditSection {
         task_count: section.task_count as f64,
         cell_count: section.cell_count as f64,
-        distinct_value_types: section.distinct_value_types as f64,
-        total_strong_count_sum: section.total_strong_count_sum as f64,
         by_type: section
             .by_type
             .into_iter()
@@ -2697,14 +2698,21 @@ fn napi_audit_section(section: turbo_tasks_backend::AuditSection) -> NapiAuditSe
                 distinct_tasks: t.distinct_tasks as f64,
             })
             .collect(),
-        sample_chains: section
-            .sample_chains
+        by_task_type: section
+            .by_task_type
             .into_iter()
-            .map(|s| NapiSampleChain {
-                rank: s.rank as f64,
-                type_name: s.type_name.to_string(),
-                task: s.task,
-                chain: s.chain,
+            .map(|t| NapiTaskTypeAudit {
+                task_type: t.task_type.to_string(),
+                task_count: t.task_count as f64,
+                tasks_with_cells: t.tasks_with_cells as f64,
+                unevictable_reasons: t
+                    .unevictable_reasons
+                    .into_iter()
+                    .map(|r| NapiUnevictableReasonCount {
+                        reason: r.reason.to_string(),
+                        count: r.count as f64,
+                    })
+                    .collect(),
             })
             .collect(),
     }

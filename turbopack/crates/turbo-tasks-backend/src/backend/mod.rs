@@ -26,6 +26,7 @@ use auto_hash_map::{AutoMap, AutoSet};
 use indexmap::IndexSet;
 use parking_lot::Mutex;
 use rustc_hash::{FxHashMap, FxHashSet, FxHasher};
+use serde::Serialize;
 use smallvec::{SmallVec, smallvec};
 use tokio::time::{Duration, Instant};
 use tracing::{Span, field::display, trace_span};
@@ -202,7 +203,7 @@ impl SnapshotReason {
 /// count of each cell's data), not by an estimate of serialized size. The
 /// report is split into a transient and a persistent section (see
 /// [`AuditSection`]).
-#[derive(Debug, serde::Serialize)]
+#[derive(Debug, Serialize)]
 pub struct MemoryReport {
     /// Tasks eviction skips entirely (per-route accumulation lives here).
     pub transient: AuditSection,
@@ -210,28 +211,26 @@ pub struct MemoryReport {
     pub persistent: AuditSection,
 }
 
-/// One transient-or-persistent slice of a [`MemoryReport`], with per-value-type
-/// aggregates ranked by `strong_count_sum` descending.
-#[derive(Debug, serde::Serialize)]
+/// One transient-or-persistent slice of a [`MemoryReport`].
+///
+/// Reports two ranked views: cells grouped by value type (`by_type`), and tasks
+/// grouped by task-type function name (`by_task_type`). The latter includes
+/// tasks that retain no cells at all — a graph can hold many persistent tasks
+/// while retaining only a handful of cells.
+#[derive(Debug, Serialize)]
 pub struct AuditSection {
     /// Number of tasks (of this transient/persistent kind) in storage.
     pub task_count: u64,
     /// Number of cells contributed by those tasks.
     pub cell_count: u64,
-    /// Number of distinct value types across those cells.
-    pub distinct_value_types: u64,
-    /// Sum of `strong_count` across all cells in this section.
-    pub total_strong_count_sum: u64,
-    /// Per-value-type aggregates, ranked by `strong_count_sum` descending.
+    /// Per-value-type cell aggregates, ranked by `strong_count_sum` descending.
     pub by_type: Vec<TypeAudit>,
-    /// Sample tasks for the top-ranked types. For the transient section each
-    /// carries a dependency `chain`; for the persistent section `chain` is
-    /// empty and `task` carries a human-readable description instead.
-    pub sample_chains: Vec<SampleChain>,
+    /// Per-task-type aggregates, ranked by `task_count` descending.
+    pub by_task_type: Vec<TaskTypeAudit>,
 }
 
-/// Per-value-type aggregate within an [`AuditSection`].
-#[derive(Debug, serde::Serialize)]
+/// Per-value-type cell aggregate within an [`AuditSection`].
+#[derive(Debug, Serialize)]
 pub struct TypeAudit {
     #[serde(rename = "type")]
     pub type_name: &'static str,
@@ -241,16 +240,75 @@ pub struct TypeAudit {
     pub distinct_tasks: u64,
 }
 
-/// A sampled task for one of the top-ranked types in an [`AuditSection`].
-#[derive(Debug, serde::Serialize)]
-pub struct SampleChain {
-    pub rank: u64,
-    #[serde(rename = "type")]
-    pub type_name: &'static str,
-    /// Debug/description string identifying the sampled task.
-    pub task: String,
-    /// Dependency-chain trace (transient section only; empty otherwise).
-    pub chain: String,
+/// Per-task-type aggregate within an [`AuditSection`].
+#[derive(Debug, Serialize)]
+pub struct TaskTypeAudit {
+    pub task_type: &'static str,
+    pub task_count: u64,
+    /// How many of those tasks retained at least one cell; the remainder retain
+    /// only meta/transient data.
+    pub tasks_with_cells: u64,
+    /// For the persistent section: why the last eviction couldn't reclaim these
+    /// tasks, bucketed by reason (only non-zero reasons are listed). Empty for
+    /// the transient section. This is the key debugging signal — e.g. a task
+    /// type dominated by `skipped_modified` means the data is dirty and can't be
+    /// dropped.
+    pub unevictable_reasons: Vec<UnevictableReasonCount>,
+}
+
+/// One `(reason, count)` pair within a [`TaskTypeAudit`].
+#[derive(Debug, Serialize)]
+pub struct UnevictableReasonCount {
+    pub reason: &'static str,
+    pub count: u64,
+}
+
+/// Convert a raw per-kind aggregate from [`storage::Storage::audit_all`] into a
+/// ranked [`AuditSection`]: cells by value type sorted by `strong_count_sum`
+/// descending, tasks by task type sorted by `task_count` descending.
+fn audit_section(raw: storage::AuditKindData) -> AuditSection {
+    let mut by_type: Vec<TypeAudit> = raw
+        .by_value_type
+        .into_iter()
+        .map(|(type_id, agg)| TypeAudit {
+            type_name: get_value_type(type_id).ty.name,
+            strong_count_sum: agg.strong_count_sum,
+            cells: agg.cells,
+            max_strong_count: agg.strong_count_max as u64,
+            distinct_tasks: agg.distinct_tasks.len() as u64,
+        })
+        .collect();
+    by_type.sort_by_key(|t| Reverse(t.strong_count_sum));
+
+    let mut by_task_type: Vec<TaskTypeAudit> = raw
+        .by_task_type
+        .into_iter()
+        .map(|(task_type, agg)| {
+            let unevictable_reasons = storage_schema::UnevictableReason::ALL
+                .iter()
+                .map(|reason| (reason, agg.unevictable_reasons[reason.index()]))
+                .filter(|(_, count)| *count > 0)
+                .map(|(reason, count)| UnevictableReasonCount {
+                    reason: reason.span_name(),
+                    count,
+                })
+                .collect();
+            TaskTypeAudit {
+                task_type,
+                task_count: agg.task_count,
+                tasks_with_cells: agg.tasks_with_cells,
+                unevictable_reasons,
+            }
+        })
+        .collect();
+    by_task_type.sort_by_key(|t| Reverse(t.task_count));
+
+    AuditSection {
+        task_count: raw.task_count,
+        cell_count: raw.cell_count,
+        by_type,
+        by_task_type,
+    }
 }
 
 pub struct TurboTasksBackend {
@@ -1760,123 +1818,23 @@ impl TurboTasksBackend {
     /// Collect an on-demand memory audit of everything currently resident in
     /// the task storage.
     ///
-    /// Enumerates every cell of every task (transient and persistent),
-    /// aggregates by value type ranked by `strong_count` (the number of live
-    /// `triomphe::Arc` references to the cell's data — a cheap, real proxy for
-    /// retention), and splits the result into two sections:
-    /// - **Transient** — tasks eviction skips entirely; catches the per-route accumulation pattern.
-    ///   Sample dependency chains are attached for the top offenders.
-    /// - **Persistent** — cells that *should* have been evictable but weren't
-    ///   (`Evictability::Never` / `Expensive` cells, or tasks blocked by flags like `data_modified`
-    ///   / `data_restoring`).
+    /// Splits the result into a transient section (tasks eviction skips
+    /// entirely — where per-route accumulation shows up) and a persistent
+    /// section (cells/tasks that survived eviction). Each section reports cells
+    /// grouped by value type (ranked by `strong_count` — the live
+    /// `triomphe::Arc` reference count, a cheap proxy for retention) and tasks
+    /// grouped by task-type function name (including tasks that retain no cells,
+    /// only meta data).
     ///
     /// This iterates all tasks under per-shard read locks, so it may take some
     /// time on large graphs. It is exposed on-demand (see the NAPI
     /// `projectGetMemoryReport` binding and the dev-server
     /// `/__nextjs_turbopack-memory` endpoint) rather than run automatically.
     pub fn collect_memory_report(&self) -> MemoryReport {
-        let raw = self.storage.audit_all_cells();
-        let (transient_cells, persistent_cells): (Vec<_>, Vec<_>) =
-            raw.cells.iter().partition(|e| e.task_id.is_transient());
-
+        let raw = self.storage.audit_all();
         MemoryReport {
-            transient: self.audit_section(
-                raw.transient_task_count,
-                &transient_cells,
-                /* include_chain = */ true,
-            ),
-            persistent: self.audit_section(
-                raw.persistent_task_count,
-                &persistent_cells,
-                /* include_chain = */ false,
-            ),
-        }
-    }
-
-    /// Aggregate one set of cells (transient or persistent) into a ranked
-    /// [`AuditSection`].
-    ///
-    /// If `include_chain` is true, a `DebugTraceTransientTask` trace is attached
-    /// to each top-10 sample — only meaningful for transient tasks. For
-    /// persistent samples the chain is left empty and the sample carries only
-    /// `debug_get_task_description`, which is enough to identify the holder.
-    fn audit_section(
-        &self,
-        task_count: usize,
-        cells: &[&storage::AuditCellEntry],
-        include_chain: bool,
-    ) -> AuditSection {
-        #[derive(Default)]
-        struct TypeAggregate {
-            cells: usize,
-            strong_count_sum: u64,
-            strong_count_max: usize,
-            distinct_tasks: FxHashSet<TaskId>,
-            sample_task: Option<TaskId>,
-        }
-
-        let mut by_type_map: FxHashMap<ValueTypeId, TypeAggregate> = FxHashMap::default();
-        for e in cells {
-            let agg = by_type_map.entry(e.type_id).or_default();
-            agg.cells += 1;
-            agg.strong_count_sum += e.strong_count as u64;
-            if e.strong_count > agg.strong_count_max {
-                agg.strong_count_max = e.strong_count;
-            }
-            agg.distinct_tasks.insert(e.task_id);
-            agg.sample_task.get_or_insert(e.task_id);
-        }
-
-        let mut ranked: Vec<(ValueTypeId, TypeAggregate)> = by_type_map.into_iter().collect();
-        ranked.sort_by_key(|b| Reverse(b.1.strong_count_sum));
-
-        let total_strong_count_sum: u64 = ranked.iter().map(|(_, a)| a.strong_count_sum).sum();
-
-        let by_type: Vec<TypeAudit> = ranked
-            .iter()
-            .map(|(type_id, agg)| TypeAudit {
-                type_name: get_value_type(*type_id).ty.name,
-                strong_count_sum: agg.strong_count_sum,
-                cells: agg.cells as u64,
-                max_strong_count: agg.strong_count_max as u64,
-                distinct_tasks: agg.distinct_tasks.len() as u64,
-            })
-            .collect();
-
-        // Sample the top-10 types to trace which task holds the cell.
-        let mut sample_chains = Vec::new();
-        for (i, (type_id, agg)) in ranked.iter().take(10).enumerate() {
-            let Some(sample) = agg.sample_task else {
-                continue;
-            };
-            let type_name = get_value_type(*type_id).ty.name;
-            let (task, chain) = if include_chain {
-                match self.debug_get_cached_task_type(sample) {
-                    Some(task_type) => {
-                        let cell_id = CellId::new(*type_id, 0);
-                        let trace = self.debug_trace_transient_task(&task_type, Some(cell_id));
-                        (format!("{sample:?}"), trace.to_string())
-                    }
-                    None => (format!("{sample:?}"), "[no cached task type]".to_string()),
-                }
-            } else {
-                (self.debug_get_task_description(sample), String::new())
-            };
-            sample_chains.push(SampleChain {
-                rank: (i + 1) as u64,
-                type_name,
-                task,
-                chain,
-            });
-        }
-
-        AuditSection {
-            task_count: task_count as u64,
-            cell_count: cells.len() as u64,
-            distinct_value_types: by_type.len() as u64,
-            total_strong_count_sum,
-            by_type,
-            sample_chains,
+            transient: audit_section(raw.transient),
+            persistent: audit_section(raw.persistent),
         }
     }
 
