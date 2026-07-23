@@ -508,6 +508,10 @@ impl DiskWatcher {
                         if event.need_rescan() {
                             let _lock = fs_inner.invalidation_lock.blocking_write();
 
+                            // flush the whole mpsc queue, we're about to rescan, we don't need to
+                            // process any other update events that have already happened
+                            while rx.try_recv().is_ok() {}
+
                             if let State::NonRecursive(non_recursive) = &self.state {
                                 // we can't narrow this down to a smaller set of paths: Rescan
                                 // events (at least when tested on
@@ -746,7 +750,7 @@ impl BatchedInvalidations {
             EventKind::Modify(ModifyKind::Name(RenameMode::Both)) => {
                 // For the rename::both, notify provides an array of paths
                 // in given order
-                if let [source, destination, ..] = &paths[..] {
+                if let [source, destination] = &paths[..] {
                     self.path_and_children.insert(source.clone());
                     if let Some(parent) = source.parent() {
                         self.path_dir.insert(PathBuf::from(parent));
@@ -767,7 +771,6 @@ impl BatchedInvalidations {
             // but we also check other RenameModes to cover cases where notify couldn't match the
             // two rename events.
             EventKind::Any | EventKind::Modify(ModifyKind::Any | ModifyKind::Name(..)) => {
-                self.path.extend(paths.clone());
                 self.path_and_children.extend(paths.clone());
                 self.path_and_children_dir.extend(paths.clone());
                 for path in &paths {
