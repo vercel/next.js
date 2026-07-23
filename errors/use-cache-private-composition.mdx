@@ -1,0 +1,46 @@
+---
+title: Invalid `"use cache: private"` composition
+---
+
+## Why This Error Occurred
+
+`"use cache: private"` creates a per-user cache entry that is scoped to the current request. That makes it more restrictive than the shared, request-independent `"use cache"`, so it can only be composed in certain ways. This error fires when one of those rules is broken:
+
+- **Nested inside a public `"use cache"`.** A shared cache entry can be built once and reused across every user, so it cannot contain a per-user (private) entry. `"use cache: private"` may only be nested inside another `"use cache: private"`.
+- **Used inside `unstable_cache()`.** `unstable_cache()` is a shared cache and has the same restriction.
+- **Used without an active request.** A private entry is keyed to a request, so it cannot be produced during build-time contexts such as `generateStaticParams`.
+
+```jsx filename="app/page.js" highlight={2,7}
+async function PrivateSegment() {
+  'use cache: private'
+  return <p>Private</p>
+}
+
+export default async function Page() {
+  'use cache' // ❌ public cache can't contain a private one
+  return <PrivateSegment />
+}
+```
+
+## Possible Ways to Fix It
+
+Nest `"use cache: private"` only inside another `"use cache: private"`, or use it directly in a component or function that runs during a request — not inside a public `"use cache"`, `unstable_cache()`, or a build-time context.
+
+```jsx filename="app/page.js" highlight={7}
+async function PrivateSegment() {
+  'use cache: private'
+  return <p>Private</p>
+}
+
+export default async function Page() {
+  // ✅ no surrounding "use cache" — the private segment runs per request
+  return <PrivateSegment />
+}
+```
+
+If the data is the same for every user, use a shared `"use cache"` instead so it can be prerendered and reused. For per-user data that must be produced at build time, read it during the request rather than in `generateStaticParams`.
+
+## Useful Links
+
+- [`"use cache: private"` directive](/docs/app/api-reference/directives/use-cache-private)
+- [`"use cache"` directive](/docs/app/api-reference/directives/use-cache)

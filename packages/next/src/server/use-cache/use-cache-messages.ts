@@ -10,17 +10,17 @@ const NEXT_REQUEST_IN_USE_CACHE =
 const UNSTABLE_CACHE_API_DOCS =
   'https://nextjs.org/docs/app/api-reference/functions/unstable_cache'
 
-const REVALIDATING_GUIDE_DOCS =
-  'https://nextjs.org/docs/app/getting-started/revalidating'
+const CACHE_TAG_OUTSIDE_USE_CACHE =
+  'https://nextjs.org/docs/messages/cache-tag-outside-use-cache'
 
-const CACHE_TAG_API_DOCS =
-  'https://nextjs.org/docs/app/api-reference/functions/cacheTag'
+const CACHE_LIFE_OUTSIDE_USE_CACHE =
+  'https://nextjs.org/docs/messages/cache-life-outside-use-cache'
 
-const CACHE_LIFE_API_DOCS =
-  'https://nextjs.org/docs/app/api-reference/functions/cacheLife'
+const USE_CACHE_PRIVATE_COMPOSITION =
+  'https://nextjs.org/docs/messages/use-cache-private-composition'
 
-const USE_CACHE_PRIVATE_DIRECTIVE_DOCS =
-  'https://nextjs.org/docs/app/api-reference/directives/use-cache-private'
+const REVALIDATE_IN_USE_CACHE =
+  'https://nextjs.org/docs/messages/revalidate-in-use-cache'
 
 export function createCookiesInUseCacheError(route: string): Error {
   return new Error(
@@ -116,7 +116,7 @@ export function createRevalidateInUseCacheError(
   expression: string
 ): Error {
   return new Error(
-    `Route "${route}": \`${expression}\` can't be called inside \`"use cache"\`. Revalidation must run outside renders and cached functions so caches stay consistent.\nLearn more: ${REVALIDATING_GUIDE_DOCS}`
+    `Route "${route}": \`${expression}\` can't be called inside \`"use cache"\`. Revalidation must run outside renders and cached functions so caches stay consistent.\nLearn more: ${REVALIDATE_IN_USE_CACHE}`
   )
 }
 
@@ -125,19 +125,19 @@ export function createRevalidateInUnstableCacheError(
   expression: string
 ): Error {
   return new Error(
-    `Route "${route}": \`${expression}\` can't be called inside \`unstable_cache()\`. Revalidation must run outside renders and cached functions so caches stay consistent.\nLearn more: ${REVALIDATING_GUIDE_DOCS}`
+    `Route "${route}": \`${expression}\` can't be called inside \`unstable_cache()\`. Revalidation must run outside renders and cached functions so caches stay consistent.\nLearn more: ${REVALIDATE_IN_USE_CACHE}`
   )
 }
 
 export function createCacheTagOutsideUseCacheError(): Error {
   return new Error(
-    `\`cacheTag()\` can only be called inside a \`"use cache"\` function.\nLearn more: ${CACHE_TAG_API_DOCS}`
+    `\`cacheTag()\` can only be called inside a \`"use cache"\` function.\nLearn more: ${CACHE_TAG_OUTSIDE_USE_CACHE}`
   )
 }
 
 export function createCacheLifeOutsideUseCacheError(): Error {
   return new Error(
-    `\`cacheLife()\` can only be called inside a \`"use cache"\` function.\nLearn more: ${CACHE_LIFE_API_DOCS}`
+    `\`cacheLife()\` can only be called inside a \`"use cache"\` function.\nLearn more: ${CACHE_LIFE_OUTSIDE_USE_CACHE}`
   )
 }
 
@@ -166,18 +166,18 @@ export function createNestedCacheShortExpireError(
 
 export function createUseCachePrivateInsidePublicUseCacheError(): Error {
   return new Error(
-    `\`"use cache: private"\` can't be nested inside \`"use cache"\`. It can only be nested inside another \`"use cache: private"\`.\nLearn more: ${USE_CACHE_PRIVATE_DIRECTIVE_DOCS}`
+    `\`"use cache: private"\` can't be nested inside \`"use cache"\`. It can only be nested inside another \`"use cache: private"\`.\nLearn more: ${USE_CACHE_PRIVATE_COMPOSITION}`
   )
 }
 
 export function createUseCachePrivateInsideUnstableCacheError(): Error {
   return new Error(
-    `\`"use cache: private"\` can't be used inside \`unstable_cache()\`.\nLearn more: ${USE_CACHE_PRIVATE_DIRECTIVE_DOCS}`
+    `\`"use cache: private"\` can't be used inside \`unstable_cache()\`.\nLearn more: ${USE_CACHE_PRIVATE_COMPOSITION}`
   )
 }
 
 export function createUseCachePrivateOutsideRequestContextError(): Error {
   return new Error(
-    `\`"use cache: private"\` needs an active request. It can't be used during \`generateStaticParams\` or other build-time contexts.\nLearn more: ${USE_CACHE_PRIVATE_DIRECTIVE_DOCS}`
+    `\`"use cache: private"\` needs an active request. It can't be used during \`generateStaticParams\` or other build-time contexts.\nLearn more: ${USE_CACHE_PRIVATE_COMPOSITION}`
   )
 }

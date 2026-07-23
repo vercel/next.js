@@ -1,0 +1,40 @@
+---
+title: Cannot call `revalidateTag()` or `revalidatePath()` inside `"use cache"`
+---
+
+## Why This Error Occurred
+
+`revalidateTag()` and `revalidatePath()` invalidate cached data. Revalidation has to run outside renders and cached functions so that the cache stays consistent — allowing a cached function to invalidate caches while it is producing a cache entry would be contradictory. This error usually appears when a cached function is called from a Server Action and that function calls `revalidateTag()` / `revalidatePath()` internally.
+
+```jsx filename="app/actions.js" highlight={5}
+import { revalidateTag } from 'next/cache'
+
+async function saveAndCache(data) {
+  'use cache'
+  revalidateTag('products') // ❌ can't revalidate from inside a cache
+  return data
+}
+```
+
+## Possible Ways to Fix It
+
+Call `revalidateTag()` / `revalidatePath()` from the Server Action or Route Handler itself, outside any `"use cache"` (or `unstable_cache()`) function.
+
+```jsx filename="app/actions.js" highlight={6}
+'use server'
+import { revalidateTag } from 'next/cache'
+
+export async function saveProduct(data) {
+  await db.products.create(data)
+  revalidateTag('products') // ✅ runs outside any cached function
+}
+```
+
+To tag the cache entry that this revalidates, call [`cacheTag()`](/docs/app/api-reference/functions/cacheTag) inside the `"use cache"` function that reads the data.
+
+## Useful Links
+
+- [`revalidateTag()` function](/docs/app/api-reference/functions/revalidateTag)
+- [`revalidatePath()` function](/docs/app/api-reference/functions/revalidatePath)
+- [Revalidating data](/docs/app/getting-started/revalidating)
+- [`"use cache"` directive](/docs/app/api-reference/directives/use-cache)
