@@ -12,6 +12,7 @@ const isAdapterTest = process.env.NEXT_ENABLE_ADAPTER === '1'
 describe('Middleware Rewrite', () => {
   const { next, isNextDeploy } = nextTestSetup({
     files: {
+      app: new FileRef(join(__dirname, '../app/app')),
       pages: new FileRef(join(__dirname, '../app/pages')),
       'next.config.js': new FileRef(join(__dirname, '../app/next.config.js')),
       'middleware.js': new FileRef(join(__dirname, '../app/middleware.js')),
@@ -115,6 +116,26 @@ describe('Middleware Rewrite', () => {
           extra: '2',
           slug: ['bar'],
         },
+      })
+    })
+
+    it('should preserve middleware rewrite query in App Routes', async () => {
+      const [nodeResponse, edgeResponse] = await Promise.all(
+        ['node', 'edge'].map((runtime) =>
+          next.fetch(`/rewrite-query/${runtime}?key=value`)
+        )
+      )
+
+      expect(nodeResponse.status).toBe(200)
+      expect(edgeResponse.status).toBe(200)
+
+      await expect(nodeResponse.json()).resolves.toEqual({
+        key: 'value',
+        added: '1',
+      })
+      await expect(edgeResponse.json()).resolves.toEqual({
+        key: 'value',
+        added: '1',
       })
     })
 
