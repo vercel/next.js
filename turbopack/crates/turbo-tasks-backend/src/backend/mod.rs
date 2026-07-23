@@ -171,12 +171,17 @@ pub enum TurboTasksBackendJob {
 static EVICTION_REGRETS: AtomicU64 = AtomicU64::new(0);
 static EVICTION_REGRETS_LAST: AtomicU64 = AtomicU64::new(0);
 
+/// Whether `TURBO_ENGINE_EVICT_LOG=1` verbose eviction logging is enabled.
+fn evict_log_enabled() -> bool {
+    static LOG: LazyLock<bool> =
+        LazyLock::new(|| std::env::var("TURBO_ENGINE_EVICT_LOG").is_ok_and(|v| v == "1"));
+    *LOG
+}
+
 /// Logs one line per eviction sweep with drop counts and regrets accumulated since the
 /// previous sweep. Only active when `TURBO_ENGINE_EVICT_LOG` is set.
 fn log_eviction_counts(trigger: &str, counts: &crate::backend::storage::EvictionCounts) {
-    static LOG: LazyLock<bool> =
-        LazyLock::new(|| std::env::var("TURBO_ENGINE_EVICT_LOG").is_ok_and(|v| v == "1"));
-    if !*LOG {
+    if !evict_log_enabled() {
         return;
     }
     let total = EVICTION_REGRETS.load(Ordering::Relaxed);
@@ -2932,6 +2937,7 @@ impl TurboTasksBackend {
                     });
 
                     let mut pressure_cooldown_until = Instant::now();
+                    let mut pressure_backoff = Duration::from_secs(1);
                     let mut last_snapshot = self.start_time;
                     let mut idle_start_listener = self.idle_start_event.listen();
                     let mut idle_end_listener = self.idle_end_event.listen();
@@ -2952,7 +2958,12 @@ impl TurboTasksBackend {
                         const SNAPSHOT_INTERVAL: Duration = Duration::from_secs(120);
                         let idle_timeout = *IDLE_TIMEOUT;
                         const PRESSURE_CHECK_INTERVAL: Duration = Duration::from_secs(1);
-                        const PRESSURE_COOLDOWN: Duration = Duration::from_secs(30);
+                        /// Pacing between budget-triggered cycles. While cycles make progress
+                        /// (usage drops or falls under budget) they run back-to-back; when a
+                        /// cycle cannot reclaim anything new (e.g. all remaining memory belongs
+                        /// to in-flight computation) the delay grows exponentially up to the max.
+                        const PRESSURE_BACKOFF_MIN: Duration = Duration::from_secs(1);
+                        const PRESSURE_BACKOFF_MAX: Duration = Duration::from_secs(30);
                         let (time, mut reason) = if is_first {
                             (FIRST_SNAPSHOT_WAIT, SnapshotReason::InitialSnapshotTimeout)
                         } else {
@@ -3021,9 +3032,8 @@ impl TurboTasksBackend {
                             }
                         }
                         let pressure_triggered = matches!(reason, SnapshotReason::MemoryPressure);
-                        if pressure_triggered {
-                            pressure_cooldown_until = Instant::now() + PRESSURE_COOLDOWN;
-                        }
+                        let usage_before_cycle =
+                            pressure_triggered.then(turbo_tasks_malloc::TurboMalloc::memory_usage);
 
                         // Persistence exists to save work; accumulated compilation time is
                         // the proxy for how much work a snapshot would save. Skip periodic
@@ -3031,7 +3041,8 @@ impl TurboTasksBackend {
                         // flush, but they don't run through this loop (Stop is handled in
                         // stop(), Test in snapshot_and_evict_for_testing), so every reason
                         // reaching here is subject to the threshold.
-                        if active_time.elapsed() < *MIN_SNAPSHOT_ACTIVE_TIME {
+                        if !pressure_triggered && active_time.elapsed() < *MIN_SNAPSHOT_ACTIVE_TIME
+                        {
                             // Not enough compilation time accumulated — skip the (potentially
                             // expensive) snapshot. Advance scheduling state as if we had run,
                             // but keep active_time running so it carries toward the next cycle.
@@ -3099,9 +3110,72 @@ impl TurboTasksBackend {
                                 // `eviction_control` owns the mode + threshold decision. On a
                                 // skipped cycle its baseline and `ran_eviction` stay untouched
                                 // so growth accumulates toward the next cycle.
-                                let ran_eviction = if pressure_triggered
-                                    || eviction_control.should_evict(new_data)
-                                {
+                                let ran_eviction = if pressure_triggered {
+                                    // Sweep until under budget: start with the configured recency
+                                    // protection so old data goes first, and narrow the protected
+                                    // window (4x per pass, floored at the current epoch) only when
+                                    // dropping old data alone is not enough.
+                                    let budget = EVICT_ABOVE_BYTES
+                                        .expect("pressure trigger implies a budget");
+                                    let current_epoch = self.recency_epoch();
+                                    let mut window = self
+                                        .eviction_recency()
+                                        .min_epoch
+                                        .map(|min| current_epoch.saturating_sub(min))
+                                        .unwrap_or(12); // default protection: 60s
+                                    loop {
+                                        let counts = self.storage.evict_after_snapshot(
+                                            background_span.id(),
+                                            crate::backend::storage::EvictionRecency {
+                                                min_epoch: Some(
+                                                    current_epoch.saturating_sub(window),
+                                                ),
+                                                current_epoch,
+                                            },
+                                        );
+                                        log_eviction_counts("pressure", &counts);
+                                        if window == 0
+                                            || turbo_tasks_malloc::TurboMalloc::memory_usage()
+                                                <= budget
+                                        {
+                                            break;
+                                        }
+                                        window /= 4;
+                                    }
+                                    eviction_control.record_eviction();
+
+                                    // Pace the next budget-triggered cycle by progress: run
+                                    // back-to-back while cycles reclaim memory (persisting fresh
+                                    // data unlocks it for the next sweep), back off when stuck
+                                    // (remaining memory belongs to in-flight work).
+                                    let usage_after =
+                                        turbo_tasks_malloc::TurboMalloc::memory_usage();
+                                    let usage_before =
+                                        usage_before_cycle.expect("set when pressure_triggered");
+                                    // Persisting fresh data counts as progress even when
+                                    // concurrent allocation masks the net drop: it unlocks that
+                                    // data for the next sweep.
+                                    let progressed = usage_after <= budget
+                                        || new_data
+                                        || usage_before.saturating_sub(usage_after) >= budget / 32;
+                                    pressure_backoff = if progressed {
+                                        PRESSURE_BACKOFF_MIN
+                                    } else {
+                                        (pressure_backoff * 2).min(PRESSURE_BACKOFF_MAX)
+                                    };
+                                    pressure_cooldown_until = Instant::now() + pressure_backoff;
+                                    if evict_log_enabled() {
+                                        eprintln!(
+                                            "[pressure-cycle] before={}M after={}M budget={}M \
+                                             new_data={new_data} backoff={}s",
+                                            usage_before >> 20,
+                                            usage_after >> 20,
+                                            budget >> 20,
+                                            pressure_backoff.as_secs(),
+                                        );
+                                    }
+                                    true
+                                } else if eviction_control.should_evict(new_data) {
                                     // NOTE: we do not check for idle here, eviction is fast and
                                     // when enabled we should expect it to reclaim substantial
                                     // memory so racing with execution is as likely to save time as
@@ -3110,14 +3184,7 @@ impl TurboTasksBackend {
                                         background_span.id(),
                                         self.eviction_recency(),
                                     );
-                                    log_eviction_counts(
-                                        if pressure_triggered {
-                                            "pressure"
-                                        } else {
-                                            "idle/interval"
-                                        },
-                                        &counts,
-                                    );
+                                    log_eviction_counts("idle/interval", &counts);
                                     // Sample the post-eviction floor as the new baseline.
                                     eviction_control.record_eviction();
                                     true
