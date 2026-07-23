@@ -12,6 +12,24 @@ describe('app dir - with output export - dynamic missing gsp', () => {
     })
   })
 
+  describe('should error when generateStaticParams returns a non-array', () => {
+    runTests({
+      dynamicPage: 'undefined',
+      generateStaticParamsOpt: 'set non-array',
+      expectedErrMsg:
+        'Invalid value returned from generateStaticParams for "/another/[slug]". Expected an array, but received type object. See more info here: https://nextjs.org/docs/messages/generate-static-params',
+    })
+  })
+
+  describe('should error when generateStaticParams returns a non-object entry', () => {
+    runTests({
+      dynamicPage: 'undefined',
+      generateStaticParamsOpt: 'set invalid entry',
+      expectedErrMsg:
+        'Invalid value at index 0 returned from generateStaticParams for "/another/[slug]". Expected an object, but received type null. See more info here: https://nextjs.org/docs/messages/generate-static-params',
+    })
+  })
+
   describe('should error when client component has generateStaticParams', () => {
     const expectedErrMsg = process.env.IS_TURBOPACK_TEST
       ? 'App pages cannot use both "use client" and export function "generateStaticParams()".'

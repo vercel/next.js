@@ -1299,6 +1299,253 @@ describe('generateRouteStaticParams', () => {
       ).rejects.toThrow('Async error')
     })
 
+    it('should reject a non-array object return value', async () => {
+      const segments: TestAppSegment[] = [
+        createMockSegment(async () => ({ id: '1' }) as unknown as Params[]),
+      ]
+      const store = createMockWorkStore()
+
+      await expect(
+        generateRouteStaticParams(segments, store, false, [])
+      ).rejects.toThrow(
+        'Invalid value returned from generateStaticParams for "/test-page". Expected an array, but received type object. See more info here: https://nextjs.org/docs/messages/generate-static-params'
+      )
+    })
+
+    it('should reject a null return value', async () => {
+      const segments: TestAppSegment[] = [
+        createMockSegment(async () => null as unknown as Params[]),
+      ]
+      const store = createMockWorkStore()
+
+      await expect(
+        generateRouteStaticParams(segments, store, false, [])
+      ).rejects.toThrow(
+        'Invalid value returned from generateStaticParams for "/test-page". Expected an array, but received type null. See more info here: https://nextjs.org/docs/messages/generate-static-params'
+      )
+    })
+
+    it('should reject an undefined return value', async () => {
+      const segments: TestAppSegment[] = [
+        createMockSegment(async () => undefined as unknown as Params[]),
+      ]
+      const store = createMockWorkStore()
+
+      await expect(
+        generateRouteStaticParams(segments, store, false, [])
+      ).rejects.toThrow(
+        'Invalid value returned from generateStaticParams for "/test-page". Expected an array, but received type undefined. See more info here: https://nextjs.org/docs/messages/generate-static-params'
+      )
+    })
+
+    it('should reject a non-array return value from a nested generateStaticParams', async () => {
+      const segments: TestAppSegment[] = [
+        createMockSegment(async () => [{ category: 'tech' }]),
+        createMockSegment(async () => undefined as unknown as Params[]),
+      ]
+      const store = createMockWorkStore()
+
+      await expect(
+        generateRouteStaticParams(segments, store, false, [])
+      ).rejects.toThrow(
+        'Invalid value returned from generateStaticParams for "/test-page". Expected an array, but received type undefined. See more info here: https://nextjs.org/docs/messages/generate-static-params'
+      )
+    })
+
+    it('should reject a null array entry', async () => {
+      const segments: TestAppSegment[] = [
+        createMockSegment(async () => [null] as unknown as Params[]),
+      ]
+      const store = createMockWorkStore()
+
+      await expect(
+        generateRouteStaticParams(segments, store, false, [])
+      ).rejects.toThrow(
+        'Invalid value at index 0 returned from generateStaticParams for "/test-page". Expected an object, but received type null. See more info here: https://nextjs.org/docs/messages/generate-static-params'
+      )
+    })
+
+    it('should reject a string array entry', async () => {
+      const segments: TestAppSegment[] = [
+        createMockSegment(async () => [''] as unknown as Params[]),
+      ]
+      const store = createMockWorkStore()
+
+      await expect(
+        generateRouteStaticParams(segments, store, false, [])
+      ).rejects.toThrow(
+        'Invalid value at index 0 returned from generateStaticParams for "/test-page". Expected an object, but received type string. See more info here: https://nextjs.org/docs/messages/generate-static-params'
+      )
+    })
+
+    it('should reject an array entry', async () => {
+      const segments: TestAppSegment[] = [
+        createMockSegment(async () => [[]] as unknown as Params[]),
+      ]
+      const store = createMockWorkStore()
+
+      await expect(
+        generateRouteStaticParams(segments, store, false, [])
+      ).rejects.toThrow(
+        'Invalid value at index 0 returned from generateStaticParams for "/test-page". Expected an object, but received type array. See more info here: https://nextjs.org/docs/messages/generate-static-params'
+      )
+    })
+
+    it('should reject an undefined array entry', async () => {
+      const segments: TestAppSegment[] = [
+        createMockSegment(async () => [undefined] as unknown as Params[]),
+      ]
+      const store = createMockWorkStore()
+
+      await expect(
+        generateRouteStaticParams(segments, store, false, [])
+      ).rejects.toThrow(
+        'Invalid value at index 0 returned from generateStaticParams for "/test-page". Expected an object, but received type undefined. See more info here: https://nextjs.org/docs/messages/generate-static-params'
+      )
+    })
+
+    it('should reject a number array entry from Date.now()', async () => {
+      const segments: TestAppSegment[] = [
+        createMockSegment(async () => [Date.now()] as unknown as Params[]),
+      ]
+      const store = createMockWorkStore()
+
+      await expect(
+        generateRouteStaticParams(segments, store, false, [])
+      ).rejects.toThrow(
+        'Invalid value at index 0 returned from generateStaticParams for "/test-page". Expected an object, but received type number. See more info here: https://nextjs.org/docs/messages/generate-static-params'
+      )
+    })
+
+    it('should reject a Date array entry', async () => {
+      const segments: TestAppSegment[] = [
+        createMockSegment(async () => [new Date()] as unknown as Params[]),
+      ]
+      const store = createMockWorkStore()
+
+      await expect(
+        generateRouteStaticParams(segments, store, false, [])
+      ).rejects.toThrow(
+        'Invalid value at index 0 returned from generateStaticParams for "/test-page". Expected an object, but received type object. See more info here: https://nextjs.org/docs/messages/generate-static-params'
+      )
+    })
+
+    it('should reject a Map array entry', async () => {
+      const segments: TestAppSegment[] = [
+        createMockSegment(
+          async () => [new Map([['slug', 'post']])] as unknown as Params[]
+        ),
+      ]
+      const store = createMockWorkStore()
+
+      await expect(
+        generateRouteStaticParams(segments, store, false, [])
+      ).rejects.toThrow(
+        'Invalid value at index 0 returned from generateStaticParams for "/test-page". Expected an object, but received type object. See more info here: https://nextjs.org/docs/messages/generate-static-params'
+      )
+    })
+
+    it('should reject a Set array entry', async () => {
+      const segments: TestAppSegment[] = [
+        createMockSegment(
+          async () => [new Set(['post'])] as unknown as Params[]
+        ),
+      ]
+      const store = createMockWorkStore()
+
+      await expect(
+        generateRouteStaticParams(segments, store, false, [])
+      ).rejects.toThrow(
+        'Invalid value at index 0 returned from generateStaticParams for "/test-page". Expected an object, but received type object. See more info here: https://nextjs.org/docs/messages/generate-static-params'
+      )
+    })
+
+    it('should reject a RegExp array entry', async () => {
+      const segments: TestAppSegment[] = [
+        createMockSegment(async () => [/post/] as unknown as Params[]),
+      ]
+      const store = createMockWorkStore()
+
+      await expect(
+        generateRouteStaticParams(segments, store, false, [])
+      ).rejects.toThrow(
+        'Invalid value at index 0 returned from generateStaticParams for "/test-page". Expected an object, but received type object. See more info here: https://nextjs.org/docs/messages/generate-static-params'
+      )
+    })
+
+    it('should reject a Promise array entry', async () => {
+      const segments: TestAppSegment[] = [
+        createMockSegment(
+          async () => [Promise.resolve({ slug: 'post' })] as unknown as Params[]
+        ),
+      ]
+      const store = createMockWorkStore()
+
+      await expect(
+        generateRouteStaticParams(segments, store, false, [])
+      ).rejects.toThrow(
+        'Invalid value at index 0 returned from generateStaticParams for "/test-page". Expected an object, but received type object. See more info here: https://nextjs.org/docs/messages/generate-static-params'
+      )
+    })
+
+    it('should reject a class instance array entry', async () => {
+      class StaticParams {
+        slug = 'post'
+      }
+
+      const segments: TestAppSegment[] = [
+        createMockSegment(
+          async () => [new StaticParams()] as unknown as Params[]
+        ),
+      ]
+      const store = createMockWorkStore()
+
+      await expect(
+        generateRouteStaticParams(segments, store, false, [])
+      ).rejects.toThrow(
+        'Invalid value at index 0 returned from generateStaticParams for "/test-page". Expected an object, but received type object. See more info here: https://nextjs.org/docs/messages/generate-static-params'
+      )
+    })
+
+    it('should reject an object with a custom prototype', async () => {
+      const params = Object.assign(Object.create({ inherited: true }), {
+        slug: 'post',
+      })
+      const segments: TestAppSegment[] = [
+        createMockSegment(async () => [params] as unknown as Params[]),
+      ]
+      const store = createMockWorkStore()
+
+      await expect(
+        generateRouteStaticParams(segments, store, false, [])
+      ).rejects.toThrow(
+        'Invalid value at index 0 returned from generateStaticParams for "/test-page". Expected an object, but received type object. See more info here: https://nextjs.org/docs/messages/generate-static-params'
+      )
+    })
+
+    it('should reject an invalid array entry from a nested generateStaticParams', async () => {
+      const segments: TestAppSegment[] = [
+        createMockSegment(async () => [{ category: 'tech' }]),
+        createMockSegment(async () => [null] as unknown as Params[]),
+      ]
+      const store = createMockWorkStore()
+
+      await expect(
+        generateRouteStaticParams(segments, store, false, [])
+      ).rejects.toThrow(
+        'Invalid value at index 0 returned from generateStaticParams for "/test-page". Expected an object, but received type null. See more info here: https://nextjs.org/docs/messages/generate-static-params'
+      )
+    })
+
+    it('should allow an empty params object', async () => {
+      const segments: TestAppSegment[] = [createMockSegment(async () => [{}])]
+      const store = createMockWorkStore()
+
+      await expect(
+        generateRouteStaticParams(segments, store, false, [])
+      ).resolves.toEqual([{}])
+    })
+
     it('should handle partially failing generateStaticParams', async () => {
       const segments: TestAppSegment[] = [
         createMockSegment(async () => [{ category: 'tech' }]),

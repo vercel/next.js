@@ -31,6 +31,7 @@ import { throwEmptyGenerateStaticParamsError } from '../../shared/lib/errors/emp
 import type { AppRouteModule } from '../../server/route-modules/app-route/module.compiled'
 import type { NormalizedAppRoute } from '../../shared/lib/router/routes/app'
 import { interceptionPrefixFromParamType } from '../../shared/lib/router/utils/interception-prefix-from-param-type'
+import { isPlainObject } from '../../shared/lib/is-plain-object'
 import {
   type GenerateStaticParamsStore,
   workUnitAsyncStorage,
@@ -598,11 +599,18 @@ export function assignStaticShellMetadata(
   }
 }
 
+function getValueType(value: unknown): string {
+  if (value === null) return 'null'
+  if (Array.isArray(value)) return 'array'
+  return typeof value
+}
+
 /**
  * Calls a single generateStaticParams function within a WorkUnitStore context,
  * making root param getters available during static param generation.
  */
 async function callGenerateStaticParams(
+  page: string,
   generateStaticParams: NonNullable<AppSegment['generateStaticParams']>,
   parentParams: Params,
   rootParamKeys: readonly string[],
@@ -622,9 +630,27 @@ async function callGenerateStaticParams(
     rootParams,
   }
 
-  return workUnitAsyncStorage.run(workUnitStore, generateStaticParams, {
-    params: parentParams,
-  })
+  const generatedParams: unknown = await workUnitAsyncStorage.run(
+    workUnitStore,
+    generateStaticParams,
+    { params: parentParams }
+  )
+
+  if (!Array.isArray(generatedParams)) {
+    throw new Error(
+      `Invalid value returned from generateStaticParams for "${page}". Expected an array, but received type ${getValueType(generatedParams)}. See more info here: https://nextjs.org/docs/messages/generate-static-params`
+    )
+  }
+
+  for (const [index, params] of generatedParams.entries()) {
+    if (!isPlainObject(params)) {
+      throw new Error(
+        `Invalid value at index ${index} returned from generateStaticParams for "${page}". Expected an object, but received type ${getValueType(params)}. See more info here: https://nextjs.org/docs/messages/generate-static-params`
+      )
+    }
+  }
+
+  return generatedParams
 }
 
 /**
@@ -695,6 +721,7 @@ export async function generateRouteStaticParams(
       // Process each parent parameter combination
       for (const parentParams of params) {
         const result = await callGenerateStaticParams(
+          store.page,
           current.generateStaticParams,
           parentParams,
           rootParamKeys,
@@ -716,6 +743,7 @@ export async function generateRouteStaticParams(
     } else {
       // No parent params, call generateStaticParams with empty object
       const result = await callGenerateStaticParams(
+        store.page,
         current.generateStaticParams,
         {},
         rootParamKeys,
