@@ -21,7 +21,7 @@ export function registerSyncIoTimeAndRandomTests(
 
         await expect(browser).toDisplayCollapsedRedbox(`
          {
-           "code": "E1462",
+           "code": "E1432",
            "description": "Next.js encountered the unstable value Date() while prerendering.",
            "environmentLabel": "Server",
            "label": "Blocking Route",
@@ -166,7 +166,7 @@ export function registerSyncIoTimeAndRandomTests(
 
         await expect(browser).toDisplayCollapsedRedbox(`
          {
-           "code": "E1462",
+           "code": "E1432",
            "description": "Next.js encountered the unstable value Date.now() while prerendering.",
            "environmentLabel": "Server",
            "label": "Blocking Route",
@@ -311,7 +311,7 @@ export function registerSyncIoTimeAndRandomTests(
 
         await expect(browser).toDisplayCollapsedRedbox(`
          {
-           "code": "E1462",
+           "code": "E1432",
            "description": "Next.js encountered the unstable value new Date() while prerendering.",
            "environmentLabel": "Server",
            "label": "Blocking Route",
@@ -456,7 +456,7 @@ export function registerSyncIoTimeAndRandomTests(
 
         await expect(browser).toDisplayCollapsedRedbox(`
          {
-           "code": "E1462",
+           "code": "E1432",
            "description": "Next.js encountered the unstable value Math.random() while prerendering.",
            "environmentLabel": "Server",
            "label": "Blocking Route",
@@ -597,7 +597,7 @@ export function registerSyncIoTimeAndRandomTests(
 
         await expect(browser).toDisplayCollapsedRedbox(`
          {
-           "code": "E1462",
+           "code": "E1432",
            "description": "Next.js encountered the unstable value crypto.getRandomValues() while prerendering.",
            "environmentLabel": "Server",
            "label": "Blocking Route",
@@ -741,7 +741,7 @@ export function registerSyncIoTimeAndRandomTests(
 
         await expect(browser).toDisplayCollapsedRedbox(`
          {
-           "code": "E1462",
+           "code": "E1432",
            "description": "Next.js encountered the unstable value crypto.randomUUID() while prerendering.",
            "environmentLabel": "Server",
            "label": "Blocking Route",

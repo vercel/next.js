@@ -21,7 +21,7 @@ describe('Cache Components Dev Errors', () => {
     // soft-navigating to the page (see test below).
     await expect(browser).toDisplayCollapsedRedbox(`
      {
-       "code": "E1462",
+       "code": "E1432",
        "description": "Next.js encountered the unstable value Math.random() while prerendering.",
        "environmentLabel": "Server",
        "label": "Blocking Route",
@@ -51,7 +51,7 @@ describe('Cache Components Dev Errors', () => {
     // TODO: React should not include the anon stack in the Owner Stack.
     await expect(browser).toDisplayCollapsedRedbox(`
      {
-       "code": "E1462",
+       "code": "E1432",
        "description": "Next.js encountered the unstable value Math.random() while prerendering.",
        "environmentLabel": "Server",
        "label": "Blocking Route",
@@ -106,7 +106,7 @@ describe('Cache Components Dev Errors', () => {
 
     await expect(browser).toDisplayCollapsedRedbox(`
      {
-       "code": "E1470",
+       "code": "E1440",
        "description": "Next.js encountered uncached data during prerendering.",
        "environmentLabel": "Server",
        "label": "Blocking Route",

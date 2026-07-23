@@ -1173,7 +1173,7 @@ describe('instant-navigation-testing-api', () => {
     if (isNextDev) {
       await expect(browser).toDisplayRedbox(`
        {
-         "code": "E1417",
+         "code": "E1387",
          "description": "The Navigation Inspector was active, but you attempted to load a blocking route. Reload the page to reset the inspector.
 
        To identify why this route is blocking, refer to the Instant Navigation docs: https://preview.nextjs.org/docs/app/guides/instant-navigation",

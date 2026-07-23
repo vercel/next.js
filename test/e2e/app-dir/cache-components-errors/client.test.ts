@@ -81,7 +81,7 @@ describe('Cache Components Errors - Client Components', () => {
 
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E1470",
+             "code": "E1440",
              "description": "Next.js encountered uncached data during prerendering.",
              "environmentLabel": "Server",
              "label": "Blocking Route",
@@ -250,7 +250,7 @@ describe('Cache Components Errors - Client Components', () => {
 
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E1463",
+             "code": "E1433",
              "description": "Next.js encountered URL data useSearchParams() in a Client Component outside of Suspense.",
              "environmentLabel": "Server",
              "label": "Blocking Route",
@@ -399,7 +399,7 @@ describe('Cache Components Errors - Client Components', () => {
 
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E1463",
+             "code": "E1433",
              "description": "Next.js encountered URL data usePathname() in a Client Component outside of Suspense.",
              "environmentLabel": "Server",
              "label": "Blocking Route",

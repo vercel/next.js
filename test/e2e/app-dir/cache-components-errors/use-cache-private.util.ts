@@ -39,7 +39,7 @@ export function registerUseCachePrivateTests(
           } else {
             await expect(browser).toDisplayRedbox(`
              {
-               "code": "E1415",
+               "code": "E1470",
                "description": "\`"use cache: private"\` can't be used inside \`unstable_cache()\`.
              Learn more: https://nextjs.org/docs/messages/use-cache-private-composition",
                "environmentLabel": "Server",
@@ -150,7 +150,7 @@ export function registerUseCachePrivateTests(
 
           await expect(browser).toDisplayRedbox(`
            {
-             "code": "E1412",
+             "code": "E1466",
              "description": "\`"use cache: private"\` can't be nested inside \`"use cache"\`. It can only be nested inside another \`"use cache: private"\`.
            Learn more: https://nextjs.org/docs/messages/use-cache-private-composition",
              "environmentLabel": "Cache",
@@ -279,7 +279,7 @@ export function registerUseCachePrivateTests(
 
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E1457",
+             "code": "E1427",
              "description": "Next.js encountered runtime data during prerendering.",
              "environmentLabel": "Server",
              "label": "Blocking Route",
