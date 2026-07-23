@@ -1,0 +1,28 @@
+---
+title: 'Invalid `generateStaticParams` Value'
+---
+
+## Why This Error Occurred
+
+Next.js expects `generateStaticParams` to return an array containing one params object for each route to generate.
+
+This error occurs when:
+
+- `generateStaticParams` returns a value that is not an array, or
+- an item in the returned array is not a plain object. This includes `null`, arrays, primitive values, and `undefined`.
+
+## Possible Ways to Fix It
+
+Return an array of params objects from `generateStaticParams`:
+
+```tsx filename="app/blog/[slug]/page.tsx"
+export function generateStaticParams() {
+  return [{ slug: 'first-post' }, { slug: 'second-post' }]
+}
+```
+
+See the [`generateStaticParams` return value documentation](/docs/app/api-reference/functions/generate-static-params#returns) for the expected shape.
+
+## Useful Links
+
+- [`generateStaticParams` documentation](/docs/app/api-reference/functions/generate-static-params)
