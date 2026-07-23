@@ -20,20 +20,21 @@ export function registerUseCacheTests(ctx: CacheComponentsErrorsContext) {
           const browser = await next.browser(pathname)
 
           await expect(browser).toDisplayCollapsedRedbox(`
-             {
-               "code": "E831",
-               "description": "Route /use-cache-cookies used \`cookies()\` inside "use cache". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use \`cookies()\` outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache",
-               "environmentLabel": "Server",
-               "label": "Console Error",
-               "source": "app/use-cache-cookies/page.tsx (22:18) @ CookiesReadingComponent
-             > 22 |     await cookies()
-                  |                  ^",
-               "stack": [
-                 "CookiesReadingComponent app/use-cache-cookies/page.tsx (22:18)",
-                 "Page app/use-cache-cookies/page.tsx (10:7)",
-               ],
-             }
-            `)
+           {
+             "code": "E1399",
+             "description": "Route "/use-cache-cookies": \`cookies()\` can't be read inside \`"use cache"\`. Read it outside the cached function and pass what you need as an argument.
+           Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache",
+             "environmentLabel": "Server",
+             "label": "Console Error",
+             "source": "app/use-cache-cookies/page.tsx (22:18) @ CookiesReadingComponent
+           > 22 |     await cookies()
+                |                  ^",
+             "stack": [
+               "CookiesReadingComponent app/use-cache-cookies/page.tsx (22:18)",
+               "Page app/use-cache-cookies/page.tsx (10:7)",
+             ],
+           }
+          `)
         })
       } else {
         it('should error the build', async () => {
@@ -129,20 +130,21 @@ export function registerUseCacheTests(ctx: CacheComponentsErrorsContext) {
           const browser = await next.browser(pathname)
 
           await expect(browser).toDisplayCollapsedRedbox(`
-             {
-               "code": "E829",
-               "description": "Route /use-cache-draft-mode used "draftMode().enable()" inside "use cache". The enabled status of \`draftMode()\` can be read in caches but you must not enable or disable \`draftMode()\` inside a cache. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache",
-               "environmentLabel": "Server",
-               "label": "Console Error",
-               "source": "app/use-cache-draft-mode/page.tsx (20:26) @ DraftModeEnablingComponent
-             > 20 |     ;(await draftMode()).enable()
-                  |                          ^",
-               "stack": [
-                 "DraftModeEnablingComponent app/use-cache-draft-mode/page.tsx (20:26)",
-                 "Page app/use-cache-draft-mode/page.tsx (9:7)",
-               ],
-             }
-            `)
+           {
+             "code": "E1405",
+             "description": "Route "/use-cache-draft-mode": \`draftMode().enable()\` can't be called inside \`"use cache"\`. Draft mode can be read from a cached function, but enabling or disabling it must happen outside.
+           Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache",
+             "environmentLabel": "Server",
+             "label": "Console Error",
+             "source": "app/use-cache-draft-mode/page.tsx (20:26) @ DraftModeEnablingComponent
+           > 20 |     ;(await draftMode()).enable()
+                |                          ^",
+             "stack": [
+               "DraftModeEnablingComponent app/use-cache-draft-mode/page.tsx (20:26)",
+               "Page app/use-cache-draft-mode/page.tsx (9:7)",
+             ],
+           }
+          `)
         })
       } else {
         it('should error the build', async () => {
@@ -237,20 +239,21 @@ export function registerUseCacheTests(ctx: CacheComponentsErrorsContext) {
           const browser = await next.browser(pathname)
 
           await expect(browser).toDisplayCollapsedRedbox(`
-             {
-               "code": "E833",
-               "description": "Route /use-cache-headers used \`headers()\` inside "use cache". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use \`headers()\` outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache",
-               "environmentLabel": "Server",
-               "label": "Console Error",
-               "source": "app/use-cache-headers/page.tsx (21:18) @ HeadersReadingComponent
-             > 21 |     await headers()
-                  |                  ^",
-               "stack": [
-                 "HeadersReadingComponent app/use-cache-headers/page.tsx (21:18)",
-                 "Page app/use-cache-headers/page.tsx (10:7)",
-               ],
-             }
-            `)
+           {
+             "code": "E1393",
+             "description": "Route "/use-cache-headers": \`headers()\` can't be read inside \`"use cache"\`. Read it outside the cached function and pass what you need as an argument.
+           Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache",
+             "environmentLabel": "Server",
+             "label": "Console Error",
+             "source": "app/use-cache-headers/page.tsx (21:18) @ HeadersReadingComponent
+           > 21 |     await headers()
+                |                  ^",
+             "stack": [
+               "HeadersReadingComponent app/use-cache-headers/page.tsx (21:18)",
+               "Page app/use-cache-headers/page.tsx (10:7)",
+             ],
+           }
+          `)
         })
       } else {
         it('should error the build', async () => {
@@ -344,20 +347,21 @@ export function registerUseCacheTests(ctx: CacheComponentsErrorsContext) {
           const browser = await next.browser('/use-cache-connection')
 
           await expect(browser).toDisplayCollapsedRedbox(`
-             {
-               "code": "E841",
-               "description": "Route /use-cache-connection used \`connection()\` inside "use cache". The \`connection()\` function is used to indicate the subsequent code must only run when there is an actual request, but caches must be able to be produced before a request, so this function is not allowed in this scope. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache",
-               "environmentLabel": "Server",
-               "label": "Console Error",
-               "source": "app/use-cache-connection/page.tsx (21:21) @ ConnectionCallingComponent
-             > 21 |     await connection()
-                  |                     ^",
-               "stack": [
-                 "ConnectionCallingComponent app/use-cache-connection/page.tsx (21:21)",
-                 "Page app/use-cache-connection/page.tsx (10:7)",
-               ],
-             }
-            `)
+           {
+             "code": "E1408",
+             "description": "Route "/use-cache-connection": \`connection()\` can't be used inside \`"use cache"\`. A cache entry can be built before any request exists, so it can't depend on one.
+           Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache",
+             "environmentLabel": "Server",
+             "label": "Console Error",
+             "source": "app/use-cache-connection/page.tsx (21:21) @ ConnectionCallingComponent
+           > 21 |     await connection()
+                |                     ^",
+             "stack": [
+               "ConnectionCallingComponent app/use-cache-connection/page.tsx (21:21)",
+               "Page app/use-cache-connection/page.tsx (10:7)",
+             ],
+           }
+          `)
         })
       } else {
         it('should error the build', async () => {
@@ -453,7 +457,7 @@ export function registerUseCacheTests(ctx: CacheComponentsErrorsContext) {
 
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1427",
+               "code": "E1457",
                "description": "Next.js encountered runtime data during prerendering.",
                "environmentLabel": "Server",
                "label": "Blocking Route",
@@ -571,7 +575,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
 
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1427",
+               "code": "E1457",
                "description": "Next.js encountered runtime data during prerendering.",
                "environmentLabel": "Server",
                "label": "Blocking Route",
@@ -688,33 +692,34 @@ Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
             const browser = await next.browser('/use-cache-low-expire/nested')
 
             await expect(browser).toDisplayCollapsedRedbox(`
-               {
-                 "cause": [
-                   {
-                     "label": "Caused by: Nested dynamic "use cache"",
-                     "message": "This "use cache" has a dynamic cache life that was propagated to its parent.",
-                     "source": "app/use-cache-low-expire/nested/page.tsx (3:1) @ innerCache
-               > 3 | async function innerCache() {
-                   | ^",
-                     "stack": [
-                       "innerCache app/use-cache-low-expire/nested/page.tsx (3:1)",
-                       "outerCache app/use-cache-low-expire/nested/page.tsx (14:10)",
-                       "Page <anonymous>",
-                     ],
-                   },
-                 ],
-                 "code": "E1244",
-                 "description": "A "use cache" with short \`expire\` (under 5 minutes) is nested inside another "use cache" that has no explicit \`cacheLife\`, which is not allowed during prerendering. Add \`cacheLife()\` to the outer "use cache" to choose whether it should be prerendered (with longer \`expire\`) or remain dynamic (with short \`expire\`). Read more: https://nextjs.org/docs/messages/nested-use-cache-no-explicit-cachelife",
-                 "environmentLabel": "Server",
-                 "label": "Console Error",
-                 "source": "app/use-cache-low-expire/nested/page.tsx (20:14) @ Page
-               > 20 |     result = await outerCache()
-                    |              ^",
-                 "stack": [
-                   "Page app/use-cache-low-expire/nested/page.tsx (20:14)",
-                 ],
-               }
-              `)
+             {
+               "cause": [
+                 {
+                   "label": "Caused by: Nested dynamic "use cache"",
+                   "message": "This "use cache" has a dynamic cache life that was propagated to its parent.",
+                   "source": "app/use-cache-low-expire/nested/page.tsx (3:1) @ innerCache
+             > 3 | async function innerCache() {
+                 | ^",
+                   "stack": [
+                     "innerCache app/use-cache-low-expire/nested/page.tsx (3:1)",
+                     "outerCache app/use-cache-low-expire/nested/page.tsx (14:10)",
+                     "Page <anonymous>",
+                   ],
+                 },
+               ],
+               "code": "E1386",
+               "description": "A nested \`"use cache"\` with a short \`expire\` (under 5 minutes) is inside an outer \`"use cache"\` that has no \`cacheLife()\`. Add \`cacheLife()\` to the outer one to choose: a longer \`expire\` to prerender it, or a short \`expire\` to keep it dynamic.
+             Learn more: https://nextjs.org/docs/messages/nested-use-cache-no-explicit-cachelife",
+               "environmentLabel": "Server",
+               "label": "Console Error",
+               "source": "app/use-cache-low-expire/nested/page.tsx (20:14) @ Page
+             > 20 |     result = await outerCache()
+                  |              ^",
+               "stack": [
+                 "Page app/use-cache-low-expire/nested/page.tsx (20:14)",
+               ],
+             }
+            `)
           })
         } else {
           it('should error the build', async () => {
@@ -848,7 +853,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
 
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1427",
+               "code": "E1457",
                "description": "Next.js encountered runtime data during prerendering.",
                "environmentLabel": "Server",
                "label": "Blocking Route",
@@ -966,7 +971,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
 
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1427",
+               "code": "E1457",
                "description": "Next.js encountered runtime data during prerendering.",
                "environmentLabel": "Server",
                "label": "Blocking Route",
@@ -1083,33 +1088,34 @@ Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
             const browser = await next.browser('/use-cache-revalidate-0/nested')
 
             await expect(browser).toDisplayCollapsedRedbox(`
-               {
-                 "cause": [
-                   {
-                     "label": "Caused by: Nested dynamic "use cache"",
-                     "message": "This "use cache" has a dynamic cache life that was propagated to its parent.",
-                     "source": "app/use-cache-revalidate-0/nested/page.tsx (3:1) @ innerCache
-               > 3 | async function innerCache() {
-                   | ^",
-                     "stack": [
-                       "innerCache app/use-cache-revalidate-0/nested/page.tsx (3:1)",
-                       "outerCache app/use-cache-revalidate-0/nested/page.tsx (14:10)",
-                       "Page <anonymous>",
-                     ],
-                   },
-                 ],
-                 "code": "E1245",
-                 "description": "A "use cache" with zero \`revalidate\` is nested inside another "use cache" that has no explicit \`cacheLife\`, which is not allowed during prerendering. Add \`cacheLife()\` to the outer "use cache" to choose whether it should be prerendered (with non-zero \`revalidate\`) or remain dynamic (with zero \`revalidate\`). Read more: https://nextjs.org/docs/messages/nested-use-cache-no-explicit-cachelife",
-                 "environmentLabel": "Server",
-                 "label": "Console Error",
-                 "source": "app/use-cache-revalidate-0/nested/page.tsx (20:14) @ Page
-               > 20 |     result = await outerCache()
-                    |              ^",
-                 "stack": [
-                   "Page app/use-cache-revalidate-0/nested/page.tsx (20:14)",
-                 ],
-               }
-              `)
+             {
+               "cause": [
+                 {
+                   "label": "Caused by: Nested dynamic "use cache"",
+                   "message": "This "use cache" has a dynamic cache life that was propagated to its parent.",
+                   "source": "app/use-cache-revalidate-0/nested/page.tsx (3:1) @ innerCache
+             > 3 | async function innerCache() {
+                 | ^",
+                   "stack": [
+                     "innerCache app/use-cache-revalidate-0/nested/page.tsx (3:1)",
+                     "outerCache app/use-cache-revalidate-0/nested/page.tsx (14:10)",
+                     "Page <anonymous>",
+                   ],
+                 },
+               ],
+               "code": "E1404",
+               "description": "A nested \`"use cache"\` with \`revalidate: 0\` is inside an outer \`"use cache"\` that has no \`cacheLife()\`. Add \`cacheLife()\` to the outer one to choose: a non-zero \`revalidate\` to prerender it, or \`revalidate: 0\` to keep it dynamic.
+             Learn more: https://nextjs.org/docs/messages/nested-use-cache-no-explicit-cachelife",
+               "environmentLabel": "Server",
+               "label": "Console Error",
+               "source": "app/use-cache-revalidate-0/nested/page.tsx (20:14) @ Page
+             > 20 |     result = await outerCache()
+                  |              ^",
+               "stack": [
+                 "Page app/use-cache-revalidate-0/nested/page.tsx (20:14)",
+               ],
+             }
+            `)
           })
         } else {
           it('should error the build', async () => {
@@ -1242,7 +1248,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
 
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E1427",
+             "code": "E1457",
              "description": "Next.js encountered runtime data during prerendering.",
              "environmentLabel": "Server",
              "label": "Blocking Route",
@@ -1267,17 +1273,17 @@ Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
           const browser = await next.browser('/use-cache-params/foo')
 
           await expect(browser).toDisplayCollapsedRedbox(`
-             {
-               "code": "E1427",
-               "description": "Next.js encountered runtime data during prerendering.",
-               "environmentLabel": "Server",
-               "label": "Blocking Route",
-               "source": null,
-               "stack": [
-                 "Page [Prerender] <anonymous>",
-               ],
-             }
-            `)
+           {
+             "code": "E1457",
+             "description": "Next.js encountered runtime data during prerendering.",
+             "environmentLabel": "Server",
+             "label": "Blocking Route",
+             "source": null,
+             "stack": [
+               "Page [Prerender] <anonymous>",
+             ],
+           }
+          `)
 
           // The recompute is deliberately delayed so it resolves only after the
           // edit's own HMR refresh has re-rendered with the stale fallback
@@ -1523,19 +1529,20 @@ Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
             const browser = await next.browser('/use-cache-cookies-third-party')
 
             await expect(browser).toDisplayCollapsedRedbox(`
-               {
-                 "code": "E831",
-                 "description": "Route /use-cache-cookies-third-party used \`cookies()\` inside "use cache". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use \`cookies()\` outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache",
-                 "environmentLabel": "Server",
-                 "label": "Console Error",
-                 "source": "app/use-cache-cookies-third-party/page.tsx (10:7) @ Page
-               > 10 |       <CachedCookiesReader />
-                    |       ^",
-                 "stack": [
-                   "Page app/use-cache-cookies-third-party/page.tsx (10:7)",
-                 ],
-               }
-              `)
+             {
+               "code": "E1399",
+               "description": "Route "/use-cache-cookies-third-party": \`cookies()\` can't be read inside \`"use cache"\`. Read it outside the cached function and pass what you need as an argument.
+             Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache",
+               "environmentLabel": "Server",
+               "label": "Console Error",
+               "source": "app/use-cache-cookies-third-party/page.tsx (10:7) @ Page
+             > 10 |       <CachedCookiesReader />
+                  |       ^",
+               "stack": [
+                 "Page app/use-cache-cookies-third-party/page.tsx (10:7)",
+               ],
+             }
+            `)
           })
         } else {
           it('should error the build', async () => {
@@ -1622,19 +1629,20 @@ Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
             )
 
             await expect(browser).toDisplayCollapsedRedbox(`
-               {
-                 "code": "E829",
-                 "description": "Route /use-cache-draft-mode-third-party used "draftMode().enable()" inside "use cache". The enabled status of \`draftMode()\` can be read in caches but you must not enable or disable \`draftMode()\` inside a cache. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache",
-                 "environmentLabel": "Server",
-                 "label": "Console Error",
-                 "source": "app/use-cache-draft-mode-third-party/page.tsx (10:7) @ Page
-               > 10 |       <CachedDraftModeEnabler />
-                    |       ^",
-                 "stack": [
-                   "Page app/use-cache-draft-mode-third-party/page.tsx (10:7)",
-                 ],
-               }
-              `)
+             {
+               "code": "E1405",
+               "description": "Route "/use-cache-draft-mode-third-party": \`draftMode().enable()\` can't be called inside \`"use cache"\`. Draft mode can be read from a cached function, but enabling or disabling it must happen outside.
+             Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache",
+               "environmentLabel": "Server",
+               "label": "Console Error",
+               "source": "app/use-cache-draft-mode-third-party/page.tsx (10:7) @ Page
+             > 10 |       <CachedDraftModeEnabler />
+                  |       ^",
+               "stack": [
+                 "Page app/use-cache-draft-mode-third-party/page.tsx (10:7)",
+               ],
+             }
+            `)
           })
         } else {
           it('should error the build', async () => {
@@ -1718,19 +1726,20 @@ Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
             const browser = await next.browser('/use-cache-headers-third-party')
 
             await expect(browser).toDisplayCollapsedRedbox(`
-               {
-                 "code": "E833",
-                 "description": "Route /use-cache-headers-third-party used \`headers()\` inside "use cache". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use \`headers()\` outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache",
-                 "environmentLabel": "Server",
-                 "label": "Console Error",
-                 "source": "app/use-cache-headers-third-party/page.tsx (10:7) @ Page
-               > 10 |       <CachedHeadersReader />
-                    |       ^",
-                 "stack": [
-                   "Page app/use-cache-headers-third-party/page.tsx (10:7)",
-                 ],
-               }
-              `)
+             {
+               "code": "E1393",
+               "description": "Route "/use-cache-headers-third-party": \`headers()\` can't be read inside \`"use cache"\`. Read it outside the cached function and pass what you need as an argument.
+             Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache",
+               "environmentLabel": "Server",
+               "label": "Console Error",
+               "source": "app/use-cache-headers-third-party/page.tsx (10:7) @ Page
+             > 10 |       <CachedHeadersReader />
+                  |       ^",
+               "stack": [
+                 "Page app/use-cache-headers-third-party/page.tsx (10:7)",
+               ],
+             }
+            `)
           })
         } else {
           it('should error the build', async () => {
@@ -1817,19 +1826,20 @@ Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
             )
 
             await expect(browser).toDisplayCollapsedRedbox(`
-               {
-                 "code": "E841",
-                 "description": "Route /use-cache-connection-third-party used \`connection()\` inside "use cache". The \`connection()\` function is used to indicate the subsequent code must only run when there is an actual request, but caches must be able to be produced before a request, so this function is not allowed in this scope. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache",
-                 "environmentLabel": "Server",
-                 "label": "Console Error",
-                 "source": "app/use-cache-connection-third-party/page.tsx (10:7) @ Page
-               > 10 |       <CachedConnectionCaller />
-                    |       ^",
-                 "stack": [
-                   "Page app/use-cache-connection-third-party/page.tsx (10:7)",
-                 ],
-               }
-              `)
+             {
+               "code": "E1408",
+               "description": "Route "/use-cache-connection-third-party": \`connection()\` can't be used inside \`"use cache"\`. A cache entry can be built before any request exists, so it can't depend on one.
+             Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache",
+               "environmentLabel": "Server",
+               "label": "Console Error",
+               "source": "app/use-cache-connection-third-party/page.tsx (10:7) @ Page
+             > 10 |       <CachedConnectionCaller />
+                  |       ^",
+               "stack": [
+                 "Page app/use-cache-connection-third-party/page.tsx (10:7)",
+               ],
+             }
+            `)
           })
         } else {
           it('should error the build', async () => {

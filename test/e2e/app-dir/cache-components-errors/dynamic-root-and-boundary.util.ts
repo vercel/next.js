@@ -42,7 +42,7 @@ export function registerDynamicRootAndBoundaryTests(
         await expect(browser).toDisplayCollapsedRedbox(`
          [
            {
-             "code": "E1440",
+             "code": "E1470",
              "description": "Next.js encountered uncached data during prerendering.",
              "environmentLabel": "Server",
              "label": "Blocking Route",
@@ -56,7 +56,7 @@ export function registerDynamicRootAndBoundaryTests(
              ],
            },
            {
-             "code": "E1440",
+             "code": "E1470",
              "description": "Next.js encountered uncached data during prerendering.",
              "environmentLabel": "Server",
              "label": "Blocking Route",

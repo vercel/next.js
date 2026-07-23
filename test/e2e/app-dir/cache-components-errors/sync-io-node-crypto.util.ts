@@ -38,7 +38,7 @@ export function registerSyncIoNodeCryptoTests(
         } else {
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E1432",
+             "code": "E1462",
              "description": "Next.js encountered the unstable value require('node:crypto').generateKeyPairSync(...) while prerendering.",
              "environmentLabel": "Server",
              "label": "Blocking Route",
@@ -200,7 +200,7 @@ export function registerSyncIoNodeCryptoTests(
         } else {
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E1432",
+             "code": "E1462",
              "description": "Next.js encountered the unstable value require('node:crypto').generateKeySync(...) while prerendering.",
              "environmentLabel": "Server",
              "label": "Blocking Route",
@@ -362,7 +362,7 @@ export function registerSyncIoNodeCryptoTests(
         } else {
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E1432",
+             "code": "E1462",
              "description": "Next.js encountered the unstable value require('node:crypto').generatePrimeSync(...) while prerendering.",
              "environmentLabel": "Server",
              "label": "Blocking Route",
@@ -524,7 +524,7 @@ export function registerSyncIoNodeCryptoTests(
         } else {
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E1432",
+             "code": "E1462",
              "description": "Next.js encountered the unstable value crypto.getRandomValues() while prerendering.",
              "environmentLabel": "Server",
              "label": "Blocking Route",
@@ -686,7 +686,7 @@ export function registerSyncIoNodeCryptoTests(
         } else {
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E1432",
+             "code": "E1462",
              "description": "Next.js encountered the unstable value require('node:crypto').randomBytes(size) while prerendering.",
              "environmentLabel": "Server",
              "label": "Blocking Route",
@@ -848,7 +848,7 @@ export function registerSyncIoNodeCryptoTests(
         } else {
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E1432",
+             "code": "E1462",
              "description": "Next.js encountered the unstable value require('node:crypto').randomFillSync(...) while prerendering.",
              "environmentLabel": "Server",
              "label": "Blocking Route",
@@ -1010,7 +1010,7 @@ export function registerSyncIoNodeCryptoTests(
         } else {
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E1432",
+             "code": "E1462",
              "description": "Next.js encountered the unstable value require('node:crypto').randomInt(min, max) while prerendering.",
              "environmentLabel": "Server",
              "label": "Blocking Route",
@@ -1172,7 +1172,7 @@ export function registerSyncIoNodeCryptoTests(
         } else {
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E1432",
+             "code": "E1462",
              "description": "Next.js encountered the unstable value require('node:crypto').randomInt(min, max) while prerendering.",
              "environmentLabel": "Server",
              "label": "Blocking Route",
@@ -1334,7 +1334,7 @@ export function registerSyncIoNodeCryptoTests(
         } else {
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E1432",
+             "code": "E1462",
              "description": "Next.js encountered the unstable value require('node:crypto').randomUUID() while prerendering.",
              "environmentLabel": "Server",
              "label": "Blocking Route",

@@ -56,7 +56,7 @@ export function registerErrorAttributionTests(
 
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E1434",
+             "code": "E1464",
              "description": "Next.js encountered the unstable value new Date() in a Client Component.",
              "environmentLabel": "Server",
              "label": "Blocking Route",
@@ -204,7 +204,7 @@ export function registerErrorAttributionTests(
 
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E1427",
+             "code": "E1457",
              "description": "Next.js encountered runtime data during prerendering.",
              "environmentLabel": "Server",
              "label": "Blocking Route",
@@ -381,7 +381,7 @@ export function registerErrorAttributionTests(
 
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E1434",
+             "code": "E1464",
              "description": "Next.js encountered the unstable value new Date() in a Client Component.",
              "environmentLabel": "Server",
              "label": "Blocking Route",

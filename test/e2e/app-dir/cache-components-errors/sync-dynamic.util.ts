@@ -25,7 +25,7 @@ export function registerSyncDynamicTests(ctx: CacheComponentsErrorsContext) {
 
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E1432",
+             "code": "E1462",
              "description": "Next.js encountered the unstable value Math.random() while prerendering.",
              "environmentLabel": "Server",
              "label": "Blocking Route",
@@ -173,7 +173,7 @@ export function registerSyncDynamicTests(ctx: CacheComponentsErrorsContext) {
 
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E1432",
+             "code": "E1462",
              "description": "Next.js encountered the unstable value Math.random() while prerendering.",
              "environmentLabel": "Server",
              "label": "Blocking Route",
