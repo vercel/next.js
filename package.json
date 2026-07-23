@@ -250,7 +250,7 @@
     "pixrem": "5.0.0",
     "playwright": "1.61.0",
     "playwright-chromium": "1.61.0",
-    "postcss": "8.5.10",
+    "postcss": "8.5.21",
     "postcss-nested": "4.2.1",
     "postcss-pseudoelements": "5.0.0",
     "postcss-short-size": "4.0.0",
@@ -309,6 +309,7 @@
   "packageManager": "pnpm@10.33.0",
   "pnpm": {
     "overrides": {
+      "postcss": "8.5.21",
       "webpack": "5.98.0",
       "browserslist": "4.28.1",
       "caniuse-lite": "1.0.30001746",
