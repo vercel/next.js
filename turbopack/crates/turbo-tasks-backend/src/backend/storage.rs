@@ -44,6 +44,8 @@ pub struct EvictionCounts {
     pub data_and_meta: usize,
     pub data_only: usize,
     pub meta_only: usize,
+    /// Tasks whose value data was kept because they were read recently (recency gate).
+    pub skipped_recently_read: usize,
     /// Per-reason counts of tasks we considered but could not evict, indexed by
     /// `UnevictableReason::index()`.
     pub unevictable_reasons: [usize; UnevictableReason::COUNT],
@@ -56,6 +58,7 @@ impl std::ops::AddAssign for EvictionCounts {
         self.data_and_meta += rhs.data_and_meta;
         self.data_only += rhs.data_only;
         self.meta_only += rhs.meta_only;
+        self.skipped_recently_read += rhs.skipped_recently_read;
         for i in 0..UnevictableReason::COUNT {
             self.unevictable_reasons[i] += rhs.unevictable_reasons[i];
         }
@@ -557,7 +560,11 @@ impl Storage {
     /// - `No`: skip
     ///
     /// Must be called when NOT in snapshot mode (i.e., after `end_snapshot()`).
-    pub fn evict_after_snapshot(&self, parent_span: Option<Id>) -> EvictionCounts {
+    pub fn evict_after_snapshot(
+        &self,
+        parent_span: Option<Id>,
+        recency: EvictionRecency,
+    ) -> EvictionCounts {
         let span = tracing::trace_span!(
             parent: parent_span,
             "evict_after_snapshot",
@@ -585,6 +592,15 @@ impl Storage {
                 let (task_id, task) = unsafe { bucket.as_mut() };
                 if task_id.is_transient() {
                     evicted.unevictable_reasons[UnevictableReason::Transient.index()] += 1;
+                    continue;
+                }
+                if let Some(min_epoch) = recency.min_epoch
+                    && task
+                        .get()
+                        .get_last_read_epoch()
+                        .is_some_and(|&epoch| epoch >= min_epoch)
+                {
+                    evicted.skipped_recently_read += 1;
                     continue;
                 }
                 let (key_evictability, value_evictability) = task.get().evictability();
@@ -616,6 +632,9 @@ impl Storage {
                 }
                 match value_evictability {
                     ValueEvictability::Evictable { meta, data } => {
+                        if data {
+                            task.get_mut().set_last_evicted_epoch(recency.current_epoch);
+                        }
                         match task.get_mut().drop_partial(data, meta) {
                             DropPartialOutcome::Empty => {
                                 unsafe {
@@ -679,6 +698,15 @@ impl Storage {
 
         totals
     }
+}
+
+/// Recency parameters for an eviction sweep: tasks read at or after `min_epoch` are kept.
+#[derive(Clone, Copy, Debug)]
+pub struct EvictionRecency {
+    /// Tasks read at or after this epoch are skipped. `None` disables the gate (all
+    /// evictable tasks are dropped, matching pre-recency behavior).
+    pub min_epoch: Option<u32>,
+    pub current_epoch: u32,
 }
 
 pub struct StorageWriteGuard<'a> {

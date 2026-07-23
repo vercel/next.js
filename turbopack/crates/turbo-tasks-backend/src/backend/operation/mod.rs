@@ -395,6 +395,7 @@ impl<'e> ExecuteContextImpl<'e> {
                 } else {
                     // We claim responsibility for restoring data
                     task.flags.set_data_restoring(true);
+                    self.backend.count_eviction_regret_storage(&task);
                     tasks_to_restore_for_data.push(task_id);
                     tasks_to_restore_for_data_indices.push(i);
                 }
@@ -1968,7 +1969,13 @@ mod cell_data_tracking_tests {
         // Run the post-snapshot eviction sweep: the task is clean (not modified),
         // so data is eligible to drop, but the Skip+never value is retained as
         // residue. The entry stays in the map with the value still present.
-        storage.evict_after_snapshot(None);
+        storage.evict_after_snapshot(
+            None,
+            crate::backend::storage::EvictionRecency {
+                min_epoch: None,
+                current_epoch: 0,
+            },
+        );
 
         let g = guard_for(&storage, task_id);
         assert!(

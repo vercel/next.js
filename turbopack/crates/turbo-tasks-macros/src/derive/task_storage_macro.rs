@@ -80,6 +80,11 @@ struct FieldInfo {
     /// Cannot be combined with `filter_transient` (both produce residue) or
     /// `inline` (the current consumer is a lazy field; keep the surface small).
     custom_drop_partial: bool,
+    /// If true, exclude this field from the per-category emptiness predicates. The field
+    /// is a best-effort hint whose loss is acceptable: an otherwise-empty task is erased
+    /// (and the hint with it) rather than kept alive by the hint alone. Only meaningful
+    /// for transient inline fields.
+    ignore_for_emptiness: bool,
     /// Optional override for the underlying map type, used when the field is a
     /// newtype wrapping `AutoMap<K, V>` (or similar) so callers can inject
     /// custom bincode / accessor behavior while the macro still generates map
@@ -454,6 +459,7 @@ fn parse_field_storage_attributes(field: &syn::Field) -> FieldInfo {
     let mut drop_on_completion_if_immutable = false;
     let mut custom_drop_partial = false;
     let mut custom_mutators = false;
+    let mut ignore_for_emptiness = false;
     let mut as_type: Option<Type> = None;
 
     // Find and parse the field attribute
@@ -579,14 +585,16 @@ fn parse_field_storage_attributes(field: &syn::Field) -> FieldInfo {
                         custom_drop_partial = true;
                     } else if ident == "custom_mutators" {
                         custom_mutators = true;
+                    } else if ident == "ignore_for_emptiness" {
+                        ignore_for_emptiness = true;
                     } else {
                         meta.span()
                             .unwrap()
                             .error(format!(
                                 "unknown modifier `{ident}`, expected `inline`, \
                                  `filter_transient`, `default`, `shrink_on_completion`, \
-                                 `drop_on_completion_if_immutable`, `custom_drop_partial`, or \
-                                 `custom_mutators`"
+                                 `drop_on_completion_if_immutable`, `custom_drop_partial`, \
+                                 `custom_mutators`, or `ignore_for_emptiness`"
                             ))
                             .emit();
                     }
@@ -740,6 +748,7 @@ fn parse_field_storage_attributes(field: &syn::Field) -> FieldInfo {
         shrink_on_completion,
         drop_on_completion_if_immutable,
         custom_drop_partial,
+        ignore_for_emptiness,
         as_type,
         custom_mutators,
     }
@@ -3096,17 +3105,17 @@ fn generate_drop_method(grouped_fields: &GroupedFields) -> TokenStream {
 
     let inline_data_checks: Vec<_> = grouped_fields
         .all_inline()
-        .filter(|f| f.category == Category::Data)
+        .filter(|f| f.category == Category::Data && !f.ignore_for_emptiness)
         .map(category_inline_check)
         .collect();
     let inline_meta_checks: Vec<_> = grouped_fields
         .all_inline()
-        .filter(|f| f.category == Category::Meta)
+        .filter(|f| f.category == Category::Meta && !f.ignore_for_emptiness)
         .map(category_inline_check)
         .collect();
     let inline_transient_checks: Vec<_> = grouped_fields
         .all_inline()
-        .filter(|f| f.category == Category::Transient)
+        .filter(|f| f.category == Category::Transient && !f.ignore_for_emptiness)
         .map(category_inline_check)
         .collect();
 
