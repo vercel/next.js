@@ -8,7 +8,7 @@ export function LinkAccordion({
   children,
   prefetch,
 }: {
-  href: LinkProps['href']
+  href: string
   children: React.ReactNode
   prefetch?: LinkProps['prefetch']
 }) {
@@ -20,30 +20,14 @@ export function LinkAccordion({
         checked={isVisible}
         onChange={() => setIsVisible(!isVisible)}
         data-link-accordion={href}
-        data-prefetch={getPrefetchKind(prefetch)}
       />
       {isVisible ? (
         <Link href={href} prefetch={prefetch}>
           {children}
         </Link>
       ) : (
-        `${children} (link is hidden)`
+        <>{children} (link is hidden)</>
       )}
     </>
   )
-}
-
-function getPrefetchKind(prefetch: LinkProps['prefetch']) {
-  switch (prefetch) {
-    case false:
-      return 'disabled'
-    case undefined:
-    case null:
-    case 'auto':
-      return 'auto'
-    case true:
-      return 'true'
-    default:
-      prefetch satisfies never
-  }
 }

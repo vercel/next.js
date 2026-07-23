@@ -16,6 +16,30 @@ import { equals } from '@jest/expect-utils'
 const NEXT_ROUTER_PREFETCH_HEADER = 'next-router-prefetch'
 const APP_SHELL_PREFETCH_VALUE = '3'
 
+// These headers/values classify each intercepted router request by the kind
+// of prefetch protocol it uses, so that expectations can assert on it via
+// the `kind` option:
+//
+// - 'static': per-segment static prefetches. These carry the
+//   `next-router-segment-prefetch` header (NEXT_ROUTER_SEGMENT_PREFETCH_HEADER
+//   in the client), which is sent both by the per-segment data fetch
+//   (`fetchSegmentsOnCacheMissImpl`) and the route tree fetch
+//   (`fetchRouteOnCacheMiss`).
+// - 'runtime': dynamic prefetch requests, issued by
+//   `fetchSegmentPrefetchesUsingDynamicRequest` in the client. These carry a
+//   FlightRouterState request tree and a `next-router-prefetch` header value
+//   of '2' (FetchStrategy.PPRRuntime) or '3' (FetchStrategy.RuntimeShell).
+//   The other strategies used by that path — LoadingBoundary ('1') and Full
+//   (no prefetch header) — send the same headers as plain prefetches and
+//   navigations respectively, so they cannot be demonstrably classified and
+//   are left unclassified.
+// - undefined: everything else — navigations, Server Actions, and plain
+//   prefetches. Expectations that specify a `kind` never claim these.
+const NEXT_ROUTER_SEGMENT_PREFETCH_HEADER = 'next-router-segment-prefetch'
+const PPR_RUNTIME_PREFETCH_VALUE = '2'
+
+type ResponseKind = 'static' | 'runtime'
+
 type Batch = {
   pendingRequestChecks: Set<Promise<void>>
   pendingRequests: Set<PendingRSCRequest>
@@ -41,6 +65,10 @@ type PendingRSCRequest = {
   // assertion purposes (see note above). Always false when the caller passes
   // `includeAppShellRequests: true`.
   isAppShell: boolean
+  // The kind of prefetch protocol this request uses, derived from its headers
+  // (see the classification note above). undefined for navigations, Server
+  // Actions, and plain prefetches.
+  kind: ResponseKind | undefined
 }
 
 let currentBatch: Batch | null = null
@@ -48,6 +76,7 @@ let currentBatch: Batch | null = null
 type ExpectedResponseConfig = {
   includes: string
   block?: boolean | 'reject'
+  kind?: ResponseKind
 }
 
 /**
@@ -59,6 +88,16 @@ type ExpectedResponseConfig = {
  *   client. This option is only supported when nested inside an outer `act`
  *   scope. The blocked response will be fulfilled when the outer
  *   scope completes.
+ * - `kind` restricts which responses can satisfy the expectation, based on
+ *   the kind of prefetch request that produced them: 'static' matches only
+ *   per-segment static prefetches (those with a `next-router-segment-prefetch`
+ *   request header), and 'runtime' matches only dynamic prefetch requests
+ *   (those with a `next-router-prefetch` header value of '2' (PPRRuntime) or
+ *   '3' (RuntimeShell)). If omitted, any router response can satisfy the
+ *   expectation. Note that App Shell (RuntimeShell) responses are excluded
+ *   from assertion logic by default, so a `kind: 'runtime'` expectation that
+ *   should match an App Shell response additionally requires passing
+ *   `includeAppShellRequests: true` to `createRouterAct`.
  *
  * The list of expected responses does not need to be exhaustive — any
  * responses that don't match will proceed like normal. However, `act` will
@@ -292,6 +331,19 @@ export function createRouterAct(
           !includeAppShellRequests &&
           headers[NEXT_ROUTER_PREFETCH_HEADER] === APP_SHELL_PREFETCH_VALUE
 
+        // Classify the request by the kind of prefetch protocol it uses, so
+        // expectations can assert on it via the `kind` option. See the
+        // classification note at the top of this file.
+        let kind: ResponseKind | undefined
+        if (headers[NEXT_ROUTER_SEGMENT_PREFETCH_HEADER] !== undefined) {
+          kind = 'static'
+        } else if (
+          headers[NEXT_ROUTER_PREFETCH_HEADER] === PPR_RUNTIME_PREFETCH_VALUE ||
+          headers[NEXT_ROUTER_PREFETCH_HEADER] === APP_SHELL_PREFETCH_VALUE
+        ) {
+          kind = 'runtime'
+        }
+
         if (isRouterRequest) {
           // This request was initiated by the Next.js Router. Intercept it and
           // add it to the current batch.
@@ -299,6 +351,7 @@ export function createRouterAct(
             url: request.url(),
             route,
             isAppShell,
+            kind,
             // `act` controls the timing of when responses reach the client,
             // but it should not affect the timing of when requests reach the
             // server; we pass the request to the server the immediately.
@@ -441,6 +494,17 @@ export function createRouterAct(
 
       let claimedExpectations = new Set<ExpectedResponseConfig>()
 
+      // Expectations that specify a `kind` and whose expected substring did
+      // appear in a response — but a response of the wrong kind, so it could
+      // not be claimed. Maps the expectation to the kind of the response the
+      // substring appeared in (undefined for responses with no prefetch kind,
+      // like navigations). Used to produce a more helpful error message when
+      // such an expectation ends up unclaimed.
+      const wrongKindMatches = new Map<
+        ExpectedResponseConfig,
+        ResponseKind | undefined
+      >()
+
       while (batch.pendingRequests.size > 0) {
         const pending = batch.pendingRequests
         batch.pendingRequests = new Set()
@@ -488,12 +552,27 @@ ${fulfilled.body}
             }
             if (!item.isAppShell && forbiddenResponses !== null) {
               for (const forbiddenResponse of forbiddenResponses) {
+                // Like expectations, a rejection with `kind` only applies to
+                // responses of that kind: the same content may legitimately
+                // arrive in a response of a different kind (e.g. a test that
+                // asserts shell content arrives statically rejects it at
+                // kind: 'runtime' while claiming it at kind: 'static').
+                if (
+                  forbiddenResponse.kind !== undefined &&
+                  forbiddenResponse.kind !== item.kind
+                ) {
+                  continue
+                }
                 const includes = forbiddenResponse.includes
                 if (fulfilled.body.includes(includes)) {
                   error.message = `
 Received a response containing an unexpected substring:
 
-Rejected substring: ${includes}
+Rejected substring: ${includes}${
+                    forbiddenResponse.kind !== undefined
+                      ? `\nRejected kind: '${forbiddenResponse.kind}'`
+                      : ''
+                  }
 
 Response:
 ${fulfilled.body}
@@ -524,6 +603,25 @@ ${fulfilled.body}
                 const includes = expectedResponse.includes
                 const block = expectedResponse.block
                 if (!claimedExpectations.has(expectedResponse)) {
+                  if (
+                    expectedResponse.kind !== undefined &&
+                    expectedResponse.kind !== item.kind
+                  ) {
+                    // This expectation can only be claimed by a response of a
+                    // specific kind, and this response is a different kind. If
+                    // the expected substring nevertheless appears in this
+                    // response, remember that so we can include it in the
+                    // error message if the expectation ends up unclaimed.
+                    if (
+                      !wrongKindMatches.has(expectedResponse) &&
+                      entireResponseBody.includes(includes)
+                    ) {
+                      wrongKindMatches.set(expectedResponse, item.kind)
+                    }
+                    // Skip the duplicate-match check below — a wrong-kind
+                    // response is not a duplicate occurrence.
+                    continue
+                  }
                   // This expectation was not already claimed. Check if we
                   // can claim it.
                   if (remainingUnclaimedBody.includes(includes)) {
@@ -548,6 +646,19 @@ ${fulfilled.body}
                 // the server sent the same string multiple times. This is fine
                 // as long as there's a separate expectation for
                 // each occurrence.
+                //
+                // Like the unclaimed path above, a kind-scoped expectation
+                // only applies to responses of that kind: its substring
+                // appearing in a response of a different kind is not a
+                // duplicate occurrence. (E.g. shell content claimed at
+                // kind: 'static' may legitimately appear again in the
+                // runtime fallback response.)
+                if (
+                  expectedResponse.kind !== undefined &&
+                  expectedResponse.kind !== item.kind
+                ) {
+                  continue
+                }
                 if (
                   firstAlreadyClaimedMatch === null &&
                   remainingUnclaimedBody.includes(includes)
@@ -643,6 +754,8 @@ ${fulfilled.body}
                       // The target of a redirect is a navigation, not an App
                       // Shell prefetch.
                       isAppShell: false,
+                      // Navigations have no prefetch kind.
+                      kind: undefined,
                     })
                     batch.didReceiveRouterRequest = true
                     page.off('response', handleResponse)
@@ -708,6 +821,26 @@ ${fulfilled.body}
               'is missing, it may have actually appeared earlier in the ' +
               'sequence than expected. Make sure the order is correct.'
           }
+
+          // If any unclaimed expectation's substring did appear in a response,
+          // but a response of a different kind, call that out explicitly —
+          // it's the most likely explanation for the failure.
+          for (const [expectation, actualKind] of wrongKindMatches) {
+            if (claimedExpectations.has(expectation)) {
+              continue
+            }
+            const receivedIn =
+              actualKind === undefined
+                ? 'a response with no prefetch kind (a navigation, Server ' +
+                  'Action, or plain prefetch)'
+                : `a '${actualKind}' response`
+            error.message +=
+              '\n\n' +
+              `NOTE: The expected substring "${expectation.includes}" was ` +
+              `received in ${receivedIn}, but the expectation requires ` +
+              `kind: '${expectation.kind}'.`
+          }
+
           throw error
         }
       }
