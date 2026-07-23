@@ -311,16 +311,16 @@ describe('dynamic-data inside cache scope', () => {
       try {
         await expect(browser).toDisplayRedbox(`
          {
-           "code": "E1391",
+           "code": "E1454",
            "description": "Route "/cookies": \`cookies()\` can't be read inside \`unstable_cache()\`. Read it outside the cached function and pass what you need as an argument.
          Learn more: https://nextjs.org/docs/app/api-reference/functions/unstable_cache",
            "environmentLabel": "Server",
            "label": "Runtime Error",
-           "source": "app/cookies/page.js (4:40) @ ${isTurbopack ? '<anonymous>' : 'eval'}
+           "source": "app/cookies/page.js (4:40) @ eval
          > 4 | const cookies = cache(() => nextCookies())
              |                                        ^",
            "stack": [
-             "${isTurbopack ? '<anonymous>' : 'eval'} app/cookies/page.js (4:40)",
+             "eval app/cookies/page.js (4:40)",
              "Page app/cookies/page.js (15:11)",
            ],
          }
@@ -333,16 +333,16 @@ describe('dynamic-data inside cache scope', () => {
       try {
         await expect(browser).toDisplayRedbox(`
          {
-           "code": "E1402",
+           "code": "E1461",
            "description": "Route "/connection": \`connection()\` can't be used inside \`unstable_cache()\`. A cache entry can be built before any request exists, so it can't depend on one.
          Learn more: https://nextjs.org/docs/app/api-reference/functions/unstable_cache",
            "environmentLabel": "Server",
            "label": "Runtime Error",
-           "source": "app/connection/page.js (4:54) @ ${isTurbopack ? '<anonymous>' : 'eval'}
+           "source": "app/connection/page.js (4:54) @ eval
          > 4 | const cachedConnection = cache(async () => connection())
              |                                                      ^",
            "stack": [
-             "${isTurbopack ? '<anonymous>' : 'eval'} app/connection/page.js (4:54)",
+             "eval app/connection/page.js (4:54)",
              "Page app/connection/page.js (7:3)",
            ],
          }
@@ -355,16 +355,16 @@ describe('dynamic-data inside cache scope', () => {
       try {
         await expect(browser).toDisplayRedbox(`
          {
-           "code": "E1406",
+           "code": "E1465",
            "description": "Route "/headers": \`headers()\` can't be read inside \`unstable_cache()\`. Read it outside the cached function and pass what you need as an argument.
          Learn more: https://nextjs.org/docs/app/api-reference/functions/unstable_cache",
            "environmentLabel": "Server",
            "label": "Runtime Error",
-           "source": "app/headers/page.js (4:40) @ ${isTurbopack ? '<anonymous>' : 'eval'}
+           "source": "app/headers/page.js (4:40) @ eval
          > 4 | const headers = cache(() => nextHeaders())
              |                                        ^",
            "stack": [
-             "${isTurbopack ? '<anonymous>' : 'eval'} app/headers/page.js (4:40)",
+             "eval app/headers/page.js (4:40)",
              "Page app/headers/page.js (15:21)",
            ],
          }
