@@ -3,7 +3,7 @@ import { mkdir, writeFile } from 'fs/promises'
 import { realpathSync } from 'fs'
 import * as inspector from 'inspector'
 import { join, extname, relative, isAbsolute } from 'path'
-import { pathToFileURL } from 'url'
+import { fileURLToPath, pathToFileURL } from 'url'
 
 import ws from 'next/dist/compiled/ws'
 
@@ -286,18 +286,28 @@ function getSourceMapURLFromTurbopack(
   distDir: string,
   scriptNameOrSourceURL: string
 ): string | null {
-  // React invokes this with the raw stack-frame filename, which for the server
-  // chunks we can source-map is the script's `getScriptNameOrSourceURL()`, i.e.
-  // an absolute filesystem path (React only wraps it into a `file:`/
-  // `about://React/...` URL for the fake script's own `//# sourceURL`, after
-  // this lookup). Anything else (`webpack-internal://`, `node:internal/...`,
-  // `<anonymous>`, ...) is not something we have an emitted source map for.
-  if (!isAbsolute(scriptNameOrSourceURL)) {
+  // React invokes this with the raw stack-frame filename, which arrives
+  // either as an absolute filesystem path or as a `file:` URL. Anything else
+  // (`file:` URLs with a query are eval'd server HMR modules carrying inline
+  // source maps, `webpack-internal://`, `node:internal/...`, `<anonymous>`,
+  // ...) is not something we have an emitted source map for.
+  let scriptPath = scriptNameOrSourceURL
+  if (scriptNameOrSourceURL.startsWith('file://')) {
+    if (scriptNameOrSourceURL.includes('?')) {
+      return null
+    }
+    try {
+      scriptPath = fileURLToPath(scriptNameOrSourceURL)
+    } catch {
+      return null
+    }
+  }
+  if (!isAbsolute(scriptPath)) {
     return null
   }
 
   // Only chunks emitted into `distDir` have an on-disk source map to point at.
-  const relativePath = relative(distDir, scriptNameOrSourceURL)
+  const relativePath = relative(distDir, scriptPath)
   if (
     relativePath.startsWith('..') ||
     // On Windows an absolute path on a different drive is returned unchanged
@@ -310,7 +320,7 @@ function getSourceMapURLFromTurbopack(
   // The emitted source map lives next to its chunk with a `.map` suffix (see
   // `SourceMapAsset::path`). Encode through `pathToFileURL` so any special
   // characters in the path are escaped into a well-formed `file:` URL.
-  return pathToFileURL(scriptNameOrSourceURL + '.map').href
+  return pathToFileURL(scriptPath + '.map').href
 }
 
 export async function createHotReloaderTurbopack(
