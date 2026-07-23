@@ -373,14 +373,20 @@ function getCodeFrameFromTurbopack(
   source: string,
   colors: boolean
 ): string | null {
-  // Only on-demand-content project sources are read this way; anything else keeps inline content.
+  // The resolved source carries the on-demand content `sourceRoot`. Depending on the source-map
+  // consumer, it may be prefixed with the `file://` scheme (the sync consumer used by
+  // `patch-error-inspect` resolves the sourceRoot-relative source as a URL) or bare (the async
+  // overlay consumer). Normalize both to the project-relative path.
+  const withoutScheme = source.startsWith('file://')
+    ? source.slice('file://'.length)
+    : source
   if (
-    !source.startsWith(SOURCE_CONTENT_MIDDLEWARE_PREFIX) ||
+    !withoutScheme.startsWith(SOURCE_CONTENT_MIDDLEWARE_PREFIX) ||
     frame.line1 == null
   ) {
     return null
   }
-  const filePath = source.slice(SOURCE_CONTENT_MIDDLEWARE_PREFIX.length)
+  const filePath = withoutScheme.slice(SOURCE_CONTENT_MIDDLEWARE_PREFIX.length)
   try {
     return project.getCodeFrameForAssetSync(
       filePath,
