@@ -512,7 +512,7 @@ export async function startServer(
           // is detected but the managed agent-rules block is missing.
           // Gated on `agentRules` in next.config (default true).
           if (initResult.agentRules !== false) {
-            const result = ensureAgentRulesForDev(dir)
+            const result = await ensureAgentRulesForDev(dir)
             if (result) {
               const generated: string[] = []
               if (

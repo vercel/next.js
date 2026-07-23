@@ -184,10 +184,11 @@ export const enum PrefetchHint {
   // This segment has a runtime prefetch enabled (via instant with
   // prefetch: 'runtime'). Per-segment only, does not propagate to ancestors.
   HasRuntimePrefetch = 0b00001,
-  // This segment or one of its descendants opts into Partial Prefetching.
-  // Currently set when a truthy instant config is present on any
-  // segment in the subtree (regardless of prefetch mode). Propagates upward
-  // so the root segment reflects the entire subtree.
+  // This segment or one of its descendants opts into Partial Prefetching, i.e.
+  // uses the two-phase (Shell then Speculative) prefetch flow. Set when a
+  // truthy instant config is present, or `prefetch` is 'partial',
+  // 'unstable_eager', or 'allow-runtime'. Propagates upward so the root segment
+  // reflects the entire subtree.
   SubtreeHasPartialPrefetching = 0b00010,
   // This segment itself has a loading.tsx boundary.
   SegmentHasLoadingBoundary = 0b00100,
@@ -230,6 +231,12 @@ export const enum PrefetchHint {
   // shared app shell and skips its Speculative prefetch. Propagates upward so
   // the root reflects the entire subtree.
   SubtreeHasEagerPrefetch = 0b1000000000000,
+  // This segment or one of its descendants exports `instant = false`,
+  // explicitly opting out of Partial Prefetching. Propagates upward so the root
+  // reflects the entire subtree. Used only to suppress the dev-time
+  // `<Link prefetch={true}>` warning — unlike PrefetchDisabled, it has no effect
+  // on the actual prefetch behavior.
+  SubtreeHasInstantFalse = 0b10000000000000,
 }
 
 /**
@@ -254,6 +261,7 @@ export const SubtreePrefetchHints =
   PrefetchHint.SubtreeHasPartialPrefetching |
   PrefetchHint.SubtreeHasLoadingBoundary |
   PrefetchHint.SubtreeHasRuntimePrefetch |
+  PrefetchHint.SubtreeHasInstantFalse |
   PrefetchHint.SubtreeHasEagerPrefetch
 
 /**
@@ -294,6 +302,11 @@ export function propagateSubtreeBits(
   // there's no separate segment-local flag — propagate it as-is.
   if (childHints & PrefetchHint.SubtreeHasEagerPrefetch) {
     parentHints |= PrefetchHint.SubtreeHasEagerPrefetch
+  }
+  // And for `instant = false`. Like eager prefetch, the bit is set directly on
+  // each opted-out segment, so propagate it as-is.
+  if (childHints & PrefetchHint.SubtreeHasInstantFalse) {
+    parentHints |= PrefetchHint.SubtreeHasInstantFalse
   }
   return parentHints
 }

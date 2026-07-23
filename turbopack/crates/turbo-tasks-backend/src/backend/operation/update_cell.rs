@@ -188,7 +188,7 @@ impl UpdateCellOperation {
                 // tasks and after that set the new cell content. When the cell content is unset,
                 // readers will wait for it to be set via InProgressCell.
 
-                let old_content = task.remove_cell_data(&cell);
+                let old_content = task.remove_cell_data(&cell, &value_type.persistence);
 
                 // Update cell_data_hash before dropping the task lock
                 if matches!(value_type.persistence, ValueTypePersistence::HashOnly) {
@@ -225,9 +225,9 @@ impl UpdateCellOperation {
         // So we can just update the cell content.
 
         let old_content = if let Some(new_content) = content {
-            task.insert_cell_data(cell, new_content)
+            task.insert_cell_data(cell, new_content, &value_type.persistence)
         } else {
-            task.remove_cell_data(&cell)
+            task.remove_cell_data(&cell, &value_type.persistence)
         };
 
         // Update cell_data_hash for hash-only cells.
@@ -355,7 +355,11 @@ impl Operation for UpdateCellOperation {
                     let mut task = ctx.task(task, TaskDataCategory::Data);
 
                     if let Some(content) = content {
-                        task.add_cell_data(cell, content.into_untyped());
+                        // This arm only carries the CellId, so resolve the cell's
+                        // persistence here (one lookup per final change, not on the
+                        // inner hot path) to decide whether the write tracks.
+                        let persistence = &registry::get_value_type(cell.type_id()).persistence;
+                        task.add_cell_data(cell, content.into_untyped(), persistence);
                     }
 
                     let in_progress_cell = task.remove_in_progress_cells(&cell);

@@ -1982,12 +1982,13 @@ impl CurrentCellRef {
     ///
     /// ```
     /// #[turbo_tasks::value(transparent, eq = "manual")]
+    /// #[derive(Clone)]
     /// struct Wrapper(Vec<u32>);
     ///
     /// impl PartialEq for Wrapper {
-    ///     fn eq(&self, other: Wrapper) {
+    ///     fn eq(&self, other: &Wrapper) -> bool {
     ///         // Example: order doesn't matter for equality
-    ///         let (mut this, mut other) = (self.clone(), other.clone());
+    ///         let (mut this, mut other) = (self.0.clone(), other.0.clone());
     ///         this.sort_unstable();
     ///         other.sort_unstable();
     ///         this == other
@@ -2061,7 +2062,8 @@ impl CurrentCellRef {
             {
                 return None;
             }
-            let content_hash = hash_xxh3_hash128(&new_value);
+            let content_hash = hash_xxh3_hash128(&new_value).to_le_bytes();
+
             Some((new_value, None, Some(content_hash)))
         });
     }
@@ -2085,7 +2087,8 @@ impl CurrentCellRef {
                     return None;
                 }
             }
-            let content_hash = hash_xxh3_hash128(extract_sr_value::<T>(&new_shared_reference));
+            let content_hash =
+                hash_xxh3_hash128(extract_sr_value::<T>(&new_shared_reference)).to_le_bytes();
             Some((new_shared_reference, None, Some(content_hash)))
         });
     }

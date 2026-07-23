@@ -88,4 +88,38 @@ describe('prefetch-true-partial-warning', () => {
       })
     )
   })
+
+  it('does not warn when the target page exports instant = false', async () => {
+    const browser = await next.browser('/')
+    await navigateViaAccordion(browser, '/instant-false-route')
+
+    await browser.waitForElementByCss('#dynamic-content')
+    expect(await browser.elementById('dynamic-content').text()).toBe(
+      'Instant-false dynamic'
+    )
+
+    expect(await browser.log()).not.toContainEqual(
+      expect.objectContaining({
+        source: 'error',
+        message: expect.stringContaining(WARNING),
+      })
+    )
+  })
+
+  it('does not warn when instant = false is set on a parent layout', async () => {
+    const browser = await next.browser('/')
+    await navigateViaAccordion(browser, '/instant-false-layout')
+
+    await browser.waitForElementByCss('#dynamic-content')
+    expect(await browser.elementById('dynamic-content').text()).toBe(
+      'Layout-instant-false dynamic'
+    )
+
+    expect(await browser.log()).not.toContainEqual(
+      expect.objectContaining({
+        source: 'error',
+        message: expect.stringContaining(WARNING),
+      })
+    )
+  })
 })

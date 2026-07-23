@@ -87,6 +87,7 @@ import { INFINITE_CACHE } from '../../../lib/constants'
 import { executeRevalidates } from '../../revalidation-utils'
 import { trackPendingModules } from '../../app-render/module-loading/track-module-loading.external'
 import { InvariantError } from '../../../shared/lib/invariant-error'
+import { LazyModule } from '../../lib/lazy-module'
 import { createPrerenderResumeDataCache } from '../../resume-data-cache/resume-data-cache'
 import {
   createRouteHandlerRequestInUseCacheError,
@@ -182,9 +183,9 @@ export interface AppRouteRouteModuleOptions
     RouteModuleOptions<AppRouteRouteDefinition, AppRouteUserlandModule>,
     'userland'
   > {
-  readonly userland:
+  readonly userland: () =>
     | AppRouteUserlandModule
-    | (() => AppRouteUserlandModule | Promise<AppRouteUserlandModule>)
+    | Promise<AppRouteUserlandModule>
   readonly resolvedPagePath: string
   readonly nextConfigOutput: NextConfig['output']
   /**
@@ -231,14 +232,9 @@ export class AppRouteRouteModule extends RouteModule<
   public readonly resolvedPagePath: string
   public readonly nextConfigOutput: NextConfig['output'] | undefined
 
-  // Set in the constructor when userland is provided as a factory. Cleared
-  // after the first access so userland is only loaded once.
-  private _userlandFactory:
-    | (() => AppRouteUserlandModule | Promise<AppRouteUserlandModule>)
-    | null
-  // Non-null while an async userland module (top-level await) is loading.
-  // ensureUserland() awaits this before the first request is handled.
-  private _pendingUserland: Promise<void> | null = null
+  // Loaded lazily since the route file may be an async module (top-level
+  // await).
+  private readonly _lazyUserland: LazyModule<AppRouteUserlandModule>
   // Synchronous per-request userland getter for Turbopack dev mode.
   // Called on every request to pick up server HMR updates.
   private readonly _getUserland?: () => AppRouteUserlandModule
@@ -247,38 +243,18 @@ export class AppRouteRouteModule extends RouteModule<
   private _dynamic!: AppRouteUserlandModule['dynamic']
 
   override get userland(): AppRouteUserlandModule {
-    if (this._userlandFactory) {
-      const result = this._userlandFactory()
-      this._userlandFactory = null
-      if (result instanceof Promise) {
-        // The route file uses top-level await (async module). Store the
-        // promise so ensureUserland() can await it before the first request.
-        this._pendingUserland = result.then((mod) => {
-          this._userland = mod
-          this._pendingUserland = null
-          this._initFromUserland()
-        })
-      } else {
-        this._userland = result
-        this._initFromUserland()
-      }
-    }
-    return this._userland as AppRouteUserlandModule
+    return this._lazyUserland.assertLoaded()
   }
 
   /**
-   * Ensures the userland module is fully loaded before a request is handled.
-   * Required for route files that use top-level await, where require() returns
-   * a Promise instead of the module directly. Must be called before accessing
-   * `userland` in contexts where the module may not yet be resolved (e.g. the
-   * export/static-generation worker).
+   * Ensures the userland module is fully loaded before it's accessed via
+   * `userland`. Required for route files that use top-level await, where
+   * require() returns a promise instead of the module directly. Must be called
+   * before accessing `userland` in contexts where the module may not yet be
+   * resolved (e.g. the export/static-generation worker).
    */
   async ensureUserland(): Promise<void> {
-    // Trigger lazy loading if not yet started.
-    void this.userland
-    if (this._pendingUserland) {
-      await this._pendingUserland
-    }
+    await this._lazyUserland.waitUntilLoaded()
   }
 
   constructor({
@@ -290,9 +266,8 @@ export class AppRouteRouteModule extends RouteModule<
     resolvedPagePath,
     nextConfigOutput,
   }: AppRouteRouteModuleOptions) {
-    const isLazy = typeof userland === 'function'
     super({
-      userland: (isLazy ? undefined! : userland) as AppRouteUserlandModule,
+      userland: undefined! as AppRouteUserlandModule,
       definition,
       distDir,
       relativeProjectDir,
@@ -301,35 +276,18 @@ export class AppRouteRouteModule extends RouteModule<
     this.resolvedPagePath = resolvedPagePath
     this.nextConfigOutput = nextConfigOutput
     this._getUserland = getUserland
+    this._lazyUserland = new LazyModule(userland, (module) =>
+      this._onUserlandLoaded(module)
+    )
 
-    if (!isLazy) {
-      this._userlandFactory = null
-      this._initFromUserland()
-    } else if (nextConfigOutput === 'export') {
-      // For output:export routes, validate constraints eagerly at module load
-      // time so that the error surfaces as a Redbox in dev (module load error)
-      // rather than being silently swallowed as a 500 response at request time.
-      this._userlandFactory = null
-      const result = userland()
-      if (result instanceof Promise) {
-        // Async module (top-level await) — defer via pending promise.
-        this._pendingUserland = result.then((mod) => {
-          this._userland = mod
-          this._pendingUserland = null
-          this._initFromUserland()
-        })
-      } else {
-        this._userland = result
-        this._initFromUserland() // throws for invalid output:export routes
-      }
-    } else {
-      this._userlandFactory = userland
+    // output:export routes load eagerly, so that errors surface at module
+    // load time (as a Redbox in dev) rather than at request time.
+    if (nextConfigOutput === 'export') {
+      this._lazyUserland.loadIfNeeded()
     }
   }
 
-  private _initFromUserland(): void {
-    const userland = this._userland as AppRouteUserlandModule
-
+  private _onUserlandLoaded(userland: AppRouteUserlandModule): void {
     // Automatically implement some methods if they aren't implemented by the
     // userland module.
     this._methods = autoImplementMethods(userland)
@@ -807,7 +765,7 @@ export class AppRouteRouteModule extends RouteModule<
     // immediately. This is cheap — it is just a devModuleCache lookup.
     // For routes with top-level await, require() may still return a Promise
     // (async module); in that case fall back to the already-resolved
-    // _userland from ensureUserland() above.
+    // userland module resolved by ensureUserland() above.
     const rawLiveUserland = this._getUserland?.()
     const liveUserland =
       rawLiveUserland instanceof Promise
@@ -829,7 +787,7 @@ export class AppRouteRouteModule extends RouteModule<
 
     // Use the live userland (if available) for per-request values so HMR
     // changes to fetchCache, dynamic, etc. are also picked up.
-    const userland = liveUserland ?? (this._userland as AppRouteUserlandModule)
+    const userland = liveUserland ?? this.userland
 
     // Add the fetchCache option to the renderOpts.
     staticGenerationContext.renderOpts.fetchCache = userland.fetchCache
@@ -851,7 +809,8 @@ export class AppRouteRouteModule extends RouteModule<
       req.nextUrl,
       implicitTags,
       undefined,
-      context.previewProps
+      context.previewProps,
+      context.renderOpts.hmrRefreshHash
     )
 
     const workStore = createWorkStore(staticGenerationContext)

@@ -120,6 +120,17 @@ export async function ncc_vercel_routing_utils(task, opts) {
     .target('src/compiled/@vercel/routing-utils')
 }
 
+externals['@vercel/detect-agent'] = 'next/dist/compiled/@vercel/detect-agent'
+export async function ncc_vercel_detect_agent(task, opts) {
+  await task
+    .source(relative(__dirname, require.resolve('@vercel/detect-agent')))
+    .ncc({
+      packageName: '@vercel/detect-agent',
+      externals,
+    })
+    .target('src/compiled/@vercel/detect-agent')
+}
+
 externals['busboy'] = 'next/dist/compiled/busboy'
 export async function ncc_busboy(task, opts) {
   await task
@@ -1192,6 +1203,11 @@ export async function ncc_gzip_size(task, opts) {
     .target('src/compiled/gzip-size')
 }
 externals['http-proxy'] = 'next/dist/compiled/http-proxy'
+// The patched http-proxy (patches/http-proxy@1.18.1.patch) uses Next.js'
+// parseUrl instead of the deprecated url.parse. Keep that import pointing at
+// next's own dist instead of bundling a copy.
+externals['next/dist/shared/lib/router/utils/parse-url'] =
+  'next/dist/shared/lib/router/utils/parse-url'
 export async function ncc_http_proxy(task, opts) {
   await task
     .source(relative(__dirname, require.resolve('http-proxy')))
@@ -2360,6 +2376,7 @@ export async function ncc(task, opts) {
       'ncc_rsc_poison_packages',
       'ncc_modelcontextprotocol_sdk',
       'ncc_vercel_routing_utils',
+      'ncc_vercel_detect_agent',
     ],
     opts
   )
@@ -2700,16 +2717,6 @@ export async function build(task, opts) {
     ['precompile', 'compile', 'check_error_codes', 'generate_types'],
     opts
   )
-  // Write git commit hash to dist for stale build detection during tests
-  try {
-    const { stdout: commitHash } = await execa('git', ['rev-parse', 'HEAD'])
-    await fs.writeFile(
-      join(__dirname, 'dist', '.build-commit'),
-      commitHash.trim()
-    )
-  } catch (err) {
-    console.warn(`Warning: Could not write build commit hash: ${err.message}`)
-  }
 }
 
 export async function generate_types(task, opts) {

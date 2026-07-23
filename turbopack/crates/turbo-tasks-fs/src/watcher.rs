@@ -794,7 +794,7 @@ fn invalidate_path(
     paths: impl Iterator<Item = PathBuf>,
 ) {
     for path in paths {
-        if let Some(invalidators) = invalidator_map.remove(&path) {
+        if let Some(invalidators) = invalidator_map.remove(path.as_path()) {
             invalidators
                 .into_iter()
                 .for_each(|i| invalidate(inner, turbo_tasks, report_invalidation_reason, &path, i));

@@ -76,8 +76,15 @@
   width: 100%;
   height: 42px;
   padding: 0 20px;
-  background: #e0ebff;
+  background: var(--color-blue-100);
   box-sizing: border-box;
+}
+@media (prefers-color-scheme: dark) {
+  :host(:not(.light)) {
+    .instant-nav-waiting-status {
+      background: var(--color-blue-300);
+    }
+  }
 }
 
 .instant-nav-waiting-status-dot {
@@ -87,6 +94,13 @@
   height: 16px;
   border-radius: 50%;
   background: #b8cffb;
+}
+@media (prefers-color-scheme: dark) {
+  :host(:not(.light)) {
+    .instant-nav-waiting-status-dot {
+      background: #25548f;
+    }
+  }
 }
 
 .instant-nav-waiting-status-dot::after {
@@ -98,6 +112,13 @@
   height: 8px;
   border-radius: 50%;
   background: var(--color-blue-700);
+}
+@media (prefers-color-scheme: dark) {
+  :host(:not(.light)) {
+    .instant-nav-waiting-status-dot::after {
+      background: #468be2;
+    }
+  }
 }
 
 .instant-nav-waiting-status-title {
@@ -172,6 +193,15 @@
   font-weight: 400;
   line-height: 1;
 }
+@media (prefers-color-scheme: dark) {
+  :host(:not(.light)) {
+    .instant-nav-debugger-paused {
+      color: #171717;
+      background-color: #e7c755;
+    }
+  }
+}
+
 .instant-nav-debugger-paused-button {
   margin-left: auto;
   font-size: var(--size-12);
@@ -180,10 +210,20 @@
   padding: 7px 12px 7px 14px;
   border-radius: 9999px;
   background-color: white;
-  border: 1px solid #dfd587;
+  border: 1px solid var(--color-gray-alpha-300);
   display: inline-flex;
   gap: 8px;
   align-items: center;
+}
+@media (prefers-color-scheme: dark) {
+  :host(:not(.light)) {
+    .instant-nav-debugger-paused-button {
+      background-color: #000000;
+    }
+    .instant-nav-debugger-paused-button:hover {
+      background-color: #2e2e2e;
+    }
+  }
 }
 
 .instant-nav-debugger-paused-button:hover {

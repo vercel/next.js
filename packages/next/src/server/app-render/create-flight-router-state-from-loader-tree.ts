@@ -104,6 +104,11 @@ async function createFlightRouterStateFromLoaderTreeImpl(
     (typeof instantConfig === 'object' && instantConfig !== null)
   if (isInstant) {
     prefetchHints |= PrefetchHint.SubtreeHasPartialPrefetching
+  } else if (instantConfig === false) {
+    // The segment explicitly opts out of Partial Prefetching. We don't change
+    // the prefetch behavior, but we record it so the dev-time
+    // `<Link prefetch={true}>` warning can be suppressed for this route.
+    prefetchHints |= PrefetchHint.SubtreeHasInstantFalse
   }
 
   if (prefetchConfig === 'partial') {
@@ -118,7 +123,12 @@ async function createFlightRouterStateFromLoaderTreeImpl(
   } else if (prefetchConfig === 'force-disabled') {
     prefetchHints |= PrefetchHint.PrefetchDisabled
   } else if (prefetchConfig === 'allow-runtime') {
-    prefetchHints |= PrefetchHint.HasRuntimePrefetch
+    // 'allow-runtime' participates in the two-phase (Shell then Speculative)
+    // prefetch flow, so it counts as Partial Prefetching. HasRuntimePrefetch
+    // additionally marks it as needing a runtime request pass.
+    prefetchHints |=
+      PrefetchHint.HasRuntimePrefetch |
+      PrefetchHint.SubtreeHasPartialPrefetching
   }
 
   // Mark the segment as "eager" unless its effective prefetch strategy is

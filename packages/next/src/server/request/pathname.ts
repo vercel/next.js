@@ -22,8 +22,7 @@ import {
 import { InvariantError } from '../../shared/lib/invariant-error'
 
 export function createServerPathnameForMetadata(
-  underlyingPathname: string,
-  isRuntimePrefetchable: boolean
+  underlyingPathname: string
 ): Promise<string> {
   const workStore = workAsyncStorage.getStore()
   if (!workStore) {
@@ -65,17 +64,22 @@ export function createServerPathnameForMetadata(
         // (i.e. assuming that we have non-static params in the pathname)
         const { stagedRendering } = workUnitStore
         if (stagedRendering) {
-          const pathnameStages = RENDER_STAGES_BY_DATA_KIND.runtimeLinkData
-          const stage = isRuntimePrefetchable
-            ? pathnameStages.early
-            : pathnameStages.late
+          const pathnameStage = RENDER_STAGES_BY_DATA_KIND.runtimeLinkData
           return stagedRendering.delayUntilStage(
-            stage,
+            pathnameStage,
             undefined,
             underlyingPathname
           )
         } else {
-          return createRenderPathname(underlyingPathname)
+          if (workUnitStore.isSessionShell) {
+            return makeHangingPromise<string>(
+              workUnitStore.renderSignal,
+              workStore.route,
+              '`pathname`'
+            )
+          } else {
+            return createRenderPathname(underlyingPathname)
+          }
         }
       }
       case 'request':
