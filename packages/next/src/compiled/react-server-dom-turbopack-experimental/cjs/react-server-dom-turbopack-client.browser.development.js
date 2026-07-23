@@ -1732,25 +1732,29 @@
           ));
       }
     }
-    function resolveModuleChunk(response, chunk, value) {
-      if ("pending" === chunk.status || "blocked" === chunk.status) {
-        releasePendingChunk(response, chunk);
-        var resolveListeners = chunk.value,
-          rejectListeners = chunk.reason;
-        chunk.status = "resolved_module";
-        chunk.value = value;
-        chunk.reason = null;
+    function resolveModuleChunk(response, chunk$jscomp$0, value) {
+      if (
+        "pending" === chunk$jscomp$0.status ||
+        "blocked" === chunk$jscomp$0.status
+      ) {
+        releasePendingChunk(response, chunk$jscomp$0);
+        var resolveListeners = chunk$jscomp$0.value,
+          rejectListeners = chunk$jscomp$0.reason;
+        chunk$jscomp$0.status = "resolved_module";
+        chunk$jscomp$0.value = value;
+        chunk$jscomp$0.reason = null;
         value = value[1];
         for (var debugInfo = [], i = 0; i < value.length; ) {
-          var chunkFilename = value[i++],
+          var chunk = value[i++],
             href = void 0,
-            target = debugInfo,
-            ioInfo = chunkIOInfoCache.get(chunkFilename);
+            target = debugInfo;
+          chunk = "string" === typeof chunk ? chunk : chunk[0];
+          var ioInfo = chunkIOInfoCache.get(chunk);
           if (void 0 === ioInfo) {
             try {
-              href = new URL(chunkFilename, document.baseURI).href;
+              href = new URL(chunk, document.baseURI).href;
             } catch (_) {
-              href = chunkFilename;
+              href = chunk;
             }
             var end = (ioInfo = -1),
               byteSize = 0;
@@ -1792,17 +1796,20 @@
               debugStack: i$jscomp$0
             };
             0 < byteSize && (ioInfo.byteSize = byteSize);
-            chunkIOInfoCache.set(chunkFilename, ioInfo);
+            chunkIOInfoCache.set(chunk, ioInfo);
           }
           target.push({ awaited: ioInfo });
         }
         null !== debugInfo &&
-          chunk._debugInfo.push.apply(chunk._debugInfo, debugInfo);
+          chunk$jscomp$0._debugInfo.push.apply(
+            chunk$jscomp$0._debugInfo,
+            debugInfo
+          );
         null !== resolveListeners &&
-          (initializeModuleChunk(chunk),
+          (initializeModuleChunk(chunk$jscomp$0),
           wakeChunkIfInitialized(
             response,
-            chunk,
+            chunk$jscomp$0,
             resolveListeners,
             rejectListeners
           ));
@@ -5190,10 +5197,10 @@
       return hook.checkDCE ? !0 : !1;
     })({
       bundleType: 1,
-      version: "19.3.0-experimental-711c445b-20260722",
+      version: "19.3.0-experimental-28cd4bb0-20260723",
       rendererPackageName: "react-server-dom-turbopack",
       currentDispatcherRef: ReactSharedInternals,
-      reconcilerVersion: "19.3.0-experimental-711c445b-20260722",
+      reconcilerVersion: "19.3.0-experimental-28cd4bb0-20260723",
       getCurrentComponentInfo: function () {
         return currentOwnerInDEV;
       }
