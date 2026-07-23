@@ -135,12 +135,12 @@ struct TaskStorageSchema {
 
     /// Coarse session-time epoch of the most recent read of this task's output or cells
     /// (transient). Absent = not read this session. Lets eviction skip recently-used tasks.
-    #[field(storage = "direct", category = "transient")]
+    #[field(storage = "direct", category = "transient", ignore_for_emptiness)]
     pub last_read_epoch: u32,
 
     /// Epoch at which this task's value data was last evicted (transient). Used to count
     /// eviction regret: re-reads shortly after eviction indicate the task was still needed.
-    #[field(storage = "direct", category = "transient")]
+    #[field(storage = "direct", category = "transient", ignore_for_emptiness)]
     pub last_evicted_epoch: u32,
 
     /// Count of clean containers in current session (transient).
