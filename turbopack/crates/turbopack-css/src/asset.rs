@@ -18,7 +18,7 @@ use turbopack_core::{
 };
 
 use crate::{
-    CssModuleType, LightningCssFeatureFlags,
+    CssModuleType, CssModulesOptions, LightningCssFeatureFlags,
     chunk::{CssChunkItem, CssChunkItemContent, CssChunkPlaceable, CssChunkType, CssImport},
     code_gen::CodeGenerateable,
     process::{
@@ -43,6 +43,7 @@ pub struct CssModule {
     ty: CssModuleType,
     environment: Option<ResolvedVc<Environment>>,
     lightningcss_features: LightningCssFeatureFlags,
+    css_modules_options: CssModulesOptions,
     /// The path of `source`, precomputed so that `ResolveOrigin::origin_path` is synchronous.
     origin_path: FileSystemPath,
 }
@@ -58,6 +59,7 @@ impl CssModule {
         import_context: Option<ResolvedVc<ImportContext>>,
         environment: Option<ResolvedVc<Environment>>,
         lightningcss_features: LightningCssFeatureFlags,
+        css_modules_options: CssModulesOptions,
     ) -> Result<Vc<Self>> {
         Ok(Self::cell(CssModule {
             origin_path: source.ident().await?.path.clone(),
@@ -67,6 +69,7 @@ impl CssModule {
             ty,
             environment,
             lightningcss_features,
+            css_modules_options,
         }))
     }
 
@@ -90,6 +93,7 @@ impl ParseCss for CssModule {
             this.ty,
             this.environment.as_deref().copied(),
             this.lightningcss_features,
+            this.css_modules_options.clone(),
         ))
     }
 }

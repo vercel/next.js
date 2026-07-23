@@ -1416,6 +1416,7 @@ pub struct ExperimentalConfig {
     // turbopack_file_system_cache_for_dev: Option<bool>,
     // turbopack_file_system_cache_for_build: Option<bool>,
     lightning_css_features: Option<LightningCssFeatures>,
+    lightning_css_modules: Option<LightningCssModules>,
 }
 
 #[derive(
@@ -1452,6 +1453,29 @@ pub struct SubResourceIntegrity {
 pub struct LightningCssFeatures {
     pub include: Option<Vec<RcStr>>,
     pub exclude: Option<Vec<RcStr>>,
+}
+
+#[derive(
+    Clone,
+    Debug,
+    Default,
+    PartialEq,
+    Eq,
+    Deserialize,
+    TraceRawVcs,
+    NonLocalValue,
+    OperationValue,
+    Encode,
+    Decode,
+)]
+#[serde(rename_all = "camelCase")]
+pub struct LightningCssModules {
+    pub pattern: Option<RcStr>,
+    pub animation: Option<bool>,
+    pub grid: Option<bool>,
+    pub custom_idents: Option<bool>,
+    pub dashed_idents: Option<bool>,
+    pub container: Option<bool>,
 }
 
 #[derive(
@@ -2576,6 +2600,30 @@ impl NextConfig {
                 &self.experimental.lightning_css_features,
                 |f| f.exclude.as_ref(),
             )?,
+        }
+        .cell())
+    }
+
+    #[turbo_tasks::function]
+    pub fn css_modules_options(&self) -> Result<Vc<turbopack_css::CssModulesOptions>> {
+        let config = self.experimental.lightning_css_modules.as_ref();
+        if let Some(pattern) = config.and_then(|c| c.pattern.as_deref()) {
+            // Validate the pattern once at config level so a typo surfaces as a single
+            // clear error instead of one parse error per CSS module file.
+            if let Err(err) = lightningcss::css_modules::Pattern::parse(pattern) {
+                bail!(
+                    "Invalid experimental.lightningCssModules.pattern {pattern:?}: {err:?}. \
+                     Supported placeholders are [name], [local], [hash] and [content-hash]."
+                );
+            }
+        }
+        Ok(turbopack_css::CssModulesOptions {
+            pattern: config.and_then(|c| c.pattern.clone()),
+            animation: config.and_then(|c| c.animation),
+            grid: config.and_then(|c| c.grid),
+            custom_idents: config.and_then(|c| c.custom_idents),
+            dashed_idents: config.and_then(|c| c.dashed_idents),
+            container: config.and_then(|c| c.container),
         }
         .cell())
     }

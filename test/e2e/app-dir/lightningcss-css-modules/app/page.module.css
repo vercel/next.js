@@ -1,0 +1,13 @@
+@keyframes fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.item {
+  animation: fade 1s;
+  color: red;
+}

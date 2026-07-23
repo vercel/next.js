@@ -143,6 +143,7 @@ pub enum ModuleType {
         ty: CssModuleType,
         environment: Option<ResolvedVc<Environment>>,
         lightningcss_features: turbopack_css::LightningCssFeatureFlags,
+        css_modules_options: turbopack_css::CssModulesOptions,
     },
     StaticUrlJs {
         /// The tag that is passed to ChunkingContext::asset_url
@@ -233,6 +234,7 @@ impl ConfiguredModuleType {
         options: ResolvedVc<EcmascriptOptions>,
         environment: Option<ResolvedVc<Environment>>,
         lightningcss_features: turbopack_css::LightningCssFeatureFlags,
+        css_modules_options: turbopack_css::CssModulesOptions,
     ) -> Result<ModuleRuleEffect> {
         Ok(match self {
             ConfiguredModuleType::Bytes => {
@@ -267,6 +269,7 @@ impl ConfiguredModuleType {
                 ty: CssModuleType::Default,
                 environment,
                 lightningcss_features,
+                css_modules_options,
             }),
             ConfiguredModuleType::CssModule => ModuleRuleEffect::ModuleType(ModuleType::CssModule),
             ConfiguredModuleType::Json => {

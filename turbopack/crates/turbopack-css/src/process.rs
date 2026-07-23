@@ -1,6 +1,6 @@
-use std::sync::{Arc, RwLock};
+use std::sync::{Arc, Mutex, OnceLock, RwLock};
 
-use anyhow::{Result, bail};
+use anyhow::{Result, anyhow, bail};
 use async_trait::async_trait;
 use lightningcss::{
     css_modules::{CssModuleExport, Pattern, Segment},
@@ -38,7 +38,7 @@ use turbopack_core::{
 };
 
 use crate::{
-    CssModuleType, LightningCssFeatureFlags,
+    CssModuleType, CssModulesOptions, LightningCssFeatureFlags,
     lifetime_util::stylesheet_into_static,
     references::{
         analyze_references,
@@ -366,6 +366,7 @@ pub async fn parse_css(
     ty: CssModuleType,
     environment: Option<ResolvedVc<Environment>>,
     feature_flags: LightningCssFeatureFlags,
+    css_modules_options: CssModulesOptions,
 ) -> Result<Vc<ParseCssResult>> {
     let span = tracing::info_span!(
         "parse css",
@@ -391,6 +392,7 @@ pub async fn parse_css(
                             ty,
                             environment,
                             feature_flags,
+                            css_modules_options,
                         )
                         .await?
                     }
@@ -426,6 +428,22 @@ fn parse_css_stylesheet<'a, 'o>(
     Ok(ss)
 }
 
+/// Interns a CSS Modules naming pattern so the parsed [`Pattern`] can borrow
+/// into the `'static` parser options stored in [`ParseCssResult`]. Patterns
+/// come from user config, so only a handful of unique strings ever leak.
+fn intern_css_modules_pattern(pattern: &str) -> &'static str {
+    static CACHE: OnceLock<Mutex<Vec<&'static str>>> = OnceLock::new();
+    let mut cache = CACHE.get_or_init(Default::default).lock().unwrap();
+    match cache.iter().find(|s| **s == *pattern).copied() {
+        Some(interned) => interned,
+        None => {
+            let interned: &'static str = Box::leak(pattern.to_string().into_boxed_str());
+            cache.push(interned);
+            interned
+        }
+    }
+}
+
 async fn process_content(
     content_vc: ResolvedVc<FileContent>,
     code: String,
@@ -436,6 +454,7 @@ async fn process_content(
     ty: CssModuleType,
     environment: Option<ResolvedVc<Environment>>,
     feature_flags: LightningCssFeatureFlags,
+    css_modules_options: CssModulesOptions,
 ) -> Result<Vc<ParseCssResult>> {
     #[allow(clippy::needless_lifetimes)]
     fn without_warnings<'o, 'i>(config: ParserOptions<'o, 'i>) -> ParserOptions<'o, 'static> {
@@ -463,21 +482,38 @@ async fn process_content(
     let config = ParserOptions {
         flags,
         css_modules: match ty {
-            CssModuleType::Module => Some(lightningcss::css_modules::Config {
-                pattern: Pattern {
-                    segments: smallvec![
-                        Segment::Name,
-                        Segment::Literal("__"),
-                        Segment::Hash,
-                        Segment::Literal("__"),
-                        Segment::Local,
-                    ],
-                },
-                dashed_idents: false,
-                grid: false,
-                container: false,
-                ..Default::default()
-            }),
+            CssModuleType::Module => {
+                let pattern = match &css_modules_options.pattern {
+                    Some(pattern) => {
+                        Pattern::parse(intern_css_modules_pattern(pattern)).map_err(|err| {
+                            anyhow!(
+                                "failed to parse CSS Modules naming pattern {pattern:?}: {err:?} \
+                                 (supported placeholders are [name], [local], [hash] and \
+                                 [content-hash])"
+                            )
+                        })?
+                    }
+                    None => Pattern {
+                        segments: smallvec![
+                            Segment::Name,
+                            Segment::Literal("__"),
+                            Segment::Hash,
+                            Segment::Literal("__"),
+                            Segment::Local,
+                        ],
+                    },
+                };
+
+                Some(lightningcss::css_modules::Config {
+                    pattern,
+                    animation: css_modules_options.animation.unwrap_or(true),
+                    grid: css_modules_options.grid.unwrap_or(false),
+                    custom_idents: css_modules_options.custom_idents.unwrap_or(true),
+                    dashed_idents: css_modules_options.dashed_idents.unwrap_or(false),
+                    container: css_modules_options.container.unwrap_or(false),
+                    ..Default::default()
+                })
+            }
 
             _ => None,
         },

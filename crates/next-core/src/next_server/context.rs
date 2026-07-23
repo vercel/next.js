@@ -587,6 +587,7 @@ pub async fn get_server_module_options_context(
             source_maps,
             module_css_condition: Some(module_styles_rule_condition()),
             lightningcss_features: *next_config.lightningcss_feature_flags().await?,
+            css_modules_options: next_config.css_modules_options().owned().await?,
             ..Default::default()
         },
         follow_reexports: true,

@@ -12,6 +12,7 @@ pub(crate) mod process;
 pub(crate) mod references;
 
 use bincode::{Decode, Encode};
+use turbo_rcstr::RcStr;
 use turbo_tasks::trace::TraceRawVcs;
 
 use crate::references::import::ImportAssetReference;
@@ -38,4 +39,29 @@ pub enum CssModuleType {
 pub struct LightningCssFeatureFlags {
     pub include: u32,
     pub exclude: u32,
+}
+
+/// User-specified lightningcss CSS Modules options (from
+/// `experimental.lightningCssModules`).
+///
+/// `None` fields fall back to the defaults in `process_content`, which match
+/// the previously hardcoded behavior.
+#[turbo_tasks::value(shared, serialization = "auto", task_input)]
+#[derive(PartialOrd, Ord, Hash, Clone, Debug, Default)]
+pub struct CssModulesOptions {
+    /// Custom naming pattern for scoped names, e.g. `"[hash]-[local]"`.
+    /// Supported placeholders: `[name]`, `[local]`, `[hash]`,
+    /// `[content-hash]`. Defaults to `"[name]__[hash]__[local]"`.
+    pub pattern: Option<RcStr>,
+    /// Whether to scope `@keyframes` names. Defaults to `true`.
+    pub animation: Option<bool>,
+    /// Whether to scope CSS grid line names. Defaults to `false`.
+    pub grid: Option<bool>,
+    /// Whether to scope `custom-ident` values. Defaults to `true`.
+    pub custom_idents: Option<bool>,
+    /// Whether to scope dashed idents (custom properties). Defaults to
+    /// `false`.
+    pub dashed_idents: Option<bool>,
+    /// Whether to scope `@container` names. Defaults to `false`.
+    pub container: Option<bool>,
 }
