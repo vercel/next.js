@@ -92,7 +92,7 @@ export async function verifyTypeScriptSetup({
         throw new CompileError(
           `TypeScript ${installedTypescriptVersion} is not supported by this version of Next.js. ` +
             `The TypeScript 7 native compiler does not provide the JavaScript compiler API that Next.js requires. ` +
-            `Install TypeScript 6 (e.g. ${bold('npm install --save-dev typescript@^6')}) or upgrade to a newer version of Next.js that supports TypeScript 7.`
+            `Install TypeScript 6 (e.g. ${bold('npm install --save-dev typescript@^6')}) or upgrade to a Next.js v16.2.11 or later to get support for TypeScript 7.`
         )
       }
     }
