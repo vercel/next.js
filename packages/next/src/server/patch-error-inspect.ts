@@ -1,4 +1,3 @@
-import * as fs from 'fs'
 import * as path from 'path'
 import * as url from 'url'
 import type * as util from 'util'
@@ -73,6 +72,28 @@ export function setCodeFrameRenderer(renderer: CodeFrameRenderer): void {
   ;(globalThis as GlobalWithCodeFrameRenderer)[CODE_FRAME_RENDERER] = renderer
 }
 
+/**
+ * Renders a code frame by reading the original source from turbopack, for maps that omit inlined
+ * `sourcesContent` (dev with `experimental.turbopackServeSourceContent`). Injected by the dev
+ * server so this module keeps no hard dependency on native bindings. Given the map-resolved source
+ * URL (which may be prefixed by the on-demand-content `sourceRoot`), the renderer maps it back to a
+ * project file, reads + renders the frame in a single synchronous native call, and returns null if
+ * the source is not a servable project file.
+ */
+type NativeCodeFrameRenderer = (
+  frame: IgnorableStackFrame,
+  source: string,
+  colors: boolean
+) => string | null
+
+let nativeCodeFrameRenderer: NativeCodeFrameRenderer | undefined
+
+export function setNativeCodeFrameRenderer(
+  renderer: NativeCodeFrameRenderer
+): void {
+  nativeCodeFrameRenderer = renderer
+}
+
 function getOriginalCodeFrame(
   frame: IgnorableStackFrame,
   source: string | null,
@@ -123,54 +144,6 @@ function getOrCreateSourceMapConsumer(
     consumersByURL.set(sourceMapURL, consumer)
   }
   return consumer
-}
-
-/**
- * When a source map omits inlined `sourcesContent` (e.g. Turbopack dev with
- * `experimental.turbopackServeSourceContent`), server-side code frames read the original file
- * directly from disk. This is only valid for `file://`/absolute sources that live under the
- * project root — virtual schemes (`turbopack:///`, `webpack://`, `node:`, …) keep their content
- * inlined, so `sourceContentFor` already returns it and we never reach here for them.
- *
- * Reads are cached per file for the lifetime of the process image of the source; this is a
- * best-effort synchronous read inside error inspection, so any failure degrades to `null`.
- */
-const diskSourceContentCache = new Map<string, string | null>()
-
-function readSourceContentFromDiskSync(source: string): string | null {
-  // Only `file://` URIs and absolute paths are safe to read directly; everything else is virtual.
-  let filePath: string
-  if (source.startsWith('file://')) {
-    try {
-      filePath = url.fileURLToPath(source)
-    } catch {
-      return null
-    }
-  } else if (path.isAbsolute(source)) {
-    filePath = source
-  } else {
-    return null
-  }
-
-  const cached = diskSourceContentCache.get(filePath)
-  if (cached !== undefined) {
-    return cached
-  }
-
-  let content: string | null = null
-  try {
-    // Constrain reads to the project root, mirroring the browser endpoint's sandbox.
-    const projectRoot = process.cwd()
-    const relative = path.relative(projectRoot, filePath)
-    if (!relative.startsWith('..') && !path.isAbsolute(relative)) {
-      content = fs.readFileSync(filePath, 'utf8')
-    }
-  } catch {
-    content = null
-  }
-
-  diskSourceContentCache.set(filePath, content)
-  return content
 }
 
 function frameToString(
@@ -463,21 +436,27 @@ function getSourcemappedFrameIfPossible(
     stack: originalFrame,
     get code() {
       if (codeFrame === undefined) {
-        let sourceContent: string | null =
+        const sourceContent: string | null =
           sourceMapConsumer.sourceContentFor(
             sourcePosition.source,
             /* returnNullOnMissing */ true
           ) ?? null
-        // If the map omitted inlined content for this source (e.g. on-demand source content in
-        // Turbopack dev), fall back to reading the original `file://` source from disk.
-        if (sourceContent === null) {
-          sourceContent = readSourceContentFromDiskSync(sourcePosition.source)
+        if (sourceContent === null && nativeCodeFrameRenderer) {
+          // The map omitted inlined content for this source (dev with
+          // `experimental.turbopackServeSourceContent`). Read + render the frame from turbopack in
+          // one synchronous native call instead of laundering the source through JS.
+          codeFrame = nativeCodeFrameRenderer(
+            originalFrame,
+            sourcePosition.source,
+            inspectOptions.colors ?? false
+          )
+        } else {
+          codeFrame = getOriginalCodeFrame(
+            originalFrame,
+            sourceContent,
+            inspectOptions.colors
+          )
         }
-        codeFrame = getOriginalCodeFrame(
-          originalFrame,
-          sourceContent,
-          inspectOptions.colors
-        )
       }
       return codeFrame
     },

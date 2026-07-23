@@ -2713,28 +2713,61 @@ pub async fn project_get_code_frame_for_asset(
         .map_err(|e| napi::Error::from_reason(PrettyPrintError(&e.into()).to_string()))
 }
 
+/// Synchronous variant of [`project_get_code_frame_for_asset`], for callers that cannot await —
+/// notably `patch-error-inspect`'s synchronous `Error.prepareStackTrace` path. Blocks on the async
+/// implementation the same way [`project_get_source_map_sync`] does. Reading + rendering the frame
+/// in turbopack (rather than a JS-side disk read) keeps file caching in turbo-tasks.
+#[napi]
+pub fn project_get_code_frame_for_asset_sync(
+    #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
+    file_path: RcStr,
+    location: crate::code_frame::NapiCodeFrameLocation,
+    options: Option<crate::code_frame::NapiCodeFrameOptions>,
+) -> napi::Result<Option<String>> {
+    within_runtime_if_available(|| {
+        tokio::runtime::Handle::current().block_on(project_get_code_frame_for_asset(
+            project, file_path, location, options,
+        ))
+    })
+}
+
 /// Reads a project source file for the on-demand source-content dev endpoint.
 ///
-/// Unlike [`project_get_source_for_asset`], this is gated by the emitted-source-paths admission
-/// filter: it only serves files that a source map actually referenced. Combined with the
-/// filesystem-root sandbox (`root().join()`), this prevents reading arbitrary project files or
-/// escaping the project root via path traversal.
+/// Unlike [`project_get_source_for_asset`], this is gated by an admission set: it only serves files
+/// that a currently-emitted source map actually referenced (see
+/// [`Project::referenced_source_paths`]). Combined with the filesystem-root sandbox
+/// (`root().join()`), this prevents reading arbitrary project files or escaping the project root
+/// via path traversal. The admission set is a turbo-tasks query built lazily on first request and
+/// invalidated with the maps — there is no eagerly-maintained filter.
 #[tracing::instrument(level = "info", name = "get source content", skip_all)]
 #[napi]
 pub async fn project_get_source_content(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
     file_path: RcStr,
 ) -> napi::Result<Option<String>> {
-    // Admission check: only files referenced by an emitted source map may be served. A false
-    // positive here is still constrained by the filesystem-root sandbox below.
-    if !project.turbopack_ctx.contains_source_path(&file_path) {
-        return Ok(None);
-    }
-
     let container = project.container;
     let ctx = &project.turbopack_ctx;
     ctx.turbo_tasks()
         .run(async move {
+            // Admission check: only files referenced by a currently-emitted source map may be
+            // served. A miss here is still additionally constrained by the filesystem-root sandbox
+            // below.
+            #[turbo_tasks::function(operation, root)]
+            async fn is_referenced_operation(
+                container: ResolvedVc<ProjectContainer>,
+                file_path: RcStr,
+            ) -> Result<Vc<bool>> {
+                let referenced = container.project().referenced_source_paths().await?;
+                Ok(Vc::cell(referenced.contains(&file_path)))
+            }
+
+            if !*is_referenced_operation(container, file_path.clone())
+                .read_strongly_consistent()
+                .await?
+            {
+                return Ok(None);
+            }
+
             #[turbo_tasks::function(operation, root)]
             async fn source_content_operation(
                 container: ResolvedVc<ProjectContainer>,

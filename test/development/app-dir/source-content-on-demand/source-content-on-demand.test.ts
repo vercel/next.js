@@ -131,5 +131,24 @@ const isTurbopack = Boolean(process.env.IS_TURBOPACK_TEST)
       expect(stackText).not.toContain('file://')
       expect(stackText).not.toContain('.next/')
     })
+
+    it('resolves server (SSR) error frames via the on-demand content sourceRoot', async () => {
+      // Server source maps also drop inlined `sourcesContent` and set `sourceRoot`
+      // to the on-demand content endpoint. A server render error must still resolve
+      // its top frame back to the project file — the resolved frame carries the
+      // on-demand `sourceRoot` prefix, which only appears when content is served on
+      // demand (rather than a raw compiled `.next/` chunk path).
+      await next.render('/throws-server')
+
+      await retry(async () => {
+        expect(next.cliOutput).toContain('boom from throws server page')
+        // The traced server frame points at the project file via the on-demand
+        // content sourceRoot, not an unresolved `.next/` build artifact.
+        expect(next.cliOutput).toMatch(
+          /ThrowsServerPage \(.*__nextjs_source-content\/\[project\]\/app\/throws-server\/page\.tsx/
+        )
+      })
+      expect(next.cliOutput).not.toMatch(/ThrowsServerPage \(.*\.next\//)
+    })
   }
 )

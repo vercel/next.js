@@ -36,6 +36,7 @@ import {
   getSourceContentMiddleware,
   getSourceMapMiddleware,
   getOriginalStackFrames,
+  SOURCE_CONTENT_MIDDLEWARE_PREFIX,
 } from './middleware-turbopack'
 import { PageNotFoundError } from '../../shared/lib/utils'
 import { debounce } from '../utils'
@@ -359,6 +360,44 @@ function getSourceMapURLFromTurbopack(
   return pathToFileURL(scriptPath + '.map').href
 }
 
+/**
+ * Renders a code frame for a server stack frame whose source map omitted inlined `sourcesContent`
+ * (dev with `experimental.turbopackServeSourceContent`). The map-resolved `source` is a project
+ * path relative to the on-demand content endpoint's `sourceRoot`; strip that prefix and read +
+ * render the frame in a single synchronous native call so the source never crosses into JS.
+ * Returns null when `source` isn't a servable project file.
+ */
+function getCodeFrameFromTurbopack(
+  project: Project,
+  frame: { line1: number | null; column1: number | null },
+  source: string,
+  colors: boolean
+): string | null {
+  // Only on-demand-content project sources are read this way; anything else keeps inline content.
+  if (
+    !source.startsWith(SOURCE_CONTENT_MIDDLEWARE_PREFIX) ||
+    frame.line1 == null
+  ) {
+    return null
+  }
+  const filePath = source.slice(SOURCE_CONTENT_MIDDLEWARE_PREFIX.length)
+  try {
+    return project.getCodeFrameForAssetSync(
+      filePath,
+      {
+        start: {
+          line: frame.line1,
+          column: frame.column1 ?? undefined,
+        },
+      },
+      { color: colors }
+    )
+  } catch {
+    // Reading source is race-condition prone (the file may have changed/been deleted).
+    return null
+  }
+}
+
 export async function createHotReloaderTurbopack(
   opts: SetupOpts & { isSrcDir: boolean },
   serverFields: ServerFields,
@@ -510,6 +549,13 @@ export async function createHotReloaderTurbopack(
   const { installCodeFrameSupport } =
     require('../lib/install-code-frame') as typeof import('../lib/install-code-frame')
   installCodeFrameSupport()
+  // For dev maps that omit inlined content (`experimental.turbopackServeSourceContent`), render
+  // server-side code frames by reading the original source from turbopack instead of from disk.
+  const { setNativeCodeFrameRenderer } =
+    require('../patch-error-inspect') as typeof import('../patch-error-inspect')
+  setNativeCodeFrameRenderer((frame, source, colors) =>
+    getCodeFrameFromTurbopack(project, frame, source, colors)
+  )
 
   opts.onDevServerCleanup?.(async () => {
     setBundlerFindSourceMapImplementation(() => undefined)

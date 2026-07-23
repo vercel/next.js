@@ -45,13 +45,6 @@ pub struct NextTurbopackContext {
 struct NextTurboContextInner {
     turbo_tasks: NextTurboTasks,
     napi_callbacks: NapiNextTurbopackCallbacks,
-    /// Approximate membership set of project-relative source file paths that have been referenced
-    /// by an emitted source map. Used to gate the on-demand source-content dev endpoint so it only
-    /// serves files that a source map actually pointed at (defense in depth on top of the
-    /// filesystem-root sandbox). This is a probabilistic filter: false positives are acceptable
-    /// (the read is still sandboxed to the project root), false negatives don't happen for paths
-    /// that were inserted. Entries are never evicted — once referenced, always allowed.
-    emitted_source_paths: Mutex<qfilter::Filter>,
 }
 
 impl NextTurbopackContext {
@@ -60,37 +53,12 @@ impl NextTurbopackContext {
             inner: Arc::new(NextTurboContextInner {
                 turbo_tasks,
                 napi_callbacks,
-                // Start small, grow up to ~4M entries. 0.1% false-positive rate is plenty for an
-                // admission check backed by a hard filesystem-root sandbox.
-                emitted_source_paths: Mutex::new(
-                    qfilter::Filter::new_resizeable(1 << 10, 1 << 22, 0.001)
-                        .expect("valid qfilter capacity"),
-                ),
             }),
         }
     }
 
     pub fn turbo_tasks(&self) -> &NextTurboTasks {
         &self.inner.turbo_tasks
-    }
-
-    /// Records that `path` (a project-relative source path) was referenced by an emitted source
-    /// map, allowing the on-demand source-content endpoint to serve it.
-    pub fn insert_source_path(&self, path: &str) {
-        if let Ok(mut filter) = self.inner.emitted_source_paths.lock() {
-            // Ignore capacity errors: if the filter is full we simply stop admitting new paths.
-            // The filesystem-root sandbox remains the hard security boundary.
-            let _ = filter.insert(path);
-        }
-    }
-
-    /// Returns whether `path` was (probably) referenced by an emitted source map.
-    pub fn contains_source_path(&self, path: &str) -> bool {
-        self.inner
-            .emitted_source_paths
-            .lock()
-            .map(|filter| filter.contains(path))
-            .unwrap_or(false)
     }
 
     /// Constructs and throws a `TurbopackInternalError` from within JavaScript. This type is
