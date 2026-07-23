@@ -34,12 +34,23 @@ pub struct FetchClientConfig {
     /// will be clamped to this value. This prevents pathologically short timeouts from causing an
     /// invalidation bomb. Defaults to 1 hour.
     pub min_cache_control: Duration,
+    /// Maximum time to establish a connection (DNS + TCP + TLS). Defaults to 10 seconds.
+    pub connect_timeout: Duration,
+    /// Maximum time for the entire request. Always larger than `connect_timeout`. Defaults to
+    /// 60 seconds.
+    pub timeout: Duration,
+    /// Times to retry a transient failure (connection error, timeout, or 5xx) before surfacing
+    /// it. Total attempts is `max_retries + 1`. Defaults to 0.
+    pub max_retries: u32,
 }
 
 impl Default for FetchClientConfig {
     fn default() -> Self {
         Self {
             min_cache_control: Duration::from_secs(60 * 60),
+            connect_timeout: Duration::from_secs(10),
+            timeout: Duration::from_secs(60),
+            max_retries: 0,
         }
     }
 }
@@ -68,7 +79,9 @@ impl FetchClientConfig {
 
     fn try_build_uncached_reqwest_client(&self) -> reqwest::Result<reqwest::Client> {
         #[allow(unused_mut)]
-        let mut builder = reqwest::Client::builder();
+        let mut builder = reqwest::Client::builder()
+            .connect_timeout(self.connect_timeout)
+            .timeout(self.timeout);
         #[cfg(any(target_os = "linux", all(windows, not(target_arch = "aarch64"))))]
         {
             use std::sync::Once;
@@ -159,6 +172,7 @@ impl FetchClientConfig {
         let url_ref = &*url;
         let this = self.await?;
         let min_cache_control_secs = this.min_cache_control;
+        let max_retries = this.max_retries;
         let response_result: reqwest::Result<(HttpResponse, Option<u64>)> = async move {
             let reqwest_client = this.try_get_cached_reqwest_client()?;
 
@@ -169,9 +183,28 @@ impl FetchClientConfig {
 
             let response = {
                 let _span = duration_span!("fetch request", url = url_ref);
-                builder.send().await
-            }
-            .and_then(|r| r.error_for_status())?;
+                let mut attempt = 0;
+                loop {
+                    let request = builder.try_clone().expect("request should be cloneable");
+                    let result = {
+                        let _span = duration_span!("fetch attempt", url = url_ref, attempt);
+                        request.send().await.and_then(|r| r.error_for_status())
+                    };
+                    match result {
+                        Ok(response) => break response,
+                        Err(err)
+                            if attempt < max_retries
+                                && (err.is_connect()
+                                    || err.is_timeout()
+                                    || err.is_request()
+                                    || err.status().is_some_and(|s| s.is_server_error())) =>
+                        {
+                            attempt += 1;
+                        }
+                        Err(err) => return Err(err),
+                    }
+                }
+            };
 
             let status = response.status().as_u16();
             let max_age = parse_cache_control(response.headers());
