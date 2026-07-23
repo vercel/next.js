@@ -333,21 +333,21 @@ impl TurboTasksBackend {
         (self.start_time.elapsed().as_secs() / 5) as u32
     }
 
-    /// Recency parameters for an eviction sweep, if `TURBO_ENGINE_EVICT_MIN_AGE_SECS` is set:
-    /// tasks read within that many seconds keep their value data.
-    fn eviction_recency(&self) -> Option<crate::backend::storage::EvictionRecency> {
+    /// Recency parameters for an eviction sweep. The skip gate is active only when
+    /// `TURBO_ENGINE_EVICT_MIN_AGE_SECS` is set: tasks read within that many seconds keep
+    /// their value data. Evicted-epoch stamping (for regret tracking) is always active.
+    fn eviction_recency(&self) -> crate::backend::storage::EvictionRecency {
         static MIN_AGE_EPOCHS: LazyLock<Option<u32>> = LazyLock::new(|| {
             std::env::var("TURBO_ENGINE_EVICT_MIN_AGE_SECS")
                 .ok()
                 .and_then(|v| v.parse::<u64>().ok())
-                .map(|secs| (secs / 5).max(1) as u32)
+                .map(|secs| ((secs / 5) as u32).max(1))
         });
-        let min_age = (*MIN_AGE_EPOCHS)?;
         let current_epoch = self.recency_epoch();
-        Some(crate::backend::storage::EvictionRecency {
-            min_epoch: current_epoch.saturating_sub(min_age),
+        crate::backend::storage::EvictionRecency {
+            min_epoch: MIN_AGE_EPOCHS.map(|age| current_epoch.saturating_sub(age)),
             current_epoch,
-        })
+        }
     }
 
     /// Perform a snapshot and then evict all evictable tasks from memory.

@@ -563,7 +563,7 @@ impl Storage {
     pub fn evict_after_snapshot(
         &self,
         parent_span: Option<Id>,
-        recency: Option<EvictionRecency>,
+        recency: EvictionRecency,
     ) -> EvictionCounts {
         let span = tracing::trace_span!(
             parent: parent_span,
@@ -594,11 +594,11 @@ impl Storage {
                     evicted.unevictable_reasons[UnevictableReason::Transient.index()] += 1;
                     continue;
                 }
-                if let Some(recency) = &recency
+                if let Some(min_epoch) = recency.min_epoch
                     && task
                         .get()
                         .get_last_read_epoch()
-                        .is_some_and(|&epoch| epoch >= recency.min_epoch)
+                        .is_some_and(|&epoch| epoch >= min_epoch)
                 {
                     evicted.skipped_recently_read += 1;
                     continue;
@@ -632,7 +632,7 @@ impl Storage {
                 }
                 match value_evictability {
                     ValueEvictability::Evictable { meta, data } => {
-                        if data && let Some(recency) = &recency {
+                        if data {
                             task.get_mut().set_last_evicted_epoch(recency.current_epoch);
                         }
                         match task.get_mut().drop_partial(data, meta) {
@@ -703,7 +703,9 @@ impl Storage {
 /// Recency parameters for an eviction sweep: tasks read at or after `min_epoch` are kept.
 #[derive(Clone, Copy, Debug)]
 pub struct EvictionRecency {
-    pub min_epoch: u32,
+    /// Tasks read at or after this epoch are skipped. `None` disables the gate (all
+    /// evictable tasks are dropped, matching pre-recency behavior).
+    pub min_epoch: Option<u32>,
     pub current_epoch: u32,
 }
 
