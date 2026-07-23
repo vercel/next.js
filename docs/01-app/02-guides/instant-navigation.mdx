@@ -64,7 +64,7 @@ To prefetch the page content alongside the shell for a specific link, set [`pref
 </Link>
 ```
 
-To prefetch with the user's session (cookies, headers, the full URL), opt the destination segment into [runtime prefetching](/docs/app/guides/runtime-prefetching) with `export const prefetch = 'allow-runtime'`.
+With Partial Prefetching enabled, `prefetch={true}` also opts the link into [runtime prefetching](/docs/app/guides/runtime-prefetching), which resolves the per-link URL data (`params`, `searchParams`, the full URL) ahead of the click.
 
 ### Validate instant navigation
 
