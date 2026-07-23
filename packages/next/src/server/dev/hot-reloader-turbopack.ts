@@ -696,6 +696,14 @@ export async function createHotReloaderTurbopack(
   let serverHmrSubscriptions: ServerHmrSubscriptions | undefined
 
   let hmrEventHappened = false
+  // A counter identifying the current version of the compiled output, included
+  // by `"use cache"` in dev cache keys so that cached entries revalidate after
+  // an edit. It advances once per HMR change event (for App Router pages that
+  // is an RSC change, which is what a cached render depends on), independent of
+  // how many clients are connected. It deliberately does not advance on `BUILT`
+  // messages: those are sent per connected client on every compilation, so
+  // advancing there would both churn the hash without an edit and fail to
+  // advance it at all when no client is connected.
   let hmrHash = 0
 
   const clientsWithoutHtmlRequestId = new Set<ws>()
@@ -1495,6 +1503,16 @@ export async function createHotReloaderTurbopack(
       }
     },
 
+    getServerComponentsHmrRefreshHash() {
+      // The current server-components generation. Only the change subscription
+      // (an actual recompile) advances `hmrHash`; reloads and config
+      // invalidations don't, so the value stays stable across requests until a
+      // real edit. Returned unconditionally (`"0"` before the first edit) so
+      // `"use cache"` keys are present and consistent for every request,
+      // mirroring webpack's always-present `stats.hash`.
+      return String(hmrHash)
+    },
+
     sendToLegacyClients(action) {
       const payload = JSON.stringify(action)
 
@@ -1641,7 +1659,6 @@ export async function createHotReloaderTurbopack(
         await clearAllModuleContexts()
         this.send({
           type: HMR_MESSAGE_SENT_TO_BROWSER.SERVER_COMPONENT_CHANGES,
-          hash: String(++hmrHash),
         })
       }
     },
@@ -1922,7 +1939,10 @@ export async function createHotReloaderTurbopack(
 
             sendToClient(client, {
               type: HMR_MESSAGE_SENT_TO_BROWSER.BUILT,
-              hash: String(++hmrHash),
+              // Report the current version without advancing it: a completed
+              // compilation is not itself an edit, and this hash is not
+              // consumed by the Turbopack client.
+              hash: String(hmrHash),
               errors: [...clientErrors.values()],
               warnings: [],
             })
@@ -1981,7 +2001,6 @@ export async function createHotReloaderTurbopack(
         // Tell browsers to refetch RSC (soft refresh, not full page reload)
         hotReloader.send({
           type: HMR_MESSAGE_SENT_TO_BROWSER.SERVER_COMPONENT_CHANGES,
-          hash: String(++hmrHash),
         })
       },
     })

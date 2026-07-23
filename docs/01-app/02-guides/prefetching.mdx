@@ -13,7 +13,7 @@ This guide will explain how prefetching works and show common implementation pat
 - [Extending or ejecting link](#extending-or-ejecting-link)
 - [Disabled prefetch](#disabled-prefetch)
 
-> **Using Cache Components?** With [`cacheComponents`](/docs/app/api-reference/config/next-config-js/cacheComponents) enabled, `<Link>` defaults to prefetching a per-route [App Shell](/docs/app/glossary#app-shell) rather than the full page. Set `prefetch={true}` on a `<Link>` to also prefetch the destination page's content. See [Adopting Partial Prefetching](/docs/app/guides/adopting-partial-prefetching) for the behavior change and the recommended adoption path.
+> **Using [Partial Prefetching](/docs/app/api-reference/config/next-config-js/partialPrefetching)?** `<Link>` defaults to prefetching a per-route [App Shell](/docs/app/glossary#app-shell) rather than the full page. Set `prefetch={true}` on a `<Link>` to also prefetch the destination page's content. See [Adopting Partial Prefetching](/docs/app/guides/adopting-partial-prefetching) for the behavior change and the recommended adoption path.
 
 ## How does prefetching work?
 
@@ -207,7 +207,7 @@ The scheduler prioritizes likely navigations while minimizing unused downloads.
 
 ### Cache Components
 
-With [Cache Components](/docs/app/getting-started/caching) enabled, the prefetching strategy uses an [App Shell](/docs/app/glossary#app-shell) to make client navigations instant:
+With [Cache Components](/docs/app/getting-started/caching) and [Partial Prefetching](/docs/app/api-reference/config/next-config-js/partialPrefetching) enabled, the prefetching strategy uses an [App Shell](/docs/app/glossary#app-shell) to make client navigations instant:
 
 - The App Shell holds the route's static and session output.
 - Uncached data streams in when ready.

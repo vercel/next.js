@@ -540,7 +540,10 @@ async fn build_manifest(
                             for (const key in globalThis.__RSC_MANIFEST[{entry_name}].clientModules) {{
                                 const val = {{ ...globalThis.__RSC_MANIFEST[{entry_name}].clientModules[key] }}
                                 globalThis.__RSC_MANIFEST[{entry_name}].clientModules[key] = val
-                                val.chunks = val.chunks.map((c) => `${{c}}?dpl=${{process.env.NEXT_DEPLOYMENT_ID}}`)
+                                val.chunks = val.chunks.map((c) =>
+                                    typeof c === 'string'
+                                        ? `${{c}}?dpl=${{process.env.NEXT_DEPLOYMENT_ID}}`
+                                        : [`${{c[0]}}?dpl=${{process.env.NEXT_DEPLOYMENT_ID}}`, c[1], c[2]])
                             }}
                             "#,
                             entry_name = StringifyJs(&normalized_manifest_entry),

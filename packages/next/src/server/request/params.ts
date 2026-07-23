@@ -244,6 +244,7 @@ export function createServerParamsForServerSegment(
         return createRuntimePrerenderParams(
           underlyingParams,
           optionalCatchAllParamName,
+          workStore,
           workUnitStore,
           varyParamsAccumulator
         )
@@ -358,7 +359,7 @@ function createStaticPrerenderParams(
       // All params are static.
 
       const { stagedRendering } = prerenderStore
-      if (process.env.__NEXT_APP_SHELLS && stagedRendering) {
+      if (stagedRendering) {
         // Even if all params are static, we need to exclude them from the app shell
         // by delaying them to the static stage. However, root params are allowed in shells,
         // so if all the params are root params, they can be included as well.
@@ -431,6 +432,7 @@ function createStaticPrerenderParams(
 function createRuntimePrerenderParams(
   underlyingParams: Params,
   optionalCatchAllParamName: string | null,
+  workStore: WorkStore,
   workUnitStore: PrerenderStoreModernRuntime,
   varyParamsAccumulator: VaryParamsAccumulator | null
 ): Promise<Params> {
@@ -450,16 +452,21 @@ function createRuntimePrerenderParams(
 
   const { stagedRendering } = workUnitStore
   if (!stagedRendering) {
-    // If there's no staging, we're in a prospective runtime prerender,
-    // and it doesn't matter when params resolve.
-    return makeUntrackedParams(userspaceParams)
+    // If there's no staging, we're in a prospective runtime prerender.
+    if (workUnitStore.isSessionShell) {
+      // If we're warming up for a session shell, params should be hanging,
+      // because they'll be a hanging input in the final prerender.
+      return makeHangingParams(underlyingParams, workStore, workUnitStore)
+    } else {
+      return makeUntrackedParams(userspaceParams)
+    }
   }
 
   // We don't have fallbackParams in runtime prerenders, so we don't know
   // when params are static. However, root params are static by definition,
   // so we can at least check for that.
-  // Note that resolving them without a delay is also valid in `appShells`,
-  // because root params are allowed in shells.
+  // Note that resolving them without a delay is valid because root params are
+  // allowed in shells.
   if (allParamsAreRootParams(underlyingParams, workUnitStore.rootParams)) {
     return makeUntrackedParams(userspaceParams)
   }
@@ -583,10 +590,7 @@ function createStagedRenderParamsImpl(
 
   // If we're rendering with shells, even static params must be delayed to exclude them from the shell.
   // However, root params are allowed in shells, so if all the params are root params, they can be included as well.
-  if (
-    process.env.__NEXT_APP_SHELLS &&
-    !allParamsAreRootParams(underlyingParams, workUnitStore.rootParams)
-  ) {
+  if (!allParamsAreRootParams(underlyingParams, workUnitStore.rootParams)) {
     // For a dynamic request we generally want to recover a static shell,
     // so static params can resolve in the static stage, because session
     // shells are handled with a separate render.
@@ -712,7 +716,7 @@ const fallbackParamsProxyHandler: ProxyHandler<Promise<Params>> = {
 function makeHangingParams(
   underlyingParams: Params,
   workStore: WorkStore,
-  prerenderStore: StaticPrerenderStoreModern
+  prerenderStore: StaticPrerenderStoreModern | PrerenderStoreModernRuntime
 ): Promise<Params> {
   const cachedParams = CachedParams.get(underlyingParams)
   if (cachedParams) {

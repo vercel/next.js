@@ -192,7 +192,7 @@ export function getDefineEnv({
     'process.env.__NEXT_USE_NODE_STREAMS': isEdgeServer ? false : true,
 
     'process.env.NEXT_SUPPORTS_IMMUTABLE_ASSETS':
-      config.experimental.supportsImmutableAssets || false,
+      config.supportsImmutableAssets || false,
 
     ...(config.experimental?.useSkewCookie || !config.deploymentId
       ? {
@@ -392,7 +392,6 @@ export function getDefineEnv({
       config.experimental.optimisticRouting ?? false,
     'process.env.__NEXT_INSTRUMENTATION_CLIENT_ROUTER_TRANSITION_EVENTS':
       config.experimental.instrumentationClientRouterTransitionEvents ?? false,
-    'process.env.__NEXT_APP_SHELLS': config.experimental.appShells ?? false,
     'process.env.__NEXT_VARY_PARAMS': config.experimental.varyParams ?? false,
     'process.env.__NEXT_EXPOSE_TESTING_API':
       dev || config.experimental.exposeTestingApiInProductionBuild === true,

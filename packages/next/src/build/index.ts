@@ -866,7 +866,7 @@ export function createStaticWorker(
           : undefined),
         // worker.ts copies this value into globalThis.NEXT_CLIENT_ASSET_SUFFIX
         __NEXT_PRERENDER_CLIENT_ASSET_SUFFIX:
-          config.experimental.supportsImmutableAssets || !config.deploymentId
+          config.supportsImmutableAssets || !config.deploymentId
             ? ''
             : `?dpl=${config.deploymentId}`,
       },
@@ -2146,7 +2146,7 @@ export default async function build(
               cacheLifeProfiles: config.cacheLife,
               buildId,
               deploymentId: config.deploymentId,
-              clientAssetToken: config.experimental.supportsImmutableAssets
+              clientAssetToken: config.supportsImmutableAssets
                 ? ''
                 : config.deploymentId,
               sriEnabled,
@@ -2379,8 +2379,7 @@ export default async function build(
                             cacheLifeProfiles: config.cacheLife,
                             buildId,
                             deploymentId: config.deploymentId,
-                            clientAssetToken: config.experimental
-                              .supportsImmutableAssets
+                            clientAssetToken: config.supportsImmutableAssets
                               ? ''
                               : config.deploymentId,
                             sriEnabled,

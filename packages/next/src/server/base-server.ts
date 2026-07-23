@@ -422,6 +422,15 @@ export default abstract class Server<
       : undefined
   }
 
+  /**
+   * The hash of the most recent server component change (dev only), used to
+   * revalidate `"use cache"` entries after an edit. Overridden by the dev
+   * server; returns `undefined` otherwise.
+   */
+  protected getServerComponentsHmrRefreshHash(): string | undefined {
+    return undefined
+  }
+
   protected abstract loadEnvConfig(params: {
     dev: boolean
     forceReload: boolean
@@ -493,7 +502,7 @@ export default abstract class Server<
       process.env.NEXT_DEPLOYMENT_ID = id
     }
     ;(globalThis as any).NEXT_CLIENT_ASSET_SUFFIX =
-      this.nextConfig.experimental.supportsImmutableAssets || !this.deploymentId
+      this.nextConfig.supportsImmutableAssets || !this.deploymentId
         ? ''
         : `?dpl=${this.deploymentId}`
 
@@ -602,7 +611,6 @@ export default abstract class Server<
         useCacheTimeout: this.nextConfig.experimental.useCacheTimeout,
         cachedNavigations:
           this.nextConfig.experimental.cachedNavigations ?? false,
-        appShells: this.nextConfig.experimental.appShells,
         maxPostponedStateSizeBytes: parseMaxPostponedStateSize(
           this.nextConfig.experimental.maxPostponedStateSize
         ),
@@ -1548,6 +1556,20 @@ export default abstract class Server<
         )
       }
 
+      // Attach the server components HMR refresh hash here, alongside the HMR
+      // cache, so it reaches every render that passes through this request
+      // handling, including internal renders (e.g. dev validation/warmup) that
+      // don't re-enter the top-level request handler. It's included in `"use
+      // cache"` keys so cached entries revalidate after an edit, for every
+      // client.
+      if (!getRequestMeta(req, 'hmrRefreshHash')) {
+        addRequestMeta(
+          req,
+          'hmrRefreshHash',
+          this.getServerComponentsHmrRefreshHash()
+        )
+      }
+
       // when invokePath is specified we can short short circuit resolving
       // we only honor this header if we are inside of a render worker to
       // prevent external users coercing the routing path
@@ -2178,7 +2200,12 @@ export default abstract class Server<
         // generate the 5-character `_rsc` form.
         // Note: When no headers are present, expectedHash is empty string and client
         // must send `_rsc` param, otherwise actualHash is null and hash check fails.
-        const url = new URL(req.url || '', 'http://localhost')
+        // `req.url` may have had its basePath removed during normalization.
+        // Build the redirect from the original URL so it remains public-facing.
+        const url = new URL(
+          getRequestMeta(req, 'initURL') || req.url || '',
+          'http://localhost'
+        )
         setCacheBustingSearchParamWithHash(url, expectedHash)
         res.statusCode = 307
         res.setHeader('location', `${url.pathname}${url.search}`)

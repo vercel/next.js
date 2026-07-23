@@ -553,8 +553,7 @@ export async function handleBuildComplete({
       const staticFiles = await recursiveReadDir(path.join(distDir, 'static'))
 
       const clientHashes: Record<string, string> | undefined =
-        bundler === Bundler.Turbopack &&
-        config.experimental.supportsImmutableAssets
+        bundler === Bundler.Turbopack && config.supportsImmutableAssets
           ? JSON.parse(
               await fs.readFile(
                 path.join(distDir, 'immutable-static-hashes.json'),
@@ -1047,7 +1046,7 @@ export async function handleBuildComplete({
               path.relative(repoRoot, pageFile),
               pageFile,
               bundler,
-              config.experimental.outputHashSalt || ''
+              config.outputHashSalt || ''
             )
             continue
           }
@@ -1573,6 +1572,9 @@ export async function handleBuildComplete({
           )?.routeKeys || {}
         const allowQuery = Object.values(routeKeys)
         const partialFallback =
+          // Partial fallback shells are only emitted when Partial Prefetching
+          // is enabled in the app's Next.js config.
+          Boolean(config.partialPrefetching) &&
           isAppPage &&
           remainingPrerenderableParams !== undefined &&
           remainingPrerenderableParams.length > 0 &&
@@ -1583,6 +1585,7 @@ export async function handleBuildComplete({
         const canEmitPartialFallback =
           partialFallback && fallbackRootParams?.length === 0
         let htmlAllowQuery = allowQuery
+        let didFilterBlockingAllowQuery = false
 
         // We only want to vary on the shell contents if there is a fallback
         // present and able to be served.
@@ -1613,6 +1616,35 @@ export async function handleBuildComplete({
                   )
                 : []
           }
+        } else if (
+          fallback === null &&
+          isAppPage &&
+          renderingMode === RenderingMode.PARTIALLY_STATIC &&
+          routesManifest.rsc.clientParamParsing &&
+          remainingPrerenderableParams !== undefined
+        ) {
+          // BLOCKING entries (no servable fallback) still cache their
+          // on-demand renders, so the same cache-key contract applies as for
+          // partial fallbacks: only params that `generateStaticParams` can
+          // still provide may partition the cache — root params (which are
+          // always provided) and the remaining prerenderable params.
+          // Including a never-prerenderable param would create a cache entry
+          // per param value and resolve the param into the cached content,
+          // so it must be stripped from the request instead, which defers it
+          // to a per-request resume.
+          const prerenderableQueryKeys = new Set<string>()
+          for (const paramName of fallbackRootParams ?? []) {
+            prerenderableQueryKeys.add(`${NEXT_QUERY_PARAM_PREFIX}${paramName}`)
+          }
+          for (const param of remainingPrerenderableParams) {
+            prerenderableQueryKeys.add(
+              `${NEXT_QUERY_PARAM_PREFIX}${param.paramName}`
+            )
+          }
+          htmlAllowQuery = allowQuery.filter((routeKey) =>
+            prerenderableQueryKeys.has(routeKey)
+          )
+          didFilterBlockingAllowQuery = true
         }
 
         const initialOutput: AdapterOutput['PRERENDER'] = {
@@ -1697,6 +1729,12 @@ export async function handleBuildComplete({
             if (routesManifest.rsc.clientParamParsing) {
               dataAllowQuery = htmlAllowQuery
             }
+          } else if (didFilterBlockingAllowQuery) {
+            // Blocking entries have no fallback shell whose presence could
+            // make the data route vary differently from the HTML route: the
+            // on-demand data render is cached under the same
+            // prerenderable-params-only contract.
+            dataAllowQuery = htmlAllowQuery
           }
 
           if (renderingMode === RenderingMode.PARTIALLY_STATIC) {
@@ -2171,7 +2209,7 @@ async function getSharedNodeAssets({
   const pagesSharedNodeAssetsHashes: Record<string, string> = {}
   const appPagesSharedNodeAssets: Record<string, string> = {}
   const appPagesSharedNodeAssetsHashes: Record<string, string> = {}
-  const salt = config.experimental.outputHashSalt || ''
+  const salt = config.outputHashSalt || ''
 
   const moduleTypes = ['app-page', 'pages'] as const
 
