@@ -1,8 +1,20 @@
-import { ReactNode } from 'react'
+import { ReactNode, Suspense } from 'react'
+import { connection } from 'next/server'
+
+async function Dynamic() {
+  await connection()
+  return null
+}
+
 export default function Root({ children }: { children: ReactNode }) {
   return (
     <html>
-      <body>{children}</body>
+      <body>
+        <Suspense>
+          <Dynamic />
+        </Suspense>
+        {children}
+      </body>
     </html>
   )
 }

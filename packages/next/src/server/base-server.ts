@@ -2358,7 +2358,10 @@ export default abstract class Server<
 
       // For subresource requests (e.g. images or fonts), return plain text
       // 404 instead of rendering the not-found route.
-      if (isNonHtmlSecFetchDest(req.headers['sec-fetch-dest'])) {
+      if (
+        (req.method === 'GET' || req.method === 'HEAD') &&
+        isNonHtmlSecFetchDest(req.headers['sec-fetch-dest'])
+      ) {
         res.setHeader(
           'Cache-Control',
           'private, no-cache, no-store, max-age=0, must-revalidate'

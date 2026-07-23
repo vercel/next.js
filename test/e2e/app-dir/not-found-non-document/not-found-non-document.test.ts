@@ -18,8 +18,10 @@ describe('not-found-non-document', () => {
     })
     expect(res.status).toBe(404)
     if (isNextDeploy) {
-      // When deployed, unmatched paths are served the prerendered 404 page
-      // without invoking Next.js.
+      // The build emits a prerendered not-found page, and the deployed
+      // routing layer serves it without invoking Next.js.
+      // TODO: It might be good to align the CDN behavior so subresource
+      // requests to unknown paths get the plain text 404 when deployed too.
       expect(res.headers.get('content-type')).toContain('text/html')
     } else {
       expect(res.headers.get('content-type')).toContain('text/plain')
@@ -44,6 +46,10 @@ describe('not-found-non-document', () => {
       })
       expect(res.status).toBe(404)
       if (isNextDeploy) {
+        // The build emits a prerendered not-found page, and the deployed
+        // routing layer serves it without invoking Next.js.
+        // TODO: It might be good to align the CDN behavior so subresource
+        // requests to unknown paths get the plain text 404 when deployed too.
         expect(res.headers.get('content-type')).toContain('text/html')
       } else {
         expect(res.headers.get('content-type')).toContain('text/plain')

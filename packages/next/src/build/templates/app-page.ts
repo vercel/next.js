@@ -311,6 +311,7 @@ export async function handler(
   // instead of rendering the not-found route.
   if (
     normalizedSrcPage === UNDERSCORE_NOT_FOUND_ROUTE &&
+    (req.method === 'GET' || req.method === 'HEAD') &&
     !isRSCRequest &&
     isNonHtmlSecFetchDest(req.headers['sec-fetch-dest'])
   ) {

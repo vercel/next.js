@@ -729,7 +729,10 @@ export async function initialize(opts: {
 
       // For subresource requests (e.g. images or fonts), return plain text
       // 404 instead of rendering the not-found route.
-      if (isNonHtmlSecFetchDest(req.headers['sec-fetch-dest'])) {
+      if (
+        (req.method === 'GET' || req.method === 'HEAD') &&
+        isNonHtmlSecFetchDest(req.headers['sec-fetch-dest'])
+      ) {
         res.statusCode = 404
         res.setHeader('Content-Type', 'text/plain; charset=utf-8')
         res.end('Not Found')

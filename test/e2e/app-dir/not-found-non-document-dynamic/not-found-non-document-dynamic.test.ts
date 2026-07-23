@@ -1,8 +1,5 @@
 import { isNextDeploy, nextTestSetup } from 'e2e-utils'
 
-// With a dynamic root layout the not-found route can't be prerendered, so
-// unmatched paths invoke the server in every deployment topology, including
-// the platform's route handler when deployed.
 describe('not-found-non-document-dynamic', () => {
   const { next } = nextTestSetup({
     files: __dirname,
@@ -19,11 +16,19 @@ describe('not-found-non-document-dynamic', () => {
       },
     })
     expect(res.status).toBe(404)
-    expect(res.headers.get('content-type')).toContain('text/plain')
-    expect(res.headers.get('cache-control')).toBe(
-      'private, no-cache, no-store, max-age=0, must-revalidate'
-    )
-    expect(await res.text()).toBe('Not Found')
+    if (isNextDeploy && process.env.__NEXT_CACHE_COMPONENTS) {
+      // With cache components the not-found route is prerendered, and the
+      // deployed routing layer serves prerenders without invoking Next.js.
+      // TODO: It might be good to align the CDN behavior so subresource
+      // requests to unknown paths get the plain text 404 when deployed too.
+      expect(res.headers.get('content-type')).toContain('text/html')
+    } else {
+      expect(res.headers.get('content-type')).toContain('text/plain')
+      expect(res.headers.get('cache-control')).toBe(
+        'private, no-cache, no-store, max-age=0, must-revalidate'
+      )
+      expect(await res.text()).toBe('Not Found')
+    }
     if (!isNextDeploy) {
       expect(next.cliOutput.slice(outputIndex)).not.toContain(
         '__not-found-component-rendered__'
