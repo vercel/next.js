@@ -285,7 +285,7 @@ describe('dynamic-data with dynamic = "error"', () => {
 })
 
 describe('dynamic-data inside cache scope', () => {
-  const { next, isNextDev, isNextDeploy, isTurbopack, skipped } = nextTestSetup(
+  const { next, isNextDev, isNextDeploy, skipped } = nextTestSetup(
     {
       files: __dirname + '/fixtures/cache-scoped',
       skipStart: true,
