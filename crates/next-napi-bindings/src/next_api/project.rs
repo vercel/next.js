@@ -2541,11 +2541,7 @@ pub async fn project_get_code_frame_for_asset(
             };
 
             let source = source_content.content().to_str()?;
-            Ok(next_code_frame::render_code_frame(
-                &source,
-                &code_frame_location,
-                &code_frame_options,
-            )?)
+            next_code_frame::render_code_frame(&source, &code_frame_location, &code_frame_options)
         })
         // HACK: Don't use `TurbopackInternalError`, this function is race-condition prone (the
         // source files may have changed or been deleted), so these probably aren't internal errors?

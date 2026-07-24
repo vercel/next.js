@@ -2565,7 +2565,7 @@ impl Project {
 
     /// The admission set for the on-demand source-content dev endpoint: the project-relative source
     /// paths referenced by any currently-emitted source map. See
-    /// [`VersionedContentMap::referenced_source_paths`]. Empty outside dev.
+    /// `VersionedContentMap::referenced_source_paths`. Empty outside dev.
     #[turbo_tasks::function]
     pub async fn referenced_source_paths(
         self: Vc<Self>,
