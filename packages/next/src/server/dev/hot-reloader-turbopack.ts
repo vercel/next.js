@@ -691,6 +691,25 @@ export async function createHotReloaderTurbopack(
     client.send(data)
   }
 
+  let updateInProgress = false
+  let pendingServerComponentChanges = false
+
+  function sendServerComponentChanges() {
+    sendHmr('server-component-changes', {
+      type: HMR_MESSAGE_SENT_TO_BROWSER.SERVER_COMPONENT_CHANGES,
+    })
+  }
+
+  // Each announcement makes every client refetch its page, so an update's
+  // changes are announced once, on the update's end.
+  function handleServerComponentChanges() {
+    if (updateInProgress) {
+      pendingServerComponentChanges = true
+    } else {
+      sendServerComponentChanges()
+    }
+  }
+
   function sendEnqueuedMessages() {
     for (const [, issueMap] of currentEntryIssues) {
       if (
@@ -1800,6 +1819,7 @@ export async function createHotReloaderTurbopack(
                 subscribeToChanges: subscribeToChanges
                   ? subscribeToClientChanges
                   : ((async () => {}) as StartChangeSubscription),
+                handleServerComponentChanges,
                 handleWrittenEndpoint: (id, result, forceDeleteCache) => {
                   currentWrittenEntrypoints.set(id, result)
                   assetMapper.setPathsForKey(id, result.clientPaths)
@@ -1851,6 +1871,7 @@ export async function createHotReloaderTurbopack(
     for await (const updateMessage of project.updateInfoSubscribe(30)) {
       switch (updateMessage.updateType) {
         case 'start': {
+          updateInProgress = true
           hotReloader.send({ type: HMR_MESSAGE_SENT_TO_BROWSER.BUILDING })
           // Mark that HMR has started and we need to call the callback after it settles
           // This ensures onBeforeDeferredEntries will be called again during HMR
@@ -1862,6 +1883,11 @@ export async function createHotReloaderTurbopack(
           break
         }
         case 'end': {
+          updateInProgress = false
+          if (pendingServerComponentChanges) {
+            pendingServerComponentChanges = false
+            sendServerComponentChanges()
+          }
           sendEnqueuedMessages()
 
           function addToErrorsMap(
