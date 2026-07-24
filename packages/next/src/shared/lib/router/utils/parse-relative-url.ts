@@ -2,6 +2,8 @@ import type { ParsedUrlQuery } from 'querystring'
 import { getLocationOrigin } from '../../utils'
 import { searchParamsToUrlQuery } from './querystring'
 
+const DUMMY_ORIGIN_URL = new URL('http://n')
+
 export interface ParsedRelativeUrl {
   auth: string | null
   hash: string
@@ -37,16 +39,17 @@ export function parseRelativeUrl(
   base?: string,
   parseQuery = true
 ): ParsedRelativeUrl | Omit<ParsedRelativeUrl, 'query'> {
-  const globalBase = new URL(
-    typeof window === 'undefined' ? 'http://n' : getLocationOrigin()
-  )
+  const globalBase =
+    typeof window === 'undefined'
+      ? DUMMY_ORIGIN_URL
+      : new URL(getLocationOrigin())
 
   const resolvedBase = base
     ? new URL(base, globalBase)
     : url.startsWith('.')
-      ? new URL(
-          typeof window === 'undefined' ? 'http://n' : window.location.href
-        )
+      ? typeof window === 'undefined'
+        ? globalBase
+        : new URL(window.location.href)
       : globalBase
 
   const { pathname, searchParams, search, hash, href, origin } = url.startsWith(
