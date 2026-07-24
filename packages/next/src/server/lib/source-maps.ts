@@ -158,6 +158,36 @@ export function filterStackFrameDEV(
   }
 }
 
+// `scriptNameOrSourceURL` is what React forwards from the stack frame: the
+// script's `getScriptNameOrSourceURL()`, which for the server chunks we can
+// map is an absolute filesystem path, not a URL. The returned value is the
+// source map's URL (`file:` or `data:`).
+type FindSourceMapURL = (scriptNameOrSourceURL: string) => string | null
+// Find the URL of a source map using the bundler's API.
+// Shared via `globalThis` because this module is compiled both into the server
+// runtime bundles (which call `findSourceMapURLDEV`) and into `next/dist/server`
+// (where the dev server registers the implementation), and each copy has its own
+// module state.
+const bundlerFindSourceMapURLSymbol = Symbol.for(
+  'next.server.bundlerFindSourceMapURL'
+)
+
+export function setBundlerFindSourceMapURLImplementation(
+  findSourceMapURLImplementation: FindSourceMapURL
+): void {
+  ;(globalThis as any)[bundlerFindSourceMapURLSymbol] =
+    findSourceMapURLImplementation
+}
+
+function bundlerFindSourceMapURL(scriptNameOrSourceURL: string): string | null {
+  const implementation: FindSourceMapURL | undefined = (globalThis as any)[
+    bundlerFindSourceMapURLSymbol
+  ]
+  return implementation === undefined
+    ? null
+    : implementation(scriptNameOrSourceURL)
+}
+
 const invalidSourceMap = Symbol('invalid-source-map')
 const sourceMapURLs = new LRUCache<string | typeof invalidSourceMap>(
   512 * 1024 * 1024,
@@ -172,6 +202,19 @@ const sourceMapURLs = new LRUCache<string | typeof invalidSourceMap>(
 export function findSourceMapURLDEV(
   scriptNameOrSourceURL: string
 ): string | null {
+  try {
+    const bundlerSourceMapURL = bundlerFindSourceMapURL(scriptNameOrSourceURL)
+    if (bundlerSourceMapURL !== null) {
+      return bundlerSourceMapURL
+    }
+  } catch (cause) {
+    console.error(
+      `${scriptNameOrSourceURL}: Failed to find the source map URL. Cause: ${cause}`
+    )
+  }
+
+  // No bundler implementation (e.g. Webpack): inline the source map Node.js
+  // knows as a `data:` URL.
   let sourceMapURL = sourceMapURLs.get(scriptNameOrSourceURL)
   if (sourceMapURL === undefined) {
     let sourceMapPayload: ModernSourceMapPayload | undefined

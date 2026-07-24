@@ -1,7 +1,9 @@
 import type { Socket } from 'net'
 import { mkdir, writeFile } from 'fs/promises'
+import { realpathSync } from 'fs'
 import * as inspector from 'inspector'
-import { join, extname, relative } from 'path'
+import { join, extname, relative, isAbsolute } from 'path'
+import { fileURLToPath, pathToFileURL } from 'url'
 
 import ws from 'next/dist/compiled/ws'
 
@@ -84,6 +86,7 @@ import type { ModernSourceMapPayload } from '../lib/source-maps'
 import { isDeferredEntry } from '../../build/entries'
 import { isMetadataRouteFile } from '../../lib/metadata/is-metadata-route'
 import { setBundlerFindSourceMapImplementation } from '../patch-error-inspect'
+import { setBundlerFindSourceMapURLImplementation } from '../lib/source-maps'
 import { getNextErrorFeedbackMiddleware } from '../../next-devtools/server/get-next-error-feedback-middleware'
 import {
   formatIssue,
@@ -279,6 +282,47 @@ function getSourceMapFromTurbopack(
   }
 }
 
+function getSourceMapURLFromTurbopack(
+  distDir: string,
+  scriptNameOrSourceURL: string
+): string | null {
+  // React invokes this with the raw stack-frame filename, which arrives
+  // either as an absolute filesystem path or as a `file:` URL. Anything else
+  // (`file:` URLs with a query are eval'd server HMR modules carrying inline
+  // source maps, `webpack-internal://`, `node:internal/...`, `<anonymous>`,
+  // ...) is not something we have an emitted source map for.
+  let scriptPath = scriptNameOrSourceURL
+  if (scriptNameOrSourceURL.startsWith('file://')) {
+    if (scriptNameOrSourceURL.includes('?')) {
+      return null
+    }
+    try {
+      scriptPath = fileURLToPath(scriptNameOrSourceURL)
+    } catch {
+      return null
+    }
+  }
+  if (!isAbsolute(scriptPath)) {
+    return null
+  }
+
+  // Only chunks emitted into `distDir` have an on-disk source map to point at.
+  const relativePath = relative(distDir, scriptPath)
+  if (
+    relativePath.startsWith('..') ||
+    // On Windows an absolute path on a different drive is returned unchanged
+    // rather than as a `..`-prefixed relative path.
+    isAbsolute(relativePath)
+  ) {
+    return null
+  }
+
+  // The emitted source map lives next to its chunk with a `.map` suffix (see
+  // `SourceMapAsset::path`). Encode through `pathToFileURL` so any special
+  // characters in the path are escaped into a well-formed `file:` URL.
+  return pathToFileURL(scriptPath + '.map').href
+}
+
 export async function createHotReloaderTurbopack(
   opts: SetupOpts & { isSrcDir: boolean },
   serverFields: ServerFields,
@@ -410,6 +454,14 @@ export async function createHotReloaderTurbopack(
     getSourceMapFromTurbopack.bind(null, project)
   )
 
+  let canonicalDistDir = distDir
+  try {
+    canonicalDistDir = realpathSync(distDir)
+  } catch {}
+  setBundlerFindSourceMapURLImplementation(
+    getSourceMapURLFromTurbopack.bind(null, canonicalDistDir)
+  )
+
   // Set up code frame renderer using native bindings
   const { installCodeFrameSupport } =
     require('../lib/install-code-frame') as typeof import('../lib/install-code-frame')
@@ -417,6 +469,7 @@ export async function createHotReloaderTurbopack(
 
   opts.onDevServerCleanup?.(async () => {
     setBundlerFindSourceMapImplementation(() => undefined)
+    setBundlerFindSourceMapURLImplementation(() => null)
     await project.onExit()
     await lockfile?.unlock()
   })
