@@ -8614,7 +8614,9 @@ async function prerenderToStream(
       // can lead to a blocked root chunk (if it didn't flush before the abort).
       // This means that deserializing the RSC payload can hang in unexpected places --
       // normally, we can at least get the outer object with hanging promises inside.
-      throwIfSyncIOUsed(workStore, serverDynamicTracking)
+      if (!allowEmptyStaticShell) {
+        throwIfSyncIOUsed(workStore, serverDynamicTracking)
+      }
 
       const reactServerResult = (reactServerPrerenderResult =
         new ReactServerPrerenderResult(collectedChunks.prerenderChunks))
