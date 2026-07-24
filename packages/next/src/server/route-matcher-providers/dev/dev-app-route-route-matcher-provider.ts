@@ -22,6 +22,12 @@ export class DevAppRouteRouteMatcherProvider extends FileCacheRouteMatcherProvid
   private readonly appDir: string
   private readonly isTurbopack: boolean
 
+  // Matchers depend only on the immutable provider configuration and filename.
+  private readonly matcherCache = new Map<
+    string,
+    ReadonlyArray<AppRouteRouteMatcher>
+  >()
+
   constructor(
     appDir: string,
     extensions: ReadonlyArray<string>,
@@ -39,19 +45,37 @@ export class DevAppRouteRouteMatcherProvider extends FileCacheRouteMatcherProvid
     files: ReadonlyArray<string>
   ): Promise<ReadonlyArray<AppRouteRouteMatcher>> {
     const matchers: Array<AppRouteRouteMatcher> = []
+    const retained = this.matcherCache.size > 0 ? new Set<string>() : undefined
+
     for (const filename of files) {
+      retained?.add(filename)
+      const cached = this.matcherCache.get(filename)
+      if (cached) {
+        matchers.push(...cached)
+        continue
+      }
+
+      const matcherStart = matchers.length
+
       // Skip static metadata files as they are served from filesystem.
       if (isStaticMetadataFile(filename.replace(this.appDir, ''))) {
+        this.matcherCache.set(filename, [])
         continue
       }
 
       let page = this.normalizers.page.normalize(filename)
 
       // If the file isn't a match for this matcher, then skip it.
-      if (!isAppRouteRoute(page)) continue
+      if (!isAppRouteRoute(page)) {
+        this.matcherCache.set(filename, [])
+        continue
+      }
 
       // Validate that this is not an ignored page.
-      if (page.includes('/_')) continue
+      if (page.includes('/_')) {
+        this.matcherCache.set(filename, [])
+        continue
+      }
 
       // Turbopack uses the correct page name with the underscore normalized.
       // TODO: Move implementation to packages/next/src/server/normalizers/built/app/app-page-normalizer.ts.
@@ -130,6 +154,14 @@ export class DevAppRouteRouteMatcherProvider extends FileCacheRouteMatcherProvid
             filename,
           })
         )
+      }
+
+      this.matcherCache.set(filename, matchers.slice(matcherStart))
+    }
+
+    if (retained) {
+      for (const filename of this.matcherCache.keys()) {
+        if (!retained.has(filename)) this.matcherCache.delete(filename)
       }
     }
 

@@ -13,6 +13,9 @@ export class DevPagesAPIRouteMatcherProvider extends FileCacheRouteMatcherProvid
   private readonly expression: RegExp
   private readonly normalizers: DevPagesNormalizers
 
+  // A matcher depends only on the immutable provider configuration and filename.
+  private readonly matcherCache = new Map<string, PagesAPIRouteMatcher | null>()
+
   constructor(
     private readonly pagesDir: string,
     private readonly extensions: ReadonlyArray<string>,
@@ -54,17 +57,27 @@ export class DevPagesAPIRouteMatcherProvider extends FileCacheRouteMatcherProvid
     files: ReadonlyArray<string>
   ): Promise<ReadonlyArray<PagesAPIRouteMatcher>> {
     const matchers: Array<PagesAPIRouteMatcher> = []
+    const retained = this.matcherCache.size > 0 ? new Set<string>() : undefined
+
     for (const filename of files) {
+      retained?.add(filename)
+      const cached = this.matcherCache.get(filename)
+      if (cached !== undefined) {
+        if (cached) matchers.push(cached)
+        continue
+      }
+
       // If the file isn't a match for this matcher, then skip it.
-      if (!this.test(filename)) continue
+      if (!this.test(filename)) {
+        this.matcherCache.set(filename, null)
+        continue
+      }
 
       const pathname = this.normalizers.pathname.normalize(filename)
       const page = this.normalizers.page.normalize(filename)
       const bundlePath = this.normalizers.bundlePath.normalize(filename)
-
-      if (this.localeNormalizer) {
-        matchers.push(
-          new PagesAPILocaleRouteMatcher({
+      const matcher = this.localeNormalizer
+        ? new PagesAPILocaleRouteMatcher({
             kind: RouteKind.PAGES_API,
             pathname,
             page,
@@ -72,17 +85,21 @@ export class DevPagesAPIRouteMatcherProvider extends FileCacheRouteMatcherProvid
             filename,
             i18n: {},
           })
-        )
-      } else {
-        matchers.push(
-          new PagesAPIRouteMatcher({
+        : new PagesAPIRouteMatcher({
             kind: RouteKind.PAGES_API,
             pathname,
             page,
             bundlePath,
             filename,
           })
-        )
+
+      this.matcherCache.set(filename, matcher)
+      matchers.push(matcher)
+    }
+
+    if (retained) {
+      for (const filename of this.matcherCache.keys()) {
+        if (!retained.has(filename)) this.matcherCache.delete(filename)
       }
     }
 

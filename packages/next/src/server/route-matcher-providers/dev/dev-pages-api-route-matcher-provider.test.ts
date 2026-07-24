@@ -86,4 +86,36 @@ describe('DevPagesAPIRouteMatcherProvider', () => {
       }
     )
   })
+
+  it('reuses unchanged matchers and evicts removed files', async () => {
+    const ignored = normalizeSlashes(`${dir}/index.ts`)
+    const one = normalizeSlashes(`${dir}/api/one.ts`)
+    const two = normalizeSlashes(`${dir}/api/two.ts`)
+    const three = normalizeSlashes(`${dir}/api/three.ts`)
+    let files: ReadonlyArray<string> = [ignored, one, two]
+    const reader: FileReader = { read: jest.fn(() => files) }
+    const provider = new DevPagesAPIRouteMatcherProvider(
+      dir,
+      extensions,
+      reader
+    )
+
+    const initial = await provider.matchers()
+
+    files = [ignored, one, two, three]
+    const expanded = await provider.matchers()
+    expect(expanded[0]).toBe(initial[0])
+    expect(expanded[1]).toBe(initial[1])
+
+    files = [ignored, one, three]
+    const reduced = await provider.matchers()
+    expect(reduced[0]).toBe(initial[0])
+    expect(reduced[1]).toBe(expanded[2])
+
+    files = [ignored, one, two, three]
+    const readded = await provider.matchers()
+    expect(readded[0]).toBe(initial[0])
+    expect(readded[1]).not.toBe(initial[1])
+    expect(readded[2]).toBe(expanded[2])
+  })
 })
