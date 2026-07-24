@@ -452,11 +452,18 @@ impl TurboTasksBackend {
             None
         };
         let (mut task, mut reader_task) = if let Some(reader_id) = need_reader_task {
-            // Having a task_pair here is not optimal, but otherwise this would lead to a race
-            // condition. See below.
-            // TODO(sokra): solve that in a more performant way.
-            let (task, reader) = ctx.task_pair(task_id, reader_id, TaskDataCategory::All);
-            (task, Some(reader))
+            // Immutable tasks never need dependency edges and can never be invalidated. Avoid
+            // locking the reader too in that common case. When the task is still mutable, drop
+            // the speculative lock and reacquire both locks together to preserve the invalidation
+            // race guarantee described below.
+            let task = ctx.task(task_id, TaskDataCategory::All);
+            if task.immutable() && !cfg!(feature = "verify_immutable") {
+                (task, None)
+            } else {
+                drop(task);
+                let (task, reader) = ctx.task_pair(task_id, reader_id, TaskDataCategory::All);
+                (task, Some(reader))
+            }
         } else {
             (ctx.task(task_id, TaskDataCategory::All), None)
         };
@@ -823,11 +830,18 @@ impl TurboTasksBackend {
             && let Some(reader_id) = reader
             && reader_id != task_id
         {
-            // Having a task_pair here is not optimal, but otherwise this would lead to a race
-            // condition. See below.
-            // TODO(sokra): solve that in a more performant way.
-            let (task, reader) = ctx.task_pair(task_id, reader_id, TaskDataCategory::All);
-            (task, Some(reader))
+            // Immutable tasks never need dependency edges and can never be invalidated. Avoid
+            // locking the reader too in that common case. When the task is still mutable, drop
+            // the speculative lock and reacquire both locks together to preserve the invalidation
+            // race guarantee described below.
+            let task = ctx.task(task_id, TaskDataCategory::All);
+            if task.immutable() && !cfg!(feature = "verify_immutable") {
+                (task, None)
+            } else {
+                drop(task);
+                let (task, reader) = ctx.task_pair(task_id, reader_id, TaskDataCategory::All);
+                (task, Some(reader))
+            }
         } else {
             (ctx.task(task_id, TaskDataCategory::All), None)
         };
