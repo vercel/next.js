@@ -436,6 +436,18 @@ export function getImgProps(
   }
   src = typeof src === 'string' ? src : staticSrc
 
+  if (!isStaticImport(src)) {
+    const basePath = (process.env.__NEXT_ROUTER_BASEPATH as string) || ''
+    if (basePath && src.startsWith('/') && !src.startsWith('//')) {
+      // we check if it already starts with basePath to avoid double prefixing
+      if (src.startsWith(basePath + '/') || src === basePath) {
+        // already prefixed
+      } else {
+        src = basePath + src
+      }
+    }
+  }
+
   let isLazy =
     !priority &&
     !preload &&
