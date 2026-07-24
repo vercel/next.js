@@ -11,8 +11,17 @@ abstract class ResourceManager<T, Args> {
   }
 
   remove(resource: T) {
-    this.release(resource)
+    this.untrack(resource)
     this.destroy(resource)
+  }
+
+  /**
+   * Stop tracking a resource without destroying it. Used when a resource has
+   * already been released by other means (e.g. a one-shot timeout that ran to
+   * completion) so it should no longer be retained by this manager.
+   */
+  protected untrack(resource: T) {
+    this.resources.delete(resource)
   }
 
   removeAll() {
@@ -22,12 +31,13 @@ abstract class ResourceManager<T, Args> {
     this.resources.clear()
   }
 
-  protected release(resource: T) {
-    this.resources.delete(resource)
+  /** Number of resources currently tracked. Exposed for observability/tests. */
+  get size() {
+    return this.resources.size
   }
 }
 
-class IntervalsManager extends ResourceManager<
+export class IntervalsManager extends ResourceManager<
   number,
   Parameters<typeof webSetIntervalPolyfill>
 > {
@@ -41,29 +51,35 @@ class IntervalsManager extends ResourceManager<
   }
 }
 
-class TimeoutsManager extends ResourceManager<
+export class TimeoutsManager extends ResourceManager<
   number,
   Parameters<typeof webSetTimeoutPolyfill>
 > {
   create(args: Parameters<typeof webSetTimeoutPolyfill>) {
-    const [globalObject, callback, ms, ...timerArgs] = args
-    const manager = this
-    let timeout: number
-
     // TODO: use the edge runtime provided `setTimeout` instead
-    timeout = webSetTimeoutPolyfill(
+    const [globalObject, callback, ms, ...rest] = args
+
+    // A one-shot timeout releases itself from tracking once its callback has
+    // run. Otherwise fire-and-forget timeouts (whose ids user code never
+    // passes to `clearTimeout`) would accumulate for the lifetime of the
+    // module context and leak memory in long-lived server processes.
+    // See: https://github.com/vercel/next.js/issues/95094
+    let timeoutId: number
+    const callbackWithRelease = (...callbackArgs: typeof rest) => {
+      try {
+        return callback.apply(globalObject, callbackArgs)
+      } finally {
+        this.untrack(timeoutId)
+      }
+    }
+
+    timeoutId = webSetTimeoutPolyfill(
       globalObject,
-      function (this: GlobalObject, ...callbackArgs) {
-        try {
-          return callback.apply(this, callbackArgs)
-        } finally {
-          manager.release(timeout)
-        }
-      },
+      callbackWithRelease,
       ms,
-      ...timerArgs
+      ...rest
     )
-    return timeout
+    return timeoutId
   }
 
   destroy(timeout: number) {
