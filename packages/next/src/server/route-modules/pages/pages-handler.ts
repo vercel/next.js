@@ -216,7 +216,8 @@ export const getHandler = ({
     // the prerendered page. This ensures that the correct content is served
     // to the bot in the head.
     if (
-      (isIsrFallback && isBot(req.headers['user-agent'] || '')) ||
+      (isIsrFallback &&
+        isBot(req.headers['user-agent'] || '', nextConfig.htmlLimitedBots)) ||
       isMinimalMode
     ) {
       isIsrFallback = false

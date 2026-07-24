@@ -14,19 +14,27 @@ function isDomBotUA(userAgent: string) {
   return HEADLESS_BROWSER_BOT_UA_RE.test(userAgent)
 }
 
-function isHtmlLimitedBotUA(userAgent: string) {
+function isHtmlLimitedBotUA(userAgent: string, htmlLimitedBots?: string) {
+  if (htmlLimitedBots) {
+    try {
+      return new RegExp(htmlLimitedBots, 'i').test(userAgent)
+    } catch (_) {}
+  }
   return HTML_LIMITED_BOT_UA_RE.test(userAgent)
 }
 
-export function isBot(userAgent: string): boolean {
-  return isDomBotUA(userAgent) || isHtmlLimitedBotUA(userAgent)
+export function isBot(userAgent: string, htmlLimitedBots?: string): boolean {
+  return isDomBotUA(userAgent) || isHtmlLimitedBotUA(userAgent, htmlLimitedBots)
 }
 
-export function getBotType(userAgent: string): 'dom' | 'html' | undefined {
+export function getBotType(
+  userAgent: string,
+  htmlLimitedBots?: string
+): 'dom' | 'html' | undefined {
   if (isDomBotUA(userAgent)) {
     return 'dom'
   }
-  if (isHtmlLimitedBotUA(userAgent)) {
+  if (isHtmlLimitedBotUA(userAgent, htmlLimitedBots)) {
     return 'html'
   }
   return undefined

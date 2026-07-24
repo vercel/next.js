@@ -99,7 +99,10 @@ async function requestHandler(
   // INJECT_RAW:cacheHandlerRegistration
 
   const isPossibleServerAction = getIsPossibleServerAction(req)
-  const botType = getBotType(req.headers.get('User-Agent') || '')
+  const botType = getBotType(
+    req.headers.get('User-Agent') || '',
+    nextConfig.htmlLimitedBots
+  )
   const { isOnDemandRevalidate } = checkIsOnDemandRevalidate(
     req.headers,
     prerenderManifest.preview
