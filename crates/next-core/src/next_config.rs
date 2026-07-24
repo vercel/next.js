@@ -2649,7 +2649,9 @@ impl NextConfig {
                 && self
                     .experimental
                     .turbopack_serve_source_content
-                    .unwrap_or(false),
+                    // TEMPORARY (do not merge): hardcoded to exercise the on-demand
+                    // source-content path across the dev test suite in CI.
+                    .unwrap_or(true),
         ))
     }
 
