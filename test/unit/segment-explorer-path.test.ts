@@ -63,8 +63,40 @@ describe('segment explorer path normalization', () => {
         '[project]/app/next/dist/client/components/builtin/not-found.js',
         `${BUILTIN_PREFIX}not-found.js`,
       ],
+      [
+        'next/dist/client/components/builtin/first/next/dist/client/components/builtin/last.js',
+        `${BUILTIN_PREFIX}last.js`,
+      ],
+      [
+        'app/xnext/dist/client/components/builtin/not-built-in.js',
+        'xnext/dist/client/components/builtin/not-built-in.js',
+      ],
+      [
+        'app\\next\\dist\\client\\components\\builtin\\error.js',
+        `${BUILTIN_PREFIX}error.js`,
+      ],
     ])('normalizes %s', (filePath, expected) => {
       expect(normalizeConventionFilePath(cwd, filePath)).toBe(expected)
+    })
+
+    it.each(['\n', '\r', '\u2028', '\u2029'])(
+      'does not match a built-in prefix after line terminator %p',
+      (lineTerminator) => {
+        const filePath = `app/foo${lineTerminator}bar/next/dist/client/components/builtin/error.js`
+        expect(normalizeConventionFilePath(cwd, filePath)).toBe(
+          filePath.slice(4)
+        )
+      }
+    )
+
+    it('uses the last built-in prefix before a line terminator', () => {
+      const suffix = 'first\nx/next/dist/client/components/builtin/last.js'
+      expect(
+        normalizeConventionFilePath(
+          cwd,
+          `next/dist/client/components/builtin/${suffix}`
+        )
+      ).toBe(`${BUILTIN_PREFIX}${suffix}`)
     })
   })
 })

@@ -4,6 +4,8 @@ export const BUILTIN_PREFIX = '__next_builtin__'
 
 const nextInternalPrefixRegex =
   /^(.*[\\/])?next[\\/]dist[\\/]client[\\/]components[\\/]builtin[\\/]/
+const normalizedNextInternalPrefix = 'next/dist/client/components/builtin/'
+const lineTerminatorRegex = /[\n\r\u2028\u2029]/
 
 function removeFirstOccurrence(value: string, search: string): string {
   const index = value.indexOf(search)
@@ -81,11 +83,34 @@ export function normalizeConventionFilePath(
     relativePath = relativePath.slice(4)
   }
 
-  // If it's internal file only keep the filename, strip nextjs internal prefix
-  const internalPath = relativePath.replace(nextInternalPrefixRegex, '')
-  if (internalPath !== relativePath) {
-    // Add a special prefix to let segment explorer know it's a built-in component
-    relativePath = `${BUILTIN_PREFIX}${internalPath}`
+  // If it's internal file only keep the filename, strip nextjs internal prefix.
+  // Search from the end to preserve the greedy regex's last-prefix semantics.
+  let firstLineTerminatorIndex: number | undefined
+  let internalPrefixIndex = relativePath.length
+  while (
+    (internalPrefixIndex = relativePath.lastIndexOf(
+      normalizedNextInternalPrefix,
+      internalPrefixIndex - 1
+    )) !== -1
+  ) {
+    if (
+      internalPrefixIndex === 0 ||
+      relativePath.charCodeAt(internalPrefixIndex - 1) === 47
+    ) {
+      if (firstLineTerminatorIndex === undefined) {
+        const index = relativePath.search(lineTerminatorRegex)
+        firstLineTerminatorIndex = index === -1 ? relativePath.length : index
+      }
+      if (internalPrefixIndex < firstLineTerminatorIndex) {
+        // Add a special prefix to let segment explorer know it's a built-in component
+        relativePath =
+          BUILTIN_PREFIX +
+          relativePath.slice(
+            internalPrefixIndex + normalizedNextInternalPrefix.length
+          )
+        break
+      }
+    }
   }
 
   return relativePath
