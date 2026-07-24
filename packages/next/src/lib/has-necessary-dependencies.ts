@@ -44,6 +44,9 @@ export async function hasNecessaryDependencies(
         )
         const pkgDir = dirname(pkgPath)
 
+        // Default to the package.json, if the file we want isn't there we can still read the package.json
+        resolutions.set(join(p.pkg, 'package.json'), pkgPath)
+
         if (p.exportsRestrict) {
           const fileNameToVerify = relative(p.pkg, p.file)
           if (fileNameToVerify) {

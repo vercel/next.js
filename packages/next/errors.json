@@ -795,5 +795,6 @@
   "794": "Unsupported body type: %s",
   "795": "Invalid target hostname \"%s\" for proxy request, expected \"%s\"",
   "796": "Missing initURL",
-  "797": "Could not determine origin for forwarded Server Actions request. This can happen if port or hostname are not configured for this server."
+  "797": "Could not determine origin for forwarded Server Actions request. This can happen if port or hostname are not configured for this server.",
+  "798": "TypeScript %s is not supported by this version of Next.js. The TypeScript 7 native compiler does not provide the JavaScript compiler API that Next.js requires. Install TypeScript 6 (e.g. %s) or upgrade to a Next.js v16.2.11 or later to get support for TypeScript 7."
 }

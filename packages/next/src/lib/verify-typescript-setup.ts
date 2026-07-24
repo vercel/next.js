@@ -70,6 +70,33 @@ export async function verifyTypeScriptSetup({
       requiredPackages
     )
 
+    // TypeScript 7's native compiler no longer ships the JavaScript compiler API
+    // (`typescript/lib/typescript.js`) that Next.js loads via `require('typescript')`.
+    // This causes surprising errors so proactively reject it.
+    const installedTypescriptPackageJsonPath = deps.resolved.get(
+      path.join('typescript', 'package.json')
+    )
+    if (installedTypescriptPackageJsonPath) {
+      const installedTypescriptVersion = require(
+        installedTypescriptPackageJsonPath
+      ).version
+      if (
+        installedTypescriptVersion &&
+        // Use the lowest prerelease sentinel `7.0.0-0` so that TypeScript 7
+        // prereleases (e.g. `7.0.0-beta`, `7.0.0-rc`, or nightly `7.0.0-dev.*`
+        // builds published to the `next` dist-tag) are also rejected.
+        semver.gte(installedTypescriptVersion, '7.0.0-0', {
+          includePrerelease: true,
+        })
+      ) {
+        throw new CompileError(
+          `TypeScript ${installedTypescriptVersion} is not supported by this version of Next.js. ` +
+            `The TypeScript 7 native compiler does not provide the JavaScript compiler API that Next.js requires. ` +
+            `Install TypeScript 6 (e.g. ${bold('npm install --save-dev typescript@^6')}) or upgrade to a Next.js v16.2.11 or later to get support for TypeScript 7.`
+        )
+      }
+    }
+
     if (deps.missing?.length > 0) {
       const missingPackages = deps.missing.map((pkg) => ({
         ...pkg,
