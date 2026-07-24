@@ -491,8 +491,7 @@ function discoverKnownRoutePart(
   const slots = routeTree.slots
   let resultFromChildren: FulfilledRouteCacheEntry | null = null
   if (slots !== null) {
-    for (const parallelRouteKey in slots) {
-      const childRouteTree = slots[parallelRouteKey]
+    for (const childRouteTree of slots.values()) {
       // Skip branches with refreshState set - these were reused from a
       // different route (e.g., a "default" parallel slot) and don't represent
       // the actual route structure for this URL.
@@ -921,16 +920,20 @@ function reifyRouteTree(
   }
 
   // Recurse into children with the (possibly updated) partial vary path
-  let newSlots: Record<string, RouteTree> | null = null
-  if (pattern.slots !== null) {
-    newSlots = {}
-    for (const key in pattern.slots) {
-      newSlots[key] = reifyRouteTree(
-        pattern.slots[key],
-        resolvedParams,
-        search,
-        partialVaryPath,
-        acc
+  let newSlots: Map<string, RouteTree> | null = null
+  const patternSlots = pattern.slots
+  if (patternSlots !== null) {
+    newSlots = new Map()
+    for (const [key, childPattern] of patternSlots) {
+      newSlots.set(
+        key,
+        reifyRouteTree(
+          childPattern,
+          resolvedParams,
+          search,
+          partialVaryPath,
+          acc
+        )
       )
     }
   }
