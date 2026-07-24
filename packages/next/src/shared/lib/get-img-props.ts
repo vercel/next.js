@@ -434,9 +434,14 @@ export function getImgProps(
       }
     }
   }
+  const srcIsStaticImport = isStaticImport(src)
   src = typeof src === 'string' ? src : staticSrc
 
-  if (!isStaticImport(src)) {
+  // Only prefix basePath for the built-in/default loader and for genuine
+  // (non-static-import) string srcs. Static imports already resolve with
+  // assetPrefix, and custom loaders (e.g. Cloudinary/Imgix) must not receive
+  // Next.js routing concepts like basePath.
+  if (isDefaultLoader && !srcIsStaticImport) {
     const basePath = (process.env.__NEXT_ROUTER_BASEPATH as string) || ''
     if (basePath && src.startsWith('/') && !src.startsWith('//')) {
       // we check if it already starts with basePath to avoid double prefixing
