@@ -4,6 +4,7 @@ import {
   formatNodeOptions,
   tokenizeArgs,
   getParsedNodeOptions,
+  getMemoryRestartStats,
 } from './utils'
 
 const originalNodeOptions = process.env.NODE_OPTIONS
@@ -75,6 +76,38 @@ describe('formatNodeOptions', () => {
         '--experimental-inspector-network-resource',
       ],
     })
+  })
+})
+
+describe('getMemoryRestartStats', () => {
+  const aboveThreshold = {
+    used_heap_size: 81,
+    heap_size_limit: 100,
+  }
+
+  it('returns heap statistics above the threshold in development', () => {
+    expect(
+      getMemoryRestartStats(false, false, () => aboveThreshold)
+    ).toBeUndefined()
+    expect(getMemoryRestartStats(true, false, () => aboveThreshold)).toBe(
+      aboveThreshold
+    )
+  })
+
+  it('does not return heap statistics at the threshold', () => {
+    expect(
+      getMemoryRestartStats(true, false, () => ({
+        used_heap_size: 80,
+        heap_size_limit: 100,
+      }))
+    ).toBeUndefined()
+  })
+
+  it('does not read heap statistics when the threshold is disabled', () => {
+    const getHeapStatistics = jest.fn(() => aboveThreshold)
+
+    expect(getMemoryRestartStats(true, true, getHeapStatistics)).toBeUndefined()
+    expect(getHeapStatistics).not.toHaveBeenCalled()
   })
 })
 

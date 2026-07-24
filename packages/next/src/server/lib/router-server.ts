@@ -122,6 +122,10 @@ export async function initialize(opts: {
       },
     }
   )
+  const disableDevMemoryThreshold = opts.dev
+    ? (config as NextConfigComplete).experimental.disableDevMemoryThreshold ===
+      true
+    : false
 
   if (bundlerBeforeConfig !== undefined) {
     finalizeBundlerFromConfig(bundlerBeforeConfig)
@@ -829,6 +833,7 @@ export async function initialize(opts: {
     experimentalFeatures,
     cacheComponents: config.cacheComponents,
     partialPrefetching: config.partialPrefetching,
+    disableDevMemoryThreshold,
   }
   renderServerOpts.serverFields.routerServerHandler = requestHandlerImpl
 
@@ -1010,5 +1015,6 @@ export async function initialize(opts: {
     cacheComponents: config.cacheComponents,
     partialPrefetching: config.partialPrefetching,
     agentRules: config.agentRules,
+    disableDevMemoryThreshold,
   }
 }

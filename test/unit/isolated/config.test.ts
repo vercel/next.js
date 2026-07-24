@@ -62,6 +62,30 @@ describe('config', () => {
     expect(config.onDemandEntries.maxInactiveAge).toBeDefined()
   })
 
+  it('Should configure the development memory threshold opt-out', async () => {
+    const defaultConfig = await loadConfig(
+      PHASE_DEVELOPMENT_SERVER,
+      '<rootDir>-memory-threshold-default',
+      {
+        customConfig: {},
+      }
+    )
+    expect(defaultConfig.experimental.disableDevMemoryThreshold).toBe(false)
+
+    const disabledConfig = await loadConfig(
+      PHASE_DEVELOPMENT_SERVER,
+      '<rootDir>-memory-threshold-disabled',
+      {
+        customConfig: {
+          experimental: {
+            disableDevMemoryThreshold: true,
+          },
+        },
+      }
+    )
+    expect(disabledConfig.experimental.disableDevMemoryThreshold).toBe(true)
+  })
+
   it('Should allow setting objects which do not have defaults', async () => {
     const config = await loadConfig(PHASE_DEVELOPMENT_SERVER, '<rootDir>', {
       customConfig: {
