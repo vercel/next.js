@@ -202,39 +202,40 @@ const sourceMapURLs = new LRUCache<string | typeof invalidSourceMap>(
 export function findSourceMapURLDEV(
   scriptNameOrSourceURL: string
 ): string | null {
+  try {
+    const bundlerSourceMapURL = bundlerFindSourceMapURL(scriptNameOrSourceURL)
+    if (bundlerSourceMapURL !== null) {
+      return bundlerSourceMapURL
+    }
+  } catch (cause) {
+    console.error(
+      `${scriptNameOrSourceURL}: Failed to find the source map URL. Cause: ${cause}`
+    )
+  }
+
+  // No bundler implementation (e.g. Webpack): inline the source map Node.js
+  // knows as a `data:` URL.
   let sourceMapURL = sourceMapURLs.get(scriptNameOrSourceURL)
   if (sourceMapURL === undefined) {
+    let sourceMapPayload: ModernSourceMapPayload | undefined
     try {
-      sourceMapURL = bundlerFindSourceMapURL(scriptNameOrSourceURL) ?? undefined
+      sourceMapPayload = findSourceMap(scriptNameOrSourceURL)?.payload
     } catch (cause) {
       console.error(
-        `${scriptNameOrSourceURL}: Failed to find the source map URL. Cause: ${cause}`
+        `${scriptNameOrSourceURL}: Invalid source map. Only conformant source maps can be used to find the original code. Cause: ${cause}`
       )
     }
 
-    if (sourceMapURL === undefined) {
-      // No bundler implementation (e.g. Webpack): inline the source map
-      // Node.js knows as a `data:` URL.
-      let sourceMapPayload: ModernSourceMapPayload | undefined
-      try {
-        sourceMapPayload = findSourceMap(scriptNameOrSourceURL)?.payload
-      } catch (cause) {
-        console.error(
-          `${scriptNameOrSourceURL}: Invalid source map. Only conformant source maps can be used to find the original code. Cause: ${cause}`
-        )
-      }
-
-      if (sourceMapPayload === undefined) {
-        sourceMapURL = invalidSourceMap
-      } else {
-        // TODO: Might be more efficient to extract the relevant section from Index Maps.
-        // Unclear if that search is worth the smaller payload we have to stringify.
-        const sourceMapJSON = JSON.stringify(sourceMapPayload)
-        const sourceMapURLData = Buffer.from(sourceMapJSON, 'utf8').toString(
-          'base64'
-        )
-        sourceMapURL = `data:application/json;base64,${sourceMapURLData}`
-      }
+    if (sourceMapPayload === undefined) {
+      sourceMapURL = invalidSourceMap
+    } else {
+      // TODO: Might be more efficient to extract the relevant section from Index Maps.
+      // Unclear if that search is worth the smaller payload we have to stringify.
+      const sourceMapJSON = JSON.stringify(sourceMapPayload)
+      const sourceMapURLData = Buffer.from(sourceMapJSON, 'utf8').toString(
+        'base64'
+      )
+      sourceMapURL = `data:application/json;base64,${sourceMapURLData}`
     }
 
     sourceMapURLs.set(scriptNameOrSourceURL, sourceMapURL)
