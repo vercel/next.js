@@ -189,6 +189,18 @@ type RouteCacheEntryShared = {
   // received a response from the server.
   couldBeIntercepted: boolean
 
+  // When true, this entry should not be used as a template for route
+  // prediction. Set when we discover that the URL was rewritten by middleware
+  // to a different route structure (e.g., /foo was rewritten to /bar). Since
+  // rewrite behavior can vary by param value, we can't safely predict the
+  // route structure for other URLs matching this pattern.
+  //
+  // This is declared on every entry variant (not just fulfilled entries) so
+  // that all RouteCacheEntry objects share a single hidden class; it is
+  // pre-initialized to `false` when the entry is created and only meaningful
+  // once the entry is fulfilled.
+  hasDynamicRewrite: boolean
+
   // Map-related fields.
   ref: UnknownMapEntry | null
   size: number
@@ -224,12 +236,6 @@ export type FulfilledRouteCacheEntry = RouteCacheEntryShared & {
   tree: RouteTree
   metadata: RouteTree
   supportsPerSegmentPrefetching: boolean
-  // When true, this entry should not be used as a template for route
-  // prediction. Set when we discover that the URL was rewritten by middleware
-  // to a different route structure (e.g., /foo was rewritten to /bar). Since
-  // rewrite behavior can vary by param value, we can't safely predict the
-  // route structure for other URLs matching this pattern.
-  hasDynamicRewrite: boolean
 }
 
 export type RouteCacheEntry =
@@ -640,6 +646,7 @@ function createDetachedRouteCacheEntry(): PendingRouteCacheEntry {
     couldBeIntercepted: true,
     // Similarly, we don't yet know if the route supports PPR.
     supportsPerSegmentPrefetching: false,
+    hasDynamicRewrite: false,
     renderedSearch: null,
 
     // Map-related fields
