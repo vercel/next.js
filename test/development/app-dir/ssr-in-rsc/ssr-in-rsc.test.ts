@@ -191,7 +191,7 @@ describe('react-dom/server in React Server environment', () => {
          "description": "  x You're importing a component that imports react-dom/server. To fix it, render or return the content directly as a Server Component instead for perf and security.",
          "environmentLabel": null,
          "label": "Build Error",
-         "source": "../../../packages/next/dist/build/webpack/loaders/next-app-loader/index.js?name=app%2Fexports%2Fapp-code%2Freact-dom-server-edge-implicit%2Fpage&page=%2Fexports%2Fapp-code%2Freact-dom-server-edge-implicit%2Fpage&appPaths=%2Fexports%2Fapp-code%2Freact-dom-server-edge-implicit%2Fpage&allNormalizedAppPaths=&pagePath=private-next-app-dir%2Fexports%2Fapp-code%2Freact-dom-server-edge-implicit%2Fpage.js&appDir=%2FUsers%2Faurorascharff%2FDocuments%2FDevelopment%2Fnext.js%2Ftest%2Ftmp%2Fnext-test-1784832973823-979%2Fapp&pageExtensions=tsx&pageExtensions=ts&pageExtensions=jsx&pageExtensions=js&rootDir=%2FUsers%2Faurorascharff%2FDocuments%2FDevelopment%2Fnext.js%2Ftest%2Ftmp%2Fnext-test-1784832973823-979&isDev=true&tsconfigPath=&basePath=&assetPrefix=&nextConfigOutput=&preferredRegion=&middlewareConfig=e30%3D&isGlobalNotFoundEnabled=!./app/exports/app-code/react-dom-server-edge-implicit/page.js?__next_edge_ssr_entry__
+         "source": "<FIXME-nextjs-internal-source>
        Error:   x You're importing a component that imports react-dom/server. To fix it, render or return the content directly as a Server Component instead for perf and security.
          | Learn more: https://nextjs.org/docs/app/building-your-application/rendering
           ,-[1:1]
@@ -404,16 +404,8 @@ describe('react-dom/server in React Server environment', () => {
       } else {
         expect(redbox).toMatchInlineSnapshot(`
          {
-           "description": "Module not found: Can't resolve 'internal-pkg/server'",
-           "source": "./app/exports/library-code/react-dom-server-browser-explicit/page.js (1:1)
-         Module not found: Can't resolve 'internal-pkg/server'
-         > 1 | import * as ReactDOMServerBrowser from 'internal-pkg/server'
-             | ^
-           2 |
-           3 | export default function Page() {
-           4 |   return (
-
-         https://nextjs.org/docs/messages/module-not-found",
+           "description": "react-dom/server is not supported in React Server Components.",
+           "source": null,
          }
         `)
       }
@@ -576,16 +568,8 @@ describe('react-dom/server in React Server environment', () => {
       } else {
         expect(redbox).toMatchInlineSnapshot(`
          {
-           "description": "Module not found: Can't resolve 'internal-pkg/server.node'",
-           "source": "./app/exports/library-code/react-dom-server-node-explicit/page.js (1:1)
-         Module not found: Can't resolve 'internal-pkg/server.node'
-         > 1 | import * as ReactDOMServerNode from 'internal-pkg/server.node'
-             | ^
-           2 |
-           3 | export default function Page() {
-           4 |   return (
-
-         https://nextjs.org/docs/messages/module-not-found",
+           "description": "react-dom/server is not supported in React Server Components.",
+           "source": null,
          }
         `)
       }
@@ -642,16 +626,8 @@ describe('react-dom/server in React Server environment', () => {
       } else {
         expect(redbox).toMatchInlineSnapshot(`
          {
-           "description": "Module not found: Can't resolve 'internal-pkg/server'",
-           "source": "./app/exports/library-code/react-dom-server-node-implicit/page.js (1:1)
-         Module not found: Can't resolve 'internal-pkg/server'
-         > 1 | import * as ReactDOMServerNode from 'internal-pkg/server'
-             | ^
-           2 |
-           3 | export const runtime = 'nodejs'
-           4 |
-
-         https://nextjs.org/docs/messages/module-not-found",
+           "description": "react-dom/server is not supported in React Server Components.",
+           "source": null,
          }
         `)
       }

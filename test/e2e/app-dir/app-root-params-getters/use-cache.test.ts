@@ -22,11 +22,10 @@ describe('app-root-param-getters - cache - at runtime', () => {
          "description": "Route /[lang]/[countryCode]/unstable_cache used \`import('next/root-params').lang()\` inside \`unstable_cache\`. This is not supported. Use \`"use cache"\` instead.",
          "environmentLabel": "Server",
          "label": "Runtime Error",
-         "source": "../../../packages/next/root-params.js (3:45) @ lang
-       > 3 | export function lang() { return getRootParam('lang'); }
-           |                                             ^",
+         "source": "app/[lang]/[countryCode]/unstable_cache/page.tsx (33:28) @ uncachedGetParams
+       > 33 |   return { lang: await lang(), countryCode: await countryCode() }
+            |                            ^",
          "stack": [
-           "lang ../../../packages/next/root-params.js (3:45)",
            "uncachedGetParams app/[lang]/[countryCode]/unstable_cache/page.tsx (33:28)",
            "Runtime app/[lang]/[countryCode]/unstable_cache/page.tsx (17:22)",
          ],
@@ -42,11 +41,10 @@ describe('app-root-param-getters - cache - at runtime', () => {
          "description": "Route /[lang]/[countryCode]/nested-in-unstable_cache used \`import('next/root-params').lang()\` inside \`"use cache"\` nested within \`unstable_cache\`. Root params are not available in this context.",
          "environmentLabel": "Cache",
          "label": "Runtime Error",
-         "source": "../../../packages/next/root-params.js (3:45) @ lang
-       > 3 | export function lang() { return getRootParam('lang'); }
-           |                                             ^",
+         "source": "app/[lang]/[countryCode]/nested-in-unstable_cache/page.tsx (29:28) @ getCachedParams
+       > 29 |   return { lang: await lang(), countryCode: await countryCode() }
+            |                            ^",
          "stack": [
-           "lang ../../../packages/next/root-params.js (3:45)",
            "getCachedParams app/[lang]/[countryCode]/nested-in-unstable_cache/page.tsx (29:28)",
          ],
        }
