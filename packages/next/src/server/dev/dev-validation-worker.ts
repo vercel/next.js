@@ -9,10 +9,17 @@ import '../node-environment'
 
 import { installBindings } from '../../build/swc/install-bindings'
 import { installCodeFrameSupport } from '../lib/install-code-frame'
-import { loadComponents } from '../load-components'
+import {
+  loadClientReferenceManifestForPage,
+  loadComponents,
+} from '../load-components'
 import { setHttpClientAndAgentOptions } from '../setup-http-agent-env'
 import { serializeValidationErrorsToFlight } from '../app-render/dev-validation-error-delivery'
 import { formatValidationEvent } from '../app-render/dev-validation-events'
+import {
+  getServerActionsManifest,
+  setManifestsSingleton,
+} from '../app-render/manifests-singleton'
 
 // Match the main dev server (`next-dev-server.ts`), which raises this so the
 // server captures deeper stacks. React's owner-stack capture during the
@@ -104,6 +111,46 @@ async function applyTestValidationDelay(signal: AbortSignal): Promise<void> {
 }
 
 /**
+ * Registers the client reference manifests of the pages that supplied client
+ * references to the render being validated, beyond the validated route's own
+ * manifest. This thread has its own manifests singleton, which `loadComponents`
+ * seeds with only the validated route, so without these the dev-only cross-page
+ * lookup in `createProxiedClientReferenceManifest` has no other manifest to
+ * search and decoding the transported payload fails. Usually a no-op, since the
+ * main thread only records a page when React's I/O tracking actually carried a
+ * reference across pages.
+ */
+async function registerAdditionalClientReferenceManifests(
+  distDir: string,
+  pages: string[]
+): Promise<void> {
+  if (pages.length === 0) {
+    return
+  }
+
+  // Set by `loadComponents`. One server actions manifest covers the whole app,
+  // so the pages registered here share the validated route's.
+  const serverActionsManifest = getServerActionsManifest()
+
+  await Promise.all(
+    pages.map(async (page) => {
+      const clientReferenceManifest = await loadClientReferenceManifestForPage(
+        distDir,
+        page
+      )
+
+      if (clientReferenceManifest) {
+        setManifestsSingleton({
+          page,
+          clientReferenceManifest,
+          serverActionsManifest,
+        })
+      }
+    })
+  )
+}
+
+/**
  * Runs the dev instant/static-shell validation passes off the main thread.
  * Reloads the route's compiled module, then delegates the whole validation to
  * that module via `ComponentMod.routeModule.runValidationInDev`, so every
@@ -142,6 +189,11 @@ export async function runDevValidation(
     sriEnabled: false,
     needsManifestsForLegacyReasons: true,
   })
+
+  await registerAdditionalClientReferenceManifests(
+    message.distDir,
+    message.additionalClientReferenceManifestPages
+  )
 
   const { signal, cleanup } = createSupersedeSignal(abortBuffer)
 

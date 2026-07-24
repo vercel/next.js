@@ -92,6 +92,14 @@ export interface DevValidationSnapshot {
   forceStatic: boolean | undefined
   validationLevel: ValidationLevel
   implicitTags: string[]
+  /**
+   * Pages whose client reference manifests supplied client references to the
+   * render being validated, beyond the validated route's own manifest (see
+   * `WorkStore.additionalClientReferenceManifestPages`). The worker registers
+   * these so the same references resolve in its thread. Empty for all but the
+   * rare renders that React's I/O tracking carries a reference into.
+   */
+  additionalClientReferenceManifestPages: string[]
   isDebugChannelEnabled: boolean
   renderOpts: {
     images: ImageConfigComplete

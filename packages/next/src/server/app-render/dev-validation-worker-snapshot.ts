@@ -88,6 +88,10 @@ export async function buildDevValidationSnapshot(
     forceStatic: ctx.workStore.forceStatic,
     validationLevel: ctx.workStore.validationLevel,
     implicitTags: ctx.implicitTags.tags,
+    additionalClientReferenceManifestPages: ctx.workStore
+      .additionalClientReferenceManifestPages
+      ? [...ctx.workStore.additionalClientReferenceManifestPages]
+      : [],
     isDebugChannelEnabled: !!ctx.renderOpts.setReactDebugChannel,
     renderOpts: {
       images: ctx.renderOpts.images,
