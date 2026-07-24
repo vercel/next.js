@@ -14,6 +14,8 @@ export const NEXT_ROUTER_SEGMENT_PREFETCH_HEADER =
 export const NEXT_HMR_REFRESH_HEADER = 'next-hmr-refresh' as const
 export const NEXT_URL = 'next-url' as const
 export const RSC_CONTENT_TYPE_HEADER = 'text/x-component' as const
+// Full Content-Type value including charset, used when setting response headers.
+export const RSC_CONTENT_TYPE_HEADER_FULL = 'text/x-component; charset=utf-8' as const
 
 // Cookie for the Instant Navigation Testing API. Sent automatically with all
 // requests while a navigation lock is held; the server uses its presence to

@@ -22,10 +22,11 @@ import type {
   JSON_CONTENT_TYPE_HEADER,
   TEXT_PLAIN_CONTENT_TYPE_HEADER,
 } from '../lib/constants'
-import type { RSC_CONTENT_TYPE_HEADER } from '../client/components/app-router-headers'
+import type { RSC_CONTENT_TYPE_HEADER, RSC_CONTENT_TYPE_HEADER_FULL } from '../client/components/app-router-headers'
 
 type ContentTypeOption =
-  | typeof RSC_CONTENT_TYPE_HEADER // For App Page RSC responses
+  | typeof RSC_CONTENT_TYPE_HEADER // For App Page RSC responses (detection)
+  | typeof RSC_CONTENT_TYPE_HEADER_FULL // For App Page RSC response Content-Type headers
   | typeof HTML_CONTENT_TYPE_HEADER // For App Page, Pages HTML responses
   | typeof JSON_CONTENT_TYPE_HEADER // For API routes, Next.js data requests
   | typeof TEXT_PLAIN_CONTENT_TYPE_HEADER // For simplified errors
