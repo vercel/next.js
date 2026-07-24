@@ -56,6 +56,15 @@ async function registerInstrumentation(projectDir: string, distDir: string) {
   if (instrumentation?.register) {
     try {
       await instrumentation.register()
+      // After register() the user's SDK has armed require-in-the-middle hooks.
+      // Built-in modules loaded before register() (e.g. `http`, `https` imported
+      // by start-server.ts at module top-level) are already in the require cache
+      // and will never be re-required naturally, so OpenTelemetry
+      // HttpInstrumentation never gets a chance to patch them.
+      // process.getBuiltinModule() (Node >= 20.16) re-triggers pending hooks for
+      // already-loaded built-in modules without any observable side effects.
+      // See: https://github.com/vercel/next.js/issues/95894
+      touchBuiltinModulesForInstrumentation()
       extendInstrumentationAfterRegistration()
     } catch (err: any) {
       err.message = `An error occurred while loading instrumentation hook: ${err.message}`
@@ -91,3 +100,31 @@ export function ensureInstrumentationRegistered(
   }
   return registerInstrumentationPromise
 }
+
+/**
+ * Re-triggers require-in-the-middle hooks for built-in modules that may have
+ * been loaded before instrumentation.register() was called.
+ *
+ * OpenTelemetry's HttpInstrumentation (and other built-in module
+ * instrumentations) patch modules via require-in-the-middle, which intercepts
+ * Module.prototype.require and Module._load. If `http`/`https` are already loaded
+ * when the hook is armed inside register(), no future require() call will flow
+ * through the hook and the patch is never applied — making HttpInstrumentation
+ * silently ineffective for all incoming requests.
+ *
+ * Calling require() on the built-in modules causes require-in-the-middle to
+ * intercept the call and execute any registered hooks for these modules.
+ */
+export function touchBuiltinModulesForInstrumentation(): void {
+  // Touch the built-in modules most commonly instrumented by OTel and similar
+  // libraries. require() triggers pending require hooks.
+  const builtins = ['http', 'https', 'net', 'dns'] as const
+  for (const mod of builtins) {
+    try {
+      ;(touchBuiltinModulesForInstrumentation as any).require(mod)
+    } catch (err) {
+      // Ignore errors if the module is not available or cannot be loaded
+    }
+  }
+}
+;(touchBuiltinModulesForInstrumentation as any).require = require
