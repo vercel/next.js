@@ -1496,20 +1496,33 @@ impl VisitAstPath for Analyzer<'_, '_> {
             n.callee.visit_with_ast_path(self, &mut ast_path);
         }
 
-        // Guard only the `exports` target arg; the descriptor is visited normally.
+        // Visit a recognized descriptor as an export value so a top-level `this` taints.
         let cjs_export_target_arg = if is_cjs_define_property {
             Some(0)
         } else {
             None
         };
-        self.check_call_expr_for_effects(
-            &n.callee,
-            n.args.iter(),
-            n.span(),
-            ast_path,
-            CallOrNewExpr::Call(n),
-            cjs_export_target_arg,
-        );
+        if is_cjs_define_property {
+            self.with_cjs_export_value(|this| {
+                this.check_call_expr_for_effects(
+                    &n.callee,
+                    n.args.iter(),
+                    n.span(),
+                    ast_path,
+                    CallOrNewExpr::Call(n),
+                    cjs_export_target_arg,
+                );
+            });
+        } else {
+            self.check_call_expr_for_effects(
+                &n.callee,
+                n.args.iter(),
+                n.span(),
+                ast_path,
+                CallOrNewExpr::Call(n),
+                cjs_export_target_arg,
+            );
+        }
     }
 
     fn visit_new_expr<'ast: 'r, 'r>(
