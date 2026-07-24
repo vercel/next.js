@@ -856,6 +856,14 @@ async function exportAppImpl(
         info.hasPostponed = result.hasPostponed
       }
 
+      if (typeof result.hasPendingUi !== 'undefined') {
+        info.hasPendingUi = result.hasPendingUi
+      }
+
+      if (typeof result.htmlSize !== 'undefined') {
+        info.htmlSize = result.htmlSize
+      }
+
       if (typeof result.hasStaticRsc !== 'undefined') {
         info.hasStaticRsc = result.hasStaticRsc
       }

@@ -102,6 +102,7 @@ export async function exportAppPage(
       segmentData,
       prefetchHints,
       renderResumeDataCache,
+      hasPendingUi,
     } = metadata
 
     // Ensure we don't postpone without having PPR enabled.
@@ -237,6 +238,8 @@ export async function exportAppPage(
           },
       hasEmptyStaticShell: Boolean(postponed) && html === '',
       hasPostponed: Boolean(postponed),
+      hasPendingUi: hasPendingUi ?? false,
+      htmlSize: Buffer.byteLength(html),
       hasStaticRsc,
       cacheControl,
       fetchMetrics,
