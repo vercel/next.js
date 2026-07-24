@@ -2623,6 +2623,7 @@ async function renderToHTMLOrFlightImpl(
 
   const metadata: AppPageRenderResultMetadata = {
     statusCode: isNotFoundPath ? 404 : undefined,
+    hasPendingUi: false,
   }
 
   const appUsingSizeAdjustment = !!nextFontManifest?.appUsingSizeAdjust
@@ -8771,6 +8772,8 @@ async function prerenderToStream(
           }
         )
 
+      metadata.hasPendingUi = postponed != null
+
       const { prelude, preludeIsEmpty } =
         await processPreludeOp(unprocessedPrelude)
 
@@ -8970,6 +8973,8 @@ async function prerenderToStream(
             bootstrapScripts: [bootstrapScript],
           }
         )
+
+      metadata.hasPendingUi = postponed != null
       const getServerInsertedHTML = makeGetServerInsertedHTML({
         polyfills,
         renderServerInsertedHTML,
@@ -9538,6 +9543,8 @@ async function prerenderToStream(
             )
           }
         )
+
+        metadata.hasPendingUi = errorPostponed != null
 
         const { prelude, preludeIsEmpty } = await processPreludeOp(
           unprocessedErrorHtmlStream
