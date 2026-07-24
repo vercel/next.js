@@ -57,6 +57,10 @@ import { Bundler } from '../../lib/bundler'
 import { resolveCacheHandlerPathToFilesystem } from '../../lib/format-dynamic-import-path'
 import { isAPIRoute } from '../../lib/is-api-route'
 import { InvariantError } from '../../shared/lib/invariant-error'
+import {
+  getPartialPrerenderConfig,
+  type PartialPrerenderConfig,
+} from './partial-prerender-config'
 
 interface SharedRouteFields {
   /**
@@ -328,6 +332,12 @@ export interface AdapterOutput {
        * and should be upgraded to a full route in the background.
        */
       partialFallback?: boolean
+
+      /**
+       * Configuration for optimizations that apply specifically to partial
+       * prerenders.
+       */
+      partialPrerenderConfig?: PartialPrerenderConfig
 
       /**
        * bypassToken is the generated token that signals a prerender cache
@@ -1551,6 +1561,10 @@ export async function handleBuildComplete({
             allowQuery,
             allowHeader,
             renderingMode,
+            partialPrerenderConfig: getPartialPrerenderConfig(
+              renderingMode,
+              compute
+            ),
             bypassFor:
               isAppPage && srcRoute !== '/_not-found'
                 ? experimentalBypassFor
@@ -1826,6 +1840,10 @@ export async function handleBuildComplete({
             allowHeader,
             renderingMode,
             partialFallback: canEmitPartialFallback || undefined,
+            partialPrerenderConfig: getPartialPrerenderConfig(
+              renderingMode,
+              compute
+            ),
             bypassFor: isAppPage ? experimentalBypassFor : undefined,
             bypassToken: prerenderManifest.preview.previewModeId,
           },
