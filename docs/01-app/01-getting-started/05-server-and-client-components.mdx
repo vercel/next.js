@@ -416,6 +416,8 @@ Your Server Component will now be able to directly render your provider, and all
 
 > **Good to know**: You should render providers as deep as possible in the tree – notice how `ThemeProvider` only wraps `{children}` instead of the entire `<html>` document. This makes it easier for Next.js to optimize the static parts of your Server Components.
 
+To pass server-fetched data through context and read it in Client Components with `use()`, see [Using React's `use` within a Context Provider](/docs/app/guides/single-page-applications#using-reacts-use-within-a-context-provider).
+
 ### Third-party components
 
 When using a third-party component that relies on client-only features, you can wrap it in a Client Component to ensure it works as expected.
