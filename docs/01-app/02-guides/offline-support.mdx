@@ -24,16 +24,14 @@ Requests you issue directly with `fetch()` inside a Client Component, or through
 
 We will build a live-metrics page that fetches fresh data on every request, plus a ping form that calls a Server Action.
 
-{/* PLACEHOLDER: replace with the actual URLs before publishing */}
-
 - Source: [github.com/vercel-labs/use-offline](https://github.com/vercel-labs/use-offline)
-- Live demo: [DEMO_URL]
+- Live demo: [use-offline.labs.vercel.dev](https://use-offline.labs.vercel.dev)
 
 The companion demo has two versions of this dashboard: `/without-feedback` uses a generic loading fallback, `/with-feedback` uses a connectivity-aware one. The next sections of this guide walk through building each.
 
 ## Enable offline detection and see the default behavior
 
-Turn on `experimental.useOffline`. This guide also enables [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents), which lets you place the Suspense boundary as close as possible to the uncached data, with the [static shell](/docs/app/glossary#static-shell) rendered around it.
+Turn on `experimental.useOffline`. This guide also enables [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents) and [Partial Prefetching](/docs/app/api-reference/config/next-config-js/partialPrefetching). Cache Components lets you place the Suspense boundary as close as possible to the uncached data, with the [App Shell](/docs/app/glossary#app-shell) rendered around it. Partial Prefetching makes that App Shell the unit a `<Link>` prefetches, so it is ready to render when a navigation happens offline.
 
 Without Cache Components, a route-level [`loading.tsx`](/docs/app/api-reference/file-conventions/loading) gives you the same offline behavior at the segment level. See [Without Cache Components](#without-cache-components) below.
 
@@ -42,6 +40,7 @@ import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
   cacheComponents: true,
+  partialPrefetching: true,
   experimental: {
     useOffline: true,
   },
@@ -53,13 +52,14 @@ export default nextConfig
 ```js filename="next.config.js" switcher
 module.exports = {
   cacheComponents: true,
+  partialPrefetching: true,
   experimental: {
     useOffline: true,
   },
 }
 ```
 
-You also need a source page with a `<Link>` to the dashboard. Next.js prefetches the static shell of any `<Link>` that enters the viewport, and that prefetch is what makes the shell available offline.
+You also need a source page with a `<Link>` to the dashboard. Next.js prefetches the App Shell of any `<Link>` that enters the viewport, and that prefetch is what makes the shell available offline.
 
 ```tsx filename="app/page.tsx" switcher
 import Link from 'next/link'
@@ -221,7 +221,7 @@ export default function Dashboard() {
 }
 ```
 
-Navigating to the dashboard while offline, the fallback now reads "Waiting for connection to load this section..." Restore connectivity and the metrics stream in; the fallback disappears.
+Navigating to the dashboard while offline, the fallback now reads "Waiting for connection to load this section..." Restore connectivity and the metrics stream in as the fallback disappears.
 
 The fallback only shows on this page, and only while its Suspense boundary is waiting. In this app, we add a banner in the root layout so connectivity state is visible everywhere.
 
@@ -301,11 +301,13 @@ export default function RootLayout({ children }) {
 }
 ```
 
-Pick whichever fits your use case. One banner in a root layout covers every route. A scoped fallback is more targeted but only shows on routes where you add it. Both together is also a reasonable default.
+Start with the default: the pending loading state is enough for many apps. Add a banner in the root layout when you want connectivity visible on every route. Add a scoped fallback when a specific route deserves a tailored message. The three layer in that order, so you can adopt as much as you need.
 
 The banner shows on every route while offline, and hides when connectivity returns.
 
-The same pattern extends to parameterized routes. In this example we used a static route (`/dashboard`), but a route like `/chats/[id]` with a static shell renders that shell when navigating to `/chats/42` offline, and the dynamic messages behind its `<Suspense>` boundary load when the connection returns.
+The same pattern extends to parameterized routes. A route like `/chats/[id]` renders its shared [App Shell](/docs/app/glossary#app-shell) when you navigate to `/chats/42` offline, and the dynamic messages behind its `<Suspense>` boundary load when the connection returns.
+
+If the route opts into [runtime prefetching](/docs/app/guides/runtime-prefetching) with [`prefetch = 'allow-runtime'`](/docs/app/api-reference/file-conventions/route-segment-config/prefetch#allow-runtime), Next.js resolves the per-link URL data at prefetch time and includes it in the prefetch. `/chats/42` then renders its messages from that prefetch immediately, even offline, instead of waiting for the connection to return.
 
 ## Retry Server Actions after the network returns
 
@@ -424,7 +426,7 @@ In Chrome, use [DevTools > Network > **Offline**](https://developer.chrome.com/d
 
 ## Without Cache Components
 
-A route-level [`loading.tsx`](/docs/app/api-reference/file-conventions/loading) does the same job. Next.js wraps the segment's page content in a `<Suspense>` boundary with the `loading.tsx` export as its fallback; the layout above stays rendered. While offline, the cached layout and the `loading.tsx` fallback render from the prefetch, and the page resumes once the network returns. The `useOffline` hook, the banner, and the Server Action retry all work the same way.
+A route-level [`loading.tsx`](/docs/app/api-reference/file-conventions/loading) does the same job. Next.js wraps the segment's page in a `<Suspense>` boundary using the `loading.tsx` export as its fallback, leaving the layout above rendered. While offline, the cached layout and fallback render from the prefetch, and the page resumes once the network returns. The `useOffline` hook, banner, and Server Action retry all behave the same way.
 
 ## Next steps
 
