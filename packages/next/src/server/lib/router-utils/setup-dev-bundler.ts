@@ -24,7 +24,10 @@ import {
   EVENT_BUILD_FEATURE_USAGE,
   eventCliSession,
 } from '../../../telemetry/events'
-import { getSortedRoutes } from '../../../shared/lib/router/utils'
+import {
+  getSortedRoutes,
+  isDynamicRoute,
+} from '../../../shared/lib/router/utils'
 import { sortByPageExts } from '../../../build/sort-by-page-exts'
 import { verifyAndRunTypeScript } from '../../../lib/verify-typescript-setup'
 import { verifyPartytownSetup } from '../../../lib/verify-partytown-setup'
@@ -1035,6 +1038,9 @@ async function startWatcher(
         // dev mode so that we can match a page after a rewrite on the client
         // before it has been built and is populated in the _buildManifest
         const sortedRoutes = getSortedRoutes(routedPages)
+        const dataRoutePages = sortedRoutes.filter((page) =>
+          isDynamicRoute(page)
+        )
 
         opts.fsChecker.dynamicRoutes = sortedRoutes.map(
           (page): FilesystemDynamicRoute => {
@@ -1053,7 +1059,7 @@ async function startWatcher(
 
         const dataRoutes: typeof opts.fsChecker.dynamicRoutes = []
 
-        for (const page of sortedRoutes) {
+        for (const page of dataRoutePages) {
           const route = buildDataRoute(page, 'development')
           const routeRegex = getNamedRouteRegex(route.page, {
             prefixRouteKeys: true,
