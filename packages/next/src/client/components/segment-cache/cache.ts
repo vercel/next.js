@@ -67,6 +67,7 @@ import type {
   RouteCacheKey,
 } from './cache-key'
 import { createCacheKey as createPrefetchRequestKey } from './cache-key'
+import { splitPathnameIntoParts } from './cache-key'
 import {
   doesStaticSegmentAppearInURL,
   getCacheKeyForDynamicParam,
@@ -1417,7 +1418,7 @@ function convertRootTreePrefetchToRouteTree(
   acc: RouteTreeAccumulator
 ) {
   // Remove trailing and leading slashes
-  const pathnameParts = renderedPathname.split('/').filter((p) => p !== '')
+  const pathnameParts = splitPathnameIntoParts(renderedPathname)
   const index = 0
   const rootSegment = ROOT_SEGMENT_REQUEST_KEY
   return convertTreePrefetchToRouteTree(
