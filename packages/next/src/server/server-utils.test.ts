@@ -1,3 +1,4 @@
+import { parseUrl } from '../shared/lib/router/utils/parse-url'
 import { getServerUtils } from './server-utils'
 
 describe('getParamsFromRouteMatches', () => {
@@ -89,21 +90,16 @@ describe('handleRewrites', () => {
       pageIsDynamic: false,
       caseSensitive: false,
     })
-    const shared = ['one', 'two']
-    const parsedUrl = {
-      pathname: '/source',
-      query: { keep: 'yes', shared },
-    }
+    const parsedUrl = parseUrl('/source?keep=yes&shared=one&shared=two')
+    const shared = parsedUrl.query.shared
+    const originalUrl = structuredClone(parsedUrl)
 
     const { rewrittenParsedUrl } = handleRewrites(
       {} as Parameters<typeof handleRewrites>[0],
       parsedUrl
     )
 
-    expect(parsedUrl).toEqual({
-      pathname: '/source',
-      query: { keep: 'yes', shared: ['one', 'two'] },
-    })
+    expect(parsedUrl).toEqual(originalUrl)
     expect(parsedUrl.query.shared).toBe(shared)
     expect(rewrittenParsedUrl).toMatchObject({
       pathname: '/destination',
