@@ -176,13 +176,23 @@ function setupServerHmr(
       return
     }
 
-    let unsubscribe: (() => void) | undefined
-    let subscriptionFailed = false
+    let unsubscribeNative: (() => void) | undefined
+    let disposed = false
+    let isClearing = false
+    const queuedUpdates: NodeJsHmrUpdate[] = []
+
+    function dispose() {
+      if (disposed) {
+        return
+      }
+      disposed = true
+      queuedUpdates.length = 0
+      unsubscribeNative?.()
+    }
 
     function handleSubscriptionError(err: unknown) {
       console.error('[Server HMR] Subscription error:', err)
-      subscriptionFailed = true
-      unsubscribe?.()
+      dispose()
       serverHmrSubscriptions.delete(chunkPath)
       try {
         const clearResult = clear()
@@ -196,11 +206,68 @@ function setupServerHmr(
       }
     }
 
+    function applyUpdate(update: NodeJsHmrUpdate) {
+      // Fully re-evaluate all chunks from disk. Clears the module cache and
+      // notifies browsers to refetch RSC.
+      if (update.type === 'restart') {
+        return clear()
+      }
+
+      if (update.type !== 'partial') {
+        return
+      }
+
+      const instruction = update.instruction
+      if (!instruction || instruction.type !== 'EcmascriptMergedUpdate') {
+        return
+      }
+
+      if (typeof __turbopack_server_hmr_apply__ === 'function') {
+        const applied = __turbopack_server_hmr_apply__(update)
+        if (!applied) {
+          return clear()
+        }
+      }
+    }
+
+    function handleClearComplete() {
+      isClearing = false
+      const queuedUpdate = queuedUpdates.shift()
+      if (queuedUpdate) {
+        processUpdate(queuedUpdate)
+      }
+    }
+
+    function processUpdate(update: NodeJsHmrUpdate) {
+      if (isClearing) {
+        queuedUpdates.push(update)
+        return
+      }
+
+      try {
+        let nextUpdate: NodeJsHmrUpdate | undefined = update
+        while (nextUpdate) {
+          const clearResult = applyUpdate(nextUpdate)
+          if (clearResult) {
+            isClearing = true
+            clearResult.then(handleClearComplete, handleSubscriptionError)
+            return
+          }
+          nextUpdate = queuedUpdates.shift()
+        }
+      } catch (subscriptionError) {
+        handleSubscriptionError(subscriptionError)
+      }
+    }
+
     let initialized = false
-    unsubscribe = project.hmrEventsSubscribe(
+    unsubscribeNative = project.hmrEventsSubscribe(
       chunkPath,
       HmrTarget.Server,
       (err, result) => {
+        if (disposed) {
+          return
+        }
         if (err) {
           handleSubscriptionError(err)
           return
@@ -213,46 +280,13 @@ function setupServerHmr(
           return
         }
 
-        try {
-          const update = result as NodeJsHmrUpdate
-
-          // Fully re-evaluate all chunks from disk. Clears the module cache and
-          // notifies browsers to refetch RSC.
-          if (update.type === 'restart') {
-            const clearResult = clear()
-            if (clearResult) {
-              clearResult.catch(handleSubscriptionError)
-            }
-            return
-          }
-
-          if (update.type !== 'partial') {
-            return
-          }
-
-          const instruction = update.instruction
-          if (!instruction || instruction.type !== 'EcmascriptMergedUpdate') {
-            return
-          }
-
-          if (typeof __turbopack_server_hmr_apply__ === 'function') {
-            const applied = __turbopack_server_hmr_apply__(update)
-            if (!applied) {
-              const clearResult = clear()
-              if (clearResult) {
-                clearResult.catch(handleSubscriptionError)
-              }
-            }
-          }
-        } catch (subscriptionError) {
-          handleSubscriptionError(subscriptionError)
-        }
+        processUpdate(result as NodeJsHmrUpdate)
       }
     )
-    if (subscriptionFailed) {
-      unsubscribe()
+    if (disposed) {
+      unsubscribeNative()
     } else {
-      serverHmrSubscriptions.set(chunkPath, unsubscribe)
+      serverHmrSubscriptions.set(chunkPath, dispose)
     }
   }
 
