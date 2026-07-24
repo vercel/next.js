@@ -30,6 +30,7 @@ import { verifyAndRunTypeScript } from '../../../lib/verify-typescript-setup'
 import { verifyPartytownSetup } from '../../../lib/verify-partytown-setup'
 import { getNamedRouteRegex } from '../../../shared/lib/router/utils/route-regex'
 import { buildDataRoute } from './build-data-route'
+import { waitForInitialScan } from './watchpack-initial-scan'
 import { getRouteMatcher } from '../../../shared/lib/router/utils/route-matcher'
 import { normalizePathSep } from '../../../shared/lib/page-path/normalize-path-sep'
 import { createClientRouterFilter } from '../../../lib/create-client-router-filter'
@@ -421,7 +422,7 @@ async function startWatcher(
     const validatorFilePath = path.join(distDir, 'types', 'validator.ts')
 
     let initialWatchTime = performance.now() + performance.timeOrigin
-    wp.on('aggregated', async () => {
+    const processAggregatedChanges = async () => {
       let writeEnvDefinitions = false
       let typescriptStatusFromLastAggregation = enabledTypeScript
       let middlewareMatchers: ProxyMatcher[] | undefined
@@ -1215,6 +1216,31 @@ async function startWatcher(
           Log.warn('Failed to reload dynamic routes:', e)
         }
       }
+    }
+
+    // The initial scan emits change events for every pre-existing file
+    // (because of `startTime: 0`), and `aggregated` fires `aggregateTimeout`
+    // ms after the last event. Under I/O pressure the scan can pause for
+    // longer than `aggregateTimeout`, firing an aggregation whose
+    // `getTimeInfoEntries()` is missing part of the pages tree. Processing
+    // that partial snapshot would build an incomplete dynamic-route table
+    // and — on the first aggregation, which resolves this promise — report
+    // the server ready while dynamic routes 404. Wait until every directory
+    // watcher finished its initial scan before processing, and coalesce
+    // aggregations that arrive while a run is queued (a queued run reads
+    // fresh state when it starts, so their changes are not lost).
+    let aggregationQueued = false
+    let aggregationChain: Promise<void> = Promise.resolve()
+    wp.on('aggregated', () => {
+      if (aggregationQueued) {
+        return
+      }
+      aggregationQueued = true
+      aggregationChain = aggregationChain.then(async () => {
+        aggregationQueued = false
+        await waitForInitialScan(wp)
+        await processAggregatedChanges()
+      })
     })
 
     wp.watch({ directories: [dir], startTime: 0 })
