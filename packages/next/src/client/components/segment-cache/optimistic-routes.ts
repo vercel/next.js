@@ -955,11 +955,10 @@ function reifyRouteTree(
       segment: newSegment,
       shellVaryPath: getShellSegmentVaryPath(newVaryPath),
       refreshState: pattern.refreshState,
-      slots: newSlots,
-
-      prefetchHints: pattern.prefetchHints,
-      isPage: true,
       varyPath: newVaryPath,
+      isPage: true,
+      slots: newSlots,
+      prefetchHints: pattern.prefetchHints,
     }
   } else {
     // Layout segment: finalize without search params
@@ -972,11 +971,10 @@ function reifyRouteTree(
       segment: newSegment,
       shellVaryPath: getShellSegmentVaryPath(newVaryPath),
       refreshState: pattern.refreshState,
-      slots: newSlots,
-
-      prefetchHints: pattern.prefetchHints,
-      isPage: false,
       varyPath: newVaryPath,
+      isPage: false,
+      slots: newSlots,
+      prefetchHints: pattern.prefetchHints,
     }
   }
 }
