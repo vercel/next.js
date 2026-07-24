@@ -1,8 +1,10 @@
 use rustc_hash::FxHashMap;
 use swc_core::{
     atoms::Atom,
+    common::BytePos,
     ecma::{ast::*, visit::VisitWithAstPath},
 };
+use turbopack_core::resolve::ExportUsage;
 
 pub use crate::analyzer::graph::{
     effects::{
@@ -18,7 +20,7 @@ use crate::{
 
 mod effects;
 mod eval_context;
-mod visitor;
+pub(crate) mod visitor;
 
 #[derive(Debug)]
 pub struct VarGraph<'a> {
@@ -33,6 +35,10 @@ pub struct VarGraph<'a> {
     pub effects: Vec<Effect<'a>>,
     // Some unconditional codegens, usually for ESM items.
     pub code_gens: Vec<CodeGen>,
+
+    /// [`ExportUsage`] per `require("…")` call, keyed by call position; absent
+    /// calls fall back to `ExportUsage::All`.
+    pub require_usage: FxHashMap<BytePos, ExportUsage>,
 }
 
 impl<'a> VarGraph<'a> {
@@ -63,6 +69,7 @@ pub fn create_graph<'a>(
             free_var_ids: Default::default(),
             effects: Default::default(),
             code_gens: Default::default(),
+            require_usage: Default::default(),
         },
         eval_context,
         state: Default::default(),
@@ -77,6 +84,10 @@ pub fn create_graph<'a>(
     if cjs_tree_shaking && analyze_mode.is_code_gen() && eval_context.is_cjs(specified_module_type)
     {
         analyzer.enable_cjs_exports();
+    }
+
+    if cjs_tree_shaking && analyze_mode.is_code_gen() {
+        analyzer.enable_require_usage(&eval_context.imports);
     }
 
     m.visit_with_ast_path(&mut analyzer, &mut Default::default());
