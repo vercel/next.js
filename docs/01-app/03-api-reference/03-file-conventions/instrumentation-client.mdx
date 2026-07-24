@@ -250,7 +250,19 @@ if (!window.ResizeObserver) {
 }
 ```
 
-A conditional `import()` here is fire-and-forget and may land after hydration, so for anything loaded on demand, prefer polyfilling in the code that uses the feature. See [Custom Polyfills](/docs/architecture/supported-browsers#custom-polyfills) for that and other strategies.
+Avoid loading a polyfill with a conditional `import()` here. The import is fire-and-forget, so the polyfill may be applied after hydration has already begun, which can be too late for your components:
+
+```ts filename="instrumentation-client.ts"
+// Avoid: the dynamic import is fire-and-forget, so `ResizeObserver`
+// may still be undefined when your components run.
+if (!window.ResizeObserver) {
+  import('./lib/polyfills/resize-observer').then((mod) => {
+    window.ResizeObserver = mod.default
+  })
+}
+```
+
+For anything loaded on demand, prefer polyfilling in the code that uses the feature. See [Custom Polyfills](/docs/architecture/supported-browsers#custom-polyfills) for that and other strategies.
 
 Next.js already injects a baseline of [widely used polyfills](/docs/architecture/supported-browsers#polyfills) (such as `fetch`, `URL`, and `Object.assign`) for the browsers that need them, so you only need to add polyfills for features outside that baseline.
 
