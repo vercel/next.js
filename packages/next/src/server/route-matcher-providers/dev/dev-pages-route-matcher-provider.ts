@@ -13,6 +13,10 @@ export class DevPagesRouteMatcherProvider extends FileCacheRouteMatcherProvider<
   private readonly expression: RegExp
   private readonly normalizers: DevPagesNormalizers
 
+  // Preserve unchanged matchers when a route is added or removed. The parent
+  // provider can only reuse its cache when the complete file list is equal.
+  private readonly matcherCache = new Map<string, PagesRouteMatcher>()
+
   constructor(
     private readonly pagesDir: string,
     private readonly extensions: ReadonlyArray<string>,
@@ -54,36 +58,45 @@ export class DevPagesRouteMatcherProvider extends FileCacheRouteMatcherProvider<
     files: ReadonlyArray<string>
   ): Promise<ReadonlyArray<PagesRouteMatcher>> {
     const matchers: Array<PagesRouteMatcher> = []
+    const retained = new Set<string>()
+
     for (const filename of files) {
       // If the file isn't a match for this matcher, then skip it.
       if (!this.test(filename)) continue
 
-      const pathname = this.normalizers.pathname.normalize(filename)
-      const page = this.normalizers.page.normalize(filename)
-      const bundlePath = this.normalizers.bundlePath.normalize(filename)
+      retained.add(filename)
+      let matcher = this.matcherCache.get(filename)
 
-      if (this.localeNormalizer) {
-        matchers.push(
-          new PagesLocaleRouteMatcher({
-            kind: RouteKind.PAGES,
-            pathname,
-            page,
-            bundlePath,
-            filename,
-            i18n: {},
-          })
-        )
-      } else {
-        matchers.push(
-          new PagesRouteMatcher({
-            kind: RouteKind.PAGES,
-            pathname,
-            page,
-            bundlePath,
-            filename,
-          })
-        )
+      if (!matcher) {
+        const pathname = this.normalizers.pathname.normalize(filename)
+        const page = this.normalizers.page.normalize(filename)
+        const bundlePath = this.normalizers.bundlePath.normalize(filename)
+
+        matcher = this.localeNormalizer
+          ? new PagesLocaleRouteMatcher({
+              kind: RouteKind.PAGES,
+              pathname,
+              page,
+              bundlePath,
+              filename,
+              i18n: {},
+            })
+          : new PagesRouteMatcher({
+              kind: RouteKind.PAGES,
+              pathname,
+              page,
+              bundlePath,
+              filename,
+            })
+
+        this.matcherCache.set(filename, matcher)
       }
+
+      matchers.push(matcher)
+    }
+
+    for (const filename of this.matcherCache.keys()) {
+      if (!retained.has(filename)) this.matcherCache.delete(filename)
     }
 
     return matchers
