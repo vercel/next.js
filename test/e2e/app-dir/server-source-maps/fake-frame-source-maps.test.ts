@@ -229,6 +229,21 @@ describe('app-dir - server source maps - fake frame source maps', () => {
           }).toEqual({ url: script.url, hasSourceMap: true })
         }
 
+        if (isTurbopack) {
+          // The resolver silently falls back to inlining `data:` URLs, so a
+          // defect in the `file:` URL derivation keeps all behavior-based
+          // assertions green. Only this assertion catches it.
+          for (const script of fakeScripts) {
+            expect({
+              url: script.url,
+              sourceMapURL: script.sourceMapURL,
+            }).toEqual({
+              url: script.url,
+              sourceMapURL: expect.stringMatching(/^file:/),
+            })
+          }
+        }
+
         // Resolve each source map like a debugger frontend and map the
         // padded `_()` call position of each fake function back to its
         // original source, like clicking the frame in a debugger would.
@@ -277,6 +292,88 @@ describe('app-dir - server source maps - fake frame source maps', () => {
         const testDirURL = url.pathToFileURL(fs.realpathSync(next.testDir))
         expect([...mappedSources]).toContain(
           `${testDirURL.href}/app/rsc-error-log/page.js`
+        )
+      } finally {
+        session.close()
+      }
+    })
+
+    it('fake stack frames from nested Flight requests are resolvable by an attached debugger', async () => {
+      // Rendering this page produces fake frame scripts whose frame
+      // filenames are `file:` URLs rather than file paths.
+      await next.render('/rsc-error-throw-cached')
+
+      const target = await findServerInspectorTarget()
+      const session = await CDPSession.connect(target.webSocketDebuggerUrl)
+      try {
+        const evalScripts: {
+          scriptId: string
+          url: string
+          sourceMapURL: string
+        }[] = []
+        session.onEvent = (method, params) => {
+          if (method === 'Debugger.scriptParsed' && params.hasSourceURL) {
+            evalScripts.push({
+              scriptId: params.scriptId,
+              url: params.url,
+              sourceMapURL: params.sourceMapURL ?? '',
+            })
+          }
+        }
+        await session.send('Debugger.enable', { maxScriptsCacheSize: 1 })
+
+        await retry(async () => {
+          expect(
+            evalScripts.filter((script) =>
+              script.url.startsWith('about://React/Cache/')
+            ).length
+          ).toBeGreaterThan(0)
+        })
+
+        // React emits a fake frame script under `about://React/` with a
+        // source map, or, when no source map could be found for it, under
+        // the frame's raw filename without one.
+        const fakeScripts = evalScripts.filter(
+          (script) =>
+            script.url.startsWith('about://React/') ||
+            (script.url.startsWith('file:') && script.sourceMapURL === '')
+        )
+        const mappedSources = new Set<string>()
+        for (const script of fakeScripts) {
+          expect({
+            url: script.url,
+            hasSourceMap: script.sourceMapURL !== '',
+          }).toEqual({ url: script.url, hasSourceMap: true })
+
+          const { sourceMap, mapURL } = await resolveSourceMapLikeADebugger(
+            session,
+            script.url,
+            script.sourceMapURL
+          )
+          const { scriptSource } = await session.send(
+            'Debugger.getScriptSource',
+            { scriptId: script.scriptId }
+          )
+          const callIndex = scriptSource.indexOf('_()')
+          if (callIndex === -1) continue
+          const line = scriptSource.slice(0, callIndex).split('\n').length
+          const column =
+            callIndex - (scriptSource.lastIndexOf('\n', callIndex) + 1)
+
+          const consumer = new SourceMap(sourceMap)
+          const original = consumer.findEntry(line - 1, column)
+          if (original.originalSource !== undefined) {
+            mappedSources.add(
+              mapURL === null
+                ? original.originalSource
+                : new URL(original.originalSource, mapURL).href
+            )
+          }
+        }
+
+        const testDirURL = url.pathToFileURL(fs.realpathSync(next.testDir))
+        expect([...mappedSources]).toContain(
+          `${testDirURL.href}/app/rsc-error-throw-cached/page.js`
         )
       } finally {
         session.close()
