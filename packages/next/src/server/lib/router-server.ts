@@ -122,11 +122,6 @@ export async function initialize(opts: {
       },
     }
   )
-  const disableDevMemoryThreshold = opts.dev
-    ? (config as NextConfigComplete).experimental.disableDevMemoryThreshold ===
-      true
-    : false
-
   if (bundlerBeforeConfig !== undefined) {
     finalizeBundlerFromConfig(bundlerBeforeConfig)
   }
@@ -238,6 +233,8 @@ export async function initialize(opts: {
       config: developmentConfig,
     }
   }
+  const disableDevMemoryThreshold =
+    development?.config.experimental.disableDevMemoryThreshold === true
 
   renderServer.instance =
     require('./render-server') as typeof import('./render-server')
