@@ -88,4 +88,22 @@ testFn('import-meta-glob', () => {
       './other/baz.ts': 'baz',
     })
   })
+
+  it('should resolve parent-relative glob patterns in server components', async () => {
+    const $ = await next.render$('/')
+    const parentKeys = JSON.parse($('#parent-keys').text())
+    expect(parentKeys).toEqual(['../lib/modules/example.ts'])
+
+    const parentResults = JSON.parse($('#parent-results').text())
+    expect(parentResults).toEqual({
+      '../lib/modules/example.ts': 'example-module',
+    })
+  })
+
+  it('should resolve parent-relative glob patterns', async () => {
+    const res = await next.fetch('/api/glob')
+    expect(res.status).toBe(200)
+    const body = await res.json()
+    expect(body).toEqual({ values: ['example-module'] })
+  })
 })

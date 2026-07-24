@@ -316,11 +316,25 @@ pub fn parse_import_meta_glob(
 // Helpers for collecting files from ReadGlobResult
 // ---------------------------------------------------------------------------
 
-/// Strip the `./` prefix from a Vite-style glob pattern to produce a pattern
-/// compatible with Turbopack's `Glob` (which operates relative to the scan
-/// directory, without a leading `./`).
-fn strip_relative_prefix(pattern: &str) -> &str {
-    pattern.strip_prefix("./").unwrap_or(pattern)
+/// Consume leading `./` and `../` segments from a Vite-style glob pattern.
+///
+/// Returns the number of `..` (parent-directory traversals) and the remaining
+/// pattern, which is relative to the origin directory walked up by that many
+/// parents.
+fn extract_leading_relative_parts(pattern: &str) -> (usize, &str) {
+    let mut rest = pattern;
+    let mut up = 0;
+    loop {
+        if let Some(r) = rest.strip_prefix("./") {
+            rest = r;
+        } else if let Some(r) = rest.strip_prefix("../") {
+            up += 1;
+            rest = r;
+        } else {
+            break;
+        }
+    }
+    (up, rest)
 }
 
 /// Flatten a nested `ReadGlobResult` into a sorted list of
@@ -596,12 +610,60 @@ impl ImportMetaGlobAsset {
         let origin = *self.origin;
         let origin_dir = origin.into_trait_ref().await?.origin_path().parent();
 
-        // Compute the base directory for glob scanning.
+        // Compute the effective origin directory for glob scanning.
         // With `base`, patterns are resolved relative to origin + base.
-        let base_dir = if let Some(ref b) = self.base {
+        let effective_dir = if let Some(ref b) = self.base {
             origin_dir.join(b)?
         } else {
             origin_dir
+        };
+
+        // Determine the maximum parent-directory traversal (`../`) count across
+        // all positive and negative patterns.
+        let max_parent = self
+            .patterns
+            .iter()
+            .map(|p| {
+                let raw = p.strip_prefix('!').unwrap_or(p);
+                extract_leading_relative_parts(raw).0
+            })
+            .max()
+            .unwrap_or(0);
+
+        // Walk up from `effective_dir` by `max_parent` levels to produce the
+        // `scan_base` — the single directory from which we do the actual glob
+        // scan. All patterns are then rewritten relative to this base.
+        let effective_dir_path = effective_dir.path.clone();
+        let effective_dir_segments: Vec<&str> = effective_dir_path
+            .split('/')
+            .filter(|s| !s.is_empty())
+            .collect();
+        let clamped_parent = max_parent.min(effective_dir_segments.len());
+
+        let mut scan_base = effective_dir.clone();
+        for _ in 0..clamped_parent {
+            scan_base = scan_base.parent();
+        }
+
+        // Path segments between `scan_base` and `effective_dir`. To rewrite a
+        // pattern with `k` `../`s (k ≤ clamped_parent), we prepend the first
+        // `clamped_parent - k` of these segments to the pattern remainder.
+        let inner_segments: Vec<&str> = if clamped_parent == 0 {
+            Vec::new()
+        } else {
+            effective_dir_segments[effective_dir_segments.len() - clamped_parent..].to_vec()
+        };
+
+        // Rewrite a Vite-style pattern to be relative to `scan_base`.
+        let rewrite = |raw: &str| -> RcStr {
+            let (k, rest) = extract_leading_relative_parts(raw);
+            let k = k.min(inner_segments.len());
+            let prefix_count = inner_segments.len() - k;
+            let mut parts: Vec<&str> = inner_segments[..prefix_count].to_vec();
+            if !rest.is_empty() {
+                parts.push(rest);
+            }
+            parts.join("/").into()
         };
 
         // Separate positive (matching) and negative (exclusion) patterns.
@@ -609,12 +671,11 @@ impl ImportMetaGlobAsset {
         let (positive_raw, negative_raw): (Vec<_>, Vec<_>) =
             self.patterns.iter().partition(|p| !p.starts_with('!'));
 
-        // Build the positive Glob. Turbopack's Glob operates on paths relative
-        // to the scan directory (no leading `./`), so strip that prefix. For
-        // multiple patterns, use `Glob::alternatives` to combine them.
+        // Build the positive Glob. For multiple patterns, use
+        // `Glob::alternatives` to combine them into a single alternation glob.
         let positive_globs: Vec<Vc<Glob>> = positive_raw
             .iter()
-            .map(|p| Glob::new(strip_relative_prefix(p).into(), GlobOptions::default()))
+            .map(|p| Glob::new(rewrite(p), GlobOptions::default()))
             .collect();
 
         let positive_glob = if positive_globs.len() == 1 {
@@ -623,15 +684,13 @@ impl ImportMetaGlobAsset {
             Glob::alternatives(positive_globs)
         };
 
-        // Build the negative Glob (if any). Negative patterns also need `./`
-        // stripped and are combined into a single alternation glob.
+        // Build the negative Glob (if any).
         let negative_glob = if !negative_raw.is_empty() {
             let neg_globs: Vec<Vc<Glob>> = negative_raw
                 .iter()
                 .map(|p| {
                     let stripped = p.strip_prefix('!').unwrap_or(p);
-                    let stripped = strip_relative_prefix(stripped);
-                    Glob::new(stripped.into(), GlobOptions::default())
+                    Glob::new(rewrite(stripped), GlobOptions::default())
                 })
                 .collect();
 
@@ -647,7 +706,7 @@ impl ImportMetaGlobAsset {
 
         Ok(ImportMetaGlobMap::generate(
             origin,
-            base_dir,
+            scan_base,
             positive_glob,
             negative_glob,
             self.query.clone(),
@@ -971,5 +1030,35 @@ impl ImportMetaGlobAssetReferenceCodeGen {
             }
         ));
         Ok(CodeGeneration::visitors(visitors))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn extract_leading_relative_parts_handles_current_directory_prefix() {
+        assert_eq!(
+            extract_leading_relative_parts("./foo/*.js"),
+            (0, "foo/*.js")
+        );
+    }
+
+    #[test]
+    fn extract_leading_relative_parts_handles_parent_directory_prefix() {
+        assert_eq!(
+            extract_leading_relative_parts("../lib/**/*.js"),
+            (1, "lib/**/*.js")
+        );
+        assert_eq!(
+            extract_leading_relative_parts("../../a/./b/*.ts"),
+            (2, "a/./b/*.ts")
+        );
+    }
+
+    #[test]
+    fn extract_leading_relative_parts_handles_rootless_globs() {
+        assert_eq!(extract_leading_relative_parts("foo/*.js"), (0, "foo/*.js"));
     }
 }
