@@ -78,13 +78,10 @@ async function discoverDevServerUrl(directory?: string): Promise<URL> {
     )
   }
 
-  return exitWithError(
-    `Unable to discover a running Next.js dev server from ${lockfilePath}. Start next dev or pass --url.`
+  return printAndExit(
+    `Unable to discover a running Next.js dev server from ${lockfilePath}. Start next dev or pass --url.`,
+    1
   )
-}
-
-function exitWithError(message: string): never {
-  return printAndExit(message, 1) as never
 }
 
 function parseDevServerUrl(value: string): URL {
@@ -93,14 +90,16 @@ function parseDevServerUrl(value: string): URL {
   try {
     url = new URL(value)
   } catch {
-    return exitWithError(
-      `Invalid dev server URL "${value}". Pass a valid HTTP or HTTPS URL.`
+    return printAndExit(
+      `Invalid dev server URL "${value}". Pass a valid HTTP or HTTPS URL.`,
+      1
     )
   }
 
   if (url.protocol !== 'http:' && url.protocol !== 'https:') {
-    return exitWithError(
-      `Invalid dev server URL "${value}". Pass a valid HTTP or HTTPS URL.`
+    return printAndExit(
+      `Invalid dev server URL "${value}". Pass a valid HTTP or HTTPS URL.`,
+      1
     )
   }
 

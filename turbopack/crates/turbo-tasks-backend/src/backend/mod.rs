@@ -1817,19 +1817,6 @@ impl TurboTasksBackend {
 
     /// Collect an on-demand memory audit of everything currently resident in
     /// the task storage.
-    ///
-    /// Splits the result into a transient section (tasks eviction skips
-    /// entirely — where per-route accumulation shows up) and a persistent
-    /// section (cells/tasks that survived eviction). Each section reports cells
-    /// grouped by value type (ranked by `strong_count` — the live
-    /// `triomphe::Arc` reference count, a cheap proxy for retention) and tasks
-    /// grouped by task-type function name (including tasks that retain no cells,
-    /// only meta data).
-    ///
-    /// This iterates all tasks under per-shard read locks, so it may take some
-    /// time on large graphs. It is exposed on-demand (see the NAPI
-    /// `projectGetMemoryReport` binding and the dev-server
-    /// `/__nextjs_turbopack-memory` endpoint) rather than run automatically.
     pub fn collect_memory_report(&self) -> MemoryReport {
         let raw = self.storage.audit_all();
         MemoryReport {

@@ -684,17 +684,6 @@ impl Storage {
     }
 
     /// Debug-only audit of everything resident in storage.
-    ///
-    /// Walks every task under a per-shard read lock and aggregates two views,
-    /// each split into a transient and a persistent [`AuditKindData`]:
-    /// - **cells by value type** (count + `triomphe::Arc` strong-count stats), to see which cell
-    ///   values are retained.
-    /// - **tasks by task type** (function name), including tasks that retain *no* cells (only
-    ///   meta/transient data). This matters because a graph can retain hundreds of persistent tasks
-    ///   while holding only a handful of cells.
-    ///
-    /// Aggregation happens inside the parallel loop; only the small per-shard
-    /// maps are merged afterwards. Read-only: takes a read lock per shard.
     pub fn audit_all(&self) -> AuditRawData {
         let shards: Vec<_> = self.map.shards().iter().collect();
         let per_shard: Vec<AuditRawData> = parallel::map_collect(&shards, |shard| {
@@ -714,7 +703,7 @@ impl Storage {
 
                 // Group the task by its function name. Function tasks carry a
                 // `persistent_task_type` (even when the task id is transient);
-                // Root/Once transient tasks don't, so they fall into a bucket.
+                // Root/Once transient tasks don't, so they fall into a single bucket.
                 let task_type_name = storage
                     .get_persistent_task_type()
                     .map(|t| t.get_name())
@@ -739,9 +728,7 @@ impl Storage {
                 }
 
                 // For persistent tasks, record *why* eviction left the task
-                // resident. This is the key debugging signal: a task type with
-                // hundreds of `Modified` or `NothingToEvict` entries points
-                // straight at what is being retained and why.
+                // resident.
                 if !task_id.is_transient() {
                     if let (_, ValueEvictability::Unevictable(reason)) = storage.evictability() {
                         task_agg.unevictable_reasons[reason.index()] += 1;
