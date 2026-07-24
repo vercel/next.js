@@ -781,6 +781,23 @@ function bindingToApi(
       )
     }
 
+    hmrEventsSubscribe(
+      chunkName: string,
+      target: HmrTarget.Server,
+      callback: (
+        err: Error | undefined,
+        update: TurbopackResult<NodeJsHmrUpdate> | undefined
+      ) => void
+    ) {
+      const task = binding.projectHmrEvents(
+        this._nativeProject,
+        chunkName,
+        target,
+        callback
+      )
+      return () => binding.rootTaskDispose(task)
+    }
+
     /**
      * Subscribe to the list of output chunk paths that can receive HMR updates.
      * Chunk paths are output file paths like "server/chunks/ssr/..._.js" for server

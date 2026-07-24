@@ -367,6 +367,81 @@ describe('next.rs api', () => {
     )
   })
 
+  it('should deliver server HMR updates without an async iterator', async () => {
+    const entrypointsSubscription = project.entrypointsSubscribe()
+    const entrypoints = (await entrypointsSubscription.next()).value
+    await entrypointsSubscription.return()
+    if (!('routes' in entrypoints)) {
+      throw new Error('Entrypoints not available due to compilation errors')
+    }
+
+    const route = entrypoints.routes.get('/app')
+    if (route.type !== 'app-page') {
+      throw new Error('Expected an app page route')
+    }
+    await route.pages[0].htmlEndpoint.writeToDisk()
+
+    const chunkNamesSubscription = project.hmrChunkNamesSubscribe(
+      HmrTarget.Server
+    )
+    let chunkNames: string[] = []
+    while (chunkNames.length === 0) {
+      const chunkNamesResult = await chunkNamesSubscription.next()
+      if (chunkNamesResult.done) {
+        throw new Error('Server HMR chunk names subscription ended')
+      }
+      chunkNames = chunkNamesResult.value.chunkNames
+    }
+    await chunkNamesSubscription.return()
+
+    let resolveUpdate!: (value: TurbopackResult) => void
+    let rejectUpdate!: (error: Error) => void
+    const updateReceived = new Promise<TurbopackResult>((resolve, reject) => {
+      resolveUpdate = resolve
+      rejectUpdate = reject
+    })
+    const initialized: Promise<void>[] = []
+    const unsubscribe = chunkNames.map((chunkName) => {
+      let resolveInitialized!: () => void
+      let rejectInitialized!: (error: Error) => void
+      initialized.push(
+        new Promise<void>((resolve, reject) => {
+          resolveInitialized = resolve
+          rejectInitialized = reject
+        })
+      )
+      let isInitialized = false
+      return project.hmrEventsSubscribe(
+        chunkName,
+        HmrTarget.Server,
+        (err, update) => {
+          if (err) {
+            rejectInitialized(err)
+            rejectUpdate(err)
+          } else if (!isInitialized) {
+            isInitialized = true
+            resolveInitialized()
+          } else if (update?.type === 'partial') {
+            resolveUpdate(update)
+          }
+        }
+      )
+    })
+    const file = 'app/app/page.tsx'
+    const originalContent = await next.readFile(file)
+    try {
+      await Promise.all(initialized)
+      await next.patchFile(file, appPageCode('callback update'))
+      await expect(updateReceived).resolves.toMatchObject({
+        type: 'partial',
+        issues: [],
+      })
+    } finally {
+      unsubscribe.forEach((dispose) => dispose())
+      await next.patchFile(file, originalContent)
+    }
+  })
+
   it('should detect the correct routes', async () => {
     const entrypointsSubscription = project.entrypointsSubscribe()
     const entrypoints = await entrypointsSubscription.next()

@@ -155,10 +155,7 @@ declare const __turbopack_server_hmr_apply__:
   | ((update: NodeJsPartialHmrUpdate) => boolean)
   | undefined
 
-type ServerHmrSubscriptions = Map<
-  string,
-  AsyncIterableIterator<TurbopackResult<NodeJsHmrUpdate>>
->
+type ServerHmrSubscriptions = Map<string, () => void>
 
 function setupServerHmr(
   project: Project,
@@ -179,45 +176,84 @@ function setupServerHmr(
       return
     }
 
-    const subscription = project.hmrEvents(chunkPath, HmrTarget.Server)
-    serverHmrSubscriptions.set(chunkPath, subscription)
+    let unsubscribe: (() => void) | undefined
+    let subscriptionFailed = false
 
-    // Start listening for changes in background
-    ;(async () => {
-      // Skip initial state
-      await subscription.next()
+    function handleSubscriptionError(err: unknown) {
+      console.error('[Server HMR] Subscription error:', err)
+      subscriptionFailed = true
+      unsubscribe?.()
+      serverHmrSubscriptions.delete(chunkPath)
+      try {
+        const clearResult = clear()
+        if (clearResult) {
+          clearResult.catch((clearError) => {
+            console.error('[Server HMR] Failed to clear caches:', clearError)
+          })
+        }
+      } catch (clearError) {
+        console.error('[Server HMR] Failed to clear caches:', clearError)
+      }
+    }
 
-      for await (const result of subscription) {
-        const update = result as NodeJsHmrUpdate
-
-        // Fully re-evaluate all chunks from disk. Clears the module cache and
-        // notifies browsers to refetch RSC.
-        if (update.type === 'restart') {
-          await clear()
-          continue
+    let initialized = false
+    unsubscribe = project.hmrEventsSubscribe(
+      chunkPath,
+      HmrTarget.Server,
+      (err, result) => {
+        if (err) {
+          handleSubscriptionError(err)
+          return
+        }
+        if (!result) {
+          return
+        }
+        if (!initialized) {
+          initialized = true
+          return
         }
 
-        if (update.type !== 'partial') {
-          continue
-        }
+        try {
+          const update = result as NodeJsHmrUpdate
 
-        const instruction = update.instruction
-        if (!instruction || instruction.type !== 'EcmascriptMergedUpdate') {
-          continue
-        }
-
-        if (typeof __turbopack_server_hmr_apply__ === 'function') {
-          const applied = __turbopack_server_hmr_apply__(update)
-          if (!applied) {
-            await clear()
+          // Fully re-evaluate all chunks from disk. Clears the module cache and
+          // notifies browsers to refetch RSC.
+          if (update.type === 'restart') {
+            const clearResult = clear()
+            if (clearResult) {
+              clearResult.catch(handleSubscriptionError)
+            }
+            return
           }
+
+          if (update.type !== 'partial') {
+            return
+          }
+
+          const instruction = update.instruction
+          if (!instruction || instruction.type !== 'EcmascriptMergedUpdate') {
+            return
+          }
+
+          if (typeof __turbopack_server_hmr_apply__ === 'function') {
+            const applied = __turbopack_server_hmr_apply__(update)
+            if (!applied) {
+              const clearResult = clear()
+              if (clearResult) {
+                clearResult.catch(handleSubscriptionError)
+              }
+            }
+          }
+        } catch (subscriptionError) {
+          handleSubscriptionError(subscriptionError)
         }
       }
-    })().catch(async (err) => {
-      console.error('[Server HMR] Subscription error:', err)
-      serverHmrSubscriptions.delete(chunkPath)
-      await clear()
-    })
+    )
+    if (subscriptionFailed) {
+      unsubscribe()
+    } else {
+      serverHmrSubscriptions.set(chunkPath, unsubscribe)
+    }
   }
 
   // Listen to the Rust bindings update us on changing server HMR chunk paths
@@ -242,8 +278,7 @@ function setupServerHmr(
         }
 
         for (const chunkPath of chunkPathsToRemove) {
-          const subscription = serverHmrSubscriptions.get(chunkPath)
-          subscription?.return?.()
+          serverHmrSubscriptions.get(chunkPath)?.()
           serverHmrSubscriptions.delete(chunkPath)
         }
 
