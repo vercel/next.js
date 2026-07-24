@@ -283,7 +283,7 @@ To reduce resource usage without fully disabling prefetch, you can prefetch only
 import Link from 'next/link'
 import { useState } from 'react'
 
-function HoverPrefetchLink({
+export default function HoverPrefetchLink({
   href,
   children,
 }: {
@@ -310,7 +310,7 @@ function HoverPrefetchLink({
 import Link from 'next/link'
 import { useState } from 'react'
 
-function HoverPrefetchLink({ href, children }) {
+export default function HoverPrefetchLink({ href, children }) {
   const [active, setActive] = useState(false)
 
   return (
