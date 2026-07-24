@@ -1470,5 +1470,11 @@
   "1469": "\\`\"use cache: private\"\\` needs an active request. It can't be used during \\`generateStaticParams\\` or other build-time contexts.\\nLearn more: https://nextjs.org/docs/messages/use-cache-private-composition",
   "1470": "\\`\"use cache: private\"\\` can't be used inside \\`unstable_cache()\\`.\\nLearn more: https://nextjs.org/docs/messages/use-cache-private-composition",
   "1471": "\\`cacheLife()\\` can only be called inside a \\`\"use cache\"\\` function.\\nLearn more: https://nextjs.org/docs/messages/cache-life-outside-use-cache",
-  "1472": "Route \"%s\": \\`connection()\\` can't be used inside \\`\"use cache\"\\`. A cache entry can be built before any request exists, so it can't depend on one.\\nLearn more: https://nextjs.org/docs/messages/next-request-in-use-cache"
+  "1472": "Route \"%s\": \\`connection()\\` can't be used inside \\`\"use cache\"\\`. A cache entry can be built before any request exists, so it can't depend on one.\\nLearn more: https://nextjs.org/docs/messages/next-request-in-use-cache",
+  "1473": "Invalid value returned from generateStaticParams for \"%s\". Expected an array, but received type %s. See more info here: https://nextjs.org/docs/messages/generate-static-params",
+  "1474": "Invalid value at index %s returned from generateStaticParams for \"%s\". Expected an object, but received type %s. See more info here: https://nextjs.org/docs/messages/generate-static-params",
+  "1475": "Page \"%s\" is missing \"generateStaticParams()\" so it cannot be used with \"output: export\" config. See more info here: https://nextjs.org/docs/messages/generate-static-params",
+  "1476": "Page \"%s\" is missing exported function \"generateStaticParams()\", which is required with \"output: export\" config. See more info here: https://nextjs.org/docs/messages/generate-static-params",
+  "1477": "Page \"%s\" returned an empty array from \"generateStaticParams()\". With \"output: export\", at least one route must be generated. See more info here: https://nextjs.org/docs/messages/generate-static-params",
+  "1478": "Page \"%s\" returned incomplete params from \"generateStaticParams()\". With \"output: export\", every params object must include all dynamic route parameters. Missing: %s. See more info here: https://nextjs.org/docs/messages/generate-static-params"
 }

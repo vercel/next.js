@@ -141,6 +141,7 @@ export type ClientStateMap = WeakMap<ws, ClientState>
 type HandleRouteTypeHooks = {
   handleWrittenEndpoint: HandleWrittenEndpoint
   subscribeToChanges: StartChangeSubscription
+  handleServerComponentChanges?: () => void
 }
 
 export async function handleRouteType({
@@ -356,7 +357,7 @@ export async function handleRouteType({
           key,
           /** includeIssues=*/ true,
           route.rscHmrEndpoint,
-          (change, hash) => {
+          (change) => {
             if (change.issues.some((issue) => issue.severity === 'error')) {
               // Ignore any updates that has errors
               // There will be another update without errors eventually
@@ -364,10 +365,7 @@ export async function handleRouteType({
             }
             // Report the next compilation again
             readyIds?.delete(pathname)
-            return {
-              type: HMR_MESSAGE_SENT_TO_BROWSER.SERVER_COMPONENT_CHANGES,
-              hash,
-            }
+            hooks?.handleServerComponentChanges?.()
           },
           (e) => {
             return {

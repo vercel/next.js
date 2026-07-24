@@ -18,7 +18,10 @@ use turbopack_core::{
     module::Module,
     reference::ModuleReference,
     reference_type::CommonJsReferenceSubType,
-    resolve::{ModuleResolveResult, ResolveErrorMode, origin::ResolveOrigin, parse::Request},
+    resolve::{
+        BindingUsage, ExportUsage, ImportUsage, ModuleResolveResult, ResolveErrorMode,
+        origin::ResolveOrigin, parse::Request,
+    },
 };
 use turbopack_resolve::ecmascript::cjs_resolve;
 
@@ -98,6 +101,8 @@ pub struct CjsRequireAssetReference {
     error_mode: ResolveErrorMode,
     chunking_type_attribute: Option<SpecifiedChunkingType>,
     resolve_override: Option<ResolvedVc<Box<dyn Module>>>,
+    usage: ExportUsage,
+    cjs_tree_shaking: bool,
 }
 
 impl CjsRequireAssetReference {
@@ -108,6 +113,8 @@ impl CjsRequireAssetReference {
         error_mode: ResolveErrorMode,
         chunking_type_attribute: Option<SpecifiedChunkingType>,
         resolve_override: Option<ResolvedVc<Box<dyn Module>>>,
+        usage: ExportUsage,
+        cjs_tree_shaking: bool,
     ) -> Self {
         CjsRequireAssetReference {
             origin,
@@ -116,6 +123,8 @@ impl CjsRequireAssetReference {
             error_mode,
             chunking_type_attribute,
             resolve_override,
+            usage,
+            cjs_tree_shaking,
         }
     }
 }
@@ -147,6 +156,13 @@ impl ModuleReference for CjsRequireAssetReference {
             },
             |c| c.as_chunking_type(false, false),
         )
+    }
+
+    fn binding_usage(&self) -> BindingUsage {
+        BindingUsage {
+            import: ImportUsage::TopLevel,
+            export: self.usage.clone(),
+        }
     }
 
     fn source(&self) -> Option<IssueSource> {
@@ -184,6 +200,22 @@ impl CjsRequireAssetReferenceCodeGen {
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<CodeGeneration> {
         let reference = self.reference.await?;
+
+        // This `require()` is in `unused_references`: its result is unused and
+        // the target is side-effect free. Replace the call with a placeholder
+        // at the expression level.
+        if reference.cjs_tree_shaking
+            && chunking_context
+                .unused_references()
+                .contains_key(&ResolvedVc::upcast(self.reference))
+                .await?
+        {
+            let visitor = create_visitor!(self.path, visit_mut_expr, |expr: &mut Expr| {
+                // `const {a,b} = 0;` is a clever way to assign undefined to all the variables
+                *expr = quote!("0" as Expr);
+            });
+            return Ok(CodeGeneration::visitors(vec![visitor]));
+        }
 
         let pm = PatternMapping::resolve_request(
             *reference.request,
