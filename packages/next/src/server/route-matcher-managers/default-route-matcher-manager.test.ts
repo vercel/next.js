@@ -168,6 +168,62 @@ describe('DefaultRouteMatcherManager', () => {
     const match = await manager.match('/en-US/some/path', options)
     expect(match?.definition).toBe(definition)
   })
+
+  it('only validates static matchers for the requested pathname', async () => {
+    const manager = new DefaultRouteMatcherManager()
+    const unrelated = new RouteMatcher({
+      kind: RouteKind.PAGES,
+      filename: 'unrelated.js',
+      bundlePath: 'unrelated',
+      page: '/unrelated',
+      pathname: '/unrelated',
+    })
+    const expected = new RouteMatcher({
+      kind: RouteKind.PAGES,
+      filename: 'expected.js',
+      bundlePath: 'expected',
+      page: '/expected',
+      pathname: '/expected',
+    })
+    const unrelatedMatch = jest.spyOn(unrelated, 'match')
+
+    manager.push({ matchers: async () => [unrelated, expected] })
+    await manager.reload()
+
+    await expect(manager.match('/expected', {})).resolves.toEqual({
+      definition: expected.definition,
+      params: undefined,
+    })
+    expect(unrelatedMatch).not.toHaveBeenCalled()
+  })
+
+  it('preserves the order of duplicate static matchers', async () => {
+    const manager = new DefaultRouteMatcherManager()
+    const first = new RouteMatcher({
+      kind: RouteKind.PAGES,
+      filename: 'first.js',
+      bundlePath: 'first',
+      page: '/same',
+      pathname: '/same',
+    })
+    const second = new RouteMatcher({
+      kind: RouteKind.APP_PAGE,
+      filename: 'second.js',
+      bundlePath: 'second',
+      page: '/same',
+      pathname: '/same',
+      appPaths: ['/same/page'],
+    })
+
+    manager.push({ matchers: async () => [first, second] })
+    await manager.reload()
+
+    const filenames: string[] = []
+    for await (const match of manager.matchAll('/same', {})) {
+      filenames.push(match.definition.filename)
+    }
+    expect(filenames).toEqual(['first.js', 'second.js'])
+  })
 })
 
 // TODO: port tests

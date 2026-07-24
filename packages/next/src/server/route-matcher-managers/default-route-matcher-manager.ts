@@ -11,7 +11,7 @@ import { ensureLeadingSlash } from '../../shared/lib/page-path/ensure-leading-sl
 import { DetachedPromise } from '../../lib/detached-promise'
 
 interface RouteMatchers {
-  static: ReadonlyArray<RouteMatcher>
+  static: ReadonlyMap<string, ReadonlyArray<RouteMatcher>>
   dynamic: ReadonlyArray<RouteMatcher>
   duplicates: Record<string, ReadonlyArray<RouteMatcher>>
 }
@@ -19,7 +19,7 @@ interface RouteMatchers {
 export class DefaultRouteMatcherManager implements RouteMatcherManager {
   private readonly providers: Array<RouteMatcherProvider> = []
   protected readonly matchers: RouteMatchers = {
-    static: [],
+    static: new Map(),
     dynamic: [],
     duplicates: {},
   }
@@ -118,11 +118,27 @@ export class DefaultRouteMatcherManager implements RouteMatcherManager {
       }
       this.previousMatchers = matchers
 
-      // For matchers that are for static routes, filter them now.
-      this.matchers.static = matchers.filter((matcher) => !matcher.isDynamic)
+      // Index static matchers by pathname so exact route matches don't need
+      // to scan every static route on each request.
+      const staticMatchers = new Map<string, RouteMatcher[]>()
+      const dynamic: RouteMatcher[] = []
+      for (const matcher of matchers) {
+        if (matcher.isDynamic) {
+          dynamic.push(matcher)
+          continue
+        }
 
-      // For matchers that are for dynamic routes, filter them and sort them now.
-      const dynamic = matchers.filter((matcher) => matcher.isDynamic)
+        const pathname = matcher.definition.pathname
+        const pathnameMatchers = staticMatchers.get(pathname)
+        if (pathnameMatchers) {
+          pathnameMatchers.push(matcher)
+        } else {
+          staticMatchers.set(pathname, [matcher])
+        }
+      }
+      this.matchers.static = staticMatchers
+
+      // Sort the dynamic route matchers.
 
       // As `getSortedRoutes` only takes an array of strings, we need to create
       // a map of the pathnames (used for sorting) and the matchers. When we
@@ -266,7 +282,10 @@ export class DefaultRouteMatcherManager implements RouteMatcherManager {
     // that when a route like `/user/[id]` is encountered, it doesn't just match
     // with the list of normalized routes.
     if (!isDynamicRoute(pathname)) {
-      for (const matcher of this.matchers.static) {
+      const staticPathname = options.i18n?.pathname
+        ? ensureLeadingSlash(options.i18n.pathname)
+        : pathname
+      for (const matcher of this.matchers.static.get(staticPathname) ?? []) {
         const match = this.validate(pathname, matcher, options)
         if (!match) continue
 
