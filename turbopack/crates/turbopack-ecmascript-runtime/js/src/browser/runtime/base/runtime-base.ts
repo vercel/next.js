@@ -490,10 +490,7 @@ function getChunkRelativeUrl(
 ): ChunkUrl {
   // Most chunk paths need no escaping.
   const encodedPath = CHUNK_PATH_NEEDS_ENCODING.test(chunkPath)
-    ? chunkPath
-        .split('/')
-        .map((p) => encodeURIComponent(p))
-        .join('/')
+    ? chunkPath.split('/').map(encodeURIComponent).join('/')
     : chunkPath
   return `${basePath}${encodedPath}${ASSET_SUFFIX}` as ChunkUrl
 }
