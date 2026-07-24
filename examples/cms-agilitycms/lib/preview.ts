@@ -87,6 +87,13 @@ export async function validatePreview({ agilityPreviewKey, slug, contentID }) {
     };
   }
 
+  if (typeof agilityPreviewKey !== "string") {
+    return {
+      error: true,
+      message: `Invalid agilitypreviewkey.`,
+    };
+  }
+
   //sanitize incoming key (replace spaces with '+')
   if (agilityPreviewKey.includes(` `)) {
     agilityPreviewKey = agilityPreviewKey.split(` `).join(`+`);
