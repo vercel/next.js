@@ -4573,7 +4573,7 @@ function runDevValidationInBackground(
             validationErrors !== undefined &&
             !validationAbortSignal.aborted
           ) {
-            logMessagesAndSendErrorsToBrowser(validationErrors, ctx)
+            await logMessagesAndSendErrorsToBrowser(validationErrors, ctx)
           }
         }
       )
