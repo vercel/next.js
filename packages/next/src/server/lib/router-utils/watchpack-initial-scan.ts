@@ -1,27 +1,5 @@
 import type Watchpack from 'next/dist/compiled/watchpack'
 
-/**
- * Watchpack's initial directory scan runs asynchronously after `watch()`.
- * When watching with a `startTime` in the past (e.g. `startTime: 0`), the
- * scan emits one change event per pre-existing file, and the `aggregated`
- * event fires `aggregateTimeout` ms after the *last* change event. That means
- * `aggregated` can fire while the initial scan is still in flight (any event
- * lull longer than `aggregateTimeout` mid-scan triggers it), in which case
- * `getTimeInfoEntries()` is missing part of the watched tree.
- *
- * Watchpack has no public signal for scan completion, but every internal
- * `DirectoryWatcher` carries an `initialScan` flag that flips to `false` once
- * its first scan of that directory level finishes (including on scan errors).
- * Nested directories get their own `DirectoryWatcher`, created by the parent
- * while the parent's flag is still `true`. Therefore "no reachable watcher
- * has `initialScan === true`" implies the whole watched tree has been
- * scanned.
- *
- * The traversal below reads watchpack internals, so it is deliberately
- * defensive: anything with an unexpected shape is treated as "not pending",
- * which degrades to the previous behavior instead of blocking the watcher.
- */
-
 interface InternalDirectoryWatcher {
   initialScan?: boolean
   closed?: boolean
@@ -32,6 +10,12 @@ interface InternalWatcherHandle {
   directoryWatcher?: InternalDirectoryWatcher
 }
 
+// Watchpack has no public signal for when the asynchronous initial scan has
+// finished, but each internal DirectoryWatcher flips `initialScan` to false
+// once its directory level is scanned (including on scan errors), and nested
+// watchers are created while the parent's flag is still true — so no reachable
+// watcher pending means the whole tree has been scanned. Reading internals is
+// deliberately defensive: an unexpected shape counts as "not pending".
 export function hasPendingInitialScan(watchpack: Watchpack): boolean {
   const wp = watchpack as any
   const queue: InternalDirectoryWatcher[] = []

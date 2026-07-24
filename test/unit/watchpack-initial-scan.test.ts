@@ -43,8 +43,7 @@ describe('watchpack-initial-scan', () => {
     wp = new Watchpack({ aggregateTimeout: 5 })
     wp.watch({ directories: [dir], startTime: 0 })
 
-    // The scan is asynchronous (watchpack defers it with process.nextTick),
-    // so nothing has been scanned yet at this point.
+    // The scan is deferred with process.nextTick, so nothing is scanned yet.
     expect(hasPendingInitialScan(wp)).toBe(true)
 
     await waitForInitialScan(wp)
@@ -57,10 +56,8 @@ describe('watchpack-initial-scan', () => {
   })
 
   it('sees the complete tree even when aggregated fires mid-scan', async () => {
-    // With an aggregateTimeout of 0 the aggregated event fires on the first
-    // event-loop lull of the scan, which for a tree of this size is reliably
-    // before the scan has finished — the situation a loaded machine produces
-    // with the production 5ms timeout.
+    // With aggregateTimeout 0 the aggregated event reliably fires mid-scan
+    // for a tree of this size — what a loaded machine produces with 5ms.
     wp = new Watchpack({ aggregateTimeout: 0 })
     wp.watch({ directories: [dir], startTime: 0 })
 
