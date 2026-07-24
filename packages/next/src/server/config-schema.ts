@@ -268,7 +268,6 @@ export const experimentalSchema = {
   imgOptTimeoutInSeconds: z.number().int().optional(),
   imgOptMaxInputPixels: z.number().int().optional(),
   imgOptSequentialRead: z.boolean().optional().nullable(),
-  imgOptSkipMetadata: z.boolean().optional().nullable(),
   isrFlushToDisk: z.boolean().optional(),
   largePageDataBytes: z.number().optional(),
   linkNoTouchStart: z.boolean().optional(),
@@ -337,7 +336,6 @@ export const experimentalSchema = {
   swcTraceProfiling: z.boolean().optional(),
   // NonNullable<webpack.Configuration['experiments']>['buildHttp']
   urlImports: z.any().optional(),
-  viewTransition: z.boolean().optional(),
   workerThreads: z.boolean().optional(),
   webVitalsAttribution: z
     .array(

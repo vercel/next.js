@@ -167,6 +167,7 @@ export async function probeUseCache(msg: ProbeMessage): Promise<boolean> {
       previewProps: undefined,
       isHmrRefresh: msg.request.isHmrRefresh,
       serverComponentsHmrCache: undefined,
+      hmrRefreshHash: msg.request.hmrRefreshHash,
       fallbackParams: null,
     })
 

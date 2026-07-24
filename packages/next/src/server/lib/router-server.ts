@@ -26,6 +26,7 @@ import { removePathPrefix } from '../../shared/lib/router/utils/remove-path-pref
 import setupCompression from 'next/dist/compiled/compression'
 import { signalFromNodeResponse } from '../web/spec-extension/adapters/next-request'
 import { isPostpone } from './router-utils/is-postpone'
+import { isNonHtmlSecFetchDest } from './is-non-html-sec-fetch-dest'
 import { parseUrl as parseUrlUtil } from '../../shared/lib/router/utils/parse-url'
 
 import {
@@ -720,6 +721,18 @@ export async function initialize(opts: {
       // For not found static assets, return plain text 404 instead of
       // full HTML 404 pages to save bandwidth.
       if (realRequestPathname.startsWith('/_next/static/')) {
+        res.statusCode = 404
+        res.setHeader('Content-Type', 'text/plain; charset=utf-8')
+        res.end('Not Found')
+        return null
+      }
+
+      // For subresource requests (e.g. images or fonts), return plain text
+      // 404 instead of rendering the not-found route.
+      if (
+        (req.method === 'GET' || req.method === 'HEAD') &&
+        isNonHtmlSecFetchDest(req.headers['sec-fetch-dest'])
+      ) {
         res.statusCode = 404
         res.setHeader('Content-Type', 'text/plain; charset=utf-8')
         res.end('Not Found')

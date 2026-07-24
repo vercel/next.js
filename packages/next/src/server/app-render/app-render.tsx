@@ -1513,6 +1513,7 @@ async function generateRuntimePrefetchResult(
 
   await prospectiveRuntimeServerPrerender(
     ctx,
+    isShellPrefetch,
     generateDynamicRSCPayload.bind(null, ctx),
     prerenderResumeDataCache,
     rootParams,
@@ -1568,6 +1569,7 @@ async function generateRuntimePrefetchResult(
 
 async function prospectiveRuntimeServerPrerender(
   ctx: AppRenderContext,
+  isShellPrefetch: boolean,
   getPayload: () => Promise<RSCPayload>,
   resumeDataCache: PrerenderResumeDataCache | null,
   rootParams: Params,
@@ -1618,6 +1620,7 @@ async function prospectiveRuntimeServerPrerender(
     varyParamsAccumulator: null,
     // No stage sequencing needed for prospective renders.
     stagedRendering: null,
+    isSessionShell: isShellPrefetch,
     // These are not present in regular prerenders, but allowed in a runtime prerender.
     headers,
     cookies,
@@ -1792,8 +1795,8 @@ async function finalRuntimeServerPrerender(
     resumeDataCache,
     hmrRefreshHash: undefined,
     varyParamsAccumulator,
-    // Used to separate the stages in the 5-task pipeline.
     stagedRendering: finalStageController,
+    isSessionShell: mode.type === 'session-shell-only',
     // These are not present in regular prerenders, but allowed in a runtime prerender.
     headers,
     cookies,
@@ -2620,6 +2623,7 @@ async function renderToHTMLOrFlightImpl(
 
   const metadata: AppPageRenderResultMetadata = {
     statusCode: isNotFoundPath ? 404 : undefined,
+    hasPendingUi: false,
   }
 
   const appUsingSizeAdjustment = !!nextFontManifest?.appUsingSizeAdjust
@@ -2856,6 +2860,7 @@ async function renderToHTMLOrFlightImpl(
 
     const rootParams = getRootParams(loaderTree, ctx.getDynamicParamFromSegment)
     const fallbackParams = getRequestMeta(req, 'fallbackParams') || null
+    const hmrRefreshHash = getRequestMeta(req, 'hmrRefreshHash')
 
     const createRequestStore = createRequestStoreForRender.bind(
       null,
@@ -2869,7 +2874,8 @@ async function renderToHTMLOrFlightImpl(
       isHmrRefresh,
       serverComponentsHmrCache,
       renderResumeDataCache,
-      fallbackParams
+      fallbackParams,
+      hmrRefreshHash
     )
     const requestStore = createRequestStore()
 
@@ -8766,6 +8772,8 @@ async function prerenderToStream(
           }
         )
 
+      metadata.hasPendingUi = postponed != null
+
       const { prelude, preludeIsEmpty } =
         await processPreludeOp(unprocessedPrelude)
 
@@ -8965,6 +8973,8 @@ async function prerenderToStream(
             bootstrapScripts: [bootstrapScript],
           }
         )
+
+      metadata.hasPendingUi = postponed != null
       const getServerInsertedHTML = makeGetServerInsertedHTML({
         polyfills,
         renderServerInsertedHTML,
@@ -9533,6 +9543,8 @@ async function prerenderToStream(
             )
           }
         )
+
+        metadata.hasPendingUi = errorPostponed != null
 
         const { prelude, preludeIsEmpty } = await processPreludeOp(
           unprocessedErrorHtmlStream

@@ -240,10 +240,23 @@
       }
       return null;
     }
-    function traverseFragmentInstance(fragmentFiber, fn, a, b, c) {
-      traverseVisibleHostChildren(fragmentFiber.child, !1, fn, a, b, c);
+    function traverseFragmentInstancesAndTextInstances(
+      fragmentFiber,
+      fn,
+      a,
+      b,
+      c
+    ) {
+      traverseVisibleInstancesAndTextInstances(
+        fragmentFiber.child,
+        !1,
+        fn,
+        a,
+        b,
+        c
+      );
     }
-    function traverseVisibleHostChildren(
+    function traverseVisibleInstancesAndTextInstances(
       child,
       searchWithinHosts,
       fn,
@@ -256,7 +269,7 @@
           ((5 === child.tag || 6 === child.tag) && fn(child, a, b, c)) ||
           ((22 !== child.tag || null === child.memoizedState) &&
             (searchWithinHosts || 5 !== child.tag) &&
-            traverseVisibleHostChildren(
+            traverseVisibleInstancesAndTextInstances(
               child.child,
               searchWithinHosts,
               fn,
@@ -270,14 +283,14 @@
       }
       return !1;
     }
-    function getFragmentParentHostFiber(fiber) {
+    function getFragmentParentInstanceOrContainerFiber(fiber) {
       for (fiber = fiber.return; null !== fiber; ) {
         if (3 === fiber.tag || 5 === fiber.tag) return fiber;
         fiber = fiber.return;
       }
       return null;
     }
-    function findFragmentInstanceSiblings(result, self, child) {
+    function findFragmentInstanceOrTextInstanceSiblings(result, self, child) {
       for (
         var foundSelf =
           3 < arguments.length && void 0 !== arguments[3] ? arguments[3] : !1;
@@ -287,12 +300,17 @@
         if (child === self)
           if (((foundSelf = !0), child.sibling)) child = child.sibling;
           else return !0;
-        if (5 === child.tag) {
+        if (5 === child.tag || 6 === child.tag) {
           if (foundSelf) return (result[1] = child), !0;
           result[0] = child;
         } else if (
           (22 !== child.tag || null === child.memoizedState) &&
-          findFragmentInstanceSiblings(result, self, child.child, foundSelf)
+          findFragmentInstanceOrTextInstanceSiblings(
+            result,
+            self,
+            child.child,
+            foundSelf
+          )
         )
           return !0;
         child = child.sibling;
@@ -8737,25 +8755,25 @@
       hook = hook.queue;
       var create = subscribeToStore.bind(null, fiber, hook, subscribe);
       updateEffectImpl(2048, Passive, create, [subscribe]);
-      if (
+      subscribe =
         hook.getSnapshot !== getSnapshot ||
         cachedSnapshot ||
         (null !== workInProgressHook &&
-          workInProgressHook.memoizedState.tag & HasEffect)
-      ) {
+          (workInProgressHook.memoizedState.tag & HasEffect) !== NoFlags);
+      pushSimpleEffect(
+        subscribe ? HasEffect | Passive : Passive,
+        { destroy: void 0 },
+        updateStoreInstance.bind(
+          null,
+          fiber,
+          hook,
+          getServerSnapshot,
+          getSnapshot
+        ),
+        null
+      );
+      if (subscribe) {
         fiber.flags |= 2048;
-        pushSimpleEffect(
-          HasEffect | Passive,
-          { destroy: void 0 },
-          updateStoreInstance.bind(
-            null,
-            fiber,
-            hook,
-            getServerSnapshot,
-            getSnapshot
-          ),
-          null
-        );
         if (null === workInProgressRoot)
           throw Error(
             "Expected a work-in-progress root. This is a bug in React. Please file an issue."
@@ -14285,7 +14303,7 @@
           case 7:
             null === finishedWork.stateNode &&
               ((instanceToUse = new FragmentInstance(finishedWork)),
-              traverseFragmentInstance(
+              traverseFragmentInstancesAndTextInstances(
                 finishedWork,
                 addFragmentHandleToFiber,
                 instanceToUse
@@ -23210,7 +23228,9 @@
         htmlElement.getAttribute("vt-share") ||
         htmlElement.getAttribute("vt-exit") ||
         htmlElement.getAttribute("vt-enter") ||
-        htmlElement.getAttribute("vt-update")
+        htmlElement.getAttribute("vt-update") ||
+        htmlElement.getAttribute("vt-parent-enter") ||
+        htmlElement.getAttribute("vt-parent-exit")
       );
     }
     function isExpectedViewTransitionName(htmlElement) {
@@ -24818,6 +24838,8 @@
           case "vt-enter":
           case "vt-exit":
           case "vt-share":
+          case "vt-parent-enter":
+          case "vt-parent-exit":
             break;
           default:
             extraAttributes.add(attributes[i].name);
@@ -26783,7 +26805,8 @@
         a: {
           otherFiber = fragmentFiber;
           for (
-            fragmentFiber = getFragmentParentHostFiber(fragmentFiber);
+            fragmentFiber =
+              getFragmentParentInstanceOrContainerFiber(fragmentFiber);
             null !== otherFiber;
 
           ) {
@@ -26813,7 +26836,7 @@
             )),
             null === fragmentFiber
               ? (fragmentFiber = !1)
-              : (traverseVisibleHostChildren(
+              : (traverseVisibleInstancesAndTextInstances(
                   fragmentFiber,
                   !0,
                   isFiberPrecedingCheck,
@@ -26834,7 +26857,7 @@
               )),
               null === fragmentFiber
                 ? (fragmentFiber = !1)
-                : (traverseVisibleHostChildren(
+                : (traverseVisibleInstancesAndTextInstances(
                     fragmentFiber,
                     !0,
                     isFiberFollowingCheck,
@@ -26847,9 +26870,20 @@
             fragmentFiber)
           : !1;
     }
+    function scrollTextNodeIntoView(textNode, resolvedAlignToTop) {
+      var range = textNode.ownerDocument.createRange();
+      range.selectNodeContents(textNode);
+      textNode = range.getBoundingClientRect();
+      window.scrollTo(
+        window.scrollX + textNode.left,
+        resolvedAlignToTop
+          ? window.scrollY + textNode.top
+          : window.scrollY + textNode.bottom - window.innerHeight
+      );
+    }
     function addFragmentHandleToFiber(child, fragmentInstance) {
       child = getInstanceFromHostFiber(child);
-      null != child && addFragmentHandleToInstance(child, fragmentInstance);
+      addFragmentHandleToInstance(child, fragmentInstance);
       return !1;
     }
     function addFragmentHandleToInstance(instance, fragmentInstance) {
@@ -32339,7 +32373,7 @@
           listener: listener,
           optionsOrUseCapture: optionsOrUseCapture
         }),
-        traverseFragmentInstance(
+        traverseFragmentInstancesAndTextInstances(
           this._fragmentFiber,
           addEventListenerToChild,
           type,
@@ -32357,7 +32391,7 @@
       null !== listeners &&
         "undefined" !== typeof listeners &&
         0 < listeners.length &&
-        (traverseFragmentInstance(
+        (traverseFragmentInstancesAndTextInstances(
           this._fragmentFiber,
           removeEventListenerFromChild,
           type,
@@ -32373,7 +32407,9 @@
         null !== this._eventListeners && this._eventListeners.splice(type, 1));
     };
     FragmentInstance.prototype.dispatchEvent = function (event) {
-      var parentHostFiber = getFragmentParentHostFiber(this._fragmentFiber);
+      var parentHostFiber = getFragmentParentInstanceOrContainerFiber(
+        this._fragmentFiber
+      );
       if (null === parentHostFiber) return !0;
       parentHostFiber = getInstanceFromHostFiber(parentHostFiber);
       var eventListeners = this._eventListeners;
@@ -32407,7 +32443,7 @@
       return parentHostFiber.dispatchEvent(event);
     };
     FragmentInstance.prototype.focus = function (focusOptions) {
-      traverseVisibleHostChildren(
+      traverseVisibleInstancesAndTextInstances(
         this._fragmentFiber.child,
         !0,
         setFocusOnFiberIfFocusable,
@@ -32418,7 +32454,7 @@
     };
     FragmentInstance.prototype.focusLast = function (focusOptions) {
       var children = [];
-      traverseVisibleHostChildren(
+      traverseVisibleInstancesAndTextInstances(
         this._fragmentFiber.child,
         !0,
         collectChildren,
@@ -32433,13 +32469,16 @@
       );
     };
     FragmentInstance.prototype.blur = function () {
-      var parentHostFiber = getFragmentParentHostFiber(this._fragmentFiber);
+      var parentHostFiber = getFragmentParentInstanceOrContainerFiber(
+        this._fragmentFiber
+      );
       if (null !== parentHostFiber) {
         parentHostFiber = getInstanceFromHostFiber(parentHostFiber);
-        var activeElement = parentHostFiber.ownerDocument.activeElement;
+        var activeElement =
+          getOwnerDocumentFromRootContainer(parentHostFiber).activeElement;
         null !== activeElement &&
           parentHostFiber.contains(activeElement) &&
-          traverseFragmentInstance(
+          traverseFragmentInstancesAndTextInstances(
             this._fragmentFiber,
             blurActiveElementWithinFragment,
             activeElement
@@ -32449,11 +32488,14 @@
     FragmentInstance.prototype.observeUsing = function (observer) {
       var hasText = !1,
         hasElement = !1;
-      traverseFragmentInstance(this._fragmentFiber, function (child) {
-        if (6 === child.tag) hasText = !0;
-        else return (hasElement = !0);
-        return !1;
-      });
+      traverseFragmentInstancesAndTextInstances(
+        this._fragmentFiber,
+        function (child) {
+          if (6 === child.tag) hasText = !0;
+          else return (hasElement = !0);
+          return !1;
+        }
+      );
       hasText &&
         !hasElement &&
         console.error(
@@ -32461,13 +32503,17 @@
         );
       null === this._observers && (this._observers = new Set());
       this._observers.add(observer);
-      traverseFragmentInstance(this._fragmentFiber, observeChild, observer);
+      traverseFragmentInstancesAndTextInstances(
+        this._fragmentFiber,
+        observeChild,
+        observer
+      );
     };
     FragmentInstance.prototype.unobserveUsing = function (observer) {
       var observers = this._observers;
       null !== observers && observers.has(observer)
         ? (observers.delete(observer),
-          traverseFragmentInstance(
+          traverseFragmentInstancesAndTextInstances(
             this._fragmentFiber,
             unobserveChild,
             observer
@@ -32478,11 +32524,17 @@
     };
     FragmentInstance.prototype.getClientRects = function () {
       var rects = [];
-      traverseFragmentInstance(this._fragmentFiber, collectClientRects, rects);
+      traverseFragmentInstancesAndTextInstances(
+        this._fragmentFiber,
+        collectClientRects,
+        rects
+      );
       return rects;
     };
     FragmentInstance.prototype.getRootNode = function (getRootNodeOptions) {
-      var parentHostFiber = getFragmentParentHostFiber(this._fragmentFiber);
+      var parentHostFiber = getFragmentParentInstanceOrContainerFiber(
+        this._fragmentFiber
+      );
       return null === parentHostFiber
         ? this
         : getInstanceFromHostFiber(parentHostFiber).getRootNode(
@@ -32490,10 +32542,16 @@
           );
     };
     FragmentInstance.prototype.compareDocumentPosition = function (otherNode) {
-      var parentHostFiber = getFragmentParentHostFiber(this._fragmentFiber);
+      var parentHostFiber = getFragmentParentInstanceOrContainerFiber(
+        this._fragmentFiber
+      );
       if (null === parentHostFiber) return Node.DOCUMENT_POSITION_DISCONNECTED;
       var children = [];
-      traverseFragmentInstance(this._fragmentFiber, collectChildren, children);
+      traverseFragmentInstancesAndTextInstances(
+        this._fragmentFiber,
+        collectChildren,
+        children
+      );
       var parentHostInstance = getInstanceFromHostFiber(parentHostFiber);
       if (0 === children.length) {
         children = this._fragmentFiber;
@@ -32503,7 +32561,11 @@
         parentHostInstance === otherNode
           ? (parentHostFiber = Node.DOCUMENT_POSITION_CONTAINS)
           : parentResult & Node.DOCUMENT_POSITION_CONTAINED_BY &&
-            (traverseVisibleHostChildren(children.sibling, !1, findNextSibling),
+            (traverseVisibleInstancesAndTextInstances(
+              children.sibling,
+              !1,
+              findNextSibling
+            ),
             (children = searchTarget),
             (searchTarget = null),
             null === children
@@ -32579,50 +32641,63 @@
           "FragmentInstance.scrollIntoView() does not support scrollIntoViewOptions. Use the alignToTop boolean instead."
         );
       var children = [];
-      traverseFragmentInstance(this._fragmentFiber, collectChildren, children);
+      traverseFragmentInstancesAndTextInstances(
+        this._fragmentFiber,
+        collectChildren,
+        children
+      );
       var resolvedAlignToTop = !1 !== alignToTop;
       if (0 === children.length) {
-        children = this._fragmentFiber;
-        var result = [null, null],
-          parentHostFiber = getFragmentParentHostFiber(children);
+        var fiber = this._fragmentFiber,
+          result = [null, null],
+          parentHostFiber = getFragmentParentInstanceOrContainerFiber(fiber);
         null !== parentHostFiber &&
-          findFragmentInstanceSiblings(result, children, parentHostFiber.child);
-        resolvedAlignToTop = resolvedAlignToTop
+          findFragmentInstanceOrTextInstanceSiblings(
+            result,
+            fiber,
+            parentHostFiber.child
+          );
+        fiber = resolvedAlignToTop
           ? result[1] ||
             result[0] ||
-            getFragmentParentHostFiber(this._fragmentFiber)
+            getFragmentParentInstanceOrContainerFiber(this._fragmentFiber)
           : result[0] || result[1];
-        null === resolvedAlignToTop
-          ? console.warn(
-              "You are attempting to scroll a FragmentInstance that has no children, siblings, or parent. No scroll was performed."
-            )
-          : getInstanceFromHostFiber(resolvedAlignToTop).scrollIntoView(
-              alignToTop
-            );
-      } else
-        for (
-          result = resolvedAlignToTop ? children.length - 1 : 0;
-          result !== (resolvedAlignToTop ? -1 : children.length);
-
-        ) {
-          parentHostFiber = children[result];
-          if (6 === parentHostFiber.tag) {
-            parentHostFiber = parentHostFiber.stateNode;
-            var range = parentHostFiber.ownerDocument.createRange();
-            range.selectNodeContents(parentHostFiber);
-            parentHostFiber = range.getBoundingClientRect();
-            window.scrollTo(
-              window.scrollX + parentHostFiber.left,
-              resolvedAlignToTop
-                ? window.scrollY + parentHostFiber.top
-                : window.scrollY + parentHostFiber.bottom - window.innerHeight
-            );
-          } else
-            getInstanceFromHostFiber(parentHostFiber).scrollIntoView(
-              alignToTop
-            );
-          result += resolvedAlignToTop ? -1 : 1;
+        if (null === fiber) {
+          console.warn(
+            "You are attempting to scroll a FragmentInstance that has no children, siblings, or parent. No scroll was performed."
+          );
+          return;
         }
+        if (6 === fiber.tag) {
+          alignToTop = getInstanceFromHostFiber(fiber);
+          scrollTextNodeIntoView(alignToTop, resolvedAlignToTop);
+          return;
+        }
+        fiber = getInstanceFromHostFiber(fiber);
+        if (9 !== fiber.nodeType) {
+          if (11 === fiber.nodeType) {
+            resolvedAlignToTop = "host" in fiber ? fiber.host : null;
+            null !== resolvedAlignToTop
+              ? resolvedAlignToTop.scrollIntoView(alignToTop)
+              : console.warn(
+                  "You are attempting to scroll a FragmentInstance that is only mounted inside a detached DocumentFragment. No scroll was performed."
+                );
+            return;
+          }
+          fiber.scrollIntoView(alignToTop);
+        }
+      }
+      for (
+        fiber = resolvedAlignToTop ? children.length - 1 : 0;
+        fiber !== (resolvedAlignToTop ? -1 : children.length);
+
+      )
+        (result = children[fiber]),
+          6 === result.tag
+            ? ((result = getInstanceFromHostFiber(result)),
+              scrollTextNodeIntoView(result, resolvedAlignToTop))
+            : getInstanceFromHostFiber(result).scrollIntoView(alignToTop),
+          (fiber += resolvedAlignToTop ? -1 : 1);
     };
     var previousHydratableOnEnteringScopedSingleton = null,
       NotLoaded = 0,
@@ -33061,11 +33136,11 @@
     };
     (function () {
       var isomorphicReactPackageVersion = React.version;
-      if ("19.3.0-experimental-172742b4-20260716" !== isomorphicReactPackageVersion)
+      if ("19.3.0-experimental-28cd4bb0-20260723" !== isomorphicReactPackageVersion)
         throw Error(
           'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' +
             (isomorphicReactPackageVersion +
-              "\n  - react-dom:  19.3.0-experimental-172742b4-20260716\nLearn more: https://react.dev/warnings/version-mismatch")
+              "\n  - react-dom:  19.3.0-experimental-28cd4bb0-20260723\nLearn more: https://react.dev/warnings/version-mismatch")
         );
     })();
     ("function" === typeof Map &&
@@ -33102,10 +33177,10 @@
       !(function () {
         var internals = {
           bundleType: 1,
-          version: "19.3.0-experimental-172742b4-20260716",
+          version: "19.3.0-experimental-28cd4bb0-20260723",
           rendererPackageName: "react-dom",
           currentDispatcherRef: ReactSharedInternals,
-          reconcilerVersion: "19.3.0-experimental-172742b4-20260716"
+          reconcilerVersion: "19.3.0-experimental-28cd4bb0-20260723"
         };
         internals.overrideHookState = overrideHookState;
         internals.overrideHookStateDeletePath = overrideHookStateDeletePath;
@@ -33253,7 +33328,7 @@
       listenToAllSupportedEvents(container);
       return new ReactDOMHydrationRoot(initialChildren);
     };
-    exports.version = "19.3.0-experimental-172742b4-20260716";
+    exports.version = "19.3.0-experimental-28cd4bb0-20260723";
     "undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ &&
       "function" ===
         typeof __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStop &&

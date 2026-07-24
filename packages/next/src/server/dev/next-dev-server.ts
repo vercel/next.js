@@ -231,17 +231,20 @@ export default class DevServer extends Server {
     return this.serverComponentsHmrCache
   }
 
+  protected override getServerComponentsHmrRefreshHash(): string | undefined {
+    return this.bundlerService.getServerComponentsHmrRefreshHash()
+  }
+
   protected getRouteMatchers(): RouteMatcherManager {
     const { pagesDir, appDir } = findPagesDir(this.dir)
 
     const ensurer: RouteEnsurer = {
-      ensure: async (match, pathname, options) => {
+      ensure: async (match, pathname) => {
         await this.ensurePage({
           definition: match.definition,
           page: match.definition.page,
           clientOnly: false,
           url: pathname,
-          rscOnly: options?.rscOnly,
         })
       },
     }
@@ -854,7 +857,7 @@ export default class DevServer extends Server {
           if (this.nextConfig.output === 'export') {
             if (!prerenderedRoutes) {
               throw new Error(
-                `Page "${page}" is missing exported function "generateStaticParams()", which is required with "output: export" config.`
+                `Page "${page}" is missing exported function "generateStaticParams()", which is required with "output: export" config. See more info here: https://nextjs.org/docs/messages/generate-static-params`
               )
             }
 
@@ -865,24 +868,6 @@ export default class DevServer extends Server {
                 `Page "${page}" is missing param "${pathname}" in "generateStaticParams()", which is required with "output: export" config.`
               )
             }
-          }
-
-          // Since generateStaticParams run on the background, when accessing the
-          // fallbackParams during the render, it is still set to the previous
-          // result from the cache. Therefore when the result has changed, re-render
-          // the Server Component to sync the fallbackParams with the new result.
-          if (
-            isAppPath &&
-            this.nextConfig.cacheComponents &&
-            // Ensure this is not the first invocation.
-            result &&
-            // Ideally, we would want to compare the whole objects, but that is too expensive.
-            result.prerenderedRoutes?.length !== prerenderedRoutes?.length
-          ) {
-            this.bundlerService.sendHmrMessage({
-              type: HMR_MESSAGE_SENT_TO_BROWSER.SERVER_COMPONENT_CHANGES,
-              hash: `generateStaticParams-${Date.now()}`,
-            })
           }
         }
 
@@ -962,6 +947,27 @@ export default class DevServer extends Server {
           }
         }
         this.staticPathsCache.set(pathname, value)
+
+        // Since generateStaticParams runs in the background, the fallbackParams
+        // accessed during a render are derived from the previous result served
+        // by the static paths cache. Now that the cache holds the new result,
+        // trigger a refresh so the next render picks up the new fallbackParams
+        // (e.g. so blocking-route validation reflects params that just became
+        // statically known).
+        if (
+          isAppPath &&
+          this.nextConfig.cacheComponents &&
+          // Ensure this is not the first invocation.
+          result &&
+          // Comparing lengths rather than the whole objects, which is too
+          // expensive.
+          result.prerenderedRoutes?.length !== prerenderedRoutes?.length
+        ) {
+          this.bundlerService.sendHmrMessage({
+            type: HMR_MESSAGE_SENT_TO_BROWSER.STATIC_PARAMS_CHANGED,
+          })
+        }
+
         return value
       })
       .catch((err) => {
@@ -983,7 +989,6 @@ export default class DevServer extends Server {
     appPaths?: ReadonlyArray<string> | null
     definition: RouteDefinition | undefined
     url?: string
-    rscOnly?: boolean
   }): Promise<void> {
     await this.bundlerService.ensurePage(opts)
   }

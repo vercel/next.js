@@ -374,6 +374,18 @@ export function createPatchedFetcher(
           typeof input === 'object' &&
           typeof (input as Request).method === 'string'
 
+        // With `fetch(new Request(url), init)`, native fetch lets `init`
+        // override the base Request. Merge them into a single effective Request
+        // so cacheability, the cache key, and the upstream request all describe
+        // the same thing.
+        if (isRequestInput && init) {
+          // `next` (revalidate/tags) is Next-specific and dropped by
+          // `new Request`, so keep it on `init` and move the rest onto input.
+          const { next, ...overrides } = init
+          input = new Request(input as Request, overrides)
+          init = next ? { next } : undefined
+        }
+
         const getRequestMeta = (field: string) => {
           // If request input is present but init is not, retrieve from input first.
           const value = (init as any)?.[field]
@@ -820,8 +832,8 @@ export function createPatchedFetcher(
               fetchUrl,
               isRequestInput ? (input as RequestInit) : init
             )
-          } catch (err) {
-            console.error(`Failed to generate cache key for`, input)
+          } catch (cause) {
+            console.error(`Failed to generate cache key for`, input, cause)
           }
         }
 
