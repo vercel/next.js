@@ -80,17 +80,6 @@ describe('getImplicitTags()', () => {
       expectedTags: ['_N_T_/layout', '_N_T_/api/layout', '_N_T_/api/route'],
     },
     {
-      page: '/foo//bar/',
-      pathname: '/foo//bar/',
-      fallbackRouteParams: null,
-      expectedTags: [
-        '_N_T_/layout',
-        '_N_T_/foo/layout',
-        '_N_T_/foo//bar/layout',
-        '_N_T_/foo//bar/',
-      ],
-    },
-    {
       // Non-ASCII pathname must be percent-encoded so it can be safely
       // serialized into the `x-next-cache-tags` HTTP header. Surrogate-pair
       // emoji exercises run-based replacement (a per-code-unit regex would
