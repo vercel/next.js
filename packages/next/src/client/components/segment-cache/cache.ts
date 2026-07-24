@@ -766,11 +766,11 @@ export function deprecated_requestOptimisticRouteCacheEntry(
   optimisticUrl.search = optimisticCanonicalSearch
   const optimisticCanonicalUrl = createHrefFromUrl(optimisticUrl)
 
-  const optimisticRouteTree = deprecated_createOptimisticRouteTree(
+  const optimisticRouteTree = cloneRouteTreeWithRenderedSearch(
     routeWithNoSearchParams.tree,
     optimisticRenderedSearch
   )
-  const optimisticMetadataTree = deprecated_createOptimisticRouteTree(
+  const optimisticMetadataTree = cloneRouteTreeWithRenderedSearch(
     routeWithNoSearchParams.metadata,
     optimisticRenderedSearch
   )
@@ -805,7 +805,7 @@ export function deprecated_requestOptimisticRouteCacheEntry(
   return optimisticEntry
 }
 
-function deprecated_createOptimisticRouteTree(
+export function cloneRouteTreeWithRenderedSearch(
   tree: RouteTree,
   newRenderedSearch: NormalizedSearch
 ): RouteTree {
@@ -818,7 +818,7 @@ function deprecated_createOptimisticRouteTree(
     clonedSlots = {}
     for (const parallelRouteKey in originalSlots) {
       const childTree = originalSlots[parallelRouteKey]
-      clonedSlots[parallelRouteKey] = deprecated_createOptimisticRouteTree(
+      clonedSlots[parallelRouteKey] = cloneRouteTreeWithRenderedSearch(
         childTree,
         newRenderedSearch
       )
