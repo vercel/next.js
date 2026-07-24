@@ -20,6 +20,7 @@ pub mod magic_identifier;
 pub mod manifest;
 mod merged_module;
 pub mod minify;
+pub mod module_fragments;
 pub mod parse;
 mod path_visitor;
 pub mod references;
@@ -33,7 +34,6 @@ mod swc_comments;
 pub mod text;
 pub mod text_source_transform;
 pub mod transform;
-pub mod tree_shake;
 pub mod typescript;
 pub mod utils;
 pub mod webpack;
@@ -98,7 +98,7 @@ use turbopack_core::{
     reference_type::InnerAssets,
     resolve::{FindContextFileResult, find_context_file, origin::ResolveOrigin, package_json},
     source::Source,
-    source_map::GenerateSourceMap,
+    source_map::{GenerateSourceMap, structured::StructuredSourceMap},
 };
 
 use crate::{
@@ -159,29 +159,6 @@ pub enum SpecifiedModuleType {
     Encode,
     Decode,
 )]
-#[serde(rename_all = "kebab-case")]
-pub enum TreeShakingMode {
-    ModuleFragments,
-    #[default]
-    ReexportsOnly,
-}
-
-#[turbo_tasks::task_input]
-#[derive(
-    PartialOrd,
-    Ord,
-    PartialEq,
-    Eq,
-    Hash,
-    Debug,
-    Clone,
-    Copy,
-    Default,
-    Deserialize,
-    TraceRawVcs,
-    Encode,
-    Decode,
-)]
 pub enum AnalyzeMode {
     /// For bundling only, no tracing of referenced files.
     #[default]
@@ -209,9 +186,6 @@ impl AnalyzeMode {
     }
 }
 
-#[turbo_tasks::value(transparent)]
-pub struct OptionTreeShaking(pub Option<TreeShakingMode>);
-
 /// The constant to replace `typeof window` with.
 #[turbo_tasks::task_input]
 #[derive(Copy, Clone, PartialEq, Eq, Debug, Hash, TraceRawVcs, Encode, Decode)]
@@ -223,8 +197,10 @@ pub enum TypeofWindow {
 #[turbo_tasks::value(shared)]
 #[derive(Debug, Default, Copy, Clone)]
 pub struct EcmascriptOptions {
-    /// variant of tree shaking to use
-    pub tree_shaking_mode: Option<TreeShakingMode>,
+    /// Whether re-exports are followed for tree shaking.
+    pub follow_reexports: bool,
+    /// Whether module fragments tree shaking is enabled.
+    pub module_fragments_enabled: bool,
     /// module is forced to a specific type (happens e. g. for .cjs and .mjs)
     pub specified_module_type: SpecifiedModuleType,
     /// Determines how to treat `new URL(...)` rewrites.
@@ -259,6 +235,8 @@ pub struct EcmascriptOptions {
     pub inline_helpers: bool,
     /// Whether to infer side effect free modules via local analysis. Defaults to true.
     pub infer_module_side_effects: bool,
+    /// Whether to tree shake unused exports from static CommonJS modules. Defaults to false.
+    pub cjs_tree_shaking: bool,
 }
 
 #[turbo_tasks::value(task_input)]
@@ -955,7 +933,7 @@ impl ResolveOrigin for EcmascriptModuleAsset {
 #[turbo_tasks::value(shared)]
 pub struct EcmascriptModuleContent {
     pub inner_code: Rope,
-    pub source_map: Option<Rope>,
+    pub source_map: Option<StructuredSourceMap>,
     pub is_esm: bool,
     pub strict: bool,
     pub additional_ids: SmallVec<[ModuleId; 1]>,

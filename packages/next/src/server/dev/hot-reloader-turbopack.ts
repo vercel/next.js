@@ -2,7 +2,6 @@ import type { Socket } from 'net'
 import { mkdir, writeFile } from 'fs/promises'
 import * as inspector from 'inspector'
 import { join, extname, relative } from 'path'
-import { pathToFileURL } from 'url'
 
 import ws from 'next/dist/compiled/ws'
 
@@ -263,32 +262,8 @@ function setupServerHmr(
   return serverHmrSubscriptions
 }
 
-/**
- * Replaces turbopack:///[project] with the specified project in the `source` field.
- */
-function rewriteTurbopackSources(
-  projectRoot: string,
-  sourceMap: ModernSourceMapPayload
-): void {
-  if ('sections' in sourceMap) {
-    for (const section of sourceMap.sections) {
-      rewriteTurbopackSources(projectRoot, section.map)
-    }
-  } else {
-    for (let i = 0; i < sourceMap.sources.length; i++) {
-      sourceMap.sources[i] = pathToFileURL(
-        join(
-          projectRoot,
-          sourceMap.sources[i].replace(/turbopack:\/\/\/\[project\]/, '')
-        )
-      ).toString()
-    }
-  }
-}
-
 function getSourceMapFromTurbopack(
   project: Project,
-  projectRoot: string,
   sourceURL: string
 ): ModernSourceMapPayload | undefined {
   let sourceMapJson: string | null = null
@@ -300,11 +275,7 @@ function getSourceMapFromTurbopack(
   if (sourceMapJson === null) {
     return undefined
   } else {
-    const payload: ModernSourceMapPayload = JSON.parse(sourceMapJson)
-    // The sourcemap from Turbopack is not yet written to disk so its `sources`
-    // are not absolute paths yet. We need to rewrite them to be absolute paths.
-    rewriteTurbopackSources(projectRoot, payload)
-    return payload
+    return JSON.parse(sourceMapJson)
   }
 }
 
@@ -436,7 +407,7 @@ export async function createHotReloaderTurbopack(
     parentSpan: hotReloaderSpan,
   })
   setBundlerFindSourceMapImplementation(
-    getSourceMapFromTurbopack.bind(null, project, projectPath)
+    getSourceMapFromTurbopack.bind(null, project)
   )
 
   // Set up code frame renderer using native bindings
@@ -696,6 +667,14 @@ export async function createHotReloaderTurbopack(
   let serverHmrSubscriptions: ServerHmrSubscriptions | undefined
 
   let hmrEventHappened = false
+  // A counter identifying the current version of the compiled output, included
+  // by `"use cache"` in dev cache keys so that cached entries revalidate after
+  // an edit. It advances once per HMR change event (for App Router pages that
+  // is an RSC change, which is what a cached render depends on), independent of
+  // how many clients are connected. It deliberately does not advance on `BUILT`
+  // messages: those are sent per connected client on every compilation, so
+  // advancing there would both churn the hash without an edit and fail to
+  // advance it at all when no client is connected.
   let hmrHash = 0
 
   const clientsWithoutHtmlRequestId = new Set<ws>()
@@ -710,6 +689,25 @@ export async function createHotReloaderTurbopack(
         : JSON.stringify(message)
 
     client.send(data)
+  }
+
+  let updateInProgress = false
+  let pendingServerComponentChanges = false
+
+  function sendServerComponentChanges() {
+    sendHmr('server-component-changes', {
+      type: HMR_MESSAGE_SENT_TO_BROWSER.SERVER_COMPONENT_CHANGES,
+    })
+  }
+
+  // Each announcement makes every client refetch its page, so an update's
+  // changes are announced once, on the update's end.
+  function handleServerComponentChanges() {
+    if (updateInProgress) {
+      pendingServerComponentChanges = true
+    } else {
+      sendServerComponentChanges()
+    }
   }
 
   function sendEnqueuedMessages() {
@@ -1495,6 +1493,16 @@ export async function createHotReloaderTurbopack(
       }
     },
 
+    getServerComponentsHmrRefreshHash() {
+      // The current server-components generation. Only the change subscription
+      // (an actual recompile) advances `hmrHash`; reloads and config
+      // invalidations don't, so the value stays stable across requests until a
+      // real edit. Returned unconditionally (`"0"` before the first edit) so
+      // `"use cache"` keys are present and consistent for every request,
+      // mirroring webpack's always-present `stats.hash`.
+      return String(hmrHash)
+    },
+
     sendToLegacyClients(action) {
       const payload = JSON.stringify(action)
 
@@ -1641,7 +1649,6 @@ export async function createHotReloaderTurbopack(
         await clearAllModuleContexts()
         this.send({
           type: HMR_MESSAGE_SENT_TO_BROWSER.SERVER_COMPONENT_CHANGES,
-          hash: String(++hmrHash),
         })
       }
     },
@@ -1812,6 +1819,7 @@ export async function createHotReloaderTurbopack(
                 subscribeToChanges: subscribeToChanges
                   ? subscribeToClientChanges
                   : ((async () => {}) as StartChangeSubscription),
+                handleServerComponentChanges,
                 handleWrittenEndpoint: (id, result, forceDeleteCache) => {
                   currentWrittenEntrypoints.set(id, result)
                   assetMapper.setPathsForKey(id, result.clientPaths)
@@ -1863,6 +1871,7 @@ export async function createHotReloaderTurbopack(
     for await (const updateMessage of project.updateInfoSubscribe(30)) {
       switch (updateMessage.updateType) {
         case 'start': {
+          updateInProgress = true
           hotReloader.send({ type: HMR_MESSAGE_SENT_TO_BROWSER.BUILDING })
           // Mark that HMR has started and we need to call the callback after it settles
           // This ensures onBeforeDeferredEntries will be called again during HMR
@@ -1874,6 +1883,11 @@ export async function createHotReloaderTurbopack(
           break
         }
         case 'end': {
+          updateInProgress = false
+          if (pendingServerComponentChanges) {
+            pendingServerComponentChanges = false
+            sendServerComponentChanges()
+          }
           sendEnqueuedMessages()
 
           function addToErrorsMap(
@@ -1922,7 +1936,10 @@ export async function createHotReloaderTurbopack(
 
             sendToClient(client, {
               type: HMR_MESSAGE_SENT_TO_BROWSER.BUILT,
-              hash: String(++hmrHash),
+              // Report the current version without advancing it: a completed
+              // compilation is not itself an edit, and this hash is not
+              // consumed by the Turbopack client.
+              hash: String(hmrHash),
               errors: [...clientErrors.values()],
               warnings: [],
             })
@@ -1981,7 +1998,6 @@ export async function createHotReloaderTurbopack(
         // Tell browsers to refetch RSC (soft refresh, not full page reload)
         hotReloader.send({
           type: HMR_MESSAGE_SENT_TO_BROWSER.SERVER_COMPONENT_CHANGES,
-          hash: String(++hmrHash),
         })
       },
     })

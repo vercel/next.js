@@ -48,7 +48,12 @@ use swc_core::{
 };
 use turbopack_core::module::ModuleSideEffects;
 
-use crate::utils::unparen;
+use crate::{
+    analyzer::cjs_ast::{
+        is_cjs_export_member, is_global, is_module_dot_exports, is_module_exports_chain,
+    },
+    utils::unparen,
+};
 
 /// Macro to check if side effects have been detected and return early if so.
 /// This makes the early-return pattern more explicit and reduces boilerplate.
@@ -268,19 +273,6 @@ static KNOWN_PURE_REGEXP_PROTOTYPE_METHODS: phf::Set<&'static str> = phf_set! {
     "test", "exec",
 };
 
-/// True if `prop` is the non-computed member property `.<name>`.
-fn prop_is(prop: &MemberProp, name: &str) -> bool {
-    matches!(prop, MemberProp::Ident(i) if i.sym.as_ref() == name)
-}
-
-/// True if `identifier` is the named, unshadowed module-scope (unresolved)
-/// binding — e.g. the real CommonJS `module`/`exports`/`require`, not a local
-/// shadow. Prevents `let exports = {}; exports.foo = 'a'` from being treated as
-/// a write to the global `exports`.
-fn is_global(identifier: &Ident, name: &str, unresolved_mark: Mark) -> bool {
-    identifier.ctxt.outer() == unresolved_mark && identifier.sym.as_ref() == name
-}
-
 /// A freshly-allocated object/array literal (evaluates to a brand-new value).
 fn is_object_or_array_literal(expr: &Expr) -> bool {
     matches!(unparen(expr), Expr::Object(_) | Expr::Array(_))
@@ -375,38 +367,6 @@ fn contains_getters_or_setters(expr: &Expr) -> bool {
             .iter()
             .flatten()
             .any(|elem| contains_getters_or_setters(&elem.expr)),
-        _ => false,
-    }
-}
-
-/// `module.exports` (the real, unshadowed `module` binding).
-fn is_module_dot_exports(member: &MemberExpr, unresolved_mark: Mark) -> bool {
-    matches!(unparen(&member.obj), Expr::Ident(o) if is_global(o, "module", unresolved_mark))
-        && prop_is(&member.prop, "exports")
-}
-
-/// `module.exports` or a property chain rooted at it (`module.exports.a.b`).
-fn is_module_exports_chain(expr: &Expr, unresolved_mark: Mark) -> bool {
-    match unparen(expr) {
-        Expr::Member(m) => {
-            is_module_dot_exports(m, unresolved_mark)
-                || is_module_exports_chain(&m.obj, unresolved_mark)
-        }
-        _ => false,
-    }
-}
-
-/// Whether `member` writes the module's own CommonJS exports: `exports.<x>`,
-/// `module.exports`, or `module.exports.<x>`.
-fn is_cjs_export_member(member: &MemberExpr, unresolved_mark: Mark) -> bool {
-    match unparen(&member.obj) {
-        // `exports.<anything>`, or `module.exports`
-        Expr::Ident(obj) => {
-            is_global(obj, "exports", unresolved_mark)
-                || is_module_dot_exports(member, unresolved_mark)
-        }
-        // `module.exports.<anything>`
-        Expr::Member(inner) => is_cjs_export_member(inner, unresolved_mark),
         _ => false,
     }
 }

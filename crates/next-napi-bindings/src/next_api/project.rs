@@ -1,5 +1,6 @@
 use std::{
     borrow::Cow,
+    fs::{canonicalize, create_dir_all},
     io::Write,
     path::{Path, PathBuf},
     sync::{Arc, LazyLock},
@@ -58,9 +59,10 @@ use turbo_tasks::{
 };
 use turbo_tasks_backend::db_invalidation::invalidation_reasons;
 use turbo_tasks_fs::{
-    DiskFileSystem, FileContent, FileSystem, FileSystemPath, invalidation, util::uri_from_file,
+    DiskFileSystem, FileContent, FileSystem, FileSystemPath, canonicalize_to_rcstr, invalidation,
+    to_verbatim_with_case_folded_disk, util::uri_from_file,
 };
-use turbo_unix_path::{get_relative_path_to, sys_to_unix, unix_to_sys};
+use turbo_unix_path::{get_relative_path_to, unix_to_sys};
 use turbopack_core::{
     PROJECT_FILESYSTEM_NAME, SOURCE_URL_PROTOCOL,
     issue::PlainIssue,
@@ -416,12 +418,25 @@ pub struct ProjectInstance {
 #[napi(ts_return_type = "Promise<{ __napiType: \"Project\" }>")]
 pub fn project_new(
     env: Env,
-    options: NapiProjectOptions,
+    mut options: NapiProjectOptions,
     turbo_engine_options: NapiTurboEngineOptions,
     napi_callbacks: NapiNextTurbopackCallbacksJsObject,
 ) -> napi::Result<JsObject> {
     let napi_callbacks = NapiNextTurbopackCallbacks::from_js(&env, napi_callbacks)?;
     let (exit, exit_receiver) = ExitHandler::new_receiver();
+
+    // The root path must be canonicalized before DiskFileSystem is constructed, but do it early,
+    // before we use it for creating a trace file or anything else. The root path always exists.
+    options.root_path = canonicalize_to_rcstr(Path::new(&*options.root_path)).map_err(|e| {
+        napi::Error::from_reason(PrettyPrintError(&anyhow::Error::from(e)).to_string())
+    })?;
+    // The dist dir (e.g. `.next`) may not exist yet, and `canonicalize` requires an existing path.
+    create_dir_all(Path::new(&*options.dist_dir))
+        .with_context(|| format!("failed to create dist directory {:?}", options.dist_dir))
+        .map_err(|e| napi::Error::from_reason(PrettyPrintError(&e).to_string()))?;
+    options.dist_dir = canonicalize_to_rcstr(Path::new(&*options.dist_dir)).map_err(|e| {
+        napi::Error::from_reason(PrettyPrintError(&anyhow::Error::from(e)).to_string())
+    })?;
 
     if let Some(dhat_profiler) = DhatProfilerGuard::try_init() {
         exit.on_exit(async move {
@@ -462,16 +477,15 @@ pub fn project_new(
                     .join(path)
             }
         } else {
-            PathBuf::from(&options.root_path)
-                .join(&options.project_path)
+            Path::new(&options.root_path)
+                .join(&*unix_to_sys(&options.project_path))
                 .join(DIST_PROFILES_DIR_NAME)
                 // use a generic binary extension to hint to random tools not to read it.
                 .join("trace-turbopack.bin")
         };
         let trace_dir = trace_file
             .parent()
-            .expect("Trace file path must have a parent directory")
-            .to_path_buf();
+            .expect("Trace file path must have a parent directory");
 
         println!("Turbopack tracing enabled with targets: {trace}");
         println!("  Note that this might have a small performance impact.");
@@ -513,7 +527,7 @@ pub fn project_new(
         // For the default `.next-profiles` location the JS CLI already created
         // this directory (with its `.gitignore`) before invoking the binding; this
         // is a safety net and also covers a `NEXT_TURBOPACK_TRACING_PATH` override.
-        std::fs::create_dir_all(&trace_dir)
+        create_dir_all(trace_dir)
             .with_context(|| {
                 format!(
                     "Unable to create trace output directory {}",
@@ -1209,7 +1223,10 @@ async fn invalidate_deferred_entry_source_dirs_after_callback(
     let Some(app_dir) = app_dir else {
         return Ok(());
     };
-    let app_dir_sys_path = project_fs.to_sys_path(app_dir);
+    // Use `to_sys_path_raw` (not `to_sys_path`): these paths are compared against the invalidator
+    // map keys inside `invalidate_path_and_children_with_reason`, which use the internal (verbatim
+    // on Windows) representation.
+    let app_dir_sys_path = project_fs.to_sys_path_raw(app_dir);
     let paths_to_invalidate = deferred_invalidation_dirs
         .into_iter()
         .map(|dir| {
@@ -2181,19 +2198,22 @@ pub struct StackFrame {
 #[derive(Clone)]
 pub struct OptionStackFrame(Option<StackFrame>);
 
-#[turbo_tasks::function]
-pub async fn get_source_map_rope(
-    container: Vc<ProjectContainer>,
-    source_url: RcStr,
-) -> Result<Vc<FileContent>> {
-    let (file_path_sys, module) = match Url::parse(&source_url) {
+/// Parses a stack-frame source URL — either a `file://` URL (with an optional `id` query parameter
+/// identifying the module) or a raw system path — into a system path and an optional module id,
+/// for use with [`get_source_map_rope`].
+///
+/// The returned path is canonicalized (with a lexical fallback if the file no longer exists).
+/// Canonicalization (not just lexical normalization) is needed because the path is later compared
+/// against paths derived from the canonicalized project root, and two spellings of a path only
+/// compare equal once both are reduced to the same canonical form. Canonicalization performs
+/// untracked filesystem reads, so this must be called from the napi layer, outside of any (cached)
+/// turbo-tasks function.
+fn parse_and_canonicalize_source_url(source_url: &str) -> Result<(RcStr, Option<RcStr>)> {
+    let (path, module) = match Url::parse(source_url) {
         Ok(url) => match url.scheme() {
             "file" => {
-                let path = match url.to_file_path() {
-                    Ok(path) => path.to_string_lossy().into(),
-                    Err(_) => {
-                        bail!("Failed to convert file URL to file path: {url}");
-                    }
+                let Ok(path) = url.to_file_path() else {
+                    bail!("Failed to convert file URL to file path: {url}");
                 };
                 let module = url.query_pairs().find(|(k, _)| k == "id");
                 (
@@ -2206,62 +2226,108 @@ pub async fn get_source_map_rope(
             }
             _ => bail!("Unknown url scheme '{}'", url.scheme()),
         },
-        Err(_) => (source_url.to_string(), None),
+        Err(_) => (PathBuf::from(source_url), None),
     };
 
-    let chunk_base_unix =
-        match file_path_sys.strip_prefix(container.project().dist_dir_absolute().await?.as_str()) {
-            Some(relative_path) => sys_to_unix(relative_path),
-            None => {
-                // File doesn't exist within the dist dir
-                return Ok(FileContent::NotFound.cell());
+    // Canonicalization resolves symlinks and (on Windows) yields a verbatim path with a
+    // case-folded drive letter and on-disk casing, matching the canonicalized project root.
+    let path = match canonicalize(&path) {
+        Ok(canonical) => canonical,
+        Err(_) => {
+            // The file may not exist (e.g. a stale stack frame). Fall back to a purely lexical
+            // normalization that approximates the canonical format.
+            if cfg!(windows) {
+                to_verbatim_with_case_folded_disk(&path).unwrap_or(path)
+            } else {
+                path
             }
-        };
+        }
+    };
 
-    let server_path = container
-        .project()
-        .node_root()
+    let path = path
+        .into_string()
+        .map(RcStr::from)
+        .map_err(|p| anyhow!("path {p:?} is not valid unicode"))?;
+    Ok((path, module))
+}
+
+/// `file_path_sys` and `module` must be produced by [`parse_and_canonicalize_source_url`], which
+/// canonicalizes the path. That must happen in the napi layer: this is a cached turbo-tasks
+/// function, so it cannot perform untracked reads like canonicalization itself.
+#[turbo_tasks::function]
+async fn get_source_map_rope(
+    container: Vc<ProjectContainer>,
+    sys_path: RcStr,
+    module: Option<RcStr>,
+) -> Result<Vc<FileContent>> {
+    let sys_path = Path::new(&*sys_path);
+
+    let project = container.project();
+    let output_fs = project.output_fs().to_resolved().await?;
+    let Some(fs_path) = output_fs
         .await?
-        .join(&chunk_base_unix)?;
+        .try_from_sys_path(output_fs, sys_path, None)
+    else {
+        // The path is outside of the filesystem root
+        return Ok(FileContent::NotFound.cell());
+    };
 
-    let client_path = container
-        .project()
+    let Some(chunk_base_unix) = project.node_root().await?.get_path_to(&fs_path) else {
+        // The path is not within the dist dir
+        return Ok(FileContent::NotFound.cell());
+    };
+
+    let client_path = project
         .client_relative_path()
         .await?
-        .join(&chunk_base_unix)?;
+        .join(chunk_base_unix)?;
 
-    let mut map = container.get_source_map(server_path, module.clone());
+    // `fs_path` is the server path: it's inside `node_root`, and `output_fs` is the filesystem
+    // that `node_root` uses.
+    let mut map = container.get_source_map(fs_path, module.clone());
 
     if !map.await?.is_content() {
         // If the chunk doesn't exist as a server chunk, try a client chunk.
         // TODO: Properly tag all server chunks and use the `isServer` query param.
         // Currently, this is inaccurate as it does not cover RSC server
         // chunks.
-        map = container.get_source_map(client_path, module);
+        map = container.get_source_map(client_path, module.clone());
         if !map.await?.is_content() {
-            bail!("chunk/module '{}' is missing a sourcemap", source_url);
+            bail!("chunk/module {sys_path:?} (module: {module:?}) is missing a sourcemap");
         }
     }
 
     Ok(map)
 }
 
+/// See [`get_source_map_rope`]: `file_path_sys` and `module` must be produced by
+/// [`parse_and_canonicalize_source_url`] in the napi layer.
 #[turbo_tasks::function(operation, root)]
-pub fn get_source_map_rope_operation(
+fn get_source_map_rope_operation(
     container: ResolvedVc<ProjectContainer>,
-    file_path: RcStr,
+    file_path_sys: RcStr,
+    module: Option<RcStr>,
 ) -> Vc<FileContent> {
-    get_source_map_rope(*container, file_path)
+    get_source_map_rope(*container, file_path_sys, module)
 }
 
+/// `frame_file_path_sys` and `frame_module` are the normalized form of `frame.file`, and must be
+/// produced by [`parse_and_canonicalize_source_url`] in the napi layer (see
+/// [`get_source_map_rope`]).
 #[turbo_tasks::function(operation, root)]
-pub async fn project_trace_source_operation(
+async fn project_trace_source_operation(
     container: ResolvedVc<ProjectContainer>,
     frame: StackFrame,
+    frame_file_path_sys: RcStr,
+    frame_module: Option<RcStr>,
     current_directory_file_url: RcStr,
 ) -> Result<Vc<OptionStackFrame>> {
-    let Some(map) =
-        &*SourceMap::new_from_rope_cached(get_source_map_rope(*container, frame.file)).await?
+    let Some(map) = &*SourceMap::new_from_rope_cached(get_source_map_rope(
+        *container,
+        frame_file_path_sys,
+        frame_module,
+    ))
+    .await?
     else {
         return Ok(Vc::cell(None));
     };
@@ -2353,11 +2419,17 @@ pub async fn project_trace_source(
 ) -> napi::Result<Option<StackFrame>> {
     let container = project.container;
     let ctx = &project.turbopack_ctx;
+    // Normalization canonicalizes (an untracked read), so it must happen here, outside of the
+    // cached turbo-tasks functions below.
+    let (frame_file_path_sys, frame_module) = parse_and_canonicalize_source_url(&frame.file)
+        .map_err(|e| napi::Error::from_reason(PrettyPrintError(&e).to_string()))?;
     ctx.turbo_tasks()
         .run(async move {
             let traced_frame = project_trace_source_operation(
                 container,
                 frame,
+                frame_file_path_sys,
+                frame_module,
                 RcStr::from(current_directory_file_url),
             )
             .read_strongly_consistent()
@@ -2411,13 +2483,17 @@ pub async fn project_get_source_for_asset(
 #[napi]
 pub async fn project_get_source_map(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
-    file_path: RcStr,
+    source_map_url: RcStr,
 ) -> napi::Result<Option<String>> {
     let container = project.container;
     let ctx = &project.turbopack_ctx;
+    // Normalization canonicalizes (an untracked read), so it must happen here, outside of the
+    // cached turbo-tasks functions below.
+    let (file_path_sys, module) = parse_and_canonicalize_source_url(&source_map_url)
+        .map_err(|e| napi::Error::from_reason(PrettyPrintError(&e).to_string()))?;
     ctx.turbo_tasks()
         .run(async move {
-            let source_map = get_source_map_rope_operation(container, file_path)
+            let source_map = get_source_map_rope_operation(container, file_path_sys, module)
                 .read_strongly_consistent()
                 .await?;
             let Some(map) = source_map.as_content() else {

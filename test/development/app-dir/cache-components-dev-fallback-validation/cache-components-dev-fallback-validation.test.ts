@@ -51,7 +51,7 @@ describe('Cache Components Fallback Validation', () => {
     )
     await expect(browser).toDisplayCollapsedRedbox(`
      {
-       "code": "E1400",
+       "code": "E1427",
        "description": "Next.js encountered runtime data during prerendering.",
        "environmentLabel": "Server",
        "label": "Blocking Route",
@@ -67,7 +67,7 @@ describe('Cache Components Fallback Validation', () => {
     await browser.loadPage(`${next.url}/partial/prerendered/unwrapped/novel`)
     await expect(browser).toDisplayCollapsedRedbox(`
      {
-       "code": "E1400",
+       "code": "E1427",
        "description": "Next.js encountered runtime data during prerendering.",
        "environmentLabel": "Server",
        "label": "Blocking Route",
@@ -83,7 +83,7 @@ describe('Cache Components Fallback Validation', () => {
     await browser.loadPage(`${next.url}/partial/novel/unwrapped/novel`)
     await expect(browser).toDisplayCollapsedRedbox(`
      {
-       "code": "E1400",
+       "code": "E1427",
        "description": "Next.js encountered runtime data during prerendering.",
        "environmentLabel": "Server",
        "label": "Blocking Route",
@@ -103,7 +103,7 @@ describe('Cache Components Fallback Validation', () => {
     const browser = await next.browser('/none/prerendered/wrapped/prerendered')
     await expect(browser).toDisplayCollapsedRedbox(`
      {
-       "code": "E1400",
+       "code": "E1427",
        "description": "Next.js encountered runtime data during prerendering.",
        "environmentLabel": "Server",
        "label": "Blocking Route",
@@ -119,7 +119,7 @@ describe('Cache Components Fallback Validation', () => {
     await browser.loadPage(`${next.url}/none/prerendered/wrapped/novel`)
     await expect(browser).toDisplayCollapsedRedbox(`
      {
-       "code": "E1400",
+       "code": "E1427",
        "description": "Next.js encountered runtime data during prerendering.",
        "environmentLabel": "Server",
        "label": "Blocking Route",
@@ -135,7 +135,7 @@ describe('Cache Components Fallback Validation', () => {
     await browser.loadPage(`${next.url}/none/novel/wrapped/novel`)
     await expect(browser).toDisplayCollapsedRedbox(`
      {
-       "code": "E1400",
+       "code": "E1427",
        "description": "Next.js encountered runtime data during prerendering.",
        "environmentLabel": "Server",
        "label": "Blocking Route",
@@ -151,7 +151,7 @@ describe('Cache Components Fallback Validation', () => {
     await browser.loadPage(`${next.url}/none/prerendered/unwrapped/prerendered`)
     await expect(browser).toDisplayCollapsedRedbox(`
      {
-       "code": "E1400",
+       "code": "E1427",
        "description": "Next.js encountered runtime data during prerendering.",
        "environmentLabel": "Server",
        "label": "Blocking Route",
@@ -167,7 +167,7 @@ describe('Cache Components Fallback Validation', () => {
     await browser.loadPage(`${next.url}/none/prerendered/unwrapped/novel`)
     await expect(browser).toDisplayCollapsedRedbox(`
      {
-       "code": "E1400",
+       "code": "E1427",
        "description": "Next.js encountered runtime data during prerendering.",
        "environmentLabel": "Server",
        "label": "Blocking Route",
@@ -183,7 +183,7 @@ describe('Cache Components Fallback Validation', () => {
     await browser.loadPage(`${next.url}/none/novel/unwrapped/novel`)
     await expect(browser).toDisplayCollapsedRedbox(`
      {
-       "code": "E1400",
+       "code": "E1427",
        "description": "Next.js encountered runtime data during prerendering.",
        "environmentLabel": "Server",
        "label": "Blocking Route",

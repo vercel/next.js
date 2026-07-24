@@ -246,6 +246,7 @@ impl ModuleOptions {
                     source_maps: ecmascript_source_maps,
                     inline_helpers,
                     infer_module_side_effects,
+                    cjs_tree_shaking,
                     ref preset_env_config,
                     ..
                 },
@@ -265,7 +266,8 @@ impl ModuleOptions {
             environment,
             ref module_rules,
             execution_context,
-            tree_shaking_mode,
+            follow_reexports,
+            module_fragments_enabled,
             keep_last_successful_parse,
             analyze_mode,
             ..
@@ -325,7 +327,8 @@ impl ModuleOptions {
         }
 
         let ecmascript_options = EcmascriptOptions {
-            tree_shaking_mode,
+            follow_reexports,
+            module_fragments_enabled,
             url_rewrite_behavior: esm_url_rewrite_behavior,
             import_externals,
             ignore_dynamic_requests,
@@ -336,6 +339,7 @@ impl ModuleOptions {
             enable_exports_info_inlining,
             inline_helpers,
             infer_module_side_effects,
+            cjs_tree_shaking,
             ..Default::default()
         };
         let ecmascript_options_vc = ecmascript_options.resolved_cell();
