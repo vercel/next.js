@@ -31,6 +31,8 @@ import {
 } from '../../server/base-http/node' with { 'turbopack-transition': 'next-server-utility' }
 import { checkIsAppPPREnabled } from '../../server/lib/experimental/ppr' with { 'turbopack-transition': 'next-server-utility' }
 import { isRSCRequestHeader } from '../../server/lib/is-rsc-request' with { 'turbopack-transition': 'next-server-utility' }
+import { isNonHtmlSecFetchDest } from '../../server/lib/is-non-html-sec-fetch-dest' with { 'turbopack-transition': 'next-server-utility' }
+import { UNDERSCORE_NOT_FOUND_ROUTE } from '../../shared/lib/entry-constants' with { 'turbopack-transition': 'next-server-utility' }
 import {
   getFallbackRouteParams,
   getPlaceholderFallbackRouteParams,
@@ -304,6 +306,25 @@ export async function handler(
     isRSCRequestHeader(req.headers[RSC_HEADER])
 
   const isPossibleServerAction = getIsPossibleServerAction(req)
+
+  // For subresource requests (e.g. images or fonts), return plain text 404
+  // instead of rendering the not-found route.
+  if (
+    normalizedSrcPage === UNDERSCORE_NOT_FOUND_ROUTE &&
+    (req.method === 'GET' || req.method === 'HEAD') &&
+    !isRSCRequest &&
+    isNonHtmlSecFetchDest(req.headers['sec-fetch-dest'])
+  ) {
+    res.statusCode = 404
+    res.setHeader(
+      'Cache-Control',
+      'private, no-cache, no-store, max-age=0, must-revalidate'
+    )
+    res.setHeader('Content-Type', 'text/plain; charset=utf-8')
+    res.end('Not Found')
+    ctx.waitUntil?.(Promise.resolve())
+    return null
+  }
 
   /**
    * If the route being rendered is an app page, and the ppr feature has been
