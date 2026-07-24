@@ -91,12 +91,13 @@ impl<T> Deref for DetachedVc<T> {
 /// [`turbo_tasks::TurboTasks::spawn_root_task`] that can be passed back and forth to JS across the
 /// [`napi`][mod@napi] boundary via [`External`].
 ///
-/// JavaScript code receiving this value **must** call [`root_task_dispose`] in a `try...finally`
-/// block to avoid leaking root tasks.
+/// JavaScript code should call [`root_task_dispose`] in a `try...finally` block to dispose the root
+/// task promptly. If it doesn't, [`Drop`] disposes it as a backstop: disposal releases the root's
+/// activeness, so it stops keeping its whole subtree active/unevictable and re-scheduling. (Fully
+/// reclaiming the subtree also requires tearing down the disposed transient root's edges, a
+/// separate step.)
 ///
 /// This is used by [`subscribe`] to create a computation that re-executes when dependencies change.
-//
-// TODO: If we add a tracing garbage collector to turbo-tasks, this should be tracked as a GC root.
 pub struct RootTask {
     turbopack_ctx: NextTurbopackContext,
     task_id: Option<TaskId>,
@@ -104,7 +105,13 @@ pub struct RootTask {
 
 impl Drop for RootTask {
     fn drop(&mut self) {
-        // TODO stop the root task
+        // Backstop for JS that didn't call `root_task_dispose`. Idempotent: `root_task_dispose`
+        // `take()`s the id, so if it already ran this is `None` and we do nothing (no double
+        // dispose). `dispose_root_task` is a no-op once the backend is stopping, so a `RootTask`
+        // finalized during Node teardown is safe.
+        if let Some(task) = self.task_id.take() {
+            self.turbopack_ctx.turbo_tasks().dispose_root_task(task);
+        }
     }
 }
 

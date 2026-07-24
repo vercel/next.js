@@ -54,6 +54,34 @@ pub enum OutdatedEdge {
     CollectiblesDependency(CollectiblesRef),
 }
 
+/// Captures *all* of a task's outgoing edges — children and every forward-dependency kind — as
+/// [`OutdatedEdge`]s to hand to [`CleanupOldEdgesOperation::run`]. Used when a task is being fully
+/// torn down (GC collection, disposing a transient root task): removing these edges drops each
+/// child's parent reference count, scrubs the forward-dependency reverse edges on the targets, and
+/// rebalances the aggregation graph. This is the "remove every edge" case; a re-executing task
+/// instead captures only the *outdated* edges (those in the old child/dep set but not the new one).
+pub fn capture_all_outgoing_edges(task: &impl TaskStorageAccessors) -> Vec<OutdatedEdge> {
+    let mut old_edges: Vec<OutdatedEdge> = Vec::new();
+    old_edges.extend(task.iter_children().map(OutdatedEdge::Child));
+    old_edges.extend(
+        task.iter_output_dependencies()
+            .map(OutdatedEdge::OutputDependency),
+    );
+    old_edges.extend(
+        task.iter_cell_dependencies()
+            .map(OutdatedEdge::CellDependency),
+    );
+    old_edges.extend(
+        task.iter_cell_dependencies_hashed()
+            .map(|(r, k)| OutdatedEdge::HashedCellDependency(r, k)),
+    );
+    old_edges.extend(
+        task.iter_collectibles_dependencies()
+            .map(OutdatedEdge::CollectiblesDependency),
+    );
+    old_edges
+}
+
 #[cfg(feature = "trace_aggregation_update_stats")]
 type Stats = super::aggregation_update::AggregationUpdateQueueStats;
 #[cfg(not(feature = "trace_aggregation_update_stats"))]

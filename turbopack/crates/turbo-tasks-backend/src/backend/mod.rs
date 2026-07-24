@@ -66,8 +66,8 @@ use crate::{
             AggregationUpdateJob, AggregationUpdateQueue, ChildExecuteContext,
             CleanupOldEdgesOperation, ConnectChildOperation, ExecuteContext, ExecuteContextImpl,
             LeafDistanceUpdateQueue, Operation, OutdatedEdge, TaskGuard, TaskType, TaskTypeRef,
-            connect_children, get_aggregation_number, get_uppers, make_task_dirty_internal,
-            prepare_new_children,
+            capture_all_outgoing_edges, connect_children, get_aggregation_number, get_uppers,
+            make_task_dirty_internal, prepare_new_children,
         },
         snapshot_coordinator::{OperationGuard, SnapshotCoordinator},
         storage::Storage,
@@ -3369,6 +3369,14 @@ impl TurboTasksBackend {
     }
 
     fn dispose_root_task(&self, task_id: TaskId, turbo_tasks: &TurboTasks<TurboTasksBackend>) {
+        // Once stopping, the task map is being torn down in `stop()` (which runs after `stopping()`
+        // sets this flag) — disposing is both irrelevant and unsafe (it would `ctx.task` a dropped
+        // map). `RootTask::Drop` calls this as a backstop and may fire during Node worker teardown,
+        // after shutdown; make that a no-op, mirroring `gc_pin`/`gc_unpin`.
+        if self.stopping.load(Ordering::Acquire) {
+            return;
+        }
+
         #[cfg(feature = "verify_aggregation_graph")]
         self.root_tasks.lock().remove(&task_id);
 
@@ -3382,10 +3390,41 @@ impl TurboTasksBackend {
                 activeness_state.unset_root_type();
                 activeness_state.set_active_until_clean();
             };
-        } else if let Some(activeness_state) = task.take_activeness() {
-            // Technically nobody should be listening to this event, but just in case
-            // we notify it anyway
-            activeness_state.all_clean_event.notify(usize::MAX);
+            // The root is still going to execute to completion; `task_execution_completed` runs its
+            // own edge cleanup, and `unset_root_type` above means it won't re-root afterwards.
+            // Don't tear down its edges here — they may still be in use by the
+            // in-flight execution.
+        } else {
+            if let Some(activeness_state) = task.take_activeness() {
+                // Technically nobody should be listening to this event, but just in case
+                // we notify it anyway
+                activeness_state.all_clean_event.notify(usize::MAX);
+            }
+
+            // The root task is clean and done — nothing else will re-execute it. Tear down its
+            // outgoing edges so the subgraph it anchored can be collected. A transient root's child
+            // edges bump each persistent child's session-only `transient_ref_count`; without
+            // shedding them (and the aggregation follower/upper edges — a root task is
+            // an aggregating node with `aggregation_number == u32::MAX`, so its
+            // children are its followers), the whole subscription subgraph would stay
+            // anchored and uncollectible for the rest of the session. We hand the edges
+            // to the same `CleanupOldEdges` operation a re-executing task and GC
+            // use: for a transient parent it issues `AdjustTransientRefCount { delta: -1 }` per
+            // persistent child and rebalances the aggregation graph. The transient root node itself
+            // is left resident (transient tasks have no removal path and are never
+            // persisted); only its edges are shed — a single empty node per disposed
+            // subscription, re-created each session.
+            let old_edges = capture_all_outgoing_edges(&task);
+            drop(task);
+
+            if !old_edges.is_empty() {
+                CleanupOldEdgesOperation::run(
+                    task_id,
+                    old_edges,
+                    AggregationUpdateQueue::new(),
+                    &mut ctx,
+                );
+            }
         }
     }
 

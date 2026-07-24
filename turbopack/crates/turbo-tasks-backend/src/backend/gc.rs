@@ -24,7 +24,7 @@ use crate::backend::{
     TurboTasksBackend,
     operation::{
         AggregationUpdateQueue, CleanupOldEdgesOperation, ExecuteContext, ExecuteContextImpl,
-        OutdatedEdge, TaskGuard,
+        TaskGuard, capture_all_outgoing_edges,
     },
     storage::{SpecificTaskDataCategory, TaskDataCategory},
     storage_schema::TaskStorageAccessors,
@@ -214,24 +214,7 @@ impl TurboTasksBackend {
             // (removing this task from its children's `upper` sets) — without it, collected
             // children would keep a dangling upper edge and never become collectible. The op opens
             // `ctx.task(task_id)`, so it must run while `task_id` is still resident.
-            let mut old_edges: Vec<OutdatedEdge> = Vec::new();
-            old_edges.extend(task.iter_children().map(OutdatedEdge::Child));
-            old_edges.extend(
-                task.iter_output_dependencies()
-                    .map(OutdatedEdge::OutputDependency),
-            );
-            old_edges.extend(
-                task.iter_cell_dependencies()
-                    .map(OutdatedEdge::CellDependency),
-            );
-            old_edges.extend(
-                task.iter_cell_dependencies_hashed()
-                    .map(|(r, k)| OutdatedEdge::HashedCellDependency(r, k)),
-            );
-            old_edges.extend(
-                task.iter_collectibles_dependencies()
-                    .map(OutdatedEdge::CollectiblesDependency),
-            );
+            let old_edges = capture_all_outgoing_edges(&task);
             drop(task);
 
             edges_deleted.fetch_add(old_edges.len(), Ordering::Relaxed);

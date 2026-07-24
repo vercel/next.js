@@ -1932,7 +1932,7 @@ pub use self::{
         AggregatedDataUpdate, AggregationUpdateJob, get_aggregation_number, get_uppers,
         is_aggregating_node, is_root_node,
     },
-    cleanup_old_edges::OutdatedEdge,
+    cleanup_old_edges::{OutdatedEdge, capture_all_outgoing_edges},
     connect_children::connect_children,
     invalidate::make_task_dirty_internal,
     prepare_new_children::prepare_new_children,

@@ -491,6 +491,99 @@ async fn gc_does_not_collect_parentless_root_task() {
     tt.stop_and_wait().await;
 }
 
+/// Disposing a root task (as `RootTask::Drop` / `root_task_dispose` does when JS stops listening to
+/// a subscription) must release the anchor its child edges placed on the persistent tasks it read,
+/// so the subscription's subgraph becomes collectible. A transient root task bumps each persistent
+/// child's `transient_ref_count`; `dispose_root_task` tears the (clean) root's edges down via
+/// `CleanupOldEdges`, which sheds that count (and rebalances the aggregation graph). Also checks
+/// the contract `RootTask::Drop` relies on: disposal is idempotent and safe after the backend
+/// stopped.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn dispose_root_task_releases_anchored_subgraph() {
+    let (tt, _persistence_dir) = create_tt("dispose_root_task_releases_anchored_subgraph");
+
+    // Spawn a real root task (as `subscribe` does) whose body reads a persistent leaf, connecting
+    // it as a child of the transient root — bumping the leaf's transient_ref_count. The root sends
+    // the leaf's id out via a oneshot so we can inspect it WITHOUT a separate `run_once` probe (a
+    // probe would be its own transient `Once` task that also connects the leaf — Once tasks are
+    // never disposed, so it would pollute the leaf's transient_ref_count and never drop to 0).
+    let (tx, rx) = tokio::sync::oneshot::channel();
+    let tx = Arc::new(std::sync::Mutex::new(Some(tx)));
+    let root_id = tt.spawn_root_task(move || {
+        let tx = tx.lock().unwrap().take();
+        Box::pin(async move {
+            // The root body runs as a top-level task; unmark so the eventually-consistent leaf read
+            // is allowed (as `subscribe`'s HMR handler does).
+            unmark_top_level_task_may_leak_eventually_consistent_state();
+            let leaf_vc = leaf(88);
+            let value = *leaf_vc.await?;
+            if let Some(tx) = tx {
+                let _ = tx.send(task_id_of(leaf_vc.resolve().await?));
+            }
+            anyhow::Ok(Vc::<u32>::cell(value))
+        })
+    });
+
+    // The root connects the leaf as its only anchor: no persistent parent (parent_count 0), one
+    // transient child edge (transient_ref_count 1).
+    let leaf_id = rx.await.unwrap();
+    for _ in 0..100 {
+        if tt.backend().transient_ref_count_for_testing(leaf_id) > 0 {
+            break;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+    }
+    assert_eq!(
+        tt.backend().parent_count_for_testing(leaf_id),
+        0,
+        "leaf read only by the root task has no persistent parent"
+    );
+    assert_eq!(
+        tt.backend().transient_ref_count_for_testing(leaf_id),
+        1,
+        "the transient root task anchors the leaf via exactly one child edge"
+    );
+
+    // While the root task is live, the leaf is anchored and must not be collected.
+    assert_eq!(
+        tt.backend().gc_for_testing(&tt),
+        0,
+        "leaf anchored by the live root task must not be collected"
+    );
+
+    // Dispose the root task (as `RootTask::Drop` now does when JS skipped `root_task_dispose`). Its
+    // `CleanupOldEdges` sheds the leaf's transient_ref_count.
+    tt.dispose_root_task(root_id);
+    // Idempotent: disposing again (the shape of explicit JS dispose + a later `Drop`) must not
+    // panic and must not underflow the child's count (the edges were already removed).
+    tt.dispose_root_task(root_id);
+
+    assert_eq!(
+        tt.backend().transient_ref_count_for_testing(leaf_id),
+        0,
+        "disposing the root task released its transient_ref_count anchor on the leaf"
+    );
+
+    // Collect in a fresh run (a `run_once` keeps touched tasks active until it returns, so GC runs
+    // after it). The leaf is now unanchored, quiescent, and collectible.
+    turbo_tasks::run_once(tt.clone(), async move {
+        unmark_top_level_task_may_leak_eventually_consistent_state();
+        anyhow::Ok(())
+    })
+    .await
+    .unwrap();
+    assert_eq!(
+        tt.backend().gc_for_testing(&tt),
+        1,
+        "the leaf becomes collectible once the root task that anchored it is disposed"
+    );
+
+    // Disposal must be safe after the backend has stopped, as a `RootTask` finalized during Node
+    // worker teardown would be (the whole task map is dropped by `stop`).
+    tt.stop_and_wait().await;
+    tt.dispose_root_task(root_id);
+}
+
 /// Unpinning a task after the backend has started stopping must not panic. This mirrors the real
 /// shutdown ordering: a `DetachedVc` handed to JS across NAPI is finalized (dropped, which unpins)
 /// during Node worker teardown, which can run *after* `stop()` has dropped the whole task map.
