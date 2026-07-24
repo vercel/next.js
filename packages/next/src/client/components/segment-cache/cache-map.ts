@@ -418,6 +418,38 @@ function setMapEntryValue(entry: UnknownMapEntry, value: MapValue): void {
   }
 }
 
+/**
+ * Replaces the value stored in the cache map with a new value, in place. The
+ * new value takes over the old value's slot (and its position in the LRU),
+ * and the `ref` back-pointer is transferred.
+ *
+ * This is used when fulfilling a pending entry: rather than mutating the
+ * pending object's fields in place (which would change the pending object's
+ * hidden class), the fulfilled entry is constructed as a fresh object and
+ * swapped into the map slot.
+ *
+ * The caller is responsible for carrying over `size` to the new value so the
+ * LRU accounting stays consistent.
+ *
+ * No-op if the old value is not (or is no longer) in the map, e.g. because it
+ * was lazily evicted while a request was in flight.
+ */
+export function replaceCacheMapValue(
+  oldValue: MapValue,
+  newValue: MapValue
+): void {
+  const entry = oldValue.ref
+  oldValue.ref = null
+  if (entry === null || entry.value !== oldValue) {
+    // The old value is not a member of any map. (The second check handles a
+    // stale back-pointer: lazy eviction clears the map entry's value without
+    // clearing the value's `ref`.)
+    return
+  }
+  entry.value = newValue
+  newValue.ref = entry
+}
+
 export function deleteFromCacheMap(value: MapValue): void {
   const entry = value.ref
   if (entry === null) {

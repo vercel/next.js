@@ -80,6 +80,7 @@ import {
   setInCacheMap,
   setSizeInCacheMap,
   deleteFromCacheMap,
+  replaceCacheMapValue,
   isValueExpired,
   EntryStatus,
   type CacheMap,
@@ -776,29 +777,20 @@ export function deprecated_requestOptimisticRouteCacheEntry(
   )
 
   // Clone the base route tree, and override the relevant fields with our
-  // optimistic values.
-  const optimisticEntry: FulfilledRouteCacheEntry = {
-    canonicalUrl: optimisticCanonicalUrl,
-
-    status: EntryStatus.Fulfilled,
-    // This isn't cloned because it's instance-specific
-    blockedTasks: null,
-    tree: optimisticRouteTree,
-    metadata: optimisticMetadataTree,
-    couldBeIntercepted: routeWithNoSearchParams.couldBeIntercepted,
-    supportsPerSegmentPrefetching:
-      routeWithNoSearchParams.supportsPerSegmentPrefetching,
-    hasDynamicRewrite: routeWithNoSearchParams.hasDynamicRewrite,
-
-    // Override the rendered search with the optimistic value.
-    renderedSearch: optimisticRenderedSearch,
-
-    // Map-related fields
-    ref: null,
-    size: 0,
-    staleAt: routeWithNoSearchParams.staleAt,
-    version: routeWithNoSearchParams.version,
-  }
+  // optimistic values. The rendered search is overridden with the
+  // optimistic value.
+  const optimisticEntry = createFulfilledRouteCacheEntry(
+    optimisticCanonicalUrl,
+    optimisticRouteTree,
+    optimisticMetadataTree,
+    routeWithNoSearchParams.couldBeIntercepted,
+    routeWithNoSearchParams.supportsPerSegmentPrefetching,
+    routeWithNoSearchParams.hasDynamicRewrite,
+    optimisticRenderedSearch,
+    0,
+    routeWithNoSearchParams.staleAt,
+    routeWithNoSearchParams.version
+  )
 
   // Do not insert this entry into the cache. It only exists so we can
   // perform the current navigation. Just return it to the caller.
@@ -1264,6 +1256,46 @@ export function createMetadataRouteTree(
   return metadata
 }
 
+/**
+ * The single allocation site for all FulfilledRouteCacheEntry objects. Every
+ * fulfilled route entry — whether fulfilled from a server response, predicted
+ * via the known route tree (matchKnownRoute), or constructed optimistically —
+ * must be created here so they all share a single hidden class. Do not create
+ * fulfilled entries with inline object literals elsewhere; a second allocation
+ * site produces a second hidden class and deoptimizes every code path that
+ * reads route entries.
+ */
+export function createFulfilledRouteCacheEntry(
+  canonicalUrl: string,
+  tree: RouteTree,
+  metadata: RouteTree,
+  couldBeIntercepted: boolean,
+  supportsPerSegmentPrefetching: boolean,
+  hasDynamicRewrite: boolean,
+  renderedSearch: NormalizedSearch,
+  size: number,
+  staleAt: number,
+  version: number
+): FulfilledRouteCacheEntry {
+  return {
+    canonicalUrl,
+    status: EntryStatus.Fulfilled,
+    blockedTasks: null,
+    tree,
+    metadata,
+    couldBeIntercepted,
+    supportsPerSegmentPrefetching,
+    hasDynamicRewrite,
+    renderedSearch,
+
+    // Map-related fields
+    ref: null,
+    size,
+    staleAt,
+    version,
+  }
+}
+
 export function fulfillRouteCacheEntry(
   now: number,
   entry: PendingRouteCacheEntry,
@@ -1276,10 +1308,7 @@ export function fulfillRouteCacheEntry(
   // Get the rendered search from the vary path
   const renderedSearch =
     getRenderedSearchFromVaryPath(metadataVaryPath) ?? ('' as NormalizedSearch)
-  const fulfilledEntry: FulfilledRouteCacheEntry = entry as any
-  fulfilledEntry.status = EntryStatus.Fulfilled
-  fulfilledEntry.tree = tree
-  fulfilledEntry.metadata = createMetadataRouteTree(metadataVaryPath)
+
   // Route structure is essentially static — it only changes on deploy.
   // Always use the static stale time.
   // NOTE: An exception is rewrites/redirects in middleware or proxy, which can
@@ -1290,16 +1319,48 @@ export function fulfillRouteCacheEntry(
   // immediately expire the entry so it gets re-fetched with correct hints.
   // The segment data itself is still valid — only the route tree (which
   // contains the hint bits) needs to be re-fetched.
-  if (tree.prefetchHints & PrefetchHint.InliningHintsStale) {
-    fulfilledEntry.staleAt = -1
-  } else {
-    fulfilledEntry.staleAt = now + STATIC_STALETIME_MS
-  }
-  fulfilledEntry.couldBeIntercepted = couldBeIntercepted
-  fulfilledEntry.canonicalUrl = canonicalUrl
-  fulfilledEntry.renderedSearch = renderedSearch
-  fulfilledEntry.supportsPerSegmentPrefetching = supportsPerSegmentPrefetching
-  fulfilledEntry.hasDynamicRewrite = false
+  //
+  // NOTE: The already-expired value is `now - 1` rather than -1 so that
+  // `staleAt` is always a double. A mix of Smi (-1) and double timestamps in
+  // the same field would generalize the field's representation, deprecating
+  // the fulfilled entries' hidden class and deoptimizing readers.
+  const staleAt =
+    tree.prefetchHints & PrefetchHint.InliningHintsStale
+      ? now - 1
+      : now + STATIC_STALETIME_MS
+
+  // Construct the fulfilled entry as a fresh object and swap it into the
+  // pending entry's cache map slot, rather than mutating the pending entry's
+  // fields in place. In-place fulfillment would generalize the pending
+  // shape's null-initialized fields (null → object/string) and add new
+  // fields, deprecating the hidden class shared by all pending entries and
+  // deoptimizing code that reads route entries. Using a fresh object keeps
+  // both the pending and fulfilled shapes stable.
+  //
+  // `size` may have been set by setSizeInCacheMap while the request was in
+  // flight, and `version` preserves any invalidation that happened after the
+  // pending entry was created.
+  const fulfilledEntry = createFulfilledRouteCacheEntry(
+    canonicalUrl,
+    tree,
+    createMetadataRouteTree(metadataVaryPath),
+    couldBeIntercepted,
+    supportsPerSegmentPrefetching,
+    false, // hasDynamicRewrite
+    renderedSearch,
+    entry.size,
+    staleAt,
+    entry.version
+  )
+
+  // Swap the fulfilled entry into the pending entry's map slot (no-op if the
+  // pending entry was detached or already evicted). All other readers access
+  // route entries through the cache map: blocked tasks are re-queued below
+  // and re-read the map on their next ping, and navigations always perform a
+  // fresh lookup. The only caller that holds the pending entry across this
+  // boundary is fetchRouteOnCacheMiss, which uses the entry returned from
+  // this function (via discoverKnownRoute) for any subsequent re-keying.
+  replaceCacheMapValue(entry, fulfilledEntry)
   pingBlockedTasks(entry)
   return fulfilledEntry
 }
@@ -1934,6 +1995,12 @@ export async function fetchRouteOnCacheMiss(
       // because all data is static in this mode.
       isOutputExportMode
 
+    // Fulfilling a route cache entry swaps its identity: the pending entry is
+    // replaced in the cache map by a freshly constructed fulfilled entry (see
+    // fulfillRouteCacheEntry). Track the latest version here so the re-keying
+    // logic below operates on the current entry, not the stale pending one.
+    let latestEntry: RouteCacheEntry = entry
+
     if (routeIsPPREnabled) {
       const { stream: prefetchStream, size: responseSize } =
         await createNonTaskyPrefetchResponseStream(response.body)
@@ -1980,7 +2047,7 @@ export async function fetchRouteOnCacheMiss(
         return null
       }
 
-      discoverKnownRoute(
+      latestEntry = discoverKnownRoute(
         Date.now(),
         pathname,
         search,
@@ -2026,7 +2093,7 @@ export async function fetchRouteOnCacheMiss(
       // CacheNodeSeedData; the root iterable is threaded down so each segment
       // unions it too.
       const headVaryParams = readVaryParams(serverData.h, serverData.r)
-      writeDynamicTreeResponseIntoCache(
+      latestEntry = writeDynamicTreeResponseIntoCache(
         Date.now(),
         // The non-PPR response format is what we'd get if we prefetched these segments
         // using the LoadingBoundary fetch strategy, so mark their cache entries accordingly.
@@ -2064,7 +2131,12 @@ export async function fetchRouteOnCacheMiss(
         couldBeIntercepted
       )
       const isRevalidation = false
-      setInCacheMap(routeCacheMap, fulfilledVaryPath, entry, isRevalidation)
+      setInCacheMap(
+        routeCacheMap,
+        fulfilledVaryPath,
+        latestEntry,
+        isRevalidation
+      )
     }
     // Return a promise that resolves when the network connection closes, so
     // the scheduler can track the number of concurrent network connections.
@@ -2819,7 +2891,12 @@ function writeDynamicTreeResponseIntoCache(
   originalPathname: string,
   originalSearch: NormalizedSearch,
   nextUrl: string | null
-): void {
+  // Returns the latest version of the route cache entry: the freshly
+  // constructed fulfilled entry on success, or the original (now rejected)
+  // entry on failure. Fulfillment swaps the entry's identity (see
+  // fulfillRouteCacheEntry), so the caller must use the returned entry for
+  // any further operations rather than the pending entry it passed in.
+): RouteCacheEntry {
   const renderedSearch = getRenderedSearch(response)
 
   const normalizedFlightDataResult = normalizeFlightData(serverData.f)
@@ -2830,13 +2907,13 @@ function writeDynamicTreeResponseIntoCache(
     normalizedFlightDataResult.length !== 1
   ) {
     rejectRouteCacheEntry(entry, now + 10 * 1000)
-    return
+    return entry
   }
   const flightData = normalizedFlightDataResult[0]
   if (!flightData.isRootRender) {
     // Unexpected response format.
     rejectRouteCacheEntry(entry, now + 10 * 1000)
-    return
+    return entry
   }
 
   const flightRouterState = flightData.tree
@@ -2860,10 +2937,10 @@ function writeDynamicTreeResponseIntoCache(
   const metadataVaryPath = acc.metadataVaryPath
   if (metadataVaryPath === null) {
     rejectRouteCacheEntry(entry, now + 10 * 1000)
-    return
+    return entry
   }
 
-  discoverKnownRoute(
+  const fulfilledEntry = discoverKnownRoute(
     now,
     originalPathname,
     originalSearch,
@@ -2903,6 +2980,8 @@ function writeDynamicTreeResponseIntoCache(
     navigationSeed,
     null
   )
+
+  return fulfilledEntry
 }
 
 function rejectSegmentEntriesIfStillPending(

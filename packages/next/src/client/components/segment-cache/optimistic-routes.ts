@@ -47,9 +47,9 @@ import type { DynamicParamTypesShort } from '../../../shared/lib/app-router-type
 import { PrefetchHint } from '../../../shared/lib/app-router-types'
 import type { RouteTree, FulfilledRouteCacheEntry } from './cache'
 import {
-  EntryStatus,
   writeRouteIntoCache,
   fulfillRouteCacheEntry,
+  createFulfilledRouteCacheEntry,
   getCurrentRouteCacheVersion,
   type PendingRouteCacheEntry,
   createMetadataRouteTree,
@@ -671,21 +671,18 @@ export function matchKnownRoute(
   // different pathname due to dynamic rewrite), the entry gets marked with
   // hasDynamicRewrite. Future predictions for this route will see the flag
   // and bail out to server resolution instead of making the same mistake.
-  const syntheticEntry: FulfilledRouteCacheEntry = {
-    canonicalUrl: pathname + search,
-    status: EntryStatus.Fulfilled,
-    blockedTasks: null,
-    tree: reifiedTree,
-    metadata: reifiedMetadata,
-    couldBeIntercepted: pattern.couldBeIntercepted,
-    supportsPerSegmentPrefetching: pattern.supportsPerSegmentPrefetching,
-    hasDynamicRewrite: false,
-    renderedSearch: search,
-    ref: null,
-    size: pattern.size,
-    staleAt: pattern.staleAt,
-    version: pattern.version,
-  }
+  const syntheticEntry = createFulfilledRouteCacheEntry(
+    pathname + search,
+    reifiedTree,
+    reifiedMetadata,
+    pattern.couldBeIntercepted,
+    pattern.supportsPerSegmentPrefetching,
+    false, // hasDynamicRewrite
+    search,
+    pattern.size,
+    pattern.staleAt,
+    pattern.version
+  )
 
   matchedPart.pattern = syntheticEntry
 
