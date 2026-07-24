@@ -29,11 +29,33 @@ describe('encodeURIPath', () => {
     expect(encodeURIPath(input)).toBe(referenceEncodeURIPath(input))
   })
 
-  it.each(['\uD800', 'prefix/\uDC00/suffix'])(
-    'preserves URI errors for malformed surrogate input %j',
-    (input) => {
-      expect(() => referenceEncodeURIPath(input)).toThrow(URIError)
-      expect(() => encodeURIPath(input)).toThrow(URIError)
-    }
-  )
+  it.each([
+    {
+      name: 'multiple unsafe segments',
+      input: 'one/two three/four?five/six#seven',
+    },
+    { name: 'unsafe input below the crossover', input: `${'a'.repeat(62)} ` },
+    { name: 'unsafe input at length 127', input: `${'a'.repeat(126)} ` },
+    { name: 'unsafe input at length 128', input: `${'a'.repeat(127)} ` },
+    { name: 'slash-dense unsafe input', input: `${'a/'.repeat(64)} ` },
+    {
+      name: 'ASCII escape before non-ASCII input',
+      input: `space before unicode/${'a'.repeat(128)}/東京`,
+    },
+    { name: 'long safe input', input: 'safe/'.repeat(2048) },
+  ])('matches the reference for $name', ({ input }) => {
+    expect(encodeURIPath(input)).toBe(referenceEncodeURIPath(input))
+  })
+
+  it.each([
+    { name: 'isolated high surrogate', input: '\uD800' },
+    { name: 'isolated low surrogate', input: 'prefix/\uDC00/suffix' },
+    {
+      name: 'late isolated high surrogate',
+      input: `${'safe/'.repeat(256)}\uD800`,
+    },
+  ])('preserves URI errors for $name', ({ input }) => {
+    expect(() => referenceEncodeURIPath(input)).toThrow(URIError)
+    expect(() => encodeURIPath(input)).toThrow(URIError)
+  })
 })

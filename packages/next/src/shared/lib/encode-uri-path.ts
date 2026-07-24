@@ -1,27 +1,31 @@
-function isEncodeURIPathSafeCode(code: number) {
-  return (
-    (code >= 48 && code <= 57) || // 0-9
-    (code >= 65 && code <= 90) || // A-Z
-    (code >= 97 && code <= 122) || // a-z
-    code === 33 || // !
-    code === 39 || // '
-    code === 40 || // (
-    code === 41 || // )
-    code === 42 || // *
-    code === 45 || // -
-    code === 46 || // .
-    code === 47 || // /
-    code === 95 || // _
-    code === 126 // ~
-  )
+const unsafeURIPathCharacter = /[^A-Za-z0-9_.!~*'()\u002f-]/
+const nonAsciiCharacter = /[\x80-\uFFFF]/
+
+function encodeURIPathBySegment(file: string) {
+  let slash = file.indexOf('/')
+  if (slash === -1) {
+    return encodeURIComponent(file)
+  }
+
+  let encoded = ''
+  let start = 0
+  do {
+    encoded += encodeURIComponent(file.slice(start, slash)) + '/'
+    start = slash + 1
+    slash = file.indexOf('/', start)
+  } while (slash !== -1)
+
+  return encoded + encodeURIComponent(file.slice(start))
 }
 
 export function encodeURIPath(file: string) {
-  for (let i = 0; i < file.length; i++) {
-    if (!isEncodeURIPathSafeCode(file.charCodeAt(i))) {
-      return encodeURIComponent(file).replaceAll('%2F', '/')
-    }
+  if (!unsafeURIPathCharacter.test(file)) {
+    return file
   }
 
-  return file
+  if (file.length >= 128 && !nonAsciiCharacter.test(file)) {
+    return encodeURIComponent(file).replaceAll('%2F', '/')
+  }
+
+  return encodeURIPathBySegment(file)
 }
