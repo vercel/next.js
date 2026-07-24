@@ -478,7 +478,7 @@ export declare function projectGetSourceForAsset(
 ): Promise<string | null>
 export declare function projectGetSourceMap(
   project: { __napiType: 'Project' },
-  filePath: RcStr
+  sourceMapUrl: RcStr
 ): Promise<string | null>
 export declare function projectGetSourceMapSync(
   project: { __napiType: 'Project' },

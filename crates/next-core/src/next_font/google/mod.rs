@@ -1,4 +1,4 @@
-use std::{path::Path, sync::LazyLock};
+use std::{path::Path, sync::LazyLock, time::Duration};
 
 use anyhow::{Context, Result, bail};
 use futures::FutureExt;
@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{Completion, FxIndexMap, ResolvedVc, Vc};
 use turbo_tasks_env::{CommandLineProcessEnv, ProcessEnv};
-use turbo_tasks_fetch::{FetchClientConfig, HttpResponseBody};
+use turbo_tasks_fetch::{FetchClientConfig, FetchErrorKind, HttpResponseBody};
 use turbo_tasks_fs::{
     DiskFileSystem, File, FileContent, FileSystem, FileSystemPath,
     json::parse_json_with_source_context,
@@ -49,7 +49,7 @@ use crate::{
             stylesheet::build_stylesheet,
             util::{get_font_axes, get_stylesheet_url},
         },
-        issue::GoogleFontsFetchIssue,
+        issue::{GoogleFontsFetchIssue, GoogleFontsFetchIssueKind},
         util::{
             FontCssProperties, FontFamilyType, can_use_next_font, get_request_hash, get_request_id,
             get_scoped_font_family,
@@ -77,6 +77,33 @@ pub const USER_AGENT_FOR_GOOGLE_FONTS: RcStr = rcstr!(
 /// specific format that is then intercepted later. This is the prefix we use for the new url.
 pub const GOOGLE_FONTS_INTERNAL_PREFIX: RcStr =
     rcstr!("@vercel/turbopack-next/internal/font/google/font");
+
+/// How long compilation waits for a Google Fonts request in `next dev` before falling back to a
+/// system font. The request keeps running in the background and, once it completes, invalidates
+/// the fetch so compilation re-runs and picks up the real font. `next build` uses no soft
+/// deadline (a missing font fails the build, so it waits for the real result).
+const GOOGLE_FONTS_DEV_SOFT_DEADLINE: Duration = Duration::from_secs(3);
+
+/// Returns the soft deadline for a compile-time Google Fonts fetch: `Some` in development,
+/// `None` in build (where the fetch must complete or fail the build).
+fn google_fonts_soft_deadline(next_mode: NextMode) -> Option<Duration> {
+    next_mode
+        .is_development()
+        .then_some(GOOGLE_FONTS_DEV_SOFT_DEADLINE)
+}
+
+/// The outcome of a compile-time Google Fonts fetch. Distinguishes a *soft* timeout (the request
+/// is still running in the background; use a fallback silently for now) from a *real* failure (the
+/// request terminally failed; surface the usual warning/error).
+enum FontFetchOutcome<T> {
+    /// The real response is available.
+    Ready(T),
+    /// The request terminally failed. The caller emits the appropriate warning/error issue.
+    Failed,
+    /// A soft deadline elapsed while the request is still running in the background. The caller
+    /// uses a fallback and emits at most an info-level message; a re-run will replace it.
+    SoftPending,
+}
 
 #[turbo_tasks::value(transparent)]
 #[derive(Deserialize)]
@@ -232,6 +259,8 @@ impl NextFontGoogleCssModuleReplacer {
                 get_request_id(font_family, request_hash)
             ))?;
 
+        let next_mode = *self.next_mode.await?;
+
         // When running Next.js integration tests, use the mock data available in
         // process.env.NEXT_FONT_GOOGLE_MOCKED_RESPONSES instead of making real
         // requests to Google Fonts.
@@ -248,6 +277,7 @@ impl NextFontGoogleCssModuleReplacer {
                         *self.fetch_client,
                         stylesheet_url.clone(),
                         css_virtual_path.clone(),
+                        google_fonts_soft_deadline(next_mode),
                     )
                     .boxed()
                 },
@@ -257,7 +287,7 @@ impl NextFontGoogleCssModuleReplacer {
 
         let font_fallback = get_font_fallback(self.project_path.clone(), options);
         let stylesheet = match stylesheet_str {
-            Some(s) => Some(
+            FontFetchOutcome::Ready(s) => Some(
                 update_google_stylesheet(
                     s,
                     options,
@@ -267,12 +297,16 @@ impl NextFontGoogleCssModuleReplacer {
                 .owned()
                 .await?,
             ),
-            None => {
-                let is_dev = matches!(*self.next_mode.await?, NextMode::Development);
+            outcome @ (FontFetchOutcome::Failed | FontFetchOutcome::SoftPending) => {
+                let kind = match outcome {
+                    FontFetchOutcome::SoftPending => GoogleFontsFetchIssueKind::SoftPending,
+                    _ if next_mode.is_development() => GoogleFontsFetchIssueKind::DevFailure,
+                    _ => GoogleFontsFetchIssueKind::BuildFailure,
+                };
                 GoogleFontsFetchIssue {
                     path: css_virtual_path.clone(),
                     font_family: options.await?.font_family.clone(),
-                    is_dev,
+                    kind,
                 }
                 .resolved_cell()
                 .emit();
@@ -348,6 +382,7 @@ struct NextFontGoogleFontFileOptions {
 #[turbo_tasks::value(shared)]
 pub struct NextFontGoogleFontFileReplacer {
     project_path: FileSystemPath,
+    next_mode: ResolvedVc<NextMode>,
     fetch_client: ResolvedVc<FetchClientConfig>,
 }
 
@@ -356,10 +391,12 @@ impl NextFontGoogleFontFileReplacer {
     #[turbo_tasks::function]
     pub fn new(
         project_path: FileSystemPath,
+        next_mode: ResolvedVc<NextMode>,
         fetch_client: ResolvedVc<FetchClientConfig>,
     ) -> Vc<Self> {
         Self::cell(NextFontGoogleFontFileReplacer {
             project_path,
+            next_mode,
             fetch_client,
         })
     }
@@ -416,9 +453,14 @@ impl ImportMappingReplacement for NextFontGoogleFontFileReplacer {
 
         // doesn't seem ideal to download the font into a string, but probably doesn't
         // really matter either.
-        let Some(font) =
-            fetch_from_google_fonts(*self.fetch_client, url.into(), font_virtual_path.clone())
-                .await?
+        let next_mode = *self.next_mode.await?;
+        let FontFetchOutcome::Ready(font) = fetch_from_google_fonts(
+            *self.fetch_client,
+            url.into(),
+            font_virtual_path.clone(),
+            google_fonts_soft_deadline(next_mode),
+        )
+        .await?
         else {
             return Ok(
                 ImportMapResult::Result(ResolveResult::unresolvable().resolved_cell()).cell(),
@@ -653,30 +695,48 @@ async fn fetch_real_stylesheet(
     fetch_client: Vc<FetchClientConfig>,
     stylesheet_url: RcStr,
     css_virtual_path: FileSystemPath,
-) -> Result<Option<Vc<RcStr>>> {
-    let body = fetch_from_google_fonts(fetch_client, stylesheet_url, css_virtual_path).await?;
+    soft_deadline: Option<Duration>,
+) -> Result<FontFetchOutcome<Vc<RcStr>>> {
+    let body = fetch_from_google_fonts(
+        fetch_client,
+        stylesheet_url,
+        css_virtual_path,
+        soft_deadline,
+    )
+    .await?;
 
-    Ok(body.map(|body| body.to_string()))
+    Ok(match body {
+        FontFetchOutcome::Ready(body) => FontFetchOutcome::Ready(body.to_string()),
+        FontFetchOutcome::Failed => FontFetchOutcome::Failed,
+        FontFetchOutcome::SoftPending => FontFetchOutcome::SoftPending,
+    })
 }
 
 async fn fetch_from_google_fonts(
     fetch_client: Vc<FetchClientConfig>,
     url: RcStr,
     virtual_path: FileSystemPath,
-) -> Result<Option<Vc<HttpResponseBody>>> {
+    soft_deadline: Option<Duration>,
+) -> Result<FontFetchOutcome<Vc<HttpResponseBody>>> {
     let result = fetch_client
-        .fetch(url, Some(USER_AGENT_FOR_GOOGLE_FONTS))
+        .fetch(url, Some(USER_AGENT_FOR_GOOGLE_FONTS), soft_deadline)
         .await?;
 
     Ok(match *result {
-        Ok(r) => Some(*r.await?.body),
+        Ok(r) => FontFetchOutcome::Ready(*r.await?.body),
         Err(err) => {
-            err.to_issue(IssueSeverity::Warning, virtual_path)
-                .to_resolved()
-                .await?
-                .emit();
+            // A soft-deadline timeout is not a failure: the request is still running in the
+            // background and will invalidate us when it lands. Don't emit the scary warning.
+            if matches!(*err.await?.kind.await?, FetchErrorKind::SoftTimeout) {
+                FontFetchOutcome::SoftPending
+            } else {
+                err.to_issue(IssueSeverity::Warning, virtual_path)
+                    .to_resolved()
+                    .await?
+                    .emit();
 
-            None
+                FontFetchOutcome::Failed
+            }
         }
     })
 }
@@ -685,7 +745,7 @@ async fn get_mock_stylesheet(
     stylesheet_url: RcStr,
     mocked_responses_path: &str,
     execution_context: Vc<ExecutionContext>,
-) -> Result<Option<Vc<RcStr>>> {
+) -> Result<FontFetchOutcome<Vc<RcStr>>> {
     let response_path = Path::new(&mocked_responses_path);
     let mock_fs = Vc::upcast::<Box<dyn FileSystem>>(DiskFileSystem::new(
         rcstr!("mock"),
@@ -762,11 +822,11 @@ async fn get_mock_stylesheet(
     match &*val {
         Some(val) => {
             let val: FxHashMap<RcStr, Option<RcStr>> = parse_json_with_source_context(val)?;
-            Ok(val
-                .get(&stylesheet_url)
-                .context("url not found")?
-                .clone()
-                .map(Vc::cell))
+            // A mocked response never soft-times-out; a missing entry is a real failure.
+            Ok(match val.get(&stylesheet_url).context("url not found")? {
+                Some(css) => FontFetchOutcome::Ready(Vc::cell(css.clone())),
+                None => FontFetchOutcome::Failed,
+            })
         }
         _ => {
             panic!("Unexpected error evaluating JS")

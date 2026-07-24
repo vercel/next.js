@@ -37,13 +37,27 @@ impl Issue for NextFontIssue {
     }
 }
 
-/// Emitted when the compile-time Google Fonts fetch fails. Error on `next build`, warning in
-/// `next dev` (which renders a fallback font).
+/// Which outcome produced a [`GoogleFontsFetchIssue`].
+#[derive(Copy, Clone)]
+#[turbo_tasks::value(shared)]
+pub(crate) enum GoogleFontsFetchIssueKind {
+    /// The fetch failed in `next dev`. Warning; a fallback font is rendered.
+    DevFailure,
+    /// The fetch failed in `next build`. Error; the build fails.
+    BuildFailure,
+    /// The caller-supplied soft deadline elapsed in `next dev` before the fetch finished. Info;
+    /// a fallback font is rendered *for now* while the request completes in the background. The
+    /// compilation re-runs once the request settles, replacing this with the real styles (or a
+    /// [`GoogleFontsFetchIssueKind::DevFailure`] warning if it truly failed).
+    SoftPending,
+}
+
+/// Emitted for the compile-time Google Fonts fetch outcome. See [`GoogleFontsFetchIssueKind`].
 #[turbo_tasks::value(shared)]
 pub(crate) struct GoogleFontsFetchIssue {
     pub(crate) path: FileSystemPath,
     pub(crate) font_family: RcStr,
-    pub(crate) is_dev: bool,
+    pub(crate) kind: GoogleFontsFetchIssueKind,
 }
 
 #[async_trait]
@@ -54,10 +68,10 @@ impl Issue for GoogleFontsFetchIssue {
     }
 
     fn severity(&self) -> IssueSeverity {
-        if self.is_dev {
-            IssueSeverity::Warning
-        } else {
-            IssueSeverity::Error
+        match self.kind {
+            GoogleFontsFetchIssueKind::DevFailure => IssueSeverity::Warning,
+            GoogleFontsFetchIssueKind::BuildFailure => IssueSeverity::Error,
+            GoogleFontsFetchIssueKind::SoftPending => IssueSeverity::Info,
         }
     }
 
@@ -68,27 +82,38 @@ impl Issue for GoogleFontsFetchIssue {
     async fn title(&self) -> Result<StyledString> {
         Ok(StyledString::Line(vec![
             StyledString::Code(rcstr!("next/font:")),
-            StyledString::Text(if self.is_dev {
-                rcstr!(" warning:")
-            } else {
-                rcstr!(" error:")
+            StyledString::Text(match self.kind {
+                GoogleFontsFetchIssueKind::DevFailure => rcstr!(" warning:"),
+                GoogleFontsFetchIssueKind::BuildFailure => rcstr!(" error:"),
+                GoogleFontsFetchIssueKind::SoftPending => rcstr!(" info:"),
             }),
         ]))
     }
 
     async fn description(&self) -> Result<Option<StyledString>> {
-        let summary = if self.is_dev {
-            StyledString::Line(vec![
+        let summary = match self.kind {
+            GoogleFontsFetchIssueKind::DevFailure => StyledString::Line(vec![
                 StyledString::Text(rcstr!("Failed to download ")),
                 StyledString::Code(self.font_family.clone()),
                 StyledString::Text(rcstr!(" from Google Fonts. Using a fallback font instead.")),
-            ])
-        } else {
-            StyledString::Line(vec![
+            ]),
+            GoogleFontsFetchIssueKind::BuildFailure => StyledString::Line(vec![
                 StyledString::Text(rcstr!("Failed to fetch ")),
                 StyledString::Code(self.font_family.clone()),
                 StyledString::Text(rcstr!(" from Google Fonts.")),
-            ])
+            ]),
+            GoogleFontsFetchIssueKind::SoftPending => {
+                // Not a failure: the request is still running and will replace the fallback once
+                // it lands, so this omits the offline/proxy guidance below.
+                return Ok(Some(StyledString::Line(vec![
+                    StyledString::Text(rcstr!("Downloading ")),
+                    StyledString::Code(self.font_family.clone()),
+                    StyledString::Text(rcstr!(
+                        " from Google Fonts is taking a while. Using a fallback font while it \
+                         loads; the real font will appear once the download completes."
+                    )),
+                ])));
+            }
         };
         let guidance = StyledString::Line(vec![
             StyledString::Text(rcstr!(

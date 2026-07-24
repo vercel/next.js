@@ -8,7 +8,7 @@ use std::{sync::Arc, time::Duration};
 use anyhow::Result;
 use tokio::sync::Mutex as TokioMutex;
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{ReadRef, Vc};
+use turbo_tasks::{ReadRef, TransientInstance, Vc};
 use turbo_tasks_fetch::{
     __test_only_reqwest_client_cache_clear, __test_only_reqwest_client_cache_len,
     FetchClientConfig, FetchErrorKind, FetchIssue,
@@ -45,7 +45,9 @@ async fn basic_get() {
             async fn fetch_operation(url: RcStr) -> Result<Vc<FetchOutput>> {
                 let client_vc = FetchClientConfig::default().cell();
                 let response = &*client_vc
-                    .fetch(url, /* user_agent */ None)
+                    .fetch(
+                        url, /* user_agent */ None, /* soft_deadline */ None,
+                    )
                     .await?
                     .unwrap()
                     .await?;
@@ -92,7 +94,11 @@ async fn sends_user_agent() {
             async fn fetch_operation(url: RcStr) -> Result<Vc<FetchOutput>> {
                 let client_vc = FetchClientConfig::default().cell();
                 let response = &*client_vc
-                    .fetch(url, Some(rcstr!("mock-user-agent")))
+                    .fetch(
+                        url,
+                        Some(rcstr!("mock-user-agent")),
+                        /* soft_deadline */ None,
+                    )
                     .await?
                     .unwrap()
                     .await?;
@@ -141,13 +147,19 @@ async fn invalidation_does_not_invalidate() {
             async fn fetch_operation(url: RcStr) -> Result<Vc<FetchOutput>> {
                 let client_vc = FetchClientConfig::default().cell();
                 let response = &*client_vc
-                    .fetch(url.clone(), /* user_agent */ None)
+                    .fetch(
+                        url.clone(),
+                        /* user_agent */ None,
+                        /* soft_deadline */ None,
+                    )
                     .await?
                     .unwrap()
                     .await?;
 
                 let second_response = &*client_vc
-                    .fetch(url, /* user_agent */ None)
+                    .fetch(
+                        url, /* user_agent */ None, /* soft_deadline */ None,
+                    )
                     .await?
                     .unwrap()
                     .await?;
@@ -198,7 +210,7 @@ async fn errors_on_failed_connection() {
         #[turbo_tasks::function(operation, root)]
         async fn fetch_operation(url: RcStr) -> Result<Vc<FetchOutput>> {
             let client_vc = FetchClientConfig::default().cell();
-            let response_vc = client_vc.fetch(url.clone(), None);
+            let response_vc = client_vc.fetch(url.clone(), None, /* soft_deadline */ None);
             let err_vc = &*response_vc.await?.unwrap_err();
             let err = err_vc.await?;
             let err_kind = err.kind.await?;
@@ -262,7 +274,7 @@ async fn errors_on_404() {
             #[turbo_tasks::function(operation, root)]
             async fn fetch_operation(url: RcStr) -> Result<Vc<FetchOutput>> {
                 let client_vc = FetchClientConfig::default().cell();
-                let response_vc = client_vc.fetch(url.clone(), None);
+                let response_vc = client_vc.fetch(url.clone(), None, /* soft_deadline */ None);
 
                 let err_vc = &*response_vc.await?.unwrap_err();
                 let err = err_vc.await?;
@@ -307,7 +319,9 @@ async fn fetch_body(url: RcStr) -> Result<Vc<RcStr>> {
     }
     .cell();
     let response = &*client_vc
-        .fetch(url, /* user_agent */ None)
+        .fetch(
+            url, /* user_agent */ None, /* soft_deadline */ None,
+        )
         .await?
         .unwrap()
         .await?;
@@ -460,7 +474,7 @@ async fn ttl_invalidates_on_session_restore() {
 #[turbo_tasks::function(operation, root)]
 async fn fetch_is_err(url: RcStr) -> Result<Vc<bool>> {
     let client_vc = FetchClientConfig::default().cell();
-    let result = &*client_vc.fetch(url, None).await?;
+    let result = &*client_vc.fetch(url, None, /* soft_deadline */ None).await?;
     Ok(Vc::cell(result.is_err()))
 }
 
@@ -544,7 +558,11 @@ async fn client_cache() {
         let url = RcStr::from(format!("{}{}", server_url, path));
         let response = match &*FetchClientConfig::default()
             .cell()
-            .fetch(url.clone(), /* user_agent */ None)
+            .fetch(
+                url.clone(),
+                /* user_agent */ None,
+                /* soft_deadline */ None,
+            )
             .await?
         {
             Ok(resp) => resp.await?,
@@ -584,4 +602,209 @@ async fn client_cache() {
     })
     .await
     .unwrap()
+}
+
+/// Outcome of a soft-deadline fetch, flattened so it can cross the turbo-tasks boundary.
+#[turbo_tasks::value]
+#[derive(Clone)]
+enum SoftFetchOutcome {
+    /// The real response arrived (within the deadline, or on the re-run after the background
+    /// fetch completed). Carries the body.
+    Body(RcStr),
+    /// The soft deadline elapsed before the response arrived.
+    SoftTimeout,
+    /// A different (real) error occurred.
+    OtherError,
+}
+
+/// A short soft deadline so tests don't have to wait long for the timeout path.
+const TEST_SOFT_DEADLINE: Duration = Duration::from_millis(200);
+
+/// Shared, ordered log of every outcome `soft_fetch` observed across its (re-)executions. Lets a
+/// test see the *transient* soft-timeout sentinel as well as the real body it's later replaced by,
+/// which a single strongly-consistent read cannot (it chases the invalidation to the final value).
+type OutcomeLog = Arc<std::sync::Mutex<Vec<SoftFetchOutcome>>>;
+
+#[turbo_tasks::function(operation, root)]
+async fn soft_fetch(
+    url: RcStr,
+    log: TransientInstance<OutcomeLog>,
+) -> Result<Vc<SoftFetchOutcome>> {
+    let client_vc = FetchClientConfig {
+        min_cache_control: Duration::ZERO,
+        ..Default::default()
+    }
+    .cell();
+    // Eventual (default) read: `soft_fetch` sees `fetch`'s *current* value and takes a dependency
+    // on it. When the background request completes and invalidates `fetch`, `fetch` re-runs, which
+    // invalidates and re-runs `soft_fetch` — so the log records the sentinel then the real body.
+    let result = &*client_vc
+        .fetch(url, /* user_agent */ None, Some(TEST_SOFT_DEADLINE))
+        .await?;
+    let outcome = match result {
+        Ok(resp) => SoftFetchOutcome::Body(resp.await?.body.to_string().owned().await?),
+        Err(err) => match &*err.await?.kind.await? {
+            FetchErrorKind::SoftTimeout => SoftFetchOutcome::SoftTimeout,
+            _ => SoftFetchOutcome::OtherError,
+        },
+    };
+    log.lock().unwrap().push(outcome.clone());
+    Ok(outcome.cell())
+}
+
+/// A request slower than the soft deadline must not block the caller for the full request: the
+/// soft deadline trips, `fetch` returns a fallback sentinel, the request keeps running in the
+/// background, and once it completes it invalidates `fetch` so the caller re-runs and picks up the
+/// real body.
+///
+/// The soft-timeout sentinel is intentionally *transient* — the background completion invalidates
+/// `fetch`, and a single `read_strongly_consistent` chases that to the settled real value, hiding
+/// the sentinel. So instead of catching it in one read, we record the *sequence* of outcomes
+/// `soft_fetch` produces across its re-executions and assert it saw `SoftTimeout` first and the
+/// real `Body` after. This proves BOTH halves of the feature: the fallback is returned promptly
+/// while the request is in flight, AND the background completion invalidates the caller so it
+/// re-runs to the real value. (The underlying request is issued at least once; see the note on
+/// `expect_at_least` about re-arm churn.)
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn soft_timeout_then_real_result() {
+    let _guard = GLOBAL_TEST_LOCK.lock().await;
+    let mut server = mockito::Server::new_async().await;
+    let url = RcStr::from(format!("{}/soft", server.url()));
+
+    // Respond only after a delay that comfortably exceeds the soft deadline, so the deadline trips
+    // first and the response arrives while the request is "in the background". The blocking sleep
+    // runs on mockito's server thread, delaying just this response. The delay is well under the
+    // default reqwest timeout, so the request completes normally (not a hard timeout).
+    let delay = TEST_SOFT_DEADLINE * 4;
+    let mock = server
+        .mock("GET", "/soft")
+        .with_body_from_request(move |_req| {
+            std::thread::sleep(delay);
+            b"realbody".to_vec()
+        })
+        // At least once — the background request is actually issued. It may be issued more than
+        // once: each soft-timeout re-arms a fresh deadline race, and while the request is still in
+        // flight a re-run can start another attempt before the first is cached. This is the known
+        // "re-arm on re-run" cost of the soft-deadline design; it converges once the result caches.
+        .expect_at_least(1)
+        .create_async()
+        .await;
+
+    let TestInstance { tt, .. } = REGISTRATION.create_turbo_tasks("soft_timeout_then_real", true);
+
+    let log: OutcomeLog = Default::default();
+
+    // `fetch`'s sentinel-returning execution has no in-flight children (the request runs in the
+    // detached driver, not as a child of `fetch`), so a strongly-consistent read settles quickly on
+    // the fallback sentinel rather than blocking for the full request. Once the background request
+    // completes it invalidates `fetch`, and a re-run produces the real body. Because a
+    // strongly-consistent read returns as soon as the graph is momentarily clean, a single read
+    // does not reliably observe both states — so we poll-read repeatedly and let the shared `log`
+    // accumulate every outcome `soft_fetch` observed across (re-)executions, then assert the
+    // recorded *sequence*. We stop once the log has recorded the real body.
+    let mut recorded = Vec::new();
+    for _ in 0..50 {
+        turbo_tasks::run_once(tt.clone(), {
+            let url = url.clone();
+            let log = log.clone();
+            async move {
+                soft_fetch(url, TransientInstance::new(log))
+                    .read_strongly_consistent()
+                    .await?;
+                Ok(())
+            }
+        })
+        .await
+        .unwrap();
+        recorded = log.lock().unwrap().clone();
+        if recorded
+            .iter()
+            .any(|o| matches!(o, SoftFetchOutcome::Body(body) if body == "realbody"))
+        {
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(100)).await;
+    }
+
+    // The recorded sequence proves BOTH halves of the feature: a soft timeout first (fallback
+    // returned promptly, without blocking for the slow request), then the real body (the background
+    // completion invalidated the caller, forcing a re-run to the real value).
+    let tags: Vec<_> = recorded.iter().map(outcome_tag).collect();
+    assert!(
+        matches!(recorded.first(), Some(SoftFetchOutcome::SoftTimeout)),
+        "the first observed outcome should be the soft-timeout fallback, got {tags:?}"
+    );
+    assert!(
+        recorded
+            .iter()
+            .any(|o| matches!(o, SoftFetchOutcome::Body(body) if body == "realbody")),
+        "the real body should eventually be observed after the background fetch completes, got \
+         {tags:?}"
+    );
+
+    // The background request was actually issued (at least once — see the mock's
+    // `expect_at_least`).
+    mock.assert_async().await;
+
+    // NOTE: we intentionally do NOT call `tt.stop_and_wait()` here. The soft-deadline driver runs
+    // as a detached `start_once_process` task that un-counts itself from the foreground gate while
+    // it awaits the request, so `stop_and_wait` does not wait for it. `stop_and_wait` then drops
+    // the backend storage, and if the still-settling driver touches it afterwards the process
+    // aborts. This is a test-harness teardown race only (production uses a single long-lived
+    // instance that never drops storage mid-driver). Letting `tt` drop without an explicit stop
+    // avoids it.
+}
+
+/// Short tag for a `SoftFetchOutcome`, for readable assertion messages.
+fn outcome_tag(o: &SoftFetchOutcome) -> &'static str {
+    match o {
+        SoftFetchOutcome::Body(_) => "Body",
+        SoftFetchOutcome::SoftTimeout => "SoftTimeout",
+        SoftFetchOutcome::OtherError => "OtherError",
+    }
+}
+
+/// A fast server (responds before the soft deadline) returns the real body immediately, with no
+/// artificial soft-timeout latency.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn fast_fetch_under_soft_deadline() {
+    let _guard = GLOBAL_TEST_LOCK.lock().await;
+    let mut server = mockito::Server::new_async().await;
+    let url = RcStr::from(format!("{}/fast", server.url()));
+
+    server
+        .mock("GET", "/fast")
+        .with_body("realbody")
+        .create_async()
+        .await;
+
+    let TestInstance { tt, .. } =
+        REGISTRATION.create_turbo_tasks("fast_fetch_under_deadline", true);
+    let log: OutcomeLog = Default::default();
+    let outcome = turbo_tasks::run_once(tt.clone(), {
+        let url = url.clone();
+        let log = log.clone();
+        async move {
+            soft_fetch(url, TransientInstance::new(log))
+                .read_strongly_consistent()
+                .await
+        }
+    })
+    .await
+    .unwrap();
+    assert!(
+        matches!(&*outcome, SoftFetchOutcome::Body(body) if body == "realbody"),
+        "a fast fetch should return the real body without a soft timeout"
+    );
+    // The fast path produces exactly one outcome — the real body — with no soft-timeout sentinel.
+    // Exactly one (not more) also proves the completion signal suppressed the redundant
+    // invalidation: when the fetch beats the deadline the driver's `tx.send` succeeds, so it does
+    // NOT invalidate `fetch`, so `soft_fetch` is not re-run.
+    let recorded = log.lock().unwrap().clone();
+    let tags: Vec<_> = recorded.iter().map(outcome_tag).collect();
+    assert!(
+        matches!(recorded.as_slice(), [SoftFetchOutcome::Body(body)] if body == "realbody"),
+        "fast fetch should record exactly one real body and no re-run, got {tags:?}"
+    );
+    tt.stop_and_wait().await;
 }

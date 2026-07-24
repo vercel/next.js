@@ -145,6 +145,41 @@ impl InvalidationReasonKind for HttpTimeoutKind {
     }
 }
 
+/// Invalidation caused by a soft-deadline background fetch completing. The outer `fetch` task
+/// returned a fallback sentinel when the caller-supplied soft deadline elapsed; once the real
+/// request finishes in the background this invalidates `fetch` so it re-runs and picks up the
+/// now-cached result.
+#[derive(PartialEq, Eq, Hash)]
+pub(crate) struct SoftFetchTimeout;
+
+impl InvalidationReason for SoftFetchTimeout {
+    fn kind(&self) -> Option<StaticOrArc<dyn InvalidationReasonKind>> {
+        Some(StaticOrArc::Static(&SOFT_FETCH_TIMEOUT_KIND))
+    }
+}
+
+impl Display for SoftFetchTimeout {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "soft fetch deadline elapsed; background fetch completed")
+    }
+}
+
+/// Invalidation kind for [SoftFetchTimeout]
+#[derive(PartialEq, Eq, Hash)]
+struct SoftFetchTimeoutKind;
+
+static SOFT_FETCH_TIMEOUT_KIND: SoftFetchTimeoutKind = SoftFetchTimeoutKind;
+
+impl InvalidationReasonKind for SoftFetchTimeoutKind {
+    fn fmt(
+        &self,
+        reasons: &FxIndexSet<StaticOrArc<dyn InvalidationReason>>,
+        f: &mut Formatter<'_>,
+    ) -> std::fmt::Result {
+        write!(f, "{} background fetches completed", reasons.len())
+    }
+}
+
 /// Internal result from `fetch_inner` that includes the invalidator for TTL-based re-fetching.
 #[turbo_tasks::value(shared)]
 struct FetchInnerResult {
@@ -279,12 +314,106 @@ impl FetchClientConfig {
     /// - `fetch_inner` (network, NOT session_dependent): performs the actual HTTP request and stays
     ///   cached across restarts. Returns an `Invalidator` that the outer task uses to trigger
     ///   re-fetching when the TTL expires.
+    ///
+    /// `soft_deadline` bounds how long the *caller* waits, independently of the reqwest
+    /// `connect_timeout`/`timeout`. When `Some(d)` (and dependency tracking is on), `fetch` waits
+    /// at most `d` for the response; if the real request hasn't finished it returns a
+    /// [`FetchErrorKind::SoftTimeout`] sentinel so the caller can use a fallback *now*, while the
+    /// real request keeps running in the background and invalidates `fetch` when it completes
+    /// (causing a re-run that picks up the real result). When `None` (e.g. `next build`), `fetch`
+    /// waits for the real result exactly as before.
     #[turbo_tasks::function(network, session_dependent)]
     pub async fn fetch(
         self: Vc<FetchClientConfig>,
         url: RcStr,
         user_agent: Option<RcStr>,
+        soft_deadline: Option<Duration>,
     ) -> Result<Vc<FetchResult>> {
+        let tt = turbo_tasks::turbo_tasks();
+
+        // Soft-deadline path: bound the caller's wait without abandoning the real request.
+        // Only meaningful with dependency tracking (mid-session invalidation); `invalidate*`
+        // panics otherwise. `next build` passes `None`, so it always takes the classic path.
+
+        if let Some(soft_deadline) = soft_deadline
+            && tt.is_tracking_dependencies()
+        {
+            // Capture *fetch's own* invalidator — this is the task that must re-run once the
+            // real result lands. This explicit invalidator stands in for the natural
+            // `fetch -> fetch_inner` dependency edge, which we deliberately avoid establishing on
+            // the timeout path (see above).
+            let invalidator =
+                turbo_tasks::get_invalidator().expect("get_invalidator is Some inside a task");
+
+            // The background driver signals this channel when the real request completes, so a
+            // fast fetch returns its real result immediately rather than always paying
+            // `soft_deadline`.
+            let (tx, rx) = tokio::sync::oneshot::channel::<()>();
+
+            // Drive `fetch_inner` to completion in a detached top-level task. `start_once_process`
+            // (unlike `turbo_tasks::spawn`) runs as a real task with task state, and it releases
+            // the foreground/idle gate before awaiting so the dev server can still report
+            // "compiled". The task runs to completion regardless of whether `fetch` has returned
+            // (only shutdown cancels in-progress tasks), and it is NOT a child of `fetch`, so it
+            // doesn't couple into `fetch`'s strong-consistency settle.
+            //
+            // Top-level tasks (`run_once`) may not perform eventually-consistent reads, so a plain
+            // `self.fetch_inner(...).await` here panics. We read it through the `drive_fetch_inner`
+            // `operation` wrapper via `read_strongly_consistent`. Calling `fetch_inner(url, ua)`
+            // here resolves to the same cached task `fetch` reads on its re-run, so the request is
+            // issued only once.
+            {
+                let this = self; // Vc is Copy
+                let url = url.clone();
+                let user_agent = user_agent.clone();
+                let tt = tt.clone();
+                tt.clone().start_once_process(Box::pin(async move {
+                    let client = match this.to_resolved().await {
+                        Ok(client) => client,
+                        Err(_) => return,
+                    };
+                    #[turbo_tasks::function(operation, root)]
+                    async fn drive_fetch_inner(
+                        client: ResolvedVc<FetchClientConfig>,
+                        url: RcStr,
+                        user_agent: Option<RcStr>,
+                    ) -> Result<Vc<()>> {
+                        client.fetch_inner(url, user_agent).await?;
+                        Ok(Vc::cell(()))
+                    }
+                    let _ = drive_fetch_inner(client, url, user_agent)
+                        .read_strongly_consistent()
+                        .await;
+                    // `tx.send` tells us which branch of `fetch`'s race won, so we only invalidate
+                    // when we actually need to:
+                    // - `Ok(())`: the receiver is still alive, i.e. the soft deadline has NOT fired
+                    //   and `fetch` is still waiting. Our send wakes it; it reads the now-cached
+                    //   result on the current execution. No invalidation needed (invalidating here
+                    //   would force a redundant re-run for a value `fetch` already returned).
+                    // - `Err(())`: the receiver was dropped, i.e. the soft deadline fired first and
+                    //   `fetch` already returned the fallback sentinel. Invalidate so `fetch`
+                    //   re-runs and picks up the now-cached real result.
+                    if tx.send(()).is_err() {
+                        invalidator.invalidate_with_reason(&*tt, SoftFetchTimeout {});
+                    }
+                }));
+            }
+
+            // Race the completion signal against the soft deadline. Both are plain futures (not
+            // `Vc` reads), so dropping the loser cannot lose a dependency edge.
+            tokio::select! {
+                _ = rx => {
+                    // The request finished within the deadline; fall through to read the (now
+                    // cached) `fetch_inner` result normally and arm the TTL timer.
+                }
+                _ = tokio::time::sleep(soft_deadline) => {
+                    // Soft timeout: return a sentinel so the caller uses a fallback now. The driver
+                    // keeps running and will invalidate `fetch` when the request lands.
+                    return Ok(Vc::cell(Err(FetchError::soft_timeout(&url).resolved_cell())));
+                }
+            }
+        }
+
         let FetchInnerResult {
             result,
             deadline_secs,
@@ -297,7 +426,7 @@ impl FetchClientConfig {
         //
         // Skip when dependency tracking is disabled (e.g. one-shot `next build`) since
         // invalidation panics without dependency tracking and the timer would be wasted work.
-        if turbo_tasks::turbo_tasks().is_tracking_dependencies()
+        if tt.is_tracking_dependencies()
             && let (Some(deadline_secs), Some(invalidator)) = (deadline_secs, invalidator)
         {
             // transform absolute deadline back to a relative duration for the sleep call
@@ -318,8 +447,7 @@ impl FetchClientConfig {
                 // FetchClientConfig to track outstanding timers and cancel them.
                 turbo_tasks::spawn(async move {
                     tokio::time::sleep(remaining).await;
-                    invalidator
-                        .invalidate_with_reason(&*turbo_tasks::turbo_tasks(), HttpTimeout {});
+                    invalidator.invalidate_with_reason(&*tt, HttpTimeout {});
                 });
             }
         }

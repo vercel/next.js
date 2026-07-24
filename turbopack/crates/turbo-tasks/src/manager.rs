@@ -728,7 +728,7 @@ impl<B: Backend + 'static> TurboTasks<B> {
     pub fn start_once_process(&self, future: impl Future<Output = ()> + Send + 'static) {
         let this = self.pin();
         tokio::spawn(async move {
-            this.pin()
+            this.clone()
                 .run_once(async move {
                     this.finish_foreground_job();
                     future.await;

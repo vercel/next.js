@@ -37,7 +37,6 @@ futures = { workspace = true }
 indexmap = { workspace = true, features = ["serde"] }
 parking_lot = { workspace = true, features = ["serde"]}
 pin-project-lite = { workspace = true }
-rayon = { workspace = true }
 regex = { workspace = true }
 rustc-hash = { workspace = true }
 scattered-collect = { workspace = true }

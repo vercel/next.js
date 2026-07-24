@@ -12,6 +12,11 @@ pub enum FetchErrorKind {
     Timeout,
     Status(u16),
     Other,
+    /// A caller-supplied soft deadline elapsed before the response arrived. Unlike the other
+    /// kinds this is not a terminal failure: the underlying request may still be running in the
+    /// background and succeed later. Callers should treat it as "use a fallback for now" rather
+    /// than a hard error.
+    SoftTimeout,
 }
 
 #[turbo_tasks::value(shared)]
@@ -22,6 +27,19 @@ pub struct FetchError {
 }
 
 impl FetchError {
+    /// Constructs a [`FetchErrorKind::SoftTimeout`] error for the given URL. Used when a
+    /// caller-supplied soft deadline elapses before the response arrives.
+    pub(crate) fn soft_timeout(url: &str) -> FetchError {
+        FetchError {
+            detail: StyledString::Text(rcstr!(
+                "soft deadline elapsed before the response arrived; the request is still running"
+            ))
+            .resolved_cell(),
+            url: ResolvedVc::cell(url.into()),
+            kind: FetchErrorKind::SoftTimeout.resolved_cell(),
+        }
+    }
+
     pub(crate) fn from_reqwest_error(error: &reqwest::Error, url: &str) -> FetchError {
         let kind = if error.is_connect() {
             FetchErrorKind::Connect
@@ -110,6 +128,11 @@ impl Issue for FetchIssue {
             FetchErrorKind::Timeout => StyledString::Line(vec![
                 StyledString::Text(rcstr!("Connection timed out when requesting ")),
                 StyledString::Code(url.clone()),
+            ]),
+            FetchErrorKind::SoftTimeout => StyledString::Line(vec![
+                StyledString::Text(rcstr!("Timed out waiting for ")),
+                StyledString::Code(url.clone()),
+                StyledString::Text(rcstr!("; using a fallback while the request completes")),
             ]),
             FetchErrorKind::Other => StyledString::Line(vec![
                 StyledString::Text(rcstr!("There was an issue requesting ")),

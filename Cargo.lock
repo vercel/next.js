@@ -10055,7 +10055,6 @@ dependencies = [
  "indexmap 2.13.0",
  "parking_lot",
  "pin-project-lite",
- "rayon",
  "regex",
  "rustc-hash 2.1.1",
  "scattered-collect",
