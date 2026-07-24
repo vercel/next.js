@@ -943,6 +943,8 @@ impl Analyzer<'_> {
             }
             Pat::Object(_) => {
                 let usage = match extract_names_from_object_pat(&n.name) {
+                    // `const {} = require(...)`: no members read → evaluation only.
+                    Some(names) if names.is_empty() => ExportUsage::Evaluation,
                     Some(names) => ExportUsage::PartialNamespaceObject(names),
                     None => ExportUsage::All,
                 };
@@ -1452,6 +1454,17 @@ impl Visit for Analyzer<'_> {
 
     fn visit_var_declarator(&mut self, node: &VarDeclarator) {
         self.record_require_usage_var(node);
+        node.visit_children_with(self);
+    }
+
+    fn visit_expr_stmt(&mut self, node: &ExprStmt) {
+        // A bare `require("…")` statement discards its result → evaluation only.
+        if let Some(call) = as_require_call(&node.expr, self.unresolved_mark) {
+            self.data
+                .cjs_imports
+                .resolved
+                .insert(call.span.lo, ExportUsage::Evaluation);
+        }
         node.visit_children_with(self);
     }
 

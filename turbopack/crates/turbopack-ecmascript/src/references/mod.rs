@@ -459,6 +459,7 @@ struct AnalysisState<'a> {
     // the object allocation.
     first_webpack_exports_info: bool,
     module_fragments_enabled: bool,
+    cjs_tree_shaking: bool,
     import_externals: bool,
     ignore_dynamic_requests: bool,
     url_rewrite_behavior: Option<UrlRewriteBehavior>,
@@ -859,6 +860,7 @@ async fn analyze_ecmascript_module_internal(
             first_import_meta: true,
             first_webpack_exports_info: true,
             module_fragments_enabled: options.module_fragments_enabled,
+            cjs_tree_shaking: options.cjs_tree_shaking,
             import_externals: options.import_externals,
             ignore_dynamic_requests: options.ignore_dynamic_requests,
             url_rewrite_behavior: options.url_rewrite_behavior,
@@ -2139,6 +2141,7 @@ where
                         attributes.chunking_type,
                         resolve_override,
                         call_usage.clone(),
+                        state.cjs_tree_shaking,
                     ),
                     ast_path.to_vec().into(),
                 );
@@ -2192,6 +2195,7 @@ where
                         attributes.chunking_type,
                         None,
                         call_usage.clone(),
+                        state.cjs_tree_shaking,
                     ),
                     ast_path.to_vec().into(),
                 );
