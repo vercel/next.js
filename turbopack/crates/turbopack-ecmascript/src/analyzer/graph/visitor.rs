@@ -567,10 +567,13 @@ mod analyzer_state {
         pub(in crate::analyzer::graph) fn enable_require_usage(&mut self, imports: &ImportMap) {
             let cjs_imports = imports.cjs_imports();
             self.data.require_usage = cjs_imports.resolved.clone();
+            // Seed each namespace binding as `Evaluation`; a binding that's never
+            // read keeps that (only the target's side effects matter), while a
+            // member read upgrades it to `PartialNamespaceObject` below.
             for span in cjs_imports.bindings.values() {
                 self.data
                     .require_usage
-                    .insert(*span, ExportUsage::PartialNamespaceObject(SmallVec::new()));
+                    .insert(*span, ExportUsage::Evaluation);
             }
             self.state.require_bindings = Some(cjs_imports.bindings.clone());
         }
@@ -596,13 +599,21 @@ mod analyzer_state {
                 return;
             };
             match member {
-                Some(name) => {
-                    if let ExportUsage::PartialNamespaceObject(names) = usage
-                        && !names.contains(&name)
-                    {
-                        names.push(name);
+                Some(name) => match usage {
+                    ExportUsage::PartialNamespaceObject(names) => {
+                        if !names.contains(&name) {
+                            names.push(name);
+                        }
                     }
-                }
+                    // First member read of an otherwise-unused binding.
+                    ExportUsage::Evaluation => {
+                        let mut names = SmallVec::new();
+                        names.push(name);
+                        *usage = ExportUsage::PartialNamespaceObject(names);
+                    }
+                    // Already escaped to the whole namespace.
+                    _ => {}
+                },
                 None => *usage = ExportUsage::All,
             }
         }
