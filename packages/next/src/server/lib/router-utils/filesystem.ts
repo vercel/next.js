@@ -491,7 +491,8 @@ export async function setupFsCheck(opts: {
       const itemKey = originalItemPath
       const lruResult = getItemsLru?.get(itemKey)
 
-      if (lruResult) {
+      // null is a cached miss; undefined means the key is not cached.
+      if (lruResult !== undefined) {
         return lruResult
       }
 
