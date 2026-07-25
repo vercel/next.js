@@ -1720,15 +1720,8 @@ impl TurboTasksBackend {
                     // Initialize storage BEFORE making task_id visible in the cache.
                     // This ensures any thread that reads task_id from the cache sees
                     // the storage entry already initialized (restored flags set).
-                    // A task created with no parent is spawned from outside the tracked graph (a
-                    // top-level `run`/NAPI call, `run_once`, or `OperationVc::connect` outside a
-                    // task) — mark it a GC root so it is never collected (it has no persistent
-                    // parent to anchor it).
-                    self.storage.initialize_new_task(
-                        task_id,
-                        Some(task_type.clone()),
-                        parent_task.is_none(),
-                    );
+                    self.storage
+                        .initialize_new_task(task_id, Some(task_type.clone()));
                     // insert() consumes e, releasing the shard write lock.
                     e.insert(task_type, task_id);
                     self.track_cache_miss_by_fn(native_fn);

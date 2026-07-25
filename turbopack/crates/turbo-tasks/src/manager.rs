@@ -1969,6 +1969,43 @@ pub fn prevent_gc() {
     }
 }
 
+/// An RAII guard that pins a task against garbage collection for as long as the guard is alive,
+/// unpinning it on drop. Use this to anchor a task whose lifetime is owned by a Rust value that
+/// lives outside the tracked task graph — e.g. a permanent root operation held by a long-lived
+/// handle (the `ProjectContainer` operation held by a NAPI `ProjectInstance` for the session).
+///
+/// This is the balanced, drop-safe form of [`TurboTasks::pin_task_for_gc`] /
+/// [`unpin_task_for_gc`](TurboTasks::unpin_task_for_gc): the pin and unpin are paired by the
+/// guard's lifetime, so there is no hand-written unpin to forget or double-call.
+/// `unpin_task_for_gc` is itself a no-op once the backend is stopping, so dropping a `GcRoot`
+/// during shutdown is safe.
+///
+/// Not `Clone`: each guard owns exactly one pin. To share one pin across several owners, wrap the
+/// guard in an [`Arc`].
+pub struct GcRoot {
+    tt: Arc<dyn TurboTasksApi>,
+    task: TaskId,
+}
+
+impl GcRoot {
+    /// Pins `task`, returning a guard that unpins it on drop.
+    pub fn pin(tt: Arc<dyn TurboTasksApi>, task: TaskId) -> Self {
+        tt.pin_task_for_gc(task);
+        Self { tt, task }
+    }
+
+    /// The task this guard is pinning.
+    pub fn task_id(&self) -> TaskId {
+        self.task
+    }
+}
+
+impl Drop for GcRoot {
+    fn drop(&mut self) {
+        self.tt.unpin_task_for_gc(self.task);
+    }
+}
+
 pub fn emit<T: VcValueTrait + ?Sized>(collectible: ResolvedVc<T>) {
     with_turbo_tasks(|tt| {
         let raw_vc = collectible.node.node;

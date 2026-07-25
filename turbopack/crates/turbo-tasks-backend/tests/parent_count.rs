@@ -6,7 +6,7 @@ use std::sync::Arc;
 
 use anyhow::Result;
 use turbo_tasks::{
-    ResolvedVc, State, TaskId, TurboTasks, Vc, prevent_gc,
+    GcRoot, ResolvedVc, State, TaskId, TurboTasks, Vc, prevent_gc,
     unmark_top_level_task_may_leak_eventually_consistent_state,
 };
 use turbo_tasks_backend::{BackendOptions, EvictionMode, GitVersionInfo, TurboTasksBackend};
@@ -117,9 +117,10 @@ async fn select_pinned(selector: ResolvedVc<Selector>) -> Result<Vc<u32>> {
     Ok(Vc::cell(value))
 }
 
-/// A plain leaf used to test the "spawned with no parent → GC root" rule. When called at the top
-/// level of a `run` (where the current task is `None`), its task is created with `parent == None`
-/// and marked a GC root, so it must never be collected even once disconnected.
+/// A plain leaf read at the top level of a `run_once`. The current task is `None` there, so the
+/// leaf's task is created with no persistent parent — but the transient `Once` task that reads it
+/// connects it as a child, anchoring it via `transient_ref_count`. That transient anchor (not a
+/// persisted "root" flag) is what keeps such a top-level-read task alive.
 #[turbo_tasks::function]
 async fn gc_root_leaf() -> Result<Vc<u32>> {
     Ok(Vc::cell(77))
@@ -437,30 +438,86 @@ async fn gc_does_not_collect_pinned_task() {
     tt.stop_and_wait().await;
 }
 
-/// A task spawned with **no parent** — called at the top level of a `run`, where the current task
-/// is `None` — is marked a GC root at creation and must never be collected, even with
-/// `parent_count == 0`. This is what keeps externally-spawned root operations (project container,
-/// endpoints, per-request source-map ops) alive: their handles live outside the tracked graph, so
-/// nothing else anchors them.
+/// A [`GcRoot`] guard pins a task for its lifetime and unpins it on drop. This is the anchor a
+/// permanent root uses (e.g. the `ProjectContainer` operation held by a NAPI `ProjectInstance`):
+/// while the guard lives the task is uncollectible even at `parent_count == 0`; dropping the guard
+/// releases the pin so it becomes collectible. The guard owns exactly one pin and is not `Clone`,
+/// so it can't double-unpin (which would underflow `transient_ref_count`).
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn gc_does_not_collect_parentless_root_task() {
-    let (tt, _persistence_dir) = create_tt("gc_does_not_collect_parentless_root_task");
+async fn gc_root_guard_pins_until_dropped() {
+    let (tt, _persistence_dir) = create_tt("gc_root_guard_pins_until_dropped");
+    let tt2 = tt.clone();
+
+    // A parentless leaf read inside a `run`, then guarded by a `GcRoot` created *outside* the run
+    // (as `project_new` does for the container — `run` returns the task id; the guard is built
+    // after). `run` (unlike `run_once`) creates no lingering transient root anchoring it, so
+    // the guard is its only anchor.
+    let leaf_id = tt
+        .run(async move {
+            unmark_top_level_task_may_leak_eventually_consistent_state();
+            let leaf_vc = leaf(55);
+            let _ = *leaf_vc.await?;
+            Ok(task_id_of(leaf_vc.resolve().await?))
+        })
+        .await
+        .unwrap();
+    let guard = GcRoot::pin(tt2.clone(), leaf_id);
+
+    assert_eq!(guard.task_id(), leaf_id);
+    assert_eq!(
+        tt.backend().transient_ref_count_for_testing(leaf_id),
+        1,
+        "the GcRoot guard pins the task (transient_ref_count 1)"
+    );
+    assert_eq!(
+        tt.backend().gc_for_testing(&tt),
+        0,
+        "a task pinned by a live GcRoot must not be collected"
+    );
+
+    // Drop the guard: it unpins, so the now-unanchored parentless leaf becomes collectible.
+    drop(guard);
+    assert_eq!(
+        tt.backend().transient_ref_count_for_testing(leaf_id),
+        0,
+        "dropping the GcRoot released the pin"
+    );
+    assert_eq!(
+        tt.backend().gc_for_testing(&tt),
+        1,
+        "the task is collectible once its GcRoot is dropped"
+    );
+
+    tt.stop_and_wait().await;
+}
+
+/// A parentless task read at the top level of a `run_once` is no longer force-kept as a persisted
+/// topology "root" (we removed that blanket flagging). It is instead kept alive only by a real
+/// anchor: here, the never-disposed transient `Once` task of the `run_once` that read it keeps it
+/// reachable/active, so it is not collected while that anchor exists. (This is the same "a
+/// `run_once` root keeps everything it touched active until — and here, because it is never
+/// disposed, beyond — it returns" behavior that `gc_re_rooting_stays_flat` accounts for by
+/// measuring the *persistent* resident set. The leak fix for disposable ops is covered by
+/// `gc_collects_disconnected_subtree` and `dispose_root_task_releases_anchored_subgraph`.)
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn parentless_top_level_task_kept_by_transient_root_not_a_topology_flag() {
+    let (tt, _persistence_dir) =
+        create_tt("parentless_top_level_task_kept_by_transient_root_not_a_topology_flag");
     let tt2 = tt.clone();
     let tt3 = tt.clone();
 
     let root_id = turbo_tasks::run_once(tt.clone(), async move {
         unmark_top_level_task_may_leak_eventually_consistent_state();
 
-        // Called directly in the `run` future: the current task is `None`, so gc_root_leaf's task
-        // is created with `parent == None` and marked a GC root. It has NO persistent parent edge.
         assert_eq!(*gc_root_leaf().await?, 77);
 
         let root_id = task_id_of(gc_root_leaf().resolve().await?);
-        // No parent connected it, so its parent_count is 0 from the start — yet it is a GC root.
+        // No persistent parent connected it, so parent_count is 0 — it is not a persistent-graph
+        // child of anything.
         assert_eq!(
             tt3.backend().parent_count_for_testing(root_id),
             0,
-            "a parentless root has no persistent parent edge"
+            "a parentless top-level task has no persistent parent edge"
         );
 
         anyhow::Ok(root_id)
@@ -468,7 +525,9 @@ async fn gc_does_not_collect_parentless_root_task() {
     .await
     .unwrap();
 
-    // parent_count is 0 and it is disconnected, but the gc_root flag must keep it uncollectible.
+    // Its `run_once`'s `Once` task is never disposed and keeps it anchored, so GC does not collect
+    // it — but note this is an in-session transient anchor, NOT the removed persisted topology
+    // flag.
     assert_eq!(
         tt2.backend().parent_count_for_testing(root_id),
         0,
@@ -477,15 +536,7 @@ async fn gc_does_not_collect_parentless_root_task() {
     let collected = tt2.backend().gc_for_testing(&tt2);
     assert_eq!(
         collected, 0,
-        "a parentless (gc_root) task must not be collected even with parent_count 0"
-    );
-
-    // Survives snapshot + eviction too (the gc_root flag is persisted meta).
-    tt2.backend().snapshot_and_evict_for_testing(&tt2);
-    assert_eq!(
-        tt2.backend().gc_for_testing(&tt2),
-        0,
-        "gc_root task must survive eviction and not be collected"
+        "kept alive by its (undisposed) transient Once root, not by a topology flag"
     );
 
     tt.stop_and_wait().await;

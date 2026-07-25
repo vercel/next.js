@@ -97,7 +97,7 @@ pub use crate::{
     },
     join_iter_ext::{JoinIterExt, TryFlatJoinIterExt, TryJoinIterExt},
     manager::{
-        CurrentCellRef, InputResolution, ReadCellTracking, ReadConsistency, ReadTracking,
+        CurrentCellRef, GcRoot, InputResolution, ReadCellTracking, ReadConsistency, ReadTracking,
         TaskPersistence, TaskPriority, TurboTasks, TurboTasksApi, TurboTasksCallApi, Unused,
         UpdateInfo, dynamic_call, emit, get_serialization_invalidator, mark_finished,
         mark_stateful, mark_top_level_task, prevent_gc, run, run_once, run_once_with_reason,

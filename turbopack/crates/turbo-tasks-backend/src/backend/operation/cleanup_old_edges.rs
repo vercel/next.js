@@ -301,7 +301,7 @@ impl CleanupOldEdgesOperation {
                             }) => {
                                 {
                                     let mut task =
-                                        ctx.task(dependent_task_id, TaskDataCategory::Data);
+                                        ctx.task(dependent_task_id, TaskDataCategory::Meta);
                                     task.remove_collectibles_dependents(&(
                                         collectible_type,
                                         task_id,
