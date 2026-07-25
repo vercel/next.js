@@ -24,7 +24,6 @@ import { addRequestMeta, getRequestMeta } from '../request-meta'
 import { pathHasPrefix } from '../../shared/lib/router/utils/path-has-prefix'
 import { removePathPrefix } from '../../shared/lib/router/utils/remove-path-prefix'
 import setupCompression from 'next/dist/compiled/compression'
-import { releaseCompressionStream } from './release-compression-stream'
 import { signalFromNodeResponse } from '../web/spec-extension/adapters/next-request'
 import { isPostpone } from './router-utils/is-postpone'
 import { isNonHtmlSecFetchDest } from './is-non-html-sec-fetch-dest'
@@ -343,15 +342,6 @@ export async function initialize(opts: {
     if (compress) {
       // @ts-expect-error not express req/res
       compress(req, res, () => {})
-
-      // Compression only ends its zlib stream through the wrapped res.end().
-      // A premature client disconnect bypasses that path, so release the native
-      // stream explicitly instead of retaining it for the server's lifetime.
-      res.once('close', () => {
-        if (!res.writableFinished) {
-          releaseCompressionStream(res)
-        }
-      })
     }
     req.on('error', (_err) => {
       // TODO: log socket errors?
