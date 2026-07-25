@@ -116,8 +116,11 @@ const FS_LRU_MAX_SIZE = 8 * 1024 * 1024
 // The pathname passed to getItem is usually a V8 slice of the full request
 // URL, and a sliced string retains its parent — including the query string —
 // for as long as the cache holds the key. Store a flat copy instead.
+// The JSON round-trip returns an equal string for every input (unlike a
+// Buffer round-trip, which replaces lone surrogates), so distinct keys can
+// never collide on the stored copy.
 function flatKeyCopy(key: string): string {
-  return Buffer.from(key).toString('utf8')
+  return JSON.parse(JSON.stringify(key))
 }
 
 export async function setupFsCheck(opts: {
