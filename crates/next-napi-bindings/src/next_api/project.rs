@@ -2343,10 +2343,8 @@ async fn project_trace_source_operation(
 
     let (original_file, line, column, method_name, is_ignored) = match token {
         Token::Original(token) => (
-            match urlencoding::decode(&token.original_file)? {
-                Cow::Borrowed(_) => token.original_file,
-                Cow::Owned(original_file) => RcStr::from(original_file),
-            },
+            // Still percent-encoded, like the URIs it's compared against.
+            token.original_file,
             // JS stack frames are 1-indexed, source map tokens are 0-indexed
             Some(token.original_line + 1),
             Some(token.original_column + 1),
@@ -2361,36 +2359,51 @@ async fn project_trace_source_operation(
         }
     };
 
+    // Turns a percent-encoded URI fragment back into a path for output.
+    fn decode_uri_fragment(value: &str) -> Result<RcStr> {
+        Ok(match urlencoding::decode(value)? {
+            Cow::Borrowed(borrowed) => RcStr::from(borrowed),
+            Cow::Owned(owned) => RcStr::from(owned),
+        })
+    }
+
     let project_root_uri =
         uri_from_file(container.project().project_root_path().owned().await?, None).await? + "/";
+    // Relative paths are computed on decoded inputs: they come from
+    // different encoders that disagree on characters like `[` vs `%5B`.
+    let current_directory_path = decode_uri_fragment(&current_directory_file_url)?;
     let (file, original_file) =
         if let Some(source_file) = original_file.strip_prefix(&project_root_uri) {
             // Client code uses file://
             (
                 RcStr::from(
-                    get_relative_path_to(&current_directory_file_url, &original_file)
-                        // TODO(sokra) remove this to include a ./ here to make it a relative path
-                        .trim_start_matches("./"),
-                ),
-                Some(RcStr::from(source_file)),
-            )
-        } else if let Some(source_file) = original_file.strip_prefix(&*SOURCE_MAP_PREFIX_PROJECT) {
-            // Server code uses turbopack:///[project]
-            // TODO should this also be file://?
-            (
-                RcStr::from(
                     get_relative_path_to(
-                        &current_directory_file_url,
-                        &format!("{project_root_uri}{source_file}"),
+                        &current_directory_path,
+                        &decode_uri_fragment(&original_file)?,
                     )
                     // TODO(sokra) remove this to include a ./ here to make it a relative path
                     .trim_start_matches("./"),
                 ),
-                Some(RcStr::from(source_file)),
+                Some(decode_uri_fragment(source_file)?),
+            )
+        } else if let Some(source_file) = original_file.strip_prefix(&*SOURCE_MAP_PREFIX_PROJECT) {
+            // Server code uses turbopack:///[project]
+            // TODO should this also be file://?
+            let source_file = decode_uri_fragment(source_file)?;
+            (
+                RcStr::from(
+                    get_relative_path_to(
+                        &current_directory_path,
+                        &format!("{}{}", decode_uri_fragment(&project_root_uri)?, source_file),
+                    )
+                    // TODO(sokra) remove this to include a ./ here to make it a relative path
+                    .trim_start_matches("./"),
+                ),
+                Some(source_file),
             )
         } else if let Some(source_file) = original_file.strip_prefix(&*SOURCE_MAP_PREFIX) {
             // TODO(veil): Should the protocol be preserved?
-            (RcStr::from(source_file), None)
+            (decode_uri_fragment(source_file)?, None)
         } else {
             bail!(
                 "Original file ({}) outside project ({})",
