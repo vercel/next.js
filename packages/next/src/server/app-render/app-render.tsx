@@ -81,10 +81,20 @@ import {
   NEXT_HTML_REQUEST_ID_HEADER,
 } from '../../client/components/app-router-headers'
 import { createMetadataContext } from '../../lib/metadata/metadata-context'
-import { createRequestStoreForRender } from '../async-storage/request-store'
+import {
+  createRequestStore as createRequestStoreFromInputs,
+  createRequestStoreForRender,
+} from '../async-storage/request-store'
 import { isRSCRequestHeader } from '../lib/is-rsc-request'
 import { createWorkStore } from '../async-storage/work-store'
 import { formatValidationEvent } from './dev-validation-events'
+import { createSnapshot } from './async-local-storage'
+import {
+  getDevValidationWorker,
+  type DevValidationWorkerMessage,
+  type SerializedValidationInputs,
+} from './dev-validation-worker-globals'
+import { buildDevValidationSnapshot } from './dev-validation-worker-snapshot'
 import {
   getAccessFallbackErrorTypeByStatus,
   getAccessFallbackHTTPStatus,
@@ -291,7 +301,10 @@ import {
   type DebugChannelPair,
   type NodeDebugChannelPair,
 } from './debug-channel-server'
-import { createNodeStreamWithLateRelease } from './instant-validation/stream-utils'
+import {
+  createNodeStreamFromChunks,
+  createNodeStreamWithLateRelease,
+} from './instant-validation/stream-utils'
 
 import {
   createValidationBoundaryTracking,
@@ -4401,7 +4414,7 @@ interface StagedDevRenderResult {
  * the request store and the debug channel. Carries no `syncInterruptReason`:
  * the resolution step has already surfaced and bailed on any sync interrupt.
  */
-interface ResolvedValidationInputs extends StagedDevRenderArtifacts {
+export interface ResolvedValidationInputs extends StagedDevRenderArtifacts {
   readonly requestStore: RequestStore
   readonly debugChannelClient: AnyStream | undefined
 }
@@ -4415,7 +4428,7 @@ interface ResolvedValidationInputs extends StagedDevRenderArtifacts {
  * resolution step surfaces and bails on the interrupted case, so the depth loop
  * only ever sees `ResolvedValidationInputs`.
  */
-type DevValidationInputs =
+export type DevValidationInputs =
   | ResolvedValidationInputs
   | SyncInterruptedStagedDevRender
 
@@ -4550,33 +4563,74 @@ function runDevValidationInBackground(
         return
       }
 
-      // Validation computes the errors; the caller delivers them to the dev
-      // overlay. `runWithDevValidationLogging` encloses both the render and the
-      // delivery in the test-mode lifecycle markers so tests that assert the
-      // delivered error between `validation_start` and `validation_end` capture
-      // it.
-      await runWithDevValidationLogging(
-        ctx,
-        validationAbortSignal,
-        async () => {
-          const validationErrors = await runValidationInDev(
-            prefetchMode,
-            instantInputs,
-            staticInputs,
-            toValidationRenderContext(ctx),
-            fallbackRouteParams,
-            devRenderDidError,
-            validationAbortSignal
-          )
+      // Hand the whole validation to the worker when one is installed. It runs
+      // on a worker thread (off the main thread), emits its own lifecycle
+      // markers, logs code frames on its piped stdio, and returns the overlay
+      // Flight bytes for the main thread to forward. The worker is absent when
+      // `experimental.devValidationWorker` is false, and validation runs
+      // in-process instead.
+      const devValidationWorker = getDevValidationWorker()
 
-          if (
-            validationErrors !== undefined &&
-            !validationAbortSignal.aborted
-          ) {
-            await logMessagesAndSendErrorsToBrowser(validationErrors, ctx)
+      if (devValidationWorker) {
+        const snapshot = await buildDevValidationSnapshot(
+          ctx,
+          instantInputs,
+          staticInputs,
+          prefetchMode,
+          fallbackRouteParams,
+          devRenderDidError
+        )
+
+        const chunks = await devValidationWorker(
+          snapshot,
+          validationAbortSignal
+        )
+
+        // A newer navigation may have superseded this validation while the
+        // worker ran; don't surface stale insights for a page the user left.
+        if (chunks && !validationAbortSignal.aborted) {
+          const { sendErrorsToBrowser } = ctx.renderOpts
+          if (!sendErrorsToBrowser) {
+            throw new InvariantError(
+              'Expected `sendErrorsToBrowser` to be defined in renderOpts.'
+            )
           }
+          sendErrorsToBrowser(
+            createNodeStreamFromChunks(chunks),
+            ctx.htmlRequestId
+          )
         }
-      )
+      } else {
+        // In-process path, taken when `experimental.devValidationWorker` is
+        // false or no worker is installed (e.g. during a build). Validation
+        // computes the errors; the caller delivers them to the dev overlay.
+        // `runWithDevValidationLogging` encloses both the render and the
+        // delivery in the test-mode lifecycle markers so tests that assert the
+        // delivered error between `validation_start` and `validation_end`
+        // capture it.
+        await runWithDevValidationLogging(
+          ctx,
+          validationAbortSignal,
+          async () => {
+            const validationErrors = await runValidationInDev(
+              prefetchMode,
+              instantInputs,
+              staticInputs,
+              toValidationRenderContext(ctx),
+              fallbackRouteParams,
+              devRenderDidError,
+              validationAbortSignal
+            )
+
+            if (
+              validationErrors !== undefined &&
+              !validationAbortSignal.aborted
+            ) {
+              await logMessagesAndSendErrorsToBrowser(validationErrors, ctx)
+            }
+          }
+        )
+      }
     })
     // The catch keeps a failed render, or anything thrown inside validation,
     // from surfacing as an unhandled rejection.
@@ -4913,7 +4967,7 @@ interface StagedDevRenderSetup {
   readonly environmentName: () => string
 }
 
-enum PrefetchingMode {
+export enum PrefetchingMode {
   LegacySpeculative = 1,
   Partial = 2,
 }
@@ -6158,6 +6212,173 @@ export function toValidationRenderContext(
     },
     isDebugChannelEnabled: !!ctx.renderOpts.setReactDebugChannel,
   }
+}
+
+/**
+ * Rebuilds the `WorkStore` the worker's dev validation runs under from the
+ * transported snapshot, carrying only the fields the validation passes read.
+ * `after()` callbacks are routed into a throwaway `AfterContext` whose hooks
+ * no-op, because the validation render must not repeat those side effects, and
+ * `after()` can't affect the rendered output.
+ */
+function buildDevValidationWorkStore(
+  message: DevValidationWorkerMessage
+): WorkStore {
+  const { AfterContext } =
+    require('../after/after-context') as typeof import('../after/after-context')
+
+  const noopAfterContext = new AfterContext({
+    waitUntil(promise) {
+      promise.catch(() => {})
+    },
+    onClose() {},
+    onTaskError() {},
+  })
+
+  return {
+    isStaticGeneration: false,
+    page: message.page,
+    route: message.route,
+    forceStatic: message.forceStatic,
+    isDraftMode: message.request.isDraftMode,
+    useCacheTimeout: message.nextConfigSerializable.useCacheTimeout,
+    staticPageGenerationTimeout:
+      message.nextConfigSerializable.staticPageGenerationTimeout,
+    cacheLifeProfiles: message.nextConfigSerializable.cacheLifeProfiles,
+    buildId: message.buildId,
+    deploymentId: message.deploymentId,
+    previouslyRevalidatedTags: [],
+    refreshTagsByCacheKind: new Map(),
+    runInCleanSnapshot: createSnapshot(),
+    shouldTrackFetchMetrics: false,
+    reactServerErrorsByDigest: new Map(),
+    afterContext: noopAfterContext,
+    // Dev validation only ever runs under Cache Components.
+    cacheComponentsEnabled: true,
+    validationLevel: message.validationLevel,
+  }
+}
+
+/**
+ * Revives one serialized validation input into the in-memory shape
+ * `runValidationInDev` consumes, binding it to the rebuilt request store.
+ */
+function toDevValidationInputs(
+  serialized: SerializedValidationInputs,
+  requestStore: RequestStore
+): ResolvedValidationInputs {
+  return {
+    accumulatedChunks: serialized.accumulatedChunks,
+    startTime: serialized.startTime,
+    staticStageEndTime: serialized.staticStageEndTime,
+    runtimeStageEndTime: serialized.runtimeStageEndTime,
+    requestStore,
+    debugChannelClient: serialized.debugChunks
+      ? createNodeStreamFromChunks(serialized.debugChunks)
+      : undefined,
+  }
+}
+
+/**
+ * Worker entry point for Cached Components dev validation, reached from the
+ * validation worker via `ComponentMod.routeModule.runValidationInDev`. The
+ * worker reloads the route's compiled module and calls this so the entire
+ * validation (Flight re-encodes and the client prerenders) runs inside the
+ * app-page bundle's single React instance, alongside the user's client
+ * components. It rebuilds the render context, work store, and request store
+ * from the transported snapshot (the live objects can't cross a thread) and
+ * returns the validation errors for the worker to serialize and the main thread
+ * to deliver.
+ */
+export async function runValidationInDevFromSnapshot(
+  message: DevValidationWorkerMessage,
+  componentMod: AppPageModule,
+  abortSignal: AbortSignal
+): Promise<Array<unknown> | undefined> {
+  // Expose the reloaded route's bundler `require` / `loadChunk` on `globalThis`
+  // so `react-server-dom-*` can resolve client references during the validation
+  // prerenders, exactly as the main render does after loading its module.
+  if (componentMod.__next_app__) {
+    installGlobalModuleLoadingHandlers(componentMod, true, false)
+  }
+
+  // The request's fallback params reproduce `ctx.getDynamicParamFromSegment`
+  // exactly, so the depth-loop segment keys match the seed render's Flight. The
+  // validation set (below) is separate and only marks params unknown in the
+  // prerender stores.
+  //
+  // TODO: Those two fallback params sets are very confusing in the whole code
+  // base. We should maybe refactor this to make their different roles clearer.
+  const requestFallbackRouteParams = message.requestFallbackRouteParams
+    ? new Map(message.requestFallbackRouteParams)
+    : null
+
+  const fallbackRouteParams = message.fallbackRouteParams
+    ? new Map(message.fallbackRouteParams)
+    : null
+
+  const getDynamicParamFromSegment = makeGetDynamicParamFromSegment(
+    message.interpolatedParams,
+    requestFallbackRouteParams,
+    message.optimisticRouting
+  )
+
+  const implicitTags: ImplicitTags = {
+    tags: message.implicitTags,
+    expirationsByCacheKind: new Map(),
+  }
+
+  const workStore = buildDevValidationWorkStore(message)
+
+  const ctx: ValidationRenderContext = {
+    componentMod,
+    getDynamicParamFromSegment,
+    query: message.query,
+    implicitTags,
+    nonce: message.nonce,
+    workStore,
+    renderOpts: {
+      images: message.renderOpts.images,
+      allowEmptyStaticShell: message.renderOpts.allowEmptyStaticShell,
+    },
+    isDebugChannelEnabled: message.isDebugChannelEnabled,
+  }
+
+  const requestStore = createRequestStoreFromInputs({
+    phase: 'render',
+    headers: new Headers(message.request.headers),
+    onUpdateCookies: undefined,
+    url: {
+      pathname: message.request.urlPathname,
+      search: message.request.urlSearch,
+    },
+    rootParams: message.request.rootParams,
+    implicitTags,
+    resumeDataCache: null,
+    previewProps: undefined,
+    isHmrRefresh: message.request.isHmrRefresh,
+    hmrRefreshHash: message.request.hmrRefreshHash,
+    serverComponentsHmrCache: undefined,
+    fallbackParams: requestFallbackRouteParams,
+  })
+
+  const staticInputs = toDevValidationInputs(message.staticInputs, requestStore)
+
+  const instantInputs = message.instantInputs
+    ? toDevValidationInputs(message.instantInputs, requestStore)
+    : null
+
+  return workAsyncStorage.run(
+    workStore,
+    runValidationInDev,
+    message.prefetchMode,
+    instantInputs,
+    staticInputs,
+    ctx,
+    fallbackRouteParams,
+    message.devRenderDidError,
+    abortSignal
+  )
 }
 
 /**
