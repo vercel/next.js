@@ -2,9 +2,6 @@ import { formatConsoleArgs } from './console'
 
 describe('formatConsoleArgs', () => {
   describe('%o / %O object formatting', () => {
-    // Separator style (comma, no trailing space) intentionally mirrors the
-    // array branch immediately above this one in formatObject, which already
-    // does `if (result !== '[') { result += ',' }`.
     it('renders a plain object with its own enumerable properties', () => {
       expect(formatConsoleArgs(['%o', { a: 1, b: 2 }])).toBe('{a: 1, b: 2}')
     })
@@ -13,10 +10,6 @@ describe('formatConsoleArgs', () => {
       expect(formatConsoleArgs(['%o', { a: { b: 1 } }])).toBe('{a: {...}}')
     })
 
-    // The quoting check only compares JSON.stringify(key) against a naive
-    // '"' + key + '"' wrap — it detects characters that need JSON escaping,
-    // not general JS-identifier validity. A key like "not-bare" needs no
-    // escaping, so it's left bare even though it isn't a valid identifier.
     it('leaves a key unquoted when JSON.stringify needs no escaping, even if not a valid identifier', () => {
       expect(formatConsoleArgs(['%o', { 'not-bare': 1 }])).toBe('{not-bare: 1}')
     })
