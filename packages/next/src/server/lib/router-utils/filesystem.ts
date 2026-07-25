@@ -113,12 +113,14 @@ export async function setupFsCheck(opts: {
   config: NextConfigRuntime
 }) {
   const getItemsLru = !opts.dev
-    ? new LRUCache<FsOutput | null>(1024 * 1024, function length(value) {
+    ? new LRUCache<FsOutput | null>(1024 * 1024, function length(value, key) {
+        const keyLength = key.length
         if (!value) {
-          // Null entries (negative cache) still need a non-zero size for LRU eviction
-          return 1
+          // Negative cache entries only retain their key.
+          return keyLength || 1
         }
         return (
+          keyLength +
           (value.fsPath || '').length +
           value.itemPath.length +
           value.type.length
