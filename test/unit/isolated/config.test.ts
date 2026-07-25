@@ -70,7 +70,7 @@ describe('config', () => {
         customConfig: {},
       }
     )
-    expect(defaultConfig.experimental.disableDevMemoryThreshold).toBe(false)
+    expect(defaultConfig.experimental.devMemoryThresholdRestart).toBe(true)
 
     const disabledConfig = await loadConfig(
       PHASE_DEVELOPMENT_SERVER,
@@ -78,12 +78,12 @@ describe('config', () => {
       {
         customConfig: {
           experimental: {
-            disableDevMemoryThreshold: true,
+            devMemoryThresholdRestart: false,
           },
         },
       }
     )
-    expect(disabledConfig.experimental.disableDevMemoryThreshold).toBe(true)
+    expect(disabledConfig.experimental.devMemoryThresholdRestart).toBe(false)
   })
 
   it('Should allow setting objects which do not have defaults', async () => {

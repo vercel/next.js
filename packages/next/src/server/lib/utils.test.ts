@@ -87,16 +87,16 @@ describe('getMemoryRestartStats', () => {
 
   it('returns heap statistics above the threshold in development', () => {
     expect(
-      getMemoryRestartStats(false, false, () => aboveThreshold)
+      getMemoryRestartStats(false, true, () => aboveThreshold)
     ).toBeUndefined()
-    expect(getMemoryRestartStats(true, false, () => aboveThreshold)).toBe(
+    expect(getMemoryRestartStats(true, true, () => aboveThreshold)).toBe(
       aboveThreshold
     )
   })
 
   it('does not return heap statistics at the threshold', () => {
     expect(
-      getMemoryRestartStats(true, false, () => ({
+      getMemoryRestartStats(true, true, () => ({
         used_heap_size: 80,
         heap_size_limit: 100,
       }))
@@ -106,7 +106,9 @@ describe('getMemoryRestartStats', () => {
   it('does not read heap statistics when the threshold is disabled', () => {
     const getHeapStatistics = jest.fn(() => aboveThreshold)
 
-    expect(getMemoryRestartStats(true, true, getHeapStatistics)).toBeUndefined()
+    expect(
+      getMemoryRestartStats(true, false, getHeapStatistics)
+    ).toBeUndefined()
     expect(getHeapStatistics).not.toHaveBeenCalled()
   })
 })

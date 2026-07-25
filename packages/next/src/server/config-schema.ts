@@ -239,7 +239,7 @@ export const experimentalSchema = {
       }),
     ])
     .optional(),
-  disableDevMemoryThreshold: z.boolean().optional(),
+  devMemoryThresholdRestart: z.boolean().optional(),
   disableOptimizedLoading: z.boolean().optional(),
   disablePostcssPresetEnv: z.boolean().optional(),
   cacheComponents: z.boolean().optional(),

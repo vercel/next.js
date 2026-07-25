@@ -601,10 +601,10 @@ export interface ExperimentalConfig {
    */
   cssChunking?: CssChunkingConfig
   /**
-   * Disables the development server's automatic restart when its heap usage
-   * exceeds the memory threshold.
+   * Controls whether the development server automatically restarts when its
+   * heap usage exceeds the memory threshold. Defaults to `true`.
    */
-  disableDevMemoryThreshold?: boolean
+  devMemoryThresholdRestart?: boolean
   disablePostcssPresetEnv?: boolean
   cpus?: number
   memoryBasedWorkersCount?: boolean
@@ -2161,7 +2161,7 @@ export const defaultConfig = Object.freeze({
     nextScriptWorkers: false,
     scrollRestoration: false,
     externalDir: false,
-    disableDevMemoryThreshold: false,
+    devMemoryThresholdRestart: true,
     disableOptimizedLoading: false,
     gzipSize: true,
     craCompat: false,

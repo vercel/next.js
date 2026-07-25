@@ -233,8 +233,8 @@ export async function initialize(opts: {
       config: developmentConfig,
     }
   }
-  const disableDevMemoryThreshold =
-    development?.config.experimental.disableDevMemoryThreshold === true
+  const devMemoryThresholdRestart =
+    development?.config.experimental.devMemoryThresholdRestart !== false
 
   renderServer.instance =
     require('./render-server') as typeof import('./render-server')
@@ -830,7 +830,7 @@ export async function initialize(opts: {
     experimentalFeatures,
     cacheComponents: config.cacheComponents,
     partialPrefetching: config.partialPrefetching,
-    disableDevMemoryThreshold,
+    devMemoryThresholdRestart,
   }
   renderServerOpts.serverFields.routerServerHandler = requestHandlerImpl
 
@@ -1012,6 +1012,6 @@ export async function initialize(opts: {
     cacheComponents: config.cacheComponents,
     partialPrefetching: config.partialPrefetching,
     agentRules: config.agentRules,
-    disableDevMemoryThreshold,
+    devMemoryThresholdRestart,
   }
 }

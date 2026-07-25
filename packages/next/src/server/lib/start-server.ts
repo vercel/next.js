@@ -229,7 +229,7 @@ export async function startServer(
   }
 
   let nextServer: NextServer | undefined
-  let disableDevMemoryThreshold = false
+  let devMemoryThresholdRestart = true
 
   // setup server listener as fast as possible
   if (selfSignedCertificate && !isDev) {
@@ -253,7 +253,7 @@ export async function startServer(
     } finally {
       const memoryRestartStats = getMemoryRestartStats(
         isDev,
-        disableDevMemoryThreshold,
+        devMemoryThresholdRestart,
         v8.getHeapStatistics
       )
       if (memoryRestartStats) {
@@ -494,7 +494,7 @@ export async function startServer(
           experimentalHttpsServer: !!selfSignedCertificate,
           serverFastRefresh,
         })
-        disableDevMemoryThreshold = initResult.disableDevMemoryThreshold
+        devMemoryThresholdRestart = initResult.devMemoryThresholdRestart
         requestHandler = initResult.requestHandler
         upgradeHandler = initResult.upgradeHandler
         nextServer = initResult.server

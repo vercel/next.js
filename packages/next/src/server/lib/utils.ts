@@ -299,10 +299,10 @@ type HeapStatistics = {
  */
 export function getMemoryRestartStats<T extends HeapStatistics>(
   isDev: boolean,
-  disableDevMemoryThreshold: boolean,
+  devMemoryThresholdRestart: boolean,
   getHeapStatistics: () => T
 ): T | undefined {
-  if (!isDev || disableDevMemoryThreshold) {
+  if (!isDev || !devMemoryThresholdRestart) {
     return undefined
   }
 
