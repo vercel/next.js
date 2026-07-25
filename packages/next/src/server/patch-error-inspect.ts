@@ -243,6 +243,25 @@ function getSourcemappedFrameIfPossible(
     let maybeSourceMapPayload: ModernSourceMapPayload | undefined
     try {
       maybeSourceMapPayload = findSourceMapPayload(sourceURL)
+
+      if (
+        maybeSourceMapPayload === undefined &&
+        sourceURL.startsWith('file://')
+      ) {
+        // Devirtualizing React's fake frame URL decodes the path, while Node.js
+        // keys its source map cache by the `pathToFileURL` encoding of the same
+        // path, so a path containing characters that encoding escapes (such as
+        // the brackets in Turbopack's `[root-of-the-server]` chunks) misses
+        // above. Node.js also accepts the plain path, which is unambiguous for
+        // both interpretations, so retry with that before giving up.
+        //
+        // TODO(veil): Making React's fake frame URLs reversible, as proposed in
+        // https://github.com/react/react/pull/37105, would let the first lookup
+        // succeed on its own and retire this retry.
+        maybeSourceMapPayload = findSourceMapPayload(
+          url.fileURLToPath(sourceURL)
+        )
+      }
     } catch (cause) {
       // We should not log an actual error instance here because that will re-enter
       // this codepath during error inspection and could lead to infinite recursion.
