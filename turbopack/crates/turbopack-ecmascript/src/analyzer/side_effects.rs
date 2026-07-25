@@ -313,6 +313,7 @@ fn collect_safe_assignment_constant_ids(program: &Program) -> HashSet<Id> {
                 for d in &decl.decls {
                     if let (Pat::Ident(binding), Some(init)) = (&d.name, d.init.as_deref())
                         && is_object_or_array_literal(init)
+                        && is_fresh_value(init)
                         && !contains_getters_or_setters(init)
                     {
                         self.ids.insert(binding.id.to_id());
@@ -333,10 +334,11 @@ fn collect_safe_assignment_constant_ids(program: &Program) -> HashSet<Id> {
     // Drop any binding that later has an accessor attached to its object graph
     // (e.g. `o.x = { set y(v) {} }`): a subsequent write through that property
     // could invoke the accessor, so the binding is no longer safe to mutate.
+    // The same goes for a value the module doesn't own (`o.x = globalThis`).
     for_each_top_level_assign(program, |assign| {
         if assign.op == AssignOp::Assign
             && let AssignTarget::Simple(SimpleAssignTarget::Member(member)) = &assign.left
-            && contains_getters_or_setters(&assign.right)
+            && (!is_fresh_value(&assign.right) || contains_getters_or_setters(&assign.right))
             && let Some(root) = root_identifier(&member.obj)
         {
             ids.remove(&root.to_id());
@@ -344,6 +346,28 @@ fn collect_safe_assignment_constant_ids(program: &Program) -> HashSet<Id> {
     });
 
     ids
+}
+
+/// Whether `expr` is a primitive or an object created by the expression itself,
+/// transitively. `{ g: globalThis }` is not: `box.g.x = 1` writes to the global.
+fn is_fresh_value(expr: &Expr) -> bool {
+    match unparen(expr) {
+        Expr::Lit(_) | Expr::Tpl(_) | Expr::Fn(_) | Expr::Arrow(_) => true,
+        Expr::Object(obj) => obj.props.iter().all(|prop| match prop {
+            PropOrSpread::Prop(prop) => match &**prop {
+                Prop::KeyValue(kv) => is_fresh_value(&kv.value),
+                Prop::Method(_) => true,
+                Prop::Shorthand(_) | Prop::Getter(_) | Prop::Setter(_) | Prop::Assign(_) => false,
+            },
+            PropOrSpread::Spread(spread) => is_fresh_value(&spread.expr),
+        }),
+        Expr::Array(arr) => arr
+            .elems
+            .iter()
+            .flatten()
+            .all(|elem| is_fresh_value(&elem.expr)),
+        _ => false,
+    }
 }
 
 /// Whether `expr`'s object graph contains a getter or setter. An accessor makes
@@ -2816,6 +2840,59 @@ mod tests {
         side_effects!(
             test_local_setter_attached_in_conditional,
             "const o = {}; x && (o.a = { set y(v) { sideEffect() } }); o.a.y = 1;"
+        );
+
+        side_effects!(
+            test_literal_capturing_global_nested_mutation,
+            "const box = { g: globalThis }; box.g.x = 1;"
+        );
+        side_effects!(
+            test_literal_capturing_global_direct_mutation,
+            "const box = { g: globalThis }; box.g = 1;"
+        );
+        side_effects!(
+            test_literal_capturing_global_deeply_nested_mutation,
+            "const box = { a: { b: globalThis } }; box.a.b.x = 1;"
+        );
+        side_effects!(
+            test_array_literal_capturing_global_nested_mutation,
+            "const box = [globalThis]; box[0].x = 1;"
+        );
+        side_effects!(
+            test_literal_capturing_window_mutation,
+            "const box = { w: window }; box.w.x = 1;"
+        );
+        side_effects!(
+            test_literal_capturing_import_mutation,
+            "import obj from './obj'; const box = { obj }; box.obj.foo = 1;"
+        );
+        side_effects!(
+            test_literal_capturing_require_result_mutation,
+            "const box = { dep: require('./dep') }; box.dep.x = 1;"
+        );
+        side_effects!(
+            test_literal_spreading_import_mutation,
+            "import obj from './obj'; const box = { ...obj }; box.foo.bar = 1;"
+        );
+        side_effects!(
+            test_foreign_value_assigned_then_nested_mutation,
+            "const box = {}; box.g = globalThis; box.g.x = 1;"
+        );
+        side_effects!(
+            test_foreign_value_assigned_then_direct_mutation,
+            "const box = {}; box.g = globalThis; box.a = 1;"
+        );
+        side_effects!(
+            test_require_result_assigned_then_direct_mutation,
+            "const box = {}; box.dep = require('./dep'); box.a = 1;"
+        );
+        no_side_effects!(
+            test_deeply_nested_literal_mutation,
+            "const box = { a: { b: {} } }; box.a.b.c = 1;"
+        );
+        no_side_effects!(
+            test_nested_literal_assigned_then_mutated,
+            "const box = {}; box.a = { b: {} }; box.a.b.c = 1;"
         );
     }
 }
