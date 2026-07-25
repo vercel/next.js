@@ -4,13 +4,13 @@ import { getDevCliValidationOutput } from 'e2e-utils/instant-validation'
 // The dev validation worker symbolicates the frames it logs on its own thread,
 // where Node.js caches source maps only for the chunk files that thread loaded.
 // The worker never renders server components, and the built entry reaches
-// segment modules through lazy getters, so it holds maps only for what
-// `loadComponents` pulled in. Maps are cached per chunk file rather than per
-// module, so code that stays in the route's own chunk still resolves, while a
-// module the bundler splits into a chunk of its own does not. Each route below
-// owns its copy of the module, because a module shared between routes lands in
-// whichever chunk the first compiled route put it in, which would make these
-// snapshots depend on the order the routes run in.
+// segment modules through lazy getters, so a module the bundler splits into a
+// chunk of its own is never loaded there and has no map in that cache. The
+// worker resolves those by reading the `.map` the bundler emitted next to the
+// chunk, which only exists for Turbopack. Each route below owns its copy of the
+// module, because a module shared between routes lands in whichever chunk the
+// first compiled route put it in, which would make these snapshots depend on
+// the order the routes run in.
 describe('dev-validation-worker-source-maps', () => {
   const { next, isTurbopack } = nextTestSetup({
     files: __dirname,
@@ -53,16 +53,10 @@ describe('dev-validation-worker-source-maps', () => {
       () => next.cliOutput
     )
 
-    // The module lands in a chunk of its own, which the worker never loads, so
-    // it cannot map the frame. In-process validation resolves it, so this is a
-    // regression from running validation on a worker.
+    // The module lands in a chunk of its own, which the worker never loads,
+    // so it has no map for it in the worker thread's cache.
     if (isTurbopack) {
-      // Turbopack loses the location entirely.
-      //
-      // TODO(veil): Give the worker a source map lookup that does not depend on
-      // the chunk having been evaluated on its thread, by reading the `.map`
-      // Turbopack writes next to the chunk, so that this frame reads like the
-      // statically imported one above.
+      // Reading the `.map` next to the chunk resolves it anyway.
       expect(output).toMatchInlineSnapshot(`
        "Error: Route "/dynamic": Next.js encountered runtime data during prerendering.
 
@@ -73,14 +67,15 @@ describe('dev-validation-worker-source-maps', () => {
          - [block] Set \`export const instant = false\` to allow a blocking route
 
        Learn more: https://nextjs.org/docs/messages/blocking-prerender-runtime
-           at readCookie (<next-dist-dir>)
+           at readCookie (app/dynamic/read-cookie.ts:4:30)
            at DynamicPage (app/dynamic/page.tsx:4:31)
-         2 |   const { readCookie } = await import('./read-cookie')
-         3 |
-       > 4 |   return <p id="value">{await readCookie()}</p>
-           |                               ^
-         5 | }
-         6 |"
+         2 |
+         3 | export async function readCookie(): Promise<string> {
+       > 4 |   const store = await cookies()
+           |                              ^
+         5 |   return store.get('probe')?.value ?? 'none'
+         6 | }
+         7 |"
       `)
     } else {
       // Webpack keeps the module path but reports the position it has in the
