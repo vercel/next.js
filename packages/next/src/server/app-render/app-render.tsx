@@ -6302,20 +6302,14 @@ export async function runValidationInDevFromSnapshot(
     installGlobalModuleLoadingHandlers(componentMod, true, false)
   }
 
-  // The request's fallback params reproduce `ctx.getDynamicParamFromSegment`
-  // exactly, so the depth-loop segment keys match the seed render's Flight. The
-  // validation set (below) is separate and only marks params unknown in the
+  // `requestFallbackRouteParams` reproduces `ctx.getDynamicParamFromSegment`
+  // exactly, so the depth-loop segment keys match the seed render's Flight.
+  // `fallbackRouteParams` is separate and only marks params unknown in the
   // prerender stores.
   //
   // TODO: Those two fallback params sets are very confusing in the whole code
   // base. We should maybe refactor this to make their different roles clearer.
-  const requestFallbackRouteParams = message.requestFallbackRouteParams
-    ? new Map(message.requestFallbackRouteParams)
-    : null
-
-  const fallbackRouteParams = message.fallbackRouteParams
-    ? new Map(message.fallbackRouteParams)
-    : null
+  const { requestFallbackRouteParams, fallbackRouteParams } = message
 
   const getDynamicParamFromSegment = makeGetDynamicParamFromSegment(
     message.interpolatedParams,
