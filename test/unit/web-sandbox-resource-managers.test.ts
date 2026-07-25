@@ -78,6 +78,46 @@ describe('web sandbox TimeoutsManager', () => {
     expect(manager.size).toBe(0)
   })
 
+  it('releases the id even when the callback throws', () => {
+    jest.useFakeTimers()
+    try {
+      const manager = new TimeoutsManager()
+      const id = manager.add([
+        globalObject,
+        () => {
+          throw new Error('boom')
+        },
+        0,
+      ])
+      expect(typeof id).toBe('number')
+      expect(manager.size).toBe(1)
+
+      expect(() => jest.runAllTimers()).toThrow('boom')
+      expect(manager.size).toBe(0)
+    } finally {
+      jest.useRealTimers()
+    }
+  })
+
+  it('clearing an already-fired timeout is a no-op', async () => {
+    const manager = new TimeoutsManager()
+
+    let ran = false
+    const firedId = manager.add([globalObject, () => (ran = true), 0])
+    const pendingId = manager.add([globalObject, () => {}, 1000])
+    await waitFor(() => ran)
+    await waitFor(() => manager.size === 1)
+
+    // Matches user code that calls clearTimeout inside the callback (the
+    // documented workaround for #95094); must not throw or affect other
+    // tracked timeouts.
+    manager.remove(firedId)
+    expect(manager.size).toBe(1)
+
+    manager.remove(pendingId)
+    expect(manager.size).toBe(0)
+  })
+
   it('remove() cancels a pending timeout and stops tracking it', async () => {
     const manager = new TimeoutsManager()
 
