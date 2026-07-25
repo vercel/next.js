@@ -144,6 +144,17 @@ export interface WorkStore {
   validationLevel: ValidationLevel
 
   /**
+   * Pages, other than the one being rendered, whose client reference manifest
+   * supplied a client reference for this render. Only populated by the dev
+   * server, where React's I/O tracking can carry a reference from another page
+   * into this render, which `createProxiedClientReferenceManifest` resolves by
+   * searching the other pages' manifests. The dev validation worker rebuilds
+   * that registry in its own thread from the route it validates, so it relies
+   * on this to know which other manifests to register.
+   */
+  additionalClientReferenceManifestPages?: Set<string>
+
+  /**
    * Run the given function inside a clean AsyncLocalStorage snapshot. This is
    * useful when generating cache entries, to ensure that the cache generation
    * cannot read anything from the context we're currently executing in, which

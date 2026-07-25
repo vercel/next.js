@@ -26,6 +26,7 @@ import * as React from 'react'
 import fs from 'fs'
 import { Worker } from 'next/dist/compiled/jest-worker'
 import { installUseCacheProbe } from './use-cache-probe-pool'
+import { installDevValidationWorker } from './dev-validation-worker-pool'
 import { join as pathJoin } from 'path'
 import { PUBLIC_DIR_MIDDLEWARE_CONFLICT } from '../../lib/constants'
 import { findPagesDir } from '../../lib/find-pages-dir'
@@ -225,6 +226,20 @@ export default class DevServer extends Server {
       deploymentId: this.deploymentId,
       nextConfig: this.nextConfig,
     })
+
+    // Runs Cache Components dev validation on a worker thread, off the main
+    // thread, so validation renders don't block the event loop during rapid
+    // navigation. Gated by `experimental.devValidationWorker`. The worker is
+    // spawned lazily on the first navigation that validates, so this install is
+    // free when a project doesn't use Cache Components.
+    if (this.nextConfig.experimental.devValidationWorker !== false) {
+      installDevValidationWorker({
+        distDir: this.distDir,
+        buildId: this.buildId,
+        deploymentId: this.deploymentId,
+        nextConfig: this.nextConfig,
+      })
+    }
   }
 
   protected override getServerComponentsHmrCache() {

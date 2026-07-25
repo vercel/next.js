@@ -474,6 +474,14 @@ export function registerClientTests(ctx: InstantValidationCaseContext) {
           '/suspense-in-root/static/invalid-client-error-in-parent-sibling'
         )
 
+        // Wait for validation to finish before snapshotting. Unlike the other
+        // client-error cases, this page also throws a client error during the
+        // render itself, which opens the redbox before validation reports its
+        // own errors. Without waiting, the snapshot can race the
+        // (asynchronously delivered) validation errors and capture only the
+        // render error.
+        await waitForValidation(await browser.url(), getCliOutputSinceMark)
+
         if (isClientNav) {
           // In a client navigation, the redbox will be collapsed.
           await openRedbox(browser)
