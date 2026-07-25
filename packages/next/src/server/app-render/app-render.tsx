@@ -84,6 +84,7 @@ import { createMetadataContext } from '../../lib/metadata/metadata-context'
 import { createRequestStoreForRender } from '../async-storage/request-store'
 import { isRSCRequestHeader } from '../lib/is-rsc-request'
 import { createWorkStore } from '../async-storage/work-store'
+import { formatValidationEvent } from './dev-validation-events'
 import {
   getAccessFallbackErrorTypeByStatus,
   getAccessFallbackHTTPStatus,
@@ -336,6 +337,15 @@ export type AppRenderContext = {
   parsedRequestHeaders: ParsedRequestHeaders
   getDynamicParamFromSegment: GetDynamicParamFromSegment
   interpolatedParams: Params
+  /**
+   * The request's fallback route params (the same ones
+   * `getDynamicParamFromSegment` closes over). Kept on the context so the dev
+   * validation worker can rebuild an identical `getDynamicParamFromSegment`;
+   * the depth-loop segment keys are derived from it, so it must match what
+   * produced the seed render's Flight, not the separate fallback set validation
+   * uses to mark params unknown in its stores.
+   */
+  fallbackRouteParams: OpaqueFallbackRouteParams | null
   query: NextParsedUrlQuery
   isPrefetch: boolean
   isPossibleServerAction: boolean
@@ -2732,6 +2742,7 @@ async function renderToHTMLOrFlightImpl(
     parsedRequestHeaders,
     getDynamicParamFromSegment,
     interpolatedParams,
+    fallbackRouteParams,
     query,
     isPrefetch: isPrefetchRequest,
     isPossibleServerAction: isPossibleActionRequest,
@@ -4539,14 +4550,32 @@ function runDevValidationInBackground(
         return
       }
 
-      return runValidationInDev(
-        prefetchMode,
-        instantInputs,
-        staticInputs,
+      // Validation computes the errors; the caller delivers them to the dev
+      // overlay. `runWithDevValidationLogging` encloses both the render and the
+      // delivery in the test-mode lifecycle markers so tests that assert the
+      // delivered error between `validation_start` and `validation_end` capture
+      // it.
+      await runWithDevValidationLogging(
         ctx,
-        fallbackRouteParams,
-        devRenderDidError,
-        validationAbortSignal
+        validationAbortSignal,
+        async () => {
+          const validationErrors = await runValidationInDev(
+            prefetchMode,
+            instantInputs,
+            staticInputs,
+            toValidationRenderContext(ctx),
+            fallbackRouteParams,
+            devRenderDidError,
+            validationAbortSignal
+          )
+
+          if (
+            validationErrors !== undefined &&
+            !validationAbortSignal.aborted
+          ) {
+            await logMessagesAndSendErrorsToBrowser(validationErrors, ctx)
+          }
+        }
       )
     })
     // The catch keeps a failed render, or anything thrown inside validation,
@@ -5994,14 +6023,10 @@ function logValidationSkipped(ctx: AppRenderContext) {
     const requestId = ctx.requestId
     const url = ctx.url.href
     console.log(
-      '<VALIDATION_MESSAGE>' +
-        JSON.stringify({ type: 'validation_start', requestId, url }) +
-        '</VALIDATION_MESSAGE>'
+      formatValidationEvent({ type: 'validation_start', requestId, url })
     )
     console.log(
-      '<VALIDATION_MESSAGE>' +
-        JSON.stringify({ type: 'validation_end', requestId, url }) +
-        '</VALIDATION_MESSAGE>'
+      formatValidationEvent({ type: 'validation_end', requestId, url })
     )
   }
 }
@@ -6011,76 +6036,127 @@ function logValidationAborted(ctx: AppRenderContext) {
     const requestId = ctx.requestId
     const url = ctx.url.href
     console.log(
-      '<VALIDATION_MESSAGE>' +
-        JSON.stringify({ type: 'validation_aborted', requestId, url }) +
-        '</VALIDATION_MESSAGE>'
+      formatValidationEvent({ type: 'validation_aborted', requestId, url })
     )
   }
 }
 
-async function runValidationInDev(
-  ...args: Parameters<typeof runValidationInDevImpl>
-) {
-  if (process.env.__NEXT_TEST_MODE && process.env.NEXT_TEST_LOG_VALIDATION) {
-    const ctx: AppRenderContext = args[3]
-    const requestId = ctx.requestId
-    const url = ctx.url.href
-    const responseFinished =
-      !isNodeNextResponse(ctx.res) || ctx.res.originalResponse.writableFinished
-    console.log(
-      '<VALIDATION_MESSAGE>' +
-        JSON.stringify({
-          type: 'validation_start',
-          requestId,
-          url,
-          responseFinished,
-        }) +
-        '</VALIDATION_MESSAGE>'
-    )
-    try {
-      const validationAbortSignal: AbortSignal = args[6]
-      // Keep validation in flight for scheduler E2E tests without relying on
-      // timing-sensitive user code. Aborts end the delay immediately.
-      const validationDelay = Number(
-        process.env.NEXT_TEST_DEV_VALIDATION_DELAY_MS
-      )
-      if (
-        Number.isFinite(validationDelay) &&
-        validationDelay > 0 &&
-        !validationAbortSignal.aborted
-      ) {
-        await new Promise<void>((resolve) => {
-          let timeout: NodeJS.Timeout
-          const finishDelay = () => {
-            clearTimeout(timeout)
-            validationAbortSignal.removeEventListener('abort', finishDelay)
-            resolve()
-          }
-          timeout = setTimeout(finishDelay, validationDelay)
-          validationAbortSignal.addEventListener('abort', finishDelay, {
-            once: true,
-          })
-        })
-      }
+/**
+ * Runs a dev validation `run` callback (the render plus the error delivery),
+ * enclosing it in the `validation_start` / `validation_end` /
+ * `validation_aborted` lifecycle markers that E2E tests read from the CLI
+ * output. The markers must enclose delivery as well as the render, so tests
+ * that assert the error between the markers capture it. Also applies the
+ * `NEXT_TEST_DEV_VALIDATION_DELAY_MS` hook that keeps validation in flight for
+ * scheduler tests. All of this is test-mode only; otherwise `run` is invoked
+ * directly.
+ */
+async function runWithDevValidationLogging(
+  ctx: AppRenderContext,
+  validationAbortSignal: AbortSignal,
+  run: () => Promise<void>
+): Promise<void> {
+  if (!(process.env.__NEXT_TEST_MODE && process.env.NEXT_TEST_LOG_VALIDATION)) {
+    return run()
+  }
 
-      if (validationAbortSignal.aborted) {
-        return
-      }
-      return await runValidationInDevImpl(...args)
-    } finally {
-      const validationAbortSignal: AbortSignal = args[6]
-      if (validationAbortSignal.aborted) {
-        logValidationAborted(ctx)
-      } else {
-        console.log(
-          '<VALIDATION_MESSAGE>' +
-            JSON.stringify({ type: 'validation_end', requestId, url }) +
-            '</VALIDATION_MESSAGE>'
-        )
-      }
+  const requestId = ctx.requestId
+  const url = ctx.url.href
+  const responseFinished =
+    !isNodeNextResponse(ctx.res) || ctx.res.originalResponse.writableFinished
+
+  console.log(
+    formatValidationEvent({
+      type: 'validation_start',
+      requestId,
+      url,
+      responseFinished,
+    })
+  )
+
+  try {
+    // Keep validation in flight for scheduler E2E tests without relying on
+    // timing-sensitive user code. Aborts end the delay immediately.
+    const validationDelay = Number(
+      process.env.NEXT_TEST_DEV_VALIDATION_DELAY_MS
+    )
+
+    if (
+      Number.isFinite(validationDelay) &&
+      validationDelay > 0 &&
+      !validationAbortSignal.aborted
+    ) {
+      await new Promise<void>((resolve) => {
+        let timeout: NodeJS.Timeout
+        const finishDelay = () => {
+          clearTimeout(timeout)
+          validationAbortSignal.removeEventListener('abort', finishDelay)
+          resolve()
+        }
+        timeout = setTimeout(finishDelay, validationDelay)
+        validationAbortSignal.addEventListener('abort', finishDelay, {
+          once: true,
+        })
+      })
     }
-  } else {
-    return await runValidationInDevImpl(...args)
+
+    if (!validationAbortSignal.aborted) {
+      await run()
+    }
+  } finally {
+    if (validationAbortSignal.aborted) {
+      logValidationAborted(ctx)
+    } else {
+      console.log(
+        formatValidationEvent({ type: 'validation_end', requestId, url })
+      )
+    }
+  }
+}
+
+/**
+ * The slice of the render context the dev/build validation passes read. Both
+ * the in-process callers and the validation worker build one of these, so it
+ * names exactly what validation depends on and nothing else: no live
+ * request/response objects that can't be rebuilt off the main thread.
+ * `isDebugChannelEnabled` is the derived flag validation uses in place of the
+ * main render's `setReactDebugChannel` callback (validation only ever read that
+ * callback's presence as a boolean).
+ */
+export type ValidationRenderContext = Pick<
+  AppRenderContext,
+  | 'componentMod'
+  | 'getDynamicParamFromSegment'
+  | 'query'
+  | 'implicitTags'
+  | 'nonce'
+  | 'workStore'
+> & {
+  renderOpts: Pick<RenderOpts, 'images' | 'allowEmptyStaticShell'>
+  isDebugChannelEnabled: boolean
+}
+
+/**
+ * Projects a full app render context down to the slice validation reads. The
+ * in-process dev and build callers hold an `AppRenderContext` and use this to
+ * hand validation exactly what it needs; the worker builds the same shape from
+ * its snapshot instead.
+ */
+export function toValidationRenderContext(
+  ctx: AppRenderContext
+): ValidationRenderContext {
+  return {
+    componentMod: ctx.componentMod,
+    getDynamicParamFromSegment: ctx.getDynamicParamFromSegment,
+    query: ctx.query,
+    implicitTags: ctx.implicitTags,
+    nonce: ctx.nonce,
+    workStore: ctx.workStore,
+    renderOpts: {
+      images: ctx.renderOpts.images,
+      allowEmptyStaticShell: ctx.renderOpts.allowEmptyStaticShell,
+    },
+    isDebugChannelEnabled: !!ctx.renderOpts.setReactDebugChannel,
   }
 }
 
@@ -6090,15 +6166,15 @@ async function runValidationInDev(
  * prerender semantics to prerenderToStream and should update it
  * in conjunction with any changes to that function.
  */
-async function runValidationInDevImpl(
+async function runValidationInDev(
   prefetchMode: PrefetchingMode,
   instantInputs: ResolvedValidationInputs | null,
   staticInputs: ResolvedValidationInputs,
-  ctx: AppRenderContext,
+  ctx: ValidationRenderContext,
   fallbackRouteParams: OpaqueFallbackRouteParams | null,
   devRenderDidError: boolean,
   validationAbortSignal: AbortSignal
-): Promise<void> {
+): Promise<Array<unknown> | undefined> {
   const { componentMod: ComponentMod, getDynamicParamFromSegment } = ctx
   const loaderTree = ComponentMod.routeModule.userland.loaderTree
   const rootParams = getRootParams(loaderTree, getDynamicParamFromSegment)
@@ -6195,7 +6271,7 @@ async function runValidationInDevImpl(
       if (!(await yieldToForegroundRequest(validationAbortSignal))) {
         return
       }
-      return logMessagesAndSendErrorsToBrowser(result, ctx)
+      return result
     }
   }
 
@@ -6237,7 +6313,7 @@ async function runValidationInDevImpl(
       if (!(await yieldToForegroundRequest(validationAbortSignal))) {
         return
       }
-      return logMessagesAndSendErrorsToBrowser(result, ctx)
+      return result
     }
   }
 }
@@ -6252,7 +6328,7 @@ async function collectDebugChunksFromClientChannel(debugChannel: AnyStream) {
 
 async function validateStaticShell(
   inputs: ResolvedValidationInputs,
-  ctx: AppRenderContext,
+  ctx: ValidationRenderContext,
   rootParams: Params,
   fallbackRouteParams: OpaqueFallbackRouteParams | null,
   debugChunks: Uint8Array[] | null,
@@ -6330,7 +6406,7 @@ async function warmupClientModulesForStagedValidation(
   allServerChunks: Array<Uint8Array>,
   rootParams: Params,
   fallbackRouteParams: OpaqueFallbackRouteParams | null,
-  ctx: AppRenderContext,
+  ctx: ValidationRenderContext,
   validationSamples: ValidationStoreClient['validationSamples'],
   validationSampleTracking: ValidationStoreClient['validationSampleTracking'],
   validationAbortSignal?: AbortSignal
@@ -6510,7 +6586,7 @@ async function validateStagedShell(
   rootParams: Params,
   fallbackRouteParams: OpaqueFallbackRouteParams | null,
   allowEmptyStaticShell: boolean,
-  ctx: AppRenderContext,
+  ctx: ValidationRenderContext,
   hmrRefreshHash: string | undefined,
   trackDynamicHole:
     | typeof trackDynamicHoleInStaticShell
@@ -6683,7 +6759,7 @@ async function validateInstantConfigs(
   startTime: number,
   rootParams: Params,
   fallbackRouteParams: OpaqueFallbackRouteParams | null,
-  ctx: AppRenderContext,
+  ctx: ValidationRenderContext,
   hmrRefreshHash: string | undefined,
   validationSamples: ValidationStoreClient['validationSamples'] | null,
   devRenderDidError: boolean,
@@ -6735,8 +6811,7 @@ async function validateInstantConfigs(
     createDebugChannel
   )
 
-  const { implicitTags, nonce, workStore } = ctx
-  const isDebugChannelEnabled = !!ctx.renderOpts.setReactDebugChannel
+  const { implicitTags, nonce, workStore, isDebugChannelEnabled } = ctx
 
   async function validateAtDepth(
     prefetchKind: ValidationPrefetchKind,
@@ -7387,28 +7462,16 @@ async function validateInstantConfigsInBuild(
     // We want consistent ordering of these messages and other console.error calls,
     // so we use console.error here as well. Using console.log leads to non-deterministic
     // log order, likely stdout/stderr can interleave in non-deterministic ways.
-    const requestId = Date.now()
+    const requestId = String(Date.now())
     const route = ctx.workStore.route
     console.error(
-      '<VALIDATION_MESSAGE>' +
-        JSON.stringify({
-          type: 'validation_start',
-          requestId,
-          url: route,
-        }) +
-        '</VALIDATION_MESSAGE>'
+      formatValidationEvent({ type: 'validation_start', requestId, url: route })
     )
     try {
       return await run()
     } finally {
       console.error(
-        '<VALIDATION_MESSAGE>' +
-          JSON.stringify({
-            type: 'validation_end',
-            requestId,
-            url: route,
-          }) +
-          '</VALIDATION_MESSAGE>'
+        formatValidationEvent({ type: 'validation_end', requestId, url: route })
       )
     }
   } else {
@@ -7605,6 +7668,7 @@ async function validateInstantConfigInBuildWithSample(
       parsedRequestHeaders: outerCtx.parsedRequestHeaders,
       getDynamicParamFromSegment,
       interpolatedParams: sampleParams,
+      fallbackRouteParams,
       query: sampleQuery,
       isPrefetch: false,
       isPossibleServerAction: false,
@@ -7743,13 +7807,14 @@ async function validateInstantConfigInBuildWithSample(
     // the Dynamic stage, they're Runtime at best.
 
     const warmupValidationSamplesTracking = createValidationSampleTracking()
+    const validationRenderCtx = toValidationRenderContext(validationCtx)
     await warmupClientModulesForStagedValidation(
       'validation-client',
       accumulatedChunks.dynamicChunks,
       accumulatedChunks.dynamicChunks,
       sampleRootParams,
       fallbackRouteParams,
-      validationCtx,
+      validationRenderCtx,
       validationSamples,
       warmupValidationSamplesTracking
     )
@@ -7764,7 +7829,7 @@ async function validateInstantConfigInBuildWithSample(
       startTime,
       sampleRootParams,
       fallbackRouteParams,
-      validationCtx,
+      validationRenderCtx,
       undefined, // hmrRefreshHash,
       validationSamples,
       false // build has no shared dev render that would surface errors
