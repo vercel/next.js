@@ -4429,10 +4429,9 @@ function forwardInvalidDynamicUsageError(
 function runDevValidationInBackground(
   prefetchMode: PrefetchingMode,
   navigationKind: DevNavigationKind,
-  resultPromise: Promise<StagedDevRenderResult>,
+  result: StagedDevRenderResult,
   requestStore: RequestStore,
   validationDebugChannel: AnyStream | undefined,
-  cacheSignal: CacheSignal,
   ctx: AppRenderContext,
   fallbackRouteParams: OpaqueFallbackRouteParams | null,
   prerenderResumeDataCache: ReturnType<typeof createPrerenderResumeDataCache>,
@@ -4446,17 +4445,6 @@ function runDevValidationInBackground(
 
   void consoleAsyncStorage
     .run({ dim: true }, async () => {
-      const result = await resultPromise
-
-      // If the request was aborted, or a newer render superseded its
-      // validation, re-rendering and analyzing it would only waste server
-      // work. In-flight `'use cache'` fills are left running (we don't await
-      // `cacheReady` below).
-      if (validationAbortSignal.aborted) {
-        logValidationAborted(ctx)
-        return
-      }
-
       // Validation is detached diagnostic work, but the renders and error
       // formatting it performs can still monopolize the event loop. Wait until
       // the response has finished so that work cannot delay Flight delivery or
@@ -4477,30 +4465,6 @@ function runDevValidationInBackground(
       // Read whether the streamed render errored only now that it has fully
       // settled.
       const devRenderDidError = getDevRenderDidError()
-
-      // A cache-miss render records its `invalidDynamicUsageError` while
-      // filling, so its verdict isn't final until the fills settle. Wait for
-      // that (a no-op when the render didn't miss) before planning, which reads
-      // the work store.
-      if (result.hadCacheMiss) {
-        await cacheSignal.cacheReady()
-      }
-
-      if (validationAbortSignal.aborted) {
-        logValidationAborted(ctx)
-        return
-      }
-
-      // If the initial render recorded invalid dynamic usage errors
-      // (e.g. from caught errors inside "use cache"), we skip validation altogether.
-      if (
-        forwardInvalidDynamicUsageError(
-          ctx.workStore.invalidDynamicUsageError,
-          ctx
-        )
-      ) {
-        return
-      }
 
       const lazyInputs = await prepareValidationInputs(
         prefetchMode,
@@ -5547,7 +5511,6 @@ async function stagedRenderWithCachesInDev({
   const validationGeneration = shouldValidate
     ? beginDevValidation(ctx.htmlRequestId)
     : undefined
-  let validationWasScheduled = false
 
   try {
     const { setReactDebugChannel } = ctx.renderOpts
@@ -5587,46 +5550,66 @@ async function stagedRenderWithCachesInDev({
       requestAbortSignal,
     })
 
-    if (validationGeneration !== undefined) {
-      runDevValidationInBackground(
-        prefetchMode,
-        navigationKind,
-        resultPromise,
-        requestStore,
-        validationDebugChannel,
-        cacheSignal,
-        ctx,
-        fallbackRouteParams,
-        prerenderResumeDataCache,
-        getDevRenderDidError,
-        createRequestStore,
-        getPayload,
-        onError,
-        validationGeneration
-      )
-      validationWasScheduled = true
-    } else {
+    if (validationGeneration === undefined) {
       logValidationSkipped(ctx)
-
-      // We don't validate, but the render may still record an invalid dynamic
-      // usage error (e.g. a request API used inside `'use cache'`). `result`
-      // resolves once the full stream (incl. the dynamic stage) has finished, so
-      // any such error is final by then; forward it to the dev overlay.
-      resultPromise.then(
-        () =>
-          forwardInvalidDynamicUsageError(
-            ctx.workStore.invalidDynamicUsageError,
-            ctx
-          ),
-        () => {}
-      )
     }
+
+    // The render may record an invalid dynamic usage error (e.g. a request API
+    // used inside `'use cache'`). A cache-miss render records it while filling,
+    // so the verdict isn't final until the fills settle. Once the render has
+    // settled, forward any such error to the dev overlay: it's a real error
+    // from the render the user received, so it surfaces whether or not the
+    // route validates. When there is one the render isn't prod-representative,
+    // so validating it is pointless and we skip it; otherwise validation runs
+    // in the background (deferred there until the response has finished).
+    void resultPromise.then(
+      async (result) => {
+        if (result.hadCacheMiss) {
+          await cacheSignal.cacheReady()
+        }
+
+        const hadInvalidDynamicUsage = forwardInvalidDynamicUsageError(
+          ctx.workStore.invalidDynamicUsageError,
+          ctx
+        )
+
+        if (validationGeneration === undefined) {
+          return
+        }
+
+        if (hadInvalidDynamicUsage || validationGeneration.signal.aborted) {
+          if (validationGeneration.signal.aborted) {
+            logValidationAborted(ctx)
+          }
+          validationGeneration.finish()
+          return
+        }
+
+        runDevValidationInBackground(
+          prefetchMode,
+          navigationKind,
+          result,
+          requestStore,
+          validationDebugChannel,
+          ctx,
+          fallbackRouteParams,
+          prerenderResumeDataCache,
+          getDevRenderDidError,
+          createRequestStore,
+          getPayload,
+          onError,
+          validationGeneration
+        )
+      },
+      () => {
+        // The render itself rejected; there's nothing to forward or validate.
+        validationGeneration?.finish()
+      }
+    )
 
     return { stream, debugChannel }
   } catch (err) {
-    if (!validationWasScheduled) {
-      validationGeneration?.finish()
-    }
+    validationGeneration?.finish()
     throw err
   }
 }
