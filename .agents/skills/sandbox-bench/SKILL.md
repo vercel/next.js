@@ -52,7 +52,7 @@ extra, once); later runs boot straight into measurement.
    one scoped read call (e.g. `vercel sandbox ls`) before resuming
    launches. After a 403 outage, expect in-flight runs to have died:
    run `node scripts/bench-status.mjs` and follow its recovery
-   actions (measurement VMs will have hit their ~2h timeout if the
+   actions (measurement VMs will have hit their ~5h timeout if the
    outage was long — those cells need relaunching, not collecting).
 3. react and next.js clones land in the cache on first use (or point
    `reactRepo`/`nextRepo` in the config at existing checkouts).
@@ -260,7 +260,7 @@ If a launcher process dies (session teardown, crash), the remote VMs
 keep executing their measurement loops — the data is not lost. `node
 scripts/bench-collect.mjs <runDir>` reconnects, waits for the loops,
 downloads the results, cleans up, and analyzes. Run it before the VMs
-hit their ~2h timeout.
+hit their ~5h timeout.
 
 ## Failure recovery
 

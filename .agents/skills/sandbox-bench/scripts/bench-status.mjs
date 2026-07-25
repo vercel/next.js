@@ -59,7 +59,7 @@ for (const dir of dirs) {
   } else if (
     (rows > 0 || st.phase === 'measuring') &&
     ageMin !== null &&
-    ageMin > 150
+    ageMin > 290
   ) {
     action =
       'DEAD and its VMs have expired — whatever was collected is in the ' +
@@ -67,7 +67,7 @@ for (const dir of dirs) {
   } else if (rows > 0 || st.phase === 'measuring') {
     action =
       `DEAD but VMs may still hold data — node scripts/bench-collect.mjs ${dir}` +
-      ' (measurement VMs time out ~2h after launch; collect before that)'
+      ' (measurement VMs time out ~5h after launch; collect before that)'
   } else {
     action =
       'DEAD before measurement — safe to relaunch (caches make it cheap); ' +

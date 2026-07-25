@@ -5,7 +5,7 @@
 // names, waits for each VM's loop to finish, downloads its results,
 // removes the VM, and runs the boot-level analysis.
 //
-//   node bench-collect.mjs <runDir> [--deadline-min 110]
+//   node bench-collect.mjs <runDir> [--deadline-min 280]
 import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
 import fs from 'node:fs'
@@ -19,7 +19,7 @@ const argv = process.argv.slice(2)
 const dir = argv.find((a) => !a.startsWith('--'))
 const deadlineMin = argv.includes('--deadline-min')
   ? Number(argv[argv.indexOf('--deadline-min') + 1])
-  : 110
+  : 280
 if (!dir || !fs.existsSync(path.join(dir, 'status.json'))) {
   console.error('usage: node bench-collect.mjs <runDir with status.json>')
   process.exit(1)

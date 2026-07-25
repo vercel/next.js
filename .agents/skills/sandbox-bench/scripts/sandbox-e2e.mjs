@@ -1269,7 +1269,7 @@ async function runVm(index, cfg, expSnap, outDir) {
     '--vcpus',
     '8',
     '--timeout',
-    '2h',
+    '5h',
     '--non-persistent',
     '--network-policy',
     'allow-all',
