@@ -4343,37 +4343,70 @@ async function renderToStream(
 }
 
 /**
- * The chunks and stage timings accumulated by a staged dev render once its
- * stream has finished. Shared by `StagedDevRenderResult` (a render's own
- * settled output) and `DevValidationInputs` (what validation consumes).
+ * A staged dev render interrupted by sync IO. It has no artifacts that could be
+ * used as validation inputs, only the reason it was interrupted.
+ */
+interface SyncInterruptedStagedDevRender {
+  readonly syncInterruptReason: Error
+}
+
+/**
+ * The chunks and per-stage timings a staged dev render accumulates once its
+ * stream finishes. A render only produces them when it runs to the end without
+ * a sync-IO interrupt, so they back both a render's uninterrupted outcome and
+ * the validation inputs.
  */
 interface StagedDevRenderArtifacts {
   readonly accumulatedChunks: AccumulatedStreamChunks
-  readonly syncInterruptReason: Error | null
   readonly startTime: number
   readonly staticStageEndTime: number
   readonly runtimeStageEndTime: number
 }
 
 /**
- * Everything `runValidationInDev` needs to validate a render.
- * These are sourced from whichever render is prod-representative: the streamed
- * render when it neither missed caches nor hit sync IO, otherwise a validation
- * render.
+ * How a staged dev render ended once its stream has fully finished: with usable
+ * artifacts or interrupted by sync IO.
  */
-interface DevValidationInputs extends StagedDevRenderArtifacts {
+type StagedDevRenderOutcome =
+  | StagedDevRenderArtifacts
+  | SyncInterruptedStagedDevRender
+
+/**
+ * A settled staged dev render: how it ended, plus whether it triggered `use
+ * cache` fills that may still be settling. `hadCacheMiss` is orthogonal to the
+ * outcome (either kind of render can miss caches) and is consumed before the
+ * result is split into validation inputs: it gates the `cacheReady()` wait
+ * before the render's work store is inspected, and on an uninterrupted render
+ * also marks the output non-prod-representative so it can't be reused for
+ * validation.
+ */
+interface StagedDevRenderResult {
+  readonly hadCacheMiss: boolean
+  readonly outcome: StagedDevRenderOutcome
+}
+
+/**
+ * What `runValidationInDev` consumes: an uninterrupted render's artifacts plus
+ * the request store and the debug channel. Carries no `syncInterruptReason`:
+ * the resolution step has already surfaced and bailed on any sync interrupt.
+ */
+interface ResolvedValidationInputs extends StagedDevRenderArtifacts {
   readonly requestStore: RequestStore
   readonly debugChannelClient: AnyStream | undefined
 }
 
 /**
- * The result of a completed streamed/staged dev render: its artifacts plus
- * whether it was prod-representative. Settled once the render's stream has fully
- * finished.
+ * The inputs produced for validation, before resolution: either an
+ * uninterrupted render's artifacts (`ResolvedValidationInputs`) or, for a
+ * render interrupted by sync IO, only the interrupt reason. An interrupted
+ * render is never validated, so it carries nothing else: its debug channel is
+ * dropped at construction. Discriminate with `'syncInterruptReason' in x`; the
+ * resolution step surfaces and bails on the interrupted case, so the depth loop
+ * only ever sees `ResolvedValidationInputs`.
  */
-interface StagedDevRenderResult extends StagedDevRenderArtifacts {
-  readonly hadCacheMiss: boolean
-}
+type DevValidationInputs =
+  | ResolvedValidationInputs
+  | SyncInterruptedStagedDevRender
 
 /**
  * Drops a validation debug channel branch we've decided not to read.
@@ -4592,14 +4625,13 @@ async function prepareValidationInputs(
   validationAbortSignal: AbortSignal
 ): Promise<PrepareValidationInputsResult> {
   // Check if we can re-use the main render for validation.
-  let inputsFromNavigation: DevValidationInputs | null
-  if (!result.hadCacheMiss && result.syncInterruptReason === null) {
+  let inputsFromNavigation: ResolvedValidationInputs | null
+  if (!result.hadCacheMiss && !('syncInterruptReason' in result.outcome)) {
     inputsFromNavigation = {
-      accumulatedChunks: result.accumulatedChunks,
-      syncInterruptReason: null,
-      startTime: result.startTime,
-      staticStageEndTime: result.staticStageEndTime,
-      runtimeStageEndTime: result.runtimeStageEndTime,
+      accumulatedChunks: result.outcome.accumulatedChunks,
+      startTime: result.outcome.startTime,
+      staticStageEndTime: result.outcome.staticStageEndTime,
+      runtimeStageEndTime: result.outcome.runtimeStageEndTime,
       requestStore,
       debugChannelClient: validationDebugChannel,
     }
@@ -4642,7 +4674,7 @@ async function prepareValidationInputsInPartialPrefetching(
   createRequestStore: () => RequestStore,
   getPayload: (requestStore: RequestStore) => Promise<RSCPayload>,
   onError: (error: unknown) => void,
-  inputsFromNavigation: DevValidationInputs | null,
+  inputsFromNavigation: ResolvedValidationInputs | null,
   validationAbortSignal: AbortSignal
 ): Promise<PrepareValidationInputsResult> {
   const loaderTree = ctx.componentMod.routeModule.userland.loaderTree
@@ -4736,7 +4768,7 @@ async function prepareValidationInputsInLegacyPrefetching(
   createRequestStore: () => RequestStore,
   getPayload: (requestStore: RequestStore) => Promise<RSCPayload>,
   onError: (error: unknown) => void,
-  inputsFromNavigation: DevValidationInputs | null,
+  inputsFromNavigation: ResolvedValidationInputs | null,
   validationAbortSignal: AbortSignal
 ): Promise<PrepareValidationInputsResult> {
   const loaderTree = ctx.componentMod.routeModule.userland.loaderTree
@@ -4802,7 +4834,7 @@ async function prepareValidationInputsInLegacyPrefetching(
 async function resolveLazyDevValidationInputs(
   resolvedOrLazyInputs: DevValidationInputs | LazyDevValidationInputs,
   ctx: AppRenderContext
-): Promise<DevValidationInputs | ValidationBailout> {
+): Promise<ResolvedValidationInputs | ValidationBailout> {
   let inputs: DevValidationInputs
   if (typeof resolvedOrLazyInputs === 'function') {
     const maybeInputs = await resolvedOrLazyInputs()
@@ -4814,9 +4846,8 @@ async function resolveLazyDevValidationInputs(
     inputs = resolvedOrLazyInputs
   }
 
-  const syncInterruptReason = inputs.syncInterruptReason
-  if (syncInterruptReason) {
-    await logMessagesAndSendErrorsToBrowser([syncInterruptReason], ctx)
+  if ('syncInterruptReason' in inputs) {
+    await logMessagesAndSendErrorsToBrowser([inputs.syncInterruptReason], ctx)
     return VALIDATION_BAILOUT
   }
   return inputs
@@ -4826,8 +4857,7 @@ function forwardErrorsFromWarmRender(
   inputs: DevValidationInputs,
   ctx: AppRenderContext
 ) {
-  if (inputs.syncInterruptReason) {
-    dropValidationDebugChannel(inputs.debugChannelClient)
+  if ('syncInterruptReason' in inputs) {
     void logMessagesAndSendErrorsToBrowser([inputs.syncInterruptReason], ctx)
     return true
   }
@@ -5218,16 +5248,20 @@ async function streamStagedRenderInDev({
   const resultPromise = Promise.all([
     stagesAdvanced,
     accumulatedChunksPromise,
-  ]).then(
-    ([, accumulatedChunks]): StagedDevRenderResult => ({
+  ]).then(([, accumulatedChunks]): StagedDevRenderResult => {
+    const syncInterruptReason = stageController.getSyncInterruptReason()
+    return {
       hadCacheMiss,
-      syncInterruptReason: stageController.getSyncInterruptReason(),
-      startTime,
-      staticStageEndTime: stageController.getStaticStageEndTime(),
-      runtimeStageEndTime: stageController.getRuntimeStageEndTime(),
-      accumulatedChunks,
-    })
-  )
+      outcome: syncInterruptReason
+        ? { syncInterruptReason }
+        : {
+            startTime,
+            staticStageEndTime: stageController.getStaticStageEndTime(),
+            runtimeStageEndTime: stageController.getRuntimeStageEndTime(),
+            accumulatedChunks,
+          },
+    }
+  })
 
   return { stream, resultPromise }
 }
@@ -5306,9 +5340,17 @@ async function renderWithWarmCachesForValidationInDev(
     () => stageController.advanceStage(RenderStage.Dynamic)
   )
 
+  const syncInterruptReason = stageController.getSyncInterruptReason()
+  if (syncInterruptReason) {
+    // Sync IO interrupted the render, so it won't be validated. Drop the debug
+    // channel now and return only the interrupt reason: nothing downstream
+    // reads the request store or chunks of an interrupted render.
+    dropValidationDebugChannel(debugChannel?.clientSide.readable)
+    return { syncInterruptReason }
+  }
+
   return {
     accumulatedChunks,
-    syncInterruptReason: stageController.getSyncInterruptReason(),
     startTime,
     staticStageEndTime: stageController.getStaticStageEndTime(),
     runtimeStageEndTime: stageController.getRuntimeStageEndTime(),
@@ -5432,9 +5474,16 @@ async function prerenderWithWarmCachesForStaticValidationInDev(
     }
   )
 
+  const syncInterruptReason = stageController.getSyncInterruptReason()
+  if (syncInterruptReason) {
+    // Sync IO interrupted the render, so it won't be validated. Drop the debug
+    // channel now and return only the interrupt reason: nothing downstream
+    // reads the request store or chunks of an interrupted render.
+    dropValidationDebugChannel(debugChannel?.clientSide.readable)
+    return { syncInterruptReason }
+  }
   return {
     accumulatedChunks: collectedChunksByStage,
-    syncInterruptReason: stageController.getSyncInterruptReason(),
     startTime,
     staticStageEndTime: stageController.getStaticStageEndTime(),
     runtimeStageEndTime: stageController.getRuntimeStageEndTime(),
@@ -6043,8 +6092,8 @@ async function runValidationInDev(
  */
 async function runValidationInDevImpl(
   prefetchMode: PrefetchingMode,
-  instantInputs: DevValidationInputs | null,
-  staticInputs: DevValidationInputs,
+  instantInputs: ResolvedValidationInputs | null,
+  staticInputs: ResolvedValidationInputs,
   ctx: AppRenderContext,
   fallbackRouteParams: OpaqueFallbackRouteParams | null,
   devRenderDidError: boolean,
@@ -6202,7 +6251,7 @@ async function collectDebugChunksFromClientChannel(debugChannel: AnyStream) {
 }
 
 async function validateStaticShell(
-  inputs: DevValidationInputs,
+  inputs: ResolvedValidationInputs,
   ctx: AppRenderContext,
   rootParams: Params,
   fallbackRouteParams: OpaqueFallbackRouteParams | null,
