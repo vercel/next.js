@@ -78,12 +78,8 @@ export async function buildDevValidationSnapshot(
       hmrRefreshHash: requestStore.hmrRefreshHash,
     },
     interpolatedParams: ctx.interpolatedParams,
-    requestFallbackRouteParams: ctx.fallbackRouteParams
-      ? [...ctx.fallbackRouteParams.entries()]
-      : null,
-    fallbackRouteParams: fallbackRouteParams
-      ? [...fallbackRouteParams.entries()]
-      : null,
+    requestFallbackRouteParams: ctx.fallbackRouteParams,
+    fallbackRouteParams,
     optimisticRouting: ctx.renderOpts.experimental.optimisticRouting,
     forceStatic: ctx.workStore.forceStatic,
     validationLevel: ctx.workStore.validationLevel,
