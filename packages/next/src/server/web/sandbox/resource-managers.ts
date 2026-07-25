@@ -1,37 +1,27 @@
-export abstract class ResourceManager<T, Args> {
-  private readonly resources = new Set<T>()
+abstract class ResourceManager<T, Args> {
+  private resources: T[] = []
 
   abstract create(resourceArgs: Args): T
   abstract destroy(resource: T): void
 
   add(resourceArgs: Args) {
     const resource = this.create(resourceArgs)
-    this.resources.add(resource)
+    this.resources.push(resource)
     return resource
   }
 
-  protected untrack(resource: T) {
-    this.resources.delete(resource)
-  }
-
   remove(resource: T) {
-    this.untrack(resource)
+    this.resources = this.resources.filter((r) => r !== resource)
     this.destroy(resource)
   }
 
   removeAll() {
-    for (const resource of this.resources) {
-      this.destroy(resource)
-    }
-    this.resources.clear()
-  }
-
-  get size() {
-    return this.resources.size
+    this.resources.forEach(this.destroy)
+    this.resources = []
   }
 }
 
-export class IntervalsManager extends ResourceManager<
+class IntervalsManager extends ResourceManager<
   number,
   Parameters<typeof webSetIntervalPolyfill>
 > {
@@ -45,34 +35,13 @@ export class IntervalsManager extends ResourceManager<
   }
 }
 
-export class TimeoutsManager extends ResourceManager<
+class TimeoutsManager extends ResourceManager<
   number,
   Parameters<typeof webSetTimeoutPolyfill>
 > {
   create(args: Parameters<typeof webSetTimeoutPolyfill>) {
     // TODO: use the edge runtime provided `setTimeout` instead
-    const [globalObject, callback, ms, ...callbackArgs] = args
-    const manager = this
-    let timeoutId: number
-
-    const callbackAndUntrack = function (
-      this: GlobalObject,
-      ...receivedArgs: any[]
-    ) {
-      try {
-        return callback.apply(this, receivedArgs)
-      } finally {
-        manager.untrack(timeoutId)
-      }
-    }
-
-    timeoutId = webSetTimeoutPolyfill(
-      globalObject,
-      callbackAndUntrack,
-      ms,
-      ...callbackArgs
-    )
-    return timeoutId
+    return webSetTimeoutPolyfill(...args)
   }
 
   destroy(timeout: number) {
