@@ -1,5 +1,5 @@
 import type { Params } from '../request/params'
-import type { OpaqueFallbackRouteParamEntries } from '../request/fallback-params'
+import type { OpaqueFallbackRouteParams } from '../request/fallback-params'
 import type { NextParsedUrlQuery } from '../request-meta'
 import type { PrefetchingMode } from './app-render'
 import type { NextConfigComplete, ValidationLevel } from '../config-shared'
@@ -80,14 +80,13 @@ export interface DevValidationSnapshot {
   // closed over. The worker rebuilds `getDynamicParamFromSegment` from these
   // (with `interpolatedParams` and `optimisticRouting`), so the depth-loop
   // segment keys match the seed render's Flight. It is null for a request whose
-  // params all resolve to concrete values. Carried as map entries (like
-  // `fallbackRouteParams`) so both survive structured-clone transport.
-  requestFallbackRouteParams: OpaqueFallbackRouteParamEntries | null
+  // params all resolve to concrete values.
+  requestFallbackRouteParams: OpaqueFallbackRouteParams | null
   // The validation fallback params, passed to `runValidationInDev` and its
   // prerender stores. They mark params unknown so that accessing one during the
   // simulated prefetch is treated as dynamic. This set may include params that
   // `requestFallbackRouteParams` does not.
-  fallbackRouteParams: OpaqueFallbackRouteParamEntries | null
+  fallbackRouteParams: OpaqueFallbackRouteParams | null
   optimisticRouting: boolean
   forceStatic: boolean | undefined
   validationLevel: ValidationLevel
