@@ -47,6 +47,31 @@ export interface BasicSourceMapPayload {
 
 export type ModernSourceMapPayload = BasicSourceMapPayload | IndexSourceMap
 
+// `SourceMap#payload` deep-clones the payload on every access — expensive
+// for large chunk maps — so the clone is shared per `SourceMap` instance,
+// which Node.js memoizes per script.
+const sourceMapPayloads = new WeakMap<SourceMap, ModernSourceMapPayload>()
+
+/**
+ * Like `module.findSourceMap`, but returns the source map's payload without
+ * cloning it on every call. Callers must not mutate the returned payload.
+ * Throws like `module.findSourceMap` does on invalid source maps.
+ */
+export function findSourceMapPayload(
+  sourceURL: string
+): ModernSourceMapPayload | undefined {
+  const sourceMap = findSourceMap(sourceURL)
+  if (sourceMap === undefined) {
+    return undefined
+  }
+  let payload = sourceMapPayloads.get(sourceMap)
+  if (payload === undefined) {
+    payload = sourceMap.payload as ModernSourceMapPayload
+    sourceMapPayloads.set(sourceMap, payload)
+  }
+  return payload
+}
+
 export function sourceMapIgnoreListsEverything(
   sourceMap: BasicSourceMapPayload
 ): boolean {
@@ -125,16 +150,15 @@ export function filterStackFrameDEV(
     // Node.js loads source maps eagerly so this call is cheap.
     // TODO: ESM sourcemaps are O(1) but CommonJS sourcemaps are O(Number of CJS modules).
     // Make sure this doesn't adversely affect performance when CJS is used by Next.js.
-    const sourceMap = findSourceMap(sourceURL)
-    if (sourceMap === undefined) {
-      // No source map assoicated.
-      // TODO: Node.js types should reflect that `findSourceMap` can return `undefined`.
+    const payload = findSourceMapPayload(sourceURL)
+    if (payload === undefined) {
+      // No source map associated.
       return true
     }
     const sourceMapPayload = findApplicableSourceMapPayload(
       line1 - 1,
       column1 - 1,
-      sourceMap.payload
+      payload
     )
     if (sourceMapPayload === undefined) {
       // No source map section applicable to the frame.
@@ -219,7 +243,7 @@ export function findSourceMapURLDEV(
   if (sourceMapURL === undefined) {
     let sourceMapPayload: ModernSourceMapPayload | undefined
     try {
-      sourceMapPayload = findSourceMap(scriptNameOrSourceURL)?.payload
+      sourceMapPayload = findSourceMapPayload(scriptNameOrSourceURL)
     } catch (cause) {
       console.error(
         `${scriptNameOrSourceURL}: Invalid source map. Only conformant source maps can be used to find the original code. Cause: ${cause}`

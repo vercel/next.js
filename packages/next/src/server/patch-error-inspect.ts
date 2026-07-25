@@ -1,4 +1,3 @@
-import { findSourceMap as nativeFindSourceMap } from 'module'
 import * as path from 'path'
 import * as url from 'url'
 import type * as util from 'util'
@@ -7,6 +6,7 @@ import {
   type ModernSourceMapPayload,
   devirtualizeReactServerURL,
   findApplicableSourceMapPayload,
+  findSourceMapPayload,
   ignoreListAnonymousStackFramesIfSandwiched as ignoreListAnonymousStackFramesIfSandwichedGeneric,
   sourceMapIgnoreListsEverything,
 } from './lib/source-maps'
@@ -72,6 +72,38 @@ type SourceMapCache = Map<
   string,
   null | { map: SyncSourceMapConsumer; payload: ModernSourceMapPayload }
 >
+
+// Constructing a consumer indexes the whole payload — expensive for large
+// chunk maps and previously paid per frame — so consumers are shared across
+// all frames and errors whose lookups returned the same payload. The inner
+// key is the URL the consumer resolves relative `sources` against.
+const sourceMapConsumers = new WeakMap<
+  ModernSourceMapPayload,
+  Map<string, SyncSourceMapConsumer>
+>()
+
+function getOrCreateSourceMapConsumer(
+  payload: ModernSourceMapPayload,
+  sourceMapURL: string
+): SyncSourceMapConsumer {
+  let consumersByURL = sourceMapConsumers.get(payload)
+  let consumer = consumersByURL?.get(sourceMapURL)
+  if (consumer === undefined) {
+    consumer = new SyncSourceMapConsumer(
+      payload,
+      // @ts-expect-error: our typings don't include this parameter but it is here.
+      sourceMapURL
+    )
+    if (consumersByURL === undefined) {
+      consumersByURL = new Map()
+      // Throws for payloads that aren't objects; those are invalid source
+      // maps anyway, and the caller reports them.
+      sourceMapConsumers.set(payload, consumersByURL)
+    }
+    consumersByURL.set(sourceMapURL, consumer)
+  }
+  return consumer
+}
 
 function frameToString(
   methodName: string | null,
@@ -210,8 +242,7 @@ function getSourcemappedFrameIfPossible(
     }
     let maybeSourceMapPayload: ModernSourceMapPayload | undefined
     try {
-      const sourceMap = nativeFindSourceMap(sourceURL)
-      maybeSourceMapPayload = sourceMap?.payload
+      maybeSourceMapPayload = findSourceMapPayload(sourceURL)
     } catch (cause) {
       // We should not log an actual error instance here because that will re-enter
       // this codepath during error inspection and could lead to infinite recursion.
@@ -247,9 +278,8 @@ function getSourcemappedFrameIfPossible(
       // URI. `sourceURL` is already devirtualized so that relative `sources`
       // resolve against the real chunk URL, not React's virtual one.
       const sourceMapURL = sourceURL + '.map'
-      sourceMapConsumer = new SyncSourceMapConsumer(
+      sourceMapConsumer = getOrCreateSourceMapConsumer(
         sourceMapPayload,
-        // @ts-expect-error: our typings don't include this parameter but it is here.
         sourceMapURL
       )
     } catch (cause) {
