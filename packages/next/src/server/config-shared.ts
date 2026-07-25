@@ -1193,6 +1193,10 @@ export interface ExperimentalConfig {
    * (when `instant` is configured). Enabled by default; set to `false` to run
    * validation in-process, as an escape hatch to isolate a problem or fall back
    * if the worker misbehaves.
+   *
+   * Has no effect with Webpack, where validation always runs in process. The
+   * worker's thread cannot reach Webpack's dev source maps, so validation
+   * errors would be reported without a source location.
    */
   devValidationWorker?: boolean
 
