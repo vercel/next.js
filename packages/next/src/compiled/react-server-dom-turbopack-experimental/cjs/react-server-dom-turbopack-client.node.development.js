@@ -124,10 +124,13 @@
     ) {
       if (null !== moduleLoading)
         for (var i = 0; i < chunks.length; i++) {
-          var nonce = nonce$jscomp$0,
+          var chunk = chunks[i],
+            nonce = nonce$jscomp$0,
             JSCompiler_temp_const = ReactDOMSharedInternals.d,
-            JSCompiler_temp_const$jscomp$0 = JSCompiler_temp_const.X,
-            JSCompiler_temp_const$jscomp$1 = moduleLoading.prefix + chunks[i];
+            JSCompiler_temp_const$jscomp$0 = JSCompiler_temp_const.X;
+          chunk =
+            moduleLoading.prefix +
+            ("string" === typeof chunk ? chunk : chunk[0]);
           var JSCompiler_inline_result = moduleLoading.crossOrigin;
           JSCompiler_inline_result =
             "string" === typeof JSCompiler_inline_result
@@ -135,16 +138,12 @@
                 ? JSCompiler_inline_result
                 : ""
               : void 0;
-          JSCompiler_temp_const$jscomp$0.call(
-            JSCompiler_temp_const,
-            JSCompiler_temp_const$jscomp$1,
-            {
-              crossOrigin: JSCompiler_inline_result,
-              integrity: void 0,
-              fetchPriority: void 0,
-              nonce: nonce
-            }
-          );
+          JSCompiler_temp_const$jscomp$0.call(JSCompiler_temp_const, chunk, {
+            crossOrigin: JSCompiler_inline_result,
+            integrity: void 0,
+            fetchPriority: void 0,
+            nonce: nonce
+          });
         }
     }
     function getIteratorFn(maybeIterable) {
@@ -3703,7 +3702,11 @@
       return (debugInfo.debugTask = response);
     }
     function fakeJSXCallSite() {
-      return Error("react-stack-top-frame");
+      var previousStackTraceLimit = Error.stackTraceLimit;
+      Error.stackTraceLimit = ownerStackTraceLimit;
+      var error = Error("react-stack-top-frame");
+      Error.stackTraceLimit = previousStackTraceLimit;
+      return error;
     }
     function initializeFakeStack(response, debugInfo) {
       if (void 0 === debugInfo.debugStack) {
@@ -5266,6 +5269,7 @@
         createFakeJSXCallStack.react_stack_bottom_frame.bind(
           createFakeJSXCallStack
         ),
+      ownerStackTraceLimit = 10,
       currentOwnerInDEV = null,
       replayConsoleWithCallStack = {
         react_stack_bottom_frame: function (response, payload) {

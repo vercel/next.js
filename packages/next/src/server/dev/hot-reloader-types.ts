@@ -26,6 +26,7 @@ export const enum HMR_MESSAGE_SENT_TO_BROWSER {
   REMOVED_PAGE = 'removedPage',
   RELOAD_PAGE = 'reloadPage',
   SERVER_COMPONENT_CHANGES = 'serverComponentChanges',
+  STATIC_PARAMS_CHANGED = 'staticParamsChanged',
   MIDDLEWARE_CHANGES = 'middlewareChanges',
   CLIENT_CHANGES = 'clientChanges',
   SERVER_ONLY_CHANGES = 'serverOnlyChanges',
@@ -116,7 +117,14 @@ export interface ReloadPageMessage {
 
 export interface ServerComponentChangesMessage {
   type: HMR_MESSAGE_SENT_TO_BROWSER.SERVER_COMPONENT_CHANGES
-  hash: string
+}
+
+/**
+ * Sent in dev when a route's set of statically-known params changed, e.g.
+ * because `generateStaticParams` was added, removed, or edited.
+ */
+export interface StaticParamsChangedMessage {
+  type: HMR_MESSAGE_SENT_TO_BROWSER.STATIC_PARAMS_CHANGED
 }
 
 export interface MiddlewareChangesMessage {
@@ -200,6 +208,7 @@ export type HmrMessageSentToBrowser =
   | RemovedPageMessage
   | ReloadPageMessage
   | ServerComponentChangesMessage
+  | StaticParamsChangedMessage
   | ClientChangesMessage
   | MiddlewareChangesMessage
   | ServerOnlyChangesMessage
@@ -249,6 +258,13 @@ export interface NextJsHotReloaderInterface {
    * and App Router clients that don't have Cache Components enabled.
    */
   sendToLegacyClients(action: HmrMessageSentToBrowser): void
+  /**
+   * The hash of the most recent server component change, or `undefined` if no
+   * server component change has occurred yet. In dev, this is included in `"use
+   * cache"` cache keys so that cached entries are revalidated after an edit,
+   * for every client, regardless of whether it runs the HMR client.
+   */
+  getServerComponentsHmrRefreshHash(): string | undefined
   setCacheStatus(status: ServerCacheStatus, htmlRequestId: string): void
   setReactDebugChannel(
     debugChannel: ReactDebugChannelForBrowser,
@@ -287,7 +303,6 @@ export interface NextJsHotReloaderInterface {
     isApp?: boolean
     definition?: RouteDefinition
     url?: string
-    rscOnly?: boolean
     /**
      * Whether to wire HMR change subscriptions for the compiled entry.
      * Defaults to true (the dev server uses these to push updates to

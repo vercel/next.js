@@ -5,6 +5,8 @@ import { InvariantError } from '../../shared/lib/invariant-error'
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
 import { pathHasPrefix } from '../../shared/lib/router/utils/path-has-prefix'
 import { removePathPrefix } from '../../shared/lib/router/utils/remove-path-prefix'
+import { mightBeServerReferenceId } from '../../shared/lib/server-reference-info'
+import { wellKnownProperties } from '../../shared/lib/utils/reflect-utils'
 import { workAsyncStorage } from './work-async-storage.external'
 
 export interface ServerModuleMap {
@@ -16,15 +18,57 @@ export interface ServerModuleMap {
   }
 }
 
+export function getActionNotFoundError(actionId: string | null): Error {
+  return new Error(
+    `Failed to find Server Action${actionId ? ` "${actionId}"` : ''}. This request might be from an older or newer deployment.\nRead more: https://nextjs.org/docs/messages/failed-to-find-server-action`
+  )
+}
+
+export function getInvalidServerReferenceIdError(id: string): Error {
+  // `id` is arbitrary client-provided input. Unlike the not-found case, it has
+  // not passed the length gate and can reach this error via a malformed server
+  // reference in an action payload, so it may be of any length and contain
+  // control characters. `JSON.stringify` escapes newlines and quotes so it
+  // can't forge log lines, and truncating overly long ids prevents log
+  // flooding. Ids at or below the cap are logged in full so that we only add an
+  // ellipsis to ids that are meaningfully longer than the truncated length.
+  const encoded = JSON.stringify(
+    id.length > MAX_LOGGED_SERVER_REFERENCE_ID_LENGTH
+      ? id.slice(0, TRUNCATED_SERVER_REFERENCE_ID_LENGTH) + '…'
+      : id
+  )
+
+  return new Error(
+    `The Server Reference ID did not match the expected format. Received ${encoded}.\nRead more: https://nextjs.org/docs/messages/failed-to-find-server-action`
+  )
+}
+
+// Ids at or below the cap are logged in full. Longer ids are truncated to the
+// shorter length and marked with an ellipsis, so the cap leaves headroom over
+// the truncated length rather than ellipsizing ids that are barely too long.
+const MAX_LOGGED_SERVER_REFERENCE_ID_LENGTH = 100
+const TRUNCATED_SERVER_REFERENCE_ID_LENGTH = 90
+
 // This is a global singleton that is, among other things, also used to
 // encode/decode bound args of server function closures. This can't be using a
 // AsyncLocalStorage as it might happen at the module level.
 const MANIFESTS_SINGLETON = Symbol.for('next.server.manifests')
 
+interface RegisteredClientReferenceManifest {
+  /**
+   * The page the manifest was registered with. Routes are normalized app paths,
+   * which is lossy (route groups, parallel slots and the trailing `/page` are
+   * stripped), so this is kept alongside for consumers that need to address the
+   * manifest on disk again rather than reversing the normalization.
+   */
+  readonly page: string
+  readonly clientReferenceManifest: DeepReadonly<ClientReferenceManifest>
+}
+
 interface ManifestsSingleton {
   readonly clientReferenceManifestsPerRoute: Map<
     string,
-    DeepReadonly<ClientReferenceManifest>
+    RegisteredClientReferenceManifest
   >
   readonly proxiedClientReferenceManifest: DeepReadonly<ClientReferenceManifest>
   serverActionsManifest: DeepReadonly<ActionManifest>
@@ -47,7 +91,7 @@ const globalThisWithManifests = globalThis as GlobalThisWithManifests
 function createProxiedClientReferenceManifest(
   clientReferenceManifestsPerRoute: Map<
     string,
-    DeepReadonly<ClientReferenceManifest>
+    RegisteredClientReferenceManifest
   >
 ): DeepReadonly<ClientReferenceManifest> {
   const createMappingProxy = (prop: ClientReferenceManifestMappingProp) => {
@@ -60,7 +104,7 @@ function createProxiedClientReferenceManifest(
           if (workStore) {
             const currentManifest = clientReferenceManifestsPerRoute.get(
               workStore.route
-            )
+            )?.clientReferenceManifest
 
             if (currentManifest?.[prop][id]) {
               return currentManifest[prop][id]
@@ -79,15 +123,24 @@ function createProxiedClientReferenceManifest(
             if (process.env.NODE_ENV !== 'production') {
               for (const [
                 route,
-                manifest,
+                { page, clientReferenceManifest },
               ] of clientReferenceManifestsPerRoute) {
                 if (route === workStore.route) {
                   continue
                 }
 
-                const entry = manifest[prop][id]
+                const entry = clientReferenceManifest[prop][id]
 
                 if (entry !== undefined) {
+                  if (process.env.__NEXT_DEV_SERVER) {
+                    // The dev validation worker rebuilds this registry in its
+                    // own thread, seeded with only the route it validates, so
+                    // it has to be told which other manifests it needs.
+                    workStore.additionalClientReferenceManifestPages ??=
+                      new Set()
+                    workStore.additionalClientReferenceManifestPages.add(page)
+                  }
+
                   return entry
                 }
               }
@@ -99,8 +152,10 @@ function createProxiedClientReferenceManifest(
             // might also use client components which need to be serialized by
             // Flight, and therefore client references need to be resolvable. In
             // that case we search all page manifests to find the module.
-            for (const manifest of clientReferenceManifestsPerRoute.values()) {
-              const entry = manifest[prop][id]
+            for (const {
+              clientReferenceManifest,
+            } of clientReferenceManifestsPerRoute.values()) {
+              const entry = clientReferenceManifest[prop][id]
 
               if (entry !== undefined) {
                 return entry
@@ -135,17 +190,17 @@ function createProxiedClientReferenceManifest(
               )
             }
 
-            const currentManifest = clientReferenceManifestsPerRoute.get(
+            const registeredManifest = clientReferenceManifestsPerRoute.get(
               workStore.route
             )
 
-            if (!currentManifest) {
+            if (!registeredManifest) {
               throw new InvariantError(
                 `The client reference manifest for route "${workStore.route}" does not exist.`
               )
             }
 
-            return currentManifest[prop]
+            return registeredManifest.clientReferenceManifest[prop]
           }
           case 'clientModules':
           case 'rscModuleMapping':
@@ -179,48 +234,57 @@ function createProxiedClientReferenceManifest(
  * runtime, workers, etc. that React doesn't need to know.
  */
 function createServerModuleMap(): ServerModuleMap {
-  return new Proxy(
-    {},
-    {
-      get: (_, id: string) => {
-        const workers =
-          getServerActionsManifest()[
-            process.env.NEXT_RUNTIME === 'edge' ? 'edge' : 'node'
-          ]?.[id]?.workers
+  return new Proxy(Object.create(null) as ServerModuleMap, {
+    get: (target, id: string | symbol, receiver) => {
+      // React's debug serialization can probe the module map like a plain object.
+      // These probes are not server reference lookups.
+      if (typeof id !== 'string') {
+        return Reflect.get(target, id, receiver)
+      }
 
-        if (!workers) {
-          return undefined
-        }
+      if (wellKnownProperties.has(id)) {
+        return Reflect.get(target, id, receiver)
+      }
 
-        const workStore = workAsyncStorage.getStore()
+      if (!mightBeServerReferenceId(id)) {
+        throw getInvalidServerReferenceIdError(id)
+      }
 
-        let workerEntry:
-          | { moduleId: string | number; async: boolean }
-          | undefined
+      const workers =
+        getServerActionsManifest()[
+          process.env.NEXT_RUNTIME === 'edge' ? 'edge' : 'node'
+        ]?.[id]?.workers
 
-        if (workStore) {
-          workerEntry = workers[normalizeWorkerPageName(workStore.page)]
-        } else {
-          // If there's no work store defined, we can assume that a server
-          // module map is needed during module evaluation, e.g. to create a
-          // server action using a higher-order function. Therefore it should be
-          // safe to return any entry from the manifest that matches the action
-          // ID. They all refer to the same module ID, which must also exist in
-          // the current page bundle. TODO: This is currently not guaranteed in
-          // Turbopack, and needs to be fixed.
-          workerEntry = Object.values(workers).at(0)
-        }
+      if (!workers) {
+        throw getActionNotFoundError(id)
+      }
 
-        if (!workerEntry) {
-          return undefined
-        }
+      const workStore = workAsyncStorage.getStore()
 
-        const { moduleId, async } = workerEntry
+      let workerEntry: { moduleId: string | number; async: boolean } | undefined
 
-        return { id: moduleId, name: id, chunks: [], async }
-      },
-    }
-  )
+      if (workStore) {
+        workerEntry = workers[normalizeWorkerPageName(workStore.page)]
+      } else {
+        // If there's no work store defined, we can assume that a server
+        // module map is needed during module evaluation, e.g. to create a
+        // server action using a higher-order function. Therefore it should be
+        // safe to return any entry from the manifest that matches the action
+        // ID. They all refer to the same module ID, which must also exist in
+        // the current page bundle. TODO: This is currently not guaranteed in
+        // Turbopack, and needs to be fixed.
+        workerEntry = Object.values(workers).at(0)
+      }
+
+      if (!workerEntry) {
+        throw getActionNotFoundError(id)
+      }
+
+      const { moduleId, async } = workerEntry
+
+      return { id: moduleId, name: id, chunks: [], async }
+    },
+  })
 }
 
 /**
@@ -281,6 +345,7 @@ export function setManifestsSingleton({
   serverActionsManifest: DeepReadonly<ActionManifest>
 }) {
   const existingSingleton = globalThisWithManifests[MANIFESTS_SINGLETON]
+  const route = normalizeAppPath(page)
 
   const serverActionsManifest: DeepReadonly<ActionManifest> = {
     encryptionKey: rawServerActionsManifest.encryptionKey,
@@ -291,17 +356,17 @@ export function setManifestsSingleton({
   }
 
   if (existingSingleton) {
-    existingSingleton.clientReferenceManifestsPerRoute.set(
-      normalizeAppPath(page),
-      clientReferenceManifest
-    )
+    existingSingleton.clientReferenceManifestsPerRoute.set(route, {
+      page,
+      clientReferenceManifest,
+    })
 
     existingSingleton.serverActionsManifest = serverActionsManifest
   } else {
     const clientReferenceManifestsPerRoute = new Map<
       string,
-      DeepReadonly<ClientReferenceManifest>
-    >([[normalizeAppPath(page), clientReferenceManifest]])
+      RegisteredClientReferenceManifest
+    >([[route, { page, clientReferenceManifest }]])
 
     const proxiedClientReferenceManifest = createProxiedClientReferenceManifest(
       clientReferenceManifestsPerRoute

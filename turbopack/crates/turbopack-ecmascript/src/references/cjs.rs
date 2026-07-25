@@ -2,7 +2,10 @@ use anyhow::Result;
 use bincode::{Decode, Encode};
 use swc_core::{
     common::util::take::Take,
-    ecma::ast::{CallExpr, Expr, ExprOrSpread, Lit},
+    ecma::{
+        ast::{CallExpr, Expr, ExprOrSpread, Lit, Prop, PropOrSpread},
+        utils::prop_name_eq,
+    },
     quote,
 };
 use turbo_rcstr::{RcStr, rcstr};
@@ -15,7 +18,10 @@ use turbopack_core::{
     module::Module,
     reference::ModuleReference,
     reference_type::CommonJsReferenceSubType,
-    resolve::{ModuleResolveResult, ResolveErrorMode, origin::ResolveOrigin, parse::Request},
+    resolve::{
+        BindingUsage, ExportUsage, ImportUsage, ModuleResolveResult, ResolveErrorMode,
+        origin::ResolveOrigin, parse::Request,
+    },
 };
 use turbopack_resolve::ecmascript::cjs_resolve;
 
@@ -95,6 +101,8 @@ pub struct CjsRequireAssetReference {
     error_mode: ResolveErrorMode,
     chunking_type_attribute: Option<SpecifiedChunkingType>,
     resolve_override: Option<ResolvedVc<Box<dyn Module>>>,
+    usage: ExportUsage,
+    cjs_tree_shaking: bool,
 }
 
 impl CjsRequireAssetReference {
@@ -105,6 +113,8 @@ impl CjsRequireAssetReference {
         error_mode: ResolveErrorMode,
         chunking_type_attribute: Option<SpecifiedChunkingType>,
         resolve_override: Option<ResolvedVc<Box<dyn Module>>>,
+        usage: ExportUsage,
+        cjs_tree_shaking: bool,
     ) -> Self {
         CjsRequireAssetReference {
             origin,
@@ -113,6 +123,8 @@ impl CjsRequireAssetReference {
             error_mode,
             chunking_type_attribute,
             resolve_override,
+            usage,
+            cjs_tree_shaking,
         }
     }
 }
@@ -144,6 +156,13 @@ impl ModuleReference for CjsRequireAssetReference {
             },
             |c| c.as_chunking_type(false, false),
         )
+    }
+
+    fn binding_usage(&self) -> BindingUsage {
+        BindingUsage {
+            import: ImportUsage::TopLevel,
+            export: self.usage.clone(),
+        }
     }
 
     fn source(&self) -> Option<IssueSource> {
@@ -181,6 +200,22 @@ impl CjsRequireAssetReferenceCodeGen {
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<CodeGeneration> {
         let reference = self.reference.await?;
+
+        // This `require()` is in `unused_references`: its result is unused and
+        // the target is side-effect free. Replace the call with a placeholder
+        // at the expression level.
+        if reference.cjs_tree_shaking
+            && chunking_context
+                .unused_references()
+                .contains_key(&ResolvedVc::upcast(self.reference))
+                .await?
+        {
+            let visitor = create_visitor!(self.path, visit_mut_expr, |expr: &mut Expr| {
+                // `const {a,b} = 0;` is a clever way to assign undefined to all the variables
+                *expr = quote!("0" as Expr);
+            });
+            return Ok(CodeGeneration::visitors(vec![visitor]));
+        }
 
         let pm = PatternMapping::resolve_request(
             *reference.request,
@@ -408,9 +443,10 @@ impl From<CjsRequireCacheAccess> for CodeGen {
     }
 }
 
-/// Removes each named `exports.NAME = …` write the module graph proved unused.
-/// Built by the analyzer for statically-analyzable CommonJS modules; recognition
-/// happens inline during the walk (see `analyzer::graph::visitor`).
+/// Removes each named `exports.NAME = …` write (or `Object.defineProperty`
+/// export) the module graph proved unused. Built by the analyzer for
+/// statically-analyzable CommonJS modules; recognition happens inline during the
+/// walk (see `analyzer::graph::visitor`).
 #[derive(
     PartialEq, Eq, TraceRawVcs, ValueDebugFormat, NonLocalValue, Hash, Debug, Encode, Decode,
 )]
@@ -421,13 +457,14 @@ pub struct CjsExportsDropCodeGen {
     has_es_module: bool,
 }
 
-/// A single named `exports.NAME = …` write.
+/// A single named CommonJS export write.
 #[derive(
     PartialEq, Eq, TraceRawVcs, ValueDebugFormat, NonLocalValue, Hash, Debug, Encode, Decode,
 )]
 pub struct DroppableCjsExportAssignment {
     pub name: RcStr,
-    /// Path to the `exports.NAME = …` assignment expression.
+    /// Path to the write: an `exports.NAME = …` assignment expression or an
+    /// `Object.defineProperty(exports, "NAME", …)` call.
     pub path: AstPath,
 }
 
@@ -469,9 +506,21 @@ impl CjsExportsDropCodeGen {
                 drop.path,
                 visit_mut_expr,
                 |expr: &mut Expr| {
-                    if let Expr::Assign(assign) = expr {
-                        let value = assign.right.take();
-                        *expr = *value;
+                    match expr {
+                        // `exports.NAME = <value>` → `<value>` (keep side effects).
+                        Expr::Assign(assign) => {
+                            let value = assign.right.take();
+                            *expr = *value;
+                        }
+                        // `Object.defineProperty(exports, …)`: keep an eager
+                        // `value`'s side effects; a getter is lazy, drop the call.
+                        Expr::Call(call) => {
+                            *expr = match take_define_property_value(call) {
+                                Some(value) => *value,
+                                None => quote!("0" as Expr),
+                            };
+                        }
+                        _ => {}
                     }
                 }
             ));
@@ -479,6 +528,24 @@ impl CjsExportsDropCodeGen {
 
         Ok(CodeGeneration::visitors(visitors))
     }
+}
+
+/// Takes the `value: <expr>` out of an `Object.defineProperty` descriptor, if it
+/// has one. A descriptor without `value` is a getter, so there's nothing to keep.
+fn take_define_property_value(call: &mut CallExpr) -> Option<Box<Expr>> {
+    let descriptor = call.args.get_mut(2)?;
+    let Expr::Object(descriptor) = &mut *descriptor.expr else {
+        return None;
+    };
+    descriptor.props.iter_mut().find_map(|prop| {
+        let PropOrSpread::Prop(prop) = prop else {
+            return None;
+        };
+        let Prop::KeyValue(kv) = &mut **prop else {
+            return None;
+        };
+        prop_name_eq(&kv.key, "value").then(|| kv.value.take())
+    })
 }
 
 impl From<CjsExportsDropCodeGen> for CodeGen {

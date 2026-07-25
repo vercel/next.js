@@ -31,7 +31,6 @@ import type { McpPageMetadataResponse } from '../../../../shared/lib/mcp-page-me
 import { useUntrackedPathname } from '../../../components/navigation-untracked'
 import reportHmrLatency from '../../report-hmr-latency'
 import { TurbopackHmr } from '../turbopack-hot-reloader-common'
-import { NEXT_HMR_REFRESH_HASH_COOKIE } from '../../../components/app-router-headers'
 import {
   publicAppRouterInstance,
   type GlobalErrorState,
@@ -412,13 +411,8 @@ export function processMessage(
         JSON.stringify({
           event: 'server-component-reload-page',
           clientId: __nextDevClientId,
-          hash: message.hash,
         })
       )
-
-      // Store the latest hash in a session cookie so that it's sent back to the
-      // server with any subsequent requests.
-      document.cookie = `${NEXT_HMR_REFRESH_HASH_COOKIE}=${message.hash};path=/`
 
       if (
         RuntimeErrorHandler.hadRuntimeError ||
@@ -440,6 +434,27 @@ export function processMessage(
           self.__NEXT_HMR_CB = null
         }
       }
+
+      return
+    }
+    case HMR_MESSAGE_SENT_TO_BROWSER.STATIC_PARAMS_CHANGED: {
+      // Re-fetch the current router tree so the render picks up the new set of
+      // statically-known params (and thus the fresh `fallbackParams`). Unlike
+      // `SERVER_COMPONENT_CHANGES` this does not store an HMR refresh hash, so
+      // it doesn't invalidate `"use cache"` entries.
+      if (
+        RuntimeErrorHandler.hadRuntimeError ||
+        document.documentElement.id === '__next_error__'
+      ) {
+        if (reloading) return
+        reloading = true
+        return window.location.reload()
+      }
+
+      startTransition(() => {
+        publicAppRouterInstance.hmrRefresh()
+        dispatcher.onRefresh()
+      })
 
       return
     }

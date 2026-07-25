@@ -1439,5 +1439,22 @@
   "1438": "Route \"%s\": Next.js encountered uncached data in \\`generateViewport()\\`.\\n\\n\\`fetch(...)\\` or \\`connection()\\` in \\`generateViewport()\\` prevents the page from being prerendered, leading to a slower user experience.\\n\\nWays to fix this:\\n  - [cache] Cache the viewport data with \\`\"use cache\"\\` in \\`generateViewport()\\` (does not apply to \\`connection()\\`)\\n  - [block] Set \\`export const instant = false\\` to allow a blocking route\\n\\nLearn more: https://nextjs.org/docs/messages/blocking-prerender-viewport-dynamic",
   "1439": "Route \"%s\": Next.js encountered URL data during prerendering or a navigation.\\n\\n\\`params\\` or \\`searchParams\\` accessed outside of \\`<Suspense>\\` may prevent the navigation from being instant, leading to a slower user experience.\\n\\nWays to fix this:\\n  - [stream] Provide a placeholder with \\`<Suspense fallback={...}>\\` around the data access\\n  - [block] Set \\`export const instant = false\\` to allow a blocking route\\n\\nLearn more: https://nextjs.org/docs/messages/instant-shell-url-data",
   "1440": "Route \"%s\": Next.js encountered uncached data during prerendering.\\n\\n\\`fetch(...)\\` or \\`connection()\\` accessed outside of \\`<Suspense>\\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.\\n\\nWays to fix this:\\n  - [stream] Provide a placeholder with \\`<Suspense fallback={...}>\\` around the data access\\n  - [cache] Cache the data access with \\`\"use cache\"\\` (does not apply to \\`connection()\\`)\\n  - [block] Set \\`export const instant = false\\` to allow a blocking route\\n\\nLearn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic",
-  "1441": "DevValidationScheduler requires at least one active validation"
+  "1441": "DevValidationScheduler requires at least one active validation",
+  "1442": "The Server Reference ID did not match the expected format. Received %s.\\nRead more: https://nextjs.org/docs/messages/failed-to-find-server-action",
+  "1443": "Unsupported body type: %s",
+  "1444": "Invalid target hostname \"%s\" for proxy request, expected \"%s\"",
+  "1445": "Invariant: Missing `__NEXT_PRIVATE_ORIGIN` environment variable.",
+  "1446": "Missing initURL",
+  "1447": "Could not determine origin for forwarded Server Actions request. This can happen if port or hostname are not configured for this server.",
+  "1448": "Error in the \"%s\" app-route HMR subscription",
+  "1449": "Accessed `searchParams` during prerendering.",
+  "1450": "Invalid value returned from generateStaticParams for \"%s\". Expected an array, but received type %s. See more info here: https://nextjs.org/docs/messages/generate-static-params",
+  "1451": "Invalid value at index %s returned from generateStaticParams for \"%s\". Expected an object, but received type %s. See more info here: https://nextjs.org/docs/messages/generate-static-params",
+  "1452": "Page \"%s\" is missing \"generateStaticParams()\" so it cannot be used with \"output: export\" config. See more info here: https://nextjs.org/docs/messages/generate-static-params",
+  "1453": "Page \"%s\" is missing exported function \"generateStaticParams()\", which is required with \"output: export\" config. See more info here: https://nextjs.org/docs/messages/generate-static-params",
+  "1454": "Page \"%s\" returned an empty array from \"generateStaticParams()\". With \"output: export\", at least one route must be generated. See more info here: https://nextjs.org/docs/messages/generate-static-params",
+  "1455": "Page \"%s\" returned incomplete params from \"generateStaticParams()\". With \"output: export\", every params object must include all dynamic route parameters. Missing: %s. See more info here: https://nextjs.org/docs/messages/generate-static-params",
+  "1456": "Expected an HTML size for prerendered app route \"%s\"",
+  "1457": "Expected prerender classification data for PPR route \"%s\"",
+  "1458": "Expected complete prerender classification for route \"%s\""
 }

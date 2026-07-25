@@ -303,6 +303,7 @@ async fn errors_on_404() {
 async fn fetch_body(url: RcStr) -> Result<Vc<RcStr>> {
     let client_vc = FetchClientConfig {
         min_cache_control: Duration::ZERO,
+        ..Default::default()
     }
     .cell();
     let response = &*client_vc

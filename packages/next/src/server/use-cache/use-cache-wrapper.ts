@@ -74,10 +74,7 @@ import {
 } from './handlers'
 import type { CacheReadWriteHandler } from './tiered-cache-handler'
 import { cloneCacheEntry } from './clone-cache-entry'
-import {
-  NEXT_HMR_REFRESH_HASH_COOKIE,
-  NEXT_INSTANT_TEST_COOKIE,
-} from '../../client/components/app-router-headers'
+import { NEXT_INSTANT_TEST_COOKIE } from '../../client/components/app-router-headers'
 import type { ReadonlyRequestCookies } from '../web/spec-extension/adapters/request-cookies'
 import type { ReadonlyHeaders } from '../web/spec-extension/adapters/headers'
 import {
@@ -366,10 +363,8 @@ function computeRootParamsCacheKeySuffix(
 // Next-internal cookies that must not vary the private cache key, since they're
 // not part of the application's own cookie state. The instant-navigation cookie
 // toggles while a navigation lock is held, so including it would force spurious
-// misses. The HMR refresh hash is already part of the cache key (see
-// `cacheKeyParts`), so including its cookie too would just be redundant.
+// misses.
 const COOKIES_EXCLUDED_FROM_PRIVATE_CACHE_KEY = new Set<string>([
-  NEXT_HMR_REFRESH_HASH_COOKIE,
   NEXT_INSTANT_TEST_COOKIE,
 ])
 
