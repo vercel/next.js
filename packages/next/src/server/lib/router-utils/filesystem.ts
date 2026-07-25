@@ -106,6 +106,13 @@ export const buildCustomRoute = <T>(
   }
 }
 
+// Measured retained cost of a cache entry beyond its strings (LRUNode,
+// Map slot, string header): ~120 bytes. Counting it keeps the entry count
+// bounded even when keys are short, so the budget approximates retained
+// bytes.
+const FS_LRU_ENTRY_OVERHEAD = 128
+const FS_LRU_MAX_SIZE = 8 * 1024 * 1024
+
 export async function setupFsCheck(opts: {
   dir: string
   dev: boolean
@@ -113,14 +120,17 @@ export async function setupFsCheck(opts: {
   config: NextConfigRuntime
 }) {
   const getItemsLru = !opts.dev
-    ? new LRUCache<FsOutput | null>(1024 * 1024, function length(value, key) {
-        const keyLength = key.length
+    ? new LRUCache<FsOutput | null>(FS_LRU_MAX_SIZE, function length(
+        value,
+        key
+      ) {
+        const size = FS_LRU_ENTRY_OVERHEAD + key.length
         if (!value) {
           // Negative cache entries only retain their key.
-          return keyLength || 1
+          return size
         }
         return (
-          keyLength +
+          size +
           (value.fsPath || '').length +
           value.itemPath.length +
           value.type.length
