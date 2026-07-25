@@ -113,6 +113,13 @@ export const buildCustomRoute = <T>(
 const FS_LRU_ENTRY_OVERHEAD = 128
 const FS_LRU_MAX_SIZE = 8 * 1024 * 1024
 
+// The pathname passed to getItem is usually a V8 slice of the full request
+// URL, and a sliced string retains its parent — including the query string —
+// for as long as the cache holds the key. Store a flat copy instead.
+function flatKeyCopy(key: string): string {
+  return Buffer.from(key).toString('utf8')
+}
+
 export async function setupFsCheck(opts: {
   dir: string
   dev: boolean
@@ -738,12 +745,12 @@ export async function setupFsCheck(opts: {
             itemPath: curItemPath,
           }
 
-          getItemsLru?.set(itemKey, itemResult)
+          getItemsLru?.set(flatKeyCopy(itemKey), itemResult)
           return itemResult
         }
       }
 
-      getItemsLru?.set(itemKey, null)
+      getItemsLru?.set(flatKeyCopy(itemKey), null)
       return null
     },
     getDynamicRoutes() {
