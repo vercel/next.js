@@ -491,8 +491,7 @@ function updateCacheNodeOnNavigation(
 
     newCacheNode.slots = newCacheNodeSlots = {}
     taskChildren = new Map()
-    for (let parallelRouteKey in newSlots) {
-      let newRouteTreeChild: RouteTree = newSlots[parallelRouteKey]
+    for (let [parallelRouteKey, newRouteTreeChild] of newSlots) {
       const oldRouterStateChild: FlightRouterState | void =
         oldRouterStateChildren[parallelRouteKey]
       if (oldRouterStateChild === undefined) {
@@ -720,8 +719,7 @@ function createCacheNodeOnNavigation(
   if (newSlots !== null) {
     newCacheNode.slots = newCacheNodeSlots = {}
     taskChildren = new Map()
-    for (let parallelRouteKey in newSlots) {
-      const newRouteTreeChild: RouteTree = newSlots[parallelRouteKey]
+    for (const [parallelRouteKey, newRouteTreeChild] of newSlots) {
       const seedDataChild: CacheNodeSeedData | void | null =
         seedDataChildren !== null ? seedDataChildren[parallelRouteKey] : null
 
@@ -2000,8 +1998,7 @@ function writeDynamicDataIntoNavigationTask(
 
   if (taskChildren !== null) {
     if (serverChildren !== null) {
-      for (const parallelRouteKey in serverChildren) {
-        const serverRouteTreeChild: RouteTree = serverChildren[parallelRouteKey]
+      for (const [parallelRouteKey, serverRouteTreeChild] of serverChildren) {
         const dynamicDataChild: CacheNodeSeedData | null | void =
           dynamicDataChildren !== null
             ? dynamicDataChildren[parallelRouteKey]

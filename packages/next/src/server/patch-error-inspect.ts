@@ -1,4 +1,3 @@
-import { findSourceMap as nativeFindSourceMap } from 'module'
 import * as path from 'path'
 import * as url from 'url'
 import type * as util from 'util'
@@ -7,6 +6,7 @@ import {
   type ModernSourceMapPayload,
   devirtualizeReactServerURL,
   findApplicableSourceMapPayload,
+  findSourceMapPayload,
   ignoreListAnonymousStackFramesIfSandwiched as ignoreListAnonymousStackFramesIfSandwichedGeneric,
   sourceMapIgnoreListsEverything,
 } from './lib/source-maps'
@@ -37,10 +37,20 @@ type CodeFrameRenderer = (
   colors: boolean
 ) => string | null
 
-let codeFrameRenderer: CodeFrameRenderer | undefined
+// The code-frame renderer is stored on `globalThis` rather than in a module
+// variable because this module is bundled into several runtimes (the dev
+// server, the app-page runtime bundle, and the dev worker bundles) that each
+// get their own copy. `Error.prepareStackTrace` is a single process-global, so
+// whichever copy patched it last is the one that renders errors, which may not
+// be the copy `setCodeFrameRenderer` was called on. Sharing the renderer
+// through a `globalThis` symbol lets any copy install it and any copy read it.
+const CODE_FRAME_RENDERER = Symbol.for('next.dev.codeFrameRenderer')
+type GlobalWithCodeFrameRenderer = typeof globalThis & {
+  [CODE_FRAME_RENDERER]?: CodeFrameRenderer
+}
 
 export function setCodeFrameRenderer(renderer: CodeFrameRenderer): void {
-  codeFrameRenderer = renderer
+  ;(globalThis as GlobalWithCodeFrameRenderer)[CODE_FRAME_RENDERER] = renderer
 }
 
 function getOriginalCodeFrame(
@@ -48,6 +58,9 @@ function getOriginalCodeFrame(
   source: string | null,
   colors: boolean = process.stdout.isTTY
 ): string | null {
+  const codeFrameRenderer = (globalThis as GlobalWithCodeFrameRenderer)[
+    CODE_FRAME_RENDERER
+  ]
   if (!codeFrameRenderer) {
     // No renderer available - gracefully degrade
     return null
@@ -59,6 +72,38 @@ type SourceMapCache = Map<
   string,
   null | { map: SyncSourceMapConsumer; payload: ModernSourceMapPayload }
 >
+
+// Constructing a consumer indexes the whole payload — expensive for large
+// chunk maps and previously paid per frame — so consumers are shared across
+// all frames and errors whose lookups returned the same payload. The inner
+// key is the URL the consumer resolves relative `sources` against.
+const sourceMapConsumers = new WeakMap<
+  ModernSourceMapPayload,
+  Map<string, SyncSourceMapConsumer>
+>()
+
+function getOrCreateSourceMapConsumer(
+  payload: ModernSourceMapPayload,
+  sourceMapURL: string
+): SyncSourceMapConsumer {
+  let consumersByURL = sourceMapConsumers.get(payload)
+  let consumer = consumersByURL?.get(sourceMapURL)
+  if (consumer === undefined) {
+    consumer = new SyncSourceMapConsumer(
+      payload,
+      // @ts-expect-error: our typings don't include this parameter but it is here.
+      sourceMapURL
+    )
+    if (consumersByURL === undefined) {
+      consumersByURL = new Map()
+      // Throws for payloads that aren't objects; those are invalid source
+      // maps anyway, and the caller reports them.
+      sourceMapConsumers.set(payload, consumersByURL)
+    }
+    consumersByURL.set(sourceMapURL, consumer)
+  }
+  return consumer
+}
 
 function frameToString(
   methodName: string | null,
@@ -181,7 +226,10 @@ function getSourcemappedFrameIfPossible(
   let sourceMapConsumer: SyncSourceMapConsumer
   let sourceMapPayload: ModernSourceMapPayload
   if (sourceMapCacheEntry === undefined) {
-    let sourceURL = frame.file
+    // Fake frame scripts (`about://React/Server/file:///path/to/chunk.js?42`)
+    // have their positions padded to match the underlying chunk, so they
+    // resolve via the chunk's source map.
+    let sourceURL = devirtualizeReactServerURL(frame.file)
     // e.g. "/Users/foo/APP/.next/server/chunks/ssr/[root-of-the-server]__2934a0._.js"
     // or "C:\Users\foo\APP\.next\server\chunks\ssr\[root-of-the-server]__2934a0._.js"
     // will be keyed by Node.js as "file:///APP/.next/server/chunks/ssr/[root-of-the-server]__2934a0._.js".
@@ -189,13 +237,12 @@ function getSourcemappedFrameIfPossible(
     //
     // But frame.file might also be "webpack-internal:///(rsc)/./app/bad-sourcemap/page.js" or
     // "<anonymous>" or "node:internal/process/task_queues" here
-    if (path.isAbsolute(frame.file)) {
-      sourceURL = url.pathToFileURL(frame.file).toString()
+    if (path.isAbsolute(sourceURL)) {
+      sourceURL = url.pathToFileURL(sourceURL).toString()
     }
     let maybeSourceMapPayload: ModernSourceMapPayload | undefined
     try {
-      const sourceMap = nativeFindSourceMap(sourceURL)
-      maybeSourceMapPayload = sourceMap?.payload
+      maybeSourceMapPayload = findSourceMapPayload(sourceURL)
     } catch (cause) {
       // We should not log an actual error instance here because that will re-enter
       // this codepath during error inspection and could lead to infinite recursion.
@@ -228,13 +275,11 @@ function getSourcemappedFrameIfPossible(
       // is sufficient to compute relative paths but is actually wrong (the
       // chunk and sourcemap have different content hashes). We are using the
       // node API to read the sourcemap and it doesn't give us access to the
-      // URI. Devirtualize `about://React/Server/file:///path/to/chunk.js?4` to
-      // `file:///path/to/chunk.js` so that relative `sources` in the source map
-      // resolve against the real chunk URL, not the virtual one.
-      const sourceMapURL = devirtualizeReactServerURL(sourceURL) + '.map'
-      sourceMapConsumer = new SyncSourceMapConsumer(
+      // URI. `sourceURL` is already devirtualized so that relative `sources`
+      // resolve against the real chunk URL, not React's virtual one.
+      const sourceMapURL = sourceURL + '.map'
+      sourceMapConsumer = getOrCreateSourceMapConsumer(
         sourceMapPayload,
-        // @ts-expect-error: our typings don't include this parameter but it is here.
         sourceMapURL
       )
     } catch (cause) {
