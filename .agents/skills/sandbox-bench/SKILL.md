@@ -39,18 +39,18 @@ extra, once); later runs boot straight into measurement.
    default), then `node scripts/config.mjs set team=<slug> project=<name>`.
    Config lives in `~/.config/sandbox-bench/config.json` — never commit
    team/project names into the repo.
-2. The Vercel CLI session must have access to that team. Any sandbox
-   call returning 403 means the team grant dropped from the token:
-   stop launching immediately — do not retry through a 403 — and
-   re-login. The login runs in YOUR shell (the token lives with the
-   CLI session, not with the user), so don't ask the user to run it:
-   run `vercel login <team-slug>` yourself as a background task. It
-   opens a browser/device confirmation for the user to click — relay
-   the URL if one is printed; when an agent shell is detected the CLI
-   goes non-interactive and may print nothing and still succeed.
-   Either way, verify with `vercel whoami --scope <team-slug>` plus
-   one scoped read call (e.g. `vercel sandbox ls`) before resuming
-   launches. After a 403 outage, expect in-flight runs to have died:
+2. The Vercel CLI session must have access to that team. On a 403,
+   stop launching (don't retry through it) and check whether access is
+   already back: `vercel whoami --scope <team-slug>` plus one scoped
+   read call (e.g. `vercel sandbox ls`) — grants drop and recover on
+   their own, and a transient 403 needs no login at all. If
+   verification still fails, run `vercel login <team-slug>` yourself
+   as a background task (the token lives with the CLI session, not
+   with the user). It opens a browser/device confirmation — relay the
+   URL if one is printed — but keep re-running the verification pair
+   every minute or two while it waits: access often returns before
+   the login flow reports success, and once verification passes, kill
+   the pending login and resume. After a 403 outage, expect in-flight runs to have died:
    run `node scripts/bench-status.mjs` and follow its recovery
    actions (measurement VMs will have hit their ~5h timeout if the
    outage was long — those cells need relaunching, not collecting).

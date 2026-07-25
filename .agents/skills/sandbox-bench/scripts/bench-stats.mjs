@@ -135,8 +135,14 @@ export function formatStat(name, candName, baseName, s) {
   const meta = m
     ? ` [${m.unit}; ${s.mean > 0 === (m.better === 'higher') ? 'IMPROVEMENT' : 'regression'} if real]`
     : ''
+  // Byte metrics are deterministic per build, so a ±0.0 near-zero cell
+  // with p=0 is normal; the absolute values say whether it matters.
+  const abs =
+    s.absBase !== undefined && m?.unit === 'KB'
+      ? ` [${s.absBase.toFixed(1)}KB -> ${s.absCand.toFixed(1)}KB]`
+      : ''
   return (
-    `  ${name.padEnd(6)} ${candName} vs ${baseName}: ${pct(s.mean)} ${ci}${meta} ` +
+    `  ${name.padEnd(6)} ${candName} vs ${baseName}: ${pct(s.mean)} ${ci}${meta}${abs} ` +
     `(boots=${s.boots}${s.boots < 3 ? ' — TOO FEW FOR CLAIMS' : ''}, p=${s.p.toFixed(4)})` +
     `  perBoot ${s.bootMeans.map((m) => pct(m)).join(' ')}` +
     `  [pairs=${s.pairs} within-run p=${s.withinP.toFixed(4)} — diagnostic only]`
@@ -183,6 +189,8 @@ export function analyzeE2eRows(rows, baseName, candName, metrics) {
     const inPhase = (r) => `${r.route ?? ''} ${r.phase}` === phase
     for (const metric of metrics) {
       const perBoot = []
+      const baseVals = []
+      const candVals = []
       for (const vm of [...new Set(rows.map((r) => r.vm))]) {
         const deltas = []
         for (const r of rows.filter(
@@ -196,14 +204,19 @@ export function analyzeE2eRows(rows, baseName, candName, metrics) {
               x.block === r.block &&
               x.run === r.run
           )
-          if (b && b[metric] > 0 && r[metric] > 0)
+          if (b && b[metric] > 0 && r[metric] > 0) {
             deltas.push((r[metric] - b[metric]) / b[metric])
+            baseVals.push(b[metric])
+            candVals.push(r[metric])
+          }
         }
         perBoot.push(deltas)
       }
       const s = bootLevelStats(perBoot)
       if (s !== null && s.pairs > 0) {
         captured.add(metric)
+        s.absBase = baseVals.reduce((a, b) => a + b, 0) / baseVals.length
+        s.absCand = candVals.reduce((a, b) => a + b, 0) / candVals.length
         console.log(formatStat(metric, candName, baseName, s))
       }
     }
