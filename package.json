@@ -16,6 +16,7 @@
     "bench:render-pipeline": "tsx bench/render-pipeline/benchmark.ts",
     "bench:render-pipeline:analyze": "tsx bench/render-pipeline/analyze-profiles.ts",
     "bench:render-pipeline:client": "tsx bench/render-pipeline/client-trace.ts",
+    "bench:dev-validation": "tsx bench/dev-validation/benchmark.ts",
     "pack-next": "tsx scripts/pack-next.ts",
     "eval": "node run-evals.js",
     "test-types": "tsc",
