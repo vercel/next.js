@@ -742,7 +742,9 @@ export async function setupFsCheck(opts: {
             fsPath,
             locale,
             itemsRoot,
-            itemPath: curItemPath,
+            // itemPath is usually a slice of the request URL too; keep a
+            // flat copy so the cached value doesn't retain the full URL.
+            itemPath: flatKeyCopy(curItemPath),
           }
 
           getItemsLru?.set(flatKeyCopy(itemKey), itemResult)
