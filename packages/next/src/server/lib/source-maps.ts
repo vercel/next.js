@@ -280,6 +280,35 @@ export function devirtualizeReactServerURL(sourceURL: string): string {
   return sourceURL
 }
 
+/**
+ * Reverse the `sourceRoot` join that a source-map consumer applies in `originalPositionFor()`
+ * (per the source-map spec, the returned `source` is `join(sourceRoot, rawSource)`), recovering
+ * the raw `sources` entry for display. This matters for dev maps that set a `sourceRoot` — e.g.
+ * `experimental.turbopackServeSourceContent`, whose maps point `sourceRoot` at the on-demand
+ * content endpoint (`/__nextjs_source-content/[project]/`). The user-facing frame `file` should be
+ * the clean project-relative path, not the endpoint URL.
+ *
+ * The consumer's `computeSourceURL` runs the join through URL resolution when a `sourceRoot` is
+ * present, which percent-encodes path segments (e.g. `[lang]` → `%5Blang%5D`). Decode the stripped
+ * tail so bracketed dynamic-route segments render as authored. Returns `source` unchanged when
+ * there is no `sourceRoot` or it does not prefix `source`.
+ */
+export function stripSourceRoot(
+  source: string,
+  sourceRoot: string | undefined | null
+): string {
+  if (!sourceRoot || !source.startsWith(sourceRoot)) {
+    return source
+  }
+  const rawSource = source.slice(sourceRoot.length)
+  try {
+    return decodeURIComponent(rawSource)
+  } catch {
+    // Malformed percent-encoding — fall back to the raw (still-stripped) form.
+    return rawSource
+  }
+}
+
 function isAnonymousFrameLikelyJSNative(methodName: string): boolean {
   // Anonymous frames can also be produced in React parent stacks either from
   // host components or Server Components. We don't want to ignore those.

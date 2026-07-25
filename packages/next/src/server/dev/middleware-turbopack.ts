@@ -21,6 +21,7 @@ import {
   type ModernSourceMapPayload,
   devirtualizeReactServerURL,
   findApplicableSourceMapPayload,
+  stripSourceRoot,
 } from '../lib/source-maps'
 import { findSourceMap, type SourceMap } from 'node:module'
 import { fileURLToPath, pathToFileURL } from 'node:url'
@@ -252,6 +253,8 @@ async function nativeTraceSource(
     }
     let traced: {
       originalPosition: NullableMappedPosition
+      // `originalPosition.source` narrowed to non-null (we only trace when it is present).
+      source: string
       sourceContent: string | null
     } | null
     try {
@@ -270,19 +273,31 @@ async function nativeTraceSource(
             /* returnNullOnMissing */ true
           ) ?? null
 
-        traced = { originalPosition, sourceContent }
+        traced = {
+          originalPosition,
+          source: originalPosition.source,
+          sourceContent,
+        }
       }
     } finally {
       consumer.destroy()
     }
 
     if (traced !== null) {
-      const { originalPosition, sourceContent } = traced
+      const { originalPosition, source, sourceContent } = traced
       const applicableSourceMap = findApplicableSourceMapPayload(
         (frame.line ?? 1) - 1,
         (frame.column ?? 1) - 1,
         sourceMapPayload
       )
+
+      // `originalPosition.source` is resolved against the map's `sourceRoot` by the consumer, but
+      // `applicableSourceMap.sources` holds the raw (pre-`sourceRoot`) entries. Strip the
+      // `sourceRoot` prefix to recover the raw source, used for the ignore-list lookup and for the
+      // user-facing `file` (so a `sourceRoot` like the on-demand source-content endpoint doesn't
+      // leak into the displayed path). The native code-frame lookup below still uses the
+      // un-stripped `originalPosition.source`.
+      const rawSource = stripSourceRoot(source, applicableSourceMap?.sourceRoot)
 
       // TODO(veil): Upstream a method to sourcemap consumer that immediately says if a frame is ignored or not.
       let ignored = false
@@ -292,22 +307,11 @@ async function nativeTraceSource(
           frame
         )
       } else {
-        // `originalPosition.source` is resolved against the map's `sourceRoot` by the consumer,
-        // but `applicableSourceMap.sources` holds the raw (pre-`sourceRoot`) entries. Strip the
-        // `sourceRoot` prefix before matching so the ignore-list lookup works when a `sourceRoot`
-        // is present (e.g. the on-demand source-content dev maps).
-        const sourceRoot = applicableSourceMap.sourceRoot ?? ''
-        const rawSource =
-          sourceRoot && originalPosition.source?.startsWith(sourceRoot)
-            ? originalPosition.source.slice(sourceRoot.length)
-            : originalPosition.source
         // TODO: O(n^2). Consider moving `ignoreList` into a Set
-        let sourceIndex = applicableSourceMap.sources.indexOf(rawSource!)
-        if (sourceIndex === -1 && rawSource !== originalPosition.source) {
+        let sourceIndex = applicableSourceMap.sources.indexOf(rawSource)
+        if (sourceIndex === -1 && rawSource !== source) {
           // Fall back to the fully-resolved form in case `sources` already includes `sourceRoot`.
-          sourceIndex = applicableSourceMap.sources.indexOf(
-            originalPosition.source!
-          )
+          sourceIndex = applicableSourceMap.sources.indexOf(source)
         }
         ignored =
           applicableSourceMap.ignoreList?.includes(sourceIndex) ??
@@ -325,7 +329,7 @@ async function nativeTraceSource(
           frame.methodName
             ?.replace('__WEBPACK_DEFAULT_EXPORT__', 'default')
             ?.replace('__webpack_exports__.', '') || '<unknown>',
-        file: originalPosition.source,
+        file: rawSource,
         line1: originalPosition.line,
         column1:
           originalPosition.column === null ? null : originalPosition.column + 1,
@@ -340,18 +344,16 @@ async function nativeTraceSource(
           // When the map inlines content, render it in-process. When it omits
           // content (dev with `experimental.turbopackServeSourceContent`), the
           // resolved source is prefixed with the on-demand content `sourceRoot`;
-          // read + render it from turbopack in one native call instead.
+          // read + render it from turbopack in one native call instead. Detect the
+          // feature from the un-stripped resolved source (the display `file` has had
+          // the `sourceRoot` removed) and use the stripped `rawSource` as the asset path.
           if (
             sourceContent === null &&
-            originalStackFrame.file?.startsWith(
-              SOURCE_CONTENT_MIDDLEWARE_PREFIX
-            ) &&
+            source.startsWith(SOURCE_CONTENT_MIDDLEWARE_PREFIX) &&
             originalStackFrame.line1 != null
           ) {
             return project.getCodeFrameForAsset(
-              originalStackFrame.file.slice(
-                SOURCE_CONTENT_MIDDLEWARE_PREFIX.length
-              ),
+              rawSource,
               {
                 start: {
                   line: originalStackFrame.line1,

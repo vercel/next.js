@@ -9,6 +9,7 @@ import {
   findSourceMapPayload,
   ignoreListAnonymousStackFramesIfSandwiched as ignoreListAnonymousStackFramesIfSandwichedGeneric,
   sourceMapIgnoreListsEverything,
+  stripSourceRoot,
 } from './lib/source-maps'
 import { parseStack, type StackFrame } from './lib/parse-stack'
 import type { IgnorableStackFrame } from '../next-devtools/server/shared'
@@ -394,6 +395,14 @@ function getSourcemappedFrameIfPossible(
     }
   }
 
+  // `originalPositionFor` joins the source with the map's `sourceRoot`; `sources`/`ignoreList` are
+  // keyed by the raw (pre-`sourceRoot`) entries. Reverse the join for lookups and display, keeping
+  // the un-stripped `sourcePosition.source` for the native code-frame renderer (which needs it).
+  const rawSource = stripSourceRoot(
+    sourcePosition.source,
+    applicableSourceMap?.sourceRoot
+  )
+
   // TODO(veil): Upstream a method to sourcemap consumer that immediately says if a frame is ignored or not.
   if (applicableSourceMap === undefined) {
     console.error('No applicable source map found in sections for frame', frame)
@@ -407,9 +416,11 @@ function getSourcemappedFrameIfPossible(
     ignored = true
   } else if (!ignored) {
     // TODO: O(n^2). Consider moving `ignoreList` into a Set
-    const sourceIndex = applicableSourceMap.sources.indexOf(
-      sourcePosition.source
-    )
+    let sourceIndex = applicableSourceMap.sources.indexOf(rawSource)
+    if (sourceIndex === -1 && rawSource !== sourcePosition.source) {
+      // Fall back to the fully-resolved form in case `sources` already includes `sourceRoot`.
+      sourceIndex = applicableSourceMap.sources.indexOf(sourcePosition.source)
+    }
     ignored = applicableSourceMap.ignoreList?.includes(sourceIndex) ?? false
   }
 
@@ -421,7 +432,10 @@ function getSourcemappedFrameIfPossible(
     methodName: frame.methodName
       ?.replace('__WEBPACK_DEFAULT_EXPORT__', 'default')
       ?.replace('__webpack_exports__.', ''),
-    file: sourcePosition.source,
+    // Use the `sourceRoot`-stripped source so the user-facing `file` is the clean project-relative
+    // path, not the endpoint URL of a dev `sourceRoot` (e.g. on-demand source-content). The native
+    // code-frame renderer below still receives the un-stripped `sourcePosition.source`.
+    file: rawSource,
     line1: sourcePosition.line,
     column1: sourcePosition.column + 1,
     // TODO: c&p from async createOriginalStackFrame but why not frame.arguments?

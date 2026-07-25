@@ -85,7 +85,10 @@ import {
 import { generateEncryptionKeyBase64 } from '../app-render/encryption-utils-server'
 import { isAppPageRouteDefinition } from '../route-definitions/app-page-route-definition'
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
-import type { ModernSourceMapPayload } from '../lib/source-maps'
+import {
+  type ModernSourceMapPayload,
+  stripSourceRoot,
+} from '../lib/source-maps'
 import { isDeferredEntry } from '../../build/entries'
 import { isMetadataRouteFile } from '../../lib/metadata/is-metadata-route'
 import { setBundlerFindSourceMapImplementation } from '../patch-error-inspect'
@@ -386,7 +389,12 @@ function getCodeFrameFromTurbopack(
   ) {
     return null
   }
-  const filePath = withoutScheme.slice(SOURCE_CONTENT_MIDDLEWARE_PREFIX.length)
+  // Strip the `sourceRoot` prefix and decode percent-encoded segments (e.g. `%5Blang%5D` →
+  // `[lang]`) so the asset path matches the on-disk project file.
+  const filePath = stripSourceRoot(
+    withoutScheme,
+    SOURCE_CONTENT_MIDDLEWARE_PREFIX
+  )
   try {
     return project.getCodeFrameForAssetSync(
       filePath,
