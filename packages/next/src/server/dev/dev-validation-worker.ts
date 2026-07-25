@@ -7,6 +7,9 @@ import type {
 import '../require-hook'
 import '../node-environment'
 
+import { isAbsolute, relative } from 'path'
+import { readFileSync, realpathSync } from 'fs'
+import { fileURLToPath } from 'url'
 import { installBindings } from '../../build/swc/install-bindings'
 import { installCodeFrameSupport } from '../lib/install-code-frame'
 import {
@@ -20,6 +23,81 @@ import {
   getServerActionsManifest,
   setManifestsSingleton,
 } from '../app-render/manifests-singleton'
+import { setBundlerFindSourceMapImplementation } from '../patch-error-inspect'
+import type { ModernSourceMapPayload } from '../lib/source-maps'
+
+/**
+ * Resolves a chunk's source map by reading the `.map` file the bundler emitted
+ * next to it, for chunks inside `distDir`.
+ *
+ * The main thread answers the same question through the Turbopack project
+ * handle, which cannot cross a thread boundary. Reading from disk is
+ * project-free and, more importantly, does not depend on the chunk having been
+ * evaluated in this thread: Node.js caches source maps per isolate, and the
+ * worker never renders server components, so it holds maps only for the chunks
+ * `loadComponents` pulled in. Frames arriving in the transported payload can
+ * point at any chunk the main render touched.
+ *
+ * This only helps Turbopack, which writes a `.map` beside every chunk. Webpack
+ * keeps its dev source maps in the compiler rather than on disk, so its frames
+ * from chunks this thread never evaluated stay unresolved, and its module URLs
+ * (`webpack-internal://…`) are declined below for the same reason. Frames from
+ * dependencies that are not bundled never reach this point, because
+ * `filterStackFrameDEV` drops `node_modules` and `node:` frames; bundled
+ * dependencies appear as chunks inside `distDir` like any other code.
+ */
+function createDiskSourceMapLookup(
+  distDir: string
+): (sourceURL: string) => ModernSourceMapPayload | undefined {
+  // The frames carry resolved paths, so compare against the resolved `distDir`
+  // to keep the containment check meaningful when the project sits behind a
+  // symlink.
+  let canonicalDistDir = distDir
+  try {
+    canonicalDistDir = realpathSync(distDir)
+  } catch {}
+
+  const payloads = new Map<string, ModernSourceMapPayload | undefined>()
+
+  return function findSourceMapPayloadOnDisk(sourceURL) {
+    let chunkPath = sourceURL
+
+    if (chunkPath.startsWith('file://')) {
+      try {
+        chunkPath = fileURLToPath(chunkPath)
+      } catch {
+        return undefined
+      }
+    }
+
+    if (!isAbsolute(chunkPath)) {
+      // Not an emitted chunk, e.g. `webpack-internal://` or `<anonymous>`.
+      return undefined
+    }
+
+    const cached = payloads.get(chunkPath)
+    if (cached !== undefined || payloads.has(chunkPath)) {
+      return cached
+    }
+
+    let payload: ModernSourceMapPayload | undefined
+    const relativePath = relative(canonicalDistDir, chunkPath)
+
+    // Only chunks emitted into `distDir` have a source map to point at, and
+    // this keeps the lookup from reading arbitrary paths off disk.
+    if (!relativePath.startsWith('..') && !isAbsolute(relativePath)) {
+      try {
+        payload = JSON.parse(readFileSync(chunkPath + '.map', 'utf8'))
+      } catch {
+        payload = undefined
+      }
+    }
+
+    payloads.set(chunkPath, payload)
+
+    return payload
+  }
+}
 
 // Match the main dev server (`next-dev-server.ts`), which raises this so the
 // server captures deeper stacks. React's owner-stack capture during the
@@ -173,6 +251,9 @@ export async function runDevValidation(
   // worker bundle, the same way the unbundled build worker loads it.
   await installBindings()
   installCodeFrameSupport()
+  setBundlerFindSourceMapImplementation(
+    createDiskSourceMapLookup(message.distDir)
+  )
   setHttpClientAndAgentOptions({
     httpAgentOptions: message.nextConfigSerializable.httpAgentOptions,
   })

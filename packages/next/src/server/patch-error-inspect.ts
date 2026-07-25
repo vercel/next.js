@@ -22,12 +22,31 @@ type FindSourceMapPayload = (
 // This is only a fallback for when Node.js fails to due to bugs e.g. https://github.com/nodejs/node/issues/52102
 // TODO: Remove once all supported Node.js versions are fixed.
 // TODO(veil): Set from Webpack as well
-let bundlerFindSourceMapPayload: FindSourceMapPayload = () => undefined
+//
+// Stored on `globalThis` for the same reason as the code frame renderer below:
+// this module is bundled into several runtimes that each get their own copy,
+// and the copy that installs the implementation is not necessarily the one that
+// symbolicates a frame. The dev validation worker depends on that, because it
+// installs its implementation from the worker bundle while the frames are
+// symbolicated by the app-page bundle's copy.
+const BUNDLER_FIND_SOURCE_MAP = Symbol.for('next.dev.bundlerFindSourceMap')
+type GlobalWithBundlerFindSourceMap = typeof globalThis & {
+  [BUNDLER_FIND_SOURCE_MAP]?: FindSourceMapPayload
+}
 
 export function setBundlerFindSourceMapImplementation(
   findSourceMapImplementation: FindSourceMapPayload
 ): void {
-  bundlerFindSourceMapPayload = findSourceMapImplementation
+  ;(globalThis as GlobalWithBundlerFindSourceMap)[BUNDLER_FIND_SOURCE_MAP] =
+    findSourceMapImplementation
+}
+
+function bundlerFindSourceMapPayload(
+  sourceURL: string
+): ModernSourceMapPayload | undefined {
+  return (globalThis as GlobalWithBundlerFindSourceMap)[
+    BUNDLER_FIND_SOURCE_MAP
+  ]?.(sourceURL)
 }
 
 // Code frame renderer - injected by dev/build to avoid hard dependency on native bindings
