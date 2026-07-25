@@ -286,7 +286,7 @@
       "test/e2e/app-dir/unstable-rethrow/unstable-rethrow.test.ts",
       "test/e2e/app-dir/use-cache-close-over-function/**/*",
       "test/e2e/app-dir/use-cache-custom-handler/**/*",
-      "test/e2e/app-dir/use-cache-dev/use-cache-dev.test.ts",
+      "test/development/app-dir/use-cache-dev/use-cache-dev.test.ts",
       "test/e2e/app-dir/use-cache-hanging-inputs/**/*",
       "test/e2e/app-dir/use-cache-metadata-route-handler/**/*",
       "test/e2e/app-dir/use-cache-route-handler-only/**/*",

@@ -8217,7 +8217,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/app-dir/use-cache-dev/use-cache-dev.test.ts": {
+  "test/development/app-dir/use-cache-dev/use-cache-dev.test.ts": {
     "passed": [
       "use-cache-dev should ignore an existing HMR refresh hash cookie with \"next start\""
     ],

@@ -64,7 +64,7 @@ npx create-next-app@canary --no-agents-md
 
 ### Existing projects
 
-On Next.js 16.3 or later, just run `next dev`. When an AI coding agent is detected in the environment and no managed block is present, Next.js auto-generates `AGENTS.md` and `CLAUDE.md` at the project root. Existing `AGENTS.md` or `CLAUDE.md` files are upserted, so content outside the managed block is preserved:
+On Next.js 16.3 or later, run `next dev`. When an AI coding agent is detected in the environment and no managed block is present, Next.js auto-generates `AGENTS.md` and `CLAUDE.md` at the project root. Existing `AGENTS.md` or `CLAUDE.md` files are upserted, so content outside the managed block is preserved:
 
 ```md filename="AGENTS.md"
 <!-- BEGIN:nextjs-agent-rules -->
@@ -116,7 +116,7 @@ First, `next dev` forwards browser console errors and warnings to the terminal (
 
 The **framework's view** comes from the [Next.js MCP server](/docs/app/guides/mcp) at `/_next/mcp`: the running dev server's routes, server logs, and compilation issues. Its `get_compilation_issues` and `compile_route` tools report whether the code compiles straight from the dev server, so an agent doesn't have to run a full `next build` to find out.
 
-The **browser's view** comes from [`agent-browser`](https://github.com/vercel-labs/agent-browser), a CLI that exposes the DOM, console, network, and Web Vitals as structured text. With React DevTools enabled, it also reports the component tree and which Suspense boundaries are still pending. An agent runs a command like `react tree`, reads the output, and decides what to inspect next, instead of looking at a DevTools panel it can't see.
+The **browser's view** comes from [`agent-browser`](https://github.com/vercel-labs/agent-browser), a CLI that exposes the DOM, console, network, and Web Vitals as structured text. With React DevTools enabled (pass `--enable react-devtools` to `agent-browser open`, which the `next-dev-loop` skill does for you), it also reports the component tree and which Suspense boundaries are still pending. An agent runs a command like `react tree`, reads the output, and decides what to inspect next, instead of looking at a DevTools panel it can't see.
 
 The [`next-dev-loop` skill](#skills-for-multi-step-workflows) builds on both views, combining the framework's and the browser's perspective into a single edit-and-verify loop.
 
@@ -126,17 +126,58 @@ The [`next-dev-loop` skill](#skills-for-multi-step-workflows) builds on both vie
 
 Some tasks are workflows rather than lookups, such as adopting Cache Components or Partial Prefetching across an app. [Next.js skills](https://github.com/vercel/next.js/tree/canary/skills) package these as structured instructions an agent installs and follows, sequencing the work and pointing at the relevant docs at each step.
 
-The available skills are:
+### `next-dev-loop`
 
-| Skill                                                                                                                         | What it does                                                                                                                                                                              |
-| ----------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [`next-dev-loop`](https://github.com/vercel/next.js/tree/canary/skills/next-dev-loop)                                         | Verifies a change actually works at runtime against a running dev server, combining the [MCP server](/docs/app/guides/mcp)'s view with the browser's.                                     |
-| [`next-cache-components-adoption`](https://github.com/vercel/next.js/tree/canary/skills/next-cache-components-adoption)       | Turns on [Cache Components](/docs/app/getting-started/caching) and walks the app to a passing build, resolving each blocking route the flag surfaces.                                     |
-| [`next-cache-components-optimizer`](https://github.com/vercel/next.js/tree/canary/skills/next-cache-components-optimizer)     | Drives a route to instant navigation with a test-driven loop, growing its static shell under Cache Components until it commits immediately on both first load and client-side navigation. |
-| [`next-partial-prefetching-adoption`](https://github.com/vercel/next.js/tree/canary/skills/next-partial-prefetching-adoption) | Turns on [Partial Prefetching](/docs/app/guides/adopting-partial-prefetching) and works through the insights it surfaces until every link reuses a shared App Shell.                      |
+The [`next-dev-loop`](https://github.com/vercel/next.js/tree/canary/skills/next-dev-loop) skill verifies a change actually works at runtime against a running dev server, combining the [MCP server](/docs/app/guides/mcp)'s view with the browser's.
 
-Install a skill by passing its name to the `skills` CLI:
+```bash filename="Terminal"
+npx skills add vercel/next.js --skill next-dev-loop
+```
 
-```bash
+Then give the agent this prompt:
+
+```prompt
+After every edit, verify the page still works at runtime using the next-dev-loop skill.
+```
+
+### `next-cache-components-adoption`
+
+The [`next-cache-components-adoption`](https://github.com/vercel/next.js/tree/canary/skills/next-cache-components-adoption) skill turns on [Cache Components](/docs/app/getting-started/caching) and walks the app to a passing build, resolving each blocking route the flag surfaces.
+
+```bash filename="Terminal"
 npx skills add vercel/next.js --skill next-cache-components-adoption
+```
+
+Then give the agent this prompt:
+
+```prompt
+Adopt Cache Components in this project using the next-cache-components-adoption skill.
+```
+
+### `next-cache-components-optimizer`
+
+The [`next-cache-components-optimizer`](https://github.com/vercel/next.js/tree/canary/skills/next-cache-components-optimizer) skill drives a route to instant navigation with a failing `@next/playwright` `instant()` test worked to green, then shipped as a regression guard.
+
+```bash filename="Terminal"
+npx skills add vercel/next.js --skill next-cache-components-optimizer
+```
+
+Then give the agent this prompt:
+
+```prompt
+Make the navigation from the dashboard to settings instant using the next-cache-components-optimizer skill.
+```
+
+### `next-partial-prefetching-adoption`
+
+The [`next-partial-prefetching-adoption`](https://github.com/vercel/next.js/tree/canary/skills/next-partial-prefetching-adoption) skill turns on [Partial Prefetching](/docs/app/guides/adopting-partial-prefetching) and works through the insights it surfaces until every link reuses a shared App Shell.
+
+```bash filename="Terminal"
+npx skills add vercel/next.js --skill next-partial-prefetching-adoption
+```
+
+Then give the agent this prompt:
+
+```prompt
+Adopt Partial Prefetching in this project using the next-partial-prefetching-adoption skill.
 ```

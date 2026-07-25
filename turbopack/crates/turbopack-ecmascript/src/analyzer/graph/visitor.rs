@@ -4,9 +4,10 @@ use std::{
 };
 
 use bumpalo::boxed::Box as BumpBox;
+use rustc_hash::FxHashMap;
 use smallvec::SmallVec;
 use swc_core::{
-    common::{Span, Spanned, SyntaxContext, pass::AstNodePath},
+    common::{BytePos, Span, Spanned, SyntaxContext, pass::AstNodePath},
     ecma::{
         ast::*,
         atoms::atom,
@@ -20,8 +21,11 @@ use turbopack_core::resolve::ExportUsage;
 use crate::{
     AnalyzeMode,
     analyzer::{
-        Bump, BumpVec, ConstantValue, JsValue, WellKnownFunctionKind,
-        cjs_ast::{is_exports_object, is_global},
+        Bump, BumpVec, ConstantValue, ImportMap, JsValue, WellKnownFunctionKind,
+        cjs_ast::{
+            as_exports_define_property, define_property_sets_es_module, is_exports_object,
+            is_global,
+        },
         graph::{ConditionalKind, Effect, EffectArg, EffectsBlock, EvalContext, VarGraph},
         is_unresolved_id,
     },
@@ -31,7 +35,7 @@ use crate::{
         cjs::{CjsExportsDropCodeGen, DroppableCjsExportAssignment},
         esm::EsmModuleItem,
     },
-    utils::{AstPathRange, unparen},
+    utils::{AstPathRange, extract_name_from_member_prop, extract_names_from_object_pat, unparen},
 };
 
 enum EarlyReturn<'a> {
@@ -193,6 +197,8 @@ mod analyzer_state {
         cjs_exports: Option<CjsExportsCollector>,
         cjs_export_target: bool,
         cjs_export_value: bool,
+        /// Tracked `const x = require(...)` namespace bindings
+        require_bindings: Option<FxHashMap<Id, BytePos>>,
     }
 
     impl<'a> Analyzer<'a, '_> {
@@ -556,6 +562,87 @@ mod analyzer_state {
             self.state.cjs_exports = Some(CjsExportsCollector::default());
         }
 
+        /// Enables `require("…")` export-usage narrowing and seed it
+        /// with information collected by the `ImportMap` visitor.
+        pub(in crate::analyzer::graph) fn enable_require_usage(&mut self, imports: &ImportMap) {
+            let cjs_imports = imports.cjs_imports();
+            self.data.require_usage = cjs_imports.resolved.clone();
+            // Seed each namespace binding as `Evaluation`; a binding that's never
+            // read keeps that (only the target's side effects matter), while a
+            // member read upgrades it to `PartialNamespaceObject` below.
+            for span in cjs_imports.bindings.values() {
+                self.data
+                    .require_usage
+                    .insert(*span, ExportUsage::Evaluation);
+            }
+            self.state.require_bindings = Some(cjs_imports.bindings.clone());
+        }
+
+        pub(super) fn is_tracked_require_binding(&self, id: &Id) -> bool {
+            self.state
+                .require_bindings
+                .as_ref()
+                .is_some_and(|b| b.contains_key(id))
+        }
+
+        /// Records a tracked `const x = require(...)` is used.
+        pub(super) fn record_require_usage(&mut self, id: &Id, member: Option<RcStr>) {
+            let Some(span) = self
+                .state
+                .require_bindings
+                .as_ref()
+                .and_then(|b| b.get(id).copied())
+            else {
+                return;
+            };
+            let Some(usage) = self.data.require_usage.get_mut(&span) else {
+                return;
+            };
+            match member {
+                Some(name) => match usage {
+                    ExportUsage::PartialNamespaceObject(names) => {
+                        if !names.contains(&name) {
+                            names.push(name);
+                        }
+                    }
+                    // First member read of an otherwise-unused binding.
+                    ExportUsage::Evaluation => {
+                        let mut names = SmallVec::new();
+                        names.push(name);
+                        *usage = ExportUsage::PartialNamespaceObject(names);
+                    }
+                    // Already escaped to the whole namespace.
+                    _ => {}
+                },
+                None => *usage = ExportUsage::All,
+            }
+        }
+
+        /// If this is `export const x = require(...)`, mark the whole of `x` as
+        /// observable.
+        pub(super) fn escape_exported_require_bindings(&mut self, node: &ExportDecl) {
+            if self.state.require_bindings.is_none() {
+                return;
+            }
+            let Decl::Var(var) = &node.decl else {
+                return;
+            };
+            for d in &var.decls {
+                if let Pat::Ident(binding) = &d.name {
+                    let span = self
+                        .state
+                        .require_bindings
+                        .as_ref()
+                        .and_then(|b| b.get(&binding.id.to_id()).copied());
+                    if let Some(span) = span
+                        && let Some(usage) = self.data.require_usage.get_mut(&span)
+                    {
+                        *usage = ExportUsage::All;
+                    }
+                }
+            }
+        }
+
         pub(super) fn cjs_exports_enabled(&self) -> bool {
             self.state.cjs_exports.is_some()
         }
@@ -631,6 +718,17 @@ pub fn as_parent_path_with_in<'a>(
     path.extend_from_slice(arena, kinds);
     path.push(arena, additional);
     path.into_boxed_slice()
+}
+
+/// Returns the [`MemberExpr`] where the current node is the object:
+/// `<node>.<prop>` or `<node>[<expr>]`.
+fn member_access_parent<'r>(
+    ast_path: &AstNodePath<AstParentNodeRef<'r>>,
+) -> Option<&'r MemberExpr> {
+    match ast_path.len().checked_sub(2).and_then(|i| ast_path.get(i)) {
+        Some(AstParentNodeRef::MemberExpr(member, MemberExprField::Obj)) => Some(*member),
+        _ => None,
+    }
 }
 
 /// Extracts export names from usage patterns on a dynamic import.
@@ -727,38 +825,6 @@ fn extract_names_from_then_callback(call: &CallExpr) -> Option<SmallVec<[RcStr; 
         }
         _ => None,
     }
-}
-
-fn extract_name_from_member_prop(prop: &MemberProp) -> Option<SmallVec<[RcStr; 1]>> {
-    match prop {
-        MemberProp::Ident(ident) => Some(SmallVec::from_buf([ident.sym.as_str().into()])),
-        MemberProp::Computed(ComputedPropName {
-            expr: box Expr::Lit(Lit::Str(s)),
-            ..
-        }) => s.value.as_str().map(|v| SmallVec::from_buf([v.into()])),
-        _ => None,
-    }
-}
-
-fn extract_names_from_object_pat(pat: &Pat) -> Option<SmallVec<[RcStr; 1]>> {
-    let Pat::Object(obj_pat) = pat else {
-        return None;
-    };
-    let mut names = SmallVec::new();
-    for prop in &obj_pat.props {
-        match prop {
-            ObjectPatProp::KeyValue(kv) => match &kv.key {
-                PropName::Ident(ident) => names.push(ident.sym.as_str().into()),
-                PropName::Str(s) => names.push(s.value.as_str()?.into()),
-                _ => return None, // computed key, can't determine statically
-            },
-            ObjectPatProp::Assign(assign) => {
-                names.push(assign.key.sym.as_str().into());
-            }
-            ObjectPatProp::Rest(_) => return None, // rest pattern means all exports needed
-        }
-    }
-    Some(names)
 }
 
 pub fn as_parent_path_with(
@@ -1032,6 +1098,21 @@ impl<'a> Analyzer<'a, '_> {
         }
     }
 
+    /// Visits a call/new argument, guarding it as a CJS export target when `guard`
+    /// is set so a bare `exports` / `module` reference there doesn't taint.
+    fn visit_arg_maybe_cjs_export_target<'ast: 'r, 'r>(
+        &mut self,
+        guard: bool,
+        arg: &'ast ExprOrSpread,
+        ast_path: &mut AstNodePath<AstParentNodeRef<'r>>,
+    ) {
+        if guard {
+            self.with_cjs_export_target(|this| arg.visit_with_ast_path(this, ast_path));
+        } else {
+            arg.visit_with_ast_path(self, ast_path);
+        }
+    }
+
     fn check_call_expr_for_effects<'ast: 'r, 'n, 'r>(
         &mut self,
         callee: &'n Callee,
@@ -1039,11 +1120,15 @@ impl<'a> Analyzer<'a, '_> {
         span: Span,
         ast_path: &mut AstNodePath<AstParentNodeRef<'r>>,
         n: CallOrNewExpr<'ast>,
+        // Index of the `exports` export-target arg to guard from tainting; other
+        // args (incl. descriptor getter/value bodies) taint normally.
+        cjs_export_target_arg: Option<usize>,
     ) {
         let new = n.as_new().is_some();
         let args = BumpVec::from_iter_in(
             self.arena,
             args.enumerate().map(|(i, arg)| {
+                let guard_cjs_export_target = cjs_export_target_arg == Some(i);
                 let mut ast_path = ast_path.with_guard(match n {
                     CallOrNewExpr::Call(n) => AstParentNodeRef::CallExpr(n, CallExprField::Args(i)),
                     CallOrNewExpr::New(n) => AstParentNodeRef::NewExpr(n, NewExprField::Args(i)),
@@ -1088,7 +1173,11 @@ impl<'a> Analyzer<'a, '_> {
                     };
                     if let Some(path) = block_path {
                         let old_effects = take(&mut self.effects);
-                        arg.visit_with_ast_path(self, &mut ast_path);
+                        self.visit_arg_maybe_cjs_export_target(
+                            guard_cjs_export_target,
+                            arg,
+                            &mut ast_path,
+                        );
                         let effects = replace(&mut self.effects, old_effects);
                         EffectArg::Closure(
                             value,
@@ -1101,11 +1190,19 @@ impl<'a> Analyzer<'a, '_> {
                             ),
                         )
                     } else {
-                        arg.visit_with_ast_path(self, &mut ast_path);
+                        self.visit_arg_maybe_cjs_export_target(
+                            guard_cjs_export_target,
+                            arg,
+                            &mut ast_path,
+                        );
                         EffectArg::Value(value)
                     }
                 } else {
-                    arg.visit_with_ast_path(self, &mut ast_path);
+                    self.visit_arg_maybe_cjs_export_target(
+                        guard_cjs_export_target,
+                        arg,
+                        &mut ast_path,
+                    );
                     EffectArg::Spread
                 }
             }),
@@ -1237,6 +1334,28 @@ impl<'a> Analyzer<'a, '_> {
             as_parent_path(ast_path).into(),
         );
     }
+
+    /// Records a top-level `Object.defineProperty(exports, "NAME", …)` export so
+    /// an unused one can be dropped; the `__esModule` marker sets the interop flag.
+    fn recognize_cjs_define_property(
+        &mut self,
+        name: &str,
+        n: &CallExpr,
+        ast_path: &AstNodePath<AstParentNodeRef<'_>>,
+    ) {
+        // Only top-level defines can be dropped.
+        if self.is_in_fn() || self.is_in_nested_block_scope() {
+            self.taint_cjs_exports();
+            return;
+        }
+        if name == "__esModule" {
+            if define_property_sets_es_module(n) {
+                self.set_cjs_has_es_module();
+            }
+            return;
+        }
+        self.record_cjs_export(RcStr::from(name), as_parent_path(ast_path).into());
+    }
 }
 
 impl VisitAstPath for Analyzer<'_, '_> {
@@ -1336,6 +1455,17 @@ impl VisitAstPath for Analyzer<'_, '_> {
         n: &'ast CallExpr,
         ast_path: &mut AstNodePath<AstParentNodeRef<'r>>,
     ) {
+        // `Object.defineProperty(exports, …)` is a CommonJS export write; recognize
+        // it so unused entries drop (its `exports` argument is guarded below).
+        let is_cjs_define_property = if self.cjs_exports_enabled()
+            && let Some(name) = as_exports_define_property(n, self.eval_context.unresolved_mark)
+        {
+            self.recognize_cjs_define_property(&name, n, ast_path);
+            true
+        } else {
+            false
+        };
+
         // We handle `define(function (require) {})` here.
         if let Callee::Expr(callee) = &n.callee
             && n.args.len() == 1
@@ -1366,13 +1496,33 @@ impl VisitAstPath for Analyzer<'_, '_> {
             n.callee.visit_with_ast_path(self, &mut ast_path);
         }
 
-        self.check_call_expr_for_effects(
-            &n.callee,
-            n.args.iter(),
-            n.span(),
-            ast_path,
-            CallOrNewExpr::Call(n),
-        );
+        // Visit a recognized descriptor as an export value so a top-level `this` taints.
+        let cjs_export_target_arg = if is_cjs_define_property {
+            Some(0)
+        } else {
+            None
+        };
+        if is_cjs_define_property {
+            self.with_cjs_export_value(|this| {
+                this.check_call_expr_for_effects(
+                    &n.callee,
+                    n.args.iter(),
+                    n.span(),
+                    ast_path,
+                    CallOrNewExpr::Call(n),
+                    cjs_export_target_arg,
+                );
+            });
+        } else {
+            self.check_call_expr_for_effects(
+                &n.callee,
+                n.args.iter(),
+                n.span(),
+                ast_path,
+                CallOrNewExpr::Call(n),
+                cjs_export_target_arg,
+            );
+        }
     }
 
     fn visit_new_expr<'ast: 'r, 'r>(
@@ -1392,6 +1542,7 @@ impl VisitAstPath for Analyzer<'_, '_> {
             n.span(),
             ast_path,
             CallOrNewExpr::New(n),
+            None,
         );
     }
 
@@ -2000,10 +2151,25 @@ impl VisitAstPath for Analyzer<'_, '_> {
             }
         }
 
+        let id = ident.to_id();
+
+        // How a `const x = require(...)` binding is consumed: a static member read
+        // `x.foo` observes that export; anything else observes the whole namespace.
+        if self.is_tracked_require_binding(&id) {
+            match member_access_parent(ast_path)
+                .and_then(|m| extract_name_from_member_prop(&m.prop))
+            {
+                Some(names) => {
+                    for name in names {
+                        self.record_require_usage(&id, Some(name));
+                    }
+                }
+                None => self.record_require_usage(&id, None),
+            }
+        }
+
         // Attempt to add import effects.
-        if let Some((esm_reference_index, export)) =
-            self.eval_context.imports.get_binding(&ident.to_id())
-        {
+        if let Some((esm_reference_index, export)) = self.eval_context.imports.get_binding(&id) {
             // Optimization: Look for a MemberExpr to see if we only access a few members from the
             // module, add those specific effects instead of depending on the entire module.
             //
@@ -2013,8 +2179,7 @@ impl VisitAstPath for Analyzer<'_, '_> {
                     .eval_context
                     .imports
                     .should_import_all(esm_reference_index)
-                && let Some(AstParentNodeRef::MemberExpr(member, MemberExprField::Obj)) =
-                    ast_path.get(ast_path.len() - 2)
+                && let Some(member) = member_access_parent(ast_path)
                 && let Some(prop) = self.eval_context.eval_member_prop(self.arena, &member.prop)
                 && let Some(prop_str) = prop.as_str()
             {
@@ -2416,6 +2581,7 @@ impl VisitAstPath for Analyzer<'_, '_> {
         node: &'ast ExportDecl,
         ast_path: &mut swc_core::ecma::visit::AstNodePath<'r>,
     ) {
+        self.escape_exported_require_bindings(node);
         self.add_esm_module_item(ast_path);
         node.visit_children_with_ast_path(self, ast_path);
     }

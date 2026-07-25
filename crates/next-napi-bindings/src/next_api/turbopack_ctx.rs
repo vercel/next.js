@@ -265,7 +265,7 @@ pub fn create_turbo_tasks(
         let describe = cache_describe(next_version);
         let version_info = git_version_info(&describe);
         let (backing_storage, cache_state) = turbo_backing_storage(
-            &output_path.join("cache/turbopack"),
+            &output_path.join("cache").join("turbopack"),
             &version_info,
             is_ci,
             is_short_session,

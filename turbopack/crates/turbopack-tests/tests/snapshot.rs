@@ -3,10 +3,9 @@
 
 mod util;
 
-use std::{collections::VecDeque, fs, io, path::PathBuf};
+use std::{collections::VecDeque, fs, fs::canonicalize, io, path::PathBuf};
 
 use anyhow::{Context, Result};
-use dunce::canonicalize;
 use rustc_hash::FxHashSet;
 use serde::Deserialize;
 use serde_json::json;
