@@ -281,32 +281,64 @@ export function devirtualizeReactServerURL(sourceURL: string): string {
 }
 
 /**
- * Reverse the `sourceRoot` join that a source-map consumer applies in `originalPositionFor()`
- * (per the source-map spec, the returned `source` is `join(sourceRoot, rawSource)`), recovering
- * the raw `sources` entry for display. This matters for dev maps that set a `sourceRoot` — e.g.
- * `experimental.turbopackServeSourceContent`, whose maps point `sourceRoot` at the on-demand
- * content endpoint (`/__nextjs_source-content/[project]/`). The user-facing frame `file` should be
- * the clean project-relative path, not the endpoint URL.
+ * Prefix of the on-demand source-content dev endpoint. Source maps emitted in dev (when
+ * `experimental.turbopackServeSourceContent` is enabled) set their `sourceRoot` to this value, so
+ * DevTools fetches original file content lazily from `/__nextjs_source-content/[project]/<path>`.
  *
- * The consumer's `computeSourceURL` runs the join through URL resolution when a `sourceRoot` is
- * present, which percent-encodes path segments (e.g. `[lang]` → `%5Blang%5D`). Decode the stripped
- * tail so bracketed dynamic-route segments render as authored. Returns `source` unchanged when
- * there is no `sourceRoot` or it does not prefix `source`.
+ * Keep in sync with the `sourceRoot` produced in `crates/next-core/src/util.rs`
+ * (`SOURCE_CONTENT_ENDPOINT_PREFIX`).
  */
-export function stripSourceRoot(
-  source: string,
-  sourceRoot: string | undefined | null
-): string {
-  if (!sourceRoot || !source.startsWith(sourceRoot)) {
-    return source
-  }
-  const rawSource = source.slice(sourceRoot.length)
+export const SOURCE_CONTENT_ENDPOINT_PREFIX =
+  '/__nextjs_source-content/[project]/'
+
+function decodeSourcePath(rawSource: string): string {
   try {
     return decodeURIComponent(rawSource)
   } catch {
     // Malformed percent-encoding — fall back to the raw (still-stripped) form.
     return rawSource
   }
+}
+
+/**
+ * Reverse the `sourceRoot` join that a source-map consumer applies in `originalPositionFor()`
+ * (per the source-map spec, the returned `source` is `join(sourceRoot, rawSource)`), recovering
+ * the raw `sources` entry for display. This matters for dev maps that set a `sourceRoot` — e.g.
+ * `experimental.turbopackServeSourceContent`, whose maps point `sourceRoot` at the on-demand
+ * content endpoint (`SOURCE_CONTENT_ENDPOINT_PREFIX`). The user-facing frame `file` should be the
+ * clean project-relative path, not the endpoint URL.
+ *
+ * Strips either the passed map `sourceRoot` or, as a fallback, the known content-endpoint prefix.
+ * The fallback is needed because sectioned (index) server maps apply a `sourceRoot` the consumer
+ * honors when resolving `source`, but the applicable section payload we inspect does not expose the
+ * `sourceRoot` field — so a strip keyed only on `sourceRoot` would miss it. The prefix may be
+ * preceded by a `file://` scheme (the sync consumer resolves the source as a URL).
+ *
+ * The consumer's `computeSourceURL` runs the join through URL resolution when a `sourceRoot` is
+ * present, which percent-encodes path segments (e.g. `[lang]` → `%5Blang%5D`). Decode the stripped
+ * tail so bracketed dynamic-route segments render as authored. Returns `source` unchanged when
+ * nothing applies.
+ */
+export function stripSourceRoot(
+  source: string,
+  sourceRoot: string | undefined | null
+): string {
+  // 1. Strip the map's own `sourceRoot` when present and matching (general correctness).
+  if (sourceRoot && source.startsWith(sourceRoot)) {
+    return decodeSourcePath(source.slice(sourceRoot.length))
+  }
+
+  // 2. Fall back to the known content-endpoint prefix, tolerating a leading `file://` scheme.
+  const withoutScheme = source.startsWith('file://')
+    ? source.slice('file://'.length)
+    : source
+  if (withoutScheme.startsWith(SOURCE_CONTENT_ENDPOINT_PREFIX)) {
+    return decodeSourcePath(
+      withoutScheme.slice(SOURCE_CONTENT_ENDPOINT_PREFIX.length)
+    )
+  }
+
+  return source
 }
 
 function isAnonymousFrameLikelyJSNative(methodName: string): boolean {

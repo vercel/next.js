@@ -19,6 +19,7 @@ import {
 import type { Project, TurbopackStackFrame } from '../../build/swc/types'
 import {
   type ModernSourceMapPayload,
+  SOURCE_CONTENT_ENDPOINT_PREFIX,
   devirtualizeReactServerURL,
   findApplicableSourceMapPayload,
   stripSourceRoot,
@@ -595,15 +596,11 @@ export function getSourceMapMiddleware(project: Project) {
 }
 
 /**
- * Prefix of the on-demand source-content dev endpoint. Browser source maps emitted in dev
- * (when `experimental.turbopackServeSourceContent` is enabled) set their `sourceRoot` to this
- * value, so DevTools fetches original file content lazily from
- * `/__nextjs_source-content/[project]/<relative-path>`.
- *
- * Keep in sync with the `sourceRoot` produced in `crates/next-core/src/next_client/context.rs`.
+ * Prefix of the on-demand source-content dev endpoint. Defined in `../lib/source-maps` (the
+ * neutral home shared with `patch-error-inspect`) and re-exported here for the dev middleware and
+ * hot-reloader that consume it.
  */
-export const SOURCE_CONTENT_MIDDLEWARE_PREFIX =
-  '/__nextjs_source-content/[project]/'
+export const SOURCE_CONTENT_MIDDLEWARE_PREFIX = SOURCE_CONTENT_ENDPOINT_PREFIX
 
 export function getSourceContentMiddleware(project: Project) {
   return async function (
