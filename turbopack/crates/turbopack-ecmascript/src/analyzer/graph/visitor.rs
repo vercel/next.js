@@ -731,6 +731,37 @@ fn member_access_parent<'r>(
     }
 }
 
+/// Returns the [`VarDeclarator`] where the current node is the initializer:
+/// `const <pat> = <node>`.
+fn var_declarator_init_parent<'r>(
+    ast_path: &AstNodePath<AstParentNodeRef<'r>>,
+) -> Option<&'r VarDeclarator> {
+    match ast_path.len().checked_sub(2).and_then(|i| ast_path.get(i)) {
+        Some(AstParentNodeRef::VarDeclarator(decl, VarDeclaratorField::Init)) => Some(*decl),
+        _ => None,
+    }
+}
+
+/// The export names read by a reference to a `const x = require("…")` binding,
+/// or `None` when the reference observes the whole namespace.
+///
+/// - `x.foo` / `x["foo"]` → `["foo"]`
+/// - `const { a, b } = x` → `["a", "b"]`
+///
+/// A rest element or computed key in the pattern yields `None`, as does any
+/// other position the binding appears in.
+fn require_binding_read_names(
+    ast_path: &AstNodePath<AstParentNodeRef<'_>>,
+) -> Option<SmallVec<[RcStr; 1]>> {
+    if let Some(member) = member_access_parent(ast_path) {
+        extract_name_from_member_prop(&member.prop)
+    } else if let Some(decl) = var_declarator_init_parent(ast_path) {
+        extract_names_from_object_pat(&decl.name)
+    } else {
+        None
+    }
+}
+
 /// Extracts export names from usage patterns on a dynamic import.
 ///
 /// Supports two patterns:
@@ -2154,11 +2185,10 @@ impl VisitAstPath for Analyzer<'_, '_> {
         let id = ident.to_id();
 
         // How a `const x = require(...)` binding is consumed: a static member read
-        // `x.foo` observes that export; anything else observes the whole namespace.
+        // `x.foo` or a destructuring `const { foo } = x` observes those exports;
+        // anything else observes the whole namespace.
         if self.is_tracked_require_binding(&id) {
-            match member_access_parent(ast_path)
-                .and_then(|m| extract_name_from_member_prop(&m.prop))
-            {
+            match require_binding_read_names(ast_path) {
                 Some(names) => {
                     for name in names {
                         self.record_require_usage(&id, Some(name));

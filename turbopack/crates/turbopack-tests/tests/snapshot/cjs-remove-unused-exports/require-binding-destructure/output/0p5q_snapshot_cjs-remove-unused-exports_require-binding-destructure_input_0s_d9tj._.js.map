@@ -1,0 +1,7 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {"offset": {"line": 3, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/cjs-remove-unused-exports/require-binding-destructure/input/index.js"],"sourcesContent":["// `lib` is only read through an object pattern, so `exports.unused` in lib.js\n// should drop just as it does for `const { used } = require('./lib.js')`.\nconst lib = require('./lib.js')\nconst { used } = lib\n\nconsole.log(used)\n"],"names":["lib","used","console","log"],"mappings":"AAAA,8EAA8E;AAC9E,0EAA0E;AAC1E,MAAMA;AACN,MAAM,EAAEC,IAAI,EAAE,GAAGD;AAEjBE,QAAQC,GAAG,CAACF"}},
+    {"offset": {"line": 11, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/cjs-remove-unused-exports/require-binding-destructure/input/lib.js"],"sourcesContent":["exports.used = 'used-value'\nexports.unused = 'unused-value'\n"],"names":["exports","used"],"mappings":"AAAAA,QAAQC,IAAI,GAAG;AACE"}}]
+}

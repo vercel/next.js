@@ -13,3 +13,19 @@ it('keeps all exports when a require binding escapes', () => {
   expect(globalThis.__cjs_escaped.used).toBe('used-value')
   expect(globalThis.__cjs_escaped.unused).toBe('unused-value')
 })
+
+const destructured = require('./destructured.js')
+const { used } = destructured
+
+it('narrows a require binding read through a destructuring pattern', () => {
+  expect(used).toBe('used-value')
+})
+
+// A rest element observes every own property, so nothing may be dropped.
+const rested = require('./rest.js')
+const { used: restUsed, ...rest } = rested
+
+it('keeps all exports when a require binding is destructured with a rest', () => {
+  expect(restUsed).toBe('used-value')
+  expect(rest.unused).toBe('unused-value')
+})
