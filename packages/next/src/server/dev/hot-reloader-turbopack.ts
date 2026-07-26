@@ -966,7 +966,6 @@ export async function createHotReloaderTurbopack(
     endpoint: Endpoint,
     createMessage: (
       change: TurbopackResult,
-      hash: string,
       contentChanged: boolean
     ) =>
       | Promise<HmrMessageSentToBrowser | void>
@@ -999,11 +998,7 @@ export async function createHotReloaderTurbopack(
     try {
       for await (const { change, contentChanged } of changes) {
         processIssues(currentEntryIssues, key, change, false, true)
-        const message = await createMessage(
-          change,
-          String(hmrHash),
-          contentChanged
-        )
+        const message = await createMessage(change, contentChanged)
         if (message) {
           sendHmr(key, message)
         }

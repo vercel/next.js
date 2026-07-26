@@ -106,7 +106,6 @@ export type StartChangeSubscription = (
   endpoint: Endpoint,
   createMessage: (
     change: TurbopackResult,
-    hash: string,
     contentChanged: boolean
   ) => Promise<HmrMessageSentToBrowser | void> | HmrMessageSentToBrowser | void,
   onError?: (
@@ -791,7 +790,7 @@ export async function handleEntrypoints({
         key,
         /** includeIssues=*/ false,
         endpoint,
-        async (_change, _hash, contentChanged) => {
+        async (_change, contentChanged) => {
           // The subscription also emits when nothing changed (e.g. for the
           // middleware's own initial build); the middleware was already
           // processed then, so there is nothing to update.
