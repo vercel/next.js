@@ -13,7 +13,7 @@ related:
 
 Next.js ships version-matched documentation inside the `next` package, allowing AI coding agents to reference accurate, up-to-date APIs and patterns. An `AGENTS.md` file at the root of your project directs agents to these bundled docs instead of their training data.
 
-Setting up a project takes four steps: point agents at the bundled docs, give them [runtime visibility](#step-2-give-agents-runtime-visibility) into the dev server, let [errors drive the fixes](#step-3-let-errors-drive-the-fixes), and hand multi-step workflows to [skills](#step-4-hand-multi-step-workflows-to-skills).
+Point agents at the bundled docs, give them [runtime visibility](#step-2-give-agents-runtime-visibility) into the dev server, let [errors drive the fixes](#step-3-let-errors-drive-the-fixes), and hand multi-step workflows to [skills](#step-4-hand-multi-step-workflows-to-skills).
 
 ## Step 1: Point agents at the bundled docs
 
@@ -118,7 +118,7 @@ First, `next dev` forwards browser console errors and warnings to the terminal (
 
 `next dev` also writes its PID, port, and URL to `.next/dev/lock`. A second `next dev` in the same project prints the running server's URL and the PID to kill, so an agent connects to the existing server instead of starting a duplicate.
 
-The **framework's view** comes from the [Next.js MCP server](/docs/app/guides/mcp) at `/_next/mcp`: the running dev server's routes, server logs, and compilation issues. Its `get_compilation_issues` and `compile_route` tools report whether the code compiles straight from the dev server, so an agent doesn't have to run a full `next build` to find out.
+The **framework's view** comes from the [Next.js MCP server](/docs/app/guides/mcp) at `/_next/mcp`, which exposes the running dev server's routes, server logs, and compilation issues. Its `get_compilation_issues` and `compile_route` tools report whether the code compiles straight from the dev server, so an agent doesn't have to run a full `next build` to find out.
 
 The **browser's view** comes from [`agent-browser`](https://github.com/vercel-labs/agent-browser), a CLI that exposes the DOM, console, network, and Web Vitals as structured text. With React DevTools enabled (pass `--enable react-devtools` to `agent-browser open`, which the `next-dev-loop` skill does for you), it also reports the component tree and which Suspense boundaries are still pending. An agent runs a command like `react tree`, reads the output, and decides what to inspect next, instead of looking at a DevTools panel it can't see.
 
@@ -152,7 +152,7 @@ The `Learn more` link resolves to a per-error page under [`/docs/messages`](http
 
 ## Step 4: Hand multi-step workflows to skills
 
-Framework knowledge doesn't need a skill. The bundled docs reach agents through `AGENTS.md`, and [benchmark results](https://nextjs.org/evals) show that always-available context outperforms on-demand retrieval. Skills cover the tasks that are workflows rather than lookups, such as adopting Cache Components or Partial Prefetching across an app. [Next.js skills](https://github.com/vercel/next.js/tree/canary/skills) package these as structured instructions an agent installs and follows, sequencing the work and pointing at the relevant docs and [runtime tooling](#step-2-give-agents-runtime-visibility) at each step.
+Framework knowledge comes from the bundled docs, not from skills. [Benchmark results](https://nextjs.org/evals) show that always-available context outperforms on-demand retrieval. Skills cover the tasks that are workflows rather than lookups, such as adopting Cache Components or Partial Prefetching across an app. [Next.js skills](https://www.skills.sh/vercel/next.js) package these as structured instructions an agent installs and follows, sequencing the work and pointing at the relevant docs and [runtime tooling](#step-2-give-agents-runtime-visibility) at each step.
 
 ### `next-dev-loop`
 
