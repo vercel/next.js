@@ -96,6 +96,8 @@ interface ImportMetaGlobOptions {
   query?: string | Record<string, string | boolean>
   /** Override the base path used for resolving patterns and keying results. */
   base?: string
+  /** Whether glob matching is case-sensitive. Default: `true`. */
+  caseSensitive?: boolean
 }
 
 interface ImportMeta {
