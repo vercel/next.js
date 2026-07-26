@@ -74,6 +74,8 @@ pub struct ImportMetaGlobOptions {
     pub query: Option<RcStr>,
     /// Base path for resolving and keying modules.
     pub base: Option<RcStr>,
+    /// Whether glob matching is case-sensitive.
+    pub case_sensitive: bool,
 }
 
 /// Parse the arguments of an `import.meta.glob(patterns, options?)` call.
@@ -150,6 +152,7 @@ pub fn parse_import_meta_glob(
     let mut import = None;
     let mut query = None;
     let mut base = None;
+    let mut case_sensitive = true;
 
     if let Some(opts) = args.get(1) {
         match opts {
@@ -261,6 +264,18 @@ pub fn parse_import_meta_glob(
                                     );
                                 }
                             }
+                            Some("caseSensitive") => {
+                                if let Some(b) = val.as_bool() {
+                                    case_sensitive = b;
+                                } else {
+                                    handler.span_warn_with_code(
+                                        span,
+                                        "import.meta.glob() 'caseSensitive' option must be a \
+                                         constant boolean (true or false), defaulting to true",
+                                        diagnostic_id.clone(),
+                                    );
+                                }
+                            }
                             // The `as` option was deprecated in Vite 5 in favor of `query`.
                             // We don't support it; users should use `query` instead.
                             Some("as") => {
@@ -276,7 +291,8 @@ pub fn parse_import_meta_glob(
                                     span,
                                     &format!(
                                         "import.meta.glob() unsupported option '{other}'. \
-                                         Supported options are: eager, import, query, base"
+                                         Supported options are: eager, import, query, base, \
+                                         caseSensitive"
                                     ),
                                     diagnostic_id.clone(),
                                 );
@@ -309,6 +325,7 @@ pub fn parse_import_meta_glob(
         import,
         query,
         base,
+        case_sensitive,
     })
 }
 
@@ -551,6 +568,7 @@ fn modifier(
     import: &Option<RcStr>,
     query: &Option<RcStr>,
     base: &Option<RcStr>,
+    case_sensitive: bool,
 ) -> RcStr {
     let mut s = format!("import.meta.glob {}", patterns.join(", "));
     if eager {
@@ -568,6 +586,9 @@ fn modifier(
         s.push_str(" base=");
         s.push_str(b);
     }
+    if !case_sensitive {
+        s.push_str(" case-insensitive");
+    }
     s.into()
 }
 
@@ -579,6 +600,7 @@ pub struct ImportMetaGlobAsset {
     pub import: Option<RcStr>,
     pub query: Option<RcStr>,
     pub base: Option<RcStr>,
+    pub case_sensitive: bool,
     pub issue_source: Option<IssueSource>,
     pub error_mode: ResolveErrorMode,
 }
@@ -608,13 +630,17 @@ impl ImportMetaGlobAsset {
         // Negative patterns start with `!`; the `!` prefix is stripped.
         let (positive_raw, negative_raw): (Vec<_>, Vec<_>) =
             self.patterns.iter().partition(|p| !p.starts_with('!'));
+        let glob_options = GlobOptions {
+            case_insensitive: !self.case_sensitive,
+            ..Default::default()
+        };
 
         // Build the positive Glob. Turbopack's Glob operates on paths relative
         // to the scan directory (no leading `./`), so strip that prefix. For
         // multiple patterns, use `Glob::alternatives` to combine them.
         let positive_globs: Vec<Vc<Glob>> = positive_raw
             .iter()
-            .map(|p| Glob::new(strip_relative_prefix(p).into(), GlobOptions::default()))
+            .map(|p| Glob::new(strip_relative_prefix(p).into(), glob_options))
             .collect();
 
         let positive_glob = if positive_globs.len() == 1 {
@@ -631,7 +657,7 @@ impl ImportMetaGlobAsset {
                 .map(|p| {
                     let stripped = p.strip_prefix('!').unwrap_or(p);
                     let stripped = strip_relative_prefix(stripped);
-                    Glob::new(stripped.into(), GlobOptions::default())
+                    Glob::new(stripped.into(), glob_options)
                 })
                 .collect();
 
@@ -670,6 +696,7 @@ impl Module for ImportMetaGlobAsset {
                 &self.import,
                 &self.query,
                 &self.base,
+                self.case_sensitive,
             ))
             .into_vc())
     }
@@ -881,6 +908,7 @@ impl ImportMetaGlobAssetReference {
         import: Option<RcStr>,
         query: Option<RcStr>,
         base: Option<RcStr>,
+        case_sensitive: bool,
         issue_source: Option<IssueSource>,
         error_mode: ResolveErrorMode,
     ) -> Self {
@@ -891,6 +919,7 @@ impl ImportMetaGlobAssetReference {
             import,
             query,
             base,
+            case_sensitive,
             issue_source,
             error_mode,
         }

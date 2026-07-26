@@ -234,12 +234,13 @@ const eager = import.meta.glob('./dir/*.ts', { eager: true })
 
 ### Options reference
 
-| Option   | Type                                          | Default     | Description                                                            |
-| -------- | --------------------------------------------- | ----------- | ---------------------------------------------------------------------- |
-| `eager`  | `boolean`                                     | `false`     | Import modules synchronously instead of returning thunks.              |
-| `import` | `string`                                      | `undefined` | Named export to select from each matched module (e.g. `'default'`).    |
-| `query`  | `string \| Record<string, string \| boolean>` | `undefined` | Query string (or object) to append to each import.                     |
-| `base`   | `string`                                      | `undefined` | Override the base path used for resolving patterns and keying results. |
+| Option          | Type                                          | Default     | Description                                                                |
+| --------------- | --------------------------------------------- | ----------- | -------------------------------------------------------------------------- |
+| `eager`         | `boolean`                                     | `false`     | Import modules synchronously instead of returning thunks.                  |
+| `import`        | `string`                                      | `undefined` | Named export to select from each matched module (e.g. `'default'`).        |
+| `query`         | `string \| Record<string, string \| boolean>` | `undefined` | Query string (or object) to append to each import.                         |
+| `base`          | `string`                                      | `undefined` | Override the base path used for resolving patterns and keying results.     |
+| `caseSensitive` | `boolean`                                     | `true`      | Match glob patterns case-sensitively. Set to `false` to ignore ASCII case. |
 
 > **Note:** The `as` option (deprecated in Vite 5) is not supported. Use `query: '?raw'` or `query: '?url'` instead. The legacy `import.meta.globEager()` API is also not supported — use `import.meta.glob('...', { eager: true })` instead.
 

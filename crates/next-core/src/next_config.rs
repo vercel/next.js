@@ -1795,7 +1795,10 @@ impl OutputFileTracingIncludesExcludes {
                     .map(async |(route_pattern, file_patterns)| {
                         let route_pattern = Glob::new(
                             RcStr::from(route_pattern.clone()),
-                            GlobOptions { contains: true },
+                            GlobOptions {
+                                contains: true,
+                                ..Default::default()
+                            },
                         )
                         .to_resolved()
                         .await?;
