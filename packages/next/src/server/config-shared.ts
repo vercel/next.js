@@ -708,6 +708,22 @@ export interface ExperimentalConfig {
   useTypeScriptCli?: boolean
 
   /**
+   * Controls how production builds schedule TypeScript CLI checking.
+   * Requires `useTypeScriptCli` for non-serial modes.
+   */
+  typeScriptBuildMode?: 'serial' | 'adaptive' | 'external'
+
+  /**
+   * Maximum native TypeScript worker threads used by adaptive checking.
+   */
+  typeScriptBuildCpuBudget?: number
+
+  /**
+   * Path to a result produced by `next typecheck --write-result`.
+   */
+  typeScriptBuildResultPath?: string
+
+  /**
    * Displays an indicator when a React Transition has no other indicator rendered.
    * This includes displaying an indicator on client-side navigations.
    */
@@ -2195,6 +2211,9 @@ export const defaultConfig = Object.freeze({
     optimizeServerReact: true,
     strictRouteTypes: false,
     useTypeScriptCli: false,
+    typeScriptBuildMode: 'serial',
+    typeScriptBuildCpuBudget: undefined,
+    typeScriptBuildResultPath: undefined,
     removeUncaughtErrorAndRejectionListeners: false,
     validateRSCRequestHeaders: true,
     staleTimes: {

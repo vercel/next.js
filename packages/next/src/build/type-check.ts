@@ -33,7 +33,8 @@ function verifyAndRunTypeScript(
   pagesDir: string | undefined,
   debugBuildPaths: { app: string[]; pages: string[] } | undefined,
   useTypeScriptCli: boolean,
-  onFirstCliOutput?: () => void
+  onFirstCliOutput?: () => void,
+  typeScriptCpuBudget?: number
 ) {
   let impl: typeof import('../lib/verify-typescript-setup').verifyAndRunTypeScript
   let typeCheckWorker:
@@ -78,6 +79,7 @@ function verifyAndRunTypeScript(
     debugBuildPaths,
     useTypeScriptCli,
     onFirstCliOutput,
+    typeScriptCpuBudget,
   })
     .then((result) => {
       typeCheckWorker?.end()
@@ -101,6 +103,7 @@ export async function startTypeChecking({
   telemetry,
   appDir,
   debugBuildPaths,
+  typeScriptCpuBudget,
 }: {
   cacheDir: string
   config: NextConfigComplete
@@ -110,6 +113,7 @@ export async function startTypeChecking({
   telemetry: Telemetry
   appDir?: string
   debugBuildPaths: { app: string[]; pages: string[] } | undefined
+  typeScriptCpuBudget?: number
 }) {
   const ignoreTypeScriptErrors = Boolean(config.typescript.ignoreBuildErrors)
   const useTypeScriptCli = Boolean(config.experimental.useTypeScriptCli)
@@ -154,7 +158,8 @@ export async function startTypeChecking({
           // Stop the spinner before as soon as the subprocess reports output.
           useTypeScriptCli && typeCheckingSpinner
             ? () => typeCheckingSpinner.stop()
-            : undefined
+            : undefined,
+          typeScriptCpuBudget
         ).then((resolved) => {
           const checkEnd = process.hrtime(typeCheckAndLintStart)
           return [resolved, checkEnd] as const

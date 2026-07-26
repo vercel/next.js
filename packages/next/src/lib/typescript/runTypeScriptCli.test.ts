@@ -98,6 +98,27 @@ describe('runTypeScriptCli', () => {
     expectListenersRestored()
   })
 
+  it('sets the native TypeScript CPU budget for the child process', async () => {
+    const resultPromise = runTypeScriptCli({
+      cwd: '/project',
+      tscPath: '/project/node_modules/typescript/bin/tsc',
+      args: ['--noEmit'],
+      cpuBudget: 2,
+    })
+
+    expect(mockSpawn).toHaveBeenCalledWith(
+      process.execPath,
+      ['/project/node_modules/typescript/bin/tsc', '--noEmit'],
+      expect.objectContaining({
+        env: expect.objectContaining({ GOMAXPROCS: '2' }),
+      })
+    )
+
+    child.emit('close', 0, null)
+    await expect(resultPromise).resolves.toMatchObject({ exitCode: 0 })
+    expectListenersRestored()
+  })
+
   it('forwards output as it arrives, preserving stdout/stderr interleaving, and stops the spinner on the first byte', async () => {
     const stdoutWrite = jest
       .spyOn(process.stdout, 'write')

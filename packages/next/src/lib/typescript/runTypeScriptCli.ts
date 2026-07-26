@@ -93,6 +93,7 @@ export function runTypeScriptCli({
   args,
   captureOutput = false,
   onFirstOutput,
+  cpuBudget,
 }: {
   cwd: string
   tscPath: string
@@ -107,6 +108,8 @@ export function runTypeScriptCli({
    * spinner before `tsc`'s diagnostics appear. Not called when capturing.
    */
   onFirstOutput?: () => void
+  /** Maximum native TypeScript worker threads for the spawned checker. */
+  cpuBudget?: number
 }): Promise<TypeScriptCliResult> {
   return new Promise((resolve, reject) => {
     const child = spawn(process.execPath, [tscPath, ...args], {
@@ -125,6 +128,9 @@ export function runTypeScriptCli({
         ...(!captureOutput && process.stdout.isTTY
           ? { FORCE_COLOR: '1' }
           : undefined),
+        ...(cpuBudget === undefined
+          ? undefined
+          : { GOMAXPROCS: String(cpuBudget) }),
       },
     })
 
@@ -233,7 +239,10 @@ export async function getTypeScriptConfigurationCli({
   baseDir: string
   tsConfigPath: string
   tscPath: string
-}): Promise<{ compilerOptions: Record<string, any> }> {
+}): Promise<{
+  compilerOptions: Record<string, any>
+  files?: string[]
+}> {
   const result = await runTypeScriptCli({
     cwd: baseDir,
     tscPath,

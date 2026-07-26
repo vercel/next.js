@@ -170,6 +170,8 @@ import { getStaticMetadataPrerenderPathname } from '../lib/metadata/get-metadata
 import { isStaticMetadataFile } from '../lib/metadata/is-metadata-route'
 import { createClientRouterFilter } from '../lib/create-client-router-filter'
 import { startTypeChecking } from './type-check'
+import { getTypeScriptPackageInfo } from '../lib/typescript/runTypeScriptCli'
+import { validateTypeCheckResult } from '../lib/typescript/typeCheckResult'
 import { generateInterceptionRoutesRewrites } from '../lib/generate-interception-routes-rewrites'
 
 import { buildDataRoute } from '../server/lib/router-utils/build-data-route'
@@ -234,6 +236,21 @@ import {
 import { generateRoutesManifest } from './generate-routes-manifest'
 import { buildCustomRoute } from '../lib/build-custom-route'
 import { validateAppPaths } from './validate-app-paths'
+
+function getAdaptiveTypeScriptCpuBudget(
+  configuredBudget: number | undefined
+): number | undefined {
+  if (configuredBudget !== undefined) {
+    return configuredBudget
+  }
+
+  const parallelism = os.availableParallelism()
+  if (parallelism < 8) {
+    return undefined
+  }
+
+  return Math.min(4, Math.max(2, Math.floor(parallelism / 4)))
+}
 
 type Fallback = null | boolean | string
 
@@ -1354,6 +1371,9 @@ export default async function build(
         cacheDir,
         debugBuildPaths,
       }
+      const typeScriptBuildMode = config.experimental.typeScriptBuildMode
+      let typeCheckingPromise: Promise<void> | undefined
+      let typeCheckingComplete = false
 
       if (appDir && 'exportPathMap' in config) {
         const errorMessage =
@@ -1577,6 +1597,55 @@ export default async function build(
           )
         })
 
+      if (!isCompileMode && !isGenerateMode) {
+        const typeScriptPackage = getTypeScriptPackageInfo(dir)
+
+        if (typeScriptBuildMode === 'external') {
+          if (!typeScriptPackage?.tscPath) {
+            throw new Error(
+              'The external TypeScript build mode requires a project-local TypeScript CLI.'
+            )
+          }
+          await validateTypeCheckResult({
+            baseDir: dir,
+            resultPath: config.experimental.typeScriptBuildResultPath!,
+            tsConfigPath: path.join(
+              dir,
+              config.typescript.tsconfigPath || 'tsconfig.json'
+            ),
+            tscPath: typeScriptPackage.tscPath,
+            typescriptVersion: typeScriptPackage.version,
+          })
+          Log.info('Using verified external TypeScript result')
+          typeCheckingComplete = true
+        } else if (appDir && typeScriptBuildMode === 'adaptive') {
+          const majorVersion = Number(
+            typeScriptPackage?.version.split('.')[0] || 0
+          )
+          const cpuBudget = getAdaptiveTypeScriptCpuBudget(
+            config.experimental.typeScriptBuildCpuBudget
+          )
+
+          if (majorVersion < 7) {
+            Log.warn(
+              'Adaptive TypeScript checking requires the native TypeScript 7 CLI. Falling back to serial checking.'
+            )
+          } else if (cpuBudget === undefined) {
+            Log.info(
+              'Adaptive TypeScript checking is using the serial schedule because fewer than 8 CPUs are available.'
+            )
+          } else {
+            Log.info(
+              `Running TypeScript concurrently with a ${cpuBudget}-CPU budget`
+            )
+            typeCheckingPromise = startTypeChecking({
+              ...typeCheckingOptions,
+              typeScriptCpuBudget: cpuBudget,
+            })
+          }
+        }
+      }
+
       // Turbopack already handles conflicting app and page routes.
       if (bundler !== Bundler.Turbopack) {
         const numConflictingAppPaths = conflictingAppPagePaths.length
@@ -1688,7 +1757,7 @@ export default async function build(
         )
 
       // For pages directory, we run type checking after route collection but before build.
-      if (!appDir && !isCompileMode) {
+      if (!appDir && !isCompileMode && !typeCheckingComplete) {
         await startTypeChecking(typeCheckingOptions)
       }
 
@@ -1938,12 +2007,17 @@ export default async function build(
 
       // #endregion
 
-      // For app directory, we run type checking after build.
-      if (appDir && !isCompileMode && !isGenerateMode) {
+      // For app directory, wait for type checking after build.
+      if (
+        appDir &&
+        !isCompileMode &&
+        !isGenerateMode &&
+        !typeCheckingComplete
+      ) {
         await updateBuildDiagnostics({
           buildStage: 'type-checking',
         })
-        await startTypeChecking(typeCheckingOptions)
+        await (typeCheckingPromise ?? startTypeChecking(typeCheckingOptions))
         traceMemoryUsage('Finished type checking', nextBuildSpan)
       }
 
