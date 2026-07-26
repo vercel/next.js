@@ -351,6 +351,7 @@ async function startWatcher(
 
   let resolved = false
   let prevSortedRoutes: string[] = []
+  let hasComputedSortedRoutes = false
 
   await new Promise<void>(async (resolve, reject) => {
     if (pagesDir) {
@@ -1089,9 +1090,11 @@ async function startWatcher(
           // otherwise it sends the event too early.
           await propagateServerField(opts, 'reloadMatchers', undefined)
 
-          if (
-            !prevSortedRoutes?.every((val, idx) => val === sortedRoutes[idx])
-          ) {
+          const sortedRoutesChanged =
+            prevSortedRoutes.length !== sortedRoutes.length ||
+            prevSortedRoutes.some((route, idx) => route !== sortedRoutes[idx])
+
+          if (hasComputedSortedRoutes && sortedRoutesChanged) {
             const addedRoutes = sortedRoutes.filter(
               (route) => !prevSortedRoutes.includes(route)
             )
@@ -1125,6 +1128,7 @@ async function startWatcher(
           }
         }
         prevSortedRoutes = sortedRoutes
+        hasComputedSortedRoutes = true
 
         if (enabledTypeScript) {
           // Using === false to make the check clearer.
