@@ -34,6 +34,10 @@ import type { NextTypegenOptions } from '../cli/next-typegen.js'
 import type { NextPostBuildOptions } from '../cli/next-post-build.js'
 import { ensureProfilesDir } from '../lib/profiles-dir'
 import type { NextRequestInsightsOptions } from '../cli/next-request-insights.js'
+import { setupBrokenPipeHandling } from '../lib/setup-broken-pipe-handling'
+
+// Must run before anything writes to stdout/stderr.
+setupBrokenPipeHandling()
 
 /**
  * Create `.next-profiles` (with its `.gitignore`) when profiling/tracing is

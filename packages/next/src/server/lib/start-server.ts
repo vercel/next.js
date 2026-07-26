@@ -43,6 +43,11 @@ import { isIPv6 } from './is-ipv6'
 import { AsyncCallbackSet } from './async-callback-set'
 import type { NextServer } from '../next'
 import { durationToString } from '../../build/duration-to-string'
+import { setupBrokenPipeHandling } from '../../lib/setup-broken-pipe-handling'
+
+// This module is also the entrypoint of the forked dev server, which inherits
+// the CLI's stdio and so needs its own guard.
+setupBrokenPipeHandling()
 
 const debug = setupDebug('next:start-server')
 let startServerSpan: Span | undefined
