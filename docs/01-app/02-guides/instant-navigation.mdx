@@ -472,7 +472,7 @@ Agents working on a Cache Components route typically reach for three levers:
 
 Each refactor should pair with a before/after capture to verify the change actually landed. Identical-looking captures mean the refactor didn't take effect.
 
-For agents to see what their changes actually render, pair this with [agent-browser](https://github.com/vercel-labs/agent-browser). With React DevTools enabled it reports the component tree and which `<Suspense>` boundaries are still pending, so an agent can make a change, snapshot the shell, check what landed, and adjust. See [Runtime visibility](/docs/app/guides/ai-agents#runtime-visibility) in the AI agents guide for the setup.
+For agents to see what their changes actually render, pair this with [agent-browser](https://github.com/vercel-labs/agent-browser). With React DevTools enabled it reports the component tree and which `<Suspense>` boundaries are still pending, so an agent can make a change, snapshot the shell, check what landed, and adjust. See [Runtime visibility](/docs/app/guides/ai-agents#step-2-give-agents-runtime-visibility) in the AI agents guide for the setup.
 
 The [`next-cache-components-optimizer`](/docs/app/guides/ai-agents#next-cache-components-optimizer) skill packages this loop: it encodes the goal as a failing `@next/playwright` `instant()` test and works it to green one route at a time, for both initial load (hard navigation) and client-side navigation (soft navigation), then ships the test as a regression guard.
 
