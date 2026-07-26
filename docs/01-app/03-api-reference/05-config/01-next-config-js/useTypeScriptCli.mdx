@@ -115,6 +115,18 @@ Cache the configured `.tsbuildinfo` file between type-check jobs to preserve
 TypeScript's incremental project state. The result file itself should be passed
 to the build job as an artifact.
 
+## Telemetry
+
+When [anonymous telemetry](/telemetry) is enabled, builds using the CLI checker
+record the configured and effective schedule, selected CPU budget, fallback
+reason, TypeScript version, and compile, type-check, overlap, external
+validation, and total build durations. Logical CPU count and memory are already
+part of Next.js anonymous system metadata.
+
+This event does not include project paths, project fingerprints, file names,
+environment variables, or project identity. You can disable telemetry with
+`next telemetry --disable`.
+
 ## Behavior
 
 - Next.js continues to generate `next-env.d.ts` and route types and to apply its recommended `tsconfig` settings before running the checker.
