@@ -156,6 +156,7 @@ impl Glob {
 
 fn new_regex(pattern: &str, opts: GlobOptions) -> Regex {
     RegexBuilder::new(pattern)
+        // Because we aren't setting the `unicode` flag, this is only ASCII case-insensitive.
         .case_insensitive(opts.case_insensitive)
         .dot_matches_new_line(true)
         .build()
