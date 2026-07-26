@@ -3,17 +3,22 @@ const { promisify } = require('util')
 const { exec: execOrig, spawn: spawnOrig } = require('child_process')
 
 const execP = promisify(execOrig)
-const env = {
-  ...process.env,
-  GITHUB_TOKEN: '',
-  PR_STATS_COMMENT_TOKEN: '',
+
+// Computed per call, so that variables assigned to `process.env` after this
+// module was loaded (e.g. NEXT_TEST_NATIVE_DIR) reach the child processes.
+function getEnv() {
+  return {
+    ...process.env,
+    GITHUB_TOKEN: '',
+    PR_STATS_COMMENT_TOKEN: '',
+  }
 }
 
 function exec(command, noLog = false, opts = {}) {
   if (!noLog) logger(`exec: ${command}`)
   return execP(command, {
     ...opts,
-    env: { ...env, ...opts.env },
+    env: { ...getEnv(), ...opts.env },
   })
 }
 
@@ -22,7 +27,7 @@ exec.spawn = function spawn(command = '', opts = {}) {
   const child = spawnOrig('/bin/bash', ['-c', command], {
     ...opts,
     env: {
-      ...env,
+      ...getEnv(),
       ...opts.env,
     },
     stdio: opts.stdio || 'inherit',

@@ -33,5 +33,9 @@ WORKDIR /next-stats
 
 COPY --from=pnpm-deploy /next-stats .
 
+# `pnpm deploy` applies packing rules, and the .gitignore in native/ makes it
+# drop the binaries that the workflow copied there, so copy them in directly.
+COPY actions/next-stats-action/native/ native/
+
 COPY actions/next-stats-action/entrypoint.sh /entrypoint.sh
 ENTRYPOINT ["/entrypoint.sh"]
