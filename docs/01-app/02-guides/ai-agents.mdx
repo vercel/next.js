@@ -13,7 +13,7 @@ related:
 
 Next.js ships version-matched documentation inside the `next` package, allowing AI coding agents to reference accurate, up-to-date APIs and patterns. An `AGENTS.md` file at the root of your project directs agents to these bundled docs instead of their training data.
 
-Beyond the docs, Next.js gives agents [runtime visibility](#runtime-visibility) into the running dev server, with forwarded browser logs, an [MCP server](/docs/app/guides/mcp), and a browser they can drive. [Skills](#skills-for-multi-step-workflows) package multi-step workflows like adopting Cache Components.
+Beyond the docs, Next.js gives agents [runtime visibility](#runtime-visibility) into the running dev server, with forwarded browser logs, an [MCP server](/docs/app/guides/mcp), and a browser they can drive. Errors present [labeled fixes](#actionable-errors) with a copy-ready prompt for each. [Skills](#skills-for-multi-step-workflows) package multi-step workflows like adopting Cache Components.
 
 ## How it works
 
@@ -33,6 +33,8 @@ node_modules/next/dist/docs/
 This means agents always have access to docs that match your installed version, with no network request or external lookup required. [Upgrading Next.js](/docs/app/getting-started/upgrading) also upgrades the bundled docs, including new guidance for existing features.
 
 The `AGENTS.md` file at the root of your project tells agents to read these bundled docs before writing any code. Most AI coding agents, including Claude Code, Cursor, and GitHub Copilot, automatically read `AGENTS.md` when they start a session.
+
+The docs are also available over the network as Markdown. Append `.md` to any page URL on [nextjs.org/docs](https://nextjs.org/docs) for a plain Markdown version, including the per-error pages under `/docs/messages`, which are not bundled. Clients that send an `Accept: text/markdown` header get Markdown too. The index at [`/docs/llms.txt`](https://nextjs.org/docs/llms.txt) and the single-file [`/docs/llms-full.txt`](https://nextjs.org/docs/llms-full.txt) follow the [`llms.txt` convention](https://llmstxt.org/), so agents that already read `llms.txt` for other tools can discover the Next.js docs the same way.
 
 ## Getting started
 
@@ -114,6 +116,8 @@ Agents also need to see what the running app is doing. Runtime errors, client-si
 
 First, `next dev` forwards browser console errors and warnings to the terminal (the [`logging.browserToTerminal`](/docs/app/api-reference/config/next-config-js/logging) config), so the output agents already read carries the client-side failures they're asked to fix.
 
+`next dev` also writes its PID, port, and URL to `.next/dev/lock`. A second `next dev` in the same project prints the running server's URL and the PID to kill, so an agent connects to the existing server instead of stacking a new one.
+
 The **framework's view** comes from the [Next.js MCP server](/docs/app/guides/mcp) at `/_next/mcp`: the running dev server's routes, server logs, and compilation issues. Its `get_compilation_issues` and `compile_route` tools report whether the code compiles straight from the dev server, so an agent doesn't have to run a full `next build` to find out.
 
 The **browser's view** comes from [`agent-browser`](https://github.com/vercel-labs/agent-browser), a CLI that exposes the DOM, console, network, and Web Vitals as structured text. With React DevTools enabled (pass `--enable react-devtools` to `agent-browser open`, which the `next-dev-loop` skill does for you), it also reports the component tree and which Suspense boundaries are still pending. An agent runs a command like `react tree`, reads the output, and decides what to inspect next, instead of looking at a DevTools panel it can't see.
@@ -121,6 +125,28 @@ The **browser's view** comes from [`agent-browser`](https://github.com/vercel-la
 The [`next-dev-loop` skill](#skills-for-multi-step-workflows) builds on both views, combining the framework's and the browser's perspective into a single edit-and-verify loop.
 
 > **Good to know:** For the story behind this tooling, see the [Next.js 16.2](https://nextjs.org/blog/next-16-2-ai) and [Next.js 16.3](https://nextjs.org/blog/next-16-3-ai-improvements) AI blog posts.
+
+## Actionable errors
+
+With [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents) enabled, a blocking error presents labeled fixes, each making a different trade-off. The dev overlay adds a **Copy prompt** button that packages the chosen fix into a paste-ready prompt, walking the agent through reading the matching error page, applying the canonical pattern, and verifying the result at runtime.
+
+The same menu prints in the `next dev` terminal and in `next build` output, so an agent reading CI logs sees it too:
+
+```txt filename="Terminal"
+Route "/products/[slug]": Next.js encountered uncached data during prerendering.
+
+`fetch(...)` or `connection()` accessed outside of `<Suspense>` prevents the route
+from being prerendered, blocking the page load and leading to a slower user experience.
+
+Ways to fix this:
+  - [stream] Provide a placeholder with `<Suspense fallback={...}>` around the data access
+  - [cache] Cache the data access with `"use cache"` (does not apply to `connection()`)
+  - [block] Set `export const instant = false` to allow a blocking route
+
+Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic
+```
+
+The `Learn more` link resolves to a per-error page under [`/docs/messages`](https://nextjs.org/docs/messages/blocking-prerender-dynamic) written for agents to read. Each page follows the same shape, with the canonical patterns for every fix, the trade-offs against the other fixes, and the gotchas an agent is likely to miss on a first attempt.
 
 ## Skills for multi-step workflows
 
