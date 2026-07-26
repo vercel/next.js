@@ -482,10 +482,17 @@ function getChunkRelativeUrl(
   chunkPath: ChunkPath | ChunkListPath,
   basePath: string = CHUNK_BASE_PATH
 ): ChunkUrl {
-  return `${basePath}${chunkPath
+  // A chunkPath may already contain a query string (e.g. `?dpl=xxx`) when it
+  // has been produced by `__turbopack_export_url__` which appends ASSET_SUFFIX
+  // at module-export time. Splitting the query out avoids double-encoding the
+  // `?` character and appending ASSET_SUFFIX a second time.
+  const qi = chunkPath.indexOf('?')
+  const pathPart = qi !== -1 ? chunkPath.slice(0, qi) : chunkPath
+  const querySuffix = qi !== -1 ? chunkPath.slice(qi) : ASSET_SUFFIX
+  return `${basePath}${pathPart
     .split('/')
     .map((p) => encodeURIComponent(p))
-    .join('/')}${ASSET_SUFFIX}` as ChunkUrl
+    .join('/')}${querySuffix}` as ChunkUrl
 }
 
 // Shared runtime primitives consumed by the bundled `createWorker` helper,

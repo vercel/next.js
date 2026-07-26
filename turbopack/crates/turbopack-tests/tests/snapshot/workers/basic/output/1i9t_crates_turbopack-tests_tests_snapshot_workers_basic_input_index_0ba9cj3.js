@@ -951,7 +951,14 @@ browserContextPrototype.q = exportUrl;
 /**
  * Returns the URL relative to the origin where a chunk can be fetched from.
  */ function getChunkRelativeUrl(chunkPath, basePath = CHUNK_BASE_PATH) {
-    return `${basePath}${chunkPath.split('/').map((p)=>encodeURIComponent(p)).join('/')}${ASSET_SUFFIX}`;
+    // A chunkPath may already contain a query string (e.g. `?dpl=xxx`) when it
+    // has been produced by `__turbopack_export_url__` which appends ASSET_SUFFIX
+    // at module-export time. Splitting the query out avoids double-encoding the
+    // `?` character and appending ASSET_SUFFIX a second time.
+    const qi = chunkPath.indexOf('?');
+    const pathPart = qi !== -1 ? chunkPath.slice(0, qi) : chunkPath;
+    const querySuffix = qi !== -1 ? chunkPath.slice(qi) : ASSET_SUFFIX;
+    return `${basePath}${pathPart.split('/').map((p)=>encodeURIComponent(p)).join('/')}${querySuffix}`;
 }
 // Shared runtime primitives consumed by the bundled `createWorker` helper,
 // exposed as `__turbopack_chunk_base_path__` and `__turbopack_chunk_asset_suffix__`.
