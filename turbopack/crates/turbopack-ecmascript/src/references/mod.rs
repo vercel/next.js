@@ -1404,6 +1404,10 @@ async fn analyze_ecmascript_module_internal(
                                 .compile_time_info_ref
                                 .hot_module_replacement_enabled,
                             mode,
+                            analysis_state
+                                .compile_time_info_ref
+                                .import_meta_env_base_url
+                                .clone(),
                             is_ssr,
                         ));
                     }
@@ -1546,6 +1550,7 @@ async fn compile_time_info_for_module_options(
         defines: CompileTimeDefines(defines).resolved_cell(),
         free_var_references: FreeVarReferences(free_var_references).resolved_cell(),
         hot_module_replacement_enabled: compile_time_info.hot_module_replacement_enabled,
+        import_meta_env_base_url: compile_time_info.import_meta_env_base_url.clone(),
     }
     .cell())
 }

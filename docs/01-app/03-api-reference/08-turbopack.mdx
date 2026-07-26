@@ -146,7 +146,7 @@ Turbopack supports built-in environment metadata through `import.meta.env`:
 | `DEV`      | `boolean` | Whether `MODE` is not `"production"`                               |
 | `PROD`     | `boolean` | Whether `MODE` is `"production"`                                   |
 | `MODE`     | `string`  | The compile-time `NODE_ENV`, defaulting to `"development"`         |
-| `BASE_URL` | `string`  | `"/"`                                                              |
+| `BASE_URL` | `string`  | The Next.js `basePath`, with a trailing slash (`"/"` by default)   |
 | `SSR`      | `boolean` | `true` in server bundles and `false` in browser and client bundles |
 
 These values are statically analyzed, so Turbopack can remove unreachable branches:
@@ -164,7 +164,7 @@ const { MODE, SSR } = import.meta.env
 const baseUrl = import.meta.env['BASE_URL']
 ```
 
-> **Good to know**: `import.meta.env` requires Turbopack. Custom `VITE_*` variables, Vite custom modes, `envPrefix`, `envDir`, and configurable `BASE_URL` values are not supported. `BASE_URL` does not reflect the Next.js `basePath` configuration.
+> **Good to know**: `import.meta.env` requires Turbopack. Custom `VITE_*` variables, Vite custom modes, `envPrefix`, and `envDir` are not supported. `BASE_URL` reflects the Next.js [`basePath`](/docs/app/api-reference/config/next-config-js/basePath) configuration and includes a trailing slash to match Vite's format.
 
 ## import.meta.glob
 

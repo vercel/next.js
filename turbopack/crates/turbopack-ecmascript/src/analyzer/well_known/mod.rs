@@ -752,7 +752,9 @@ async fn well_known_object_member<'a>(
                 Some("MODE") => JsValue::from(mode),
                 Some("PROD") => JsValue::from(ConstantValue::from(is_prod)),
                 Some("DEV") => JsValue::from(ConstantValue::from(!is_prod)),
-                Some("BASE_URL") => JsValue::from("/"),
+                Some("BASE_URL") => {
+                    JsValue::from(compile_time_info.import_meta_env_base_url.clone())
+                }
                 Some("SSR") => JsValue::from(ConstantValue::from(is_ssr)),
                 Some(_) => JsValue::Constant(ConstantValue::Undefined),
                 None => {

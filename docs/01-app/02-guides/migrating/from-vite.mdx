@@ -526,8 +526,9 @@ client-side.
 - Change all environment variables with the `VITE_` prefix to `NEXT_PUBLIC_`.
 
 Turbopack supports Vite's built-in `import.meta.env.MODE`, `DEV`, `PROD`, `BASE_URL`, and `SSR`
-properties with no changes needed. `BASE_URL` is always `/` and does not reflect the Next.js
-[`basePath`](/docs/app/api-reference/config/next-config-js/basePath) configuration.
+properties with no changes needed. `BASE_URL` reflects the Next.js
+[`basePath`](/docs/app/api-reference/config/next-config-js/basePath) configuration and includes a
+trailing slash, matching Vite's format.
 
 **`import.meta.glob`** is supported by Turbopack (the default Next.js bundler) with no changes needed. If you were using the `as` option (deprecated in Vite 5), replace it with `query`:
 
@@ -541,29 +542,19 @@ const modules = import.meta.glob('./dir/*.txt', { query: '?raw' })
 
 See the [import.meta.glob docs](/docs/app/api-reference/turbopack#importmetaglob) for the full API.
 
-If your Vite application configured a custom base URL, create a public environment variable for it:
-
-1. **Add the following to your `.env` file:**
-
-```bash filename=".env"
-# ...
-NEXT_PUBLIC_BASE_PATH="/some-base-path"
-```
-
-2. **Set [`basePath`](/docs/app/api-reference/config/next-config-js/basePath) to `process.env.NEXT_PUBLIC_BASE_PATH` in your `next.config.mjs` file:**
+If your Vite application configured a custom base URL, set the equivalent
+[`basePath`](/docs/app/api-reference/config/next-config-js/basePath) in your `next.config.mjs` file:
 
 ```js filename="next.config.mjs"
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   output: 'export', // Outputs a Single-Page Application (SPA).
   distDir: './dist', // Changes the build output directory to `./dist/`.
-  basePath: process.env.NEXT_PUBLIC_BASE_PATH, // Sets the base path to `/some-base-path`.
+  basePath: '/some-base-path',
 }
 
 export default nextConfig
 ```
-
-3. **Update usages that need the configured base path to `process.env.NEXT_PUBLIC_BASE_PATH`**
 
 ### Step 8: Update Scripts in `package.json`
 

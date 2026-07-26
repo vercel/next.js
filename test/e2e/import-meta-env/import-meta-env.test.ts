@@ -14,7 +14,7 @@ testFn('import.meta.env', () => {
   if (skipped) return
 
   it('exposes built-in environment values on the server and client', async () => {
-    const browser = await next.browser('/')
+    const browser = await next.browser('/docs')
     const expectedMode = isNextDev ? 'development' : 'production'
 
     expect(
@@ -23,7 +23,7 @@ testFn('import.meta.env', () => {
       DEV: isNextDev,
       PROD: !isNextDev,
       MODE: expectedMode,
-      BASE_URL: '/',
+      BASE_URL: '/docs/',
       SSR: true,
     })
     expect(
@@ -32,14 +32,14 @@ testFn('import.meta.env', () => {
       DEV: isNextDev,
       PROD: !isNextDev,
       MODE: expectedMode,
-      BASE_URL: '/',
+      BASE_URL: '/docs/',
       SSR: false,
     })
   })
 
   it('supports static bracket access and unknown properties', async () => {
-    const browser = await next.browser('/')
-    const $ = await next.render$('/')
+    const browser = await next.browser('/docs')
+    const $ = await next.render$('/docs')
     const expectedMode = isNextDev ? 'development' : 'production'
 
     expect($('#server-env dd').eq(1).text()).toBe(expectedMode)

@@ -33,15 +33,23 @@ pub struct ImportMetaBinding {
     path: FileSystemPath,
     hmr_enabled: bool,
     mode: RcStr,
+    base_url: RcStr,
     is_ssr: bool,
 }
 
 impl ImportMetaBinding {
-    pub fn new(path: FileSystemPath, hmr_enabled: bool, mode: RcStr, is_ssr: bool) -> Self {
+    pub fn new(
+        path: FileSystemPath,
+        hmr_enabled: bool,
+        mode: RcStr,
+        base_url: RcStr,
+        is_ssr: bool,
+    ) -> Self {
         ImportMetaBinding {
             path,
             hmr_enabled,
             mode,
+            base_url,
             is_ssr,
         }
     }
@@ -79,7 +87,7 @@ impl ImportMetaBinding {
         let is_prod: Expr = (self.mode == "production").into();
         let is_dev: Expr = (self.mode != "production").into();
         let is_ssr: Expr = self.is_ssr.into();
-        let base_url: Expr = "/".into();
+        let base_url: Expr = self.base_url.as_str().into();
 
         // [NOTE] url property is lazy-evaluated, as it should be computed once
         // turbopack_runtime injects a function to calculate an absolute path.
