@@ -1,4 +1,4 @@
-use std::time::Duration;
+use std::{path::Path, time::Duration};
 
 use anyhow::{Context, Result, bail};
 use async_trait::async_trait;
@@ -45,9 +45,10 @@ use turbo_tasks::{
 };
 use turbo_tasks_env::{EnvMap, ProcessEnv};
 use turbo_tasks_fs::{
-    DiskFileSystem, FileContent, FileSystem, FileSystemPath, VirtualFileSystem, invalidation,
+    DiskFileSystem, FileContent, FileSystem, FileSystemPath, VirtualFileSystem,
+    canonicalize_to_rcstr, invalidation,
 };
-use turbo_unix_path::{join_path, unix_to_sys};
+use turbo_unix_path::join_path;
 use turbopack::{
     ModuleAssetContext, evaluate_context::node_build_environment, externals_tracing_module_context,
     global_module_ids::get_global_module_id_strategy, transition::TransitionOptions,
@@ -99,7 +100,6 @@ use crate::{
     entrypoints::Entrypoints,
     instrumentation::InstrumentationEndpoint,
     middleware::MiddlewareEndpoint,
-    output_mode::{OptionOutputModeState, OutputModeState},
     pages::PagesProject,
     route::{
         Endpoint, EndpointGroup, EndpointGroupEntry, EndpointGroupKey, EndpointGroups, Endpoints,
@@ -467,7 +467,6 @@ pub struct ProjectContainer {
     name: RcStr,
     options_state: State<Option<ProjectOptions>>,
     versioned_content_map: Option<ResolvedVc<VersionedContentMap>>,
-    output_mode_state: Option<ResolvedVc<OutputModeState>>,
 }
 
 #[turbo_tasks::value_impl]
@@ -480,13 +479,6 @@ impl ProjectContainer {
             // is assumed to be operating over a static snapshot
             versioned_content_map: if dev {
                 Some(VersionedContentMap::new())
-            } else {
-                None
-            },
-            // only dev serves pages on demand, so only dev can defer the
-            // Client Component SSR output of a page
-            output_mode_state: if dev {
-                Some(OutputModeState::new())
             } else {
                 None
             },
@@ -703,7 +695,7 @@ impl ProjectContainer {
                 .context("ProjectContainer need to be initialized with initialize()")?;
 
             if let Some(root_path) = root_path {
-                new_options.root_path = root_path;
+                new_options.root_path = canonicalize_to_rcstr(Path::new(&*root_path))?;
             }
             if let Some(project_path) = project_path {
                 new_options.project_path = project_path;
@@ -875,7 +867,6 @@ impl ProjectContainer {
                 NextMode::Build.resolved_cell()
             },
             versioned_content_map: self.versioned_content_map,
-            output_mode_state: self.output_mode_state,
             build_id,
             encryption_key,
             preview_props,
@@ -960,11 +951,6 @@ pub struct Project {
     mode: ResolvedVc<NextMode>,
 
     versioned_content_map: Option<ResolvedVc<VersionedContentMap>>,
-
-    /// Tracks which app pages must emit full HTML output in development. Like
-    /// [`Project::versioned_content_map`], this is the same cell across
-    /// `Project` re-creations, so the state survives options changes.
-    output_mode_state: Option<ResolvedVc<OutputModeState>>,
 
     build_id: RcStr,
 
@@ -1073,11 +1059,6 @@ impl Project {
     }
 
     #[turbo_tasks::function]
-    pub fn output_mode_state(&self) -> Vc<OptionOutputModeState> {
-        Vc::cell(self.output_mode_state)
-    }
-
-    #[turbo_tasks::function]
     pub fn project_fs(&self) -> Result<Vc<DiskFileSystem>> {
         let denied_path = match join_path(&self.project_path, &self.dist_dir_root) {
             Some(dist_dir_root) => dist_dir_root.into(),
@@ -1112,23 +1093,6 @@ impl Project {
     #[turbo_tasks::function]
     pub fn output_fs(&self) -> Vc<DiskFileSystem> {
         DiskFileSystem::new(rcstr!("output"), *self.root_path)
-    }
-
-    #[turbo_tasks::function]
-    pub async fn dist_dir_absolute(&self) -> Result<Vc<RcStr>> {
-        let root_path = self.root_path.await?;
-        Ok(Vc::cell(
-            format!(
-                "{}{}{}",
-                root_path,
-                std::path::MAIN_SEPARATOR,
-                unix_to_sys(
-                    &join_path(&self.project_path, &self.dist_dir)
-                        .context("expected project_path to be inside of root_path")?
-                )
-            )
-            .into(),
-        ))
     }
 
     #[turbo_tasks::function]

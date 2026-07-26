@@ -7,7 +7,6 @@ import imageSizeOf from 'next/dist/compiled/image-size'
 import { detector } from 'next/dist/compiled/image-detector/detector.js'
 import isAnimated from 'next/dist/compiled/is-animated'
 import { join } from 'path'
-
 import { getImageBlurSvg } from '../shared/lib/image-blur-svg'
 import type { ImageConfigComplete } from '../shared/lib/image-config'
 import { hasLocalMatch } from '../shared/lib/match-local-pattern'
@@ -59,7 +58,7 @@ const BYPASS_TYPES = [SVG, ICO, ICNS, BMP, JXL, HEIC]
 const BLUR_IMG_SIZE = 8 // should match `next-image-loader`
 const BLUR_QUALITY = 70 // should match `next-image-loader`
 
-let _sharp: typeof import('sharp')
+let _sharp: typeof import('sharp').default
 
 async function initCacheEntries(
   cacheDir: string
@@ -92,7 +91,7 @@ export function getSharp(
     return _sharp
   }
   try {
-    _sharp = require('sharp') as typeof import('sharp')
+    _sharp = require('sharp') as typeof import('sharp').default
     if (typeof operationCache === 'boolean') {
       _sharp.cache(operationCache)
     }
@@ -227,10 +226,7 @@ async function deleteFromCacheDir(cacheDir: string, cacheKey: string) {
  * https://en.wikipedia.org/wiki/List_of_file_signatures
  */
 export async function detectContentType(
-  buffer: Buffer,
-  skipMetadata: boolean | null | undefined,
-  concurrency?: number | null | undefined,
-  operationCache?: boolean | null | undefined
+  buffer: Buffer
 ): Promise<string | null> {
   if (buffer.byteLength === 0) {
     return null
@@ -308,28 +304,13 @@ export async function detectContentType(
     return JP2
   }
 
-  let format:
-    | import('sharp').Metadata['format']
-    | ReturnType<typeof detector>
-    | undefined
-  format = detector(buffer)
-
-  if (!format && !skipMetadata) {
-    const sharp = getSharp(concurrency, operationCache)
-    const meta = await sharp(buffer)
-      .metadata()
-      .catch((_) => null)
-    format = meta?.format
-  }
+  const format = detector(buffer.subarray(0, 1024))
 
   switch (format) {
-    case 'avif':
-      return AVIF
     case 'webp':
       return WEBP
     case 'png':
       return PNG
-    case 'jpeg':
     case 'jpg':
       return JPEG
     case 'gif':
@@ -342,28 +323,14 @@ export async function detectContentType(
     case 'jp2':
       return JP2
     case 'tiff':
-    case 'tif':
       return TIFF
-    case 'pdf':
-      return PDF
     case 'bmp':
       return BMP
     case 'ico':
       return ICO
     case 'icns':
       return ICNS
-    case 'dcraw':
-    case 'dz':
-    case 'exr':
-    case 'fits':
     case 'heif':
-    case 'input':
-    case 'magick':
-    case 'openslide':
-    case 'ppm':
-    case 'rad':
-    case 'raw':
-    case 'v':
     case 'cur':
     case 'dds':
     case 'j2c':
@@ -372,8 +339,10 @@ export async function detectContentType(
     case 'psd':
     case 'tga':
     case undefined:
+      return null // unsupported formats
     default:
-      return null
+      format satisfies never // exhaustive check
+      return null // impossible to reach
   }
 }
 
@@ -849,7 +818,10 @@ export async function optimizeImage({
 
   if (contentType === AVIF) {
     transformer.avif({
-      quality: Math.max(quality - 20, 1),
+      // Scale the quality to try and match webp. This ratio was derived
+      // from sharp's default 80 (webp) and 50 (avif), and then verified
+      // using dssim and ssimulacra2 visual quality tests.
+      quality: Math.max(Math.round(quality * (50 / 80)), 1),
       effort: 3,
     })
   } else if (contentType === WEBP) {
@@ -1066,7 +1038,6 @@ export async function imageOptimizer(
       | 'imgOptOperationCache'
       | 'imgOptMaxInputPixels'
       | 'imgOptSequentialRead'
-      | 'imgOptSkipMetadata'
       | 'imgOptTimeoutInSeconds'
     >
     images: Pick<
@@ -1094,12 +1065,7 @@ export async function imageOptimizer(
     getMaxAge(imageUpstream.cacheControl)
   )
 
-  const upstreamType = await detectContentType(
-    upstreamBuffer,
-    nextConfig.experimental.imgOptSkipMetadata,
-    nextConfig.experimental.imgOptConcurrency,
-    nextConfig.experimental.imgOptOperationCache
-  )
+  const upstreamType = await detectContentType(upstreamBuffer)
 
   if (
     !upstreamType ||

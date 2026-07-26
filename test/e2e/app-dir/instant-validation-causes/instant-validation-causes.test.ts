@@ -1,5 +1,6 @@
 import { nextTestSetup } from 'e2e-utils'
-import { retry } from '../../../lib/next-test-utils'
+import { retry } from 'next-test-utils'
+import type { ValidationEvent } from 'next/dist/server/app-render/dev-validation-events'
 
 describe('instant validation causes', () => {
   const { next, skipped, isNextDev } = nextTestSetup({
@@ -26,10 +27,6 @@ describe('instant validation causes', () => {
     }
     return next.cliOutput.slice(currentCliOutputIndex)
   }
-
-  type ValidationEvent =
-    | { type: 'validation_start'; requestId: string; url: string }
-    | { type: 'validation_end'; requestId: string; url: string }
 
   function parseValidationMessages(output: string): ValidationEvent[] {
     const messageRe = /<VALIDATION_MESSAGE>(.*?)<\/VALIDATION_MESSAGE>/g
@@ -105,7 +102,7 @@ describe('instant validation causes', () => {
            ],
          },
        ],
-       "code": "E1398",
+       "code": "E1437",
        "description": "Next.js encountered uncached data during a navigation.",
        "environmentLabel": "Server",
        "label": "Instant",
@@ -136,7 +133,7 @@ describe('instant validation causes', () => {
            ],
          },
        ],
-       "code": "E1398",
+       "code": "E1437",
        "description": "Next.js encountered uncached data during a navigation.",
        "environmentLabel": "Server",
        "label": "Instant",
@@ -167,7 +164,7 @@ describe('instant validation causes', () => {
            ],
          },
        ],
-       "code": "E1398",
+       "code": "E1437",
        "description": "Next.js encountered uncached data during a navigation.",
        "environmentLabel": "Server",
        "label": "Instant",
@@ -201,7 +198,7 @@ describe('instant validation causes', () => {
            ],
          },
        ],
-       "code": "E1398",
+       "code": "E1437",
        "description": "Next.js encountered uncached data during a navigation.",
        "environmentLabel": "Server",
        "label": "Instant",

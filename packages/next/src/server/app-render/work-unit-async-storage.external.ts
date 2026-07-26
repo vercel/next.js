@@ -18,7 +18,6 @@ import type {
 import type { Params } from '../request/params'
 import type { ImplicitTags } from '../lib/implicit-tags'
 import type { WorkStore } from './work-async-storage.external'
-import { NEXT_HMR_REFRESH_HASH_COOKIE } from '../../client/components/app-router-headers'
 import { InvariantError } from '../../shared/lib/invariant-error'
 import type { StagedRenderingController } from './staged-rendering'
 import type { ValidationBoundaryTracking } from './instant-validation/boundary-tracking'
@@ -61,6 +60,7 @@ export interface RequestStore extends CommonWorkUnitStore {
   readonly draftMode: DraftModeProvider
   readonly isHmrRefresh?: boolean
   readonly serverComponentsHmrCache?: ServerComponentsHmrCache
+  readonly hmrRefreshHash?: string
 
   readonly rootParams: Params
 
@@ -164,6 +164,7 @@ export interface PrerenderStoreModernRuntime
    * renders where all stages run without sequencing.
    */
   readonly stagedRendering: StagedRenderingController | null
+  readonly isSessionShell: boolean
 
   readonly headers: RequestStore['headers']
   readonly cookies: RequestStore['cookies']
@@ -438,9 +439,8 @@ export function getHmrRefreshHash(
       case 'private-cache':
       case 'prerender':
       case 'prerender-runtime':
-        return workUnitStore.hmrRefreshHash
       case 'request':
-        return workUnitStore.cookies.get(NEXT_HMR_REFRESH_HASH_COOKIE)?.value
+        return workUnitStore.hmrRefreshHash
       case 'prerender-client':
       case 'validation-client':
       case 'prerender-ppr':

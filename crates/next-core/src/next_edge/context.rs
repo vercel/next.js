@@ -7,7 +7,8 @@ use turbopack_browser::BrowserChunkingContext;
 use turbopack_core::{
     chunk::{
         AssetSuffix, ChunkingConfig, ChunkingContext, CrossOrigin, MangleType, MinifyType,
-        SourceMapsType, UnusedReferences, UrlBehavior, chunk_id_strategy::ModuleIdStrategy,
+        SourceMapSourceType, SourceMapsType, UnusedReferences, UrlBehavior,
+        chunk_id_strategy::ModuleIdStrategy,
     },
     compile_time_info::{CompileTimeDefines, CompileTimeInfo, FreeVarReference, FreeVarReferences},
     environment::{EdgeWorkerEnvironment, Environment, ExecutionEnvironment, NodeJsVersion},
@@ -264,6 +265,15 @@ pub async fn get_edge_chunking_context_with_client_assets(
         MinifyType::NoMinify
     })
     .source_maps(*turbo_source_maps.await?)
+    // The edge server runtime is browser-like, so it uses a `BrowserChunkingContext` whose default
+    // source map source type is `TurbopackUri` (sources left as `turbopack:///[project]/...`).
+    // Match the Node.js server context instead so server stack traces get real file paths:
+    // absolute `file://` URIs in dev, relative paths in production.
+    .source_map_source_type(if next_mode.is_development() {
+        SourceMapSourceType::AbsoluteFileUri
+    } else {
+        SourceMapSourceType::RelativeUri
+    })
     .cross_origin(cross_origin_loading)
     .module_id_strategy(module_id_strategy.to_resolved().await?)
     .export_usage(*export_usage.await?)
@@ -368,6 +378,15 @@ pub async fn get_edge_chunking_context(
         MinifyType::NoMinify
     })
     .source_maps(*turbo_source_maps.await?)
+    // The edge server runtime is browser-like, so it uses a `BrowserChunkingContext` whose default
+    // source map source type is `TurbopackUri` (sources left as `turbopack:///[project]/...`).
+    // Match the Node.js server context instead so server stack traces get real file paths:
+    // absolute `file://` URIs in dev, relative paths in production.
+    .source_map_source_type(if next_mode.is_development() {
+        SourceMapSourceType::AbsoluteFileUri
+    } else {
+        SourceMapSourceType::RelativeUri
+    })
     .cross_origin(cross_origin)
     .module_id_strategy(module_id_strategy.to_resolved().await?)
     .export_usage(*export_usage.await?)

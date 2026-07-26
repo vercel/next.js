@@ -14,7 +14,7 @@ use swc_core::{
             ImportSpecifier, KeyValueProp, Lit, ModuleDecl, ModuleItem, ObjectLit, Pass, Prop,
             PropName, PropOrSpread, Stmt, Str, Tpl, UnaryExpr, UnaryOp, op,
         },
-        utils::{ExprFactory, private_ident, quote_ident},
+        utils::{ExprFactory, private_ident, prop_name_eq, quote_ident},
         visit::{VisitMut, VisitMutWith, visit_mut_pass},
     },
     quote,
@@ -275,10 +275,7 @@ impl VisitMut for NextDynamicPatcher {
                             _ => None,
                         },
                         _ => None,
-                    } && let Some(IdentName { sym, span: _ }) = match key {
-                        PropName::Ident(ident) => Some(ident),
-                        _ => None,
-                    } && sym == "ssr"
+                    } && prop_name_eq(key, "ssr")
                         && let Some(Lit::Bool(Bool {
                             value: false,
                             span: _,

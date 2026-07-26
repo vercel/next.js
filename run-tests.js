@@ -9,6 +9,7 @@ const { promisify } = require('util')
 const { Sema } = require('async-sema')
 const { spawn, exec: execOrig } = require('child_process')
 const { createNextInstall } = require('./test/lib/create-next-install')
+const { getBrowserLaunch } = require('./test/lib/browsers/launch')
 const glob = promisify(_glob)
 const exec = promisify(execOrig)
 const core = require('@actions/core')
@@ -39,6 +40,7 @@ class TestProfile {
     'NEXT_E2E_TEST_TIMEOUT',
     'NEXT_TURBOPACK_IO_CONCURRENCY',
     'NEXT_TEST_PASSED_FILE',
+    'NEXT_TEST_BROWSER_WS_ENDPOINT',
     'TURBO_TASKS_AVAILABLE_PARALLELISM',
   ])
 
@@ -130,6 +132,12 @@ class TestProfile {
     if (!file) return new Set()
     try {
       const data = fs.readFileSync(file, 'utf8')
+      // The file is created (in append mode) before any test runs, so it's
+      // empty when no test passed (or none ran at all) in the earlier
+      // attempt.
+      if (data === '') {
+        return new Set()
+      }
       // Tolerate a partial trailing line from a hard kill mid-append by
       // requiring an explicit '\0' terminator. Lines without it are
       // dropped.
@@ -147,7 +155,7 @@ class TestProfile {
 
 // Do not rename or format. sync-react script relies on this line.
 // prettier-ignore
-const nextjsReactPeerVersion = "19.2.7";
+const nextjsReactPeerVersion = "19.2.8";
 
 let argv = require('yargs/yargs')(process.argv.slice(2))
   .string('type')
@@ -297,6 +305,14 @@ ${output}
 
 let exiting = false
 
+/**
+ * Browser server shared across all test suites. Suites connect to it via
+ * `test/lib/browsers/playwright.ts` instead of each launching their own
+ * browser process.
+ * @type {import('playwright').BrowserServer | undefined}
+ */
+let sharedBrowserServer
+
 const cleanUpAndExit = async (code) => {
   if (exiting) {
     return
@@ -304,6 +320,11 @@ const cleanUpAndExit = async (code) => {
   exiting = true
   console.log(`exiting with code ${code}`)
 
+  if (sharedBrowserServer) {
+    await sharedBrowserServer.close().catch((err) => {
+      console.error('Failed to close shared browser server:', err)
+    })
+  }
   if (process.env.NEXT_TEST_STARTER) {
     await fsp.rm(process.env.NEXT_TEST_STARTER, {
       recursive: true,
@@ -624,6 +645,24 @@ ${ENDGROUP}`)
     console.log(`${ENDGROUP}`)
   }
 
+  // best-effort, don't spawn a browser for unit tests, if we don't spawn a
+  // browser but should've, that's okay, `next-webdriver` will still set it up
+  if (
+    !options.dry &&
+    ((options.type && options.type !== 'unit') ||
+      tests.some((test) => !testFilters.unit.test(test.file)))
+  ) {
+    // Launch a single browser server shared by all test suites, instead of
+    // each suite launching its own browser process. Suites connect to it via
+    // the ws endpoint env var in `test/lib/browsers/playwright.ts`.
+    const { browserType, launchOptions } = getBrowserLaunch(
+      process.env.BROWSER_NAME || 'chrome',
+      { headless: true } // matches per-test env below
+    )
+    sharedBrowserServer = await browserType.launchServer(launchOptions)
+    process.env.NEXT_TEST_BROWSER_WS_ENDPOINT = sharedBrowserServer.wsEndpoint()
+  }
+
   const sema = new Sema(options.concurrency, { capacity: tests.length })
   const outputSema = new Sema(1, { capacity: tests.length })
   const children = new Set()
@@ -842,6 +881,17 @@ ${ENDGROUP}`)
   if (profile.cachingEnabled) {
     try {
       passedTestsFd = fs.openSync(process.env.NEXT_TEST_PASSED_FILE, 'a')
+      // Tell the workflow that the file exists. Its "Save passed-tests
+      // cache" step (see `.github/workflows/build_reusable.yml`) only runs
+      // when this output is present, so jobs that never get here (no
+      // run-tests.js, or result caching disabled) skip the save instead of
+      // warning about a missing path.
+      if (process.env.GITHUB_OUTPUT) {
+        fs.appendFileSync(
+          process.env.GITHUB_OUTPUT,
+          `passed_tests_file=${process.env.NEXT_TEST_PASSED_FILE}\n`
+        )
+      }
     } catch (err) {
       console.log(`Test result cache: open failed (${err.message})`)
     }
