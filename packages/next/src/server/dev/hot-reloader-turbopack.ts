@@ -358,6 +358,26 @@ function getSourceMapURLFromTurbopack(
   return pathToFileURL(scriptPath + '.map').href
 }
 
+/**
+ * A digest of the endpoint's compiled server-side output. `writeToDisk()` is
+ * incremental, so calling it when nothing has changed is cheap and returns
+ * the same content hashes. Returns null when the output can't be computed
+ * (e.g. the endpoint fails to build).
+ */
+async function getServerContentDigest(
+  endpoint: Endpoint
+): Promise<string | null> {
+  try {
+    const { serverPaths } = await endpoint.writeToDisk()
+    return serverPaths
+      .map(({ path, contentHash }) => `${path}:${contentHash}`)
+      .sort()
+      .join('\n')
+  } catch {
+    return null
+  }
+}
+
 export async function createHotReloaderTurbopack(
   opts: SetupOpts & { isSrcDir: boolean },
   serverFields: ServerFields,
@@ -938,10 +958,30 @@ export async function createHotReloaderTurbopack(
     try {
       const changed = await changedPromise
 
+      // `hmrHash` is folded into every `"use cache"` key, so advancing it
+      // discards all cached entries. The subscription emits whenever the
+      // entry *may* have changed — including once for the entry's own
+      // initial build, and possibly coalescing several changes into one
+      // emission — so emissions can't be counted directly. Instead, compare
+      // the entry's compiled output and only advance the hash when it
+      // actually changed.
+      let contentDigest = await getServerContentDigest(endpoint)
+
       for await (const change of changed) {
         processIssues(currentEntryIssues, key, change, false, true)
-        // TODO: Get an actual content hash from Turbopack.
-        const message = await createMessage(change, String(++hmrHash))
+        const nextContentDigest = await getServerContentDigest(endpoint)
+        // When the digest can't be computed (null), err on the side of
+        // invalidating. An empty digest means the entry was removed; that
+        // can't affect other entries' cached data, and its own entries are
+        // unreachable.
+        if (
+          nextContentDigest === null ||
+          (nextContentDigest !== contentDigest && nextContentDigest !== '')
+        ) {
+          contentDigest = nextContentDigest
+          hmrHash++
+        }
+        const message = await createMessage(change, String(hmrHash))
         if (message) {
           sendHmr(key, message)
         }
