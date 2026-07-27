@@ -195,9 +195,11 @@ export default class DevServer extends Server {
     this.staticPathsCache = new LRUCache(
       // 5MB
       5 * 1024 * 1024,
-      function length(value) {
+      function length(value, cacheKey) {
         // Ensure minimum size of 1 for LRU eviction to work correctly
-        return JSON.stringify(value.staticPaths)?.length || 1
+        return (
+          cacheKey.length + (JSON.stringify(value.staticPaths)?.length || 1)
+        )
       }
     )
 
@@ -214,8 +216,8 @@ export default class DevServer extends Server {
       )
       this.serverComponentsHmrCache = new LRUCache(
         hmrCacheSize,
-        function length(value) {
-          return JSON.stringify(value).length
+        function length(value, cacheKey) {
+          return cacheKey.length + JSON.stringify(value).length
         }
       )
     }
