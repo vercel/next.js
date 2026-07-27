@@ -30,7 +30,7 @@ node_modules/next/dist/docs/
 └── index.mdx
 ```
 
-Agents always have access to docs that match your installed version, with no network request or external lookup required. [Upgrading Next.js](/docs/app/getting-started/upgrading) also upgrades the bundled docs, including new guidance for existing features. Most AI coding agents, including Claude Code, Cursor, and GitHub Copilot, automatically read `AGENTS.md` when they start a session.
+Agents always have access to docs that match your installed version, with no network request or external lookup required. [Upgrading Next.js](/docs/app/getting-started/upgrading) also upgrades the bundled docs, including new guidance for existing features. Most AI coding agents, including Claude Code, Codex, Cursor, and GitHub Copilot, automatically read `AGENTS.md` when they start a session.
 
 ### New projects
 
@@ -144,6 +144,8 @@ Ways to fix this:
   - [block] Set `export const instant = false` to allow a blocking route
 
 Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic
+    at ProductPage (app/products/[slug]/page.tsx:52:32)
+    ...
 ```
 
 When the build error alone isn't enough, [`next build --debug-prerender`](/docs/app/guides/building#debugging-build-errors) disables minification, turns on server source maps, and continues past the first failure.
