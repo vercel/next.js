@@ -1739,10 +1739,8 @@ pub async fn project_entrypoints(
 pub fn project_entrypoints_subscribe(
     env: Env,
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: &External<ProjectInstance>,
-    #[napi(ts_arg_type = "(...args: any[]) => any")] func: FunctionRef<
-        TurbopackResult<Option<NapiEntrypoints>>,
-        (),
-    >,
+    #[napi(ts_arg_type = "(err: Error, value: TurbopackResult<Partial<NapiEntrypoints>>) => void")]
+    func: FunctionRef<TurbopackResult<Option<NapiEntrypoints>>, ()>,
 ) -> napi::Result<External<RootTask>> {
     let turbopack_ctx = project.turbopack_ctx.clone();
     let container = project.container;
@@ -1843,10 +1841,8 @@ pub fn project_hmr_events(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: &External<ProjectInstance>,
     chunk_name: RcStr,
     target: String,
-    #[napi(ts_arg_type = "(...args: any[]) => any")] func: FunctionRef<
-        TurbopackResult<Unknown<'static>>,
-        (),
-    >,
+    #[napi(ts_arg_type = "(err: Error, value: TurbopackResult<unknown>) => void")]
+    func: FunctionRef<TurbopackResult<Unknown<'static>>, ()>,
 ) -> napi::Result<External<RootTask>> {
     let hmr_target = target
         .parse::<HmrTarget>()
@@ -1986,10 +1982,8 @@ pub fn project_hmr_chunk_names_subscribe(
     env: Env,
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: &External<ProjectInstance>,
     target: String,
-    #[napi(ts_arg_type = "(...args: any[]) => any")] func: FunctionRef<
-        TurbopackResult<HmrChunkNames>,
-        (),
-    >,
+    #[napi(ts_arg_type = "(err: Error, value: TurbopackResult<HmrChunkNames>) => void")]
+    func: FunctionRef<TurbopackResult<HmrChunkNames>, ()>,
 ) -> napi::Result<External<RootTask>> {
     let hmr_target = target
         .parse::<HmrTarget>()
@@ -2038,7 +2032,7 @@ pub enum UpdateMessage {
 }
 
 #[napi(object, object_from_js = false)]
-struct NapiUpdateMessage {
+pub struct NapiUpdateMessage {
     pub update_type: &'static str,
     pub value: Option<NapiUpdateInfo>,
 }
@@ -2059,7 +2053,7 @@ impl From<UpdateMessage> for NapiUpdateMessage {
 }
 
 #[napi(object, object_from_js = false)]
-struct NapiUpdateInfo {
+pub struct NapiUpdateInfo {
     pub duration: u32,
     pub tasks: u32,
 }
@@ -2089,7 +2083,8 @@ pub fn project_update_info_subscribe(
     env: Env,
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: &External<ProjectInstance>,
     aggregation_ms: u32,
-    #[napi(ts_arg_type = "(...args: any[]) => any")] func: FunctionRef<Unknown<'static>, ()>,
+    #[napi(ts_arg_type = "(err: Error, value: TurbopackResult<UpdateMessage>) => void")]
+    func: FunctionRef<NapiUpdateMessage, ()>,
 ) -> napi::Result<()> {
     let func: ThreadsafeFunction<UpdateMessage, (), NapiUpdateMessage, Status, true> = func
         .borrow_back(&env)?
@@ -2139,7 +2134,7 @@ pub fn project_update_info_subscribe(
 }
 
 #[napi(object, object_from_js = false)]
-struct NapiCompilationEvent {
+pub struct NapiCompilationEvent {
     pub type_name: String,
     pub severity: String,
     pub message: String,
@@ -2165,7 +2160,8 @@ impl From<Arc<dyn CompilationEvent>> for NapiCompilationEvent {
 pub fn project_compilation_events_subscribe(
     env: Env,
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: &External<ProjectInstance>,
-    #[napi(ts_arg_type = "(...args: any[]) => any")] func: FunctionRef<Unknown<'static>, ()>,
+    #[napi(ts_arg_type = "(err: Error, value: TurbopackResult<CompilationEvent>) => void")]
+    func: FunctionRef<NapiCompilationEvent, ()>,
     event_types: Option<Vec<String>>,
 ) -> napi::Result<()> {
     let tsfn: ThreadsafeFunction<
