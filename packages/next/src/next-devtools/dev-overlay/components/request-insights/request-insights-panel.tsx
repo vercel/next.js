@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { Menu } from '@base-ui-components/react/menu'
 import {
   getRequestInsightKey,
   getRequestInsightKind,
@@ -6,7 +7,10 @@ import {
   type RequestInsightFetch,
 } from '../../../shared/request-insights'
 import { useDevOverlayContext } from '../../../dev-overlay.browser'
+import { ACTION_DEVTOOLS_CONFIG } from '../../shared'
+import { saveDevToolsConfig } from '../../utils/save-devtools-config'
 import { CopyButton } from '../copy-button'
+import GearIcon from '../../icons/gear-icon'
 import { formatDuration } from './format-duration'
 import { getActiveRequestKey, isPageLoadRequest } from './request-list'
 import {
@@ -20,11 +24,20 @@ import './request-insights-panel.css'
 const TRACE_TICK_COUNT = 5
 
 export function RequestInsightsPanel() {
-  const { state } = useDevOverlayContext()
+  const { dispatch, state, shadowRoot } = useDevOverlayContext()
   const requests = useMemo(
     () => [...state.requestInsights].reverse(),
     [state.requestInsights]
   )
+  const { verbose } = state.requestInsightsConfig
+  const setVerbose = (checked: boolean) => {
+    const requestInsights = { verbose: checked }
+    dispatch({
+      type: ACTION_DEVTOOLS_CONFIG,
+      devToolsConfig: { requestInsights },
+    })
+    saveDevToolsConfig({ requestInsights })
+  }
   const [selectedRequestKey, setSelectedRequestKey] = useState<string | null>(
     () => getActiveRequestKey(requests, null)
   )
@@ -46,6 +59,44 @@ export function RequestInsightsPanel() {
   return (
     <div className="request-insights-panel">
       <div className="request-insights-list">
+        <div className="request-insights-list-toolbar">
+          <strong>Requests</strong>
+          <div className="request-insights-settings">
+            <Menu.Root delay={0} modal={false}>
+              <Menu.Trigger
+                aria-label="Request list settings"
+                className="request-insights-settings-trigger"
+              >
+                <GearIcon />
+              </Menu.Trigger>
+              <Menu.Portal container={shadowRoot}>
+                <Menu.Positioner
+                  align="end"
+                  className="request-insights-settings-positioner"
+                  side="bottom"
+                  sideOffset={4}
+                >
+                  <Menu.Popup className="request-insights-settings-menu">
+                    <Menu.CheckboxItem
+                      checked={verbose}
+                      className="request-insights-settings-item"
+                      closeOnClick={false}
+                      onCheckedChange={setVerbose}
+                    >
+                      <span
+                        className="request-insights-settings-checkbox"
+                        data-checked={verbose || undefined}
+                      >
+                        {verbose ? <CheckIcon /> : null}
+                      </span>
+                      Verbose traces
+                    </Menu.CheckboxItem>
+                  </Menu.Popup>
+                </Menu.Positioner>
+              </Menu.Portal>
+            </Menu.Root>
+          </div>
+        </div>
         {requests.map((request) => {
           const requestKey = getRequestInsightKey(request)
           return (
@@ -60,7 +111,9 @@ export function RequestInsightsPanel() {
         })}
       </div>
 
-      {selectedRequest && <RequestDetails request={selectedRequest} />}
+      {selectedRequest && (
+        <RequestDetails request={selectedRequest} verbose={verbose} />
+      )}
     </div>
   )
 }
@@ -114,8 +167,27 @@ function RequestRow({
   )
 }
 
-function RequestDetails({ request }: { request: RequestInsight }) {
-  const [verbose, setVerbose] = useState(false)
+function CheckIcon() {
+  return (
+    <svg
+      aria-hidden="true"
+      fill="currentColor"
+      height="12"
+      viewBox="0 0 16 16"
+      width="12"
+    >
+      <path d="M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0Z" />
+    </svg>
+  )
+}
+
+function RequestDetails({
+  request,
+  verbose,
+}: {
+  request: RequestInsight
+  verbose: boolean
+}) {
   const traceItems = useMemo(
     () => getTraceItems(request, verbose),
     [request, verbose]
@@ -139,14 +211,6 @@ function RequestDetails({ request }: { request: RequestInsight }) {
               content={JSON.stringify(request, null, 2)}
               successLabel="Copied request JSON"
             />
-            <label className="request-insights-verbose-toggle">
-              <input
-                checked={verbose}
-                onChange={(event) => setVerbose(event.currentTarget.checked)}
-                type="checkbox"
-              />
-              <span>Verbose</span>
-            </label>
           </div>
         </div>
         <div className="request-insights-total">
