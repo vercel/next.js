@@ -94,7 +94,6 @@ export function RequestInsightsPanel() {
               <span
                 aria-label={`${hiddenInternalErrorCount} hidden internal error${hiddenInternalErrorCount === 1 ? '' : 's'}`}
                 className="request-insights-settings-dot"
-                data-status="error"
                 role="img"
               />
             ) : null}

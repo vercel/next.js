@@ -52,6 +52,49 @@ describe('request insights', () => {
     }
   }
 
+  async function openRequestInsightsPanel(
+    browser: Awaited<ReturnType<typeof next.browser>>
+  ) {
+    await toggleDevToolsIndicatorPopover(browser)
+    await browser.elementByCss('[data-request-insights]').click()
+    await browser.waitForElementByCss('.request-insights-list-toolbar')
+    // The panel selector menu stays mounted for its exit animation and its
+    // click-outside handler would close the freshly opened panel. Wait for
+    // it to fully unmount before interacting with the panel.
+    await retry(async () => {
+      const selectorMenuGone = await browser.eval(() => {
+        const root = document.querySelector('nextjs-portal')?.shadowRoot
+        return !root?.querySelector('#nextjs-dev-tools-menu')
+      })
+      expect(selectorMenuGone).toBe(true)
+    })
+  }
+
+  async function patchRequestInsightsConfig(patch: {
+    showInternal?: boolean
+    verbose?: boolean
+  }) {
+    const response = await next.fetch('/__nextjs_devtools_config', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ requestInsights: patch }),
+    })
+    expect(response.status).toBe(204)
+  }
+
+  let shouldResetRequestInsightsConfig = false
+  afterEach(async () => {
+    if (!shouldResetRequestInsightsConfig) {
+      return
+    }
+
+    await patchRequestInsightsConfig({
+      showInternal: false,
+      verbose: false,
+    })
+    shouldResetRequestInsightsConfig = false
+  })
+
   async function runWithResponse(body: unknown, args: string[] = []) {
     const requestedPaths: string[] = []
     const server = createServer((req, res) => {
@@ -229,22 +272,7 @@ describe('request insights', () => {
 
   it('persists verbose trace settings', async () => {
     const browser = await next.browser('/instant-insights')
-
-    async function openRequestInsightsPanel() {
-      await toggleDevToolsIndicatorPopover(browser)
-      await browser.elementByCss('[data-request-insights]').click()
-      await browser.waitForElementByCss('.request-insights-list-toolbar')
-      // The panel selector menu stays mounted for its exit animation and its
-      // click-outside handler would close the freshly opened panel. Wait for
-      // it to fully unmount before interacting with the panel.
-      await retry(async () => {
-        const selectorMenuGone = await browser.eval(() => {
-          const root = document.querySelector('nextjs-portal')?.shadowRoot
-          return !root?.querySelector('#nextjs-dev-tools-menu')
-        })
-        expect(selectorMenuGone).toBe(true)
-      })
-    }
+    shouldResetRequestInsightsConfig = true
 
     function getSettingsMenuState(): Promise<{
       open: boolean
@@ -272,7 +300,7 @@ describe('request insights', () => {
       })
     }
 
-    await openRequestInsightsPanel()
+    await openRequestInsightsPanel(browser)
     await retry(async () => {
       const selectedRegularRequest = await browser.eval(() => {
         const root = document.querySelector('nextjs-portal')?.shadowRoot
@@ -329,7 +357,7 @@ describe('request insights', () => {
     })
 
     await browser.refresh()
-    await openRequestInsightsPanel()
+    await openRequestInsightsPanel(browser)
     await browser.elementByCss('.request-insights-settings-trigger').click()
 
     await retry(async () => {
@@ -338,36 +366,11 @@ describe('request insights', () => {
         checked: 'true',
       })
     })
-
-    // Restore the default so this test does not affect later assertions.
-    await browser
-      .elementByCss(
-        '.request-insights-settings-item:has-text("Verbose traces")'
-      )
-      .click()
-    await retry(async () => {
-      const config = JSON.parse(
-        await next.readFile('build/dev/cache/next-devtools-config.json')
-      )
-      expect(config.requestInsights?.verbose).toBe(false)
-    })
   })
 
   it('hides internal activity behind the settings menu', async () => {
     const browser = await next.browser('/instant-insights')
-
-    async function openRequestInsightsPanel() {
-      await toggleDevToolsIndicatorPopover(browser)
-      await browser.elementByCss('[data-request-insights]').click()
-      await browser.waitForElementByCss('.request-insights-list-toolbar')
-      await retry(async () => {
-        const selectorMenuGone = await browser.eval(() => {
-          const root = document.querySelector('nextjs-portal')?.shadowRoot
-          return !root?.querySelector('#nextjs-dev-tools-menu')
-        })
-        expect(selectorMenuGone).toBe(true)
-      })
-    }
+    shouldResetRequestInsightsConfig = true
 
     function getSettingsMenuItems(): Promise<
       Array<{ label: string | undefined; checked: string | null }>
@@ -386,7 +389,7 @@ describe('request insights', () => {
       })
     }
 
-    await openRequestInsightsPanel()
+    await openRequestInsightsPanel(browser)
 
     await retry(async () => {
       const state = await browser.eval(() => {
@@ -419,6 +422,11 @@ describe('request insights', () => {
         '.request-insights-settings-item:has-text("Internal activity")'
       )
       .click()
+    await browser
+      .elementByCss(
+        '.request-insights-settings-item:has-text("Verbose traces")'
+      )
+      .click()
 
     await retry(async () => {
       const nestedRows = await browser.eval(() => {
@@ -433,10 +441,10 @@ describe('request insights', () => {
         }))
       })
 
-      expect((await getSettingsMenuItems())[0]).toEqual({
-        label: 'Internal activity',
-        checked: 'true',
-      })
+      expect(await getSettingsMenuItems()).toEqual([
+        { label: 'Internal activity', checked: 'true' },
+        { label: 'Verbose traces', checked: 'true' },
+      ])
       expect(nestedRows.length).toBeGreaterThan(0)
       for (const row of nestedRows) {
         expect(row.internal).toBe('true')
@@ -449,32 +457,22 @@ describe('request insights', () => {
       const config = JSON.parse(
         await next.readFile('build/dev/cache/next-devtools-config.json')
       )
-      expect(config.requestInsights?.showInternal).toBe(true)
+      expect(config.requestInsights).toEqual({
+        showInternal: true,
+        verbose: true,
+      })
     })
 
     await browser.elementByCss('.request-insights-details').click()
     await browser.refresh()
-    await openRequestInsightsPanel()
+    await openRequestInsightsPanel(browser)
     await browser.elementByCss('.request-insights-settings-trigger').click()
 
     await retry(async () => {
-      expect((await getSettingsMenuItems())[0]).toEqual({
-        label: 'Internal activity',
-        checked: 'true',
-      })
-    })
-
-    // Restore the default so this test does not affect later assertions.
-    await browser
-      .elementByCss(
-        '.request-insights-settings-item:has-text("Internal activity")'
-      )
-      .click()
-    await retry(async () => {
-      const config = JSON.parse(
-        await next.readFile('build/dev/cache/next-devtools-config.json')
-      )
-      expect(config.requestInsights?.showInternal).toBe(false)
+      expect(await getSettingsMenuItems()).toEqual([
+        { label: 'Internal activity', checked: 'true' },
+        { label: 'Verbose traces', checked: 'true' },
+      ])
     })
   })
 

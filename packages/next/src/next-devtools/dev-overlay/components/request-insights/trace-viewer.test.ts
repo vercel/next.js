@@ -91,7 +91,7 @@ describe('request insights trace viewer', () => {
     ])
   })
 
-  it('keeps orphaned internal records at their original position', () => {
+  it('keeps orphaned internal records top-level and in root ordering', () => {
     const request = createRequest({ requestId: 'present' })
     const presentInstantInsights = createRequest({
       requestId: 'present',

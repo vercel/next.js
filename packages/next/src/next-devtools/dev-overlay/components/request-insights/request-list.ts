@@ -63,8 +63,9 @@ export function getRequestListEntries(
   const entries: RequestListEntry[] = []
   for (const request of requests) {
     if (isInternalRequestInsight(request)) {
-      // Orphans (no parent request in the list) keep their original position;
-      // nested internal records are emitted under their request below.
+      // Orphans (no parent request in the list) remain top-level and preserve
+      // their ordering relative to other top-level records. Nested internal
+      // records are emitted under their request below.
       if (!parentRequestIds.has(request.requestId)) {
         entries.push({ request, nested: false })
       }
