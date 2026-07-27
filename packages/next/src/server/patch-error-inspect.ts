@@ -22,12 +22,31 @@ type FindSourceMapPayload = (
 // This is only a fallback for when Node.js fails to due to bugs e.g. https://github.com/nodejs/node/issues/52102
 // TODO: Remove once all supported Node.js versions are fixed.
 // TODO(veil): Set from Webpack as well
-let bundlerFindSourceMapPayload: FindSourceMapPayload = () => undefined
+//
+// Stored on `globalThis` for the same reason as the code frame renderer below:
+// this module is bundled into several runtimes that each get their own copy,
+// and the copy that installs the implementation is not necessarily the one that
+// symbolicates a frame. The dev validation worker depends on that, because it
+// installs its implementation from the worker bundle while the frames are
+// symbolicated by the app-page bundle's copy.
+const BUNDLER_FIND_SOURCE_MAP = Symbol.for('next.dev.bundlerFindSourceMap')
+type GlobalWithBundlerFindSourceMap = typeof globalThis & {
+  [BUNDLER_FIND_SOURCE_MAP]?: FindSourceMapPayload
+}
 
 export function setBundlerFindSourceMapImplementation(
   findSourceMapImplementation: FindSourceMapPayload
 ): void {
-  bundlerFindSourceMapPayload = findSourceMapImplementation
+  ;(globalThis as GlobalWithBundlerFindSourceMap)[BUNDLER_FIND_SOURCE_MAP] =
+    findSourceMapImplementation
+}
+
+function bundlerFindSourceMapPayload(
+  sourceURL: string
+): ModernSourceMapPayload | undefined {
+  return (globalThis as GlobalWithBundlerFindSourceMap)[
+    BUNDLER_FIND_SOURCE_MAP
+  ]?.(sourceURL)
 }
 
 // Code frame renderer - injected by dev/build to avoid hard dependency on native bindings
@@ -243,6 +262,25 @@ function getSourcemappedFrameIfPossible(
     let maybeSourceMapPayload: ModernSourceMapPayload | undefined
     try {
       maybeSourceMapPayload = findSourceMapPayload(sourceURL)
+
+      if (
+        maybeSourceMapPayload === undefined &&
+        sourceURL.startsWith('file://')
+      ) {
+        // Devirtualizing React's fake frame URL decodes the path, while Node.js
+        // keys its source map cache by the `pathToFileURL` encoding of the same
+        // path, so a path containing characters that encoding escapes (such as
+        // the brackets in Turbopack's `[root-of-the-server]` chunks) misses
+        // above. Node.js also accepts the plain path, which is unambiguous for
+        // both interpretations, so retry with that before giving up.
+        //
+        // TODO(veil): Making React's fake frame URLs reversible, as proposed in
+        // https://github.com/react/react/pull/37105, would let the first lookup
+        // succeed on its own and retire this retry.
+        maybeSourceMapPayload = findSourceMapPayload(
+          url.fileURLToPath(sourceURL)
+        )
+      }
     } catch (cause) {
       // We should not log an actual error instance here because that will re-enter
       // this codepath during error inspection and could lead to infinite recursion.

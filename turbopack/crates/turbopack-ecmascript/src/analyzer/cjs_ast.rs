@@ -1,7 +1,10 @@
 use swc_core::{
     common::Mark,
     ecma::{
-        ast::{CallExpr, Callee, Expr, Ident, Lit, MemberExpr, MemberProp, Prop, PropOrSpread},
+        ast::{
+            AssignExpr, AssignOp, AssignTarget, CallExpr, Callee, Expr, Ident, Lit, MemberExpr,
+            MemberProp, ObjectLit, Prop, PropOrSpread, SimpleAssignTarget,
+        },
         utils::prop_name_eq,
     },
 };
@@ -96,6 +99,27 @@ pub(crate) fn define_property_sets_es_module(call: &CallExpr) -> bool {
                 if prop_name_eq(&kv.key, "value")
                     && matches!(unparen(&kv.value), Expr::Lit(Lit::Bool(b)) if b.value)))
     })
+}
+
+/// The object literal of a `module.exports = { … }` whole-exports assignment,
+/// whose properties are the module's named exports.
+pub(crate) fn as_module_exports_object_literal(
+    n: &AssignExpr,
+    unresolved_mark: Mark,
+) -> Option<&ObjectLit> {
+    if n.op != AssignOp::Assign {
+        return None;
+    }
+    let AssignTarget::Simple(SimpleAssignTarget::Member(member)) = &n.left else {
+        return None;
+    };
+    if !is_module_dot_exports(member, unresolved_mark) {
+        return None;
+    }
+    match unparen(&n.right) {
+        Expr::Object(obj) => Some(obj),
+        _ => None,
+    }
 }
 
 /// Whether `member` writes the module's own CommonJS exports: `exports.<x>`,

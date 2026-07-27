@@ -13,6 +13,7 @@ import {
   type SpanStoreEvent,
   type SpanStoreLink,
 } from './span-store'
+import type { RequestInsightKind } from '../../../next-devtools/shared/request-insights'
 
 export { isLocalSpanRecordingEnabled } from './span-store'
 
@@ -112,6 +113,7 @@ function getLocalSpanAsyncStorage(): AsyncLocalStorage<Span> {
 
 type RequestIdentity = {
   requestId?: string
+  requestInsightKind?: RequestInsightKind
   htmlRequestId?: string
   route?: string
   url?: string
@@ -301,6 +303,7 @@ class LocalRecordingSpan implements Span {
       spanId: this.spanContextValue.spanId,
       parentSpanId: this.parentSpanId,
       requestId: this.requestIdentity.requestId,
+      requestInsightKind: this.requestIdentity.requestInsightKind,
       htmlRequestId: this.requestIdentity.htmlRequestId,
       route:
         getStringAttribute(recordAttributes, 'next.route') ??
@@ -494,9 +497,10 @@ function getCurrentRequestIdentity(): RequestIdentity {
       workUnitStore && 'url' in workUnitStore ? workUnitStore.url : undefined
 
     return {
-      requestId: workStore?.requestId ?? requestInsightsIdentity?.requestId,
+      requestId: requestInsightsIdentity?.requestId ?? workStore?.requestId,
+      requestInsightKind: requestInsightsIdentity?.kind,
       htmlRequestId:
-        workStore?.htmlRequestId ?? requestInsightsIdentity?.htmlRequestId,
+        requestInsightsIdentity?.htmlRequestId ?? workStore?.htmlRequestId,
       route: workStore?.route,
       url: url ? `${url.pathname}${url.search}` : requestInsightsIdentity?.url,
     }

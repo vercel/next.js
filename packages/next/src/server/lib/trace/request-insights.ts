@@ -4,6 +4,11 @@ import type {
   RequestInsightFetch,
   RequestInsightsSnapshot,
 } from '../../../next-devtools/shared/request-insights'
+import type { RequestInsightKind } from '../../../shared/lib/request-insights'
+import {
+  getRequestInsightKey,
+  getRequestInsightKind,
+} from '../../../shared/lib/request-insights'
 import type { SpanStoreRecord } from './span-store'
 export { isRequestInsightsEnabled } from './span-store'
 
@@ -15,6 +20,7 @@ const CLIENT_COMPONENT_LOADING_SPAN_TYPE =
 type RequestInsightsListener = (insight: RequestInsight) => void
 type RequestInsightIdentity = {
   requestId?: string
+  kind?: RequestInsightKind
   htmlRequestId?: string
   route?: string
   url?: string
@@ -56,7 +62,13 @@ class InMemoryRequestInsightsStore {
     }
 
     const insight = this.getOrCreateRequest(
-      span,
+      {
+        requestId: span.requestId,
+        kind: span.requestInsightKind,
+        htmlRequestId: span.htmlRequestId,
+        route: span.route,
+        url: span.url,
+      },
       span.startTime ?? span.timestamp
     )
 
@@ -114,7 +126,7 @@ class InMemoryRequestInsightsStore {
   getSnapshot(): RequestInsightsSnapshot {
     return {
       requests: this.requestOrder
-        .map((requestId) => this.requests.get(requestId))
+        .map((insightKey) => this.requests.get(insightKey))
         .filter((request): request is RequestInsight => request !== undefined),
     }
   }
@@ -138,15 +150,16 @@ class InMemoryRequestInsightsStore {
     durationMs: number | undefined,
     isRequestSpan: boolean
   ): void {
+    const insightKey = getRequestInsightKey(insight)
     if (isRequestSpan && durationMs !== undefined) {
       const requestTiming = { startTime, durationMs }
-      this.requestTimings.set(insight.requestId, requestTiming)
+      this.requestTimings.set(insightKey, requestTiming)
       insight.startTime = requestTiming.startTime
       insight.durationMs = requestTiming.durationMs
       return
     }
 
-    const requestTiming = this.requestTimings.get(insight.requestId)
+    const requestTiming = this.requestTimings.get(insightKey)
     if (requestTiming) {
       insight.startTime = requestTiming.startTime
       insight.durationMs = requestTiming.durationMs
@@ -170,11 +183,16 @@ class InMemoryRequestInsightsStore {
     startTime: number
   ): RequestInsight {
     const requestId = identity.requestId!
-    let insight = this.requests.get(requestId)
+    const insightKey = getRequestInsightKey({
+      requestId,
+      kind: identity.kind,
+    })
+    let insight = this.requests.get(insightKey)
 
     if (!insight) {
       insight = {
         requestId,
+        kind: getRequestInsightKind(identity),
         htmlRequestId: identity.htmlRequestId ?? requestId,
         route: identity.route,
         url: sanitizeUrl(identity.url),
@@ -183,8 +201,8 @@ class InMemoryRequestInsightsStore {
         spans: [],
         fetches: [],
       }
-      this.requests.set(requestId, insight)
-      this.requestOrder.push(requestId)
+      this.requests.set(insightKey, insight)
+      this.requestOrder.push(insightKey)
       this.trim()
     }
 
@@ -217,10 +235,10 @@ class InMemoryRequestInsightsStore {
 
   private trim(): void {
     while (this.requestOrder.length > MAX_REQUEST_INSIGHTS) {
-      const requestId = this.requestOrder.shift()
-      if (requestId) {
-        this.requests.delete(requestId)
-        this.requestTimings.delete(requestId)
+      const insightKey = this.requestOrder.shift()
+      if (insightKey) {
+        this.requests.delete(insightKey)
+        this.requestTimings.delete(insightKey)
       }
     }
   }
