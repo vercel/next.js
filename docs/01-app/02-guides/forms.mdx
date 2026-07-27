@@ -379,13 +379,7 @@ export function Signup() {
 
 > **Good to know:** In React 19, `useFormStatus` includes additional keys on the returned object, like data, method, and action. If you are not using React 19, only the `pending` key is available.
 
-## Connectivity drops
-
-A user who loses connectivity mid-submit does not lose their work. With [`experimental.useOffline`](/docs/app/api-reference/config/next-config-js/useOffline) enabled, Server Actions stay pending until the network returns and complete on their own. Combine the pending state with the [`useOffline`](/docs/app/api-reference/functions/use-offline) hook to make the submit button offline-aware.
-
-> **Good to know**: Reloading the page while offline cancels any pending Server Action. The retry only works while the page stays open.
-
-See [retry Server Actions after the network returns](/docs/app/guides/offline-support#retry-server-actions-after-the-network-returns) for the full pattern.
+> **Good to know**: With the **experimental** [`useOffline`](/docs/app/guides/offline-support) config enabled, a Server Action interrupted by a connectivity drop stays pending and completes when the network returns, so a user does not lose their submission.
 
 ## Optimistic updates
 

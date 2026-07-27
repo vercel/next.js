@@ -376,13 +376,7 @@ export function Button() {
 
 See the [Building interactive apps](/docs/app/guides/interactive-apps) guide for a deeper walkthrough of responsive interactions, including pending feedback, optimistic UI, transitions, and error handling.
 
-### When the network drops
-
-A user who loses connectivity mid-submit does not lose their work. Server Actions stay pending until the network returns and complete on their own. Use the [`useOffline`](/docs/app/api-reference/functions/use-offline) hook to make the pending state offline-aware.
-
-> **Good to know**: Reloading the page while offline cancels any pending Server Action. The retry only works while the page stays open.
-
-See [retry Server Actions after the network returns](/docs/app/guides/offline-support#retry-server-actions-after-the-network-returns).
+> **Good to know**: With the **experimental** [`useOffline`](/docs/app/guides/offline-support) config enabled, a Server Action interrupted by a connectivity drop stays pending and completes when the network returns.
 
 ### Refresh data
 
