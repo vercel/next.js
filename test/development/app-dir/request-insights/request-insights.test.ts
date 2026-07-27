@@ -252,7 +252,9 @@ describe('request insights', () => {
     }> {
       return browser.eval(() => {
         const root = document.querySelector('nextjs-portal')?.shadowRoot
-        const item = root?.querySelector('.request-insights-settings-item')
+        const item = Array.from(
+          root?.querySelectorAll('.request-insights-settings-item') ?? []
+        ).find((candidate) => candidate.textContent?.includes('Verbose traces'))
         return {
           open: !!root?.querySelector('.request-insights-settings-menu'),
           checked:
@@ -348,6 +350,131 @@ describe('request insights', () => {
         await next.readFile('build/dev/cache/next-devtools-config.json')
       )
       expect(config.requestInsights?.verbose).toBe(false)
+    })
+  })
+
+  it('hides internal activity behind the settings menu', async () => {
+    const browser = await next.browser('/instant-insights')
+
+    async function openRequestInsightsPanel() {
+      await toggleDevToolsIndicatorPopover(browser)
+      await browser.elementByCss('[data-request-insights]').click()
+      await browser.waitForElementByCss('.request-insights-list-toolbar')
+      await retry(async () => {
+        const selectorMenuGone = await browser.eval(() => {
+          const root = document.querySelector('nextjs-portal')?.shadowRoot
+          return !root?.querySelector('#nextjs-dev-tools-menu')
+        })
+        expect(selectorMenuGone).toBe(true)
+      })
+    }
+
+    function getSettingsMenuItems(): Promise<
+      Array<{ label: string | undefined; checked: string | null }>
+    > {
+      return browser.eval(() => {
+        const root = document.querySelector('nextjs-portal')?.shadowRoot
+        return Array.from(
+          root?.querySelectorAll('.request-insights-settings-item') ?? []
+        ).map((item) => ({
+          label: item.textContent?.trim(),
+          checked:
+            item
+              .querySelector('.request-insights-settings-checkbox')
+              ?.getAttribute('data-checked') ?? null,
+        }))
+      })
+    }
+
+    await openRequestInsightsPanel()
+
+    await retry(async () => {
+      const state = await browser.eval(() => {
+        const root = document.querySelector('nextjs-portal')?.shadowRoot
+        const rows = Array.from(
+          root?.querySelectorAll('.request-insights-row') ?? []
+        )
+        return {
+          rowCount: rows.length,
+          hasInstantInsightsRow: rows.some((row) =>
+            row.textContent?.includes('Instant Insights')
+          ),
+        }
+      })
+
+      expect(state.rowCount).toBeGreaterThan(0)
+      expect(state.hasInstantInsightsRow).toBe(false)
+    })
+
+    await browser.elementByCss('.request-insights-settings-trigger').click()
+    await retry(async () => {
+      expect(await getSettingsMenuItems()).toEqual([
+        { label: 'Internal activity', checked: null },
+        { label: 'Verbose traces', checked: null },
+      ])
+    })
+
+    await browser
+      .elementByCss(
+        '.request-insights-settings-item:has-text("Internal activity")'
+      )
+      .click()
+
+    await retry(async () => {
+      const nestedRows = await browser.eval(() => {
+        const root = document.querySelector('nextjs-portal')?.shadowRoot
+        return Array.from(
+          root?.querySelectorAll('.request-insights-row[data-nested="true"]') ??
+            []
+        ).map((row) => ({
+          internal: row.getAttribute('data-internal'),
+          hasArrow: !!row.querySelector('.request-insights-nested-arrow'),
+          label: row.textContent ?? '',
+        }))
+      })
+
+      expect((await getSettingsMenuItems())[0]).toEqual({
+        label: 'Internal activity',
+        checked: 'true',
+      })
+      expect(nestedRows.length).toBeGreaterThan(0)
+      for (const row of nestedRows) {
+        expect(row.internal).toBe('true')
+        expect(row.hasArrow).toBe(true)
+        expect(row.label).toContain('Instant Insights')
+      }
+    })
+
+    await retry(async () => {
+      const config = JSON.parse(
+        await next.readFile('build/dev/cache/next-devtools-config.json')
+      )
+      expect(config.requestInsights?.showInternal).toBe(true)
+    })
+
+    await browser.elementByCss('.request-insights-details').click()
+    await browser.refresh()
+    await openRequestInsightsPanel()
+    await browser.elementByCss('.request-insights-settings-trigger').click()
+
+    await retry(async () => {
+      expect((await getSettingsMenuItems())[0]).toEqual({
+        label: 'Internal activity',
+        checked: 'true',
+      })
+    })
+
+    // Restore the default so this test does not affect later assertions.
+    await browser
+      .elementByCss(
+        '.request-insights-settings-item:has-text("Internal activity")'
+      )
+      .click()
+    await retry(async () => {
+      const config = JSON.parse(
+        await next.readFile('build/dev/cache/next-devtools-config.json')
+      )
+      expect(config.requestInsights?.showInternal).toBe(false)
     })
   })
 
