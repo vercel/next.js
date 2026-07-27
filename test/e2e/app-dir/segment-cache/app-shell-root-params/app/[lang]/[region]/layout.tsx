@@ -25,11 +25,7 @@ export default async function RootLayout({
 }
 
 // Only one combo is statically generated — just enough to give the app a
-// buildable start page (/en/us). The combos the test probes are deliberately
-// NOT listed here, so their shells are rendered at runtime (FetchStrategy.
-// RuntimeShell). A statically-prerendered shell would be cached via a different
-// code path that already narrows by the server-reported vary params, masking
-// the runtime-shell keying we're exercising here.
+// buildable start page (/en/us).
 export function generateStaticParams() {
   return [{ lang: 'en', region: 'us' }]
 }

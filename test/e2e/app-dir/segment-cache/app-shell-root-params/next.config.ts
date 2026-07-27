@@ -12,7 +12,6 @@ const nextConfig: NextConfig = {
     prefetchInlining: true,
     optimisticRouting: true,
     cachedNavigations: true,
-    appShells: true,
     varyParams: true,
   },
 }
