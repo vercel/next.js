@@ -1,0 +1,6 @@
+{
+  "removeUnusedImports": true,
+  "removeUnusedExports": true,
+  "cjsTreeShaking": true,
+  "treeShakingMode": "reexports-only"
+}
