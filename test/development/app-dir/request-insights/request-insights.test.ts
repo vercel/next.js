@@ -1,7 +1,7 @@
 import { nextTestSetup } from 'e2e-utils'
 import { createServer } from 'http'
 import type { AddressInfo } from 'net'
-import { retry } from 'next-test-utils'
+import { retry, waitForNoRedbox } from 'next-test-utils'
 
 type RequestInsight = {
   requestId: string
@@ -118,6 +118,32 @@ describe('request insights', () => {
           'AppRender.getBodyResult',
         ])
       )
+    })
+  })
+
+  it('does not attribute Request Insights bookkeeping to the app', async () => {
+    const outputIndex = next.cliOutput.length
+    const browser = await next.browser('/safe-clock')
+
+    await retry(async () => {
+      expect(await browser.elementByCss('p').text()).toBe('safe clock')
+    })
+    await waitForNoRedbox(browser)
+    expect(next.cliOutput.slice(outputIndex)).not.toContain(
+      'Route "/safe-clock": Next.js encountered the unstable value `Date.now()` while prerendering.'
+    )
+  })
+
+  it('still reports genuine app wall-clock access with app source attribution', async () => {
+    const outputIndex = next.cliOutput.length
+    await next.browser('/app-date-now')
+
+    await retry(() => {
+      const output = next.cliOutput.slice(outputIndex)
+      expect(output).toContain(
+        'Route "/app-date-now": Next.js encountered the unstable value `Date.now()` while prerendering.'
+      )
+      expect(output).toMatch(/at Page \(app\/app-date-now\/page\.tsx:\d+:\d+\)/)
     })
   })
 

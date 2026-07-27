@@ -116,7 +116,7 @@ class InMemoryRequestInsightsStore {
       return
     }
 
-    const fetchStartTime = fetch.startTime ?? Date.now()
+    const fetchStartTime = fetch.startTime ?? getCurrentTimestamp()
     const insight = this.getOrCreateRequest(identity, fetchStartTime)
     this.updateTiming(insight, fetchStartTime, fetch.durationMs, false)
     this.recordFetchForInsight(insight, sanitizeFetchInsight(fetch))
@@ -308,6 +308,10 @@ function sanitizeFetchInsight(fetch: RequestInsightFetch): RequestInsightFetch {
     ...fetch,
     url: sanitizeUrl(fetch.url),
   }
+}
+
+function getCurrentTimestamp(): number {
+  return performance.timeOrigin + performance.now()
 }
 
 function sanitizeSpanAttributes(
