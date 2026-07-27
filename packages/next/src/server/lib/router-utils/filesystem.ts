@@ -123,6 +123,10 @@ function flatKeyCopy(key: string): string {
   return JSON.parse(JSON.stringify(key))
 }
 
+// Cached result for paths that resolve to nothing. Not null, so that a
+// cached miss can't be conflated with an uncached key (undefined).
+const notFound = Symbol('not-found')
+
 export async function setupFsCheck(opts: {
   dir: string
   dev: boolean
@@ -130,12 +134,12 @@ export async function setupFsCheck(opts: {
   config: NextConfigRuntime
 }) {
   const getItemsLru = !opts.dev
-    ? new LRUCache<FsOutput | null>(FS_LRU_MAX_SIZE, function length(
+    ? new LRUCache<FsOutput | typeof notFound>(FS_LRU_MAX_SIZE, function length(
         value,
         key
       ) {
         const size = FS_LRU_ENTRY_OVERHEAD + key.length
-        if (!value) {
+        if (value === notFound) {
           // Negative cache entries only retain their key.
           return size
         }
@@ -491,8 +495,8 @@ export async function setupFsCheck(opts: {
       const itemKey = originalItemPath
       const lruResult = getItemsLru?.get(itemKey)
 
-      if (lruResult) {
-        return lruResult
+      if (lruResult !== undefined) {
+        return lruResult === notFound ? null : lruResult
       }
 
       const { basePath } = opts.config
@@ -755,7 +759,7 @@ export async function setupFsCheck(opts: {
         }
       }
 
-      getItemsLru?.set(flatKeyCopy(itemKey), null)
+      getItemsLru?.set(flatKeyCopy(itemKey), notFound)
       return null
     },
     getDynamicRoutes() {
