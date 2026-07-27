@@ -299,6 +299,13 @@ impl ServerNftJsonAsset {
             "**/next/dist/compiled/webpack/*",
             "**/node_modules/webpack5/**/*",
             "**/next/dist/server/lib/route-resolver*",
+            // The testmode interceptors bundle reads its HTTP parser WASM with a
+            // dynamic path, making the tracer include the bundle's whole
+            // directory. Test proxying is not supported in standalone output, so
+            // keep the parser asset (and the license file picked up by the
+            // directory glob) out of production traces.
+            "**/next/dist/compiled/@mswjs/interceptors/ClientRequest/LICENSE",
+            "**/next/dist/compiled/@mswjs/interceptors/ClientRequest/llhttp/**",
             "**/next/dist/compiled/semver/semver/**/*.js",
             "**/next/dist/compiled/jest-worker/**/*",
             // -- The following were added for Turbopack specifically --

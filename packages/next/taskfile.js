@@ -147,15 +147,29 @@ externals['@mswjs/interceptors/ClientRequest'] =
   'next/dist/compiled/@mswjs/interceptors/ClientRequest'
 export async function ncc_mswjs_interceptors(task, opts) {
   await task
-    .source(
-      relative(__dirname, require.resolve('@mswjs/interceptors/ClientRequest'))
-    )
+    // @mswjs/interceptors is ESM-only, compile to CJS through a stub entry
+    .source('src/bundles/mswjs-interceptors/index.js')
     .ncc({
       packageName: '@mswjs/interceptors/ClientRequest',
       externals,
       target: 'es5',
+      esm: false,
     })
     .target('src/compiled/@mswjs/interceptors/ClientRequest')
+  // The interceptor reads its HTTP parser WASM at runtime relative to the
+  // bundle. ncc cannot trace that file access, so copy the file explicitly.
+  const llhttpWasmTarget = join(
+    __dirname,
+    'src/compiled/@mswjs/interceptors/ClientRequest/llhttp'
+  )
+  await fs.mkdir(llhttpWasmTarget, { recursive: true })
+  await fs.copyFile(
+    join(
+      dirname(require.resolve('@mswjs/interceptors/ClientRequest')),
+      '../../llhttp/llhttp.wasm'
+    ),
+    join(llhttpWasmTarget, 'llhttp.wasm')
+  )
 }
 
 export async function capsize_metrics() {
