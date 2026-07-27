@@ -51,6 +51,7 @@ export function proxy(request: NextRequest) {
     default-src 'self';
     script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${isDev ? " 'unsafe-eval'" : ''};
     style-src 'self' 'nonce-${nonce}';
+    style-src-attr 'unsafe-inline';
     img-src 'self' blob: data:;
     font-src 'self';
     object-src 'none';
@@ -96,6 +97,7 @@ export function proxy(request) {
     default-src 'self';
     script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${isDev ? " 'unsafe-eval'" : ''};
     style-src 'self' 'nonce-${nonce}';
+    style-src-attr 'unsafe-inline';
     img-src 'self' blob: data:;
     font-src 'self';
     object-src 'none';
@@ -129,6 +131,8 @@ export function proxy(request) {
   return response
 }
 ```
+
+> **Good to know**: A nonce cannot apply to `style` attributes, so `style-src-attr 'unsafe-inline'` is required for inline styles such as the ones [`next/image`](/docs/app/api-reference/components/image) sets. Adding `'unsafe-inline'` to `style-src` instead has no effect, because browsers ignore it when the directive also contains a nonce.
 
 By default, Proxy runs on all requests. You can filter Proxy to run on specific paths using a [`matcher`](/docs/app/api-reference/file-conventions/proxy#matcher).
 
@@ -403,12 +407,13 @@ curl -s http://localhost:3000/ | grep -c 'nonce='
 
 ### Performance Implications
 
-The shift from static to dynamic rendering affects performance:
+Opting a page into dynamic rendering is what makes a nonce reachable, and that opt-in is per page. Applying it broadly is how apps lose prerendering without meaning to:
 
-- **Slower initial page loads**: Pages must be generated on each request
-- **Increased server load**: Every request requires server-side rendering
-- **No CDN caching**: Dynamic pages cannot be cached at the edge by default
-- **Higher hosting costs**: More server resources needed for dynamic rendering
+- Pages are rendered per request instead of being prerendered at build time
+- Static generation and ISR no longer apply to those pages, so their responses cannot be served from a CDN cache
+- Serving cost scales with traffic rather than with builds
+
+Add the opt-in only to the pages that need a nonce, rather than to a shared layout.
 
 ### When to use nonces
 
@@ -499,7 +504,7 @@ const isDev = process.env.NODE_ENV === 'development'
 const cspHeader = `
     default-src 'self';
     script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ''};
-    style-src 'self';
+    style-src 'self' 'unsafe-inline';
     img-src 'self' blob: data:;
     font-src 'self';
     object-src 'none';
@@ -563,6 +568,7 @@ export function proxy(request: NextRequest) {
     default-src 'self';
     script-src 'self' 'nonce-${nonce}' 'strict-dynamic' ${isDev ? "'unsafe-eval'" : ''};
     style-src 'self' ${isDev ? "'unsafe-inline'" : `'nonce-${nonce}'`};
+    style-src-attr 'unsafe-inline';
     img-src 'self' blob: data:;
     font-src 'self';
     object-src 'none';
@@ -585,6 +591,7 @@ export function proxy(request) {
     default-src 'self';
     script-src 'self' 'nonce-${nonce}' 'strict-dynamic' ${isDev ? "'unsafe-eval'" : ''};
     style-src 'self' ${isDev ? "'unsafe-inline'" : `'nonce-${nonce}'`};
+    style-src-attr 'unsafe-inline';
     img-src 'self' blob: data:;
     font-src 'self';
     object-src 'none';
@@ -603,7 +610,7 @@ export function proxy(request) {
 Common issues in production:
 
 - **Nonce not applied**: Ensure your proxy runs on all necessary routes
-- **Static assets blocked**: Verify your CSP allows Next.js static assets
+- **Static assets blocked**: `'self'` already covers `/_next/static`, so check for a missing origin in `img-src`, `font-src`, or `connect-src` before widening `script-src`
 - **Third-party scripts**: Add necessary domains to your CSP policy
 
 ## Troubleshooting
@@ -723,10 +730,10 @@ const cspHeader = `
 
 ### Common CSP Violations
 
-1. **Inline styles**: Use CSS-in-JS libraries that support nonces or move styles to external files
-2. **Dynamic imports**: Ensure dynamic imports are allowed in your script-src policy
+1. **Inline styles**: `style` attributes are covered by `style-src-attr`, which a nonce cannot satisfy. Add `style-src-attr 'unsafe-inline'`, or move the styles into a stylesheet
+2. **Inline scripts you add yourself**: scripts injected with `dangerouslySetInnerHTML`, such as the ones that [prevent a flash before hydration](/docs/app/guides/preventing-flash-before-hydration), need the nonce passed to them explicitly
 3. **WebAssembly**: Add `'wasm-unsafe-eval'` if using WebAssembly
-4. **Service workers**: Add appropriate policies for service worker scripts
+4. **Service workers**: Add `worker-src` for the origins your service worker scripts are served from
 
 ## Version History
 
