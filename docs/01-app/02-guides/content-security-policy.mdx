@@ -41,7 +41,7 @@ For example:
 
 > **Good to know**: In development, `'unsafe-eval'` is required because React uses `eval` to provide enhanced debugging information, such as reconstructing server-side error stacks in the browser. `unsafe-eval` is not required for production. Neither React nor Next.js use `eval` in production by default.
 
-```ts filename="proxy.ts" switcher
+```ts filename="proxy.ts" highlight={8,9} switcher
 import { NextRequest, NextResponse } from 'next/server'
 
 export function proxy(request: NextRequest) {
@@ -50,7 +50,7 @@ export function proxy(request: NextRequest) {
   const cspHeader = `
     default-src 'self';
     script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${isDev ? " 'unsafe-eval'" : ''};
-    style-src 'self' 'nonce-${nonce}';
+    style-src 'self' ${isDev ? "'unsafe-inline'" : `'nonce-${nonce}'`};
     style-src-attr 'unsafe-inline';
     img-src 'self' blob: data:;
     font-src 'self';
@@ -87,7 +87,7 @@ export function proxy(request: NextRequest) {
 }
 ```
 
-```js filename="proxy.js" switcher
+```js filename="proxy.js" highlight={8,9} switcher
 import { NextResponse } from 'next/server'
 
 export function proxy(request) {
@@ -96,7 +96,7 @@ export function proxy(request) {
   const cspHeader = `
     default-src 'self';
     script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${isDev ? " 'unsafe-eval'" : ''};
-    style-src 'self' 'nonce-${nonce}';
+    style-src 'self' ${isDev ? "'unsafe-inline'" : `'nonce-${nonce}'`};
     style-src-attr 'unsafe-inline';
     img-src 'self' blob: data:;
     font-src 'self';
@@ -131,6 +131,8 @@ export function proxy(request) {
   return response
 }
 ```
+
+This policy uses [`'strict-dynamic'`](https://developer.mozilla.org/docs/Web/HTTP/Reference/Headers/Content-Security-Policy/script-src#strict-dynamic), so supporting browsers trust scripts loaded by an already-trusted script and ignore host sources such as `'self'` in `script-src`. The nonce is what makes the framework scripts trusted, which in turn allows the chunks they load.
 
 > **Good to know**: A nonce cannot apply to `style` attributes, so `style-src-attr 'unsafe-inline'` is required for inline styles such as the ones [`next/image`](/docs/app/api-reference/components/image) sets. Adding `'unsafe-inline'` to `style-src` instead has no effect, because browsers ignore it when the directive also contains a nonce.
 
@@ -557,7 +559,7 @@ CSP implementation differs between development and production environments:
 
 ### Development Environment
 
-In development, you will need to enable `'unsafe-eval'` because React uses `eval` to provide enhanced debugging information, such as reconstructing server-side error stacks in the browser to show you where errors originated on the server:
+In development, you will need to enable `'unsafe-eval'` because React uses `eval` to provide enhanced debugging information, such as reconstructing server-side error stacks in the browser to show you where errors originated on the server. Development also needs `'unsafe-inline'` in `style-src` in place of the nonce, because Next.js injects inline styles for the dev overlay that don't carry one:
 
 ```ts filename="proxy.ts" switcher
 export function proxy(request: NextRequest) {
