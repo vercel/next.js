@@ -1,4 +1,4 @@
-;!function(){try { var e="undefined"!=typeof globalThis?globalThis:"undefined"!=typeof global?global:"undefined"!=typeof window?window:"undefined"!=typeof self?self:{},n=(new e.Error).stack;n&&((e._debugIds|| (e._debugIds={}))[n]="c2de8f36-af88-3f8a-2bd9-03966fc0cb0d")}catch(e){}}();
+;!function(){try { var e="undefined"!=typeof globalThis?globalThis:"undefined"!=typeof global?global:"undefined"!=typeof window?window:"undefined"!=typeof self?self:{},n=(new e.Error).stack;n&&((e._debugIds|| (e._debugIds={}))[n]="8be33d93-70f0-5795-483a-8e4593e9e07e")}catch(e){}}();
 (globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push([
     "output/1i9t_crates_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_19boa0e.js",
     {"otherChunks":["output/1do3_crates_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_03ibyvs.js"],"runtimeModuleIds":["[project]/turbopack/crates/turbopack-tests/tests/snapshot/debug-ids/browser/input/index.js [test] (ecmascript)"]}
@@ -950,9 +950,15 @@ browserContextPrototype.q = exportUrl;
     return instantiateModule(moduleId, SourceType.Runtime, chunkPath);
 }
 /**
+ * Matches any character `encodeURIComponent` escapes. The path separator is
+ * excluded because chunk paths are encoded a segment at a time.
+ */ const CHUNK_PATH_NEEDS_ENCODING = /[^A-Za-z0-9\-_.!~*'()/]/;
+/**
  * Returns the URL relative to the origin where a chunk can be fetched from.
  */ function getChunkRelativeUrl(chunkPath, basePath = CHUNK_BASE_PATH) {
-    return `${basePath}${chunkPath.split('/').map((p)=>encodeURIComponent(p)).join('/')}${ASSET_SUFFIX}`;
+    // Most chunk paths need no escaping.
+    const encodedPath = CHUNK_PATH_NEEDS_ENCODING.test(chunkPath) ? chunkPath.split('/').map(encodeURIComponent).join('/') : chunkPath;
+    return `${basePath}${encodedPath}${ASSET_SUFFIX}`;
 }
 // Shared runtime primitives consumed by the bundled `createWorker` helper,
 // exposed as `__turbopack_chunk_base_path__` and `__turbopack_chunk_asset_suffix__`.
@@ -2475,5 +2481,5 @@ chunkListsToRegister.forEach(registerChunkList);
 })();
 
 
-//# debugId=c2de8f36-af88-3f8a-2bd9-03966fc0cb0d
+//# debugId=8be33d93-70f0-5795-483a-8e4593e9e07e
 //# sourceMappingURL=1do3_crates_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_19boa0e.js.map
