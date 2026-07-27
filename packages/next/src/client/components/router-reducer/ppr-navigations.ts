@@ -34,7 +34,7 @@ import {
   waitForSegmentCacheEntry,
   markRouteEntryAsDynamicRewrite,
   invalidateRouteCacheEntries,
-  getStaleAt,
+  resolveStaleAt,
   writePrerenderResponseIntoCache,
   processRuntimePrefetchStream,
   writeDynamicRenderResponseIntoCache,
@@ -1831,7 +1831,7 @@ async function fetchMissingDynamicData(
       const { response: staticStageResponse, isResponsePartial } =
         result.staticStageData
 
-      getStaleAt(now, staticStageResponse.s)
+      resolveStaleAt(now, staticStageResponse.s)
         .then((staleAt) => {
           const buildId =
             result.responseHeaders.get(NEXT_NAV_DEPLOYMENT_ID_HEADER) ??

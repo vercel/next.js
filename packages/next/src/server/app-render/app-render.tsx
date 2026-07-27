@@ -8956,22 +8956,6 @@ async function prerenderToStream(
           ctx.pagePath,
           metadata
         )
-        // If link data (static params) unblocked new content, then the shell has to be partial.
-        // If not, then the shell prerender and the static prerender are the same except for staleTime/varyParams.
-        const shellIsPartial = didLinkDataUnblockNewContent
-          ? true
-          : resultIsPartial
-
-        metadata.segmentData ??= new Map()
-        metadata.segmentData.set(
-          '/_shell',
-          Buffer.concat(
-            prependIsPartialByteToChunks(
-              collectedChunksByStage.shellStaticChunks,
-              shellIsPartial
-            )
-          )
-        )
       }
 
       const clientDynamicTracking = createDynamicTrackingState(

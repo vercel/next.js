@@ -2212,7 +2212,7 @@ export async function fetchSegmentsOnCacheMiss(
 
 /**
  * Issues a single segment-bundle prefetch request, validates it, and decodes
- * the response. Returns the decoded `{ serverResponse, responseSize, closed }`
+ * the response. Returns the decoded response (see the return type below)
  * on success, or `null` if the response was fetched but isn't usable yet
  * (server error/miss, empty data, or a build-id mismatch — the server may be
  * transiently unready, so it's worth retrying). THROWS if the connection failed
@@ -2317,7 +2317,11 @@ async function fetchSegmentsOnCacheMissImpl(
     return null
   }
 
-  return { serverResponse, responseSize, closed: closed.promise }
+  return {
+    serverResponse,
+    responseSize,
+    closed: closed.promise,
+  }
 }
 
 /**
@@ -2367,14 +2371,24 @@ function writeSegmentBundleResponse(
       continue
     }
 
-    const entryStaleAt = now + getStaleTimeMs(data.staleTime)
+    // The segment's late-resolving metadata can be read synchronously
+    // because the response was fully buffered before it was decoded.
+    const entryStaleAt = readFulfilledStaleAt(now, data.staleTime)
+    // Root params are emitted once at the top level of the response and
+    // unioned into each segment's set here, same as for a route-level
+    // response.
+    const varyParams = readVaryParams(
+      data.varyParams,
+      serverResponse.rootVaryParams
+    )
+    const isPartial = readFulfilledIsPartial(data.isPartial)
 
     // Determine the canonical vary path for this segment. If the server
     // tells us which params the segment varies by, re-key to a more
     // generic path. Otherwise use the request vary path.
     const canonicalVaryPath =
-      process.env.__NEXT_VARY_PARAMS && data.varyParams !== null
-        ? getFulfilledSegmentVaryPath(node.tree.varyPath, data.varyParams)
+      process.env.__NEXT_VARY_PARAMS && varyParams !== null
+        ? getFulfilledSegmentVaryPath(node.tree.varyPath, varyParams)
         : getSegmentVaryPathForRequest(FetchStrategy.PPR, node.tree)
 
     let fulfilled: FulfilledSegmentCacheEntry | null = null
@@ -2385,7 +2399,7 @@ function writeSegmentBundleResponse(
         nodeEntry as PendingSegmentCacheEntry,
         data.rsc,
         entryStaleAt,
-        data.isPartial,
+        isPartial,
         responseIsUpgradeableISRFallback
       )
     } else {
@@ -2397,7 +2411,7 @@ function writeSegmentBundleResponse(
         upgradeToPendingSegment(detachedEntry, FetchStrategy.PPR, null),
         data.rsc,
         entryStaleAt,
-        data.isPartial,
+        isPartial,
         responseIsUpgradeableISRFallback
       )
     }
@@ -2415,6 +2429,69 @@ function writeSegmentBundleResponse(
     rejectRemainingSegmentsInBundle(node, now + 10 * 1000)
   }
 }
+
+/**
+ * Reads a segment's partialness from its `isPartial` promise. The server
+ * fulfills it only for a fully-static segment and leaves it pending for a
+ * partial one (see `SegmentPrefetch['isPartial']`), so partial == not
+ * fulfilled. The read is synchronous because the response is fully buffered
+ * before it's decoded, so a fulfillment is already visible on the thenable's
+ * status — the same trick `readVaryParams` uses for the vary params iterables.
+ */
+function readFulfilledIsPartial(isPartial: Promise<void>): boolean {
+  const thenable = isPartial as PromiseLike<void> & { status?: string }
+  // Force Flight to unwrap a received-but-not-yet-settled row. A pending row,
+  // or a truncated shell decode whose fulfillment landed past the boundary,
+  // stays non-fulfilled — read as partial, which is correct either way.
+  thenable.then(noop, noop)
+  return thenable.status !== 'fulfilled'
+}
+
+/**
+ * Reads a stale-at time from the staleTime async iterable of a fully-buffered
+ * response — segment bundles and stage decodes, which go through
+ * `createNonTaskyPrefetchResponseStream`. Because the bytes are all present,
+ * each yielded value is already visible on its chunk's thenable status (the
+ * same trick `readVaryParams` uses), so this drains synchronously and takes
+ * the last value (the final staleTime, as `resolveStaleAt` does for the
+ * async case). A missing iterable, or a truncated shell decode whose value
+ * landed past the boundary, reads as absent and falls back to the static
+ * stale time.
+ *
+ * For the one response kind that isn't buffered when read — a dynamic `Full`
+ * response (fetchStrategy.Full with Partial Prefetching disabled) — use
+ * `resolveStaleAt` instead, since its values aren't materialized synchronously.
+ */
+function readFulfilledStaleAt(
+  now: number,
+  staleTime: AsyncIterable<number> | undefined
+): number {
+  if (staleTime === undefined) {
+    return now + STATIC_STALETIME_MS
+  }
+  const iterator = staleTime[Symbol.asyncIterator]()
+  let staleTimeSeconds: number | undefined
+  while (true) {
+    const chunk = iterator.next() as PromiseLike<IteratorResult<number>> & {
+      status?: string
+      value?: IteratorResult<number>
+    }
+    chunk.then(noop, noop)
+    if (chunk.status !== 'fulfilled' || chunk.value === undefined) {
+      break
+    }
+    if (chunk.value.done) {
+      break
+    }
+    staleTimeSeconds = chunk.value.value
+  }
+  if (staleTimeSeconds === undefined || isNaN(staleTimeSeconds)) {
+    return now + STATIC_STALETIME_MS
+  }
+  return now + getStaleTimeMs(staleTimeSeconds)
+}
+
+const noop = () => {}
 
 /**
  * The localized retry loop for an upgradeable fallback shell. Re-issues the
@@ -2628,7 +2705,7 @@ export async function fetchSegmentPrefetchesUsingDynamicRequest(
     ])
 
     const now = Date.now()
-    const staleAt = await getStaleAt(now, serverData.s, response)
+    const staleAt = await resolveStaleAt(now, serverData.s, response)
     const buildId =
       response.headers.get(NEXT_NAV_DEPLOYMENT_ID_HEADER) ?? serverData.b
 
@@ -2674,7 +2751,9 @@ export async function fetchSegmentPrefetchesUsingDynamicRequest(
         // the result of a pending entry, do one additional cache look-up right
         // after the promise resolves, to ensure we never get a mismatching
         // entry. Leaving this for a follow up.
-        const shellStaleAt = await getStaleAt(now, shellStageData.s)
+        // shellStageData is a fully-buffered stage decode, so read staleTime
+        // synchronously off the thenable status.
+        const shellStaleAt = readFulfilledStaleAt(now, shellStageData.s)
         if (fetchStrategy === FetchStrategy.RuntimeShell) {
           // This is a Shell prefetch, so the pending entries must be fulfilled
           // with the shell.
@@ -3278,7 +3357,10 @@ async function fetchPrefetchResponse<T>(
 export async function createNonTaskyPrefetchResponseStream(
   body: ReadableStream<Uint8Array>,
   byteLimit?: number
-): Promise<{ stream: ReadableStream<Uint8Array>; size: number }> {
+): Promise<{
+  stream: ReadableStream<Uint8Array>
+  size: number
+}> {
   // Buffer the entire response before passing it to the Flight client. This
   // ensures that when Flight processes the stream, all model data is available
   // synchronously. This is important for readVaryParams, which synchronously
@@ -3444,17 +3526,22 @@ function getStaleAtFromHeader(
 }
 
 /**
- * Reads the stale time from an async iterable or a response header and
- * returns a staleAt timestamp.
+ * Reads a stale-at time by `await`ing the staleTime async iterable (last
+ * yielded value wins) and, if a `response` is given and the iterable yields
+ * nothing, falling back to the `Next-Router-Stale-Time` header.
  *
- * TODO: Buffer the response and then read the iterable values
- * synchronously, similar to readVaryParams. This would avoid the need to
- * make this async, and we could also use it in
- * writeDynamicTreeResponseIntoCache. This will also be needed when React
- * starts leaving async iterables hanging when the outer RSC stream is
- * aborted e.g. due to sync I/O (with unstable_allowPartialStream).
+ * The async form is required for the two things `readFulfilledStaleAt` can't
+ * do: the header fallback, and reading a dynamic `Full` response
+ * (fetchStrategy.Full with Partial Prefetching disabled) — the one response
+ * kind that isn't buffered before it's read, so its iterable values must be
+ * awaited rather than drained synchronously off their thenable status.
+ *
+ * Buffered responses (static PPR, runtime prefetch, stage decodes) don't need
+ * the async form: segment bundles and the shell-stage decode already read
+ * staleTime synchronously via `readFulfilledStaleAt`, and the remaining
+ * buffered callers here could be moved to it too.
  */
-export async function getStaleAt(
+export async function resolveStaleAt(
   now: number,
   staleTimeIterable: AsyncIterable<number> | undefined,
   response?: RSCResponse<unknown>
@@ -3569,7 +3656,7 @@ export async function processRuntimePrefetchStream(
   const rootVaryParamsIterable = serverData.r ?? null
   const headVaryParams = readVaryParams(serverData.h, rootVaryParamsIterable)
 
-  const staleAt = await getStaleAt(now, serverData.s)
+  const staleAt = await resolveStaleAt(now, serverData.s)
 
   const flightDatas = normalizeFlightData(serverData.f)
   if (typeof flightDatas === 'string') {
