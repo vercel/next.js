@@ -112,8 +112,8 @@ import {
   getRequestInsightsIdentity,
   runWithRequestInsightsIdentity,
 } from '../lib/trace/request-insights-identity'
-import { getTracer, SpanStatusCode, type Span } from '../lib/trace/tracer'
-import { createLocalSpan } from '../lib/trace/local-span-recorder'
+import { getTracer, SpanStatusCode } from '../lib/trace/tracer'
+import { traceLocalSpan } from '../lib/trace/local-span-recorder'
 import { isRequestInsightsEnabled } from '../lib/trace/request-insights'
 import { FlightRenderResult } from './flight-render-result'
 import {
@@ -4525,17 +4525,14 @@ function runDevValidationInBackground(
         return
       }
 
-      return runInstantInsightsWithTracing(ctx, async (instantInsightsSpan) => {
+      return runInstantInsightsWithTracing(ctx, async (runSpan) => {
         // Read whether the streamed render errored only now that it has fully
         // settled.
         const devRenderDidError = getDevRenderDidError()
 
-        const [instantInputs, staticInputs] = await getTracer().trace(
+        const [instantInputs, staticInputs] = await runSpan(
           AppRenderSpan.instantInsightsPrepareValidation,
-          {
-            spanName: 'Prepare validation inputs',
-            parentSpan: instantInsightsSpan,
-          },
+          'Prepare validation inputs',
           async () => {
             const lazyInputs = await prepareValidationInputs(
               prefetchMode,
@@ -4580,12 +4577,9 @@ function runDevValidationInBackground(
           return
         }
 
-        return getTracer().trace(
+        return runSpan(
           AppRenderSpan.instantInsightsRunValidation,
-          {
-            spanName: 'Run validation',
-            parentSpan: instantInsightsSpan,
-          },
+          'Run validation',
           async () => {
             // Hand the whole validation to the worker when one is installed. It
             // runs on a worker thread (off the main thread), emits its own
@@ -4680,12 +4674,44 @@ function runDevValidationInBackground(
     .finally(() => validationGeneration.finish())
 }
 
+type RunInstantInsightsSpan = <T>(
+  spanType: AppRenderSpan,
+  spanName: string,
+  fn: () => Promise<T>
+) => Promise<T>
+
+function runInstantInsightsSpan<T>(
+  spanType: AppRenderSpan,
+  spanName: string,
+  fn: () => Promise<T>
+): Promise<T> {
+  return traceLocalSpan(
+    {
+      name: spanName,
+      attributes: {
+        'next.span_category': 'nextjs',
+        'next.span_name': spanName,
+        'next.span_type': spanType,
+      },
+    },
+    fn
+  )
+}
+
+function runWithoutInstantInsightsSpan<T>(
+  _spanType: AppRenderSpan,
+  _spanName: string,
+  fn: () => Promise<T>
+): Promise<T> {
+  return fn()
+}
+
 async function runInstantInsightsWithTracing<T>(
   ctx: AppRenderContext,
-  fn: (span?: Span) => Promise<T>
+  fn: (runSpan: RunInstantInsightsSpan) => Promise<T>
 ): Promise<T> {
   if (!isRequestInsightsEnabled()) {
-    return fn()
+    return fn(runWithoutInstantInsightsSpan)
   }
 
   return runWithRequestInsightsIdentity(
@@ -4695,29 +4721,20 @@ async function runInstantInsightsWithTracing<T>(
       htmlRequestId: ctx.htmlRequestId,
       url: ctx.url.href,
     },
-    () => {
-      const span = createLocalSpan({
-        name: 'Instant Insights',
-        attributes: {
-          'next.span_category': 'nextjs',
-          'next.span_name': 'Instant Insights',
-          'next.span_type': AppRenderSpan.instantInsights,
-          'next.route': ctx.pagePath,
+    () =>
+      traceLocalSpan(
+        {
+          name: 'Instant Insights',
+          parentSpan: null,
+          attributes: {
+            'next.span_category': 'nextjs',
+            'next.span_name': 'Instant Insights',
+            'next.span_type': AppRenderSpan.instantInsights,
+            'next.route': ctx.pagePath,
+          },
         },
-      })
-
-      return getTracer().withSpan(span, async () => {
-        try {
-          return await fn(span)
-        } catch (err) {
-          span.recordException(err as Error)
-          span.setStatus({ code: SpanStatusCode.ERROR })
-          throw err
-        } finally {
-          span.end()
-        }
-      })
-    }
+        () => fn(runInstantInsightsSpan)
+      )
   )
 }
 

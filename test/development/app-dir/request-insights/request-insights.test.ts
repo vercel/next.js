@@ -184,6 +184,9 @@ describe('request insights', () => {
           span.name === 'Instant Insights'
       )
       expect(rootSpans?.length).toBeGreaterThan(0)
+      for (const rootSpan of rootSpans ?? []) {
+        expect(rootSpan.parentSpanId).toBeUndefined()
+      }
 
       const pipelineSpanTypes = [
         'AppRender.instantInsights.prepareValidation',
