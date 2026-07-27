@@ -444,6 +444,7 @@ describe('local span recording', () => {
     })[0]
 
     expect(rootRecord.parentSpanId).toBeUndefined()
+    expect(rootRecord.traceId).not.toBe(foregroundSpan.spanContext().traceId)
     expect(childRecord).toEqual(
       expect.objectContaining({
         traceId: rootRecord.traceId,
