@@ -43,6 +43,7 @@ minimumReleaseAgeExclude:
   - '@vercel/*'
   - '@workflow/*'
   - babel-plugin-react-compiler
+  - httpxy@0.5.5
   - next
   - react
   - react-dom

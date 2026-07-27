@@ -1216,17 +1216,13 @@ export async function ncc_gzip_size(task, opts) {
     .ncc({ packageName: 'gzip-size', externals })
     .target('src/compiled/gzip-size')
 }
-externals['http-proxy'] = 'next/dist/compiled/http-proxy'
-// The patched http-proxy (patches/http-proxy@1.18.1.patch) uses Next.js'
-// parseUrl instead of the deprecated url.parse. Keep that import pointing at
-// next's own dist instead of bundling a copy.
-externals['next/dist/shared/lib/router/utils/parse-url'] =
-  'next/dist/shared/lib/router/utils/parse-url'
-export async function ncc_http_proxy(task, opts) {
+externals['httpxy'] = 'next/dist/compiled/httpxy'
+export async function ncc_httpxy(task, opts) {
   await task
-    .source(relative(__dirname, require.resolve('http-proxy')))
-    .ncc({ packageName: 'http-proxy', externals })
-    .target('src/compiled/http-proxy')
+    // httpxy is ESM-only, compile to CJS through a stub entry
+    .source('src/bundles/httpxy/index.js')
+    .ncc({ packageName: 'httpxy', externals, esm: false })
+    .target('src/compiled/httpxy')
 }
 externals['ignore-loader'] = 'next/dist/compiled/ignore-loader'
 export async function ncc_ignore_loader(task, opts) {
@@ -2305,7 +2301,7 @@ export async function ncc(task, opts) {
         'ncc_fresh',
         'ncc_glob',
         'ncc_gzip_size',
-        'ncc_http_proxy',
+        'ncc_httpxy',
         'ncc_ignore_loader',
         'ncc_is_animated',
         'ncc_ipaddr_js',
