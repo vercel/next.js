@@ -29,9 +29,7 @@ describe('App Shell varies only on the root params it reads', () => {
 
   it('reuses the shell across an unread root param, but refetches across a read one', async () => {
     let page: Playwright.Page
-    // Start on the one statically-generated route. The combos probed below are
-    // NOT statically generated, so their shells are rendered at runtime
-    // (FetchStrategy.RuntimeShell).
+    // Start on the one statically-generated route.
     const browser = await next.browser('/en/us', {
       beforePageLoad(p: Playwright.Page) {
         page = p
