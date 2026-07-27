@@ -188,8 +188,8 @@ To use a nonce, your page must be **dynamically rendered**. This is because Next
 
 Here’s how nonce support works in a dynamically rendered page:
 
-1. **Proxy generates a nonce**: Your proxy creates a unique nonce for the request and sets the `Content-Security-Policy` header on both the request and the response. The request copy is what Next.js reads while rendering; the response copy is what the browser enforces. The `x-nonce` header is for your own code to read.
-2. **Next.js extracts the nonce**: During rendering, Next.js parses the `Content-Security-Policy` or `Content-Security-Policy-Report-Only` header from the request and extracts the nonce using the `'nonce-{value}'` pattern. Report-only lets you trial a policy while nonces are still applied.
+1. **Proxy generates a nonce**: Your proxy creates a unique nonce for each request and sets it in the `Content-Security-Policy` header on both the request and the response, along with an `x-nonce` header for your own code to read.
+2. **Next.js extracts the nonce**: During rendering, Next.js parses the `Content-Security-Policy` or `Content-Security-Policy-Report-Only` header and extracts the nonce using the `'nonce-{value}'` pattern. Report-only lets you trial a policy while nonces are still applied.
 3. **Nonce is applied automatically**: Next.js attaches the nonce to:
    - Framework scripts (React, Next.js runtime)
    - Page-specific JavaScript bundles
