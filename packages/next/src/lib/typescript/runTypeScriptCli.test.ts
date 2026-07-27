@@ -22,6 +22,7 @@ function getProcessListeners(event: ProcessEvent): ProcessListener[] {
 }
 
 class MockChildProcess extends EventEmitter {
+  pid = 4321
   killed = false
   kill = jest.fn(() => true)
   stdout = new PassThrough()
@@ -70,7 +71,7 @@ describe('runTypeScriptCli', () => {
     }
   }
 
-  it('forwards SIGTERM to the child and cleans up all listeners on close', async () => {
+  it('spawns tsc detached with piped stdio and resolves with the exit code', async () => {
     const resultPromise = runTypeScriptCli({
       cwd: '/project',
       tscPath: '/project/node_modules/typescript/bin/tsc',
@@ -84,18 +85,129 @@ describe('runTypeScriptCli', () => {
         cwd: '/project',
         detached: process.platform !== 'win32',
         shell: false,
-        stdio: 'inherit',
+        stdio: ['ignore', 'pipe', 'pipe'],
       })
     )
-    getAddedListener('SIGTERM')()
-    expect(child.kill).toHaveBeenCalledWith('SIGTERM')
 
     child.emit('close', 0, null)
 
-    await expect(resultPromise).rejects.toThrow(
-      'TypeScript CLI interrupted by SIGTERM'
-    )
-    expect(processKill).toHaveBeenCalledWith(process.pid, 'SIGTERM')
+    await expect(resultPromise).resolves.toMatchObject({
+      exitCode: 0,
+      signal: null,
+    })
+    expectListenersRestored()
+  })
+
+  it('forwards output as it arrives, preserving stdout/stderr interleaving, and stops the spinner on the first byte', async () => {
+    const stdoutWrite = jest
+      .spyOn(process.stdout, 'write')
+      .mockImplementation(() => true)
+    const stderrWrite = jest
+      .spyOn(process.stderr, 'write')
+      .mockImplementation(() => true)
+    const onFirstOutput = jest.fn()
+
+    try {
+      const resultPromise = runTypeScriptCli({
+        cwd: '/project',
+        tscPath: '/project/node_modules/typescript/bin/tsc',
+        args: ['--noEmit'],
+        onFirstOutput,
+      })
+
+      child.stdout.write('checking a\n')
+      child.stderr.write('warning b\n')
+      child.stdout.write('checking c\n')
+      child.emit('close', 0, null)
+
+      await expect(resultPromise).resolves.toMatchObject({ exitCode: 0 })
+
+      expect(onFirstOutput).toHaveBeenCalledTimes(1)
+      expect(stdoutWrite).toHaveBeenNthCalledWith(1, 'checking a\n')
+      expect(stderrWrite).toHaveBeenNthCalledWith(1, 'warning b\n')
+      expect(stdoutWrite).toHaveBeenNthCalledWith(2, 'checking c\n')
+    } finally {
+      stdoutWrite.mockRestore()
+      stderrWrite.mockRestore()
+    }
+    expectListenersRestored()
+  })
+
+  it('SIGKILLs the whole process group on process exit', async () => {
+    // The native compiler ignores catchable signals, so teardown must SIGKILL
+    // the process group (negative pid) to reap it.
+    if (process.platform === 'win32') {
+      return
+    }
+
+    const resultPromise = runTypeScriptCli({
+      cwd: '/project',
+      tscPath: '/project/node_modules/typescript/bin/tsc',
+      args: ['--noEmit'],
+    })
+
+    getAddedListener('exit')()
+    expect(processKill).toHaveBeenCalledWith(-child.pid, 'SIGKILL')
+
+    child.emit('close', null, 'SIGKILL')
+
+    await expect(resultPromise).resolves.toMatchObject({
+      exitCode: 1,
+      signal: 'SIGKILL',
+    })
+    expectListenersRestored()
+  })
+
+  it('terminates the child only once', async () => {
+    if (process.platform === 'win32') {
+      return
+    }
+
+    const resultPromise = runTypeScriptCli({
+      cwd: '/project',
+      tscPath: '/project/node_modules/typescript/bin/tsc',
+      args: ['--noEmit'],
+    })
+
+    const terminate = getAddedListener('exit')
+    terminate()
+    terminate()
+
+    expect(processKill).toHaveBeenCalledTimes(1)
+
+    child.emit('close', null, 'SIGKILL')
+    await resultPromise
+    expectListenersRestored()
+  })
+
+  it('reaps the child and exits on a termination signal', async () => {
+    // Node.js does not fire `exit` on signal termination, so SIGINT/SIGTERM/
+    // SIGHUP must be handled explicitly or the native compiler would be left
+    // running.
+    if (process.platform === 'win32') {
+      return
+    }
+
+    const processExit = jest
+      .spyOn(process, 'exit')
+      .mockImplementation((() => undefined) as never)
+
+    try {
+      const resultPromise = runTypeScriptCli({
+        cwd: '/project',
+        tscPath: '/project/node_modules/typescript/bin/tsc',
+        args: ['--noEmit'],
+      })
+
+      getAddedListener('SIGINT')()
+      expect(processKill).toHaveBeenCalledWith(-child.pid, 'SIGKILL')
+      expect(processExit).toHaveBeenCalledWith(1)
+
+      child.emit('close', null, 'SIGKILL')
+      await resultPromise
+    } finally {
+      processExit.mockRestore()
+    }
     expectListenersRestored()
   })
 

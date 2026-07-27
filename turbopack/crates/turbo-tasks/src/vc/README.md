@@ -2,7 +2,7 @@
 
 In order to get a reference to the pointed value, you need to `.await` the [`Vc<T>`] to get a [`ReadRef<T>`][`ReadRef`]:
 
-```
+```ignore
 let some_vc: Vc<T>;
 let some_ref: ReadRef<T> = some_vc.await?;
 some_ref.some_method_on_t();

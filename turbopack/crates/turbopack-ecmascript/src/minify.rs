@@ -163,7 +163,7 @@ pub fn minify(code: Code, source_maps: bool, mangle: Option<MangleType>) -> Resu
             )?),
         );
     } else {
-        builder.push_source(&src.into(), None);
+        builder.push_source(&src.into(), None::<turbo_tasks_fs::rope::Rope>);
     }
     Ok(builder.build())
 }

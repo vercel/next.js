@@ -1,4 +1,70 @@
 import { parseHostHeader } from './action-handler'
+import {
+  getServerModuleMap,
+  setManifestsSingleton,
+} from './manifests-singleton'
+import type { ClientReferenceManifest } from '../../build/webpack/plugins/flight-manifest-plugin'
+
+describe('server module map', () => {
+  const actionId = '00' + 'a'.repeat(40)
+  const missingActionId = '00' + 'b'.repeat(40)
+
+  beforeAll(() => {
+    setManifestsSingleton({
+      page: '/test',
+      clientReferenceManifest: {} as ClientReferenceManifest,
+      serverActionsManifest: {
+        encryptionKey: '',
+        node: {
+          [actionId]: {
+            workers: {
+              'app/test/page': {
+                moduleId: 'test-module',
+                async: false,
+              },
+            },
+          },
+        },
+        edge: {},
+      },
+    })
+  })
+
+  it('resolves valid server reference IDs', () => {
+    expect(getServerModuleMap()[actionId]).toEqual({
+      id: 'test-module',
+      name: actionId,
+      chunks: [],
+      async: false,
+    })
+  })
+
+  it('rejects plausible server reference IDs that are missing', () => {
+    expect(() => getServerModuleMap()[missingActionId]).toThrow(
+      `Failed to find Server Action "${missingActionId}".`
+    )
+  })
+
+  it.each([actionId.slice(1), actionId + 'a'])(
+    'rejects server reference IDs with an invalid length',
+    (invalidActionId) => {
+      expect(() => getServerModuleMap()[invalidActionId]).toThrow(
+        'The Server Reference ID did not match the expected format.'
+      )
+    }
+  )
+
+  it.each(['toJSON', '_debugInfo', '@@iterator'])(
+    'does not treat framework reflection probe "%s" as a server reference ID',
+    (prop) => {
+      expect(getServerModuleMap()[prop]).toBeUndefined()
+    }
+  )
+
+  it('does not treat symbol probes as server reference IDs', () => {
+    expect(Reflect.get(getServerModuleMap(), Symbol.iterator)).toBeUndefined()
+  })
+})
 
 describe('parseHostHeader', () => {
   it('should return correct host', () => {

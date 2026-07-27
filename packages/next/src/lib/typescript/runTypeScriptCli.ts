@@ -92,11 +92,21 @@ export function runTypeScriptCli({
   tscPath,
   args,
   captureOutput = false,
+  onFirstOutput,
 }: {
   cwd: string
   tscPath: string
   args: string[]
+  /**
+   * Accumulate stdout/stderr into the resolved result instead of forwarding it
+   * to this process's stdout/stderr (for e.g. parsing `--showConfig` output).
+   */
   captureOutput?: boolean
+  /**
+   * Called once, on the first chunk of forwarded output. Used to stop the build
+   * spinner before `tsc`'s diagnostics appear. Not called when capturing.
+   */
+  onFirstOutput?: () => void
 }): Promise<TypeScriptCliResult> {
   return new Promise((resolve, reject) => {
     const child = spawn(process.execPath, [tscPath, ...args], {
@@ -106,66 +116,85 @@ export function runTypeScriptCli({
       // reach both processes instead of orphaning the native compiler.
       detached: process.platform !== 'win32',
       shell: false,
-      stdio: captureOutput ? ['ignore', 'pipe', 'pipe'] : 'inherit',
+      stdio: ['ignore', 'pipe', 'pipe'],
       env: {
         ...process.env,
+        // Piping stdio makes `tsc` disable colored/pretty diagnostics. Restore
+        // them when we are forwarding output to a TTY (not capturing it for
+        // parsing, e.g. `--showConfig`).
+        ...(!captureOutput && process.stdout.isTTY
+          ? { FORCE_COLOR: '1' }
+          : undefined),
       },
     })
 
     let stdout = ''
     let stderr = ''
 
+    child.stdout?.setEncoding('utf8')
+    child.stderr?.setEncoding('utf8')
+
     if (captureOutput) {
-      child.stdout?.setEncoding('utf8')
-      child.stderr?.setEncoding('utf8')
-      child.stdout?.on('data', (chunk) => {
+      child.stdout?.on('data', (chunk: string) => {
         stdout += chunk
       })
-      child.stderr?.on('data', (chunk) => {
+      child.stderr?.on('data', (chunk: string) => {
         stderr += chunk
+      })
+    } else {
+      const forward = (dest: NodeJS.WriteStream, chunk: string) => {
+        onFirstOutput?.()
+        onFirstOutput = undefined // ensure we don't call it again
+        dest.write(chunk)
+      }
+
+      child.stdout?.on('data', (chunk: string) => {
+        forward(process.stdout, chunk)
+      })
+      child.stderr?.on('data', (chunk: string) => {
+        forward(process.stderr, chunk)
       })
     }
 
     let terminationRequested = false
-    const terminateChild = (signal: NodeJS.Signals = 'SIGTERM') => {
-      if (terminationRequested || child.killed) {
+    const terminateChild = () => {
+      if (terminationRequested || child.killed || child.pid === undefined) {
         return
       }
       terminationRequested = true
 
-      if (process.platform === 'win32' && child.pid) {
+      // The native compiler ignores SIGTERM and SIGINT, so send a kill signal.
+      // Target the whole process group so the signal reaches the native compiler whether
+      // it is a grandchild or a direct child.
+      // https://github.com/microsoft/typescript-go/pull/4592 should improve this in the long run
+      if (process.platform === 'win32') {
         spawnSync('taskkill', ['/pid', String(child.pid), '/T', '/F'], {
           stdio: 'ignore',
           windowsHide: true,
         })
-      } else if (child.pid) {
+      } else {
         try {
-          process.kill(-child.pid, signal)
+          // https://www.youtube.com/watch?v=Fow7iUaKrq4
+          process.kill(-child.pid, 'SIGKILL')
         } catch {
           // The process may have exited between the lifecycle event and kill.
         }
-      } else {
-        child.kill(signal)
       }
     }
     const terminateOnExit = () => terminateChild()
     process.once('exit', terminateOnExit)
 
-    let receivedSignal: NodeJS.Signals | undefined
-    const signalHandlers = new Map<NodeJS.Signals, () => void>()
-    const createSignalHandler = (signal: NodeJS.Signals) => () => {
-      receivedSignal ??= signal
-      terminateChild(signal)
+    const handler = () => {
+      terminateChild()
+      process.exit(1)
     }
     for (const signal of terminationSignals) {
-      const handler = createSignalHandler(signal)
-      signalHandlers.set(signal, handler)
       process.once(signal, handler)
     }
 
     const cleanup = () => {
       process.off('exit', terminateOnExit)
-      for (const [signal, handler] of signalHandlers) {
+      for (const signal of terminationSignals) {
         process.off(signal, handler)
       }
     }
@@ -177,28 +206,6 @@ export function runTypeScriptCli({
       }
       settled = true
       cleanup()
-
-      if (receivedSignal) {
-        const signal = receivedSignal
-        try {
-          // Installing a signal handler replaces Node.js' default termination.
-          // Re-send the signal after the child exits so this process preserves
-          // the original exit semantics instead of treating cancellation as a
-          // successful type check.
-          process.kill(process.pid, signal)
-        } catch (error) {
-          reject(error)
-          return
-        }
-
-        // If another listener consumes the re-sent signal, still fail instead
-        // of leaving the type-check promise pending indefinitely.
-        setImmediate(() => {
-          reject(new Error(`TypeScript CLI interrupted by ${signal}`))
-        })
-        return
-      }
-
       settle()
     }
 

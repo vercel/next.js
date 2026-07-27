@@ -141,9 +141,13 @@ async function collectAppPageSegments(routeModule: AppPageRouteModule) {
  * @param routeModule the app route module
  * @returns the segments for the app route module
  */
-function collectAppRouteSegments(
+async function collectAppRouteSegments(
   routeModule: AppRouteRouteModule
-): AppSegment[] {
+): Promise<AppSegment[]> {
+  // The route file may be an async module (top-level await), so the userland
+  // module must be resolved before its exports can be inspected.
+  await routeModule.ensureUserland()
+
   // Get the pathname parts, slice off the first element (which is empty).
   const parts = routeModule.definition.pathname.split('/').slice(1)
   if (parts.length === 0) {

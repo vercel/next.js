@@ -570,35 +570,6 @@ function assignDefaultsAndValidate(
     )
   }
 
-  if (result.experimental.appShells) {
-    // App Shells is tested in combination with the experimental flags it
-    // expects to ship alongside. All of these are on track to become
-    // defaults, so we don't support enabling App Shells against arbitrary
-    // subsets of them — the validation goes away once each becomes a
-    // default.
-    // Note: `prefetchInlining` is intentionally NOT required. App Shells works
-    // correctly whether or not prefetch inlining is enabled, so disabling it
-    // (e.g. to exercise non-inlined prefetch paths) must not force App Shells off.
-    const missing: string[] = []
-    if (!result.cacheComponents) {
-      missing.push('`cacheComponents`')
-    }
-    if (!result.experimental.varyParams) {
-      missing.push('`experimental.varyParams`')
-    }
-    if (!result.experimental.optimisticRouting) {
-      missing.push('`experimental.optimisticRouting`')
-    }
-    if (!result.experimental.cachedNavigations) {
-      missing.push('`experimental.cachedNavigations`')
-    }
-    if (missing.length > 0) {
-      throw new Error(
-        `\`experimental.appShells\` requires the following to also be enabled: ${missing.join(', ')}. Please update your ${configFileName} accordingly.`
-      )
-    }
-  }
-
   if (result.experimental.ppr) {
     throw new HardDeprecatedConfigError(
       `\`experimental.ppr\` has been merged into \`cacheComponents\`. The Partial Prerendering feature is still available, but is now enabled via \`cacheComponents\`. Please update your ${configFileName} accordingly.`
@@ -1179,8 +1150,8 @@ function assignDefaultsAndValidate(
   }
 
   if (process.env.NEXT_HASH_SALT) {
-    result.experimental.outputHashSalt =
-      (result.experimental.outputHashSalt ?? '') + process.env.NEXT_HASH_SALT
+    result.outputHashSalt =
+      (result.outputHashSalt ?? '') + (process.env.NEXT_HASH_SALT ?? '')
   }
 
   const tracingRoot = result?.outputFileTracingRoot
@@ -1663,7 +1634,10 @@ function assignDefaultsAndValidate(
  * consumers don't each need to know the current framework default (which may
  * evolve over time).
  */
-function finalizeConfig(config: NextConfigComplete): NextConfigComplete {
+function finalizeConfig(
+  config: NextConfigComplete,
+  bundler: Bundler | undefined
+): NextConfigComplete {
   config.experimental.instantInsights = {
     validationLevel:
       config.experimental.instantInsights?.validationLevel ?? 'warning',
@@ -1677,18 +1651,39 @@ function finalizeConfig(config: NextConfigComplete): NextConfigComplete {
     config.deploymentId &&
     process.env.__NEXT_SUPPORTS_IMMUTABLE_ASSETS
   ) {
-    config.experimental.supportsImmutableAssets = true
+    config.supportsImmutableAssets = true
+  }
+
+  // Normalize again for Adapters that only set config.experimental.supportsImmutableAssets for now.
+  if (
+    config.supportsImmutableAssets !==
+    config.experimental?.supportsImmutableAssets
+  ) {
+    config.supportsImmutableAssets =
+      config.supportsImmutableAssets ??
+      config.experimental?.supportsImmutableAssets
+  }
+
+  if (bundler !== undefined && bundler !== Bundler.Turbopack) {
+    // Silently ignore that flag for Webpack/Rspack since the server code assumes that all files
+    // in `static/chunks` are always immutable without checking the manifest.
+    config.supportsImmutableAssets = false
   }
 
   if (
-    config.experimental.supportsImmutableAssets &&
+    config.supportsImmutableAssets &&
     (config.output === 'export' || config.output === 'standalone')
   ) {
     // supportsImmutableAssets is designed to work with adapters. Disable it for output=export and
     // output=standalone, which are currently using a non-adapter codepath.
     // Particularly output=export should just run through the adapter, with only static assets.
     // TODO remove again once output=export (and output=standalone) are using adapters.
-    config.experimental.supportsImmutableAssets = false
+    config.supportsImmutableAssets = false
+  }
+
+  if (config.experimental.outputHashSalt !== undefined) {
+    config.outputHashSalt =
+      (config.outputHashSalt ?? '') + config.experimental.outputHashSalt
   }
 
   return config
@@ -1917,7 +1912,8 @@ async function loadConfigImpl(
         phase,
         silent,
         dir
-      )
+      ),
+      bundler
     )
 
     // Cache the custom config result
@@ -2029,6 +2025,14 @@ async function loadConfigImpl(
     // Check deprecation warnings on the actual user config before merging with defaults
     checkDeprecations(userConfig, configFileName, silent, dir)
 
+    if (
+      userConfig.supportsImmutableAssets === undefined &&
+      userConfig.experimental?.supportsImmutableAssets !== undefined
+    ) {
+      userConfig.supportsImmutableAssets =
+        userConfig.experimental.supportsImmutableAssets
+    }
+
     // Always validate the config against schema in non minimal mode
     if (!process.env.NEXT_MINIMAL && !silent) {
       await validateConfigSchema(
@@ -2050,16 +2054,6 @@ async function loadConfigImpl(
         `The "target" property is no longer supported in ${configFileName}.\n` +
           'See more info here https://nextjs.org/docs/messages/deprecated-target-config'
       )
-    }
-
-    if (
-      userConfig.experimental?.supportsImmutableAssets &&
-      bundler !== undefined &&
-      bundler !== Bundler.Turbopack
-    ) {
-      // Silently ignore that flag for Webpack/Rspack since the server code assumes that all files
-      // in `static/chunks` are always immutable without checking the manifest.
-      userConfig.experimental.supportsImmutableAssets = undefined
     }
 
     if (reactProductionProfiling) {
@@ -2121,8 +2115,22 @@ async function loadConfigImpl(
     )
 
     const finalConfig = finalizeConfig(
-      await applyModifyConfig(completeConfig, phase, silent, dir)
+      await applyModifyConfig(completeConfig, phase, silent, dir),
+      bundler
     )
+
+    // Normalize so that also Adapters can still see userConfig.experimental.supportsImmutableAssets for now
+    if (
+      userConfig.supportsImmutableAssets === undefined ||
+      userConfig.experimental?.supportsImmutableAssets === undefined
+    ) {
+      const value =
+        userConfig.supportsImmutableAssets ??
+        userConfig.experimental?.supportsImmutableAssets
+      userConfig.supportsImmutableAssets = value
+      userConfig.experimental ??= {}
+      userConfig.experimental.supportsImmutableAssets = value
+    }
 
     // Cache the final result
     configCache.set(cacheKey, {
@@ -2180,7 +2188,8 @@ async function loadConfigImpl(
   setHttpClientAndAgentOptions(completeConfig)
 
   const finalConfig = finalizeConfig(
-    await applyModifyConfig(completeConfig, phase, silent, dir)
+    await applyModifyConfig(completeConfig, phase, silent, dir),
+    bundler
   )
 
   // Cache the default config result
@@ -2325,32 +2334,6 @@ function enforceExperimentalFeatures(
       (isDefaultConfig && !config.experimental.cachedNavigations))
   ) {
     config.experimental.cachedNavigations = true
-  }
-
-  // Enable appShells by default when cacheComponents is enabled, unless
-  // explicitly disabled. App Shells builds on Cache Components rendering, so
-  // the two features are tied together: we only flip the default for projects
-  // that are already using Cache Components. Done silently for the same reasons
-  // as the cachedNavigations default above.
-  //
-  // We only auto-enable when App Shells's required dependencies are satisfied.
-  // If a project has explicitly disabled one of them, we leave App Shells off
-  // rather than force it on — otherwise the validation in
-  // `assignDefaultsAndValidate` would turn a previously-valid config into a
-  // hard error. Users who want App Shells in that situation can still enable it
-  // explicitly and get the actionable validation message. `prefetchInlining` is
-  // intentionally not part of this gate (App Shells works without it). This runs
-  // after the cachedNavigations default above so that dependency is already set.
-  // TODO: Remove this once appShells is unconditionally the default.
-  if (
-    config.cacheComponents &&
-    config.experimental.varyParams !== false &&
-    config.experimental.optimisticRouting !== false &&
-    config.experimental.cachedNavigations !== false &&
-    (config.experimental.appShells === undefined ||
-      (isDefaultConfig && !config.experimental.appShells))
-  ) {
-    config.experimental.appShells = true
   }
 
   // appNewScrollHandler defaults to `true`. The env var lets us opt back out to

@@ -279,6 +279,7 @@ export type McpToolName =
   | 'mcp/get_page_metadata'
   | 'mcp/get_project_metadata'
   | 'mcp/get_routes'
+  | 'mcp/get_request_insights'
   | 'mcp/get_server_action_by_id'
   | 'mcp/get_compilation_issues'
   | 'mcp/compile_route'
