@@ -55,6 +55,16 @@ impl SideEffectsModule {
     }
 }
 
+fn side_effect_reference(
+    side_effect: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
+) -> Vc<SingleChunkableModuleReference> {
+    SingleChunkableModuleReference::new(
+        *ResolvedVc::upcast(side_effect),
+        rcstr!("side effect"),
+        ExportUsage::evaluation(),
+    )
+}
+
 #[turbo_tasks::value_impl]
 impl Module for SideEffectsModule {
     #[turbo_tasks::function]
@@ -95,13 +105,7 @@ impl Module for SideEffectsModule {
                 .iter()
                 .map(|side_effect| async move {
                     Ok(ResolvedVc::upcast(
-                        SingleChunkableModuleReference::new(
-                            *ResolvedVc::upcast(*side_effect),
-                            rcstr!("side effect"),
-                            ExportUsage::evaluation(),
-                        )
-                        .to_resolved()
-                        .await?,
+                        side_effect_reference(*side_effect).to_resolved().await?,
                     ))
                 })
                 .try_join()
@@ -149,20 +153,16 @@ impl EcmascriptChunkPlaceable for SideEffectsModule {
         let mut code = RopeBuilder::default();
         let mut has_top_level_await = false;
 
-        let id_strategy = chunking_context.chunk_item_id_strategy().await?;
+        let unused_references = chunking_context.unused_references();
 
         for &side_effect in module.side_effects.iter() {
-            // These side effects were collected conservatively (see
-            // `follow_reexports_with_side_effects`). Inner-graph tree shaking may have
-            // since determined a "side effect" to be side-effect-free and pruned its
-            // evaluation edge, in which case it has no chunk item id.
-            // So we are going to skip it.
-            let Some(id) = id_strategy
-                .try_get_id_from_module(Vc::upcast(*side_effect))
+            let reference = side_effect_reference(side_effect).to_resolved().await?;
+            if unused_references
+                .contains_key(&ResolvedVc::upcast(reference))
                 .await?
-            else {
+            {
                 continue;
-            };
+            }
 
             let need_await = 'need_await: {
                 let async_module = *side_effect.get_async_module().await?;
@@ -182,7 +182,7 @@ impl EcmascriptChunkPlaceable for SideEffectsModule {
                 format!(
                     "{}{TURBOPACK_IMPORT}({});\n",
                     if need_await { "await " } else { "" },
-                    StringifyModuleId(&id)
+                    StringifyModuleId(&side_effect.chunk_item_id(chunking_context).await?)
                 )
                 .as_bytes(),
             );
