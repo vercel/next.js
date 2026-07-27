@@ -295,12 +295,12 @@ pub async fn run(args: FsWatcher) -> anyhow::Result<()> {
     .await
 }
 
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 fn disk_file_system_operation(fs_root: RcStr) -> Vc<DiskFileSystem> {
     DiskFileSystem::new(rcstr!("project"), Vc::cell(fs_root))
 }
 
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 fn disk_file_system_root_operation(fs: ResolvedVc<DiskFileSystem>) -> Vc<FileSystemPath> {
     fs.root()
 }
@@ -361,7 +361,7 @@ async fn write_link(
     Ok(())
 }
 
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 async fn read_or_write_all_paths_operation(
     invalidations: TransientInstance<PathInvalidations>,
     root: FileSystemPath,
