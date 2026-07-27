@@ -743,10 +743,6 @@ async fn well_known_object_member<'a>(
                 .await?
                 .unwrap_or_else(|| rcstr!("development"));
             let is_prod = mode == "production";
-            let is_ssr = matches!(
-                *compile_time_info.environment.rendering().await?,
-                Rendering::Server
-            );
 
             match prop.as_str() {
                 Some("MODE") => JsValue::from(mode),
@@ -755,7 +751,10 @@ async fn well_known_object_member<'a>(
                 Some("BASE_URL") => {
                     JsValue::from(compile_time_info.import_meta_env_base_url.clone())
                 }
-                Some("SSR") => JsValue::from(ConstantValue::from(is_ssr)),
+                Some("SSR") => JsValue::from(ConstantValue::from(matches!(
+                    *compile_time_info.environment.rendering().await?,
+                    Rendering::Server
+                ))),
                 Some(_) => JsValue::Constant(ConstantValue::Undefined),
                 None => {
                     return Ok((
