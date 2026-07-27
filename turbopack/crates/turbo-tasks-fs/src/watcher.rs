@@ -6,9 +6,9 @@ use std::{
     path::{Path, PathBuf},
     sync::{
         Arc, LazyLock,
-        mpsc::{Receiver, TryRecvError, channel},
+        mpsc::{Receiver, RecvTimeoutError, channel},
     },
-    time::Duration,
+    time::{Duration, Instant},
 };
 
 use anyhow::{Context, Result};
@@ -61,6 +61,15 @@ static WATCH_RECURSIVE_MODE: LazyLock<RecursiveMode> = LazyLock::new(|| {
         RecursiveMode::NonRecursive
     }
 });
+
+/// How long to extend an invalidation batch by when receiving new events, before flushing. This
+/// reduces invalidations if the same file or directory is modified many times.
+///
+/// Linux watching is too fast, so we need a longer delay there to avoid reading wip files.
+#[cfg(target_os = "linux")]
+const BATCH_DELAY: Duration = Duration::from_millis(10);
+#[cfg(not(target_os = "linux"))]
+const BATCH_DELAY: Duration = Duration::from_millis(1);
 
 #[derive(Encode, Decode)]
 pub(crate) struct DiskWatcher {
@@ -492,9 +501,14 @@ impl DiskWatcher {
         let mut batch = BatchedInvalidations::new(self.state.recursive_mode());
 
         'outer: loop {
-            let mut event_result = rx.recv().or(Err(TryRecvError::Disconnected));
-            // this inner loop batches events using `try_recv`
+            let mut deadline: Option<Instant> = None;
             loop {
+                let event_result = match deadline {
+                    None => rx.recv().map_err(|_| RecvTimeoutError::Disconnected),
+                    Some(deadline) => {
+                        rx.recv_timeout(deadline.saturating_duration_since(Instant::now()))
+                    }
+                };
                 match event_result {
                     Ok(Ok(event)) => {
                         // TODO: We might benefit from some user-facing diagnostics if it rescans
@@ -543,7 +557,11 @@ impl DiskWatcher {
                             break;
                         }
 
-                        batch.add_event(event);
+                        // Only an event that contributes to the batch keeps it open for another
+                        // `BATCH_DELAY`.
+                        if batch.add_event(event) {
+                            deadline = Some(Instant::now() + BATCH_DELAY);
+                        }
                     }
                     // Error raised by notify watcher itself
                     Ok(Err(notify::Error { kind, paths })) => {
@@ -558,29 +576,18 @@ impl DiskWatcher {
                                 batch.mark(path.into_boxed_path(), flags);
                             }
                         }
+                        deadline = Some(Instant::now() + BATCH_DELAY);
                     }
-                    Err(TryRecvError::Disconnected) => {
+                    Err(RecvTimeoutError::Timeout) => {
+                        // The batch is complete: break out to invalidate the collected paths.
+                        break;
+                    }
+                    Err(RecvTimeoutError::Disconnected) => {
                         // Sender has been disconnected, which means DiskFileSystem has been dropped
                         // exit thread
                         break 'outer;
                     }
-                    Err(TryRecvError::Empty) => {
-                        // Linux watching is too fast, so we need to throttle it a bit to avoid
-                        // reading wip files
-                        #[cfg(target_os = "linux")]
-                        let delay = Duration::from_millis(10);
-                        #[cfg(not(target_os = "linux"))]
-                        let delay = Duration::from_millis(1);
-                        match rx.recv_timeout(delay) {
-                            Ok(result) => {
-                                event_result = Ok(result);
-                                continue;
-                            }
-                            Err(_) => break,
-                        }
-                    }
                 }
-                event_result = rx.try_recv();
             }
 
             // We need to start watching first before invalidating the changed paths...
@@ -717,11 +724,13 @@ impl BatchedInvalidations {
 
     /// Updates the batch to contain updated paths from the given event. Does not perform any
     /// invalidations.
-    fn add_event(&mut self, event: notify::Event) {
+    ///
+    /// Returns `true` if the event contained relevant events, or `false` if it was filtered out.
+    #[must_use]
+    fn add_event(&mut self, event: notify::Event) -> bool {
         let paths: Vec<PathBuf> = event.paths;
         if paths.is_empty() {
-            // this event isn't useful, but keep trying to process the batch
-            return;
+            return false;
         }
         match event.kind {
             // [NOTE] Observing `ModifyKind::Metadata(MetadataKind::Any)` is not a mistake, fix for
@@ -739,6 +748,7 @@ impl BatchedInvalidations {
                 for path in paths {
                     self.mark(path.into_boxed_path(), InvalidationFlags::PATH);
                 }
+                true
             }
             EventKind::Create(_) => {
                 for path in paths {
@@ -750,6 +760,7 @@ impl BatchedInvalidations {
                             | InvalidationFlags::PATH_AND_CHILDREN_DIR,
                     );
                 }
+                true
             }
             EventKind::Remove(_) => {
                 for path in paths {
@@ -760,6 +771,7 @@ impl BatchedInvalidations {
                             | InvalidationFlags::PATH_AND_CHILDREN_DIR,
                     );
                 }
+                true
             }
             // A single event emitted with both the `From` and `To` paths.
             EventKind::Modify(ModifyKind::Name(RenameMode::Both)) => {
@@ -776,6 +788,7 @@ impl BatchedInvalidations {
                     destination.into_boxed_path(),
                     InvalidationFlags::PATH_AND_CHILDREN,
                 );
+                true
             }
             // We expect `RenameMode::Both` to cover most of the cases we need to invalidate,
             // but we also check other RenameModes to cover cases where notify couldn't match the
@@ -789,11 +802,13 @@ impl BatchedInvalidations {
                             | InvalidationFlags::PATH_AND_CHILDREN_DIR,
                     );
                 }
+                true
             }
             EventKind::Modify(ModifyKind::Metadata(..) | ModifyKind::Other)
             | EventKind::Access(_)
             | EventKind::Other => {
                 // ignored
+                false
             }
         }
     }
