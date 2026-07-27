@@ -1,12 +1,14 @@
 import { useMemo, useState } from 'react'
-import type {
-  RequestInsight,
-  RequestInsightFetch,
+import {
+  getRequestInsightKey,
+  getRequestInsightKind,
+  type RequestInsight,
+  type RequestInsightFetch,
 } from '../../../shared/request-insights'
 import { useDevOverlayContext } from '../../../dev-overlay.browser'
 import { CopyButton } from '../copy-button'
 import { formatDuration } from './format-duration'
-import { getActiveRequestId, isPageLoadRequest } from './request-list'
+import { getActiveRequestKey, isPageLoadRequest } from './request-list'
 import {
   getTraceItems,
   getTracePosition,
@@ -23,12 +25,14 @@ export function RequestInsightsPanel() {
     () => [...state.requestInsights].reverse(),
     [state.requestInsights]
   )
-  const [selectedRequestId, setSelectedRequestId] = useState<string | null>(
-    () => getActiveRequestId(requests, null)
+  const [selectedRequestKey, setSelectedRequestKey] = useState<string | null>(
+    () => getActiveRequestKey(requests, null)
   )
-  const activeRequestId = getActiveRequestId(requests, selectedRequestId)
+  const activeRequestKey = getActiveRequestKey(requests, selectedRequestKey)
   const selectedRequest =
-    requests.find((request) => request.requestId === activeRequestId) ?? null
+    requests.find(
+      (request) => getRequestInsightKey(request) === activeRequestKey
+    ) ?? null
   const initialRequestId = self.__next_r
 
   if (requests.length === 0) {
@@ -42,15 +46,18 @@ export function RequestInsightsPanel() {
   return (
     <div className="request-insights-panel">
       <div className="request-insights-list">
-        {requests.map((request) => (
-          <RequestRow
-            key={request.requestId}
-            request={request}
-            pageLoad={isPageLoadRequest(request, initialRequestId)}
-            selected={request.requestId === activeRequestId}
-            onSelect={() => setSelectedRequestId(request.requestId)}
-          />
-        ))}
+        {requests.map((request) => {
+          const requestKey = getRequestInsightKey(request)
+          return (
+            <RequestRow
+              key={requestKey}
+              request={request}
+              pageLoad={isPageLoadRequest(request, initialRequestId)}
+              selected={requestKey === activeRequestKey}
+              onSelect={() => setSelectedRequestKey(requestKey)}
+            />
+          )
+        })}
       </div>
 
       {selectedRequest && <RequestDetails request={selectedRequest} />}
@@ -69,6 +76,10 @@ function RequestRow({
   selected: boolean
   onSelect: () => void
 }) {
+  const isInstantInsights =
+    getRequestInsightKind(request) === 'instant-insights'
+  const route = request.route ?? request.url ?? 'Unknown route'
+
   return (
     <button
       className="request-insights-row"
@@ -80,9 +91,11 @@ function RequestRow({
       <span className="request-insights-status" data-status={request.status} />
       <span className="request-insights-route">
         <span className="request-insights-route-label">
-          {request.route ?? request.url ?? 'Unknown route'}
+          {isInstantInsights ? 'Instant Insights' : route}
         </span>
-        {pageLoad ? (
+        {isInstantInsights ? (
+          <span className="request-insights-item-context">{route}</span>
+        ) : pageLoad ? (
           <span className="request-insights-page-load">Page load</span>
         ) : null}
       </span>
@@ -116,7 +129,9 @@ function RequestDetails({ request }: { request: RequestInsight }) {
         <div className="request-insights-heading">
           <div className="request-insights-title-row">
             <div className="request-insights-title">
-              {request.route ?? request.url ?? request.requestId}
+              {getRequestInsightKind(request) === 'instant-insights'
+                ? `Instant Insights · ${request.route ?? request.url ?? request.requestId}`
+                : (request.route ?? request.url ?? request.requestId)}
             </div>
             <CopyButton
               actionLabel="Copy request JSON"
@@ -159,7 +174,7 @@ function RequestOverview({
 }) {
   return (
     <div className="request-insights-overview">
-      <span>Method {overview.method}</span>
+      {overview.method ? <span>Method {overview.method}</span> : null}
       <span>Status {overview.statusLabel}</span>
       <span>{overview.kind}</span>
       <span>{overview.fetchSummary}</span>
@@ -316,10 +331,13 @@ function FetchTable({ fetches }: { fetches: RequestInsightFetch[] }) {
 }
 
 function getRequestOverview(request: RequestInsight) {
-  const method =
-    getFirstStringAttribute(request, 'http.method') ??
-    getMethodFromName(request.spans[0]?.name) ??
-    'GET'
+  const isInstantInsights =
+    getRequestInsightKind(request) === 'instant-insights'
+  const method = isInstantInsights
+    ? undefined
+    : (getFirstStringAttribute(request, 'http.method') ??
+      getMethodFromName(request.spans[0]?.name) ??
+      'GET')
   const statusCode = getFirstNumberAttribute(request, 'http.status_code')
   const isRsc = getFirstBooleanAttribute(request, 'next.rsc')
   const erroredSpan = request.spans.find(
@@ -344,7 +362,11 @@ function getRequestOverview(request: RequestInsight) {
     method,
     statusCode,
     statusLabel: statusCode ?? request.status,
-    kind: isRsc ? 'RSC request' : 'HTML request',
+    kind: isInstantInsights
+      ? 'Instant Insights'
+      : isRsc
+        ? 'RSC request'
+        : 'HTML request',
     fetchSummary: request.fetches.length
       ? `${request.fetches.length} fetch${request.fetches.length === 1 ? '' : 'es'}`
       : 'No fetches',

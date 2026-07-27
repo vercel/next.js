@@ -467,13 +467,7 @@ export function resolveCssChunkingMode(
 
 export interface ExperimentalConfig {
   /**
-   * A string that is incorporated into content-addressed output filenames
-   * (chunks, assets) for both Webpack and Turbopack. Changing this value
-   * forces all output hashes to change, which is useful for invalidating
-   * cached assets across deployments without modifying source files.
-   *
-   * When `NEXT_HASH_SALT` environment variable is also set, the two values are
-   * concatenated (`outputHashSalt + NEXT_HASH_SALT`) to form the effective salt.
+   * @deprecated Use the top-level `outputHashSalt` option instead.
    */
   outputHashSalt?: string
 
@@ -572,7 +566,6 @@ export interface ExperimentalConfig {
   imgOptTimeoutInSeconds?: number
   imgOptMaxInputPixels?: number
   imgOptSequentialRead?: boolean | null
-  imgOptSkipMetadata?: boolean | null
   optimisticClientCache?: boolean
   /**
    * @deprecated use config.expireTime instead
@@ -883,9 +876,10 @@ export interface ExperimentalConfig {
   turbopackInputSourceMaps?: boolean
 
   /**
-   * Enable tree shaking for the turbopack dev server and build.
+   * Currently in active development. This splits modules into fragments and
+   * chunks only import the used fragments of the modules.
    */
-  turbopackTreeShaking?: boolean
+  turbopackModuleFragments?: boolean
 
   /**
    * Enable removing unused imports for turbopack dev server and build.
@@ -905,6 +899,13 @@ export interface ExperimentalConfig {
    * Defaults to `true`
    */
   turbopackInferModuleSideEffects?: boolean
+
+  /**
+   * Enable tree shaking of unused exports from analyzable CommonJS modules in Turbopack.
+   *
+   * Defaults to `false`
+   */
+  turbopackCjsTreeShaking?: boolean
 
   /**
    * Set this to `false` to disable the automatic configuration of the babel loader when a Babel
@@ -1135,11 +1136,6 @@ export interface ExperimentalConfig {
   lightningCssFeatures?: LightningCssFeatures
 
   /**
-   * Enables view transitions by using the {@link https://react.dev/reference/react/ViewTransition ViewTransition} Component.
-   */
-  viewTransition?: boolean
-
-  /**
    * Enables `fetch` requests to be proxied to the experimental test proxy server
    */
   testProxy?: boolean
@@ -1188,6 +1184,21 @@ export interface ExperimentalConfig {
      */
     validationLevel?: ValidationLevel
   }
+
+  /**
+   * Runs development Cache Components validation on a worker thread rather than
+   * the main thread, keeping the dev server's event loop responsive during
+   * rapid navigation. This covers static-shell validation (which runs on
+   * initial load and HMR refresh) as well as instant-navigation validation
+   * (when `instant` is configured). Enabled by default; set to `false` to run
+   * validation in-process, as an escape hatch to isolate a problem or fall back
+   * if the worker misbehaves.
+   *
+   * Has no effect with Webpack, where validation always runs in process. The
+   * worker's thread cannot reach Webpack's dev source maps, so validation
+   * errors would be reported without a source location.
+   */
+  devValidationWorker?: boolean
 
   /**
    * The number of times to retry static generation (per page) before giving up.
@@ -1364,9 +1375,7 @@ export interface ExperimentalConfig {
   runtimeServerDeploymentId?: boolean
 
   /**
-   * Whether the deployment environment supports immutable assets (assets deployed to
-   * `_next/static/immutable` don't need a `?dpl` parameter and can be safely requested across
-   * deployments.)
+   * @deprecated Use the top-level `supportsImmutableAssets` option instead.
    */
   supportsImmutableAssets?: boolean
 
@@ -1693,6 +1702,13 @@ export interface NextConfig {
   deploymentId?: string
 
   /**
+   * Whether the deployment environment supports immutable assets (assets deployed to
+   * `_next/static/immutable` don't need a `?dpl` parameter and can be safely requested across
+   * deployments.)
+   */
+  supportsImmutableAssets?: boolean
+
+  /**
    * Deploy a Next.js application under a sub-path of a domain
    *
    * @see [Base path configuration](https://nextjs.org/docs/app/api-reference/config/next-config-js/basePath)
@@ -1967,6 +1983,17 @@ export interface NextConfig {
    */
   outputFileTracingIncludes?: Record<string, string[]>
 
+  /**
+   * A string that is incorporated into content-addressed output filenames
+   * (chunks, assets) for both Webpack and Turbopack. Changing this value
+   * forces all output hashes to change, which is useful for invalidating
+   * cached assets across deployments without modifying source files.
+   *
+   * When `NEXT_HASH_SALT` environment variable is also set, the two values are
+   * concatenated (`outputHashSalt + NEXT_HASH_SALT`) to form the effective salt.
+   */
+  outputHashSalt?: string
+
   watchOptions?: {
     pollIntervalMs?: number
   }
@@ -2103,6 +2130,7 @@ export const defaultConfig = Object.freeze({
   experimental: {
     appNewScrollHandler: true,
     coldCacheBadge: false,
+    devValidationWorker: true,
     useSkewCookie: false,
     cssChunking: true,
     multiZoneDraftMode: false,
@@ -2137,7 +2165,6 @@ export const defaultConfig = Object.freeze({
     imgOptTimeoutInSeconds: 7,
     imgOptMaxInputPixels: 268_402_689, // https://sharp.pixelplumbing.com/api-constructor#:~:text=%5Boptions.limitInputPixels%5D
     imgOptSequentialRead: null,
-    imgOptSkipMetadata: null,
     isrFlushToDisk: true,
     workerThreads: false,
     proxyTimeout: undefined,
@@ -2168,7 +2195,6 @@ export const defaultConfig = Object.freeze({
     optimizeServerReact: true,
     strictRouteTypes: false,
     useTypeScriptCli: false,
-    viewTransition: false,
     removeUncaughtErrorAndRejectionListeners: false,
     validateRSCRequestHeaders: true,
     staleTimes: {
@@ -2235,6 +2261,7 @@ export async function normalizeConfig(phase: string, config: any) {
 export interface NextConfigRuntime {
   // Can be undefined, particularly when experimental.runtimeServerDeploymentId is true
   deploymentId?: NextConfigComplete['deploymentId']
+  supportsImmutableAssets?: NextConfigComplete['supportsImmutableAssets']
 
   configFileName?: string
   // Should only be included when using isExperimentalCompile
@@ -2304,7 +2331,6 @@ export interface NextConfigRuntime {
     | 'imgOptOperationCache'
     | 'imgOptMaxInputPixels'
     | 'imgOptSequentialRead'
-    | 'imgOptSkipMetadata'
     | 'imgOptTimeoutInSeconds'
     | 'proxyClientMaxBodySize'
     | 'proxyTimeout'
@@ -2313,7 +2339,6 @@ export interface NextConfigRuntime {
     | 'maxPostponedStateSize'
     | 'cachedNavigations'
     | 'exposeTestingApiInProductionBuild'
-    | 'supportsImmutableAssets'
     | 'instantInsights'
     | 'requestInsights'
   > & {
@@ -2374,7 +2399,6 @@ export function getNextConfigRuntime(
     imgOptOperationCache: ex.imgOptOperationCache,
     imgOptMaxInputPixels: ex.imgOptMaxInputPixels,
     imgOptSequentialRead: ex.imgOptSequentialRead,
-    imgOptSkipMetadata: ex.imgOptSkipMetadata,
     imgOptTimeoutInSeconds: ex.imgOptTimeoutInSeconds,
     proxyClientMaxBodySize: ex.proxyClientMaxBodySize,
     proxyTimeout: ex.proxyTimeout,
@@ -2383,7 +2407,6 @@ export function getNextConfigRuntime(
     maxPostponedStateSize: ex.maxPostponedStateSize,
     cachedNavigations: ex.cachedNavigations,
     exposeTestingApiInProductionBuild: ex.exposeTestingApiInProductionBuild,
-    supportsImmutableAssets: ex.supportsImmutableAssets,
     instantInsights: ex.instantInsights,
     requestInsights: ex.requestInsights,
 
@@ -2395,6 +2418,7 @@ export function getNextConfigRuntime(
     deploymentId: config.experimental.runtimeServerDeploymentId
       ? ''
       : config.deploymentId,
+    supportsImmutableAssets: config.supportsImmutableAssets,
 
     configFileName: undefined,
     env: undefined,

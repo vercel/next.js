@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use anyhow::{Context, Result, bail};
 use async_trait::async_trait;
 use bincode::{Decode, Encode};
@@ -29,11 +31,8 @@ use turbopack_core::{
     module_graph::{chunk_group_info::EntryHeuristics, style_groups::StyleGroupsAlgorithm},
     resolve::ResolveAliasMap,
 };
-use turbopack_ecmascript::{
-    OptionTreeShaking, TreeShakingMode,
-    transform::{
-        OptionReactCompilerCompilationMode, ReactCompilerCompilationMode, ReactCompilerTarget,
-    },
+use turbopack_ecmascript::transform::{
+    OptionReactCompilerCompilationMode, ReactCompilerCompilationMode, ReactCompilerTarget,
 };
 use turbopack_ecmascript_plugins::transform::{
     emotion::EmotionTransformConfig, relay::RelayConfig,
@@ -149,6 +148,10 @@ pub struct NextConfig {
     /// [API Reference](https://nextjs.org/docs/app/api-reference/next-config-js/serverExternalPackages)
     server_external_packages: Option<Vec<RcStr>>,
 
+    /// A salt to mix into chunk and asset content hashes. Empty string means
+    /// no salt.
+    output_hash_salt: Option<RcStr>,
+
     #[serde(rename = "_originalRedirects")]
     original_redirects: Option<Vec<Redirect>>,
 
@@ -174,6 +177,7 @@ pub struct NextConfig {
     typescript: TypeScriptConfig,
     use_file_system_public_routes: bool,
     cache_components: Option<bool>,
+    supports_immutable_assets: Option<bool>,
 
     adapter_path: Option<RcStr>,
     //
@@ -1291,12 +1295,7 @@ pub struct ExperimentalConfig {
     use_cache: Option<bool>,
     durable_use_cache_entries: Option<bool>,
     runtime_server_deployment_id: Option<bool>,
-    supports_immutable_assets: Option<bool>,
     expose_testing_api_in_production_build: Option<bool>,
-
-    /// A salt to mix into chunk and asset content hashes. Empty string means
-    /// no salt.
-    output_hash_salt: Option<RcStr>,
 
     /// CSS chunking strategy. See [`CssChunkingConfig`] for the accepted shapes.
     css_chunking: Option<CssChunkingConfig>,
@@ -1369,7 +1368,7 @@ pub struct ExperimentalConfig {
     turbopack_plugin_runtime_strategy: Option<TurbopackPluginRuntimeStrategy>,
     turbopack_source_maps: Option<bool>,
     turbopack_input_source_maps: Option<bool>,
-    turbopack_tree_shaking: Option<bool>,
+    turbopack_module_fragments: Option<bool>,
     turbopack_scope_hoisting: Option<bool>,
     turbopack_generate_component_chunks: Option<bool>,
     turbopack_shared_runtime: Option<bool>,
@@ -1409,6 +1408,8 @@ pub struct ExperimentalConfig {
     turbopack_remove_unused_exports: Option<bool>,
     /// Enable local analysis to infer side effect free modules. Defaults to true.
     turbopack_infer_module_side_effects: Option<bool>,
+    /// Enable tree shaking of unused exports from static CommonJS modules. Defaults to false.
+    turbopack_cjs_tree_shaking: Option<bool>,
     /// Devtool option for the segment explorer.
     devtool_segment_explorer: Option<bool>,
     /// Whether to report inlined system environment variables as warnings or errors.
@@ -1794,7 +1795,10 @@ impl OutputFileTracingIncludesExcludes {
                     .map(async |(route_pattern, file_patterns)| {
                         let route_pattern = Glob::new(
                             RcStr::from(route_pattern.clone()),
-                            GlobOptions { contains: true },
+                            GlobOptions {
+                                contains: true,
+                                ..Default::default()
+                            },
                         )
                         .to_resolved()
                         .await?;
@@ -2283,10 +2287,7 @@ impl NextConfig {
     /// Returns the suffix to use for chunk loading.
     #[turbo_tasks::function]
     pub fn asset_suffix_path(&self) -> Vc<Option<RcStr>> {
-        let needs_dpl_id = self
-            .experimental
-            .supports_immutable_assets
-            .is_none_or(|f| !f);
+        let needs_dpl_id = self.supports_immutable_assets.is_none_or(|f| !f);
 
         Vc::cell(
             needs_dpl_id
@@ -2300,19 +2301,17 @@ impl NextConfig {
     /// .next/immutable-static-hashes.json manifest.
     #[turbo_tasks::function]
     pub fn enable_immutable_assets(&self) -> Vc<bool> {
-        Vc::cell(self.experimental.supports_immutable_assets == Some(true))
+        Vc::cell(self.supports_immutable_assets == Some(true))
     }
 
     #[turbo_tasks::function]
     pub fn client_static_folder_name(&self) -> Vc<RcStr> {
-        Vc::cell(
-            if self.experimental.supports_immutable_assets == Some(true) {
-                // Ends up as `_next/static/immutable`
-                rcstr!("static/immutable")
-            } else {
-                rcstr!("static")
-            },
-        )
+        Vc::cell(if self.supports_immutable_assets == Some(true) {
+            // Ends up as `_next/static/immutable`
+            rcstr!("static/immutable")
+        } else {
+            rcstr!("static")
+        })
     }
 
     #[turbo_tasks::function]
@@ -2379,10 +2378,7 @@ impl NextConfig {
 
     #[turbo_tasks::function]
     pub fn should_append_server_deployment_id_at_runtime(&self) -> Vc<bool> {
-        let needs_dpl_id = self
-            .experimental
-            .supports_immutable_assets
-            .is_none_or(|f| !f);
+        let needs_dpl_id = self.supports_immutable_assets.is_none_or(|f| !f);
 
         Vc::cell(
             needs_dpl_id
@@ -2415,26 +2411,19 @@ impl NextConfig {
     }
 
     #[turbo_tasks::function]
-    pub fn tree_shaking_mode_for_foreign_code(
-        &self,
-        _is_development: bool,
-    ) -> Vc<OptionTreeShaking> {
-        OptionTreeShaking(match self.experimental.turbopack_tree_shaking {
-            Some(false) => Some(TreeShakingMode::ReexportsOnly),
-            Some(true) => Some(TreeShakingMode::ModuleFragments),
-            None => Some(TreeShakingMode::ReexportsOnly),
-        })
-        .cell()
+    pub fn module_fragments_enabled_for_foreign_code(&self, _is_development: bool) -> Vc<bool> {
+        Vc::cell(matches!(
+            self.experimental.turbopack_module_fragments,
+            Some(true)
+        ))
     }
 
     #[turbo_tasks::function]
-    pub fn tree_shaking_mode_for_user_code(&self, _is_development: bool) -> Vc<OptionTreeShaking> {
-        OptionTreeShaking(match self.experimental.turbopack_tree_shaking {
-            Some(false) => Some(TreeShakingMode::ReexportsOnly),
-            Some(true) => Some(TreeShakingMode::ModuleFragments),
-            None => Some(TreeShakingMode::ReexportsOnly),
-        })
-        .cell()
+    pub fn module_fragments_enabled_for_user_code(&self, _is_development: bool) -> Vc<bool> {
+        Vc::cell(matches!(
+            self.experimental.turbopack_module_fragments,
+            Some(true)
+        ))
     }
 
     #[turbo_tasks::function]
@@ -2473,6 +2462,15 @@ impl NextConfig {
             self.experimental
                 .turbopack_infer_module_side_effects
                 .unwrap_or(true),
+        )
+    }
+
+    #[turbo_tasks::function]
+    pub fn turbopack_cjs_tree_shaking(&self) -> Vc<bool> {
+        Vc::cell(
+            self.experimental
+                .turbopack_cjs_tree_shaking
+                .unwrap_or(false),
         )
     }
 
@@ -2710,8 +2708,21 @@ impl NextConfig {
     }
 
     #[turbo_tasks::function]
-    pub fn fetch_client(&self) -> Vc<FetchClientConfig> {
-        FetchClientConfig::default().cell()
+    pub async fn fetch_client(&self, next_mode: Vc<NextMode>) -> Result<Vc<FetchClientConfig>> {
+        // Bounds the Google Fonts fetch. Dev fails fast and falls back to a system font;
+        // build tolerates a slower network since a missing font fails the build.
+        let (connect_timeout, timeout) = if matches!(*next_mode.await?, NextMode::Development) {
+            (Duration::from_secs(5), Duration::from_secs(10))
+        } else {
+            (Duration::from_secs(10), Duration::from_secs(30))
+        };
+        Ok(FetchClientConfig {
+            connect_timeout,
+            timeout,
+            max_retries: 1,
+            ..Default::default()
+        }
+        .cell())
     }
 
     #[turbo_tasks::function]
@@ -2757,12 +2768,7 @@ impl NextConfig {
 
     #[turbo_tasks::function]
     pub fn output_hash_salt(&self) -> Vc<RcStr> {
-        Vc::cell(
-            self.experimental
-                .output_hash_salt
-                .clone()
-                .unwrap_or_default(),
-        )
+        Vc::cell(self.output_hash_salt.clone().unwrap_or_default())
     }
 }
 

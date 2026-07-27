@@ -33,8 +33,9 @@ import {
 } from '../../shared/lib/utils/reflect-utils'
 import {
   makeDevtoolsIOAwarePromise,
-  makeHangingPromise,
+  makeFallbackParamsHangingPromise,
   makePromiseFromTrigger,
+  trackFallbackParamsAccessed,
   RENDER_STAGES_BY_DATA_KIND,
 } from '../dynamic-rendering-utils'
 import { createDedupedByCallsiteServerErrorLoggerDev } from '../create-deduped-by-callsite-server-error-logger'
@@ -244,6 +245,7 @@ export function createServerParamsForServerSegment(
         return createRuntimePrerenderParams(
           underlyingParams,
           optionalCatchAllParamName,
+          workStore,
           workUnitStore,
           varyParamsAccumulator
         )
@@ -286,10 +288,11 @@ export function createPrerenderParamsForClientSegment(
               // to consider the awaiting of this params object "dynamic". Since
               // we are in cacheComponents mode we encode this as a promise that never
               // resolves.
-              return makeHangingPromise(
+              return makeFallbackParamsHangingPromise(
                 workUnitStore.renderSignal,
                 workStore.route,
-                '`params`'
+                '`params`',
+                workUnitStore
               )
             }
           }
@@ -431,6 +434,7 @@ function createStaticPrerenderParams(
 function createRuntimePrerenderParams(
   underlyingParams: Params,
   optionalCatchAllParamName: string | null,
+  workStore: WorkStore,
   workUnitStore: PrerenderStoreModernRuntime,
   varyParamsAccumulator: VaryParamsAccumulator | null
 ): Promise<Params> {
@@ -450,9 +454,14 @@ function createRuntimePrerenderParams(
 
   const { stagedRendering } = workUnitStore
   if (!stagedRendering) {
-    // If there's no staging, we're in a prospective runtime prerender,
-    // and it doesn't matter when params resolve.
-    return makeUntrackedParams(userspaceParams)
+    // If there's no staging, we're in a prospective runtime prerender.
+    if (workUnitStore.isSessionShell) {
+      // If we're warming up for a session shell, params should be hanging,
+      // because they'll be a hanging input in the final prerender.
+      return makeHangingParams(underlyingParams, workStore, workUnitStore)
+    } else {
+      return makeUntrackedParams(userspaceParams)
+    }
   }
 
   // We don't have fallbackParams in runtime prerenders, so we don't know
@@ -686,6 +695,15 @@ const fallbackParamsProxyHandler: ProxyHandler<Promise<Params>> = {
 
       return {
         [prop]: (...args: unknown[]) => {
+          // Record against the store that's active at access time: the
+          // hanging promise is cached by params object across prerender
+          // stores, so the store that created it may not be the one that's
+          // rendering when it's finally awaited.
+          const workUnitStore = workUnitAsyncStorage.getStore()
+          if (workUnitStore !== undefined) {
+            trackFallbackParamsAccessed(workUnitStore)
+          }
+
           const store = dynamicAccessAsyncStorage.getStore()
 
           if (store) {
@@ -709,7 +727,7 @@ const fallbackParamsProxyHandler: ProxyHandler<Promise<Params>> = {
 function makeHangingParams(
   underlyingParams: Params,
   workStore: WorkStore,
-  prerenderStore: StaticPrerenderStoreModern
+  prerenderStore: StaticPrerenderStoreModern | PrerenderStoreModernRuntime
 ): Promise<Params> {
   const cachedParams = CachedParams.get(underlyingParams)
   if (cachedParams) {
@@ -717,10 +735,14 @@ function makeHangingParams(
   }
 
   const promise = new Proxy(
-    makeHangingPromise<Params>(
+    makeFallbackParamsHangingPromise<Params>(
       prerenderStore.renderSignal,
       workStore.route,
-      '`params`'
+      '`params`',
+      // This promise is created for every segment on a fallback route whether
+      // or not it reads params, so recording the access at creation would mark
+      // every render. The access is tracked in the proxy traps instead.
+      null
     ),
     fallbackParamsProxyHandler
   )

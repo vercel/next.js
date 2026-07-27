@@ -253,6 +253,7 @@ export async function handler(
       validationLevel: nextConfig.experimental.instantInsights.validationLevel,
       supportsDynamicResponse,
       incrementalCache,
+      hmrRefreshHash: getRequestMeta(req, 'hmrRefreshHash'),
       cacheLifeProfiles: nextConfig.cacheLife,
       staticPageGenerationTimeout: nextConfig.staticPageGenerationTimeout,
       waitUntil: ctx.waitUntil,

@@ -192,7 +192,7 @@ export function getDefineEnv({
     'process.env.__NEXT_USE_NODE_STREAMS': isEdgeServer ? false : true,
 
     'process.env.NEXT_SUPPORTS_IMMUTABLE_ASSETS':
-      config.experimental.supportsImmutableAssets || false,
+      config.supportsImmutableAssets || false,
 
     ...(config.experimental?.useSkewCookie || !config.deploymentId
       ? {

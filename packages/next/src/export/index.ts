@@ -715,7 +715,7 @@ async function exportAppImpl(
           worker.exportPages({
             buildId,
             deploymentId: nextConfig.deploymentId,
-            clientAssetToken: nextConfig.experimental.supportsImmutableAssets
+            clientAssetToken: nextConfig.supportsImmutableAssets
               ? ''
               : nextConfig.deploymentId,
             exportPaths: batch,
@@ -854,6 +854,14 @@ async function exportAppImpl(
 
       if (typeof result.hasPostponed !== 'undefined') {
         info.hasPostponed = result.hasPostponed
+      }
+
+      if (typeof result.hasPendingUi !== 'undefined') {
+        info.hasPendingUi = result.hasPendingUi
+      }
+
+      if (typeof result.htmlSize !== 'undefined') {
+        info.htmlSize = result.htmlSize
       }
 
       if (typeof result.hasStaticRsc !== 'undefined') {

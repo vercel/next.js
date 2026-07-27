@@ -855,10 +855,15 @@ function pingRootRouteTree(
             // opt-in because the Shell for a given route is reusable across
             // all given params, by definition. So it does not lead to an
             // explosion in prefetching costs.
-            // TODO: In the future, the server could emit a hint to tell us
-            // *not* to prefetch via a runtime request, via build-time
-            // heuristics, like if no `cookies()` call was detected. We'll
-            // leave this optimization for later.
+            // TODO: The server now emits signals for skipping unnecessary
+            // runtime prefetch requests: an advisory
+            // PrefetchHint.ShouldAttemptStaticPrefetch bit on the route
+            // tree, and a load-bearing response-level `needsRuntimeRequest`
+            // promise on the static segment responses (fulfilled `true`
+            // visible in the decode means a runtime request would return
+            // more; rewindable at the shell boundary; combined with each
+            // segment's `isPartial`). They aren't consumed yet; wiring them
+            // up is left for a follow-up.
             task.phase === PrefetchPhase.Shell
           ) {
             const runtimeStrategy =
@@ -1058,12 +1063,11 @@ function pingSharedPartOfCacheComponentsTree(
   const oldTreeChildren = oldTree[1]
   const newTreeChildren = newTree.slots
   if (newTreeChildren !== null) {
-    for (const parallelRouteKey in newTreeChildren) {
+    for (const [parallelRouteKey, newTreeChild] of newTreeChildren) {
       if (!hasNetworkBandwidth(task)) {
         // Stop prefetching segments until there's more bandwidth.
         return PrefetchTaskExitStatus.InProgress
       }
-      const newTreeChild = newTreeChildren[parallelRouteKey]
       const newTreeChildSegment = newTreeChild.segment
       const oldTreeChild: FlightRouterState | void =
         oldTreeChildren[parallelRouteKey]
@@ -1140,6 +1144,10 @@ function pingNewPartOfCacheComponentsTree(
   // runtime shell request. For fully static pages, it doesn't matter since
   // server will respond to even a runtime request with a static response. For
   // a partially static page, we can send down a hint from the server.
+  // The server-side hints for this now exist
+  // (PrefetchHint.ShouldAttemptStaticPrefetch on the route tree, the
+  // `needsRuntimeRequest` promise + per-segment `isPartial` on static
+  // segment responses) but aren't consumed yet.
 
   if (
     task.phase === PrefetchPhase.Speculative &&
@@ -1181,8 +1189,7 @@ function pingNewPartOfCacheComponentsTree(
       return PrefetchTaskExitStatus.InProgress
     }
     // Recursively ping the children.
-    for (const parallelRouteKey in tree.slots) {
-      const childTree = tree.slots[parallelRouteKey]
+    for (const childTree of tree.slots.values()) {
       // Only pass the bundle to the child that accepts it. A parent is
       // only ever bundled into one child.
       const bundleForChild =
@@ -1233,8 +1240,7 @@ function diffRouteTreeAgainstCurrent(
   const newTreeChildren = newTree.slots
   let requestTreeChildren: Record<string, FlightRouterState> = {}
   if (newTreeChildren !== null) {
-    for (const parallelRouteKey in newTreeChildren) {
-      const newTreeChild = newTreeChildren[parallelRouteKey]
+    for (const [parallelRouteKey, newTreeChild] of newTreeChildren) {
       const newTreeChildSegment = newTreeChild.segment
       const oldTreeChild: FlightRouterState | void =
         oldTreeChildren[parallelRouteKey]
@@ -1450,8 +1456,7 @@ function pingPPRDisabledRouteTreeUpToLoadingBoundary(
   }
   const requestTreeChildren: Record<string, FlightRouterState> = {}
   if (tree.slots !== null) {
-    for (const parallelRouteKey in tree.slots) {
-      const childTree = tree.slots[parallelRouteKey]
+    for (const [parallelRouteKey, childTree] of tree.slots) {
       requestTreeChildren[parallelRouteKey] =
         pingPPRDisabledRouteTreeUpToLoadingBoundary(
           now,
@@ -1590,8 +1595,7 @@ function pingRouteTreeAndIncludeDynamicData(
   }
   const requestTreeChildren: Record<string, FlightRouterState> = {}
   if (tree.slots !== null) {
-    for (const parallelRouteKey in tree.slots) {
-      const childTree = tree.slots[parallelRouteKey]
+    for (const [parallelRouteKey, childTree] of tree.slots) {
       requestTreeChildren[parallelRouteKey] =
         pingRouteTreeAndIncludeDynamicData(
           now,
@@ -1656,8 +1660,7 @@ function pingRuntimePrefetches(
   let requestTreeChildren: Record<string, FlightRouterState> = {}
   const slots = tree.slots
   if (slots !== null) {
-    for (const parallelRouteKey in slots) {
-      const childTree = slots[parallelRouteKey]
+    for (const [parallelRouteKey, childTree] of slots) {
       requestTreeChildren[parallelRouteKey] = pingRuntimePrefetches(
         now,
         task,
@@ -1947,8 +1950,7 @@ function finishStaticBundleOnRuntimeBailout(
     return
   }
   if (tree.slots !== null) {
-    for (const parallelRouteKey in tree.slots) {
-      const childTree = tree.slots[parallelRouteKey]
+    for (const childTree of tree.slots.values()) {
       if (childTree.prefetchHints & PrefetchHint.ParentInlinedIntoSelf) {
         finishStaticBundleOnRuntimeBailout(now, task, route, childTree, bundle)
         return

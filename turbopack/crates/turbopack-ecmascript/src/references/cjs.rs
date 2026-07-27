@@ -1,10 +1,17 @@
 use anyhow::Result;
 use bincode::{Decode, Encode};
 use swc_core::{
-    common::util::take::Take,
-    ecma::ast::{CallExpr, Expr, ExprOrSpread, Lit},
+    common::{DUMMY_SP, util::take::Take},
+    ecma::{
+        ast::{
+            CallExpr, Expr, ExprOrSpread, Lit, ObjectLit, Prop, PropName, PropOrSpread,
+            SpreadElement,
+        },
+        utils::prop_name_eq,
+    },
     quote,
 };
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     NonLocalValue, ResolvedVc, ValueToString, Vc, debug::ValueDebugFormat, trace::TraceRawVcs,
 };
@@ -14,11 +21,15 @@ use turbopack_core::{
     module::Module,
     reference::ModuleReference,
     reference_type::CommonJsReferenceSubType,
-    resolve::{ModuleResolveResult, ResolveErrorMode, origin::ResolveOrigin, parse::Request},
+    resolve::{
+        BindingUsage, ExportUsage, ImportUsage, ModuleResolveResult, ResolveErrorMode,
+        origin::ResolveOrigin, parse::Request,
+    },
 };
 use turbopack_resolve::ecmascript::cjs_resolve;
 
 use crate::{
+    chunk::{EcmascriptChunkPlaceable, EcmascriptExports},
     code_gen::{CodeGen, CodeGeneration, IntoCodeGenReference},
     create_visitor,
     references::{
@@ -93,6 +104,8 @@ pub struct CjsRequireAssetReference {
     error_mode: ResolveErrorMode,
     chunking_type_attribute: Option<SpecifiedChunkingType>,
     resolve_override: Option<ResolvedVc<Box<dyn Module>>>,
+    usage: ExportUsage,
+    cjs_tree_shaking: bool,
 }
 
 impl CjsRequireAssetReference {
@@ -103,6 +116,8 @@ impl CjsRequireAssetReference {
         error_mode: ResolveErrorMode,
         chunking_type_attribute: Option<SpecifiedChunkingType>,
         resolve_override: Option<ResolvedVc<Box<dyn Module>>>,
+        usage: ExportUsage,
+        cjs_tree_shaking: bool,
     ) -> Self {
         CjsRequireAssetReference {
             origin,
@@ -111,6 +126,8 @@ impl CjsRequireAssetReference {
             error_mode,
             chunking_type_attribute,
             resolve_override,
+            usage,
+            cjs_tree_shaking,
         }
     }
 }
@@ -142,6 +159,13 @@ impl ModuleReference for CjsRequireAssetReference {
             },
             |c| c.as_chunking_type(false, false),
         )
+    }
+
+    fn binding_usage(&self) -> BindingUsage {
+        BindingUsage {
+            import: ImportUsage::TopLevel,
+            export: self.usage.clone(),
+        }
     }
 
     fn source(&self) -> Option<IssueSource> {
@@ -179,6 +203,22 @@ impl CjsRequireAssetReferenceCodeGen {
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<CodeGeneration> {
         let reference = self.reference.await?;
+
+        // This `require()` is in `unused_references`: its result is unused and
+        // the target is side-effect free. Replace the call with a placeholder
+        // at the expression level.
+        if reference.cjs_tree_shaking
+            && chunking_context
+                .unused_references()
+                .contains_key(&ResolvedVc::upcast(self.reference))
+                .await?
+        {
+            let visitor = create_visitor!(self.path, visit_mut_expr, |expr: &mut Expr| {
+                // `const {a,b} = 0;` is a clever way to assign undefined to all the variables
+                *expr = quote!("0" as Expr);
+            });
+            return Ok(CodeGeneration::visitors(vec![visitor]));
+        }
 
         let pm = PatternMapping::resolve_request(
             *reference.request,
@@ -403,5 +443,166 @@ impl CjsRequireCacheAccess {
 impl From<CjsRequireCacheAccess> for CodeGen {
     fn from(val: CjsRequireCacheAccess) -> Self {
         CodeGen::CjsRequireCacheAccess(val)
+    }
+}
+
+/// Removes each named CommonJS export the module graph proved unused. Built by the
+/// analyzer for statically-analyzable CommonJS modules; recognition happens inline
+/// during the walk (see `analyzer::graph::visitor`).
+#[derive(
+    PartialEq, Eq, TraceRawVcs, ValueDebugFormat, NonLocalValue, Hash, Debug, Encode, Decode,
+)]
+pub struct CjsExportsDropCodeGen {
+    drops: Vec<DroppableCjsExportAssignment>,
+    /// Whether the module sets `__esModule`. Without it, a default import binds
+    /// the whole `module.exports`, so nothing may be dropped.
+    has_es_module: bool,
+}
+
+/// A recognized CommonJS export declaration, and thus how it's dropped.
+#[derive(
+    PartialEq, Eq, TraceRawVcs, ValueDebugFormat, NonLocalValue, Hash, Debug, Encode, Decode,
+)]
+pub enum DroppableCjsExportAssignment {
+    /// A standalone `exports.NAME = …` write or `Object.defineProperty(exports, …)`
+    /// call (the assignment is replaced by its value; the define call is removed).
+    Write { name: RcStr, path: AstPath },
+    /// A `module.exports = { … }` object literal. Every recognized property name
+    /// shares `path` (the assignment), so the literal is rewritten in one pass.
+    ObjectLiteral { names: Vec<RcStr>, path: AstPath },
+}
+
+impl CjsExportsDropCodeGen {
+    pub fn new(drops: Vec<DroppableCjsExportAssignment>, has_es_module: bool) -> Self {
+        CjsExportsDropCodeGen {
+            drops,
+            has_es_module,
+        }
+    }
+
+    pub async fn code_generation(
+        &self,
+        chunking_context: Vc<Box<dyn ChunkingContext>>,
+        module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
+        _exports: ResolvedVc<EcmascriptExports>,
+    ) -> Result<CodeGeneration> {
+        let export_usage_info = chunking_context
+            .module_export_usage(*ResolvedVc::upcast(module))
+            .await?;
+        let export_usage_info = export_usage_info.export_usage.await?;
+
+        // Without `__esModule`, a default import binds the whole `module.exports`,
+        // so a used `default` makes every named export reachable — drop nothing.
+        if !self.has_es_module && export_usage_info.is_export_used(&rcstr!("default")) {
+            return Ok(CodeGeneration::empty());
+        }
+
+        // Replace each unused `exports.NAME = <value>` with `<value>`, preserving
+        // side effects (the minifier drops a pure value). Rewriting the assignment
+        // rather than its statement keeps chained writes like
+        // `exports.a = exports.b = 1` sound.
+        let mut visitors = Vec::new();
+        for drop in &self.drops {
+            match drop {
+                DroppableCjsExportAssignment::Write { name, path } => {
+                    if export_usage_info.is_export_used(name) {
+                        continue;
+                    }
+                    visitors.push(create_visitor!(path, visit_mut_expr, |expr: &mut Expr| {
+                        match expr {
+                            // `exports.NAME = <value>` → `<value>` (keep side effects).
+                            Expr::Assign(assign) => {
+                                let value = assign.right.take();
+                                *expr = *value;
+                            }
+                            // `Object.defineProperty(exports, …)`: keep an eager
+                            // `value`'s side effects; a getter is lazy, drop the call.
+                            Expr::Call(call) => {
+                                *expr = match take_define_property_value(call) {
+                                    Some(value) => *value,
+                                    None => quote!("0" as Expr),
+                                };
+                            }
+                            _ => {}
+                        }
+                    }));
+                }
+                DroppableCjsExportAssignment::ObjectLiteral { names, path } => {
+                    let unused = names
+                        .iter()
+                        .filter(|name| !export_usage_info.is_export_used(name))
+                        .cloned()
+                        .collect::<Vec<_>>();
+                    if unused.is_empty() {
+                        continue;
+                    }
+                    // `module.exports = { …, NAME: v, … }` → drop each unused `NAME`,
+                    // keeping a data value's side effects in place via `...(void v)`.
+                    visitors.push(create_visitor!(path, visit_mut_expr, |expr: &mut Expr| {
+                        if let Expr::Assign(assign) = expr
+                            && let Expr::Object(obj) = &mut *assign.right
+                        {
+                            drop_object_literal_exports(obj, &unused);
+                        }
+                    }));
+                }
+            }
+        }
+
+        Ok(CodeGeneration::visitors(visitors))
+    }
+}
+
+/// Takes the `value: <expr>` out of an `Object.defineProperty` descriptor, if it
+/// has one. A descriptor without `value` is a getter, so there's nothing to keep.
+fn take_define_property_value(call: &mut CallExpr) -> Option<Box<Expr>> {
+    let descriptor = call.args.get_mut(2)?;
+    let Expr::Object(descriptor) = &mut *descriptor.expr else {
+        return None;
+    };
+    descriptor.props.iter_mut().find_map(|prop| {
+        let PropOrSpread::Prop(prop) = prop else {
+            return None;
+        };
+        let Prop::KeyValue(kv) = &mut **prop else {
+            return None;
+        };
+        prop_name_eq(&kv.key, "value").then(|| kv.value.take())
+    })
+}
+
+/// Drops each of `names` from a `module.exports = { … }` literal.
+fn drop_object_literal_exports(obj: &mut ObjectLit, names: &[RcStr]) {
+    let is_dropped = |key: &PropName| names.iter().any(|n| prop_name_eq(key, n));
+    obj.props = obj
+        .props
+        .take()
+        .into_iter()
+        .filter_map(|prop| {
+            let PropOrSpread::Prop(p) = &prop else {
+                return Some(prop);
+            };
+            match &**p {
+                // The value might have a side effect, preserve it by generating `...void (expr)`
+                Prop::KeyValue(kv) if is_dropped(&kv.key) => {
+                    Some(PropOrSpread::Spread(SpreadElement {
+                        dot3_token: DUMMY_SP,
+                        expr: Box::new(quote!("void ($e)" as Expr, e: Expr = *kv.value.clone())),
+                    }))
+                }
+                Prop::Shorthand(id) if names.iter().any(|n| id.sym.as_str() == &**n) => None,
+                Prop::Getter(g) if is_dropped(&g.key) => None,
+                Prop::Setter(s) if is_dropped(&s.key) => None,
+                Prop::Method(m) if is_dropped(&m.key) => None,
+                // A used export (or an already-rewritten spread) — keep as-is.
+                _ => Some(prop),
+            }
+        })
+        .collect();
+}
+
+impl From<CjsExportsDropCodeGen> for CodeGen {
+    fn from(val: CjsExportsDropCodeGen) -> Self {
+        CodeGen::CjsExportsDropCodeGen(val)
     }
 }
