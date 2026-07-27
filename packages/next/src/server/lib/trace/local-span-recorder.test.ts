@@ -197,6 +197,100 @@ describe('local recording span', () => {
     ])
   })
 
+  it('uses performance timing for implicit span bookkeeping', () => {
+    const before = performance.timeOrigin + performance.now()
+    const dateNow = jest.spyOn(Date, 'now').mockImplementation(() => {
+      throw new Error('Date.now should not be used for span bookkeeping')
+    })
+
+    try {
+      const span = createLocalSpan({ name: 'test.local-span.safe-clock' })
+      span.addEvent('event')
+      span.recordException(new TypeError('boom'))
+      span.end()
+    } finally {
+      dateNow.mockRestore()
+    }
+
+    const after = performance.timeOrigin + performance.now()
+    const record = spanRecords[0]
+    expect(record).toEqual(
+      expect.objectContaining({
+        name: 'test.local-span.safe-clock',
+        startTime: expect.any(Number),
+        timestamp: expect.any(Number),
+        durationMs: expect.any(Number),
+      })
+    )
+    expect(record.startTime).toBeGreaterThanOrEqual(before)
+    expect(record.startTime).toBeLessThanOrEqual(after)
+    expect(record.timestamp).toBeGreaterThanOrEqual(before)
+    expect(record.timestamp).toBeLessThanOrEqual(after)
+    expect(record.events).toEqual([
+      expect.objectContaining({
+        name: 'event',
+        timestamp: expect.any(Number),
+      }),
+      expect.objectContaining({
+        name: 'exception',
+        timestamp: expect.any(Number),
+      }),
+    ])
+    for (const event of record.events ?? []) {
+      expect(event.timestamp).toBeGreaterThanOrEqual(before)
+      expect(event.timestamp).toBeLessThanOrEqual(after)
+    }
+  })
+
+  it('preserves explicit event and exception timestamps', () => {
+    const epochTimestamp = performance.timeOrigin + 10
+    const preProcessEpochTimestamp = performance.timeOrigin - 1
+    const span = createLocalSpan({ name: 'test.local-span.explicit-events' })
+    span.addEvent('numeric performance time', 1)
+    span.addEvent('attributes and performance time', { phase: 'render' }, 2)
+    span.addEvent('Date time', new Date(4))
+    span.addEvent('HrTime', [0, 5_000_000])
+    span.addEvent('numeric epoch time', epochTimestamp)
+    span.addEvent(
+      'numeric epoch before process start',
+      preProcessEpochTimestamp
+    )
+    span.addEvent('third argument takes precedence', 6, 7)
+    span.recordException(new TypeError('boom'), 3)
+    span.end()
+
+    expect(spanRecords[0].events).toEqual([
+      {
+        name: 'numeric performance time',
+        timestamp: performance.timeOrigin + 1,
+      },
+      {
+        name: 'attributes and performance time',
+        timestamp: performance.timeOrigin + 2,
+        attributes: { phase: 'render' },
+      },
+      { name: 'Date time', timestamp: 4 },
+      { name: 'HrTime', timestamp: 5 },
+      { name: 'numeric epoch time', timestamp: epochTimestamp },
+      {
+        name: 'numeric epoch before process start',
+        timestamp: preProcessEpochTimestamp,
+      },
+      {
+        name: 'third argument takes precedence',
+        timestamp: performance.timeOrigin + 7,
+      },
+      {
+        name: 'exception',
+        timestamp: performance.timeOrigin + 3,
+        attributes: {
+          'exception.type': 'TypeError',
+          'exception.message': 'boom',
+        },
+      },
+    ])
+  })
+
   it('releases heavy references after ending while the span remains reachable', async () => {
     const { span, delegateRef, attributeRef } = createEndedSpanWithReferences()
 
