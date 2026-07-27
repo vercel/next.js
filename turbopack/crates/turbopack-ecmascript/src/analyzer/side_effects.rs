@@ -439,10 +439,11 @@ fn module_exports_has_accessor(program: &Program, unresolved_mark: Mark) -> bool
                 found = true;
             }
         }
-        // A `get`/`set` in the descriptor installs an accessor, and a spread or a
-        // computed key could carry one.
+        // look for `Object.defineProperty(exports, …)`
         Expr::Call(call) => {
             let is_accessor_key = |key: &PropName| {
+                // A `get`/`set` in the descriptor installs an accessor, and a spread or a
+                // computed key could carry one.
                 matches!(key, PropName::Computed(_))
                     || prop_name_eq(key, "get")
                     || prop_name_eq(key, "set")
