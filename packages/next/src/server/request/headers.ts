@@ -20,7 +20,7 @@ import {
 import { StaticGenBailoutError } from '../../client/components/static-generation-bailout'
 import {
   makeDevtoolsIOAwarePromise,
-  makeHangingPromise,
+  makeRuntimeHangingPromise,
   RENDER_STAGES_BY_DATA_KIND,
 } from '../dynamic-rendering-utils'
 import { createDedupedByCallsiteServerErrorLoggerDev } from '../create-deduped-by-callsite-server-error-logger'
@@ -181,10 +181,11 @@ function makeHangingHeaders(
     return cachedHeaders
   }
 
-  const promise = makeHangingPromise<ReadonlyHeaders>(
+  const promise = makeRuntimeHangingPromise<ReadonlyHeaders>(
     prerenderStore.renderSignal,
     workStore.route,
-    '`headers()`'
+    '`headers()`',
+    prerenderStore
   )
   CachedHeaders.set(prerenderStore, promise)
 

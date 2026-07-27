@@ -39,7 +39,9 @@ import {
 import {
   applyOwnerStack,
   makeDevtoolsIOAwarePromise,
-  makeHangingPromise,
+  makeDynamicHangingPromise,
+  makeRuntimeHangingPromise,
+  makeStageHangingPromise,
   RENDER_STAGES_BY_DATA_KIND,
 } from '../dynamic-rendering-utils'
 
@@ -1329,10 +1331,12 @@ async function generateCacheEntryImpl(
         // If the prerender is aborted because of dynamic access (e.g. reading
         // fallback params), we return a hanging promise. This essentially makes
         // the "use cache" function dynamic.
-        const hangingPromise = makeHangingPromise<never>(
+        // The dynamic access is a fallback params read, which is runtime data.
+        const hangingPromise = makeRuntimeHangingPromise<never>(
           outerWorkUnitStore.renderSignal,
           workStore.route,
-          'dynamic "use cache"'
+          'dynamic "use cache"',
+          outerWorkUnitStore
         )
 
         if (outerWorkUnitStore.cacheSignal) {
@@ -1714,10 +1718,12 @@ export async function cache(
     switch (workUnitStore.type) {
       // "use cache: private" is dynamic in prerendering contexts.
       case 'prerender':
-        return makeHangingPromise(
+        // Private caches can read request data, which is runtime data.
+        return makeRuntimeHangingPromise(
           workUnitStore.renderSignal,
           workStore.route,
-          expression
+          expression,
+          workUnitStore
         )
       case 'prerender-ppr':
         return postponeWithTracking(
@@ -2054,10 +2060,13 @@ export async function cache(
         )
 
         if (dynamicAccessAbortController.signal.aborted) {
-          return makeHangingPromise(
+          // The dynamic access is a fallback params read, which is runtime
+          // data.
+          return makeRuntimeHangingPromise(
             workUnitStore.renderSignal,
             workStore.route,
-            'dynamic "use cache"'
+            'dynamic "use cache"',
+            workUnitStore
           )
         }
         break
@@ -2197,10 +2206,13 @@ export async function cache(
       switch (workUnitStore.type) {
         case 'prerender':
         case 'prerender-runtime':
-          return makeHangingPromise(
+          // The cache key was marked dynamic because it depends on fallback
+          // params, which are runtime data.
+          return makeRuntimeHangingPromise(
             workUnitStore.renderSignal,
             workStore.route,
-            'dynamic "use cache"'
+            'dynamic "use cache"',
+            workUnitStore
           )
         case 'prerender-ppr':
         case 'prerender-legacy':
@@ -2308,10 +2320,14 @@ export async function cache(
               if (cacheSignal) {
                 cacheSignal.endRead()
               }
-              return makeHangingPromise(
+              // The entry is only excluded from *static* prerenders — the
+              // 'prerender-runtime' case below serves it — so a runtime
+              // prefetch would include this content.
+              return makeRuntimeHangingPromise(
                 workUnitStore.renderSignal,
                 workStore.route,
-                'dynamic "use cache"'
+                'dynamic "use cache"',
+                workUnitStore
               )
             case 'prerender-runtime': {
               // In the final phase of a runtime prerender, we have to make
@@ -2426,7 +2442,20 @@ export async function cache(
                 if (cacheSignal) {
                   cacheSignal.endRead()
                 }
-                return makeHangingPromise(
+                if (isPrefetchable) {
+                  // The entry was omitted only because this render ends
+                  // before the post-shell stage; a render that reaches its
+                  // post-shell stage would serve it.
+                  return makeStageHangingPromise(
+                    prerenderStore.renderSignal,
+                    workStore.route,
+                    'dynamic "use cache"',
+                    prerenderStore
+                  )
+                }
+                // An unprefetchable entry (stale < MIN_PREFETCHABLE_STALE) is
+                // excluded from runtime prerenders too.
+                return makeDynamicHangingPromise(
                   prerenderStore.renderSignal,
                   workStore.route,
                   'dynamic "use cache"'
@@ -2558,10 +2587,13 @@ export async function cache(
             // also do here, this covers the case where params are transformed
             // with an async function before being passed into the "use cache"
             // function, which escapes the instrumentation.
-            return makeHangingPromise(
+            // The cache key depends on fallback params, which are runtime
+            // data.
+            return makeRuntimeHangingPromise(
               workUnitStore.renderSignal,
               workStore.route,
-              'dynamic "use cache"'
+              'dynamic "use cache"',
+              workUnitStore
             )
           }
         // fallthrough
@@ -2580,10 +2612,15 @@ export async function cache(
                 `Unexpected cache miss after cache warming phase during prerendering. This is likely caused by non-deterministic arguments that differ between the cache warming phase and the final prerender phase (e.g. unstable array order). Ensure that arguments passed to cached functions are deterministic.`
               )
             )
-            return makeHangingPromise(
+            // This is an anomaly (non-deterministic cache key), so we can't
+            // know whether a runtime prerender would resolve it. Treat it as
+            // runtime data, conservatively: the cost is at most a redundant
+            // runtime prefetch request.
+            return makeRuntimeHangingPromise(
               workUnitStore.renderSignal,
               workStore.route,
-              'dynamic "use cache"'
+              'dynamic "use cache"',
+              workUnitStore
             )
           }
           break
@@ -2913,10 +2950,14 @@ export async function cache(
                 cacheSignal.endRead()
               }
 
-              const hangingPromise = makeHangingPromise<never>(
+              // The entry is only excluded from *static* prerenders — the
+              // 'prerender-runtime' case below serves it — so a runtime
+              // prefetch would include this content.
+              const hangingPromise = makeRuntimeHangingPromise<never>(
                 workUnitStore.renderSignal,
                 workStore.route,
-                'dynamic "use cache"'
+                'dynamic "use cache"',
+                workUnitStore
               )
               debug?.('leader resolved as prerender-dynamic', cacheHandlerKey)
               resolvableSharedCacheResult.resolve({
