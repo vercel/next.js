@@ -301,13 +301,13 @@ export default function RootLayout({ children }) {
 }
 ```
 
-Start with the default: the pending loading state is enough for many apps. Add a banner in the root layout when you want connectivity visible on every route. Add a scoped fallback when a specific route deserves a tailored message. The three layer in that order, so you can adopt as much as you need.
-
 The banner shows on every route while offline, and hides when connectivity returns.
+
+For most apps, the pending loading state is enough. Add a banner in the root layout to communicate the connectivity state across the app. To surface that state right where the content is loading, make the route's Suspense fallback itself offline-aware with `useOffline`.
 
 The same pattern extends to parameterized routes. A route like `/chats/[id]` renders its shared [App Shell](/docs/app/glossary#app-shell) when you navigate to `/chats/42` offline, and the dynamic messages behind its `<Suspense>` boundary load when the connection returns.
 
-If the route opts into [runtime prefetching](/docs/app/guides/runtime-prefetching) with [`prefetch = 'allow-runtime'`](/docs/app/api-reference/file-conventions/route-segment-config/prefetch#allow-runtime), Next.js resolves the per-link URL data at prefetch time and includes it in the prefetch. `/chats/42` then renders its messages from that prefetch immediately, even offline, instead of waiting for the connection to return.
+If the route also prefetches its per-link URL data ahead of the click, `/chats/42` renders its messages from that prefetch immediately, even offline, instead of waiting for the connection to return. See [runtime prefetching](/docs/app/guides/runtime-prefetching) to learn more.
 
 ## Retry Server Actions after the network returns
 
@@ -426,7 +426,7 @@ In Chrome, use [DevTools > Network > **Offline**](https://developer.chrome.com/d
 
 ## Without Cache Components
 
-A route-level [`loading.tsx`](/docs/app/api-reference/file-conventions/loading) does the same job. Next.js wraps the segment's page in a `<Suspense>` boundary using the `loading.tsx` export as its fallback, leaving the layout above rendered. While offline, the cached layout and fallback render from the prefetch, and the page resumes once the network returns. The `useOffline` hook, banner, and Server Action retry all behave the same way.
+A route-level [`loading.tsx`](/docs/app/api-reference/file-conventions/loading) does the same job. It gives Next.js a boundary to prefetch as the route's shell, so the shell renders offline and the page resumes once the network returns. For how `loading.tsx` prefetching works, see [Prefetching](/docs/app/guides/prefetching). The `useOffline` hook, banner, and Server Action retry all behave the same way.
 
 ## Next steps
 
