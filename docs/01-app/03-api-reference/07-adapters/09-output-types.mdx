@@ -136,6 +136,11 @@ ISR-enabled routes and static prerenders:
   pathname: string     // URL pathname
   parentOutputId: string  // ID of the source page/route
   groupId: number        // Revalidation group identifier (prerenders with same groupId revalidate together)
+  route: string           // Source route matcher aligned with the filesystem route, keeping dynamic segments (e.g. /blog/[slug] for the prerendered path /blog/first)
+  routeType?: 'route' | 'fallback' | 'shell' | 'page'  // Kind of canonical response
+  response?: 'empty' | 'initial' | 'complete'  // Completeness before request-time work
+  compute?: 'blocking' | 'resuming' | 'static'  // Request-time compute needed for the completed response
+  htmlSize?: number       // Byte size of the prerendered App Router HTML shell
   pprChain?: {
     headers: Record<string, string>  // PPR chain headers (e.g., 'next-resume': '1')
   }
@@ -158,6 +163,31 @@ ISR-enabled routes and static prerenders:
   }
 }
 ```
+
+### Prerender classification
+
+`routeType`, `response`, and `compute` are emitted together on the primary response in a prerender group. Related RSC, data, and segment outputs omit these fields. Pages Router templates with `fallback: false` also omit them because those templates are never served for unmatched URLs.
+
+`routeType` identifies the kind of canonical response:
+
+- `route`: a non-UI route, such as a Route Handler
+- `page`: a page whose URL has no missing prerenderable parameters
+- `shell`: the most specific reusable page shell for its class of URLs
+- `fallback`: a reusable page response that can be specialized by filling more prerenderable parameters
+
+`response` describes how complete the response is before request-time work:
+
+- `empty`: no initial page response can be served
+- `initial`: an initial response can be served, but it is not the completed page UI. In practice, this only applies to UI routes that are partially prerenderable
+- `complete`: the response is complete; this can include a zero-byte response body, such as a `204` Route Handler response
+
+`compute` describes the request-time compute needed to serve the completed response:
+
+- `blocking`: no initial response can be sent before request-time compute starts; once started, the response can stream while compute continues
+- `resuming`: an initial response is served while postponed work resumes on the server
+- `static`: no server compute is required per request
+
+`htmlSize` is only included on the primary App Router HTML output. A value of `0` means that the HTML shell is empty. Pages Router prerenders, Route Handlers, and related RSC, data, and segment outputs omit it.
 
 ## Static Files (`outputs.staticFiles`)
 

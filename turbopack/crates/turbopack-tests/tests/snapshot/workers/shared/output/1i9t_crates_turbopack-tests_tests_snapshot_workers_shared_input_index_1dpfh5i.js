@@ -949,9 +949,15 @@ browserContextPrototype.q = exportUrl;
     return instantiateModule(moduleId, SourceType.Runtime, chunkPath);
 }
 /**
+ * Matches any character `encodeURIComponent` escapes. The path separator is
+ * excluded because chunk paths are encoded a segment at a time.
+ */ const CHUNK_PATH_NEEDS_ENCODING = /[^A-Za-z0-9\-_.!~*'()/]/;
+/**
  * Returns the URL relative to the origin where a chunk can be fetched from.
  */ function getChunkRelativeUrl(chunkPath, basePath = CHUNK_BASE_PATH) {
-    return `${basePath}${chunkPath.split('/').map((p)=>encodeURIComponent(p)).join('/')}${ASSET_SUFFIX}`;
+    // Most chunk paths need no escaping.
+    const encodedPath = CHUNK_PATH_NEEDS_ENCODING.test(chunkPath) ? chunkPath.split('/').map(encodeURIComponent).join('/') : chunkPath;
+    return `${basePath}${encodedPath}${ASSET_SUFFIX}`;
 }
 // Shared runtime primitives consumed by the bundled `createWorker` helper,
 // exposed as `__turbopack_chunk_base_path__` and `__turbopack_chunk_asset_suffix__`.
@@ -1091,9 +1097,11 @@ function formatDependencyChain(dependencyChain) {
             dependencyChain: []
         }
     ];
-    let nextItem;
-    while(nextItem = queue.shift()){
-        const { moduleId, dependencyChain } = nextItem;
+    let queueIndex = 0;
+    while(queueIndex < queue.length){
+        const { moduleId, dependencyChain } = queue[queueIndex];
+        // Release copied dependency chains as soon as their queue item is consumed.
+        queue[queueIndex++] = undefined;
         if (moduleId != null) {
             if (outdatedModules.has(moduleId)) {
                 continue;

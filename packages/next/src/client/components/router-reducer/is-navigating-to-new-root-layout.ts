@@ -56,8 +56,7 @@ export function isNavigatingToNewRootLayout(
   const slots = nextTree.slots
   const currentTreeChildren = currentTree[1]
   if (slots !== null) {
-    for (const slot in slots) {
-      const nextTreeChild = slots[slot]
+    for (const [slot, nextTreeChild] of slots) {
       const currentTreeChild = currentTreeChildren[slot]
       if (
         currentTreeChild === undefined ||

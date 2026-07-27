@@ -12,6 +12,7 @@ import type {
   RequestInsight,
   RequestInsightsSnapshot,
 } from '../shared/request-insights'
+import { getRequestInsightKey } from '../shared/request-insights'
 import { readInstantNavCookieState } from './components/instant-navs/instant-nav-cookie'
 import { isBlockingRouteInNavError } from './container/errors'
 import { isDynamicRoute } from '../../shared/lib/router/utils/is-dynamic'
@@ -118,6 +119,18 @@ export const ACTION_INSTANT_NAVS_RESET = 'instant-navs-reset'
 export const ACTION_INSTANT_ERRORS_CLEAR = 'instant-errors-clear'
 export const ACTION_REQUEST_INSIGHTS_SNAPSHOT = 'request-insights-snapshot'
 export const ACTION_REQUEST_INSIGHTS_UPDATE = 'request-insights-update'
+
+export function updateRequestInsights(
+  currentRequests: readonly RequestInsight[],
+  insight: RequestInsight
+): RequestInsight[] {
+  const insightKey = getRequestInsightKey(insight)
+  const requests = currentRequests.filter(
+    (request) => getRequestInsightKey(request) !== insightKey
+  )
+  requests.push(insight)
+  return requests.slice(-100)
+}
 
 export const STORAGE_KEY_PANEL_POSITION_PREFIX =
   '__nextjs-dev-tools-panel-position'
@@ -607,11 +620,13 @@ export function useErrorOverlayReducer(
           return { ...state, requestInsights: action.snapshot.requests }
         }
         case ACTION_REQUEST_INSIGHTS_UPDATE: {
-          const requests = state.requestInsights.filter(
-            (request) => request.requestId !== action.insight.requestId
-          )
-          requests.push(action.insight)
-          return { ...state, requestInsights: requests.slice(-100) }
+          return {
+            ...state,
+            requestInsights: updateRequestInsights(
+              state.requestInsights,
+              action.insight
+            ),
+          }
         }
         default: {
           return state
