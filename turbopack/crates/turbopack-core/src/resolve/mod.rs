@@ -138,6 +138,9 @@ impl ModuleResolveResultItem {
 pub struct BindingUsage {
     pub import: ImportUsage,
     pub export: ExportUsage,
+    /// The reference re-exports the target's whole namespace (`module.exports = require("…")`,
+    /// `export * from "…"`), so the target's used exports are the referencing module's own.
+    pub reexport: bool,
 }
 
 #[turbo_tasks::value_impl]

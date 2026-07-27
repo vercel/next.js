@@ -32,7 +32,7 @@ use crate::{
     SpecifiedModuleType,
     analyzer::{
         Bump, ConstantValue, ObjectPart,
-        cjs_ast::is_global,
+        cjs_ast::{is_global, is_module_dot_exports},
         graph::{AssignmentScope, AssignmentScopes, EvalContext},
         is_unresolved, is_unresolved_id,
     },
@@ -445,6 +445,9 @@ pub(crate) struct CjsImports {
 
     /// `const x = require("m")`
     pub(crate) bindings: FxHashMap<Id, BytePos>,
+
+    /// `module.exports = require("m")`
+    pub(crate) reexports: FxHashSet<BytePos>,
 }
 
 /// Represents a collection of [webpack-style "magic comments"][magic] that override import
@@ -1459,6 +1462,17 @@ impl Visit for Analyzer<'_> {
 
     fn visit_var_declarator(&mut self, node: &VarDeclarator) {
         self.record_require_usage_var(node);
+        node.visit_children_with(self);
+    }
+
+    fn visit_assign_expr(&mut self, node: &AssignExpr) {
+        if node.op == AssignOp::Assign
+            && let AssignTarget::Simple(SimpleAssignTarget::Member(target)) = &node.left
+            && is_module_dot_exports(target, self.unresolved_mark)
+            && let Some(call) = as_require_call(&node.right, self.unresolved_mark)
+        {
+            self.data.cjs_imports.reexports.insert(call.span.lo);
+        }
         node.visit_children_with(self);
     }
 

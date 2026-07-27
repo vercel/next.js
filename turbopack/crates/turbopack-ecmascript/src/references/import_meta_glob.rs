@@ -549,6 +549,7 @@ impl ModuleReference for ImportMetaGlobModuleReference {
         BindingUsage {
             import: Default::default(),
             export: self.export.clone(),
+            reexport: false,
         }
     }
 }
