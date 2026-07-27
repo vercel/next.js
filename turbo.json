@@ -1,0 +1,35 @@
+{
+  "$schema": "https://turborepo.org/schema.json",
+  "globalEnv": ["CI", "NEXT_CI_RUNNER"],
+  "globalPassThroughEnv": ["RUSTC_WRAPPER", "SCCACHE_*"],
+  "tasks": {
+    "build": {
+      "dependsOn": ["^build"],
+      "outputs": ["dist/**"]
+    },
+    "dev": {
+      "dependsOn": ["^dev"],
+      "outputs": ["dist/**"]
+    },
+    "storybook": {},
+    "build-storybook": {
+      "dependsOn": ["^build-storybook"],
+      "outputs": ["storybook-static/**"]
+    },
+    "test-storybook": {
+      "dependsOn": ["^test-storybook"]
+    },
+    "pack-for-isolated-tests": {
+      "inputs": ["$TURBO_DEFAULT$", "dist/**"],
+      "outputs": ["packed.tgz"]
+    },
+    "typescript": {},
+    "//#typescript": {},
+    "//#get-test-timings": {
+      "inputs": ["run-tests.js"],
+      "outputs": ["test-timings.json"],
+      "env": ["KV_REST_API_URL", "KV_REST_API_TOKEN"]
+    }
+  },
+  "ui": "tui"
+}

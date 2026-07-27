@@ -1,0 +1,7 @@
+  x The "use server" directive must be at the top of the file, and cannot be wrapped in parentheses.
+  | 
+   ,-[input.js:2:1]
+ 1 | import 'react'
+ 2 | ;('use sevrer')
+   :  ^^^^^^^^^^^^^^
+   `----

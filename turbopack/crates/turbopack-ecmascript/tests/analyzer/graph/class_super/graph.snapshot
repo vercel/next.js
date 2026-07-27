@@ -1,0 +1,35 @@
+[
+    (
+        "*arrow function 138*",
+        Function(
+            2,
+            138,
+            Constant(
+                Undefined,
+            ),
+        ),
+    ),
+    (
+        "BaseClass",
+        Unknown {
+            original_value: None,
+            reason: "unsupported expression",
+            has_side_effects: true,
+        },
+    ),
+    (
+        "SubClass",
+        Unknown {
+            original_value: None,
+            reason: "unsupported expression",
+            has_side_effects: true,
+        },
+    ),
+    (
+        "fn",
+        Argument(
+            59,
+            0,
+        ),
+    ),
+]

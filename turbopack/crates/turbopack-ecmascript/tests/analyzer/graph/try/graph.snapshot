@@ -1,0 +1,68 @@
+[
+    (
+        "e",
+        Unknown {
+            original_value: Some(
+                Variable(
+                    (
+                        "e",
+                        #4,
+                    ),
+                ),
+            ),
+            reason: "pattern without value",
+            has_side_effects: false,
+        },
+    ),
+    (
+        "pkg",
+        Alternatives {
+            total_nodes: 8,
+            values: [
+                Unknown {
+                    original_value: Some(
+                        Variable(
+                            (
+                                "pkg",
+                                #2,
+                            ),
+                        ),
+                    ),
+                    reason: "pattern without value",
+                    has_side_effects: false,
+                },
+                Call(
+                    3,
+                    FreeVar(
+                        "require",
+                    ),
+                    [
+                        Constant(
+                            Str(
+                                Atom(
+                                    "packages/not-found",
+                                ),
+                            ),
+                        ),
+                    ],
+                ),
+                Call(
+                    3,
+                    FreeVar(
+                        "require",
+                    ),
+                    [
+                        Constant(
+                            Str(
+                                Atom(
+                                    "packages/found",
+                                ),
+                            ),
+                        ),
+                    ],
+                ),
+            ],
+            logical_property: None,
+        },
+    ),
+]

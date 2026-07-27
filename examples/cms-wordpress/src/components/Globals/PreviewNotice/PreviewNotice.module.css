@@ -1,0 +1,22 @@
+.preview {
+  position: fixed;
+  top: 0;
+  right: 0;
+  left: 0;
+  margin: 0 auto;
+  width: 280px;
+  text-align: center;
+  max-width: 100%;
+  border-bottom-left-radius: 5px;
+  border-bottom-right-radius: 5px;
+  background-color: #000;
+  color: #fff;
+  padding: 5px 15px;
+  display: flex;
+  justify-content: space-between;
+  white-space: nowrap;
+}
+
+.link {
+  margin-left: 10px;
+}

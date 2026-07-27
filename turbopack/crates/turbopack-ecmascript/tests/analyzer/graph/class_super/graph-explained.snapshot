@@ -1,0 +1,11 @@
+*arrow function 138* = (...) => undefined
+
+BaseClass (const after eval) = ???*0*
+- *0* unsupported expression
+  ⚠️  This value might have side effects
+
+SubClass (const after eval) = ???*0*
+- *0* unsupported expression
+  ⚠️  This value might have side effects
+
+fn = arguments[0]

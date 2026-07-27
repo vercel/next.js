@@ -1,0 +1,29 @@
+---
+title: Dynamic WASM compilation is not available in Proxies
+---
+
+## Why This Error Occurred
+
+Compiling WASM binaries dynamically is not allowed in Proxies. Specifically,
+the following APIs are not supported:
+
+- `WebAssembly.compile`
+- `WebAssembly.instantiate` with [a buffer parameter](https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/WebAssembly/instantiate#primary_overload_%E2%80%94_taking_wasm_binary_code)
+
+## Possible Ways to Fix It
+
+Bundle your WASM binaries using `import`:
+
+```ts filename="proxy.ts"
+import { NextResponse } from 'next/server'
+import squareWasm from './square.wasm?module'
+
+export default async function proxy() {
+  const m = await WebAssembly.instantiate(squareWasm)
+  const answer = m.exports.square(9)
+  const response = NextResponse.next()
+
+  response.headers.set('x-square', answer.toString())
+  return response
+}
+```

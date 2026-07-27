@@ -1,0 +1,30 @@
+*anonymous function 25* = (...) => undefined
+
+a = (...) => undefined
+
+aa = (...) => undefined
+
+b = (...) => undefined
+
+bb = (...) => undefined
+
+c = 123
+
+cc = 123
+
+d = "hello"
+
+dd = "hello"
+
+e = ???*0*
+- *0* unsupported expression
+  ⚠️  This value might have side effects
+
+ee = ???*0*
+- *0* unsupported expression
+  ⚠️  This value might have side effects
+
+ff = ???*0*
+- *0* FreeVar(f)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects

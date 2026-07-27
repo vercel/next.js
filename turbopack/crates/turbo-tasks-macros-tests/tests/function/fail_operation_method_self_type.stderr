@@ -1,0 +1,31 @@
+error: methods taking `self` are not supported with `operation`
+  --> tests/function/fail_operation_method_self_type.rs:14:28
+   |
+14 |     fn arbitrary_self_type(self: OperationVc<Self>) -> Vc<()> {
+   |                            ^^^^^^^^^^^^^^^^^^^^^^^
+
+error[E0307]: invalid `self` parameter type: `OperationVc<Foobar>`
+  --> tests/function/fail_operation_method_self_type.rs:14:34
+   |
+14 |     fn arbitrary_self_type(self: OperationVc<Self>) -> Vc<()> {
+   |                                  ^^^^^^^^^^^^^^^^^
+   |
+   = note: type of `self` must be `Self` or some type implementing `Receiver`
+   = help: consider changing to `self`, `&self`, `&mut self`, or a type implementing `Receiver` such as `self: Box<Self>`, `self: Rc<Self>`, or `self: Arc<Self>`
+
+error[E0277]: the trait bound `fn(OperationVc<Foobar>) -> Vc<()> {Foobar::arbitrary_self_type_turbo_tasks_function_inline}: turbo_tasks::task::function::TaskFnInputFunctionWithThis<_, _, _>` is not satisfied
+  --> tests/function/fail_operation_method_self_type.rs:11:1
+   |
+11 | #[turbo_tasks::value_impl]
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^ unsatisfied trait bound
+   |
+   = help: the trait `turbo_tasks::task::function::TaskFnInputFunctionWithThis<_, _, _>` is not implemented for fn item `fn(OperationVc<Foobar>) -> Vc<()> {Foobar::arbitrary_self_type_turbo_tasks_function_inline}`
+note: required by a bound in `turbo_tasks::macro_helpers::into_task_fn_with_this`
+  --> $WORKSPACE/turbopack/crates/turbo-tasks/src/task/function.rs
+   |
+   | pub const fn into_task_fn_with_this<
+   |              ---------------------- required by a bound in this function
+...
+   |     F: TaskFnInputFunctionWithThis<Mode, This, Inputs>,
+   |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `into_task_fn_with_this`
+   = note: this error originates in the attribute macro `turbo_tasks::value_impl` (in Nightly builds, run with -Z macro-backtrace for more info)

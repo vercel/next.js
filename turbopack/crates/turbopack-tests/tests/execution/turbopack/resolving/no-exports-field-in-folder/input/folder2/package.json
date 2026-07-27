@@ -1,0 +1,4 @@
+{
+  "main": "./main.js",
+  "exports": "./exports.js"
+}

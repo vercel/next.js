@@ -1,0 +1,29 @@
+[package]
+name = "swc-ast-explorer"
+version = "0.1.0"
+description = "TBD"
+license = "MIT"
+edition = "2024"
+
+# don't publish this crate (for now)
+publish = false
+
+[[bin]]
+name = "swc-ast-explorer"
+path = "src/main.rs"
+bench = false
+
+[lints]
+workspace = true
+
+[dependencies]
+anyhow = { workspace = true }
+clap = { workspace = true, features = ["derive"] }
+owo-colors = { workspace = true }
+regex = { workspace = true }
+swc_core = { workspace = true, features = [
+  "base",
+  "common",
+  "ecma_ast",
+  "ecma_parser",
+] }

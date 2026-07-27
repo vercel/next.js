@@ -1,0 +1,23 @@
+{
+  "private": true,
+  "scripts": {
+    "test": "cross-env NODE_ENV=test mocha",
+    "dev": "next",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "next": "latest",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
+  },
+  "devDependencies": {
+    "@babel/core": "7.22.5",
+    "@babel/register": "7.22.5",
+    "cross-env": "7.0.2",
+    "enzyme": "^3.11.0",
+    "enzyme-adapter-react-16": "^1.15.2",
+    "expect.js": "^0.3.1",
+    "mocha": "^7.1.1"
+  }
+}

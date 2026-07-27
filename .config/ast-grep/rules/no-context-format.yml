@@ -1,0 +1,20 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/ast-grep/ast-grep/main/schemas/rule.json
+
+id: no-context-format
+message: Use `.with_context(|| format!(...))` instead of `.context(format!(...))`.
+note: >
+  `.context(format!(...))` eagerly allocates the formatted string even when there is no error.
+  Use `.with_context(|| format!(...))` for lazy evaluation.
+severity: error
+language: Rust
+rule:
+  pattern: $OBJ.context(format!($$$ARGS))
+fix: $OBJ.with_context(|| format!($$$ARGS))
+---
+id: no-context-turbofmt
+message: >
+  `.context(turbofmt!(...).await?)` eagerly creates the formatted string even when there is no error.
+severity: error
+language: Rust
+rule:
+  pattern: $OBJ.context(turbofmt!($$$ARGS).await?)

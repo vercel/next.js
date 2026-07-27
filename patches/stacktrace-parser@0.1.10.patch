@@ -1,0 +1,31 @@
+diff --git a/dist/stack-trace-parser.cjs.js b/dist/stack-trace-parser.cjs.js
+index 50c63025c622ebe479e07544bd796c2d3922d4b8..d704100cc59b6c47db5ad67ecd2662c99ecb62da 100644
+--- a/dist/stack-trace-parser.cjs.js
++++ b/dist/stack-trace-parser.cjs.js
+@@ -20,7 +20,7 @@ function parse(stackString) {
+     return stack;
+   }, []);
+ }
+-var chromeRe = /^\s*at (.*?) ?\(((?:file|https?|blob|chrome-extension|native|eval|webpack|<anonymous>|\/|[a-z]:\\|\\\\).*?)(?::(\d+))?(?::(\d+))?\)?\s*$/i;
++var chromeRe = /^\s*at (.*?) ?\(((?:file|https?|blob|chrome-extension|native|eval|webpack|webpack-internal|rsc|about|turbopack|<anonymous>|\/|[a-z]:\\|\\\\).*?)(?::(\d+))?(?::(\d+))?\)?\s*$/i;
+ var chromeEvalRe = /\((\S*)(?::(\d+))(?::(\d+))\)/;
+ 
+ function parseChrome(line) {
+@@ -54,7 +54,7 @@ function parseChrome(line) {
+   };
+ }
+ 
+-var winjsRe = /^\s*at (?:((?:\[object object\])?.+) )?\(?((?:file|ms-appx|https?|webpack|blob):.*?):(\d+)(?::(\d+))?\)?\s*$/i;
++var winjsRe = /^\s*at (?:((?:\[object object\])?.+) )?\(?((?:file|ms-appx|https?|webpack|webpack-internal|rsc|about|turbopack|blob):.*?):(\d+)(?::(\d+))?\)?\s*$/i;
+ 
+ function parseWinjs(line) {
+   var parts = winjsRe.exec(line);
+@@ -72,7 +72,7 @@ function parseWinjs(line) {
+   };
+ }
+ 
+-var geckoRe = /^\s*(.*?)(?:\((.*?)\))?(?:^|@)((?:file|https?|blob|chrome|webpack|resource|\[native).*?|[^@]*bundle)(?::(\d+))?(?::(\d+))?\s*$/i;
++var geckoRe = /^\s*(.*?)(?:\((.*?)\))?(?:^|@)((?:file|https?|blob|chrome|webpack|webpack-internal|rsc|about|turbopack|resource|\[native).*?|[^@]*bundle)(?::(\d+))?(?::(\d+))?\s*$/i;
+ var geckoEvalRe = /(\S+) line (\d+)(?: > eval line \d+)* > eval/i;
+ 
+ function parseGecko(line) {

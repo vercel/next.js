@@ -1,0 +1,15 @@
+array (const after eval) = [1, 2, 3]
+
+arrays (const after eval) = ([1, 2, 3] | [4, 5, 6])
+
+concatenated_array (const after eval) = array["concat"](4, 5, 6, [7, 8, 9], `hello ${item}`)
+
+concatenated_array_options (const after eval) = array["concat"]([7, 8, 9])
+
+item (const after eval) = array[1]
+
+item_options (const after eval) = arrays[1]
+
+pick_array1 (const after eval) = [[1, 2, 3]][0]["concat"]([4, 5, 6, FreeVar(unknown)])
+
+pick_array2 (const after eval) = [[1, 2, 3]][0]["concat"](4, 5, 6, FreeVar(unknown))

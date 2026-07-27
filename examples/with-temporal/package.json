@@ -1,0 +1,43 @@
+{
+  "private": true,
+  "scripts": {
+    "dev": "next",
+    "build": "next build",
+    "start": "next start",
+    "type-check": "tsc",
+    "build:worker": "tsc --build temporal/tsconfig.json",
+    "build:worker.watch": "tsc --build --watch temporal/tsconfig.json",
+    "start:worker": "cross-env TS_NODE_PROJECT=\"temporal/tsconfig.json\" node --loader ts-node/esm temporal/src/worker.ts",
+    "start:worker.watch": "cross-env TS_NODE_PROJECT=\"temporal/tsconfig.json\" nodemon temporal/src/worker.ts"
+  },
+  "dependencies": {
+    "next": "latest",
+    "node-fetch": "^3.0.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "temporalio": "^0.17.2"
+  },
+  "devDependencies": {
+    "@babel/core": "7.22.5",
+    "@tsconfig/node16": "^1.0.0",
+    "@types/node": "^12.12.21",
+    "@types/node-fetch": "^3.0.3",
+    "@types/react": "^17.0.2",
+    "@types/react-dom": "^17.0.1",
+    "@typescript-eslint/eslint-plugin": "^6.1.0",
+    "@typescript-eslint/parser": "^6.1.0",
+    "cross-env": "^7.0.3",
+    "nodemon": "^2.0.12",
+    "ts-node": "^10.2.1",
+    "typescript": "^4.4.2"
+  },
+  "nodemonConfig": {
+    "execMap": {
+      "ts": "node --loader ts-node/esm"
+    },
+    "ext": "ts",
+    "watch": [
+      "temporal/src"
+    ]
+  }
+}

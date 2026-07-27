@@ -1,0 +1,10 @@
+0 -> 1 free var = FreeVar(URL)
+
+0 -> 4 call = new URL*0*("./worker.ts", import.meta*1*["url"])
+- *0* URL: The standard URL constructor: https://developer.mozilla.org/en-US/docs/Web/API/URL/URL
+- *1* import.meta: The import.meta object
+
+0 -> 5 free var = FreeVar(Worker)
+
+0 -> 6 call = new Worker*0*(./worker.ts relative)
+- *0* Worker: The standard Worker constructor: https://developer.mozilla.org/en-US/docs/Web/API/Worker/Worker

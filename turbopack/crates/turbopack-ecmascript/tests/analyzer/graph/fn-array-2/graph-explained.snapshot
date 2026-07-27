@@ -1,0 +1,13 @@
+a = arguments[0]
+
+b = arguments[1]
+
+c (const after eval) = (...) => [`${a}${x}`, a]
+
+d (const after eval) = c("1", "2")
+
+e (const after eval) = d[0]
+
+f (const after eval) = d[1]
+
+x = b

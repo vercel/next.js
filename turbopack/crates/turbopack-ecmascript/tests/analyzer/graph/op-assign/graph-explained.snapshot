@@ -1,0 +1,27 @@
+*arrow function 173* = (...) => (???*0* | undefined)
+- *0* spread in function calls is not supported
+  ⚠️  This value might have side effects
+
+ComponentMod = arguments[0]
+
+args = ???*0*
+- *0* args
+  ⚠️  pattern without value
+
+clientComponentLoadTimes = (0 | (clientComponentLoadTimes + ???*0*))
+- *0* unsupported expression
+  ⚠️  This value might have side effects
+
+getClientComponentLoaderMetrics (const after eval) = (...) => metrics
+
+metrics = ((clientComponentLoadTimes === 0) ? undefined : {
+    "clientComponentLoadTimes": clientComponentLoadTimes
+})
+
+options = ???*0*
+- *0* options
+  ⚠️  pattern without value
+
+startTime = FreeVar(performance)["now"]()
+
+wrapClientComponentLoader (const after eval) = (...) => {"loadChunk": *arrow function 173*}

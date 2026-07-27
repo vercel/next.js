@@ -1,0 +1,34 @@
+---
+title: 'Link `passHref`'
+---
+
+> **Note**: Starting with version `16`, Next.js does not support the `passHref` and `legacyBehavior` props for a `Link` component anymore.
+
+> Ensure `passHref` is used with custom `Link` components.
+
+## Why This Error Occurred
+
+`passHref` was not used for a `Link` component that wraps a custom component. This is needed in order to pass the `href` to the child `<a>` tag.
+
+## Possible Ways to Fix It
+
+If you're using a custom component that wraps an `<a>` tag, make sure to add `passHref` and `legacyBehavior`:
+
+```jsx filename="nav-link.js"
+import Link from 'next/link'
+import styled from 'styled-components'
+
+const StyledLink = styled.a`
+  color: red;
+`
+
+function NavLink({ href, name }) {
+  return (
+    <Link href={href} passHref legacyBehavior>
+      <StyledLink>{name}</StyledLink>
+    </Link>
+  )
+}
+
+export default NavLink
+```

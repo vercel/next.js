@@ -1,0 +1,31 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`next.rs api should allow to write app Node.js page to disk: issues 1`] = `[]`;
+
+exports[`next.rs api should allow to write app Node.js page to disk: rsc issues 1`] = `[]`;
+
+exports[`next.rs api should allow to write app Node.js route to disk: issues 1`] = `[]`;
+
+exports[`next.rs api should allow to write app edge page to disk: issues 1`] = `[]`;
+
+exports[`next.rs api should allow to write app edge page to disk: rsc issues 1`] = `[]`;
+
+exports[`next.rs api should allow to write app edge route to disk: issues 1`] = `[]`;
+
+exports[`next.rs api should allow to write pages Node.js api to disk: issues 1`] = `[]`;
+
+exports[`next.rs api should allow to write pages Node.js page to disk: data issues 1`] = `[]`;
+
+exports[`next.rs api should allow to write pages Node.js page to disk: issues 1`] = `[]`;
+
+exports[`next.rs api should allow to write pages edge api to disk: issues 1`] = `[]`;
+
+exports[`next.rs api should allow to write pages edge page to disk: data issues 1`] = `[]`;
+
+exports[`next.rs api should allow to write pages edge page to disk: issues 1`] = `[]`;
+
+exports[`next.rs api should allow to write root page to disk: data issues 1`] = `[]`;
+
+exports[`next.rs api should allow to write root page to disk: issues 1`] = `[]`;
+
+exports[`next.rs api should detect the correct routes: issues 1`] = `[]`;

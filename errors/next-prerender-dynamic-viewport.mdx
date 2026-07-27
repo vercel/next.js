@@ -1,0 +1,113 @@
+---
+title: Cannot access Runtime data or uncached data in `generateViewport()`
+---
+
+## Why This Error Occurred
+
+When `cacheComponents` is enabled, Next.js requires that `generateViewport()` not depend on uncached data or Runtime data (`cookies()`, `headers()`, `params`, `searchParams`) unless you explicitly opt into having a fully dynamic page. If you encountered this error, it means that `generateViewport` depends on one of these types of data and you have not specifically indicated that blocking navigations are acceptable.
+
+## Possible Ways to Fix It
+
+To fix this issue, you must first determine your goal for the affected route.
+
+Next.js ensures every page can produce an initial UI before uncached data and Runtime data is available. This is accomplished by defining prerenderable UI with Suspense. Viewport metadata, though, cannot be deferred because it affects initial page load UI.
+
+Ideally, you update `generateViewport` so it does not depend on any uncached data or Runtime data. This allows navigations to appear instant.
+
+If this is not possible, you can instruct Next.js to allow all navigations to be potentially blocking by wrapping your document `<body>` in a Suspense boundary.
+
+### Caching External Data
+
+When external data is cached, Next.js can prerender with it, which ensures that the App Shell always has the complete viewport metadata available. Consider using `"use cache"` to mark the function producing the external data as cacheable.
+
+Before:
+
+```jsx filename="app/.../layout.tsx"
+import { db } from './db'
+
+export async function generateViewport() {
+  const { width, initialScale } = await db.query('viewport-size')
+  return {
+    width,
+    initialScale,
+  }
+}
+
+export default async function Layout({ children }) {
+  return ...
+}
+```
+
+After:
+
+```jsx filename="app/.../layout.tsx"
+import { db } from './db'
+
+export async function generateViewport() {
+  "use cache"
+  const { width, initialScale } = await db.query('viewport-size')
+  return {
+    width,
+    initialScale,
+  }
+}
+
+export default async function Layout({ children }) {
+  return ...
+}
+```
+
+### If you must access Request Data or your external data is uncacheable
+
+The only way to use Request data or uncacheable external data within `generateViewport` is to make this route entirely dynamic. While Next.js can operate in this mode, it does preclude future use of the prerendering capabilities of Next.js, so you should be certain this is necessary for your use case. To indicate the route should be entirely dynamic, you must add a Suspense boundary above where you render the document body.
+
+Before:
+
+```jsx filename="app/layout.tsx"
+import { cookies } from 'next/headers'
+
+export async function generateViewport() {
+  const cookieJar = await cookies()
+  return {
+    themeColor: cookieJar.get('theme-color')?.value,
+  }
+}
+
+export default function RootLayout({ children }) {
+  return (
+    <html>
+      <body>{children}</body>
+    </html>
+  )
+}
+```
+
+After:
+
+```jsx filename="app/layout.tsx"
+import { Suspense } from 'react'
+import { cookies } from 'next/headers'
+
+export async function generateViewport() {
+  const cookieJar = await cookies()
+  return {
+    themeColor: cookieJar.get('theme-color')?.value,
+  }
+}
+
+export default function RootLayout({ children }) {
+  return (
+    <Suspense>
+      <html>
+        <body>{children}</body>
+      </html>
+    </Suspense>
+  )
+}
+```
+
+## Useful Links
+
+- [`generateViewport()`](/docs/app/api-reference/functions/generate-viewport)
+- [`cookies()`](/docs/app/api-reference/functions/cookies)
+- [`"use cache"`](/docs/app/api-reference/directives/use-cache)

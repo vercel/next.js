@@ -1,0 +1,96 @@
+import { nextTestSetup } from 'e2e-utils'
+import {
+  getCommonMetadataHeadTags,
+  readFixtureBuffer,
+  readFixtureText,
+} from './utils'
+
+describe('metadata-files-static-output-root-route', () => {
+  if (process.env.__NEXT_CACHE_COMPONENTS) {
+    // Cache Components build fails when metadata files are inside a dynamic route.
+    //
+    // Route "/dynamic/[id]": Next.js encountered uncached or runtime data in `generateMetadata()`.
+    //
+    // This prevents the page from being prerendered, leading to a slower user experience.
+    //
+    // Ways to fix this:
+    //   - [static] Use a static metadata export instead of `generateMetadata()`
+    //   - [cache] Cache the metadata with `"use cache"` in `generateMetadata()`
+    //   - [dynamic] Render a marker component that calls `await connection()` inside `<Suspense>` on the page
+    //   - [block] Set `export const instant = false` to allow a blocking route
+    //
+    // Learn more: https://nextjs.org/docs/messages/blocking-prerender-metadata-dynamic
+    // Error occurred prerendering page "/dynamic/[id]". Read more: https://nextjs.org/docs/messages/prerender-error
+    // Export encountered an error on /dynamic/[id]/page: /dynamic/[id], exiting the build.
+    //
+    // TODO: Remove this skip when metadata files are supported in dynamic routes for Cache Components.
+    it.skip('should skip test for Cache Components', () => {})
+    return
+  }
+
+  const { next, skipped } = nextTestSetup({
+    files: __dirname,
+  })
+
+  if (skipped) {
+    return
+  }
+
+  it('should have correct link tags for root page', async () => {
+    const browser = await next.browser('/')
+
+    expect(await getCommonMetadataHeadTags(browser)).toMatchInlineSnapshot(`
+     {
+       "links": [
+         {
+           "href": "/favicon.ico",
+           "rel": "icon",
+           "type": "image/x-icon",
+         },
+         {
+           "href": "/manifest.json",
+           "rel": "manifest",
+         },
+       ],
+       "metas": [
+         {
+           "name": "viewport",
+         },
+       ],
+     }
+    `)
+  })
+
+  it('should serve static files when requested to its route', async () => {
+    const [faviconRes, manifestRes, robotsRes, sitemapRes] = await Promise.all([
+      next.fetch('/favicon.ico'),
+      next.fetch('/manifest.json'),
+      next.fetch('/robots.txt'),
+      next.fetch('/sitemap.xml'),
+    ])
+
+    // Compare response content with actual files
+    const [actualFavicon, actualManifest, actualRobots, actualSitemap] =
+      await Promise.all([
+        readFixtureBuffer('app/favicon.ico'),
+        readFixtureText('app/manifest.json'),
+        readFixtureText('app/robots.txt'),
+        readFixtureText('app/sitemap.xml'),
+      ])
+
+    expect({
+      favicon: Buffer.compare(
+        Buffer.from(await faviconRes.arrayBuffer()),
+        actualFavicon
+      ),
+      manifest: await manifestRes.text(),
+      robots: await robotsRes.text(),
+      sitemap: await sitemapRes.text(),
+    }).toEqual({
+      favicon: 0, // Buffer comparison returns 0 for equal
+      manifest: actualManifest,
+      robots: actualRobots,
+      sitemap: actualSitemap,
+    })
+  })
+})

@@ -1,0 +1,9 @@
+{
+  "extends": "../tsconfig.base.json",
+  "compilerOptions": {
+    // environment, we need WebWorker for WebAssembly types (not part of @types/node yet)
+    "lib": ["ESNext", "WebWorker"],
+    "types": ["node"]
+  },
+  "include": ["*.ts"]
+}

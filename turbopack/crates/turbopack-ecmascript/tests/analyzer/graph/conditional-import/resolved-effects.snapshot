@@ -1,0 +1,31 @@
+0 -> 1 conditional = true
+
+0 -> 2 dynamic import = FreeVar(import)("a")
+
+0 -> 5 free var = FreeVar(process)
+
+0 -> 6 conditional = (process.env*0*["NEXT_RUNTIME"] === "edge")
+- *0* process.env: The Node.js process.env property: https://nodejs.org/api/process.html#processenv
+
+0 -> 7 dynamic import = FreeVar(import)(
+    (???*0* ? "next/dist/compiled/@vercel/og/index.edge.js" : "next/dist/compiled/@vercel/og/index.node.js")
+)
+- *0* (process.env*1*["NEXT_RUNTIME"] === "edge")
+  ⚠️  nested operation
+- *1* process.env: The Node.js process.env property: https://nodejs.org/api/process.html#processenv
+
+0 -> 8 conditional = true
+
+8 -> 9 dynamic import = FreeVar(import)("a")
+
+8 -> 10 dynamic import = FreeVar(import)("b")
+
+0 -> 11 conditional = true
+
+0 -> 14 conditional = true
+
+14 -> 15 unreachable = ???*0*
+- *0* unreachable
+  ⚠️  This value might have side effects
+
+0 -> 16 dynamic import = FreeVar(import)("c")

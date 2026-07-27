@@ -1,0 +1,35 @@
+import { Suspense } from 'react'
+import { cachedDelay, DebugRenderKind } from '../../../../shared'
+
+export const instant = {
+  // We're intentionally testing error behavior at runtime.
+  // Build-time validation catches it and prevents that.
+  unstable_disableValidation: true,
+  unstable_samples: [{ cookies: [] }],
+}
+export const prefetch = 'allow-runtime'
+
+export default async function Page() {
+  return (
+    <main>
+      <DebugRenderKind />
+      <p id="intro">
+        This page performs sync IO after awaiting a private cache, so we should
+        only see the error in a runtime prefetch
+      </p>
+      <Suspense fallback={<div style={{ color: 'grey' }}>Loading 1...</div>}>
+        <RuntimePrefetchable />
+      </Suspense>
+    </main>
+  )
+}
+
+async function RuntimePrefetchable() {
+  await privateCache()
+  return <div id="timestamp">Timestamp: {Date.now()}</div>
+}
+
+async function privateCache() {
+  'use cache: private'
+  await cachedDelay([__dirname])
+}

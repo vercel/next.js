@@ -1,0 +1,12 @@
+a = "[context: ./test]/a"
+
+context = require.context(...)*0*
+- *0* require.context(...): The require.context(...) method from webpack: https://webpack.js.org/api/module-methods/#requirecontext
+
+importAll = (...) => r["keys"]()["map"](r)
+
+items = [module<[context: ./test]/a, {}>, module<[context: ./test]/b, {}>, module<[context: ./test]/c, {}>]
+
+r = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analyzed yet

@@ -1,0 +1,1 @@
+{"name":"postcss-flexbugs-fixes","main":"index.js","author":"Luis Rudge <luis@luisrudge.net>","license":"MIT"}

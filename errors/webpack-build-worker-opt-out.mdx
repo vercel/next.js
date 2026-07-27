@@ -1,0 +1,17 @@
+---
+title: Webpack Build Worker automatic opt-out
+---
+
+## Why This Error Occurred
+
+The Next.js config contains custom webpack configuration, as a result, the webpack build worker optimization was disabled.
+
+The webpack build worker optimization helps alleviate memory stress during builds and reduce out-of-memory errors although some custom configurations may not be compatible.
+
+## Possible Ways to Fix It
+
+Upgrade Next.js to latest (>= 14.1.0) to remove this warning.
+
+```bash filename"Terminal"
+npm i next@latest
+```

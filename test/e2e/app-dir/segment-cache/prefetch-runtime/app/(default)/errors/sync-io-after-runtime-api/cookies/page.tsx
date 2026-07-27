@@ -1,0 +1,31 @@
+import { cookies } from 'next/headers'
+import { Suspense } from 'react'
+import { DebugRenderKind } from '../../../../shared'
+
+export const instant = {
+  // We're intentionally testing error behavior at runtime.
+  // Build-time validation catches it and prevents that.
+  unstable_disableValidation: true,
+  unstable_samples: [{ cookies: [] }],
+}
+export const prefetch = 'allow-runtime'
+
+export default async function Page() {
+  return (
+    <main>
+      <DebugRenderKind />
+      <p id="intro">
+        This page performs sync IO after a cookies() call, so we should only see
+        the error in a runtime prefetch
+      </p>
+      <Suspense fallback={<div style={{ color: 'grey' }}>Loading 1...</div>}>
+        <RuntimePrefetchable />
+      </Suspense>
+    </main>
+  )
+}
+
+async function RuntimePrefetchable() {
+  await cookies()
+  return <div id="timestamp">Timestamp: {Date.now()}</div>
+}

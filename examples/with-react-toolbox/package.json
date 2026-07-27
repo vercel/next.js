@@ -1,0 +1,35 @@
+{
+  "private": true,
+  "scripts": {
+    "dev": "next",
+    "build": "next build",
+    "start": "next start",
+    "toolbox": "react-toolbox-themr"
+  },
+  "dependencies": {
+    "classnames": "^2.2.5",
+    "next": "latest",
+    "react": "^18.2.0",
+    "react-addons-css-transition-group": "^15.5.2",
+    "react-dom": "^18.2.0",
+    "react-toolbox": "^2.0.0-beta.8"
+  },
+  "devDependencies": {
+    "react-toolbox-themr": "^1.0.2"
+  },
+  "reactToolbox": {
+    "include": [
+      "BUTTON",
+      "DATE_PICKER"
+    ],
+    "customProperties": {
+      "animation-duration": "0.3s",
+      "color-accent": "var(--palette-pink-a200)",
+      "color-accent-dark": "var(--palette-pink-700)",
+      "color-primary-contrast": "var(--color-dark-contrast)",
+      "color-accent-contrast": "var(--color-dark-contrast)"
+    },
+    "output": "public",
+    "javascript": "./theme.js"
+  }
+}

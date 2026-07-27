@@ -1,0 +1,22 @@
+---
+title: Env Loading Disabled
+---
+
+## Why This Error Occurred
+
+In your project you have `dotenv` listed as a `dependency` or a `devDependency` which opts-out of Next.js' automatic loading to prevent creating a conflict with any existing `dotenv` behavior in your project.
+
+This is also disabled if a `package.json` isn't able to found in your project somehow.
+
+## Possible Ways to Fix It
+
+Update to the latest version of Next.js (>= v9.4.1) where this support is enabled regardless of `dotenv` being installed.
+
+Remove `dotenv` from your `devDependencies` or `dependencies` and allow Next.js to load your `dotenv` files for you.
+
+## Useful Links
+
+- [dotenv](https://npmjs.com/package/dotenv)
+- [dotenv-expand](https://npmjs.com/package/dotenv-expand)
+- [Environment Variables](https://en.wikipedia.org/wiki/Environment_variable)
+- [Next.js Environment Variables Docs](/docs/pages/guides/environment-variables)

@@ -1,0 +1,709 @@
+# Update all mentions of this name in vercel-packages when changing.
+name: build-and-deploy
+
+on:
+  push:
+    # Don't run when graphite base branches are pushed
+    branches-ignore:
+      - 'graphite-base/**'
+    # Run on release tags so publishing is driven by the tag push rather than
+    # the release-commit branch push (see the deploy-target step).
+    tags:
+      - 'v*'
+  # we need the preview tarball for deploy tests
+  pull_request:
+    types: [opened, synchronize]
+  workflow_dispatch:
+
+concurrency:
+  # Limit concurrent runs to 1 per PR,
+  # but allow concurrent runs on push if they potentially use different source code.
+  # The push group includes github.ref so that the branch push and tag push of
+  # the same release commit (same sha) don't share a group -- otherwise the
+  # skipped branch run could cancel the production tag run.
+  group: ${{ github.event_name == 'pull_request' && format('{0}-pr-{1}', github.workflow, github.ref_name) || format('{0}-{1}-{2}', github.workflow, github.ref, github.sha) }}
+  cancel-in-progress: true
+
+env:
+  NAPI_CLI_VERSION: 2.18.4
+  TURBO_VERSION: 2.9.4
+  # --env-mode loose is a breaking change required with turbo 2.x since Strict mode is now the default
+  # TODO: we should add the relevant envs later to to switch to strict mode
+  TURBO_ARGS: '-v --env-mode loose --remote-cache-timeout 90 --summarize --log-order stream'
+  TURBO_TEAM: 'vtest314-next-adapter-e2e-tests'
+  # Prefer shared remote cache across runs, but keep local cache enabled so jobs
+  # degrade gracefully if the remote cache or token is unavailable.
+  TURBO_CACHE: 'local:rw,remote:rw'
+  TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+  # Without this environment variable, rust-lld will fail because some dependencies defaults to newer version of macOS by default.
+  #
+  # See https://doc.rust-lang.org/rustc/platform-support/apple-darwin.html#os-version for more details
+  MACOSX_DEPLOYMENT_TARGET: 11.0
+  # Run GitHub Actions JS with Node.js 24 to avoid deprecation warnings
+  # (needed until actions/checkout, actions/setup-node, etc. all default to node24)
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  deploy-target:
+    runs-on: ubuntu-latest
+    # Don't trigger this job on `pull_request` events from upstream branches.
+    # Those would already run this job on the `push` event
+    if: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.fork }}
+    outputs:
+      value: ${{ steps.deploy-target.outputs.value }}
+      release_environment: ${{ steps.deploy-target.outputs.release_environment }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+      - run: echo "${{ github.event.after }}"
+      - name: Setup node
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version-file: .node-version
+          check-latest: true
+          package-manager-cache: false
+      - name: Setup corepack
+        run: |
+          npm i -g corepack@0.31
+          corepack enable
+      - name: Determine deploy target
+        # 'force-preview' performs a full preview build but only if acknowledged i.e. workflow_dispatch
+        # 'automated-preview' for pushes on branches other than 'canary' for integration testing.
+        # 'staging' for canary branch since that will eventually be published i.e. become the production build.
+        id: deploy-target
+        run: |
+          RELEASE_VERSION="$(node ./scripts/check-is-release.js 2> /dev/null || :)"
+          RELEASE_ENVIRONMENT=""
+
+          if [[ "$RELEASE_VERSION" == v* ]];
+          then
+            if [[ "$GIT_REF" != refs/tags/* ]];
+            then
+              # The release commit reached a branch (e.g. its push to canary).
+              # Publishing is driven by the tag push for that same commit, so
+              # skip here to avoid a duplicate production build on the same sha.
+              echo "value=skipped" >> $GITHUB_OUTPUT
+            else
+              echo "value=production" >> $GITHUB_OUTPUT
+              if [[ "$RELEASE_VERSION" == *-canary.* ]];
+              then
+                RELEASE_ENVIRONMENT="release-canary"
+              elif [[ "$RELEASE_VERSION" == *-beta.* ]];
+              then
+                RELEASE_ENVIRONMENT="release-beta"
+              elif [[ "$RELEASE_VERSION" == *-rc.* ]];
+              then
+                RELEASE_ENVIRONMENT="release-release-candidate"
+              elif [[ "$RELEASE_VERSION" == *-preview.* ]];
+              then
+                RELEASE_ENVIRONMENT="release-preview"
+              elif [[ "$RELEASE_VERSION" != *-* ]];
+              then
+                RELEASE_ENVIRONMENT="release-stable"
+              fi
+              if [[ -z "$RELEASE_ENVIRONMENT" ]];
+              then
+                echo "::error::Missing release environment for $RELEASE_VERSION"
+                exit 1
+              fi
+              echo "release_environment=$RELEASE_ENVIRONMENT" >> $GITHUB_OUTPUT
+            fi
+          elif [ ''"${GIT_REF}"'' == 'refs/heads/canary' ]
+          then
+            echo "value=staging" >> $GITHUB_OUTPUT
+          elif [ '${{ github.event_name }}' == 'workflow_dispatch' ]
+          then
+            echo "value=force-preview" >> $GITHUB_OUTPUT
+          elif [[ $(node scripts/run-for-change.mjs --not --type docs --exec echo 'false') != 'false' ]];
+          then
+            echo "value=skipped" >> $GITHUB_OUTPUT
+          else
+            echo "value=automated-preview" >> $GITHUB_OUTPUT
+          fi
+        env:
+          GIT_REF: ${{ github.ref }}
+      - name: Print deploy plan
+        run: |
+          echo "Deploy target is '${{ steps.deploy-target.outputs.value }}'"
+          echo "Release environment is '${{ steps.deploy-target.outputs.release_environment }}'"
+
+  build:
+    if: ${{ needs.deploy-target.outputs.value != 'skipped' }}
+    needs:
+      - deploy-target
+    runs-on: ubuntu-latest
+    env:
+      NEXT_TELEMETRY_DISABLED: 1
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 25
+          persist-credentials: false
+
+      - name: Setup node
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version-file: .node-version
+          check-latest: true
+          package-manager-cache: false
+      - name: Setup corepack
+        run: |
+          npm i -g corepack@0.31
+          corepack enable
+
+      - id: get-store-path
+        run: echo STORE_PATH=$(pnpm store path) >> $GITHUB_OUTPUT
+
+      - uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        timeout-minutes: 5
+        id: cache-pnpm-store
+        with:
+          path: ${{ steps.get-store-path.outputs.STORE_PATH }}
+          key: pnpm-store-root-v1-${{ hashFiles('pnpm-lock.yaml') }}
+          # Do not use restore-keys since it leads to indefinite growth of the cache.
+
+      - run: pnpm install
+
+      - name: Set preview version
+        if: ${{ contains(fromJSON('["automated-preview", "force-preview", "staging"]'), needs.deploy-target.outputs.value) }}
+        run: |
+          node scripts/set-preview-version.js "${{ github.sha }}"
+          pnpm install --no-frozen-lockfile
+
+      - run: pnpm run build
+
+      - uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        timeout-minutes: 5
+        id: cache-build
+        with:
+          path: ./*
+          key: build-and-deploy-${{ github.sha }}-${{ github.run_number }}-${{ github.run_attempt}}
+
+  # Generate the build matrix for native binaries.
+  # For automated-preview, only build linux/x86_64/gnu (the target we run automated tests against).
+  generate-native-matrix:
+    if: ${{ needs.deploy-target.outputs.value != 'skipped' }}
+    needs:
+      - deploy-target
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.matrix.outputs.matrix }}
+    steps:
+      - uses: mmastrac/mmm-matrix@3edd85c30addba11887c770740309c979a446aa9 # v1
+        id: matrix
+        with:
+          config: |
+            deployTarget: ${{ needs.deploy-target.outputs.value }}
+          input: |
+            $if: "config.deployTarget != 'automated-preview' || (this.target == 'x86_64-unknown-linux-gnu')"
+            target:
+              $dynamic: "`${this.arch}-${this.vendor}-${this.sys}${this.abi ? '-' + this.abi : ''}`"
+            build_task: build-native-release
+            os:
+              mac:
+                host: "['macos-15']"
+                vendor: apple
+                sys: darwin
+                arch: [x86_64, aarch64]
+              windows:
+                host: "['windows-latest-8-core-oss']"
+                vendor: pc
+                sys: windows
+                abi: msvc
+                arch:
+                  x86_64: {}
+                  aarch64: {}
+              linux:
+                host: "['ubuntu-latest-16-core-oss']"
+                docker: next-swc-builder:latest
+                vendor: unknown
+                sys: linux
+                abi:
+                  gnu:
+                    arch: [x86_64, aarch64]
+                  musl:
+                    arch: [x86_64, aarch64]
+
+  # Build binaries for publishing
+  build-native:
+    if: ${{ needs.deploy-target.outputs.value != 'skipped' }}
+    needs:
+      - deploy-target
+      - generate-native-matrix
+    defaults:
+      run:
+        shell: bash -leo pipefail {0}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(needs.generate-native-matrix.outputs.matrix) }}
+
+    name: stable - ${{ matrix.target }} - node@20
+    runs-on: ${{ fromJSON(matrix.host) }}
+    timeout-minutes: 45
+    env:
+      # Disable all build caches for production/staging/force-preview deploys
+      NEXT_SKIP_BUILD_CACHE: ${{ contains(fromJSON('["production","staging","force-preview"]'), needs.deploy-target.outputs.value) && '1' || '' }}
+    steps:
+      # Enable long paths on Windows to avoid MAX_PATH (260 char) errors
+      # with deeply nested node_modules/.pnpm paths
+      - name: Enable git long paths
+        if: ${{ matrix.os == 'windows' }}
+        run: git config --system core.longpaths true
+
+      # we use checkout here instead of the build cache since
+      # it can fail to restore in different OS'
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          # crates/next-napi-bindings/build.rs uses git-describe to find the most recent git tag. It's okay if
+          # this fails, but fetch with enough depth that we're likely to find a recent tag.
+          fetch-depth: 100
+          persist-credentials: false
+
+      - name: Setup node
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        if: ${{ !matrix.docker }}
+        with:
+          node-version-file: .node-version
+          check-latest: true
+          package-manager-cache: false
+
+      - name: Prepare corepack
+        if: ${{ matrix.os != 'windows' }}
+        run: npm i -g corepack@0.31
+
+      - name: Setup corepack
+        run: corepack enable
+
+      # we always want to run this to set environment variables
+      # (skip for docker builds - rust is already in the image)
+      - name: Install Rust
+        if: ${{ !matrix.docker }}
+        uses: ./.github/actions/setup-rust
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: normalize versions
+        run: node scripts/normalize-version-bump.js
+
+      # Try to restore the native binary BEFORE loading the Docker image.
+      # If the binary cache hits, we skip the expensive Docker image restore entirely.
+      - name: Rust fingerprint
+        if: ${{ matrix.docker && !env.NEXT_SKIP_BUILD_CACHE }}
+        id: rust-fingerprint
+        run: |
+          pnpm dlx turbo@${TURBO_VERSION} run rust-fingerprint ${TURBO_ARGS}
+          echo "hash=$(cat target/.rust-fingerprint)" >> "$GITHUB_OUTPUT"
+
+      - name: Restore native binary cache
+        if: ${{ matrix.docker && !env.NEXT_SKIP_BUILD_CACHE }}
+        id: native-cache
+        uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: packages/next-swc/native
+          key: build-and-deploy-native-cache-${{ matrix.target }}-${{ steps.rust-fingerprint.outputs.hash }}
+
+      # This is a simplified version of
+      # https://github.com/crazy-max/ghaction-github-runtime
+      # These environment variables are only exposed to node.js actions, but
+      # `docker buildx` needs them to use the GHA cache.
+      - name: Expose Actions cache to buildx
+        if: ${{ matrix.docker && steps.native-cache.outputs.cache-hit != 'true' && !env.NEXT_SKIP_BUILD_CACHE }}
+        uses: actions/github-script@d746ffe35508b1917358783b479e04febd2b8f71 # v9.0.0
+        with:
+          script: |
+            const names = [
+              'ACTIONS_RUNTIME_TOKEN',
+              'ACTIONS_RESULTS_URL',
+              'ACTIONS_CACHE_URL',
+              'ACTIONS_CACHE_SERVICE_V2',
+            ]
+            for (const name of names) {
+              core.exportVariable(name, process.env[name] || '')
+            }
+
+      - name: Build Docker builder image
+        if: ${{ matrix.docker && steps.native-cache.outputs.cache-hit != 'true' }}
+        env:
+          IMAGE_NAME: ${{ matrix.docker }}
+        run: |
+          docker buildx create --use --name next-swc-builder-buildx
+
+          # Minimal context: the Dockerfile only COPYs rust-toolchain.toml.
+          CTX_DIR="$(mktemp -d)"
+          cp rust-toolchain.toml "$CTX_DIR/"
+
+          CACHE_ARGS=()
+          if [ -z "${NEXT_SKIP_BUILD_CACHE:-}" ]; then
+            SCOPE="build-and-deploy-docker-image-${RUNNER_ARCH}"
+            CACHE_ARGS=(
+              --cache-from="type=gha,scope=$SCOPE"
+              --cache-to="type=gha,scope=$SCOPE"
+            )
+          fi
+
+          # --load imports the image into the local Docker store so the
+          # `docker run` step finds it.
+          docker buildx build \
+            --load \
+            --provenance=false \
+            -t "$IMAGE_NAME" \
+            -f scripts/native-builder.Dockerfile \
+            "${CACHE_ARGS[@]}" \
+            "$CTX_DIR"
+
+          rm -rf "$CTX_DIR"
+
+      - name: Build in docker
+        if: ${{ matrix.docker && steps.native-cache.outputs.cache-hit != 'true' }}
+        env:
+          IMAGE_NAME: ${{ matrix.docker }}
+          TARGET: ${{ matrix.target }}
+          ABI: ${{ matrix.abi }}
+          ARCH: ${{ matrix.arch }}
+          BUILD_TASK: ${{ matrix.build_task }}
+          WORKSPACE: ${{ github.workspace }}
+          CARGO_HOME_DIR: ${{ env.HOME }}/.cargo
+        run: |
+          set -euo pipefail
+          # Forward the Turbo remote-cache env into the container unless this is a
+          # cache-skipping deploy. Same gating as the image build step above.
+          TURBO_ENV_ARGS=()
+          if [ -z "${NEXT_SKIP_BUILD_CACHE:-}" ]; then
+            TURBO_ENV_ARGS=(
+              -e TURBO_API
+              -e TURBO_TEAM
+              -e TURBO_TOKEN
+              -e TURBO_VERSION
+              -e TURBO_CACHE=local:rw,remote:rw
+            )
+          fi
+          docker run --rm \
+            -e CI -e RUST_BACKTRACE -e CARGO_TERM_COLOR \
+            -e CARGO_INCREMENTAL=0 -e CARGO_REGISTRIES_CRATES_IO_PROTOCOL \
+            "${TURBO_ENV_ARGS[@]}" \
+            -e TARGET="$TARGET" \
+            -e ABI="$ABI" \
+            -e ARCH="$ARCH" \
+            -e BUILD_TASK="$BUILD_TASK" \
+            -v "$CARGO_HOME_DIR/git:/root/.cargo/git" \
+            -v "$CARGO_HOME_DIR/registry:/root/.cargo/registry" \
+            -v "$WORKSPACE:/build" \
+            -w /build \
+            --entrypoint bash \
+            "$IMAGE_NAME" \
+            -xeo pipefail scripts/docker-native-build.sh
+
+      - name: Save native binary cache
+        if: ${{ matrix.docker && steps.native-cache.outputs.cache-hit != 'true' && !env.NEXT_SKIP_BUILD_CACHE }}
+        uses: actions/cache/save@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: packages/next-swc/native
+          key: build-and-deploy-native-cache-${{ matrix.target }}-${{ steps.rust-fingerprint.outputs.hash }}
+
+      - name: 'Build'
+        if: ${{ !matrix.docker }}
+        run: |
+          echo "Host arch: $(uname -m)"
+          echo "Node arch: $(node -e 'console.log(process.arch)')"
+          echo "Node binary: $(file $(which node))"
+          echo "Rustc binary: $(file $(which rustc) || echo 'not found')"
+          rustc --version --verbose || true
+          node -v
+          npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}"
+          TURBO_CACHE_FLAG="${NEXT_SKIP_BUILD_CACHE:+--force}"
+          pnpm dlx turbo@${TURBO_VERSION} run ${{ matrix.build_task }} ${TURBO_ARGS} ${TURBO_CACHE_FLAG} -- --target ${{ matrix.target }}
+          if [ "${{ matrix.os }}" != "windows" ]; then
+            strip -x packages/next-swc/native/next-swc.*.node
+          fi
+
+      - name: 'check build cache status'
+        id: check-did-build
+        run: if [[ ! -z $(ls packages/next-swc/native) ]]; then echo "DID_BUILD=true" >> $GITHUB_OUTPUT; fi
+
+      - name: 'Report binary size'
+        if: ${{ steps.check-did-build.outputs.DID_BUILD == 'true' }}
+        run: |
+          shopt -s nullglob
+          for f in packages/next-swc/native/next-swc.*.node; do
+            FILE="$f" node -e "const s=require('fs').statSync(process.env.FILE).size; console.log('::notice title=${{ matrix.target }} binary size::' + (s/1024/1024).toFixed(1) + ' MB (' + s + ' bytes)')"
+          done
+
+      # Try to upload metrics for Turbopack to datadog's CI pipeline execution
+      - name: 'Collect turbopack build metrics'
+        id: check-turbopack-bytesize
+        if: ${{ steps.check-did-build.outputs.DID_BUILD == 'true' }}
+        continue-on-error: true
+        run: |
+          mkdir -p ./turbopack-bin-size
+          shopt -s nullglob
+          for filename in packages/next-swc/native/next-swc.*.node; do
+            # Strip out filename to extract target triple
+            export FILENAME=$(basename ${filename})
+            export FILENAME=${FILENAME#*.}
+            export FILENAME=${FILENAME%.node}
+            export BYTESIZE=$(wc -c < $filename | xargs)
+            echo "Reporting $FILENAME:$BYTESIZE for Turbopack bytesize"
+            echo "turbopack.bytesize.$FILENAME:$BYTESIZE" > ./turbopack-bin-size/${{ matrix.target }}
+          done
+
+      - name: Upload turbopack bytesize artifact
+        if: ${{ steps.check-did-build.outputs.DID_BUILD == 'true' }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: turbopack-bytesize-${{ matrix.target }}
+          path: turbopack-bin-size/*
+
+      - name: Upload swc artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: next-swc-binaries-${{ matrix.target }}
+          path: packages/next-swc/native/next-swc.*.node
+
+      - name: Upload turbo summary artifact
+        if: ${{ !matrix.docker }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: turbo-run-summary-${{ matrix.target }}
+          path: .turbo/runs
+
+  build-wasm:
+    if: ${{ needs.deploy-target.outputs.value != 'skipped' }}
+    needs:
+      - deploy-target
+    strategy:
+      matrix:
+        target: [web, nodejs]
+
+    runs-on: ubuntu-latest-16-core-oss
+
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Setup node
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version-file: .node-version
+          check-latest: true
+          package-manager-cache: false
+      - run: corepack enable
+
+      - name: Install Rust
+        uses: ./.github/actions/setup-rust
+        with:
+          targets: wasm32-unknown-unknown
+
+      - name: Install wasm-pack
+        run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
+
+      - name: normalize versions
+        run: node scripts/normalize-version-bump.js
+
+      - name: Build
+        run: pnpm dlx turbo@${TURBO_VERSION} run build-wasm ${TURBO_ARGS} -- --target ${{ matrix.target }}
+
+      - name: Add target to folder name
+        run: '[[ -d "crates/wasm/pkg" ]] && mv crates/wasm/pkg crates/wasm/pkg-${{ matrix.target }} || ls crates/wasm'
+
+      - name: Upload turbo summary artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: turbo-run-summary-wasm-${{matrix.target}}
+          path: .turbo/runs
+
+      - name: Upload swc artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: wasm-binaries-${{matrix.target}}
+          path: crates/wasm/pkg-*
+
+  deploy-tarball:
+    if: ${{ needs.deploy-target.outputs.value != 'production' }}
+    name: Prepare preview tarball
+    runs-on: ubuntu-latest
+    needs:
+      - deploy-target
+      - build
+      - build-wasm
+      - build-native
+    steps:
+      # https://github.com/actions/virtual-environments/issues/1187
+      - name: tune linux network
+        run: sudo ethtool -K eth0 tx off rx off
+
+      - uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        timeout-minutes: 5
+        id: restore-build
+        with:
+          path: ./*
+          # Cache includes repo checkout which is required for later scripts
+          fail-on-cache-miss: true
+          key: build-and-deploy-${{ github.sha }}-${{ github.run_number }}-${{ github.run_attempt }}
+          restore-keys: |
+            build-and-deploy-${{ github.sha }}-${{ github.run_number }}
+            build-and-deploy-${{ github.sha }}-${{ github.run_number }}-${{ github.run_attempt}}
+
+      - name: Setup node
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version-file: .node-version
+          check-latest: true
+          package-manager-cache: false
+      - name: Setup corepack
+        run: |
+          npm i -g corepack@0.31
+          corepack enable
+
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          pattern: next-swc-binaries-*
+          merge-multiple: true
+          path: packages/next-swc/native
+
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          pattern: wasm-binaries-*
+          merge-multiple: true
+          path: crates/wasm
+
+      - name: Create tarballs
+        # github.event.after is available on push and pull_request#synchronize events.
+        # For workflow_dispatch events, github.sha is the head commit.
+        run: node scripts/create-preview-tarballs.js "${{ github.event.after || github.sha }}" "${{ runner.temp }}/preview-tarballs" "${{ vars.PREVIEW_BUILDS_BASE_URL }}"
+
+      - name: Persist tarballs
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          # Used by file://./upload_preview_tarballs.yml
+          name: preview-tarballs
+          path: ${{ runner.temp }}/preview-tarballs/*
+
+  publishRelease:
+    if: ${{ needs.deploy-target.outputs.value == 'production' }}
+    name: Potentially publish release
+    runs-on: ubuntu-latest
+    environment: ${{ needs.deploy-target.outputs.release_environment }}
+    needs:
+      - deploy-target
+      - build
+      - build-wasm
+      - build-native
+    permissions:
+      contents: write
+      id-token: write
+    steps:
+      - name: Setup node
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: 24
+          check-latest: true
+          registry-url: 'https://registry.npmjs.org'
+          package-manager-cache: false
+      - name: Setup corepack
+        run: |
+          npm i -g corepack@0.31
+          corepack enable
+
+      # https://github.com/actions/virtual-environments/issues/1187
+      - name: tune linux network
+        run: sudo ethtool -K eth0 tx off rx off
+
+      - uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        timeout-minutes: 5
+        id: restore-build
+        with:
+          path: ./*
+          # Cache includes repo checkout which is required for later scripts
+          fail-on-cache-miss: true
+          key: build-and-deploy-${{ github.sha }}-${{ github.run_number }}-${{ github.run_attempt }}
+          restore-keys: |
+            build-and-deploy-${{ github.sha }}-${{ github.run_number }}
+            build-and-deploy-${{ github.sha }}-${{ github.run_number }}-${{ github.run_attempt}}
+
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          pattern: next-swc-binaries-*
+          merge-multiple: true
+          path: packages/next-swc/native
+
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          pattern: wasm-binaries-*
+          merge-multiple: true
+          path: crates/wasm
+
+      - name: Create GitHub App token
+        id: release-app-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          client-id: ${{ vars.RELEASE_GITHUB_APP_CLIENT_ID }}
+          private-key: ${{ secrets.RELEASE_GITHUB_APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: next.js
+          permission-contents: write
+
+      - run: ./scripts/publish-release.js
+        env:
+          RELEASE_GITHUB_TOKEN: ${{ steps.release-app-token.outputs.token }}
+          BAIL_ON_NATIVE_WASM_PUBLISH_FAILURE: ${{ vars.BAIL_ON_NATIVE_WASM_PUBLISH_FAILURE }}
+
+      - name: Upload pnpm publish summary
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: pnpm-publish-summary
+          path: pnpm-publish-summary.json
+          if-no-files-found: ignore
+
+  buildPassed:
+    needs: ['deploy-target', 'build', 'build-wasm', 'build-native']
+    if: ${{ always() && needs.deploy-target.outputs.value != '' }}
+    # Coupled with retry logic in retry_test.yml
+    name: thank you, build
+    runs-on: ubuntu-latest
+    steps:
+      - run: exit 1
+        if: ${{ always() && (contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')) }}
+
+  upload_turbopack_bytesize:
+    if: ${{ needs.deploy-target.outputs.value != 'automated-preview'}}
+    name: Upload Turbopack Bytesize metrics to Datadog
+    runs-on: ubuntu-latest
+    needs: [build-native, deploy-target]
+    env:
+      DATADOG_API_KEY: ${{ secrets.DATA_DOG_API_KEY }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          sparse-checkout: |
+            .github
+          persist-credentials: false
+
+      - name: Collect bytesize metrics
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          pattern: turbopack-bytesize-*
+          merge-multiple: true
+          path: turbopack-bin-size
+
+      - name: Install datadog-ci
+        if: ${{ env.DATADOG_API_KEY != '' }}
+        uses: ./.github/actions/setup-datadog-ci
+
+      - name: Upload to Datadog
+        if: ${{ env.DATADOG_API_KEY != '' }}
+        run: |
+          ls -al turbopack-bin-size
+
+          for filename in turbopack-bin-size/*; do
+            export BYTESIZE+=" --measures $(cat $filename)"
+          done
+
+          echo "Reporting $BYTESIZE"
+
+          "$DATADOG_CI_PATH" measure --no-fail --level pipeline $BYTESIZE

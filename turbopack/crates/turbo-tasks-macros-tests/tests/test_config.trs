@@ -1,0 +1,13 @@
+|_name, _initial| {
+  turbo_tasks::TurboTasks::new(
+    turbo_tasks_backend::TurboTasksBackend::new(
+      turbo_tasks_backend::BackendOptions {
+        num_workers: Some(2),
+        small_preallocation: true,
+        storage_mode: Some(turbo_tasks_backend::StorageMode::ReadWriteOnShutdown),
+        ..Default::default()
+      },
+      turbo_tasks_backend::noop_backing_storage(),
+    )
+  )
+}

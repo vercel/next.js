@@ -1,0 +1,27 @@
+{
+  "ban-element-innerhtml-assignments": [
+    "packages/next/src/client/head-manager.ts",
+    "packages/next/src/client/script.tsx",
+    "packages/next/src/client/dev/dev-build-watcher.ts",
+    "packages/next/src/client/app-bootstrap.ts",
+    "packages/next/src/client/components/prerender-indicator.ts"
+  ],
+  "ban-element-setattribute": [
+    "packages/next/src/client/head-manager.ts",
+    "packages/next/src/client/script.tsx",
+    "packages/next/src/client/set-attributes-from-props.ts",
+    "packages/next/src/build/webpack/loaders/next-style-loader/runtime/injectStylesIntoLinkTag.ts",
+    "packages/next/src/build/webpack/loaders/next-style-loader/runtime/injectStylesIntoStyleTag.ts",
+    "packages/next/src/client/app-bootstrap.ts",
+    "packages/next/src/client/components/errors/graceful-degrade-boundary.tsx"
+  ],
+  "ban-script-appendchild-calls": [
+    "packages/next/src/next-devtools/dev-overlay.browser.tsx"
+  ],
+  "ban-script-content-assignments": ["packages/next/src/client/script.tsx"],
+  "ban-script-src-assignments": [
+    "packages/next/src/client/script.tsx",
+    "packages/next/src/client/app-bootstrap.ts"
+  ],
+  "ban-trustedtypes-createpolicy": ["packages/next/src/client/trusted-types.ts"]
+}

@@ -1,0 +1,9 @@
+a (const after eval) = (...) => undefined
+
+b (const after eval) = (...) => undefined
+
+c (const after eval) = (...) => undefined
+
+x = (1 | `${y}.js`)
+
+y = ("hello" | "world")

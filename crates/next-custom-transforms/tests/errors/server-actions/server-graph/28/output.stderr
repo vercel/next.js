@@ -1,0 +1,38 @@
+  x Did you mean "use cache: remote"? "use cache:remote" is not a supported directive name."
+  | 
+   ,-[input.js:1:1]
+ 1 | 'use cache:remote'
+   : ^^^^^^^^^^^^^^^^^^
+   `----
+  x Did you mean "use cache: default"? "use cache : default" is not a supported directive name."
+  | 
+   ,-[input.js:8:1]
+ 7 | export async function bar() {
+ 8 |   'use cache : default'
+   :   ^^^^^^^^^^^^^^^^^^^^^
+ 9 |   return 'data'
+   `----
+  x Did you mean "use cache: private"? "use cache private" is not a supported directive name."
+  | 
+    ,-[input.js:13:1]
+ 12 | export async function baz() {
+ 13 |   'use cache private'
+    :   ^^^^^^^^^^^^^^^^^^^
+ 14 |   return 'data'
+    `----
+  x Did you mean "use cache"? "use cache " is not a supported directive name."
+  | 
+    ,-[input.js:18:1]
+ 17 | export async function qux() {
+ 18 |   'use cache '
+    :   ^^^^^^^^^^^^
+ 19 |   return 'data'
+    `----
+  x Did you mean "use cache: <cache-kind>"? "use cache: " is not a supported directive name."
+  | 
+    ,-[input.js:23:1]
+ 22 | export async function quux() {
+ 23 |   'use cache: '
+    :   ^^^^^^^^^^^^^
+ 24 |   return 'data'
+    `----

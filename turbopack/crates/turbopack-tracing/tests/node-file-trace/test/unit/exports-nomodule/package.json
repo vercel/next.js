@@ -1,0 +1,12 @@
+{
+  "name": "x",
+  "type": "module",
+  "exports": {
+    ".": {
+      "module": "./no.js",
+      "default": {
+        "node": "./node.js"
+      }
+    }
+  }
+}

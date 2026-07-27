@@ -1,0 +1,305 @@
+import { cacheLife } from 'next/cache'
+import { DebugLinks } from '../shared'
+import { Instant } from 'next'
+
+// Skip repeatedly running instant validation on index pages during tests
+export const instant: Instant = {
+  unstable_disableValidation: true,
+}
+
+export default async function Page() {
+  'use cache'
+  cacheLife('minutes')
+  return (
+    <main>
+      <h2>Runtime</h2>
+      <ul>
+        <li>
+          <DebugLinks href="/suspense-in-root/runtime/suspense-around-dynamic" />
+        </li>
+        <li>
+          <DebugLinks href="/suspense-in-root/runtime/invalid-no-suspense-around-params/123" />
+        </li>
+        <li>
+          <DebugLinks href="/suspense-in-root/runtime/invalid-no-suspense-around-search-params?foo=bar" />
+        </li>
+        <li>
+          <DebugLinks href="/suspense-in-root/runtime/missing-suspense-around-dynamic" />
+        </li>
+        <li>
+          <DebugLinks href="/suspense-in-root/runtime/missing-suspense-around-dynamic-layout" />
+        </li>
+        <li>
+          <DebugLinks href="/suspense-in-root/runtime/suspense-too-high" />
+        </li>
+        <li>
+          <DebugLinks href="/suspense-in-root/static/invalid-blocking-inside-static" />
+        </li>
+        <li>
+          <DebugLinks href="/suspense-in-root/runtime/invalid-blocking-inside-runtime" />
+        </li>
+        <li>
+          <DebugLinks href="/suspense-in-root/runtime/valid-blocking-inside-runtime" />
+        </li>
+        <li>
+          <DebugLinks href="/suspense-in-root/runtime/static-layout-above-runtime-config/inner" />
+        </li>
+      </ul>
+
+      <h2>Sync IO</h2>
+      <ul>
+        <li>
+          <DebugLinks href="/suspense-in-root/sync-io/sync-io-after-cookies" />
+        </li>
+        <li>
+          <DebugLinks href="/suspense-in-root/sync-io/sync-io-after-cookies-in-generate-metadata" />
+        </li>
+        <li>
+          <DebugLinks href="/suspense-in-root/sync-io/sync-io-after-cache-with-cookie-input" />
+        </li>
+        <li>
+          <DebugLinks href="/suspense-in-root/sync-io/sync-io-after-io" />
+        </li>
+      </ul>
+
+      <h2>Static</h2>
+      <ul>
+        <li>
+          <DebugLinks href="/suspense-in-root/static/suspense-around-dynamic" />
+        </li>
+        <li>
+          <DebugLinks href="/suspense-in-root/static/missing-suspense-around-dynamic" />
+        </li>
+        <li>
+          <DebugLinks href="/suspense-in-root/static/missing-suspense-around-params/123" />
+        </li>
+        <li>
+          <DebugLinks href="/suspense-in-root/static/missing-suspense-around-search-params?foo=bar" />
+        </li>
+        <li>
+          <DebugLinks href="/suspense-in-root/static/missing-suspense-around-dynamic-layout" />
+        </li>
+        <li>
+          <DebugLinks href="/suspense-in-root/static/suspense-too-high" />
+        </li>
+        <li>
+          <DebugLinks href="/suspense-in-root/static/blocking-layout" />
+        </li>
+        <li>
+          <DebugLinks href="/suspense-in-root/static/blocking-layout/missing-suspense-around-dynamic" />
+        </li>
+        <li>
+          <DebugLinks href="/suspense-in-root/static/valid-only-loading-around-dynamic" />
+        </li>
+        <li>
+          <DebugLinks href="/suspense-in-root/static/invalid-loading-above-route-group" />
+        </li>
+        <li>
+          <DebugLinks href="/suspense-in-root/static/invalid-dynamic-layout-with-loading" />
+        </li>
+        <li>
+          <DebugLinks href="/suspense-in-root/static/missing-suspense-around-runtime" />
+        </li>
+        <li>
+          <DebugLinks href="/suspense-in-root/static/missing-suspense-in-parallel-route" />
+        </li>
+        <li>
+          <DebugLinks href="/suspense-in-root/static/missing-suspense-in-parallel-route/foo" />
+        </li>
+        <li>
+          <DebugLinks href="/suspense-in-root/static/missing-suspense-in-parallel-route/bar" />
+        </li>
+        <li>
+          <DebugLinks href="/suspense-in-root/static/invalid-client-data-blocks-validation" />
+        </li>
+        <li>
+          <DebugLinks href="/suspense-in-root/static/valid-client-api-in-parent/sync-io" />
+        </li>
+        <li>
+          <DebugLinks href="/suspense-in-root/static/valid-client-api-in-parent/dynamic-params/123" />
+        </li>
+        <li>
+          <DebugLinks href="/suspense-in-root/static/valid-client-api-in-parent/search-params" />
+        </li>
+        <li>
+          <DebugLinks href="/suspense-in-root/static/valid-client-params/123" />
+        </li>
+        <li>
+          <DebugLinks href="/suspense-in-root/static/valid-client-search-params?query=foo" />
+        </li>
+        <li>
+          <DebugLinks href="/suspense-in-root/static/valid-client-data-does-not-block-validation" />
+        </li>
+        <li>
+          <DebugLinks href="/suspense-in-root/static/invalid-client-error-in-parent-blocks-children" />
+        </li>
+        <li>
+          <DebugLinks href="/suspense-in-root/static/invalid-csr-bailout-blocks-children" />
+        </li>
+        <li>
+          <DebugLinks href="/suspense-in-root/static/invalid-error-in-node-modules-blocks-children" />
+        </li>
+        <li>
+          <DebugLinks href="/suspense-in-root/static/invalid-client-error-in-parent-sibling" />
+        </li>
+        <li>
+          <DebugLinks href="/suspense-in-root/static/valid-client-error-in-parent-does-not-block-validation" />
+        </li>
+        <li>
+          <DebugLinks href="/suspense-in-root/static/server-error-blocks-children" />
+        </li>
+        <li>
+          <DebugLinks href="/suspense-in-root/static/server-error-inside-boundary" />
+        </li>
+        <li>
+          <DebugLinks href="/suspense-in-root/static/false-below-static" />
+        </li>
+        <li>
+          <DebugLinks href="/suspense-in-root/parallel/slot-config-only" />
+        </li>
+        <li>
+          <DebugLinks href="/suspense-in-root/parallel/slot-layout-config" />
+        </li>
+        <li>
+          <DebugLinks href="/suspense-in-root/parallel/slot-runtime-config" />
+        </li>
+        <li>
+          <DebugLinks href="/suspense-in-root/parallel/children-config-with-slot" />
+        </li>
+        <li>
+          <DebugLinks href="/suspense-in-root/parallel/fork-layout-config-with-slot" />
+        </li>
+        <li>
+          <DebugLinks href="/suspense-in-root/parallel/both-configs" />
+        </li>
+        <li>
+          <DebugLinks href="/suspense-in-root/parallel/slot-config-children-suspended" />
+        </li>
+        <li>
+          <DebugLinks href="/suspense-in-root/parallel/conditional-breadcrumbs/show-both/unblocked" />
+        </li>
+        <li>
+          <DebugLinks href="/suspense-in-root/parallel/conditional-breadcrumbs/show-both/blocked" />
+        </li>
+        <li>
+          <DebugLinks href="/suspense-in-root/parallel/conditional-breadcrumbs/show-only-children/unblocked" />
+        </li>
+        <li>
+          <DebugLinks href="/suspense-in-root/parallel/conditional-breadcrumbs/show-only-children/blocked" />
+        </li>
+        <li>
+          <DebugLinks href="/suspense-in-root/parallel/conditional-breadcrumbs/show-only-breadcrumbs/unblocked" />
+        </li>
+        <li>
+          <DebugLinks href="/suspense-in-root/parallel/conditional-breadcrumbs/show-only-breadcrumbs/blocked" />
+        </li>
+      </ul>
+
+      <h2>Head</h2>
+      <ul>
+        <li>
+          <DebugLinks href="/suspense-in-root/head/valid-dynamic-metadata-in-runtime" />
+        </li>
+        <li>
+          <DebugLinks href="/suspense-in-root/head/valid-runtime-metadata-in-static" />
+        </li>
+        <li>
+          <DebugLinks href="/suspense-in-root/head/valid-runtime-viewport-in-runtime" />
+        </li>
+        <li>
+          <DebugLinks href="/suspense-in-root/head/valid-dynamic-viewport-in-blocking" />
+        </li>
+        <li>
+          <DebugLinks href="/suspense-in-root/head/invalid-dynamic-viewport-in-blocking-inside-static" />
+        </li>
+        <li>
+          <DebugLinks href="/suspense-in-root/head/invalid-dynamic-viewport-in-runtime" />
+        </li>
+        <li>
+          <DebugLinks href="/suspense-in-root/head/invalid-runtime-viewport-in-static" />
+        </li>
+      </ul>
+
+      <h2>Route Groups</h2>
+      <ul>
+        <li>
+          <DebugLinks href="/suspense-in-root/static/route-group-config-only" />
+        </li>
+        <li>
+          <DebugLinks href="/suspense-in-root/static/route-group-config-and-segment-config" />
+        </li>
+        <li>
+          <DebugLinks href="/suspense-in-root/static/route-group-segment-config-only" />
+        </li>
+        <li>
+          <DebugLinks href="/suspense-in-root/static/route-group-config-with-deeper-segment/inner" />
+        </li>
+        <li>
+          <DebugLinks href="/suspense-in-root/static/route-group-deeper-segment-config/inner" />
+        </li>
+        <li>
+          <DebugLinks href="/suspense-in-root/static/route-group-shared-boundary" />
+        </li>
+        <li>
+          <DebugLinks href="/suspense-in-root/static/parallel-group-depths-deep-slot-hole" />
+        </li>
+        <li>
+          <DebugLinks href="/suspense-in-root/static/parallel-group-depths-shallow-slot-hole" />
+        </li>
+        <li>
+          <DebugLinks href="/suspense-in-root/static/parallel-nested-forks" />
+        </li>
+        <li>
+          <DebugLinks href="/suspense-in-root/static/route-group-shared-boundary/foo" />
+        </li>
+        <li>
+          <DebugLinks href="/suspense-in-root/static/config-depth-preference/deeper/still/deep" />
+        </li>
+        <li>
+          <DebugLinks href="/suspense-in-root/static/config-depth-preference-slot-wins/deeper/still/deep" />
+        </li>
+        <li>
+          <DebugLinks href="/suspense-in-root/static/config-children-preferred" />
+        </li>
+        <li>
+          <DebugLinks href="/suspense-in-root/static/cross-slot-blocking/inner/deep" />
+        </li>
+        <li>
+          <DebugLinks href="/suspense-in-root/static/multi-depth-deferred-fallback/inner" />
+        </li>
+        <li>
+          <DebugLinks href="/suspense-in-root/static/test-firstmod/inter/inner" />
+        </li>
+        <li>
+          <DebugLinks href="/suspense-in-root/static/test-multi-unrendered" />
+        </li>
+      </ul>
+
+      <h2>Disable Validation</h2>
+      <ul>
+        <li>
+          <DebugLinks href="/suspense-in-root/disable-validation/in-layout" />
+        </li>
+        <li>
+          <DebugLinks href="/suspense-in-root/disable-validation/in-page" />
+        </li>
+        <li>
+          <DebugLinks href="/suspense-in-root/disable-validation/in-page-with-outer" />
+        </li>
+        <li>
+          <DebugLinks href="/suspense-in-root/disable-validation/disable-dev" />
+        </li>
+        <li>
+          <DebugLinks href="/suspense-in-root/disable-validation/disable-build" />
+        </li>
+      </ul>
+
+      <h2>Without partialPrefetching</h2>
+      <ul>
+        <li>
+          <DebugLinks href="/suspense-in-root/non-app-shell/valid-unguarded-static-params/123" />
+        </li>
+      </ul>
+    </main>
+  )
+}

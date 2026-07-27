@@ -1,0 +1,1752 @@
+import cheerio from 'cheerio'
+import validateHTML from 'html-validator'
+import {
+  waitForRedbox,
+  waitForNoRedbox,
+  getRedboxHeader,
+  getDeploymentId,
+  retry,
+} from 'next-test-utils'
+import { nextTestSetup, isNextDev } from 'e2e-utils'
+import { existsSync } from 'fs'
+import { join } from 'path'
+
+describe('Image Component App Dir Tests', () => {
+  const { next, skipped } = nextTestSetup({
+    files: __dirname,
+    skipDeployment: true,
+    disableAutoSkewProtection: true,
+  })
+  if (skipped) return
+
+  let dpl: string
+  let assetDpl: string
+  beforeAll(() => {
+    dpl = getDeploymentId(next.testDir, isNextDev).getDeploymentIdQuery(true)
+    assetDpl = getDeploymentId(next.testDir, isNextDev).getAssetQuery(true)
+  })
+
+  async function getImageUrls(browser) {
+    return await Promise.all(
+      (await browser.elementsByCss('img')).map(async (link) =>
+        new URL(await link.getAttribute('src'), next.url).toString()
+      )
+    )
+  }
+
+  async function getComputed(browser, id, prop) {
+    const val = await browser.eval(`document.getElementById('${id}').${prop}`)
+    if (typeof val === 'number') {
+      return val
+    }
+    if (typeof val === 'string') {
+      const v = parseInt(val, 10)
+      if (isNaN(v)) {
+        return val
+      }
+      return v
+    }
+    return null
+  }
+
+  async function getComputedStyle(browser, id, prop) {
+    return browser.eval(
+      `window.getComputedStyle(document.getElementById('${id}')).getPropertyValue('${prop}')`
+    )
+  }
+
+  async function getSrc(browser, id) {
+    const src = await browser.elementById(id).getAttribute('src')
+    if (src) {
+      const url = new URL(src, next.url)
+      return url.href.slice(url.origin.length)
+    }
+  }
+
+  function getRatio(width, height) {
+    return height / width
+  }
+
+  it('should load the images', async () => {
+    const browser = await next.browser('/')
+
+    await retry(async () => {
+      const result = await browser.eval(
+        `document.getElementById('basic-image').naturalWidth`
+      )
+      expect(result).not.toBe(0)
+    })
+
+    expect(await getImageUrls(browser)).toContain(
+      `${next.url}/_next/image?url=%2Ftest.jpg&w=828&q=75${dpl}`
+    )
+  })
+
+  it('should preload priority images', async () => {
+    const browser = await next.browser('/priority')
+
+    await retry(async () => {
+      const result = await browser.eval(
+        `document.getElementById('basic-image').naturalWidth`
+      )
+      expect(result).not.toBe(0)
+    })
+
+    const links = await browser.elementsByCss('link[rel=preload][as=image]')
+    const entries = []
+    for (const link of links) {
+      const fetchpriority = await link.getAttribute('fetchpriority')
+      const imagesrcset = await link.getAttribute('imagesrcset')
+      const imagesizes = await link.getAttribute('imagesizes')
+      const crossorigin = await link.getAttribute('crossorigin')
+      const referrerpolicy = await link.getAttribute('referrerPolicy')
+      entries.push({
+        fetchpriority,
+        imagesrcset,
+        imagesizes,
+        crossorigin,
+        referrerpolicy,
+      })
+    }
+
+    expect(
+      entries.find(
+        (item) =>
+          item.imagesrcset ===
+          `/_next/image?url=%2Ftest.webp&w=640&q=75${dpl} 1x, /_next/image?url=%2Ftest.webp&w=828&q=75${dpl} 2x`
+      )
+    ).toEqual({
+      fetchpriority: '',
+      imagesizes: '',
+      imagesrcset: `/_next/image?url=%2Ftest.webp&w=640&q=75${dpl} 1x, /_next/image?url=%2Ftest.webp&w=828&q=75${dpl} 2x`,
+      crossorigin: 'use-credentials',
+      referrerpolicy: '',
+    })
+
+    expect(
+      entries.find(
+        (item) =>
+          item.imagesrcset ===
+          `/_next/image?url=%2Fwide.png&w=640&q=75${dpl} 640w, /_next/image?url=%2Fwide.png&w=750&q=75${dpl} 750w, /_next/image?url=%2Fwide.png&w=828&q=75${dpl} 828w, /_next/image?url=%2Fwide.png&w=1080&q=75${dpl} 1080w, /_next/image?url=%2Fwide.png&w=1200&q=75${dpl} 1200w, /_next/image?url=%2Fwide.png&w=1920&q=75${dpl} 1920w, /_next/image?url=%2Fwide.png&w=2048&q=75${dpl} 2048w, /_next/image?url=%2Fwide.png&w=3840&q=75${dpl} 3840w`
+      )
+    ).toEqual({
+      fetchpriority: '',
+      imagesizes: '100vw',
+      imagesrcset: `/_next/image?url=%2Fwide.png&w=640&q=75${dpl} 640w, /_next/image?url=%2Fwide.png&w=750&q=75${dpl} 750w, /_next/image?url=%2Fwide.png&w=828&q=75${dpl} 828w, /_next/image?url=%2Fwide.png&w=1080&q=75${dpl} 1080w, /_next/image?url=%2Fwide.png&w=1200&q=75${dpl} 1200w, /_next/image?url=%2Fwide.png&w=1920&q=75${dpl} 1920w, /_next/image?url=%2Fwide.png&w=2048&q=75${dpl} 2048w, /_next/image?url=%2Fwide.png&w=3840&q=75${dpl} 3840w`,
+      crossorigin: '',
+      referrerpolicy: '',
+    })
+
+    expect(
+      entries.find(
+        (item) =>
+          item.imagesrcset ===
+          `/_next/image?url=%2Ftest.png&w=640&q=75${dpl} 1x, /_next/image?url=%2Ftest.png&w=828&q=75${dpl} 2x`
+      )
+    ).toEqual({
+      fetchpriority: '',
+      imagesizes: '',
+      imagesrcset: `/_next/image?url=%2Ftest.png&w=640&q=75${dpl} 1x, /_next/image?url=%2Ftest.png&w=828&q=75${dpl} 2x`,
+      crossorigin: '',
+      referrerpolicy: 'no-referrer',
+    })
+
+    expect(
+      entries.find(
+        (item) =>
+          item.imagesrcset ===
+          `/_next/image?url=%2Ftest.tiff&w=640&q=75${dpl} 1x, /_next/image?url=%2Ftest.tiff&w=828&q=75${dpl} 2x`
+      )
+    ).toEqual({
+      fetchpriority: '',
+      imagesizes: '',
+      imagesrcset: `/_next/image?url=%2Ftest.tiff&w=640&q=75${dpl} 1x, /_next/image?url=%2Ftest.tiff&w=828&q=75${dpl} 2x`,
+      crossorigin: '',
+      referrerpolicy: '',
+    })
+
+    // When priority={true}, we should _not_ set loading="lazy"
+    expect(
+      await browser.elementById('basic-image').getAttribute('loading')
+    ).toBe(null)
+    expect(
+      await browser.elementById('load-eager').getAttribute('loading')
+    ).toBe('eager')
+    expect(
+      await browser.elementById('responsive1').getAttribute('loading')
+    ).toBe(null)
+    expect(
+      await browser.elementById('responsive2').getAttribute('loading')
+    ).toBe(null)
+
+    // When priority={true}, we should not set fetchpriority="high"
+    expect(
+      await browser.elementById('basic-image').getAttribute('fetchpriority')
+    ).toBe(null)
+    expect(
+      await browser.elementById('load-eager').getAttribute('fetchpriority')
+    ).toBe(null)
+    expect(
+      await browser.elementById('responsive1').getAttribute('fetchpriority')
+    ).toBe(null)
+    expect(
+      await browser.elementById('responsive2').getAttribute('fetchpriority')
+    ).toBe(null)
+
+    // Setting fetchPriority="low" directly should pass-through to <img>
+    expect(
+      await browser.elementById('pri-low').getAttribute('fetchpriority')
+    ).toBe('low')
+    expect(await browser.elementById('pri-low').getAttribute('loading')).toBe(
+      'lazy'
+    )
+
+    expect(
+      await browser.elementById('belowthefold').getAttribute('fetchpriority')
+    ).toBe(null)
+    expect(
+      await browser.elementById('belowthefold').getAttribute('loading')
+    ).toBe(null)
+
+    const warnings = (await browser.log()).map((log) => log.message).join('\n')
+    expect(warnings).not.toMatch(
+      /was detected as the Largest Contentful Paint/gm
+    )
+    expect(warnings).not.toMatch(/React does not recognize the (.+) prop/gm)
+  })
+
+  it('should work with preload prop', async () => {
+    const browser = await next.browser('/preload')
+
+    await retry(async () => {
+      const result = await browser.eval(
+        `document.getElementById('basic-image').naturalWidth`
+      )
+      expect(result).not.toBe(0)
+    })
+
+    const links = await browser.elementsByCss('link[rel=preload][as=image]')
+    const entries = []
+    for (const link of links) {
+      const fetchpriority = await link.getAttribute('fetchpriority')
+      const imagesrcset = await link.getAttribute('imagesrcset')
+      const imagesizes = await link.getAttribute('imagesizes')
+      const crossorigin = await link.getAttribute('crossorigin')
+      const referrerpolicy = await link.getAttribute('referrerPolicy')
+      entries.push({
+        fetchpriority,
+        imagesrcset,
+        imagesizes,
+        crossorigin,
+        referrerpolicy,
+      })
+    }
+
+    expect(
+      entries.find(
+        (item) =>
+          item.imagesrcset ===
+          `/_next/image?url=%2Ftest.webp&w=640&q=75${dpl} 1x, /_next/image?url=%2Ftest.webp&w=828&q=75${dpl} 2x`
+      )
+    ).toEqual({
+      fetchpriority: '',
+      imagesizes: '',
+      imagesrcset: `/_next/image?url=%2Ftest.webp&w=640&q=75${dpl} 1x, /_next/image?url=%2Ftest.webp&w=828&q=75${dpl} 2x`,
+      crossorigin: 'use-credentials',
+      referrerpolicy: '',
+    })
+
+    expect(
+      entries.find(
+        (item) =>
+          item.imagesrcset ===
+          `/_next/image?url=%2Fwide.png&w=640&q=75${dpl} 640w, /_next/image?url=%2Fwide.png&w=750&q=75${dpl} 750w, /_next/image?url=%2Fwide.png&w=828&q=75${dpl} 828w, /_next/image?url=%2Fwide.png&w=1080&q=75${dpl} 1080w, /_next/image?url=%2Fwide.png&w=1200&q=75${dpl} 1200w, /_next/image?url=%2Fwide.png&w=1920&q=75${dpl} 1920w, /_next/image?url=%2Fwide.png&w=2048&q=75${dpl} 2048w, /_next/image?url=%2Fwide.png&w=3840&q=75${dpl} 3840w`
+      )
+    ).toEqual({
+      fetchpriority: '',
+      imagesizes: '100vw',
+      imagesrcset: `/_next/image?url=%2Fwide.png&w=640&q=75${dpl} 640w, /_next/image?url=%2Fwide.png&w=750&q=75${dpl} 750w, /_next/image?url=%2Fwide.png&w=828&q=75${dpl} 828w, /_next/image?url=%2Fwide.png&w=1080&q=75${dpl} 1080w, /_next/image?url=%2Fwide.png&w=1200&q=75${dpl} 1200w, /_next/image?url=%2Fwide.png&w=1920&q=75${dpl} 1920w, /_next/image?url=%2Fwide.png&w=2048&q=75${dpl} 2048w, /_next/image?url=%2Fwide.png&w=3840&q=75${dpl} 3840w`,
+      crossorigin: '',
+      referrerpolicy: '',
+    })
+
+    expect(
+      entries.find(
+        (item) =>
+          item.imagesrcset ===
+          `/_next/image?url=%2Ftest.png&w=640&q=75${dpl} 1x, /_next/image?url=%2Ftest.png&w=828&q=75${dpl} 2x`
+      )
+    ).toEqual({
+      fetchpriority: '',
+      imagesizes: '',
+      imagesrcset: `/_next/image?url=%2Ftest.png&w=640&q=75${dpl} 1x, /_next/image?url=%2Ftest.png&w=828&q=75${dpl} 2x`,
+      crossorigin: '',
+      referrerpolicy: 'no-referrer',
+    })
+
+    expect(
+      entries.find(
+        (item) =>
+          item.imagesrcset ===
+          `/_next/image?url=%2Ftest.tiff&w=640&q=75${dpl} 1x, /_next/image?url=%2Ftest.tiff&w=828&q=75${dpl} 2x`
+      )
+    ).toEqual({
+      fetchpriority: '',
+      imagesizes: '',
+      imagesrcset: `/_next/image?url=%2Ftest.tiff&w=640&q=75${dpl} 1x, /_next/image?url=%2Ftest.tiff&w=828&q=75${dpl} 2x`,
+      crossorigin: '',
+      referrerpolicy: '',
+    })
+
+    // When preload={true}, we should _not_ set loading="lazy"
+    expect(
+      await browser.elementById('basic-image').getAttribute('loading')
+    ).toBe(null)
+    expect(
+      await browser.elementById('load-eager').getAttribute('loading')
+    ).toBe('eager')
+    expect(
+      await browser.elementById('responsive1').getAttribute('loading')
+    ).toBe(null)
+    expect(
+      await browser.elementById('responsive2').getAttribute('loading')
+    ).toBe(null)
+
+    // When preload={true}, we should not set fetchpriority="high"
+    expect(
+      await browser.elementById('basic-image').getAttribute('fetchpriority')
+    ).toBe(null)
+    expect(
+      await browser.elementById('load-eager').getAttribute('fetchpriority')
+    ).toBe(null)
+    expect(
+      await browser.elementById('responsive1').getAttribute('fetchpriority')
+    ).toBe(null)
+    expect(
+      await browser.elementById('responsive2').getAttribute('fetchpriority')
+    ).toBe(null)
+
+    // Setting fetchPriority="low" directly should pass-through to <img>
+    expect(
+      await browser.elementById('pri-low').getAttribute('fetchpriority')
+    ).toBe('low')
+    expect(await browser.elementById('pri-low').getAttribute('loading')).toBe(
+      'lazy'
+    )
+
+    expect(
+      await browser.elementById('belowthefold').getAttribute('fetchpriority')
+    ).toBe(null)
+    expect(
+      await browser.elementById('belowthefold').getAttribute('loading')
+    ).toBe(null)
+
+    const warnings = (await browser.log()).map((log) => log.message).join('\n')
+    expect(warnings).not.toMatch(
+      /was detected as the Largest Contentful Paint/gm
+    )
+    expect(warnings).not.toMatch(
+      'using next/legacy/image which is deprecated and will be removed in a future version'
+    )
+    expect(warnings).not.toMatch(/React does not recognize the (.+) prop/gm)
+  })
+
+  it('should not pass through user-provided srcset (causing a flash)', async () => {
+    const html = await next.render('/drop-srcset')
+    const $html = cheerio.load(html)
+
+    const els = [].slice.apply($html('img'))
+    expect(els.length).toBe(1)
+
+    const [el] = els
+
+    expect(el.attribs.src).not.toBe('/truck.jpg')
+    expect(el.attribs.srcset).not.toBe(
+      '/truck375.jpg 375w, /truck640.jpg 640w, /truck.jpg'
+    )
+    expect(el.attribs.srcSet).not.toBe(
+      '/truck375.jpg 375w, /truck640.jpg 640w, /truck.jpg'
+    )
+  })
+
+  it('should update the image on src change', async () => {
+    const browser = await next.browser('/update')
+
+    await retry(async () => {
+      expect(
+        await browser.eval(`document.getElementById("update-image").src`)
+      ).toMatch(/test\.jpg/)
+    })
+
+    await browser.eval(`document.getElementById("toggle").click()`)
+
+    await retry(async () => {
+      expect(
+        await browser.eval(`document.getElementById("update-image").src`)
+      ).toMatch(/test\.png/)
+    })
+  })
+
+  it('should callback onLoadingComplete when image is fully loaded', async () => {
+    const browser = await next.browser('/on-loading-complete')
+
+    await browser.eval(
+      `document.getElementById("footer").scrollIntoView({behavior: "smooth"})`
+    )
+
+    await retry(async () => {
+      expect(
+        await browser.eval(`document.getElementById("img1").currentSrc`)
+      ).toMatch(/test(.*)jpg/)
+    })
+    await retry(async () => {
+      expect(
+        await browser.eval(`document.getElementById("img2").currentSrc`)
+      ).toMatch(/test(.*).png/)
+    })
+    await retry(async () => {
+      expect(
+        await browser.eval(`document.getElementById("img3").currentSrc`)
+      ).toMatch(/test\.svg/)
+    })
+    await retry(async () => {
+      expect(
+        await browser.eval(`document.getElementById("img4").currentSrc`)
+      ).toMatch(/test(.*)ico/)
+    })
+    await retry(async () => {
+      expect(
+        await browser.eval(`document.getElementById("msg1").textContent`)
+      ).toBe('loaded 1 img1 with dimensions 128x128')
+    })
+    await retry(async () => {
+      expect(
+        await browser.eval(`document.getElementById("msg2").textContent`)
+      ).toBe('loaded 1 img2 with dimensions 400x400')
+    })
+    await retry(async () => {
+      expect(
+        await browser.eval(`document.getElementById("msg3").textContent`)
+      ).toBe('loaded 1 img3 with dimensions 400x400')
+    })
+    await retry(async () => {
+      expect(
+        await browser.eval(`document.getElementById("msg4").textContent`)
+      ).toBe('loaded 1 img4 with dimensions 32x32')
+    })
+    await retry(async () => {
+      expect(
+        await browser.eval(`document.getElementById("msg5").textContent`)
+      ).toBe('loaded 1 img5 with dimensions 3x5')
+    })
+    await retry(async () => {
+      expect(
+        await browser.eval(`document.getElementById("msg6").textContent`)
+      ).toBe('loaded 1 img6 with dimensions 3x5')
+    })
+    await retry(async () => {
+      expect(
+        await browser.eval(`document.getElementById("msg7").textContent`)
+      ).toBe('loaded 1 img7 with dimensions 400x400')
+    })
+    await retry(async () => {
+      expect(
+        await browser.eval(`document.getElementById("msg8").textContent`)
+      ).toBe('loaded 1 img8 with dimensions 640x373')
+    })
+    await retry(async () => {
+      expect(
+        await browser.eval(
+          `document.getElementById("img8").getAttribute("data-nimg")`
+        )
+      ).toBe('1')
+    })
+    await retry(async () => {
+      expect(
+        await browser.eval(`document.getElementById("img8").currentSrc`)
+      ).toMatch(/wide.png/)
+    })
+    await browser.eval('document.getElementById("toggle").click()')
+    await retry(async () => {
+      expect(
+        await browser.eval(`document.getElementById("msg8").textContent`)
+      ).toBe('loaded 2 img8 with dimensions 400x300')
+    })
+    await retry(async () => {
+      expect(
+        await browser.eval(
+          `document.getElementById("img8").getAttribute("data-nimg")`
+        )
+      ).toBe('1')
+    })
+    await retry(async () => {
+      expect(
+        await browser.eval(`document.getElementById("img8").currentSrc`)
+      ).toMatch(/test-rect.jpg/)
+    })
+    await retry(async () => {
+      expect(
+        await browser.eval(`document.getElementById("msg9").textContent`)
+      ).toBe('loaded 1 img9 with dimensions 400x400')
+    })
+
+    if (isNextDev) {
+      const warnings = (await browser.log())
+        .map((log) => log.message)
+        .join('\n')
+      expect(warnings).toMatch(
+        /Image with src "(.*)" is using deprecated "onLoadingComplete" property/gm
+      )
+    }
+  })
+
+  it('should callback native onLoad with sythetic event', async () => {
+    const browser = await next.browser('/on-load')
+
+    await browser.eval(
+      `document.getElementById("footer").scrollIntoView({behavior: "smooth"})`
+    )
+
+    await retry(async () => {
+      expect(
+        await browser.eval(`document.getElementById("msg1").textContent`)
+      ).toBe('loaded img1 with native onLoad, count 1')
+    })
+    await retry(async () => {
+      expect(
+        await browser.eval(`document.getElementById("msg2").textContent`)
+      ).toBe('loaded img2 with native onLoad, count 1')
+    })
+    await retry(async () => {
+      expect(
+        await browser.eval(`document.getElementById("msg3").textContent`)
+      ).toBe('loaded img3 with native onLoad, count 1')
+    })
+    await retry(async () => {
+      expect(
+        await browser.eval(`document.getElementById("msg4").textContent`)
+      ).toBe('loaded img4 with native onLoad, count 1')
+    })
+    await retry(async () => {
+      expect(
+        await browser.eval(`document.getElementById("msg5").textContent`)
+      ).toBe('loaded img5 with native onLoad, count 1')
+    })
+    await retry(async () => {
+      expect(
+        await browser.eval(`document.getElementById("msg6").textContent`)
+      ).toBe('loaded img6 with native onLoad, count 1')
+    })
+    await retry(async () => {
+      expect(
+        await browser.eval(
+          `document.getElementById("img5").getAttribute("data-nimg")`
+        )
+      ).toBe('1')
+    })
+
+    await browser.eval('document.getElementById("toggle").click()')
+
+    await retry(async () => {
+      expect(
+        await browser.eval(`document.getElementById("msg1").textContent`)
+      ).toBe('loaded img1 with native onLoad, count 2')
+    })
+    await retry(async () => {
+      expect(
+        await browser.eval(`document.getElementById("msg2").textContent`)
+      ).toBe('loaded img2 with native onLoad, count 2')
+    })
+    await retry(async () => {
+      expect(
+        await browser.eval(`document.getElementById("msg3").textContent`)
+      ).toBe('loaded img3 with native onLoad, count 2')
+    })
+    await retry(async () => {
+      expect(
+        await browser.eval(`document.getElementById("msg4").textContent`)
+      ).toBe('loaded img4 with native onLoad, count 2')
+    })
+    await retry(async () => {
+      expect(
+        await browser.eval(`document.getElementById("msg5").textContent`)
+      ).toBe('loaded img5 with native onLoad, count 1')
+    })
+    await retry(async () => {
+      expect(
+        await browser.eval(`document.getElementById("msg6").textContent`)
+      ).toBe('loaded img6 with native onLoad, count 1')
+    })
+
+    await retry(async () => {
+      expect(
+        await browser.eval(`document.getElementById("img1").currentSrc`)
+      ).toMatch(/test(.*)jpg/)
+    })
+    await retry(async () => {
+      expect(
+        await browser.eval(`document.getElementById("img2").currentSrc`)
+      ).toMatch(/test(.*).png/)
+    })
+    await retry(async () => {
+      expect(
+        await browser.eval(`document.getElementById("img3").currentSrc`)
+      ).toMatch(/test\.svg/)
+    })
+    await retry(async () => {
+      expect(
+        await browser.eval(`document.getElementById("img4").currentSrc`)
+      ).toMatch(/test(.*)ico/)
+    })
+    await retry(async () => {
+      expect(
+        await browser.eval(`document.getElementById("img5").currentSrc`)
+      ).toMatch(/wide.png/)
+    })
+    await retry(async () => {
+      expect(
+        await browser.eval(`document.getElementById("img6").currentSrc`)
+      ).toBe(
+        'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mO8ysv7HwAEngHwC+JqOgAAAABJRU5ErkJggg=='
+      )
+    })
+  })
+
+  it('should callback native onError when error occurred while loading image', async () => {
+    const browser = await next.browser('/on-error')
+    await browser.eval(
+      `document.getElementById("img1").scrollIntoView({behavior: "smooth"})`
+    )
+    await retry(async () => {
+      expect(
+        await browser.eval(`document.getElementById("msg1").textContent`)
+      ).toBe('no error occurred for img1')
+    })
+    await retry(async () => {
+      expect(
+        await browser.eval(`document.getElementById("img1").style.color`)
+      ).toBe('transparent')
+    })
+    await browser.eval(
+      `document.getElementById("img2").scrollIntoView({behavior: "smooth"})`
+    )
+    await retry(async () => {
+      expect(
+        await browser.eval(`document.getElementById("msg2").textContent`)
+      ).toBe('no error occurred for img2')
+    })
+    await retry(async () => {
+      expect(
+        await browser.eval(`document.getElementById("img2").style.color`)
+      ).toBe('transparent')
+    })
+    await browser.eval(`document.getElementById("toggle").click()`)
+    await retry(async () => {
+      expect(
+        await browser.eval(`document.getElementById("msg2").textContent`)
+      ).toBe('error occurred while loading img2')
+    })
+    await retry(async () => {
+      expect(
+        await browser.eval(`document.getElementById("img2").style.color`)
+      ).toBe('')
+    })
+  })
+
+  it('should callback native onError even when error before hydration', async () => {
+    const browser = await next.browser('/on-error-before-hydration')
+    await retry(async () => {
+      expect(
+        await browser.eval(`document.getElementById("msg").textContent`)
+      ).toBe('error state')
+    })
+  })
+
+  it('should work with image with blob src', async () => {
+    const browser = await next.browser('/blob')
+
+    await retry(async () => {
+      expect(
+        await browser.eval(`document.getElementById("blob-image").src`)
+      ).toMatch(/^blob:/)
+    })
+    await retry(async () => {
+      expect(
+        await browser.eval(`document.getElementById("blob-image").srcset`)
+      ).toBe('')
+    })
+  })
+
+  it('should work when using flexbox', async () => {
+    const browser = await next.browser('/flex')
+    await retry(async () => {
+      const result = await browser.eval(
+        `document.getElementById('basic-image').width`
+      )
+      expect(result).not.toBe(0)
+    })
+  })
+
+  it('should work when using overrideSrc prop', async () => {
+    const browser = await next.browser('/override-src')
+    await retry(async () => {
+      const result = await browser.eval(
+        `document.getElementById('override-src').width`
+      )
+      expect(result).not.toBe(0)
+    })
+
+    await retry(async () => {
+      expect(
+        await browser.eval(`document.getElementById('override-src').currentSrc`)
+      ).toMatch(/test(.*)jpg/)
+    })
+    await retry(async () => {
+      expect(
+        await browser.eval(`document.getElementById('override-src').src`)
+      ).toMatch(/myoverride/)
+    })
+  })
+
+  it('should work with sizes and automatically use responsive srcset', async () => {
+    const browser = await next.browser('/sizes')
+    const id = 'sizes1'
+    expect(await getSrc(browser, id)).toBe(
+      `/_next/image?url=%2Fwide.png&w=3840&q=75${dpl}`
+    )
+    expect(await browser.elementById(id).getAttribute('srcset')).toBe(
+      `/_next/image?url=%2Fwide.png&w=32&q=75${dpl} 32w, /_next/image?url=%2Fwide.png&w=48&q=75${dpl} 48w, /_next/image?url=%2Fwide.png&w=64&q=75${dpl} 64w, /_next/image?url=%2Fwide.png&w=96&q=75${dpl} 96w, /_next/image?url=%2Fwide.png&w=128&q=75${dpl} 128w, /_next/image?url=%2Fwide.png&w=256&q=75${dpl} 256w, /_next/image?url=%2Fwide.png&w=384&q=75${dpl} 384w, /_next/image?url=%2Fwide.png&w=640&q=75${dpl} 640w, /_next/image?url=%2Fwide.png&w=750&q=75${dpl} 750w, /_next/image?url=%2Fwide.png&w=828&q=75${dpl} 828w, /_next/image?url=%2Fwide.png&w=1080&q=75${dpl} 1080w, /_next/image?url=%2Fwide.png&w=1200&q=75${dpl} 1200w, /_next/image?url=%2Fwide.png&w=1920&q=75${dpl} 1920w, /_next/image?url=%2Fwide.png&w=2048&q=75${dpl} 2048w, /_next/image?url=%2Fwide.png&w=3840&q=75${dpl} 3840w`
+    )
+    expect(await browser.elementById(id).getAttribute('sizes')).toBe(
+      '(max-width: 2048px) 1200px, 3840px'
+    )
+  })
+
+  it('should render no wrappers or sizers', async () => {
+    const browser = await next.browser('/wrapper-div')
+
+    const numberOfChildren = await browser.eval(
+      `document.getElementById('image-container1').children.length`
+    )
+    expect(numberOfChildren).toBe(1)
+    const childElementType = await browser.eval(
+      `document.getElementById('image-container1').children[0].nodeName`
+    )
+    expect(childElementType).toBe('IMG')
+
+    expect(await browser.elementById('img1').getAttribute('style')).toBe(
+      'color:transparent'
+    )
+    expect(await browser.elementById('img1').getAttribute('height')).toBe('700')
+    expect(await browser.elementById('img1').getAttribute('width')).toBe('1200')
+    expect(await browser.elementById('img1').getAttribute('srcset')).toBe(
+      `/_next/image?url=%2Fwide.png&w=1200&q=75${dpl} 1x, /_next/image?url=%2Fwide.png&w=3840&q=75${dpl} 2x`
+    )
+    expect(await browser.elementById('img1').getAttribute('loading')).toBe(
+      'eager'
+    )
+
+    expect(await browser.elementById('img2').getAttribute('style')).toBe(
+      'color:transparent;padding-left:4rem;width:100%;object-position:30% 30%'
+    )
+    expect(await browser.elementById('img2').getAttribute('height')).toBe('700')
+    expect(await browser.elementById('img2').getAttribute('width')).toBe('1200')
+    expect(await browser.elementById('img2').getAttribute('srcset')).toBe(
+      `/_next/image?url=%2Fwide.png&w=32&q=75${dpl} 32w, /_next/image?url=%2Fwide.png&w=48&q=75${dpl} 48w, /_next/image?url=%2Fwide.png&w=64&q=75${dpl} 64w, /_next/image?url=%2Fwide.png&w=96&q=75${dpl} 96w, /_next/image?url=%2Fwide.png&w=128&q=75${dpl} 128w, /_next/image?url=%2Fwide.png&w=256&q=75${dpl} 256w, /_next/image?url=%2Fwide.png&w=384&q=75${dpl} 384w, /_next/image?url=%2Fwide.png&w=640&q=75${dpl} 640w, /_next/image?url=%2Fwide.png&w=750&q=75${dpl} 750w, /_next/image?url=%2Fwide.png&w=828&q=75${dpl} 828w, /_next/image?url=%2Fwide.png&w=1080&q=75${dpl} 1080w, /_next/image?url=%2Fwide.png&w=1200&q=75${dpl} 1200w, /_next/image?url=%2Fwide.png&w=1920&q=75${dpl} 1920w, /_next/image?url=%2Fwide.png&w=2048&q=75${dpl} 2048w, /_next/image?url=%2Fwide.png&w=3840&q=75${dpl} 3840w`
+    )
+    expect(await browser.elementById('img2').getAttribute('loading')).toBe(
+      'lazy'
+    )
+
+    expect(await browser.elementById('img3').getAttribute('style')).toBe(
+      'color:transparent'
+    )
+    expect(await browser.elementById('img3').getAttribute('srcset')).toBe(
+      `/_next/image?url=%2Ftest.png&w=640&q=75${dpl} 1x, /_next/image?url=%2Ftest.png&w=828&q=75${dpl} 2x`
+    )
+    if (isNextDev) {
+      await new Promise((r) => setTimeout(r, 1000))
+      const warnings = (await browser.log())
+        .map((log) => log.message)
+        .join('\n')
+      expect(warnings).toMatch(
+        /Image with src "\/wide.png" has either width or height modified, but not the other./gm
+      )
+      expect(warnings).not.toMatch(
+        /Image with src "\/test.png" has either width or height modified, but not the other./gm
+      )
+    }
+  })
+
+  it('should lazy load with placeholder=blur', async () => {
+    const browser = await next.browser('/placeholder-blur')
+
+    // blur1
+    expect(
+      normalizeURL(await browser.elementById('blur1').getAttribute('src'))
+    ).toBe(
+      `/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.HASH.jpg&w=828&q=75${assetDpl}`
+    )
+    expect(
+      normalizeURL(await browser.elementById('blur1').getAttribute('srcset'))
+    ).toBe(
+      `/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.HASH.jpg&w=640&q=75${assetDpl} 1x, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.HASH.jpg&w=828&q=75${assetDpl} 2x`
+    )
+    expect(await browser.elementById('blur1').getAttribute('loading')).toBe(
+      'lazy'
+    )
+    expect(await browser.elementById('blur1').getAttribute('sizes')).toBeNull()
+    expect(await browser.elementById('blur1').getAttribute('style')).toContain(
+      'color:transparent;background-size:cover;background-position:50% 50%;background-repeat:no-repeat;'
+    )
+    expect(await browser.elementById('blur1').getAttribute('height')).toBe(
+      '400'
+    )
+    expect(await browser.elementById('blur1').getAttribute('width')).toBe('400')
+    await browser.eval(
+      `document.getElementById("blur1").scrollIntoView({behavior: "smooth"})`
+    )
+    await retry(async () => {
+      expect(
+        await browser.eval(`document.getElementById("blur1").currentSrc`)
+      ).toMatch(/test(.*)jpg/)
+    })
+    expect(
+      normalizeURL(await browser.elementById('blur1').getAttribute('src'))
+    ).toBe(
+      `/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.HASH.jpg&w=828&q=75${assetDpl}`
+    )
+    expect(
+      normalizeURL(await browser.elementById('blur1').getAttribute('srcset'))
+    ).toBe(
+      `/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.HASH.jpg&w=640&q=75${assetDpl} 1x, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.HASH.jpg&w=828&q=75${assetDpl} 2x`
+    )
+    expect(await browser.elementById('blur1').getAttribute('loading')).toBe(
+      'lazy'
+    )
+    expect(await browser.elementById('blur1').getAttribute('sizes')).toBeNull()
+    expect(await browser.elementById('blur1').getAttribute('style')).toBe(
+      'color: transparent;'
+    )
+    expect(await browser.elementById('blur1').getAttribute('height')).toBe(
+      '400'
+    )
+    expect(await browser.elementById('blur1').getAttribute('width')).toBe('400')
+
+    // blur2
+    expect(
+      normalizeURL(await browser.elementById('blur2').getAttribute('src'))
+    ).toBe(
+      `/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.HASH.png&w=3840&q=75${assetDpl}`
+    )
+    expect(
+      normalizeURL(await browser.elementById('blur2').getAttribute('srcset'))
+    ).toBe(
+      `/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.HASH.png&w=384&q=75${assetDpl} 384w, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.HASH.png&w=640&q=75${assetDpl} 640w, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.HASH.png&w=750&q=75${assetDpl} 750w, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.HASH.png&w=828&q=75${assetDpl} 828w, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.HASH.png&w=1080&q=75${assetDpl} 1080w, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.HASH.png&w=1200&q=75${assetDpl} 1200w, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.HASH.png&w=1920&q=75${assetDpl} 1920w, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.HASH.png&w=2048&q=75${assetDpl} 2048w, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.HASH.png&w=3840&q=75${assetDpl} 3840w`
+    )
+    expect(await browser.elementById('blur2').getAttribute('sizes')).toBe(
+      '50vw'
+    )
+    expect(await browser.elementById('blur2').getAttribute('loading')).toBe(
+      'lazy'
+    )
+    expect(await browser.elementById('blur2').getAttribute('style')).toContain(
+      'color:transparent;background-size:cover;background-position:50% 50%;background-repeat:no-repeat'
+    )
+    expect(await browser.elementById('blur2').getAttribute('height')).toBe(
+      '400'
+    )
+    expect(await browser.elementById('blur2').getAttribute('width')).toBe('400')
+    await browser.eval(
+      `document.getElementById("blur2").scrollIntoView({behavior: "smooth"})`
+    )
+    await retry(async () => {
+      expect(
+        await browser.eval(`document.getElementById("blur2").currentSrc`)
+      ).toMatch(/test(.*)png/)
+    })
+    expect(
+      normalizeURL(await browser.elementById('blur2').getAttribute('src'))
+    ).toBe(
+      `/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.HASH.png&w=3840&q=75${assetDpl}`
+    )
+    expect(
+      normalizeURL(await browser.elementById('blur2').getAttribute('srcset'))
+    ).toBe(
+      `/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.HASH.png&w=384&q=75${assetDpl} 384w, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.HASH.png&w=640&q=75${assetDpl} 640w, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.HASH.png&w=750&q=75${assetDpl} 750w, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.HASH.png&w=828&q=75${assetDpl} 828w, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.HASH.png&w=1080&q=75${assetDpl} 1080w, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.HASH.png&w=1200&q=75${assetDpl} 1200w, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.HASH.png&w=1920&q=75${assetDpl} 1920w, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.HASH.png&w=2048&q=75${assetDpl} 2048w, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.HASH.png&w=3840&q=75${assetDpl} 3840w`
+    )
+    expect(await browser.elementById('blur2').getAttribute('sizes')).toBe(
+      '50vw'
+    )
+    expect(await browser.elementById('blur2').getAttribute('loading')).toBe(
+      'lazy'
+    )
+    expect(await browser.elementById('blur2').getAttribute('style')).toBe(
+      'color: transparent;'
+    )
+    expect(await browser.elementById('blur2').getAttribute('height')).toBe(
+      '400'
+    )
+    expect(await browser.elementById('blur2').getAttribute('width')).toBe('400')
+  })
+
+  it('should handle the styles prop appropriately', async () => {
+    const browser = await next.browser('/style-prop')
+
+    expect(await browser.elementById('with-styles').getAttribute('style')).toBe(
+      'color:transparent;border-radius:10px;padding:10px'
+    )
+    expect(
+      await browser.elementById('with-overlapping-styles').getAttribute('style')
+    ).toBe('color:transparent;width:10px;border-radius:10px;margin:15px')
+    expect(
+      await browser.elementById('without-styles').getAttribute('style')
+    ).toBe('color:transparent')
+  })
+
+  it('should warn when legacy prop layout=fill', async () => {
+    const browser = await next.browser('/legacy-layout-fill')
+    const img = await browser.elementById('img')
+    expect(img).toBeDefined()
+    expect(await img.getAttribute('data-nimg')).toBe('fill')
+    expect(await img.getAttribute('sizes')).toBe('200px')
+    expect(await img.getAttribute('src')).toBe(
+      `/_next/image?url=%2Ftest.jpg&w=3840&q=75${dpl}`
+    )
+    expect(await img.getAttribute('srcset')).toContain(
+      `/_next/image?url=%2Ftest.jpg&w=640&q=75${dpl} 640w,`
+    )
+    expect(await img.getAttribute('style')).toBe(
+      'position:absolute;height:100%;width:100%;left:0;top:0;right:0;bottom:0;object-fit:cover;object-position:10% 10%;color:transparent'
+    )
+    if (isNextDev) {
+      await waitForNoRedbox(browser)
+      const warnings = (await browser.log())
+        .map((log) => log.message)
+        .join('\n')
+      expect(warnings).toContain(
+        'Image with src "/test.jpg" has legacy prop "layout". Did you forget to run the codemod?'
+      )
+      expect(warnings).toContain(
+        'Image with src "/test.jpg" has legacy prop "objectFit". Did you forget to run the codemod?'
+      )
+      expect(warnings).toContain(
+        'Image with src "/test.jpg" has legacy prop "objectPosition". Did you forget to run the codemod?'
+      )
+    }
+  })
+
+  it('should warn when legacy prop layout=responsive', async () => {
+    const browser = await next.browser('/legacy-layout-responsive')
+    const img = await browser.elementById('img')
+    expect(img).toBeDefined()
+    expect(await img.getAttribute('sizes')).toBe('100vw')
+    expect(await img.getAttribute('data-nimg')).toBe('1')
+    expect(await img.getAttribute('src')).toBe(
+      `/_next/image?url=%2Ftest.png&w=3840&q=75${dpl}`
+    )
+    expect(await img.getAttribute('srcset')).toContain(
+      `/_next/image?url=%2Ftest.png&w=640&q=75${dpl} 640w,`
+    )
+    expect(await img.getAttribute('style')).toBe(
+      'color:transparent;width:100%;height:auto'
+    )
+    if (isNextDev) {
+      await waitForNoRedbox(browser)
+      const warnings = (await browser.log())
+        .map((log) => log.message)
+        .join('\n')
+      expect(warnings).toContain(
+        'Image with src "/test.png" has legacy prop "layout". Did you forget to run the codemod?'
+      )
+    }
+  })
+
+  it('should render picture via getImageProps', async () => {
+    const browser = await next.browser('/picture')
+    // Wait for image to load:
+    await retry(async () => {
+      const naturalWidth = await browser.eval(
+        `document.querySelector('img').naturalWidth`
+      )
+      expect(naturalWidth).not.toBe(0)
+    })
+    const img = await browser.elementByCss('img')
+    expect(img).toBeDefined()
+    expect(await img.getAttribute('alt')).toBe('Hero')
+    expect(await img.getAttribute('width')).toBe('400')
+    expect(await img.getAttribute('height')).toBe('400')
+    expect(await img.getAttribute('fetchPriority')).toBeNull()
+    expect(await img.getAttribute('sizes')).toBeNull()
+    expect(await img.getAttribute('src')).toBe(
+      `/_next/image?url=%2Ftest_light.png&w=828&q=75${dpl}`
+    )
+    expect(await img.getAttribute('srcset')).toBe(null)
+    expect(await img.getAttribute('style')).toBe('color:transparent')
+    const source1 = await browser.elementByCss('source:first-of-type')
+    expect(await source1.getAttribute('srcset')).toBe(
+      `/_next/image?url=%2Ftest.png&w=640&q=75${dpl} 1x, /_next/image?url=%2Ftest.png&w=828&q=75${dpl} 2x`
+    )
+    const source2 = await browser.elementByCss('source:last-of-type')
+    expect(await source2.getAttribute('srcset')).toBe(
+      `/_next/image?url=%2Ftest_light.png&w=640&q=75${dpl} 1x, /_next/image?url=%2Ftest_light.png&w=828&q=75${dpl} 2x`
+    )
+  })
+
+  if (isNextDev) {
+    it('should show missing src error', async () => {
+      const browser = await next.browser('/missing-src')
+
+      await waitForNoRedbox(browser)
+
+      await retry(async () => {
+        expect(
+          (await browser.log()).map((log) => log.message).join('\n')
+        ).toMatch(/Image is missing required "src" property/gm)
+      })
+    })
+
+    it('should show empty string src error', async () => {
+      const browser = await next.browser('/empty-string-src')
+
+      await waitForNoRedbox(browser)
+
+      await retry(async () => {
+        expect(
+          (await browser.log()).map((log) => log.message).join('\n')
+        ).toMatch(/Image is missing required "src" property/gm)
+      })
+    })
+
+    it('should show null src error', async () => {
+      const browser = await next.browser('/invalid-src-null')
+
+      await waitForNoRedbox(browser)
+
+      await retry(async () => {
+        expect(
+          (await browser.log()).map((log) => log.message).join('\n')
+        ).toMatch(/Image is missing required "src" property/gm)
+      })
+    })
+
+    it('should show invalid src error', async () => {
+      const browser = await next.browser('/invalid-src')
+
+      await waitForRedbox(browser)
+      expect(await getRedboxHeader(browser)).toContain(
+        'Invalid src prop (https://google.com/test.png) on `next/image`, hostname "google.com" is not configured under images in your `next.config.js`'
+      )
+    })
+
+    it('should show invalid src error when protocol-relative', async () => {
+      const browser = await next.browser('/invalid-src-proto-relative')
+
+      await waitForRedbox(browser)
+      expect(await getRedboxHeader(browser)).toContain(
+        'Failed to parse src "//assets.example.com/img.jpg" on `next/image`, protocol-relative URL (//) must be changed to an absolute URL (http:// or https://)'
+      )
+    })
+
+    it('should show invalid src with leading space', async () => {
+      const browser = await next.browser('/invalid-src-leading-space')
+      await waitForRedbox(browser)
+      expect(await getRedboxHeader(browser)).toContain(
+        'Image with src " /test.jpg" cannot start with a space or control character.'
+      )
+    })
+
+    it('should show invalid src with trailing space', async () => {
+      const browser = await next.browser('/invalid-src-trailing-space')
+      await waitForRedbox(browser)
+      expect(await getRedboxHeader(browser)).toContain(
+        'Image with src "/test.png " cannot end with a space or control character.'
+      )
+    })
+
+    it('should show error when string src and placeholder=blur and blurDataURL is missing', async () => {
+      const browser = await next.browser('/invalid-placeholder-blur')
+
+      await waitForRedbox(browser)
+      expect(await getRedboxHeader(browser)).toContain(
+        `Image with src "/test.png" has "placeholder='blur'" property but is missing the "blurDataURL" property.`
+      )
+    })
+
+    it('should show error when invalid width prop', async () => {
+      const browser = await next.browser('/invalid-width')
+
+      await waitForRedbox(browser)
+      expect(await getRedboxHeader(browser)).toContain(
+        `Image with src "/test.jpg" has invalid "width" property. Expected a numeric value in pixels but received "100%".`
+      )
+    })
+
+    it('should show error when invalid Infinity width prop', async () => {
+      const browser = await next.browser('/invalid-Infinity-width')
+
+      await waitForRedbox(browser)
+      expect(await getRedboxHeader(browser)).toContain(
+        `Image with src "/test.jpg" has invalid "width" property. Expected a numeric value in pixels but received "Infinity".`
+      )
+    })
+
+    it('should show error when invalid height prop', async () => {
+      const browser = await next.browser('/invalid-height')
+
+      await waitForRedbox(browser)
+      expect(await getRedboxHeader(browser)).toContain(
+        `Image with src "/test.jpg" has invalid "height" property. Expected a numeric value in pixels but received "50vh".`
+      )
+    })
+
+    it('should show missing alt error', async () => {
+      const browser = await next.browser('/missing-alt')
+
+      await waitForNoRedbox(browser)
+
+      await retry(async () => {
+        expect(
+          (await browser.log()).map((log) => log.message).join('\n')
+        ).toMatch(/Image is missing required "alt" property/gm)
+      })
+    })
+
+    it('should show error when missing width prop', async () => {
+      const browser = await next.browser('/missing-width')
+
+      await waitForRedbox(browser)
+      expect(await getRedboxHeader(browser)).toContain(
+        `Image with src "/test.jpg" is missing required "width" property.`
+      )
+    })
+
+    it('should show error when missing height prop', async () => {
+      const browser = await next.browser('/missing-height')
+
+      await waitForRedbox(browser)
+      expect(await getRedboxHeader(browser)).toContain(
+        `Image with src "/test.jpg" is missing required "height" property.`
+      )
+    })
+
+    it('should show error when width prop on fill image', async () => {
+      const browser = await next.browser('/invalid-fill-width')
+
+      await waitForRedbox(browser)
+      expect(await getRedboxHeader(browser)).toContain(
+        `Image with src "/wide.png" has both "width" and "fill" properties.`
+      )
+    })
+
+    it('should show error when CSS position changed on fill image', async () => {
+      const browser = await next.browser('/invalid-fill-position')
+
+      await waitForRedbox(browser)
+      expect(await getRedboxHeader(browser)).toContain(
+        `Image with src "/wide.png" has both "fill" and "style.position" properties. Images with "fill" always use position absolute - it cannot be modified.`
+      )
+    })
+
+    it('should show error when static import and placeholder=blur and blurDataUrl is missing', async () => {
+      const browser = await next.browser('/invalid-placeholder-blur-static')
+
+      await waitForRedbox(browser)
+      expect(await getRedboxHeader(browser)).toMatch(
+        /Image with src "(.*)bmp" has "placeholder='blur'" property but is missing the "blurDataURL" property/
+      )
+    })
+
+    it('should warn when using a very small image with placeholder=blur', async () => {
+      const browser = await next.browser('/small-img-import')
+
+      const warnings = (await browser.log())
+        .map((log) => log.message)
+        .join('\n')
+      await waitForNoRedbox(browser)
+      expect(warnings).toMatch(
+        /Image with src (.*)jpg(.*) is smaller than 40x40. Consider removing(.*)/gm
+      )
+    })
+
+    it('should warn when quality is 50', async () => {
+      const browser = await next.browser('/quality-50')
+
+      const warnings = (await browser.log())
+        .map((log) => log.message)
+        .join('\n')
+      await waitForNoRedbox(browser)
+      expect(warnings).toMatch(
+        /Image with src (.*)jpg(.*) is using quality "50" which is not configured in images.qualities \[75\]. Please update your config to \[50, 75\]./gm
+      )
+    })
+
+    it('should not warn when Image is child of p', async () => {
+      const browser = await next.browser('/inside-paragraph')
+
+      const warnings = (await browser.log())
+        .map((log) => log.message)
+        .join('\n')
+      await waitForNoRedbox(browser)
+      expect(warnings).not.toMatch(
+        /Expected server HTML to contain a matching/gm
+      )
+      expect(warnings).not.toMatch(/cannot appear as a descendant/gm)
+    })
+
+    it('should warn when preload prop is missing on LCP image', async () => {
+      const browser = await next.browser('/preload-missing-warning')
+      // Wait for image to load:
+      await retry(async () => {
+        const result = await browser.eval(
+          `document.getElementById('responsive').naturalWidth`
+        )
+        expect(result).toBeGreaterThan(0)
+      })
+      await new Promise((r) => setTimeout(r, 1000))
+      const warnings = (await browser.log())
+        .map((log) => log.message)
+        .join('\n')
+      await waitForNoRedbox(browser)
+      expect(warnings).toMatch(
+        /Image with src (.*)test(.*) was detected as the Largest Contentful Paint/gm
+      )
+    })
+
+    it('should warn when loader is missing width', async () => {
+      const browser = await next.browser('/invalid-loader')
+      await browser.eval(`document.querySelector("footer").scrollIntoView()`)
+      const warnings = (await browser.log())
+        .map((log) => log.message)
+        .join('\n')
+      await waitForNoRedbox(browser)
+      expect(warnings).toMatch(
+        /Image with src (.*)png(.*) has a "loader" property that does not implement width/gm
+      )
+      expect(warnings).not.toMatch(
+        /Image with src (.*)jpg(.*) has a "loader" property that does not implement width/gm
+      )
+      expect(warnings).not.toMatch(
+        /Image with src (.*)webp(.*) has a "loader" property that does not implement width/gm
+      )
+      expect(warnings).not.toMatch(
+        /Image with src (.*)gif(.*) has a "loader" property that does not implement width/gm
+      )
+      expect(warnings).not.toMatch(
+        /Image with src (.*)tiff(.*) has a "loader" property that does not implement width/gm
+      )
+    })
+
+    it('should not warn when data url image with fill and sizes props', async () => {
+      const browser = await next.browser('/data-url-with-fill-and-sizes')
+      const warnings = (await browser.log())
+        .map((log) => log.message)
+        .join('\n')
+      await waitForNoRedbox(browser)
+      expect(warnings).not.toMatch(
+        /Image with src (.*) has "fill" but is missing "sizes" prop. Please add it to improve page performance/gm
+      )
+    })
+
+    it('should not warn when svg, even if with loader prop or without', async () => {
+      const browser = await next.browser('/loader-svg')
+      await browser.eval(`document.querySelector("footer").scrollIntoView()`)
+      const warnings = (await browser.log())
+        .map((log) => log.message)
+        .join('\n')
+      await waitForNoRedbox(browser)
+      expect(warnings).not.toMatch(
+        /Image with src (.*) has a "loader" property that does not implement width/gm
+      )
+      expect(await browser.elementById('with-loader').getAttribute('src')).toBe(
+        '/test.svg?size=256'
+      )
+      expect(
+        await browser.elementById('with-loader').getAttribute('srcset')
+      ).toBe('/test.svg?size=128 1x, /test.svg?size=256 2x')
+      expect(
+        await browser.elementById('without-loader').getAttribute('src')
+      ).toBe('/test.svg')
+      expect(
+        await browser.elementById('without-loader').getAttribute('srcset')
+      ).toBeFalsy()
+    })
+
+    it('should warn at most once even after state change', async () => {
+      const browser = await next.browser('/warning-once')
+      await browser.eval(`document.querySelector("footer").scrollIntoView()`)
+      await browser.eval(`document.querySelector("button").click()`)
+      await browser.eval(`document.querySelector("button").click()`)
+      const count = await browser.eval(
+        `document.querySelector("button").textContent`
+      )
+      expect(count).toBe('Count: 2')
+      await retry(async () => {
+        const result = await browser.eval(
+          'document.getElementById("w").naturalWidth'
+        )
+        expect(result).toBeGreaterThan(0)
+      })
+      await new Promise((r) => setTimeout(r, 1000))
+      const warnings = (await browser.log())
+        .map((log) => log.message)
+        .filter((log) => log.startsWith('Image with src'))
+      expect(warnings[0]).toMatch(
+        'Image with src "/test.png" was detected as the Largest Contentful Paint (LCP).'
+      )
+      expect(warnings.length).toBe(1)
+    })
+  } else {
+    //server-only tests
+    it('should not create an image folder in server/chunks', async () => {
+      expect(
+        existsSync(join(next.testDir, '.next/server/chunks/static/media'))
+      ).toBeFalsy()
+    })
+    it('should render as unoptimized with missing src prop', async () => {
+      const browser = await next.browser('/missing-src')
+
+      const warnings = (await browser.log()).filter(
+        (log) => log.source === 'error'
+      )
+      expect(warnings.length).toBe(0)
+
+      expect(await browser.elementById('img').getAttribute('src')).toBe(null)
+      expect(await browser.elementById('img').getAttribute('srcset')).toBe(null)
+      expect(await browser.elementById('img').getAttribute('width')).toBe('200')
+      expect(await browser.elementById('img').getAttribute('height')).toBe(
+        '300'
+      )
+    })
+    it('should render as unoptimized with empty string src prop', async () => {
+      const browser = await next.browser('/empty-string-src')
+
+      const warnings = (await browser.log()).filter(
+        (log) => log.source === 'error'
+      )
+      expect(warnings.length).toBe(0)
+
+      expect(await browser.elementById('img').getAttribute('src')).toBe(null)
+      expect(await browser.elementById('img').getAttribute('srcset')).toBe(null)
+      expect(await browser.elementById('img').getAttribute('width')).toBe('200')
+      expect(await browser.elementById('img').getAttribute('height')).toBe(
+        '300'
+      )
+    })
+  }
+
+  it('should correctly ignore prose styles', async () => {
+    const browser = await next.browser('/prose')
+
+    const id = 'prose-image'
+
+    // Wait for image to load:
+    await retry(async () => {
+      const result = await browser.eval(
+        `document.getElementById(${JSON.stringify(id)}).naturalWidth`
+      )
+      expect(result).toBeGreaterThan(0)
+    })
+
+    await new Promise((r) => setTimeout(r, 1000))
+
+    const computedWidth = await getComputed(browser, id, 'width')
+    const computedHeight = await getComputed(browser, id, 'height')
+    expect(getRatio(computedWidth, computedHeight)).toBeCloseTo(1, 1)
+  })
+
+  it('should apply style inheritance for img elements but not wrapper elements', async () => {
+    const browser = await next.browser('/style-inheritance')
+
+    await browser.eval(
+      `document.querySelector("footer").scrollIntoView({behavior: "smooth"})`
+    )
+
+    const imagesWithIds = await browser.eval(`
+      function foo() {
+        const imgs = document.querySelectorAll("img[id]");
+        for (let img of imgs) {
+          const br = window.getComputedStyle(img).getPropertyValue("border-radius");
+          if (!br) return 'no-border-radius';
+          if (br !== '139px') return br;
+        }
+        return true;
+      }()
+    `)
+    expect(imagesWithIds).toBe(true)
+
+    const allSpans = await browser.eval(`
+      function foo() {
+        const spans = document.querySelectorAll("span");
+        for (let span of spans) {
+          const m = window.getComputedStyle(span).getPropertyValue("margin");
+          if (m && m !== '0px') return m;
+        }
+        return false;
+      }()
+    `)
+    expect(allSpans).toBe(false)
+  })
+
+  it('should apply filter style after image loads', async () => {
+    const browser = await next.browser('/style-filter')
+    await retry(async () => {
+      expect(await getSrc(browser, 'img-plain')).toMatch(/^\/_next\/image/)
+    })
+    await retry(async () => {
+      expect(await getSrc(browser, 'img-blur')).toMatch(/^\/_next\/image/)
+    })
+    await new Promise((r) => setTimeout(r, 1000))
+
+    expect(await getComputedStyle(browser, 'img-plain', 'filter')).toBe(
+      'opacity(0.5)'
+    )
+    expect(
+      await getComputedStyle(browser, 'img-plain', 'background-size')
+    ).toBe('30%')
+    expect(
+      await getComputedStyle(browser, 'img-plain', 'background-image')
+    ).toMatch('iVBORw0KGgo=')
+    expect(
+      await getComputedStyle(browser, 'img-plain', 'background-position')
+    ).toBe('1px 2px')
+
+    expect(await getComputedStyle(browser, 'img-blur', 'filter')).toBe(
+      'opacity(0.5)'
+    )
+    expect(await getComputedStyle(browser, 'img-blur', 'background-size')).toBe(
+      '30%'
+    )
+    expect(
+      await getComputedStyle(browser, 'img-blur', 'background-image')
+    ).toMatch('iVBORw0KGgo=')
+    expect(
+      await getComputedStyle(browser, 'img-blur', 'background-position')
+    ).toBe('1px 2px')
+  })
+
+  it('should emit image for next/dynamic with non ssr case', async () => {
+    const browser = await next.browser('/dynamic-static-img')
+    const img = await browser.elementById('dynamic-loaded-static-jpg')
+    const src = await img.getAttribute('src')
+    const res = await next.fetch(src)
+    expect(res.status).toBe(200)
+  })
+
+  describe('Fill-mode tests', () => {
+    let browser
+    beforeAll(async () => {
+      browser = await next.browser('/fill')
+    })
+    it('should include a data-attribute on fill images', async () => {
+      expect(
+        await browser.elementById('fill-image-1').getAttribute('data-nimg')
+      ).toBe('fill')
+    })
+    it('should add position:absolute to fill images', async () => {
+      expect(await getComputedStyle(browser, 'fill-image-1', 'position')).toBe(
+        'absolute'
+      )
+    })
+    it('should add 100% width and height to fill images', async () => {
+      expect(
+        await browser.eval(
+          `document.getElementById("fill-image-1").style.height`
+        )
+      ).toBe('100%')
+      expect(
+        await browser.eval(
+          `document.getElementById("fill-image-1").style.width`
+        )
+      ).toBe('100%')
+    })
+    it('should add position styles to fill images', async () => {
+      expect(
+        await browser.eval(
+          `document.getElementById("fill-image-1").getAttribute('style')`
+        )
+      ).toBe(
+        'position:absolute;height:100%;width:100%;left:0;top:0;right:0;bottom:0;color:transparent'
+      )
+    })
+    if (isNextDev) {
+      it('should not log incorrect warnings', async () => {
+        await new Promise((r) => setTimeout(r, 1000))
+        const warnings = (await browser.log())
+          .map((log) => log.message)
+          .join('\n')
+        expect(warnings).not.toMatch(/Image with src (.*) has "fill"/gm)
+        expect(warnings).not.toMatch(
+          /Image with src (.*) is smaller than 40x40. Consider removing(.*)/gm
+        )
+      })
+      it('should log warnings when using fill mode incorrectly', async () => {
+        browser = await next.browser('/fill-warnings')
+        await new Promise((r) => setTimeout(r, 1000))
+        const warnings = (await browser.log())
+          .map((log) => log.message)
+          .join('\n')
+        expect(warnings).toContain(
+          'Image with src "/wide.png" has "fill" and parent element with invalid "position". Provided "static" should be one of absolute,fixed,relative.'
+        )
+        expect(warnings).toContain(
+          'Image with src "/wide.png" has "fill" and a height value of 0. This is likely because the parent element of the image has not been styled to have a set height.'
+        )
+        expect(warnings).toContain(
+          'Image with src "/wide.png" has "fill" but is missing "sizes" prop. Please add it to improve page performance. Read more:'
+        )
+        expect(warnings).toContain(
+          'Image with src "/test.png" has "fill" prop and "sizes" prop of "100vw", but image is not rendered at full viewport width. Please adjust "sizes" to improve page performance. Read more:'
+        )
+      })
+      it('should not log warnings when image unmounts', async () => {
+        browser = await next.browser('/should-not-warn-unmount')
+        await new Promise((r) => setTimeout(r, 1000))
+        const warnings = (await browser.log())
+          .map((log) => log.message)
+          .join('\n')
+        expect(warnings).not.toContain(
+          'Image with src "/test.jpg" has "fill" and parent element'
+        )
+      })
+    }
+  })
+  // Tests that use the `unsized` attribute:
+  if (!isNextDev) {
+    it('should correctly rotate image', async () => {
+      const browser = await next.browser('/rotated')
+
+      const id = 'exif-rotation-image'
+
+      // Wait for image to load:
+      await retry(async () => {
+        const result = await browser.eval(
+          `document.getElementById(${JSON.stringify(id)}).naturalWidth`
+        )
+        expect(result).not.toBe(0)
+      })
+
+      await new Promise((r) => setTimeout(r, 500))
+
+      const computedWidth = await getComputed(browser, id, 'width')
+      const computedHeight = await getComputed(browser, id, 'height')
+      expect(getRatio(computedHeight, computedWidth)).toBeCloseTo(0.75, 1)
+    })
+  }
+
+  it('should have data url placeholder when enabled', async () => {
+    const html = await next.render('/data-url-placeholder')
+    const $html = cheerio.load(html)
+
+    $html('noscript > img').attr('id', 'unused')
+
+    expect($html('#data-url-placeholder-raw')[0].attribs.style).toContain(
+      `color:transparent;background-size:cover;background-position:50% 50%;background-repeat:no-repeat;background-image:url("data:image/svg+xml;base64,Cjxzdmcgd2lkdGg9IjIwMCIgaGVpZ2h0PSIyMDAiIHZlcnNpb249IjEuMSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIiB4bWxuczp4bGluaz0iaHR0cDovL3d3dy53My5vcmcvMTk5OS94bGluayI+CiAgPGRlZnM+CiAgICA8bGluZWFyR3JhZGllbnQgaWQ9ImciPgogICAgICA8c3RvcCBzdG9wLWNvbG9yPSIjMzMzIiBvZmZzZXQ9IjIwJSIgLz4KICAgICAgPHN0b3Agc3RvcC1jb2xvcj0iIzIyMiIgb2Zmc2V0PSI1MCUiIC8+CiAgICAgIDxzdG9wIHN0b3AtY29sb3I9IiMzMzMiIG9mZnNldD0iNzAlIiAvPgogICAgPC9saW5lYXJHcmFkaWVudD4KICA8L2RlZnM+CiAgPHJlY3Qgd2lkdGg9IjIwMCIgaGVpZ2h0PSIyMDAiIGZpbGw9IiMzMzMiIC8+CiAgPHJlY3QgaWQ9InIiIHdpZHRoPSIyMDAiIGhlaWdodD0iMjAwIiBmaWxsPSJ1cmwoI2cpIiAvPgogIDxhbmltYXRlIHhsaW5rOmhyZWY9IiNyIiBhdHRyaWJ1dGVOYW1lPSJ4IiBmcm9tPSItMjAwIiB0bz0iMjAwIiBkdXI9IjFzIiByZXBlYXRDb3VudD0iaW5kZWZpbml0ZSIgIC8+Cjwvc3ZnPg==")`
+    )
+
+    expect($html('#data-url-placeholder-with-lazy')[0].attribs.style).toContain(
+      `color:transparent;background-size:cover;background-position:50% 50%;background-repeat:no-repeat;background-image:url("data:image/svg+xml;base64,Cjxzdmcgd2lkdGg9IjIwMCIgaGVpZ2h0PSIyMDAiIHZlcnNpb249IjEuMSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIiB4bWxuczp4bGluaz0iaHR0cDovL3d3dy53My5vcmcvMTk5OS94bGluayI+CiAgPGRlZnM+CiAgICA8bGluZWFyR3JhZGllbnQgaWQ9ImciPgogICAgICA8c3RvcCBzdG9wLWNvbG9yPSIjMzMzIiBvZmZzZXQ9IjIwJSIgLz4KICAgICAgPHN0b3Agc3RvcC1jb2xvcj0iIzIyMiIgb2Zmc2V0PSI1MCUiIC8+CiAgICAgIDxzdG9wIHN0b3AtY29sb3I9IiMzMzMiIG9mZnNldD0iNzAlIiAvPgogICAgPC9saW5lYXJHcmFkaWVudD4KICA8L2RlZnM+CiAgPHJlY3Qgd2lkdGg9IjIwMCIgaGVpZ2h0PSIyMDAiIGZpbGw9IiMzMzMiIC8+CiAgPHJlY3QgaWQ9InIiIHdpZHRoPSIyMDAiIGhlaWdodD0iMjAwIiBmaWxsPSJ1cmwoI2cpIiAvPgogIDxhbmltYXRlIHhsaW5rOmhyZWY9IiNyIiBhdHRyaWJ1dGVOYW1lPSJ4IiBmcm9tPSItMjAwIiB0bz0iMjAwIiBkdXI9IjFzIiByZXBlYXRDb3VudD0iaW5kZWZpbml0ZSIgIC8+Cjwvc3ZnPg==")`
+    )
+  })
+
+  it('should remove data url placeholder after image loads', async () => {
+    const browser = await next.browser('/data-url-placeholder')
+    await retry(async () => {
+      expect(
+        await getComputedStyle(
+          browser,
+          'data-url-placeholder-raw',
+          'background-image'
+        )
+      ).toBe('none')
+    })
+    expect(
+      await getComputedStyle(
+        browser,
+        'data-url-placeholder-with-lazy',
+        'background-image'
+      )
+    ).toBe(
+      `url("data:image/svg+xml;base64,Cjxzdmcgd2lkdGg9IjIwMCIgaGVpZ2h0PSIyMDAiIHZlcnNpb249IjEuMSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIiB4bWxuczp4bGluaz0iaHR0cDovL3d3dy53My5vcmcvMTk5OS94bGluayI+CiAgPGRlZnM+CiAgICA8bGluZWFyR3JhZGllbnQgaWQ9ImciPgogICAgICA8c3RvcCBzdG9wLWNvbG9yPSIjMzMzIiBvZmZzZXQ9IjIwJSIgLz4KICAgICAgPHN0b3Agc3RvcC1jb2xvcj0iIzIyMiIgb2Zmc2V0PSI1MCUiIC8+CiAgICAgIDxzdG9wIHN0b3AtY29sb3I9IiMzMzMiIG9mZnNldD0iNzAlIiAvPgogICAgPC9saW5lYXJHcmFkaWVudD4KICA8L2RlZnM+CiAgPHJlY3Qgd2lkdGg9IjIwMCIgaGVpZ2h0PSIyMDAiIGZpbGw9IiMzMzMiIC8+CiAgPHJlY3QgaWQ9InIiIHdpZHRoPSIyMDAiIGhlaWdodD0iMjAwIiBmaWxsPSJ1cmwoI2cpIiAvPgogIDxhbmltYXRlIHhsaW5rOmhyZWY9IiNyIiBhdHRyaWJ1dGVOYW1lPSJ4IiBmcm9tPSItMjAwIiB0bz0iMjAwIiBkdXI9IjFzIiByZXBlYXRDb3VudD0iaW5kZWZpbml0ZSIgIC8+Cjwvc3ZnPg==")`
+    )
+
+    await browser.eval('document.getElementById("spacer").remove()')
+
+    await retry(async () => {
+      expect(
+        await getComputedStyle(
+          browser,
+          'data-url-placeholder-with-lazy',
+          'background-image'
+        )
+      ).toBe('none')
+    })
+  })
+
+  it('should render correct objectFit when data url placeholder and fill', async () => {
+    const html = await next.render('/fill-data-url-placeholder')
+    const $ = cheerio.load(html)
+
+    expect($('#data-url-placeholder-fit-cover')[0].attribs.style).toBe(
+      `position:absolute;height:100%;width:100%;left:0;top:0;right:0;bottom:0;object-fit:cover;color:transparent;background-size:cover;background-position:50% 50%;background-repeat:no-repeat;background-image:url("data:image/svg+xml;base64,Cjxzdmcgd2lkdGg9IjIwMCIgaGVpZ2h0PSIyMDAiIHZlcnNpb249IjEuMSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIiB4bWxuczp4bGluaz0iaHR0cDovL3d3dy53My5vcmcvMTk5OS94bGluayI+CiAgPGRlZnM+CiAgICA8bGluZWFyR3JhZGllbnQgaWQ9ImciPgogICAgICA8c3RvcCBzdG9wLWNvbG9yPSIjMzMzIiBvZmZzZXQ9IjIwJSIgLz4KICAgICAgPHN0b3Agc3RvcC1jb2xvcj0iIzIyMiIgb2Zmc2V0PSI1MCUiIC8+CiAgICAgIDxzdG9wIHN0b3AtY29sb3I9IiMzMzMiIG9mZnNldD0iNzAlIiAvPgogICAgPC9saW5lYXJHcmFkaWVudD4KICA8L2RlZnM+CiAgPHJlY3Qgd2lkdGg9IjIwMCIgaGVpZ2h0PSIyMDAiIGZpbGw9IiMzMzMiIC8+CiAgPHJlY3QgaWQ9InIiIHdpZHRoPSIyMDAiIGhlaWdodD0iMjAwIiBmaWxsPSJ1cmwoI2cpIiAvPgogIDxhbmltYXRlIHhsaW5rOmhyZWY9IiNyIiBhdHRyaWJ1dGVOYW1lPSJ4IiBmcm9tPSItMjAwIiB0bz0iMjAwIiBkdXI9IjFzIiByZXBlYXRDb3VudD0iaW5kZWZpbml0ZSIgIC8+Cjwvc3ZnPg==")`
+    )
+
+    expect($('#data-url-placeholder-fit-contain')[0].attribs.style).toBe(
+      `position:absolute;height:100%;width:100%;left:0;top:0;right:0;bottom:0;object-fit:contain;color:transparent;background-size:contain;background-position:50% 50%;background-repeat:no-repeat;background-image:url("data:image/svg+xml;base64,Cjxzdmcgd2lkdGg9IjIwMCIgaGVpZ2h0PSIyMDAiIHZlcnNpb249IjEuMSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIiB4bWxuczp4bGluaz0iaHR0cDovL3d3dy53My5vcmcvMTk5OS94bGluayI+CiAgPGRlZnM+CiAgICA8bGluZWFyR3JhZGllbnQgaWQ9ImciPgogICAgICA8c3RvcCBzdG9wLWNvbG9yPSIjMzMzIiBvZmZzZXQ9IjIwJSIgLz4KICAgICAgPHN0b3Agc3RvcC1jb2xvcj0iIzIyMiIgb2Zmc2V0PSI1MCUiIC8+CiAgICAgIDxzdG9wIHN0b3AtY29sb3I9IiMzMzMiIG9mZnNldD0iNzAlIiAvPgogICAgPC9saW5lYXJHcmFkaWVudD4KICA8L2RlZnM+CiAgPHJlY3Qgd2lkdGg9IjIwMCIgaGVpZ2h0PSIyMDAiIGZpbGw9IiMzMzMiIC8+CiAgPHJlY3QgaWQ9InIiIHdpZHRoPSIyMDAiIGhlaWdodD0iMjAwIiBmaWxsPSJ1cmwoI2cpIiAvPgogIDxhbmltYXRlIHhsaW5rOmhyZWY9IiNyIiBhdHRyaWJ1dGVOYW1lPSJ4IiBmcm9tPSItMjAwIiB0bz0iMjAwIiBkdXI9IjFzIiByZXBlYXRDb3VudD0iaW5kZWZpbml0ZSIgIC8+Cjwvc3ZnPg==")`
+    )
+
+    expect($('#data-url-placeholder-fit-fill')[0].attribs.style).toBe(
+      `position:absolute;height:100%;width:100%;left:0;top:0;right:0;bottom:0;object-fit:fill;color:transparent;background-size:100% 100%;background-position:50% 50%;background-repeat:no-repeat;background-image:url("data:image/svg+xml;base64,Cjxzdmcgd2lkdGg9IjIwMCIgaGVpZ2h0PSIyMDAiIHZlcnNpb249IjEuMSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIiB4bWxuczp4bGluaz0iaHR0cDovL3d3dy53My5vcmcvMTk5OS94bGluayI+CiAgPGRlZnM+CiAgICA8bGluZWFyR3JhZGllbnQgaWQ9ImciPgogICAgICA8c3RvcCBzdG9wLWNvbG9yPSIjMzMzIiBvZmZzZXQ9IjIwJSIgLz4KICAgICAgPHN0b3Agc3RvcC1jb2xvcj0iIzIyMiIgb2Zmc2V0PSI1MCUiIC8+CiAgICAgIDxzdG9wIHN0b3AtY29sb3I9IiMzMzMiIG9mZnNldD0iNzAlIiAvPgogICAgPC9saW5lYXJHcmFkaWVudD4KICA8L2RlZnM+CiAgPHJlY3Qgd2lkdGg9IjIwMCIgaGVpZ2h0PSIyMDAiIGZpbGw9IiMzMzMiIC8+CiAgPHJlY3QgaWQ9InIiIHdpZHRoPSIyMDAiIGhlaWdodD0iMjAwIiBmaWxsPSJ1cmwoI2cpIiAvPgogIDxhbmltYXRlIHhsaW5rOmhyZWY9IiNyIiBhdHRyaWJ1dGVOYW1lPSJ4IiBmcm9tPSItMjAwIiB0bz0iMjAwIiBkdXI9IjFzIiByZXBlYXRDb3VudD0iaW5kZWZpbml0ZSIgIC8+Cjwvc3ZnPg==")`
+    )
+  })
+
+  it('should have blurry placeholder when enabled', async () => {
+    const html = await next.render('/blurry-placeholder')
+    const $html = cheerio.load(html)
+
+    $html('noscript > img').attr('id', 'unused')
+
+    expect($html('#blurry-placeholder-raw')[0].attribs.style).toContain(
+      `color:transparent;background-size:cover;background-position:50% 50%;background-repeat:no-repeat;background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 400'%3E%3Cfilter id='b' color-interpolation-filters='sRGB'%3E%3CfeGaussianBlur stdDeviation='20'/%3E%3CfeColorMatrix values='1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 100 -1' result='s'/%3E%3CfeFlood x='0' y='0' width='100%25' height='100%25'/%3E%3CfeComposite operator='out' in='s'/%3E%3CfeComposite in2='SourceGraphic'/%3E%3CfeGaussianBlur stdDeviation='20'/%3E%3C/filter%3E%3Cimage width='100%25' height='100%25' x='0' y='0' preserveAspectRatio='none' style='filter: url(%23b);' href='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8P4nhDwAGuAKPn6cicwAAAABJRU5ErkJggg=='/%3E%3C/svg%3E")`
+    )
+
+    expect($html('#blurry-placeholder-with-lazy')[0].attribs.style).toContain(
+      `color:transparent;background-size:cover;background-position:50% 50%;background-repeat:no-repeat;background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 400'%3E%3Cfilter id='b' color-interpolation-filters='sRGB'%3E%3CfeGaussianBlur stdDeviation='20'/%3E%3CfeColorMatrix values='1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 100 -1' result='s'/%3E%3CfeFlood x='0' y='0' width='100%25' height='100%25'/%3E%3CfeComposite operator='out' in='s'/%3E%3CfeComposite in2='SourceGraphic'/%3E%3CfeGaussianBlur stdDeviation='20'/%3E%3C/filter%3E%3Cimage width='100%25' height='100%25' x='0' y='0' preserveAspectRatio='none' style='filter: url(%23b);' href='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mO0/8/wBwAE/wI85bEJ6gAAAABJRU5ErkJggg=='/%3E%3C/svg%3E")`
+    )
+  })
+
+  it('should remove blurry placeholder after image loads', async () => {
+    const browser = await next.browser('/blurry-placeholder')
+    await retry(async () => {
+      expect(
+        await getComputedStyle(
+          browser,
+          'blurry-placeholder-raw',
+          'background-image'
+        )
+      ).toBe('none')
+    })
+    expect(
+      await getComputedStyle(
+        browser,
+        'blurry-placeholder-with-lazy',
+        'background-image'
+      )
+    ).toBe(
+      `url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 400'%3E%3Cfilter id='b' color-interpolation-filters='sRGB'%3E%3CfeGaussianBlur stdDeviation='20'/%3E%3CfeColorMatrix values='1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 100 -1' result='s'/%3E%3CfeFlood x='0' y='0' width='100%25' height='100%25'/%3E%3CfeComposite operator='out' in='s'/%3E%3CfeComposite in2='SourceGraphic'/%3E%3CfeGaussianBlur stdDeviation='20'/%3E%3C/filter%3E%3Cimage width='100%25' height='100%25' x='0' y='0' preserveAspectRatio='none' style='filter: url(%23b);' href='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mO0/8/wBwAE/wI85bEJ6gAAAABJRU5ErkJggg=='/%3E%3C/svg%3E")`
+    )
+
+    await browser.eval('document.getElementById("spacer").remove()')
+
+    await retry(async () => {
+      expect(
+        await getComputedStyle(
+          browser,
+          'blurry-placeholder-with-lazy',
+          'background-image'
+        )
+      ).toBe('none')
+    })
+  })
+
+  it('should render correct objectFit when blurDataURL and fill', async () => {
+    const html = await next.render('/fill-blur')
+    const $ = cheerio.load(html)
+
+    expect($('#fit-cover')[0].attribs.style).toBe(
+      `position:absolute;height:100%;width:100%;left:0;top:0;right:0;bottom:0;object-fit:cover;color:transparent;background-size:cover;background-position:50% 50%;background-repeat:no-repeat;background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' %3E%3Cfilter id='b' color-interpolation-filters='sRGB'%3E%3CfeGaussianBlur stdDeviation='20'/%3E%3CfeColorMatrix values='1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 100 -1' result='s'/%3E%3CfeFlood x='0' y='0' width='100%25' height='100%25'/%3E%3CfeComposite operator='out' in='s'/%3E%3CfeComposite in2='SourceGraphic'/%3E%3CfeGaussianBlur stdDeviation='20'/%3E%3C/filter%3E%3Cimage width='100%25' height='100%25' x='0' y='0' preserveAspectRatio='xMidYMid slice' style='filter: url(%23b);' href='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAFCAAAAABd+vKJAAAANklEQVR42mNg4GRwdWBgZ2BgUGI4dYhBmYFBgiHy308PBlEGKYbr//9fYJBlYDBYv3nzGkUGANGMDBq2MCnBAAAAAElFTkSuQmCC'/%3E%3C/svg%3E")`
+    )
+
+    expect($('#fit-contain')[0].attribs.style).toBe(
+      `position:absolute;height:100%;width:100%;left:0;top:0;right:0;bottom:0;object-fit:contain;color:transparent;background-size:contain;background-position:50% 50%;background-repeat:no-repeat;background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' %3E%3Cfilter id='b' color-interpolation-filters='sRGB'%3E%3CfeGaussianBlur stdDeviation='20'/%3E%3CfeColorMatrix values='1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 100 -1' result='s'/%3E%3CfeFlood x='0' y='0' width='100%25' height='100%25'/%3E%3CfeComposite operator='out' in='s'/%3E%3CfeComposite in2='SourceGraphic'/%3E%3CfeGaussianBlur stdDeviation='20'/%3E%3C/filter%3E%3Cimage width='100%25' height='100%25' x='0' y='0' preserveAspectRatio='xMidYMid' style='filter: url(%23b);' href='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAFCAAAAABd+vKJAAAANklEQVR42mNg4GRwdWBgZ2BgUGI4dYhBmYFBgiHy308PBlEGKYbr//9fYJBlYDBYv3nzGkUGANGMDBq2MCnBAAAAAElFTkSuQmCC'/%3E%3C/svg%3E")`
+    )
+
+    expect($('#fit-fill')[0].attribs.style).toBe(
+      `position:absolute;height:100%;width:100%;left:0;top:0;right:0;bottom:0;object-fit:fill;color:transparent;background-size:100% 100%;background-position:50% 50%;background-repeat:no-repeat;background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' %3E%3Cfilter id='b' color-interpolation-filters='sRGB'%3E%3CfeGaussianBlur stdDeviation='20'/%3E%3CfeColorMatrix values='1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 100 -1' result='s'/%3E%3CfeFlood x='0' y='0' width='100%25' height='100%25'/%3E%3CfeComposite operator='out' in='s'/%3E%3CfeComposite in2='SourceGraphic'/%3E%3CfeGaussianBlur stdDeviation='20'/%3E%3C/filter%3E%3Cimage width='100%25' height='100%25' x='0' y='0' preserveAspectRatio='none' style='filter: url(%23b);' href='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAFCAAAAABd+vKJAAAANklEQVR42mNg4GRwdWBgZ2BgUGI4dYhBmYFBgiHy308PBlEGKYbr//9fYJBlYDBYv3nzGkUGANGMDBq2MCnBAAAAAElFTkSuQmCC'/%3E%3C/svg%3E")`
+    )
+  })
+
+  it('should be valid HTML', async () => {
+    const res = await next.fetch('/valid-html-w3c', {
+      headers: {
+        'User-Agent': 'Discordbot',
+      },
+    })
+    const html = await res.text()
+
+    const result = (await validateHTML({
+      data: html,
+      format: 'json',
+      isLocal: true,
+      validator: 'whatwg',
+    })) as any
+    expect(result.isValid).toBe(true)
+    expect(result.errors).toEqual([])
+
+    const $ = cheerio.load(html)
+    expect($('img').length).toBeGreaterThan(0)
+  })
+
+  it('should call callback ref cleanups when unmounting', async () => {
+    const browser = await next.browser('/ref-cleanup')
+    const getLogs = async () => (await browser.log()).map((log) => log.message)
+
+    await retry(async () => {
+      expect(await getLogs()).toContain('callback ref was cleaned up')
+    })
+
+    expect(await getLogs()).not.toContain(
+      'callback refs that returned a cleanup should never be called with null'
+    )
+  })
+
+  if (!isNextDev) {
+    it('should build correct images-manifest.json', async () => {
+      const manifest = JSON.parse(
+        await next.readFile('.next/images-manifest.json')
+      )
+      expect(manifest).toEqual({
+        version: 1,
+        images: {
+          contentDispositionType: 'attachment',
+          contentSecurityPolicy:
+            "script-src 'none'; frame-src 'none'; sandbox;",
+          dangerouslyAllowLocalIP: false,
+          dangerouslyAllowSVG: false,
+          deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048, 3840],
+          disableStaticImages: false,
+          domains: [],
+          formats: ['image/webp'],
+          imageSizes: [32, 48, 64, 96, 128, 256, 384],
+          loader: 'default',
+          loaderFile: '',
+          remotePatterns: [],
+          localPatterns: [
+            {
+              pathname:
+                '^(?:(?!(?:^|\\/)\\.{1,2}(?:\\/|$))(?:(?:(?!(?:^|\\/)\\.{1,2}(?:\\/|$)).)*?)\\/?)$',
+              search: '',
+            },
+          ],
+          maximumRedirects: 3,
+          maximumResponseBody: 50000000,
+          minimumCacheTTL: 14400,
+          path: '/_next/image',
+          qualities: [75],
+          sizes: [
+            640, 750, 828, 1080, 1200, 1920, 2048, 3840, 32, 48, 64, 96, 128,
+            256, 384,
+          ],
+          unoptimized: false,
+          customCacheHandler: false,
+        },
+      })
+    })
+  }
+})
+
+function normalizeURL(text: string) {
+  return text
+    .replace(/test\.[0-9a-z_-]{4,}\.(png|jpe?g)/g, 'test.HASH.$1')
+    .replace(/_next%2Fstatic%2Fimmutable%2F/g, '_next%2Fstatic%2F')
+}

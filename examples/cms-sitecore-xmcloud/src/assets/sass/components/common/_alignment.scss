@@ -1,0 +1,26 @@
+.position-left,
+.position-left * {
+  text-align: left !important;
+}
+
+.position-right,
+.position-right * {
+  text-align: right !important;
+}
+
+.position-center,
+.position-center * {
+  text-align: center !important;
+}
+
+.position-left select {
+  direction: ltr !important;
+}
+
+.position-right select {
+  direction: rtl !important;
+}
+
+.position-center select {
+  text-align-last: center !important;
+}

@@ -1,0 +1,44 @@
+{
+  "private": true,
+  "scripts": {
+    "predev": "npm run typegen",
+    "dev": "next --turbo",
+    "prebuild": "npm run typegen",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint .",
+    "presetup": "echo 'about to setup env variables, follow the guide here: https://github.com/vercel/next.js/tree/canary/examples/cms-sanity#using-the-sanity-cli'",
+    "setup": "npx sanity@latest init --env .env.local",
+    "postsetup": "echo 'create the read token by following the rest of the guide: https://github.com/vercel/next.js/tree/canary/examples/cms-sanity#creating-a-read-token'",
+    "typegen": "sanity schema extract && sanity typegen generate"
+  },
+  "dependencies": {
+    "@sanity/assist": "^3.0.8",
+    "@sanity/icons": "^3.4.0",
+    "@sanity/image-url": "^1.0.2",
+    "@sanity/preview-url-secret": "^2.0.0",
+    "@sanity/vision": "^3.62.0",
+    "@tailwindcss/typography": "^0.5.15",
+    "@types/node": "^22.7.8",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "@vercel/speed-insights": "^1.0.13",
+    "autoprefixer": "^10.4.20",
+    "date-fns": "^4.1.0",
+    "next": "latest",
+    "next-sanity": "^9.7.0",
+    "postcss": "^8.4.47",
+    "react": "^19",
+    "react-dom": "^19",
+    "sanity": "^3.62.0",
+    "sanity-plugin-asset-source-unsplash": "^3.0.1",
+    "server-only": "^0.0.1",
+    "styled-components": "^6.1.13",
+    "tailwindcss": "^3.4.14",
+    "typescript": "5.6.3"
+  },
+  "devDependencies": {
+    "eslint": "^9.13.0",
+    "eslint-config-next": "^15.0.0"
+  }
+}

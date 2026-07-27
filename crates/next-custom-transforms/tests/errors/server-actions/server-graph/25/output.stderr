@@ -1,0 +1,24 @@
+  x It is not allowed to define inline "use cache" annotated class instance methods.
+  | To define cached functions, use functions, object method properties, or static class methods instead.
+  | 
+   ,-[input.js:2:1]
+ 1 |     export class MyClass {
+ 2 | ,->   async foo() {
+ 3 | |       'use cache'
+ 4 | |   
+ 5 | |       return fetch('https://example.com').then((res) => res.json())
+ 6 | `->   }
+ 7 |       async bar() {
+   `----
+  x It is not allowed to define inline "use server" annotated class instance methods.
+  | To define Server Actions, use functions, object method properties, or static class methods instead.
+  | 
+    ,-[input.js:7:1]
+  6 |       }
+  7 | ,->   async bar() {
+  8 | |       'use server'
+  9 | |   
+ 10 | |       console.log(42)
+ 11 | `->   }
+ 12 |     }
+    `----

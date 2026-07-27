@@ -1,0 +1,21 @@
+{
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "next": "latest",
+    "preval.macro": "^5.0.0",
+    "react": "^19",
+    "react-dom": "^19"
+  },
+  "devDependencies": {
+    "babel-plugin-macros": "^3.1.0",
+    "@types/node": "^22.10.1",
+    "@types/preval.macro": "^3.0.2",
+    "@types/react": "^19",
+    "typescript": "^5.7.2"
+  }
+}

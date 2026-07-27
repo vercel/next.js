@@ -1,0 +1,51 @@
+---
+title: Cannot access `cookies()` or `headers()` in `"use cache"`
+---
+
+## Why This Error Occurred
+
+A function is trying to read from the current incoming request inside the scope of a function annotated with `"use cache"`. This is not supported because it would make the cache invalidated by every request which is probably not what you intended.
+
+## Possible Ways to Fix It
+
+Instead of calling this inside the `"use cache"` function, move it outside the function and pass the value in as an argument. The specific value will now be part of the cache key through its arguments.
+
+Before:
+
+```jsx filename="app/page.js" highlight={5}
+import { cookies } from 'next/headers'
+
+async function getExampleData() {
+  "use cache"
+  const isLoggedIn = (await cookies()).has('token')
+  ...
+}
+
+export default async function Page() {
+  const data = await getExampleData()
+  return ...
+}
+```
+
+After:
+
+```jsx filename="app/page.js" highlight={9}
+import { cookies } from 'next/headers'
+
+async function getExampleData(isLoggedIn) {
+  "use cache"
+  ...
+}
+
+export default async function Page() {
+  const isLoggedIn = (await cookies()).has('token')
+  const data = await getExampleData(isLoggedIn)
+  return ...
+}
+```
+
+## Useful Links
+
+- [`headers()` function](/docs/app/api-reference/functions/headers)
+- [`cookies()` function](/docs/app/api-reference/functions/cookies)
+- [`draftMode()` function](/docs/app/api-reference/functions/draft-mode)

@@ -1,0 +1,8 @@
+  x The "use cache" directive cannot be wrapped in parentheses.
+  | 
+   ,-[input.js:2:1]
+ 1 | export async function fn() {
+ 2 |   ('use cache')
+   :   ^^^^^^^^^^^^^
+ 3 | }
+   `----

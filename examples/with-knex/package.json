@@ -1,0 +1,23 @@
+{
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "migrate:make": "knex migrate:make",
+    "migrate:latest": "knex migrate:latest",
+    "migrate:up": "knex migrate:up",
+    "migrate:down": "knex migrate:down",
+    "migrate:status": "knex migrate:status",
+    "seed:create": "knex seed:make",
+    "seed:run": "knex seed:run"
+  },
+  "dependencies": {
+    "knex": "0.95.15",
+    "next": "latest",
+    "@next/env": "latest",
+    "pg": "8.4.1",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
+  }
+}

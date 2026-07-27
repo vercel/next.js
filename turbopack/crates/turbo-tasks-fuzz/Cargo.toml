@@ -1,0 +1,21 @@
+[package]
+name = "turbo-tasks-fuzz"
+version = "0.0.0"
+description = "A collection of fuzzers for `turbo-tasks`"
+license = "MIT"
+edition = "2024"
+
+[lints]
+workspace = true
+
+[dependencies]
+anyhow = { workspace = true }
+clap = { workspace = true }
+rand = { workspace = true, features = ["thread_rng"] }
+rustc-hash = { workspace = true }
+tokio = { workspace = true }
+turbo-rcstr = { workspace = true }
+turbo-tasks = { workspace = true }
+turbo-tasks-backend = { workspace = true }
+turbo-tasks-fs = { workspace = true }
+

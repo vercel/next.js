@@ -1,0 +1,67 @@
+import fs from 'fs-extra'
+import { waitForNoRedbox, check } from 'next-test-utils'
+import { nextTestSetup } from 'e2e-utils'
+import stripAnsi from 'strip-ansi'
+
+// TODO: investigate occasional failure
+describe.skip('Project Directory Renaming', () => {
+  const { next } = nextTestSetup({
+    files: {
+      'pages/index.js': `
+          export default function Page() {
+            return <p>hello world</p>
+          }
+        `,
+    },
+    skipStart: true,
+    forcedPort: 'random',
+  })
+
+  beforeAll(async () => {
+    await next.start()
+  })
+
+  it('should detect project dir rename and restart', async () => {
+    const browser = await next.browser('/')
+    await browser.eval('window.beforeNav = 1')
+
+    let newTestDir = `${next.testDir}-renamed`
+    await fs.move(next.testDir, newTestDir)
+
+    next.testDir = newTestDir
+
+    await check(
+      () => stripAnsi(next.cliOutput),
+      /Detected project directory rename, restarting in new location/
+    )
+    await check(async () => {
+      return (await browser.eval('window.beforeNav')) === 1 ? 'pending' : 'done'
+    }, 'done')
+    await waitForNoRedbox(browser)
+
+    try {
+      // should still HMR correctly
+      await next.patchFile(
+        'pages/index.js',
+        (await next.readFile('pages/index.js')).replace(
+          'hello world',
+          'hello again'
+        )
+      )
+      await check(async () => {
+        if (!(await browser.eval('!!window.next'))) {
+          await browser.refresh()
+        }
+        return browser.eval('document.documentElement.innerHTML')
+      }, /hello again/)
+    } finally {
+      await next.patchFile(
+        'pages/index.js',
+        (await next.readFile('pages/index.js')).replace(
+          'hello again',
+          'hello world'
+        )
+      )
+    }
+  })
+})

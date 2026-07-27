@@ -1,0 +1,69 @@
+---
+title: Conflicting SSG Paths
+---
+
+## Why This Error Occurred
+
+You returned **conflicting paths** in your `getStaticPaths` function for one of your pages. All page paths must be unique and duplicates are not allowed.
+
+## Possible Ways to Fix It
+
+Remove any conflicting paths shown in the error message and only return them from one `getStaticPaths`.
+
+Example conflicting paths:
+
+```jsx filename="pages/hello/world.js"
+export default function Hello() {
+  return 'hello world!'
+}
+```
+
+```jsx filename="pages/[...catchAll].js"
+export const getStaticProps = () => ({ props: {} })
+
+export const getStaticPaths = () => ({
+  paths: [
+    '/hello/world', // <-- this conflicts with the /hello/world.js page, remove to resolve error
+    '/another',
+  ],
+  fallback: false,
+})
+
+export default function CatchAllPage() {
+  return 'Catch-all page'
+}
+```
+
+Example conflicting paths:
+
+```jsx filename="pages/blog/[slug].js"
+export const getStaticPaths = () => ({
+  paths: ['/blog/conflicting', '/blog/another'],
+  fallback: false,
+})
+
+export default function Blog() {
+  return 'Blog!'
+}
+```
+
+```jsx filename="pages/[...catchAll].js"
+export const getStaticProps = () => ({ props: {} })
+
+export const getStaticPaths = () => ({
+  paths: [
+    // this conflicts with the /blog/conflicting path above, remove to resolve error
+    '/blog/conflicting',
+    '/another',
+  ],
+  fallback: false,
+})
+
+export default function CatchAll() {
+  return 'Catch-all page'
+}
+```
+
+## Useful Links
+
+- [`getStaticPaths` Documentation](/docs/pages/building-your-application/data-fetching/get-static-paths)

@@ -1,0 +1,27 @@
+{
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "test": "jest --watch",
+    "test:ci": "jest --ci"
+  },
+  "dependencies": {
+    "next": "latest",
+    "react": "^18.1.0",
+    "react-dom": "^18.1.0"
+  },
+  "devDependencies": {
+    "@testing-library/jest-dom": "5.16.4",
+    "@testing-library/react": "13.2.0",
+    "@testing-library/user-event": "14.2.0",
+    "@types/jest": "29.5.5",
+    "@types/react": "18.2.8",
+    "babel-jest": "28.1.0",
+    "identity-obj-proxy": "3.0.0",
+    "jest": "28.1.0",
+    "jest-environment-jsdom": "28.1.0",
+    "typescript": "4.6.4"
+  }
+}

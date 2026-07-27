@@ -1,0 +1,1 @@
+{"name":"text-table","main":"index.js","author":{"name":"James Halliday","email":"mail@substack.net","url":"http://substack.net"},"license":"MIT"}

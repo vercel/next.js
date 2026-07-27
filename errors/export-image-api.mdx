@@ -1,0 +1,26 @@
+---
+title: Export with Image Optimization API
+---
+
+## Why This Error Occurred
+
+You configured `output: 'export'` (or ran `next export`) while importing the `next/image` component using the default `loader` configuration.
+
+However, the default `loader` relies on the Image Optimization API which is not available for exported applications.
+
+This is because Next.js optimizes images on-demand, as users request them (not at build time).
+
+## Possible Ways to Fix It
+
+- Use [`next start`](/docs/pages/api-reference/cli/next#next-start-options) to run a server, which includes the Image Optimization API.
+- Use any provider which supports Image Optimization (such as [Vercel](https://vercel.com)).
+- [Configure `loader`](/docs/pages/api-reference/components/image#loader) in `next.config.js`.
+- [Configure `unoptimized`](/docs/pages/api-reference/components/image#unoptimized) in `next.config.js`.
+
+## Useful Links
+
+- [Deployment Documentation](/docs/pages/getting-started/deploying)
+- [Image Optimization Documentation](/docs/pages/api-reference/components/image)
+- [`output: 'export'` Documentation](/docs/pages/guides/static-exports)
+- [`next/image` Documentation](/docs/pages/api-reference/components/image)
+- [Vercel Documentation](https://vercel.com/docs/concepts/next.js/image-optimization)

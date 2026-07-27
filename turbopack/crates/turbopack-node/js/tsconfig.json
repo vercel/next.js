@@ -1,0 +1,29 @@
+{
+  "compilerOptions": {
+    // type checking
+    "strict": true,
+    "noFallthroughCasesInSwitch": true,
+    "skipLibCheck": true,
+
+    // interop constraints
+    "allowSyntheticDefaultImports": true,
+    "esModuleInterop": true,
+
+    // js support
+    "allowJs": true,
+    "checkJs": false,
+
+    // environment
+    "lib": ["ESNext"],
+    "target": "esnext",
+
+    // modules
+    "module": "esnext",
+    "moduleResolution": "bundler",
+
+    // emit
+    "noEmit": true,
+    "stripInternal": true
+  },
+  "include": ["src"]
+}

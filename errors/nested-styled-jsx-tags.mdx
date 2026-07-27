@@ -1,0 +1,56 @@
+---
+title: 'Nested `<style jsx>` tags'
+---
+
+## Why This Error Occurred
+
+You have nested `<style jsx>` tags in a component. `<style jsx>` tags must be at the root of a `styled-jsx` scope.
+
+## Possible Ways to Fix It
+
+**Before**
+
+```jsx filename="example.js"
+const Component = () => (
+  <div>
+    <p>
+      Hello world
+      <style jsx>{`
+        p {
+          color: white;
+        }
+      `}</style>
+    </p>
+    <style global jsx>{`
+      body {
+        background: black;
+      }
+    `}</style>
+  </div>
+)
+```
+
+**After**
+
+```jsx filename="example.js"
+const Component = () => (
+  <div>
+    <p>Hello world</p>
+    <style jsx>{`
+      p {
+        color: white;
+      }
+    `}</style>
+    <style global jsx>{`
+      body {
+        background: black;
+      }
+    `}</style>
+  </div>
+)
+```
+
+## Useful Links
+
+- [Built-In CSS-in-JS](/docs/pages/guides/css-in-js)
+- [styled-jsx documentation](https://github.com/vercel/styled-jsx)

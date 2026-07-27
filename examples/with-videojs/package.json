@@ -1,0 +1,22 @@
+{
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "next": "latest",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "video.js": "^8.17.4",
+    "videojs-youtube": "^3.0.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.5.5",
+    "@types/react": "^18.3.7",
+    "@types/react-dom": "^18.3.0",
+    "@types/video.js": "^7.3.58",
+    "typescript": "^5.6.2"
+  }
+}

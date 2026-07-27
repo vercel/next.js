@@ -1,0 +1,94 @@
+---
+title: '`next/image` Un-configured localPatterns'
+---
+
+## Why This Error Occurred
+
+One of your pages that leverages the `next/image` component, passed a `src` value that uses a local path that isn't allowed by the `images.localPatterns` configuration in `next.config.js`.
+
+Each part of the `src` value is matched against your `images.localPatterns` definitions:
+
+- **Pathname**: The path must be covered by your glob pattern, e.g. `/**` or `/assets/**`. Single `*` matches a single path segment, while double `**` matches any number of path segments.
+- **Search**: If specified in a pattern, it must match the full search string exactly (including the leading `?`). Globs are not supported for search.
+
+If any of these differ from the actual `src`, the image will be rejected.
+
+Common pitfalls that cause this error:
+
+- A too-narrow pathname pattern (e.g. `/assets/` instead of `/assets/**`).
+- Setting `search: ''` when your images include query strings like `?v=123` or `?t=timestamp`. An empty string means only URLs **without** query strings are allowed.
+- Forgetting that pathname patterns are case-sensitive and must match exactly.
+
+See the [Local Patterns](/docs/pages/api-reference/components/image#localpatterns) reference for details.
+
+## Possible Ways to Fix It
+
+Add the pathname to the `images.localPatterns` config in `next.config.js`:
+
+```js filename="next.config.js"
+module.exports = {
+  images: {
+    localPatterns: [
+      {
+        pathname: '/assets/**',
+      },
+    ],
+  },
+}
+```
+
+### Any search params (default)
+
+To allow any search params, omit the `search` key:
+
+```js filename="next.config.js"
+module.exports = {
+  images: {
+    localPatterns: [
+      {
+        pathname: '/api/images/**',
+        // search is omitted, so ?v=123, ?t=456, or no query string are all allowed
+      },
+    ],
+  },
+}
+```
+
+### With specific search params
+
+To allow only a specific search param value:
+
+```js filename="next.config.js"
+module.exports = {
+  images: {
+    localPatterns: [
+      {
+        pathname: '/assets/**',
+        search: '?v=1',
+      },
+    ],
+  },
+}
+```
+
+### No search params
+
+To disallow query strings entirely, use an empty string:
+
+```js filename="next.config.js"
+module.exports = {
+  images: {
+    localPatterns: [
+      {
+        pathname: '/assets/**',
+        search: '',
+      },
+    ],
+  },
+}
+```
+
+## Useful Links
+
+- [Image Optimization Documentation](/docs/pages/api-reference/components/image)
+- [Local Patterns Documentation](/docs/pages/api-reference/components/image#localpatterns)

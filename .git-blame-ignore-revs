@@ -1,0 +1,38 @@
+# All revisions specified in the `.git-blame-ignore-revs` file, are hidden from the blame
+# when running `git blame --ignore-revs-file .git-blame-ignore-revs`.
+# https://docs.github.com/en/repositories/working-with-files/using-files/viewing-a-file#ignore-commits-in-the-blame-view
+
+# chore(examples): use default prettier for examples/templates (#60530)
+4466ba436b996263307171d344cca199e8087744
+
+# chore: update prettier to 3.2.5 (#65092)
+64b718c6618b6c419872abbf22163ae543ac259e
+
+# Replace createNextDescribe with nextTestSetup
+c6320ed87ab41eee6f3ac54352ad02a239f329b2
+
+# Enable prettier for turbopack
+eaad5b4c1451f35c4b3b6a3c9c67445b434c4a80
+
+# Turbopack: Make `turbopack-core` Rust 2024
+f5d537f23de7c61e427fd915b5b70d2298fdd5ad
+# Turbopack: Make `turbo-tasks-malloc` crate Rust 2024
+7e9b55da8b0d72c22708ae08a71581858e802bef
+# Turbopack: Make `turbopack-ecmascript` Rust 2024
+f9e78faee6e959a2bbc8891e3f7761d0d7d7dcb1
+# Turbopack: Make `turbopack-resolve` and `turbopack-trace-server` Rust 2024
+75bc3548e154453897d2dfaecab2cdf60912ae0c
+# Turbopack: Make `turbo-tasks-memory` crate Rust 2024
+1226d7e47c54173f568c9dd4bf87ef09f22122b5
+# Turbopack: Make `turbo-tasks-env` crate Rust 2024
+5a4dba153defeaa6330d2c23d0934594f2df3383
+# Turbopack: Make `turbo-macros` crate Rust 2024
+305635343df51bbabc19c0df8a82bb8302d86aef
+# Turbopack: Make `turbo-backend` crate Rust 2024
+9bf6e364d484f3ab7eed18b67fbd878dfc3bee6f
+# Turbopack: Make `turbo-rcstr` crate Rust 2024
+9156b3b25bcdd74b4dee58eede731ba895c9e0d9
+# Turbopack: Make `napi` crate Rust 2024
+02219cc880e0991b2060f1591757d97d9f678f9f
+# Turbopack: Make `turbo-tasks` crate Rust 2024
+47689a6e2552328cf90a2d1f14573d006868f197

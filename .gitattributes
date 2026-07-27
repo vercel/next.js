@@ -1,0 +1,12 @@
+# Enforce LF line endings for all text files (fixes Windows CRLF test flakiness)
+* text=auto eol=lf
+
+.github/actions/*/dist/** -text linguist-vendored
+packages/next/bundles/** -text linguist-vendored
+packages/next/compiled/** -text linguist-vendored
+
+# Make next/src/build folder indexable for github search
+build/** linguist-generated=false
+
+# Custom merge driver for auto-generated errors.json
+packages/next/errors.json merge=errors-json

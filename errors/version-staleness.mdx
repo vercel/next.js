@@ -1,0 +1,73 @@
+---
+title: A newer version is available
+---
+
+## What this notice means
+
+The development overlay shows that your installed version of Next.js is not the latest available. During development, Next.js checks the [npm registry](https://www.npmjs.com/package/next) and compares your installed version against the latest release. If a newer version is available, Next.js displays a notice in the overlay.
+
+Newer versions contain bug fixes and improved error tracing capabilities. Upgrade before investigating further.
+
+Upgrading Next.js won't fix errors that originate in your own code or third-party libraries. However, newer versions often provide better error messages and stack traces that can help you identify the root cause.
+
+If upgrading does not resolve your issue, search [GitHub Discussions](https://github.com/vercel/next.js/discussions) to see if others have encountered the same problem. If you cannot find a match, consider creating a new discussion with details about your error.
+
+If you believe the issue is a bug in Next.js and you have a minimal, shareable reproduction repository, [open an issue on GitHub](https://github.com/vercel/next.js/issues/new/choose).
+
+> **Good to know:** A reproduction repository is required when opening an issue. Issues without one are automatically closed.
+
+## Staleness levels
+
+- **Stale (patch or minor):** A newer stable release is available with bug fixes or new features.
+- **Stale (prerelease):** You are on a canary release and a newer canary is available. Canary versions are published frequently, so this is expected.
+- **Outdated (major):** Your installed version is behind by a major version. Upgrading is recommended to get security fixes and new features.
+
+## Upgrading
+
+Latest stable version:
+
+![npm version](https://img.shields.io/npm/v/next/latest?label=next@latest&color=black)
+
+To upgrade to the latest stable release:
+
+```bash package="npm"
+npm i next@latest
+```
+
+```bash package="yarn"
+yarn add next@latest
+```
+
+```bash package="pnpm"
+pnpm add next@latest
+```
+
+```bash package="bun"
+bun add next@latest
+```
+
+To upgrade to the latest canary release:
+
+```bash package="npm"
+npm i next@canary
+```
+
+```bash package="yarn"
+yarn add next@canary
+```
+
+```bash package="pnpm"
+pnpm add next@canary
+```
+
+```bash package="bun"
+bun add next@canary
+```
+
+If you are coming from an older major version, check out the [upgrade guides](/docs/app/guides/upgrading).
+
+## Contributing
+
+Next.js is open source and welcomes contributions. If you have identified a bug and want to fix it yourself, see the [contributing guide](https://github.com/vercel/next.js/blob/canary/contributing.md) or watch [How to Contribute to Open Source (Next.js)](https://www.youtube.com/watch?v=cuoNzXFLitc) to get started.
+
+You can also help by [triaging issues](https://github.com/vercel/next.js/blob/canary/contributing/repository/triaging.md), [verifying canary releases](https://github.com/vercel/next.js/blob/canary/.github/comments/verify-canary.md), or providing a [minimal reproduction](https://github.com/vercel/next.js/blob/canary/.github/comments/invalid-reproduction.md) for existing issues.

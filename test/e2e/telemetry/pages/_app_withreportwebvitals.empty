@@ -1,0 +1,5 @@
+import App from 'next/app'
+export default App
+export function reportWebVitals(metric) {
+  console.log(metric)
+}
