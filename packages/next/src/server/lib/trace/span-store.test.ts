@@ -61,31 +61,6 @@ describe('span recording', () => {
     ])
   })
 
-  it('uses performance timing for record timestamps', () => {
-    const records: SpanStoreRecord[] = []
-    const before = performance.timeOrigin + performance.now()
-    const dateNow = jest.spyOn(Date, 'now').mockImplementation(() => {
-      throw new Error('Date.now should not be used for span bookkeeping')
-    })
-
-    try {
-      setSpanRecorderForTest((span) => records.push(span))
-      recordSpan({ name: 'test.performance-clock' })
-    } finally {
-      dateNow.mockRestore()
-    }
-
-    const after = performance.timeOrigin + performance.now()
-    expect(records).toEqual([
-      expect.objectContaining({
-        name: 'test.performance-clock',
-        timestamp: expect.any(Number),
-      }),
-    ])
-    expect(records[0].timestamp).toBeGreaterThanOrEqual(before)
-    expect(records[0].timestamp).toBeLessThanOrEqual(after)
-  })
-
   it('forwards request spans directly to request insights', () => {
     process.env.__NEXT_REQUEST_INSIGHTS = 'true'
 

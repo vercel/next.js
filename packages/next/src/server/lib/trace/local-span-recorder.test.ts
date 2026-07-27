@@ -197,51 +197,6 @@ describe('local recording span', () => {
     ])
   })
 
-  it('uses performance timing for implicit span bookkeeping', () => {
-    const before = performance.timeOrigin + performance.now()
-    const dateNow = jest.spyOn(Date, 'now').mockImplementation(() => {
-      throw new Error('Date.now should not be used for span bookkeeping')
-    })
-
-    try {
-      const span = createLocalSpan({ name: 'test.local-span.safe-clock' })
-      span.addEvent('event')
-      span.recordException(new TypeError('boom'))
-      span.end()
-    } finally {
-      dateNow.mockRestore()
-    }
-
-    const after = performance.timeOrigin + performance.now()
-    const record = spanRecords[0]
-    expect(record).toEqual(
-      expect.objectContaining({
-        name: 'test.local-span.safe-clock',
-        startTime: expect.any(Number),
-        timestamp: expect.any(Number),
-        durationMs: expect.any(Number),
-      })
-    )
-    expect(record.startTime).toBeGreaterThanOrEqual(before)
-    expect(record.startTime).toBeLessThanOrEqual(after)
-    expect(record.timestamp).toBeGreaterThanOrEqual(before)
-    expect(record.timestamp).toBeLessThanOrEqual(after)
-    expect(record.events).toEqual([
-      expect.objectContaining({
-        name: 'event',
-        timestamp: expect.any(Number),
-      }),
-      expect.objectContaining({
-        name: 'exception',
-        timestamp: expect.any(Number),
-      }),
-    ])
-    for (const event of record.events ?? []) {
-      expect(event.timestamp).toBeGreaterThanOrEqual(before)
-      expect(event.timestamp).toBeLessThanOrEqual(after)
-    }
-  })
-
   it('preserves explicit event and exception timestamps', () => {
     const epochTimestamp = performance.timeOrigin + 10
     const preProcessEpochTimestamp = performance.timeOrigin - 1

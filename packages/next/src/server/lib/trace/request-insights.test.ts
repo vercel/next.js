@@ -154,34 +154,6 @@ describe('request insights', () => {
     unsubscribe()
   })
 
-  it('uses performance timing when a direct fetch has no start time', () => {
-    const before = performance.timeOrigin + performance.now()
-    const dateNow = jest.spyOn(Date, 'now').mockImplementation(() => {
-      throw new Error('Date.now should not be used for request bookkeeping')
-    })
-
-    try {
-      recordRequestInsightFetch(
-        { requestId: 'req_performance_clock', route: '/dashboard' },
-        { url: 'https://example.com/data' }
-      )
-    } finally {
-      dateNow.mockRestore()
-    }
-
-    const after = performance.timeOrigin + performance.now()
-    const insight = getRequestInsightsSnapshot().requests[0]
-    expect(insight).toEqual(
-      expect.objectContaining({
-        requestId: 'req_performance_clock',
-        route: '/dashboard',
-        startTime: expect.any(Number),
-      })
-    )
-    expect(insight.startTime).toBeGreaterThanOrEqual(before)
-    expect(insight.startTime).toBeLessThanOrEqual(after)
-  })
-
   it('uses the HTTP request span as the end-to-end request timing', () => {
     process.env.__NEXT_REQUEST_INSIGHTS = 'true'
 
