@@ -193,6 +193,9 @@ export default async function Page() {
         <li>
           <DebugLinks href="/suspense-in-root/parallel/conditional-breadcrumbs/show-only-breadcrumbs/blocked" />
         </li>
+        <li>
+          <DebugLinks href="/suspense-in-root/parallel/auth-fork" />
+        </li>
       </ul>
 
       <h2>Head</h2>

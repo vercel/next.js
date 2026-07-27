@@ -1,6 +1,6 @@
 // Drops both {children} and {sidebar}. Both slots have configured
-// pages, so both boundaries will be missing — the error should list
-// both files.
+// pages, but neither renders — both configs are vacuous and the route
+// must validate cleanly.
 import { ReactNode } from 'react'
 
 export default function Layout({

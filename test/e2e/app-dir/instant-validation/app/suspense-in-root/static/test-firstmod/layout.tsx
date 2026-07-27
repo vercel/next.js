@@ -1,6 +1,6 @@
-// No config. Hides {children} to trigger the missing-boundary fallback.
-// The config lives deeper (inner/leaf/page.tsx), but this layout is
-// what prevents it from rendering.
+// No config. Hides {children}, so everything below (including the
+// configured inter/inner page) never renders and is vacuous for
+// validation. The route must validate cleanly.
 import { ReactNode } from 'react'
 
 export default function Layout({ children }: { children: ReactNode }) {

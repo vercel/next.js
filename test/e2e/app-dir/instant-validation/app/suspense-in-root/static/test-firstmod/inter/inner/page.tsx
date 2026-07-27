@@ -1,8 +1,6 @@
-// Config lives here (inside __PAGE__ child of inner). The boundary
-// lands at `inner` because of depth iteration, and inner/layout.tsx
-// is the boundary segment's local mod. If firstModFilePath correctly
-// prefers the boundary segment's own layout, the error should point
-// at inner/layout.tsx — not this file.
+// Config lives here, but test-firstmod/layout.tsx (two levels above)
+// drops {children}, so this page never renders. Its config is vacuous
+// and must not produce any validation error.
 export const instant = { level: 'experimental-error' }
 
 export default function Page() {

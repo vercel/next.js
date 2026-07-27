@@ -529,30 +529,17 @@ describe('instant validation - parallel slot configs', () => {
         }
       })
 
-      it('errors when configured children slot is hidden, no cookies', async () => {
+      it('valid - configured children slot is hidden, no cookies', async () => {
+        // The children page is configured for instant validation but the
+        // layout never renders {children}. A slot that never renders is
+        // vacuous: it cannot block anything and its config demands
+        // nothing, so this must not produce a "could not validate"
+        // error (or any other warning).
         const href =
           '/suspense-in-root/parallel/conditional-breadcrumbs/show-only-breadcrumbs/unblocked'
         if (isNextDev) {
           const browser = await navigateTo(href)
-          await expect(browser).toDisplayCollapsedRedbox(`
-           {
-             "code": "E1286",
-             "description": "Next.js could not validate that a segment in your UI has instant navigation.",
-             "environmentLabel": "Server",
-             "label": "Instant",
-             "source": "/suspense-in-root/parallel/conditional-breadcrumbs/show-only-breadcrumbs/unblocked
-           │
-           │ ├─ suspense-in-root/
-           │ │  ├─ parallel/
-           │ │  │  ├─ conditional-breadcrumbs/
-           │ │  │  │  ├─ show-only-breadcrumbs/
-           │ │  │  │  │  ├─ (group)/
-           │ │  │  │  │  │  ├─ unblocked/
-           │                   └─ page.tsx ← dropped from rendering
-           │",
-             "stack": [],
-           }
-          `)
+          await expectNoDevValidationErrors(browser, await browser.url())
         } else {
           // The route group workaround only fires in dev mode; build-time
           // pattern matching doesn't resolve through (group)/ so the
@@ -562,37 +549,17 @@ describe('instant validation - parallel slot configs', () => {
         }
       })
 
-      it('errors when configured children slot is hidden, breadcrumbs blocked', async () => {
+      it('valid - configured children slot is hidden, breadcrumbs blocked', async () => {
+        // The configured children page never renders, so its error-level
+        // config is vacuous and must not be applied to the sibling
+        // breadcrumbs slot. Breadcrumbs itself is unconfigured (the suite
+        // runs with `validationLevel: 'manual-warning'`), so its blocking
+        // cookies() read is acknowledged and no error is reported.
         const href =
           '/suspense-in-root/parallel/conditional-breadcrumbs/show-only-breadcrumbs/blocked'
         if (isNextDev) {
           const browser = await navigateTo(href)
-          await expect(browser).toDisplayCollapsedRedbox(`
-           {
-             "cause": [
-               {
-                 "label": "Caused by: Instant Validation",
-                 "source": "app/suspense-in-root/parallel/conditional-breadcrumbs/show-only-breadcrumbs/(group)/blocked/page.tsx (1:24) @ instant
-           > 1 | export const instant = { level: 'experimental-error' }
-               |                        ^",
-                 "stack": [
-                   "instant app/suspense-in-root/parallel/conditional-breadcrumbs/show-only-breadcrumbs/(group)/blocked/page.tsx (1:24)",
-                   "Set.forEach <anonymous>",
-                 ],
-               },
-             ],
-             "code": "E1430",
-             "description": "Next.js encountered runtime data during a navigation.",
-             "environmentLabel": "Server",
-             "label": "Instant",
-             "source": "app/suspense-in-root/parallel/conditional-breadcrumbs/show-only-breadcrumbs/@breadcrumbs/blocked/page.tsx (3:16) @ BreadcrumbsPage
-           > 3 |   await cookies()
-               |                ^",
-             "stack": [
-               "BreadcrumbsPage app/suspense-in-root/parallel/conditional-breadcrumbs/show-only-breadcrumbs/@breadcrumbs/blocked/page.tsx (3:16)",
-             ],
-           }
-          `)
+          await expectNoDevValidationErrors(browser, await browser.url())
         } else {
           // The route group workaround only fires in dev mode; build-time
           // pattern matching doesn't resolve through (group)/ so the
@@ -601,6 +568,99 @@ describe('instant validation - parallel slot configs', () => {
           expectBuildValidationSkipped(result)
         }
       })
+    })
+
+    describe('rendered-slot config selection (request-state fork)', () => {
+      // The auth-fork layout renders exactly one of its two slots based
+      // on the `logged-in` cookie. Validation must determine the set of
+      // rendered slots from a full dynamic render of the actual request
+      // (the fork sits behind a blocking cookies() read, so aborting
+      // validation passes cannot discover it) and only consider the
+      // configs of slots that actually rendered:
+      // - logged out: only @login renders; its `instant = false`
+      //   acknowledges the layout's blocking cookies() read, and the
+      //   children page's error-level config is vacuous.
+      // - logged in: only children renders; its error-level config makes
+      //   the layout's cookies() read a violation, and @login's
+      //   `instant = false` is vacuous.
+      const href = '/suspense-in-root/parallel/auth-fork'
+
+      async function navigateWithCookieState(loggedIn: boolean) {
+        const browser = await next.browser('/suspense-in-root')
+        // The browser context is shared between tests, so clear any
+        // `logged-in` cookie left behind by a previous test.
+        await browser.deleteCookies()
+        if (loggedIn) {
+          await browser.addCookie({ name: 'logged-in', value: '1' })
+        }
+        if (isClientNav) {
+          await browser
+            .elementByCss(`[data-link-type="soft"][href="${href}"]`)
+            .click()
+          await retry(
+            async () => {
+              expect(await browser.url()).toContain(href)
+            },
+            undefined,
+            100,
+            'wait for url to change'
+          )
+        } else {
+          await browser.get(new URL(href, next.url).href)
+        }
+        const branch = await browser
+          .elementByCss('section[data-branch]')
+          .getAttribute('data-branch')
+        expect(branch).toBe(loggedIn ? 'children' : 'login')
+        return browser
+      }
+
+      it('valid - logged out: unrendered children config is vacuous, rendered @login allows blocking', async () => {
+        if (isNextDev) {
+          const browser = await navigateWithCookieState(false)
+          await expectNoDevValidationErrors(browser, await browser.url())
+        } else {
+          // A build has no request state, so the dynamic discovery render
+          // takes the logged-out branch: @login renders and is allowed to
+          // block while the children config is vacuous.
+          const result = await prerender(href)
+          expectNoBuildValidationErrors(result)
+        }
+      })
+
+      if (isNextDev) {
+        // Only the dev server can observe a logged-in request; a build
+        // always renders the cookie-less (logged-out) branch.
+        it('errors - logged in: rendered children config applies, unrendered @login opt-out is vacuous', async () => {
+          const browser = await navigateWithCookieState(true)
+          await expect(browser).toDisplayCollapsedRedbox(`
+           {
+             "cause": [
+               {
+                 "label": "Caused by: Instant Validation",
+                 "source": "app/suspense-in-root/parallel/auth-fork/page.tsx (4:24) @ instant
+           > 4 | export const instant = { level: 'experimental-error' }
+               |                        ^",
+                 "stack": [
+                   "instant app/suspense-in-root/parallel/auth-fork/page.tsx (4:24)",
+                   "Set.forEach <anonymous>",
+                 ],
+               },
+             ],
+             "code": "E1430",
+             "description": "Next.js encountered runtime data during a navigation.",
+             "environmentLabel": "Server",
+             "label": "Instant",
+             "source": "app/suspense-in-root/parallel/auth-fork/layout.tsx (16:36) @ AuthForkLayout
+           > 16 |   const cookieStore = await cookies()
+                |                                    ^",
+             "stack": [
+               "AuthForkLayout app/suspense-in-root/parallel/auth-fork/layout.tsx (16:36)",
+             ],
+           }
+          `)
+        })
+      }
     })
   })
 })

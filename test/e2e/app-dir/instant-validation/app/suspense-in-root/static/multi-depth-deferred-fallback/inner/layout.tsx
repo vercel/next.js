@@ -1,7 +1,7 @@
 // Inner layout intentionally drops `{children}` so the inner page
-// boundary (configured for instant validation) cannot render. This
-// produces a missing-boundary fallback at the inner depth's iteration
-// of the validation loop.
+// (configured for instant validation) never renders. An unrendered
+// segment is vacuous: its config demands nothing and it cannot block
+// anything, so this route must validate cleanly.
 export default function Layout() {
-  return <p>Children intentionally hidden to test multi-depth deferral.</p>
+  return <p>Children intentionally hidden to test unrendered segments.</p>
 }
