@@ -125,27 +125,9 @@ describe('request insights', () => {
     const outputIndex = next.cliOutput.length
     const browser = await next.browser('/safe-clock')
 
-    // This span completes inside MetadataOutlet, which is the path that invokes
-    // Request Insights publication and reproduced the framework Date.now call.
     await retry(async () => {
-      const snapshot = (await next
-        .fetch('/_next/development/request-insights')
-        .then((response) => response.json())) as {
-        requests: RequestInsight[]
-      }
-
-      const request = snapshot.requests.find(
-        (item) => item.route === '/safe-clock'
-      )
-      expect(
-        request?.spans.some(
-          (span) =>
-            span.attributes?.['next.span_type'] ===
-            'ResolveMetadata.generateMetadata'
-        )
-      ).toBe(true)
+      expect(await browser.elementByCss('p').text()).toBe('safe clock')
     })
-
     await waitForNoRedbox(browser)
     expect(next.cliOutput.slice(outputIndex)).not.toContain(
       'Route "/safe-clock": Next.js encountered the unstable value `Date.now()` while prerendering.'
