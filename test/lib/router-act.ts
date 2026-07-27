@@ -6,23 +6,25 @@ import { equals } from '@jest/expect-utils'
 // prefetches carry the value '3' (FetchStrategy.RuntimeShell). The App Shell is
 // the param/searchParam-independent chrome of a route — conceptually part of the
 // route itself, not prefetch data in the way we normally think of it. By default
-// we therefore exclude App Shell requests from all `act` assertion logic
-// (`includes` matching, `no-requests`, `block: 'reject'`, and the "at least one
-// request" check). They are still intercepted, fulfilled, and awaited so that the
-// browser caches the shell and no requests are left in flight. Pass
-// `includeAppShellRequests: true` to `createRouterAct` to assert on them directly
-// (e.g. when testing App Shell behavior specifically).
+// we therefore exclude App Shell requests from `act` assertion logic
+// (`includes` matching, `no-requests`, and `block: 'reject'`). They are still
+// intercepted, fulfilled, and awaited so that the browser caches the shell and
+// no requests are left in flight — and they do satisfy the "at least one
+// request" check, since they prove the router reacted to the scope. Pass
+// `includeAppShellRequests: true` to `createRouterAct` to assert on them
+// directly (e.g. when testing App Shell behavior specifically).
 const NEXT_ROUTER_PREFETCH_HEADER = 'next-router-prefetch'
 const APP_SHELL_PREFETCH_VALUE = '3'
 
 type Batch = {
   pendingRequestChecks: Set<Promise<void>>
   pendingRequests: Set<PendingRSCRequest>
-  // The number of pending requests in `pendingRequests` that are NOT App Shell
-  // requests. App Shell requests don't count toward the "at least one request"
-  // check, so we track this separately rather than scanning the set. Maintained
-  // in lockstep with `pendingRequests` membership.
-  pendingNonAppShellRequests: number
+  // Whether any router request — including an App Shell request — was
+  // received by this batch. Used by the "at least one request" watchdog:
+  // any router request proves the router reacted to the `act` scope, even
+  // ones that are excluded from the assertion logic. Also set when an inner
+  // `act`'s blocked responses are transferred to this batch.
+  didReceiveRouterRequest: boolean
 }
 
 type PendingRSCRequest = {
@@ -98,6 +100,41 @@ export function createRouterAct(
   }
 ): <T>(scope: () => Promise<T> | T, config?: ActConfig) => Promise<T> {
   const includeAppShellRequests = options?.includeAppShellRequests ?? false
+
+  // Track App Shell requests that are currently in flight anywhere on the
+  // page — including ones initiated outside an `act` scope, like viewport
+  // prefetches during the initial page load. The "at least one request"
+  // watchdog consults this set: the prefetch scheduler's Shell phase does not
+  // complete until its shell responses have arrived, so while a shell request
+  // is in flight, follow-up requests (which ARE countable) may be
+  // legitimately waiting on it. In that case the watchdog keeps waiting
+  // instead of timing out. See the watchdog logic inside `act`.
+  const inFlightAppShellRequests = new Set<Playwright.Request>()
+  const onRequestStarted = (request: Playwright.Request) => {
+    if (
+      request.headers()[NEXT_ROUTER_PREFETCH_HEADER] ===
+      APP_SHELL_PREFETCH_VALUE
+    ) {
+      inFlightAppShellRequests.add(request)
+    }
+  }
+  const onRequestSettled = (request: Playwright.Request) => {
+    inFlightAppShellRequests.delete(request)
+  }
+  // A hard navigation can orphan in-flight requests: Playwright doesn't
+  // reliably emit `requestfinished`/`requestfailed` for requests aborted by
+  // page teardown, which would leave stale entries in the set for the rest
+  // of the test — and a stale entry keeps the watchdog alive forever,
+  // turning what should be a clean timeout error into a hang. The destroyed
+  // document's shell requests can't gate anything anymore, and the new
+  // document's requests re-add themselves, so drop them all.
+  const onFrameDetached = () => {
+    inFlightAppShellRequests.clear()
+  }
+  page.on('request', onRequestStarted)
+  page.on('requestfinished', onRequestSettled)
+  page.on('requestfailed', onRequestSettled)
+  page.on('framedetached', onFrameDetached)
   /**
    * Helper function to wait for requestIdleCallback with retry logic.
    * Retries up to 3 times if "Execution context was destroyed" error occurs.
@@ -296,14 +333,14 @@ export function createRouterAct(
             })(),
             didProcess: false,
           })
-          // App Shell requests don't count toward the "at least one request"
-          // check, so only track and signal for non-App-Shell requests.
-          if (!isAppShell) {
-            batch.pendingNonAppShellRequests++
-            if (onDidIssueFirstRequest !== null) {
-              onDidIssueFirstRequest()
-              onDidIssueFirstRequest = null
-            }
+          // Any router request — including an App Shell request, which is
+          // otherwise excluded from assertion logic — satisfies the "at least
+          // one request" watchdog, since it proves the router reacted to the
+          // `act` scope.
+          batch.didReceiveRouterRequest = true
+          if (onDidIssueFirstRequest !== null) {
+            onDidIssueFirstRequest()
+            onDidIssueFirstRequest = null
           }
           return
         }
@@ -327,7 +364,7 @@ export function createRouterAct(
       const orphanedRequests = batch.pendingRequests
       batch.pendingRequests = new Set()
       batch.pendingRequestChecks = new Set()
-      batch.pendingNonAppShellRequests = 0
+      batch.didReceiveRouterRequest = false
       await Promise.all(
         Array.from(orphanedRequests).map((item) => item.route?.continue())
       )
@@ -345,7 +382,7 @@ export function createRouterAct(
     const batch: Batch = {
       pendingRequestChecks: new Set(),
       pendingRequests: new Set(),
-      pendingNonAppShellRequests: 0,
+      didReceiveRouterRequest: false,
     }
     currentBatch = batch
     await page.route('**/*', routeHandler)
@@ -354,17 +391,26 @@ export function createRouterAct(
       // Call the user-provided scope function
       const returnValue = await scope()
 
-      // Wait until the first request is initiated, up to some timeout. App Shell
-      // requests don't count, so check the non-App-Shell pending request count.
-      if (
-        expectedResponses !== null &&
-        batch.pendingNonAppShellRequests === 0
-      ) {
+      // Wait until the first request is initiated, up to some timeout.
+      if (expectedResponses !== null && !batch.didReceiveRouterRequest) {
         await new Promise<void>((resolve, reject) => {
-          const timerId = setTimeout(() => {
+          let timerId: ReturnType<typeof setTimeout>
+          const onExpiry = () => {
+            // Before timing out, check for App Shell requests in flight
+            // elsewhere on the page (e.g. spawned by a viewport prefetch
+            // during page load, before this `act` scope began, so it was
+            // never intercepted here). The prefetch scheduler's Shell phase
+            // doesn't complete until its shell responses arrive, so the
+            // first observable request may be legitimately gated on one.
+            // Keep the watchdog alive until it settles.
+            if (inFlightAppShellRequests.size > 0) {
+              timerId = setTimeout(onExpiry, 500)
+              return
+            }
             error.message = 'Timed out waiting for a request to be initiated.'
             reject(error)
-          }, 500)
+          }
+          timerId = setTimeout(onExpiry, 500)
           onDidIssueFirstRequest = () => {
             clearTimeout(timerId)
             resolve()
@@ -401,14 +447,6 @@ export function createRouterAct(
         for (const item of pending) {
           const route = item.route
           const url = item.url
-
-          // This request is being removed from `pendingRequests` for
-          // processing. Keep the non-App-Shell counter in lockstep. (If it ends
-          // up blocked and transferred to the outer batch, that batch's counter
-          // is incremented when the transfer happens, below.)
-          if (!item.isAppShell) {
-            batch.pendingNonAppShellRequests--
-          }
 
           let shouldBlock = false
           const fulfilled = await item.result
@@ -606,9 +644,7 @@ ${fulfilled.body}
                       // Shell prefetch.
                       isAppShell: false,
                     })
-                    // Keep the counter in lockstep with the add above (drained
-                    // and decremented on the next iteration of the while loop).
-                    batch.pendingNonAppShellRequests++
+                    batch.didReceiveRouterRequest = true
                     page.off('response', handleResponse)
                     page.off('requestfailed', handleFailure)
                     resolve()
@@ -681,10 +717,10 @@ ${fulfilled.body}
       if (remaining.size !== 0 && prevBatch !== null) {
         for (const item of remaining) {
           prevBatch.pendingRequests.add(item)
-          if (!item.isAppShell) {
-            prevBatch.pendingNonAppShellRequests++
-          }
         }
+        // The outer batch inherits pending work, so its "at least one
+        // request" check is satisfied.
+        prevBatch.didReceiveRouterRequest = true
       }
 
       return returnValue

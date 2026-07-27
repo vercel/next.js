@@ -132,6 +132,20 @@ export type PrefetchTask = {
    * They are reset after each iteration of the task queue.
    */
   hasBackgroundWork: boolean
+  /**
+   * Set during a pass when the task spawned a segment request, or encountered
+   * one that was already in flight (a Pending entry) — i.e. a response the
+   * pass cares about but hasn't received yet. The task blocks instead of
+   * advancing, and is re-pinged as each awaited entry settles; see
+   * blockTaskOnPendingResponse for the full rationale. Each ping re-runs a
+   * full traversal for the task, so expect roughly one re-pass per settling
+   * entry. Re-runs don't re-spawn revalidations: when a completed
+   * revalidation was re-keyed, its upsert evicts any superseded entry that
+   * would shadow it (see upsertSegmentEntry in cache.ts), and when its upsert
+   * was declined, the settled entry left in the revalidation slot dedupes
+   * further attempts (see pingFullSegmentRevalidation).
+   */
+  hasPendingResponses: boolean
   spawnedRuntimePrefetches: Set<SegmentRequestKey> | null
 
   /**
@@ -193,10 +207,6 @@ const enum PrefetchTaskExitStatus {
 
   /**
    * The task is blocked. It needs more data before it can proceed.
-   *
-   * Currently the only reason this happens is we're still waiting to receive a
-   * route tree from the server, because we can't start prefetching the segments
-   * until we know what to prefetch.
    */
   Blocked,
 
@@ -307,6 +317,7 @@ export function schedulePrefetchTask(
     priority,
     phase: PrefetchPhase.RouteTree,
     hasBackgroundWork: false,
+    hasPendingResponses: false,
     spawnedRuntimePrefetches: null,
     fetchStrategy,
     sortId: sortIdCounter++,
@@ -556,10 +567,13 @@ function processQueueInMicrotask() {
 
     const exitStatus = pingRoute(now, task)
 
-    // These fields are only valid for a single attempt. Reset them after each
-    // iteration of the task queue.
+    // These fields are only valid for a single "pass" — one pingRoute
+    // invocation for a task, which is what the comments here also call an
+    // attempt or an iteration. Reset them after each iteration of the
+    // task queue.
     const hasBackgroundWork = task.hasBackgroundWork
     task.hasBackgroundWork = false
+    task.hasPendingResponses = false
     task.spawnedRuntimePrefetches = null
 
     switch (exitStatus) {
@@ -598,7 +612,9 @@ function processQueueInMicrotask() {
             : PrefetchPhase.Speculative
           heapResift(taskHeap, task)
         } else if (task.phase === PrefetchPhase.Shell) {
-          // Shell phase complete. Always advance to Speculative regardless
+          // Shell phase complete — a Done exit means the pass observed every
+          // response it cares about (otherwise it would have exited Blocked;
+          // see hasPendingResponses). Always advance to Speculative regardless
           // of whether Shell-phase work fired — Speculative is responsible
           // for the per-link concrete work and runs even on routes whose
           // shell phase was a no-op.
@@ -611,6 +627,16 @@ function processQueueInMicrotask() {
           heapResift(taskHeap, task)
         } else {
           // The prefetch is complete. Continue to the next task.
+          //
+          // Completion is terminal in the normal flow: a task only completes
+          // after a full pass observed every response it cares about. In rare
+          // cases, though, a task can complete while still registered on an
+          // entry from an earlier pass whose subtree the final pass no longer
+          // reached; when that entry later settles, it re-pings the completed
+          // task. The re-run is a harmless idempotent no-op, but any
+          // per-completion side effect added here must be idempotent or
+          // once-guarded — in particular, the navigation-lock release below
+          // must not fire twice (hence the nulling).
           if (
             process.env.__NEXT_EXPOSE_TESTING_API &&
             task._navigationLockPrefetch != null
@@ -621,9 +647,19 @@ function processQueueInMicrotask() {
             // count reaches 0 — i.e. every spawned entry has also fulfilled, so
             // the navigation reads present data rather than a still-in-flight
             // entry. If everything already fulfilled, it resolves synchronously.
+            //
+            // TODO: Now that a task only completes after a full pass observes
+            // every segment response it spawned or found in flight, the
+            // navigation-testing lock's per-entry ref counting (pendingCount /
+            // trackNavigationLockPrefetchEntry) is redundant — a single resolve
+            // fired here would suffice.
             const { finishNavigationLockPrefetchSpawning } =
               require('./navigation-testing-lock') as typeof import('./navigation-testing-lock')
             finishNavigationLockPrefetchSpawning(task._navigationLockPrefetch)
+            // Release at most once per task: a stale registration from an
+            // earlier pass can re-ping a completed task (see above), so it can
+            // pass through here again.
+            task._navigationLockPrefetch = null
           }
           heapPop(taskHeap)
         }
@@ -711,6 +747,13 @@ function pingRoute(now: number, task: PrefetchTask): PrefetchTaskExitStatus {
       default:
         routeWithoutSearch satisfies never
     }
+  }
+
+  if (exitStatus === PrefetchTaskExitStatus.Done && task.hasPendingResponses) {
+    // The pass traversed the whole tree, but some segment responses haven't
+    // arrived yet, so the current phase isn't actually complete. Block until
+    // they do (see blockTaskOnPendingResponse for the full rationale).
+    return PrefetchTaskExitStatus.Blocked
   }
 
   return exitStatus
@@ -1404,17 +1447,18 @@ function pingPPRDisabledRouteTreeUpToLoadingBoundary(
       // of a larger redesign of the request protocol.
 
       // Add the pending cache entry to the result map.
-      spawnedEntries.set(
-        tree.requestKey,
-        upgradeToPendingSegment(
-          segment,
-          // Set the fetch strategy to LoadingBoundary to indicate that the server
-          // might not include it in the pending response. If another route is able
-          // to issue a per-segment request, we'll do that in the background.
-          FetchStrategy.LoadingBoundary,
-          task._navigationLockPrefetch ?? null
-        )
+      const pendingSegment = upgradeToPendingSegment(
+        segment,
+        // Set the fetch strategy to LoadingBoundary to indicate that the server
+        // might not include it in the pending response. If another route is able
+        // to issue a per-segment request, we'll do that in the background.
+        FetchStrategy.LoadingBoundary,
+        task._navigationLockPrefetch ?? null
       )
+      spawnedEntries.set(tree.requestKey, pendingSegment)
+      // The pass blocks on every request it spawns, not just requests it
+      // finds already in flight.
+      blockTaskOnPendingResponse(task, pendingSegment)
       if (refetchMarkerContext !== 'refetch') {
         refetchMarker = refetchMarkerContext = 'refetch'
       } else {
@@ -1444,11 +1488,17 @@ function pingPPRDisabledRouteTreeUpToLoadingBoundary(
     case EntryStatus.Pending: {
       // There's another prefetch currently in progress. Don't add the refetch
       // marker yet, so the server knows it can skip rendering this segment.
+      // The pass still depends on the in-flight response, so wait for it
+      // before the phase can complete.
+      blockTaskOnPendingResponse(task, segment)
       break
     }
     case EntryStatus.Rejected: {
-      // The segment failed to load. We shouldn't issue another request until
-      // the stale time has elapsed.
+      // The segment failed to load, or the server intentionally omitted it
+      // from a response (both are encoded as Rejected). Skip it and keep
+      // prefetching the rest of the tree; the entry's staleAt governs when it
+      // may be retried. Don't register the task on the rejected entry —
+      // nothing ever pings a Rejected entry.
       break
     }
     default:
@@ -1478,6 +1528,39 @@ function pingPPRDisabledRouteTreeUpToLoadingBoundary(
     requestTree[4] = tree.prefetchHints
   }
   return requestTree
+}
+
+/**
+ * Called during a pass when a segment's response hasn't been received yet —
+ * whether the request was just spawned by this pass or was already in flight.
+ * Marks the task as blocked: a phase only completes once a full pass observes
+ * every segment response it cares about, because later decisions (like
+ * whether a segment needs a follow-up runtime request) are made against the
+ * contents of those responses, and a phase may need to restart its work based
+ * on what they contain. The task is re-pinged (via pingBlockedTasks in
+ * cache.ts) when the entry resolves, re-running the pass against the
+ * received data. Only a pass that observes every response may advance the
+ * phase or complete the task.
+ *
+ * Never call this for an entry that's already Rejected — nothing ever pings
+ * a Rejected entry, so registering on one would strand the task. A rejected
+ * segment is simply skipped: the pass keeps prefetching the rest of the tree
+ * without it.
+ */
+function blockTaskOnPendingResponse(
+  task: PrefetchTask,
+  segment: { blockedTasks: Set<PrefetchTask> | null }
+): void {
+  // This state is reset after each iteration of the task queue. We use it to
+  // inform the scheduler that the task is blocked.
+  task.hasPendingResponses = true
+  // Add the task to this segment's blocked tasks, so it can be rescheduled
+  // once the segment finishes loading.
+  if (segment.blockedTasks === null) {
+    segment.blockedTasks = new Set([task])
+  } else {
+    segment.blockedTasks.add(task)
+  }
 }
 
 function pingRouteTreeAndIncludeDynamicData(
@@ -1588,11 +1671,36 @@ function pingRouteTreeAndIncludeDynamicData(
           fetchStrategy
         )
       }
+      if (segment.status === EntryStatus.Pending) {
+        // A response for this segment is still in flight. The pass must
+        // observe it before the phase can complete.
+        blockTaskOnPendingResponse(task, segment)
+      } else {
+        // The segment failed to load, or the server intentionally omitted it
+        // from a response (both are encoded as Rejected). Skip it and keep
+        // prefetching the rest of the tree; the entry's staleAt governs when
+        // it may be retried. Don't register the task on the rejected entry —
+        // nothing ever pings a Rejected entry.
+        //
+        // TODO: The cache encodes real failures and intentional server
+        // omissions identically (both Rejected); with per-segment skipping
+        // this has no task-lifecycle consequence, but distinguishing them
+        // could still be useful someday.
+      }
       break
     }
     default:
       segment satisfies never
   }
+
+  if (spawnedSegment !== null) {
+    // A pass must observe the response for every request it spawns before
+    // its phase can complete — not just requests it finds already in flight.
+    // Block on the entry we just spawned; the task is re-pinged when it's
+    // fulfilled or rejected.
+    blockTaskOnPendingResponse(task, spawnedSegment)
+  }
+
   const requestTreeChildren: Record<string, FlightRouterState> = {}
   if (tree.slots !== null) {
     for (const [parallelRouteKey, childTree] of tree.slots) {
@@ -1717,6 +1825,9 @@ function pingSegmentBundle(
           task._navigationLockPrefetch ?? null
         )
         needsFetch = true
+        // The pass blocks on every request it spawns, not just requests it
+        // finds already in flight.
+        blockTaskOnPendingResponse(task, nodeEntry)
         break
       case EntryStatus.Pending:
         if (
@@ -1738,12 +1849,16 @@ function pingSegmentBundle(
             )
             node.entry = revalidatingEntry
             needsFetch = true
+            // Block on the revalidation request we just spawned, in
+            // addition to the original in-flight entry (blocked below).
+            blockTaskOnPendingResponse(task, revalidatingEntry)
           } else {
             node.entry = null
           }
         } else {
           node.entry = null
         }
+        blockTaskOnPendingResponse(task, nodeEntry)
         break
       case EntryStatus.Rejected:
         if (
@@ -1765,12 +1880,24 @@ function pingSegmentBundle(
             )
             node.entry = revalidatingEntry
             needsFetch = true
+            // Block on the retry revalidation we just spawned, like any
+            // other pending response. If the retry succeeds, its upsert
+            // evicts the rejected entry (see evictShadowingSegmentEntries
+            // in cache.ts) and the re-run pass reads the healed data. If it
+            // rejects too, the re-run observes a settled revalidation and
+            // moves on.
+            blockTaskOnPendingResponse(task, revalidatingEntry)
           } else {
             node.entry = null
           }
         } else {
           node.entry = null
         }
+        // The segment failed to load, or the server intentionally omitted it
+        // from a response (both are encoded as Rejected). Skip it and keep
+        // prefetching the rest of the bundle; the entry's staleAt governs
+        // when it may be retried. Don't register the task on the rejected
+        // entry itself — nothing ever pings a Rejected entry.
         break
       case EntryStatus.Fulfilled: {
         // For shell entries (less specific than PPR), upgrade during the
@@ -1814,12 +1941,23 @@ function pingSegmentBundle(
             )
             node.entry = revalidatingEntry
             needsFetch = true
+            // The pass blocks on every request it spawns, including
+            // revalidations of an already-fulfilled entry.
+            blockTaskOnPendingResponse(task, revalidatingEntry)
           } else {
             // A non-empty revalidating entry means a request is already in
             // flight (or recently settled), so we dedupe and don't issue a
             // competing one — including for ISR-fallback upgrades, which then
             // share the same revalidation across tasks.
             node.entry = null
+            if (revalidatingEntry.status === EntryStatus.Pending) {
+              // The deduped-against revalidation is still in flight, and this
+              // pass depends on its response. Wait for it before the phase
+              // can complete. (A settled revalidation we chose not to use
+              // needs no waiting and is not a prefetch failure — the base
+              // entry here is already Fulfilled.)
+              blockTaskOnPendingResponse(task, revalidatingEntry)
+            }
           }
         } else {
           node.entry = null
@@ -2015,6 +2153,9 @@ function pingFullSegmentRevalidation(
     switch (nonEmptyRevalidatingSegment.status) {
       case EntryStatus.Pending:
         // There's already an in-progress prefetch that includes this segment.
+        // The pass needs the contents of that response, too. Wait for it
+        // before the phase can complete.
+        blockTaskOnPendingResponse(task, nonEmptyRevalidatingSegment)
         return null
       case EntryStatus.Fulfilled:
       case EntryStatus.Rejected:
