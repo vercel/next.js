@@ -106,6 +106,23 @@ export const buildCustomRoute = <T>(
   }
 }
 
+// Measured retained cost of a cache entry beyond its strings (LRUNode,
+// Map slot, string header): ~120 bytes. Counting it keeps the entry count
+// bounded even when keys are short, so the budget approximates retained
+// bytes.
+const FS_LRU_ENTRY_OVERHEAD = 128
+const FS_LRU_MAX_SIZE = 8 * 1024 * 1024
+
+// The pathname passed to getItem is usually a V8 slice of the full request
+// URL, and a sliced string retains its parent — including the query string —
+// for as long as the cache holds the key. Store a flat copy instead.
+// The JSON round-trip returns an equal string for every input (unlike a
+// Buffer round-trip, which replaces lone surrogates), so distinct keys can
+// never collide on the stored copy.
+function flatKeyCopy(key: string): string {
+  return JSON.parse(JSON.stringify(key))
+}
+
 export async function setupFsCheck(opts: {
   dir: string
   dev: boolean
@@ -113,12 +130,17 @@ export async function setupFsCheck(opts: {
   config: NextConfigRuntime
 }) {
   const getItemsLru = !opts.dev
-    ? new LRUCache<FsOutput | null>(1024 * 1024, function length(value) {
+    ? new LRUCache<FsOutput | null>(FS_LRU_MAX_SIZE, function length(
+        value,
+        key
+      ) {
+        const size = FS_LRU_ENTRY_OVERHEAD + key.length
         if (!value) {
-          // Null entries (negative cache) still need a non-zero size for LRU eviction
-          return 1
+          // Negative cache entries only retain their key.
+          return size
         }
         return (
+          size +
           (value.fsPath || '').length +
           value.itemPath.length +
           value.type.length
@@ -723,15 +745,17 @@ export async function setupFsCheck(opts: {
             fsPath,
             locale,
             itemsRoot,
-            itemPath: curItemPath,
+            // itemPath is usually a slice of the request URL too; keep a
+            // flat copy so the cached value doesn't retain the full URL.
+            itemPath: flatKeyCopy(curItemPath),
           }
 
-          getItemsLru?.set(itemKey, itemResult)
+          getItemsLru?.set(flatKeyCopy(itemKey), itemResult)
           return itemResult
         }
       }
 
-      getItemsLru?.set(itemKey, null)
+      getItemsLru?.set(flatKeyCopy(itemKey), null)
       return null
     },
     getDynamicRoutes() {
