@@ -1344,12 +1344,16 @@ browserContextPrototype.q = exportUrl;
     return instantiateModule(moduleId, SourceType.Runtime, chunkPath);
 }
 /**
+ * Matches any character `encodeURIComponent` escapes. The path separator is
+ * excluded because chunk paths are encoded a segment at a time.
+ */ var CHUNK_PATH_NEEDS_ENCODING = /[^A-Za-z0-9\-_.!~*'()/]/;
+/**
  * Returns the URL relative to the origin where a chunk can be fetched from.
  */ function getChunkRelativeUrl(chunkPath) {
     var basePath = arguments.length > 1 && arguments[1] !== void 0 ? arguments[1] : CHUNK_BASE_PATH;
-    return `${basePath}${chunkPath.split('/').map(function(p) {
-        return encodeURIComponent(p);
-    }).join('/')}${ASSET_SUFFIX}`;
+    // Most chunk paths need no escaping.
+    var encodedPath = CHUNK_PATH_NEEDS_ENCODING.test(chunkPath) ? chunkPath.split('/').map(encodeURIComponent).join('/') : chunkPath;
+    return `${basePath}${encodedPath}${ASSET_SUFFIX}`;
 }
 // Shared runtime primitives consumed by the bundled `createWorker` helper,
 // exposed as `__turbopack_chunk_base_path__` and `__turbopack_chunk_asset_suffix__`.
