@@ -89,6 +89,16 @@
   white-space: nowrap;
 }
 
+.request-insights-item-context {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--color-gray-900);
+  font-size: var(--size-11);
+  font-weight: 400;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .request-insights-duration,
 .request-insights-meta {
   color: var(--color-gray-900);

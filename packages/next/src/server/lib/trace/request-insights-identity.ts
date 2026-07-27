@@ -1,8 +1,10 @@
 import type { AsyncLocalStorage } from 'async_hooks'
+import type { RequestInsightKind } from '../../../next-devtools/shared/request-insights'
 import { createAsyncLocalStorage } from '../../app-render/async-local-storage'
 
 export type RequestInsightsIdentity = {
   requestId: string
+  kind?: RequestInsightKind
   htmlRequestId: string
   url: string | undefined
 }

@@ -8,6 +8,10 @@ import { SpanStatusCode, trace } from 'next/dist/compiled/@opentelemetry/api'
 import { createLocalSpan } from './local-span-recorder'
 import { runWithRequestInsightsIdentity } from './request-insights-identity'
 import { setSpanRecorderForTest, type SpanStoreRecord } from './span-store'
+import {
+  workAsyncStorage,
+  type WorkStore,
+} from '../../app-render/work-async-storage.external'
 
 const originalDevServer = process.env.__NEXT_DEV_SERVER
 const spanRecords: SpanStoreRecord[] = []
@@ -139,6 +143,38 @@ describe('local recording span', () => {
         requestId: 'request-1',
         htmlRequestId: 'html-1',
         url: '/dashboard?tab=overview',
+      }),
+    ])
+  })
+
+  it('uses a nested Instant Insights identity instead of the work store identity', () => {
+    const workStore = {
+      requestId: 'work-request',
+      htmlRequestId: 'work-html',
+      route: '/dashboard',
+    } as WorkStore
+
+    workAsyncStorage.run(workStore, () => {
+      runWithRequestInsightsIdentity(
+        {
+          requestId: 'originating-request',
+          kind: 'instant-insights',
+          htmlRequestId: 'originating-html',
+          url: '/dashboard',
+        },
+        () => {
+          const span = createLocalSpan({ name: 'Instant Insights' })
+          span.end()
+        }
+      )
+    })
+
+    expect(spanRecords).toEqual([
+      expect.objectContaining({
+        requestId: 'originating-request',
+        requestInsightKind: 'instant-insights',
+        htmlRequestId: 'originating-html',
+        route: '/dashboard',
       }),
     ])
   })

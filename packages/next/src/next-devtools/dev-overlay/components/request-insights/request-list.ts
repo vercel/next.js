@@ -1,26 +1,33 @@
-import type { RequestInsight } from '../../../shared/request-insights'
+import {
+  getRequestInsightKey,
+  getRequestInsightKind,
+  type RequestInsight,
+} from '../../../shared/request-insights'
 
-export function getActiveRequestId(
+export function getActiveRequestKey(
   requests: readonly RequestInsight[],
-  selectedRequestId: string | null
+  selectedRequestKey: string | null
 ): string | null {
   if (
-    selectedRequestId !== null &&
-    requests.some((request) => request.requestId === selectedRequestId)
+    selectedRequestKey !== null &&
+    requests.some(
+      (request) => getRequestInsightKey(request) === selectedRequestKey
+    )
   ) {
-    return selectedRequestId
+    return selectedRequestKey
   }
 
-  return (
-    requests.find((request) => request.fetches.length > 0)?.requestId ??
-    requests[0]?.requestId ??
-    null
-  )
+  const request =
+    requests.find((item) => item.fetches.length > 0) ?? requests[0]
+  return request ? getRequestInsightKey(request) : null
 }
 
 export function isPageLoadRequest(
-  request: Pick<RequestInsight, 'requestId'>,
+  request: Pick<RequestInsight, 'requestId' | 'kind'>,
   initialRequestId: string | undefined
 ): boolean {
-  return request.requestId === initialRequestId
+  return (
+    getRequestInsightKind(request) === 'request' &&
+    request.requestId === initialRequestId
+  )
 }
