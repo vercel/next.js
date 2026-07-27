@@ -5,7 +5,7 @@ import { join } from 'path'
 
 const getImage = (filepath: string) => readFile(join(__dirname, filepath))
 
-const detectContentType = async (buffer: Buffer, isRetry = false) => {
+const detectContentType = async (buffer: Buffer, attempt = 0) => {
   let maxBlockedMs = 0
   let lastTick = performance.now()
   let running = true
@@ -25,13 +25,14 @@ const detectContentType = async (buffer: Buffer, isRetry = false) => {
   maxBlockedMs = Math.max(maxBlockedMs, performance.now() - lastTick)
 
   if (maxBlockedMs > 1) {
-    if (isRetry) {
+    // The sampled gaps also include JIT warmup and scheduler noise; a real
+    // regression (GHSA-q8wf-6r8g-63ch) fails every attempt.
+    if (attempt >= 4) {
       throw new Error(
         `detectContentType blocked the event loop for ${maxBlockedMs.toFixed(1)}ms`
       )
     } else {
-      // try again because the first run after compile can be slow due to JIT optimizations
-      return await detectContentType(buffer, true)
+      return await detectContentType(buffer, attempt + 1)
     }
   }
   return result

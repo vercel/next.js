@@ -92,17 +92,9 @@ describe('ci-missing-typescript-deps', () => {
         '@types/react': 'npm:types-react@beta',
         '@types/react-dom': 'npm:types-react-dom@beta',
       },
-      packageJson: {
-        overrides: {
-          '@types/react': 'npm:types-react@beta',
-          '@types/react-dom': 'npm:types-react-dom@beta',
-        },
-        pnpm: {
-          overrides: {
-            '@types/react': 'npm:types-react@beta',
-            '@types/react-dom': 'npm:types-react-dom@beta',
-          },
-        },
+      resolutions: {
+        '@types/react': 'npm:types-react@beta',
+        '@types/react-dom': 'npm:types-react-dom@beta',
       },
     })
 
