@@ -653,8 +653,6 @@ async function generateDynamicRSCPayload(
     url,
   } = ctx
 
-  const serveStreamingMetadata = !!ctx.renderOpts.serveStreamingMetadata
-
   if (!options?.skipPageRendering) {
     const preloadCallbacks: PreloadCallbacks = []
     const requestStore = workUnitAsyncStorage.getStore()
@@ -677,7 +675,6 @@ async function generateDynamicRSCPayload(
       pathname: url.pathname,
       metadataContext: createMetadataContext(ctx.renderOpts),
       interpolatedParams: ctx.interpolatedParams,
-      serveStreamingMetadata,
     })
 
     const rscHead = createElement(
@@ -2064,7 +2061,6 @@ async function getRSCPayload(
     getDynamicParamFromSegment,
     query
   )
-  const serveStreamingMetadata = !!ctx.renderOpts.serveStreamingMetadata
   const hasGlobalNotFound = !!tree[2]['global-not-found']
 
   const { Viewport, Metadata, MetadataOutlet } = createMetadataComponents({
@@ -2079,7 +2075,6 @@ async function getRSCPayload(
     pathname: url.pathname,
     metadataContext: createMetadataContext(ctx.renderOpts),
     interpolatedParams: ctx.interpolatedParams,
-    serveStreamingMetadata,
   })
 
   const preloadCallbacks: PreloadCallbacks = []
@@ -2217,7 +2212,6 @@ async function getErrorRSCPayload(
   let Viewport: ComponentType | null = null
   let Metadata: ComponentType | null = null
   if (shouldRenderMetadataAndViewport) {
-    const serveStreamingMetadata = !!ctx.renderOpts.serveStreamingMetadata
     const metadataComponents = createMetadataComponents({
       tree,
       parsedQuery: query,
@@ -2225,7 +2219,6 @@ async function getErrorRSCPayload(
       metadataContext: createMetadataContext(ctx.renderOpts),
       errorType,
       interpolatedParams: ctx.interpolatedParams,
-      serveStreamingMetadata: serveStreamingMetadata,
     })
     Viewport = metadataComponents.Viewport
     Metadata = metadataComponents.Metadata
@@ -3263,6 +3256,7 @@ async function renderToStream(
     cacheComponents,
   } = renderOpts
 
+  const shouldBlockMetadata = renderOpts.serveStreamingMetadata === false
   const { cachedNavigations } = renderOpts.experimental
 
   const { ServerInsertedHTMLProvider, renderServerInsertedHTML } =
@@ -3857,7 +3851,9 @@ async function renderToStream(
         })
 
         const generateStaticHTML =
-          supportsDynamicResponse !== true || !!shouldWaitOnAllReady
+          supportsDynamicResponse !== true ||
+          !!shouldWaitOnAllReady ||
+          shouldBlockMetadata
 
         const appElement = (
           <App
@@ -4001,7 +3997,9 @@ async function renderToStream(
         })
 
         const generateStaticHTML =
-          supportsDynamicResponse !== true || !!shouldWaitOnAllReady
+          supportsDynamicResponse !== true ||
+          !!shouldWaitOnAllReady ||
+          shouldBlockMetadata
 
         const appElement = (
           <App
@@ -4179,7 +4177,9 @@ async function renderToStream(
 
         try {
           const generateStaticHTML =
-            supportsDynamicResponse !== true || !!shouldWaitOnAllReady
+            supportsDynamicResponse !== true ||
+            !!shouldWaitOnAllReady ||
+            shouldBlockMetadata
 
           const { stream: errorHtmlStream, allReady: errorAllReady } =
             await workUnitAsyncStorage.run(
@@ -4278,7 +4278,9 @@ async function renderToStream(
 
         try {
           const generateStaticHTML =
-            supportsDynamicResponse !== true || !!shouldWaitOnAllReady
+            supportsDynamicResponse !== true ||
+            !!shouldWaitOnAllReady ||
+            shouldBlockMetadata
 
           const { stream: errorHtmlStream, allReady: errorAllReady } =
             await workUnitAsyncStorage.run(
