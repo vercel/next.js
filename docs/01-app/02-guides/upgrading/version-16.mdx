@@ -8,33 +8,42 @@ description: Upgrade your Next.js Application from Version 15 to 16.
 
 ## Use an AI agent (recommended)
 
-Recent Next.js releases added coding-agent support, including bundled docs and an `AGENTS.md` setup flow. If you're using an AI coding assistant, have it set up Next.js docs before running the upgrade. This keeps the agent grounded in the right APIs, conventions, and migration guidance while it plans and applies the changes.
-
-The [AI Coding Agents guide](/docs/app/guides/ai-agents) explains how to point an assistant at the right docs before it edits code, which helps with this upgrade and leaves the project set up for future agent work.
+An AI coding agent can run the mechanical parts of the upgrade, inspect the diff, fix follow-up breakages, and verify the app. The prompt below asks the agent to read version-matched docs, use the codemods where appropriate, explain choices, and verify the result.
 
 Give the agent this prompt:
 
 ```prompt
 Upgrade this app to Next.js 16.
 
-Before editing code, set up version-matched Next.js docs for this project. Use the [AI Coding Agents guide](/docs/app/guides/ai-agents) for the full setup. If AGENTS.md is missing or doesn't point at version-matched docs, run `npx @next/codemod@canary agents-md`, then read AGENTS.md.
+Before editing code, make sure AGENTS.md points at version-matched Next.js docs. If it is missing or outdated, follow [Set up AI agent docs](/docs/app/guides/upgrading/version-16#set-up-ai-agent-docs), then read AGENTS.md.
 
-Then read AGENTS.md and follow the [Next.js 16 upgrade guide](/docs/app/guides/upgrading/version-16) as the source of truth for the migration. Use the codemod steps in [Or upgrade manually](/docs/app/guides/upgrading/version-16#or-upgrade-manually) when you're ready to run the mechanical upgrade.
+Then follow the [Next.js 16 upgrade guide](/docs/app/guides/upgrading/version-16) as the source of truth for the migration. Use the [codemod](/docs/app/guides/upgrading/version-16#using-the-codemod) when you're ready to run the mechanical upgrade.
 
 Talk through the plan in user-facing language before making broad changes. When the guide presents a choice, explain the trade-off and ask which path to take. Keep the migration scoped to the upgrade, inspect the diff, run the relevant checks, and fix remaining breaking changes. Use the runtime verification flow from the [AI Coding Agents guide](/docs/app/guides/ai-agents), such as `next-dev-loop` when available, to confirm the upgraded app still works. Summarize what changed and what was verified.
 
-Before finishing, verify AGENTS.md points at the docs for the installed Next.js version. On Next.js 16.2 and later, that should be the bundled docs in `node_modules/next/dist/docs/`. If the pre-upgrade setup downloaded docs into `.next-docs/`, update AGENTS.md to point at the bundled docs, then remove `.next-docs/` once nothing references it.
+Before finishing, repeat the post-upgrade check in [Set up AI agent docs](/docs/app/guides/upgrading/version-16#set-up-ai-agent-docs) so the project is ready for future agent work.
 ```
 
 ## Or upgrade manually
 
-To make version-matched docs available in the project before the upgrade starts, run:
+Upgrading manually follows a few steps, in order:
+
+1. [Set up AI agent docs](#set-up-ai-agent-docs) if you use an assistant now or want future agent work grounded in version-matched docs.
+2. [Run the upgrade codemod](#using-the-codemod).
+3. If you prefer not to run the codemod, [install packages manually](#install-packages-manually).
+4. Continue through the breaking changes below, run the relevant checks, and fix any remaining issues.
+
+## Set up AI agent docs
+
+The prompt above asks the agent to do this before it edits code. You can also prepare the project yourself before starting the upgrade. See the [AI Coding Agents guide](/docs/app/guides/ai-agents) for the full setup.
 
 ```bash filename="Terminal"
 npx @next/codemod@canary agents-md
 ```
 
 After upgrading, verify `AGENTS.md` still points at the docs for the installed Next.js version. On Next.js 16.2 and later, that should be the bundled docs in `node_modules/next/dist/docs/`. If the pre-upgrade setup downloaded docs into `.next-docs/`, update `AGENTS.md` to point at the bundled docs, then remove `.next-docs/` once nothing references it.
+
+## Using the codemod
 
 To update to Next.js version 16, you can use the `upgrade` [codemod](/docs/app/guides/upgrading/codemods#160):
 
@@ -67,6 +76,8 @@ The `upgrade` codemod does not run every migration codemod. If your app still us
 ```bash filename="Terminal"
 npx @next/codemod@canary next-async-request-api .
 ```
+
+## Install packages manually
 
 If you prefer to do it manually, install the latest Next.js and React versions:
 
