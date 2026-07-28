@@ -303,7 +303,12 @@ pub enum SourceMapSourceType {
 }
 
 #[turbo_tasks::value(transparent, cell = "keyed")]
-pub struct UnusedReferences(FxHashSet<ResolvedVc<Box<dyn ModuleReference>>>);
+#[allow(clippy::type_complexity)]
+/// For each reference, the targets it resolves to that were dropped as unused. One reference can
+/// resolve to several targets, which are dropped independently.
+pub struct UnusedReferences(
+    FxHashMap<ResolvedVc<Box<dyn ModuleReference>>, FxHashSet<ResolvedVc<Box<dyn Module>>>>,
+);
 
 #[turbo_tasks::value(shared)]
 #[derive(Debug, Clone, Default)]

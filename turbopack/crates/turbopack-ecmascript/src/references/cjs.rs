@@ -204,28 +204,13 @@ impl CjsRequireAssetReferenceCodeGen {
     ) -> Result<CodeGeneration> {
         let reference = self.reference.await?;
 
-        // This `require()` is in `unused_references`: its result is unused and
-        // the target is side-effect free. Replace the call with a placeholder
-        // at the expression level.
-        if reference.cjs_tree_shaking
-            && chunking_context
-                .unused_references()
-                .contains_key(&ResolvedVc::upcast(self.reference))
-                .await?
-        {
-            let visitor = create_visitor!(self.path, visit_mut_expr, |expr: &mut Expr| {
-                // `const {a,b} = 0;` is a clever way to assign undefined to all the variables
-                *expr = quote!("0" as Expr);
-            });
-            return Ok(CodeGeneration::visitors(vec![visitor]));
-        }
-
         let pm = PatternMapping::resolve_request(
             *reference.request,
             *reference.origin,
             chunking_context,
             self.reference.resolve_reference(),
             ResolveType::ChunkItem,
+            Some(Vc::upcast(*self.reference)),
         )
         .await?;
         let mut visitors = Vec::new();
@@ -366,6 +351,7 @@ impl CjsRequireResolveAssetReferenceCodeGen {
             chunking_context,
             self.reference.resolve_reference(),
             ResolveType::ChunkItem,
+            Some(Vc::upcast(*self.reference)),
         )
         .await?;
         let mut visitors = Vec::new();

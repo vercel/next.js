@@ -789,6 +789,7 @@ impl EcmascriptChunkPlaceable for ImportMetaGlobAsset {
                 chunking_context,
                 *entry.result,
                 ResolveType::ChunkItem,
+                None,
             )
             .await?;
 
