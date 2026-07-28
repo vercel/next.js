@@ -1,5 +1,8 @@
 import { nextTestSetup, type NextInstance, type Playwright } from 'e2e-utils'
-import { waitForValidation } from 'e2e-utils/instant-validation'
+import {
+  getDevCliValidationOutput,
+  waitForValidation,
+} from 'e2e-utils/instant-validation'
 import { retry, waitForNoErrorToast } from '../../../lib/next-test-utils'
 
 export interface InstantValidationCaseContext {
@@ -102,6 +105,15 @@ export function runInstantValidationTests(
       if (start.responseFinished !== undefined) {
         expect(start.responseFinished).toBe(true)
       }
+      // Delivered validation errors are printed between the validation
+      // start/end markers, so asserting on the extracted CLI output is
+      // race-free — unlike the error toast, which the browser may render
+      // after the wait below times out.
+      const validationOutput = await getDevCliValidationOutput(
+        url,
+        getCliOutputSinceMark
+      )
+      expect(validationOutput).not.toContain('Error:')
       await waitForNoErrorToast(browser, NO_VALIDATION_ERRORS_WAIT)
     }
 

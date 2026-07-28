@@ -269,62 +269,149 @@ export function registerHeadAndReportingTests(
     })
   })
 
-  describe('unrendered configured segments are vacuous', () => {
-    // A segment that never appears in the client tree cannot block
-    // anything, so its instant config demands nothing. Validation
-    // determines the set of rendered segments from a full dynamic
-    // render, and only the configs of segments in that set are
-    // considered. A configured segment that a layout drops from
-    // rendering therefore produces no "could not validate" error —
-    // and no warning of any kind.
+  describe('unrendered fork slots are vacuous', () => {
+    // A fork slot that never appears in the client tree cannot block
+    // anything, so its instant config demands nothing. Parallel slots
+    // are the convention for conditionally rendered route UI, and
+    // validation determines which fork slots actually render for the
+    // current request; configs on the unrendered branches are vacuous —
+    // no "could not validate" error, and no warning of any kind.
 
-    it('valid - configured page dropped by its parent layout', async () => {
+    it('valid - multiple configured fork slots dropped by the same layout', async () => {
+      // Layout drops both {children} and {sidebar}. Both slots of the
+      // fork have configured pages; both are vacuous because neither
+      // renders.
+      if (isNextDev) {
+        const browser = await navigateTo(
+          '/suspense-in-root/static/test-multi-unrendered'
+        )
+        await expectNoDevValidationErrors(browser, await browser.url())
+      } else {
+        const result = await prerender(
+          '/suspense-in-root/static/test-multi-unrendered'
+        )
+        expectNoBuildValidationErrors(result)
+      }
+    })
+  })
+
+  describe('unrendered non-fork segments report could-not-validate', () => {
+    // Non-fork segments are always considered for validation. A layout
+    // that drops a plain {children} — with no sibling slot to render
+    // instead — is not expressing a conditional route branch (parallel
+    // slots are the convention for that), so a configured segment below
+    // the drop deterministically reports "could not validate" instead of
+    // being silently skipped.
+
+    it('errors - configured page dropped by its parent layout', async () => {
       // Outer layout has instant and validates cleanly. Inner page has
       // instant but its parent layout drops {children}, so the inner
-      // page never renders and its config is vacuous.
+      // boundary can't render. The deepest iteration's missing-boundary
+      // fallback is deferred while shallower depths run; with no real
+      // error anywhere it surfaces at the end.
       if (isNextDev) {
         const browser = await navigateTo(
           '/suspense-in-root/static/multi-depth-deferred-fallback/inner'
         )
-        await expectNoDevValidationErrors(browser, await browser.url())
+        await expect(browser).toDisplayCollapsedRedbox(`
+           {
+             "code": "E1286",
+             "description": "Next.js could not validate that a segment in your UI has instant navigation.",
+             "environmentLabel": "Server",
+             "label": "Instant",
+             "source": "/suspense-in-root/static/multi-depth-deferred-fallback/inner
+           │
+           │ ├─ suspense-in-root/
+           │ │  ├─ static/
+           │ │  │  ├─ multi-depth-deferred-fallback/
+           │ │  │  │  ├─ inner/
+           │             └─ page.tsx ← dropped from rendering
+           │",
+             "stack": [],
+           }
+          `)
       } else {
         const result = await prerender(
           '/suspense-in-root/static/multi-depth-deferred-fallback/inner'
         )
-        expectNoBuildValidationErrors(result)
+        expect(extractBuildValidationError(result.cliOutput))
+          .toMatchInlineSnapshot(`
+         "Error: Route "/suspense-in-root/static/multi-depth-deferred-fallback/inner": Could not validate that a segment in your UI has instant navigation.
+
+         This segment was dropped from rendering. Issues that would prevent instant navigation will go undetected.
+
+         Dropped segment:
+           app/suspense-in-root/static/multi-depth-deferred-fallback/inner/page.tsx
+
+         Ways to fix this:
+           - [render] Render the dropped segment
+           - [ignore] Set \`export const instant = false\` to opt the dropped segment out of instant-navigation validation
+
+         Learn more: https://nextjs.org/docs/messages/instant-unrendered-segment
+             at ignore-listed frames
+         Build-time instant validation failed for route "/suspense-in-root/static/multi-depth-deferred-fallback/inner".
+         To get a more detailed stack trace and pinpoint the issue, try one of the following:
+           - Start the app in development mode by running \`next dev\`, then open "/suspense-in-root/static/multi-depth-deferred-fallback/inner" in your browser to investigate the error.
+           - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
+         Stopping prerender due to instant validation errors."
+        `)
+        expect(result.exitCode).toBe(1)
       }
     })
 
-    it('valid - configured page dropped further up the tree', async () => {
-      // Config is on inter/inner/page.tsx, but test-firstmod/layout.tsx
-      // (two levels above) drops {children}. Nothing below the drop
-      // point renders, so the config is vacuous.
+    it('errors - reports the shallowest unrendered file, not the configured file', async () => {
+      // Config is on inter/inner/page.tsx. The shallowest boundary
+      // iteration lands at test-firstmod, and inter/layout.tsx is the
+      // first child mod that didn't render — not the configured page,
+      // and not test-firstmod/layout.tsx (which DID render but dropped
+      // its children).
       if (isNextDev) {
         const browser = await navigateTo(
           '/suspense-in-root/static/test-firstmod/inter/inner'
         )
-        await expectNoDevValidationErrors(browser, await browser.url())
+        await expect(browser).toDisplayCollapsedRedbox(`
+           {
+             "code": "E1286",
+             "description": "Next.js could not validate that a segment in your UI has instant navigation.",
+             "environmentLabel": "Server",
+             "label": "Instant",
+             "source": "/suspense-in-root/static/test-firstmod/inter/inner
+           │
+           │ ├─ suspense-in-root/
+           │ │  ├─ static/
+           │ │  │  ├─ test-firstmod/
+           │ │  │  │  ├─ inter/
+           │             └─ layout.tsx ← dropped from rendering
+           │",
+             "stack": [],
+           }
+          `)
       } else {
         const result = await prerender(
           '/suspense-in-root/static/test-firstmod/inter/inner'
         )
-        expectNoBuildValidationErrors(result)
-      }
-    })
+        expect(extractBuildValidationError(result.cliOutput))
+          .toMatchInlineSnapshot(`
+         "Error: Route "/suspense-in-root/static/test-firstmod/inter/inner": Could not validate that a segment in your UI has instant navigation.
 
-    it('valid - multiple configured slots dropped by the same layout', async () => {
-      // Layout drops both {children} and {sidebar}. Both slots have
-      // configured pages; both are vacuous because neither renders.
-      if (isNextDev) {
-        const browser = await navigateTo(
-          '/suspense-in-root/static/test-multi-unrendered'
-        )
-        await expectNoDevValidationErrors(browser, await browser.url())
-      } else {
-        const result = await prerender(
-          '/suspense-in-root/static/test-multi-unrendered'
-        )
-        expectNoBuildValidationErrors(result)
+         This segment was dropped from rendering. Issues that would prevent instant navigation will go undetected.
+
+         Dropped segment:
+           app/suspense-in-root/static/test-firstmod/inter/layout.tsx
+
+         Ways to fix this:
+           - [render] Render the dropped segment
+           - [ignore] Set \`export const instant = false\` to opt the dropped segment out of instant-navigation validation
+
+         Learn more: https://nextjs.org/docs/messages/instant-unrendered-segment
+             at ignore-listed frames
+         Build-time instant validation failed for route "/suspense-in-root/static/test-firstmod/inter/inner".
+         To get a more detailed stack trace and pinpoint the issue, try one of the following:
+           - Start the app in development mode by running \`next dev\`, then open "/suspense-in-root/static/test-firstmod/inter/inner" in your browser to investigate the error.
+           - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
+         Stopping prerender due to instant validation errors."
+        `)
+        expect(result.exitCode).toBe(1)
       }
     })
   })

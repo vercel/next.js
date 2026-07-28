@@ -3,6 +3,7 @@ import {
   expectBuildValidationSkipped,
   expectNoBuildValidationErrors,
   extractBuildValidationError,
+  getDevCliValidationOutput,
   waitForValidation,
 } from 'e2e-utils/instant-validation'
 import { retry, waitForNoErrorToast } from '../../../lib/next-test-utils'
@@ -68,6 +69,15 @@ describe('instant validation - parallel slot configs', () => {
     url: string
   ): Promise<void> {
     await waitForValidation(url, getCliOutputSinceMark)
+    // Delivered validation errors are printed between the validation
+    // start/end markers, so asserting on the extracted CLI output is
+    // race-free — unlike the error toast, which the browser may render
+    // after the wait below times out.
+    const validationOutput = await getDevCliValidationOutput(
+      url,
+      getCliOutputSinceMark
+    )
+    expect(validationOutput).not.toContain('Error:')
     await waitForNoErrorToast(browser, NO_VALIDATION_ERRORS_WAIT)
   }
 
@@ -620,9 +630,11 @@ describe('instant validation - parallel slot configs', () => {
           const browser = await navigateWithCookieState(false)
           await expectNoDevValidationErrors(browser, await browser.url())
         } else {
-          // A build has no request state, so the dynamic discovery render
-          // takes the logged-out branch: @login renders and is allowed to
-          // block while the children config is vacuous.
+          // A build has no request state; the children page declares a
+          // logged-out `unstable_samples` entry (`logged-in` cookie
+          // absent), so the build's discovery render takes the @login
+          // branch: it is allowed to block while the children config is
+          // vacuous.
           const result = await prerender(href)
           expectNoBuildValidationErrors(result)
         }
@@ -638,11 +650,11 @@ describe('instant validation - parallel slot configs', () => {
              "cause": [
                {
                  "label": "Caused by: Instant Validation",
-                 "source": "app/suspense-in-root/parallel/auth-fork/page.tsx (4:24) @ instant
-           > 4 | export const instant = { level: 'experimental-error' }
+                 "source": "app/suspense-in-root/parallel/auth-fork/page.tsx (6:24) @ instant
+           > 6 | export const instant = {
                |                        ^",
                  "stack": [
-                   "instant app/suspense-in-root/parallel/auth-fork/page.tsx (4:24)",
+                   "instant app/suspense-in-root/parallel/auth-fork/page.tsx (6:24)",
                    "Set.forEach <anonymous>",
                  ],
                },
@@ -656,6 +668,185 @@ describe('instant validation - parallel slot configs', () => {
                 |                                    ^",
              "stack": [
                "AuthForkLayout app/suspense-in-root/parallel/auth-fork/layout.tsx (16:36)",
+             ],
+           }
+          `)
+        })
+      }
+    })
+
+    describe('rendered-slot config selection (server fork with unrelated client IO)', () => {
+      // Same request-state fork as auth-fork, plus a Suspense-isolated
+      // client component elsewhere in the layout that suspends on client
+      // IO during every SSR pass. The fork is decided by the server
+      // layout, so which slot renders is knowable from the serialized
+      // payload alone — pending client IO in an unrelated subtree must
+      // not change which fork slot configs are considered. (This is the
+      // determinism case: rendered-slot semantics may not degrade based
+      // on incidental client IO or cache state.)
+      const href = '/suspense-in-root/parallel/auth-fork-with-client-io'
+
+      async function navigateWithCookieState(loggedIn: boolean) {
+        const browser = await next.browser('/suspense-in-root')
+        // The browser context is shared between tests, so clear any
+        // `logged-in` cookie left behind by a previous test.
+        await browser.deleteCookies()
+        if (loggedIn) {
+          await browser.addCookie({ name: 'logged-in', value: '1' })
+        }
+        if (isClientNav) {
+          await browser
+            .elementByCss(`[data-link-type="soft"][href="${href}"]`)
+            .click()
+          await retry(
+            async () => {
+              expect(await browser.url()).toContain(href)
+            },
+            undefined,
+            100,
+            'wait for url to change'
+          )
+        } else {
+          await browser.get(new URL(href, next.url).href)
+        }
+        const branch = await browser
+          .elementByCss('section[data-branch]')
+          .getAttribute('data-branch')
+        expect(branch).toBe(loggedIn ? 'children' : 'login')
+        return browser
+      }
+
+      it('valid - logged out: unrendered children config is vacuous despite pending client IO', async () => {
+        if (isNextDev) {
+          const browser = await navigateWithCookieState(false)
+          await expectNoDevValidationErrors(browser, await browser.url())
+        } else {
+          // A build has no request state; the children page declares a
+          // logged-out `unstable_samples` entry (`logged-in` cookie
+          // absent), so the build takes the @login branch: it is allowed
+          // to block while the children config is vacuous.
+          const result = await prerender(href)
+          expectNoBuildValidationErrors(result)
+        }
+      })
+
+      if (isNextDev) {
+        // Only the dev server can observe a logged-in request; a build
+        // always renders the cookie-less (logged-out) branch.
+        it('errors - logged in: rendered children config applies despite pending client IO', async () => {
+          const browser = await navigateWithCookieState(true)
+          await expect(browser).toDisplayCollapsedRedbox(`
+           {
+             "cause": [
+               {
+                 "label": "Caused by: Instant Validation",
+                 "source": "app/suspense-in-root/parallel/auth-fork-with-client-io/page.tsx (5:24) @ instant
+           > 5 | export const instant = {
+               |                        ^",
+                 "stack": [
+                   "instant app/suspense-in-root/parallel/auth-fork-with-client-io/page.tsx (5:24)",
+                   "Set.forEach <anonymous>",
+                 ],
+               },
+             ],
+             "code": "E1430",
+             "description": "Next.js encountered runtime data during a navigation.",
+             "environmentLabel": "Server",
+             "label": "Instant",
+             "source": "app/suspense-in-root/parallel/auth-fork-with-client-io/layout.tsx (20:36) @ AuthForkWithClientIOLayout
+           > 20 |   const cookieStore = await cookies()
+                |                                    ^",
+             "stack": [
+               "AuthForkWithClientIOLayout app/suspense-in-root/parallel/auth-fork-with-client-io/layout.tsx (20:36)",
+             ],
+           }
+          `)
+        })
+      }
+    })
+
+    describe('rendered-slot config selection (client-component fork)', () => {
+      // Forks on request state like auth-fork, but the fork decision is
+      // made by a CLIENT component: the layout serializes BOTH slots into
+      // the client component's props along with a cookie-derived flag.
+      // The serialized payload alone cannot reveal which branch renders —
+      // only executing the client component during an SSR pass can — so
+      // validation must observe the rendered outcome rather than infer it
+      // from serialization.
+      const href = '/suspense-in-root/parallel/client-auth-fork'
+
+      async function navigateWithCookieState(loggedIn: boolean) {
+        const browser = await next.browser('/suspense-in-root')
+        // The browser context is shared between tests, so clear any
+        // `logged-in` cookie left behind by a previous test.
+        await browser.deleteCookies()
+        if (loggedIn) {
+          await browser.addCookie({ name: 'logged-in', value: '1' })
+        }
+        if (isClientNav) {
+          await browser
+            .elementByCss(`[data-link-type="soft"][href="${href}"]`)
+            .click()
+          await retry(
+            async () => {
+              expect(await browser.url()).toContain(href)
+            },
+            undefined,
+            100,
+            'wait for url to change'
+          )
+        } else {
+          await browser.get(new URL(href, next.url).href)
+        }
+        const branch = await browser
+          .elementByCss('section[data-branch]')
+          .getAttribute('data-branch')
+        expect(branch).toBe(loggedIn ? 'children' : 'login')
+        return browser
+      }
+
+      it('valid - logged out: client-dropped children config is vacuous, rendered @login allows blocking', async () => {
+        if (isNextDev) {
+          const browser = await navigateWithCookieState(false)
+          await expectNoDevValidationErrors(browser, await browser.url())
+        } else {
+          // A build has no request state; the children page declares a
+          // logged-out `unstable_samples` entry (`logged-in` cookie
+          // absent), so the build observes the @login branch: it is
+          // allowed to block while the children config is vacuous.
+          const result = await prerender(href)
+          expectNoBuildValidationErrors(result)
+        }
+      })
+
+      if (isNextDev) {
+        // Only the dev server can observe a logged-in request; a build
+        // always renders the cookie-less (logged-out) branch.
+        it('errors - logged in: client-rendered children config applies, unrendered @login opt-out is vacuous', async () => {
+          const browser = await navigateWithCookieState(true)
+          await expect(browser).toDisplayCollapsedRedbox(`
+           {
+             "cause": [
+               {
+                 "label": "Caused by: Instant Validation",
+                 "source": "app/suspense-in-root/parallel/client-auth-fork/page.tsx (5:24) @ instant
+           > 5 | export const instant = {
+               |                        ^",
+                 "stack": [
+                   "instant app/suspense-in-root/parallel/client-auth-fork/page.tsx (5:24)",
+                   "Set.forEach <anonymous>",
+                 ],
+               },
+             ],
+             "code": "E1430",
+             "description": "Next.js encountered runtime data during a navigation.",
+             "environmentLabel": "Server",
+             "label": "Instant",
+             "source": "app/suspense-in-root/parallel/client-auth-fork/layout.tsx (17:36) @ ClientAuthForkLayout
+           > 17 |   const cookieStore = await cookies()
+                |                                    ^",
+             "stack": [
+               "ClientAuthForkLayout app/suspense-in-root/parallel/client-auth-fork/layout.tsx (17:36)",
              ],
            }
           `)

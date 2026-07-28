@@ -1,6 +1,7 @@
 // Config lives here, but test-firstmod/layout.tsx (two levels above)
-// drops {children}, so this page never renders. Its config is vacuous
-// and must not produce any validation error.
+// drops its plain {children}, so this page never renders. That drop is
+// not a fork, so this config is still considered for validation and the
+// route reports "could not validate".
 export const instant = { level: 'experimental-error' }
 
 export default function Page() {
