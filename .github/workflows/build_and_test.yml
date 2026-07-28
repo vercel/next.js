@@ -114,6 +114,7 @@ jobs:
     needs: ['changes']
     if: ${{ needs.changes.outputs.docs-only == 'false' }}
     with:
+      needsRust: 'yes'
       skipInstallBuild: 'yes'
       stepName: 'build-native'
       uploadNativeArtifact: true
@@ -125,6 +126,7 @@ jobs:
     needs: ['changes']
     if: ${{ needs.changes.outputs.docs-only == 'false' }}
     with:
+      needsRust: 'yes'
       skipInstallBuild: 'yes'
       stepName: 'build-native-windows'
       runs_on_labels: '["windows-latest-8-core-oss"]'
