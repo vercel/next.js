@@ -1272,12 +1272,13 @@ export async function handleAction({
       const redirectUrl = getURLFromRedirectError(err)
       const redirectType = getRedirectTypeFromError(err)
 
-      // if it's a fetch action, we'll set the status code for logging/debugging purposes
-      // but we won't set a Location header, as the redirect will be handled by the client router
-      res.statusCode = RedirectStatusCode.SeeOther
-      metadata.statusCode = RedirectStatusCode.SeeOther
-
       if (isFetchAction) {
+        // Fetch actions communicate redirects through `x-action-redirect` and
+        // can include the redirect target's Flight response in the body. Since
+        // this is not an HTTP redirect, keep the response successful.
+        res.statusCode = 200
+        metadata.statusCode = 200
+
         return {
           type: 'done',
           result: await createRedirectRenderResult(
@@ -1294,6 +1295,8 @@ export async function handleAction({
       }
 
       // For an MPA action, the redirect doesn't need a body, just a Location header.
+      res.statusCode = RedirectStatusCode.SeeOther
+      metadata.statusCode = RedirectStatusCode.SeeOther
       res.setHeader('Location', redirectUrl)
       return {
         type: 'done',

@@ -80,7 +80,7 @@ export async function createPost(id) {
 
 > **Good to know**:
 >
-> - `redirect` returns a 307 (Temporary Redirect) status code by default. When used in a Server Action, it returns a 303 (See Other), which is commonly used for redirecting to a success page as a result of a POST request.
+> - In a Server Action, `redirect` performs a client-side navigation when JavaScript is available. Without JavaScript, the form submission uses a 303 (See Other). In other contexts, `redirect` uses a 307 (Temporary Redirect).
 > - `redirect` throws an error so it should be called **outside** the `try` block when using `try/catch` statements.
 > - `redirect` can be called in Client Components during the rendering process but not in event handlers. You can use the [`useRouter` hook](#userouter-hook) instead.
 > - `redirect` also accepts absolute URLs and can be used to redirect to external links.
@@ -132,7 +132,7 @@ export async function updateUsername(username, formData) {
 
 > **Good to know**:
 >
-> - `permanentRedirect` returns a 308 (permanent redirect) status code by default.
+> - In a Server Action, `permanentRedirect` performs a client-side navigation when JavaScript is available. Without JavaScript, the form submission uses a 303 (See Other). In other contexts, `permanentRedirect` uses a 308 (Permanent Redirect).
 > - `permanentRedirect` also accepts absolute URLs and can be used to redirect to external links.
 > - If you'd like to redirect before the render process, use [`next.config.js`](#redirects-in-nextconfigjs) or [Proxy](#nextresponseredirect-in-proxy).
 
