@@ -38,7 +38,7 @@ enum CurrentChunkMethodWithData {
 
 /// Contents of an [`EcmascriptDevChunkList`].
 #[turbo_tasks::value]
-pub(super) struct EcmascriptDevChunkListContent {
+pub struct EcmascriptDevChunkListContent {
     current_chunk_method: CurrentChunkMethodWithData,
     #[bincode(with = "turbo_bincode::indexmap")]
     pub(super) chunks_contents: FxIndexMap<String, ResolvedVc<Box<dyn VersionedContent>>>,
