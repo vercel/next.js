@@ -1,5 +1,9 @@
 import type { RequestInsight } from '../../../shared/request-insights'
-import { getActiveRequestKey, isPageLoadRequest } from './request-list'
+import {
+  getActiveRequestKey,
+  getRequestListEntries,
+  isPageLoadRequest,
+} from './request-list'
 import { getTraceItems, getTracePosition, getTraceRange } from './trace-viewer'
 
 function createRequest(
@@ -43,6 +47,76 @@ describe('request insights trace viewer', () => {
     expect(
       getActiveRequestKey([request, instantInsights], 'instant-insights:shared')
     ).toBe('instant-insights:shared')
+  })
+
+  it('hides internal records from the request list by default', () => {
+    const request = createRequest({ requestId: 'shared' })
+    const instantInsights = createRequest({
+      requestId: 'shared',
+      kind: 'instant-insights',
+    })
+
+    expect(getRequestListEntries([instantInsights, request], false)).toEqual([
+      { request, nested: false },
+    ])
+  })
+
+  it('nests internal records directly after their request row', () => {
+    const newerRequest = createRequest({ requestId: 'newer' })
+    const olderRequest = createRequest({ requestId: 'older' })
+    const newerInstantInsights = createRequest({
+      requestId: 'newer',
+      kind: 'instant-insights',
+    })
+    const olderInstantInsights = createRequest({
+      requestId: 'older',
+      kind: 'instant-insights',
+    })
+
+    expect(
+      getRequestListEntries(
+        [
+          newerInstantInsights,
+          newerRequest,
+          olderInstantInsights,
+          olderRequest,
+        ],
+        true
+      )
+    ).toEqual([
+      { request: newerRequest, nested: false },
+      { request: newerInstantInsights, nested: true },
+      { request: olderRequest, nested: false },
+      { request: olderInstantInsights, nested: true },
+    ])
+  })
+
+  it('keeps orphaned internal records top-level and in root ordering', () => {
+    const request = createRequest({ requestId: 'present' })
+    const presentInstantInsights = createRequest({
+      requestId: 'present',
+      kind: 'instant-insights',
+    })
+    const orphanInstantInsights = createRequest({
+      requestId: 'evicted',
+      kind: 'instant-insights',
+    })
+
+    const entries = getRequestListEntries(
+      [presentInstantInsights, orphanInstantInsights, request],
+      true
+    )
+
+    expect(entries).toEqual([
+      { request: orphanInstantInsights, nested: false },
+      { request, nested: false },
+      { request: presentInstantInsights, nested: true },
+    ])
+    // Every record appears exactly once.
+    expect(new Set(entries.map((entry) => entry.request)).size).toBe(
+      entries.length
+    )
+    expect(entries).toHaveLength(3)
   })
 
   it('only marks the exact initial document request as the page load', () => {

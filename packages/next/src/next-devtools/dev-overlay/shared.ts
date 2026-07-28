@@ -30,6 +30,7 @@ export type DevToolsConfig = {
   scale?: number
   hideShortcut?: string | null
   requestInsights?: {
+    showInternal?: boolean
     verbose?: boolean
   }
 }
@@ -87,6 +88,7 @@ export interface OverlayState {
   readonly instantNavs: boolean
   readonly requestInsights: readonly RequestInsight[]
   readonly requestInsightsConfig: Readonly<{
+    showInternal: boolean
     verbose: boolean
   }>
 }
@@ -392,7 +394,7 @@ export const INITIAL_OVERLAY_STATE: Omit<
   hideShortcut: null,
   instantNavs: hasInstantNavsCookie,
   requestInsights: [],
-  requestInsightsConfig: { verbose: false },
+  requestInsightsConfig: { showInternal: false, verbose: false },
 }
 
 function getInitialState(
@@ -607,6 +609,9 @@ export function useErrorOverlayReducer(
               hideShortcut !== undefined ? hideShortcut : state.hideShortcut,
             requestInsightsConfig: requestInsightsConfig
               ? {
+                  showInternal:
+                    requestInsightsConfig.showInternal ??
+                    state.requestInsightsConfig.showInternal,
                   verbose:
                     requestInsightsConfig.verbose ??
                     state.requestInsightsConfig.verbose,
