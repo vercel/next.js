@@ -1,7 +1,7 @@
-import { nextTestSetup } from 'e2e-utils'
+import { isReact18, nextTestSetup } from 'e2e-utils'
 
 describe('browser-only', () => {
-  const { next } = nextTestSetup({
+  const { next, isNextDeploy } = nextTestSetup({
     files: __dirname,
   })
 
@@ -81,4 +81,83 @@ describe('browser-only', () => {
       await browser.eval('window.__browserOnlyNavigationMarker === true')
     ).toBe(true)
   })
+  if (!isReact18) {
+    it('renders static Pages Router boundaries without reporting bailout errors', async () => {
+      const $ = await next.render$('/browser-only')
+      expect($('#pages-server-sibling').text()).toBe('pages server sibling')
+      expect($('#pages-fallback').text()).toBe('pages fallback')
+      expect($('#pages-second-fallback').text()).toBe('pages second fallback')
+      expect($('#pages-browser-content').length).toBe(0)
+      expect($('#pages-second-browser-content').length).toBe(0)
+      expect($('#pages-error-fallback').length).toBe(0)
+
+      const browser = await next.browser('/browser-only', {
+        pushErrorAsConsoleLog: true,
+      })
+      expect(await browser.elementByCss('#pages-browser-content').text()).toBe(
+        'pages browser content'
+      )
+      expect(
+        await browser.elementByCss('#pages-second-browser-content').text()
+      ).toBe('pages second browser content')
+      expect(
+        await browser.hasElementByCssSelector('#pages-error-fallback')
+      ).toBe(false)
+
+      const logs = await browser.log()
+      expect(logs.filter((entry) => entry.source === 'error')).toEqual([])
+      expect(
+        next.cliOutput.includes(
+          'Bail out to client-side rendering: browserOnly()'
+        )
+      ).toBe(false)
+    })
+
+    it('renders a request-time Pages Router boundary without reporting bailout errors', async () => {
+      const $ = await next.render$('/browser-only-ssr')
+      expect($('#pages-ssr-server-sibling').text()).toBe(
+        'pages SSR server sibling'
+      )
+      expect($('#pages-ssr-fallback').text()).toBe('pages SSR fallback')
+      expect($('#pages-ssr-browser-content').length).toBe(0)
+
+      const browser = await next.browser('/browser-only-ssr', {
+        pushErrorAsConsoleLog: true,
+      })
+      expect(
+        await browser.elementByCss('#pages-ssr-browser-content').text()
+      ).toBe('pages SSR browser content')
+
+      const logs = await browser.log()
+      expect(logs.filter((entry) => entry.source === 'error')).toEqual([])
+      if (!isNextDeploy) {
+        expect(
+          next.cliOutput.includes(
+            'Bail out to client-side rendering: browserOnly()'
+          )
+        ).toBe(false)
+      }
+    })
+  } else {
+    it('reports that Pages Router usage requires React 19', async () => {
+      await next.render$('/browser-only')
+
+      expect(next.cliOutput).toContain(
+        '`browserOnly()` requires React 19 or later.'
+      )
+    })
+  }
+
+  // Skip in deploy because `next.cliOutput` only contains build logs there,
+  // not runtime logs from the request below.
+  if (!isNextDeploy) {
+    it('continues reporting non-bailout Pages Router render errors', async () => {
+      const outputIndex = next.cliOutput.length
+      const $ = await next.render$('/server-render-error')
+      expect($('#server-error-fallback').text()).toBe('error fallback')
+      expect(next.cliOutput.slice(outputIndex)).toContain(
+        'expected Pages Router server render error'
+      )
+    })
+  }
 })

@@ -107,6 +107,7 @@ import { extractNextErrorCode } from '../lib/error-telemetry-utils'
 import type { DeepReadonly } from '../shared/lib/deep-readonly'
 import type { PagesDevOverlayBridgeType } from '../next-devtools/userspace/pages/pages-dev-overlay-setup'
 import { getScriptNonceFromHeader } from './app-render/get-script-nonce-from-header'
+import { isBailoutToCSRError } from '../shared/lib/lazy-dynamic/bailout-to-csr'
 
 let tryGetPreviewData: typeof import('./api-utils/node/try-get-preview-data').tryGetPreviewData
 let warn: typeof import('../build/output/log').warn
@@ -133,6 +134,15 @@ function noRouter() {
   const message =
     'No router instance found. you should only use "next/router" inside the client side of your app. https://nextjs.org/docs/messages/no-router-instance'
   throw new Error(message)
+}
+
+function onPagesRenderError(error: unknown): string | undefined {
+  if (isBailoutToCSRError(error)) {
+    return error.digest
+  }
+
+  // Keep React's default server error reporting for unexpected errors.
+  console.error(error)
 }
 
 async function renderToString(element: React.ReactElement) {
@@ -1379,6 +1389,9 @@ export async function renderToHTMLImpl(
       return await renderToInitialFizzStream({
         ReactDOMServer: ReactDOMServerPages,
         element: content,
+        streamOptions: {
+          onError: onPagesRenderError,
+        },
       })
     }
 

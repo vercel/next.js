@@ -1461,5 +1461,6 @@
   "1460": "[Server HMR] unreachable: unexpected update instruction type %s",
   "1461": "browserOnly()",
   "1462": "`browserOnly()` requires React 19 or later.",
-  "1463": "`browserOnly()` can only be used in Client Components."
+  "1463": "`browserOnly()` can only be used in Client Components.",
+  "1464": "browserOnly() should be wrapped in a Suspense boundary at page \"%s\". Read more: https://nextjs.org/docs/messages/missing-suspense-with-csr-bailout"
 }

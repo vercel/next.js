@@ -104,6 +104,14 @@ export async function exportPagesPage(
       )
     } catch (err) {
       if (!isBailoutToCSRError(err)) throw err
+      // Legacy Pages Router CSR bailouts may still opt the entire page into
+      // client rendering. browserOnly() requires a Suspense boundary so the
+      // export always preserves an HTML shell.
+      if (err.reason === 'browserOnly()') {
+        throw new Error(
+          `browserOnly() should be wrapped in a Suspense boundary at page "${page}". Read more: https://nextjs.org/docs/messages/missing-suspense-with-csr-bailout`
+        )
+      }
     }
   }
 
