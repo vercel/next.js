@@ -5,11 +5,11 @@ description: Directives are used to modify the behavior of your Next.js applicat
 
 Directives are string literals that tell the compiler and bundler how to treat the code around them. On their own they look like a plain string, but Next.js and React read them as an instruction to transform the code they cover: into a client entry point, a server function, or a cached function.
 
-| Directive      | Marks the code it covers to...                              | Reference                                                     |
-| -------------- | ----------------------------------------------------------- | ------------------------------------------------------------- |
-| `'use client'` | run on the client, as an entry point from Server Components | [`use client`](/docs/app/api-reference/directives/use-client) |
-| `'use server'` | run on the server, exposed as Server Functions              | [`use server`](/docs/app/api-reference/directives/use-server) |
-| `'use cache'`  | be cached and reused based on its inputs                    | [`use cache`](/docs/app/api-reference/directives/use-cache)   |
+| Directive      | Defined by | Marks the code it covers to...                              | Reference                                                     |
+| -------------- | ---------- | ----------------------------------------------------------- | ------------------------------------------------------------- |
+| `'use client'` | React      | run on the client, as an entry point from Server Components | [`use client`](/docs/app/api-reference/directives/use-client) |
+| `'use server'` | React      | run on the server, exposed as Server Functions              | [`use server`](/docs/app/api-reference/directives/use-server) |
+| `'use cache'`  | Next.js    | be cached and reused based on its inputs                    | [`use cache`](/docs/app/api-reference/directives/use-cache)   |
 
 `'use cache'` also has [`'use cache: remote'`](/docs/app/api-reference/directives/use-cache-remote) and [`'use cache: private'`](/docs/app/api-reference/directives/use-cache-private) variants, and you can control where cached entries are stored by configuring your own [cache handlers](/docs/app/api-reference/config/next-config-js/cacheHandlers).
 
@@ -38,19 +38,19 @@ export async function getUsers() {
 
 Each directive marks one side of a boundary, and a module sits on a single side. You define `'use server'` and `'use cache'` functions in server modules, never inside a `'use client'` module. A Client Component can import and call them; it cannot declare them.
 
-For `'use server'` and `'use cache'`, put the directive where the code that needs it lives. Add it to the function or component that needs it, or wherever a build error points you. From there you can move it up to a parent or down into a utility function as your code changes.
+For `'use server'` and `'use cache'`, put the directive where the code that needs it lives. Add it to the function or component that needs it. From there you can move it up to a parent or down into a utility function as your code changes.
 
 When you find yourself repeating the same directive across many functions in one module, hoist it to the top of the file. This is a convenience, not a separate feature: a file-level directive applies its rules to every export, so each one has to satisfy them. For `'use server'` and `'use cache'`, that means every export must be `async`.
 
 ## What each directive requires
 
-A directive imposes rules on the code it covers. Placing one at the file level applies those rules to every export.
+A directive imposes rules on the code it covers:
 
 - **`'use client'`** marks its exports as the boundary between server and client. Their props must be [serializable](https://react.dev/reference/rsc/use-client#serializable-types), so a Server Component cannot pass a function, such as an event handler, as a prop to them.
 - **`'use server'`** marks its exports as [Server Functions](/docs/app/glossary#server-function). They must be `async`, and their arguments and return values are serialized across the network. A Client Component never receives the function's code, only a reference it uses to invoke the server.
 - **`'use cache'`** marks its exports as cacheable by their inputs. They must be `async`, their arguments and return values must be serializable, and they cannot read request-time APIs like `cookies()`, `headers()`, or `searchParams` directly.
 
-At the file level these rules cover every export, framework functions included. A `'use cache'` at the top of a `page` or `layout`, for example, requires `generateMetadata`, `generateStaticParams`, and any other exports to be `async` too, even the ones that would otherwise be synchronous.
+At the file level the rules reach framework exports too, not just the ones you wrote. A `'use cache'` at the top of a `page` or `layout`, for example, requires `generateMetadata`, `generateStaticParams`, and any other exports to be `async` as well, even the ones that would otherwise be synchronous.
 
 ## Placement decides what you cache
 
