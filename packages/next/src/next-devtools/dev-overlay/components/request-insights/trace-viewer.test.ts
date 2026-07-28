@@ -1,5 +1,9 @@
 import type { RequestInsight } from '../../../shared/request-insights'
-import { getActiveRequestKey, isPageLoadRequest } from './request-list'
+import {
+  getActiveRequestKey,
+  getRequestListEntries,
+  isPageLoadRequest,
+} from './request-list'
 import { getTraceItems, getTracePosition, getTraceRange } from './trace-viewer'
 
 function createRequest(
@@ -45,6 +49,76 @@ describe('request insights trace viewer', () => {
     ).toBe('instant-insights:shared')
   })
 
+  it('hides internal records from the request list by default', () => {
+    const request = createRequest({ requestId: 'shared' })
+    const instantInsights = createRequest({
+      requestId: 'shared',
+      kind: 'instant-insights',
+    })
+
+    expect(getRequestListEntries([instantInsights, request], false)).toEqual([
+      { request, nested: false },
+    ])
+  })
+
+  it('nests internal records directly after their request row', () => {
+    const newerRequest = createRequest({ requestId: 'newer' })
+    const olderRequest = createRequest({ requestId: 'older' })
+    const newerInstantInsights = createRequest({
+      requestId: 'newer',
+      kind: 'instant-insights',
+    })
+    const olderInstantInsights = createRequest({
+      requestId: 'older',
+      kind: 'instant-insights',
+    })
+
+    expect(
+      getRequestListEntries(
+        [
+          newerInstantInsights,
+          newerRequest,
+          olderInstantInsights,
+          olderRequest,
+        ],
+        true
+      )
+    ).toEqual([
+      { request: newerRequest, nested: false },
+      { request: newerInstantInsights, nested: true },
+      { request: olderRequest, nested: false },
+      { request: olderInstantInsights, nested: true },
+    ])
+  })
+
+  it('keeps orphaned internal records top-level and in root ordering', () => {
+    const request = createRequest({ requestId: 'present' })
+    const presentInstantInsights = createRequest({
+      requestId: 'present',
+      kind: 'instant-insights',
+    })
+    const orphanInstantInsights = createRequest({
+      requestId: 'evicted',
+      kind: 'instant-insights',
+    })
+
+    const entries = getRequestListEntries(
+      [presentInstantInsights, orphanInstantInsights, request],
+      true
+    )
+
+    expect(entries).toEqual([
+      { request: orphanInstantInsights, nested: false },
+      { request, nested: false },
+      { request: presentInstantInsights, nested: true },
+    ])
+    // Every record appears exactly once.
+    expect(new Set(entries.map((entry) => entry.request)).size).toBe(
+      entries.length
+    )
+    expect(entries).toHaveLength(3)
+  })
+
   it('only marks the exact initial document request as the page load', () => {
     const initialRequestId = 'document-request'
 
@@ -77,26 +151,51 @@ describe('request insights trace viewer', () => {
     ).toBe(false)
   })
 
-  it('shows the Instant Insights root span in the default trace', () => {
+  it('shows the Instant Insights pipeline in the default trace', () => {
     const request = createRequest({
       kind: 'instant-insights',
       spans: [
         {
           name: 'Instant Insights',
+          spanId: 'root',
           startTime: 100,
           durationMs: 50,
           attributes: {
             'next.span_type': 'AppRender.instantInsights',
           },
         },
+        {
+          name: 'Prepare validation inputs',
+          spanId: 'prepare',
+          parentSpanId: 'root',
+          startTime: 105,
+          durationMs: 20,
+          attributes: {
+            'next.span_type': 'AppRender.instantInsights.prepareValidation',
+          },
+        },
+        {
+          name: 'Run validation',
+          spanId: 'validate',
+          parentSpanId: 'root',
+          startTime: 125,
+          durationMs: 20,
+          attributes: {
+            'next.span_type': 'AppRender.instantInsights.runValidation',
+          },
+        },
       ],
     })
 
-    expect(getTraceItems(request, false)).toEqual([
-      expect.objectContaining({
-        label: 'Instant Insights',
-        spanType: 'AppRender.instantInsights',
-      }),
+    expect(
+      getTraceItems(request, false).map(({ label, depth }) => ({
+        label,
+        depth,
+      }))
+    ).toEqual([
+      { label: 'Instant Insights', depth: 0 },
+      { label: 'Prepare validation inputs', depth: 1 },
+      { label: 'Run validation', depth: 1 },
     ])
   })
 
