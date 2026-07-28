@@ -595,6 +595,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
             useLightningcss: z.boolean().optional(),
           }),
         ]),
+        decoratorVersion: z.enum(['legacy', '2021-12', '2022-03']).optional(),
         define: z
           .record(z.string(), z.union([z.string(), z.number(), z.boolean()]))
           .optional(),
