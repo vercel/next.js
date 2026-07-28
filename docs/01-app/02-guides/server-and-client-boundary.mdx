@@ -18,7 +18,7 @@ Putting anything on screen meant shipping JavaScript to the browser. Many apps w
 
 React Server Components gave that original kind of component a name, the Client Component, and introduced the Server Component, which runs exclusively on the server.
 
-The two compose in a single tree. Unlike a Client Component, a Server Component ships no JavaScript. The server renders that tree into the RSC Payload, a serialized description of the UI that carries references to the Client Components inside it.
+The two compose in a single tree. Unlike a Client Component, a Server Component ships no JavaScript. The server renders that tree into the [RSC Payload](/docs/app/glossary#rsc-payload), a serialized description of the UI that carries references to the Client Components inside it.
 
 ```txt
 Server Component
@@ -29,19 +29,13 @@ Server Component
 
 Each component in this tree belongs to the server module graph or the client module graph, and a module shared by both is compiled into each, one copy per graph. The server graph holds the references to the Client Components and the data it passes them at the boundary. The client graph has no knowledge of the server graph, only the data it receives there.
 
-That boundary is where most confusion about Server and Client Components starts. Things like "server vs client rendering," or why you cannot call `useState` in some files, feel like separate rules to memorize. Each is really a consequence of the same boundary, and this guide takes them one at a time.
+That boundary is where most confusion about Server and Client Components starts. Things like "server vs client rendering," or why you cannot call `useState` in some files, feel like separate rules to memorize. Each is really a consequence of the same boundary. This guide takes them one at a time.
 
 ## Rendering environments
 
 It is tempting to sort each component onto one side, Server Components on the server, Client Components in the browser. That is not the right model.
 
-Rendering a page is a process that happens both in the server and the client. On the server, rendering the Server Component tree produces the RSC Payload, and the Client Components render too, taking their props from the server-client boundary.
-
-Together they become the page's HTML. This server pass runs at build time or per request, and some Client Components may not be reached in it, because they sit behind user interaction, effects, or state that has not happened yet.
-
-On a direct visit, the browser receives that HTML along with the RSC Payload, the serialized server output with its client references, and script tags for the Client Components' JavaScript. During hydration that JavaScript runs again, and React settles until state changes or a [promise passed from the server](/docs/app/guides/streaming) resolves.
-
-A client-side navigation works differently. There is no HTML for the new route: the server sends only the RSC Payload, and the browser builds the Client Components itself, from the JavaScript it already has (or downloads now) and the references and props the payload carries. The Server Components still run on the server to produce that payload, but this time the Client Components run only in the browser.
+Rendering happens in both places. On the server, the Server Component tree produces the RSC Payload, the Client Components render too, and together they become the page's HTML. This pass runs at build time or per request.
 
 So "where does it run" is really two questions, and each kind answers them differently:
 
@@ -52,7 +46,7 @@ So "where does it run" is really two questions, and each kind answers them diffe
 
 A Client Component runs on the server _and_ in the browser. This is where the name misleads: "Client" does not mean "browser only," it means "the browser too."
 
-For example, on a direct visit this component logs on the server (you see it in your terminal) and again in the browser when React hydrates. On a client-side navigation there is no server render, so it logs only in the browser.
+On a direct visit this component logs once on the server (in your terminal) and again in the browser when React hydrates. On a client-side navigation the server sends only the RSC Payload, so this component logs only in the browser.
 
 ```tsx filename="app/hello.tsx"
 'use client'
@@ -63,34 +57,15 @@ export default function Hello() {
 }
 ```
 
-> **SSR and RSC**
->
-> Two different mechanisms share the word "server," and mixing them up is the most common source of confusion.
->
-> - **Server-side rendering (SSR)** turns components into HTML. It predates RSC and applies to Client Components too. SSG and ISR are flavors of it.
-> - **React Server Components (RSC)** keep a component's code on the server and emit a serialized description of its output, the RSC payload, instead of shipping that code to the browser.
->
-> A Client Component is server-side rendered to HTML, but it is not a Server Component. "Rendered on the server" and "is a Server Component" are different claims.
+A Client Component rendering on the server is server-side rendering (SSR), not RSC.
+
+SSR turns components into HTML. It predates RSC and applies to Client Components too, and [SSG](/docs/app/glossary#prerendering) and [ISR](/docs/app/glossary#incremental-static-regeneration-isr) are flavors of it. RSC is the other mechanism: it keeps a component's code on the server and emits the RSC Payload instead of shipping it. So a Client Component is server-rendered to HTML, but it is not a Server Component, "rendered on the server" and "is a Server Component" are different claims.
 
 > **Do Server Components help SEO?**
 >
 > A crawler that reads only HTML sees the first response and runs none of your JavaScript. Both Server and Client Components are server-rendered into that first response, so the choice between them is not an SEO decision. What matters is that the content is reached during the server render, not gated behind user interaction or an event, so it lands in the HTML the crawler reads.
 
 _When_ a component renders, at build time or per request, statically or dynamically is covered in [Rendering Philosophy](/docs/app/guides/rendering-philosophy).
-
-## State and interactivity
-
-A Server Component runs on the server and produces output. Its code never reaches the browser, so on the client it holds no state, runs no effects, and never re-renders.
-
-A Client Component's code does reach the browser. React hydrates it, and from then on it runs on the client: it can hold state, run effects, respond to events, and re-render when its state or props change.
-
-> **Good to know:** Even though a Server Component never runs on the client, its output is not yours to mutate directly. The RSC Payload ships inside the HTML, and React keeps the DOM in sync with it, so hand-editing server-rendered nodes puts them out of sync and React reconciles them away. See [Streaming](/docs/app/guides/streaming).
-
-Seen this way, the rules about where you can use `useState`, `useEffect`, or an `onClick` handler are not arbitrary restrictions. Each needs code running in the browser that can react and re-render over time. A Server Component never runs there, so there is nothing for them to attach to.
-
-Interactivity does not always need a Client Component. A lot of it comes from the browser and from HTML: a `<details>` opens and closes, a `<form>` submits to a [Server Function](/docs/app/guides/server-actions), a `<video controls>` plays and pauses, none of which needs a Client Component. Reach for a Client Component when the behavior needs state in the browser that changes over time, a controlled input, a live filter, a drag handle, not for every button or form.
-
-For the practical list of what belongs in each environment, see [When to use Server and Client Components](/docs/app/getting-started/server-and-client-components#when-to-use-server-and-client-components).
 
 ## How data enters the tree
 
@@ -106,7 +81,7 @@ props
 component tree
 ```
 
-A Server Component runs on the server, so it can reach server-only resources directly: a database, the filesystem, an internal service, a secret. It reads them in the body of the component, during its own render, with no API route in between to expose the data to the client first.
+Running only on the server, a Server Component can reach server-only resources directly: a database, the filesystem, an internal service, a secret. It reads them in the body of the component, during its own render, with no API route in between to expose the data to the client first.
 
 ```tsx filename="app/page.tsx"
 export default async function Page() {
@@ -119,9 +94,23 @@ Getting the data is no longer a separate step that feeds the tree. It is part of
 
 > **Good to know:** Because a Server Component can read secrets and server-only data directly, be deliberate about what you pass to Client Components, props are serialized and sent to the browser. See [Data Security](/docs/app/guides/data-security#passing-data-from-server-to-client).
 
-Client Components fetch too, so this is not reserved for the server. What differs is when, and who starts it. A Client Component can fetch after it mounts, in an effect or a data library. Or a Server Component can start the fetch during its own render and pass the pending promise down, and the Client Component reads it with [`use`](https://react.dev/reference/react/use) as it resolves, so the request is in flight before the client even runs.
+Client Components fetch too, so this is not reserved for the server. What differs is when, and who starts it. A Client Component can fetch after it mounts, in an effect or a data library. Or a Server Component can start the fetch during its own render and pass the pending promise down, and the Client Component reads it with [`use`](https://react.dev/reference/react/use#streaming-data-from-server-to-client) as it resolves, so the request is in flight before the client even runs.
 
 Because fetching happens during a Server Component's render, the framework can optimize around it. It dedupes identical fetches in a single render, and it can cache a fetch, a function's output, or a component's output, and revalidate each on its own. With enough help from the bundler, it can even see which data feeds a component, which is what [Cache Components](/docs/app/getting-started/caching) builds on to revalidate at the granularity of the data itself, not the whole page. This starts with [fetching data](/docs/app/getting-started/fetching-data).
+
+## State and interactivity
+
+A Server Component's code never reaches the browser, so on the client it holds no state, runs no effects, and never re-renders.
+
+A Client Component's code does reach the browser. React hydrates it, and from then on it runs on the client: it can hold state, run effects, respond to events, and re-render when its state or props change.
+
+> **Good to know:** Even though a Server Component never runs on the client, its output is not yours to mutate directly. The RSC Payload ships inside the HTML, and React keeps the DOM in sync with it, so hand-editing server-rendered nodes puts them out of sync and React reconciles them away. See [Streaming](/docs/app/guides/streaming#the-component-payload).
+
+Seen this way, the rules about where you can use `useState`, `useEffect`, or an `onClick` handler are not arbitrary restrictions. Each needs code running in the browser that can react and re-render over time. A Server Component never runs there, so there is nothing for them to attach to.
+
+Interactivity does not always need a Client Component. A lot of it comes from the browser and from HTML: a `<details>` opens and closes, a `<form>` submits to a [Server Function](/docs/app/guides/server-actions), a `<video controls>` plays and pauses, none of which needs a Client Component. Reach for a Client Component when the behavior needs state in the browser that changes over time, a controlled input, a live filter, a drag handle, not for every button or form.
+
+For the practical list of what belongs in each environment, see [When to use Server and Client Components](/docs/app/getting-started/server-and-client-components#when-to-use-server-and-client-components).
 
 ## Crossing the boundary
 
@@ -190,12 +179,4 @@ You only need `'use client'` at the entry to a client subtree, not on every file
 
 For more patterns, see [Interleaving Server and Client Components](/docs/app/getting-started/server-and-client-components#interleaving-server-and-client-components).
 
-More on other directives used in Next.js's, see the [directives](/docs/app/api-reference/directives) documentation.
-
-## Putting it together
-
-It is all one boundary, seen from a few angles:
-
-- **Where it runs.** Server Components run only on the server. Client Components run on the server and in the browser.
-- **How long it runs.** A Server Component runs once and is done. A Client Component keeps running and re-renders.
-- **How data arrives.** A Server Component can fetch during its own render. A Client Component fetches after it mounts.
+For the other directives used in Next.js, see the [directives](/docs/app/api-reference/directives) documentation.
