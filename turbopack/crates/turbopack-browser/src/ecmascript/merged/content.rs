@@ -2,7 +2,7 @@ use anyhow::{Result, bail};
 use turbo_tasks::{ResolvedVc, TryJoinIterExt, Vc};
 use turbopack_core::{
     asset::AssetContent,
-    version::{Update, Version, VersionedContent},
+    version::{Update, Version, VersionIdCache, VersionedContent},
 };
 
 use super::{
@@ -31,6 +31,7 @@ impl EcmascriptBrowserMergedChunkContent {
                 .map(|content| async move { content.own_version().await })
                 .try_join()
                 .await?,
+            id_cache: VersionIdCache::default(),
         }
         .cell())
     }

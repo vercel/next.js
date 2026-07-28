@@ -1,12 +1,15 @@
 use std::sync::Arc;
 
 use anyhow::Result;
+use async_trait::async_trait;
 use rustc_hash::FxHashMap;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{FxIndexMap, ReadRef, ResolvedVc, TraitRef, TryJoinIterExt, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbo_tasks_hash::{Xxh3Hash64Hasher, encode_base64};
-use turbopack_core::version::{PartialUpdate, Update, Version, VersionState, VersionedContent};
+use turbopack_core::version::{
+    PartialUpdate, Update, Version, VersionIdCache, VersionState, VersionedContent,
+};
 
 use crate::versioned_content_map::VersionedContentMap;
 
@@ -20,33 +23,33 @@ pub struct HmrChunkWithContent {
 pub struct AggregateHmrVersion {
     #[turbo_tasks(trace_ignore)]
     pub versions: FxIndexMap<RcStr, TraitRef<Box<dyn Version>>>,
+    pub id_cache: VersionIdCache,
 }
 
+#[async_trait]
 #[turbo_tasks::value_impl]
 impl Version for AggregateHmrVersion {
-    #[turbo_tasks::function]
-    async fn id(&self) -> Result<Vc<RcStr>> {
-        let entries = self
-            .versions
-            .iter()
-            .map(|(path, version)| {
-                let path = path.clone();
-                let version = TraitRef::cell(version.clone());
-                async move {
-                    let id = version.id().owned().await?;
-                    Ok::<_, anyhow::Error>((path, id))
-                }
-            })
-            .try_join()
-            .await?;
+    async fn id(&self) -> Result<RcStr> {
+        self.id_cache
+            .get_or_init(async || {
+                let entries = self
+                    .versions
+                    .iter()
+                    .map(async |(path, version)| {
+                        Ok::<_, anyhow::Error>((path, version.id().await?))
+                    })
+                    .try_join()
+                    .await?;
 
-        let mut hasher = Xxh3Hash64Hasher::new();
-        hasher.write_value(entries.len());
-        for (path, id) in entries {
-            hasher.write_value(path.as_str());
-            hasher.write_value(id.as_str());
-        }
-        Ok(Vc::cell(encode_base64(hasher.finish()).into()))
+                let mut hasher = Xxh3Hash64Hasher::new();
+                hasher.write_value(entries.len());
+                for (path, id) in entries {
+                    hasher.write_value(path.as_str());
+                    hasher.write_value(id.as_str());
+                }
+                Ok(encode_base64(hasher.finish()).into())
+            })
+            .await
     }
 }
 
@@ -76,7 +79,11 @@ impl AggregateHmrVersion {
             .await?
             .into_iter()
             .collect();
-        Ok(Self { versions }.cell())
+        Ok(Self {
+            versions,
+            id_cache: VersionIdCache::default(),
+        }
+        .cell())
     }
 }
 

@@ -1,10 +1,24 @@
-use std::sync::Arc;
+use std::{
+    fmt::{self, Debug},
+    future::Future,
+    hash::{Hash, Hasher},
+    sync::Arc,
+};
 
 use anyhow::{Context, Result, bail};
+use async_trait::async_trait;
+use bincode::{
+    BorrowDecode, Decode, Encode,
+    de::{BorrowDecoder, Decoder},
+    enc::Encoder,
+    error::{DecodeError, EncodeError},
+};
+use tokio::sync::OnceCell;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
     NonLocalValue, OperationValue, ReadRef, ResolvedVc, State, TraitRef, Vc,
-    debug::ValueDebugFormat, trace::TraceRawVcs,
+    debug::ValueDebugFormat,
+    trace::{TraceRawVcs, TraceRawVcsContext},
 };
 use turbo_tasks_hash::HashAlgorithm;
 
@@ -50,11 +64,9 @@ pub trait VersionedContent {
         // from a `ReadRef` or a `ReadRef`, in which case `self.version()` would
         // return a new `Vc<Box<dyn Version>>`. In this case, we need to compare
         // version ids.
-        let from_id = from.id();
-        let to_id = to.id();
-        let from_id = from_id.await?;
-        let to_id = to_id.await?;
-        Ok(if *from_id == *to_id {
+        let from_id = from_ref.id().await?;
+        let to_id = to_ref.id().await?;
+        Ok(if from_id == to_id {
             Update::None.cell()
         } else {
             Update::Total(TotalUpdate { to: to_ref }).cell()
@@ -123,13 +135,109 @@ impl VersionedContentExt for AssetContent {
 ///
 /// **Important:** Implementations must not contain instances of [`Vc`]! This should describe a
 /// specific version, and the value of a [`Vc`] can change due to invalidations or cache eviction.
+#[async_trait]
 #[turbo_tasks::value_trait]
 pub trait Version {
     /// Get a unique identifier of the version as a string. There is no way
     /// to convert an id back to its original `Version`, so the original object
     /// needs to be stored somewhere.
-    #[turbo_tasks::function]
-    fn id(self: Vc<Self>) -> Vc<RcStr>;
+    ///
+    /// This is deliberately not a turbo-tasks function: a [`Version`] holds no [`Vc`]s, so
+    /// computing an id is a pure function of data already in memory and doesn't need a cell to
+    /// hold the result. Implementations that do non-trivial work here should memoize it in a
+    /// [`VersionIdCache`] instead.
+    ///
+    /// It remains `async` only so that implementations composed of other [`Version`]s can await
+    /// their ids.
+    async fn id(&self) -> Result<RcStr>;
+}
+
+/// A memoized [`Version::id`].
+///
+/// [`Version::id`] is not a turbo-tasks function, so implementations that hash their contents
+/// have no task cache to fall back on and would otherwise re-hash on every call. Embed one of
+/// these in the version value and compute the id through it.
+///
+/// All instances compare equal and hash identically. The cached id is derived from the other
+/// fields of the containing value, so it carries no information about that value's identity —
+/// two otherwise-equal versions must stay equal regardless of whether either has been asked for
+/// its id yet. The cache is likewise skipped when encoding, and decodes back to empty.
+#[derive(Default, Clone)]
+pub struct VersionIdCache(OnceCell<RcStr>);
+
+impl VersionIdCache {
+    /// Returns the cached id, computing it with `f` if this is the first call.
+    ///
+    /// Concurrent callers are serialized: only one of them runs `f`, and the rest await its
+    /// result. If `f` fails the cache is left empty, so a later call retries rather than
+    /// caching the error.
+    ///
+    /// `f` must not ask the *same* value for its id, which would deadlock. A composite version
+    /// calling `id()` on the versions it contains is fine — those are separate caches, and the
+    /// containment graph has no cycles.
+    pub async fn get_or_init<F, Fut>(&self, f: F) -> Result<RcStr>
+    where
+        F: FnOnce() -> Fut,
+        Fut: Future<Output = Result<RcStr>>,
+    {
+        Ok(self.0.get_or_try_init(f).await?.clone())
+    }
+}
+
+impl Debug for VersionIdCache {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_tuple("VersionIdCache")
+            .field(&self.0.get())
+            .finish()
+    }
+}
+
+impl PartialEq for VersionIdCache {
+    fn eq(&self, _other: &Self) -> bool {
+        true
+    }
+}
+
+impl Eq for VersionIdCache {}
+
+impl Hash for VersionIdCache {
+    fn hash<H: Hasher>(&self, _state: &mut H) {}
+}
+
+impl TraceRawVcs for VersionIdCache {
+    fn trace_raw_vcs(&self, _trace_context: &mut TraceRawVcsContext) {}
+}
+
+impl ValueDebugFormat for VersionIdCache {
+    #[cfg(debug_assertions)]
+    fn value_debug_format(&self, _depth: usize) -> turbo_tasks::debug::ValueDebugFormatString<'_> {
+        turbo_tasks::debug::ValueDebugFormatString::Sync(format!("{self:?}"))
+    }
+}
+
+// SAFETY: `RcStr` is a plain string; a `VersionIdCache` cannot contain a `Vc`.
+unsafe impl NonLocalValue for VersionIdCache {}
+// SAFETY: as above.
+unsafe impl OperationValue for VersionIdCache {}
+
+impl Encode for VersionIdCache {
+    fn encode<E: Encoder>(&self, _encoder: &mut E) -> Result<(), EncodeError> {
+        Ok(())
+    }
+}
+
+impl<Context> Decode<Context> for VersionIdCache {
+    fn decode<D: Decoder<Context = Context>>(_decoder: &mut D) -> Result<Self, DecodeError> {
+        Ok(Self::default())
+    }
+}
+
+impl<'de, Context> BorrowDecode<'de, Context> for VersionIdCache {
+    fn borrow_decode<D: BorrowDecoder<'de, Context = Context>>(
+        _decoder: &mut D,
+    ) -> Result<Self, DecodeError> {
+        Ok(Self::default())
+    }
 }
 
 /// This trait allows multiple `VersionedContent` to declare which
@@ -165,11 +273,11 @@ impl NotFoundVersion {
     }
 }
 
+#[async_trait]
 #[turbo_tasks::value_impl]
 impl Version for NotFoundVersion {
-    #[turbo_tasks::function]
-    fn id(&self) -> Vc<RcStr> {
-        Vc::cell(Default::default())
+    async fn id(&self) -> Result<RcStr> {
+        Ok(RcStr::default())
     }
 }
 
@@ -242,11 +350,11 @@ impl FileHashVersion {
     }
 }
 
+#[async_trait]
 #[turbo_tasks::value_impl]
 impl Version for FileHashVersion {
-    #[turbo_tasks::function]
-    fn id(&self) -> Vc<RcStr> {
-        Vc::cell(self.hash.clone())
+    async fn id(&self) -> Result<RcStr> {
+        Ok(self.hash.clone())
     }
 }
 

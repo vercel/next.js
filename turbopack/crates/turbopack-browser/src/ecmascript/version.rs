@@ -1,15 +1,20 @@
 use anyhow::Result;
+use async_trait::async_trait;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{FxIndexMap, TryJoinIterExt, Vc, turbobail};
 use turbo_tasks_fs::FileSystemPath;
 use turbo_tasks_hash::{Xxh3Hash64Hasher, encode_base64};
-use turbopack_core::{chunk::ModuleId, version::Version};
+use turbopack_core::{
+    chunk::ModuleId,
+    version::{Version, VersionIdCache},
+};
 use turbopack_ecmascript::chunk::{EcmascriptChunkContent, EcmascriptChunkContentEntries};
 
 #[turbo_tasks::value(serialization = "skip")]
 pub(super) struct EcmascriptBrowserChunkVersion {
     pub(super) chunk_path: String,
     pub(super) entries_hashes: FxIndexMap<ModuleId, u128>,
+    id_cache: VersionIdCache,
 }
 
 #[turbo_tasks::value_impl]
@@ -38,27 +43,31 @@ impl EcmascriptBrowserChunkVersion {
         Ok(EcmascriptBrowserChunkVersion {
             chunk_path: chunk_path.to_string(),
             entries_hashes,
+            id_cache: VersionIdCache::default(),
         }
         .cell())
     }
 }
 
+#[async_trait]
 #[turbo_tasks::value_impl]
 impl Version for EcmascriptBrowserChunkVersion {
-    #[turbo_tasks::function]
-    fn id(&self) -> Vc<RcStr> {
-        let mut hasher = Xxh3Hash64Hasher::new();
-        hasher.write_ref(&self.chunk_path);
-        let sorted_hashes = {
-            let mut hashes: Vec<_> = self.entries_hashes.values().copied().collect();
-            hashes.sort();
-            hashes
-        };
-        for hash in sorted_hashes {
-            hasher.write_value(hash);
-        }
-        let hash = hasher.finish();
-        let hash = encode_base64(hash);
-        Vc::cell(hash.into())
+    async fn id(&self) -> Result<RcStr> {
+        self.id_cache
+            .get_or_init(async || {
+                let mut hasher = Xxh3Hash64Hasher::new();
+                hasher.write_ref(&self.chunk_path);
+                let sorted_hashes = {
+                    let mut hashes: Vec<_> = self.entries_hashes.values().copied().collect();
+                    hashes.sort();
+                    hashes
+                };
+                for hash in sorted_hashes {
+                    hasher.write_value(hash);
+                }
+                let hash = hasher.finish();
+                Ok(encode_base64(hash).into())
+            })
+            .await
     }
 }

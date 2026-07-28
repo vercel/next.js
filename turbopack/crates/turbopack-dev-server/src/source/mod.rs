@@ -14,6 +14,7 @@ pub mod wrapping_source;
 use std::collections::BTreeSet;
 
 use anyhow::Result;
+use async_trait::async_trait;
 use bincode::{Decode, Encode};
 use futures::{TryStreamExt, stream::Stream as StreamTrait};
 use turbo_rcstr::RcStr;
@@ -24,7 +25,7 @@ use turbo_tasks::{
 use turbo_tasks_bytes::{Bytes, Stream, StreamRead};
 use turbo_tasks_fs::FileSystemPath;
 use turbo_tasks_hash::{DeterministicHash, DeterministicHasher, Xxh3Hash64Hasher};
-use turbopack_core::version::{Version, VersionedContent};
+use turbopack_core::version::{Version, VersionIdCache, VersionedContent};
 
 use crate::source::{
     headers::Headers, issue_context::IssueFilePathContentSource, query::Query,
@@ -41,23 +42,29 @@ pub struct ProxyResult {
     /// The body to return.
     #[turbo_tasks(trace_ignore)]
     pub body: Body,
+    /// Memoized [`Version::id`]. Construct with [`VersionIdCache::default`].
+    pub id_cache: VersionIdCache,
 }
 
+#[async_trait]
 #[turbo_tasks::value_impl]
 impl Version for ProxyResult {
-    #[turbo_tasks::function]
-    async fn id(&self) -> Result<Vc<RcStr>> {
-        let mut hash = Xxh3Hash64Hasher::new();
-        hash.write_u16(self.status);
-        for (name, value) in &self.headers {
-            name.deterministic_hash(&mut hash);
-            value.deterministic_hash(&mut hash);
-        }
-        let mut read = self.body.read();
-        while let Some(chunk) = read.try_next().await? {
-            hash.write_bytes(&chunk);
-        }
-        Ok(Vc::cell(hash.finish().to_string().into()))
+    async fn id(&self) -> Result<RcStr> {
+        self.id_cache
+            .get_or_init(async || {
+                let mut hash = Xxh3Hash64Hasher::new();
+                hash.write_u16(self.status);
+                for (name, value) in &self.headers {
+                    name.deterministic_hash(&mut hash);
+                    value.deterministic_hash(&mut hash);
+                }
+                let mut read = self.body.read();
+                while let Some(chunk) = read.try_next().await? {
+                    hash.write_bytes(&chunk);
+                }
+                Ok(hash.finish().to_string().into())
+            })
+            .await
     }
 }
 

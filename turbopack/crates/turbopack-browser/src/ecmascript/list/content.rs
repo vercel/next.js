@@ -14,7 +14,8 @@ use turbopack_core::{
     code_builder::{Code, CodeBuilder},
     output::OutputAsset,
     version::{
-        MergeableVersionedContent, Update, Version, VersionedContent, VersionedContentMerger,
+        MergeableVersionedContent, Update, Version, VersionIdCache, VersionedContent,
+        VersionedContentMerger,
     },
 };
 use turbopack_ecmascript::utils::StringifyJs;
@@ -134,7 +135,12 @@ impl EcmascriptDevChunkListContent {
             .into_iter()
             .collect();
 
-        Ok(EcmascriptDevChunkListVersion { by_path, by_merger }.cell())
+        Ok(EcmascriptDevChunkListVersion {
+            by_path,
+            by_merger,
+            id_cache: VersionIdCache::default(),
+        }
+        .cell())
     }
 
     #[turbo_tasks::function]

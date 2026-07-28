@@ -1,4 +1,5 @@
 use anyhow::Result;
+use async_trait::async_trait;
 use bincode::{Decode, Encode};
 use mime_guess::mime::TEXT_HTML_UTF_8;
 use turbo_rcstr::RcStr;
@@ -14,7 +15,7 @@ use turbopack_core::{
     module::Module,
     module_graph::{ModuleGraph, chunk_group_info::ChunkGroup},
     output::{OutputAsset, OutputAssets, OutputAssetsReference, OutputAssetsWithReferenced},
-    version::{Version, VersionedContent},
+    version::{Version, VersionIdCache, VersionedContent},
 };
 
 #[turbo_tasks::task_input]
@@ -253,7 +254,11 @@ impl DevHtmlAssetContent {
     #[turbo_tasks::function]
     async fn version(self: Vc<Self>) -> Result<Vc<DevHtmlAssetVersion>> {
         let this = self.await?;
-        Ok(DevHtmlAssetVersion { content: this }.cell())
+        Ok(DevHtmlAssetVersion {
+            content: this,
+            id_cache: VersionIdCache::default(),
+        }
+        .cell())
     }
 }
 
@@ -273,21 +278,25 @@ impl VersionedContent for DevHtmlAssetContent {
 #[turbo_tasks::value(operation)]
 struct DevHtmlAssetVersion {
     content: ReadRef<DevHtmlAssetContent>,
+    id_cache: VersionIdCache,
 }
 
+#[async_trait]
 #[turbo_tasks::value_impl]
 impl Version for DevHtmlAssetVersion {
-    #[turbo_tasks::function]
-    fn id(&self) -> Vc<RcStr> {
-        let mut hasher = Xxh3Hash64Hasher::new();
-        for relative_path in &*self.content.chunk_paths {
-            hasher.write_ref(relative_path);
-        }
-        if let Some(body) = &self.content.body {
-            hasher.write_ref(body);
-        }
-        let hash = hasher.finish();
-        let hash = encode_base64(hash);
-        Vc::cell(hash.into())
+    async fn id(&self) -> Result<RcStr> {
+        self.id_cache
+            .get_or_init(async || {
+                let mut hasher = Xxh3Hash64Hasher::new();
+                for relative_path in &*self.content.chunk_paths {
+                    hasher.write_ref(relative_path);
+                }
+                if let Some(body) = &self.content.body {
+                    hasher.write_ref(body);
+                }
+                let hash = hasher.finish();
+                Ok(encode_base64(hash).into())
+            })
+            .await
     }
 }
