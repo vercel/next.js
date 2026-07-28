@@ -45,17 +45,35 @@ RUN HOST_ARCH=$(dpkg --print-architecture) && \
       "deb [arch=${FOREIGN_ARCH}] ${FOREIGN_MIRROR} focal-security main universe" \
       > /etc/apt/sources.list
   
-# Core build tools + GNU cross-compilation sysroots + Node.js 20 via nodesource.
+# Core build tools + GNU cross-compilation sysroots.
 # crossbuild-essential installs headers + libs in the multiarch layout
 # that clang finds via --target. Both archs installed so the image
 # works on either host architecture.
-RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certificates && \
-    curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
-    apt-get install -y --no-install-recommends \
-    nodejs \
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl ca-certificates \
     clang lld llvm pkg-config wget git xz-utils libssl-dev \
     crossbuild-essential-amd64 crossbuild-essential-arm64 \
     && rm -rf /var/lib/apt/lists/*
+
+# Node.js 20 (glibc-linked, used as a build tool for all targets).
+# Installed from the official nodejs.org static tarball rather than via
+# NodeSource: the tarball bundles npm and corepack and does not depend on
+# NodeSource's apt repo or GPG key server, which has intermittently returned
+# HTTP 403 from CI runners. When the key import failed, the NodeSource setup
+# script exited 0, so `apt-get install nodejs` silently fell back to Ubuntu's
+# stock nodejs package (which does not bundle npm), breaking later npm steps.
+ARG NODE_VERSION=20.20.2
+RUN case "$(dpkg --print-architecture)" in \
+      amd64) NODE_ARCH=x64 ;; \
+      arm64) NODE_ARCH=arm64 ;; \
+      *) echo "unsupported host architecture: $(dpkg --print-architecture)" >&2; exit 1 ;; \
+    esac && \
+    curl -fsSLo /tmp/node.tar.xz \
+      "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-${NODE_ARCH}.tar.xz" && \
+    tar -xJf /tmp/node.tar.xz -C /usr/local --strip-components=1 \
+      --exclude CHANGELOG.md --exclude LICENSE --exclude README.md && \
+    rm /tmp/node.tar.xz && \
+    node --version && npm --version
 
 # Import prebuilt musl sysroots from the rust-musl-cross images and stage them
 # under /opt/*-cross for docker-native-build.sh. The symlinks provide the
