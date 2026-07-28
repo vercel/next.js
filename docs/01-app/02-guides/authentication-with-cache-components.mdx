@@ -154,7 +154,7 @@ Keep the session read out of a layout's top level, too. A top-level `await` on t
 
 You don't have to read the session again in every component that needs the user. Read it once, then hand it to as many Server and Client Components as you like from inside the same boundary.
 
-Server Components can call `getCurrentUser()` directly. To reach Client Components without prop drilling, create the promise once and pass it through context, then unwrap it with [`use()`](https://react.dev/reference/react/use). This is the [context and `React.cache` pattern](/docs/app/getting-started/fetching-data#sharing-data-with-context-and-reactcache) from data fetching, with one auth-specific adjustment: because `getCurrentUser` reads the request, create its promise inside the Suspense boundary, not at the top of a layout.
+Server Components can call `getCurrentUser()` directly. To reach Client Components without prop drilling, create the promise once, pass it through context, and unwrap it with [`use()`](https://react.dev/reference/react/use). For the general pattern, see [Using React's `use` within a Context Provider](/docs/app/guides/single-page-applications#using-reacts-use-within-a-context-provider). One auth-specific detail: because `getCurrentUser` reads the request, create its promise inside the Suspense boundary, not at the top of a layout.
 
 ```tsx filename="app/user-provider.tsx"
 'use client'
@@ -184,16 +184,14 @@ export function useUser() {
 }
 ```
 
-The Server Component behind the boundary creates the promise, awaits it for its own rendering, and passes the same promise to the provider:
+The Server Component behind the boundary creates the promise and hands it to the provider without awaiting it. Each consumer then resolves it behind its own boundary, so the shared chrome renders without waiting on the session:
 
 ```tsx filename="app/page.tsx"
-async function Dashboard() {
+function Dashboard() {
   const userPromise = getCurrentUser()
-  const user = await userPromise
 
   return (
     <UserProvider userPromise={userPromise}>
-      <h1>Welcome, {user.name}</h1>
       <Suspense fallback={<span>Loading…</span>}>
         <UserBadge />
       </Suspense>
@@ -236,10 +234,10 @@ export async function getUserNotes(userId: string) {
 }
 ```
 
-Call it from a Server Component that already has the user:
+Call it from a Server Component that reads the user for its own rendering. Awaiting `getCurrentUser()` here is fine because it needs `user.id`, and the private cache means this reuses the session rather than reading it again:
 
 ```tsx filename="app/page.tsx"
-async function Dashboard() {
+async function Notes() {
   const user = await getCurrentUser()
   const notes = await getUserNotes(user.id)
   // ...
