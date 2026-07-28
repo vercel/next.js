@@ -250,7 +250,7 @@ On the server, plain `use cache` keeps the entry in memory as a best effort: it'
 
 ## Step 5: Update session-derived data
 
-When a [Server Action](/docs/app/getting-started/mutating-data) changes a user's data, call [`updateTag`](/docs/app/api-reference/functions/updateTag) with the same tag to refresh the cached entry. Re-read the session inside the action so it authorizes itself rather than trusting the client.
+When a [Server Action](/docs/app/getting-started/mutating-data) changes a user's data, call [`updateTag`](/docs/app/api-reference/functions/updateTag) with the same tag to refresh the cached entry. Re-read the session inside the action so it authorizes itself rather than trusting the client. See [authentication with Server Actions](/docs/app/guides/authentication#server-actions) for why this matters.
 
 ```ts filename="app/actions.ts"
 'use server'
