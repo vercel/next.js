@@ -1185,7 +1185,12 @@ describe('app-dir action handling', () => {
 
         expect(request.url()).toEqual(`${next.url}${initialPagePath}`)
         expect(request.method()).toEqual('POST')
-        expect(response.status()).toEqual(303)
+        expect(response.status()).toEqual(200)
+
+        const headers = await response.allHeaders()
+        expect(headers['x-action-redirect']).toBeDefined()
+        expect(headers.location).toBeUndefined()
+        expect(headers['content-type']).toContain('text/x-component')
       }
     )
 
@@ -1298,7 +1303,12 @@ describe('app-dir action handling', () => {
 
         expect(request.url()).toEqual(`${next.url}${initialPagePath}`)
         expect(request.method()).toEqual('POST')
-        expect(response.status()).toEqual(303)
+        expect(response.status()).toEqual(200)
+
+        const headers = await response.allHeaders()
+        expect(headers['x-action-redirect']).toBeDefined()
+        expect(headers.location).toBeUndefined()
+        expect(headers['content-type']).toContain('text/x-component')
       }
     )
 
