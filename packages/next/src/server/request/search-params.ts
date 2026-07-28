@@ -30,8 +30,9 @@ import {
 import { InvariantError } from '../../shared/lib/invariant-error'
 import {
   makeDevtoolsIOAwarePromise,
-  makeHangingPromise,
+  makeRuntimeHangingPromise,
   makePromiseFromTrigger,
+  trackRuntimeDataAccessed,
   RENDER_STAGES_BY_DATA_KIND,
 } from '../dynamic-rendering-utils'
 import { createDedupedByCallsiteServerErrorLoggerDev } from '../create-deduped-by-callsite-server-error-logger'
@@ -178,10 +179,11 @@ export function createPrerenderSearchParamsForClientPage(): Promise<SearchParams
       case 'prerender-client':
         // We're prerendering in a mode that aborts (cacheComponents) and should stall
         // the promise to ensure the RSC side is considered dynamic
-        return makeHangingPromise(
+        return makeRuntimeHangingPromise(
           workUnitStore.renderSignal,
           workStore.route,
-          '`searchParams`'
+          '`searchParams`',
+          workUnitStore
         )
       case 'validation-client':
         throw new InvariantError(
@@ -382,11 +384,23 @@ function makeHangingSearchParams(
     return cachedSearchParams
   }
 
-  const promise = makeHangingPromise<SearchParams>(
+  const promise = makeRuntimeHangingPromise<SearchParams>(
     prerenderStore.renderSignal,
     workStore.route,
-    '`searchParams`'
+    '`searchParams`',
+    // This promise is created for every page whether or not it reads search
+    // params, so recording the access at creation would mark every render.
+    // The access is tracked in the proxy traps below instead.
+    null
   )
+
+  const trackSearchParamsAccessed = () => {
+    // Record against the store that's active at access time: the promise is
+    // created while the RSC payload is constructed, but typically accessed
+    // later, during the render, under a different store.
+    const workUnitStore = workUnitAsyncStorage.getStore()
+    trackRuntimeDataAccessed(workUnitStore ?? prerenderStore)
+  }
 
   const proxyHandler: ProxyHandler<Promise<SearchParams>> = {
     get(target, prop, receiver) {
@@ -406,6 +420,7 @@ function makeHangingSearchParams(
             [prop]: (...args: unknown[]) => {
               const expression =
                 '`await searchParams`, `searchParams.then`, or similar'
+              trackSearchParamsAccessed()
               annotateDynamicAccess(expression, prerenderStore)
               // Mirror `makeHangingParams`: when this never-resolving promise
               // is awaited while a `use cache` key is being encoded
@@ -428,6 +443,7 @@ function makeHangingSearchParams(
         case 'status': {
           const expression =
             '`use(searchParams)`, `searchParams.status`, or similar'
+          trackSearchParamsAccessed()
           annotateDynamicAccess(expression, prerenderStore)
           return ReflectAdapter.get(target, prop, receiver)
         }

@@ -476,16 +476,23 @@ function instantiateRuntimeModule(
   return instantiateModule(moduleId, SourceType.Runtime, chunkPath)
 }
 /**
+ * Matches any character `encodeURIComponent` escapes. The path separator is
+ * excluded because chunk paths are encoded a segment at a time.
+ */
+const CHUNK_PATH_NEEDS_ENCODING = /[^A-Za-z0-9\-_.!~*'()/]/
+
+/**
  * Returns the URL relative to the origin where a chunk can be fetched from.
  */
 function getChunkRelativeUrl(
   chunkPath: ChunkPath | ChunkListPath,
   basePath: string = CHUNK_BASE_PATH
 ): ChunkUrl {
-  return `${basePath}${chunkPath
-    .split('/')
-    .map((p) => encodeURIComponent(p))
-    .join('/')}${ASSET_SUFFIX}` as ChunkUrl
+  // Most chunk paths need no escaping.
+  const encodedPath = CHUNK_PATH_NEEDS_ENCODING.test(chunkPath)
+    ? chunkPath.split('/').map(encodeURIComponent).join('/')
+    : chunkPath
+  return `${basePath}${encodedPath}${ASSET_SUFFIX}` as ChunkUrl
 }
 
 // Shared runtime primitives consumed by the bundled `createWorker` helper,

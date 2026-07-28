@@ -8,6 +8,7 @@ import {
   isRequestInsightsEnabled,
   recordRequestInsightFetch,
 } from './trace/request-insights'
+import { getRequestInsightsIdentity } from './trace/request-insights-identity'
 import { getTracer, SpanKind } from './trace/tracer'
 import {
   CACHE_ONE_YEAR_SECONDS,
@@ -16,7 +17,7 @@ import {
   NEXT_CACHE_TAG_MAX_LENGTH,
 } from '../../lib/constants'
 import { markCurrentScopeAsDynamic } from '../app-render/dynamic-rendering'
-import { makeHangingPromise } from '../dynamic-rendering-utils'
+import { makeDynamicHangingPromise } from '../dynamic-rendering-utils'
 import type { FetchMetric } from '../base-http'
 import { createDedupeFetch } from './dedupe-fetch'
 import {
@@ -146,24 +147,32 @@ function trackFetchMetric(
     'next.fetch.cache_reason': metric.cacheReason,
   })
 
-  if (isRequestInsightsEnabled() && workStore.requestId) {
-    recordRequestInsightFetch(
-      {
-        requestId: workStore.requestId,
-        htmlRequestId: workStore.htmlRequestId,
-        route: workStore.route,
-      },
-      {
-        url: metric.url,
-        method: metric.method,
-        statusCode: metric.status,
-        startTime: metric.start,
-        durationMs: metric.end - metric.start,
-        cacheStatus: metric.cacheStatus,
-        cacheReason: metric.cacheReason,
-        index: metric.idx,
-      }
-    )
+  if (isRequestInsightsEnabled()) {
+    const requestInsightsIdentity = getRequestInsightsIdentity()
+    const requestInsightsRequestId =
+      requestInsightsIdentity?.requestId ?? workStore.requestId
+
+    if (requestInsightsRequestId) {
+      recordRequestInsightFetch(
+        {
+          requestId: requestInsightsRequestId,
+          kind: requestInsightsIdentity?.kind,
+          htmlRequestId:
+            requestInsightsIdentity?.htmlRequestId ?? workStore.htmlRequestId,
+          route: workStore.route,
+        },
+        {
+          url: metric.url,
+          method: metric.method,
+          statusCode: metric.status,
+          startTime: metric.start,
+          durationMs: metric.end - metric.start,
+          cacheStatus: metric.cacheStatus,
+          cacheReason: metric.cacheReason,
+          index: metric.idx,
+        }
+      )
+    }
   }
 
   if (!workStore.shouldTrackFetchMetrics) {
@@ -612,7 +621,7 @@ export function createPatchedFetcher(
                 cacheSignal = null
               }
 
-              return makeHangingPromise<Response>(
+              return makeDynamicHangingPromise<Response>(
                 workUnitStore.renderSignal,
                 workStore.route,
                 'fetch()'
@@ -747,7 +756,7 @@ export function createPatchedFetcher(
                     cacheSignal.endRead()
                     cacheSignal = null
                   }
-                  return makeHangingPromise<Response>(
+                  return makeDynamicHangingPromise<Response>(
                     workUnitStore.renderSignal,
                     workStore.route,
                     'fetch()'
@@ -1161,7 +1170,7 @@ export function createPatchedFetcher(
                     cacheSignal.endRead()
                     cacheSignal = null
                   }
-                  return makeHangingPromise<Response>(
+                  return makeDynamicHangingPromise<Response>(
                     workUnitStore.renderSignal,
                     workStore.route,
                     'fetch()'
@@ -1213,7 +1222,7 @@ export function createPatchedFetcher(
                   case 'prerender-client':
                   case 'prerender-runtime':
                   case 'validation-client':
-                    return makeHangingPromise<Response>(
+                    return makeDynamicHangingPromise<Response>(
                       workUnitStore.renderSignal,
                       workStore.route,
                       'fetch()'

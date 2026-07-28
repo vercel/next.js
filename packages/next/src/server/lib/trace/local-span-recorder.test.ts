@@ -8,6 +8,10 @@ import { SpanStatusCode, trace } from 'next/dist/compiled/@opentelemetry/api'
 import { createLocalSpan } from './local-span-recorder'
 import { runWithRequestInsightsIdentity } from './request-insights-identity'
 import { setSpanRecorderForTest, type SpanStoreRecord } from './span-store'
+import {
+  workAsyncStorage,
+  type WorkStore,
+} from '../../app-render/work-async-storage.external'
 
 const originalDevServer = process.env.__NEXT_DEV_SERVER
 const spanRecords: SpanStoreRecord[] = []
@@ -143,6 +147,38 @@ describe('local recording span', () => {
     ])
   })
 
+  it('uses a nested Instant Insights identity instead of the work store identity', () => {
+    const workStore = {
+      requestId: 'work-request',
+      htmlRequestId: 'work-html',
+      route: '/dashboard',
+    } as WorkStore
+
+    workAsyncStorage.run(workStore, () => {
+      runWithRequestInsightsIdentity(
+        {
+          requestId: 'originating-request',
+          kind: 'instant-insights',
+          htmlRequestId: 'originating-html',
+          url: '/dashboard',
+        },
+        () => {
+          const span = createLocalSpan({ name: 'Instant Insights' })
+          span.end()
+        }
+      )
+    })
+
+    expect(spanRecords).toEqual([
+      expect.objectContaining({
+        requestId: 'originating-request',
+        requestInsightKind: 'instant-insights',
+        htmlRequestId: 'originating-html',
+        route: '/dashboard',
+      }),
+    ])
+  })
+
   it('records explicit performance timestamps', () => {
     const startTime = performance.now() - 10
     const span = createLocalSpan({
@@ -158,6 +194,55 @@ describe('local recording span', () => {
         startTime: performance.timeOrigin + startTime,
         durationMs: expect.closeTo(0.2, 3),
       }),
+    ])
+  })
+
+  it('preserves explicit event and exception timestamps', () => {
+    const epochTimestamp = performance.timeOrigin + 10
+    const preProcessEpochTimestamp = performance.timeOrigin - 1
+    const span = createLocalSpan({ name: 'test.local-span.explicit-events' })
+    span.addEvent('numeric performance time', 1)
+    span.addEvent('attributes and performance time', { phase: 'render' }, 2)
+    span.addEvent('Date time', new Date(4))
+    span.addEvent('HrTime', [0, 5_000_000])
+    span.addEvent('numeric epoch time', epochTimestamp)
+    span.addEvent(
+      'numeric epoch before process start',
+      preProcessEpochTimestamp
+    )
+    span.addEvent('third argument takes precedence', 6, 7)
+    span.recordException(new TypeError('boom'), 3)
+    span.end()
+
+    expect(spanRecords[0].events).toEqual([
+      {
+        name: 'numeric performance time',
+        timestamp: performance.timeOrigin + 1,
+      },
+      {
+        name: 'attributes and performance time',
+        timestamp: performance.timeOrigin + 2,
+        attributes: { phase: 'render' },
+      },
+      { name: 'Date time', timestamp: 4 },
+      { name: 'HrTime', timestamp: 5 },
+      { name: 'numeric epoch time', timestamp: epochTimestamp },
+      {
+        name: 'numeric epoch before process start',
+        timestamp: preProcessEpochTimestamp,
+      },
+      {
+        name: 'third argument takes precedence',
+        timestamp: performance.timeOrigin + 7,
+      },
+      {
+        name: 'exception',
+        timestamp: performance.timeOrigin + 3,
+        attributes: {
+          'exception.type': 'TypeError',
+          'exception.message': 'boom',
+        },
+      },
     ])
   })
 

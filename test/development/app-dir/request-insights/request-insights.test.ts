@@ -1,15 +1,17 @@
 import { nextTestSetup } from 'e2e-utils'
 import { createServer } from 'http'
 import type { AddressInfo } from 'net'
-import { retry } from 'next-test-utils'
+import { retry, waitForNoRedbox } from 'next-test-utils'
 
 type RequestInsight = {
   requestId: string
+  kind?: 'request' | 'instant-insights'
   htmlRequestId: string
   route: string
   startTime: number
   status: 'ok'
   spans: Array<{
+    name?: string
     attributes?: Record<string, string | number | boolean>
   }>
   fetches: Array<{
@@ -119,10 +121,85 @@ describe('request insights', () => {
     })
   })
 
+  it('does not attribute Request Insights bookkeeping to the app', async () => {
+    const outputIndex = next.cliOutput.length
+    const browser = await next.browser('/safe-clock')
+
+    await retry(async () => {
+      expect(await browser.elementByCss('p').text()).toBe('safe clock')
+    })
+    await waitForNoRedbox(browser)
+    expect(next.cliOutput.slice(outputIndex)).not.toContain(
+      'Route "/safe-clock": Next.js encountered the unstable value `Date.now()` while prerendering.'
+    )
+  })
+
+  it('still reports genuine app wall-clock access with app source attribution', async () => {
+    const outputIndex = next.cliOutput.length
+    await next.browser('/app-date-now')
+
+    await retry(() => {
+      const output = next.cliOutput.slice(outputIndex)
+      expect(output).toContain(
+        'Route "/app-date-now": Next.js encountered the unstable value `Date.now()` while prerendering.'
+      )
+      expect(output).toMatch(/at Page \(app\/app-date-now\/page\.tsx:\d+:\d+\)/)
+    })
+  })
+
+  it('records Instant Insights separately from its originating request', async () => {
+    await next.render('/instant-insights')
+
+    await retry(async () => {
+      const snapshot = (await next
+        .fetch('/_next/development/request-insights')
+        .then((response) => response.json())) as {
+        requests: RequestInsight[]
+      }
+      const routeInsights = snapshot.requests.filter(
+        (request) => request.route === '/instant-insights'
+      )
+      const instantInsights = routeInsights.find(
+        (request) => request.kind === 'instant-insights'
+      )
+      const request = routeInsights.find(
+        (item) =>
+          (item.kind === undefined || item.kind === 'request') &&
+          item.requestId === instantInsights?.requestId
+      )
+
+      expect(instantInsights).toEqual(
+        expect.objectContaining({
+          kind: 'instant-insights',
+          durationMs: expect.any(Number),
+          status: 'ok',
+        })
+      )
+      expect(instantInsights?.htmlRequestId).toBe(request?.htmlRequestId)
+      expect(
+        instantInsights?.spans.some(
+          (span) =>
+            span.attributes?.['next.span_type'] ===
+              'AppRender.instantInsights' && span.name === 'Instant Insights'
+        )
+      ).toBe(true)
+      expect(
+        request?.spans.some(
+          (span) =>
+            span.attributes?.['next.span_type'] === 'AppRender.instantInsights'
+        )
+      ).toBe(false)
+    })
+  })
+
   it('uses the development endpoint and reports truncated output', async () => {
     const { result, requestedPaths } = await runWithResponse(
       {
-        requests: [createRequest(1), createRequest(2), createRequest(3, 7)],
+        requests: [
+          createRequest(1),
+          createRequest(2),
+          { ...createRequest(3, 7), kind: 'instant-insights' },
+        ],
       },
       ['--limit', '1']
     )
@@ -133,6 +210,8 @@ describe('request insights', () => {
       'Showing 1 of 3 retained requests (newest first).'
     )
     expect(result.stdout).toContain('/route-3')
+    expect(result.stdout).toContain('Instant Insights · /route-3')
+    expect(result.stdout).toContain('kind instant-insights')
     expect(result.stdout).not.toContain('/route-2')
     expect(result.stdout).toContain('showing first 5 of 7 fetches')
     expect(result.stdout).toContain('https://example.com/fetch-4')

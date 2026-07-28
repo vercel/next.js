@@ -13,6 +13,7 @@ import {
   type SpanStoreEvent,
   type SpanStoreLink,
 } from './span-store'
+import type { RequestInsightKind } from '../../../next-devtools/shared/request-insights'
 
 export { isLocalSpanRecordingEnabled } from './span-store'
 
@@ -112,6 +113,7 @@ function getLocalSpanAsyncStorage(): AsyncLocalStorage<Span> {
 
 type RequestIdentity = {
   requestId?: string
+  requestInsightKind?: RequestInsightKind
   htmlRequestId?: string
   route?: string
   url?: string
@@ -218,9 +220,13 @@ class LocalRecordingSpan implements Span {
       return this
     }
 
+    const eventTime =
+      startTime === undefined && isTimestampInput(attributesOrStartTime)
+        ? attributesOrStartTime
+        : startTime
     this.events.push({
       name,
-      timestamp: Date.now(),
+      timestamp: getTimestamp(eventTime),
       attributes: isSpanStoreAttributes(attributesOrStartTime)
         ? cleanSpanStoreAttributes(attributesOrStartTime)
         : undefined,
@@ -282,7 +288,7 @@ class LocalRecordingSpan implements Span {
     this.exception = getSpanStoreException(exception)
     this.events.push({
       name: 'exception',
-      timestamp: Date.now(),
+      timestamp: getTimestamp(time),
       attributes: getSpanStoreExceptionAttributes(this.exception),
     })
     this.delegateSpan?.recordException(exception, time)
@@ -301,6 +307,7 @@ class LocalRecordingSpan implements Span {
       spanId: this.spanContextValue.spanId,
       parentSpanId: this.parentSpanId,
       requestId: this.requestIdentity.requestId,
+      requestInsightKind: this.requestIdentity.requestInsightKind,
       htmlRequestId: this.requestIdentity.htmlRequestId,
       route:
         getStringAttribute(recordAttributes, 'next.route') ??
@@ -390,21 +397,12 @@ function getTimestamp(time?: SpanOptions['startTime']): number {
   }
 
   if (typeof time === 'number') {
-    const timeOrigin = getPerformanceTimeOrigin()
-    return timeOrigin !== undefined && time < timeOrigin
-      ? timeOrigin + time
+    return time < performance.timeOrigin / 2
+      ? performance.timeOrigin + time
       : time
   }
 
-  const timeOrigin = getPerformanceTimeOrigin()
-  return timeOrigin === undefined ? Date.now() : timeOrigin + performance.now()
-}
-
-function getPerformanceTimeOrigin(): number | undefined {
-  return typeof performance !== 'undefined' &&
-    typeof performance.timeOrigin === 'number'
-    ? performance.timeOrigin
-    : undefined
+  return performance.timeOrigin + performance.now()
 }
 
 function getStringAttribute(
@@ -423,6 +421,14 @@ function isSpanStoreAttributes(
     value !== null &&
     !Array.isArray(value) &&
     !(value instanceof Date)
+  )
+}
+
+function isTimestampInput(
+  value: Parameters<Span['addEvent']>[1]
+): value is SpanOptions['startTime'] {
+  return (
+    typeof value === 'number' || Array.isArray(value) || value instanceof Date
   )
 }
 
@@ -494,9 +500,10 @@ function getCurrentRequestIdentity(): RequestIdentity {
       workUnitStore && 'url' in workUnitStore ? workUnitStore.url : undefined
 
     return {
-      requestId: workStore?.requestId ?? requestInsightsIdentity?.requestId,
+      requestId: requestInsightsIdentity?.requestId ?? workStore?.requestId,
+      requestInsightKind: requestInsightsIdentity?.kind,
       htmlRequestId:
-        workStore?.htmlRequestId ?? requestInsightsIdentity?.htmlRequestId,
+        requestInsightsIdentity?.htmlRequestId ?? workStore?.htmlRequestId,
       route: workStore?.route,
       url: url ? `${url.pathname}${url.search}` : requestInsightsIdentity?.url,
     }
