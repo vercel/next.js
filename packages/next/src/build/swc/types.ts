@@ -238,11 +238,15 @@ export interface NodeJsPartialHmrUpdate extends BaseUpdate {
   type: 'partial'
   instruction: {
     type: 'EcmascriptMergedUpdate'
-    entries: Record<
+    entries?: Record<
       string,
       { code: string; url: string; map?: string | undefined }
     >
-    chunks?: Record<string, { type: 'partial' }>
+    chunks?: Record<
+      string,
+      | { type: 'added' | 'deleted'; modules?: string[] }
+      | { type: 'partial'; added?: string[]; deleted?: string[] }
+    >
   }
 }
 
@@ -320,6 +324,12 @@ export interface Project {
   entrypointsSubscribe(): AsyncIterableIterator<
     TurbopackResult<RawEntrypoints | {}>
   >
+
+  // Note: only the Server target is implemented in the native binding;
+  // add a Client overload once `all_hmr_update` supports it.
+  allHmrEvents(
+    target: import('./index').HmrTarget.Server
+  ): AsyncIterableIterator<TurbopackResult<NodeJsHmrUpdate>>
 
   hmrEvents(
     identifier: string,

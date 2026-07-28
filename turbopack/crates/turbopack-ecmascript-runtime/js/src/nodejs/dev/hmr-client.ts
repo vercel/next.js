@@ -55,22 +55,14 @@ function initializeServerHmr(
  * Note: This is only called via __turbopack_server_hmr_apply__ which ensures
  * the handler is initialized first via ensureHmrClientInitialized().
  */
-function emitMessage(msg: { type: string; data: any }): boolean {
+function emitMessage(msg: { type: string; data: any }): void {
   if (serverHmrUpdateHandler == null) {
-    console.warn(
-      '[Server HMR] No update handler registered to receive message:',
-      msg
+    throw new Error(
+      '[Server HMR] No update handler registered to receive message'
     )
-    return false
   }
 
-  try {
-    serverHmrUpdateHandler(msg.data)
-    return true
-  } catch (err) {
-    console.error('[Server HMR] Listener error:', err)
-    return false
-  }
+  serverHmrUpdateHandler(msg.data)
 }
 
 /**

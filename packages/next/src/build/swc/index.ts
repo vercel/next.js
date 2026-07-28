@@ -762,6 +762,16 @@ function bindingToApi(
       })()
     }
 
+    // Note: only the Server target is implemented in the native binding;
+    // add a Client overload once `all_hmr_update` supports it.
+    allHmrEvents(
+      target: HmrTarget.Server
+    ): AsyncIterableIterator<TurbopackResult<NodeJsHmrUpdate>> {
+      return subscribe(true, async (callback) =>
+        binding.projectAllHmrEvents(this._nativeProject, target, callback)
+      )
+    }
+
     hmrEvents(
       chunkName: string,
       target: HmrTarget.Client
