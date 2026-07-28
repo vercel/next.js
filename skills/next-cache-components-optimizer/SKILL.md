@@ -359,22 +359,21 @@ this gate is as machine-checkable as the others. Detail:
 > under the lock on the production-build rig**, not when the code compiles. That
 > GREEN is the deterministic stop for the fix loop; proceed to E.
 
-**When the read can't be pushed down** (an ID minted per request, an
-all-dynamic page, a per-request auth/scope read the whole subtree needs), there
-is no shell to grow. Don't force one: opt the route into **runtime prefetching**
-so the prefetch runs the dynamic render ahead of the click and the soft nav
-commits the real content. See [Runtime Prefetching](https://nextjs.org/docs/app/guides/runtime-prefetching)
-for the mechanism (`prefetch = 'allow-runtime'` on the route plus a full
-`<Link prefetch={true}>`) and the [dynamic-data-during-prefetching insight](https://nextjs.org/docs/messages/instant-link-prefetch-partial)
-for adoption. The `instant()`-specific gotchas the docs don't cover:
+**When URL data can't be pushed down** (for example, the whole page depends on
+`params`, `searchParams`, or the full URL), there may be no meaningful static
+shell to grow. Don't force one. Runtime prefetching can make the soft
+navigation instant, but it is outside this optimizer loop: it requires Partial
+Prefetching, a `<Link prefetch={true}>`, and cached URL-dependent content. See
+[Runtime Prefetching](https://nextjs.org/docs/app/guides/runtime-prefetching).
+The `instant()`-specific gotchas the docs don't cover:
 
 - **The full prefetch is mandatory.** An auto/PPR prefetch bails before the
   runtime spawn (`subtreeHasSpeculativePrefetch`); only `prefetch={true}` /
-  `kind: 'full'` reaches it. If you set `prefetch = 'allow-runtime'` and it's
-  still RED, the link is doing an auto prefetch.
-- **All leaf slots must agree.** `allow-runtime` on the content segment but
-  nothing on a sibling `@header`/`@sidebar` leaf leaves the route's runtime entry
-  incomplete, so the lock falls back to the shell. Flip every leaf together.
+  `kind: 'full'` reaches it. If the route is still RED after caching the
+  URL-dependent content, check whether the link is still doing an auto prefetch.
+- **Partial Prefetching must be adopted for the destination.** Runtime
+  prefetching is part of the Partial Prefetching path, not a standalone segment
+  export. With only legacy prefetching, the lock falls back to the shell.
 - **Prefetch the canonical URL.** A link whose href 307-redirects can't be
   prefetched — the prefetch receives the redirect, not the tree. Point the link
   and the prefetch at the final URL.
@@ -451,3 +450,22 @@ three hold, you are not done.
 - `reference/real-app-patterns.md`: parallel routes, deferring an auth gate,
   initial-load vs soft-navigation shells, the empty-shell failure mode, the
   responsive-skeleton mismatch, edge cases.
+
+## After optimization
+
+Once the target routes are instant, check whether the app has already adopted
+Partial Prefetching (`partialPrefetching: true`, or the relevant destination
+still uses `prefetch = 'partial'` during an incremental rollout).
+
+- **Already adopted:** for any URL-data route that stopped at the limitation
+  above, consider a targeted `<Link prefetch={true}>` on the links where having
+  that URL-specific content ready before the click is worth the per-link server
+  work. Keep the default link behavior everywhere else so the shared App Shell
+  remains the low-cost baseline.
+- **Not adopted yet:** recommend
+  [`next-partial-prefetching-adoption`](https://github.com/vercel/next.js/tree/canary/skills/next-partial-prefetching-adoption).
+  That skill moves the app onto the better prefetching model: shared App Shell
+  prefetches by default, fewer duplicated full-prefetch requests for visible
+  links, a link audit for existing `<Link prefetch={true}>` usage, and optional
+  per-link runtime prefetching only where URL-specific content is worth the
+  extra server work.
