@@ -397,7 +397,7 @@ Using nonces has important implications for how your Next.js application renders
 A nonce comes from the incoming request, so a page that uses one must be [dynamically rendered](/docs/app/glossary#dynamic-rendering):
 
 - Each request renders the page again with a fresh nonce
-- Prerendered output, including Incremental Static Regeneration (ISR), has no request to read a nonce from
+- Prerendered pages carry no nonce at all
 - Pages cannot be cached by CDNs without additional configuration
 - [Partial Prerendering (PPR)](/docs/app/glossary#partial-prerendering-ppr) prerenders the shell, so the shell's scripts carry no nonce
 
