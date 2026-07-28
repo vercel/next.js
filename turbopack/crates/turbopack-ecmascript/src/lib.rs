@@ -12,6 +12,7 @@ pub mod annotations;
 pub mod async_chunk;
 pub mod bytes_source_transform;
 pub mod chunk;
+pub mod chunk_list;
 pub mod code_gen;
 pub mod embed_js;
 mod errors;
