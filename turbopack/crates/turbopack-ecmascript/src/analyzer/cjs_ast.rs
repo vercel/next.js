@@ -51,9 +51,12 @@ pub(crate) fn is_module_exports_chain(expr: &Expr, unresolved_mark: Mark) -> boo
     }
 }
 
-/// The exported name of `Object.defineProperty(exports, "<name>", { … })` — the
-/// shape transpilers emit for named exports and the `__esModule` marker.
-pub(crate) fn as_exports_define_property(call: &CallExpr, unresolved_mark: Mark) -> Option<RcStr> {
+/// The exported name and descriptor of `Object.defineProperty(exports, "<name>", { … })` —
+/// the shape transpilers emit for named exports and the `__esModule` marker.
+pub(crate) fn as_exports_define_property(
+    call: &CallExpr,
+    unresolved_mark: Mark,
+) -> Option<(RcStr, &ObjectLit)> {
     let Callee::Expr(callee) = &call.callee else {
         return None;
     };
@@ -78,10 +81,13 @@ pub(crate) fn as_exports_define_property(call: &CallExpr, unresolved_mark: Mark)
     let Expr::Lit(Lit::Str(name)) = unparen(&name.expr) else {
         return None;
     };
-    if !matches!(unparen(&descriptor.expr), Expr::Object(_)) {
+    let Expr::Object(descriptor) = unparen(&descriptor.expr) else {
         return None;
-    }
-    Some(RcStr::from(name.value.to_string_lossy().into_owned()))
+    };
+    Some((
+        RcStr::from(name.value.to_string_lossy().into_owned()),
+        descriptor,
+    ))
 }
 
 /// Whether the `Object.defineProperty` descriptor sets `value: true` (the

@@ -1548,7 +1548,8 @@ impl VisitAstPath for Analyzer<'_, '_> {
         // `Object.defineProperty(exports, …)` is a CommonJS export write; recognize
         // it so unused entries drop (its `exports` argument is guarded below).
         let is_cjs_define_property = if self.cjs_exports_enabled()
-            && let Some(name) = as_exports_define_property(n, self.eval_context.unresolved_mark)
+            && let Some((name, _)) =
+                as_exports_define_property(n, self.eval_context.unresolved_mark)
         {
             self.recognize_cjs_define_property(&name, n, ast_path);
             true

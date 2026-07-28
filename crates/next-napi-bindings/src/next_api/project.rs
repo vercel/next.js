@@ -1845,6 +1845,134 @@ async fn hmr_update_with_issues_operation(
     .cell())
 }
 
+/// Aggregate counterpart to [`project_hmr_update_operation`].
+#[turbo_tasks::function(operation, root)]
+fn project_all_hmr_update_operation(
+    project: ResolvedVc<Project>,
+    target: HmrTarget,
+    state: ResolvedVc<VersionState>,
+) -> Vc<Update> {
+    project.all_hmr_update(target, *state)
+}
+
+/// Aggregate counterpart to [`hmr_update_with_issues_operation`].
+#[tracing::instrument(
+    level = "info",
+    name = "aggregate hmr subscription",
+    skip_all,
+    fields(target = %target),
+)]
+#[turbo_tasks::function(operation, root)]
+async fn all_hmr_update_with_issues_operation(
+    project: ResolvedVc<Project>,
+    state: ResolvedVc<VersionState>,
+    target: HmrTarget,
+) -> Result<Vc<HmrUpdateWithIssues>> {
+    tracing::info!(target = %target, "aggregate hmr subscription");
+    let update_op = project_all_hmr_update_operation(project, target, state);
+    // See `hmr_update_with_issues_operation`: the JS consumer relies on this
+    // read *throwing* on build-graph failures; don't swallow errors.
+    let update = update_op
+        .read_strongly_consistent()
+        .final_read_hint()
+        .await?;
+    let filter = project.issue_filter().await?;
+    let issues = get_issues(update_op, &filter).await?;
+    let effects = Arc::new(take_effects(update_op).await?);
+    Ok(HmrUpdateWithIssues {
+        update,
+        issues,
+        effects,
+    }
+    .cell())
+}
+
+#[tracing::instrument(level = "info", name = "get all HMR events", skip(project, func), fields(target = %target))]
+#[napi(ts_return_type = "{ __napiType: \"RootTask\" }")]
+pub fn project_all_hmr_events(
+    #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
+    target: String,
+    func: JsFunction,
+) -> napi::Result<External<RootTask>> {
+    let hmr_target = target
+        .parse::<HmrTarget>()
+        .map_err(napi::Error::from_reason)?;
+
+    let container = project.container;
+    // Sentinel resource id for the aggregated stream (no real chunk path).
+    let identifier_path: RcStr = rcstr!("__next_all_hmr__");
+    subscribe(
+        project.turbopack_ctx.clone(),
+        func,
+        move || async move {
+            // HACK(bgw): Remove this unmark call
+            unmark_top_level_task_may_leak_eventually_consistent_state();
+
+            let project = container.project().to_resolved().await?;
+            let state = project
+                .all_hmr_version_state(hmr_target)
+                .to_resolved()
+                .await?;
+
+            let update_op = all_hmr_update_with_issues_operation(project, state, hmr_target);
+
+            // HACK(bgw): Remove this mark call
+            mark_top_level_task();
+
+            let read =
+                read_strongly_consistent_and_apply_effects(update_op, |v| &v.effects).await?;
+
+            // HACK(bgw): Remove this unmark call
+            unmark_top_level_task_may_leak_eventually_consistent_state();
+
+            let HmrUpdateWithIssues { update, issues, .. } = &*read;
+            match &**update {
+                Update::Missing | Update::None => {}
+                Update::Total(TotalUpdate { to }) => {
+                    state.set(to.clone()).await?;
+                }
+                Update::Partial(PartialUpdate { to, .. }) => {
+                    state.set(to.clone()).await?;
+                }
+            }
+            Ok((Some(update.clone()), issues.clone()))
+        },
+        move |ctx| {
+            let (update, issues) = ctx.value;
+
+            let napi_issues = issues
+                .iter()
+                .map(|issue| NapiIssue::from(&**issue))
+                .collect();
+            let update_issues = issues
+                .iter()
+                .map(|issue| Issue::from(&**issue))
+                .collect::<Vec<_>>();
+
+            let identifier = ResourceIdentifier {
+                path: identifier_path.clone(),
+                headers: None,
+            };
+            let update = match update.as_deref() {
+                None | Some(Update::Missing) | Some(Update::Total(_)) => {
+                    ClientUpdateInstruction::restart(&identifier, &update_issues)
+                }
+                Some(Update::Partial(update)) => ClientUpdateInstruction::partial(
+                    &identifier,
+                    &update.instruction,
+                    &update_issues,
+                ),
+                Some(Update::None) => ClientUpdateInstruction::issues(&identifier, &update_issues),
+            };
+
+            Ok(vec![TurbopackResult {
+                result: ctx.env.to_js_value(&update)?,
+                issues: napi_issues,
+            }])
+        },
+    )
+}
+
 #[tracing::instrument(level = "info", name = "get HMR events", skip(project, func), fields(target = %target, chunk_name = %chunk_name))]
 #[napi(ts_return_type = "{ __napiType: \"RootTask\" }")]
 pub fn project_hmr_events(
@@ -2272,15 +2400,14 @@ async fn get_source_map_rope(
         return Ok(FileContent::NotFound.cell());
     };
 
-    let Some(chunk_base_unix) = project.node_root().await?.get_path_to(&fs_path) else {
+    let node_root = project.node_root().await?;
+    let Some(chunk_base_unix) = node_root.get_path_to(&fs_path).map(ToOwned::to_owned) else {
         // The path is not within the dist dir
         return Ok(FileContent::NotFound.cell());
     };
 
-    let client_path = project
-        .client_relative_path()
-        .await?
-        .join(chunk_base_unix)?;
+    let client_relative_path = project.client_relative_path().await?;
+    let client_path = client_relative_path.join(&chunk_base_unix)?;
 
     // `fs_path` is the server path: it's inside `node_root`, and `output_fs` is the filesystem
     // that `node_root` uses.
@@ -2293,6 +2420,24 @@ async fn get_source_map_rope(
         // chunks.
         map = container.get_source_map(client_path, module.clone());
         if !map.await?.is_content() {
+            // An older revision of a chunk's sourcemap may be requested by an HMR client. We
+            // remove stale entries from the VersionStateMap but a client may be holding onto a
+            // reference to a stale chunk and requesting its sourcmemap via the error
+            // overlay.
+            //
+            // This exists because we don't have logic for the server hmr client to mark which
+            // chunks it's no longer using.
+            //
+            // Fall back to reading from the filesystem.
+            let map_relative = format!("{chunk_base_unix}.map");
+            let server_map = node_root.join(&map_relative)?.read();
+            if server_map.await?.is_content() {
+                return Ok(server_map);
+            }
+            let client_map = client_relative_path.join(&map_relative)?.read();
+            if client_map.await?.is_content() {
+                return Ok(client_map);
+            }
             bail!("chunk/module {sys_path:?} (module: {module:?}) is missing a sourcemap");
         }
     }
