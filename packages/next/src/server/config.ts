@@ -496,6 +496,46 @@ function assignDefaultsAndValidate(
     )
   }
 
+  const typeScriptBuildMode = result.experimental.typeScriptBuildMode
+  if (
+    typeScriptBuildMode !== 'serial' &&
+    !result.experimental.useTypeScriptCli
+  ) {
+    throw new Error(
+      `\`experimental.typeScriptBuildMode: "${typeScriptBuildMode}"\` requires \`experimental.useTypeScriptCli\` to be enabled. Please update your ${configFileName} accordingly.`
+    )
+  }
+
+  if (
+    phase !== PHASE_PRODUCTION_SERVER &&
+    phase !== PHASE_INFO &&
+    typeScriptBuildMode === 'adaptive' &&
+    !process.env.TURBOPACK
+  ) {
+    throw new Error(
+      `\`experimental.typeScriptBuildMode: "adaptive"\` is only supported with Turbopack. ` +
+        `Please remove the option or run Next.js with Turbopack in ${configFileName}.`
+    )
+  }
+
+  if (
+    result.experimental.typeScriptBuildCpuBudget !== undefined &&
+    typeScriptBuildMode !== 'adaptive'
+  ) {
+    throw new Error(
+      `\`experimental.typeScriptBuildCpuBudget\` requires \`experimental.typeScriptBuildMode: "adaptive"\`. Please update your ${configFileName} accordingly.`
+    )
+  }
+
+  if (
+    typeScriptBuildMode === 'external' &&
+    !result.experimental.typeScriptBuildResultPath
+  ) {
+    throw new Error(
+      `\`experimental.typeScriptBuildMode: "external"\` requires \`experimental.typeScriptBuildResultPath\`. Please update your ${configFileName} accordingly.`
+    )
+  }
+
   // Validate sassOptions.functions is not used with Turbopack
   if (
     process.env.TURBOPACK &&

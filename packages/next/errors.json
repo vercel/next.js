@@ -1456,5 +1456,15 @@
   "1455": "Page \"%s\" returned incomplete params from \"generateStaticParams()\". With \"output: export\", every params object must include all dynamic route parameters. Missing: %s. See more info here: https://nextjs.org/docs/messages/generate-static-params",
   "1456": "Expected an HTML size for prerendered app route \"%s\"",
   "1457": "Expected prerender classification data for PPR route \"%s\"",
-  "1458": "Expected complete prerender classification for route \"%s\""
+  "1458": "Expected complete prerender classification for route \"%s\"",
+  "1459": "The external TypeScript build mode requires a project-local TypeScript CLI.",
+  "1460": "\\`experimental.typeScriptBuildMode: \"adaptive\"\\` is only supported with Turbopack. Please remove the option or run Next.js with Turbopack in %s.",
+  "1461": "\\`experimental.typeScriptBuildMode: \"%s\"\\` requires \\`experimental.useTypeScriptCli\\` to be enabled. Please update your %s accordingly.",
+  "1462": "Could not read the external TypeScript result at %s. Run \\`next typecheck --write-result %s\\` before building.",
+  "1463": "The external TypeScript result at %s uses an unsupported format. Regenerate it with the current Next.js version.",
+  "1464": "\\`experimental.typeScriptBuildCpuBudget\\` requires \\`experimental.typeScriptBuildMode: \"adaptive\"\\`. Please update your %s accordingly.",
+  "1465": "\\`experimental.typeScriptBuildMode: \"external\"\\` requires \\`experimental.typeScriptBuildResultPath\\`. Please update your %s accordingly.",
+  "1466": "TypeScript did not report project files for %s.",
+  "1467": "`next typecheck` requires `experimental.useTypeScriptCli` to be enabled.",
+  "1468": "The external TypeScript result at %s does not match the current project. Run \\`next typecheck --write-result %s\\` again."
 }

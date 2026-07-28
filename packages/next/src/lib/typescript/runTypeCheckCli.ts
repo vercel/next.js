@@ -13,11 +13,13 @@ export async function runTypeCheckCli({
   tscPath,
   cacheDir,
   onFirstOutput,
+  cpuBudget,
 }: {
   baseDir: string
   tsConfigPath: string
   tscPath: string
   cacheDir?: string
+  cpuBudget?: number
   /**
    * Called once when `tsc` first produces output. Used to stop the build
    * spinner so it does not sit above the diagnostics.
@@ -52,6 +54,7 @@ export async function runTypeCheckCli({
     tscPath,
     args,
     onFirstOutput,
+    cpuBudget,
   })
 
   if (result.exitCode !== 0) {

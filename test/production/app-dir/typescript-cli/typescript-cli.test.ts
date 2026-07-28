@@ -11,12 +11,32 @@ const apiConfig = `module.exports = {
 }
 `
 
+const adaptiveCliConfig = `module.exports = {
+  experimental: {
+    useTypeScriptCli: true,
+    typeScriptBuildMode: 'adaptive',
+    typeScriptBuildCpuBudget: 2,
+  },
+  typescript: { tsconfigPath: 'tsconfig.build.json' },
+}
+`
+
+const externalCliConfig = `module.exports = {
+  experimental: {
+    useTypeScriptCli: true,
+    typeScriptBuildMode: 'external',
+    typeScriptBuildResultPath: '.next-typecheck/result.json',
+  },
+  typescript: { tsconfigPath: 'tsconfig.build.json' },
+}
+`
+
 const typeError = `export const invalidValue: number = 'not a number'
 `
 
 describe('experimental TypeScript CLI backend', () => {
   describe('TypeScript 7', () => {
-    const { next, skipped } = nextTestSetup({
+    const { next, skipped, isTurbopack } = nextTestSetup({
       files: __dirname,
       skipStart: true,
       skipDeployment: true,
@@ -24,6 +44,7 @@ describe('experimental TypeScript CLI backend', () => {
         typescript: '7.0.2',
       },
     })
+    const itTurbopack = isTurbopack ? it : it.skip
 
     if (skipped) return
 
@@ -41,6 +62,8 @@ describe('experimental TypeScript CLI backend', () => {
         .deleteFile('.next/dev/types/stale-type-error.test.ts')
         .catch(() => {})
       await next.deleteFile('.next/cache/.tsbuildinfo').catch(() => {})
+      await next.deleteFile('.next-typecheck/result.json').catch(() => {})
+      await next.deleteFile('src/external-change.ts').catch(() => {})
     })
 
     it('builds with the native CLI, a custom tsconfig, and inherited paths', async () => {
@@ -51,9 +74,124 @@ describe('experimental TypeScript CLI backend', () => {
       expect(result.exitCode).toBe(0)
       expect(result.cliOutput).toContain('NEXT_TYPE_CHECK_COMPLETED')
       expect(result.cliOutput).toContain('"typeCheckMode": "typescript-cli"')
+      expect(result.cliOutput).toContain('NEXT_TYPESCRIPT_BUILD_COMPLETED')
+      expect(result.cliOutput).toContain('"configuredMode": "serial"')
+      expect(result.cliOutput).toContain('"effectiveSchedule": "serial"')
       expect(result.cliOutput).not.toContain('"inputFilesCount"')
       expect(result.cliOutput).not.toContain('"totalFilesCount"')
       expect(await next.hasFile('.next/cache/.tsbuildinfo')).toBe(true)
+    })
+    itTurbopack(
+      'can adaptively run the CLI checker with a CPU budget',
+      async () => {
+        await next.patchFile('next.config.js', adaptiveCliConfig)
+
+        const result = await next.build({
+          env: { NEXT_TELEMETRY_DEBUG: '1' },
+        })
+
+        expect(result.exitCode).toBe(0)
+        expect(result.cliOutput).toContain(
+          'Running TypeScript concurrently with a 2-CPU budget'
+        )
+        expect(result.cliOutput).toContain('NEXT_TYPE_CHECK_COMPLETED')
+        expect(result.cliOutput).toContain('"typeCheckMode": "typescript-cli"')
+        expect(result.cliOutput).toContain('NEXT_TYPESCRIPT_BUILD_COMPLETED')
+        expect(result.cliOutput).toContain('"configuredMode": "adaptive"')
+        expect(result.cliOutput).toContain('"effectiveSchedule": "concurrent"')
+        expect(result.cliOutput).toContain('"cpuBudget": 2')
+        expect(result.cliOutput).toContain('"fallbackReason": null')
+        expect(result.cliOutput).toContain('"overlapDurationInSeconds":')
+      }
+    )
+    itTurbopack(
+      'reports CLI diagnostics while checking adaptively',
+      async () => {
+        await next.patchFile('next.config.js', adaptiveCliConfig)
+        await next.patchFile('src/type-error.ts', typeError)
+
+        const result = await next.build()
+
+        expect(result.exitCode).toBe(1)
+        expect(result.cliOutput).toContain('src/type-error.ts')
+        expect(result.cliOutput).toContain('error TS2322')
+      }
+    )
+    if (!isTurbopack) {
+      it('rejects adaptive checking with webpack', async () => {
+        await next.patchFile('next.config.js', adaptiveCliConfig)
+
+        const result = await next.build()
+
+        expect(result.exitCode).toBe(1)
+        expect(result.cliOutput).toContain(
+          '`experimental.typeScriptBuildMode: "adaptive"` is only supported with Turbopack'
+        )
+      })
+    }
+
+    it('requires the CLI checker for adaptive type checking', async () => {
+      await next.patchFile(
+        'next.config.js',
+        `module.exports = {
+  experimental: { typeScriptBuildMode: 'adaptive' },
+}
+`
+      )
+
+      const result = await next.build()
+
+      expect(result.exitCode).toBe(1)
+      expect(result.cliOutput).toContain(
+        '`experimental.typeScriptBuildMode: "adaptive"` requires `experimental.useTypeScriptCli`'
+      )
+    })
+
+    itTurbopack('accepts a matching external TypeScript result', async () => {
+      await next.patchFile('next.config.js', externalCliConfig)
+
+      const typeCheck = await next.runCommand([
+        'typecheck',
+        '--write-result',
+        '.next-typecheck/result.json',
+      ])
+      expect(typeCheck.exitCode).toBe(0)
+
+      const result = await next.build({
+        env: { NEXT_TELEMETRY_DEBUG: '1' },
+      })
+
+      expect(result.exitCode).toBe(0)
+      expect(result.cliOutput).toContain(
+        'Using verified external TypeScript result'
+      )
+      expect(result.cliOutput).toContain('NEXT_TYPESCRIPT_BUILD_COMPLETED')
+      expect(result.cliOutput).toContain('"configuredMode": "external"')
+      expect(result.cliOutput).toContain('"effectiveSchedule": "external"')
+      expect(result.cliOutput).toContain('"typeCheckDurationInSeconds": null')
+      expect(result.cliOutput).toContain(
+        '"externalValidationDurationInSeconds":'
+      )
+    })
+
+    itTurbopack('rejects a stale external TypeScript result', async () => {
+      await next.patchFile('next.config.js', externalCliConfig)
+
+      const typeCheck = await next.runCommand([
+        'typecheck',
+        '--write-result',
+        '.next-typecheck/result.json',
+      ])
+      expect(typeCheck.exitCode).toBe(0)
+      await next.patchFile(
+        'src/external-change.ts',
+        'export const changedAfterTypeCheck = true\n'
+      )
+
+      const result = await next.build()
+
+      expect(result.exitCode).toBe(1)
+      expect(result.cliOutput).toContain('does not match the current project')
     })
 
     it('prints raw TypeScript CLI diagnostics', async () => {
@@ -149,7 +287,7 @@ describe('experimental TypeScript CLI backend', () => {
   })
 
   describe('TypeScript 6', () => {
-    const { next, skipped } = nextTestSetup({
+    const { next, skipped, isTurbopack } = nextTestSetup({
       files: __dirname,
       skipStart: true,
       skipDeployment: true,
@@ -159,12 +297,33 @@ describe('experimental TypeScript CLI backend', () => {
     })
 
     if (skipped) return
+    const itTurbopack = isTurbopack ? it : it.skip
 
     it('uses the same project-local tsc entry point', async () => {
       const result = await next.build()
 
       expect(result.exitCode).toBe(0)
       expect(await next.hasFile('.next/cache/.tsbuildinfo')).toBe(true)
+    })
+
+    itTurbopack('reports a serial fallback for adaptive checking', async () => {
+      await next.patchFile('next.config.js', adaptiveCliConfig)
+
+      const result = await next.build({
+        env: { NEXT_TELEMETRY_DEBUG: '1' },
+      })
+
+      expect(result.exitCode).toBe(0)
+      expect(result.cliOutput).toContain(
+        'Adaptive TypeScript checking requires the native TypeScript 7 CLI'
+      )
+      expect(result.cliOutput).toContain('NEXT_TYPESCRIPT_BUILD_COMPLETED')
+      expect(result.cliOutput).toContain('"configuredMode": "adaptive"')
+      expect(result.cliOutput).toContain('"effectiveSchedule": "serial"')
+      expect(result.cliOutput).toContain(
+        '"fallbackReason": "typescript-version"'
+      )
+      expect(result.cliOutput).toContain('"cpuBudget": null')
     })
   })
 })

@@ -28,6 +28,32 @@ export function eventTypeCheckCompleted(event: EventTypeCheckCompleted): {
   }
 }
 
+const EVENT_TYPESCRIPT_BUILD_COMPLETED = 'NEXT_TYPESCRIPT_BUILD_COMPLETED'
+export type EventTypeScriptBuildCompleted = {
+  configuredMode: 'serial' | 'adaptive' | 'external'
+  effectiveSchedule: 'serial' | 'concurrent' | 'external'
+  cpuBudget: number | null
+  fallbackReason: 'cpu-threshold' | 'typescript-version' | 'pages-router' | null
+  typescriptVersion: string | null
+  typeCheckDurationInSeconds: number | null
+  compileDurationInSeconds: number
+  overlapDurationInSeconds: number
+  totalBuildDurationInSeconds: number
+  externalValidationDurationInSeconds: number | null
+}
+
+export function eventTypeScriptBuildCompleted(
+  event: EventTypeScriptBuildCompleted
+): {
+  eventName: string
+  payload: EventTypeScriptBuildCompleted
+} {
+  return {
+    eventName: EVENT_TYPESCRIPT_BUILD_COMPLETED,
+    payload: event,
+  }
+}
+
 const EVENT_LINT_CHECK_COMPLETED = 'NEXT_LINT_CHECK_COMPLETED'
 export type EventLintCheckCompleted = {
   durationInSeconds: number

@@ -65,6 +65,7 @@ export async function verifyAndRunTypeScript({
   debugBuildPaths,
   useTypeScriptCli = false,
   onFirstCliOutput,
+  typeScriptCpuBudget,
 }: {
   dir: string
   distDir: string
@@ -80,6 +81,7 @@ export async function verifyAndRunTypeScript({
   pagesDir?: string
   debugBuildPaths?: { app?: string[]; pages?: string[] }
   useTypeScriptCli?: boolean
+  typeScriptCpuBudget?: number
   /**
    * Called once when the CLI checker first produces output, so the caller can
    * stop the build spinner. Only used on the in-process CLI path.
@@ -265,6 +267,7 @@ export async function verifyAndRunTypeScript({
           tscPath: typeScriptPath,
           cacheDir,
           onFirstOutput: onFirstCliOutput,
+          cpuBudget: typeScriptCpuBudget,
         })
       } else {
         const { runTypeCheck } =

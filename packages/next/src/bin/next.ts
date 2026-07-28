@@ -31,6 +31,7 @@ import type { NextDevOptions } from '../cli/next-dev.js'
 import type { NextAnalyzeOptions } from '../cli/next-analyze.js'
 import type { NextBuildOptions } from '../cli/next-build.js'
 import type { NextTypegenOptions } from '../cli/next-typegen.js'
+import type { NextTypeCheckOptions } from '../cli/next-typecheck.js'
 import type { NextPostBuildOptions } from '../cli/next-post-build.js'
 import { ensureProfilesDir } from '../lib/profiles-dir'
 import type { NextRequestInsightsOptions } from '../cli/next-request-insights.js'
@@ -539,6 +540,36 @@ program
           console.error(
             '\n> Unexpected error while generating route types. Original error:\n'
           )
+          console.error(err)
+          process.exit(1)
+        })
+    )
+  )
+  .usage('[directory] [options]')
+
+program
+  .command('typecheck')
+  .description(
+    'Generate route types and run the project-local TypeScript CLI checker.'
+  )
+  .argument(
+    '[directory]',
+    `A directory on which to check types. ${italic(
+      'If no directory is provided, the current directory will be used.'
+    )}`
+  )
+  .option('--webpack', 'Use webpack when validating next.config.js')
+  .option(
+    '--write-result <path>',
+    'Write a project-bound result that an external-mode build can verify.'
+  )
+  .action((directory: string, options: NextTypeCheckOptions) =>
+    import('../cli/next-typecheck.js').then((mod) =>
+      mod
+        .nextTypeCheck(options, directory)
+        .then(() => process.exit(0))
+        .catch((err: unknown) => {
+          console.error('\n> TypeScript checking failed. Original error:\n')
           console.error(err)
           process.exit(1)
         })

@@ -17,6 +17,7 @@ import { bold, yellow } from '../lib/picocolors'
 import { makeRe } from 'next/dist/compiled/picomatch'
 import { existsSync, promises as fs } from 'fs'
 import os from 'os'
+import { performance } from 'perf_hooks'
 import { getNextBuildDebuggerPortOffset, Worker } from '../lib/worker'
 import { defaultConfig, getNextConfigRuntime } from '../server/config-shared'
 import devalue from 'next/dist/compiled/devalue'
@@ -112,6 +113,7 @@ import {
   eventPackageUsedInGetServerSideProps,
   eventBuildCompleted,
   eventBuildFailed,
+  eventTypeScriptBuildCompleted,
 } from '../telemetry/events'
 import type { EventBuildFeatureUsage } from '../telemetry/events'
 import { Telemetry } from '../telemetry/storage'
@@ -170,6 +172,8 @@ import { getStaticMetadataPrerenderPathname } from '../lib/metadata/get-metadata
 import { isStaticMetadataFile } from '../lib/metadata/is-metadata-route'
 import { createClientRouterFilter } from '../lib/create-client-router-filter'
 import { startTypeChecking } from './type-check'
+import { getTypeScriptPackageInfo } from '../lib/typescript/runTypeScriptCli'
+import { validateTypeCheckResult } from '../lib/typescript/typeCheckResult'
 import { generateInterceptionRoutesRewrites } from '../lib/generate-interception-routes-rewrites'
 
 import { buildDataRoute } from '../server/lib/router-utils/build-data-route'
@@ -234,6 +238,21 @@ import {
 import { generateRoutesManifest } from './generate-routes-manifest'
 import { buildCustomRoute } from '../lib/build-custom-route'
 import { validateAppPaths } from './validate-app-paths'
+
+function getAdaptiveTypeScriptCpuBudget(
+  configuredBudget: number | undefined
+): number | undefined {
+  if (configuredBudget !== undefined) {
+    return configuredBudget
+  }
+
+  const parallelism = os.availableParallelism()
+  if (parallelism < 8) {
+    return undefined
+  }
+
+  return Math.min(4, Math.max(2, Math.floor(parallelism / 4)))
+}
 
 type Fallback = null | boolean | string
 
@@ -1354,6 +1373,33 @@ export default async function build(
         cacheDir,
         debugBuildPaths,
       }
+      const typeScriptBuildMode =
+        config.experimental.typeScriptBuildMode ?? 'serial'
+      let typeCheckingPromise: Promise<void> | undefined
+      let typeCheckingComplete = false
+      let typeScriptVersion: string | null = null
+      let effectiveTypeScriptSchedule: 'serial' | 'concurrent' | 'external' =
+        'serial'
+      let typeScriptCpuBudget: number | null = null
+      let typeScriptFallbackReason:
+        | 'cpu-threshold'
+        | 'typescript-version'
+        | 'pages-router'
+        | null = null
+      let typeCheckingStartedAt: number | undefined
+      let typeCheckingFinishedAt: number | undefined
+      let compileStartedAt: number | undefined
+      let compileFinishedAt: number | undefined
+      let externalValidationDurationInSeconds: number | null = null
+
+      const runTypeChecking = (
+        options: Parameters<typeof startTypeChecking>[0]
+      ): Promise<void> => {
+        typeCheckingStartedAt ??= performance.now()
+        return startTypeChecking(options).finally(() => {
+          typeCheckingFinishedAt = performance.now()
+        })
+      }
 
       if (appDir && 'exportPathMap' in config) {
         const errorMessage =
@@ -1577,6 +1623,66 @@ export default async function build(
           )
         })
 
+      if (!isCompileMode && !isGenerateMode) {
+        const typeScriptPackage = getTypeScriptPackageInfo(dir)
+        typeScriptVersion = typeScriptPackage?.version ?? null
+
+        if (typeScriptBuildMode === 'external') {
+          if (!typeScriptPackage?.tscPath) {
+            throw new Error(
+              'The external TypeScript build mode requires a project-local TypeScript CLI.'
+            )
+          }
+          const validationStartedAt = performance.now()
+          await validateTypeCheckResult({
+            baseDir: dir,
+            resultPath: config.experimental.typeScriptBuildResultPath!,
+            tsConfigPath: path.join(
+              dir,
+              config.typescript.tsconfigPath || 'tsconfig.json'
+            ),
+            tscPath: typeScriptPackage.tscPath,
+            typescriptVersion: typeScriptPackage.version,
+          })
+          externalValidationDurationInSeconds =
+            (performance.now() - validationStartedAt) / 1000
+          Log.info('Using verified external TypeScript result')
+          effectiveTypeScriptSchedule = 'external'
+          typeCheckingComplete = true
+        } else if (typeScriptBuildMode === 'adaptive' && !appDir) {
+          typeScriptFallbackReason = 'pages-router'
+        } else if (typeScriptBuildMode === 'adaptive') {
+          const majorVersion = Number(
+            typeScriptPackage?.version.split('.')[0] || 0
+          )
+          const cpuBudget = getAdaptiveTypeScriptCpuBudget(
+            config.experimental.typeScriptBuildCpuBudget
+          )
+
+          if (majorVersion < 7) {
+            typeScriptFallbackReason = 'typescript-version'
+            Log.warn(
+              'Adaptive TypeScript checking requires the native TypeScript 7 CLI. Falling back to serial checking.'
+            )
+          } else if (cpuBudget === undefined) {
+            typeScriptFallbackReason = 'cpu-threshold'
+            Log.info(
+              'Adaptive TypeScript checking is using the serial schedule because fewer than 8 CPUs are available.'
+            )
+          } else {
+            effectiveTypeScriptSchedule = 'concurrent'
+            typeScriptCpuBudget = cpuBudget
+            Log.info(
+              `Running TypeScript concurrently with a ${cpuBudget}-CPU budget`
+            )
+            typeCheckingPromise = runTypeChecking({
+              ...typeCheckingOptions,
+              typeScriptCpuBudget: cpuBudget,
+            })
+          }
+        }
+      }
+
       // Turbopack already handles conflicting app and page routes.
       if (bundler !== Bundler.Turbopack) {
         const numConflictingAppPaths = conflictingAppPagePaths.length
@@ -1688,8 +1794,8 @@ export default async function build(
         )
 
       // For pages directory, we run type checking after route collection but before build.
-      if (!appDir && !isCompileMode) {
-        await startTypeChecking(typeCheckingOptions)
+      if (!appDir && !isCompileMode && !typeCheckingComplete) {
+        await runTypeChecking(typeCheckingOptions)
       }
 
       let clientRouterFilters:
@@ -1776,6 +1882,7 @@ export default async function build(
 
       let shutdownPromise = Promise.resolve()
       if (!isGenerateMode) {
+        compileStartedAt = performance.now()
         if (bundler === Bundler.Turbopack) {
           const {
             duration: compilerDuration,
@@ -1925,6 +2032,7 @@ export default async function build(
             )
           }
         }
+        compileFinishedAt = performance.now()
         await runAfterProductionCompile({
           config,
           buildSpan: nextBuildSpan,
@@ -1938,12 +2046,17 @@ export default async function build(
 
       // #endregion
 
-      // For app directory, we run type checking after build.
-      if (appDir && !isCompileMode && !isGenerateMode) {
+      // For app directory, wait for type checking after build.
+      if (
+        appDir &&
+        !isCompileMode &&
+        !isGenerateMode &&
+        !typeCheckingComplete
+      ) {
         await updateBuildDiagnostics({
           buildStage: 'type-checking',
         })
-        await startTypeChecking(typeCheckingOptions)
+        await (typeCheckingPromise ?? runTypeChecking(typeCheckingOptions))
         traceMemoryUsage('Finished type checking', nextBuildSpan)
       }
 
@@ -4509,6 +4622,45 @@ export default async function build(
           .traceAsyncFn(() =>
             writeRouteBundleStats(pageKeys, buildManifest, distDir, dir)
           )
+      }
+
+      if (
+        config.experimental.useTypeScriptCli &&
+        !isCompileMode &&
+        !isGenerateMode &&
+        compileStartedAt !== undefined &&
+        compileFinishedAt !== undefined
+      ) {
+        const typeCheckDurationInSeconds =
+          typeCheckingStartedAt === undefined ||
+          typeCheckingFinishedAt === undefined
+            ? null
+            : (typeCheckingFinishedAt - typeCheckingStartedAt) / 1000
+        const overlapDurationInSeconds =
+          typeCheckingStartedAt === undefined ||
+          typeCheckingFinishedAt === undefined
+            ? 0
+            : Math.max(
+                0,
+                Math.min(typeCheckingFinishedAt, compileFinishedAt) -
+                  Math.max(typeCheckingStartedAt, compileStartedAt)
+              ) / 1000
+
+        telemetry.record(
+          eventTypeScriptBuildCompleted({
+            configuredMode: typeScriptBuildMode,
+            effectiveSchedule: effectiveTypeScriptSchedule,
+            cpuBudget: typeScriptCpuBudget,
+            fallbackReason: typeScriptFallbackReason,
+            typescriptVersion: typeScriptVersion,
+            typeCheckDurationInSeconds,
+            compileDurationInSeconds:
+              (compileFinishedAt - compileStartedAt) / 1000,
+            overlapDurationInSeconds,
+            totalBuildDurationInSeconds: (Date.now() - buildStartTime) / 1000,
+            externalValidationDurationInSeconds,
+          })
+        )
       }
 
       await nextBuildSpan

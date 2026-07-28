@@ -51,6 +51,82 @@ module.exports = nextConfig
 
 Next.js does not select the CLI checker automatically. If TypeScript 7 is installed without this option, `next build` exits with instructions to enable it or install a TypeScript version supported by the default checker.
 
+## Adaptive build checking
+
+App Router projects using Turbopack can experimentally overlap the native
+TypeScript 7 checker with compilation while reserving most CPUs for Turbopack:
+
+```ts filename="next.config.ts"
+import type { NextConfig } from 'next'
+
+const nextConfig: NextConfig = {
+  experimental: {
+    useTypeScriptCli: true,
+    typeScriptBuildMode: 'adaptive',
+  },
+}
+
+export default nextConfig
+```
+
+Adaptive checking is disabled by default. On machines with at least eight
+available CPUs, Next.js gives TypeScript one quarter of them, with a minimum of
+two and a maximum of four. Machines with fewer CPUs retain the serial schedule.
+You can set an explicit positive integer with
+`experimental.typeScriptBuildCpuBudget`.
+
+The scheduler sets `GOMAXPROCS` only for the TypeScript child process. This
+limits the native checker's Go worker threads without reducing Turbopack's
+parallelism. Build performance still depends on the project and runner, so
+benchmark the intended production environment before enabling this mode.
+
+## External build checking
+
+CI systems can run type checking outside the bundler's critical path:
+
+```ts filename="next.config.ts"
+import type { NextConfig } from 'next'
+
+const nextConfig: NextConfig = {
+  experimental: {
+    useTypeScriptCli: true,
+    typeScriptBuildMode: 'external',
+    typeScriptBuildResultPath: '.next-typecheck/result.json',
+  },
+}
+
+export default nextConfig
+```
+
+Produce the result in the type-check job:
+
+```bash
+next typecheck --write-result .next-typecheck/result.json
+```
+
+The command generates route types, runs the project-local TypeScript CLI, and
+writes a result containing the TypeScript version and a SHA-256 fingerprint of
+the resolved compiler options and every project file. `next build` regenerates
+route types and recomputes that fingerprint before accepting the result. The
+build fails if sources, generated route types, compiler options, or the
+TypeScript version changed.
+
+Cache the configured `.tsbuildinfo` file between type-check jobs to preserve
+TypeScript's incremental project state. The result file itself should be passed
+to the build job as an artifact.
+
+## Telemetry
+
+When [anonymous telemetry](/telemetry) is enabled, builds using the CLI checker
+record the configured and effective schedule, selected CPU budget, fallback
+reason, TypeScript version, and compile, type-check, overlap, external
+validation, and total build durations. Logical CPU count and memory are already
+part of Next.js anonymous system metadata.
+
+This event does not include project paths, project fingerprints, file names,
+environment variables, or project identity. You can disable telemetry with
+`next telemetry --disable`.
+
 ## Behavior
 
 - Next.js continues to generate `next-env.d.ts` and route types and to apply its recommended `tsconfig` settings before running the checker.
