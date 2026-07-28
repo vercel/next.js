@@ -699,7 +699,7 @@ Enabling Cache Components applies prerender validation across every route, not j
 
 #### Cache reusable reads
 
-For each server read, ask whether the next viewer would see the same thing. Tasks and comments would, so mark each one with [`'use cache'`](/docs/app/api-reference/directives/use-cache) and tag it for invalidation:
+For each server read, ask whether the next viewer would see the same thing. A task would, so mark it with [`'use cache'`](/docs/app/api-reference/directives/use-cache) and tag it for invalidation. The comments stay uncached so every viewer gets them fresh:
 
 ```ts filename="features/task/task-queries.ts"
 import { cache } from 'react'
@@ -736,9 +736,7 @@ Every Server Function follows the same shape: run the write, then call `updateTa
 
 #### Prefetch the destination with the real request
 
-> **Good to know:** Partial Prefetching ships in Next.js 16.3 and later with [`partialPrefetching: true`](/docs/app/api-reference/config/next-config-js/partialPrefetching) set in `next.config.ts`. See the [Adopting Partial Prefetching guide](/docs/app/guides/adopting-partial-prefetching) for the migration path, plus the [Runtime Prefetching](/docs/app/guides/runtime-prefetching) and [Instant Navigation](/docs/app/guides/instant-navigation) guides for the full picture.
-
-Under Partial Prefetching, [`<Link>`](/docs/app/api-reference/components/link) prefetches the destination's [App Shell](/docs/app/glossary#app-shell) by default, a per-route prerender of everything that doesn't depend on [URL data](/docs/app/glossary#url-data), session reads like `cookies()` included. Resolving `searchParams` or `params` would tie the shared shell to one link, so URL data is excluded by definition. To resolve it ahead of the click, opt the link into runtime prefetching with `prefetch={true}`:
+Under [Partial Prefetching](/docs/app/guides/adopting-partial-prefetching) (Next.js 16.3 and later), `<Link>` prefetches the destination's [App Shell](/docs/app/glossary#app-shell), which is shared across links and so can't include [URL data](/docs/app/glossary#url-data). Opt the link into [runtime prefetching](/docs/app/guides/runtime-prefetching) with `prefetch={true}` to resolve `params` and `searchParams` ahead of the click:
 
 ```tsx filename="features/task/components/task-card.tsx"
 <Link href={`/task/${id}`} prefetch={true}>
@@ -746,9 +744,7 @@ Under Partial Prefetching, [`<Link>`](/docs/app/api-reference/components/link) p
 </Link>
 ```
 
-Next.js still attempts a static prefetch first, and only a page that reads non-static data is prefetched at runtime, one server invocation per link. A prefetch only pays off when the destination's reads are cached. The tags from the previous subsections give the prefetched output a stable slot in the [Client Cache](/docs/app/glossary#client-cache), so a later navigation reuses it instead of refetching.
-
-In the companion app, each task card is a `<Link>` to the task detail page. The cards prefetch as they scroll into view, so the destination paints instantly by the time the user clicks.
+A prefetch only pays off when the destination's reads are cached. The tags from the previous subsections give the prefetched output a stable slot in the [Client Cache](/docs/app/glossary#client-cache), so a later navigation reuses it instead of refetching. In the companion app, the task cards prefetch the detail page as they scroll into view, so it paints instantly by the time the user clicks.
 
 ## Next steps
 
