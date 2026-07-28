@@ -348,6 +348,7 @@ impl WorkerAssetReferenceCodeGen {
             chunking_context,
             self.reference.resolve_reference(),
             ResolveType::ChunkItem,
+            None,
         )
         .await?;
 
