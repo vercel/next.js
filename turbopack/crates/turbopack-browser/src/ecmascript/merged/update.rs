@@ -1,15 +1,15 @@
 use std::sync::Arc;
 
 use anyhow::Result;
-use serde::Serialize;
-use turbo_tasks::{FxIndexMap, FxIndexSet, ReadRef, ResolvedVc, TryJoinIterExt, Vc};
-use turbo_tasks_fs::rope::Rope;
+use turbo_tasks::{FxIndexMap, ReadRef, ResolvedVc, TryJoinIterExt, Vc};
 use turbopack_core::{
     chunk::{ChunkingContext, ModuleId},
-    code_builder::Code,
     output::OutputAsset,
-    source_map::GenerateSourceMap,
     version::{PartialUpdate, TotalUpdate, Update, Version},
+};
+use turbopack_ecmascript::chunk_list::merged_update::{
+    EcmascriptMergedChunkAdded, EcmascriptMergedChunkDeleted, EcmascriptMergedChunkPartial,
+    EcmascriptMergedChunkUpdate, EcmascriptMergedUpdate, EcmascriptModuleEntry,
 };
 
 use super::{
@@ -20,87 +20,6 @@ use super::{
     content::EcmascriptBrowserMergedChunkContent,
     version::EcmascriptBrowserMergedChunkVersion,
 };
-
-#[derive(Serialize, Default)]
-#[serde(tag = "type", rename_all = "camelCase")]
-struct EcmascriptMergedUpdate<'a> {
-    /// A map from module id to latest module entry.
-    #[serde(skip_serializing_if = "FxIndexMap::is_empty")]
-    entries: FxIndexMap<ModuleId, EcmascriptModuleEntry>,
-    /// A map from chunk path to the chunk update.
-    #[serde(skip_serializing_if = "FxIndexMap::is_empty")]
-    chunks: FxIndexMap<&'a str, EcmascriptMergedChunkUpdate>,
-}
-
-impl EcmascriptMergedUpdate<'_> {
-    fn is_empty(&self) -> bool {
-        self.entries.is_empty() && self.chunks.is_empty()
-    }
-}
-
-#[derive(Serialize)]
-#[serde(tag = "type", rename_all = "camelCase")]
-enum EcmascriptMergedChunkUpdate {
-    Added(EcmascriptMergedChunkAdded),
-    Deleted(EcmascriptMergedChunkDeleted),
-    Partial(EcmascriptMergedChunkPartial),
-}
-
-#[derive(Serialize, Default)]
-#[serde(rename_all = "camelCase")]
-struct EcmascriptMergedChunkAdded {
-    #[serde(skip_serializing_if = "FxIndexSet::is_empty")]
-    modules: FxIndexSet<ModuleId>,
-}
-
-#[derive(Serialize, Default)]
-#[serde(rename_all = "camelCase")]
-struct EcmascriptMergedChunkDeleted {
-    // Technically, this is redundant, since the client will already know all
-    // modules in the chunk from the previous version. However, it's useful for
-    // merging updates without access to an initial state.
-    #[serde(skip_serializing_if = "FxIndexSet::is_empty")]
-    modules: FxIndexSet<ModuleId>,
-}
-
-#[derive(Serialize, Default)]
-#[serde(rename_all = "camelCase")]
-struct EcmascriptMergedChunkPartial {
-    #[serde(skip_serializing_if = "FxIndexSet::is_empty")]
-    added: FxIndexSet<ModuleId>,
-    #[serde(skip_serializing_if = "FxIndexSet::is_empty")]
-    deleted: FxIndexSet<ModuleId>,
-}
-
-#[derive(Serialize)]
-struct EcmascriptModuleEntry {
-    #[serde(with = "turbo_tasks_fs::rope::ser_as_string")]
-    code: Rope,
-    url: String,
-    #[serde(with = "turbo_tasks_fs::rope::ser_option_as_string")]
-    map: Option<Rope>,
-}
-
-impl EcmascriptModuleEntry {
-    async fn from_code(id: &ModuleId, code: Vc<Code>, chunk_path: &str) -> Result<Self> {
-        let map = &*code.generate_source_map().await?;
-        let map = map.as_content().map(|f| f.content().clone());
-
-        /// serde_qs can't serialize a lone enum when it's [serde::untagged].
-        #[derive(Serialize)]
-        struct Id<'a> {
-            id: &'a ModuleId,
-        }
-        let id = serde_qs::to_string(&Id { id }).unwrap();
-
-        Ok(EcmascriptModuleEntry {
-            // Cloning a rope is cheap.
-            code: code.await?.source_code().clone(),
-            url: format!("{}?{}", chunk_path, id),
-            map,
-        })
-    }
-}
 
 /// Helper structure to get a module's hash from multiple different chunk
 /// versions, without having to actually merge the versions into a single
