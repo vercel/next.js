@@ -21,6 +21,30 @@ export const RSC_CONTENT_TYPE_HEADER = 'text/x-component' as const
 export const NEXT_INSTANT_TEST_COOKIE =
   'next-instant-navigation-testing' as const
 
+// Headers set on prefetch requests when Cache Components is enabled. Unlike
+// the Next.js-specific headers above, these are standard(-ish) HTTP headers,
+// so that infrastructure sitting in front of the application server (e.g. a
+// CDN or proxy) can use them to decide how to handle a prefetch request
+// without understanding Next.js protocol internals.
+//
+// `purpose: prefetch` marks the request as a prefetch, as opposed to a normal
+// navigation. (Browsers send the same header for speculative loads like
+// <link rel="prefetch">.)
+//
+// The `prefer` header describes what kind of response the client can accept:
+//
+// - `return=minimal`: a minimal response is sufficient. E.g. if only a
+//   partial fallback shell of the page is available, serving it as-is is
+//   fine, and should not trigger regeneration of the full page.
+// - `return=representation`: the client intends to use the response as a
+//   full representation of the page. E.g. if only a partial fallback shell is
+//   available, regeneration of the full page may be triggered.
+export const PURPOSE_HEADER = 'purpose' as const
+export const PURPOSE_PREFETCH = 'prefetch' as const
+export const PREFER_HEADER = 'prefer' as const
+export const PREFER_RETURN_MINIMAL = 'return=minimal' as const
+export const PREFER_RETURN_REPRESENTATION = 'return=representation' as const
+
 export const FLIGHT_HEADERS = [
   RSC_HEADER,
   NEXT_ROUTER_STATE_TREE_HEADER,
