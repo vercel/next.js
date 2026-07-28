@@ -3505,7 +3505,11 @@
       return (debugInfo.debugTask = response);
     }
     function fakeJSXCallSite() {
-      return Error("react-stack-top-frame");
+      var previousStackTraceLimit = Error.stackTraceLimit;
+      Error.stackTraceLimit = ownerStackTraceLimit;
+      var error = Error("react-stack-top-frame");
+      Error.stackTraceLimit = previousStackTraceLimit;
+      return error;
     }
     function initializeFakeStack(response, debugInfo) {
       if (void 0 === debugInfo.debugStack) {
@@ -5111,6 +5115,7 @@
         createFakeJSXCallStack.react_stack_bottom_frame.bind(
           createFakeJSXCallStack
         ),
+      ownerStackTraceLimit = 10,
       currentOwnerInDEV = null,
       replayConsoleWithCallStack = {
         react_stack_bottom_frame: function (response, payload) {
@@ -5201,10 +5206,10 @@
       return hook.checkDCE ? !0 : !1;
     })({
       bundleType: 1,
-      version: "19.3.0-experimental-7023f501-20260714",
+      version: "19.3.0-experimental-756fdd47-20260727",
       rendererPackageName: "react-server-dom-webpack",
       currentDispatcherRef: ReactSharedInternals,
-      reconcilerVersion: "19.3.0-experimental-7023f501-20260714",
+      reconcilerVersion: "19.3.0-experimental-756fdd47-20260727",
       getCurrentComponentInfo: function () {
         return currentOwnerInDEV;
       }

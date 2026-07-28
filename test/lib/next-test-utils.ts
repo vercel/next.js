@@ -39,6 +39,7 @@ import escapeRegex from 'escape-string-regexp'
 import './add-redbox-matchers'
 import { NextInstance } from 'e2e-utils'
 import { ClientReferenceManifest } from 'next/dist/build/webpack/plugins/flight-manifest-plugin'
+import { RequiredServerFilesManifest } from 'next/dist/build'
 
 export { shouldUseTurbopack }
 
@@ -2124,7 +2125,7 @@ export const getCacheHeader = (curRes: Response) =>
   curRes.headers.get('x-nextjs-cache') || curRes.headers.get('x-vercel-cache')
 
 export function getDeploymentId(appDir: string, isDev: boolean) {
-  let requiredServerFiles
+  let requiredServerFiles: RequiredServerFilesManifest | undefined
   if (!isDev) {
     // File isn't written in dev, but it might still exist because it was created by a prior
     // production build.
@@ -2142,7 +2143,7 @@ export function getDeploymentId(appDir: string, isDev: boolean) {
     requiredServerFiles?.config?.deploymentId
 
   const assetToken: string | undefined = requiredServerFiles?.config
-    ?.experimental?.supportsImmutableAssets
+    ?.supportsImmutableAssets
     ? undefined
     : deploymentId
 

@@ -20,9 +20,9 @@ Prefetching downloads a route's JavaScript, CSS, and RSC payload before the user
 
 The regular App Router prefetches a route all or nothing: the full route when it's static, and nothing for a dynamic route without a [`loading.js`](/docs/app/api-reference/file-conventions/loading).
 
-[Cache Components](/docs/app/getting-started/caching) takes a different approach and produces an [**App Shell**](/docs/app/glossary#app-shell) for every route. The shell contains the route's static output, and for a route that reads [`cookies()`](/docs/app/api-reference/functions/cookies) or [`headers()`](/docs/app/api-reference/functions/headers) (session data), it can also contain UI gated behind that session data.
+[Cache Components](/docs/app/getting-started/caching) with [Partial Prefetching](/docs/app/api-reference/config/next-config-js/partialPrefetching) enabled takes a different approach, prefetching one reusable [**App Shell**](/docs/app/glossary#app-shell) per route rather than a separate prefetch per link. The shell contains the route's static output, and for a route that reads [`cookies()`](/docs/app/api-reference/functions/cookies) or [`headers()`](/docs/app/api-reference/functions/headers) (session data), it also carries UI gated behind that session data.
 
-Prefetching one reusable shell per route, rather than a separate prefetch per link, is [**Partial Prefetching**](/docs/app/api-reference/config/next-config-js/partialPrefetching). Any number of links to the same route share that one shell, fetched once as a [`<Link>`](/docs/app/api-reference/components/link) enters the viewport and reused for the rest.
+Any number of links to the same route share that one shell, fetched once as a [`<Link>`](/docs/app/api-reference/components/link) enters the viewport and reused for the rest.
 
 The shell cannot carry data that varies per link: [`searchParams`](/docs/app/api-reference/file-conventions/page#searchparams-optional) and [`params`](/docs/app/api-reference/file-conventions/page#params-optional), the route's [URL data](/docs/app/glossary#url-data). **Runtime prefetching** resolves that URL data at prefetch time, ready before the click rather than streaming in after it.
 
@@ -201,13 +201,15 @@ Use it on routes where:
 - That part of the tree has a known cache lifetime (it can be expressed with `"use cache"` or `"use cache: private"`)
 - The traffic justifies the per-link server invocation
 
-Skip it when the prefetch can't produce a better UI than the App Shell. Each visible `<Link>` to a route with `'allow-runtime'` wakes a server, and that cost only pays off if more of the page is ready before the click:
+Skip it when the prefetch can't produce a better UI than the App Shell. Each visible `<Link prefetch={true}>` to a route with `'allow-runtime'` makes its own request to the server to render that link, and that cost only pays off if more of the page is ready before the click:
 
 - The route has little or no URL-data dependency. The App Shell already makes the navigation instant.
 - The dependent content has to be fresh on every request. The prerender stops at the same `<Suspense>` fallback, so the user sees the same UI either way.
 - The route is rarely navigated to. You pay per visible link, regardless of click-through.
 
 A per-link runtime prefetch is best-effort. It only helps the navigations where it completes before the click. On a slow connection, on a feed of many links, or on a direct visit, it may not be ready when the user navigates, and the navigation falls back to the App Shell. That shell is the reliable baseline, and runtime prefetching only layers on top when it arrives in time.
+
+When many links to an `allow-runtime` route are visible at once, such as a grid of cards, each `<Link prefetch={true}>` prefetches that link's content as it enters the viewport, so the grid makes one such server request per card. Prefetch on intent instead: a [hover-triggered prefetch](/docs/app/guides/prefetching#hover-triggered-prefetch) fetches only the links the user is likely to click. The default `<Link>` (without `prefetch={true}`) prefetches just the App Shell, so it doesn't carry this cost.
 
 |         | App Shell                                   | Per-link runtime prefetch with `allow-runtime` |
 | ------- | ------------------------------------------- | ---------------------------------------------- |

@@ -61,53 +61,53 @@ export function registerHeadAndReportingTests(
           '/suspense-in-root/head/invalid-runtime-viewport-in-static'
         )
         await expect(browser).toDisplayCollapsedRedbox(`
-           {
-             "cause": [
-               {
-                 "label": "Caused by: Instant Validation",
-                 "source": "app/suspense-in-root/head/invalid-runtime-viewport-in-static/page.tsx (9:24) @ instant
-           >  9 | export const instant = { level: 'experimental-error' }
-                |                        ^",
-                 "stack": [
-                   "instant app/suspense-in-root/head/invalid-runtime-viewport-in-static/page.tsx (9:24)",
-                   "Set.forEach <anonymous>",
-                 ],
-               },
-             ],
-             "code": "E1409",
-             "description": "Next.js encountered URL data in generateViewport().",
-             "environmentLabel": "Server",
-             "label": "Blocking Route",
-             "source": "app/suspense-in-root/head/invalid-runtime-viewport-in-static/page.tsx (16:3) @ Module.generateViewport
-           > 16 |   await searchParams
-                |   ^",
-             "stack": [
-               "Module.generateViewport app/suspense-in-root/head/invalid-runtime-viewport-in-static/page.tsx (16:3)",
-             ],
-           }
-          `)
+         {
+           "cause": [
+             {
+               "label": "Caused by: Instant Validation",
+               "source": "app/suspense-in-root/head/invalid-runtime-viewport-in-static/page.tsx (9:24) @ instant
+         >  9 | export const instant = { level: 'experimental-error' }
+              |                        ^",
+               "stack": [
+                 "instant app/suspense-in-root/head/invalid-runtime-viewport-in-static/page.tsx (9:24)",
+                 "Set.forEach <anonymous>",
+               ],
+             },
+           ],
+           "code": "E1431",
+           "description": "Next.js encountered URL data in generateViewport().",
+           "environmentLabel": "Server",
+           "label": "Blocking Route",
+           "source": "app/suspense-in-root/head/invalid-runtime-viewport-in-static/page.tsx (16:3) @ Module.generateViewport
+         > 16 |   await searchParams
+              |   ^",
+           "stack": [
+             "Module.generateViewport app/suspense-in-root/head/invalid-runtime-viewport-in-static/page.tsx (16:3)",
+           ],
+         }
+        `)
       } else {
         const result = await prerender(
           '/suspense-in-root/head/invalid-runtime-viewport-in-static'
         )
         expect(extractBuildValidationError(result.cliOutput))
           .toMatchInlineSnapshot(`
-           "Error: Route "/suspense-in-root/head/invalid-runtime-viewport-in-static": Next.js encountered URL data in \`generateViewport()\`.
+         "Error: Route "/suspense-in-root/head/invalid-runtime-viewport-in-static": Next.js encountered URL data in \`generateViewport()\`.
 
-           \`params\` or \`searchParams\` in \`generateViewport()\` prevents the page from being prerendered, leading to a slower user experience.
+         \`params\` or \`searchParams\` in \`generateViewport()\` prevents the page from being prerendered, leading to a slower user experience.
 
-           Ways to fix this:
-             - [static] Use a static viewport export instead of \`generateViewport()\`
-               https://nextjs.org/docs/messages/blocking-prerender-viewport-runtime#use-static-viewport
-             - [block] Set \`export const instant = false\` to allow a blocking route
-               https://nextjs.org/docs/messages/blocking-prerender-viewport-runtime#allow-blocking-route
-               at ignore-listed frames
-           Build-time instant validation failed for route "/suspense-in-root/head/invalid-runtime-viewport-in-static".
-           To get a more detailed stack trace and pinpoint the issue, try one of the following:
-             - Start the app in development mode by running \`next dev\`, then open "/suspense-in-root/head/invalid-runtime-viewport-in-static" in your browser to investigate the error.
-             - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
-           Stopping prerender due to instant validation errors."
-          `)
+         Ways to fix this:
+           - [static] Use a static viewport export instead of \`generateViewport()\`
+           - [block] Set \`export const instant = false\` to allow a blocking route
+
+         Learn more: https://nextjs.org/docs/messages/blocking-prerender-viewport-runtime
+             at ignore-listed frames
+         Build-time instant validation failed for route "/suspense-in-root/head/invalid-runtime-viewport-in-static".
+         To get a more detailed stack trace and pinpoint the issue, try one of the following:
+           - Start the app in development mode by running \`next dev\`, then open "/suspense-in-root/head/invalid-runtime-viewport-in-static" in your browser to investigate the error.
+           - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
+         Stopping prerender due to instant validation errors."
+        `)
         expect(result.exitCode).toBe(1)
       }
     })
@@ -120,53 +120,53 @@ export function registerHeadAndReportingTests(
           '/suspense-in-root/head/invalid-dynamic-viewport-in-runtime'
         )
         await expect(browser).toDisplayCollapsedRedbox(`
-           {
-             "cause": [
-               {
-                 "label": "Caused by: Instant Validation",
-                 "source": "app/suspense-in-root/head/invalid-dynamic-viewport-in-runtime/page.tsx (6:24) @ instant
-           > 6 | export const instant = { level: 'experimental-error' }
-               |                        ^",
-                 "stack": [
-                   "instant app/suspense-in-root/head/invalid-dynamic-viewport-in-runtime/page.tsx (6:24)",
-                   "Set.forEach <anonymous>",
-                 ],
-               },
-             ],
-             "code": "E1395",
-             "description": "Next.js encountered uncached data in generateViewport().",
-             "environmentLabel": "Server",
-             "label": "Blocking Route",
-             "source": "app/suspense-in-root/head/invalid-dynamic-viewport-in-runtime/page.tsx (11:19) @ Module.generateViewport
-           > 11 |   await connection()
-                |                   ^",
-             "stack": [
-               "Module.generateViewport app/suspense-in-root/head/invalid-dynamic-viewport-in-runtime/page.tsx (11:19)",
-             ],
-           }
-          `)
+         {
+           "cause": [
+             {
+               "label": "Caused by: Instant Validation",
+               "source": "app/suspense-in-root/head/invalid-dynamic-viewport-in-runtime/page.tsx (6:24) @ instant
+         > 6 | export const instant = { level: 'experimental-error' }
+             |                        ^",
+               "stack": [
+                 "instant app/suspense-in-root/head/invalid-dynamic-viewport-in-runtime/page.tsx (6:24)",
+                 "Set.forEach <anonymous>",
+               ],
+             },
+           ],
+           "code": "E1438",
+           "description": "Next.js encountered uncached data in generateViewport().",
+           "environmentLabel": "Server",
+           "label": "Blocking Route",
+           "source": "app/suspense-in-root/head/invalid-dynamic-viewport-in-runtime/page.tsx (11:19) @ Module.generateViewport
+         > 11 |   await connection()
+              |                   ^",
+           "stack": [
+             "Module.generateViewport app/suspense-in-root/head/invalid-dynamic-viewport-in-runtime/page.tsx (11:19)",
+           ],
+         }
+        `)
       } else {
         const result = await prerender(
           '/suspense-in-root/head/invalid-dynamic-viewport-in-runtime'
         )
         expect(extractBuildValidationError(result.cliOutput))
           .toMatchInlineSnapshot(`
-           "Error: Route "/suspense-in-root/head/invalid-dynamic-viewport-in-runtime": Next.js encountered uncached data in \`generateViewport()\`.
+         "Error: Route "/suspense-in-root/head/invalid-dynamic-viewport-in-runtime": Next.js encountered uncached data in \`generateViewport()\`.
 
-           \`fetch(...)\` or \`connection()\` in \`generateViewport()\` prevents the page from being prerendered, leading to a slower user experience.
+         \`fetch(...)\` or \`connection()\` in \`generateViewport()\` prevents the page from being prerendered, leading to a slower user experience.
 
-           Ways to fix this:
-             - [cache] Cache the viewport data with \`"use cache"\` in \`generateViewport()\` (does not apply to \`connection()\`)
-               https://nextjs.org/docs/messages/blocking-prerender-viewport-dynamic#cache-the-viewport-data
-             - [block] Set \`export const instant = false\` to allow a blocking route
-               https://nextjs.org/docs/messages/blocking-prerender-viewport-dynamic#allow-blocking-route
-               at ignore-listed frames
-           Build-time instant validation failed for route "/suspense-in-root/head/invalid-dynamic-viewport-in-runtime".
-           To get a more detailed stack trace and pinpoint the issue, try one of the following:
-             - Start the app in development mode by running \`next dev\`, then open "/suspense-in-root/head/invalid-dynamic-viewport-in-runtime" in your browser to investigate the error.
-             - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
-           Stopping prerender due to instant validation errors."
-          `)
+         Ways to fix this:
+           - [cache] Cache the viewport data with \`"use cache"\` in \`generateViewport()\` (does not apply to \`connection()\`)
+           - [block] Set \`export const instant = false\` to allow a blocking route
+
+         Learn more: https://nextjs.org/docs/messages/blocking-prerender-viewport-dynamic
+             at ignore-listed frames
+         Build-time instant validation failed for route "/suspense-in-root/head/invalid-dynamic-viewport-in-runtime".
+         To get a more detailed stack trace and pinpoint the issue, try one of the following:
+           - Start the app in development mode by running \`next dev\`, then open "/suspense-in-root/head/invalid-dynamic-viewport-in-runtime" in your browser to investigate the error.
+           - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
+         Stopping prerender due to instant validation errors."
+        `)
         expect(result.exitCode).toBe(1)
       }
     })
@@ -230,7 +230,7 @@ export function registerHeadAndReportingTests(
                ],
              },
            ],
-           "code": "E1395",
+           "code": "E1438",
            "description": "Next.js encountered uncached data in generateViewport().",
            "environmentLabel": "Server",
            "label": "Blocking Route",
@@ -248,22 +248,22 @@ export function registerHeadAndReportingTests(
         )
         expect(extractBuildValidationError(result.cliOutput))
           .toMatchInlineSnapshot(`
-           "Error: Route "/suspense-in-root/head/invalid-dynamic-viewport-in-blocking-inside-static": Next.js encountered uncached data in \`generateViewport()\`.
+         "Error: Route "/suspense-in-root/head/invalid-dynamic-viewport-in-blocking-inside-static": Next.js encountered uncached data in \`generateViewport()\`.
 
-           \`fetch(...)\` or \`connection()\` in \`generateViewport()\` prevents the page from being prerendered, leading to a slower user experience.
+         \`fetch(...)\` or \`connection()\` in \`generateViewport()\` prevents the page from being prerendered, leading to a slower user experience.
 
-           Ways to fix this:
-             - [cache] Cache the viewport data with \`"use cache"\` in \`generateViewport()\` (does not apply to \`connection()\`)
-               https://nextjs.org/docs/messages/blocking-prerender-viewport-dynamic#cache-the-viewport-data
-             - [block] Set \`export const instant = false\` to allow a blocking route
-               https://nextjs.org/docs/messages/blocking-prerender-viewport-dynamic#allow-blocking-route
-               at ignore-listed frames
-           Build-time instant validation failed for route "/suspense-in-root/head/invalid-dynamic-viewport-in-blocking-inside-static".
-           To get a more detailed stack trace and pinpoint the issue, try one of the following:
-             - Start the app in development mode by running \`next dev\`, then open "/suspense-in-root/head/invalid-dynamic-viewport-in-blocking-inside-static" in your browser to investigate the error.
-             - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
-           Stopping prerender due to instant validation errors."
-          `)
+         Ways to fix this:
+           - [cache] Cache the viewport data with \`"use cache"\` in \`generateViewport()\` (does not apply to \`connection()\`)
+           - [block] Set \`export const instant = false\` to allow a blocking route
+
+         Learn more: https://nextjs.org/docs/messages/blocking-prerender-viewport-dynamic
+             at ignore-listed frames
+         Build-time instant validation failed for route "/suspense-in-root/head/invalid-dynamic-viewport-in-blocking-inside-static".
+         To get a more detailed stack trace and pinpoint the issue, try one of the following:
+           - Start the app in development mode by running \`next dev\`, then open "/suspense-in-root/head/invalid-dynamic-viewport-in-blocking-inside-static" in your browser to investigate the error.
+           - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
+         Stopping prerender due to instant validation errors."
+        `)
         expect(result.exitCode).toBe(1)
       }
     })
@@ -311,25 +311,25 @@ export function registerHeadAndReportingTests(
         )
         expect(extractBuildValidationError(result.cliOutput))
           .toMatchInlineSnapshot(`
-           "Error: Route "/suspense-in-root/static/multi-depth-deferred-fallback/inner": Could not validate that a segment in your UI has instant navigation.
+         "Error: Route "/suspense-in-root/static/multi-depth-deferred-fallback/inner": Could not validate that a segment in your UI has instant navigation.
 
-           This segment was dropped from rendering. Issues that would prevent instant navigation will go undetected.
+         This segment was dropped from rendering. Issues that would prevent instant navigation will go undetected.
 
-           Dropped segment:
-             app/suspense-in-root/static/multi-depth-deferred-fallback/inner/page.tsx
+         Dropped segment:
+           app/suspense-in-root/static/multi-depth-deferred-fallback/inner/page.tsx
 
-           Ways to fix this:
-             - [render] Render the dropped segment
-               https://nextjs.org/docs/messages/instant-unrendered-segment#render-the-dropped-segment
-             - [ignore] Set \`export const instant = false\` to opt the dropped segment out of instant-navigation validation
-               https://nextjs.org/docs/messages/instant-unrendered-segment#skip-validation-on-the-segment
-               at ignore-listed frames
-           Build-time instant validation failed for route "/suspense-in-root/static/multi-depth-deferred-fallback/inner".
-           To get a more detailed stack trace and pinpoint the issue, try one of the following:
-             - Start the app in development mode by running \`next dev\`, then open "/suspense-in-root/static/multi-depth-deferred-fallback/inner" in your browser to investigate the error.
-             - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
-           Stopping prerender due to instant validation errors."
-          `)
+         Ways to fix this:
+           - [render] Render the dropped segment
+           - [ignore] Set \`export const instant = false\` to opt the dropped segment out of instant-navigation validation
+
+         Learn more: https://nextjs.org/docs/messages/instant-unrendered-segment
+             at ignore-listed frames
+         Build-time instant validation failed for route "/suspense-in-root/static/multi-depth-deferred-fallback/inner".
+         To get a more detailed stack trace and pinpoint the issue, try one of the following:
+           - Start the app in development mode by running \`next dev\`, then open "/suspense-in-root/static/multi-depth-deferred-fallback/inner" in your browser to investigate the error.
+           - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
+         Stopping prerender due to instant validation errors."
+        `)
         expect(result.exitCode).toBe(1)
       }
     })
@@ -369,25 +369,25 @@ export function registerHeadAndReportingTests(
         )
         expect(extractBuildValidationError(result.cliOutput))
           .toMatchInlineSnapshot(`
-           "Error: Route "/suspense-in-root/static/test-firstmod/inter/inner": Could not validate that a segment in your UI has instant navigation.
+         "Error: Route "/suspense-in-root/static/test-firstmod/inter/inner": Could not validate that a segment in your UI has instant navigation.
 
-           This segment was dropped from rendering. Issues that would prevent instant navigation will go undetected.
+         This segment was dropped from rendering. Issues that would prevent instant navigation will go undetected.
 
-           Dropped segment:
-             app/suspense-in-root/static/test-firstmod/inter/layout.tsx
+         Dropped segment:
+           app/suspense-in-root/static/test-firstmod/inter/layout.tsx
 
-           Ways to fix this:
-             - [render] Render the dropped segment
-               https://nextjs.org/docs/messages/instant-unrendered-segment#render-the-dropped-segment
-             - [ignore] Set \`export const instant = false\` to opt the dropped segment out of instant-navigation validation
-               https://nextjs.org/docs/messages/instant-unrendered-segment#skip-validation-on-the-segment
-               at ignore-listed frames
-           Build-time instant validation failed for route "/suspense-in-root/static/test-firstmod/inter/inner".
-           To get a more detailed stack trace and pinpoint the issue, try one of the following:
-             - Start the app in development mode by running \`next dev\`, then open "/suspense-in-root/static/test-firstmod/inter/inner" in your browser to investigate the error.
-             - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
-           Stopping prerender due to instant validation errors."
-          `)
+         Ways to fix this:
+           - [render] Render the dropped segment
+           - [ignore] Set \`export const instant = false\` to opt the dropped segment out of instant-navigation validation
+
+         Learn more: https://nextjs.org/docs/messages/instant-unrendered-segment
+             at ignore-listed frames
+         Build-time instant validation failed for route "/suspense-in-root/static/test-firstmod/inter/inner".
+         To get a more detailed stack trace and pinpoint the issue, try one of the following:
+           - Start the app in development mode by running \`next dev\`, then open "/suspense-in-root/static/test-firstmod/inter/inner" in your browser to investigate the error.
+           - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
+         Stopping prerender due to instant validation errors."
+        `)
         expect(result.exitCode).toBe(1)
       }
     })
@@ -426,26 +426,26 @@ export function registerHeadAndReportingTests(
         )
         expect(extractBuildValidationError(result.cliOutput))
           .toMatchInlineSnapshot(`
-           "Error: Route "/suspense-in-root/static/test-multi-unrendered": Could not validate that a segment in your UI has instant navigation.
+         "Error: Route "/suspense-in-root/static/test-multi-unrendered": Could not validate that a segment in your UI has instant navigation.
 
-           This segment was dropped from rendering. Issues that would prevent instant navigation will go undetected.
+         This segment was dropped from rendering. Issues that would prevent instant navigation will go undetected.
 
-           Dropped segments:
-             app/suspense-in-root/static/test-multi-unrendered/@sidebar/page.tsx
-             app/suspense-in-root/static/test-multi-unrendered/page.tsx
+         Dropped segments:
+           app/suspense-in-root/static/test-multi-unrendered/@sidebar/page.tsx
+           app/suspense-in-root/static/test-multi-unrendered/page.tsx
 
-           Ways to fix this:
-             - [render] Render the dropped segment
-               https://nextjs.org/docs/messages/instant-unrendered-segment#render-the-dropped-segment
-             - [ignore] Set \`export const instant = false\` to opt the dropped segment out of instant-navigation validation
-               https://nextjs.org/docs/messages/instant-unrendered-segment#skip-validation-on-the-segment
-               at ignore-listed frames
-           Build-time instant validation failed for route "/suspense-in-root/static/test-multi-unrendered".
-           To get a more detailed stack trace and pinpoint the issue, try one of the following:
-             - Start the app in development mode by running \`next dev\`, then open "/suspense-in-root/static/test-multi-unrendered" in your browser to investigate the error.
-             - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
-           Stopping prerender due to instant validation errors."
-          `)
+         Ways to fix this:
+           - [render] Render the dropped segment
+           - [ignore] Set \`export const instant = false\` to opt the dropped segment out of instant-navigation validation
+
+         Learn more: https://nextjs.org/docs/messages/instant-unrendered-segment
+             at ignore-listed frames
+         Build-time instant validation failed for route "/suspense-in-root/static/test-multi-unrendered".
+         To get a more detailed stack trace and pinpoint the issue, try one of the following:
+           - Start the app in development mode by running \`next dev\`, then open "/suspense-in-root/static/test-multi-unrendered" in your browser to investigate the error.
+           - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
+         Stopping prerender due to instant validation errors."
+        `)
         expect(result.exitCode).toBe(1)
       }
     })
@@ -506,26 +506,25 @@ export function registerHeadAndReportingTests(
         )
         expect(extractBuildValidationError(result.cliOutput))
           .toMatchInlineSnapshot(`
-           "Error: Route "/suspense-in-root/disable-validation/disable-dev": Next.js encountered uncached data during prerendering or a navigation.
+         "Error: Route "/suspense-in-root/disable-validation/disable-dev": Next.js encountered uncached data during prerendering or a navigation.
 
-           \`fetch(...)\` or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
+         \`fetch(...)\` or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
 
-           Ways to fix this:
-             - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-               https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
-             - [cache] Cache the data access with \`"use cache"\` (does not apply to \`connection()\`)
-               https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
-             - [block] Set \`export const instant = false\` to allow a blocking route
-               https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
-               at body (<anonymous>)
-               at html (<anonymous>)
-               at a (<anonymous>)
-           Build-time instant validation failed for route "/suspense-in-root/disable-validation/disable-dev".
-           To get a more detailed stack trace and pinpoint the issue, try one of the following:
-             - Start the app in development mode by running \`next dev\`, then open "/suspense-in-root/disable-validation/disable-dev" in your browser to investigate the error.
-             - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
-           Stopping prerender due to instant validation errors."
-          `)
+         Ways to fix this:
+           - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+           - [cache] Cache the data access with \`"use cache"\` (does not apply to \`connection()\`)
+           - [block] Set \`export const instant = false\` to allow a blocking route
+
+         Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic
+             at body (<anonymous>)
+             at html (<anonymous>)
+             at a (<anonymous>)
+         Build-time instant validation failed for route "/suspense-in-root/disable-validation/disable-dev".
+         To get a more detailed stack trace and pinpoint the issue, try one of the following:
+           - Start the app in development mode by running \`next dev\`, then open "/suspense-in-root/disable-validation/disable-dev" in your browser to investigate the error.
+           - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
+         Stopping prerender due to instant validation errors."
+        `)
         expect(result.exitCode).toBe(1)
       }
     })
@@ -536,31 +535,31 @@ export function registerHeadAndReportingTests(
           '/suspense-in-root/disable-validation/disable-build'
         )
         await expect(browser).toDisplayCollapsedRedbox(`
-           {
-             "cause": [
-               {
-                 "label": "Caused by: Instant Validation",
-                 "source": "app/suspense-in-root/disable-validation/disable-build/page.tsx (3:24) @ instant
-           > 3 | export const instant = {
-               |                        ^",
-                 "stack": [
-                   "instant app/suspense-in-root/disable-validation/disable-build/page.tsx (3:24)",
-                   "Set.forEach <anonymous>",
-                 ],
-               },
-             ],
-             "code": "E1398",
-             "description": "Next.js encountered uncached data during a navigation.",
-             "environmentLabel": "Server",
-             "label": "Instant",
-             "source": "app/suspense-in-root/disable-validation/disable-build/page.tsx (9:19) @ Page
-           >  9 |   await connection()
-                |                   ^",
-             "stack": [
-               "Page app/suspense-in-root/disable-validation/disable-build/page.tsx (9:19)",
-             ],
-           }
-          `)
+         {
+           "cause": [
+             {
+               "label": "Caused by: Instant Validation",
+               "source": "app/suspense-in-root/disable-validation/disable-build/page.tsx (3:24) @ instant
+         > 3 | export const instant = {
+             |                        ^",
+               "stack": [
+                 "instant app/suspense-in-root/disable-validation/disable-build/page.tsx (3:24)",
+                 "Set.forEach <anonymous>",
+               ],
+             },
+           ],
+           "code": "E1437",
+           "description": "Next.js encountered uncached data during a navigation.",
+           "environmentLabel": "Server",
+           "label": "Instant",
+           "source": "app/suspense-in-root/disable-validation/disable-build/page.tsx (9:19) @ Page
+         >  9 |   await connection()
+              |                   ^",
+           "stack": [
+             "Page app/suspense-in-root/disable-validation/disable-build/page.tsx (9:19)",
+           ],
+         }
+        `)
       } else {
         const result = await prerender(
           '/suspense-in-root/disable-validation/disable-build'
@@ -623,7 +622,7 @@ export function registerHeadAndReportingTests(
                    ],
                  },
                ],
-               "code": "E1408",
+               "code": "E1439",
                "description": "Next.js encountered URL data outside of Suspense.",
                "environmentLabel": "Server",
                "label": "Instant",
@@ -654,9 +653,9 @@ export function registerHeadAndReportingTests(
 
              Ways to fix this:
                - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                 https://nextjs.org/docs/messages/instant-shell-url-data#wrap-in-or-move-into-suspense
                - [block] Set \`export const instant = false\` to allow a blocking route
-                 https://nextjs.org/docs/messages/instant-shell-url-data#allow-blocking-route
+
+             Learn more: https://nextjs.org/docs/messages/instant-shell-url-data
                  at main (<anonymous>)
                  at body (<anonymous>)
                  at html (<anonymous>)
@@ -691,9 +690,9 @@ export function registerHeadAndReportingTests(
 
                Ways to fix this:
                  - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                   https://nextjs.org/docs/messages/instant-shell-url-data#wrap-in-or-move-into-suspense
                  - [block] Set \`export const instant = false\` to allow a blocking route
-                   https://nextjs.org/docs/messages/instant-shell-url-data#allow-blocking-route
+
+               Learn more: https://nextjs.org/docs/messages/instant-shell-url-data
                    at LinkData (app/shells/(default)/invalid-runtime-searchparams/page.tsx:27:3)
                    at Page (app/shells/(default)/invalid-runtime-searchparams/page.tsx:17:7)
                  25 |   searchParams: Promise<Record<string, string | string[]>>
@@ -729,7 +728,7 @@ export function registerHeadAndReportingTests(
                      ],
                    },
                  ],
-                 "code": "E1408",
+                 "code": "E1439",
                  "description": "Next.js encountered URL data outside of Suspense.",
                  "environmentLabel": "Server",
                  "label": "Instant",
@@ -755,9 +754,9 @@ export function registerHeadAndReportingTests(
 
              Ways to fix this:
                - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                 https://nextjs.org/docs/messages/instant-shell-url-data#wrap-in-or-move-into-suspense
                - [block] Set \`export const instant = false\` to allow a blocking route
-                 https://nextjs.org/docs/messages/instant-shell-url-data#allow-blocking-route
+
+             Learn more: https://nextjs.org/docs/messages/instant-shell-url-data
                  at main (<anonymous>)
                  at body (<anonymous>)
                  at html (<anonymous>)
@@ -793,7 +792,7 @@ export function registerHeadAndReportingTests(
                  ],
                },
              ],
-             "code": "E1407",
+             "code": "E1429",
              "description": "Next.js encountered URL data in generateMetadata().",
              "environmentLabel": "Server",
              "label": "Blocking Route",
@@ -842,7 +841,7 @@ export function registerHeadAndReportingTests(
                    ],
                  },
                ],
-               "code": "E1408",
+               "code": "E1439",
                "description": "Next.js encountered URL data outside of Suspense.",
                "environmentLabel": "Server",
                "label": "Instant",
@@ -867,9 +866,9 @@ export function registerHeadAndReportingTests(
 
              Ways to fix this:
                - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                 https://nextjs.org/docs/messages/instant-shell-url-data#wrap-in-or-move-into-suspense
                - [block] Set \`export const instant = false\` to allow a blocking route
-                 https://nextjs.org/docs/messages/instant-shell-url-data#allow-blocking-route
+
+             Learn more: https://nextjs.org/docs/messages/instant-shell-url-data
                  at main (<anonymous>)
                  at body (<anonymous>)
                  at html (<anonymous>)

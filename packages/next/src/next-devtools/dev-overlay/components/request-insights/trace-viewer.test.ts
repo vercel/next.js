@@ -1,5 +1,5 @@
 import type { RequestInsight } from '../../../shared/request-insights'
-import { getActiveRequestId, isPageLoadRequest } from './request-list'
+import { getActiveRequestKey, isPageLoadRequest } from './request-list'
 import { getTraceItems, getTracePosition, getTraceRange } from './trace-viewer'
 
 function createRequest(
@@ -22,11 +22,27 @@ describe('request insights trace viewer', () => {
     const selectedRequest = createRequest({ requestId: 'selected' })
     const newerRequest = createRequest({ requestId: 'newer' })
 
-    expect(getActiveRequestId([selectedRequest], null)).toBe('selected')
+    expect(getActiveRequestKey([selectedRequest], null)).toBe(
+      'request:selected'
+    )
     expect(
-      getActiveRequestId([newerRequest, selectedRequest], 'selected')
-    ).toBe('selected')
-    expect(getActiveRequestId([newerRequest], 'selected')).toBe('newer')
+      getActiveRequestKey([newerRequest, selectedRequest], 'request:selected')
+    ).toBe('request:selected')
+    expect(getActiveRequestKey([newerRequest], 'request:selected')).toBe(
+      'request:newer'
+    )
+  })
+
+  it('selects request and Instant Insights items independently', () => {
+    const request = createRequest({ requestId: 'shared' })
+    const instantInsights = createRequest({
+      requestId: 'shared',
+      kind: 'instant-insights',
+    })
+
+    expect(
+      getActiveRequestKey([request, instantInsights], 'instant-insights:shared')
+    ).toBe('instant-insights:shared')
   })
 
   it('only marks the exact initial document request as the page load', () => {
@@ -50,6 +66,38 @@ describe('request insights trace viewer', () => {
         initialRequestId
       )
     ).toBe(false)
+    expect(
+      isPageLoadRequest(
+        createRequest({
+          requestId: initialRequestId,
+          kind: 'instant-insights',
+        }),
+        initialRequestId
+      )
+    ).toBe(false)
+  })
+
+  it('shows the Instant Insights root span in the default trace', () => {
+    const request = createRequest({
+      kind: 'instant-insights',
+      spans: [
+        {
+          name: 'Instant Insights',
+          startTime: 100,
+          durationMs: 50,
+          attributes: {
+            'next.span_type': 'AppRender.instantInsights',
+          },
+        },
+      ],
+    })
+
+    expect(getTraceItems(request, false)).toEqual([
+      expect.objectContaining({
+        label: 'Instant Insights',
+        spanType: 'AppRender.instantInsights',
+      }),
+    ])
   })
 
   it('orders spans by their recorded parent-child hierarchy', () => {
@@ -98,7 +146,7 @@ describe('request insights trace viewer', () => {
     ])
   })
 
-  it('shows high-level spans by default and reveals hidden spans in verbose mode', () => {
+  it('filters collected spans for presentation without changing collection', () => {
     const request = createRequest({
       spans: [
         {
@@ -335,7 +383,7 @@ describe('request insights trace viewer', () => {
           startTime: 100,
           durationMs: 10,
           attributes: {
-            'next.span.category': 'nextjs',
+            'next.span_category': 'nextjs',
             'next.span_type': 'BaseServer.render',
           },
         },
@@ -344,7 +392,7 @@ describe('request insights trace viewer', () => {
           startTime: 110,
           durationMs: 10,
           attributes: {
-            'next.span.category': 'application',
+            'next.span_category': 'application',
             'next.span_type': 'ResolveMetadata.generateMetadata',
           },
         },
@@ -384,7 +432,7 @@ describe('request insights trace viewer', () => {
           startTime: 120,
           durationMs: 30,
           attributes: {
-            'next.span.category': 'application',
+            'next.span_category': 'application',
             'next.span_type': 'AppRender.fetch',
             'next.fetch.idx': 1,
           },
@@ -396,7 +444,7 @@ describe('request insights trace viewer', () => {
           startTime: 155,
           durationMs: 10,
           attributes: {
-            'next.span.category': 'nextjs',
+            'next.span_category': 'nextjs',
             'next.span_type': 'AppRender.fetch',
             'next.fetch.idx': 2,
           },

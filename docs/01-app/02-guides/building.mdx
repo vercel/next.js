@@ -112,11 +112,10 @@ Error: Route "/products/[id]": Next.js encountered uncached or runtime data duri
 
 Ways to fix this:
   - [stream] Provide a placeholder with `<Suspense fallback={...}>` around the data access
-    https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
   - [cache] For uncached data (`fetch`, database calls): cache the access with `"use cache"` (does not apply to `connection()`)
-    https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
   - [block] Set `export const instant = false` to allow a blocking route
-    https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
+
+Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic
     at body (<anonymous>)
     at html (<anonymous>)
 To get a more detailed stack trace and pinpoint the issue, try one of the following:

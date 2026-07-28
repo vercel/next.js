@@ -50,15 +50,16 @@ describe('use-cache-default-handler-expire-zero', () => {
 
       // In development the default handler keeps `expire: 0` entries (its
       // minimum retention serves them warm across reloads), so it stores rather
-      // than skips.
+      // than skips. The dev cache key always carries a trailing HMR refresh
+      // hash element after the args array.
       await retry(async () => {
         expect(next.cliOutput).toMatch(
-          /DefaultCacheHandler: set \["[A-Za-z0-9_-]+","([0-9a-f]{2})+",\[{"id":"expire-zero"}]\] done/
+          /DefaultCacheHandler: set \["[A-Za-z0-9_-]+","([0-9a-f]{2})+",\[{"id":"expire-zero"}],"[^"]+"\] done/
         )
       })
 
       expect(next.cliOutput).not.toMatch(
-        /DefaultCacheHandler: set \["[A-Za-z0-9_-]+","([0-9a-f]{2})+",\[{"id":"expire-zero"}]\] skipped/
+        /DefaultCacheHandler: set \["[A-Za-z0-9_-]+","([0-9a-f]{2})+",\[{"id":"expire-zero"}],"[^"]+"\] skipped/
       )
     })
   }

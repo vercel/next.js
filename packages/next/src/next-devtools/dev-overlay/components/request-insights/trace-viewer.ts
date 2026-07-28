@@ -42,6 +42,7 @@ const DEFAULT_VISIBLE_SPAN_TYPES = new Set([
   'AppRender.waitForRSC',
   'AppRender.renderToNodeFizzStream',
   'AppRender.waitForHTMLCompletion',
+  'AppRender.instantInsights',
   FETCH_SPAN_TYPE,
   'NextNodeServer.waitForFirstResponseChunk',
   'NextNodeServer.startResponse',
@@ -323,7 +324,7 @@ function getFetchIndex(span: RequestInsightSpan): number | undefined {
 }
 
 function getSpanCategory(span: RequestInsightSpan): 'nextjs' | 'application' {
-  const category = span.attributes?.['next.span.category']
+  const category = span.attributes?.['next.span_category']
   if (category === 'nextjs' || category === 'application') {
     return category
   }

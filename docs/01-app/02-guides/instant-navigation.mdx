@@ -36,7 +36,7 @@ This is also why client-side hooks behave differently. `useSearchParams()` suspe
 
 </details>
 
-Runtime prefetching extends the static shell with request-specific content like the user's name from a cookie, by invoking the route at prefetch time. Ensuring navigations are instant is the foundation: a route that doesn't navigate instantly without runtime prefetching won't navigate instantly with it either. See [Runtime prefetching](/docs/app/guides/runtime-prefetching) for the patterns.
+Runtime prefetching extends the static shell with a link's URL data (`searchParams` and `params`) by invoking the route at prefetch time. Ensuring navigations are instant is the foundation: a route that doesn't navigate instantly without runtime prefetching won't navigate instantly with it either. See [Runtime prefetching](/docs/app/guides/runtime-prefetching) for the patterns.
 
 ## The tools
 
@@ -277,7 +277,7 @@ Toggle **Pause on navigations** off when you're done inspecting loading states. 
 
 Validation catches structural problems during development, but as the codebase grows, the structural checks can only tell you that a shell exists. They can't tell you whether the right content is in it. E2E tests close that gap: they assert on what the user actually sees when the navigation completes, catching regressions before they ship.
 
-The `@next/playwright` package includes an `instant()` helper for this. Install it alongside `@playwright/test`:
+The [`@next/playwright`](https://www.npmjs.com/package/@next/playwright) package includes an `instant()` helper for this. Install it alongside `@playwright/test`:
 
 ```bash package="pnpm"
 pnpm add -D @next/playwright @playwright/test
@@ -468,14 +468,13 @@ Agents working on a Cache Components route typically reach for three levers:
 
 - **Push down**: extract I/O into a Suspense-wrapped child so the parent stays static and static siblings lift into the shell.
 - **Cache**: pair `'use cache'` with [`cacheLife`](/docs/app/api-reference/functions/cacheLife) to assign a freshness profile.
-- **Runtime prefetching** (nav-only): when I/O depends on `cookies()`, `headers()`, or `searchParams`, opt the route into [runtime prefetching](/docs/app/guides/runtime-prefetching) so the framework prerenders it at link-prefetch time.
+- **Runtime prefetching** (nav-only): when a route reads URL data (`searchParams` or `params`), opt it into [runtime prefetching](/docs/app/guides/runtime-prefetching) so the framework resolves that data at link-prefetch time. Session data from `cookies()` or `headers()` already lands in the App Shell without it.
 
 Each refactor should pair with a before/after capture to verify the change actually landed. Identical-looking captures mean the refactor didn't take effect.
 
-For agents to see what their changes actually render, pair this with [agent-browser](https://github.com/vercel-labs/agent-browser). It exposes the Next.js DevTools (including PPR shells) as shell commands agents can read and drive, so the loop becomes: make a change, snapshot the shell, check what's in it, adjust.
+For agents to see what their changes actually render, pair this with [agent-browser](https://github.com/vercel-labs/agent-browser). With React DevTools enabled it reports the component tree and which `<Suspense>` boundaries are still pending, so an agent can make a change, snapshot the shell, check what landed, and adjust. See [Runtime visibility](/docs/app/guides/ai-agents#step-2-give-agents-runtime-visibility) in the AI agents guide for the setup.
 
-{/* TODO: distribution of the skill/plugin */}
-The [`next-cache-components-optimizer`](https://github.com/vercel/next.js/tree/canary/skills/next-cache-components-optimizer) skill packages this loop: shared preflight, the three levers, plan-mode gating, before/after capture verify, and a no-shell bailout when the route is fully blocking. It picks between two sub-loops based on the request: page-render (grow the static shell of a single page) or in-app navigation (capture the destination's suspended boundaries after a click).
+The [`next-cache-components-optimizer`](/docs/app/guides/ai-agents#next-cache-components-optimizer) skill packages this loop: it encodes the goal as a failing `@next/playwright` `instant()` test and works it to green one route at a time, for both initial load (hard navigation) and client-side navigation (soft navigation), then ships the test as a regression guard.
 
 ## Opting out
 
@@ -503,12 +502,12 @@ export const instant = false
 
 With `false` on `/dashboard/layout.tsx`, validation no longer flags navigations into `/dashboard` from outside; navigations between `/dashboard/a` and `/dashboard/b` are still checked.
 
-For opted-out segments, the navigation blocks on the server. If the content depends on cookies or headers but has a known cache lifetime, [runtime prefetching](/docs/app/guides/runtime-prefetching) can prerender it ahead of click instead of opting out.
+For opted-out segments, the navigation blocks on the server. If the content depends on cookies or headers but has a known cache lifetime, caching it with [`use cache: private`](/docs/app/api-reference/directives/use-cache-private) lets the App Shell carry it ahead of the click instead of opting out.
 
 ## Next steps
 
 - [Adopting Partial Prefetching](/docs/app/guides/adopting-partial-prefetching) for the recommended `<Link>` defaults and the migration path off `unstable_eager`
 - [`instant` API reference](/docs/app/api-reference/file-conventions/route-segment-config/instant) for the full configuration
-- [Runtime prefetching](/docs/app/guides/runtime-prefetching) when parts of your route depend on cookies or headers and you want those in the shell
+- [Runtime prefetching](/docs/app/guides/runtime-prefetching) when parts of your route depend on URL data (`searchParams` or `params`) and you want it in the shell
 - [Caching](/docs/app/getting-started/caching) for background on `use cache`, Suspense, and Partial Prerendering
 - [Revalidating](/docs/app/getting-started/revalidating) for how to expire cached data with `cacheLife` and `updateTag`
