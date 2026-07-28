@@ -40,6 +40,12 @@ import {
   getConventionPathByType,
   isNextjsBuiltinFilePath,
 } from './segment-explorer-path'
+import {
+  createChildSegmentPath,
+  getSerializedForkSlotsRecorder,
+  getValidationSegment,
+  type SegmentPath,
+} from './instant-validation/segment-path'
 
 /**
  * Use the provided loader tree to create the React Component tree.
@@ -59,6 +65,15 @@ export function createComponentTree(props: {
   preloadCallbacks: PreloadCallbacks
   authInterrupts: boolean
   MetadataOutlet: ComponentType
+  /**
+   * The validation SegmentPath of `loaderTree`, used to record serialized
+   * fork slots for instant validation (see `RecordSerializedForkSlot`).
+   * Callers that render from the route root compute it with
+   * `getValidationSegment` when `workStore.serializedForkSlots` is armed;
+   * callers that render an interior subtree pass null (those renders are
+   * never validated, so nothing is recorded).
+   */
+  validationSegmentPath: SegmentPath | null
 }): Promise<CacheNodeSeedData> {
   return getTracer().trace(
     NextNodeServerSpan.createComponentTree,
@@ -67,6 +82,28 @@ export function createComponentTree(props: {
     },
     () => createComponentTreeInternal(props, true)
   )
+}
+
+/**
+ * Records that a parallel fork slot's router element was serialized into
+ * the flight payload. Flight executes server components exactly when
+ * they're reachable from the serialized output — including inside a client
+ * component's props, which serialize deeply — so this component executing
+ * is precisely the "this slot was handed to the client" signal. Server
+ * components leave no trace in the payload, so wrapping the slot element
+ * does not change what the client receives.
+ */
+function RecordSerializedForkSlot({
+  slotPath,
+  serializedForkSlots,
+  children,
+}: {
+  slotPath: SegmentPath
+  serializedForkSlots: Set<string>
+  children?: React.ReactNode
+}) {
+  serializedForkSlots.add(slotPath)
+  return children
 }
 
 function errorMissingDefaultExport(
@@ -95,6 +132,7 @@ async function createComponentTreeInternal(
     preloadCallbacks,
     authInterrupts,
     MetadataOutlet,
+    validationSegmentPath,
   }: {
     loaderTree: LoaderTree
     parentParams: Params
@@ -108,6 +146,7 @@ async function createComponentTreeInternal(
     preloadCallbacks: PreloadCallbacks
     authInterrupts: boolean
     MetadataOutlet: ComponentType | null
+    validationSegmentPath: SegmentPath | null
   },
   isRoot: boolean
 ): Promise<CacheNodeSeedData> {
@@ -505,15 +544,38 @@ async function createComponentTreeInternal(
     tree,
   })
 
+  const serializedForkSlots = getSerializedForkSlotsRecorder()
+  const parallelRouteKeys = Object.keys(parallelRoutes)
+  // Fork slots (sibling parallel routes) are the unit of instant
+  // validation's rendered-slot semantics; single-child segments are never
+  // recorded.
+  const childrenAreForkSlots = parallelRouteKeys.length > 1
+
   // TODO: Combine this `map` traversal with the loop below that turns the array
   // into an object.
   const parallelRouteMap = await Promise.all(
-    Object.keys(parallelRoutes).map(
+    parallelRouteKeys.map(
       async (
         parallelRouteKey
       ): Promise<[string, React.ReactNode, CacheNodeSeedData | null]> => {
         const isChildrenRouteKey = parallelRouteKey === 'children'
         const parallelRoute = parallelRoutes[parallelRouteKey]
+
+        // The validation SegmentPath for this slot's subtree. Only
+        // computed while the flight render is recording serialized fork
+        // slots for instant validation.
+        const childValidationSegmentPath =
+          validationSegmentPath !== null && serializedForkSlots !== undefined
+            ? createChildSegmentPath(
+                validationSegmentPath,
+                parallelRouteKey,
+                getValidationSegment(
+                  parallelRoute,
+                  ctx.getDynamicParamFromSegment,
+                  ctx.query
+                )
+              )
+            : null
 
         const notFoundComponent = isChildrenRouteKey
           ? notFoundElement
@@ -599,6 +661,7 @@ async function createComponentTreeInternal(
                 // `StreamingMetadataOutlet` is used to conditionally throw. In the case of parallel routes we will have more than one page
                 // but we only want to throw on the first one.
                 MetadataOutlet: isChildrenRouteKey ? MetadataOutlet : null,
+                validationSegmentPath: childValidationSegmentPath,
               },
               false
             )
@@ -665,35 +728,52 @@ async function createComponentTreeInternal(
             )
           : null
 
-        return [
-          parallelRouteKey,
-          createElement(LayoutRouter, {
-            parallelRouterKey: parallelRouteKey,
-            error: ErrorComponent,
-            errorStyles: wrappedErrorStyles,
-            errorScripts: errorScripts,
-            template:
-              isSegmentViewEnabled && templateFilePath
-                ? createElement(
-                    SegmentViewNode,
-                    {
-                      type: 'template',
-                      pagePath: templateFilePath,
-                    },
-                    templateNode
-                  )
-                : templateNode,
-            templateStyles: templateStyles,
-            templateScripts: templateScripts,
-            notFound: notFoundComponent,
-            forbidden: forbiddenComponent,
-            unauthorized: unauthorizedComponent,
-            ...(isSegmentViewEnabled && {
-              segmentViewBoundaries,
-            }),
+        let slotElement: React.ReactNode = createElement(LayoutRouter, {
+          parallelRouterKey: parallelRouteKey,
+          error: ErrorComponent,
+          errorStyles: wrappedErrorStyles,
+          errorScripts: errorScripts,
+          template:
+            isSegmentViewEnabled && templateFilePath
+              ? createElement(
+                  SegmentViewNode,
+                  {
+                    type: 'template',
+                    pagePath: templateFilePath,
+                  },
+                  templateNode
+                )
+              : templateNode,
+          templateStyles: templateStyles,
+          templateScripts: templateScripts,
+          notFound: notFoundComponent,
+          forbidden: forbiddenComponent,
+          unauthorized: unauthorizedComponent,
+          ...(isSegmentViewEnabled && {
+            segmentViewBoundaries,
           }),
-          childCacheNodeSeedData,
-        ]
+        })
+
+        if (
+          childrenAreForkSlots &&
+          childValidationSegmentPath !== null &&
+          serializedForkSlots !== undefined
+        ) {
+          // Instant validation's rendered-slot semantics need to know
+          // which fork slots the parent's output actually referenced for
+          // this request. The recorder executes exactly when flight
+          // serializes this element and vanishes from the payload.
+          slotElement = createElement(
+            RecordSerializedForkSlot,
+            {
+              slotPath: childValidationSegmentPath,
+              serializedForkSlots,
+            },
+            slotElement
+          )
+        }
+
+        return [parallelRouteKey, slotElement, childCacheNodeSeedData]
       }
     )
   )

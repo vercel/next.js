@@ -19,6 +19,11 @@ import type { AppRenderContext } from './app-render'
 import { hasLoadingComponentInTree } from './has-loading-component-in-tree'
 import { addSearchParamsIfPageSegment } from '../../shared/lib/segment'
 import { createComponentTree } from './create-component-tree'
+import {
+  getSerializedForkSlotsRecorder,
+  getValidationSegment,
+  stringifySegment,
+} from './instant-validation/segment-path'
 import { getSegmentParam } from '../../shared/lib/router/utils/get-segment-param'
 
 /**
@@ -277,6 +282,11 @@ export async function walkTreeWithFlightRouterState({
         preloadCallbacks,
         authInterrupts: experimental.authInterrupts,
         MetadataOutlet,
+        // This render starts at an interior subtree, so its position from
+        // the route root is unknown here. Renders that are validated go
+        // through `createFullTreeFlightDataForNavigation` instead, so no
+        // serialized fork slots need to be recorded on this path.
+        validationSegmentPath: null,
       }
     )
 
@@ -407,6 +417,12 @@ export async function createFullTreeFlightDataForNavigation({
     preloadCallbacks,
     authInterrupts: experimental.authInterrupts,
     MetadataOutlet,
+    validationSegmentPath:
+      getSerializedForkSlotsRecorder() !== undefined
+        ? stringifySegment(
+            getValidationSegment(loaderTree, getDynamicParamFromSegment, query)
+          )
+        : null,
   })
 
   return [

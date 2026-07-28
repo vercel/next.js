@@ -83,6 +83,13 @@ export async function buildDevValidationSnapshot(
     optimisticRouting: ctx.renderOpts.experimental.optimisticRouting,
     forceStatic: ctx.workStore.forceStatic,
     validationLevel: ctx.workStore.validationLevel,
+    // The recorded set travels with the render that instant validation
+    // consumes; static validation never reads it.
+    serializedForkSlots:
+      instantInputs !== null &&
+      instantInputs.requestStore.serializedForkSlots !== undefined
+        ? [...instantInputs.requestStore.serializedForkSlots]
+        : null,
     implicitTags: ctx.implicitTags.tags,
     additionalClientReferenceManifestPages: ctx.workStore
       .additionalClientReferenceManifestPages

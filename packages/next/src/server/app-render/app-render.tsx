@@ -316,6 +316,11 @@ import {
 } from './instant-validation/stream-utils'
 
 import {
+  getSerializedForkSlotsRecorder,
+  getValidationSegment,
+  stringifySegment,
+} from './instant-validation/segment-path'
+import {
   createValidationBoundaryTracking,
   type ValidationBoundaryTracking,
 } from './instant-validation/boundary-tracking'
@@ -2130,6 +2135,12 @@ async function getRSCPayload(
     preloadCallbacks,
     authInterrupts: ctx.renderOpts.experimental.authInterrupts,
     MetadataOutlet,
+    validationSegmentPath:
+      getSerializedForkSlotsRecorder() !== undefined
+        ? stringifySegment(
+            getValidationSegment(tree, ctx.getDynamicParamFromSegment, query)
+          )
+        : null,
   })
 
   // When the `vary` response header is present with `Next-URL`, that means there's a chance
@@ -5434,6 +5445,9 @@ async function renderWithWarmCachesForValidationInDev(
     requestStore.mutableCookies,
     requestStore.headers
   )
+  // This render exists to feed instant validation, so always arm
+  // serialized-fork-slot recording for it (see `RecordSerializedForkSlot`).
+  requestStore.serializedForkSlots = new Set()
 
   const debugChannel = setReactDebugChannel && createNodeDebugChannel()
   const environmentName = () =>
@@ -5695,6 +5709,14 @@ async function stagedRenderWithCachesInDev({
   const validationGeneration = shouldValidate
     ? beginDevValidation(ctx.htmlRequestId)
     : undefined
+
+  if (shouldValidate) {
+    // Arm serialized-fork-slot recording for this render: the flight render
+    // records which parallel fork slots its output references (see
+    // `RecordSerializedForkSlot`), and validation treats configs inside
+    // fork slots that were never serialized as vacuous.
+    requestStore.serializedForkSlots = new Set()
+  }
 
   try {
     const { setReactDebugChannel } = ctx.renderOpts
@@ -6407,6 +6429,11 @@ export async function runValidationInDevFromSnapshot(
     serverComponentsHmrCache: undefined,
     fallbackParams: requestFallbackRouteParams,
   })
+  if (message.serializedForkSlots !== null) {
+    // Reattach the serialized-fork-slot set recorded by the render that
+    // instant validation consumes (see `RequestStore.serializedForkSlots`).
+    requestStore.serializedForkSlots = new Set(message.serializedForkSlots)
+  }
 
   const staticInputs = toDevValidationInputs(message.staticInputs, requestStore)
 
@@ -6568,6 +6595,9 @@ async function runValidationInDev(
       hmrRefreshHash,
       validationSamples,
       devRenderDidError,
+      // The request store of the render being validated carries the
+      // serialized-fork-slot set that render recorded.
+      inputs.requestStore.serializedForkSlots,
       validationAbortSignal
     )
 
@@ -7030,6 +7060,10 @@ async function validateInstantConfigs(
   hmrRefreshHash: string | undefined,
   validationSamples: ValidationStoreClient['validationSamples'] | null,
   devRenderDidError: boolean,
+  /** The serialized-fork-slot set recorded by the render being validated
+   * (see `RequestStore.serializedForkSlots`), or undefined when recording
+   * wasn't armed (e.g. build validation). */
+  serializedForkSlots: ReadonlySet<string> | undefined,
   validationAbortSignal?: AbortSignal
 ): Promise<Array<unknown>> {
   const debug =
@@ -7132,7 +7166,8 @@ async function validateInstantConfigs(
       boundaryState,
       clientReferenceManifest,
       stageEndTimes,
-      useRuntimeStageForPartialSegments
+      useRuntimeStageForPartialSegments,
+      serializedForkSlots
     )
 
     if (payloadResult === null) {
@@ -8099,7 +8134,10 @@ async function validateInstantConfigInBuildWithSample(
       validationRenderCtx,
       undefined, // hmrRefreshHash,
       validationSamples,
-      false // build has no shared dev render that would surface errors
+      false, // build has no shared dev render that would surface errors
+      // Build renders don't record serialized fork slots (yet), so every
+      // config is considered.
+      undefined
     )
   })
 }

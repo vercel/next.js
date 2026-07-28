@@ -90,6 +90,12 @@ export interface DevValidationSnapshot {
   optimisticRouting: boolean
   forceStatic: boolean | undefined
   validationLevel: ValidationLevel
+  /**
+   * The parallel fork slots the validated render's flight output
+   * serialized, as validation SegmentPaths (see
+   * `WorkStore.serializedForkSlots`). Null when recording wasn't armed.
+   */
+  serializedForkSlots: string[] | null
   implicitTags: string[]
   /**
    * Pages whose client reference manifests supplied client references to the

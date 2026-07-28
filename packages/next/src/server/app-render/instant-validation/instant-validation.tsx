@@ -47,7 +47,6 @@ import type { FlightComponentMod } from '../stream-ops'
 // eslint-disable-next-line import/no-extraneous-dependencies
 import { createFromNodeStream } from 'react-server-dom-webpack/client'
 import {
-  addSearchParamsIfPageSegment,
   isGroupSegment,
   PAGE_SEGMENT_KEY,
   DEFAULT_SEGMENT_KEY,
@@ -85,8 +84,13 @@ const debug =
 // 1. Validation planning
 //===============================================================
 
-/** Used to identify a segment. Conceptually similar to request keys in the Client Segment Cache. */
-export type SegmentPath = string & { _tag: 'SegmentPath' }
+export type { SegmentPath } from './segment-path'
+import {
+  createChildSegmentPath,
+  getValidationSegment,
+  stringifySegment,
+  type SegmentPath,
+} from './segment-path'
 
 /**
  * Isomorphic to a FlightRouterState, but with extra data attached.
@@ -165,26 +169,6 @@ function traverseCacheNodeSegments(
       processSegment
     )
   }
-}
-
-function createChildSegmentPath(
-  parentPath: SegmentPath,
-  parallelRouteKey: string,
-  segment: Segment
-): SegmentPath {
-  const parallelRoutePrefix =
-    parallelRouteKey === 'children'
-      ? ''
-      : `@${encodeURIComponent(parallelRouteKey)}/`
-  return `${parentPath}/${parallelRoutePrefix}${stringifySegment(segment)}` as SegmentPath
-}
-
-function stringifySegment(segment: Segment): SegmentPath {
-  return (
-    typeof segment === 'string'
-      ? encodeURIComponent(segment)
-      : encodeURIComponent(segment[0]) + '|' + segment[1] + '|' + segment[2]
-  ) as SegmentPath
 }
 
 //===============================================================
@@ -933,7 +917,15 @@ export async function createCombinedPayloadAtDepth(
   boundaryState: ValidationBoundaryTracking,
   clientReferenceManifest: ClientReferenceManifest,
   stageEndTimes: StageEndTimes,
-  useRuntimeStageForPartialSegments: boolean
+  useRuntimeStageForPartialSegments: boolean,
+  /** Fork slots the validated render's flight output serialized (see
+   * `RecordSerializedForkSlot` in `create-component-tree.tsx`). A fork
+   * slot absent from this set is dead for the validated render: nothing
+   * client-side was ever handed its element, so nothing can mount it.
+   * Configs inside dead fork slots are vacuous. Undefined when recording
+   * wasn't armed (e.g. build validation), in which case every config is
+   * considered. */
+  serializedForkSlots: ReadonlySet<string> | undefined
 ): Promise<ValidationPayloadResult | null> {
   const workStore = workAsyncStorage.getStore()
   if (!workStore) {
@@ -985,12 +977,7 @@ export async function createCombinedPayloadAtDepth(
   }
 
   function getSegment(loaderTree: LoaderTree): Segment {
-    const dynamicParam = getDynamicParamFromSegment(loaderTree)
-    if (dynamicParam) {
-      return dynamicParam.treeSegment
-    }
-    const segment = loaderTree[0]
-    return query ? addSearchParamsIfPageSegment(segment, query) : segment
+    return getValidationSegment(loaderTree, getDynamicParamFromSegment, query)
   }
 
   async function buildSharedTreeSeedData(
@@ -998,7 +985,9 @@ export async function createCombinedPayloadAtDepth(
     parentPath: SegmentPath | null,
     key: string | null,
     urlDepthConsumed: number,
-    groupDepthConsumed: number
+    groupDepthConsumed: number,
+    isForkSlot: boolean,
+    parentWithinDeadForkSlot: boolean
   ): Promise<TreeResult> {
     const { parallelRoutes } = parseLoaderTree(loaderTree)
 
@@ -1007,6 +996,13 @@ export async function createCombinedPayloadAtDepth(
       parentPath === null
         ? stringifySegment(segment)
         : createChildSegmentPath(parentPath, key!, segment)
+
+    const isDeadForkSlot =
+      isForkSlot &&
+      serializedForkSlots !== undefined &&
+      !serializedForkSlots.has(path)
+    const withinDeadForkSlot = parentWithinDeadForkSlot || isDeadForkSlot
+    const childrenAreForkSlots = Object.keys(parallelRoutes).length > 1
 
     debug?.(`    ${path || '/'} - Dynamic`)
     const segmentCacheItem = cache.segments.get(path)
@@ -1078,7 +1074,9 @@ export async function createCombinedPayloadAtDepth(
           path,
           parallelRouteKey,
           false /* isInsideRuntimePrefetch */,
-          0 /* segmentDepth */
+          0 /* segmentDepth */,
+          childrenAreForkSlots,
+          withinDeadForkSlot
         )
         slotResults.set(parallelRouteKey, result)
         slots[parallelRouteKey] = result.seedData
@@ -1132,7 +1130,9 @@ export async function createCombinedPayloadAtDepth(
         path,
         parallelRouteKey,
         nextUrlDepth,
-        currentGroupDepth
+        currentGroupDepth,
+        childrenAreForkSlots,
+        withinDeadForkSlot
       )
       slotResults.set(parallelRouteKey, result)
       slots[parallelRouteKey] = result.seedData
@@ -1168,7 +1168,9 @@ export async function createCombinedPayloadAtDepth(
     parentPath: SegmentPath | null,
     key: string | null,
     isInsideRuntimePrefetch: boolean,
-    segmentDepth: number
+    segmentDepth: number,
+    isForkSlot: boolean,
+    parentWithinDeadForkSlot: boolean
   ): Promise<TreeResult> {
     const { parallelRoutes } = parseLoaderTree(lt)
     const { mod: layoutOrPageMod, filePath: layoutOrPageFilePath } =
@@ -1180,6 +1182,13 @@ export async function createCombinedPayloadAtDepth(
       parentPath === null
         ? stringifySegment(segment)
         : createChildSegmentPath(parentPath, key!, segment)
+
+    const isDeadForkSlot =
+      isForkSlot &&
+      serializedForkSlots !== undefined &&
+      !serializedForkSlots.has(path)
+    const withinDeadForkSlot = parentWithinDeadForkSlot || isDeadForkSlot
+    const childrenAreForkSlots = Object.keys(parallelRoutes).length > 1
 
     let instantConfig: Instant | null = null
     let prefetchConfig: AppSegmentConfig['prefetch'] | null = null
@@ -1298,7 +1307,9 @@ export async function createCombinedPayloadAtDepth(
         path,
         parallelRouteKey,
         childIsInsideRuntimePrefetch,
-        childSegmentDepth
+        childSegmentDepth,
+        childrenAreForkSlots,
+        withinDeadForkSlot
       )
       slotResults.set(parallelRouteKey, result)
       slots[parallelRouteKey] = result.seedData
@@ -1341,6 +1352,16 @@ export async function createCombinedPayloadAtDepth(
       configDepth = bestChildConfigDepth
     }
 
+    // A dead fork slot was never serialized into the validated render's
+    // payload, so nothing client-side can mount it or anything below it.
+    // Configs inside it (explicit or implicit) are vacuous: they demand
+    // nothing and cannot block.
+    if (withinDeadForkSlot) {
+      requiresInstantUI = false
+      createInstantStack = null
+      configDepth = -1
+    }
+
     // First mod we find in DFS order: this segment's own layout/page if
     // any, otherwise the first non-null we got from a child.
     const firstModFilePath = localModFilePath ?? childFirstModFilePath
@@ -1360,7 +1381,9 @@ export async function createCombinedPayloadAtDepth(
       null /* parentPath */,
       null /* key */,
       0 /* urlDepthConsumed */,
-      0 /* groupDepthConsumed */
+      0 /* groupDepthConsumed */,
+      false /* isForkSlot */,
+      false /* parentWithinDeadForkSlot */
     )
 
   if (!requiresInstantUI) {

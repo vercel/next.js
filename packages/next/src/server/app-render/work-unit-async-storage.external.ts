@@ -93,6 +93,20 @@ export interface RequestStore extends CommonWorkUnitStore {
 
   // DEV-only
   usedDynamic?: boolean
+
+  /**
+   * DEV-only. When set, the flight render performed under this store
+   * records here the validation SegmentPath of every parallel fork slot
+   * whose router element was serialized into the payload — referenced by
+   * a parent's rendered output, including via a client component's props
+   * (see `RecordSerializedForkSlot` in `create-component-tree.tsx`). A
+   * fork slot absent from this set is dead for this render: no
+   * client-side code was ever handed its element, so nothing can mount
+   * it. Instant validation treats configs inside dead fork slots as
+   * vacuous. Undefined when recording isn't armed; it is armed only for
+   * dev renders that will be validated.
+   */
+  serializedForkSlots?: Set<string>
 }
 
 export type InstantValidationSamples = {
