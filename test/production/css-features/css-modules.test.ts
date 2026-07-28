@@ -111,7 +111,7 @@ describe('CSS Modules: Import Global CSS', () => {
 
       expect(
         cssContent.replace(/\/\*.*?\*\//g, '').trim()
-      ).toMatchInlineSnapshot(`".styles_blk__480DC{color:#000000}"`)
+      ).toMatchInlineSnapshot(`".styles_blk__480DC{color:#000}"`)
     })
   }
 )
