@@ -26,6 +26,8 @@ export type ServerInitResult = {
   partialPrefetching?: boolean | 'unstable_eager'
   // Whether AGENTS.md / CLAUDE.md auto-generation is enabled (default true)
   agentRules?: boolean
+  // Whether the development server memory threshold restart is enabled
+  devMemoryThresholdRestart: boolean
 }
 
 let initializations: Record<string, Promise<ServerInitResult> | undefined> = {}
@@ -106,6 +108,7 @@ async function initializeImpl(opts: {
   experimentalFeatures: ConfiguredExperimentalFeature[]
   cacheComponents: boolean
   partialPrefetching?: boolean | 'unstable_eager'
+  devMemoryThresholdRestart: boolean
 }): Promise<ServerInitResult> {
   const type = process.env.__NEXT_PRIVATE_RENDER_WORKER
   if (type) {
@@ -185,6 +188,7 @@ async function initializeImpl(opts: {
     experimentalFeatures: opts.experimentalFeatures,
     cacheComponents: opts.cacheComponents,
     partialPrefetching: opts.partialPrefetching,
+    devMemoryThresholdRestart: opts.devMemoryThresholdRestart,
   }
 }
 
