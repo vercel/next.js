@@ -113,10 +113,7 @@ import {
   runWithRequestInsightsIdentity,
 } from '../lib/trace/request-insights-identity'
 import { getTracer, SpanStatusCode } from '../lib/trace/tracer'
-import {
-  createLocalSpan,
-  withLocalSpan,
-} from '../lib/trace/local-span-recorder'
+import { traceLocalSpan } from '../lib/trace/local-span-recorder'
 import { isRequestInsightsEnabled } from '../lib/trace/request-insights'
 import { FlightRenderResult } from './flight-render-result'
 import {
@@ -4521,37 +4518,44 @@ function runDevValidationInBackground(
         return
       }
 
-      return runInstantInsightsWithTracing(ctx, async () => {
+      return runInstantInsightsWithTracing(ctx, async (runSpan) => {
         // Read whether the streamed render errored only now that it has fully
         // settled.
         const devRenderDidError = getDevRenderDidError()
 
-        const lazyInputs = await prepareValidationInputs(
-          prefetchMode,
-          navigationKind,
-          result,
-          requestStore,
-          validationDebugChannel,
-          ctx,
-          prerenderResumeDataCache,
-          createRequestStore,
-          getPayload,
-          onError,
-          validationAbortSignal
-        )
+        const [instantInputs, staticInputs] = await runSpan(
+          AppRenderSpan.instantInsightsPrepareValidation,
+          'Prepare validation inputs',
+          async () => {
+            const lazyInputs = await prepareValidationInputs(
+              prefetchMode,
+              navigationKind,
+              result,
+              requestStore,
+              validationDebugChannel,
+              ctx,
+              prerenderResumeDataCache,
+              createRequestStore,
+              getPayload,
+              onError,
+              validationAbortSignal
+            )
 
-        // If we need to do multiple renders, do them in parallel.
-        // `runValidationInDev` currently needs `instantInputs` eagerly
-        // right before using `staticInputs` for static shell validation,
-        // so there's no point delaying one of the renders.
-        // We bail out (after logging an error during `resolveLazyDevValidationInputs`)
-        // if sync IO or invalid dynamic errors happen in either.
-        const [instantInputs, staticInputs] = await Promise.all([
-          lazyInputs.instantInputs
-            ? resolveLazyDevValidationInputs(lazyInputs.instantInputs, ctx)
-            : null,
-          resolveLazyDevValidationInputs(lazyInputs.staticInputs, ctx),
-        ])
+            // If we need to do multiple renders, do them in parallel.
+            // `runValidationInDev` currently needs `instantInputs` eagerly
+            // right before using `staticInputs` for static shell validation,
+            // so there's no point delaying one of the renders.
+            // We bail out (after logging an error during
+            // `resolveLazyDevValidationInputs`) if sync IO or invalid dynamic
+            // errors happen in either.
+            return Promise.all([
+              lazyInputs.instantInputs
+                ? resolveLazyDevValidationInputs(lazyInputs.instantInputs, ctx)
+                : null,
+              resolveLazyDevValidationInputs(lazyInputs.staticInputs, ctx),
+            ])
+          }
+        )
         if (
           instantInputs === VALIDATION_BAILOUT ||
           staticInputs === VALIDATION_BAILOUT
@@ -4566,74 +4570,84 @@ function runDevValidationInBackground(
           return
         }
 
-        // Hand the whole validation to the worker when one is installed. It runs
-        // on a worker thread (off the main thread), emits its own lifecycle
-        // markers, logs code frames on its piped stdio, and returns the overlay
-        // Flight bytes for the main thread to forward. The worker is absent when
-        // `experimental.devValidationWorker` is false, and validation runs
-        // in-process instead.
-        const devValidationWorker = getDevValidationWorker()
+        return runSpan(
+          AppRenderSpan.instantInsightsRunValidation,
+          'Run validation',
+          async () => {
+            // Hand the whole validation to the worker when one is installed. It
+            // runs on a worker thread (off the main thread), emits its own
+            // lifecycle markers, logs code frames on its piped stdio, and
+            // returns the overlay Flight bytes for the main thread to forward.
+            // The worker is absent when `experimental.devValidationWorker` is
+            // false, and validation runs in-process instead.
+            const devValidationWorker = getDevValidationWorker()
 
-        if (devValidationWorker) {
-          const snapshot = await buildDevValidationSnapshot(
-            ctx,
-            instantInputs,
-            staticInputs,
-            prefetchMode,
-            fallbackRouteParams,
-            devRenderDidError
-          )
-
-          const chunks = await devValidationWorker(
-            snapshot,
-            validationAbortSignal
-          )
-
-          // A newer navigation may have superseded this validation while the
-          // worker ran; don't surface stale insights for a page the user left.
-          if (chunks && !validationAbortSignal.aborted) {
-            const { sendErrorsToBrowser } = ctx.renderOpts
-            if (!sendErrorsToBrowser) {
-              throw new InvariantError(
-                'Expected `sendErrorsToBrowser` to be defined in renderOpts.'
-              )
-            }
-            sendErrorsToBrowser(
-              createNodeStreamFromChunks(chunks),
-              ctx.htmlRequestId
-            )
-          }
-        } else {
-          // In-process path, taken when `experimental.devValidationWorker` is
-          // false or no worker is installed (e.g. during a build). Validation
-          // computes the errors; the caller delivers them to the dev overlay.
-          // `runWithDevValidationLogging` encloses both the render and the
-          // delivery in the test-mode lifecycle markers so tests that assert the
-          // delivered error between `validation_start` and `validation_end`
-          // capture it.
-          await runWithDevValidationLogging(
-            ctx,
-            validationAbortSignal,
-            async () => {
-              const validationErrors = await runValidationInDev(
-                prefetchMode,
+            if (devValidationWorker) {
+              const snapshot = await buildDevValidationSnapshot(
+                ctx,
                 instantInputs,
                 staticInputs,
-                toValidationRenderContext(ctx),
+                prefetchMode,
                 fallbackRouteParams,
-                devRenderDidError,
+                devRenderDidError
+              )
+
+              const chunks = await devValidationWorker(
+                snapshot,
                 validationAbortSignal
               )
 
-              if (
-                validationErrors !== undefined &&
-                !validationAbortSignal.aborted
-              ) {
-                await logMessagesAndSendErrorsToBrowser(validationErrors, ctx)
+              // A newer navigation may have superseded this validation while
+              // the worker ran; don't surface stale insights for a page the user
+              // left.
+              if (chunks && !validationAbortSignal.aborted) {
+                const { sendErrorsToBrowser } = ctx.renderOpts
+                if (!sendErrorsToBrowser) {
+                  throw new InvariantError(
+                    'Expected `sendErrorsToBrowser` to be defined in renderOpts.'
+                  )
+                }
+                sendErrorsToBrowser(
+                  createNodeStreamFromChunks(chunks),
+                  ctx.htmlRequestId
+                )
               }
+            } else {
+              // In-process path, taken when `experimental.devValidationWorker`
+              // is false or no worker is installed (e.g. during a build).
+              // Validation computes the errors; the caller delivers them to the
+              // dev overlay. `runWithDevValidationLogging` encloses both the
+              // render and the delivery in the test-mode lifecycle markers so
+              // tests that assert the delivered error between
+              // `validation_start` and `validation_end` capture it.
+              await runWithDevValidationLogging(
+                ctx,
+                validationAbortSignal,
+                async () => {
+                  const validationErrors = await runValidationInDev(
+                    prefetchMode,
+                    instantInputs,
+                    staticInputs,
+                    toValidationRenderContext(ctx),
+                    fallbackRouteParams,
+                    devRenderDidError,
+                    validationAbortSignal
+                  )
+
+                  if (
+                    validationErrors !== undefined &&
+                    !validationAbortSignal.aborted
+                  ) {
+                    await logMessagesAndSendErrorsToBrowser(
+                      validationErrors,
+                      ctx
+                    )
+                  }
+                }
+              )
             }
-          )
-        }
+          }
+        )
       })
     })
     // The catch keeps a failed render, or anything thrown inside validation,
@@ -4653,12 +4667,44 @@ function runDevValidationInBackground(
     .finally(() => validationGeneration.finish())
 }
 
-async function runInstantInsightsWithTracing<T>(
-  ctx: AppRenderContext,
+type RunInstantInsightsSpan = <T>(
+  spanType: AppRenderSpan,
+  spanName: string,
+  fn: () => Promise<T>
+) => Promise<T>
+
+function runInstantInsightsSpan<T>(
+  spanType: AppRenderSpan,
+  spanName: string,
   fn: () => Promise<T>
 ): Promise<T> {
+  return traceLocalSpan(
+    {
+      name: spanName,
+      attributes: {
+        'next.span_category': 'nextjs',
+        'next.span_name': spanName,
+        'next.span_type': spanType,
+      },
+    },
+    fn
+  )
+}
+
+function runWithoutInstantInsightsSpan<T>(
+  _spanType: AppRenderSpan,
+  _spanName: string,
+  fn: () => Promise<T>
+): Promise<T> {
+  return fn()
+}
+
+async function runInstantInsightsWithTracing<T>(
+  ctx: AppRenderContext,
+  fn: (runSpan: RunInstantInsightsSpan) => Promise<T>
+): Promise<T> {
   if (!isRequestInsightsEnabled()) {
-    return fn()
+    return fn(runWithoutInstantInsightsSpan)
   }
 
   return runWithRequestInsightsIdentity(
@@ -4668,29 +4714,20 @@ async function runInstantInsightsWithTracing<T>(
       htmlRequestId: ctx.htmlRequestId,
       url: ctx.url.href,
     },
-    () => {
-      const span = createLocalSpan({
-        name: 'Instant Insights',
-        attributes: {
-          'next.span_category': 'nextjs',
-          'next.span_name': 'Instant Insights',
-          'next.span_type': AppRenderSpan.instantInsights,
-          'next.route': ctx.pagePath,
+    () =>
+      traceLocalSpan(
+        {
+          name: 'Instant Insights',
+          parentSpan: null,
+          attributes: {
+            'next.span_category': 'nextjs',
+            'next.span_name': 'Instant Insights',
+            'next.span_type': AppRenderSpan.instantInsights,
+            'next.route': ctx.pagePath,
+          },
         },
-      })
-
-      return withLocalSpan(span, async () => {
-        try {
-          return await fn()
-        } catch (err) {
-          span.recordException(err as Error)
-          span.setStatus({ code: SpanStatusCode.ERROR })
-          throw err
-        } finally {
-          span.end()
-        }
-      })
-    }
+        () => fn(runInstantInsightsSpan)
+      )
   )
 }
 

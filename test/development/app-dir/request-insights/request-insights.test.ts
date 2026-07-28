@@ -12,6 +12,8 @@ type RequestInsight = {
   status: 'ok'
   spans: Array<{
     name?: string
+    spanId?: string
+    parentSpanId?: string
     attributes?: Record<string, string | number | boolean>
   }>
   fetches: Array<{
@@ -176,17 +178,46 @@ describe('request insights', () => {
         })
       )
       expect(instantInsights?.htmlRequestId).toBe(request?.htmlRequestId)
-      expect(
-        instantInsights?.spans.some(
-          (span) =>
-            span.attributes?.['next.span_type'] ===
-              'AppRender.instantInsights' && span.name === 'Instant Insights'
+      const rootSpans = instantInsights?.spans.filter(
+        (span) =>
+          span.attributes?.['next.span_type'] === 'AppRender.instantInsights' &&
+          span.name === 'Instant Insights'
+      )
+      expect(rootSpans?.length).toBeGreaterThan(0)
+      for (const rootSpan of rootSpans ?? []) {
+        expect(rootSpan.parentSpanId).toBeUndefined()
+      }
+
+      const pipelineSpanTypes = [
+        'AppRender.instantInsights.prepareValidation',
+        'AppRender.instantInsights.runValidation',
+      ]
+      const pipelineSpans = instantInsights?.spans.filter((span) =>
+        pipelineSpanTypes.includes(
+          span.attributes?.['next.span_type'] as string
         )
-      ).toBe(true)
+      )
+      expect(
+        pipelineSpans?.map((span) => span.attributes?.['next.span_type'])
+      ).toEqual(
+        expect.arrayContaining([
+          'AppRender.instantInsights.prepareValidation',
+          'AppRender.instantInsights.runValidation',
+        ])
+      )
+      for (const span of pipelineSpans ?? []) {
+        expect(
+          rootSpans?.some((rootSpan) => rootSpan.spanId === span.parentSpanId)
+        ).toBe(true)
+      }
       expect(
         request?.spans.some(
           (span) =>
-            span.attributes?.['next.span_type'] === 'AppRender.instantInsights'
+            span.attributes?.['next.span_type'] ===
+              'AppRender.instantInsights' ||
+            pipelineSpanTypes.includes(
+              span.attributes?.['next.span_type'] as string
+            )
         )
       ).toBe(false)
     })

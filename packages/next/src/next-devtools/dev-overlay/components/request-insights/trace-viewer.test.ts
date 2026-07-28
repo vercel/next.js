@@ -77,26 +77,51 @@ describe('request insights trace viewer', () => {
     ).toBe(false)
   })
 
-  it('shows the Instant Insights root span in the default trace', () => {
+  it('shows the Instant Insights pipeline in the default trace', () => {
     const request = createRequest({
       kind: 'instant-insights',
       spans: [
         {
           name: 'Instant Insights',
+          spanId: 'root',
           startTime: 100,
           durationMs: 50,
           attributes: {
             'next.span_type': 'AppRender.instantInsights',
           },
         },
+        {
+          name: 'Prepare validation inputs',
+          spanId: 'prepare',
+          parentSpanId: 'root',
+          startTime: 105,
+          durationMs: 20,
+          attributes: {
+            'next.span_type': 'AppRender.instantInsights.prepareValidation',
+          },
+        },
+        {
+          name: 'Run validation',
+          spanId: 'validate',
+          parentSpanId: 'root',
+          startTime: 125,
+          durationMs: 20,
+          attributes: {
+            'next.span_type': 'AppRender.instantInsights.runValidation',
+          },
+        },
       ],
     })
 
-    expect(getTraceItems(request, false)).toEqual([
-      expect.objectContaining({
-        label: 'Instant Insights',
-        spanType: 'AppRender.instantInsights',
-      }),
+    expect(
+      getTraceItems(request, false).map(({ label, depth }) => ({
+        label,
+        depth,
+      }))
+    ).toEqual([
+      { label: 'Instant Insights', depth: 0 },
+      { label: 'Prepare validation inputs', depth: 1 },
+      { label: 'Run validation', depth: 1 },
     ])
   })
 
