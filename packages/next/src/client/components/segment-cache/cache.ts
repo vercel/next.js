@@ -266,6 +266,7 @@ type SegmentCacheEntryShared = {
 
 export type EmptySegmentCacheEntry = SegmentCacheEntryShared & {
   status: EntryStatus.Empty
+  blockedTasks: Set<PrefetchTask> | null
   rsc: null
   isPartial: true
   promise: null
@@ -273,6 +274,7 @@ export type EmptySegmentCacheEntry = SegmentCacheEntryShared & {
 
 export type PendingSegmentCacheEntry = SegmentCacheEntryShared & {
   status: EntryStatus.Pending
+  blockedTasks: Set<PrefetchTask> | null
   rsc: null
   isPartial: boolean
   promise: null | PromiseWithResolvers<FulfilledSegmentCacheEntry | null>
@@ -280,6 +282,7 @@ export type PendingSegmentCacheEntry = SegmentCacheEntryShared & {
 
 type RejectedSegmentCacheEntry = SegmentCacheEntryShared & {
   status: EntryStatus.Rejected
+  blockedTasks: Set<PrefetchTask> | null
   rsc: null
   isPartial: true
   promise: null
@@ -287,6 +290,7 @@ type RejectedSegmentCacheEntry = SegmentCacheEntryShared & {
 
 export type FulfilledSegmentCacheEntry = SegmentCacheEntryShared & {
   status: EntryStatus.Fulfilled
+  blockedTasks: null
   rsc: React.ReactNode | null
   isPartial: boolean
   promise: null
@@ -1009,10 +1013,50 @@ export function overwriteRevalidatingSegmentCacheEntry(
   return pendingEntry
 }
 
+/**
+ * Whether an existing cache entry is preferred over an incoming candidate —
+ * i.e. the candidate does NOT supersede it. (On an exact tie — same fetch
+ * strategy, same partialness — this returns false, so the candidate replaces
+ * the existing entry.) This is the precedence rule used both when deciding
+ * whether an upsert may replace the entry at its own keypath, and when
+ * deciding whether an entry at a more specific keypath may be evicted because
+ * it shadows a just-inserted candidate (see `evictShadowingSegmentEntries`).
+ *
+ * Note that "less/more specific" in the comments below refers to fetch
+ * strategy content tiers (how much content a strategy can produce), not the
+ * vary-path specificity the eviction docs are concerned with.
+ */
+function isExistingSegmentEntryPreferred(
+  existingEntry: SegmentCacheEntry,
+  candidateEntry: SegmentCacheEntry
+): boolean {
+  return (
+    // We fetched the new segment using a different, less specific fetch
+    // strategy than the segment we already have in the cache, so it can't
+    // have more content.
+    (candidateEntry.fetchStrategy !== existingEntry.fetchStrategy &&
+      !canNewFetchStrategyProvideMoreContent(
+        existingEntry.fetchStrategy,
+        candidateEntry.fetchStrategy
+      )) ||
+    // The existing entry isn't partial, but the new one is.
+    // (TODO: can this be true if `candidateEntry.fetchStrategy >= existingEntry.fetchStrategy`?)
+    (!existingEntry.isPartial && candidateEntry.isPartial)
+  )
+}
+
 export function upsertSegmentEntry(
   now: number,
   varyPath: SegmentVaryPath,
-  candidateEntry: SegmentCacheEntry
+  candidateEntry: SegmentCacheEntry,
+  // The fully concrete vary path a read for this segment position resolves
+  // against (all concrete param values, i.e. `tree.varyPath`) — the most
+  // specific path a read would use. Note this is the opposite of the
+  // generalized keying path that `getSegmentVaryPathForRequest` computes.
+  // Used to detect and evict stale entries at more specific keypaths that
+  // would otherwise shadow the candidate. Pass null when there's no request
+  // context; the shadow check is skipped.
+  lookupVaryPath: SegmentVaryPath | null
 ): SegmentCacheEntry | null {
   // We have a new entry that has not yet been inserted into the cache. Before
   // we do so, we need to confirm whether it takes precedence over the existing
@@ -1031,20 +1075,9 @@ export function upsertSegmentEntry(
     // Don't replace a more specific segment with a less-specific one. A case where this
     // might happen is if the existing segment was fetched via
     // `<Link prefetch={true}>`.
-    if (
-      // We fetched the new segment using a different, less specific fetch strategy
-      // than the segment we already have in the cache, so it can't have more content.
-      (candidateEntry.fetchStrategy !== existingEntry.fetchStrategy &&
-        !canNewFetchStrategyProvideMoreContent(
-          existingEntry.fetchStrategy,
-          candidateEntry.fetchStrategy
-        )) ||
-      // The existing entry isn't partial, but the new one is.
-      // (TODO: can this be true if `candidateEntry.fetchStrategy >= existingEntry.fetchStrategy`?)
-      (!existingEntry.isPartial && candidateEntry.isPartial)
-    ) {
-      // The existing entry supersedes the candidate. Leave the existing entry
-      // in place and discard the candidate by not inserting it.
+    if (isExistingSegmentEntryPreferred(existingEntry, candidateEntry)) {
+      // The candidate does not supersede the existing entry. Leave the
+      // existing entry in place and discard the candidate by not inserting it.
       //
       // We must not mutate the candidate here (e.g. downgrade it to Rejected or
       // null out its `rsc`). The caller does not transfer exclusive ownership
@@ -1058,13 +1091,104 @@ export function upsertSegmentEntry(
       return null
     }
 
+    // Ping any tasks blocked on the existing entry before evicting it so they
+    // re-run and pick up the new entry. Without this, tasks waiting on the
+    // existing Empty/Pending entry would be stranded — the new fulfilled
+    // candidate has no blockedTasks of its own.
+    if (
+      existingEntry.status === EntryStatus.Empty ||
+      existingEntry.status === EntryStatus.Pending
+    ) {
+      pingBlockedTasks(existingEntry)
+    }
+
     // Evict the existing entry from the cache.
     deleteFromCacheMap(existingEntry)
   }
 
   const isRevalidation = false
   setInCacheMap(segmentCacheMap, varyPath, candidateEntry, isRevalidation)
+
+  if (lookupVaryPath !== null) {
+    evictShadowingSegmentEntries(now, lookupVaryPath, candidateEntry)
+  }
+
   return candidateEntry
+}
+
+/**
+ * Evicts stale entries at more specific keypaths that shadow a just-inserted
+ * candidate entry.
+ *
+ * A response can be written to the cache at a MORE GENERIC vary path than the
+ * path the request was issued against — for example, the server may report
+ * that a segment doesn't vary on a param, so the entry is re-keyed with that
+ * param as Fallback. Meanwhile, an older, less useful entry can exist at a
+ * more specific path within the same fallback chain — for example, a partial
+ * shell entry keyed with root params concrete (see
+ * `getShellSegmentVaryPath`). Because segment lookup is
+ * most-specific-match-wins, every subsequent read at the concrete request
+ * path keeps returning the stale specific entry, and the more complete
+ * generic entry is unreachable from that URL. That both wastes the completed
+ * request and can loop: a prefetch task that revalidated the segment reads
+ * back the same stale entry, decides it needs to revalidate again, and
+ * repeats forever.
+ *
+ * The upsert is the one moment we know the ordering between the two entries:
+ * the candidate was produced by a request for this segment position, and
+ * `lookupVaryPath` is the fully concrete path a read for that position
+ * resolves against, so any entry that a read at that path would return in the
+ * candidate's stead is directly comparable to it. If such an entry is settled
+ * and the candidate supersedes it — under the same precedence rules the
+ * upsert applies at its own keypath — we know we never want to match against
+ * it again, so delete it, making the candidate reachable.
+ *
+ * Non-settled entries are never evicted here: a Pending entry is owned by an
+ * in-flight request that will settle it, and an Empty entry is a placeholder
+ * that a scheduler pass may still claim and upgrade.
+ */
+function evictShadowingSegmentEntries(
+  now: number,
+  lookupVaryPath: SegmentVaryPath,
+  candidateEntry: SegmentCacheEntry
+): void {
+  // There can in principle be multiple shadowing entries at successively less
+  // specific keypaths, so loop until the read returns the candidate (or an
+  // entry we don't supersede). Each iteration re-reads and re-checks from
+  // scratch (in part because `deleteFromCacheMap` can promote a settled
+  // Revalidation-slot value into the just-vacated slot, surfacing a new entry
+  // at the same keypath). Each iteration deletes an entry from the map, so
+  // the loop terminates naturally; the bound is defensive, and 32 is far
+  // beyond any real fallback chain, which is bounded by the vary
+  // path's length.
+  for (let i = 0; i < 32; i++) {
+    const shadowEntry = readSegmentCacheEntry(now, lookupVaryPath)
+    if (shadowEntry === null || shadowEntry === candidateEntry) {
+      // The candidate is reachable from the lookup path (or the read missed
+      // entirely, e.g. because the candidate expired). Done.
+      return
+    }
+    if (
+      shadowEntry.status !== EntryStatus.Fulfilled &&
+      shadowEntry.status !== EntryStatus.Rejected
+    ) {
+      // Only settled entries may be evicted. A Pending entry is held by an
+      // in-flight request and will settle on its own.
+      return
+    }
+    if (isExistingSegmentEntryPreferred(shadowEntry, candidateEntry)) {
+      // The shadowing entry is preferred over the candidate (e.g. it's a
+      // complete entry fetched with a more specific strategy). Leave it —
+      // reads at this path should keep matching it.
+      return
+    }
+    // The candidate supersedes the shadowing entry. Evict it. Settled entries
+    // shouldn't have blocked tasks (Fulfilled always has `blockedTasks:
+    // null`, and Rejected entries were pinged at rejection), but ping
+    // defensively before deleting, matching the upsert-evict pattern above.
+    pingBlockedTasks(shadowEntry)
+    deleteFromCacheMap(shadowEntry)
+  }
 }
 
 export function createDetachedSegmentCacheEntry(
@@ -1075,6 +1199,7 @@ export function createDetachedSegmentCacheEntry(
   const staleAt = now + 30 * 1000
   const emptyEntry: EmptySegmentCacheEntry = {
     status: EntryStatus.Empty,
+    blockedTasks: null,
     // Default to assuming the fetch strategy will be PPR. This will be updated
     // when a fetch is actually initiated.
     fetchStrategy: FetchStrategy.PPR,
@@ -1230,7 +1355,15 @@ export function attemptToUpgradeSegmentFromBFCache(
       FetchStrategy.Full,
       tree
     )
-    const upserted = upsertSegmentEntry(now, segmentVaryPath, newEntry)
+    const upserted = upsertSegmentEntry(
+      now,
+      segmentVaryPath,
+      newEntry,
+      // The concrete lookup path this BFCache upgrade applies to. (In
+      // practice a Full request path is already fully concrete, so nothing
+      // can shadow the new entry and the shadow check is a no-op.)
+      tree.varyPath
+    )
     if (upserted !== null && upserted.status === EntryStatus.Fulfilled) {
       return upserted
     }
@@ -1386,6 +1519,7 @@ function fulfillSegmentCacheEntry(
     // Free the promise for garbage collection.
     fulfilledEntry.promise = null
   }
+  pingBlockedTasks(segmentCacheEntry)
   return fulfilledEntry
 }
 
@@ -1412,6 +1546,7 @@ function rejectSegmentCacheEntry(
     entry.promise.resolve(null)
     entry.promise = null
   }
+  pingBlockedTasks(entry)
 }
 
 type RouteTreeAccumulator = {
@@ -2366,6 +2501,17 @@ function writeSegmentBundleResponse(
     // Null data means this segment has prefetching disabled. Skip it
     // without creating a cache entry.
     if (data === null || node.tree === null) {
+      // The server's and the client's prefetch-disabled hints normally agree,
+      // so there shouldn't be a spawned entry for a segment the server
+      // skipped. But if they disagree, a Pending entry that a task blocked on
+      // would otherwise never settle, stranding the task forever. Settle
+      // it defensively.
+      if (node.entry !== null && node.entry.status === EntryStatus.Pending) {
+        rejectSegmentCacheEntry(
+          node.entry as PendingSegmentCacheEntry,
+          now + 10 * 1000
+        )
+      }
       node = node.parent
       dataIndex++
       continue
@@ -2416,8 +2562,13 @@ function writeSegmentBundleResponse(
       )
     }
 
-    // Set the fulfilled entry into the canonical cache slot.
-    upsertSegmentEntry(now, canonicalVaryPath, fulfilled)
+    // Set the fulfilled entry into the canonical cache slot. Pass the
+    // concrete lookup path — the most specific path a read for this segment
+    // position would use — so that if the canonical path is more generic
+    // (i.e. the server re-keyed the segment), any stale settled entry at a
+    // more specific path (e.g. a partial shell entry) that would shadow this
+    // one is evicted. See evictShadowingSegmentEntries.
+    upsertSegmentEntry(now, canonicalVaryPath, fulfilled, node.tree.varyPath)
 
     node = node.parent
     dataIndex++
@@ -3261,6 +3412,14 @@ function fulfillEntrySpawnedByRuntimePrefetch(
         fulfilledEntry,
         isRevalidation
       )
+      // The re-key moved the entry to a more generic path (and, for a spawned
+      // revalidation, vacated its Revalidation slot). A stale settled entry
+      // at a more specific path — e.g. the partial entry that prompted the
+      // revalidation — would shadow every read at the concrete lookup path,
+      // causing the scheduler to keep re-reading the stale entry and respawn
+      // the revalidation forever. Evict it so the fulfilled entry is
+      // reachable. See evictShadowingSegmentEntries.
+      evictShadowingSegmentEntries(now, tree.varyPath, fulfilledEntry)
     }
   } else {
     // There's no matching entry. Attempt to create a new one. This is a
@@ -3291,6 +3450,12 @@ function fulfillEntrySpawnedByRuntimePrefetch(
           fulfilledEntry,
           isRevalidation
         )
+        // Same as the owned-entry re-key above. Usually the entry really is
+        // new — the read a moment ago returned nothing at the concrete lookup
+        // path, so nothing can shadow it and this is a no-op — but this
+        // branch also claims a pre-existing Empty entry, and re-keying that
+        // away can expose a stale settled entry at an intermediate path.
+        evictShadowingSegmentEntries(now, tree.varyPath, fulfilledEntry)
       }
     } else {
       // There was already an entry in the cache. But we may be able to
@@ -3312,7 +3477,11 @@ function fulfillEntrySpawnedByRuntimePrefetch(
         fulfilledVaryPath !== null
           ? fulfilledVaryPath
           : getSegmentVaryPathForRequest(fetchStrategy, tree)
-      upsertSegmentEntry(now, varyPath, newEntry)
+      // Pass the concrete lookup path so that if the entry was re-keyed to
+      // a more generic path, any stale settled entry at a more specific path
+      // that would shadow it is evicted (the upsert handles this; the other
+      // branches above call evictShadowingSegmentEntries themselves).
+      upsertSegmentEntry(now, varyPath, newEntry, tree.varyPath)
     }
   }
 }
