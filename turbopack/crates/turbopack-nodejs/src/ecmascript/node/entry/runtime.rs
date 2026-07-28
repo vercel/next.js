@@ -19,10 +19,13 @@ use turbopack_ecmascript_runtime::RuntimeType;
 use crate::NodeJsChunkingContext;
 
 /// An Ecmascript chunk that contains the Node.js runtime code.
+// Exposed for symmetry with the browser side; utoo plans to downcast this in
+// webpack-stats generation (https://github.com/utooland/utoo/blob/f7250e6685c4964ba61b859fc6b87f9f60713a91/crates/pack-api/src/webpack_stats.rs)
+// to complete coverage of Node.js output assets.
 #[turbo_tasks::value(shared)]
 #[derive(ValueToString)]
 #[value_to_string("Ecmascript Build Node Runtime Chunk")]
-pub(crate) struct EcmascriptBuildNodeRuntimeChunk {
+pub struct EcmascriptBuildNodeRuntimeChunk {
     chunking_context: ResolvedVc<NodeJsChunkingContext>,
     has_async_modules: bool,
 }
