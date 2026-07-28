@@ -181,8 +181,16 @@ export type FlightRouterState = [
 export type CompressedRefreshState = [url: string, renderedSearch: string]
 
 export const enum PrefetchHint {
-  // This segment has a runtime prefetch enabled (via instant with
-  // prefetch: 'runtime'). Per-segment only, does not propagate to ancestors.
+  // This segment has runtime prefetching enabled (prefetch: 'allow-runtime';
+  // no other config maps to this bit). Marks the segment as requiring
+  // RUNTIME COMPLETENESS: a prefetch isn't considered done for this segment
+  // until an entry at least as complete as a runtime response exists. It
+  // does NOT mean the segment lacks static data — the server emits static
+  // data for these segments unconditionally, and the scheduler may attempt a
+  // static prefetch first (per ShouldAttemptStaticPrefetch), issuing the
+  // runtime request only if the static response's own `needsRuntimeRequest`
+  // signal says it would return more. Per-segment only, does not propagate
+  // to ancestors.
   HasRuntimePrefetch = 0b00001,
   // This segment or one of its descendants opts into Partial Prefetching, i.e.
   // uses the two-phase (Shell then Speculative) prefetch flow. Set when a
@@ -218,8 +226,16 @@ export const enum PrefetchHint {
   // re-fetched with correct hints. Only set during build-time prerendering,
   // never at runtime.
   InliningHintsStale = 0b1000000000,
-  // This segment has instant = false, opting out of all
-  // prefetching entirely (neither static nor runtime).
+  // This segment has prefetch = 'force-disabled'. The opt-out is passive
+  // and applies to this segment only: it never INITIATES a prefetch — no
+  // static data is emitted or fetched, and it's never the reason a runtime
+  // prefetch spawns — but it may ride along in a runtime response issued on
+  // another segment's behalf. Descendants prefetch normally.
+  //
+  // TODO: Also set as an internal fallback when the prefetch hints manifest
+  // is unavailable (see #91407 mitigations), which only means "no static
+  // prefetch data exists" — not a user opt-out. Split the fallback into its
+  // own bit so the two intents can diverge.
   PrefetchDisabled = 0b10000000000,
   // This segment or one of its descendants has runtime prefetch enabled
   // (HasRuntimePrefetch). Propagates upward so the root reflects the
@@ -262,16 +278,25 @@ export const enum PrefetchHint {
 }
 
 /**
- * Bitmask for checking whether a segment's static prefetch is skipped. Matches
- * if EITHER bit is set — i.e. the segment uses runtime prefetching
- * (HasRuntimePrefetch) OR prefetching is disabled entirely (PrefetchDisabled,
- * e.g. instant = false). The segment participates in the bundle chain
- * but with null data.
+ * Bitmask for checking whether a segment's static prefetch is skipped — i.e.
+ * the server emits no static data for it (its slot in a segment bundle is
+ * null, and it participates in the bundle chain only as a pass-through) and
+ * the client never issues a static request for it.
+ *
+ * Static prefetching is disabled ONLY by `prefetch: 'force-disabled'`
+ * (PrefetchDisabled). Notably, `prefetch: 'allow-runtime'`
+ * (HasRuntimePrefetch) segments DO have static data: the server emits it
+ * unconditionally — it can't be gated on the
+ * ShouldAttemptStaticPrefetch hint, because null-slot positions in segment
+ * bundles must be deterministic from build-time config. HasRuntimePrefetch
+ * instead marks runtime completeness: a runtime request may still be needed
+ * for the segment, but the scheduler may attempt a static prefetch first
+ * (per the ShouldAttemptStaticPrefetch hint) and skip the runtime request if
+ * the static response proves sufficient.
  *
  * Usage: `(hints & StaticPrefetchDisabled) !== 0`
  */
-export const StaticPrefetchDisabled =
-  PrefetchHint.HasRuntimePrefetch | PrefetchHint.PrefetchDisabled
+export const StaticPrefetchDisabled = PrefetchHint.PrefetchDisabled
 
 /**
  * The subset of PrefetchHint bits that propagate upward from a child segment to
