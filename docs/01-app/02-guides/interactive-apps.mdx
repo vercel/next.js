@@ -748,7 +748,7 @@ Under [Partial Prefetching](/docs/app/guides/adopting-partial-prefetching), [`<L
 
 Next.js still attempts a static prefetch first, and only a page that reads non-static data is prefetched at runtime, one server invocation per link.
 
-A prefetch only pays off when the destination's reads are cached. The tags from the previous subsections give the prefetched output a stable slot in the [Client Cache](/docs/app/glossary#client-cache), so a later navigation reuses it instead of refetching. In the companion app, each task card is a [`<Link>`](/docs/app/api-reference/components/link) to the task detail page. The same element is also `draggable`, and the browser distinguishes a click from a drag natively. Because the cards are links, the detail page prefetches as they scroll into view, so the destination paints instantly by the time the user clicks. See the [Prefetching guide](/docs/app/guides/prefetching) and [Runtime Prefetching guide](/docs/app/guides/runtime-prefetching) for prefetch modes, and the [Instant Navigation guide](/docs/app/guides/instant-navigation) for validating that navigations stay instant in production.
+A prefetch only pays off when the destination's reads are cached. The tags from the previous subsections give the prefetched output a stable slot in the [Client Cache](/docs/app/glossary#client-cache), so a later navigation reuses it instead of refetching. In the companion app, each task card is a [`<Link>`](/docs/app/api-reference/components/link) to the task detail page, prefetched as the cards scroll into view, so the destination paints instantly by the time the user clicks.
 
 ## Next steps
 
