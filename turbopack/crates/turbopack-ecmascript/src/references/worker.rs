@@ -336,9 +336,9 @@ impl WorkerAssetReferenceCodeGen {
         let reference = self.reference.await?;
 
         // Build the request for PatternMapping
-        let request = match &reference.request {
-            WorkerRequest::Url(request) => **request,
-            WorkerRequest::Pattern { path, .. } => Request::parse(path.owned().await?),
+        let (request, request_key) = match &reference.request {
+            WorkerRequest::Url(request) => (**request, request.await?.request()),
+            WorkerRequest::Pattern { path, .. } => (Request::parse(path.owned().await?), None),
         };
 
         // Use PatternMapping to handle both single and multiple (dynamic) worker results
@@ -365,8 +365,14 @@ impl WorkerAssetReferenceCodeGen {
                             // Get the Worker constructor (callee)
                             let constructor = new_expr.callee.take();
 
-                            // Build the require call for the loader module
-                            let require_call = pm.create_require(*url_expr.take());
+                            // URL references are rewritten before their enclosing Worker
+                            // expression. Use the analyzed request string for the context lookup
+                            // instead of the rewritten URL object.
+                            let key_expr = match &request_key {
+                                Some(request) => Expr::Lit(Lit::Str(request.as_str().into())),
+                                None => *url_expr.take(),
+                            };
+                            let require_call = pm.create_require(key_expr);
 
                             // Build the arguments: (WorkerConstructor, ...rest_args)
                             let mut call_args = vec![ExprOrSpread {
