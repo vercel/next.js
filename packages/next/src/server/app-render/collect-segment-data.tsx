@@ -667,10 +667,11 @@ async function collectPrefetchHintsImpl(
   // data, the parent cannot be inlined into this segment because there's no
   // static response to carry it. See the ParentInlinedIntoSelf check below.
   //
-  // Runtime-prefetch segments (prefetch: 'allow-runtime') are NOT disabled:
-  // they have static data — emitted unconditionally, so the client can
-  // attempt a static prefetch before deciding whether the runtime request is
-  // needed — and are measured and inlined like any other segment.
+  // Partial Prefetching segments are NOT disabled even though they may need
+  // a runtime prefetch: they have static data — emitted unconditionally, so
+  // the client can attempt a static prefetch before deciding whether the
+  // runtime request is needed — and are measured and inlined like any other
+  // segment.
   const isStaticPrefetchDisabled =
     ((route[4] ?? 0) & StaticPrefetchDisabled) !== 0
 
@@ -820,14 +821,14 @@ async function collectPrefetchHintsImpl(
   // static response.
   //
   // A disabled segment (prefetch: 'force-disabled' / instant = false) is
-  // never a valid target — it has no response at all. A runtime-prefetch
-  // segment (prefetch: 'allow-runtime'), by contrast, DOES have a static
-  // response (see isStaticPrefetchDisabled above) and is an ordinary
-  // candidate. Runtime prefetching gets no special treatment here: whether
-  // the client will actually issue a runtime request can't be known at
-  // build time (a static prefetch attempt may prove sufficient and skip
-  // it), so the head must always be reachable through the static responses
-  // — inlined into one of them, or outlined.
+  // never a valid target — it has no response at all. A Partial Prefetching
+  // segment, by contrast, DOES have a static response (see
+  // isStaticPrefetchDisabled above) and is an ordinary candidate. Runtime
+  // prefetching gets no special treatment here: whether the client will
+  // actually issue a runtime request can't be known at build time (a static
+  // prefetch attempt may prove sufficient and skip it), so the head must
+  // always be reachable through the static responses — inlined into one of
+  // them, or outlined.
   const isBundleTerminal = !didInlineIntoChild && !isStaticPrefetchDisabled
   const segment = route[0]
   const isPageSegment =
@@ -1104,13 +1105,13 @@ function collectSegmentDataImpl(
   // the bundle chain but with null data. The client will skip creating a
   // cache entry for it.
   //
-  // Runtime-prefetch segments (prefetch: 'allow-runtime') are NOT disabled:
-  // their static data is emitted UNCONDITIONALLY — it can't be gated on the
-  // ShouldAttemptStaticPrefetch hint, because the client walks bundles
-  // positionally and the null-slot positions must be deterministic from
-  // build-time config alone. The client uses the data to attempt a static
-  // prefetch before deciding whether the segment's runtime request is
-  // actually needed.
+  // Partial Prefetching segments are NOT disabled even though they may need
+  // a runtime prefetch: their static data is emitted UNCONDITIONALLY — it
+  // can't be gated on the ShouldAttemptStaticPrefetch hint, because the
+  // client walks bundles positionally and the null-slot positions must be
+  // deterministic from build-time config alone. The client uses the data to
+  // attempt a static prefetch before deciding whether the segment's runtime
+  // request is actually needed.
   const staticPrefetchDisabled = (prefetchHints & StaticPrefetchDisabled) !== 0
   const rsc = seedData !== null && !staticPrefetchDisabled ? seedData[0] : null
 
@@ -1287,9 +1288,10 @@ async function renderSegmentPrefetch(
   while (node !== null) {
     const elementRsc = node.rsc
     if (elementRsc === null) {
-      // Static prefetching disabled (prefetch: 'force-disabled'; allow-runtime
-      // segments carry real data): a null placeholder keeps the array aligned
-      // with the client's bundle list, which skips a cache entry for the slot.
+      // Static prefetching disabled (prefetch: 'force-disabled'; Partial
+      // Prefetching segments carry real data): a null placeholder keeps the
+      // array aligned with the client's bundle list, which skips a cache
+      // entry for the slot.
       data.push(null)
     } else {
       // We can determine if a segment contains only partial data if it takes

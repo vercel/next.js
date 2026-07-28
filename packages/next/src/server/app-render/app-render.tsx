@@ -296,7 +296,6 @@ import {
   type AdvanceableRenderStage,
 } from './staged-rendering'
 import {
-  anySegmentHasRuntimePrefetchEnabled,
   anySegmentHasPartialPrefetchingEnabled,
   isPageAllowedToBlock,
   anySegmentNeedsInstantValidationInDev,
@@ -1039,14 +1038,12 @@ async function generateStagedDynamicFlightRenderResultNode(
 
   // Check if this route should runtime-cache its navigation. This happens when
   // Partial Prefetching is enabled for the route, either per segment (a
-  // `prefetch` of 'partial', 'unstable_eager', or 'allow-runtime') or globally
-  // (the `partialPrefetching` config), or when the `cachedNavigations:
-  // 'allow-runtime'` flag forces it for every route. If so, we piggyback on the
-  // dynamic render to fill caches and then spawn a final runtime prerender
-  // whose result stream is embedded in the RSC payload. This is gated because
-  // it adds extra server processing and increases the response payload size.
+  // `prefetch` of 'partial' or 'unstable_eager') or globally (the
+  // `partialPrefetching` config). If so, we piggyback on the dynamic render to
+  // fill caches and then spawn a final runtime prerender whose result stream
+  // is embedded in the RSC payload. This is gated because it adds extra server
+  // processing and increases the response payload size.
   if (
-    experimental.cachedNavigations === 'allow-runtime' ||
     Boolean(renderOpts.partialPrefetching) ||
     (await anySegmentHasPartialPrefetchingEnabled(loaderTree))
   ) {
@@ -1393,7 +1390,7 @@ async function generateDynamicFlightRenderResultWithStagesInDev(
 
     const prefetchMode = await getPrefetchingModeForPage(renderOpts, loaderTree)
 
-    // A client navigation into a runtime-prefetch route extends the shell
+    // A client navigation into a Partial Prefetching route extends the shell
     // through the runtime-prefetchable content: it has already settled on the
     // client (via the prefetch) by the time it navigates, so it belongs in this
     // response's shell. Everything else uses the static shell, like an initial
@@ -1412,9 +1409,7 @@ async function generateDynamicFlightRenderResultWithStagesInDev(
         // (which can have more data than the app shell)
         prefetchStage = RenderStage.ShellRuntime
       } else {
-        prefetchStage = (await anySegmentHasRuntimePrefetchEnabled(loaderTree))
-          ? RenderStage.Runtime
-          : RenderStage.Static
+        prefetchStage = RenderStage.Static
       }
     }
 
@@ -3615,11 +3610,9 @@ async function renderToStream(
         // embedded in the initial RSC payload so the client can cache
         // runtime-prefetchable content during hydration. This is enabled when
         // Partial Prefetching is on for the route, either per segment (a
-        // `prefetch` of 'partial', 'unstable_eager', or 'allow-runtime') or
-        // globally (the `partialPrefetching` config), or when the
-        // `cachedNavigations: 'allow-runtime'` flag forces it for every route.
+        // `prefetch` of 'partial' or 'unstable_eager') or globally (the
+        // `partialPrefetching` config).
         if (
-          cachedNavigations === 'allow-runtime' ||
           Boolean(renderOpts.partialPrefetching) ||
           (await anySegmentHasPartialPrefetchingEnabled(tree))
         ) {

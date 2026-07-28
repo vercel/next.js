@@ -93,12 +93,12 @@ module.exports = {
 `'partial'` prefetches only the App Shell, which is the route's static and cached content. Uncached dynamic data is no longer prefetched. To keep prefetching content that came down with `prefetch={true}`, work through two steps.
 
 1. Cache it with [`use cache`](https://preview.nextjs.org/docs/app/api-reference/directives/use-cache). If the content doesn't depend on the URL, it gets included in the App Shell and that's enough.
-2. If it depends on per-link runtime data (`params`, `searchParams`), it can't be included in the shared App Shell. Opt the route into [runtime prefetching](https://preview.nextjs.org/docs/app/guides/runtime-prefetching) with [`prefetch = 'allow-runtime'`](https://preview.nextjs.org/docs/app/api-reference/file-conventions/route-segment-config/prefetch#allow-runtime) so the cached content is prefetched behind the runtime read.
+2. If it depends on per-link runtime data (`params`, `searchParams`), it can't be included in the shared App Shell. With Partial Prefetching enabled, `prefetch={true}` opts the link into [runtime prefetching](https://preview.nextjs.org/docs/app/guides/runtime-prefetching), so the cached content is prefetched behind the runtime read.
 
 ```jsx filename="app/dashboard/page.js"
 import { Suspense } from 'react'
 
-export const prefetch = 'allow-runtime'
+export const prefetch = 'partial'
 
 async function getMetrics(range) {
   'use cache'

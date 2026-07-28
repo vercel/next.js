@@ -1077,7 +1077,6 @@ export async function createCombinedPayloadAtDepth(
           parallelRoutes[parallelRouteKey],
           path,
           parallelRouteKey,
-          false /* isInsideRuntimePrefetch */,
           0 /* segmentDepth */
         )
         slotResults.set(parallelRouteKey, result)
@@ -1167,7 +1166,6 @@ export async function createCombinedPayloadAtDepth(
     lt: LoaderTree,
     parentPath: SegmentPath | null,
     key: string | null,
-    isInsideRuntimePrefetch: boolean,
     segmentDepth: number
   ): Promise<TreeResult> {
     const { parallelRoutes } = parseLoaderTree(lt)
@@ -1182,11 +1180,9 @@ export async function createCombinedPayloadAtDepth(
         : createChildSegmentPath(parentPath, key!, segment)
 
     let instantConfig: Instant | null = null
-    let prefetchConfig: AppSegmentConfig['prefetch'] | null = null
     let localCreateInstantStack: (() => Error) | null = null
     if (layoutOrPageMod !== undefined) {
       instantConfig = (layoutOrPageMod as AppSegmentConfig).instant ?? null
-      prefetchConfig = (layoutOrPageMod as AppSegmentConfig).prefetch ?? null
 
       // When the default validation level is active and this is a page or
       // default segment without an explicit config, treat it as if
@@ -1219,7 +1215,6 @@ export async function createCombinedPayloadAtDepth(
     }
 
     let stage: PrefetchedSegmentStage
-    let childIsInsideRuntimePrefetch = isInsideRuntimePrefetch
 
     switch (prefetchKind) {
       case ValidationPrefetchKind.Shell: {
@@ -1228,30 +1223,16 @@ export async function createCombinedPayloadAtDepth(
         } else {
           stage = RenderStage.ShellRuntime
         }
-        // We do not set or track
-        // - `[child]isInsideRuntimePrefetch`
-        // - `has{Static,Runtime}Segments`
-        // because they do not affect shell prefetches.
+        // We do not track `has{Static,Runtime}Segments` because they do not
+        // affect shell prefetches.
         break
       }
       case ValidationPrefetchKind.LegacySpeculative: {
-        const segmentHasRuntimePrefetch = prefetchConfig === 'allow-runtime'
-
-        if (!isInsideRuntimePrefetch) {
-          if (segmentHasRuntimePrefetch) {
-            stage = RenderStage.Runtime
-            childIsInsideRuntimePrefetch = true
-          } else {
-            if (useRuntimeStageForPartialSegments) {
-              stage = RenderStage.Runtime
-            } else {
-              // In legacy speculative prefetches, we always use static
-              // for segments that aren't under an allow-runtime boundary.
-              stage = RenderStage.Static
-            }
-          }
-        } else {
+        if (useRuntimeStageForPartialSegments) {
           stage = RenderStage.Runtime
+        } else {
+          // In legacy speculative prefetches, we always use static.
+          stage = RenderStage.Static
         }
         break
       }
@@ -1297,7 +1278,6 @@ export async function createCombinedPayloadAtDepth(
         parallelRoutes[parallelRouteKey],
         path,
         parallelRouteKey,
-        childIsInsideRuntimePrefetch,
         childSegmentDepth
       )
       slotResults.set(parallelRouteKey, result)

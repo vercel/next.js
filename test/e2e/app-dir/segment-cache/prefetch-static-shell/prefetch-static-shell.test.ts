@@ -311,18 +311,17 @@ describe('static App Shell prefetch attempt', () => {
   })
 
   // The two tests below exercise the SPECULATIVE half of the unified
-  // model: a segment with `prefetch = 'allow-runtime'` requires
-  // runtime-completeness in every phase, and the Speculative phase only
-  // processes such a segment when the link opts in (prefetch={true} — the
-  // speculative-* accordions on the home page set it; non-eager routes are
-  // otherwise shell-only by design). The same hint-gated attempt applies:
-  // hint set → the segment joins the normal static prefetch walk and each
-  // response's sufficiency signal decides whether the batched runtime
-  // fallback fires; hint unset → straight to the runtime prefetch. This
-  // relies on the server emitting static data for allow-runtime segments
-  // unconditionally.
+  // model: Partial Prefetching segments require runtime-completeness in
+  // every phase, and the Speculative phase only processes such a segment
+  // when the link opts in (prefetch={true} — the speculative-* accordions on
+  // the home page set it; non-eager routes are otherwise shell-only by
+  // design). The same hint-gated attempt applies: hint set → the segment
+  // joins the normal static prefetch walk and each response's sufficiency
+  // signal decides whether the batched runtime fallback fires; hint unset →
+  // straight to the runtime prefetch. This relies on the server emitting
+  // static data for Partial Prefetching segments unconditionally.
 
-  it('speculative: prefetch={true} on an allow-runtime segment with the hint set prefetches statically with no runtime request', async () => {
+  it('speculative: prefetch={true} with the hint set prefetches statically with no runtime request', async () => {
     let page: Playwright.Page
     const browser = await next.browser('/', {
       beforePageLoad(p: Playwright.Page) {
@@ -334,8 +333,8 @@ describe('static App Shell prefetch attempt', () => {
     // Reveal the prefetch={true} LinkAccordion for /speculative-static. The
     // route accesses no runtime data, so its tree carries the
     // static-prefetch hint; both the Shell phase and the Speculative phase
-    // attempt static prefetches of the allow-runtime page segment, and the
-    // complete static responses make any runtime request unnecessary.
+    // attempt static prefetches of the page segment, and the complete
+    // static responses make any runtime request unnecessary.
     await act(async () => {
       await browser
         .elementByCss('input[data-link-accordion="/speculative-static"]')
@@ -346,7 +345,7 @@ describe('static App Shell prefetch attempt', () => {
       // ...and must NOT arrive in a runtime prefetch response — the static
       // attempt was sufficient, so neither the runtime shell request nor
       // the Speculative phase's runtime prefetch fires, despite the
-      // segment's allow-runtime config.
+      // segment's runtime-completeness requirement.
       {
         includes: 'Speculative-static page content',
         kind: 'runtime',
@@ -376,21 +375,21 @@ describe('static App Shell prefetch attempt', () => {
     // Reveal the prefetch={true} LinkAccordion for /speculative-cookies. The
     // page reads cookies in the shell stage of every prerender, so the tree
     // hint is unset and the scheduler skips the static attempt entirely: the
-    // allow-runtime page segment is runtime prefetched directly, in both the
-    // Shell and Speculative phases.
+    // page segment is runtime prefetched directly, in both the Shell and
+    // Speculative phases.
     await act(async () => {
       await browser
         .elementByCss('input[data-link-accordion="/speculative-cookies"]')
         .click()
     }, [
       // Two runtime responses arrive, in order, and each resolves the
-      // cookies() read (the runtime prefetch of an allow-runtime segment
-      // renders with the request's cookies):
+      // cookies() read (a runtime prefetch renders with the request's
+      // cookies):
       //
       // 1. The Shell phase's runtime shell request — the same direct
       //    runtime shell behavior the hint-unset tests above exercise,
-      //    except that for an allow-runtime page the session content
-      //    resolves instead of remaining a hole.
+      //    except that here the session content resolves instead of
+      //    remaining a hole.
       { includes: 'Speculative-cookies page shell text', kind: 'runtime' },
       { includes: 'Speculative-cookies cookie: none', kind: 'runtime' },
       // 2. The Speculative phase's runtime prefetch of the page segment,
@@ -401,8 +400,8 @@ describe('static App Shell prefetch attempt', () => {
       { includes: 'Speculative-cookies cookie: none', kind: 'runtime' },
       // No static attempt in either phase: the page content must not
       // arrive in ANY static per-segment response. (The server does emit
-      // static data for allow-runtime segments — the shell text is in it —
-      // but with the hint unset nothing fetches it: this blanket rejection
+      // static data for the segment — the shell text is in it — but with
+      // the hint unset nothing fetches it: this blanket rejection
       // was verified empirically against the full request log. The route
       // tree prefetch is also kind: 'static', but its response doesn't
       // contain rendered page content, so it can't match this.)

@@ -4,7 +4,6 @@ import { retry } from 'next-test-utils'
 import { createRouterAct } from 'router-act'
 
 // Bit values from PrefetchHint enum (const enum, so we duplicate values here)
-const HasRuntimePrefetch = 0b00001 // 1
 const ParentInlinedIntoSelf = 0b100000 // 32
 const InlinedIntoChild = 0b1000000 // 64
 const HeadInlinedIntoSelf = 0b10000000 // 128
@@ -34,7 +33,6 @@ type RootTreePrefetch = {
 // to match.
 const OUTLINED_TAG = 'outlined \u25A0'
 const INLINED_TAG = '\u21E3'.padStart(OUTLINED_TAG.length)
-const RUNTIME_TAG = 'runtime \u25FB'.padStart(OUTLINED_TAG.length)
 const DYNAMIC_TAG = 'dynamic \u25FB'.padStart(OUTLINED_TAG.length)
 
 function renderInliningTree(tree: TreePrefetch): string {
@@ -56,7 +54,6 @@ function collectNodes(
   lines: string[],
   slotKey?: string
 ): void {
-  const hasRuntimePrefetch = (node.prefetchHints & HasRuntimePrefetch) !== 0
   const prefetchDisabled = (node.prefetchHints & PrefetchDisabled) !== 0
   const inlinedIntoChild = (node.prefetchHints & InlinedIntoChild) !== 0
   const _parentInlined = (node.prefetchHints & ParentInlinedIntoSelf) !== 0
@@ -66,16 +63,15 @@ function collectNodes(
     slotKey !== undefined && slotKey !== 'children' ? `@${slotKey}/` : ''
   const headSuffix = headInlined ? ' (+metadata)' : ''
   const name = hasParent ? `${slotPrefix}"${node.name}"${headSuffix}` : 'root'
-  // Static prefetch is skipped for runtime and dynamic segments. Distinguish
-  // them in the snapshot: runtime segments will be fetched via a runtime
-  // prefetch request, while dynamic segments are not prefetched at all.
-  const tag = hasRuntimePrefetch
-    ? RUNTIME_TAG
-    : prefetchDisabled
-      ? DYNAMIC_TAG
-      : inlinedIntoChild
-        ? INLINED_TAG
-        : OUTLINED_TAG
+  // Static prefetch is skipped for dynamic (force-disabled) segments; they
+  // are not prefetched at all. Every other segment — including ones that
+  // read runtime data and may be runtime prefetched — has static data and
+  // participates in inlining normally.
+  const tag = prefetchDisabled
+    ? DYNAMIC_TAG
+    : inlinedIntoChild
+      ? INLINED_TAG
+      : OUTLINED_TAG
   const connector = hasParent
     ? isLast
       ? '\u2514\u2500\u2500 '
@@ -537,18 +533,19 @@ describe('prefetch inlining', () => {
     )
   })
 
-  it('runtime prefetch: layout inlines into an allow-runtime leaf; content arrives via the batched runtime prefetch', async () => {
-    // Root → small static layout → page with runtime prefetch. The
-    // allow-runtime page has a static response — the parts of the page that
-    // don't depend on runtime data — so the build inlining pass can inline
-    // the static layout into the page's bundle. The whole chain collapses:
-    // root inlines into the layout, and the layout inlines into the page.
+  it('runtime prefetch: layout inlines into a runtime-data-reading leaf; content arrives via the batched runtime prefetch', async () => {
+    // Root → small static layout → page that reads cookies. The page needs a
+    // runtime prefetch to resolve fully, but it still has a static response —
+    // the parts of the page that don't depend on runtime data — so the build
+    // inlining pass can inline the static layout into the page's bundle. The
+    // whole chain collapses: root inlines into the layout, and the layout
+    // inlines into the page.
     const data = await fetchRouteTreePrefetch(next, '/test-runtime-bailout')
     expect(renderInliningTree(data.tree)).toMatchInlineSnapshot(`
      "
               ⇣  root
               ⇣  └── "test-runtime-bailout"
-      runtime ◻      └── "__PAGE__" (+metadata)
+     outlined ■      └── "__PAGE__" (+metadata)
      "
     `)
 
@@ -560,14 +557,15 @@ describe('prefetch inlining', () => {
     })
     const act = createRouterAct(page!)
 
-    // Reveal a default (auto) link to the route. The page is allow-runtime,
-    // so the prefetch attempts a static fetch first and, on discovering that
-    // the page needs runtime data, resorts to a runtime prefetch rooted at
-    // the layout. The runtime response serves the whole subtree, so the
-    // inlined layout content arrives in it. No separate static bundle
-    // request fires: once the entries in the bundle chain are runtime-
-    // complete, a runtime-prefetchable segment is never re-fetched by a
-    // static prefetch.
+    // Reveal a default (auto) link to the route. The route is a Partial
+    // Prefetching route (the page is partial), so every segment the
+    // prefetch walks is held to the runtime-completeness contract — and the
+    // route's static-attempt hint is unset because the page reads cookies,
+    // so the walked layout deopts directly to the batched runtime prefetch,
+    // which serves its whole subtree. The inlined layout content arrives in
+    // that runtime response. (No static bundle request fires: the Shell
+    // phase already runtime-cached every entry in the bundle chain, and a
+    // runtime-complete entry is never re-fetched by a static prefetch.)
     await act(
       async () => {
         await browser
@@ -607,11 +605,10 @@ describe('prefetch inlining', () => {
   })
 
   it('runtime passthrough: static parents inline through runtime layout to static child', async () => {
-    // Root → runtime layout → inner static layout → static page. The
-    // runtime layout acts as a transparent pass-through — it has a static
-    // child that can accept the parent data, so the chain passes through
-    // it. The runtime layout's slot in the bundle is null (no static data)
-    // but it still carries InlinedIntoChild.
+    // Root → runtime-data-reading layout → inner static layout → static
+    // page. The layout reads cookies, so it needs a runtime prefetch to
+    // resolve fully, but it still has a static response and participates in
+    // inlining like any other segment.
     const data = await fetchRouteTreePrefetch(
       next,
       '/test-runtime-passthrough/inner'
@@ -619,7 +616,7 @@ describe('prefetch inlining', () => {
     expect(renderInliningTree(data.tree)).toMatchInlineSnapshot(`
      "
               ⇣  root
-      runtime ◻  └── "test-runtime-passthrough"
+              ⇣  └── "test-runtime-passthrough"
               ⇣      └── "inner"
      outlined ■          └── "__PAGE__" (+metadata)
      "
@@ -641,12 +638,13 @@ describe('prefetch inlining', () => {
           )
           .click()
       },
-      // The runtime prefetch rooted at the runtime layout serves the whole
-      // subtree — the static inner layout and page ride along in that
-      // single runtime response. The static bundle is not fetched a second
-      // time: once the entries in the bundle chain are runtime-complete, a
-      // runtime-prefetchable segment is never re-fetched by a static
-      // prefetch, so the content arrives exactly once.
+      // The layout reads cookies, so the route's static-attempt hint is
+      // unset and the Speculative pass deopts the layout directly to the
+      // batched runtime prefetch, which serves the whole subtree — the
+      // static inner layout and page ride along in that single runtime
+      // response. No static bundle request fires: every entry was already
+      // runtime-cached at the shell tier by the Shell phase, and a
+      // runtime-complete entry is never re-fetched by a static prefetch.
       { includes: 'Static page below runtime layout', kind: 'runtime' }
     )
 
@@ -718,7 +716,7 @@ describe('prefetch inlining', () => {
     expect(renderInliningTree(data.tree)).toMatchInlineSnapshot(`
      "
               ⇣  root
-      runtime ◻  └── "test-runtime-parallel"
+              ⇣  └── "test-runtime-parallel"
               ⇣      ├── "inner"
      outlined ■      │   └── "__PAGE__" (+metadata)
      outlined ■      └── @sidebar/"__DEFAULT__"
@@ -741,10 +739,9 @@ describe('prefetch inlining', () => {
           )
           .click()
       },
-      // Same as the runtime passthrough test: the runtime prefetch serves
-      // the whole subtree (both slots) in a single runtime response, and
-      // the runtime-complete entries are not re-fetched by a static bundle
-      // request — the content arrives exactly once.
+      // Same as the runtime passthrough test: the hint-unset layout deopts
+      // to the batched runtime prefetch, which serves the whole subtree
+      // (both slots) in a single runtime response.
       { includes: 'Runtime parallel main content', kind: 'runtime' }
     )
 
@@ -760,23 +757,23 @@ describe('prefetch inlining', () => {
   })
 
   it('independent head: param-dependent head rides along with the runtime prefetch', async () => {
-    // The layout at /test-independent-head/[item] uses runtime prefetching
-    // (reads cookies). The pages underneath it are static. The metadata
-    // (head) accesses both the [item] param and searchParams, making it
-    // depend on runtime data.
+    // The layout at /test-independent-head/[item] reads cookies. The pages
+    // underneath it are static. The metadata (head) accesses both the
+    // [item] param and searchParams, making it depend on runtime data.
     //
-    // Because the route contains a runtime-prefetchable layout, each
-    // per-link prefetch resorts to a runtime prefetch for the parts that
-    // can't be served statically. The head is param-dependent, so it is
-    // NOT part of the reusable App Shell — but whenever a runtime prefetch
-    // fires for a segment, the head rides along in the same request. So
-    // each prefetched sibling gets its own param-specific head ahead of
-    // the navigation, without a standalone head request.
+    // Because the layout reads cookies, the route's static-attempt hint is
+    // unset, so on this Partial Prefetching route every per-link prefetch
+    // deopts its new subtree to the batched runtime prefetch. The head is
+    // param-dependent, so it is NOT part of the reusable App Shell — but
+    // whenever a runtime prefetch fires for a segment, the head rides
+    // along in the same request. So each prefetched sibling gets its own
+    // param-specific head ahead of the navigation, without a standalone
+    // head request.
     const data = await fetchRouteTreePrefetch(next, '/test-independent-head/a')
     expect(renderInliningTree(data.tree)).toMatchInlineSnapshot(`
      "
               ⇣  root
-      runtime ◻  └── "test-independent-head"
+              ⇣  └── "test-independent-head"
               ⇣      └── "item"
      outlined ■          └── "__PAGE__" (+metadata)
      "
@@ -790,9 +787,9 @@ describe('prefetch inlining', () => {
     })
     const act = createRouterAct(page!)
 
-    // Prefetch and navigate to route A. This caches the runtime layout,
-    // the static page, and A's head (riding along with the runtime
-    // prefetch), and makes A the current page.
+    // Prefetch and navigate to route A. This caches the layout, the static
+    // page, and A's head (riding along with the runtime prefetch), and
+    // makes A the current page.
     await act(async () => {
       await browser
         .elementByCss('input[data-link-accordion="/test-independent-head/a"]')
@@ -803,9 +800,9 @@ describe('prefetch inlining', () => {
     }, 'no-requests')
 
     // Now we're on route A. Reveal the sibling link to route B. The
-    // runtime layout is shared between A and B, so it's already cached
-    // and won't be re-fetched. The only new segment is the [item] page.
-    // The prefetch resorts to a runtime request for it, and B's
+    // layout is shared between A and B, so it's already cached and won't
+    // be re-fetched. The only new segment is the [item] page. On this
+    // hint-unset route it deopts to the batched runtime prefetch, and B's
     // param-specific head rides along in the same request — no standalone
     // head request is spawned.
     await act(async () => {
@@ -813,7 +810,7 @@ describe('prefetch inlining', () => {
         .elementByCss('input[data-link-accordion="/test-independent-head/b"]')
         .click()
     }, [
-      // The page below the runtime layout arrives via the runtime prefetch.
+      // The page below the layout arrives via the runtime prefetch.
       { includes: 'page-independent-head', kind: 'runtime' },
       // ...and B's head rides along in the same runtime response.
       { includes: 'Independent Head Title: b', kind: 'runtime' },

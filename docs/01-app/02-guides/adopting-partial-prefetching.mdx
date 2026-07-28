@@ -14,7 +14,7 @@ related:
 
 [Partial Prefetching](/docs/app/glossary#partial-prefetching) changes what a `<Link>` downloads for a Cache Components route. With Partial Prefetching enabled, a `<Link>` prefetches the route's [App Shell](/docs/app/glossary#app-shell): its static content and the cached content that doesn't depend on the URL. Next.js builds one App Shell per route and reuses it for every link to that route, rather than prefetching each link separately as it did before.
 
-To prefetch more than the App Shell, a route can opt into [runtime prefetching](/docs/app/guides/runtime-prefetching) with [`prefetch = 'allow-runtime'`](/docs/app/api-reference/file-conventions/route-segment-config/prefetch#allow-runtime). The prefetch then also resolves the per-link runtime data (`params`, `searchParams`, and the full URL) and the cached content behind it.
+To prefetch more than the App Shell, a link can opt into [runtime prefetching](/docs/app/guides/runtime-prefetching) with [`<Link prefetch={true}>`](/docs/app/api-reference/components/link#prefetch). The prefetch then also resolves the per-link runtime data (`params`, `searchParams`, and the full URL) and the cached content behind it.
 
 Along the way, Next.js surfaces [instant navigation](/docs/app/guides/instant-navigation) insights in development, naming the link or route to change.
 
@@ -317,7 +317,7 @@ The per-route `prefetch = 'partial'` exports are now redundant. Remove them in o
 npx @next/codemod@canary remove-partial-prefetch ./app
 ```
 
-The codemod removes only the `'partial'` value and leaves other values such as `prefetch = 'allow-runtime'` in place.
+The codemod removes only the `'partial'` value and leaves other values such as `prefetch = 'force-disabled'` in place.
 
 ## Auditing routes for URL data
 
@@ -433,7 +433,7 @@ Everything outside the boundary stays in the shared App Shell, and only the URL-
 
 ## Prefetching URL data
 
-Content that depends on [URL data](/docs/app/glossary#url-data) (`params`, `searchParams`) can't be included in the shared App Shell, so it streams in after navigation. [Runtime prefetching](/docs/app/guides/runtime-prefetching) resolves it ahead of the click for links with `prefetch={true}`, at the cost of a server invocation per prefetchable link. To opt a route in, cache the content behind the read with [`use cache`](/docs/app/api-reference/directives/use-cache) so it can resolve at prefetch time, then add [`prefetch = 'allow-runtime'`](/docs/app/api-reference/file-conventions/route-segment-config/prefetch#allow-runtime). For a search page that reads `searchParams`:
+Content that depends on [URL data](/docs/app/glossary#url-data) (`params`, `searchParams`) can't be included in the shared App Shell, so it streams in after navigation. [Runtime prefetching](/docs/app/guides/runtime-prefetching) resolves it ahead of the click for links with `prefetch={true}`, at the cost of a server invocation per prefetchable link. To make the content resolvable at prefetch time, cache it behind the read with [`use cache`](/docs/app/api-reference/directives/use-cache). For a search page that reads `searchParams`:
 
 ```tsx filename="app/search/page.tsx" switcher
 // Before - the results stream in after navigation
@@ -487,8 +487,6 @@ export default function Page({ searchParams }) {
 // After - the results are cached and prefetched behind the resolved searchParams
 import { Suspense } from 'react'
 
-export const prefetch = 'allow-runtime'
-
 async function getResults(query: string) {
   'use cache'
   const res = await fetch(`https://api.example.com/search?q=${query}`)
@@ -514,8 +512,6 @@ export default function Page({ searchParams }: PageProps<'/search'>) {
 ```jsx filename="app/search/page.js" switcher
 // After - the results are cached and prefetched behind the resolved searchParams
 import { Suspense } from 'react'
-
-export const prefetch = 'allow-runtime'
 
 async function getResults(query) {
   'use cache'

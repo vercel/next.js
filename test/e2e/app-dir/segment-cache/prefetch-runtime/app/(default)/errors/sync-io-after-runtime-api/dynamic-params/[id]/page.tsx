@@ -9,7 +9,7 @@ export const instant = {
   unstable_disableValidation: true,
   unstable_samples: [{ cookies: [] }],
 }
-export const prefetch = 'allow-runtime'
+export const prefetch = 'partial'
 
 export default async function Page({ params }: { params: Promise<Params> }) {
   return (

@@ -4,7 +4,7 @@ import { NoInline } from '../../components/no-inline'
 // A static layout inflated past the inlining size threshold so it stays
 // OUTLINED — it gets its own standalone static response instead of being
 // bundled into the page's. Without it, this route's small intermediate
-// segments would be bundled into the allow-runtime page's static response,
+// segments would be bundled into the page's static response,
 // and fetching THEM statically would deliver the page's content along for
 // the ride — which would make the consuming test's "the page content must
 // not arrive in any static response" rejection indistinguishable from a

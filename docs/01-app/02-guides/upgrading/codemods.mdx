@@ -98,7 +98,7 @@ See the [Migrating to Cache Components](/docs/app/guides/migrating-to-cache-comp
 npx @next/codemod@canary remove-partial-prefetch ./app
 ```
 
-This codemod removes `export const prefetch = 'partial'` from `app/**/{page,layout}` files, so you can enable [`partialPrefetching`](/docs/app/api-reference/config/next-config-js/partialPrefetching) globally and then drop the now-redundant per-route opt-ins. It removes only the `'partial'` value and leaves other values such as `prefetch = 'allow-runtime'` in place.
+This codemod removes `export const prefetch = 'partial'` from `app/**/{page,layout}` files, so you can enable [`partialPrefetching`](/docs/app/api-reference/config/next-config-js/partialPrefetching) globally and then drop the now-redundant per-route opt-ins. It removes only the `'partial'` value and leaves other values such as `prefetch = 'force-disabled'` in place.
 
 ```diff filename="app/products/[slug]/page.tsx"
 - export const prefetch = 'partial'
