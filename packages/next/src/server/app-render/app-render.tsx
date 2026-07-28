@@ -131,7 +131,10 @@ import { createFlightRouterStateFromLoaderTree } from './create-flight-router-st
 import { handleAction } from './action-handler'
 import { isBailoutToCSRError } from '../../shared/lib/lazy-dynamic/bailout-to-csr'
 import { warn, error } from '../../build/output/log'
-import { appendMutableCookies } from '../web/spec-extension/adapters/request-cookies'
+import {
+  appendMutableCookies,
+  RequestCookiesAdapter,
+} from '../web/spec-extension/adapters/request-cookies'
 import { HeadersAdapter } from '../web/spec-extension/adapters/headers'
 import { createServerInsertedHTML } from './server-inserted-html'
 import { getRequiredScripts } from './required-scripts'
@@ -1648,10 +1651,10 @@ async function prospectiveRuntimeServerPrerender(
     isSessionShell: isShellPrefetch,
     // These are not present in regular prerenders, but allowed in a runtime
     // prerender.
-    // Any cache keyed on headers() needs to be invalidated.
+    // Any cache keyed on headers() or cookies() needs to be invalidated.
     // Otherwise some Next.js API semantics leak across render passes.
     headers: HeadersAdapter.fresh(headers),
-    cookies,
+    cookies: RequestCookiesAdapter.fresh(cookies),
     draftMode,
   }
 
@@ -1828,7 +1831,7 @@ async function finalRuntimeServerPrerender(
     // These are not present in regular prerenders, but allowed in a runtime
     // prerender.
     headers: HeadersAdapter.fresh(headers),
-    cookies,
+    cookies: RequestCookiesAdapter.fresh(cookies),
     draftMode,
   }
 
