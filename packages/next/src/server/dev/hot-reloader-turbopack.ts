@@ -158,10 +158,7 @@ declare const __turbopack_server_hmr_apply__:
   | ((update: NodeJsPartialHmrUpdate) => boolean)
   | undefined
 
-type ServerHmrSubscriptions = Map<
-  string,
-  AsyncIterableIterator<TurbopackResult<NodeJsHmrUpdate>>
->
+type ServerHmrSubscriptions = Map<string, () => void>
 
 function setupServerHmr(
   project: Project,
@@ -182,45 +179,118 @@ function setupServerHmr(
       return
     }
 
-    const subscription = project.hmrEvents(chunkPath, HmrTarget.Server)
-    serverHmrSubscriptions.set(chunkPath, subscription)
+    let unsubscribeNative: (() => void) | undefined
+    let disposed = false
+    let isClearing = false
+    const queuedUpdates: NodeJsHmrUpdate[] = []
 
-    // Start listening for changes in background
-    ;(async () => {
-      // Skip initial state
-      await subscription.next()
+    function dispose() {
+      if (disposed) {
+        return
+      }
+      disposed = true
+      queuedUpdates.length = 0
+      unsubscribeNative?.()
+    }
 
-      for await (const result of subscription) {
-        const update = result as NodeJsHmrUpdate
-
-        // Fully re-evaluate all chunks from disk. Clears the module cache and
-        // notifies browsers to refetch RSC.
-        if (update.type === 'restart') {
-          await clear()
-          continue
+    function handleSubscriptionError(err: unknown) {
+      console.error('[Server HMR] Subscription error:', err)
+      dispose()
+      serverHmrSubscriptions.delete(chunkPath)
+      try {
+        const clearResult = clear()
+        if (clearResult) {
+          clearResult.catch((clearError) => {
+            console.error('[Server HMR] Failed to clear caches:', clearError)
+          })
         }
+      } catch (clearError) {
+        console.error('[Server HMR] Failed to clear caches:', clearError)
+      }
+    }
 
-        if (update.type !== 'partial') {
-          continue
-        }
+    function applyUpdate(update: NodeJsHmrUpdate) {
+      // Fully re-evaluate all chunks from disk. Clears the module cache and
+      // notifies browsers to refetch RSC.
+      if (update.type === 'restart') {
+        return clear()
+      }
 
-        const instruction = update.instruction
-        if (!instruction || instruction.type !== 'EcmascriptMergedUpdate') {
-          continue
-        }
+      if (update.type !== 'partial') {
+        return
+      }
 
-        if (typeof __turbopack_server_hmr_apply__ === 'function') {
-          const applied = __turbopack_server_hmr_apply__(update)
-          if (!applied) {
-            await clear()
-          }
+      const instruction = update.instruction
+      if (!instruction || instruction.type !== 'EcmascriptMergedUpdate') {
+        return
+      }
+
+      if (typeof __turbopack_server_hmr_apply__ === 'function') {
+        const applied = __turbopack_server_hmr_apply__(update)
+        if (!applied) {
+          return clear()
         }
       }
-    })().catch(async (err) => {
-      console.error('[Server HMR] Subscription error:', err)
-      serverHmrSubscriptions.delete(chunkPath)
-      await clear()
-    })
+    }
+
+    function handleClearComplete() {
+      isClearing = false
+      const queuedUpdate = queuedUpdates.shift()
+      if (queuedUpdate) {
+        processUpdate(queuedUpdate)
+      }
+    }
+
+    function processUpdate(update: NodeJsHmrUpdate) {
+      if (isClearing) {
+        queuedUpdates.push(update)
+        return
+      }
+
+      try {
+        let nextUpdate: NodeJsHmrUpdate | undefined = update
+        while (nextUpdate) {
+          const clearResult = applyUpdate(nextUpdate)
+          if (clearResult) {
+            isClearing = true
+            clearResult.then(handleClearComplete, handleSubscriptionError)
+            return
+          }
+          nextUpdate = queuedUpdates.shift()
+        }
+      } catch (subscriptionError) {
+        handleSubscriptionError(subscriptionError)
+      }
+    }
+
+    let initialized = false
+    unsubscribeNative = project.hmrEventsSubscribe(
+      chunkPath,
+      HmrTarget.Server,
+      (err, result) => {
+        if (disposed) {
+          return
+        }
+        if (err) {
+          handleSubscriptionError(err)
+          return
+        }
+        if (!result) {
+          return
+        }
+        if (!initialized) {
+          initialized = true
+          return
+        }
+
+        processUpdate(result as NodeJsHmrUpdate)
+      }
+    )
+    if (disposed) {
+      unsubscribeNative()
+    } else {
+      serverHmrSubscriptions.set(chunkPath, dispose)
+    }
   }
 
   // Listen to the Rust bindings update us on changing server HMR chunk paths
@@ -245,8 +315,7 @@ function setupServerHmr(
         }
 
         for (const chunkPath of chunkPathsToRemove) {
-          const subscription = serverHmrSubscriptions.get(chunkPath)
-          subscription?.return?.()
+          serverHmrSubscriptions.get(chunkPath)?.()
           serverHmrSubscriptions.delete(chunkPath)
         }
 

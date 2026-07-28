@@ -330,6 +330,19 @@ export interface Project {
     target: import('./index').HmrTarget.Server
   ): AsyncIterableIterator<TurbopackResult<NodeJsHmrUpdate>>
 
+  /**
+   * Subscribe directly to server HMR events without allocating an async
+   * iterator promise for every update.
+   */
+  hmrEventsSubscribe(
+    identifier: string,
+    target: import('./index').HmrTarget.Server,
+    callback: (
+      err: Error | undefined,
+      update: TurbopackResult<NodeJsHmrUpdate> | undefined
+    ) => void
+  ): () => void
+
   hmrChunkNamesSubscribe(
     target: import('./index').HmrTarget
   ): AsyncIterableIterator<TurbopackResult<HmrChunkNames>>
