@@ -13,6 +13,13 @@ __turbopack_context__.s([]);
 var __TURBOPACK__import$2e$meta__ = {
     get url () {
         return __turbopack_context__.F("turbopack/crates/turbopack-tests/tests/snapshot/import-meta/esm-mutable/input/mod.mjs");
+    },
+    env: {
+        DEV: true,
+        PROD: false,
+        MODE: "development",
+        BASE_URL: "/",
+        SSR: false
     }
 };
 __TURBOPACK__import$2e$meta__.foo = 1;
