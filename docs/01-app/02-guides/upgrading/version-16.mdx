@@ -33,16 +33,16 @@ Upgrade this app to Next.js 16.
 
 Before editing code, follow the [Set up docs](/docs/app/guides/upgrading/version-16#set-up-docs) section so AGENTS.md points at version-matched Next.js docs. Use the [AI Coding Agents guide](/docs/app/guides/ai-agents) for the full setup.
 
-Then read AGENTS.md and follow the [Next.js 16 upgrade guide](/docs/app/guides/upgrading/version-16) as the source of truth for the migration. Use its [codemod section](/docs/app/guides/upgrading/version-16#using-the-codemod) when you're ready to run the mechanical upgrade.
+Then read AGENTS.md and follow the [Next.js 16 upgrade guide](/docs/app/guides/upgrading/version-16) as the source of truth for the migration. Use the codemod steps in [Or upgrade manually](/docs/app/guides/upgrading/version-16#or-upgrade-manually) when you're ready to run the mechanical upgrade.
 
 Talk through the plan in user-facing language before making broad changes. When the guide presents a choice, explain the trade-off and ask which path to take. Keep the migration scoped to the upgrade, inspect the diff, run the relevant checks, and fix remaining breaking changes. Use the runtime verification flow from the [AI Coding Agents guide](/docs/app/guides/ai-agents), such as `next-dev-loop` when available, to confirm the upgraded app still works. Summarize what changed and what was verified.
 
 Before finishing, repeat the post-upgrade check in [Set up docs](/docs/app/guides/upgrading/version-16#set-up-docs) so the AI-agent setup is ready for the upgraded app.
 ```
 
-### Using the Codemod
+### Or upgrade manually
 
-If you're upgrading without an agent, use the `upgrade` [codemod](/docs/app/guides/upgrading/codemods#160):
+To update to Next.js version 16, you can use the `upgrade` [codemod](/docs/app/guides/upgrading/codemods#160):
 
 ```bash package="pnpm"
 pnpm dlx @next/codemod@canary upgrade latest
