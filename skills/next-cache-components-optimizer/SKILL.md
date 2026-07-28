@@ -457,6 +457,16 @@ Once the target routes are instant, check whether the app has already adopted
 Partial Prefetching (`partialPrefetching: true`, or the relevant destination
 still uses `prefetch = 'partial'` during an incremental rollout).
 
+Make that check mechanically:
+
+```bash
+rg -n "partialPrefetching|prefetch\s*=\s*['\"]partial['\"]" --glob 'next.config.*' --glob 'app/**' --glob 'src/app/**'
+```
+
+If `partialPrefetching: true` is in config, the app is globally adopted. If only
+`prefetch = 'partial'` matches, treat those destination segments as adopted
+during an incremental rollout and keep checking any other target routes.
+
 - **Already adopted:** for any URL-data route that stopped at the limitation
   above, consider a targeted `<Link prefetch={true}>` on the links where having
   that URL-specific content ready before the click is worth the per-link server
