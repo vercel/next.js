@@ -70,6 +70,7 @@ pub async fn get_edge_compile_time_info(
     define_env: Vc<OptionEnvMap>,
     node_version: ResolvedVc<NodeJsVersion>,
     report_system_env_inlining: Vc<IssueSeverity>,
+    import_meta_env_base_url: RcStr,
 ) -> Result<Vc<CompileTimeInfo>> {
     CompileTimeInfo::builder(
         Environment::new(ExecutionEnvironment::EdgeWorker(
@@ -84,6 +85,7 @@ pub async fn get_edge_compile_time_info(
             .to_resolved()
             .await?,
     )
+    .import_meta_env_base_url(import_meta_env_base_url)
     .cell()
     .await
 }
