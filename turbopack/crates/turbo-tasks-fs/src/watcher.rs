@@ -744,7 +744,12 @@ impl BatchedInvalidations {
             // invalidation, it's the way to reliably detect file content changes.
             // ref other implementation, i.e libuv does same thing to trigger `UV_CHANGES`
             // https://github.com/libuv/libuv/commit/73cf3600d75a5884b890a1a94048b8f3f9c66876
-            EventKind::Modify(ModifyKind::Data(_) | ModifyKind::Metadata(MetadataKind::Any)) => {
+            // The polling backend reports file changes as `MetadataKind::WriteTime` when the
+            // modification time changes, so it must be handled alongside `MetadataKind::Any`.
+            EventKind::Modify(
+                ModifyKind::Data(_)
+                | ModifyKind::Metadata(MetadataKind::Any | MetadataKind::WriteTime),
+            ) => {
                 for path in paths {
                     self.mark(path.into_boxed_path(), InvalidationFlags::PATH);
                 }
@@ -858,6 +863,36 @@ impl BatchedInvalidations {
             }
         }
         self.clear();
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::path::PathBuf;
+
+    use notify::{
+        Event, EventKind, RecursiveMode,
+        event::{MetadataKind, ModifyKind},
+    };
+
+    use super::{BatchedInvalidations, InvalidationFlags};
+
+    #[test]
+    fn write_time_metadata_change_is_invalidated() {
+        let path = PathBuf::from("/project/app/page.tsx");
+        let event = Event::new(EventKind::Modify(ModifyKind::Metadata(
+            MetadataKind::WriteTime,
+        )))
+        .add_path(path.clone());
+        let mut batch = BatchedInvalidations::new(RecursiveMode::NonRecursive);
+
+        assert!(batch.add_event(event));
+        assert!(
+            batch
+                .paths
+                .get(path.as_path())
+                .is_some_and(|flags| flags.contains(InvalidationFlags::PATH))
+        );
     }
 }
 
