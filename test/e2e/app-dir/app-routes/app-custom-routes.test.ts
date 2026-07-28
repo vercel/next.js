@@ -54,6 +54,22 @@ describe('app-custom-routes', () => {
         query: {},
       })
     })
+
+    it('does not match percent-encoded aliases for static route paths', async () => {
+      const canonicalGet = await next.fetch(basePath + '/api/health')
+      expect(canonicalGet.status).toEqual(200)
+      expect(await canonicalGet.json()).toEqual({ ok: true })
+
+      const canonicalPost = await next.fetch(basePath + '/api/health', {
+        method: 'POST',
+      })
+      expect(canonicalPost.status).toEqual(405)
+
+      const encodedPost = await next.fetch(basePath + '/api/%68ealth', {
+        method: 'POST',
+      })
+      expect(encodedPost.status).toEqual(404)
+    })
   })
 
   describe('works with generateStaticParams correctly', () => {
