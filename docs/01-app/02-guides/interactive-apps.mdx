@@ -699,22 +699,22 @@ Enabling Cache Components applies prerender validation across every route, not j
 
 #### Cache reusable reads
 
-For each server read, ask whether the next viewer would see the same thing. A task would, so mark it with [`'use cache'`](/docs/app/api-reference/directives/use-cache) and tag it for invalidation. The comments stay uncached so every viewer gets them fresh:
+For each server read, ask whether it should be reused across requests and whether each write can invalidate it precisely. A task is stable enough to cache and has a clear per-id tag:
 
 ```ts filename="features/task/task-queries.ts"
-import { cache } from 'react'
-import { cacheTag } from 'next/cache'
+import { cacheLife, cacheTag } from 'next/cache'
 import { getTaskById } from '@/lib/db'
 
-export const getTask = cache(async (id: string) => {
+export async function getTask(id: string) {
   'use cache'
+  cacheLife('hours')
   cacheTag('tasks', `task-${id}`)
 
   return getTaskById(id)
-})
+}
 ```
 
-The per-id tag `task-${id}` gives a single task its own handle. The broader `tasks` tag covers the list. See the [Caching guide](/docs/app/getting-started/caching) for cache scoping (`'use cache: private'`, `'use cache: remote'`) and tag patterns.
+The per-id tag `task-${id}` gives a single task its own handle. The broader `tasks` tag covers the list. See the [Caching guide](/docs/app/getting-started/caching) for cache scoping (`'use cache: private'`, `'use cache: remote'`), cache lifetimes, and tag patterns.
 
 #### Invalidate from mutations
 
@@ -732,11 +732,13 @@ export async function updateStatus(taskId: string, newStatus: Status) {
 }
 ```
 
-Every Server Function follows the same shape: run the write, then call `updateTag` for the cached reads that changed. See the [Revalidating guide](/docs/app/getting-started/revalidating) for tag patterns, time-based revalidation, and on-demand invalidation from route handlers.
+Every Server Function follows the same shape: run the write, then call `updateTag` for the cached reads that changed. Dynamic reads do not have tags to invalidate, so use `refresh()` for those mutations.
+
+In this demo, the comment thread stays dynamic because readers expect the current discussion to update immediately on the open task page. Adding or deleting a comment calls `refresh()`, which reruns the dynamic comment read for the current route while leaving the task caches in place. See the [Revalidating guide](/docs/app/getting-started/revalidating) for tag patterns, time-based revalidation, and on-demand invalidation from route handlers.
 
 #### Prefetch the destination with the real request
 
-Under [Partial Prefetching](/docs/app/guides/adopting-partial-prefetching) (Next.js 16.3 and later), `<Link>` prefetches the destination's [App Shell](/docs/app/glossary#app-shell), which is shared across links and so can't include [URL data](/docs/app/glossary#url-data). Opt the link into [runtime prefetching](/docs/app/guides/runtime-prefetching) with `prefetch={true}` to resolve `params` and `searchParams` ahead of the click:
+Under [Partial Prefetching](/docs/app/guides/adopting-partial-prefetching) (Next.js 16.3 and later), `<Link>` prefetches the destination's [App Shell](/docs/app/glossary#app-shell): the route output that is shared across links for the current user. The shell does not include [URL data](/docs/app/glossary#url-data), because `params` and `searchParams` are link-specific. Opt the link into [runtime prefetching](/docs/app/guides/runtime-prefetching) with `prefetch={true}` to resolve that URL data ahead of the click:
 
 ```tsx filename="features/task/components/task-card.tsx"
 <Link href={`/task/${id}`} prefetch={true}>
@@ -744,7 +746,7 @@ Under [Partial Prefetching](/docs/app/guides/adopting-partial-prefetching) (Next
 </Link>
 ```
 
-A prefetch only pays off when the destination's reads are cached. The tags from the previous subsections give the prefetched output a stable slot in the [Client Cache](/docs/app/glossary#client-cache), so a later navigation reuses it instead of refetching. In the companion app, the task cards prefetch the detail page as they scroll into view, so it paints instantly by the time the user clicks.
+Runtime prefetching is most valuable when the destination has URL-specific work that users are likely to need next. Cached reads make the prefetched output reusable and tag-invalidatable in the [Client Cache](/docs/app/glossary#client-cache); dynamic reads can still resolve before the click, but each prefetch can do real server work. In the companion app, the task cards prefetch the detail page as they scroll into view, so it paints instantly by the time the user clicks.
 
 ## Next steps
 
