@@ -542,31 +542,37 @@ function ReactPromise(status, value, reason) {
   this.reason = reason;
 }
 ReactPromise.prototype = Object.create(Promise.prototype);
-ReactPromise.prototype.then = function (resolve, reject) {
-  switch (this.status) {
-    case "resolved_model":
-      initializeModelChunk(this);
-      break;
-    case "resolved_module":
-      initializeModuleChunk(this);
+Object.defineProperty(ReactPromise.prototype, "then", {
+  writable: !0,
+  enumerable: !0,
+  configurable: !0,
+  value: function (resolve, reject) {
+    switch (this.status) {
+      case "resolved_model":
+        initializeModelChunk(this);
+        break;
+      case "resolved_module":
+        initializeModuleChunk(this);
+    }
+    switch (this.status) {
+      case "fulfilled":
+        "function" === typeof resolve && resolve(this.value);
+        break;
+      case "pending":
+      case "blocked":
+        "function" === typeof resolve &&
+          (null === this.value && (this.value = []), this.value.push(resolve));
+        "function" === typeof reject &&
+          (null === this.reason && (this.reason = []),
+          this.reason.push(reject));
+        break;
+      case "halted":
+        break;
+      default:
+        "function" === typeof reject && reject(this.reason);
+    }
   }
-  switch (this.status) {
-    case "fulfilled":
-      "function" === typeof resolve && resolve(this.value);
-      break;
-    case "pending":
-    case "blocked":
-      "function" === typeof resolve &&
-        (null === this.value && (this.value = []), this.value.push(resolve));
-      "function" === typeof reject &&
-        (null === this.reason && (this.reason = []), this.reason.push(reject));
-      break;
-    case "halted":
-      break;
-    default:
-      "function" === typeof reject && reject(this.reason);
-  }
-};
+});
 function readChunk(chunk) {
   switch (chunk.status) {
     case "resolved_model":

@@ -5038,47 +5038,52 @@
         React.__CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE ||
         ReactSharedInteralsServer;
     ReactPromise.prototype = Object.create(Promise.prototype);
-    ReactPromise.prototype.then = function (resolve, reject) {
-      var _this = this;
-      switch (this.status) {
-        case "resolved_model":
-          initializeModelChunk(this);
-          break;
-        case "resolved_module":
-          initializeModuleChunk(this);
+    Object.defineProperty(ReactPromise.prototype, "then", {
+      writable: !0,
+      enumerable: !0,
+      configurable: !0,
+      value: function (resolve, reject) {
+        var _this = this;
+        switch (this.status) {
+          case "resolved_model":
+            initializeModelChunk(this);
+            break;
+          case "resolved_module":
+            initializeModuleChunk(this);
+        }
+        var resolveCallback = resolve,
+          rejectCallback = reject,
+          wrapperPromise = new Promise(function (res, rej) {
+            resolve = function (value) {
+              wrapperPromise._debugInfo = _this._debugInfo;
+              res(value);
+            };
+            reject = function (reason) {
+              wrapperPromise._debugInfo = _this._debugInfo;
+              rej(reason);
+            };
+          });
+        wrapperPromise.then(resolveCallback, rejectCallback);
+        switch (this.status) {
+          case "fulfilled":
+            "function" === typeof resolve && resolve(this.value);
+            break;
+          case "pending":
+          case "blocked":
+            "function" === typeof resolve &&
+              (null === this.value && (this.value = []),
+              this.value.push(resolve));
+            "function" === typeof reject &&
+              (null === this.reason && (this.reason = []),
+              this.reason.push(reject));
+            break;
+          case "halted":
+            break;
+          default:
+            "function" === typeof reject && reject(this.reason);
+        }
       }
-      var resolveCallback = resolve,
-        rejectCallback = reject,
-        wrapperPromise = new Promise(function (res, rej) {
-          resolve = function (value) {
-            wrapperPromise._debugInfo = _this._debugInfo;
-            res(value);
-          };
-          reject = function (reason) {
-            wrapperPromise._debugInfo = _this._debugInfo;
-            rej(reason);
-          };
-        });
-      wrapperPromise.then(resolveCallback, rejectCallback);
-      switch (this.status) {
-        case "fulfilled":
-          "function" === typeof resolve && resolve(this.value);
-          break;
-        case "pending":
-        case "blocked":
-          "function" === typeof resolve &&
-            (null === this.value && (this.value = []),
-            this.value.push(resolve));
-          "function" === typeof reject &&
-            (null === this.reason && (this.reason = []),
-            this.reason.push(reject));
-          break;
-        case "halted":
-          break;
-        default:
-          "function" === typeof reject && reject(this.reason);
-      }
-    };
+    });
     var debugChannelRegistry =
         "function" === typeof FinalizationRegistry
           ? new FinalizationRegistry(closeDebugChannel)
@@ -5197,10 +5202,10 @@
       return hook.checkDCE ? !0 : !1;
     })({
       bundleType: 1,
-      version: "19.3.0-experimental-756fdd47-20260727",
+      version: "19.3.0-experimental-96fcba90-20260728",
       rendererPackageName: "react-server-dom-turbopack",
       currentDispatcherRef: ReactSharedInternals,
-      reconcilerVersion: "19.3.0-experimental-756fdd47-20260727",
+      reconcilerVersion: "19.3.0-experimental-96fcba90-20260728",
       getCurrentComponentInfo: function () {
         return currentOwnerInDEV;
       }
