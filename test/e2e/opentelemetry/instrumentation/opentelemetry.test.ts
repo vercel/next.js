@@ -13,7 +13,11 @@ const EXTERNAL = {
 
 const COLLECTOR_PORT = 9001
 
-function setup({ useDirectEntrypointHandler, useNodeMiddleware }) {
+function setup({
+  useDirectEntrypointHandler,
+  useNodeMiddleware,
+  useCache = false,
+}) {
   let collector: Collector
 
   function getCollector(): Collector {
@@ -28,8 +32,44 @@ function setup({ useDirectEntrypointHandler, useNodeMiddleware }) {
     await collector.shutdown()
   })
 
+  const files = useCache
+    ? {
+        'app/layout.tsx': new FileRef(
+          path.join(
+            __dirname,
+            'fixtures/use-cache-server-action/app/layout.tsx'
+          )
+        ),
+        'app/app/[param]/server-action/page.tsx': new FileRef(
+          path.join(
+            __dirname,
+            'fixtures/use-cache-server-action/app/app/[param]/server-action/page.tsx'
+          )
+        ),
+        'constants.ts': new FileRef(path.join(__dirname, 'constants.ts')),
+        'instrumentation-node.ts': new FileRef(
+          path.join(__dirname, 'instrumentation-node.ts')
+        ),
+        'instrumentation-polyfill.ts': new FileRef(
+          path.join(__dirname, 'instrumentation-polyfill.ts')
+        ),
+        'instrumentation-test.ts': new FileRef(
+          path.join(__dirname, 'instrumentation-test.ts')
+        ),
+        'instrumentation.ts': new FileRef(
+          path.join(__dirname, 'instrumentation.ts')
+        ),
+        'next.config.js': new FileRef(
+          path.join(
+            __dirname,
+            'fixtures/use-cache-server-action/next.config.js'
+          )
+        ),
+      }
+    : __dirname
+
   let next = nextTestSetup({
-    files: __dirname,
+    files,
     skipDeployment: true,
     dependencies: require('./package.json').dependencies,
     ...(!useDirectEntrypointHandler
@@ -63,6 +103,98 @@ function setup({ useDirectEntrypointHandler, useNodeMiddleware }) {
       : undefined,
   })
   return { next, getCollector }
+}
+
+async function getServerActionSpan(
+  assert: typeof expect,
+  collector: Collector,
+  actionName: string
+): Promise<SavedSpan> {
+  let matches: SavedSpan[] = []
+
+  await retry(() => {
+    matches = collector
+      .getSpans()
+      .filter(
+        (span) =>
+          span.attributes?.['next.span_type'] ===
+            'AppRender.executeServerAction' &&
+          span.attributes?.['next.server_action.name'] === actionName
+      )
+    assert(matches).toHaveLength(1)
+  })
+
+  return matches[0]
+}
+
+async function assertServerActionSpan(
+  assert: typeof expect,
+  collector: Collector,
+  span: SavedSpan,
+  {
+    actionName,
+    runtime,
+    sourceFile,
+    statusCode,
+    statusMessage,
+  }: {
+    actionName: string
+    runtime?: string
+    sourceFile?: string
+    statusCode: number
+    statusMessage?: string
+  }
+) {
+  assert(span).toEqual(
+    assert.objectContaining({
+      name: 'AppRender.executeServerAction',
+      attributes: assert.objectContaining({
+        'next.span_name': `run Server Action ${actionName}`,
+        'next.span_type': 'AppRender.executeServerAction',
+        'next.span_category': 'application',
+        'next.server_action.name': actionName,
+      }),
+      status: assert.objectContaining({
+        code: statusCode,
+        ...(statusMessage === undefined ? {} : { message: statusMessage }),
+      }),
+    })
+  )
+
+  assert(span.parentId).toMatch(/^[0-9a-f]{16}$/)
+  await retry(() => {
+    const spansById = new Map(
+      collector
+        .getSpans()
+        .filter((candidate) => candidate.id)
+        .map((candidate) => [candidate.id!, candidate])
+    )
+    const ancestors: SavedSpan[] = []
+    let parentId = span.parentId
+    while (parentId) {
+      const parent = spansById.get(parentId)
+      if (!parent) break
+      ancestors.push(parent)
+      parentId = parent.parentId
+    }
+    assert(
+      ancestors.some(
+        (ancestor) =>
+          ancestor.attributes?.['next.span_type'] === 'BaseServer.handleRequest'
+      )
+    ).toBe(true)
+  })
+
+  assert(span.attributes).not.toHaveProperty('next.server_action.id')
+  if (runtime !== undefined) {
+    assert(span.runtime).toBe(runtime)
+  }
+
+  if (isNextDev && sourceFile !== undefined) {
+    assert(span.attributes?.['next.server_action.file']).toBe(sourceFile)
+  } else {
+    assert(span.attributes).not.toHaveProperty('next.server_action.file')
+  }
 }
 
 describe.each(
@@ -2008,6 +2140,284 @@ if (isNextStart) {
     )
   })
 }
+
+;(process.env.__NEXT_CACHE_COMPONENTS ? describe.skip : describe).each(
+  [
+    { name: 'default', useDirectEntrypointHandler: false },
+    isNextStart && {
+      name: 'direct entrypoints',
+      useDirectEntrypointHandler: true,
+    },
+  ].filter(Boolean)
+)('opentelemetry Server Actions - $name', ({ useDirectEntrypointHandler }) => {
+  const {
+    next: { next, skipped },
+    getCollector,
+  } = setup({
+    useDirectEntrypointHandler,
+    useNodeMiddleware: false,
+  })
+
+  if (skipped) {
+    return
+  }
+
+  for (const context of [
+    {
+      name: 'root context',
+      extraHTTPHeaders: undefined,
+      traceId: undefined,
+    },
+    {
+      name: 'incoming context propagation',
+      extraHTTPHeaders: {
+        traceparent: `00-${EXTERNAL.traceId}-${EXTERNAL.spanId}-01`,
+      },
+      traceId: EXTERNAL.traceId,
+    },
+  ]) {
+    describe(context.name, () => {
+      it('traces an exported Server Action without retaining request data', async () => {
+        let actionId: string | undefined
+        const browser = await next.browser('/app/param/server-action', {
+          extraHTTPHeaders: context.extraHTTPHeaders,
+          beforePageLoad(page) {
+            page.route('**/app/param/server-action**', async (route) => {
+              const headers = await route.request().allHeaders()
+              actionId = headers['next-action'] || actionId
+              await route.continue()
+            })
+          },
+        })
+        await browser.elementById('run-exported-server-action').click()
+
+        const expectedActionName = useDirectEntrypointHandler
+          ? '<action>'
+          : 'exportedServerAction'
+        const collector = getCollector()
+        const span = await getServerActionSpan(
+          expect,
+          collector,
+          expectedActionName
+        )
+
+        await assertServerActionSpan(expect, collector, span, {
+          actionName: expectedActionName,
+          sourceFile: 'app/app/[param]/server-action/actions.ts',
+          statusCode: 0,
+        })
+        expect(span.traceId).toMatch(/^[0-9a-f]{32}$/)
+        if (context.traceId !== undefined) {
+          expect(span.traceId).toBe(context.traceId)
+        }
+
+        const serializedSpans = JSON.stringify(collector.getSpans())
+        expect(serializedSpans).not.toContain('private-action-value')
+        if (!useDirectEntrypointHandler) {
+          expect(actionId).toMatch(/^[0-9a-f]{42}$/)
+          expect(serializedSpans).not.toContain(actionId)
+        }
+      })
+    })
+  }
+
+  if (!useDirectEntrypointHandler) {
+    it('traces inline and default Server Action names', async () => {
+      const browser = await next.browser('/app/param/server-action')
+      const collector = getCollector()
+
+      await browser.elementById('run-inline-server-action').click()
+      const inlineSpan = await getServerActionSpan(
+        expect,
+        collector,
+        '<inline action>'
+      )
+      await assertServerActionSpan(expect, collector, inlineSpan, {
+        actionName: '<inline action>',
+        sourceFile: 'app/app/[param]/server-action/page.tsx',
+        statusCode: 0,
+      })
+
+      await browser.elementById('run-default-server-action').click()
+      const defaultSpan = await getServerActionSpan(
+        expect,
+        collector,
+        'default'
+      )
+      await assertServerActionSpan(expect, collector, defaultSpan, {
+        actionName: 'default',
+        sourceFile: 'app/app/[param]/server-action/actions.ts',
+        statusCode: 0,
+      })
+    })
+
+    it('traces progressive-enhancement Server Actions with a safe fallback name', async () => {
+      const browser = await next.browser('/app/param/server-action', {
+        disableJavaScript: true,
+      })
+      const collector = getCollector()
+
+      await browser.elementById('run-exported-server-action').click()
+      const span = await getServerActionSpan(expect, collector, '<action>')
+      await assertServerActionSpan(expect, collector, span, {
+        actionName: '<action>',
+        statusCode: 0,
+      })
+      expect(JSON.stringify(span)).not.toContain('private-action-value')
+    })
+
+    it('records genuine Server Action failures', async () => {
+      const browser = await next.browser('/app/param/server-action')
+      const collector = getCollector()
+
+      await browser.elementById('run-throwing-server-action').click()
+      const span = await getServerActionSpan(
+        expect,
+        collector,
+        'throwingServerAction'
+      )
+      await assertServerActionSpan(expect, collector, span, {
+        actionName: 'throwingServerAction',
+        sourceFile: 'app/app/[param]/server-action/actions.ts',
+        statusCode: 2,
+        statusMessage: 'server action failed',
+      })
+      expect(span.attributes?.['error.type']).toBe('Error')
+      expect(span.events).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            name: 'exception',
+            attributes: expect.objectContaining({
+              'exception.type': 'Error',
+              'exception.message': 'server action failed',
+            }),
+          }),
+        ])
+      )
+
+      const nonErrorBrowser = await next.browser('/app/param/server-action')
+      await nonErrorBrowser
+        .elementById('run-rejecting-non-error-server-action')
+        .click()
+      const nonErrorSpan = await getServerActionSpan(
+        expect,
+        collector,
+        'rejectingNonErrorServerAction'
+      )
+      await assertServerActionSpan(expect, collector, nonErrorSpan, {
+        actionName: 'rejectingNonErrorServerAction',
+        sourceFile: 'app/app/[param]/server-action/actions.ts',
+        statusCode: 2,
+        statusMessage: 'Server Action threw a non-Error value',
+      })
+      expect(JSON.stringify(nonErrorSpan)).not.toContain('private-thrown-value')
+    })
+
+    it('treats Server Action control flow as successful execution', async () => {
+      const browser = await next.browser('/app/param/server-action')
+      const collector = getCollector()
+
+      await browser.elementById('run-redirecting-server-action').click()
+      const redirectSpan = await getServerActionSpan(
+        expect,
+        collector,
+        'redirectingServerAction'
+      )
+      await assertServerActionSpan(expect, collector, redirectSpan, {
+        actionName: 'redirectingServerAction',
+        sourceFile: 'app/app/[param]/server-action/actions.ts',
+        statusCode: 0,
+      })
+
+      const notFoundBrowser = await next.browser('/app/param/server-action')
+      await notFoundBrowser.elementById('run-not-found-server-action').click()
+      const notFoundSpan = await getServerActionSpan(
+        expect,
+        collector,
+        'notFoundServerAction'
+      )
+      await assertServerActionSpan(expect, collector, notFoundSpan, {
+        actionName: 'notFoundServerAction',
+        sourceFile: 'app/app/[param]/server-action/actions.ts',
+        statusCode: 0,
+      })
+    })
+
+    it('traces an Edge Server Action', async () => {
+      const browser = await next.browser('/app/param/server-action-edge')
+      await browser.elementById('run-edge-server-action').click()
+
+      const collector = getCollector()
+      const span = await getServerActionSpan(
+        expect,
+        collector,
+        'exportedServerAction'
+      )
+      await assertServerActionSpan(expect, collector, span, {
+        actionName: 'exportedServerAction',
+        runtime: 'edge',
+        sourceFile: 'app/app/[param]/server-action/actions.ts',
+        statusCode: 0,
+      })
+    })
+  }
+})
+;(process.env.__NEXT_CACHE_COMPONENTS ? describe.skip : describe)(
+  'opentelemetry Server Actions for use cache',
+  () => {
+    const {
+      next: { next, skipped },
+      getCollector,
+    } = setup({
+      useDirectEntrypointHandler: false,
+      useNodeMiddleware: false,
+      useCache: true,
+    })
+
+    if (skipped) {
+      return
+    }
+
+    it.each([
+      { name: 'JavaScript', disableJavaScript: false },
+      { name: 'progressive enhancement', disableJavaScript: true },
+    ])(
+      'does not trace a use cache Server Function invoked with $name',
+      async ({ disableJavaScript }) => {
+        const pathname = '/app/param/server-action'
+        const browser = await next.browser(pathname, { disableJavaScript })
+        const collector = getCollector()
+
+        await browser.elementById('run-cached-server-function').click()
+
+        let requestSpan: SavedSpan | undefined
+        await retry(() => {
+          requestSpan = collector
+            .getSpans()
+            .find(
+              (span) =>
+                span.attributes?.['next.span_type'] ===
+                  'BaseServer.handleRequest' &&
+                span.attributes?.['http.method'] === 'POST' &&
+                span.attributes?.['http.target'] === pathname
+            )
+          expect(requestSpan).toBeDefined()
+        })
+
+        expect(
+          collector
+            .getSpans()
+            .filter(
+              (span) =>
+                span.traceId === requestSpan!.traceId &&
+                span.attributes?.['next.span_type'] ===
+                  'AppRender.executeServerAction'
+            )
+        ).toHaveLength(0)
+      }
+    )
+  }
+)
 
 type HierSavedSpan = SavedSpan & { spans?: HierSavedSpan[] }
 type SpanMatch = Omit<Partial<HierSavedSpan>, 'spans'> & { spans?: SpanMatch[] }

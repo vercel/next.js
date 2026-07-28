@@ -50,6 +50,7 @@ async function main() {
     [/^\/app\/param\/loading\/page1$/, 'app/app/[param]/loading/page1/page.js'],
     [/^\/app\/param\/loading\/page2$/, 'app/app/[param]/loading/page2/page.js'],
     [/^\/app\/param\/rsc-fetch$/, 'app/app/[param]/rsc-fetch/page.js'],
+    [/^\/app\/param\/server-action$/, 'app/app/[param]/server-action/page.js'],
     [
       /^\/app\/param\/rsc-fetch\/error$/,
       'app/app/[param]/rsc-fetch/error/page.js',

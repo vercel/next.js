@@ -79,8 +79,54 @@ import {
   ActionDidRevalidateStaticAndDynamic,
 } from '../../shared/lib/action-revalidation-kind'
 import { computeCacheBustingSearchParam } from '../../shared/lib/router/utils/cache-busting-search-param'
+import { getTracer } from '../lib/trace/tracer'
+import { AppRenderSpan } from '../lib/trace/constants'
+import { isUseCacheFunction } from '../../lib/client-and-server-references'
 
 const INLINE_ACTION_PREFIX = '$$RSC_SERVER_ACTION_'
+
+type ServerActionInfo = {
+  name: string
+  file?: string
+}
+
+type ServerActionTracing = {
+  enabled: boolean
+  info: ServerActionInfo | null
+}
+
+function getServerActionInfo(
+  actionId: string,
+  ctx: AppRenderContext
+): ServerActionInfo | null {
+  const serverActionsManifest = getServerActionsManifest()
+  const runtime = process.env.NEXT_RUNTIME === 'edge' ? 'edge' : 'node'
+  const actionInfo = serverActionsManifest[runtime]?.[actionId]
+
+  if (!actionInfo) {
+    return null
+  }
+
+  const isInlineAction =
+    actionInfo.exportedName?.startsWith(INLINE_ACTION_PREFIX)
+  let file: string | undefined
+
+  if (process.env.__NEXT_DEV_SERVER && actionInfo.filename) {
+    const projectDir =
+      ctx.renderOpts.dir ||
+      (process.env.NEXT_RUNTIME === 'edge' ? '' : process.cwd())
+    file = normalizeFilePath(projectDir, actionInfo.filename) || undefined
+  }
+
+  return {
+    name: isInlineAction
+      ? '<inline action>'
+      : actionInfo.exportedName === 'default'
+        ? 'default'
+        : actionInfo.exportedName || '<action>',
+    file,
+  }
+}
 
 /**
  * Checks if the app has any server actions defined in any runtime.
@@ -884,7 +930,8 @@ export async function handleAction({
                   [],
                   workStore,
                   requestStore,
-                  actionWasForwarded
+                  actionWasForwarded,
+                  { enabled: !isUseCacheFunction(action), info: null }
                 )
 
                 const formState = await decodeFormState(
@@ -1093,7 +1140,8 @@ export async function handleAction({
                   [],
                   workStore,
                   requestStore,
-                  actionWasForwarded
+                  actionWasForwarded,
+                  { enabled: !isUseCacheFunction(action), info: null }
                 )
 
                 const formState = await decodeFormState(
@@ -1177,6 +1225,7 @@ export async function handleAction({
             // `actionId` must exist if we got here, as otherwise we would have thrown an error above
             actionId!
           ]
+        const serverActionInfo = getServerActionInfo(actionId!, ctx)
 
         // Log server action call in development when enabled
         let logInfo: ServerActionLogInfo | null = null
@@ -1188,30 +1237,12 @@ export async function handleAction({
           // output needs more work, or a different approach entirely.
           actionType !== 'use-cache'
         ) {
-          const serverActionsManifest = getServerActionsManifest()
-          const runtime = process.env.NEXT_RUNTIME === 'edge' ? 'edge' : 'node'
-          const actionInfo = serverActionsManifest[runtime]?.[actionId!]
-
-          if (actionInfo) {
-            const isInlineAction =
-              actionInfo.exportedName?.startsWith(INLINE_ACTION_PREFIX)
-
-            const projectDir =
-              ctx.renderOpts.dir ||
-              (process.env.NEXT_RUNTIME === 'edge' ? '' : process.cwd())
-            const location = normalizeFilePath(projectDir, actionInfo.filename)
-
-            // Format function name for display
-            let functionName: string
-            if (isInlineAction) {
-              functionName = '<inline action>'
-            } else if (actionInfo.exportedName === 'default') {
-              functionName = 'default'
-            } else {
-              functionName = actionInfo.exportedName || '<action>'
+          if (serverActionInfo) {
+            logInfo = {
+              functionName: serverActionInfo.name,
+              args: boundActionArguments,
+              location: serverActionInfo.file || '',
             }
-
-            logInfo = { functionName, args: boundActionArguments, location }
           }
         }
 
@@ -1222,7 +1253,11 @@ export async function handleAction({
             boundActionArguments,
             workStore,
             requestStore,
-            actionWasForwarded
+            actionWasForwarded,
+            {
+              enabled: actionType !== 'use-cache',
+              info: serverActionInfo,
+            }
           ).finally(() => {
             addRevalidationHeader(res, { workStore, requestStore })
             if (logInfo) {
@@ -1386,7 +1421,8 @@ async function executeActionAndPrepareForRender<
   args: Parameters<TFn>,
   workStore: WorkStore,
   requestStore: RequestStore,
-  actionWasForwarded: boolean
+  actionWasForwarded: boolean,
+  tracing: ServerActionTracing
 ): Promise<{
   actionResult: Awaited<ReturnType<TFn>>
   skipPageRendering: boolean
@@ -1401,9 +1437,40 @@ async function executeActionAndPrepareForRender<
   }
 
   try {
-    const actionResult = await workUnitAsyncStorage.run(requestStore, () =>
-      action.apply(null, args)
-    )
+    const executeAction = () =>
+      workUnitAsyncStorage.run(requestStore, () => action.apply(null, args))
+    const actionName = tracing.info?.name ?? '<action>'
+    const actionResult = tracing.enabled
+      ? await getTracer().trace(
+          AppRenderSpan.executeServerAction,
+          {
+            attributes: {
+              'next.span_category': 'application',
+              'next.span_name': `run Server Action ${actionName}`,
+              'next.server_action.name': actionName,
+              'next.server_action.file': process.env.__NEXT_DEV_SERVER
+                ? tracing.info?.file
+                : undefined,
+            },
+          },
+          async (_span, done) => {
+            try {
+              const result = await executeAction()
+              done?.()
+              return result
+            } catch (error) {
+              done?.(
+                isRedirectError(error) || isHTTPAccessFallbackError(error)
+                  ? undefined
+                  : error instanceof Error
+                    ? error
+                    : new Error('Server Action threw a non-Error value')
+              )
+              throw error
+            }
+          }
+        )
+      : await executeAction()
 
     // If the page was not revalidated, or if the action was forwarded from
     // another worker, we can skip rendering the page.
