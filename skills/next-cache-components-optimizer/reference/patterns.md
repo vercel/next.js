@@ -332,8 +332,8 @@ URL-specific content before the click. It has **three requirements**:
 // 1. The destination has adopted Partial Prefetching, either app-wide with
 //    partialPrefetching: true or route-by-route with prefetch = 'partial'.
 
-// 2. The <Link> asks for a FULL prefetch — that is what spawns the runtime
-//    request. A default/auto prefetch only warms the static shell.
+// 2. The navigation asks for a full prefetch — normally <Link prefetch={true}>.
+//    A default/auto prefetch only warms the static shell.
 <Link href={href} prefetch={true}>
   …
 </Link>
@@ -346,10 +346,10 @@ Under `instant()` the runtime entry is what commits, so the real content, not a 
 
 Gotchas (each cost real debugging time):
 
-- **The full prefetch is mandatory.** With App Shells enabled an auto/PPR prefetch bails before the runtime spawn (`subtreeHasSpeculativePrefetch`); only `prefetch={true}` / `kind: 'full'` reaches it. If the route is still RED after caching the URL-dependent content, the link may still be doing an auto prefetch.
+- **The full prefetch is mandatory.** With App Shells enabled an auto/PPR prefetch bails before the runtime spawn (`subtreeHasSpeculativePrefetch`); use `<Link prefetch={true}>` for normal links, or keep an existing manual full-prefetch abstraction if the app already owns one. If the route is still RED after caching the URL-dependent content, the navigation may still be doing an auto prefetch.
 - **Partial Prefetching must be adopted for the destination.** Runtime prefetching rides on the Partial Prefetching path. If the route is still RED after caching the URL-dependent content, check whether the link is still doing an auto prefetch or whether the destination never adopted Partial Prefetching.
 - **Prefetch the canonical URL.** A link whose href 307-redirects (a `/foo` that canonicalizes to `/`) can't be prefetched — the prefetch receives the redirect, not the tree. Point the link and the prefetch at the final URL.
-- **Don't blanket the full prefetch.** It fetches _all_ the target's dynamic data; issuing it on hover for every link (recents that point at whole chats) is wasteful. Scope `kind: 'full'` to the runtime-prefetch targets only.
+- **Don't blanket the full prefetch.** It fetches _all_ the target's dynamic data; enabling it for every visible link is wasteful. Scope `prefetch={true}` to the runtime-prefetch targets only, using the [runtime prefetching trade-offs](https://nextjs.org/docs/app/guides/runtime-prefetching#per-link-prefetching-trade-offs) and [hover-triggered prefetch](https://nextjs.org/docs/app/guides/prefetching#hover-triggered-prefetch) when many links are visible.
 - **Marker must be a committed node, not RSC bytes.** The content is often a client component, so its text isn't in the prefetch response — assert a `data-testid` that renders when the client subtree commits, not a substring of the stream.
 
 Prefer a static shell (patterns 1–9) whenever the URL-data read can move: it's cheaper than a runtime prefetch and also covers hard load. Runtime prefetching is only for URL-data reads that genuinely can't move, or routes whose useful content is all URL-specific.

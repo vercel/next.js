@@ -364,25 +364,9 @@ this gate is as machine-checkable as the others. Detail:
 shell to grow. Don't force one. Runtime prefetching can make the soft
 navigation instant, but it is outside this optimizer loop: it requires Partial
 Prefetching, a `<Link prefetch={true}>`, and cached URL-dependent content. See
-[Runtime Prefetching](https://nextjs.org/docs/app/guides/runtime-prefetching).
-The `instant()`-specific gotchas the docs don't cover:
-
-- **The full prefetch is mandatory.** An auto/PPR prefetch bails before the
-  runtime spawn (`subtreeHasSpeculativePrefetch`); only `prefetch={true}` /
-  `kind: 'full'` reaches it. If the route is still RED after caching the
-  URL-dependent content, check whether the link is still doing an auto prefetch.
-- **Partial Prefetching must be adopted for the destination.** Runtime
-  prefetching is part of the Partial Prefetching path, not a standalone segment
-  export. With only legacy prefetching, the lock falls back to the shell.
-- **Prefetch the canonical URL.** A link whose href 307-redirects can't be
-  prefetched — the prefetch receives the redirect, not the tree. Point the link
-  and the prefetch at the final URL.
-- **Don't blanket the full prefetch.** It fetches _all_ the target's dynamic
-  data; issuing it on hover for every link is wasteful. Scope `kind: 'full'` to
-  the runtime-prefetch targets only.
-- **Marker must be a committed node, not RSC bytes.** The content is often a
-  client component, so its text isn't in the prefetch response. Assert a
-  `data-testid` that renders when the client subtree commits.
+[Runtime Prefetching](https://nextjs.org/docs/app/guides/runtime-prefetching)
+and pattern 10 in `reference/patterns.md` for the requirements, cost trade-offs,
+manual prefetch caveat, and `instant()` test gotchas.
 
 ## E. PARITY: the refactor changed only whether the route is instant
 
