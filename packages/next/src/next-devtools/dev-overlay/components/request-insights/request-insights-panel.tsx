@@ -12,7 +12,12 @@ import { saveDevToolsConfig } from '../../utils/save-devtools-config'
 import { CopyButton } from '../copy-button'
 import GearIcon from '../../icons/gear-icon'
 import { formatDuration } from './format-duration'
-import { getActiveRequestKey, isPageLoadRequest } from './request-list'
+import {
+  getActiveRequestKey,
+  getRequestListEntries,
+  isInternalRequestInsight,
+  isPageLoadRequest,
+} from './request-list'
 import {
   getTraceItems,
   getTracePosition,
@@ -29,24 +34,47 @@ export function RequestInsightsPanel() {
     () => [...state.requestInsights].reverse(),
     [state.requestInsights]
   )
-  const { verbose } = state.requestInsightsConfig
-  const setVerbose = (checked: boolean) => {
-    const requestInsights = { verbose: checked }
+  const { showInternal, verbose } = state.requestInsightsConfig
+  const setRequestInsightsConfig = (patch: {
+    showInternal?: boolean
+    verbose?: boolean
+  }) => {
     dispatch({
       type: ACTION_DEVTOOLS_CONFIG,
-      devToolsConfig: { requestInsights },
+      devToolsConfig: { requestInsights: patch },
     })
-    saveDevToolsConfig({ requestInsights })
+    saveDevToolsConfig({ requestInsights: patch })
   }
-  const [selectedRequestKey, setSelectedRequestKey] = useState<string | null>(
-    () => getActiveRequestKey(requests, null)
+  const listEntries = useMemo(
+    () => getRequestListEntries(requests, showInternal),
+    [requests, showInternal]
   )
-  const activeRequestKey = getActiveRequestKey(requests, selectedRequestKey)
+  const visibleRequests = useMemo(
+    () => listEntries.map((entry) => entry.request),
+    [listEntries]
+  )
+  const [selectedRequestKey, setSelectedRequestKey] = useState<string | null>(
+    () => getActiveRequestKey(visibleRequests, null)
+  )
+  const activeRequestKey = getActiveRequestKey(
+    visibleRequests,
+    selectedRequestKey
+  )
   const selectedRequest =
-    requests.find(
+    visibleRequests.find(
       (request) => getRequestInsightKey(request) === activeRequestKey
     ) ?? null
   const initialRequestId = self.__next_r
+  const internalRequests = useMemo(
+    () => requests.filter((request) => isInternalRequestInsight(request)),
+    [requests]
+  )
+  const hiddenInternalErrorCount = showInternal
+    ? 0
+    : internalRequests.filter((request) => request.status === 'error').length
+  // Only offer the internal-activity toggle once the session has captured
+  // internal activity to reveal.
+  const showInternalToggle = internalRequests.length > 0
 
   if (requests.length === 0) {
     return (
@@ -62,6 +90,13 @@ export function RequestInsightsPanel() {
         <div className="request-insights-list-toolbar">
           <strong>Requests</strong>
           <div className="request-insights-settings">
+            {hiddenInternalErrorCount > 0 ? (
+              <span
+                aria-label={`${hiddenInternalErrorCount} hidden internal error${hiddenInternalErrorCount === 1 ? '' : 's'}`}
+                className="request-insights-settings-dot"
+                role="img"
+              />
+            ) : null}
             <Menu.Root delay={0} modal={false}>
               <Menu.Trigger
                 aria-label="Request list settings"
@@ -77,11 +112,31 @@ export function RequestInsightsPanel() {
                   sideOffset={4}
                 >
                   <Menu.Popup className="request-insights-settings-menu">
+                    {showInternalToggle ? (
+                      <Menu.CheckboxItem
+                        checked={showInternal}
+                        className="request-insights-settings-item"
+                        closeOnClick={false}
+                        onCheckedChange={(checked) =>
+                          setRequestInsightsConfig({ showInternal: checked })
+                        }
+                      >
+                        <span
+                          className="request-insights-settings-checkbox"
+                          data-checked={showInternal || undefined}
+                        >
+                          {showInternal ? <CheckIcon /> : null}
+                        </span>
+                        Internal activity
+                      </Menu.CheckboxItem>
+                    ) : null}
                     <Menu.CheckboxItem
                       checked={verbose}
                       className="request-insights-settings-item"
                       closeOnClick={false}
-                      onCheckedChange={setVerbose}
+                      onCheckedChange={(checked) =>
+                        setRequestInsightsConfig({ verbose: checked })
+                      }
                     >
                       <span
                         className="request-insights-settings-checkbox"
@@ -97,18 +152,26 @@ export function RequestInsightsPanel() {
             </Menu.Root>
           </div>
         </div>
-        {requests.map((request) => {
-          const requestKey = getRequestInsightKey(request)
-          return (
-            <RequestRow
-              key={requestKey}
-              request={request}
-              pageLoad={isPageLoadRequest(request, initialRequestId)}
-              selected={requestKey === activeRequestKey}
-              onSelect={() => setSelectedRequestKey(requestKey)}
-            />
-          )
-        })}
+        {listEntries.length === 0 ? (
+          <div className="request-insights-list-empty">
+            Only internal activity has been captured. Enable “Internal activity”
+            to view it.
+          </div>
+        ) : (
+          listEntries.map(({ request, nested }) => {
+            const requestKey = getRequestInsightKey(request)
+            return (
+              <RequestRow
+                key={requestKey}
+                nested={nested}
+                request={request}
+                pageLoad={isPageLoadRequest(request, initialRequestId)}
+                selected={requestKey === activeRequestKey}
+                onSelect={() => setSelectedRequestKey(requestKey)}
+              />
+            )
+          })
+        )}
       </div>
 
       {selectedRequest && (
@@ -120,11 +183,13 @@ export function RequestInsightsPanel() {
 
 function RequestRow({
   request,
+  nested,
   pageLoad,
   selected,
   onSelect,
 }: {
   request: RequestInsight
+  nested: boolean
   pageLoad: boolean
   selected: boolean
   onSelect: () => void
@@ -136,6 +201,8 @@ function RequestRow({
   return (
     <button
       className="request-insights-row"
+      data-internal={isInstantInsights || undefined}
+      data-nested={nested || undefined}
       data-page-load={pageLoad}
       data-selected={selected}
       onClick={onSelect}
@@ -143,10 +210,14 @@ function RequestRow({
     >
       <span className="request-insights-status" data-status={request.status} />
       <span className="request-insights-route">
+        {nested ? <NestedArrowIcon /> : null}
+        {isInstantInsights && !nested ? (
+          <span className="request-insights-internal-badge">Internal</span>
+        ) : null}
         <span className="request-insights-route-label">
           {isInstantInsights ? 'Instant Insights' : route}
         </span>
-        {isInstantInsights ? (
+        {isInstantInsights && !nested ? (
           <span className="request-insights-item-context">{route}</span>
         ) : pageLoad ? (
           <span className="request-insights-page-load">Page load</span>
@@ -164,6 +235,25 @@ function RequestRow({
           : 'No fetches'}
       </span>
     </button>
+  )
+}
+
+function NestedArrowIcon() {
+  return (
+    <svg
+      aria-hidden="true"
+      className="request-insights-nested-arrow"
+      fill="none"
+      height="12"
+      stroke="currentColor"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth="1.5"
+      viewBox="0 0 16 16"
+      width="12"
+    >
+      <path d="M4 3v5.5A2.5 2.5 0 0 0 6.5 11H12M12 11l-3-3m3 3-3 3" />
+    </svg>
   )
 }
 
