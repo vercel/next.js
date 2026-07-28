@@ -6,6 +6,10 @@ export function unstable_isUnrecognizedActionError(): boolean {
   )
 }
 
+export function browserOnly(): never {
+  throw new Error('`browserOnly()` can only be used in Client Components.')
+}
+
 export { redirect, permanentRedirect } from './redirect'
 export { notFound } from './not-found'
 export { forbidden } from './forbidden'

@@ -87,6 +87,31 @@ async function openPage(
   return page
 }
 
+async function assertBrowserOnlyInstantNavigation(
+  next: NextInstance,
+  linkSelector: string
+) {
+  const page = await openPage(next, '/')
+  const navigationsBeforeClick = navigationRequests.length
+
+  await instant(page, async () => {
+    await page.click(linkSelector)
+
+    const content = page.locator('[data-testid="browser-only-content"]')
+    await content.waitFor({ state: 'visible' })
+    expect(await content.textContent()).toBe('browser-only content')
+    expect(
+      await page.locator('[data-testid="browser-only-fallback"]').count()
+    ).toBe(0)
+    expect(navigationRequests.length).toBe(navigationsBeforeClick)
+  })
+
+  expect(
+    await page.locator('[data-testid="browser-only-content"]').textContent()
+  ).toBe('browser-only content')
+  expect(navigationRequests.length).toBe(navigationsBeforeClick)
+}
+
 afterEach(async () => {
   if (activeBrowser) {
     // Console-error checking targets production minified React errors (e.g. a
@@ -103,6 +128,10 @@ afterEach(async () => {
 describe('instant-navigation-testing-api', () => {
   const { next } = nextTestSetup({
     files: join(__dirname, 'fixtures', 'default'),
+  })
+
+  it('renders browserOnly content immediately without a hard navigation', async () => {
+    await assertBrowserOnlyInstantNavigation(next, '#link-to-browser-only')
   })
 
   it('renders prefetched loading shell instantly during navigation', async () => {
@@ -1226,6 +1255,10 @@ describe('instant-navigation-testing-api - partial prefetching (App Shells)', ()
     // shell-restriction behavior under test. Disable it so the suite exercises
     // only the navigation-lock behavior.
     disableAutoSkewProtection: true,
+  })
+
+  it('renders browserOnly content immediately from a partial prefetch', async () => {
+    await assertBrowserOnlyInstantNavigation(next, '#browser-only-link')
   })
 
   // Under Partial Prefetching with App Shells, an auto (partial) prefetch only

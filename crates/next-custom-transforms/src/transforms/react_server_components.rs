@@ -684,6 +684,7 @@ impl ReactServerComponentValidator {
                         "useServerInsertedHTML",
                         "ServerInsertedHTMLContext",
                         "unstable_isUnrecognizedActionError",
+                        "browserOnly",
                     ],
                 ),
                 (atom!("next/link").into(), vec!["useLinkStatus"]),

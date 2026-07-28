@@ -13,6 +13,9 @@ export default function HomePage() {
       <Link href="/dynamic-params/hello" prefetch={true} id="full-link">
         Full prefetch link
       </Link>
+      <Link href="/browser-only" id="browser-only-link">
+        Browser-only page
+      </Link>
     </div>
   )
 }

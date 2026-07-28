@@ -150,6 +150,19 @@ export function registerClientTests(ctx: InstantValidationCaseContext) {
       }
     })
 
+    it('valid - browserOnly inside Suspense does not block validation', async () => {
+      const pathname =
+        '/suspense-in-root/static/valid-browser-only-does-not-block-validation'
+
+      if (isNextDev) {
+        const browser = await navigateTo(pathname)
+        await expectNoDevValidationErrors(browser, await browser.url())
+      } else {
+        const result = await prerender(pathname)
+        expectNoBuildValidationErrors(result)
+      }
+    })
+
     it('valid - unguarded params in client page', async () => {
       if (isNextDev) {
         const browser = await navigateTo(

@@ -1458,5 +1458,8 @@
   "1457": "Expected prerender classification data for PPR route \"%s\"",
   "1458": "Expected complete prerender classification for route \"%s\"",
   "1459": "[Server HMR] unreachable: unknown HMR instruction type %s",
-  "1460": "[Server HMR] unreachable: unexpected update instruction type %s"
+  "1460": "[Server HMR] unreachable: unexpected update instruction type %s",
+  "1461": "browserOnly()",
+  "1462": "`browserOnly()` requires React 19 or later.",
+  "1463": "`browserOnly()` can only be used in Client Components."
 }

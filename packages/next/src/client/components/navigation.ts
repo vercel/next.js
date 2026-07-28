@@ -351,6 +351,7 @@ export function useSelectedLayoutSegment(
 }
 
 export { unstable_isUnrecognizedActionError } from './unrecognized-action-error'
+export { browserOnly } from './browser-only'
 
 // Shared components APIs
 export {

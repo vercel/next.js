@@ -11,6 +11,11 @@ export default function HomePage() {
           </Link>
         </li>
         <li>
+          <Link href="/browser-only" id="link-to-browser-only">
+            Go to browser-only page
+          </Link>
+        </li>
+        <li>
           <Link
             href="/runtime-prefetch-target?myParam=testValue"
             id="link-to-runtime-prefetch"
