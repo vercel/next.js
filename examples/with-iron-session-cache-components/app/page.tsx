@@ -21,38 +21,52 @@ async function Announcements() {
   );
 }
 
-async function Dashboard() {
-  // Create the promise once; await it here for server rendering and hand the
-  // same promise to a Client Component that unwraps it with `use()`.
-  const userPromise = getCurrentUser();
-  const user = await userPromise;
+async function Notes() {
+  // A Server Component reads the user for itself. `getCurrentUser()` is awaited
+  // here because it needs `user.id`; the private cache reuses the session
+  // instead of reading the cookie a second time.
+  const user = await getCurrentUser();
   const notes = await getUserNotes(user.id);
+
+  return (
+    <section>
+      <h2>Your notes</h2>
+      <ul>
+        {notes.map((note) => (
+          <li key={note.id}>
+            <Link href={`/notes/${note.id}`}>{note.text}</Link>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+function Dashboard() {
+  // Create the promise once and hand it to the provider without awaiting it, so
+  // the dashboard chrome renders immediately and each consumer resolves the
+  // session behind its own boundary.
+  const userPromise = getCurrentUser();
 
   return (
     <UserProvider userPromise={userPromise}>
       <section>
-        <h1>Welcome, {user.name}</h1>
         <Suspense fallback={<span>Loading…</span>}>
           <UserBadge />
         </Suspense>
         <form action={logout}>
           <button type="submit">Log out</button>
         </form>
-
-        <h2>Your notes</h2>
-        <ul>
-          {notes.map((note) => (
-            <li key={note.id}>
-              <Link href={`/notes/${note.id}`}>{note.text}</Link>
-            </li>
-          ))}
-        </ul>
-
-        <form action={addNote}>
-          <input name="note" placeholder="Add a note" />
-          <button type="submit">Add</button>
-        </form>
       </section>
+
+      <Suspense fallback={<p>Loading your notes…</p>}>
+        <Notes />
+      </Suspense>
+
+      <form action={addNote}>
+        <input name="note" placeholder="Add a note" />
+        <button type="submit">Add</button>
+      </form>
     </UserProvider>
   );
 }
