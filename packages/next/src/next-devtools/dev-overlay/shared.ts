@@ -29,6 +29,9 @@ export type DevToolsConfig = {
   devToolsPanelSize?: Record<string, { width: number; height: number }>
   scale?: number
   hideShortcut?: string | null
+  requestInsights?: {
+    verbose?: boolean
+  }
 }
 
 export type Corners = 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right'
@@ -83,6 +86,9 @@ export interface OverlayState {
   readonly hideShortcut: string | null
   readonly instantNavs: boolean
   readonly requestInsights: readonly RequestInsight[]
+  readonly requestInsightsConfig: Readonly<{
+    verbose: boolean
+  }>
 }
 type DevtoolsPanelName = string
 export type OverlayDispatch = React.Dispatch<DispatcherEvent>
@@ -386,6 +392,7 @@ export const INITIAL_OVERLAY_STATE: Omit<
   hideShortcut: null,
   instantNavs: hasInstantNavsCookie,
   requestInsights: [],
+  requestInsightsConfig: { verbose: false },
 }
 
 function getInitialState(
@@ -582,6 +589,7 @@ export function useErrorOverlayReducer(
             devToolsPanelSize,
             scale,
             hideShortcut,
+            requestInsights: requestInsightsConfig,
           } = action.devToolsConfig
 
           return {
@@ -597,6 +605,13 @@ export function useErrorOverlayReducer(
             hideShortcut:
               // hideShortcut can be null.
               hideShortcut !== undefined ? hideShortcut : state.hideShortcut,
+            requestInsightsConfig: requestInsightsConfig
+              ? {
+                  verbose:
+                    requestInsightsConfig.verbose ??
+                    state.requestInsightsConfig.verbose,
+                }
+              : state.requestInsightsConfig,
           }
         }
         case ACTION_INSTANT_NAVS_TOGGLE: {

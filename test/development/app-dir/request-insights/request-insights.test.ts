@@ -1,7 +1,11 @@
 import { nextTestSetup } from 'e2e-utils'
 import { createServer } from 'http'
 import type { AddressInfo } from 'net'
-import { retry, waitForNoRedbox } from 'next-test-utils'
+import {
+  retry,
+  toggleDevToolsIndicatorPopover,
+  waitForNoRedbox,
+} from 'next-test-utils'
 
 type RequestInsight = {
   requestId: string
@@ -220,6 +224,130 @@ describe('request insights', () => {
             )
         )
       ).toBe(false)
+    })
+  })
+
+  it('persists verbose trace settings', async () => {
+    const browser = await next.browser('/instant-insights')
+
+    async function openRequestInsightsPanel() {
+      await toggleDevToolsIndicatorPopover(browser)
+      await browser.elementByCss('[data-request-insights]').click()
+      await browser.waitForElementByCss('.request-insights-list-toolbar')
+      // The panel selector menu stays mounted for its exit animation and its
+      // click-outside handler would close the freshly opened panel. Wait for
+      // it to fully unmount before interacting with the panel.
+      await retry(async () => {
+        const selectorMenuGone = await browser.eval(() => {
+          const root = document.querySelector('nextjs-portal')?.shadowRoot
+          return !root?.querySelector('#nextjs-dev-tools-menu')
+        })
+        expect(selectorMenuGone).toBe(true)
+      })
+    }
+
+    function getSettingsMenuState(): Promise<{
+      open: boolean
+      checked: string | null
+    }> {
+      return browser.eval(() => {
+        const root = document.querySelector('nextjs-portal')?.shadowRoot
+        const item = root?.querySelector('.request-insights-settings-item')
+        return {
+          open: !!root?.querySelector('.request-insights-settings-menu'),
+          checked:
+            item
+              ?.querySelector('.request-insights-settings-checkbox')
+              ?.getAttribute('data-checked') ?? null,
+        }
+      })
+    }
+
+    function getSpanRowCount(): Promise<number> {
+      return browser.eval(() => {
+        const root = document.querySelector('nextjs-portal')?.shadowRoot
+        return root?.querySelectorAll('.request-insights-span-row').length ?? 0
+      })
+    }
+
+    await openRequestInsightsPanel()
+    await retry(async () => {
+      const selectedRegularRequest = await browser.eval(() => {
+        const root = document.querySelector('nextjs-portal')?.shadowRoot
+        const row = Array.from(
+          root?.querySelectorAll<HTMLButtonElement>('.request-insights-row') ??
+            []
+        ).find(
+          (candidate) => !candidate.textContent?.includes('Instant Insights')
+        )
+        row?.click()
+        return row !== undefined
+      })
+      expect(selectedRegularRequest).toBe(true)
+    })
+    await browser.elementByCss('.request-insights-settings-trigger').click()
+
+    await retry(async () => {
+      expect(await getSettingsMenuState()).toEqual({
+        open: true,
+        checked: null,
+      })
+    })
+
+    let defaultSpanRowCount = 0
+    await retry(async () => {
+      defaultSpanRowCount = await getSpanRowCount()
+      expect(defaultSpanRowCount).toBeGreaterThan(0)
+    })
+
+    await browser
+      .elementByCss(
+        '.request-insights-settings-item:has-text("Verbose traces")'
+      )
+      .click()
+
+    await retry(async () => {
+      expect(await getSettingsMenuState()).toEqual({
+        open: true,
+        checked: 'true',
+      })
+      expect(await getSpanRowCount()).toBeGreaterThan(defaultSpanRowCount)
+    })
+
+    await retry(async () => {
+      const config = JSON.parse(
+        await next.readFile('build/dev/cache/next-devtools-config.json')
+      )
+      expect(config.requestInsights?.verbose).toBe(true)
+    })
+
+    await browser.elementByCss('.request-insights-details').click()
+    await retry(async () => {
+      expect((await getSettingsMenuState()).open).toBe(false)
+    })
+
+    await browser.refresh()
+    await openRequestInsightsPanel()
+    await browser.elementByCss('.request-insights-settings-trigger').click()
+
+    await retry(async () => {
+      expect(await getSettingsMenuState()).toEqual({
+        open: true,
+        checked: 'true',
+      })
+    })
+
+    // Restore the default so this test does not affect later assertions.
+    await browser
+      .elementByCss(
+        '.request-insights-settings-item:has-text("Verbose traces")'
+      )
+      .click()
+    await retry(async () => {
+      const config = JSON.parse(
+        await next.readFile('build/dev/cache/next-devtools-config.json')
+      )
+      expect(config.requestInsights?.verbose).toBe(false)
     })
   })
 
