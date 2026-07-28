@@ -738,15 +738,17 @@ Every Server Function follows the same shape: run the write, then call `updateTa
 
 > **Good to know:** Partial Prefetching ships in Next.js 16.3 and later with [`partialPrefetching: true`](/docs/app/api-reference/config/next-config-js/partialPrefetching) set in `next.config.ts`. See the [Adopting Partial Prefetching guide](/docs/app/guides/adopting-partial-prefetching) for the migration path, plus the [Runtime Prefetching](/docs/app/guides/runtime-prefetching) and [Instant Navigation](/docs/app/guides/instant-navigation) guides for the full picture.
 
-Under [Partial Prefetching](/docs/app/guides/adopting-partial-prefetching), [`<Link>`](/docs/app/api-reference/components/link) prefetches the destination's [App Shell](/docs/app/glossary#app-shell) (static and cached content) by default. Pulling content that depends on request data ahead of the click means opting the link into runtime prefetching.
+Under [Partial Prefetching](/docs/app/guides/adopting-partial-prefetching), [`<Link>`](/docs/app/api-reference/components/link) prefetches the destination's [App Shell](/docs/app/glossary#app-shell) by default. The shell carries the route's static and cached output, including UI gated behind session data such as [`cookies()`](/docs/app/api-reference/functions/cookies). It cannot carry the route's [URL data](/docs/app/glossary#url-data), meaning [`searchParams`](/docs/app/api-reference/file-conventions/page#searchparams-optional) and [`params`](/docs/app/api-reference/file-conventions/page#params-optional) not resolved by [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params), because that data varies per link.
 
-If the destination's cached reads depend on request data (cookies, headers, `searchParams`, or `params` not resolved by [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params)), opt the link into [runtime prefetching](/docs/app/guides/runtime-prefetching) with `prefetch={true}` so those reads resolve at prefetch time:
+To resolve URL data ahead of the click, opt the link into [runtime prefetching](/docs/app/guides/runtime-prefetching) with `prefetch={true}`:
 
 ```tsx filename="features/task/components/task-card.tsx"
 <Link href={`/task/${id}`} prefetch={true}>
   {/* … */}
 </Link>
 ```
+
+Whether that costs a server request is an internal optimization. Next.js attempts a static prefetch first and serves statically renderable pages from the static cache; only a page that reads non-static data is prefetched at runtime, one server invocation per link.
 
 A prefetch only pays off when the destination's reads are cached: the tags from the previous subsections give the prefetched output a stable slot in the [Client Cache](/docs/app/glossary#client-cache), so a later navigation reuses it instead of refetching. In the companion app, each task card is a [`<Link>`](/docs/app/api-reference/components/link) to the task detail page. The same element is also `draggable`, and the browser distinguishes a click from a drag natively. Because the cards are links, the detail page prefetches as they scroll into view, so the destination paints instantly by the time the user clicks. See the [Prefetching guide](/docs/app/guides/prefetching) and [Runtime Prefetching guide](/docs/app/guides/runtime-prefetching) for prefetch modes, and the [Instant Navigation guide](/docs/app/guides/instant-navigation) for validating that navigations stay instant in production.
 
@@ -762,7 +764,7 @@ The patterns in this guide combine a handful of primitives:
 | A form needs pending, reset, and result state                             | [`useActionState`](https://react.dev/reference/react/useActionState)                                                                                                                                                                                                         |
 | An ancestor should show pending state for work happening elsewhere        | [`data-pending`](https://react.dev/reference/react-dom/components/form#props) attribute styled with CSS                                                                                                                                                                      |
 | Reusable reads should survive across requests and stay fresh after writes | [`'use cache'`](/docs/app/api-reference/directives/use-cache) with [`cacheTag`](/docs/app/api-reference/functions/cacheTag), revalidated by [`updateTag`](/docs/app/api-reference/functions/updateTag) or [`revalidateTag`](/docs/app/api-reference/functions/revalidateTag) |
-| Navigation between pages of an interactive app should feel instant        | [`<Link>`](/docs/app/api-reference/components/link) prefetching with [Partial Prefetching](/docs/app/guides/adopting-partial-prefetching), and [Runtime prefetching](/docs/app/guides/runtime-prefetching) for request-dependent reads                                       |
+| Navigation between pages of an interactive app should feel instant        | [`<Link>`](/docs/app/api-reference/components/link) prefetching with [Partial Prefetching](/docs/app/guides/adopting-partial-prefetching), and [Runtime prefetching](/docs/app/guides/runtime-prefetching) via `prefetch={true}` for content that depends on URL data        |
 
 Most patterns mix two or more of these. Reach for whichever primitive fits the constraint you're solving.
 
