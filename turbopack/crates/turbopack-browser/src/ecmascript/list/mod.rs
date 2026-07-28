@@ -1,2 +1,2 @@
 pub(crate) mod asset;
-pub(crate) mod content;
+pub mod content;

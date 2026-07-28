@@ -10,7 +10,7 @@ type NodeJsHmrPayload = {
   }
   issues: Issue[]
   type: 'partial'
-  instruction: EcmascriptMergedUpdate
+  instruction: NodeJsEcmascriptMergedUpdate | NodeJsChunkListUpdate
 }
 
 /**
@@ -79,38 +79,79 @@ function handleNodejsUpdate(
   }
 
   const instruction = msg.instruction
-  if (instruction.type !== 'EcmascriptMergedUpdate') {
-    return
-  }
 
   try {
-    const { entries = {}, chunks = {} } = instruction
+    if (instruction.type === 'ChunkListUpdate') {
+      // All node ecmascript chunks are mergeable, so a `total`/`partial` here
+      // means a non-mergeable asset changed in an unsupported way. Escalate
+      // to a full clear() rather than leave stale factories in memory.
+      for (const [chunkPath, chunkUpdate] of Object.entries(
+        instruction.chunks ?? {}
+      )) {
+        if (chunkUpdate.type === 'total' || chunkUpdate.type === 'partial') {
+          throw new Error(
+            `unsupported '${chunkUpdate.type}' update for chunk ${chunkPath}`
+          )
+        }
+      }
 
-    const evalModuleEntry = (entry: EcmascriptModuleEntry) => {
-      // eslint-disable-next-line no-eval
-      return (0, eval)(entry.map ? inlineSourcemaps(entry) : entry.code)
+      if (instruction.merged) {
+        for (const merged of instruction.merged) {
+          applyEcmascriptMergedUpdate(merged, moduleFactories, devModuleCache)
+        }
+      }
+      return
     }
 
-    const { added, modified } = computeChangedModules(
-      entries,
-      chunks,
-      undefined // no chunkModulesMap for Node.js
-    )
-
-    // Use shared HMR update implementation
-    applyEcmascriptMergedUpdateShared({
-      added,
-      modified,
-      disposedModules: [], // no disposedModules for Node.js (no chunk management)
-      evalModuleEntry,
-      instantiateModule,
-      applyModuleFactoryName: () => {}, // Node doesn't use this
-      moduleFactories,
-      devModuleCache,
-      autoAcceptRootModules: true,
-    })
+    if (instruction.type === 'EcmascriptMergedUpdate') {
+      applyEcmascriptMergedUpdate(instruction, moduleFactories, devModuleCache)
+      return
+    }
   } catch (e) {
     console.error('[Server HMR] Update failed, full reload needed:', e)
     throw e
   }
+}
+
+function applyEcmascriptMergedUpdate(
+  instruction: NodeJsEcmascriptMergedUpdate,
+  moduleFactories: ModuleFactories,
+  devModuleCache: ModuleCache<HotModule>
+): void {
+  const { entries = {}, chunks = {} } = instruction
+
+  const evalModuleEntry = (entry: EcmascriptModuleEntry) => {
+    const code = entry.map ? inlineSourcemaps(entry) : entry.code
+    // eslint-disable-next-line no-eval
+    return (0, eval)(`(require) => ${code}`)(require)
+  }
+
+  const { added, modified } = computeChangedModules(
+    entries,
+    chunks,
+    undefined // no chunkModulesMap for Node.js
+  )
+
+  // Modules that appear in an "added" chunk but already exist in the cache
+  // were moved to a renamed chunk. Treat them as modified so the dependency
+  // walk runs and they get re-instantiated with the new factory.
+  for (const [moduleId, entry] of added) {
+    if (entry != null && devModuleCache[moduleId] != null) {
+      added.delete(moduleId)
+      modified.set(moduleId, entry)
+    }
+  }
+
+  // Use shared HMR update implementation
+  applyEcmascriptMergedUpdateShared({
+    added,
+    modified,
+    disposedModules: [], // no disposedModules for Node.js (no chunk management)
+    evalModuleEntry,
+    instantiateModule,
+    applyModuleFactoryName: () => {}, // Node doesn't use this
+    moduleFactories,
+    devModuleCache,
+    autoAcceptRootModules: true,
+  })
 }

@@ -1363,12 +1363,45 @@ impl AppEndpoint {
         {
             client_assets.extend(assets.all_assets().await?.iter().copied());
         }
+        let mut ssr_client_reference_chunks: Vec<ResolvedVc<Box<dyn OutputAsset>>> = vec![];
         for &assets in client_references_chunks_ref
             .client_component_ssr_chunks
             .values()
         {
             // TODO(alexkirsz) In which manifest does this go?
-            server_assets.extend(assets.all_assets().await?.iter().copied());
+            let all = assets.all_assets().await?;
+            server_assets.extend(all.iter().copied());
+            ssr_client_reference_chunks.extend(all.iter().copied());
+        }
+
+        // In development, register a server-side HMR chunk list that owns all
+        // client-component SSR chunks. This is a bit of a hack to provide a single subscription
+        // point for these chunks, which aren't normally reachable from the rest of the server-side
+        // chunk lists.
+        //
+        // TODO: This anchor can go away once edges to chunk references are represented explicitly
+        // in the chunk graph (rsc chunk -> ssr chunk), which would make the SSR chunks reachable
+        // from the RSC chunk lists directly.
+        if is_app_page
+            && runtime == NextRuntime::NodeJs
+            && project
+                .client_compile_time_info()
+                .await?
+                .hot_module_replacement_enabled
+        {
+            let ssr_hmr_chunk_list_path = server_path.join(&format!(
+                "app{original_name}/client-components-ssr.js",
+                original_name = app_entry.original_name
+            ))?;
+            let ssr_hmr_chunks = project
+                .server_chunking_context(process_client_assets)
+                .server_hmr_chunk_list(
+                    ssr_hmr_chunk_list_path,
+                    Vc::cell(ssr_client_reference_chunks),
+                )
+                .to_resolved()
+                .await?;
+            server_assets.insert(ssr_hmr_chunks);
         }
 
         // In development, register a page-specific HMR chunk list that owns all client

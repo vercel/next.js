@@ -15,7 +15,7 @@ use turbopack_core::{
     version::OptionVersionedContent,
 };
 
-use crate::aggregate_hmr::HmrChunkWithContent;
+use crate::aggregate_hmr::{HmrChunkWithContent, is_entry_chunk_list_content};
 
 #[derive(
     Clone, TraceRawVcs, PartialEq, Eq, ValueDebugFormat, Debug, NonLocalValue, Encode, Decode,
@@ -90,16 +90,18 @@ impl VersionedContentMap {
         .resolved_cell()
     }
 
-    /// Lists every HMR-eligible chunk under `root` with its [`VersionedContent`],
-    /// sorted by path.
+    /// Lists the aggregate-HMR *entry* chunks under `root` with their
+    /// [`VersionedContent`], sorted by path. Only entry-chunk-list content is
+    /// returned (see [`is_entry_chunk_list_content`]). Callers scope which
+    /// entries are included by narrowing `root` (e.g. the aggregate server-HMR
+    /// subscription passes `server/app` to include App Router entries only).
     ///
-    /// `map_path_to_op` is an `FxHashMap`, whose iteration order
-    /// depends on bucket layout rather than insertion order, so the same set of
-    /// paths can come out in a different order across calls.
-    ///
-    /// Since this map contains entries that span server and client contexts, changes for one
-    /// context can shift the internals of the map, making iteration order different for the same
-    /// set of paths.
+    /// `map_path_to_op` is an `FxHashMap`, whose iteration order depends on
+    /// bucket layout rather than insertion order, so the same set of paths can
+    /// come out in a different order across calls. Since this map contains
+    /// entries that span server and client contexts, changes for one context
+    /// can shift the internals of the map, making iteration order different
+    /// for the same set of paths.
     pub async fn hmr_chunks_in_path(
         self: Vc<Self>,
         root: &FileSystemPath,
@@ -116,10 +118,6 @@ impl VersionedContentMap {
             .into_iter()
             .filter_map(|path| {
                 let rel = root.get_path_to(&path)?;
-                // Skip source maps: they aren't HMR-eligible chunks.
-                if rel.ends_with(".map") {
-                    return None;
-                }
                 Some((RcStr::from(rel), path))
             })
             .map(|(name, path)| async move {
@@ -132,6 +130,14 @@ impl VersionedContentMap {
                     return Ok(None);
                 }
                 let content = asset.versioned_content().to_resolved().await?;
+
+                // *Important*: only chunk lists are subscribed to. Individual chunks are already
+                // covered by the chunk list that owns them, so including them here
+                // would produce duplicate updates for the same change.
+                if !is_entry_chunk_list_content(content) {
+                    return Ok(None);
+                }
+
                 Ok(Some(HmrChunkWithContent {
                     path: name,
                     content,

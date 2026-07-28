@@ -35,7 +35,8 @@ use turbopack_ecmascript::{
 use turbopack_ecmascript_runtime::RuntimeType;
 
 use crate::ecmascript::node::{
-    chunk::EcmascriptBuildNodeChunk, entry::chunk::EcmascriptBuildNodeEntryChunk,
+    chunk::EcmascriptBuildNodeChunk,
+    entry::{chunk::EcmascriptBuildNodeEntryChunk, chunk_list::EcmascriptBuildNodeChunkList},
 };
 
 /// A builder for [`Vc<NodeJsChunkingContext>`].
@@ -312,6 +313,31 @@ impl NodeJsChunkingContext {
     #[turbo_tasks::function]
     pub fn asset_prefix(&self) -> Vc<Option<RcStr>> {
         Vc::cell(self.asset_prefix.clone())
+    }
+
+    /// Creates a standalone server-HMR tracking anchor at `path` covering
+    /// `chunks`, without producing an evaluate chunk.
+    ///
+    /// Unlike the browser's `hmr_chunk_list`, the caller supplies an explicit
+    /// output `path` so the anchor can be placed alongside the App Router
+    /// entries it belongs to (under `server/app/`). This is what lets the
+    /// aggregate server-HMR subscription scope tracking to App Router: the
+    /// anchor for client-component SSR chunks (which are physically emitted
+    /// under the shared `server/chunks/ssr/`) is registered under the app
+    /// entry's directory so it rides the same App Router scope.
+    #[turbo_tasks::function]
+    pub async fn server_hmr_chunk_list(
+        self: ResolvedVc<Self>,
+        path: FileSystemPath,
+        chunks: Vc<OutputAssets>,
+    ) -> Result<Vc<Box<dyn OutputAsset>>> {
+        #[cfg(debug_assertions)]
+        if !matches!(*self.runtime_type().await?, RuntimeType::Development) {
+            bail!("server_hmr_chunk_list can only be used in development");
+        }
+        Ok(Vc::upcast(EcmascriptBuildNodeChunkList::new(
+            *self, path, chunks,
+        )))
     }
 }
 

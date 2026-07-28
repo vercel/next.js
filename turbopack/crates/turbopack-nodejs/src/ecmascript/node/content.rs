@@ -7,7 +7,9 @@ use turbopack_core::{
     code_builder::{Code, CodeBuilder},
     output::OutputAsset,
     source_map::{GenerateSourceMap, SourceMapAsset},
-    version::{Update, Version, VersionedContent},
+    version::{
+        MergeableVersionedContent, Update, Version, VersionedContent, VersionedContentMerger,
+    },
 };
 use turbopack_ecmascript::{
     chunk::{EcmascriptChunkContent, EcmascriptChunkContentEntries},
@@ -16,8 +18,8 @@ use turbopack_ecmascript::{
 };
 
 use super::{
-    chunk::EcmascriptBuildNodeChunk, update::update_node_chunk,
-    version::EcmascriptBuildNodeChunkVersion,
+    chunk::EcmascriptBuildNodeChunk, merged::merger::EcmascriptBuildNodeChunkContentMerger,
+    update::update_node_chunk, version::EcmascriptBuildNodeChunkVersion,
 };
 use crate::NodeJsChunkingContext;
 
@@ -138,5 +140,13 @@ impl VersionedContent for EcmascriptBuildNodeChunkContent {
         from_version: ResolvedVc<Box<dyn Version>>,
     ) -> Result<Vc<Update>> {
         Ok(update_node_chunk(self, from_version).await?.cell())
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl MergeableVersionedContent for EcmascriptBuildNodeChunkContent {
+    #[turbo_tasks::function]
+    fn get_merger(&self) -> Vc<Box<dyn VersionedContentMerger>> {
+        Vc::upcast(EcmascriptBuildNodeChunkContentMerger::new())
     }
 }

@@ -1,7 +1,7 @@
 pub(crate) mod chunk;
 pub(crate) mod content;
 pub(crate) mod evaluate;
-pub(crate) mod list;
+pub mod list;
 pub(crate) mod merged;
 pub(crate) mod update;
 pub(crate) mod version;

@@ -2,6 +2,6 @@
 #![feature(arbitrary_self_types_pointers)]
 
 pub(crate) mod chunking_context;
-pub(crate) mod ecmascript;
+pub mod ecmascript;
 
 pub use chunking_context::{NodeJsChunkingContext, NodeJsChunkingContextBuilder};

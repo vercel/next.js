@@ -1,83 +1,18 @@
 use std::sync::Arc;
 
 use anyhow::Result;
-use serde::Serialize;
-use turbo_tasks::{FxIndexMap, FxIndexSet, ReadRef, ResolvedVc, Vc};
-use turbo_tasks_fs::rope::Rope;
+use turbo_tasks::{FxIndexMap, ReadRef, ResolvedVc, Vc};
 use turbopack_core::{
     chunk::ModuleId,
     code_builder::Code,
-    source_map::GenerateSourceMap,
     version::{PartialUpdate, TotalUpdate, Update, Version},
+};
+use turbopack_ecmascript::chunk_list::merged_update::{
+    EcmascriptMergedChunkPartial, EcmascriptMergedChunkUpdate, EcmascriptMergedUpdate,
+    EcmascriptModuleEntry,
 };
 
 use super::{content::EcmascriptBuildNodeChunkContent, version::EcmascriptBuildNodeChunkVersion};
-
-#[derive(Serialize, Default)]
-#[serde(
-    tag = "type",
-    rename = "EcmascriptMergedUpdate",
-    rename_all = "camelCase"
-)]
-struct EcmascriptMergedUpdate<'a> {
-    /// A map from module id to latest module entry.
-    #[serde(skip_serializing_if = "FxIndexMap::is_empty")]
-    entries: FxIndexMap<ModuleId, EcmascriptModuleEntry>,
-    /// A map from chunk path to the chunk update.
-    #[serde(skip_serializing_if = "FxIndexMap::is_empty")]
-    chunks: FxIndexMap<&'a str, EcmascriptMergedChunkUpdate>,
-}
-
-impl EcmascriptMergedUpdate<'_> {
-    fn is_empty(&self) -> bool {
-        self.entries.is_empty() && self.chunks.is_empty()
-    }
-}
-
-#[derive(Serialize)]
-#[serde(tag = "type", rename_all = "camelCase")]
-enum EcmascriptMergedChunkUpdate {
-    Partial(EcmascriptMergedChunkPartial),
-}
-
-#[derive(Serialize, Default)]
-#[serde(rename_all = "camelCase")]
-struct EcmascriptMergedChunkPartial {
-    #[serde(skip_serializing_if = "FxIndexSet::is_empty")]
-    added: FxIndexSet<ModuleId>,
-    #[serde(skip_serializing_if = "FxIndexSet::is_empty")]
-    deleted: FxIndexSet<ModuleId>,
-}
-
-#[derive(Serialize)]
-struct EcmascriptModuleEntry {
-    #[serde(with = "turbo_tasks_fs::rope::ser_as_string")]
-    code: Rope,
-    url: String,
-    #[serde(with = "turbo_tasks_fs::rope::ser_option_as_string")]
-    map: Option<Rope>,
-}
-
-impl EcmascriptModuleEntry {
-    async fn from_code(id: &ModuleId, code: Vc<Code>, chunk_path: &str) -> Result<Self> {
-        let map = &*code.generate_source_map().await?;
-        let map = map.as_content().map(|f| f.content().clone());
-
-        /// serde_qs can't serialize a lone enum when it's [serde::untagged].
-        #[derive(Serialize)]
-        struct Id<'a> {
-            id: &'a ModuleId,
-        }
-        let id = serde_qs::to_string(&Id { id }).unwrap();
-
-        Ok(EcmascriptModuleEntry {
-            // Cloning a rope is cheap.
-            code: code.await?.source_code().clone(),
-            url: format!("{}?{}", chunk_path, id),
-            map,
-        })
-    }
-}
 
 pub(super) async fn update_node_chunk(
     content: Vc<EcmascriptBuildNodeChunkContent>,
@@ -121,7 +56,7 @@ pub(super) async fn update_node_chunk(
         } => {
             let mut partial = EcmascriptMergedChunkPartial::default();
 
-            for (module_id, module_code) in added {
+            for (module_id, (_hash, module_code)) in added {
                 partial.added.insert(module_id.clone());
 
                 let entry =
@@ -161,16 +96,18 @@ pub(super) async fn update_node_chunk(
     Ok(update)
 }
 
-enum NodeChunkUpdate {
+pub(crate) enum NodeChunkUpdate {
     None,
     Partial {
-        added: FxIndexMap<ModuleId, Vc<Code>>,
+        /// Added modules, keyed by id, with their content hash (used by the
+        /// merged-chunk path to dedup code emission across chunks) and code.
+        added: FxIndexMap<ModuleId, (u128, Vc<Code>)>,
         modified: FxIndexMap<ModuleId, Vc<Code>>,
         deleted: FxIndexMap<ModuleId, u128>,
     },
 }
 
-async fn update_ecmascript_node_chunk_content(
+pub(super) async fn update_ecmascript_node_chunk_content(
     content: Vc<EcmascriptBuildNodeChunkContent>,
     to: &ReadRef<EcmascriptBuildNodeChunkVersion>,
     from: &ReadRef<EcmascriptBuildNodeChunkVersion>,
@@ -205,14 +142,14 @@ async fn update_ecmascript_node_chunk_content(
     }
 
     // Check for added modules
-    for (id, _hash) in &to.entries_hashes {
+    for (id, hash) in &to.entries_hashes {
         if !from.entries_hashes.contains_key(id) {
             let entries = match &entries_ref {
                 Some(entries) => entries,
                 None => entries_ref.insert(content.entries().await?),
             };
             if let Some(entry) = entries.get(id) {
-                added.insert(id.clone(), *entry.code);
+                added.insert(id.clone(), (*hash, *entry.code));
             }
         }
     }

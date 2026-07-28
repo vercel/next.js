@@ -14,11 +14,15 @@ use turbopack_core::{
         OutputAssetsWithReferenced,
     },
     source_map::{GenerateSourceMap, SourceMapAsset},
+    version::VersionedContent,
 };
 use turbopack_ecmascript::{chunk::EcmascriptChunkPlaceable, utils::StringifyJs};
 use turbopack_ecmascript_runtime::RuntimeType;
 
-use super::runtime::EcmascriptBuildNodeRuntimeChunk;
+use super::{
+    chunk_list_content::EcmascriptBuildNodeChunkListContent,
+    runtime::EcmascriptBuildNodeRuntimeChunk,
+};
 use crate::NodeJsChunkingContext;
 
 /// An Ecmascript chunk that loads a list of parallel chunks, then instantiates
@@ -222,6 +226,23 @@ impl Asset for EcmascriptBuildNodeEntryChunk {
         Ok(AssetContent::file(
             FileContent::Content(File::from(code.source_code().clone())).cell(),
         ))
+    }
+
+    #[turbo_tasks::function]
+    fn versioned_content(self: Vc<Self>) -> Vc<Box<dyn VersionedContent>> {
+        Vc::upcast(self.chunk_list_content())
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl EcmascriptBuildNodeEntryChunk {
+    #[turbo_tasks::function]
+    fn chunk_list_content(&self) -> Vc<EcmascriptBuildNodeChunkListContent> {
+        EcmascriptBuildNodeChunkListContent::new(
+            *self.chunking_context,
+            *self.other_chunks,
+            *self.references,
+        )
     }
 }
 

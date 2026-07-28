@@ -1671,33 +1671,62 @@ function initializeServerHmr(moduleFactories, devModuleCache) {
         return;
     }
     const instruction = msg.instruction;
-    if (instruction.type !== 'EcmascriptMergedUpdate') {
-        return;
-    }
     try {
-        const { entries = {}, chunks = {} } = instruction;
-        const evalModuleEntry = (entry)=>{
-            // eslint-disable-next-line no-eval
-            return (0, eval)(entry.map ? inlineSourcemaps(entry) : entry.code);
-        };
-        const { added, modified } = computeChangedModules(entries, chunks, undefined // no chunkModulesMap for Node.js
-        );
-        // Use shared HMR update implementation
-        applyEcmascriptMergedUpdateShared({
-            added,
-            modified,
-            disposedModules: [],
-            evalModuleEntry,
-            instantiateModule,
-            applyModuleFactoryName: ()=>{},
-            moduleFactories,
-            devModuleCache,
-            autoAcceptRootModules: true
-        });
+        if (instruction.type === 'ChunkListUpdate') {
+            // All node ecmascript chunks are mergeable, so a `total`/`partial` here
+            // means a non-mergeable asset changed in an unsupported way. Escalate
+            // to a full clear() rather than leave stale factories in memory.
+            for (const [chunkPath, chunkUpdate] of Object.entries(instruction.chunks ?? {})){
+                if (chunkUpdate.type === 'total' || chunkUpdate.type === 'partial') {
+                    throw new Error(`unsupported '${chunkUpdate.type}' update for chunk ${chunkPath}`);
+                }
+            }
+            if (instruction.merged) {
+                for (const merged of instruction.merged){
+                    applyEcmascriptMergedUpdate(merged, moduleFactories, devModuleCache);
+                }
+            }
+            return;
+        }
+        if (instruction.type === 'EcmascriptMergedUpdate') {
+            applyEcmascriptMergedUpdate(instruction, moduleFactories, devModuleCache);
+            return;
+        }
     } catch (e) {
         console.error('[Server HMR] Update failed, full reload needed:', e);
         throw e;
     }
+}
+function applyEcmascriptMergedUpdate(instruction, moduleFactories, devModuleCache) {
+    const { entries = {}, chunks = {} } = instruction;
+    const evalModuleEntry = (entry)=>{
+        const code = entry.map ? inlineSourcemaps(entry) : entry.code;
+        // eslint-disable-next-line no-eval
+        return (0, eval)(`(require) => ${code}`)(require);
+    };
+    const { added, modified } = computeChangedModules(entries, chunks, undefined // no chunkModulesMap for Node.js
+    );
+    // Modules that appear in an "added" chunk but already exist in the cache
+    // were moved to a renamed chunk. Treat them as modified so the dependency
+    // walk runs and they get re-instantiated with the new factory.
+    for (const [moduleId, entry] of added){
+        if (entry != null && devModuleCache[moduleId] != null) {
+            added.delete(moduleId);
+            modified.set(moduleId, entry);
+        }
+    }
+    // Use shared HMR update implementation
+    applyEcmascriptMergedUpdateShared({
+        added,
+        modified,
+        disposedModules: [],
+        evalModuleEntry,
+        instantiateModule,
+        applyModuleFactoryName: ()=>{},
+        moduleFactories,
+        devModuleCache,
+        autoAcceptRootModules: true
+    });
 }
 /// <reference path="../../shared/runtime/dev-protocol.d.ts" />
 /// <reference path="./hmr-client.ts" />
@@ -1731,9 +1760,16 @@ if (handlers.size === 0) {
     // First registration in this generation: install the routing dispatcher.
     globalThis.__turbopack_server_hmr_apply__ = (update)=>{
         const registry = globalThis.__turbopack_server_hmr_handlers__ ?? new Map();
-        const updateChunkPaths = Object.keys(update.instruction?.chunks ?? {});
+        // Chunk paths can appear either directly on the instruction (single-chunk
+        // updates) or nested inside `merged` entries (chunks covered by a
+        // merger). Collect both so routing isn't skipped just because a mergeable
+        // chunk's update only reports its paths inside `merged`.
+        const updateChunkPaths = new Set([
+            ...Object.keys(update.instruction?.chunks ?? {}),
+            ...(update.instruction?.merged ?? []).flatMap((merged)=>Object.keys(merged.chunks ?? {}))
+        ]);
         const toCall = [];
-        if (updateChunkPaths.length === 0) {
+        if (updateChunkPaths.size === 0) {
             for (const entry of registry.values())toCall.push(entry);
         } else {
             const seen = new Set();

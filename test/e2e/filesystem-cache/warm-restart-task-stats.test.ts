@@ -124,7 +124,6 @@ const STATS_RELATIVE_PATH = '.next/warm-restart-task-stats.json'
         expect(missed).toMatchInlineSnapshot(`
          [
            "<turbopack_browser::ecmascript::list::content::EcmascriptDevChunkListContent as dyn turbopack_core::version::VersionedContent>::update",
-           "<turbopack_core::version::FileHashVersion as dyn turbopack_core::version::Version>::id",
            "next_api::project::Project::hmr_update",
            "next_api::project::Project::hmr_version_state",
            "next_napi_bindings::next_api::project::hmr_update_with_issues_operation",

@@ -1456,5 +1456,7 @@
   "1455": "Page \"%s\" returned incomplete params from \"generateStaticParams()\". With \"output: export\", every params object must include all dynamic route parameters. Missing: %s. See more info here: https://nextjs.org/docs/messages/generate-static-params",
   "1456": "Expected an HTML size for prerendered app route \"%s\"",
   "1457": "Expected prerender classification data for PPR route \"%s\"",
-  "1458": "Expected complete prerender classification for route \"%s\""
+  "1458": "Expected complete prerender classification for route \"%s\"",
+  "1459": "[Server HMR] unreachable: unknown HMR instruction type %s",
+  "1460": "[Server HMR] unreachable: unexpected update instruction type %s"
 }
