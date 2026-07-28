@@ -5,7 +5,7 @@
 import { runInNewContext } from 'node:vm'
 import { setFlagsFromString } from 'node:v8'
 import { SpanStatusCode, trace } from 'next/dist/compiled/@opentelemetry/api'
-import { createLocalSpan } from './local-span-recorder'
+import { createLocalSpan, traceLocalSpan } from './local-span-recorder'
 import { runWithRequestInsightsIdentity } from './request-insights-identity'
 import { setSpanRecorderForTest, type SpanStoreRecord } from './span-store'
 import {
@@ -122,6 +122,59 @@ describe('local recording span', () => {
         ],
       }),
     ])
+  })
+
+  it('ends traced local spans and records thrown errors', async () => {
+    const error = new TypeError('boom')
+
+    await expect(
+      traceLocalSpan({ name: 'test.local-span.trace-error' }, async () => {
+        throw error
+      })
+    ).rejects.toBe(error)
+
+    expect(spanRecords).toEqual([
+      expect.objectContaining({
+        name: 'test.local-span.trace-error',
+        status: 'error',
+        error: {
+          type: 'TypeError',
+          message: 'boom',
+        },
+      }),
+    ])
+  })
+
+  it('can start a detached trace inside an active local span', async () => {
+    await traceLocalSpan({ name: 'foreground' }, async () => {
+      await traceLocalSpan(
+        { name: 'detached root', parentSpan: null },
+        async () => {
+          await traceLocalSpan({ name: 'detached child' }, async () => {})
+        }
+      )
+    })
+
+    const foreground = spanRecords.find((span) => span.name === 'foreground')!
+    const detachedRoot = spanRecords.find(
+      (span) => span.name === 'detached root'
+    )!
+    const detachedChild = spanRecords.find(
+      (span) => span.name === 'detached child'
+    )!
+
+    expect(detachedRoot).toEqual(
+      expect.objectContaining({
+        parentSpanId: undefined,
+      })
+    )
+    expect(detachedRoot.traceId).not.toBe(foreground.traceId)
+    expect(detachedChild).toEqual(
+      expect.objectContaining({
+        traceId: detachedRoot.traceId,
+        parentSpanId: detachedRoot.spanId,
+      })
+    )
   })
 
   it('uses the request insights identity before the work store exists', () => {

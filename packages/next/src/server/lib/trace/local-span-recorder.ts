@@ -22,6 +22,24 @@ const SPAN_ID_HEX_LENGTH = 16
 
 type LocalSpanAttributes = Partial<Record<string, AttributeValue | undefined>>
 
+type LocalSpanOptions = {
+  name: string
+  attributes?: LocalSpanAttributes
+  links?: SpanOptions['links']
+  startTime?: SpanOptions['startTime']
+  traceId?: string
+  spanId?: string
+  parentSpanId?: string
+  delegateSpan?: Span
+}
+
+type TraceLocalSpanOptions = Omit<
+  LocalSpanOptions,
+  'traceId' | 'spanId' | 'parentSpanId' | 'delegateSpan'
+> & {
+  parentSpan?: Span | null
+}
+
 let lastLocalTraceId = 0
 let lastLocalSpanId = 0
 let localSpanAsyncStorage: AsyncLocalStorage<Span> | undefined
@@ -41,16 +59,7 @@ export function createLocalSpan({
   spanId,
   parentSpanId,
   delegateSpan,
-}: {
-  name: string
-  attributes?: LocalSpanAttributes
-  links?: SpanOptions['links']
-  startTime?: SpanOptions['startTime']
-  traceId?: string
-  spanId?: string
-  parentSpanId?: string
-  delegateSpan?: Span
-}): Span {
+}: LocalSpanOptions): Span {
   return new LocalRecordingSpan({
     name,
     attributes,
@@ -76,12 +85,43 @@ export function withLocalSpan<T>(span: Span, fn: () => T): T {
   return getLocalSpanAsyncStorage().run(span, fn)
 }
 
+/**
+ * Records an async operation in the local Request Insights trace. Nested local
+ * spans inherit the currently active local parent unless explicitly detached.
+ */
+export async function traceLocalSpan<T>(
+  { parentSpan, ...options }: TraceLocalSpanOptions,
+  fn: () => Promise<T>
+): Promise<T> {
+  const resolvedParentSpan =
+    parentSpan === undefined ? getActiveLocalSpan() : parentSpan
+  const parentSpanContext = resolvedParentSpan?.spanContext()
+  const span = createLocalSpan({
+    ...options,
+    traceId: parentSpanContext?.traceId,
+    parentSpanId: parentSpanContext?.spanId,
+  })
+
+  return withLocalSpan(span, async () => {
+    try {
+      return await fn()
+    } catch (err) {
+      span.recordException(err as Error)
+      span.setStatus({ code: SpanStatusCode.ERROR })
+      throw err
+    } finally {
+      span.end()
+    }
+  })
+}
+
 export type LocalSpanRecorder = {
   createLocalSpan: typeof createLocalSpan
   getActiveLocalSpan: typeof getActiveLocalSpan
   isLocalRecordingSpan: typeof isLocalRecordingSpan
   isLocalSpanRecordingEnabled: typeof isLocalSpanRecordingEnabled
   isRequestInsightsEnabled: typeof isRequestInsightsEnabled
+  traceLocalSpan: typeof traceLocalSpan
   withLocalSpan: typeof withLocalSpan
 }
 
@@ -97,6 +137,7 @@ export function registerLocalSpanRecorder(): void {
     isLocalRecordingSpan,
     isLocalSpanRecordingEnabled,
     isRequestInsightsEnabled,
+    traceLocalSpan,
     withLocalSpan,
   }
 }
