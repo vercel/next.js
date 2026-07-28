@@ -1175,7 +1175,9 @@ async function spawnRuntimePrefetchWithFilledCaches(
       }),
       prerenderResumeDataCache,
       rootParams,
-      requestStore.headers,
+      // Copy the request store's headers so that this render pass resolves
+      // `headers()` to its own object identity.
+      new Headers(requestStore.headers),
       requestStore.cookies,
       requestStore.draftMode,
       onError,
@@ -1541,7 +1543,9 @@ async function generateRuntimePrefetchResult(
     generateDynamicRSCPayload.bind(null, ctx),
     prerenderResumeDataCache,
     rootParams,
-    requestStore.headers,
+    // Copy the request store's headers so that this render pass resolves
+    // `headers()` to its own object identity.
+    new Headers(requestStore.headers),
     requestStore.cookies,
     requestStore.draftMode
   )
@@ -1577,7 +1581,9 @@ async function generateRuntimePrefetchResult(
     }),
     prerenderResumeDataCache,
     rootParams,
-    requestStore.headers,
+    // Copy the request store's headers so that this render pass resolves
+    // `headers()` to its own object identity.
+    new Headers(requestStore.headers),
     requestStore.cookies,
     requestStore.draftMode,
     onError,
@@ -1645,7 +1651,9 @@ async function prospectiveRuntimeServerPrerender(
     // No stage sequencing needed for prospective renders.
     stagedRendering: null,
     isSessionShell: isShellPrefetch,
-    // These are not present in regular prerenders, but allowed in a runtime prerender.
+    // These are not present in regular prerenders, but allowed in a runtime
+    // prerender. Callers pass a copy of the request store's headers so that
+    // each render pass resolves `headers()` to its own object identity.
     headers,
     cookies,
     draftMode,
@@ -1821,7 +1829,9 @@ async function finalRuntimeServerPrerender(
     varyParamsAccumulator,
     stagedRendering: finalStageController,
     isSessionShell: mode.type === 'session-shell-only',
-    // These are not present in regular prerenders, but allowed in a runtime prerender.
+    // These are not present in regular prerenders, but allowed in a runtime
+    // prerender. Callers pass a copy of the request store's headers so that
+    // each render pass resolves `headers()` to its own object identity.
     headers,
     cookies,
     draftMode,
