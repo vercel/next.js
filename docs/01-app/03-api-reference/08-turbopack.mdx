@@ -234,12 +234,13 @@ const eager = import.meta.glob('./dir/*.ts', { eager: true })
 
 ### Options reference
 
-| Option   | Type                                          | Default     | Description                                                            |
-| -------- | --------------------------------------------- | ----------- | ---------------------------------------------------------------------- |
-| `eager`  | `boolean`                                     | `false`     | Import modules synchronously instead of returning thunks.              |
-| `import` | `string`                                      | `undefined` | Named export to select from each matched module (e.g. `'default'`).    |
-| `query`  | `string \| Record<string, string \| boolean>` | `undefined` | Query string (or object) to append to each import.                     |
-| `base`   | `string`                                      | `undefined` | Override the base path used for resolving patterns and keying results. |
+| Option          | Type                                          | Default     | Description                                                                |
+| --------------- | --------------------------------------------- | ----------- | -------------------------------------------------------------------------- |
+| `eager`         | `boolean`                                     | `false`     | Import modules synchronously instead of returning thunks.                  |
+| `import`        | `string`                                      | `undefined` | Named export to select from each matched module (e.g. `'default'`).        |
+| `query`         | `string \| Record<string, string \| boolean>` | `undefined` | Query string (or object) to append to each import.                         |
+| `base`          | `string`                                      | `undefined` | Override the base path used for resolving patterns and keying results.     |
+| `caseSensitive` | `boolean`                                     | `true`      | Match glob patterns case-sensitively. Set to `false` to ignore ASCII case. |
 
 > **Note:** The `as` option (deprecated in Vite 5) is not supported. Use `query: '?raw'` or `query: '?url'` instead. The legacy `import.meta.globEager()` API is also not supported — use `import.meta.glob('...', { eager: true })` instead.
 
@@ -376,7 +377,7 @@ Additionally, the following experimental options are available under `experiment
 | `turbopackMinify`                                                                                            | Enable minification.                                                                                                                         | `false`       | `true`                        |
 | `turbopackSourceMaps`                                                                                        | Enable source maps.                                                                                                                          | `true`        | `productionBrowserSourceMaps` |
 | `turbopackInputSourceMaps`                                                                                   | Enable extraction of source maps from input files.                                                                                           | `true`        | `true`                        |
-| `turbopackTreeShaking`                                                                                       | Use advanced module-fragments tree shaking instead of the default reexports-only mode.                                                       | `false`       | `false`                       |
+| `turbopackModuleFragments`                                                                                   | Currently in active development. This splits modules into fragments and chunks only import the used fragments of the modules.                | `false`       | `false`                       |
 | `turbopackRemoveUnusedImports`                                                                               | Enable removing unused imports. Requires `turbopackRemoveUnusedExports`.                                                                     | `false`       | `true`                        |
 | `turbopackRemoveUnusedExports`                                                                               | Enable removing unused exports.                                                                                                              | `false`       | `true`                        |
 | `turbopackInferModuleSideEffects`                                                                            | Enable local analysis to infer side-effect-free modules for better tree shaking.                                                             | `true`        | `true`                        |

@@ -229,7 +229,6 @@ export const experimentalSchema = {
   useOffline: z.boolean().optional(),
   optimisticRouting: z.boolean().optional(),
   instrumentationClientRouterTransitionEvents: z.boolean().optional(),
-  appShells: z.boolean().optional(),
   varyParams: z.boolean().optional(),
   prefetchInlining: z
     .union([
@@ -258,6 +257,7 @@ export const experimentalSchema = {
   externalMiddlewareRewritesResolve: z.boolean().optional(),
   externalProxyRewritesResolve: z.boolean().optional(),
   exposeTestingApiInProductionBuild: z.boolean().optional(),
+  requestInsights: z.boolean().optional(),
   fallbackNodePolyfills: z.literal(false).optional(),
   fetchCacheKeyPrefix: z.string().optional(),
   forceSwcTransforms: z.boolean().optional(),
@@ -268,7 +268,6 @@ export const experimentalSchema = {
   imgOptTimeoutInSeconds: z.number().int().optional(),
   imgOptMaxInputPixels: z.number().int().optional(),
   imgOptSequentialRead: z.boolean().optional().nullable(),
-  imgOptSkipMetadata: z.boolean().optional().nullable(),
   isrFlushToDisk: z.boolean().optional(),
   largePageDataBytes: z.number().optional(),
   linkNoTouchStart: z.boolean().optional(),
@@ -337,7 +336,6 @@ export const experimentalSchema = {
   swcTraceProfiling: z.boolean().optional(),
   // NonNullable<webpack.Configuration['experiments']>['buildHttp']
   urlImports: z.any().optional(),
-  viewTransition: z.boolean().optional(),
   workerThreads: z.boolean().optional(),
   webVitalsAttribution: z
     .array(
@@ -371,7 +369,7 @@ export const experimentalSchema = {
   webpackBuildWorker: z.boolean().optional(),
   webpackMemoryOptimizations: z.boolean().optional(),
   turbopackMemoryEviction: z
-    .union([z.literal(false), z.literal('full')])
+    .union([z.literal(false), z.literal('full'), z.literal('auto')])
     .optional(),
   turbopackPluginRuntimeStrategy: z
     .enum(['workerThreads', 'childProcesses'])
@@ -381,10 +379,12 @@ export const experimentalSchema = {
   turbopackFileSystemCacheForBuild: z.boolean().optional(),
   turbopackSourceMaps: z.boolean().optional(),
   turbopackInputSourceMaps: z.boolean().optional(),
-  turbopackTreeShaking: z.boolean().optional(),
+  turbopackModuleFragments: z.boolean().optional(),
   turbopackRemoveUnusedImports: z.boolean().optional(),
   turbopackRemoveUnusedExports: z.boolean().optional(),
   turbopackScopeHoisting: z.boolean().optional(),
+  turbopackGenerateComponentChunks: z.boolean().optional(),
+  turbopackSharedRuntime: z.boolean().optional(),
   turbopackChunkingHeuristics: z
     .object({
       firstPageLoadPriority: z.number().min(0).max(1).optional(),
@@ -397,16 +397,17 @@ export const experimentalSchema = {
   turbopackClientSideNestedAsyncChunking: z.boolean().optional(),
   turbopackServerSideNestedAsyncChunking: z.boolean().optional(),
   turbopackImportTypeBytes: z.boolean().optional(),
-  turbopackImportTypeText: z.boolean().optional(),
   turbopackUseBuiltinBabel: z.boolean().optional(),
   turbopackUseBuiltinSass: z.boolean().optional(),
   turbopackLocalPostcssConfig: z.boolean().optional(),
   turbopackModuleIds: z.enum(['named', 'deterministic']).optional(),
   turbopackInferModuleSideEffects: z.boolean().optional(),
+  turbopackCjsTreeShaking: z.boolean().optional(),
   turbopackServerFastRefresh: z.boolean().optional(),
   optimizePackageImports: z.array(z.string()).optional(),
   optimizeServerReact: z.boolean().optional(),
   strictRouteTypes: z.boolean().optional(),
+  useTypeScriptCli: z.boolean().optional(),
   clientTraceMetadata: z.array(z.string()).optional(),
   serverMinification: z.boolean().optional(),
   serverSourceMaps: z.boolean().optional(),
@@ -435,11 +436,13 @@ export const experimentalSchema = {
         .optional(),
     })
     .optional(),
+  devValidationWorker: z.boolean().optional(),
   staticGenerationRetryCount: z.number().int().optional(),
   staticGenerationMaxConcurrency: z.number().int().optional(),
   staticGenerationMinPagesPerWorker: z.number().int().optional(),
   typedEnv: z.boolean().optional(),
   serverComponentsHmrCache: z.boolean().optional(),
+  serverComponentsHmrCancellation: z.boolean().optional(),
   authInterrupts: z.boolean().optional(),
   useCache: z.boolean().optional(),
   durableUseCacheEntries: z.boolean().optional(),
@@ -591,6 +594,8 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
       .union([z.literal('anonymous'), z.literal('use-credentials')])
       .optional(),
     deploymentId: z.string().optional(),
+    supportsImmutableAssets: z.boolean().optional(),
+    outputHashSalt: z.string().optional(),
     devIndicators: z
       .union([
         z.object({

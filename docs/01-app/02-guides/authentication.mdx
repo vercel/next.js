@@ -1367,7 +1367,7 @@ If only part of the shell needs session data (for example, a user menu), move th
 
 > **With Cache Components:** the same applies. Keep the session read behind `<Suspense>` so the static shell streams first. See [Show the user without blocking the page](/docs/app/guides/authentication-with-cache-components#step-2-show-the-user-without-blocking-the-page).
 
-Client Components can't import the DAL. Run `verifySession()`, `getUser()`, or similar in a parent Server Component, then pass data to client children as props or through a [Context Provider](#context-providers). To share data across multiple Server Components without re-fetching, see [Sharing data with context and `React.cache`](/docs/app/getting-started/fetching-data#sharing-data-with-context-and-reactcache).
+Client Components can't import the DAL. Run `verifySession()`, `getUser()`, or similar in a parent Server Component, then pass data to client children as props or through a [Context Provider](#context-providers). To share data across multiple Server Components without re-fetching, see [Reusing data with `React.cache`](/docs/app/getting-started/fetching-data#reusing-data-with-reactcache).
 
 #### Auth checks in page components
 
@@ -1607,6 +1607,8 @@ export default function Profile() {
 ```
 
 If session data is needed in Client Components (e.g. for client-side data fetching), use React’s [`taintUniqueValue`](https://react.dev/reference/react/experimental_taintUniqueValue) API to prevent sensitive session data from being exposed to the client.
+
+For the general pattern of passing server-fetched data through context and reading it with `use()`, see [Using React's `use` within a Context Provider](/docs/app/guides/single-page-applications#using-reacts-use-within-a-context-provider).
 
 </AppOnly>
 

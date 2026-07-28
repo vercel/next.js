@@ -8,6 +8,11 @@ import type { DevIndicatorServerState } from '../../server/dev/dev-indicator-ser
 import { parseStack } from '../../server/lib/parse-stack'
 import { isConsoleError } from '../shared/console-error'
 import type { CacheIndicatorState } from './cache-indicator'
+import type {
+  RequestInsight,
+  RequestInsightsSnapshot,
+} from '../shared/request-insights'
+import { getRequestInsightKey } from '../shared/request-insights'
 import { readInstantNavCookieState } from './components/instant-navs/instant-nav-cookie'
 import { isBlockingRouteInNavError } from './container/errors'
 import { isDynamicRoute } from '../../shared/lib/router/utils/is-dynamic'
@@ -77,6 +82,7 @@ export interface OverlayState {
   readonly theme: 'light' | 'dark' | 'system'
   readonly hideShortcut: string | null
   readonly instantNavs: boolean
+  readonly requestInsights: readonly RequestInsight[]
 }
 type DevtoolsPanelName = string
 export type OverlayDispatch = React.Dispatch<DispatcherEvent>
@@ -111,6 +117,20 @@ export const ACTION_DEVTOOLS_CONFIG = 'devtools-config'
 export const ACTION_INSTANT_NAVS_TOGGLE = 'instant-navs-toggle'
 export const ACTION_INSTANT_NAVS_RESET = 'instant-navs-reset'
 export const ACTION_INSTANT_ERRORS_CLEAR = 'instant-errors-clear'
+export const ACTION_REQUEST_INSIGHTS_SNAPSHOT = 'request-insights-snapshot'
+export const ACTION_REQUEST_INSIGHTS_UPDATE = 'request-insights-update'
+
+export function updateRequestInsights(
+  currentRequests: readonly RequestInsight[],
+  insight: RequestInsight
+): RequestInsight[] {
+  const insightKey = getRequestInsightKey(insight)
+  const requests = currentRequests.filter(
+    (request) => getRequestInsightKey(request) !== insightKey
+  )
+  requests.push(insight)
+  return requests.slice(-100)
+}
 
 export const STORAGE_KEY_PANEL_POSITION_PREFIX =
   '__nextjs-dev-tools-panel-position'
@@ -240,6 +260,16 @@ interface InstantErrorsClearAction {
   currentPath: string
 }
 
+interface RequestInsightsSnapshotAction {
+  type: typeof ACTION_REQUEST_INSIGHTS_SNAPSHOT
+  snapshot: RequestInsightsSnapshot
+}
+
+interface RequestInsightsUpdateAction {
+  type: typeof ACTION_REQUEST_INSIGHTS_UPDATE
+  insight: RequestInsight
+}
+
 export type DispatcherEvent =
   | BuildOkAction
   | BuildErrorAction
@@ -268,6 +298,8 @@ export type DispatcherEvent =
   | CacheOnlyToggleAction
   | InstantNavResetAction
   | InstantErrorsClearAction
+  | RequestInsightsSnapshotAction
+  | RequestInsightsUpdateAction
 
 const REACT_ERROR_STACK_BOTTOM_FRAME_REGEX =
   // 1st group: new frame + v8
@@ -353,6 +385,7 @@ export const INITIAL_OVERLAY_STATE: Omit<
   theme: 'system',
   hideShortcut: null,
   instantNavs: hasInstantNavsCookie,
+  requestInsights: [],
 }
 
 function getInitialState(
@@ -582,6 +615,18 @@ export function useErrorOverlayReducer(
             return state
           }
           return { ...state, errors: remaining }
+        }
+        case ACTION_REQUEST_INSIGHTS_SNAPSHOT: {
+          return { ...state, requestInsights: action.snapshot.requests }
+        }
+        case ACTION_REQUEST_INSIGHTS_UPDATE: {
+          return {
+            ...state,
+            requestInsights: updateRequestInsights(
+              state.requestInsights,
+              action.insight
+            ),
+          }
         }
         default: {
           return state

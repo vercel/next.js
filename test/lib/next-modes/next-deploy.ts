@@ -325,7 +325,7 @@ export class NextDeployInstance extends NextInstance {
     }
 
     const vercelFlags: string[] = []
-    const NEXT_ENABLE_ADAPTER = process.env.NEXT_ENABLE_ADAPTER
+    const NEXT_ENABLE_ADAPTER = process.env.NEXT_ENABLE_ADAPTER === '1'
     const IS_TURBOPACK_TEST = process.env.IS_TURBOPACK_TEST
 
     const TEST_TEAM_NAME = NEXT_ENABLE_ADAPTER
@@ -432,7 +432,7 @@ export class NextDeployInstance extends NextInstance {
     if (process.env.IS_WEBPACK_TEST) {
       additionalEnv.push(`IS_WEBPACK_TEST=1`)
     }
-    if (process.env.NEXT_ENABLE_ADAPTER) {
+    if (NEXT_ENABLE_ADAPTER) {
       additionalEnv.push(`NEXT_ENABLE_ADAPTER=1`)
     } else {
       additionalEnv.push(`NEXT_ENABLE_ADAPTER=0`)
@@ -508,6 +508,9 @@ export class NextDeployInstance extends NextInstance {
     const baseUrlRaw = process.env.NEXT_TEST_PREVIEW_BUILDS_BASE_URL
 
     if (!token || !baseUrlRaw) {
+      require('console').log(
+        `Skipping .npmrc write for preview-builds mirror: missing token or base URL`
+      )
       return
     }
 
@@ -516,6 +519,9 @@ export class NextDeployInstance extends NextInstance {
     // ensure a trailing slash so it matches requests to that registry path.
     const registryKey = `//${baseUrl.host}${baseUrl.pathname.replace(/\/?$/, '/')}`
 
+    require('console').log(
+      `Writing .npmrc for preview-builds mirror: ${registryKey}`
+    )
     await fs.writeFile(
       path.join(this.testDir, '.npmrc'),
       `${registryKey}:_authToken=${token}\n`

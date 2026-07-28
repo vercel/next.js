@@ -1,4 +1,4 @@
-use std::time::Duration;
+use std::{path::Path, time::Duration};
 
 use anyhow::{Context, Result, bail};
 use async_trait::async_trait;
@@ -45,9 +45,10 @@ use turbo_tasks::{
 };
 use turbo_tasks_env::{EnvMap, ProcessEnv};
 use turbo_tasks_fs::{
-    DiskFileSystem, FileContent, FileSystem, FileSystemPath, VirtualFileSystem, invalidation,
+    DiskFileSystem, FileContent, FileSystem, FileSystemPath, VirtualFileSystem,
+    canonicalize_to_rcstr, invalidation,
 };
-use turbo_unix_path::{join_path, unix_to_sys};
+use turbo_unix_path::join_path;
 use turbopack::{
     ModuleAssetContext, evaluate_context::node_build_environment, externals_tracing_module_context,
     global_module_ids::get_global_module_id_strategy, transition::TransitionOptions,
@@ -694,7 +695,7 @@ impl ProjectContainer {
                 .context("ProjectContainer need to be initialized with initialize()")?;
 
             if let Some(root_path) = root_path {
-                new_options.root_path = root_path;
+                new_options.root_path = canonicalize_to_rcstr(Path::new(&*root_path))?;
             }
             if let Some(project_path) = project_path {
                 new_options.project_path = project_path;
@@ -1092,23 +1093,6 @@ impl Project {
     #[turbo_tasks::function]
     pub fn output_fs(&self) -> Vc<DiskFileSystem> {
         DiskFileSystem::new(rcstr!("output"), *self.root_path)
-    }
-
-    #[turbo_tasks::function]
-    pub async fn dist_dir_absolute(&self) -> Result<Vc<RcStr>> {
-        let root_path = self.root_path.await?;
-        Ok(Vc::cell(
-            format!(
-                "{}{}{}",
-                root_path,
-                std::path::MAIN_SEPARATOR,
-                unix_to_sys(
-                    &join_path(&self.project_path, &self.dist_dir)
-                        .context("expected project_path to be inside of root_path")?
-                )
-            )
-            .into(),
-        ))
     }
 
     #[turbo_tasks::function]
@@ -1614,6 +1598,7 @@ impl Project {
                 .owned()
                 .await?,
             asset_prefix: self.next_config().computed_asset_prefix(),
+            service_worker_scope_base_path: self.next_config().base_path(),
             environment: self.client_compile_time_info().environment(),
             module_id_strategy: self.module_ids(),
             export_usage: self.export_usage(),
@@ -1625,6 +1610,7 @@ impl Project {
             nested_async_chunking: self
                 .next_config()
                 .turbo_nested_async_chunking(self.next_mode(), true),
+            shared_runtime: self.next_config().turbo_shared_runtime(self.next_mode()),
             debug_ids: self.next_config().turbopack_debug_ids(),
             worker_asset_prefix: self.next_config().turbopack_worker_asset_prefix(),
             should_use_absolute_url_references: self.next_config().inline_css(),
@@ -1636,6 +1622,7 @@ impl Project {
             chunking_first_page_load_priority: chunking_heuristics.first_page_load_priority,
             chunking_priority_boost_percent: chunking_heuristics.priority_boost_percent,
             chunking_request_cost: chunking_heuristics.request_cost,
+            generate_component_chunks: self.next_config().turbopack_generate_component_chunks(),
         }))
     }
 

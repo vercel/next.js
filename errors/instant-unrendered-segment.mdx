@@ -25,7 +25,7 @@ kind: insight
 
 During [prerendering](https://preview.nextjs.org/docs/app/glossary#prerendering), a segment in the route tree was dropped from rendering. With [Cache Components](https://preview.nextjs.org/docs/app/api-reference/config/next-config-js/cacheComponents) enabled, Next.js validates that every segment can produce an [instant navigation](https://preview.nextjs.org/docs/app/guides/instant-navigation). When a segment is not rendered, that validation can't run and issues that would prevent instant navigation go undetected.
 
-This typically happens when a layout conditionally omits `{children}`, a parallel route slot is not rendered, or a Client Component opts out of rendering during SSR.
+This typically happens when a layout conditionally omits `{children}` or a parallel route slot is not rendered.
 
 ## Ways to fix this
 
@@ -106,7 +106,7 @@ Learn more: [Parallel Routes](/docs/app/api-reference/file-conventions/parallel-
 
 #### Move auth or guard checks into the page
 
-A common cause is a layout that conditionally returns a sign-in screen (or redirects) instead of rendering `{children}`. Layouts and pages render separately, so put the guard at the page (or slot) level rather than in the layout. The layout always renders `{children}`; each page decides whether to render its content or redirect.
+A common cause is a layout that conditionally returns a sign-in screen (or redirects) instead of rendering `{children}`. Layouts and pages render separately, so put the guard at the page (or slot) level rather than in the layout. The layout always renders `{children}`. Each page decides whether to render its content or redirect.
 
 ```jsx filename="app/dashboard/layout.js"
 export default function DashboardLayout({ children }) {
@@ -168,13 +168,13 @@ The segment is exempt from instant-navigation validation. If it has issues that 
 ### Gotchas
 
 - The export must be on the **dropped segment's own file** (page or layout), not on a parent. The framework walks top-down and the first explicit config wins.
-- Setting [`instant`](https://preview.nextjs.org/docs/app/api-reference/file-conventions/route-segment-config/instant) to `false` does not disable [prerendering](https://preview.nextjs.org/docs/app/glossary#prerendering). The segment still prerenders if it can. It only silences the validation error.
+- Setting [`instant`](https://preview.nextjs.org/docs/app/api-reference/file-conventions/route-segment-config/instant) to `false` does not disable [prerendering](https://preview.nextjs.org/docs/app/glossary#prerendering). The segment still prerenders if it can. It only disables the validation error.
 
 ## Verifying the fix
 
-After applying a fix, reload the route to confirm the [static shell](https://preview.nextjs.org/docs/app/glossary#static-shell) renders real content. A [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary placed around the whole page body can pass validation with an empty shell, which defeats the point of an instant navigation.
+After applying a fix, navigate to the route and confirm the insight no longer appears in the dev overlay and the page immediately paints meaningful UI, with any `<Suspense>` fallbacks covering only the regions that stream in. A [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary around the whole page body can pass validation with an empty shell, which defeats the point of an instant navigation.
 
-In [`next dev`](https://preview.nextjs.org/docs/app/api-reference/cli/next#next-dev-options), the error overlay points at the failing component with file paths and line numbers. When working from a build instead, the default [`next build`](https://preview.nextjs.org/docs/app/api-reference/cli/next#next-build-options) output is more abbreviated; run `next build --debug-prerender` for full user-frame stack traces and `next build --debug-build-paths /dashboard /settings` to iterate on specific routes.
+Depending on your [validation level](https://preview.nextjs.org/docs/app/api-reference/file-conventions/route-segment-config/instant#configuring-validation-defaults), this may only surface in development.
 
 ## Don't want this validation?
 
@@ -200,4 +200,5 @@ See [Ensuring instant navigations](https://preview.nextjs.org/docs/app/guides/in
 - [`Date.now()` in a Client Component](/docs/messages/blocking-prerender-current-time-client)
 - [Crypto APIs while prerendering](/docs/messages/blocking-prerender-crypto)
 - [Crypto APIs in a Client Component](/docs/messages/blocking-prerender-crypto-client)
-- [Partial Prefetch link with dynamic data](/docs/messages/instant-link-prefetch-partial)
+- [Dynamic data during prefetching](/docs/messages/instant-link-prefetch-partial)
+- [URL data outside of Suspense](/docs/messages/instant-shell-url-data)

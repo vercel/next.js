@@ -11,6 +11,60 @@ To add TypeScript to an existing project, rename a file to `.ts` / `.tsx`. Run `
 
 > **Good to know**: If you already have a `jsconfig.json` file, copy the `paths` compiler option from the old `jsconfig.json` into the new `tsconfig.json` file, and delete the old `jsconfig.json` file.
 
+## Using TypeScript 7
+
+[TypeScript 7](https://devblogs.microsoft.com/typescript/announcing-typescript-7-0/) does not currently provide the JavaScript compiler API that Next.js uses for type checking by default. To use TypeScript 7 during `next build`, install it in your project:
+
+```bash package="pnpm"
+pnpm add -D typescript@^7
+```
+
+```bash package="npm"
+npm install -D typescript@^7
+```
+
+```bash package="yarn"
+yarn add -D typescript@^7
+```
+
+```bash package="bun"
+bun add -D typescript@^7
+```
+
+Then, opt in to running the project-local `tsc` CLI instead of the JavaScript API with [`experimental.useTypeScriptCli`](/docs/app/api-reference/config/next-config-js/useTypeScriptCli):
+
+```ts filename="next.config.ts" switcher
+import type { NextConfig } from 'next'
+
+const nextConfig: NextConfig = {
+  experimental: {
+    useTypeScriptCli: true,
+  },
+}
+
+export default nextConfig
+```
+
+```js filename="next.config.js" switcher
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  experimental: {
+    useTypeScriptCli: true,
+  },
+}
+
+module.exports = nextConfig
+```
+
+Next.js does not enable this option automatically. If you install TypeScript 7 without enabling `experimental.useTypeScriptCli`, `next build` exits with instructions to enable the option or install a TypeScript version supported by the default checker.
+
+> **Good to know**:
+>
+> - CLI type checking prints the native `tsc` diagnostics. It does not apply Next.js-specific code frames or rewrite errors for routes, pages, layouts, or route handlers.
+> - The CLI checks the complete project selected by your `tsconfig` file. This includes test files and `.next/dev/types` when they are included by that configuration. [`next build --debug-build-paths`](/docs/app/api-reference/cli/next#next-build-options) does not narrow the files that are type checked and produces a warning when used with this option.
+> - [`typescript.tsconfigPath`](#custom-tsconfig-path) continues to select the configuration passed to `tsc`. [`typescript.ignoreBuildErrors`](#disabling-typescript-errors-in-production) skips the type-checking step, including the CLI checker.
+> - `experimental.useTypeScriptCli` is experimental and its behavior may change.
+
 <AppOnly>
 
 ## IDE Plugin
@@ -31,7 +85,7 @@ You can enable the plugin in VS Code by:
   height="637"
 />
 
-Now, when editing files, the custom plugin will be enabled. When running `next build`, the custom type checker will be used.
+Now, when editing files, the custom plugin will be enabled. By default, the custom type checker is used when running `next build`. When [`experimental.useTypeScriptCli`](#using-typescript-7) is enabled, the project-local `tsc` CLI is used instead.
 
 The TypeScript plugin can help with:
 

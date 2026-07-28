@@ -7,6 +7,7 @@ pub(crate) use self::imports::ImportMap;
 
 pub mod builtin;
 pub mod bump_vec;
+pub(crate) mod cjs_ast;
 pub mod graph;
 pub mod imports;
 pub mod linker;
@@ -290,7 +291,7 @@ mod tests {
         linker::link,
     };
     use crate::{
-        AnalyzeMode,
+        AnalyzeMode, SpecifiedModuleType,
         analyzer::{Bump, ThreadLocal, graph::AssignmentScopes, imports::ImportAttributes},
     };
 
@@ -362,6 +363,8 @@ mod tests {
                 &m,
                 &eval_context,
                 AnalyzeMode::CodeGenerationAndTracing,
+                true,
+                SpecifiedModuleType::EcmaScript,
                 true,
             );
             anyhow::Ok((eval_context, var_graph))
