@@ -222,9 +222,7 @@ export const experimentalSchema = {
   craCompat: z.boolean().optional(),
   caseSensitiveRoutes: z.boolean().optional(),
   clientParamParsingOrigins: z.array(z.string()).optional(),
-  cachedNavigations: z
-    .union([z.boolean(), z.literal('allow-runtime')])
-    .optional(),
+  cachedNavigations: z.boolean().optional(),
   dynamicOnHover: z.boolean().optional(),
   useOffline: z.boolean().optional(),
   optimisticRouting: z.boolean().optional(),
@@ -239,6 +237,7 @@ export const experimentalSchema = {
       }),
     ])
     .optional(),
+  devMemoryThresholdRestart: z.boolean().optional(),
   disableOptimizedLoading: z.boolean().optional(),
   disablePostcssPresetEnv: z.boolean().optional(),
   cacheComponents: z.boolean().optional(),

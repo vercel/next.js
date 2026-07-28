@@ -33,6 +33,7 @@ import { flushTelemetry } from '../telemetry/flush-telemetry'
 import {
   findRootDirAndLockFiles,
   warnDuplicatedLockFiles,
+  warnRootBoundary,
 } from '../lib/find-root'
 import { setHttpClientAndAgentOptions } from './setup-http-agent-env'
 import { pathHasPrefix } from '../shared/lib/router/utils/path-has-prefix'
@@ -1158,11 +1159,10 @@ function assignDefaultsAndValidate(
   const turbopackRoot = result?.turbopack?.root
 
   let repoRoot = process.env.NEXT_PRIVATE_OUTPUT_TRACE_ROOT
-  let lockFiles: string[] | undefined = undefined
+  let rootDirResult: ReturnType<typeof findRootDirAndLockFiles> | undefined
   if (!repoRoot) {
-    const rootDirResult = findRootDirAndLockFiles(dir)
+    rootDirResult = findRootDirAndLockFiles(dir)
     repoRoot = rootDirResult.rootDir
-    lockFiles = rootDirResult.lockFiles
   }
   ;(result as NextConfigComplete).repoRoot = repoRoot
 
@@ -1176,8 +1176,11 @@ function assignDefaultsAndValidate(
   let rootDir = tracingRoot || turbopackRoot
   if (!rootDir) {
     rootDir = repoRoot
-    if (lockFiles && !silent) {
-      warnDuplicatedLockFiles(lockFiles)
+    if (rootDirResult && !silent) {
+      if (rootDirResult.boundary) {
+        warnRootBoundary(rootDirResult.boundary)
+      }
+      warnDuplicatedLockFiles(rootDirResult.lockFiles)
     }
   }
   if (!rootDir) {
@@ -2277,10 +2280,7 @@ function enforceExperimentalFeatures(
     config.partialPrefetching = true
   }
 
-  // TODO: Remove this once cachedNavigations is the default. Note:
-  // cachedNavigations may be the string 'allow-runtime'. These guards treat it
-  // as truthy, so an explicit 'allow-runtime' is respected here and in the
-  // cacheComponents-tied default below rather than being downgraded to `true`.
+  // TODO: Remove this once cachedNavigations is the default.
   if (
     process.env.__NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS === 'true' &&
     // We do respect an explicit value in the user config.

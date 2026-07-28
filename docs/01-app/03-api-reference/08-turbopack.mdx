@@ -137,6 +137,35 @@ Turbopack supports webpack-compatible magic comments for controlling import beha
 
 See [Lazy Loading](/docs/app/guides/lazy-loading#magic-comments) for usage examples.
 
+## import.meta.env
+
+Turbopack supports built-in environment metadata through `import.meta.env`:
+
+| Property   | Type      | Value                                                              |
+| ---------- | --------- | ------------------------------------------------------------------ |
+| `DEV`      | `boolean` | Whether `MODE` is not `"production"`                               |
+| `PROD`     | `boolean` | Whether `MODE` is `"production"`                                   |
+| `MODE`     | `string`  | The compile-time `NODE_ENV`, defaulting to `"development"`         |
+| `BASE_URL` | `string`  | The Next.js `basePath`, with a trailing slash (`"/"` by default)   |
+| `SSR`      | `boolean` | `true` in server bundles and `false` in browser and client bundles |
+
+These values are statically analyzed, so Turbopack can remove unreachable branches:
+
+```ts filename="app/example.ts"
+if (import.meta.env.DEV) {
+  console.log('development mode')
+}
+```
+
+You can also read the whole object, destructure it, or use static bracket access:
+
+```ts filename="app/example.ts"
+const { MODE, SSR } = import.meta.env
+const baseUrl = import.meta.env['BASE_URL']
+```
+
+> **Good to know**: `import.meta.env` requires Turbopack. Custom `VITE_*` variables, Vite custom modes, `envPrefix`, and `envDir` are not supported. `BASE_URL` reflects the Next.js [`basePath`](/docs/app/api-reference/config/next-config-js/basePath) configuration and includes a trailing slash to match Vite's format.
+
 ## import.meta.glob
 
 Turbopack supports `import.meta.glob()`, a Vite-compatible API for importing multiple modules at once using glob patterns. The result is an object keyed by the file path relative to the calling file.

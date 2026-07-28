@@ -169,7 +169,7 @@ export interface RenderOptsPartial {
     authInterrupts: boolean
     serverComponentsHmrCancellation?: boolean
     useCacheTimeout: number
-    cachedNavigations: boolean | 'allow-runtime'
+    cachedNavigations: boolean
 
     /**
      * The maximum size (in bytes) of the postponed state body for PPR resume

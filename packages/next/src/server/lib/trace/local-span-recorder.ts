@@ -22,6 +22,29 @@ const SPAN_ID_HEX_LENGTH = 16
 
 type LocalSpanAttributes = Partial<Record<string, AttributeValue | undefined>>
 
+type LocalSpanOptions = {
+  name: string
+  attributes?: LocalSpanAttributes
+  links?: SpanOptions['links']
+  startTime?: SpanOptions['startTime']
+  traceId?: string
+  spanId?: string
+  parentSpanId?: string
+  delegateSpan?: Span
+  isolateOpenTelemetry?: boolean
+}
+
+type TraceLocalSpanOptions = Omit<
+  LocalSpanOptions,
+  | 'traceId'
+  | 'spanId'
+  | 'parentSpanId'
+  | 'delegateSpan'
+  | 'isolateOpenTelemetry'
+> & {
+  parentSpan?: Span | null
+}
+
 let lastLocalTraceId = 0
 let lastLocalSpanId = 0
 let localSpanAsyncStorage: AsyncLocalStorage<Span> | undefined
@@ -41,16 +64,8 @@ export function createLocalSpan({
   spanId,
   parentSpanId,
   delegateSpan,
-}: {
-  name: string
-  attributes?: LocalSpanAttributes
-  links?: SpanOptions['links']
-  startTime?: SpanOptions['startTime']
-  traceId?: string
-  spanId?: string
-  parentSpanId?: string
-  delegateSpan?: Span
-}): Span {
+  isolateOpenTelemetry,
+}: LocalSpanOptions): Span {
   return new LocalRecordingSpan({
     name,
     attributes,
@@ -61,6 +76,7 @@ export function createLocalSpan({
     spanId: spanId ?? getLocalSpanId(),
     parentSpanId,
     requestIdentity: getCurrentRequestIdentity(),
+    isolateOpenTelemetry: isolateOpenTelemetry ?? false,
   })
 }
 
@@ -72,16 +88,53 @@ export function isLocalRecordingSpan(span: Span): boolean {
   return span instanceof LocalRecordingSpan
 }
 
+export function isOpenTelemetryIsolatedSpan(span: Span): boolean {
+  return span instanceof LocalRecordingSpan && span.isOpenTelemetryIsolated()
+}
+
 export function withLocalSpan<T>(span: Span, fn: () => T): T {
   return getLocalSpanAsyncStorage().run(span, fn)
+}
+
+/**
+ * Records an async operation without replacing or exporting through the active
+ * OpenTelemetry context. Nested Next.js spans remain in the local trace.
+ */
+export async function traceLocalSpan<T>(
+  { parentSpan, ...options }: TraceLocalSpanOptions,
+  fn: () => Promise<T>
+): Promise<T> {
+  const resolvedParentSpan =
+    parentSpan === undefined ? getActiveLocalSpan() : parentSpan
+  const parentSpanContext = resolvedParentSpan?.spanContext()
+  const span = createLocalSpan({
+    ...options,
+    traceId: parentSpanContext?.traceId,
+    parentSpanId: parentSpanContext?.spanId,
+    isolateOpenTelemetry: true,
+  })
+
+  return withLocalSpan(span, async () => {
+    try {
+      return await fn()
+    } catch (err) {
+      span.recordException(err as Error)
+      span.setStatus({ code: SpanStatusCode.ERROR })
+      throw err
+    } finally {
+      span.end()
+    }
+  })
 }
 
 export type LocalSpanRecorder = {
   createLocalSpan: typeof createLocalSpan
   getActiveLocalSpan: typeof getActiveLocalSpan
   isLocalRecordingSpan: typeof isLocalRecordingSpan
+  isOpenTelemetryIsolatedSpan: typeof isOpenTelemetryIsolatedSpan
   isLocalSpanRecordingEnabled: typeof isLocalSpanRecordingEnabled
   isRequestInsightsEnabled: typeof isRequestInsightsEnabled
+  traceLocalSpan: typeof traceLocalSpan
   withLocalSpan: typeof withLocalSpan
 }
 
@@ -95,8 +148,10 @@ export function registerLocalSpanRecorder(): void {
     createLocalSpan,
     getActiveLocalSpan,
     isLocalRecordingSpan,
+    isOpenTelemetryIsolatedSpan,
     isLocalSpanRecordingEnabled,
     isRequestInsightsEnabled,
+    traceLocalSpan,
     withLocalSpan,
   }
 }
@@ -125,6 +180,7 @@ class LocalRecordingSpan implements Span {
   private attributes: SpanStoreAttributes
   private events: SpanStoreEvent[]
   private readonly spanContextValue: ReturnType<Span['spanContext']>
+  private readonly openTelemetryIsolated: boolean
   private delegateSpan?: Span
   private links?: SpanStoreLink[]
   private readonly parentSpanId?: string
@@ -150,6 +206,7 @@ class LocalRecordingSpan implements Span {
     spanId,
     parentSpanId,
     requestIdentity,
+    isolateOpenTelemetry,
   }: {
     name: string
     attributes?: LocalSpanAttributes
@@ -160,11 +217,13 @@ class LocalRecordingSpan implements Span {
     spanId: string
     parentSpanId?: string
     requestIdentity: RequestIdentity
+    isolateOpenTelemetry: boolean
   }) {
     this.name = name
     this.attributes = cleanSpanStoreAttributes(attributes)
     this.events = []
     this.delegateSpan = delegateSpan
+    this.openTelemetryIsolated = isolateOpenTelemetry
     this.spanContextValue = delegateSpan?.spanContext() ?? {
       traceId,
       spanId,
@@ -182,6 +241,10 @@ class LocalRecordingSpan implements Span {
 
   spanContext(): ReturnType<Span['spanContext']> {
     return this.spanContextValue
+  }
+
+  isOpenTelemetryIsolated(): boolean {
+    return this.openTelemetryIsolated
   }
 
   setAttribute(key: string, value: AttributeValue): this {
@@ -220,9 +283,13 @@ class LocalRecordingSpan implements Span {
       return this
     }
 
+    const eventTime =
+      startTime === undefined && isTimestampInput(attributesOrStartTime)
+        ? attributesOrStartTime
+        : startTime
     this.events.push({
       name,
-      timestamp: Date.now(),
+      timestamp: getTimestamp(eventTime),
       attributes: isSpanStoreAttributes(attributesOrStartTime)
         ? cleanSpanStoreAttributes(attributesOrStartTime)
         : undefined,
@@ -284,7 +351,7 @@ class LocalRecordingSpan implements Span {
     this.exception = getSpanStoreException(exception)
     this.events.push({
       name: 'exception',
-      timestamp: Date.now(),
+      timestamp: getTimestamp(time),
       attributes: getSpanStoreExceptionAttributes(this.exception),
     })
     this.delegateSpan?.recordException(exception, time)
@@ -393,21 +460,12 @@ function getTimestamp(time?: SpanOptions['startTime']): number {
   }
 
   if (typeof time === 'number') {
-    const timeOrigin = getPerformanceTimeOrigin()
-    return timeOrigin !== undefined && time < timeOrigin
-      ? timeOrigin + time
+    return time < performance.timeOrigin / 2
+      ? performance.timeOrigin + time
       : time
   }
 
-  const timeOrigin = getPerformanceTimeOrigin()
-  return timeOrigin === undefined ? Date.now() : timeOrigin + performance.now()
-}
-
-function getPerformanceTimeOrigin(): number | undefined {
-  return typeof performance !== 'undefined' &&
-    typeof performance.timeOrigin === 'number'
-    ? performance.timeOrigin
-    : undefined
+  return performance.timeOrigin + performance.now()
 }
 
 function getStringAttribute(
@@ -426,6 +484,14 @@ function isSpanStoreAttributes(
     value !== null &&
     !Array.isArray(value) &&
     !(value instanceof Date)
+  )
+}
+
+function isTimestampInput(
+  value: Parameters<Span['addEvent']>[1]
+): value is SpanOptions['startTime'] {
+  return (
+    typeof value === 'number' || Array.isArray(value) || value instanceof Date
   )
 }
 

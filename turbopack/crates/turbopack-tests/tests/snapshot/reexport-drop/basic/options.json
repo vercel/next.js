@@ -1,6 +1,0 @@
-{
-  "removeUnusedImports": true,
-  "removeUnusedExports": true,
-  "treeShakingMode": "reexports-only",
-  "scopeHoisting": true
-}
