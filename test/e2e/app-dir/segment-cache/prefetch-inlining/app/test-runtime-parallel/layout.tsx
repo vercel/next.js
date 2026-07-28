@@ -8,7 +8,7 @@ import { cookies } from 'next/headers'
 export const instant = {
   unstable_samples: [{ cookies: [{ name: 'theme', value: 'default' }] }],
 }
-export const prefetch = 'allow-runtime'
+export const prefetch = 'partial'
 
 async function DynamicContent() {
   const cookieStore = await cookies()

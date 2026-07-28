@@ -299,11 +299,17 @@ export function getSegmentVaryPathForRequest(
   // params that can be treated as Fallback. (Or perhaps the inverse.)
   const originalVaryPath = tree.varyPath
 
-  if (fetchStrategy === FetchStrategy.RuntimeShell) {
-    // The Shell phase issues a runtime render with non-root params omitted. The
-    // resulting entry is reusable across all concrete values of those params, so
-    // we key it at the precomputed shell vary path (every non-root param
-    // substituted with Fallback; root params keep their concrete value).
+  if (
+    fetchStrategy === FetchStrategy.RuntimeShell ||
+    fetchStrategy === FetchStrategy.StaticShell
+  ) {
+    // Both shell strategies produce the App Shell variant of a segment —
+    // RuntimeShell via a runtime render with non-root params omitted,
+    // StaticShell by truncating a static per-segment response at the shell
+    // byte boundary. Either way, the resulting entry is reusable across all
+    // concrete values of the non-root params, so we key it at the precomputed
+    // shell vary path (every non-root param substituted with Fallback; root
+    // params keep their concrete value).
     return tree.shellVaryPath
   }
 

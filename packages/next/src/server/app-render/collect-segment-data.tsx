@@ -88,8 +88,9 @@ export type TreePrefetch = {
  * walking the SegmentBundleNode linked list. The client's SegmentBundle
  * linked list is constructed in the same order during scheduling, so the
  * two are walked in parallel when the response arrives. A null element
- * indicates a disabled segment (runtime prefetch or instant=false) that
- * occupies a slot but carries no data.
+ * indicates a disabled segment (prefetch: 'force-disabled') that occupies a
+ * slot but carries no data. (Allow-runtime segments get real slots — the
+ * server emits static data for them unconditionally.)
  */
 export type SegmentPrefetchResponse = {
   buildId: string
@@ -575,13 +576,6 @@ export async function collectPrefetchHints(
 
   // Mutable accumulator: the first segment that accepts the head sets this
   // to true. Once set, subsequent segments skip the check.
-  //
-  // When the route has any runtime prefetch segment, the head is only
-  // assigned to a runtime segment (since the runtime response already
-  // includes it). Static pages are skipped to avoid duplication.
-  const rootHints = flightRouterState[4] ?? 0
-  const subtreeHasRuntimePrefetch =
-    (rootHints & PrefetchHint.SubtreeHasRuntimePrefetch) !== 0
   const headInlineState = { inlined: false }
 
   // Walk the tree with the parent-first, child-decides algorithm.
@@ -598,7 +592,6 @@ export async function collectPrefetchHints(
     maxBundleSize,
     headGzipSize,
     headInlineState,
-    subtreeHasRuntimePrefetch,
     rootVaryParamsIterable,
     needsRuntimeRequest,
     shellStageRelease
@@ -657,7 +650,6 @@ async function collectPrefetchHintsImpl(
   maxBundleSize: number,
   headGzipSize: number,
   headInlineState: { inlined: boolean },
-  routeHasRuntimePrefetch: boolean,
   rootVaryParamsIterable: VaryParamsIterable | null,
   needsRuntimeRequest: Promise<boolean>,
   shellStageRelease: Promise<boolean>
@@ -667,13 +659,19 @@ async function collectPrefetchHintsImpl(
   // subtree. Used by ancestors for budget checks.
   inlinedBytes: number
 }> {
-  // Check if static prefetching is disabled for this segment (runtime
-  // prefetch or instant = false). Such segments act as transparent
-  // pass-throughs in the bundle chain: they contribute zero bytes of their
-  // own and pass parent data through to children. However, they cannot be
-  // the terminal of a chain — if no child accepts the parent data, the
-  // parent cannot be inlined into this segment because there's no static
-  // response to carry it. See the ParentInlinedIntoSelf check below.
+  // Check if static prefetching is disabled for this segment
+  // (prefetch: 'force-disabled' / instant = false). Such segments act as
+  // transparent pass-throughs in the bundle chain: they contribute zero
+  // bytes of their own and pass parent data through to children. However,
+  // they cannot be the terminal of a chain — if no child accepts the parent
+  // data, the parent cannot be inlined into this segment because there's no
+  // static response to carry it. See the ParentInlinedIntoSelf check below.
+  //
+  // Partial Prefetching segments are NOT disabled even though they may need
+  // a runtime prefetch: they have static data — emitted unconditionally, so
+  // the client can attempt a static prefetch before deciding whether the
+  // runtime request is needed — and are measured and inlined like any other
+  // segment.
   const isStaticPrefetchDisabled =
     ((route[4] ?? 0) & StaticPrefetchDisabled) !== 0
 
@@ -764,7 +762,6 @@ async function collectPrefetchHintsImpl(
       maxBundleSize,
       headGzipSize,
       headInlineState,
-      routeHasRuntimePrefetch,
       rootVaryParamsIterable,
       needsRuntimeRequest,
       shellStageRelease
@@ -813,39 +810,37 @@ async function collectPrefetchHintsImpl(
 
   // Determine which segment is responsible for the head (metadata/viewport).
   //
-  // When the route has any runtime prefetch segment, the head is only
-  // assigned to a runtime segment — the runtime response already includes
-  // the head, so assigning it to a static page would duplicate it.
+  // The head is assigned to the first page bundle terminal that has budget
+  // room; otherwise it's outlined as a standalone response (HeadOutlined,
+  // set by the caller). Head can only be inlined into a page, not a layout,
+  // because pages may access additional params (e.g. searchParams) that
+  // layouts cannot. It must be a bundle terminal because only bundle
+  // terminals emit a static response of their own (the head bundle is
+  // appended in collectSegmentDataImpl's standalone-task branch) —
+  // assigning the head to an inlined segment would leave it out of every
+  // static response.
   //
-  // When the route has no runtime prefetch segments, the head is assigned
-  // to the first static page terminal that has budget room. Head can only
-  // be inlined into a page, not a layout, because pages may access
-  // additional params (e.g. searchParams) that layouts cannot.
-  //
-  // A disabled segment with PrefetchDisabled (instant = false) is never a
-  // valid target — it has no response at all.
-  const hasRuntimePrefetch =
-    ((route[4] ?? 0) & PrefetchHint.HasRuntimePrefetch) !== 0
+  // A disabled segment (prefetch: 'force-disabled' / instant = false) is
+  // never a valid target — it has no response at all. A Partial Prefetching
+  // segment, by contrast, DOES have a static response (see
+  // isStaticPrefetchDisabled above) and is an ordinary candidate. Runtime
+  // prefetching gets no special treatment here: whether the client will
+  // actually issue a runtime request can't be known at build time (a static
+  // prefetch attempt may prove sufficient and skip it), so the head must
+  // always be reachable through the static responses — inlined into one of
+  // them, or outlined.
   const isBundleTerminal = !didInlineIntoChild && !isStaticPrefetchDisabled
   const segment = route[0]
   const isPageSegment =
     typeof segment === 'string'
       ? segment === PAGE_SEGMENT_KEY
       : segment[0] === PAGE_SEGMENT_KEY
-  if (!headInlineState.inlined) {
-    if (hasRuntimePrefetch) {
-      // Runtime prefetch segment — the runtime response includes the head.
-      // No budget cost since it's already part of that response.
+  if (!headInlineState.inlined && isBundleTerminal && isPageSegment) {
+    // The head counts against the bundle budget.
+    if (inlinedBytes + headGzipSize < maxBundleSize) {
       hints |= PrefetchHint.HeadInlinedIntoSelf
+      inlinedBytes += headGzipSize
       headInlineState.inlined = true
-    } else if (isBundleTerminal && isPageSegment && !routeHasRuntimePrefetch) {
-      // Static page terminal — only used when no runtime segments exist.
-      // The head counts against the bundle budget.
-      if (inlinedBytes + headGzipSize < maxBundleSize) {
-        hints |= PrefetchHint.HeadInlinedIntoSelf
-        inlinedBytes += headGzipSize
-        headInlineState.inlined = true
-      }
     }
   }
 
@@ -1105,9 +1100,18 @@ function collectSegmentDataImpl(
   // response as-is. Root params are forwarded separately, once per response.
   const varyParams = seedData !== null ? seedData[4] : null
 
-  // If static prefetching is disabled for this segment (runtime prefetch or
-  // instant = false), it still participates in the bundle chain but with
-  // null data. The client will skip creating a cache entry for it.
+  // If static prefetching is disabled for this segment
+  // (prefetch: 'force-disabled' / instant = false), it still participates in
+  // the bundle chain but with null data. The client will skip creating a
+  // cache entry for it.
+  //
+  // Partial Prefetching segments are NOT disabled even though they may need
+  // a runtime prefetch: their static data is emitted UNCONDITIONALLY — it
+  // can't be gated on the ShouldAttemptStaticPrefetch hint, because the
+  // client walks bundles positionally and the null-slot positions must be
+  // deterministic from build-time config alone. The client uses the data to
+  // attempt a static prefetch before deciding whether the segment's runtime
+  // request is actually needed.
   const staticPrefetchDisabled = (prefetchHints & StaticPrefetchDisabled) !== 0
   const rsc = seedData !== null && !staticPrefetchDisabled ? seedData[0] : null
 
@@ -1284,9 +1288,10 @@ async function renderSegmentPrefetch(
   while (node !== null) {
     const elementRsc = node.rsc
     if (elementRsc === null) {
-      // Static prefetching disabled (runtime prefetch or instant=false): a
-      // null placeholder keeps the array aligned with the client's bundle
-      // list, which skips a cache entry for the slot.
+      // Static prefetching disabled (prefetch: 'force-disabled'; Partial
+      // Prefetching segments carry real data): a null placeholder keeps the
+      // array aligned with the client's bundle list, which skips a cache
+      // entry for the slot.
       data.push(null)
     } else {
       // We can determine if a segment contains only partial data if it takes

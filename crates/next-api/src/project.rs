@@ -989,6 +989,13 @@ pub struct ProjectDefineEnv {
     nodejs: ResolvedVc<OptionEnvMap>,
 }
 
+async fn import_meta_env_base_url(next_config: ResolvedVc<NextConfig>) -> Result<RcStr> {
+    Ok(match &*next_config.base_path().await? {
+        Some(base_path) => format!("{base_path}/").into(),
+        None => rcstr!("/"),
+    })
+}
+
 #[turbo_tasks::value_impl]
 impl ProjectDefineEnv {
     #[turbo_tasks::function]
@@ -1280,6 +1287,7 @@ impl Project {
             self.define_env.client(),
             self.next_config.report_system_env_inlining(),
             next_mode.is_development(),
+            import_meta_env_base_url(self.next_config).await?,
         ))
     }
 
@@ -1555,6 +1563,7 @@ impl Project {
             self.current_node_js_version(),
             this.next_config.report_system_env_inlining(),
             this.server_hmr,
+            import_meta_env_base_url(this.next_config).await?,
         ))
     }
 
@@ -1566,6 +1575,7 @@ impl Project {
             this.define_env.edge(),
             self.current_node_js_version(),
             this.next_config.report_system_env_inlining(),
+            import_meta_env_base_url(this.next_config).await?,
         ))
     }
 
