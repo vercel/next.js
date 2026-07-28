@@ -132,6 +132,7 @@ import { handleAction } from './action-handler'
 import { isBailoutToCSRError } from '../../shared/lib/lazy-dynamic/bailout-to-csr'
 import { warn, error } from '../../build/output/log'
 import { appendMutableCookies } from '../web/spec-extension/adapters/request-cookies'
+import { HeadersAdapter } from '../web/spec-extension/adapters/headers'
 import { createServerInsertedHTML } from './server-inserted-html'
 import { getRequiredScripts } from './required-scripts'
 import { addPathPrefix } from '../../shared/lib/router/utils/add-path-prefix'
@@ -1175,9 +1176,7 @@ async function spawnRuntimePrefetchWithFilledCaches(
       }),
       prerenderResumeDataCache,
       rootParams,
-      // Copy the request store's headers so that this render pass resolves
-      // `headers()` to its own object identity.
-      new Headers(requestStore.headers),
+      requestStore.headers,
       requestStore.cookies,
       requestStore.draftMode,
       onError,
@@ -1543,9 +1542,7 @@ async function generateRuntimePrefetchResult(
     generateDynamicRSCPayload.bind(null, ctx),
     prerenderResumeDataCache,
     rootParams,
-    // Copy the request store's headers so that this render pass resolves
-    // `headers()` to its own object identity.
-    new Headers(requestStore.headers),
+    requestStore.headers,
     requestStore.cookies,
     requestStore.draftMode
   )
@@ -1581,9 +1578,7 @@ async function generateRuntimePrefetchResult(
     }),
     prerenderResumeDataCache,
     rootParams,
-    // Copy the request store's headers so that this render pass resolves
-    // `headers()` to its own object identity.
-    new Headers(requestStore.headers),
+    requestStore.headers,
     requestStore.cookies,
     requestStore.draftMode,
     onError,
@@ -1652,9 +1647,10 @@ async function prospectiveRuntimeServerPrerender(
     stagedRendering: null,
     isSessionShell: isShellPrefetch,
     // These are not present in regular prerenders, but allowed in a runtime
-    // prerender. Callers pass a copy of the request store's headers so that
-    // each render pass resolves `headers()` to its own object identity.
-    headers,
+    // prerender.
+    // Any cache keyed on headers() needs to be invalidated.
+    // Otherwise some Next.js API semantics leak across render passes.
+    headers: HeadersAdapter.fresh(headers),
     cookies,
     draftMode,
   }
@@ -1830,9 +1826,8 @@ async function finalRuntimeServerPrerender(
     stagedRendering: finalStageController,
     isSessionShell: mode.type === 'session-shell-only',
     // These are not present in regular prerenders, but allowed in a runtime
-    // prerender. Callers pass a copy of the request store's headers so that
-    // each render pass resolves `headers()` to its own object identity.
-    headers,
+    // prerender.
+    headers: HeadersAdapter.fresh(headers),
     cookies,
     draftMode,
   }
