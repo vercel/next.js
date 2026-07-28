@@ -43,6 +43,7 @@ use swc_core::{
     common::{Mark, comments::Comments},
     ecma::{
         ast::*,
+        utils::prop_name_eq,
         visit::{Visit, VisitWith, noop_visit_type},
     },
 };
@@ -50,7 +51,8 @@ use turbopack_core::module::ModuleSideEffects;
 
 use crate::{
     analyzer::cjs_ast::{
-        is_cjs_export_member, is_global, is_module_dot_exports, is_module_exports_chain,
+        as_exports_define_property, is_cjs_export_member, is_global, is_module_dot_exports,
+        is_module_exports_chain,
     },
     utils::unparen,
 };
@@ -333,8 +335,9 @@ fn collect_safe_assignment_constant_ids(program: &Program) -> HashSet<Id> {
     // Drop any binding that later has an accessor attached to its object graph
     // (e.g. `o.x = { set y(v) {} }`): a subsequent write through that property
     // could invoke the accessor, so the binding is no longer safe to mutate.
-    for_each_top_level_assign(program, |assign| {
-        if assign.op == AssignOp::Assign
+    for_each_top_level_expr(program, |expr| {
+        if let Expr::Assign(assign) = expr
+            && assign.op == AssignOp::Assign
             && let AssignTarget::Simple(SimpleAssignTarget::Member(member)) = &assign.left
             && contains_getters_or_setters(&assign.right)
             && let Some(root) = root_identifier(&member.obj)
@@ -371,7 +374,7 @@ fn contains_getters_or_setters(expr: &Expr) -> bool {
     }
 }
 
-/// Calls `f` for every assignment that executes during module evaluation.
+/// Calls `f` for every expression that executes during module evaluation.
 ///
 /// This descends through all expressions — conditionals, logical/binary
 /// operators, sequences, assignment chains, call arguments, etc. — so an
@@ -379,13 +382,13 @@ fn contains_getters_or_setters(expr: &Expr) -> bool {
 /// still seen. It does *not* descend into function/method bodies: those don't
 /// run at module-evaluation time (calling such a function would itself be a side
 /// effect), so assignments inside them are irrelevant here.
-fn for_each_top_level_assign(program: &Program, f: impl FnMut(&AssignExpr)) {
+fn for_each_top_level_expr(program: &Program, f: impl FnMut(&Expr)) {
     struct Collector<F> {
         f: F,
     }
-    impl<F: FnMut(&AssignExpr)> Visit for Collector<F> {
+    impl<F: FnMut(&Expr)> Visit for Collector<F> {
         noop_visit_type!();
-        fn visit_assign_expr(&mut self, n: &AssignExpr) {
+        fn visit_expr(&mut self, n: &Expr) {
             (self.f)(n);
             n.visit_children_with(self);
         }
@@ -404,8 +407,9 @@ fn for_each_top_level_assign(program: &Program, f: impl FnMut(&AssignExpr)) {
 /// `module.exports` have side effects.
 fn module_exports_is_tainted(program: &Program, unresolved_mark: Mark) -> bool {
     let mut tainted = false;
-    for_each_top_level_assign(program, |assign| {
-        if assign.op == AssignOp::Assign
+    for_each_top_level_expr(program, |expr| {
+        if let Expr::Assign(assign) = expr
+            && assign.op == AssignOp::Assign
             && let AssignTarget::Simple(SimpleAssignTarget::Member(member)) = &assign.left
             && is_module_dot_exports(member, unresolved_mark)
             && !is_object_or_array_literal(&assign.right)
@@ -417,7 +421,7 @@ fn module_exports_is_tainted(program: &Program, unresolved_mark: Mark) -> bool {
 }
 
 /// Whether any value assigned to the module's CommonJS exports carries a getter
-/// or setter.
+/// or setter, or an `Object.defineProperty` on them installs one.
 ///
 /// Attaching an accessor to the exports object makes later member access (read or
 /// write) potentially effectful — a subsequent `module.exports.foo = 1` could
@@ -425,14 +429,44 @@ fn module_exports_is_tainted(program: &Program, unresolved_mark: Mark) -> bool {
 /// longer be treated as plain data assignments.
 fn module_exports_has_accessor(program: &Program, unresolved_mark: Mark) -> bool {
     let mut found = false;
-    for_each_top_level_assign(program, |assign| {
-        if assign.op == AssignOp::Assign
-            && let AssignTarget::Simple(SimpleAssignTarget::Member(member)) = &assign.left
-            && is_cjs_export_member(member, unresolved_mark)
-            && contains_getters_or_setters(&assign.right)
-        {
-            found = true;
+    for_each_top_level_expr(program, |expr| match expr {
+        Expr::Assign(assign) => {
+            if assign.op == AssignOp::Assign
+                && let AssignTarget::Simple(SimpleAssignTarget::Member(member)) = &assign.left
+                && is_cjs_export_member(member, unresolved_mark)
+                && contains_getters_or_setters(&assign.right)
+            {
+                found = true;
+            }
         }
+        // look for `Object.defineProperty(exports, …)`
+        Expr::Call(call) => {
+            let is_accessor_key = |key: &PropName| {
+                // A `get`/`set` in the descriptor installs an accessor, and a spread or a
+                // computed key could carry one.
+                matches!(key, PropName::Computed(_))
+                    || prop_name_eq(key, "get")
+                    || prop_name_eq(key, "set")
+            };
+            if let Some((_, descriptor)) = as_exports_define_property(call, unresolved_mark)
+                && descriptor.props.iter().any(|prop| match prop {
+                    PropOrSpread::Prop(prop) => match &**prop {
+                        // The attached value carrying one matters too: a write
+                        // through it (`exports.foo.a = 1`) could invoke a setter.
+                        Prop::KeyValue(kv) => {
+                            is_accessor_key(&kv.key) || contains_getters_or_setters(&kv.value)
+                        }
+                        Prop::Method(method) => is_accessor_key(&method.key),
+                        Prop::Shorthand(ident) => matches!(ident.sym.as_ref(), "get" | "set"),
+                        _ => false,
+                    },
+                    PropOrSpread::Spread(_) => true,
+                })
+            {
+                found = true;
+            }
+        }
+        _ => {}
     });
     found
 }
@@ -590,6 +624,26 @@ impl<'a> SideEffectVisitor<'a> {
             return false;
         };
         self.safe_assignment_constant_ids.contains(&root.to_id())
+    }
+
+    /// Whether `call` is an `Object.defineProperty(exports, …)` touching only this
+    /// module's own exports — equivalent to `exports.<x> = …`.
+    fn define_property_target_is_pure(&self, call: &CallExpr) -> bool {
+        let Some((_, descriptor)) = as_exports_define_property(call, self.unresolved_mark) else {
+            return false;
+        };
+        let [target, ..] = &call.args[..] else {
+            return false;
+        };
+        if self.module_exports_tainted
+            && is_module_exports_chain(&target.expr, self.unresolved_mark)
+        {
+            return false;
+        }
+        // Bail on `{ get value() { … } }`
+        !descriptor.props.iter().any(|prop| {
+            matches!(prop, PropOrSpread::Prop(prop) if matches!(&**prop, Prop::Getter(_) | Prop::Setter(_)))
+        })
     }
 
     /// Check if an expression is a known pure built-in function.
@@ -954,6 +1008,8 @@ impl<'a> Visit for SideEffectVisitor<'a> {
                     self.has_imports = true;
                     // It would be weird to have a side effect in a require(...) statement, but not
                     // impossible.
+                    call.args.visit_children_with(self);
+                } else if self.define_property_target_is_pure(call) {
                     call.args.visit_children_with(self);
                 } else {
                     // Unmarked calls are considered to have side effects
@@ -2735,6 +2791,76 @@ mod tests {
             test_cjs_export_setter_in_static_property,
             "class C { static x = (module.exports = { set foo(v) { sideEffect() } }); } \
              module.exports.foo = 1;"
+        );
+
+        no_side_effects!(
+            test_cjs_export_define_property,
+            "Object.defineProperty(exports, '__esModule', { value: true }); exports.foo = 1;"
+        );
+        no_side_effects!(
+            test_cjs_export_define_property_module_exports,
+            "Object.defineProperty(module.exports, 'foo', { value: 1 });"
+        );
+        no_side_effects!(
+            test_cjs_export_define_property_enumerable,
+            "Object.defineProperty(exports, 'foo', { value: 1, enumerable: true });"
+        );
+        no_side_effects!(
+            test_cjs_export_define_property_getter,
+            "Object.defineProperty(exports, 'foo', { get() { return 1; } });"
+        );
+        no_side_effects!(
+            test_cjs_export_define_property_getter_function,
+            "Object.defineProperty(exports, 'foo', { get: function() { return 1; } });"
+        );
+        // The shape a transpiler emits for `export { a } from './a'`.
+        module_evaluation_is_side_effect_free!(
+            test_cjs_export_define_property_reexport_barrel,
+            "Object.defineProperty(exports, '__esModule', { value: true }); var _a = \
+             require('./a'); Object.defineProperty(exports, 'a', { enumerable: true, get: \
+             function() { return _a.a; } });"
+        );
+        side_effects!(
+            test_cjs_export_define_property_setter_then_write,
+            "Object.defineProperty(exports, 'foo', { set(v) { sideEffect() } }); exports.foo = 1;"
+        );
+        side_effects!(
+            test_cjs_export_define_property_getter_then_write,
+            "Object.defineProperty(exports, 'foo', { get() { return 1; } }); exports.bar = 1;"
+        );
+        side_effects!(
+            test_cjs_export_define_property_spread_descriptor_then_write,
+            "Object.defineProperty(exports, 'foo', { ...descriptor }); exports.bar = 1;"
+        );
+        side_effects!(
+            test_cjs_export_define_property_descriptor_getter,
+            "Object.defineProperty(exports, 'foo', { get value() { return sideEffect(); } });"
+        );
+        side_effects!(
+            test_cjs_export_define_property_computed_descriptor_key_then_write,
+            "Object.defineProperty(exports, 'foo', { [key]: fn }); exports.bar = 1;"
+        );
+        side_effects!(
+            test_cjs_export_define_property_nested_setter_then_write,
+            "Object.defineProperty(exports, 'foo', { value: { set a(v) { sideEffect() } } }); \
+             exports.foo.a = 1;"
+        );
+        side_effects!(
+            test_cjs_export_define_property_computed_key,
+            "Object.defineProperty(exports, someVar, { value: 1 });"
+        );
+        side_effects!(
+            test_define_property_foreign_target,
+            "Object.defineProperty(globalThis, 'foo', { value: 1 });"
+        );
+        side_effects!(
+            test_cjs_export_define_property_impure_value,
+            "Object.defineProperty(exports, 'foo', { value: sideEffect() });"
+        );
+        side_effects!(
+            test_cjs_export_define_property_after_reexport,
+            "module.exports = require('./other'); Object.defineProperty(module.exports, 'foo', { \
+             value: 1 });"
         );
     }
 
