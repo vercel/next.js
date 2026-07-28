@@ -53,6 +53,7 @@ export function seedTurbopackCacheIfNeeded({
     fs.rmSync(tmpDir, { recursive: true, force: true })
     seedCacheDir(sourceVersionDir, tmpDir)
     fs.renameSync(tmpDir, targetVersionDir)
+    Log.info(`Seeded Turbopack cache from ${sourceVersionDir}.`)
   } catch {
     fs.rmSync(tmpDir, { recursive: true, force: true })
     Log.warn(
