@@ -7133,17 +7133,10 @@ async function validateInstantConfigs(
   const debug =
     process.env.NEXT_PRIVATE_DEBUG_VALIDATION === '1' ? console.log : undefined
 
-  // Fork slots that can appear in the validated render's client tree: the
-  // SSR-observed mounted set when the render had a document SSR, otherwise
-  // the serialized set. The serialized set is conservative — client
-  // components may still drop slots they were handed — so renders without
-  // a document SSR over-approximate until they get their own observation.
-  const liveForkSlots =
-    mountedForkSlots !== undefined ? mountedForkSlots : serializedForkSlots
-
   const {
     createCombinedPayloadAtDepth,
     createCombinedPayloadStream,
+    createMountObservationPayload,
     collectStagedSegmentData,
     discoverValidationDepths,
     ValidationPrefetchKind,
@@ -7185,6 +7178,163 @@ async function validateInstantConfigs(
   )
 
   const { implicitTags, nonce, workStore, isDebugChannelEnabled } = ctx
+
+  /**
+   * Observes which serialized fork slots mount in the client tree by
+   * SSR-rendering the validated render's recorded chunks once, with
+   * nothing withheld. Used when the validated render had no document SSR
+   * (RSC navigations, the warm-cache validation render). Server-side fork
+   * decisions are baked into the recorded Flight data; only client
+   * components re-execute, and the fork-slot routers they render report
+   * their mounts (see `recordMountedForkSlot`). The render is aborted
+   * once synchronously-settleable work settles: a serialized fork slot
+   * unmounted at that point isn't part of the instant window, so it is
+   * dead for validation purposes.
+   */
+  async function observeMountedForkSlotsInSSR(): Promise<ReadonlySet<string>> {
+    const extraChunksController = new AbortController()
+    const extraChunksSignal =
+      validationAbortSignal === undefined
+        ? extraChunksController.signal
+        : AbortSignal.any([extraChunksController.signal, validationAbortSignal])
+
+    const payload = await createMountObservationPayload(
+      initialRscPayload,
+      cache,
+      loaderTree,
+      ctx.getDynamicParamFromSegment,
+      ctx.query,
+      extraChunksSignal,
+      clientReferenceManifest
+    )
+
+    const reactController = new AbortController()
+    const renderController = new AbortController()
+    const reactSignal =
+      validationAbortSignal === undefined
+        ? reactController.signal
+        : AbortSignal.any([reactController.signal, validationAbortSignal])
+    const preinitScripts = () => {}
+    const { ServerInsertedHTMLProvider } = createServerInsertedHTML()
+
+    const { stream: serverStream, debugStream } =
+      await createCombinedPayloadStream(
+        ctx.componentMod,
+        renderFlightStream,
+        payload,
+        extraChunksController,
+        reactSignal,
+        clientReferenceManifest,
+        startTime,
+        isDebugChannelEnabled,
+        createDebugChannel
+      )
+
+    const clientDynamicTracking = createDynamicTrackingState(false)
+    const validationSampleTracking =
+      validationSamples !== null ? createValidationSampleTracking() : null
+
+    const observedMountedForkSlots = new Set<string>()
+
+    const prerenderStore: PrerenderStore = {
+      type: 'validation-client',
+      phase: 'render',
+      rootParams,
+      implicitTags,
+      renderSignal: renderController.signal,
+      controller: reactController,
+      cacheSignal: null,
+      dynamicTracking: clientDynamicTracking,
+      revalidate: INFINITE_CACHE,
+      expire: INFINITE_CACHE,
+      stale: INFINITE_CACHE,
+      tags: [...implicitTags.tags],
+      resumeDataCache: null,
+      hmrRefreshHash,
+      varyParamsAccumulator: null,
+      // Nothing places validation boundaries in the observation payload.
+      boundaryState: null,
+      fallbackRouteParams,
+      validationSamples,
+      validationSampleTracking,
+      mountedForkSlots: observedMountedForkSlots,
+    }
+
+    try {
+      await runInSequentialTasks(
+        () => {
+          const pendingResult = workUnitAsyncStorage.run(
+            prerenderStore,
+            getClientPrerender,
+            // eslint-disable-next-line @next/internal/no-ambiguous-jsx -- React Client
+            <App
+              reactServerStream={serverStream}
+              reactDebugStream={debugStream ?? undefined}
+              debugEndTime={undefined}
+              preinitScripts={preinitScripts}
+              ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
+              nonce={nonce}
+              images={ctx.renderOpts.images}
+            />,
+            {
+              signal: reactSignal,
+              onError: (err: unknown) => {
+                // The observation isn't judging errors — the validation
+                // passes will surface them. A component that errored or was
+                // interrupted didn't mount its subtree within the instant
+                // window, which the absence of mounts already expresses.
+                if (isReactLargeShellError(err)) {
+                  console.error(err)
+                  return undefined
+                }
+                return getDigestForWellKnownError(err)
+              },
+            }
+          )
+
+          reactSignal.addEventListener(
+            'abort',
+            () => {
+              renderController.abort()
+            },
+            { once: true }
+          )
+
+          return pendingResult
+        },
+        () => {
+          workUnitAsyncStorage.run(
+            prerenderStore,
+            reactController.abort.bind(reactController)
+          )
+        }
+      )
+    } catch (thrownValue) {
+      // Same reasoning as onError: whatever failed to render didn't mount.
+    }
+
+    debug?.(
+      `Mount observation render settled; ${observedMountedForkSlots.size} fork slots mounted`
+    )
+    return observedMountedForkSlots
+  }
+
+  // Fork slots that can appear in the validated render's client tree: the
+  // observed mounted set (from the document SSR when the render had one,
+  // otherwise from a dedicated observation render), falling back to the
+  // serialized set when there is nothing to observe.
+  let observedMountedForkSlots = mountedForkSlots
+  if (
+    observedMountedForkSlots === undefined &&
+    serializedForkSlots !== undefined &&
+    serializedForkSlots.size > 0
+  ) {
+    observedMountedForkSlots = await observeMountedForkSlotsInSSR()
+  }
+  const liveForkSlots =
+    observedMountedForkSlots !== undefined
+      ? observedMountedForkSlots
+      : serializedForkSlots
 
   async function validateAtDepth(
     prefetchKind: ValidationPrefetchKind,

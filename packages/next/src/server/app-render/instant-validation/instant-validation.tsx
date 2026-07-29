@@ -1447,3 +1447,95 @@ export async function createCombinedPayloadAtDepth(
     slotStacks,
   }
 }
+
+/**
+ * Builds an RSC payload for the fork-slot mount-observation render, used
+ * when the validated render had no document SSR to observe (RSC
+ * navigations, the warm-cache validation render).
+ *
+ * Every segment uses the Dynamic stage — the fully-resolved data from the
+ * validated render — so no server-side data is withheld: server-side fork
+ * decisions are already baked into the recorded Flight data, and only
+ * client components re-execute during the SSR pass. Fork-slot routers in
+ * the recorded data already carry their `validationSlotPath` (attached at
+ * flight time, see `create-component-tree.tsx`), so replaying the chunks
+ * replays the mount reporters; no additional instrumentation is added.
+ */
+export async function createMountObservationPayload(
+  initialRSCPayload: InitialRSCPayload,
+  cache: SegmentCache,
+  initialLoaderTree: LoaderTree,
+  getDynamicParamFromSegment: GetDynamicParamFromSegment,
+  query: NextParsedUrlQuery | null,
+  releaseSignal: AbortSignal,
+  clientReferenceManifest: ClientReferenceManifest
+): Promise<InitialRSCPayload> {
+  async function buildObservationTreeSeedData(
+    loaderTree: LoaderTree,
+    parentPath: SegmentPath | null,
+    key: string | null
+  ): Promise<CacheNodeSeedData> {
+    const { parallelRoutes } = parseLoaderTree(loaderTree)
+
+    const segment = getValidationSegment(
+      loaderTree,
+      getDynamicParamFromSegment,
+      query
+    )
+    const path: SegmentPath =
+      parentPath === null
+        ? stringifySegment(segment)
+        : createChildSegmentPath(parentPath, key!, segment)
+
+    const segmentCacheItem = cache.segments.get(path)
+    if (!segmentCacheItem) {
+      throw new InvariantError(`Missing segment data: ${path}`)
+    }
+
+    const segmentData = await deserializeFromChunks<SegmentData>(
+      segmentCacheItem.chunks[RenderStage.Dynamic],
+      segmentCacheItem.chunks[RenderStage.Dynamic],
+      segmentCacheItem.debugChunks,
+      releaseSignal,
+      clientReferenceManifest,
+      null
+    )
+
+    const slots: CacheNodeSeedDataSlots = {}
+    for (const parallelRouteKey in parallelRoutes) {
+      slots[parallelRouteKey] = await buildObservationTreeSeedData(
+        parallelRoutes[parallelRouteKey],
+        path,
+        parallelRouteKey
+      )
+    }
+
+    return getCacheNodeSeedDataFromSegment(segmentData, slots)
+  }
+
+  const seedData = await buildObservationTreeSeedData(
+    initialLoaderTree,
+    null /* parentPath */,
+    null /* key */
+  )
+
+  const { flightRouterState } = getRootDataFromPayload(initialRSCPayload)
+
+  const headCacheItem = cache.head
+  if (!headCacheItem) {
+    throw new InvariantError(`Missing segment data: <head>`)
+  }
+  const head = await deserializeFromChunks<HeadData>(
+    headCacheItem.chunks[RenderStage.Dynamic],
+    headCacheItem.chunks[RenderStage.Dynamic],
+    headCacheItem.debugChunks,
+    releaseSignal,
+    clientReferenceManifest,
+    null
+  )
+
+  return {
+    ...initialRSCPayload,
+    f: [[flightRouterState, seedData, head]],
+  }
+}

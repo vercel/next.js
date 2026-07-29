@@ -121,14 +121,14 @@ export const recordMountedForkSlot: ((slotPath: string) => void) | null =
       return
     }
     switch (workUnitStore.type) {
-      case 'request': {
+      case 'request':
+      case 'validation-client': {
         const mountedForkSlots = workUnitStore.mountedForkSlots
         if (mountedForkSlots !== undefined) {
           mountedForkSlots.add(slotPath)
         }
         return
       }
-      case 'validation-client':
       case 'prerender':
       case 'prerender-client':
       case 'prerender-ppr':

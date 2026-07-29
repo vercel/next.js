@@ -178,6 +178,16 @@ export interface ValidationStoreClient extends PrerenderStoreModernCommon {
   validationSamples: InstantValidationSamples | null
   validationSampleTracking: InstantValidationSampleTracking | null
   fallbackRouteParams: OpaqueFallbackRouteParams | null
+  /**
+   * DEV-only. Set only for the fork-slot mount-observation render that
+   * instant validation performs when the validated render had no document
+   * SSR (see `RequestStore.mountedForkSlots` for the document-SSR
+   * variant). Fork-slot routers report their mounts here via
+   * `recordMountedForkSlot`; a serialized fork slot absent from the set
+   * when the observation render settles did not mount within the instant
+   * window and is treated as dead.
+   */
+  mountedForkSlots?: Set<string>
 }
 
 export interface PrerenderStoreModernServer
