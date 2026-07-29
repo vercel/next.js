@@ -82,4 +82,25 @@ import cheerio from 'cheerio'
       body?.destroy()
     }
   })
+
+  if (!isNextDeploy) {
+    it.each(['Discordbot', 'Googlebot'])(
+      'should preserve fully buffered rendering for the built-in %s classification',
+      async (userAgent) => {
+        const res = await next.fetch('/partial?stream=delay', {
+          headers: {
+            'user-agent': userAgent,
+          },
+        })
+
+        expect(res.status).toBe(200)
+        expect(res.headers.get('x-nextjs-postponed')).toBeNull()
+
+        const $ = cheerio.load(await res.text())
+        expect($('head title').text()).toBe('dynamic title')
+        expect($('#dynamic-content').text()).toBe('dynamic content')
+        expect($('#dynamic-fallback').length).toBe(0)
+      }
+    )
+  }
 })
