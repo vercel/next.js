@@ -546,14 +546,17 @@ export function createAppPageEntrypoint({
           ? true
           : shouldServeStreamingMetadata(userAgent, nextConfig.htmlLimitedBots)
 
+    // PPR shells are generated for streaming metadata. Requests that require
+    // blocking metadata must bypass the shell so the prerender and dynamic
+    // render use the same metadata tree.
+    const shouldForceDynamicPPRRender =
+      isRoutePPREnabled && !serveStreamingMetadata
+
     const isSSG = Boolean(
       (prerenderInfo ||
         isPrerendered ||
         prerenderManifest.routes[normalizedSrcPage]) &&
-        // If this is a bot request and PPR is enabled, then we don't want
-        // to serve a static response. This applies to both DOM bots (like Googlebot)
-        // and HTML-limited bots.
-        !(botType && isRoutePPREnabled)
+        !shouldForceDynamicPPRRender
     )
 
     // When a page supports cacheComponents, we can support RDC for Navigations
@@ -585,8 +588,9 @@ export function createAppPageEntrypoint({
         : // Otherwise, we can support dynamic responses if it's a dynamic RSC request.
           isDynamicRSCRequest)
 
-    // When bots request PPR page, perform the full dynamic rendering.
-    // This applies to both DOM bots (like Googlebot) and HTML-limited bots.
+    // The fixed bot list historically waits for the entire PPR render. A bot
+    // configured only through htmlLimitedBots may stream after its metadata
+    // resolves.
     const shouldWaitOnAllReady = Boolean(botType) && isRoutePPREnabled
     const remainingPrerenderableParams =
       prerenderInfo?.remainingPrerenderableParams ?? []
