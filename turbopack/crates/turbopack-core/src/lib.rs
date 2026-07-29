@@ -22,6 +22,7 @@ pub mod generated_code_source;
 pub mod ident;
 pub mod introspect;
 pub mod issue;
+pub mod lazy_output_asset;
 pub mod loader;
 pub mod module;
 pub mod module_graph;

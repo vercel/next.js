@@ -817,6 +817,21 @@ impl ModuleGraph {
         .cell())
     }
 
+    /// A graph containing nothing but `entry` and whatever it references, as an async chunk group
+    /// entry.
+    #[turbo_tasks::function]
+    pub fn isolated_async_entry(entry: ResolvedVc<Box<dyn Module>>) -> Vc<Self> {
+        Self::from_graphs(
+            vec![SingleModuleGraph::new_with_entry(
+                ChunkGroupEntry::Async(entry),
+                false,
+                false,
+            )],
+            None,
+        )
+        .connect()
+    }
+
     #[turbo_tasks::function]
     pub async fn chunk_group_info(self: Vc<Self>) -> Result<Vc<ChunkGroupInfo>> {
         compute_chunk_group_info(&*self.await?).await

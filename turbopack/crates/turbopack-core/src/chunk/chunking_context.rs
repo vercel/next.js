@@ -293,6 +293,20 @@ pub struct ChunkingConfig {
 #[turbo_tasks::value(transparent)]
 pub struct ChunkingConfigs(FxHashMap<ResolvedVc<Box<dyn ChunkType>>, ChunkingConfig>);
 
+/// What a standalone HMR chunk list stands for, which decides how the client reacts when the list
+/// stops existing: a runtime entry has to restart the application, while a dynamic import can just
+/// discard the modules it owned.
+#[turbo_tasks::task_input]
+#[derive(
+    Eq, PartialEq, Debug, Clone, Copy, Hash, TraceRawVcs, Serialize, Deserialize, Encode, Decode,
+)]
+pub enum HmrChunkListSource {
+    /// The chunk list belongs to a runtime entry, e.g. a page.
+    Entry,
+    /// The chunk list belongs to a dynamic import.
+    Dynamic,
+}
+
 #[turbo_tasks::value(shared)]
 #[derive(Debug, Clone, Copy, Hash, Default, Deserialize)]
 pub enum SourceMapSourceType {
@@ -442,6 +456,13 @@ pub trait ChunkingContext {
         Vc::cell(false)
     }
 
+    /// Whether chunks are generated for hot module replacement, and so [`Self::hmr_chunk_list`] may
+    /// be called.
+    #[turbo_tasks::function]
+    fn is_hot_module_replacement_enabled(self: Vc<Self>) -> Vc<bool> {
+        Vc::cell(false)
+    }
+
     #[turbo_tasks::function]
     fn minify_type(self: Vc<Self>) -> Vc<MinifyType> {
         MinifyType::NoMinify.cell()
@@ -492,14 +513,20 @@ pub trait ChunkingContext {
 
     /// In development, produces a standalone HMR chunk-list register chunk
     /// that tracks `chunks` for hot-module-replacement without producing an
-    /// evaluate chunk. Returns `None` (empty vec) outside dev or when HMR is
-    /// disabled. Used to register a page-specific chunk list that covers
-    /// client-reference chunks built outside the shared module graph.
+    /// evaluate chunk.
+    ///
+    /// Used for chunks that no evaluated chunk group's list already covers:
+    /// client-reference chunks built outside the shared module graph, and the
+    /// chunks behind a lazily materialized dynamic-import boundary.
+    ///
+    /// Only valid to call when [`Self::is_hot_module_replacement_enabled`] is
+    /// true.
     #[turbo_tasks::function]
     fn hmr_chunk_list(
         self: Vc<Self>,
         _ident: Vc<AssetIdent>,
         _chunks: Vc<OutputAssets>,
+        _source: HmrChunkListSource,
     ) -> Vc<OutputAssets> {
         OutputAssets::empty()
     }

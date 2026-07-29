@@ -489,6 +489,17 @@ export declare function projectGetSourceMapSync(
   project: { __napiType: 'Project' },
   filePath: RcStr
 ): string | null
+export interface NapiMaterializedLazyChunk {
+  /**
+   * Paths the boundary contributed, relative to the client root. Empty when the requested path
+   * is not a lazy boundary.
+   */
+  clientPaths: Array<string>
+}
+export declare function projectMaterializeLazyChunk(
+  project: { __napiType: 'Project' },
+  chunkUrlPath: RcStr
+): Promise<TurbopackResult>
 export declare function projectWriteAnalyzeData(
   project: { __napiType: 'Project' },
   appDirOnly: boolean

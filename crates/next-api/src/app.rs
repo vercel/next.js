@@ -52,7 +52,7 @@ use turbopack_core::{
     asset::AssetContent,
     chunk::{
         ChunkGroupResult, ChunkingContext, ChunkingContextExt, EvaluatableAsset, EvaluatableAssets,
-        availability_info::AvailabilityInfo,
+        HmrChunkListSource, availability_info::AvailabilityInfo,
     },
     file_source::FileSource,
     ident::{AssetIdent, Layer},
@@ -1427,7 +1427,11 @@ impl AppEndpoint {
             let client_reference_chunks =
                 get_client_references_chunks_for_hmr(*client_references_chunks);
             client_chunking_context
-                .hmr_chunk_list(client_components_chunks_ident, client_reference_chunks)
+                .hmr_chunk_list(
+                    client_components_chunks_ident,
+                    client_reference_chunks,
+                    HmrChunkListSource::Entry,
+                )
                 .await?
                 .iter()
                 .copied()

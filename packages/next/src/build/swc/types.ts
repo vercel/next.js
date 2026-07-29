@@ -357,6 +357,18 @@ export interface Project {
   getSourceMap(filePath: string): Promise<string | null>
   getSourceMapSync(filePath: string): string | null
 
+  /**
+   * Materialize a lazy dynamic-import boundary, emitting its chunks to disk so
+   * they can be served like any other output asset. A path that is not a lazy
+   * boundary is a no-op.
+   *
+   * Resolves with the paths the boundary contributed, relative to the client
+   * root, so the caller can attribute them to the entry that owns the boundary.
+   */
+  materializeLazyChunk(
+    chunkUrlPath: string
+  ): Promise<TurbopackResult<{ clientPaths: string[] }>>
+
   traceSource(
     stackFrame: TurbopackStackFrame,
     currentDirectoryFileUrl: string

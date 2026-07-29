@@ -909,6 +909,34 @@ impl ProjectContainer {
             FileContent::NotFound.cell()
         }
     }
+
+    /// Materializes `client_path` when it is a lazy dynamic-import boundary, registering that
+    /// boundary's output operation so its chunks are emitted alongside the rest of the entry that
+    /// owns it. Paths that are not lazy boundaries are a no-op.
+    ///
+    /// Returns the paths the boundary contributed, relative to the client root, so the dev server
+    /// can attribute them to the entry that owns the boundary. Until it does, the chunks are
+    /// servable but not subscribable: HMR rejects a path it cannot trace back to an entrypoint.
+    #[turbo_tasks::function]
+    pub async fn materialize_lazy_chunk(
+        self: Vc<Self>,
+        client_path: FileSystemPath,
+    ) -> Result<Vc<Vec<RcStr>>> {
+        let Some(map) = self.await?.versioned_content_map else {
+            return Ok(Vc::cell(vec![]));
+        };
+        // The same roots the entry that owns the boundary was emitted with, so its chunks land
+        // alongside the rest of that entry's output.
+        let project = self.project();
+        let node_root = project.node_root().owned().await?;
+        let client_relative_path = project.client_relative_path().owned().await?;
+        Ok(map.materialize_lazy_boundary(
+            client_path,
+            node_root.clone(),
+            client_relative_path,
+            node_root,
+        ))
+    }
 }
 
 #[derive(Clone)]
@@ -1623,6 +1651,7 @@ impl Project {
                 .next_config()
                 .turbo_nested_async_chunking(self.next_mode(), true),
             shared_runtime: self.next_config().turbo_shared_runtime(self.next_mode()),
+            lazy_dynamic_imports: self.next_config().turbopack_lazy_dynamic_imports(),
             debug_ids: self.next_config().turbopack_debug_ids(),
             worker_asset_prefix: self.next_config().turbopack_worker_asset_prefix(),
             should_use_absolute_url_references: self.next_config().inline_css(),

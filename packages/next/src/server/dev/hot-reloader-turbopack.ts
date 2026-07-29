@@ -1348,6 +1348,56 @@ export async function createHotReloaderTurbopack(
         }
       }
 
+      if (req.url?.startsWith('/_next/static/chunks/')) {
+        // Materialize lazy dynamic-import boundaries, which emits the requested chunk and all its
+        // siblings. Serving is left to the static path so a lazy chunk is indistinguishable from an
+        // eagerly emitted one. Paths that are not lazy boundaries are a no-op.
+        //
+        // This runs on every request rather than only when the file is missing: dev chunk names are
+        // stable across edits, so an existing file is not necessarily a current one. Re-emitting an
+        // unchanged chunk is already a no-op in the write effect.
+        try {
+          const { clientPaths, issues } = await project.materializeLazyChunk(
+            req.url
+          )
+
+          // Materializing compiles, so it can surface issues of its own. There is no entry to
+          // attach them to, so log them rather than let them disappear.
+          for (const issue of issues) {
+            if (issue.severity === 'warning') {
+              printNonFatalIssue(issue)
+            } else if (
+              issue.severity === 'error' ||
+              issue.severity === 'fatal'
+            ) {
+              Log.error(formatIssue(issue))
+            }
+          }
+
+          if (clientPaths.length > 0) {
+            // Attribute the materialized chunks to whichever entries own the boundary. Their
+            // paths are not in any entrypoint's written output — that is the point of the
+            // boundary — and `subscribeToClientHmrEvents` drops a subscription for a path it
+            // cannot trace back to a live entrypoint, so without this their HMR chunk list is
+            // subscribed to by the browser and then silently ignored.
+            // `assetMapper` keys assets by their path relative to the dist dir, which is what
+            // the `/_next/` prefix maps to.
+            const boundaryPath = decodeURIComponent(
+              req.url.split('?')[0].replace(/^\/_next\//, '')
+            )
+            for (const key of assetMapper.getKeysByAsset(boundaryPath)) {
+              assetMapper.setPathsForKey(key, [
+                ...assetMapper.getAssetPathsByKey(key),
+                ...clientPaths,
+              ])
+            }
+          }
+        } catch (err) {
+          // Serving falls through to the static path, which 404s if the chunk was never emitted.
+          console.error(err)
+        }
+      }
+
       for (const middleware of middlewares) {
         let calledNext = false
 

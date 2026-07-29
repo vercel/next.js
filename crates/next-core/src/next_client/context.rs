@@ -488,6 +488,7 @@ pub struct ClientChunkingContextOptions {
     pub scope_hoisting: Vc<bool>,
     pub nested_async_chunking: Vc<bool>,
     pub shared_runtime: Vc<bool>,
+    pub lazy_dynamic_imports: Vc<bool>,
     pub debug_ids: Vc<bool>,
     pub worker_asset_prefix: Vc<Option<RcStr>>,
     pub should_use_absolute_url_references: Vc<bool>,
@@ -532,6 +533,7 @@ pub async fn get_client_chunking_context(
         scope_hoisting,
         nested_async_chunking,
         shared_runtime,
+        lazy_dynamic_imports,
         debug_ids,
         worker_asset_prefix,
         should_use_absolute_url_references,
@@ -599,6 +601,7 @@ pub async fn get_client_chunking_context(
 
     if next_mode.is_development() {
         builder = builder
+            .manifest_chunks(*lazy_dynamic_imports.await?)
             .hot_module_replacement()
             .source_map_source_type(SourceMapSourceType::AbsoluteFileUri)
             .dynamic_chunk_content_loading(true);

@@ -5,14 +5,15 @@ use turbo_tasks::{ResolvedVc, TryJoinIterExt, Vc};
 use turbopack_core::{
     chunk::{
         AsyncModuleInfo, ChunkData, ChunkableModule, ChunkingContext, ChunkingContextExt,
-        ChunksData, availability_info::AvailabilityInfo,
+        ChunksData, HmrChunkListSource, availability_info::AvailabilityInfo,
     },
     ident::AssetIdent,
+    lazy_output_asset::LazyOutputAsset,
     module::{Module, ModuleSideEffects},
     module_graph::{
         ModuleGraph, chunk_group_info::ChunkGroup, module_batch::ChunkableModuleOrBatch,
     },
-    output::OutputAssetsWithReferenced,
+    output::{OutputAsset, OutputAssets, OutputAssetsWithReferenced},
 };
 
 use crate::{
@@ -70,6 +71,33 @@ impl ManifestAsyncModule {
         )
     }
 
+    /// A chunk list tracking the dynamic import's chunks for HMR, empty when HMR is disabled.
+    ///
+    /// Nothing else covers those chunks. An evaluated chunk group builds one chunk list for
+    /// everything it can reach, but it reaches this dynamic import through the manifest chunk,
+    /// which is a lazy boundary, so the traversal stops before the chunks behind it. Without a
+    /// list of their own, an edit to the dynamically imported module has no subscription to
+    /// arrive through and never reaches a component that is already mounted.
+    ///
+    /// This is generated behind the same boundary as the chunks it tracks, so it costs nothing
+    /// until the dynamic import is actually reached.
+    #[turbo_tasks::function]
+    async fn hmr_chunk_list(self: Vc<Self>) -> Result<Vc<OutputAssets>> {
+        let this = self.await?;
+        if !*this
+            .chunking_context
+            .is_hot_module_replacement_enabled()
+            .await?
+        {
+            return Ok(OutputAssets::empty());
+        }
+        Ok(this.chunking_context.hmr_chunk_list(
+            self.ident(),
+            *self.chunk_group().await?.assets,
+            HmrChunkListSource::Dynamic,
+        ))
+    }
+
     #[turbo_tasks::function]
     pub async fn manifest_chunk_group(
         self: ResolvedVc<Self>,
@@ -94,12 +122,46 @@ impl ManifestAsyncModule {
                 .cell());
             }
         }
-        Ok(this.chunking_context.chunk_group_assets(
-            self.ident(),
-            ChunkGroup::Async(ResolvedVc::upcast(self)),
-            *this.module_graph,
-            this.availability_info,
-        ))
+        let module_graph = ModuleGraph::isolated_async_entry(*ResolvedVc::upcast(self));
+        let manifest_group = this
+            .chunking_context
+            .chunk_group_assets(
+                self.ident(),
+                ChunkGroup::Async(ResolvedVc::upcast(self)),
+                module_graph,
+                this.availability_info,
+            )
+            .await?;
+
+        // Only the group's own assets become lazy boundaries. `referenced_assets` and `references`
+        // are group-level and get expanded eagerly, so anything reachable through them would drag
+        // the dynamic import's real chunk group back onto the eager path. They are empty for an
+        // async group today; assert it rather than let a future change defeat the deferral in
+        // silence.
+        debug_assert!(
+            manifest_group.referenced_assets.await?.is_empty()
+                && manifest_group.references.await?.is_empty(),
+            "a manifest chunk group must not have group-level references, or they would be \
+             emitted eagerly"
+        );
+
+        let assets = manifest_group
+            .assets
+            .await?
+            .iter()
+            .map(async |asset| {
+                Ok(ResolvedVc::upcast::<Box<dyn OutputAsset>>(
+                    LazyOutputAsset::new(**asset).to_resolved().await?,
+                ))
+            })
+            .try_join()
+            .await?;
+        Ok(OutputAssetsWithReferenced {
+            assets: ResolvedVc::cell(assets),
+            referenced_assets: manifest_group.referenced_assets,
+            references: manifest_group.references,
+        }
+        .cell())
     }
 
     #[turbo_tasks::function]
@@ -126,9 +188,14 @@ impl ManifestAsyncModule {
     #[turbo_tasks::function]
     async fn chunks_data(self: Vc<Self>) -> Result<Vc<ChunksData>> {
         let this = self.await?;
+        // The chunk list is loaded alongside the chunks it tracks, because loading it is what
+        // registers the HMR subscription on the client.
         Ok(ChunkData::from_assets(
             this.chunking_context.output_root().owned().await?,
-            *self.chunk_group().await?.assets,
+            self.chunk_group()
+                .await?
+                .assets
+                .concatenate(self.hmr_chunk_list()),
         ))
     }
 }
@@ -224,6 +291,11 @@ impl EcmascriptChunkPlaceable for ManifestAsyncModule {
         _chunking_context: Vc<Box<dyn ChunkingContext>>,
         _module_graph: Vc<ModuleGraph>,
     ) -> Vc<OutputAssetsWithReferenced> {
+        // Making the chunk list an output asset of this module is what gets it emitted, alongside
+        // the target chunks, when the boundary is materialized.
         self.chunk_group()
+            .concatenate(OutputAssetsWithReferenced::from_assets(
+                self.hmr_chunk_list(),
+            ))
     }
 }

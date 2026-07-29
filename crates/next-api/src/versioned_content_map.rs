@@ -10,7 +10,8 @@ use turbo_tasks::{
 use turbo_tasks_fs::{FileContent, FileSystemPath};
 use turbopack_core::{
     asset::{Asset, AssetContent},
-    output::{ExpandedOutputAssets, OptionOutputAsset, OutputAsset},
+    lazy_output_asset::LazyOutputAsset,
+    output::{ExpandedOutputAssets, OptionOutputAsset, OutputAsset, OutputAssetsReference},
     source_map::GenerateSourceMap,
     version::OptionVersionedContent,
 };
@@ -289,6 +290,59 @@ impl VersionedContentMap {
         Ok(Vc::cell(None))
     }
 
+    /// Materializes the lazy boundary registered at `path`, emitting its chunks to the given output
+    /// roots, and returns every path the boundary contributed, relative to `client_relative_path`.
+    ///
+    /// Empty when `path` is unknown or is not a lazy boundary. The contributed paths are ordinary
+    /// assets in the new map entry, so a later lookup of any of them resolves without materializing
+    /// again.
+    #[turbo_tasks::function]
+    pub async fn materialize_lazy_boundary(
+        self: Vc<Self>,
+        path: FileSystemPath,
+        node_root: FileSystemPath,
+        client_relative_path: FileSystemPath,
+        client_output_path: FileSystemPath,
+    ) -> Result<Vc<Vec<RcStr>>> {
+        let result = self.raw_get(path.clone()).await?;
+        let Some(entry) = &*result else {
+            return Ok(Vc::cell(vec![]));
+        };
+        let Some(&asset) = entry.path_to_asset.get(&path) else {
+            return Ok(Vc::cell(vec![]));
+        };
+        if !LazyOutputAsset::is_lazy(asset) {
+            return Ok(Vc::cell(vec![]));
+        }
+
+        let assets_operation = lazy_asset_references_operation(asset);
+        let compute_entry = compute_entry_operation(
+            self.to_resolved().await?,
+            assets_operation,
+            node_root,
+            client_relative_path.clone(),
+            client_output_path,
+        );
+        // The operation stays connected to the map, so later edits recompute and re-emit it through
+        // the same path as any eagerly emitted asset, which is what keeps HMR working for a
+        // materialized chunk.
+        self.await?
+            .map_op_to_compute_entry
+            .update_conditionally(|map| {
+                map.insert(assets_operation, compute_entry) != Some(compute_entry)
+            });
+        let Some(materialized) = &*compute_entry.connect().await? else {
+            return Ok(Vc::cell(vec![]));
+        };
+        Ok(Vc::cell(
+            materialized
+                .path_to_asset
+                .keys()
+                .filter_map(|path| client_relative_path.get_path_to(path).map(RcStr::from))
+                .collect(),
+        ))
+    }
+
     #[turbo_tasks::function]
     pub async fn keys_in_path(&self, root: FileSystemPath) -> Result<Vc<Vec<RcStr>>> {
         let keys = {
@@ -333,6 +387,15 @@ type GetEntriesResultT = Vec<(FileSystemPath, ResolvedVc<Box<dyn OutputAsset>>)>
 
 #[turbo_tasks::value(transparent)]
 struct GetEntriesResult(GetEntriesResultT);
+
+/// Everything a lazy boundary contributes once materialized: the wrapped asset itself plus every
+/// asset reachable from it. See [`LazyOutputAsset`].
+#[turbo_tasks::function(operation, root)]
+fn lazy_asset_references_operation(
+    asset: ResolvedVc<Box<dyn OutputAsset>>,
+) -> Vc<ExpandedOutputAssets> {
+    asset.references().expand_all_assets()
+}
 
 #[turbo_tasks::function(operation, root)]
 async fn get_entries(assets: OperationVc<ExpandedOutputAssets>) -> Result<Vc<GetEntriesResult>> {
