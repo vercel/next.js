@@ -37,9 +37,7 @@ use std::{
 use anyhow::{Context as _, anyhow, bail};
 use napi::bindgen_prelude::*;
 use napi_derive::napi;
-use next_custom_transforms::chain_transforms::{
-    DecoratorVersion, TransformOptions, custom_before_pass,
-};
+use next_custom_transforms::chain_transforms::{TransformOptions, custom_before_pass};
 use rustc_hash::{FxHashMap, FxHashSet};
 use swc_core::{
     atoms::Atom,
@@ -173,33 +171,6 @@ impl Task for TransformTask {
                             options.swc.unresolved_mark = Some(unresolved_mark);
                             options.swc.runtime_options =
                                 RuntimeOptions::default().plugin_runtime(Arc::new(WasmtimeRuntime));
-                            options.swc.config.jsc.transform = {
-                                let mut transform = options
-                                    .swc
-                                    .config
-                                    .jsc
-                                    .transform
-                                    .into_inner()
-                                    .unwrap_or_default();
-
-                                match options.decorator_version {
-                                    DecoratorVersion::Legacy => {
-                                        transform.decorator_version = None;
-                                        transform.legacy_decorator = true.into();
-                                    }
-                                    DecoratorVersion::V202112 => {
-                                        transform.decorator_version =
-                                            Some(swc_core::base::config::DecoratorVersion::V202112);
-                                    }
-                                    DecoratorVersion::V202203 => {
-                                        transform.decorator_version =
-                                            Some(swc_core::base::config::DecoratorVersion::V202203);
-                                    }
-                                }
-
-                                Some(transform).into()
-                            };
-
                             let cm = self.c.cm.clone();
                             let file = fm.clone();
 

@@ -115,8 +115,10 @@ function getBaseSWCOptions({
     decoratorVersion: compilerOptions?.decoratorVersion,
   })
   const paths = jsConfig?.compilerOptions?.paths
-  const enableDecorators = Boolean(
-    jsConfig?.compilerOptions?.experimentalDecorators
+  const decoratorVersion = compilerOptions?.decoratorVersion
+  const enableLegacyDecorators = Boolean(
+    decoratorVersion === 'legacy' ||
+      (!decoratorVersion && jsConfig?.compilerOptions?.experimentalDecorators)
   )
   const emitDecoratorMetadata = Boolean(
     jsConfig?.compilerOptions?.emitDecoratorMetadata
@@ -156,7 +158,9 @@ function getBaseSWCOptions({
               },
             }
           : {}),
-        legacyDecorator: enableDecorators,
+        legacyDecorator: enableLegacyDecorators,
+        decoratorVersion:
+          decoratorVersion === 'legacy' ? undefined : decoratorVersion,
         decoratorMetadata: emitDecoratorMetadata,
         useDefineForClassFields: useDefineForClassFields,
         react: {
@@ -254,7 +258,6 @@ function getBaseSWCOptions({
     // For app router we prefer to bundle ESM,
     // On server side of pages router we prefer CJS.
     preferEsm: esm,
-    decoratorVersion: compilerOptions?.decoratorVersion ?? 'legacy',
     lintCodemodComments: true,
     trackDynamicImports: trackDynamicImports,
     debugFunctionName: development,

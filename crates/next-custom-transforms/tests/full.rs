@@ -82,7 +82,6 @@ fn test(input: &Path, minify: bool) {
                 optimize_barrel_exports: None,
                 optimize_server_react: None,
                 prefer_esm: false,
-                decorator_version: Default::default(),
                 debug_function_name: false,
                 css_env: None,
                 track_dynamic_imports: false,

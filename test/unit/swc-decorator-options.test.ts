@@ -32,7 +32,12 @@ describe('decorator parser options', () => {
       })
 
       expect(options.jsc.parser.decorators).toBe(true)
-      expect(options.decoratorVersion).toBe(decoratorVersion)
+      expect(options.jsc.transform.legacyDecorator).toBe(
+        decoratorVersion === 'legacy'
+      )
+      expect(options.jsc.transform.decoratorVersion).toBe(
+        decoratorVersion === 'legacy' ? undefined : decoratorVersion
+      )
     }
   )
 
@@ -48,8 +53,29 @@ describe('decorator parser options', () => {
     })
 
     expect(options.jsc.parser.decorators).toBe(true)
-    expect(options.decoratorVersion).toBe('legacy')
+    expect(options.jsc.transform.legacyDecorator).toBe(true)
+    expect(options.jsc.transform.decoratorVersion).toBeUndefined()
   })
+
+  it.each(['2021-12', '2022-03'] as const)(
+    'should prefer decoratorVersion %s over experimentalDecorators',
+    (decoratorVersion) => {
+      const options = getLoaderSWCOptions({
+        ...baseArgs,
+        compilerOptions: { decoratorVersion },
+        jsConfig: {
+          compilerOptions: {
+            experimentalDecorators: true,
+          },
+        },
+        supportedBrowsers: undefined,
+      })
+
+      expect(options.jsc.parser.decorators).toBe(true)
+      expect(options.jsc.transform.legacyDecorator).toBe(false)
+      expect(options.jsc.transform.decoratorVersion).toBe(decoratorVersion)
+    }
+  )
 
   it('should not enable parsing when decorators are not configured', () => {
     const options = getLoaderSWCOptions({
@@ -58,6 +84,7 @@ describe('decorator parser options', () => {
     })
 
     expect(options.jsc.parser.decorators).toBe(false)
-    expect(options.decoratorVersion).toBe('legacy')
+    expect(options.jsc.transform.legacyDecorator).toBe(false)
+    expect(options.jsc.transform.decoratorVersion).toBeUndefined()
   })
 })
