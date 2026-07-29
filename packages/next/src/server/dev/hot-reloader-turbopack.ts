@@ -1348,7 +1348,10 @@ export async function createHotReloaderTurbopack(
         }
       }
 
-      if (req.url?.startsWith('/_next/static/chunks/')) {
+      if (
+        nextConfig.experimental.turbopackLazyDynamicImports &&
+        req.url?.startsWith('/_next/static/chunks/')
+      ) {
         // Materialize lazy dynamic-import boundaries, which emits the requested chunk and all its
         // siblings. Serving is left to the static path so a lazy chunk is indistinguishable from an
         // eagerly emitted one. Paths that are not lazy boundaries are a no-op.
