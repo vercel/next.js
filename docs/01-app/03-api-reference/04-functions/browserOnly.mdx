@@ -1,0 +1,156 @@
+---
+title: browserOnly
+description: API Reference for the browserOnly function.
+---
+
+{/* The content of this doc is shared between the app and pages router. You can use the `<PagesOnly>Content</PagesOnly>` component to add content that is specific to the Pages Router. Any shared content should not be wrapped in a component. */}
+
+The `browserOnly` function marks a component subtree to render only in the browser. Pass the returned promise to React's [`use`](https://react.dev/reference/react/use) function and wrap the component in [`Suspense`](https://react.dev/reference/react/Suspense).
+
+<AppOnly>
+
+```tsx filename="app/browser-only-content.tsx" switcher highlight={7}
+'use client'
+
+import { use } from 'react'
+import { browserOnly } from 'next/navigation'
+
+export default function BrowserOnlyContent() {
+  use(browserOnly())
+  return <p>This content only renders in the browser.</p>
+}
+```
+
+```jsx filename="app/browser-only-content.js" switcher highlight={7}
+'use client'
+
+import { use } from 'react'
+import { browserOnly } from 'next/navigation'
+
+export default function BrowserOnlyContent() {
+  use(browserOnly())
+  return <p>This content only renders in the browser.</p>
+}
+```
+
+</AppOnly>
+
+<PagesOnly>
+
+```tsx filename="components/browser-only-content.tsx" switcher highlight={5}
+import { use } from 'react'
+import { browserOnly } from 'next/navigation'
+
+export default function BrowserOnlyContent() {
+  use(browserOnly())
+  return <p>This content only renders in the browser.</p>
+}
+```
+
+```jsx filename="components/browser-only-content.js" switcher highlight={5}
+import { use } from 'react'
+import { browserOnly } from 'next/navigation'
+
+export default function BrowserOnlyContent() {
+  use(browserOnly())
+  return <p>This content only renders in the browser.</p>
+}
+```
+
+</PagesOnly>
+
+Render the component inside a `Suspense` boundary:
+
+<AppOnly>
+
+```tsx filename="app/page.tsx" switcher highlight={6-8}
+import { Suspense } from 'react'
+import BrowserOnlyContent from './browser-only-content'
+
+export default function Page() {
+  return (
+    <Suspense fallback={<p>Loading...</p>}>
+      <BrowserOnlyContent />
+    </Suspense>
+  )
+}
+```
+
+```jsx filename="app/page.js" switcher highlight={6-8}
+import { Suspense } from 'react'
+import BrowserOnlyContent from './browser-only-content'
+
+export default function Page() {
+  return (
+    <Suspense fallback={<p>Loading...</p>}>
+      <BrowserOnlyContent />
+    </Suspense>
+  )
+}
+```
+
+</AppOnly>
+
+<PagesOnly>
+
+```tsx filename="pages/index.tsx" switcher highlight={6-8}
+import { Suspense } from 'react'
+import BrowserOnlyContent from '../components/browser-only-content'
+
+export default function Page() {
+  return (
+    <Suspense fallback={<p>Loading...</p>}>
+      <BrowserOnlyContent />
+    </Suspense>
+  )
+}
+```
+
+```jsx filename="pages/index.js" switcher highlight={6-8}
+import { Suspense } from 'react'
+import BrowserOnlyContent from '../components/browser-only-content'
+
+export default function Page() {
+  return (
+    <Suspense fallback={<p>Loading...</p>}>
+      <BrowserOnlyContent />
+    </Suspense>
+  )
+}
+```
+
+</PagesOnly>
+
+During server rendering, Next.js leaves the nearest `Suspense` fallback in the HTML. During hydration, the promise is already fulfilled, so React replaces the fallback with the browser-only subtree without waiting.
+
+## Reference
+
+### Parameters
+
+```tsx
+browserOnly()
+```
+
+`browserOnly` does not take any parameters.
+
+### Returns
+
+`browserOnly` returns a `Promise<void>`:
+
+| Environment | Behavior                                                                                                      |
+| ----------- | ------------------------------------------------------------------------------------------------------------- |
+| Server      | Causes React to render the fallback from the nearest `Suspense` boundary.                                     |
+| Browser     | Returns an already fulfilled promise, allowing the browser-only content to render without an additional wait. |
+
+> **Good to know**:
+>
+> - `browserOnly` requires React 19 or later.
+> - Wrap the smallest browser-only subtree in `Suspense`. If the bailout reaches the page root, production prerendering fails the build and request-time server rendering fails the request. See [Missing Suspense boundary with CSR bailout](/docs/messages/missing-suspense-with-csr-bailout).
+> - A `browserOnly` subtree does not opt the route into request-time dynamic rendering. Content outside the nearest `Suspense` boundary can remain prerendered.
+> - `browserOnly` is supported in both the App Router and Pages Router.
+
+<AppOnly>
+
+`browserOnly` can only be used in [Client Components](/docs/app/getting-started/server-and-client-components). Using it in a Server Component is unsupported and results in an error.
+
+</AppOnly>

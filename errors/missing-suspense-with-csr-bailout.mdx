@@ -1,14 +1,81 @@
 ---
-title: Missing Suspense boundary with useSearchParams
+title: Missing Suspense boundary with CSR bailout
 ---
 
 ## Why This Error Occurred
 
-Reading search parameters through `useSearchParams()` without a Suspense boundary will opt the entire page into client-side rendering. This could cause your page to be blank until the client-side JavaScript has loaded.
+During server rendering, a Client Component triggered a client-side rendering (CSR) bailout without a Suspense boundary. A CSR bailout tells Next.js that a subtree can only render in the browser. It must be contained by a Suspense boundary so Next.js can preserve the server-rendered shell. If the bailout reaches the page root, production prerendering fails the build and request-time server rendering fails the request.
+
+Common causes include:
+
+- Reading search parameters through `useSearchParams()` while statically rendering a route.
+- Calling `use(browserOnly())`, which explicitly marks a subtree as browser-only.
 
 ## Possible Ways to Fix It
 
-You have a few options depending on your intent:
+### Wrap the smallest subtree in Suspense
+
+Wrap the component that triggers the CSR bailout in a Suspense boundary. This preserves the static shell while the browser renders that subtree.
+
+When using [`browserOnly()`](/docs/app/api-reference/functions/browserOnly), read its promise with React's `use()` in a Client Component:
+
+```tsx filename="app/browser-only-content.tsx" switcher
+'use client'
+
+import { use } from 'react'
+import { browserOnly } from 'next/navigation'
+
+export default function BrowserOnlyContent() {
+  use(browserOnly())
+  return <p>This content only renders in the browser.</p>
+}
+```
+
+```jsx filename="app/browser-only-content.js" switcher
+'use client'
+
+import { use } from 'react'
+import { browserOnly } from 'next/navigation'
+
+export default function BrowserOnlyContent() {
+  use(browserOnly())
+  return <p>This content only renders in the browser.</p>
+}
+```
+
+Then render it inside a Suspense boundary:
+
+```tsx filename="app/page.tsx" switcher
+import { Suspense } from 'react'
+import BrowserOnlyContent from './browser-only-content'
+
+export default function Page() {
+  return (
+    <Suspense fallback={<p>Loading...</p>}>
+      <BrowserOnlyContent />
+    </Suspense>
+  )
+}
+```
+
+```jsx filename="app/page.js" switcher
+import { Suspense } from 'react'
+import BrowserOnlyContent from './browser-only-content'
+
+export default function Page() {
+  return (
+    <Suspense fallback={<p>Loading...</p>}>
+      <BrowserOnlyContent />
+    </Suspense>
+  )
+}
+```
+
+`browserOnly()` requires React 19 or later. The same boundary requirement applies in the Pages Router.
+
+### Handle `useSearchParams()` based on your intent
+
+If `useSearchParams()` triggered the bailout, you have a few additional options:
 
 - To keep the route statically generated, wrap the smallest subtree that calls `useSearchParams()` in `Suspense`, for example you may move its usage into a child Client Component and render that component wrapped with `Suspense`. This preserves the static shell and avoids a full CSR bailout.
 - To make the route dynamically rendered, use the [`connection`](/docs/app/api-reference/functions/connection) function in a Server Component (e.g. the Page or a wrapping Layout). This waits for an incoming request and excludes everything below from prerendering.
@@ -159,7 +226,7 @@ export function Searchbar() {
 
 ## Disabling
 
-> **Note**: This is only available with Next.js version 14.x. If you're in versions above 14 please fix it with the approach above.
+> **Note**: This option only applies to the `useSearchParams()` check and is only available with Next.js version 14.x. If you're using a later version, fix the bailout with one of the approaches above.
 
 We don't recommend disabling this rule. However, if you need to, you can disable it by setting the `missingSuspenseWithCSRBailout` option to `false` in your `next.config.js`:
 
@@ -175,7 +242,7 @@ This configuration option will be removed in a future major version.
 
 ## Debugging
 
-If you're having trouble locating where `useSearchParams()` is being used without a Suspense boundary, you can get more detailed stack traces by running:
+If you're having trouble locating the component that triggered the CSR bailout, you can get more detailed stack traces by running:
 
 ```bash
 next build --debug-prerender
@@ -186,5 +253,7 @@ This provides unminified stack traces with source maps, making it easier to pinp
 ## Useful Links
 
 - [`useSearchParams`](/docs/app/api-reference/functions/use-search-params)
+- [`browserOnly`](/docs/app/api-reference/functions/browserOnly)
 - [`connection`](/docs/app/api-reference/functions/connection)
+- [React `Suspense`](https://react.dev/reference/react/Suspense)
 - [Debugging prerender errors](/docs/app/api-reference/cli/next#debugging-prerender-errors)
