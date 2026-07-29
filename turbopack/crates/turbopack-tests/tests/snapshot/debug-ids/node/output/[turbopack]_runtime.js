@@ -1659,16 +1659,9 @@ function initializeServerHmr(moduleFactories, devModuleCache) {
  * the handler is initialized first via ensureHmrClientInitialized().
  */ function emitMessage(msg) {
     if (serverHmrUpdateHandler == null) {
-        console.warn('[Server HMR] No update handler registered to receive message:', msg);
-        return false;
+        throw new Error('[Server HMR] No update handler registered to receive message');
     }
-    try {
-        serverHmrUpdateHandler(msg.data);
-        return true;
-    } catch (err) {
-        console.error('[Server HMR] Listener error:', err);
-        return false;
-    }
+    serverHmrUpdateHandler(msg.data);
 }
 /**
  * Handles server message updates and applies them to the Node.js runtime.
@@ -1678,33 +1671,62 @@ function initializeServerHmr(moduleFactories, devModuleCache) {
         return;
     }
     const instruction = msg.instruction;
-    if (instruction.type !== 'EcmascriptMergedUpdate') {
-        return;
-    }
     try {
-        const { entries = {}, chunks = {} } = instruction;
-        const evalModuleEntry = (entry)=>{
-            // eslint-disable-next-line no-eval
-            return (0, eval)(entry.map ? inlineSourcemaps(entry) : entry.code);
-        };
-        const { added, modified } = computeChangedModules(entries, chunks, undefined // no chunkModulesMap for Node.js
-        );
-        // Use shared HMR update implementation
-        applyEcmascriptMergedUpdateShared({
-            added,
-            modified,
-            disposedModules: [],
-            evalModuleEntry,
-            instantiateModule,
-            applyModuleFactoryName: ()=>{},
-            moduleFactories,
-            devModuleCache,
-            autoAcceptRootModules: true
-        });
+        if (instruction.type === 'ChunkListUpdate') {
+            // All node ecmascript chunks are mergeable, so a `total`/`partial` here
+            // means a non-mergeable asset changed in an unsupported way. Escalate
+            // to a full clear() rather than leave stale factories in memory.
+            for (const [chunkPath, chunkUpdate] of Object.entries(instruction.chunks ?? {})){
+                if (chunkUpdate.type === 'total' || chunkUpdate.type === 'partial') {
+                    throw new Error(`unsupported '${chunkUpdate.type}' update for chunk ${chunkPath}`);
+                }
+            }
+            if (instruction.merged) {
+                for (const merged of instruction.merged){
+                    applyEcmascriptMergedUpdate(merged, moduleFactories, devModuleCache);
+                }
+            }
+            return;
+        }
+        if (instruction.type === 'EcmascriptMergedUpdate') {
+            applyEcmascriptMergedUpdate(instruction, moduleFactories, devModuleCache);
+            return;
+        }
     } catch (e) {
         console.error('[Server HMR] Update failed, full reload needed:', e);
         throw e;
     }
+}
+function applyEcmascriptMergedUpdate(instruction, moduleFactories, devModuleCache) {
+    const { entries = {}, chunks = {} } = instruction;
+    const evalModuleEntry = (entry)=>{
+        const code = entry.map ? inlineSourcemaps(entry) : entry.code;
+        // eslint-disable-next-line no-eval
+        return (0, eval)(`(require) => ${code}`)(require);
+    };
+    const { added, modified } = computeChangedModules(entries, chunks, undefined // no chunkModulesMap for Node.js
+    );
+    // Modules that appear in an "added" chunk but already exist in the cache
+    // were moved to a renamed chunk. Treat them as modified so the dependency
+    // walk runs and they get re-instantiated with the new factory.
+    for (const [moduleId, entry] of added){
+        if (entry != null && devModuleCache[moduleId] != null) {
+            added.delete(moduleId);
+            modified.set(moduleId, entry);
+        }
+    }
+    // Use shared HMR update implementation
+    applyEcmascriptMergedUpdateShared({
+        added,
+        modified,
+        disposedModules: [],
+        evalModuleEntry,
+        instantiateModule,
+        applyModuleFactoryName: ()=>{},
+        moduleFactories,
+        devModuleCache,
+        autoAcceptRootModules: true
+    });
 }
 /// <reference path="../../shared/runtime/dev-protocol.d.ts" />
 /// <reference path="./hmr-client.ts" />
@@ -1722,27 +1744,32 @@ function ensureHmrClientInitialized() {
     initializeServerHmr(moduleFactories, devModuleCache);
 }
 function __turbopack_server_hmr_apply__(update) {
-    try {
-        ensureHmrClientInitialized();
-        // emitMessage returns false if any listener failed to apply the update
-        return emitMessage({
-            type: 'turbopack-message',
-            data: update
-        });
-    } catch (err) {
-        console.error('[Server HMR] Failed to apply update:', err);
-        return false;
-    }
+    ensureHmrClientInitialized();
+    // Throws if the update can't be applied in-process; the consumer catches it
+    // and falls back to evicting require.cache.
+    emitMessage({
+        type: 'turbopack-message',
+        data: update
+    });
 }
 const handlers = globalThis.__turbopack_server_hmr_handlers__ ?? new Map();
-const chunkPrefix = path.relative(RUNTIME_ROOT, path.dirname(__filename));
+// Normalize to forward slashes so it matches the virtual chunk paths in
+// `update.instruction.chunks`, which always use `/` regardless of OS.
+const chunkPrefix = path.relative(RUNTIME_ROOT, path.dirname(__filename)).replaceAll(path.sep, '/');
 if (handlers.size === 0) {
     // First registration in this generation: install the routing dispatcher.
     globalThis.__turbopack_server_hmr_apply__ = (update)=>{
         const registry = globalThis.__turbopack_server_hmr_handlers__ ?? new Map();
-        const updateChunkPaths = Object.keys(update.instruction?.chunks ?? {});
+        // Chunk paths can appear either directly on the instruction (single-chunk
+        // updates) or nested inside `merged` entries (chunks covered by a
+        // merger). Collect both so routing isn't skipped just because a mergeable
+        // chunk's update only reports its paths inside `merged`.
+        const updateChunkPaths = new Set([
+            ...Object.keys(update.instruction?.chunks ?? {}),
+            ...(update.instruction?.merged ?? []).flatMap((merged)=>Object.keys(merged.chunks ?? {}))
+        ]);
         const toCall = [];
-        if (updateChunkPaths.length === 0) {
+        if (updateChunkPaths.size === 0) {
             for (const entry of registry.values())toCall.push(entry);
         } else {
             const seen = new Set();
@@ -1756,15 +1783,12 @@ if (handlers.size === 0) {
                 }
             }
         }
-        let applied = false;
+        // No matching runtime loaded (e.g. editing a route not required yet this
+        // session): nothing live to patch, so this is a no-op. A handler that
+        // throws propagates to the consumer, which evicts require.cache.
         for (const { handler } of toCall){
-            try {
-                if (handler(update)) applied = true;
-            } catch (err) {
-                console.error('[Server HMR] Handler error:', err);
-            }
+            handler(update);
         }
-        return applied;
     };
 }
 globalThis.__turbopack_server_hmr_handlers__ = handlers;

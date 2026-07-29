@@ -49,6 +49,33 @@ describe('detectContentType', () => {
     const buffer = Buffer.alloc(50_000_001).fill(' ')
     expect(await detectContentType(buffer)).toBe(null)
   })
+  it.each([
+    ['html', '/test.html'],
+    ['ppm', '/test.ppm'],
+    ['pgm', '/test.pgm'],
+    ['pam', '/test.pam'],
+    ['pfm', '/test.pfm'],
+    ['csv', '/test.csv'],
+    ['vips', '/test.vips'],
+    ['hdr', '/test.hdr'],
+    ['exr', '/test.exr'],
+    ['fits', '/test.fits'],
+    ['j2c', '/test.j2c'],
+    ['psd', '/test.psd'],
+    ['tga', '/test.tga'],
+    ['cur', '/test.cur'],
+    ['dds', '/test.dds'],
+    ['ktx', '/test.ktx'],
+  ])(
+    'should not allow %s because detectContentType returns null',
+    async (_name, filename) => {
+      const buffer = await getImage(
+        `../../../test/e2e/image-optimizer/app/public${filename}`
+      )
+      console.log('has buffer', buffer.length)
+      expect(await detectContentType(buffer)).toBe(null)
+    }
+  )
   it('should return jpg', async () => {
     const buffer = await getImage('./images/test.jpg')
     expect(await detectContentType(buffer)).toBe('image/jpeg')
@@ -56,6 +83,10 @@ describe('detectContentType', () => {
   it('should return png', async () => {
     const buffer = await getImage('./images/test.png')
     expect(await detectContentType(buffer)).toBe('image/png')
+  })
+  it('should return gif', async () => {
+    const buffer = await getImage('./images/test.gif')
+    expect(await detectContentType(buffer)).toBe('image/gif')
   })
   it('should return webp', async () => {
     const buffer = await getImage('./images/animated.webp')

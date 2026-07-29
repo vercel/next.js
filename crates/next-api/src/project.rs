@@ -84,7 +84,8 @@ use turbopack_core::{
     reference_type::{CommonJsReferenceSubType, ReferenceType},
     resolve::{FindContextFileResult, find_context_file},
     version::{
-        NotFoundVersion, OptionVersionedContent, Update, Version, VersionState, VersionedContent,
+        NotFoundVersion, OptionVersionedContent, PartialUpdate, TotalUpdate, Update, Version,
+        VersionState, VersionedContent,
     },
 };
 #[cfg(feature = "process_pool")]
@@ -95,6 +96,7 @@ use turbopack_node::worker_threads_backend;
 use turbopack_nodejs::NodeJsChunkingContext;
 
 use crate::{
+    aggregate_hmr::{AggregateHmrVersion, ChunkListUpdateBuilder, DiffResult, diff_chunks_against},
     app::{AppProject, OptionAppProject},
     empty::EmptyEndpoint,
     entrypoints::Entrypoints,
@@ -989,6 +991,13 @@ pub struct ProjectDefineEnv {
     nodejs: ResolvedVc<OptionEnvMap>,
 }
 
+async fn import_meta_env_base_url(next_config: ResolvedVc<NextConfig>) -> Result<RcStr> {
+    Ok(match &*next_config.base_path().await? {
+        Some(base_path) => format!("{base_path}/").into(),
+        None => rcstr!("/"),
+    })
+}
+
 #[turbo_tasks::value_impl]
 impl ProjectDefineEnv {
     #[turbo_tasks::function]
@@ -1280,6 +1289,7 @@ impl Project {
             self.define_env.client(),
             self.next_config.report_system_env_inlining(),
             next_mode.is_development(),
+            import_meta_env_base_url(self.next_config).await?,
         ))
     }
 
@@ -1555,6 +1565,7 @@ impl Project {
             self.current_node_js_version(),
             this.next_config.report_system_env_inlining(),
             this.server_hmr,
+            import_meta_env_base_url(this.next_config).await?,
         ))
     }
 
@@ -1566,6 +1577,7 @@ impl Project {
             this.define_env.edge(),
             self.current_node_js_version(),
             this.next_config.report_system_env_inlining(),
+            import_meta_env_base_url(this.next_config).await?,
         ))
     }
 
@@ -2463,6 +2475,17 @@ impl Project {
         })
     }
 
+    #[turbo_tasks::function]
+    async fn aggregate_hmr_root_path(
+        self: Vc<Self>,
+        target: HmrTarget,
+    ) -> Result<Vc<FileSystemPath>> {
+        match target {
+            HmrTarget::Client => bail!("aggregate HMR is not implemented for the client"),
+            HmrTarget::Server => Ok(self.node_root().await?.join("server/app")?.cell()),
+        }
+    }
+
     /// Get HMR content by chunk_name for the specified target.
     #[turbo_tasks::function]
     async fn hmr_content(
@@ -2542,6 +2565,123 @@ impl Project {
         } else {
             Ok(Update::Missing.cell())
         }
+    }
+
+    /// Aggregate counterpart to [`Self::hmr_version_state`]: one [`VersionState`]
+    /// covering every HMR-eligible chunk under `target`'s root. See
+    /// [`Self::all_hmr_update`].
+    #[turbo_tasks::function(session_dependent)]
+    pub async fn all_hmr_version_state(
+        self: ResolvedVc<Self>,
+        target: HmrTarget,
+    ) -> Result<Vc<VersionState>> {
+        if target == HmrTarget::Client {
+            bail!("all_hmr_version_state is not yet implemented for the client target");
+        }
+
+        #[tracing::instrument(
+            level = "info",
+            name = "get aggregate HMR version",
+            skip_all,
+            fields(target = %target),
+        )]
+        #[turbo_tasks::function(operation, root)]
+        async fn aggregate_hmr_version_operation(
+            this: ResolvedVc<Project>,
+            target: HmrTarget,
+        ) -> Result<Vc<Box<dyn Version>>> {
+            let Some(map) = this.await?.versioned_content_map else {
+                bail!("must be in dev mode to hmr")
+            };
+            let root = this.aggregate_hmr_root_path(target).owned().await?;
+            AggregateHmrVersion::from_map(*map, &root).await
+        }
+        let version_op = aggregate_hmr_version_operation(self, target);
+
+        // INVALIDATION: untracked initial read; the subscription drives invalidation.
+        let state = VersionState::new(
+            version_op
+                .read_trait_strongly_consistent()
+                .untracked()
+                .await?,
+        )
+        .await?;
+        Ok(state)
+    }
+
+    /// Aggregate counterpart to [`Self::hmr_update`]: a single `Update` whose
+    /// combined `ChunkListUpdate` is the union of the per-entry-chunk diffs
+    /// under `target`'s root.
+    ///
+    /// Each tracked entry chunk's own update is a `ChunkListUpdate` (carrying
+    /// the module deltas for its shared chunks via the merger) or a bare
+    /// `EcmascriptMergedUpdate`; both are folded into one `ChunkListUpdate` that
+    /// the runtime applies exactly as it would a single chunk list.
+    ///
+    /// All-or-nothing restart: any chunk needing `Total`/`Missing` escalates
+    /// the whole batch to `Total` (the runtime can't partially restart). New
+    /// chunks absent from `from` are skipped; the runtime require()s them on
+    /// demand.
+    #[turbo_tasks::function]
+    pub async fn all_hmr_update(
+        self: Vc<Self>,
+        target: HmrTarget,
+        from: Vc<VersionState>,
+    ) -> Result<Vc<Update>> {
+        if target == HmrTarget::Client {
+            bail!("all_hmr_update is not yet implemented for the client target");
+        }
+
+        let Some(map) = self.await?.versioned_content_map else {
+            bail!("must be in dev mode to hmr")
+        };
+        let root = self.aggregate_hmr_root_path(target).owned().await?;
+        let chunks_versioned_content = map.hmr_chunks_in_path(&root).await?;
+
+        // No chunks to diff yet (e.g. before any endpoints have been written).
+        if chunks_versioned_content.is_empty() {
+            return Ok(Update::None.cell());
+        }
+
+        // Build `to` up front so we can return it on every escape hatch below.
+        let to_aggregate = AggregateHmrVersion::from_chunks(&chunks_versioned_content).await?;
+        let to_ref = Vc::upcast::<Box<dyn Version>>(to_aggregate)
+            .into_trait_ref()
+            .await?;
+
+        let DiffResult {
+            chunk_updates,
+            has_new_chunks,
+        } = diff_chunks_against(&chunks_versioned_content, from).await?;
+
+        // Nothing to apply, but `from` still needs to advance to `to`. Reaching
+        // here means `from` held a version we couldn't diff against (it wasn't an
+        // `AggregateHmrVersion`), so `diff_chunks_against` gave up and returned
+        // nothing. An empty `Partial` moves the subscription's state forward so
+        // the *next* change produces a real diff; returning `Total` instead would
+        // force a needless full re-evaluation.
+        if chunk_updates.is_empty() && !has_new_chunks {
+            return Ok(ChunkListUpdateBuilder::default().build(to_ref).cell());
+        }
+
+        let mut builder = ChunkListUpdateBuilder::default();
+        for (_path, update) in chunk_updates {
+            match &*update {
+                Update::None => {}
+                Update::Missing | Update::Total(_) => {
+                    return Ok(Update::Total(TotalUpdate { to: to_ref }).cell());
+                }
+                Update::Partial(PartialUpdate { instruction, .. }) => {
+                    builder.add_instruction(instruction);
+                }
+            }
+        }
+
+        if builder.is_empty() && !has_new_chunks {
+            return Ok(Update::None.cell());
+        }
+
+        Ok(builder.build(to_ref).cell())
     }
 
     /// Gets a list of all HMR chunk names that can be subscribed to for the

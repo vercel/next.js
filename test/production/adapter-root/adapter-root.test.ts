@@ -19,10 +19,15 @@ describe('adapter-root', () => {
       overrideFiles: setEnvVar
         ? undefined
         : {
+            '../package.json': JSON.stringify({
+              name: 'parent-workspace',
+              version: '1.0.0',
+            }),
             '../package-lock.json': JSON.stringify({
               name: 'parent-workspace',
               version: '1.0.0',
               lockfileVersion: 3,
+              packages: { '': { name: 'parent-workspace', version: '1.0.0' } },
             }),
           },
     })

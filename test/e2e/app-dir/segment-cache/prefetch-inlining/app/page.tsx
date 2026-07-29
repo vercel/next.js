@@ -31,6 +31,11 @@ export default function Page() {
           </LinkAccordion>
         </li>
         <li>
+          <LinkAccordion href="/test-runtime-bailout" prefetch={true}>
+            Runtime bailout (prefetch=true)
+          </LinkAccordion>
+        </li>
+        <li>
           <LinkAccordion href="/test-stale-hints/nested/deep">
             Stale hints
           </LinkAccordion>

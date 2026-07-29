@@ -4,7 +4,7 @@ import { connection } from 'next/server'
 
 type Params = { id: string }
 
-export const prefetch = 'allow-runtime'
+export const prefetch = 'partial'
 
 // This page mixes cached content with different stale times. Cached content
 // with a stale time of at least 5 minutes is part of the App Shell. Cached

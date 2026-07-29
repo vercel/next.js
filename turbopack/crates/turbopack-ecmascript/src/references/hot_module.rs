@@ -144,6 +144,7 @@ impl ModuleHotReferenceCodeGen {
                     chunking_context,
                     resolve_result,
                     ResolveType::ChunkItem,
+                    None,
                 )
                 .await
             })

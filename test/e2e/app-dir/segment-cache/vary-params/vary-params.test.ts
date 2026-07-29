@@ -751,14 +751,20 @@ describe('segment cache - vary params', () => {
       { includes: 'Page category:' }
     )
 
-    // Second prefetch: same category, different itemId.
-    // The page segment is a cache hit since it only varies on category.
-    await act(async () => {
-      const toggle = await browser.elementByCss(
-        'input[data-link-accordion="/runtime-prefetch-layout-split/electronics/tablet"]'
-      )
-      await toggle.click()
-    }, 'no-requests')
+    // Second prefetch: same category, different itemId. The page segment is a
+    // cache hit (it only varies on category), but the layout varies on itemId
+    // too, so it's a genuine miss and a runtime request is required for it.
+    // The page segment is not itself part of that batch — it rides along
+    // because rendering a segment on the server also renders its children.
+    await act(
+      async () => {
+        const toggle = await browser.elementByCss(
+          'input[data-link-accordion="/runtime-prefetch-layout-split/electronics/tablet"]'
+        )
+        await toggle.click()
+      },
+      { includes: 'Layout: electronics/tablet' }
+    )
 
     // Different category triggers a new page segment fetch
     await act(
