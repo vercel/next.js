@@ -1038,11 +1038,11 @@ async function startWatcher(
         // dev mode so that we can match a page after a rewrite on the client
         // before it has been built and is populated in the _buildManifest
         const sortedRoutes = getSortedRoutes(routedPages)
-        const dataRoutePages = sortedRoutes.filter((page) =>
+        const dynamicRoutes = sortedRoutes.filter((page) =>
           isDynamicRoute(page)
         )
 
-        opts.fsChecker.dynamicRoutes = sortedRoutes.map(
+        opts.fsChecker.dynamicRoutes = dynamicRoutes.map(
           (page): FilesystemDynamicRoute => {
             const regex = getNamedRouteRegex(page, {
               prefixRouteKeys: true,
@@ -1059,7 +1059,7 @@ async function startWatcher(
 
         const dataRoutes: typeof opts.fsChecker.dynamicRoutes = []
 
-        for (const page of dataRoutePages) {
+        for (const page of dynamicRoutes) {
           const route = buildDataRoute(page, 'development')
           const routeRegex = getNamedRouteRegex(route.page, {
             prefixRouteKeys: true,
