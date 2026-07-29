@@ -15,7 +15,7 @@ describe.each([false, true])(
 
     /* eslint-disable jest/no-standalone-expect */
     ;(appNewScrollHandler ? it.failing : it)(
-      'preserves scroll when an empty modal catch-all is the only changed slot',
+      'preserves scroll when an empty intercepted modal is the only changed slot',
       async () => {
         const browser = await next.browser('/modal')
 
