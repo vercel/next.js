@@ -1,26 +1,29 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
 
-type Data = {
-  text: string
+type Constructor = new () => {
+  myMethod(): string
 }
 
-function loggedMethod(originalMethod: () => string, _context: unknown) {
-  function replacementMethod(this: unknown) {
-    return `${originalMethod.call(this)} world`
+function loggedClass<T extends Constructor>(
+  OriginalClass: T,
+  _context?: unknown
+) {
+  return class extends OriginalClass {
+    myMethod() {
+      return `${super.myMethod()} world`
+    }
   }
-
-  return replacementMethod
 }
 
 export default function handler(
   _req: NextApiRequest,
-  res: NextApiResponse<Data>
+  res: NextApiResponse<{ text: string }>
 ) {
   res.status(200).json({ text: new Test().myMethod() })
 }
 
+@loggedClass
 class Test {
-  @loggedMethod
   myMethod() {
     return 'hello'
   }
