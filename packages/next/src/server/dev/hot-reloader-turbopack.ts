@@ -965,7 +965,7 @@ export async function createHotReloaderTurbopack(
     currentEntryIssues.delete(key)
   }
 
-  async function subscribeToClientHmrEvents(client: ws, id: string) {
+  function subscribeToClientHmrEvents(client: ws, id: string) {
     const key = getEntryKey('assets', 'client', id)
     if (!hasEntrypointForKey(currentEntrypoints, key, assetMapper)) {
       // maybe throw an error / force the client to reload?
@@ -977,33 +977,43 @@ export async function createHotReloaderTurbopack(
       return
     }
 
-    const subscription = project!.hmrEvents(id, HmrTarget.Client)
-    state.subscriptions.set(id, subscription)
-
     // The subscription will always emit once, which is the initial
     // computation. This is not a change, so swallow it.
-    try {
-      await subscription.next()
+    let seenInitialState = false
 
-      for await (const data of subscription) {
-        processIssues(state.clientIssues, key, data, false, true)
-        if (data.type !== 'issues') {
-          sendTurbopackMessage(data as TurbopackUpdate)
+    const unsubscribe = project!.hmrEvents(
+      id,
+      HmrTarget.Client,
+      (err, data) => {
+        try {
+          if (err) {
+            throw err
+          }
+          if (!seenInitialState) {
+            seenInitialState = true
+            return
+          }
+
+          processIssues(state.clientIssues, key, data, false, true)
+          if (data.type !== 'issues') {
+            sendTurbopackMessage(data)
+          }
+        } catch (e) {
+          // The client might be using an HMR session from a previous server, tell them
+          // to fully reload the page to resolve the issue. We can't use
+          // `hotReloader.send` since that would force every connected client to
+          // reload, only this client is out of date.
+          unsubscribeFromClientHmrEvents(client, id)
+          const reloadMessage: ReloadPageMessage = {
+            type: HMR_MESSAGE_SENT_TO_BROWSER.RELOAD_PAGE,
+            data: `error in HMR event subscription for ${id}: ${e}`,
+          }
+          sendToClient(client, reloadMessage)
+          client.close()
         }
       }
-    } catch (e) {
-      // The client might be using an HMR session from a previous server, tell them
-      // to fully reload the page to resolve the issue. We can't use
-      // `hotReloader.send` since that would force every connected client to
-      // reload, only this client is out of date.
-      const reloadMessage: ReloadPageMessage = {
-        type: HMR_MESSAGE_SENT_TO_BROWSER.RELOAD_PAGE,
-        data: `error in HMR event subscription for ${id}: ${e}`,
-      }
-      sendToClient(client, reloadMessage)
-      client.close()
-      return
-    }
+    )
+    state.subscriptions.set(id, unsubscribe)
   }
 
   function unsubscribeFromClientHmrEvents(client: ws, id: string) {
@@ -1012,8 +1022,9 @@ export async function createHotReloaderTurbopack(
       return
     }
 
-    const subscription = state.subscriptions.get(id)
-    subscription?.return!()
+    const unsubscribe = state.subscriptions.get(id)
+    state.subscriptions.delete(id)
+    unsubscribe?.()
 
     const key = getEntryKey('assets', 'client', id)
     state.clientIssues.delete(key)
@@ -1377,7 +1388,7 @@ export async function createHotReloaderTurbopack(
     onHMR(req, socket: Socket, head, onUpgrade) {
       wsServer.handleUpgrade(req, socket, head, (client) => {
         const clientIssues: EntryIssuesMap = new Map()
-        const subscriptions: Map<string, AsyncIterator<any>> = new Map()
+        const subscriptions: Map<string, () => void> = new Map()
 
         const htmlRequestId = req.url
           ? new URL(req.url, 'http://n').searchParams.get('id')
@@ -1428,8 +1439,8 @@ export async function createHotReloaderTurbopack(
 
         client.on('close', () => {
           // Remove active subscriptions
-          for (const subscription of subscriptions.values()) {
-            subscription.return?.()
+          for (const unsubscribe of subscriptions.values()) {
+            unsubscribe()
           }
           clientStates.delete(client)
 

@@ -8,11 +8,13 @@ import type {
   RawEntrypoints,
   StyledString,
   TurbopackResult,
+  Update,
   UpdateInfo,
 } from 'next/dist/build/swc/types'
 import loadConfig from 'next/dist/server/config'
 import path, { join } from 'path'
 import { spawnSync } from 'child_process'
+import { retry } from 'next-test-utils'
 
 function normalizePath(path: string) {
   return path
@@ -59,25 +61,6 @@ function normalizeIssues(issues: Issue[]) {
       if (a_ > b_) return 1
       return 0
     })
-}
-
-function raceIterators<T>(iterators: AsyncIterableIterator<T>[]) {
-  const nexts = iterators.map((iterator, i) =>
-    iterator.next().then((next) => ({ next, i }))
-  )
-  return (async function* () {
-    while (true) {
-      const remaining = nexts.filter((x) => x)
-      if (remaining.length === 0) return
-      const { next, i } = await Promise.race(remaining)
-      if (!next.done) {
-        yield next.value
-        nexts[i] = iterators[i].next().then((next) => ({ next, i }))
-      } else {
-        nexts[i] = undefined
-      }
-    }
-  })()
 }
 
 async function* filterMapAsyncIterator<T, U>(
@@ -625,18 +608,36 @@ describe('next.rs api', () => {
         const chunkNames = result.value.chunkNames
         expect(chunkNames).toHaveProperty('length', expect.toBePositive())
 
-        const subscriptions = chunkNames.map((chunkName) =>
-          project.hmrEvents(chunkName, HmrTarget.Client)
-        )
-        await Promise.all(
-          subscriptions.map(async (subscription) => {
-            const result = await subscription.next()
-            expect(result.done).toBe(false)
-            expect(result.value).toHaveProperty('resource', expect.toBeObject())
-            expect(result.value).toHaveProperty('type', 'issues')
-            expect(normalizeIssues(result.value.issues)).toEqual([])
-          })
-        )
+        const initialStates: TurbopackResult<Update>[] = []
+        const hmrUpdates: TurbopackResult<Update>[] = []
+        const subscriptionErrors: Error[] = []
+        const unsubscribes = chunkNames.map((chunkName) => {
+          let seenInitialState = false
+          return project.hmrEvents(
+            chunkName,
+            HmrTarget.Client,
+            (err, event) => {
+              if (err) {
+                subscriptionErrors.push(err)
+              } else if (!seenInitialState) {
+                seenInitialState = true
+                initialStates.push(event)
+              } else {
+                hmrUpdates.push(event)
+              }
+            }
+          )
+        })
+
+        await retry(async () => {
+          expect(initialStates).toHaveLength(chunkNames.length)
+        })
+        for (const initialState of initialStates) {
+          expect(initialState).toHaveProperty('resource', expect.toBeObject())
+          expect(initialState).toHaveProperty('type', 'issues')
+          expect(normalizeIssues(initialState.issues)).toEqual([])
+        }
+
         console.log('waiting for events')
         const { next: updateComplete } = await drainAndGetNext(
           projectUpdateSubscription
@@ -645,37 +646,10 @@ describe('next.rs api', () => {
         let ok = false
         try {
           await next.patchFile(file, content)
-          let foundUpdates: string[] | false = false
           let foundServerSideChange = false
           let done = false
           const result2 = await Promise.race(
             [
-              (async () => {
-                const merged = raceIterators(subscriptions)
-                for await (const item of merged) {
-                  if (done) return
-                  if (item.type === 'partial') {
-                    expect(item.instruction).toEqual({
-                      type: 'ChunkListUpdate',
-                      merged: [
-                        expect.objectContaining({
-                          chunks: expect.toBeObject(),
-                          entries: expect.toBeObject(),
-                        }),
-                      ],
-                    })
-                    const updates = Object.keys(
-                      item.instruction.merged[0].entries
-                    )
-                    expect(updates).not.toBeEmpty()
-
-                    foundUpdates = foundUpdates || []
-                    foundUpdates.push(
-                      ...Object.keys(item.instruction.merged[0].entries)
-                    )
-                  }
-                }
-              })(),
               serverSideSubscription &&
                 (async () => {
                   for await (const { issues } of serverSideSubscription) {
@@ -698,18 +672,39 @@ describe('next.rs api', () => {
               tasks: expect.toBePositive(),
             },
           })
+          expect(subscriptionErrors).toEqual([])
+
+          const partialUpdates = hmrUpdates.filter(
+            (update) => update.type === 'partial'
+          )
+          const updatedEntries: string[] = []
+          for (const update of partialUpdates) {
+            expect(update.instruction).toEqual({
+              type: 'ChunkListUpdate',
+              merged: [
+                expect.objectContaining({
+                  chunks: expect.toBeObject(),
+                  entries: expect.toBeObject(),
+                }),
+              ],
+            })
+            const entries = Object.keys(update.instruction.merged[0].entries)
+            expect(entries).not.toBeEmpty()
+            updatedEntries.push(...entries)
+          }
           if (typeof expectedUpdate === 'boolean') {
-            expect(foundUpdates).toBe(false)
+            expect(partialUpdates).toBeEmpty()
           } else {
-            expect(
-              typeof foundUpdates === 'boolean'
-                ? foundUpdates
-                : Array.from(new Set(foundUpdates))
-            ).toEqual([expect.stringContaining(expectedUpdate)])
+            expect(Array.from(new Set(updatedEntries))).toEqual([
+              expect.stringContaining(expectedUpdate),
+            ])
           }
           expect(foundServerSideChange).toBe(expectedServerSideChange)
           ok = true
         } finally {
+          for (const unsubscribe of unsubscribes) {
+            unsubscribe()
+          }
           try {
             const { next: updateComplete2 } = await drainAndGetNext(
               projectUpdateSubscription
@@ -744,37 +739,115 @@ describe('next.rs api', () => {
     expect(result.done).toBe(false)
     const chunkNames = result.value.chunkNames
 
-    const subscriptions = chunkNames.map((chunkName) =>
-      project.hmrEvents(chunkName, HmrTarget.Client)
-    )
-    await Promise.all(
-      subscriptions.map(async (subscription) => {
-        const result = await subscription.next()
-        expect(result.done).toBe(false)
-        expect(result.value).toHaveProperty('resource', expect.toBeObject())
-        expect(result.value).toHaveProperty('type', 'issues')
+    let partialUpdates = 0
+    const unsubscribes = chunkNames.map((chunkName) => {
+      let seenInitialState = false
+      return project.hmrEvents(chunkName, HmrTarget.Client, (err, event) => {
+        if (err) throw err
+        if (!seenInitialState) {
+          seenInitialState = true
+          expect(event).toHaveProperty('resource', expect.toBeObject())
+          expect(event).toHaveProperty('type', 'issues')
+          return
+        }
+        if (event.type === 'partial') {
+          partialUpdates++
+        }
       })
-    )
-    const merged = raceIterators(subscriptions)
+    })
+    const waitForPartialUpdates = (min: number) =>
+      retry(async () => {
+        expect(partialUpdates).toBeGreaterThanOrEqual(min)
+      })
 
     const file = 'pages/index.js'
     let currentContent = await next.readFile(file)
     let nextContent = pagesIndexCode('hello world2')
 
-    const count = process.env.NEXT_TEST_CI ? 300 : 1000
-    for (let i = 0; i < count; i++) {
-      await next.patchFile(file, nextContent)
-      const content = currentContent
-      currentContent = nextContent
-      nextContent = content
+    try {
+      const count = process.env.NEXT_TEST_CI ? 300 : 1000
+      for (let i = 0; i < count; i++) {
+        await next.patchFile(file, nextContent)
+        const content = currentContent
+        currentContent = nextContent
+        nextContent = content
 
-      while (true) {
-        const { value, done } = await merged.next()
-        expect(done).toBe(false)
-        if (value.type === 'partial') {
-          break
-        }
+        await waitForPartialUpdates(i + 1)
+      }
+    } finally {
+      for (const unsubscribe of unsubscribes) {
+        unsubscribe()
       }
     }
   }, 300000)
+
+  it('should stop delivering HMR events after unsubscribing', async () => {
+    const entrypointsSubscription = project.entrypointsSubscribe()
+    const entrypoints: TurbopackResult<RawEntrypoints | {}> = (
+      await entrypointsSubscription.next()
+    ).value
+    if (!('routes' in entrypoints)) {
+      throw new Error('Entrypoints not available due to compilation errors')
+    }
+    const route = entrypoints.routes.get('/')
+    entrypointsSubscription.return()
+
+    if (route.type !== 'page') throw new Error('unknown route type')
+    await route.htmlEndpoint.writeToDisk()
+
+    const result = await project.hmrChunkNamesSubscribe(HmrTarget.Client).next()
+    const chunkNames = result.value.chunkNames
+
+    let events = 0
+    let eventsWhenUnsubscribed: number | undefined
+    // Two subscriptions per chunk, so that an update always has a sibling
+    // event queued behind the one that unsubscribes.
+    const unsubscribes = [...chunkNames, ...chunkNames].map(
+      (chunkName: string) => {
+        let seenInitialState = false
+        return project.hmrEvents(chunkName, HmrTarget.Client, () => {
+          events++
+          if (!seenInitialState) {
+            seenInitialState = true
+            return
+          }
+          if (eventsWhenUnsubscribed !== undefined) {
+            return
+          }
+
+          // Unsubscribe from inside the first update, while the same update is
+          // still queued for the sibling subscriptions. Events are handed to
+          // the event loop from another thread, so block afterwards to give
+          // any sibling event that is not queued yet a chance to be.
+          for (const unsubscribe of unsubscribes) {
+            unsubscribe()
+          }
+          const blockUntil = Date.now() + 2000
+          while (Date.now() < blockUntil) {}
+          eventsWhenUnsubscribed = events
+        })
+      }
+    )
+
+    const file = 'pages/index.js'
+    const oldContent = await next.readFile(file)
+    try {
+      await retry(async () => {
+        expect(events).toBe(unsubscribes.length)
+      })
+
+      await next.patchFile(file, pagesIndexCode('hello world2'))
+      await retry(async () => {
+        expect(eventsWhenUnsubscribed).toBeDefined()
+      }, 30000)
+
+      await new Promise((r) => setTimeout(r, 3000))
+      expect(events).toBe(eventsWhenUnsubscribed)
+    } finally {
+      for (const unsubscribe of unsubscribes) {
+        unsubscribe()
+      }
+      await next.patchFile(file, oldContent)
+    }
+  }, 60000)
 })

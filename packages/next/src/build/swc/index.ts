@@ -27,6 +27,7 @@ import type {
   DefineEnv,
   Endpoint,
   HmrChunkNames,
+  HmrEvent,
   Lockfile,
   NodeJsHmrUpdate,
   PartialProjectOptions,
@@ -37,7 +38,6 @@ import type {
   TurboEngineOptions,
   TurbopackResult,
   TurbopackStackFrame,
-  Update,
   UpdateMessage,
   WrittenEndpoint,
 } from './types'
@@ -772,23 +772,30 @@ function bindingToApi(
       )
     }
 
-    hmrEvents(
+    hmrEvents<Target extends HmrTarget>(
       chunkName: string,
-      target: HmrTarget.Client
-    ): AsyncIterableIterator<TurbopackResult<Update>>
-    hmrEvents(
-      chunkName: string,
-      target: HmrTarget.Server
-    ): AsyncIterableIterator<TurbopackResult<NodeJsHmrUpdate>>
-    hmrEvents(chunkName: string, target: HmrTarget.Client | HmrTarget.Server) {
-      return subscribe(true, async (callback) =>
-        binding.projectHmrEvents(
-          this._nativeProject,
-          chunkName,
-          target,
-          callback
-        )
+      target: Target,
+      callback: (...event: HmrEvent<Target>) => void
+    ): () => void {
+      let disposed = false
+      // `projectHmrEvents` hands back the task synchronously, so there is no
+      // window where an update can arrive before we can dispose it. An update
+      // already queued when it is disposed still arrives, so drop those here
+      // and callers can assume nothing happens after they unsubscribe.
+      const task = binding.projectHmrEvents(
+        this._nativeProject,
+        chunkName,
+        target,
+        (...event: HmrEvent<Target>) => {
+          if (disposed) return
+          callback(...event)
+        }
       )
+      return () => {
+        if (disposed) return
+        disposed = true
+        binding.rootTaskDispose(task)
+      }
     }
 
     /**

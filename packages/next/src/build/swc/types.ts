@@ -268,6 +268,15 @@ export type NodeJsHmrUpdate =
   | NodeJsPartialHmrUpdate
   | NodeJsRestartHmrUpdate
 
+/** The update shape an HMR subscription delivers, which depends on its target. */
+type HmrUpdate<Target extends import('./index').HmrTarget> =
+  Target extends import('./index').HmrTarget.Server ? NodeJsHmrUpdate : Update
+
+/** An HMR subscription delivers either an error or an update, never both. */
+export type HmrEvent<Target extends import('./index').HmrTarget> =
+  | [err: Error, update: undefined]
+  | [err: undefined, update: TurbopackResult<HmrUpdate<Target>>]
+
 export interface HmrChunkNames {
   /** Relative paths to output chunks that can receive HMR updates (e.g., "server/chunks/ssr/..._.js") */
   chunkNames: string[]
@@ -340,14 +349,16 @@ export interface Project {
     target: import('./index').HmrTarget.Server
   ): AsyncIterableIterator<TurbopackResult<NodeJsHmrUpdate>>
 
-  hmrEvents(
+  /**
+   * Subscribe to HMR events for a single chunk. The subscription reports the
+   * current state once before any update. Returns a function that unsubscribes;
+   * the callback is not invoked after that returns.
+   */
+  hmrEvents<Target extends import('./index').HmrTarget>(
     identifier: string,
-    target: import('./index').HmrTarget.Client
-  ): AsyncIterableIterator<TurbopackResult<Update>>
-  hmrEvents(
-    identifier: string,
-    target: import('./index').HmrTarget.Server
-  ): AsyncIterableIterator<TurbopackResult<NodeJsHmrUpdate>>
+    target: Target,
+    callback: (...event: HmrEvent<Target>) => void
+  ): () => void
 
   hmrChunkNamesSubscribe(
     target: import('./index').HmrTarget
