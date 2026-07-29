@@ -1,3 +1,13 @@
+export function createMountObservationTimeoutError(route: string): Error {
+  return new Error(
+    `Route "${route}": Could not validate that this route has instant navigation.\n\n` +
+      `Next.js could not discover which parallel route slots render because client-side rendering did not settle in time. Something in a Client Component may be preventing rendering from completing.\n\n` +
+      `Ways to fix this:\n` +
+      `  - [retry] Reload the page with a hard refresh to validate against the full document render\n` +
+      `  - [ignore] Set \`export const instant = false\` to opt the route out of instant-navigation validation`
+  )
+}
+
 export function createUnrenderedSegmentError(
   route: string,
   missingFiles: readonly string[]

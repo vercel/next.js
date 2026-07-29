@@ -202,6 +202,9 @@ export default async function Page() {
         <li>
           <DebugLinks href="/suspense-in-root/parallel/client-auth-fork" />
         </li>
+        <li>
+          <DebugLinks href="/suspense-in-root/parallel/slow-client-auth-fork" />
+        </li>
       </ul>
 
       <h2>Head</h2>

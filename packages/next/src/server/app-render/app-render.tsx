@@ -320,6 +320,7 @@ import {
   getValidationSegment,
   stringifySegment,
 } from './instant-validation/segment-path'
+import { createMountObservationTimeoutError } from '../../shared/lib/instant-messages'
 import {
   createValidationBoundaryTracking,
   type ValidationBoundaryTracking,
@@ -4775,6 +4776,26 @@ type LazyDevValidationInputs = MemoizedThunk<
 >
 
 const VALIDATION_BAILOUT = Symbol('VALIDATION_BAILOUT')
+
+const MOUNT_OBSERVATION_TIMED_OUT = Symbol('MOUNT_OBSERVATION_TIMED_OUT')
+
+const MOUNT_OBSERVATION_TIMEOUT_MS = 5_000
+
+/**
+ * How long instant validation waits for a fork-slot mount observation —
+ * either the document SSR settling (`mountedForkSlotsSettled`) or the
+ * dedicated observation render — before reporting that validation could
+ * not discover which fork slots render.
+ */
+function getMountObservationTimeoutMs(): number {
+  if (process.env.__NEXT_TEST_MODE) {
+    const override = Number(process.env.NEXT_TEST_MOUNT_OBSERVATION_TIMEOUT_MS)
+    if (Number.isFinite(override) && override >= 0) {
+      return override
+    }
+  }
+  return MOUNT_OBSERVATION_TIMEOUT_MS
+}
 type ValidationBailout = typeof VALIDATION_BAILOUT
 
 function createLazyDevValidationInputs(
@@ -6640,7 +6661,29 @@ async function runValidationInDev(
       validatedRequestStore.mountedForkSlots !== undefined &&
       validatedRequestStore.mountedForkSlotsSettled !== undefined
     ) {
-      await validatedRequestStore.mountedForkSlotsSettled
+      // Validation normally starts after the response has finished, so the
+      // settle promise is usually already resolved. When it isn't —
+      // something in a Client Component is preventing the document SSR
+      // from completing — don't wait forever: report that discovery
+      // couldn't complete instead.
+      let timeoutId: NodeJS.Timeout | undefined
+      const timedOut = new Promise<boolean>((resolve) => {
+        timeoutId = setTimeout(
+          () => resolve(true),
+          getMountObservationTimeoutMs()
+        )
+      })
+      const settled = validatedRequestStore.mountedForkSlotsSettled.then(
+        () => false
+      )
+      const observationTimedOut = await Promise.race([settled, timedOut])
+      clearTimeout(timeoutId)
+      if (validationAbortSignal.aborted) {
+        return
+      }
+      if (observationTimedOut) {
+        return [createMountObservationTimeoutError(ctx.workStore.route)]
+      }
       mountedForkSlots = validatedRequestStore.mountedForkSlots
     }
 
@@ -7191,7 +7234,9 @@ async function validateInstantConfigs(
    * unmounted at that point isn't part of the instant window, so it is
    * dead for validation purposes.
    */
-  async function observeMountedForkSlotsInSSR(): Promise<ReadonlySet<string>> {
+  async function observeMountedForkSlotsInSSR(): Promise<
+    ReadonlySet<string> | typeof MOUNT_OBSERVATION_TIMED_OUT
+  > {
     const extraChunksController = new AbortController()
     const extraChunksSignal =
       validationAbortSignal === undefined
@@ -7260,6 +7305,17 @@ async function validateInstantConfigs(
       mountedForkSlots: observedMountedForkSlots,
     }
 
+    // The observation render should settle almost immediately: server data
+    // is fully resolved in the recorded chunks and the render is aborted
+    // once synchronously-settleable work settles. If a Client Component
+    // keeps it from settling, give up after a bound and report instead of
+    // consuming a partial (under-reporting) mounted set.
+    let observationTimedOut = false
+    const observationTimeout = setTimeout(() => {
+      observationTimedOut = true
+      reactController.abort()
+    }, getMountObservationTimeoutMs())
+
     try {
       await runInSequentialTasks(
         () => {
@@ -7311,6 +7367,13 @@ async function validateInstantConfigs(
       )
     } catch (thrownValue) {
       // Same reasoning as onError: whatever failed to render didn't mount.
+    } finally {
+      clearTimeout(observationTimeout)
+    }
+
+    if (observationTimedOut) {
+      debug?.('Mount observation render timed out')
+      return MOUNT_OBSERVATION_TIMED_OUT
     }
 
     debug?.(
@@ -7329,7 +7392,14 @@ async function validateInstantConfigs(
     serializedForkSlots !== undefined &&
     serializedForkSlots.size > 0
   ) {
-    observedMountedForkSlots = await observeMountedForkSlotsInSSR()
+    const observation = await observeMountedForkSlotsInSSR()
+    if (observation === MOUNT_OBSERVATION_TIMED_OUT) {
+      if (validationAbortSignal?.aborted) {
+        return []
+      }
+      return [createMountObservationTimeoutError(workStore.route)]
+    }
+    observedMountedForkSlots = observation
   }
   const liveForkSlots =
     observedMountedForkSlots !== undefined
