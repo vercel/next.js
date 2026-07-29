@@ -216,6 +216,8 @@ pub fn generate_js_source_map<'a>(
     );
 
     if original_source_maps.is_empty() {
+        // We don't convert sourcemap::SourceMap into raw_sourcemap::SourceMap because we don't
+        // need to adjust mappings
         add_default_ignore_list(&mut new_mappings);
         StructuredSourceMap::from_swc_map(new_mappings)
     } else if fast_path_single_original_source_map {
