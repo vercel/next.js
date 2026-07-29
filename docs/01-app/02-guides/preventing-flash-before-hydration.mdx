@@ -491,7 +491,7 @@ One way to fix this is to do what you would do without the inline script at all.
 import { useLayoutEffect } from 'react'
 
 export function ThemeToggle() {
-  // Re-apply after React clears it on the dev remount; a no-op in production.
+  // Re-apply after React clears it on the dev remount. This is a no-op in production.
   useLayoutEffect(() => {
     const theme = localStorage.getItem('theme')
     if (theme) document.documentElement.setAttribute('data-theme', theme)
