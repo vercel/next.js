@@ -185,13 +185,15 @@ module.exports = {
 
 The supported values are:
 
-| Value       | Description                                                                                           |
-| ----------- | ----------------------------------------------------------------------------------------------------- |
-| `'legacy'`  | Use the legacy decorator transform. This is the default and supports existing decorator applications. |
-| `'2021-12'` | Use the December 2021 decorators proposal.                                                            |
-| `'2022-03'` | Use the March 2022 decorators proposal, which reached Stage 3.                                        |
+| Value       | Description                                                                                                             |
+| ----------- | ----------------------------------------------------------------------------------------------------------------------- |
+| `'legacy'`  | Use the legacy decorator transform. This is the default for existing applications that enable `experimentalDecorators`. |
+| `'2021-12'` | Use the December 2021 decorators proposal.                                                                              |
+| `'2022-03'` | Use the March 2022 decorators proposal, which reached Stage 3.                                                          |
 
-Next.js only parses decorator syntax when `experimentalDecorators` is enabled in `jsconfig.json` or `tsconfig.json`:
+Setting `compiler.decoratorVersion` automatically enables decorator parsing. You do not need to set `experimentalDecorators` in `jsconfig.json` or `tsconfig.json`.
+
+For compatibility with existing applications, Next.js also detects `experimentalDecorators` when `compiler.decoratorVersion` is not configured and uses the legacy decorator transform:
 
 ```json filename="tsconfig.json"
 {
