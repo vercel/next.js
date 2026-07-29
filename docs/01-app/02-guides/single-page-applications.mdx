@@ -172,7 +172,7 @@ export function Profile() {
 }
 ```
 
-Wrap the consumer in a `<Suspense>` boundary to show a fallback while the Promise resolves:
+Wrap the consumer in a [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary to show a fallback while the Promise resolves:
 
 ```tsx filename="app/page.tsx" switcher
 import { Suspense } from 'react'
@@ -260,6 +260,24 @@ export default function RootLayout({ children }) {
 
 Because this is a Server Component, `getUser()` can read cookies, headers, or your database. Client Components below the `<SWRConfig>` read the seeded value by using the same key.
 
+The key is the client fetch URL. Point it at an [API route](/docs/app/api-reference/file-conventions/route), not a [Server Function](/docs/app/guides/server-actions). Server Functions are POST requests for mutations. An API route is a GET, so the client can call it to revalidate and poll. Have the route call the same `getUser` function that seeds the cache:
+
+```ts filename="app/api/user/route.ts" switcher
+import { getUser } from '../../user'
+
+export async function GET() {
+  return Response.json(await getUser())
+}
+```
+
+```js filename="app/api/user/route.js" switcher
+import { getUser } from '../../user'
+
+export async function GET() {
+  return Response.json(await getUser())
+}
+```
+
 ```tsx filename="app/profile.tsx" switcher
 'use client'
 
@@ -318,7 +336,7 @@ export default function RootLayout({ children }) {
 }
 ```
 
-Because the value is a real cache entry, `mutate(key)`, revalidation, and deduplication treat it like any fetched data, so the server seed and later client mutations share one source of truth. Reach for `preload` when the seeded value is part of your client data flow and gets mutated or revalidated. Use `fallback` when the data only needs to render once, since it is stable and needs no beta API.
+Because the value is a real cache entry, `mutate(key)`, revalidation, and deduplication operate on it like any fetched data. The `fallback` option only sets the value the hook returns on first render, so use `preload` when the seeded value is later mutated or revalidated on the client.
 
 |                      | SWR                 | RSC                 | RSC + SWR           |
 | -------------------- | ------------------- | ------------------- | ------------------- |
@@ -455,28 +473,33 @@ You can use [TanStack Query](https://tanstack.com/query) (formerly React Query) 
 
 TanStack Query needs a one-time setup, including a `getQueryClient` (new per request on the server, a singleton in the browser), a `<QueryClientProvider>`, and a client configured to dehydrate pending queries. TanStack Query owns this integration, so follow [its Advanced SSR guide](https://tanstack.com/query/latest/docs/framework/react/guides/advanced-ssr) for the full setup and current APIs.
 
-Define the query key and query function in one shared helper:
+Define the query key and query function in one shared helper. As with SWR, the query function fetches an [API route](/docs/app/api-reference/file-conventions/route) so it can run on the client to refetch and poll:
 
 ```tsx filename="app/projects/[id]/project-query.ts" switcher
 import { queryOptions } from '@tanstack/react-query'
-import { getProject } from './data'
+import type { Project } from './data'
 
 export function projectQueryOptions(id: string) {
   return queryOptions({
     queryKey: ['project', id],
-    queryFn: () => getProject(id),
+    queryFn: async (): Promise<Project> => {
+      const res = await fetch(`/api/projects/${id}`)
+      return res.json()
+    },
   })
 }
 ```
 
 ```js filename="app/projects/[id]/project-query.js" switcher
 import { queryOptions } from '@tanstack/react-query'
-import { getProject } from './data'
 
 export function projectQueryOptions(id) {
   return queryOptions({
     queryKey: ['project', id],
-    queryFn: () => getProject(id),
+    queryFn: async () => {
+      const res = await fetch(`/api/projects/${id}`)
+      return res.json()
+    },
   })
 }
 ```
