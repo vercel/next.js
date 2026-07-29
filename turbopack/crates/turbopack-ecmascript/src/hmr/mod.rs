@@ -24,7 +24,8 @@ pub trait EcmascriptHmrChunkContent: VersionedContent {
     #[turbo_tasks::function]
     fn entries(self: Vc<Self>) -> Vc<EcmascriptChunkContentEntries>;
 
-    /// This chunk's own version, used as the `to` side of a diff.
+    /// The same value as [`VersionedContent::version`], but with the concrete
+    /// type the diffing machinery needs instead of `Box<dyn Version>`.
     #[turbo_tasks::function]
-    fn own_version(self: Vc<Self>) -> Vc<EcmascriptChunkVersion>;
+    fn ecmascript_chunk_version(self: Vc<Self>) -> Vc<EcmascriptChunkVersion>;
 }

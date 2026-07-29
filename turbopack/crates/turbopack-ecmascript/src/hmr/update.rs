@@ -229,7 +229,7 @@ pub async fn update_ecmascript_merged_chunk(
         .iter()
         .map(|content| async move {
             let entries = content.entries().await?;
-            let version = content.own_version().await?;
+            let version = content.ecmascript_chunk_version().await?;
             Ok((*content, entries, version))
         })
         .try_join()

@@ -17,8 +17,7 @@ use crate::hmr::{
 /// at the same time.
 ///
 /// "Merged" here refers to [`turbopack_core::version::VersionedContentMerger`]
-/// combining several chunks into one update payload. It has nothing to do with
-/// sharing this code between the browser and node runtimes.
+/// combining several chunks into one update payload.
 #[turbo_tasks::value(serialization = "skip", shared)]
 pub struct EcmascriptMergedChunkContent {
     pub contents: Vec<ResolvedVc<Box<dyn EcmascriptHmrChunkContent>>>,
@@ -32,7 +31,7 @@ impl EcmascriptMergedChunkContent {
             versions: self
                 .contents
                 .iter()
-                .map(|content| async move { content.own_version().await })
+                .map(|content| async move { content.ecmascript_chunk_version().await })
                 .try_join()
                 .await?,
         }

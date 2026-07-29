@@ -115,7 +115,7 @@ impl VersionedContent for EcmascriptNodeChunkContent {
 
     #[turbo_tasks::function]
     fn version(self: Vc<Self>) -> Vc<Box<dyn Version>> {
-        Vc::upcast(self.own_version())
+        Vc::upcast(self.ecmascript_chunk_version())
     }
 }
 
@@ -127,7 +127,7 @@ impl EcmascriptHmrChunkContent for EcmascriptNodeChunkContent {
     }
 
     #[turbo_tasks::function]
-    async fn own_version(&self) -> Result<Vc<EcmascriptChunkVersion>> {
+    async fn ecmascript_chunk_version(&self) -> Result<Vc<EcmascriptChunkVersion>> {
         Ok(EcmascriptChunkVersion::new(
             self.chunking_context.output_root().owned().await?,
             self.chunk.path().owned().await?,
