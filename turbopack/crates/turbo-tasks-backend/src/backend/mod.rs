@@ -452,7 +452,15 @@ fn lock_task_and_optional_reader<'e, C: ExecuteContext<'e>>(
         // invalidation that races with dependency edge insertion.
         // TODO(sokra): solve this more performantly for mutable tasks.
         let (task, reader) = ctx.task_pair(task_id, reader_id, TaskDataCategory::All);
-        (task, Some(reader))
+        // The task can become immutable between the speculative task lock and the pair lock.
+        // Recheck under the final lock so callers can rely on a reader guard only being returned
+        // when dependency edges may still be added.
+        if task.immutable() && !cfg!(feature = "verify_immutable") {
+            drop(reader);
+            (task, None)
+        } else {
+            (task, Some(reader))
+        }
     }
 }
 
@@ -468,15 +476,12 @@ impl TurboTasksBackend {
         self.assert_not_persistent_calling_transient(reader, task_id, /* cell_id */ None);
 
         let mut ctx = self.execute_context(turbo_tasks);
-        let need_reader_task = if self.should_track_dependencies()
-            && !matches!(options.tracking, ReadTracking::Untracked)
-            && let Some(reader_id) = reader
-            && reader_id != task_id
-        {
-            Some(reader_id)
-        } else {
-            None
-        };
+        let need_reader_task = reader.and_then(|reader_id| {
+            (self.should_track_dependencies()
+                && !matches!(options.tracking, ReadTracking::Untracked)
+                && reader_id != task_id)
+                .then_some(reader_id)
+        });
         let (mut task, mut reader_task) =
             lock_task_and_optional_reader(&mut ctx, task_id, need_reader_task);
 
@@ -710,7 +715,6 @@ impl TurboTasksBackend {
             };
             if let Some(mut reader_task) = reader_task.take()
                 && options.tracking.should_track(result.is_err())
-                && (!task.immutable() || cfg!(feature = "verify_immutable"))
             {
                 #[cfg(feature = "trace_task_output_dependencies")]
                 let _span = tracing::trace_span!(
@@ -804,9 +808,7 @@ impl TurboTasksBackend {
             cell: CellId,
             key: Option<u64>,
         ) {
-            if let Some(mut reader_task) = reader_task
-                && (!task.immutable() || cfg!(feature = "verify_immutable"))
-            {
+            if let Some(mut reader_task) = reader_task {
                 let reader = reader.unwrap();
                 let reverse = CellRef { task: reader, cell };
                 if let Some(k) = key {
@@ -842,15 +844,12 @@ impl TurboTasksBackend {
         } = options;
 
         let mut ctx = self.execute_context(turbo_tasks);
-        let need_reader_task = if self.should_track_dependencies()
-            && !matches!(tracking, ReadCellTracking::Untracked)
-            && let Some(reader_id) = reader
-            && reader_id != task_id
-        {
-            Some(reader_id)
-        } else {
-            None
-        };
+        let need_reader_task = reader.and_then(|reader_id| {
+            (self.should_track_dependencies()
+                && !matches!(tracking, ReadCellTracking::Untracked)
+                && reader_id != task_id)
+                .then_some(reader_id)
+        });
         let (mut task, reader_task) =
             lock_task_and_optional_reader(&mut ctx, task_id, need_reader_task);
 
