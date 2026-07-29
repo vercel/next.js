@@ -583,7 +583,7 @@ See the [live demo](https://next-spa-patterns.labs.vercel.dev/react-query) and i
 
 The `prefetchQuery` shape above streams the query in without caching it. With [Cache Components](/docs/app/getting-started/caching), you can cache and [tag](/docs/app/api-reference/functions/cacheTag) the dehydrated payload so it revalidates like any other cache entry.
 
-A cache scope captures runtime values, such as the current time, at fill time instead of reading them during the dynamic render. That is the key to caching `dehydrate()`, which reads the current time for its own bookkeeping. Run it inside a [`"use cache"`](/docs/app/api-reference/directives/use-cache) scope so that read happens at fill time, and seed the query with `setQueryData` and `updatedAt: 0` so the per-query timestamp is deterministic across fills:
+A cache scope captures runtime values, such as the current time, at fill time instead of reading them during the dynamic render. That is the key to caching `dehydrate()`, which reads the current time for its own bookkeeping. Run it inside a [`"use cache"`](/docs/app/api-reference/directives/use-cache) scope so that read happens at fill time:
 
 ```tsx filename="app/projects/[id]/project-state.ts" switcher
 import { dehydrate, QueryClient } from '@tanstack/react-query'
@@ -596,7 +596,7 @@ export async function getProjectState(id: string) {
 
   const queryClient = new QueryClient()
   const project = await getProject(id)
-  queryClient.setQueryData(['project', id], project, { updatedAt: 0 })
+  queryClient.setQueryData(['project', id], project)
 
   return dehydrate(queryClient)
 }
@@ -613,7 +613,7 @@ export async function getProjectState(id) {
 
   const queryClient = new QueryClient()
   const project = await getProject(id)
-  queryClient.setQueryData(['project', id], project, { updatedAt: 0 })
+  queryClient.setQueryData(['project', id], project)
 
   return dehydrate(queryClient)
 }
