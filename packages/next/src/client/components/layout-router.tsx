@@ -101,17 +101,22 @@ function shouldSkipElement(element: HTMLElement) {
   return rectProperties.every((item) => rect[item] === 0)
 }
 
+const enum ScrollTargetState {
+  NoClientRects,
+  InViewport,
+  OutOfViewport,
+}
+
 /**
- * Check if the top corner of the HTMLElement is in the viewport.
+ * Check where the top corner of the HTMLElement is relative to the viewport.
  */
-function topOfElementInViewport(
+function getScrollTargetState(
   instance: HTMLElement | FragmentInstance,
   viewportHeight: number
-): boolean {
+): ScrollTargetState {
   const rects = instance.getClientRects()
   if (rects.length === 0) {
-    // Just to be explicit.
-    return false
+    return ScrollTargetState.NoClientRects
   }
   let elementTop = Number.POSITIVE_INFINITY
   for (let i = 0; i < rects.length; i++) {
@@ -121,6 +126,8 @@ function topOfElementInViewport(
     }
   }
   return elementTop >= 0 && elementTop <= viewportHeight
+    ? ScrollTargetState.InViewport
+    : ScrollTargetState.OutOfViewport
 }
 
 /**
@@ -212,7 +219,10 @@ class InnerScrollAndFocusHandlerOld extends React.Component<ScrollAndMaybeFocusH
         const viewportHeight = htmlElement.clientHeight
 
         // If the element's top edge is already in the viewport, exit early.
-        if (topOfElementInViewport(domNode, viewportHeight)) {
+        if (
+          getScrollTargetState(domNode, viewportHeight) ===
+          ScrollTargetState.InViewport
+        ) {
           return
         }
 
@@ -223,7 +233,10 @@ class InnerScrollAndFocusHandlerOld extends React.Component<ScrollAndMaybeFocusH
         htmlElement.scrollTop = 0
 
         // Scroll to domNode if domNode is not in viewport when scrolled to top of document
-        if (!topOfElementInViewport(domNode, viewportHeight)) {
+        if (
+          getScrollTargetState(domNode, viewportHeight) !==
+          ScrollTargetState.InViewport
+        ) {
           // Scroll into view doesn't scroll horizontally by default when not needed
           domNode.scrollIntoView()
         }
@@ -274,9 +287,11 @@ function InnerScrollHandlerNew(props: ScrollAndMaybeFocusHandlerProps) {
 
       let instance: FragmentInstance | HTMLElement | null = null
       const hashFragment = focusAndScrollRef.hashFragment
+      let isHashTarget = false
 
       if (hashFragment) {
         instance = getHashFragmentDomNode(hashFragment)
+        isHashTarget = instance !== null
       }
 
       if (!instance) {
@@ -288,27 +303,45 @@ function InnerScrollHandlerNew(props: ScrollAndMaybeFocusHandlerProps) {
         return
       }
 
-      // Mark as scrolled so no other segment scrolls for this navigation.
-      scrollRef.current = false
-
-      // This handler intentionally leaves focus untouched; resetting focus on
-      // navigation is deferred.
+      let didHandleScroll = false
 
       disableSmoothScrollDuringRouteTransition(
         () => {
+          const htmlElement = document.documentElement
+          let viewportHeight: number | null = null
+          let initialTargetState: ScrollTargetState | null = null
+
+          if (!isHashTarget) {
+            // Store the current viewport height because reading `clientHeight` causes a reflow,
+            // and it won't change during this function.
+            viewportHeight = htmlElement.clientHeight
+            initialTargetState = getScrollTargetState(instance, viewportHeight)
+
+            // An empty Fragment is not a scroll target. In particular, avoid
+            // React's sibling fallback and leave the scroll signal available
+            // for another changed segment.
+            if (initialTargetState === ScrollTargetState.NoClientRects) {
+              return
+            }
+          }
+
+          didHandleScroll = true
+
+          // Mark as scrolled so no other segment scrolls for this navigation.
+          scrollRef.current = false
+
+          // This handler intentionally leaves focus untouched; resetting focus on
+          // navigation is deferred.
+
           // In case of hash scroll, we only need to scroll the element into view
           if (hashFragment) {
             instance.scrollIntoView()
 
             return
           }
-          // Store the current viewport height because reading `clientHeight` causes a reflow,
-          // and it won't change during this function.
-          const htmlElement = document.documentElement
-          const viewportHeight = htmlElement.clientHeight
 
           // If the element's top edge is already in the viewport, exit early.
-          if (topOfElementInViewport(instance, viewportHeight)) {
+          if (initialTargetState === ScrollTargetState.InViewport) {
             return
           }
 
@@ -319,7 +352,10 @@ function InnerScrollHandlerNew(props: ScrollAndMaybeFocusHandlerProps) {
           htmlElement.scrollTop = 0
 
           // Scroll to domNode if domNode is not in viewport when scrolled to top of document
-          if (!topOfElementInViewport(instance, viewportHeight)) {
+          if (
+            getScrollTargetState(instance, viewportHeight!) ===
+            ScrollTargetState.OutOfViewport
+          ) {
             // Scroll into view doesn't scroll horizontally by default when not needed
             instance.scrollIntoView()
           }
@@ -330,6 +366,10 @@ function InnerScrollHandlerNew(props: ScrollAndMaybeFocusHandlerProps) {
           onlyHashChange: focusAndScrollRef.onlyHashChange,
         }
       )
+
+      if (!didHandleScroll) {
+        return
+      }
 
       // Mutate after scrolling so that it can be read by `disableSmoothScrollDuringRouteTransition`
       focusAndScrollRef.onlyHashChange = false

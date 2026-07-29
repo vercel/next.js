@@ -4,6 +4,7 @@ export default function Page() {
   return (
     <div id="modal-page" style={{ minHeight: 2400 }}>
       <h1>Modal page</h1>
+      <input id="focus-target" aria-label="Focus target" />
       <Link
         id="open-empty-modal"
         href="/modal/open"
