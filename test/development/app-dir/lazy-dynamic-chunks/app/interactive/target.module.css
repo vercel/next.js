@@ -1,0 +1,5 @@
+.target {
+  /* Unique marker so the test can find this file regardless of the hashed chunk name. */
+  --interactive-css-marker-5d1c: 1;
+  color: rgb(0, 128, 0);
+}

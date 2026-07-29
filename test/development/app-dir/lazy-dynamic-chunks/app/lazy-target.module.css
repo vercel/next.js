@@ -1,0 +1,5 @@
+.target {
+  /* Unique marker so the test can find this file regardless of the hashed chunk name. */
+  --lazy-css-marker-7b2e: 1;
+  color: rgb(0, 128, 0);
+}
