@@ -146,7 +146,8 @@ function getHashFragmentDomNode(hashFragment: string) {
   return (
     document.getElementById(hashFragment) ??
     // If the hash fragment is a name, the page has to scroll to the first element with that name.
-    document.getElementsByName(hashFragment)[0]
+    document.getElementsByName(hashFragment)[0] ??
+    null
   )
 }
 interface ScrollAndMaybeFocusHandlerProps {

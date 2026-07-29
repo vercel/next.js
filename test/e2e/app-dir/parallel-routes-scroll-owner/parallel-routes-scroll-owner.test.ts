@@ -43,9 +43,52 @@ describe.each([false, true])(
         expect(await browser.url()).toBe(`${next.url}/modal/open`)
       })
 
+      await browser.eval(
+        'new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)))'
+      )
       expect(await browser.eval('document.activeElement.id')).toBe(
         'focus-target'
       )
+    })
+
+    it('preserves scroll and focus when the hash target is missing', async () => {
+      const browser = await next.browser('/modal')
+
+      const initialScroll = await browser.eval(`
+          window.scrollTo(0, 1200)
+          document.getElementById('focus-target').focus({ preventScroll: true })
+          document.getElementById('open-empty-modal-missing-hash').click()
+          window.scrollY
+        `)
+      await retry(async () => {
+        expect(await browser.url()).toBe(
+          `${next.url}/modal/open#missing-target`
+        )
+      })
+
+      await browser.eval(
+        'new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)))'
+      )
+      expect(await browser.eval('window.scrollY')).toBe(initialScroll)
+      expect(await browser.eval('document.activeElement.id')).toBe(
+        'focus-target'
+      )
+    })
+
+    it('scrolls to a real hash target', async () => {
+      const browser = await next.browser('/modal')
+
+      await browser.elementByCss('#open-empty-modal-real-hash').click()
+      await retry(async () => {
+        expect(await browser.url()).toBe(`${next.url}/modal/open#hash-target`)
+      })
+
+      await retry(async () => {
+        const targetTop = await browser.eval(
+          "document.getElementById('hash-target').getBoundingClientRect().top"
+        )
+        expect(Math.abs(targetTop)).toBeLessThan(1)
+      })
     })
   }
 )
