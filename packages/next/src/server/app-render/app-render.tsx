@@ -323,7 +323,7 @@ import { ResponseCookies } from '../web/spec-extension/cookies'
 import { isInstantValidationError } from './instant-validation/instant-validation-error'
 import { createPromiseWithResolvers } from '../../shared/lib/promise-with-resolvers'
 import { RENDER_STAGES_BY_DATA_KIND } from '../dynamic-rendering-utils'
-import type { ValidationPrefetchKind } from './instant-validation/instant-validation'
+import type { StageEndTimes } from './instant-validation/instant-validation'
 import { hasNonRootStaticParams } from '../lib/params-utils'
 
 export type GetDynamicParamFromSegment = (
@@ -4382,8 +4382,7 @@ interface SyncInterruptedStagedDevRender {
 interface StagedDevRenderArtifacts {
   readonly accumulatedChunks: AccumulatedStreamChunks
   readonly startTime: number
-  readonly staticStageEndTime: number
-  readonly runtimeStageEndTime: number
+  readonly stageEndTimes: StageEndTimes
 }
 
 /**
@@ -4795,8 +4794,7 @@ async function prepareValidationInputs(
     inputsFromNavigation = {
       accumulatedChunks: result.outcome.accumulatedChunks,
       startTime: result.outcome.startTime,
-      staticStageEndTime: result.outcome.staticStageEndTime,
-      runtimeStageEndTime: result.outcome.runtimeStageEndTime,
+      stageEndTimes: result.outcome.stageEndTimes,
       requestStore,
       debugChannelClient: validationDebugChannel,
     }
@@ -5421,14 +5419,25 @@ async function streamStagedRenderInDev({
         ? { syncInterruptReason }
         : {
             startTime,
-            staticStageEndTime: stageController.getStaticStageEndTime(),
-            runtimeStageEndTime: stageController.getRuntimeStageEndTime(),
+            stageEndTimes: getStageEndTimes(stageController),
             accumulatedChunks,
           },
     }
   })
 
   return { stream, resultPromise }
+}
+
+function getStageEndTimes(
+  stageController: StagedRenderingController
+): StageEndTimes {
+  return {
+    [RenderStage.Static]: stageController.getStageEndTime(RenderStage.Static),
+    [RenderStage.ShellRuntime]: stageController.getStageEndTime(
+      RenderStage.ShellRuntime
+    ),
+    [RenderStage.Runtime]: stageController.getStageEndTime(RenderStage.Runtime),
+  }
 }
 
 async function renderWithWarmCachesForValidationInDev(
@@ -5517,8 +5526,7 @@ async function renderWithWarmCachesForValidationInDev(
   return {
     accumulatedChunks,
     startTime,
-    staticStageEndTime: stageController.getStaticStageEndTime(),
-    runtimeStageEndTime: stageController.getRuntimeStageEndTime(),
+    stageEndTimes: getStageEndTimes(stageController),
     requestStore,
     debugChannelClient: debugChannel?.clientSide.readable,
   }
@@ -5650,8 +5658,7 @@ async function prerenderWithWarmCachesForStaticValidationInDev(
   return {
     accumulatedChunks: collectedChunksByStage,
     startTime,
-    staticStageEndTime: stageController.getStaticStageEndTime(),
-    runtimeStageEndTime: stageController.getRuntimeStageEndTime(),
+    stageEndTimes: getStageEndTimes(stageController),
     requestStore,
     debugChannelClient: debugChannel?.clientSide.readable,
   }
@@ -6352,8 +6359,7 @@ function toDevValidationInputs(
   return {
     accumulatedChunks: serialized.accumulatedChunks,
     startTime: serialized.startTime,
-    staticStageEndTime: serialized.staticStageEndTime,
-    runtimeStageEndTime: serialized.runtimeStageEndTime,
+    stageEndTimes: serialized.stageEndTimes,
     requestStore,
     debugChannelClient: serialized.debugChunks
       ? createNodeStreamFromChunks(serialized.debugChunks)
@@ -6592,6 +6598,7 @@ async function runValidationInDev(
       inputs.accumulatedChunks,
       debugChunks,
       inputs.startTime,
+      inputs.stageEndTimes,
       rootParams,
       fallbackRouteParams,
       ctx,
@@ -6641,7 +6648,7 @@ async function validateStaticShell(
 
   const loaderTree = ComponentMod.routeModule.userland.loaderTree
 
-  const { accumulatedChunks, staticStageEndTime, runtimeStageEndTime } = inputs
+  const { accumulatedChunks, stageEndTimes } = inputs
   const { staticChunks, runtimeChunks, dynamicChunks } = accumulatedChunks
 
   const allowEmptyStaticShell =
@@ -6652,7 +6659,7 @@ async function validateStaticShell(
     runtimeChunks,
     dynamicChunks,
     debugChunks,
-    runtimeStageEndTime,
+    stageEndTimes[RenderStage.Runtime],
     rootParams,
     fallbackRouteParams,
     allowEmptyStaticShell,
@@ -6677,7 +6684,7 @@ async function validateStaticShell(
     staticChunks,
     dynamicChunks,
     debugChunks,
-    staticStageEndTime,
+    stageEndTimes[RenderStage.Static],
     rootParams,
     fallbackRouteParams,
     allowEmptyStaticShell,
@@ -7054,6 +7061,7 @@ async function validateInstantConfigs(
   accumulatedChunks: AccumulatedStreamChunks,
   debugChunks: null | Array<Uint8Array>,
   startTime: number,
+  stageEndTimes: StageEndTimes,
   rootParams: Params,
   fallbackRouteParams: OpaqueFallbackRouteParams | null,
   ctx: ValidationRenderContext,
@@ -7078,6 +7086,11 @@ async function validateInstantConfigs(
 
   debug?.('\nStarting depth-based instant validation...')
 
+  const prefetchKind =
+    prefetchMode === PrefetchingMode.Partial
+      ? ValidationPrefetchKind.Shell
+      : ValidationPrefetchKind.LegacySpeculative
+
   const loaderTree = ctx.componentMod.routeModule.userland.loaderTree
 
   const clientReferenceManifest = getClientReferenceManifest()
@@ -7089,11 +7102,8 @@ async function validateInstantConfigs(
     ? createNodeDebugChannel
     : createWebDebugChannel
 
-  const {
-    cache,
-    payload: initialRscPayload,
-    stageEndTimes,
-  } = await collectStagedSegmentData(
+  const { cache, payload: initialRscPayload } = await collectStagedSegmentData(
+    prefetchKind,
     ctx.componentMod,
     renderFlightStream,
     {
@@ -7104,6 +7114,7 @@ async function validateInstantConfigs(
     },
     debugChunks,
     startTime,
+    stageEndTimes,
     clientReferenceManifest,
     createDebugChannel
   )
@@ -7111,20 +7122,13 @@ async function validateInstantConfigs(
   const { implicitTags, nonce, workStore, isDebugChannelEnabled } = ctx
 
   async function validateAtDepth(
-    prefetchKind: ValidationPrefetchKind,
     depth: number,
     groupDepthForValidation: number
   ): Promise<null | NavigationValidationResult> {
-    return validateAtDepthImpl(
-      prefetchKind,
-      depth,
-      groupDepthForValidation,
-      null
-    )
+    return validateAtDepthImpl(depth, groupDepthForValidation, null)
   }
 
   async function validateAtDepthImpl(
-    prefetchKind: ValidationPrefetchKind,
     depth: number,
     groupDepthForValidation: number,
     previousBoundaryState: null | ValidationBoundaryTracking
@@ -7161,7 +7165,6 @@ async function validateInstantConfigs(
       extraChunksSignal,
       boundaryState,
       clientReferenceManifest,
-      stageEndTimes,
       useRuntimeStageForPartialSegments
     )
 
@@ -7372,7 +7375,6 @@ async function validateInstantConfigs(
       }
 
       const dynamicOnlyResult = await validateAtDepthImpl(
-        prefetchKind,
         depth,
         groupDepthForValidation,
         boundaryState
@@ -7395,11 +7397,6 @@ async function validateInstantConfigs(
   const maxDepth = groupDepthsByUrlDepth.length
 
   let impairedValidation: null | Error | AggregateError = null
-
-  const prefetchKind =
-    prefetchMode === PrefetchingMode.Partial
-      ? ValidationPrefetchKind.Shell
-      : ValidationPrefetchKind.LegacySpeculative
 
   for (let depth = maxDepth - 1; depth >= 0; depth--) {
     const maxGroupDepth = groupDepthsByUrlDepth[depth]
@@ -7424,11 +7421,7 @@ async function validateInstantConfigs(
         return []
       }
 
-      const result = await validateAtDepth(
-        prefetchKind,
-        depth,
-        currentGroupDepth
-      )
+      const result = await validateAtDepth(depth, currentGroupDepth)
 
       if (Array.isArray(result)) {
         const errors: Array<Error> = result
@@ -8071,6 +8064,7 @@ async function validateInstantConfigInBuildWithSample(
     )
 
     const accumulatedChunks = await accumulatedChunksPromise
+    const endTimes = getStageEndTimes(stageController)
     const debugChunks = null // TODO(instant-validation-build): support debugChannel
 
     // Missing sample errors take priority over everything else,
@@ -8124,6 +8118,7 @@ async function validateInstantConfigInBuildWithSample(
       accumulatedChunks,
       debugChunks,
       startTime,
+      endTimes,
       sampleRootParams,
       fallbackRouteParams,
       validationRenderCtx,
