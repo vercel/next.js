@@ -42,7 +42,7 @@ Capture a baseline, read it, form one hypothesis, fix, then re-capture and compa
 
 ### content gated by one Suspense boundary → Suspense view
 
-`react suspense` classifies boundaries (`N boundaries: M dynamic holes`) and names the actionable one; a single dynamic hole over a whole section is the smell. Quantify the gating from the stream: fetch with `Accept-Encoding: identity` and log when each child's HTML arrives versus when the boundary's `$RC("B:n")` swap fires. One late `$RC` while children were ready earlier means the slowest child is holding the fast ones. (This stream probe uses `curl`/`fetch` deliberately: it measures the network, not the browser, so `next-dev-loop`'s "no curl" rule does not apply. If curl is unavailable, use the trace: a child's span duration equals the reveal delay it causes.) **Fix:** give each independently paced child its own `<Suspense>`. **Verify:** one `$RC` per child, staggered.
+`react suspense` classifies boundaries (`N boundaries: M dynamic holes`) and names the actionable one; a single dynamic gap over a whole section is the smell. Quantify the gating from the stream: fetch with `Accept-Encoding: identity` and log when each child's HTML arrives versus when the boundary's `$RC("B:n")` swap fires. One late `$RC` while children were ready earlier means the slowest child is holding the fast ones. (This stream probe uses `curl`/`fetch` deliberately: it measures the network, not the browser, so `next-dev-loop`'s "no curl" rule does not apply. If curl is unavailable, use the trace: a child's span duration equals the reveal delay it causes.) **Fix:** give each independently paced child its own `<Suspense>`. **Verify:** one `$RC` per child, staggered.
 
 ### slow interaction → Scheduler ⚛ + render profile
 
@@ -51,7 +51,7 @@ Capture a baseline, read it, form one hypothesis, fix, then re-capture and compa
 - **A. Cascading render.** A component re-renders more than once, and the extra render's reason is a state hook other than the one you touched. The Scheduler ⚛ track shows an `Update` followed by a `Cascading Update`. Cause: derived data mirrored into `useState` and synced with `useEffect`. **Fix:** compute during render; delete the state and effect.
 - **B. Blocking / large render.** The touched component renders once (reason: the hook you touched), there is **no** `Cascading Update`, but a child re-renders in large counts with reason `parent`, and the interaction is a long `EventDispatch` on the main thread. A controlled input renders synchronously inside the event, so the Scheduler track is sparse and the long task is the reliable signal. **Fix:** `React.memo` the expensive children, `useDeferredValue` or `useTransition` the input, virtualize a large list. `useDeferredValue` without `memo` does nothing.
 
-**The absence of a `Cascading Update` does not mean "no bug."** It tells mode A from mode B. Read the per-component counts and `parent` reasons, not just the Scheduler markers.
+**The absence of a `Cascading Update` does not mean "no bug."** It tells mode A from mode B. Read the per-component counts and `parent` reasons, not only the Scheduler markers.
 
 ## reading a trace
 
