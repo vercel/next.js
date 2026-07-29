@@ -504,12 +504,13 @@ export function projectQueryOptions(id) {
 }
 ```
 
-A Server Component starts the request with `prefetchQuery` **without awaiting it**, then serializes the cache into the streamed HTML with `<HydrationBoundary>`:
+A Server Component starts the request with `prefetchQuery` **without awaiting it**, then serializes the cache into the streamed HTML with `<HydrationBoundary>`. On the server, override `queryFn` to call the data function directly, since the API route's relative URL only resolves in the browser:
 
 ```tsx filename="app/projects/[id]/page.tsx" switcher
 import { Suspense } from 'react'
 import { dehydrate, HydrationBoundary } from '@tanstack/react-query'
 import { getQueryClient } from '@/app/get-query-client'
+import { getProject } from './data'
 import { projectQueryOptions } from './project-query'
 import { ProjectView } from './project-view'
 
@@ -527,7 +528,10 @@ function ProjectData({ id }: { id: string }) {
   const queryClient = getQueryClient()
 
   // Not awaited, so rendering is not blocked.
-  queryClient.prefetchQuery(projectQueryOptions(id))
+  queryClient.prefetchQuery({
+    ...projectQueryOptions(id),
+    queryFn: () => getProject(id),
+  })
 
   return (
     <HydrationBoundary state={dehydrate(queryClient)}>
@@ -541,6 +545,7 @@ function ProjectData({ id }: { id: string }) {
 import { Suspense } from 'react'
 import { dehydrate, HydrationBoundary } from '@tanstack/react-query'
 import { getQueryClient } from '@/app/get-query-client'
+import { getProject } from './data'
 import { projectQueryOptions } from './project-query'
 import { ProjectView } from './project-view'
 
@@ -558,7 +563,10 @@ function ProjectData({ id }) {
   const queryClient = getQueryClient()
 
   // Not awaited, so rendering is not blocked.
-  queryClient.prefetchQuery(projectQueryOptions(id))
+  queryClient.prefetchQuery({
+    ...projectQueryOptions(id),
+    queryFn: () => getProject(id),
+  })
 
   return (
     <HydrationBoundary state={dehydrate(queryClient)}>
