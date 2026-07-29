@@ -3312,8 +3312,10 @@ export default async function build(
                 ? true
                 : undefined
 
-            const htmlBotsRegexString =
-              // The htmlLimitedBots has been converted to a string during loadConfig
+            // htmlLimitedBots has been converted to a string during loadConfig.
+            // The configured pattern replaces the default HTML-limited bot
+            // pattern.
+            const htmlLimitedBotsRegexString =
               config.htmlLimitedBots || HTML_LIMITED_BOT_UA_RE_STRING
 
             // this flag is used to selectively bypass the static cache and invoke the lambda directly
@@ -3325,14 +3327,14 @@ export default async function build(
                 key: 'content-type',
                 value: 'multipart/form-data;.*',
               },
-              // If it's PPR rendered non-static page, bypass the PPR cache when streaming metadata is enabled.
-              // This will skip the postpone data for those bots requests and instead produce a dynamic render.
+              // For PPR routes, bypass the shell for user agents configured
+              // to receive blocking metadata and produce a dynamic render.
               ...(isRoutePPREnabled
                 ? [
                     {
                       type: 'header' as const,
                       key: 'user-agent',
-                      value: htmlBotsRegexString,
+                      value: htmlLimitedBotsRegexString,
                     },
                   ]
                 : []),
