@@ -2,6 +2,7 @@ import type { AppPageModule } from './route-modules/app-page/module'
 
 // Combined load times for loading client components
 let clientComponentLoadStart = 0
+let clientComponentLoadEnd = 0
 let clientComponentLoadTimes = 0
 let clientComponentLoadCount = 0
 
@@ -28,16 +29,25 @@ export function wrapClientComponentLoader(
         clientComponentLoadCount += 1
         return ComponentMod.__next_app__.require(...args)
       } finally {
-        clientComponentLoadTimes += performance.now() - startTime
+        const endTime = performance.now()
+        clientComponentLoadEnd = endTime
+        clientComponentLoadTimes += endTime - startTime
       }
     },
     loadChunk: (...args) => {
       const startTime = performance.now()
+
+      if (clientComponentLoadStart === 0) {
+        clientComponentLoadStart = startTime
+      }
+
       const result = ComponentMod.__next_app__.loadChunk(...args)
       // Avoid wrapping `loadChunk`'s result in an extra promise in case something like React depends on its identity.
       // We only need to know when it's settled.
       result.finally(() => {
-        clientComponentLoadTimes += performance.now() - startTime
+        const endTime = performance.now()
+        clientComponentLoadEnd = endTime
+        clientComponentLoadTimes += endTime - startTime
       })
       return result
     },
@@ -52,12 +62,14 @@ export function getClientComponentLoaderMetrics(
       ? undefined
       : {
           clientComponentLoadStart,
+          clientComponentLoadEnd,
           clientComponentLoadTimes,
           clientComponentLoadCount,
         }
 
   if (options.reset) {
     clientComponentLoadStart = 0
+    clientComponentLoadEnd = 0
     clientComponentLoadTimes = 0
     clientComponentLoadCount = 0
   }
