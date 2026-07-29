@@ -108,6 +108,43 @@ const InstantValidationBoundary =
     ) as typeof INSTANT_VALIDATION_BOUNDARY_NAME
   ]
 
+// Records that a fork slot's router mounted in the client tree during the
+// document SSR (see `RequestStore.mountedForkSlots`). Called by
+// `OuterLayoutRouter` when its element carries a `validationSlotPath` —
+// which `create-component-tree` only attaches while serialized-fork-slot
+// recording is armed. Typed nullable because the browser variant of this
+// module exports null: mounts are only observed server-side.
+export const recordMountedForkSlot: ((slotPath: string) => void) | null =
+  function recordMountedForkSlot(slotPath: string): void {
+    const workUnitStore = workUnitAsyncStorage.getStore()
+    if (workUnitStore === undefined) {
+      return
+    }
+    switch (workUnitStore.type) {
+      case 'request': {
+        const mountedForkSlots = workUnitStore.mountedForkSlots
+        if (mountedForkSlots !== undefined) {
+          mountedForkSlots.add(slotPath)
+        }
+        return
+      }
+      case 'validation-client':
+      case 'prerender':
+      case 'prerender-client':
+      case 'prerender-ppr':
+      case 'prerender-legacy':
+      case 'prerender-runtime':
+      case 'cache':
+      case 'private-cache':
+      case 'unstable-cache':
+      case 'generate-static-params':
+        return
+      default:
+        workUnitStore satisfies never
+        return
+    }
+  }
+
 // Slot marker component for attributing validation errors to the
 // correct config when a boundary spans multiple parallel slots.
 // Renders a dynamically-named inner component so the slot index

@@ -6,4 +6,5 @@ export {
   PlaceValidationBoundaryBelowThisLevel,
   RenderValidationBoundaryAtThisLevel,
   SlotMarker,
+  recordMountedForkSlot,
 } from './impl'

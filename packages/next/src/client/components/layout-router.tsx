@@ -36,6 +36,7 @@ import { HTTPAccessFallbackBoundary } from './http-access-fallback/error-boundar
 import {
   InstantValidationBoundaryContext,
   RenderValidationBoundaryAtThisLevel,
+  recordMountedForkSlot,
 } from './instant-validation/boundary'
 import { createRouterCacheKey } from './router-reducer/create-router-cache-key'
 import {
@@ -612,6 +613,7 @@ export default function OuterLayoutRouter({
   forbidden,
   unauthorized,
   segmentViewBoundaries,
+  validationSlotPath,
 }: {
   parallelRouterKey: string
   error: ErrorComponent | undefined
@@ -624,7 +626,18 @@ export default function OuterLayoutRouter({
   forbidden: React.ReactNode | undefined
   unauthorized: React.ReactNode | undefined
   segmentViewBoundaries?: React.ReactNode
+  /** Present only on fork slots of dev renders that record for instant
+   * validation (see `RequestStore.serializedForkSlots`): this router
+   * rendering means the fork slot mounted in the client tree. */
+  validationSlotPath?: string
 }) {
+  if (validationSlotPath !== undefined && recordMountedForkSlot !== null) {
+    // Observe the mount for instant validation's rendered-slot semantics.
+    // Only records during a document SSR whose request store is armed;
+    // no-ops in the browser and in validation renders.
+    recordMountedForkSlot(validationSlotPath)
+  }
+
   const context = useContext(LayoutRouterContext)
   if (!context) {
     throw new Error('invariant expected layout router to be mounted')

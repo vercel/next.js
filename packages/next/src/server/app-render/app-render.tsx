@@ -3930,6 +3930,17 @@ async function renderToStream(
           formState,
         }
 
+        let mountedForkSlotsSettled: PromiseWithResolvers<void> | null = null
+        if (requestStore.serializedForkSlots !== undefined) {
+          // The document SSR observes which serialized fork slots actually
+          // mount in the client tree (see `RequestStore.mountedForkSlots`).
+          // The set and its settle promise are assigned together so
+          // consumers never observe one without the other.
+          requestStore.mountedForkSlots = new Set()
+          mountedForkSlotsSettled = createPromiseWithResolvers<void>()
+          requestStore.mountedForkSlotsSettled = mountedForkSlotsSettled.promise
+        }
+
         const { stream: htmlStream, allReady } = await getTracer().trace(
           AppRenderSpan.renderToNodeFizzStream,
           () =>
@@ -3941,6 +3952,15 @@ async function renderToStream(
               { waitForAllReady: generateStaticHTML }
             )
         )
+
+        if (mountedForkSlotsSettled !== null) {
+          // The mounted set is complete once the SSR settles, whether it
+          // finished cleanly or errored.
+          allReady.then(
+            mountedForkSlotsSettled.resolve,
+            mountedForkSlotsSettled.resolve
+          )
+        }
 
         // End the render span only after React completed rendering (including anything inside Suspense boundaries)
         allReady.finally(() => {
@@ -4073,12 +4093,32 @@ async function renderToStream(
           formState,
         }
 
+        let mountedForkSlotsSettled: PromiseWithResolvers<void> | null = null
+        if (requestStore.serializedForkSlots !== undefined) {
+          // The document SSR observes which serialized fork slots actually
+          // mount in the client tree (see `RequestStore.mountedForkSlots`).
+          // The set and its settle promise are assigned together so
+          // consumers never observe one without the other.
+          requestStore.mountedForkSlots = new Set()
+          mountedForkSlotsSettled = createPromiseWithResolvers<void>()
+          requestStore.mountedForkSlotsSettled = mountedForkSlotsSettled.promise
+        }
+
         const { stream: htmlStream, allReady } = await workUnitAsyncStorage.run(
           requestStore,
           renderToWebFizzStream,
           appElement,
           fizzOptions
         )
+
+        if (mountedForkSlotsSettled !== null) {
+          // The mounted set is complete once the SSR settles, whether it
+          // finished cleanly or errored.
+          allReady.then(
+            mountedForkSlotsSettled.resolve,
+            mountedForkSlotsSettled.resolve
+          )
+        }
 
         // End the render span only after React completed rendering (including anything inside Suspense boundaries)
         allReady.finally(() => {
@@ -6434,6 +6474,12 @@ export async function runValidationInDevFromSnapshot(
     // instant validation consumes (see `RequestStore.serializedForkSlots`).
     requestStore.serializedForkSlots = new Set(message.serializedForkSlots)
   }
+  if (message.mountedForkSlots !== null) {
+    // The transported mounted set was serialized after the document SSR
+    // settled, so it is already complete.
+    requestStore.mountedForkSlots = new Set(message.mountedForkSlots)
+    requestStore.mountedForkSlotsSettled = Promise.resolve()
+  }
 
   const staticInputs = toDevValidationInputs(message.staticInputs, requestStore)
 
@@ -6584,6 +6630,20 @@ async function runValidationInDev(
       : null
     const hmrRefreshHash = getHmrRefreshHash(inputs.requestStore)
 
+    // The request store of the render being validated carries the
+    // serialized-fork-slot set that render recorded, and — when that render
+    // had a document SSR — the observed mounted set, complete once the SSR
+    // has settled.
+    const validatedRequestStore = inputs.requestStore
+    let mountedForkSlots: ReadonlySet<string> | undefined = undefined
+    if (
+      validatedRequestStore.mountedForkSlots !== undefined &&
+      validatedRequestStore.mountedForkSlotsSettled !== undefined
+    ) {
+      await validatedRequestStore.mountedForkSlotsSettled
+      mountedForkSlots = validatedRequestStore.mountedForkSlots
+    }
+
     const result = await validateInstantConfigs(
       prefetchMode,
       inputs.accumulatedChunks,
@@ -6595,9 +6655,8 @@ async function runValidationInDev(
       hmrRefreshHash,
       validationSamples,
       devRenderDidError,
-      // The request store of the render being validated carries the
-      // serialized-fork-slot set that render recorded.
-      inputs.requestStore.serializedForkSlots,
+      validatedRequestStore.serializedForkSlots,
+      mountedForkSlots,
       validationAbortSignal
     )
 
@@ -7064,10 +7123,23 @@ async function validateInstantConfigs(
    * (see `RequestStore.serializedForkSlots`), or undefined when recording
    * wasn't armed (e.g. build validation). */
   serializedForkSlots: ReadonlySet<string> | undefined,
+  /** The fork slots observed mounting during the validated render's
+   * document SSR (see `RequestStore.mountedForkSlots`), settled and
+   * complete. Undefined when that render had no document SSR (e.g. RSC
+   * navigations, the warm-cache validation render). */
+  mountedForkSlots: ReadonlySet<string> | undefined,
   validationAbortSignal?: AbortSignal
 ): Promise<Array<unknown>> {
   const debug =
     process.env.NEXT_PRIVATE_DEBUG_VALIDATION === '1' ? console.log : undefined
+
+  // Fork slots that can appear in the validated render's client tree: the
+  // SSR-observed mounted set when the render had a document SSR, otherwise
+  // the serialized set. The serialized set is conservative — client
+  // components may still drop slots they were handed — so renders without
+  // a document SSR over-approximate until they get their own observation.
+  const liveForkSlots =
+    mountedForkSlots !== undefined ? mountedForkSlots : serializedForkSlots
 
   const {
     createCombinedPayloadAtDepth,
@@ -7167,7 +7239,7 @@ async function validateInstantConfigs(
       clientReferenceManifest,
       stageEndTimes,
       useRuntimeStageForPartialSegments,
-      serializedForkSlots
+      liveForkSlots
     )
 
     if (payloadResult === null) {
@@ -8137,6 +8209,8 @@ async function validateInstantConfigInBuildWithSample(
       false, // build has no shared dev render that would surface errors
       // Build renders don't record serialized fork slots (yet), so every
       // config is considered.
+      undefined,
+      // Build renders have no document SSR to observe mounts from.
       undefined
     )
   })

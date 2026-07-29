@@ -17,6 +17,22 @@ import { isNodeNextResponse } from '../base-http/helpers'
  * `getDynamicParamFromSegment`) are reconstructed on the worker from this seed.
  * Draining the debug channels is async, so this returns a promise.
  */
+async function serializeMountedForkSlots(
+  instantInputs: ResolvedValidationInputs | null
+): Promise<string[] | null> {
+  if (instantInputs === null) {
+    return null
+  }
+  const { mountedForkSlots, mountedForkSlotsSettled } =
+    instantInputs.requestStore
+  if (mountedForkSlots === undefined || mountedForkSlotsSettled === undefined) {
+    return null
+  }
+  // The mounted set is only complete once the document SSR has settled.
+  await mountedForkSlotsSettled
+  return [...mountedForkSlots]
+}
+
 export async function buildDevValidationSnapshot(
   ctx: AppRenderContext,
   instantInputs: ResolvedValidationInputs | null,
@@ -83,13 +99,14 @@ export async function buildDevValidationSnapshot(
     optimisticRouting: ctx.renderOpts.experimental.optimisticRouting,
     forceStatic: ctx.workStore.forceStatic,
     validationLevel: ctx.workStore.validationLevel,
-    // The recorded set travels with the render that instant validation
-    // consumes; static validation never reads it.
+    // The recorded sets travel with the render that instant validation
+    // consumes; static validation never reads them.
     serializedForkSlots:
       instantInputs !== null &&
       instantInputs.requestStore.serializedForkSlots !== undefined
         ? [...instantInputs.requestStore.serializedForkSlots]
         : null,
+    mountedForkSlots: await serializeMountedForkSlots(instantInputs),
     implicitTags: ctx.implicitTags.tags,
     additionalClientReferenceManifestPages: ctx.workStore
       .additionalClientReferenceManifestPages

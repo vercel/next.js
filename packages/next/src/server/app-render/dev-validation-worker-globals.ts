@@ -93,9 +93,16 @@ export interface DevValidationSnapshot {
   /**
    * The parallel fork slots the validated render's flight output
    * serialized, as validation SegmentPaths (see
-   * `WorkStore.serializedForkSlots`). Null when recording wasn't armed.
+   * `RequestStore.serializedForkSlots`). Null when recording wasn't armed.
    */
   serializedForkSlots: string[] | null
+  /**
+   * The fork slots observed mounting during the validated render's
+   * document SSR, settled and complete (see
+   * `RequestStore.mountedForkSlots`). Null when that render had no
+   * document SSR.
+   */
+  mountedForkSlots: string[] | null
   implicitTags: string[]
   /**
    * Pages whose client reference manifests supplied client references to the

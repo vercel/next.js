@@ -752,6 +752,13 @@ async function createComponentTreeInternal(
           ...(isSegmentViewEnabled && {
             segmentViewBoundaries,
           }),
+          // On recording-armed renders, fork-slot routers report their
+          // mounts for instant validation (see `recordMountedForkSlot`).
+          ...(childrenAreForkSlots &&
+            childValidationSegmentPath !== null &&
+            serializedForkSlots !== undefined && {
+              validationSlotPath: childValidationSegmentPath,
+            }),
         })
 
         if (

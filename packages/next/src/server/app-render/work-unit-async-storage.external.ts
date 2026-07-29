@@ -107,6 +107,26 @@ export interface RequestStore extends CommonWorkUnitStore {
    * dev renders that will be validated.
    */
   serializedForkSlots?: Set<string>
+
+  /**
+   * DEV-only. When set, the document SSR performed under this store
+   * records here the validation SegmentPath of every serialized fork slot
+   * whose router actually mounted in the client tree (see
+   * `OuterLayoutRouter`). Consumers must await `mountedForkSlotsSettled`
+   * before reading — the set is only complete once the SSR has settled. A
+   * serialized fork slot absent from the settled set did not render
+   * within the instant window (late, effect-mounted UI is not instant
+   * UI), so instant validation treats it as dead too. Undefined when this
+   * render has no document SSR (e.g. RSC navigations) or recording isn't
+   * armed.
+   */
+  mountedForkSlots?: Set<string>
+
+  /**
+   * Resolves once the document SSR has settled and `mountedForkSlots` is
+   * complete. Present exactly when `mountedForkSlots` is.
+   */
+  mountedForkSlotsSettled?: Promise<void>
 }
 
 export type InstantValidationSamples = {

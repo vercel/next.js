@@ -918,14 +918,15 @@ export async function createCombinedPayloadAtDepth(
   clientReferenceManifest: ClientReferenceManifest,
   stageEndTimes: StageEndTimes,
   useRuntimeStageForPartialSegments: boolean,
-  /** Fork slots the validated render's flight output serialized (see
-   * `RecordSerializedForkSlot` in `create-component-tree.tsx`). A fork
-   * slot absent from this set is dead for the validated render: nothing
-   * client-side was ever handed its element, so nothing can mount it.
-   * Configs inside dead fork slots are vacuous. Undefined when recording
+  /** Fork slots that can appear in the validated render's client tree:
+   * the document SSR's observed mounted set when one is available,
+   * otherwise the flight render's serialized set (see
+   * `RequestStore.serializedForkSlots` / `mountedForkSlots`). A fork slot
+   * absent from this set is dead for the validated render — nothing can
+   * mount it — so configs inside it are vacuous. Undefined when recording
    * wasn't armed (e.g. build validation), in which case every config is
    * considered. */
-  serializedForkSlots: ReadonlySet<string> | undefined
+  liveForkSlots: ReadonlySet<string> | undefined
 ): Promise<ValidationPayloadResult | null> {
   const workStore = workAsyncStorage.getStore()
   if (!workStore) {
@@ -998,9 +999,7 @@ export async function createCombinedPayloadAtDepth(
         : createChildSegmentPath(parentPath, key!, segment)
 
     const isDeadForkSlot =
-      isForkSlot &&
-      serializedForkSlots !== undefined &&
-      !serializedForkSlots.has(path)
+      isForkSlot && liveForkSlots !== undefined && !liveForkSlots.has(path)
     const withinDeadForkSlot = parentWithinDeadForkSlot || isDeadForkSlot
     const childrenAreForkSlots = Object.keys(parallelRoutes).length > 1
 
@@ -1184,9 +1183,7 @@ export async function createCombinedPayloadAtDepth(
         : createChildSegmentPath(parentPath, key!, segment)
 
     const isDeadForkSlot =
-      isForkSlot &&
-      serializedForkSlots !== undefined &&
-      !serializedForkSlots.has(path)
+      isForkSlot && liveForkSlots !== undefined && !liveForkSlots.has(path)
     const withinDeadForkSlot = parentWithinDeadForkSlot || isDeadForkSlot
     const childrenAreForkSlots = Object.keys(parallelRoutes).length > 1
 
