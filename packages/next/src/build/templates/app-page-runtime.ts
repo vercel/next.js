@@ -22,7 +22,10 @@ import {
   getRequestMeta,
   setRequestMeta,
 } from '../../server/request-meta' with { 'turbopack-transition': 'next-server-utility' }
-import { BaseServerSpan } from '../../server/lib/trace/constants' with { 'turbopack-transition': 'next-server-utility' }
+import {
+  AppRenderSpan,
+  BaseServerSpan,
+} from '../../server/lib/trace/constants' with { 'turbopack-transition': 'next-server-utility' }
 import { stripFlightHeaders } from '../../server/app-render/strip-flight-headers' with { 'turbopack-transition': 'next-server-utility' }
 import {
   NodeNextRequest,
@@ -226,10 +229,15 @@ export function createAppPageEntrypoint({
     const multiZoneDraftMode = process.env
       .__NEXT_MULTI_ZONE_DRAFT_MODE as any as boolean
 
-    const prepareResult = await routeModule.prepare(req, res, {
-      srcPage,
-      multiZoneDraftMode,
-    })
+    const prepareResult = await getTracer().trace(
+      AppRenderSpan.prepareAppPageResponse,
+      { spanName: 'prepare app page response' },
+      () =>
+        routeModule.prepare(req, res, {
+          srcPage,
+          multiZoneDraftMode,
+        })
+    )
 
     if (!prepareResult) {
       res.statusCode = 400
