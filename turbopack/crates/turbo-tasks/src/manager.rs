@@ -4,6 +4,7 @@ use std::{
     future::Future,
     hash::{BuildHasher, BuildHasherDefault},
     mem::take,
+    ops::Deref,
     panic::AssertUnwindSafe,
     pin::Pin,
     process::abort,
@@ -604,7 +605,7 @@ impl CurrentTaskStateHandle {
     }
 }
 
-impl std::ops::Deref for CurrentTaskStateHandle {
+impl Deref for CurrentTaskStateHandle {
     type Target = RwLock<CurrentTaskState>;
 
     fn deref(&self) -> &Self::Target {
