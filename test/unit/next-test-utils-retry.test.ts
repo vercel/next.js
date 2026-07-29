@@ -49,6 +49,12 @@ describe('retry', () => {
     ).rejects.toThrow('nope')
   })
 
+  it('rejects a negative duration', async () => {
+    await expect(retry(() => 'done', -1000)).rejects.toThrow(
+      'Duration cannot be less than 0.'
+    )
+  })
+
   it('always makes at least one attempt', async () => {
     let attempts = 0
     await expect(
