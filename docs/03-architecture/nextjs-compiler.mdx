@@ -171,21 +171,37 @@ module.exports = {
 }
 ```
 
-### Legacy Decorators
+### Decorators
 
-Next.js will automatically detect `experimentalDecorators` in `jsconfig.json` or `tsconfig.json`. Legacy decorators are commonly used with older versions of libraries like `mobx`.
+Next.js supports legacy decorators and the December 2021 and March 2022 versions of the decorators proposal. Use the `compiler.decoratorVersion` option in `next.config.js` to select the transform:
 
-This flag is only supported for compatibility with existing applications. We do not recommend using legacy decorators in new applications.
+```js filename="next.config.js"
+module.exports = {
+  compiler: {
+    decoratorVersion: '2022-03',
+  },
+}
+```
 
-First, update to the latest version of Next.js: `npm install next@latest`. Then, update your `jsconfig.json` or `tsconfig.json` file:
+The supported values are:
 
-```js
+| Value       | Description                                                                                           |
+| ----------- | ----------------------------------------------------------------------------------------------------- |
+| `'legacy'`  | Use the legacy decorator transform. This is the default and supports existing decorator applications. |
+| `'2021-12'` | Use the December 2021 decorators proposal.                                                            |
+| `'2022-03'` | Use the March 2022 decorators proposal, which reached Stage 3.                                        |
+
+Next.js only parses decorator syntax when `experimentalDecorators` is enabled in `jsconfig.json` or `tsconfig.json`:
+
+```json filename="tsconfig.json"
 {
   "compilerOptions": {
     "experimentalDecorators": true
   }
 }
 ```
+
+Legacy decorators are commonly used with older versions of libraries such as `mobx`. They are supported for compatibility with existing applications, but are not recommended for new applications.
 
 ### importSource
 
