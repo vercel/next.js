@@ -8,7 +8,7 @@ use turbopack_core::version::{
     VersionedContentMerger,
 };
 
-use super::{content::EcmascriptDevChunkListContent, version::EcmascriptDevChunkListVersion};
+use super::version::ChunkListVersion;
 
 /// Update of a chunk list from one version to another.
 #[derive(Serialize)]
@@ -47,24 +47,27 @@ impl ChunkListUpdate<'_> {
 }
 
 /// Computes the update of a chunk list from one version to another.
-pub(super) async fn update_chunk_list(
-    content: ResolvedVc<EcmascriptDevChunkListContent>,
+///
+/// Runtime-agnostic (takes plain paths + [`VersionedContent`]) so the browser
+/// and node chunking contexts can share one implementation instead of each
+/// duplicating the merge-by-[`VersionedContentMerger`] logic.
+pub async fn update_chunk_list(
+    chunks_contents: &FxIndexMap<String, ResolvedVc<Box<dyn VersionedContent>>>,
+    to_version: Vc<ChunkListVersion>,
     from_version: ResolvedVc<Box<dyn Version>>,
 ) -> Result<Vc<Update>> {
-    let to_version = content.version();
-    let from_version = if let Some(from) =
-        ResolvedVc::try_downcast_type::<EcmascriptDevChunkListVersion>(from_version)
-    {
-        from
-    } else {
-        // It's likely `from_version` is `NotFoundVersion`.
-        return Ok(Update::Total(TotalUpdate {
-            to: Vc::upcast::<Box<dyn Version>>(to_version)
-                .into_trait_ref()
-                .await?,
-        })
-        .cell());
-    };
+    let from_version =
+        if let Some(from) = ResolvedVc::try_downcast_type::<ChunkListVersion>(from_version) {
+            from
+        } else {
+            // It's likely `from_version` is `NotFoundVersion`.
+            return Ok(Update::Total(TotalUpdate {
+                to: Vc::upcast::<Box<dyn Version>>(to_version)
+                    .into_trait_ref()
+                    .await?,
+            })
+            .cell());
+        };
 
     let to = to_version.await?;
     let from = from_version.await?;
@@ -76,19 +79,12 @@ pub(super) async fn update_chunk_list(
         return Ok(Update::None.cell());
     }
 
-    let content = content.await?;
-
-    // There are two kind of updates nested within a chunk list update:
-    // * merged updates; and
-    // * single chunk updates.
-    // In order to compute merged updates, we first need to group mergeable chunks
-    // by common mergers. Then, we compute the update of each group separately.
-    // Single chunk updates are computed separately and only require a stable chunk
-    // path to identify the chunk across versions.
+    // Group mergeable chunks by merger so their updates collapse into one
+    // `EcmascriptMergedUpdate`; everything else is diffed individually by path.
     let mut by_merger = FxIndexMap::<_, Vec<_>>::default();
     let mut by_path = FxIndexMap::<_, _>::default();
 
-    for (chunk_path, chunk_content) in &content.chunks_contents {
+    for (chunk_path, chunk_content) in chunks_contents {
         if let Some(mergeable) =
             ResolvedVc::try_sidecast::<Box<dyn MergeableVersionedContent>>(*chunk_content)
         {

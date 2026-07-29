@@ -52,7 +52,7 @@ The pattern is similar to per-route code splitting in single-page apps: one arti
 
 > **Good to know**: Routes that read `cookies()` or `headers()` produce an App Shell that includes session data. The framework auto-detects this and caches the shell per session on the client.
 
-A link can ask for more than the App Shell with [`<Link prefetch={true}>`](/docs/app/api-reference/components/link#prefetch). If the destination opts into [`prefetch = 'allow-runtime'`](/docs/app/api-reference/file-conventions/route-segment-config/prefetch#allow-runtime), the prefetch also resolves per-link runtime data like `params`, `searchParams`, and the full URL.
+A link can ask for more than the App Shell with [`<Link prefetch={true}>`](/docs/app/api-reference/components/link#prefetch): the prefetch also resolves per-link runtime data like `params`, `searchParams`, and the full URL. See [Runtime prefetching](/docs/app/guides/runtime-prefetching).
 
 > **Good to know**: If you use `<Link prefetch={true}>` to a route that hasn't opted into Partial Prefetching, a dev console error suggests enabling `partialPrefetching` app-wide or `prefetch = 'partial'` on the segment. The [dev warning Insight](/docs/messages/instant-link-prefetch-partial) covers each fix in detail.
 

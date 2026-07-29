@@ -74,6 +74,8 @@ Next.js maintains a small task queue, which prefetches in the following order:
 
 The scheduler prioritizes likely navigations while minimizing unused downloads.
 
+> **Good to know**: With the **experimental** [`useOffline`](/docs/app/guides/offline-support) config enabled, pending prefetches resume through this queue when the app recovers from a connectivity drop.
+
 ### Client cache
 
 Next.js stores prefetched React Server Component payloads in memory, keyed by route segments. When navigating between sibling routes (e.g. `/dashboard/settings` → `/dashboard/analytics`), Next.js reuses the parent layout and only fetches the updated leaf page.
