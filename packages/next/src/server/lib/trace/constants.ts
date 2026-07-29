@@ -99,6 +99,10 @@ enum DevRouteMatcherManagerSpan {
   reloadMatchers = 'DevRouteMatcherManager.reloadMatchers',
 }
 
+enum DevBundlerServiceSpan {
+  ensurePage = 'DevBundlerService.ensurePage',
+}
+
 enum RouterSpan {
   executeRoute = 'Router.executeRoute',
 }
@@ -130,6 +134,7 @@ type SpanTypes =
   | `${RouterSpan}`
   | `${AppRenderSpan}`
   | `${DevRouteMatcherManagerSpan}`
+  | `${DevBundlerServiceSpan}`
   | `${NodeSpan}`
   | `${AppRouteRouteHandlersSpan}`
   | `${ResolveMetadataSpan}`
@@ -173,6 +178,7 @@ export {
   RouterSpan,
   AppRenderSpan,
   DevRouteMatcherManagerSpan,
+  DevBundlerServiceSpan,
   NodeSpan,
   AppRouteRouteHandlersSpan,
   ResolveMetadataSpan,

@@ -403,6 +403,7 @@ describe('request insights trace viewer', () => {
       { label: 'GET', depth: 0 },
       { label: 'match route', depth: 1 },
       { label: 'prepare route', depth: 2 },
+      { label: 'compile route', depth: 3 },
       { label: 'reload route matchers', depth: 2 },
       { label: 'render', depth: 2 },
       { label: 'load components', depth: 3 },
