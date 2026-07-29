@@ -64,7 +64,7 @@ To prefetch the page content alongside the shell for a specific link, set [`pref
 </Link>
 ```
 
-To prefetch with the user's session (cookies, headers, the full URL), opt the destination segment into [runtime prefetching](/docs/app/guides/runtime-prefetching) with `export const prefetch = 'allow-runtime'`.
+With Partial Prefetching enabled, `prefetch={true}` also opts the link into [runtime prefetching](/docs/app/guides/runtime-prefetching), which resolves the per-link URL data (`params`, `searchParams`, the full URL) ahead of the click.
 
 ### Validate instant navigation
 
@@ -472,7 +472,7 @@ Agents working on a Cache Components route typically reach for three levers:
 
 Each refactor should pair with a before/after capture to verify the change actually landed. Identical-looking captures mean the refactor didn't take effect.
 
-For agents to see what their changes actually render, pair this with [agent-browser](https://github.com/vercel-labs/agent-browser). With React DevTools enabled it reports the component tree and which `<Suspense>` boundaries are still pending, so an agent can make a change, snapshot the shell, check what landed, and adjust. See [Runtime visibility](/docs/app/guides/ai-agents#runtime-visibility) in the AI agents guide for the setup.
+For agents to see what their changes actually render, pair this with [agent-browser](https://github.com/vercel-labs/agent-browser). With React DevTools enabled it reports the component tree and which `<Suspense>` boundaries are still pending, so an agent can make a change, snapshot the shell, check what landed, and adjust. See [Runtime visibility](/docs/app/guides/ai-agents#step-2-give-agents-runtime-visibility) in the AI agents guide for the setup.
 
 The [`next-cache-components-optimizer`](/docs/app/guides/ai-agents#next-cache-components-optimizer) skill packages this loop: it encodes the goal as a failing `@next/playwright` `instant()` test and works it to green one route at a time, for both initial load (hard navigation) and client-side navigation (soft navigation), then ships the test as a regression guard.
 

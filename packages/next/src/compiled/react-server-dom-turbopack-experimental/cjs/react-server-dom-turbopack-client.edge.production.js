@@ -107,10 +107,12 @@ function requireModule(metadata) {
 function prepareDestinationWithChunks(moduleLoading, chunks, nonce$jscomp$0) {
   if (null !== moduleLoading)
     for (var i = 0; i < chunks.length; i++) {
-      var nonce = nonce$jscomp$0,
+      var chunk = chunks[i],
+        nonce = nonce$jscomp$0,
         JSCompiler_temp_const = ReactDOMSharedInternals.d,
-        JSCompiler_temp_const$jscomp$0 = JSCompiler_temp_const.X,
-        JSCompiler_temp_const$jscomp$1 = moduleLoading.prefix + chunks[i];
+        JSCompiler_temp_const$jscomp$0 = JSCompiler_temp_const.X;
+      chunk =
+        moduleLoading.prefix + ("string" === typeof chunk ? chunk : chunk[0]);
       var JSCompiler_inline_result = moduleLoading.crossOrigin;
       JSCompiler_inline_result =
         "string" === typeof JSCompiler_inline_result
@@ -118,16 +120,12 @@ function prepareDestinationWithChunks(moduleLoading, chunks, nonce$jscomp$0) {
             ? JSCompiler_inline_result
             : ""
           : void 0;
-      JSCompiler_temp_const$jscomp$0.call(
-        JSCompiler_temp_const,
-        JSCompiler_temp_const$jscomp$1,
-        {
-          crossOrigin: JSCompiler_inline_result,
-          integrity: void 0,
-          fetchPriority: void 0,
-          nonce: nonce
-        }
-      );
+      JSCompiler_temp_const$jscomp$0.call(JSCompiler_temp_const, chunk, {
+        crossOrigin: JSCompiler_inline_result,
+        integrity: void 0,
+        fetchPriority: void 0,
+        nonce: nonce
+      });
     }
 }
 var ReactDOMSharedInternals =
@@ -713,31 +711,37 @@ function ReactPromise(status, value, reason) {
   this.reason = reason;
 }
 ReactPromise.prototype = Object.create(Promise.prototype);
-ReactPromise.prototype.then = function (resolve, reject) {
-  switch (this.status) {
-    case "resolved_model":
-      initializeModelChunk(this);
-      break;
-    case "resolved_module":
-      initializeModuleChunk(this);
+Object.defineProperty(ReactPromise.prototype, "then", {
+  writable: !0,
+  enumerable: !0,
+  configurable: !0,
+  value: function (resolve, reject) {
+    switch (this.status) {
+      case "resolved_model":
+        initializeModelChunk(this);
+        break;
+      case "resolved_module":
+        initializeModuleChunk(this);
+    }
+    switch (this.status) {
+      case "fulfilled":
+        "function" === typeof resolve && resolve(this.value);
+        break;
+      case "pending":
+      case "blocked":
+        "function" === typeof resolve &&
+          (null === this.value && (this.value = []), this.value.push(resolve));
+        "function" === typeof reject &&
+          (null === this.reason && (this.reason = []),
+          this.reason.push(reject));
+        break;
+      case "halted":
+        break;
+      default:
+        "function" === typeof reject && reject(this.reason);
+    }
   }
-  switch (this.status) {
-    case "fulfilled":
-      "function" === typeof resolve && resolve(this.value);
-      break;
-    case "pending":
-    case "blocked":
-      "function" === typeof resolve &&
-        (null === this.value && (this.value = []), this.value.push(resolve));
-      "function" === typeof reject &&
-        (null === this.reason && (this.reason = []), this.reason.push(reject));
-      break;
-    case "halted":
-      break;
-    default:
-      "function" === typeof reject && reject(this.reason);
-  }
-};
+});
 function readChunk(chunk) {
   switch (chunk.status) {
     case "resolved_model":

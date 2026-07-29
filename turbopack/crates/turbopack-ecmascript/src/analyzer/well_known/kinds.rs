@@ -32,6 +32,7 @@ pub enum WellKnownObjectKind {
     NodeBuffer,
     RequireCache,
     ImportMeta,
+    ImportMetaEnv,
     /// An iterator object, used to model generator return values.
     Generator,
     /// The `module.hot` object providing HMR API.
@@ -140,6 +141,7 @@ impl WellKnownObjectKind {
                 "The CommonJS require.cache object: https://nodejs.org/api/modules.html#requirecache",
             ),
             Self::ImportMeta => ("import.meta", "The import.meta object"),
+            Self::ImportMetaEnv => ("import.meta.env", "The import.meta.env object"),
             Self::ModuleHot => ("module.hot", "The module.hot HMR API"),
             Self::Navigator => (
                 "navigator",

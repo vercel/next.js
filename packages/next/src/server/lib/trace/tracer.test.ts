@@ -19,11 +19,15 @@ import {
 } from '@opentelemetry/api'
 
 import { setSpanRecorderForTest, type SpanStoreRecord } from './span-store'
-import { registerLocalSpanRecorder } from './local-span-recorder'
+import {
+  registerLocalSpanRecorder,
+  traceLocalSpan,
+} from './local-span-recorder'
 import {
   AppRenderSpan,
   BaseServerSpan,
   LoadComponentsSpan,
+  NextNodeServerSpan,
   NodeSpan,
 } from './constants'
 import { SpanKind, SpanStatusCode, getTracer } from './tracer'
@@ -182,6 +186,7 @@ describe('local span recording', () => {
     } else {
       process.env.NEXT_OTEL_VERBOSE = originalOtelVerbose
     }
+    context.disable()
     trace.disable()
     setSpanRecorderForTest(undefined)
     spanRecords.length = 0
@@ -358,6 +363,106 @@ describe('local span recording', () => {
         }),
       }),
     ])
+  })
+
+  it('keeps OTel-isolated spans out of the active OTel context', async () => {
+    process.env.__NEXT_REQUEST_INSIGHTS = 'true'
+    process.env.NEXT_OTEL_VERBOSE = '1'
+    context.disable()
+    context.setGlobalContextManager(new TestContextManager())
+
+    const exportedSpans: string[] = []
+    const foregroundSpan = trace.wrapSpanContext({
+      traceId: '0123456789abcdef0123456789abcdef',
+      spanId: '0123456789abcdef',
+      traceFlags: 1,
+    })
+    trace.setGlobalTracerProvider({
+      getTracer() {
+        return {
+          startSpan(name: string) {
+            exportedSpans.push(name)
+            return foregroundSpan
+          },
+          startActiveSpan(...args: unknown[]) {
+            exportedSpans.push(args[0] as string)
+            const callback = args.at(-1) as (
+              span: typeof foregroundSpan
+            ) => unknown
+            return callback(foregroundSpan)
+          },
+        }
+      },
+    })
+
+    const foregroundContext = trace.setSpan(ROOT_CONTEXT, foregroundSpan)
+    let activeSpanDuringLocalWork
+    let activeSpanDuringNestedLocalWork
+    let activeSpanDuringNextTrace
+    let activeSpanDuringDirectWithSpan
+
+    await context.with(foregroundContext, () =>
+      traceLocalSpan(
+        { name: 'Instant Insights', parentSpan: null },
+        async () => {
+          activeSpanDuringLocalWork = trace.getSpan(context.active())
+          await traceLocalSpan(
+            { name: 'Prepare validation inputs' },
+            async () => {
+              activeSpanDuringNestedLocalWork = trace.getSpan(context.active())
+              getTracer().trace(NextNodeServerSpan.createComponentTree, () => {
+                activeSpanDuringNextTrace = trace.getSpan(context.active())
+              })
+              const directSpan = getTracer().startSpan(
+                NextNodeServerSpan.getLayoutOrPageModule
+              )
+              getTracer().withSpan(directSpan, () => {
+                activeSpanDuringDirectWithSpan = trace.getSpan(context.active())
+              })
+              directSpan.end()
+            }
+          )
+        }
+      )
+    )
+
+    expect(activeSpanDuringLocalWork).toBe(foregroundSpan)
+    expect(activeSpanDuringNestedLocalWork).toBe(foregroundSpan)
+    expect(activeSpanDuringNextTrace).toBe(foregroundSpan)
+    expect(activeSpanDuringDirectWithSpan).toBe(foregroundSpan)
+    expect(exportedSpans).toEqual([])
+
+    const rootRecord = getSpanRecords({ name: 'Instant Insights' })[0]
+    const childRecord = getSpanRecords({
+      name: 'Prepare validation inputs',
+    })[0]
+    const nestedNextRecord = getSpanRecords({
+      name: NextNodeServerSpan.createComponentTree,
+    })[0]
+    const directNextRecord = getSpanRecords({
+      name: NextNodeServerSpan.getLayoutOrPageModule,
+    })[0]
+
+    expect(rootRecord.parentSpanId).toBeUndefined()
+    expect(rootRecord.traceId).not.toBe(foregroundSpan.spanContext().traceId)
+    expect(childRecord).toEqual(
+      expect.objectContaining({
+        traceId: rootRecord.traceId,
+        parentSpanId: rootRecord.spanId,
+      })
+    )
+    expect(nestedNextRecord).toEqual(
+      expect.objectContaining({
+        traceId: rootRecord.traceId,
+        parentSpanId: childRecord.spanId,
+      })
+    )
+    expect(directNextRecord).toEqual(
+      expect.objectContaining({
+        traceId: rootRecord.traceId,
+        parentSpanId: childRecord.spanId,
+      })
+    )
   })
 
   it('mirrors span mutations made through the OTel span API', () => {

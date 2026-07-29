@@ -246,7 +246,6 @@ export function registerSyncIoAndBlockingTests(
         )
         if (partialPrefetching) {
           // This page uses a runtime shell, so it can use cookies
-          // TODO(app-shells): missing "allow-runtime"
           await expectNoDevValidationErrors(browser, await browser.url())
         } else {
           await expect(browser).toDisplayCollapsedRedbox(`
@@ -282,7 +281,6 @@ export function registerSyncIoAndBlockingTests(
         )
         if (partialPrefetching) {
           // This page uses a runtime shell, so it can use cookies
-          // TODO(app-shells): missing "allow-runtime"
           expectNoBuildValidationErrors(result)
         } else {
           expect(extractBuildValidationError(result.cliOutput))
@@ -345,7 +343,6 @@ export function registerSyncIoAndBlockingTests(
         )
         if (partialPrefetching) {
           // This page uses a runtime shell, so it can use cookies
-          // TODO(app-shells): missing "allow-runtime"
           await expectNoDevValidationErrors(browser, await browser.url())
         } else {
           await expect(browser).toDisplayCollapsedRedbox(`
@@ -381,7 +378,6 @@ export function registerSyncIoAndBlockingTests(
         )
         if (partialPrefetching) {
           // This page uses a runtime shell, so it can use cookies
-          // TODO(app-shells): missing "allow-runtime"
           expectNoBuildValidationErrors(result)
         } else {
           expect(extractBuildValidationError(result.cliOutput))
