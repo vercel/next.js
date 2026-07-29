@@ -216,19 +216,10 @@ With SWR 2.3.0 and React 19, you can add Server Component data to an existing SW
 
 Use SWR when the Client Component needs client-side features, such as focus revalidation, interval revalidation, [`mutate`](https://swr.vercel.app/docs/mutation), or request deduplication across components. If a Client Component only needs to read server data once, pass a Promise to it and unwrap it with [`use()`](#using-reacts-use-within-a-context-provider). That avoids adding a data-fetching library for data that never revalidates on the client.
 
-To provide server data to SWR on the first render, define the SWR key in one place, then wrap your application in `<SWRConfig>` and provide a `fallback`:
-
-```ts filename="app/swr-keys.ts" switcher
-export const USER_KEY = '/api/user'
-```
-
-```js filename="app/swr-keys.js" switcher
-export const USER_KEY = '/api/user'
-```
+To provide server data to SWR on the first render, wrap your application in `<SWRConfig>` and provide a `fallback`:
 
 ```tsx filename="app/layout.tsx" switcher
 import { SWRConfig } from 'swr'
-import { USER_KEY } from './swr-keys'
 import { getUser } from './user' // some server-side function
 
 export default function RootLayout({ children }: LayoutProps<'/'>) {
@@ -237,7 +228,7 @@ export default function RootLayout({ children }: LayoutProps<'/'>) {
       value={{
         fallback: {
           // Not awaited: only components that read this key suspend
-          [USER_KEY]: getUser(),
+          '/api/user': getUser(),
         },
       }}
     >
@@ -249,7 +240,6 @@ export default function RootLayout({ children }: LayoutProps<'/'>) {
 
 ```js filename="app/layout.js" switcher
 import { SWRConfig } from 'swr'
-import { USER_KEY } from './swr-keys'
 import { getUser } from './user' // some server-side function
 
 export default function RootLayout({ children }) {
@@ -258,7 +248,7 @@ export default function RootLayout({ children }) {
       value={{
         fallback: {
           // Not awaited: only components that read this key suspend
-          [USER_KEY]: getUser(),
+          '/api/user': getUser(),
         },
       }}
     >
@@ -274,11 +264,10 @@ Because this is a Server Component, `getUser()` can read cookies, headers, or yo
 'use client'
 
 import useSWR from 'swr'
-import { USER_KEY } from './swr-keys'
 
 export function Profile() {
   const fetcher = (url: string) => fetch(url).then((res) => res.json())
-  const { data, error } = useSWR(USER_KEY, fetcher)
+  const { data, error } = useSWR('/api/user', fetcher)
 
   return '...'
 }
@@ -288,11 +277,10 @@ export function Profile() {
 'use client'
 
 import useSWR from 'swr'
-import { USER_KEY } from './swr-keys'
 
 export function Profile() {
   const fetcher = (url) => fetch(url).then((res) => res.json())
-  const { data, error } = useSWR(USER_KEY, fetcher)
+  const { data, error } = useSWR('/api/user', fetcher)
 
   return '...'
 }
@@ -306,12 +294,11 @@ The `fallback` value seeds what the hook returns on first render, but it does no
 
 ```tsx filename="app/layout.tsx" switcher
 import { preload, SWRConfig } from 'swr'
-import { USER_KEY } from './swr-keys'
 import { getUser } from './user'
 
 export default function RootLayout({ children }: LayoutProps<'/'>) {
   return (
-    <SWRConfig value={{ cacheData: preload(USER_KEY, () => getUser()) }}>
+    <SWRConfig value={{ cacheData: preload('/api/user', () => getUser()) }}>
       {children}
     </SWRConfig>
   )
@@ -320,12 +307,11 @@ export default function RootLayout({ children }: LayoutProps<'/'>) {
 
 ```jsx filename="app/layout.js" switcher
 import { preload, SWRConfig } from 'swr'
-import { USER_KEY } from './swr-keys'
 import { getUser } from './user'
 
 export default function RootLayout({ children }) {
   return (
-    <SWRConfig value={{ cacheData: preload(USER_KEY, () => getUser()) }}>
+    <SWRConfig value={{ cacheData: preload('/api/user', () => getUser()) }}>
       {children}
     </SWRConfig>
   )
@@ -591,9 +577,75 @@ export function ProjectView({ id }) {
 
 The query key connects the server prefetch and client hook, the same way the matching `fallback` and `useSWR` keys do above.
 
-> **Good to know:** With [Cache Components](/docs/app/getting-started/caching), add [`"use cache"`](/docs/app/api-reference/directives/use-cache) to the data function, such as `getProject`, not around `dehydrate()`. The `dehydrate(queryClient)` call reads TanStack Query metadata such as timestamps, which can trigger current-time errors inside a cache scope.
-
 See the [live demo](https://next-spa-patterns.labs.vercel.dev/react-query) and its [source code](https://github.com/vercel-labs/next-spa-patterns/tree/main/app/react-query).
+
+#### With Cache Components
+
+The `prefetchQuery` shape above streams the query in without caching it. With [Cache Components](/docs/app/getting-started/caching), you can cache and [tag](/docs/app/api-reference/functions/cacheTag) the dehydrated payload so it revalidates like any other cache entry.
+
+A cache scope captures runtime values, such as the current time, at fill time instead of reading them during the dynamic render. That is the key to caching `dehydrate()`, which reads the current time for its own bookkeeping. Run it inside a [`"use cache"`](/docs/app/api-reference/directives/use-cache) scope so that read happens at fill time, and seed the query with `setQueryData` and `updatedAt: 0` so the per-query timestamp is deterministic across fills:
+
+```tsx filename="app/projects/[id]/project-state.ts" switcher
+import { dehydrate, QueryClient } from '@tanstack/react-query'
+import { cacheTag } from 'next/cache'
+import { getProject } from './data'
+
+export async function getProjectState(id: string) {
+  'use cache'
+  cacheTag(`project:${id}`)
+
+  const queryClient = new QueryClient()
+  const project = await getProject(id)
+  queryClient.setQueryData(['project', id], project, { updatedAt: 0 })
+
+  return dehydrate(queryClient)
+}
+```
+
+```js filename="app/projects/[id]/project-state.js" switcher
+import { dehydrate, QueryClient } from '@tanstack/react-query'
+import { cacheTag } from 'next/cache'
+import { getProject } from './data'
+
+export async function getProjectState(id) {
+  'use cache'
+  cacheTag(`project:${id}`)
+
+  const queryClient = new QueryClient()
+  const project = await getProject(id)
+  queryClient.setQueryData(['project', id], project, { updatedAt: 0 })
+
+  return dehydrate(queryClient)
+}
+```
+
+Then await the helper in the segment that owns the data and pass the result to `<HydrationBoundary>`, the same `ProjectData` boundary shown above:
+
+```tsx filename="app/projects/[id]/page.tsx" switcher
+async function ProjectData({ id }: { id: string }) {
+  const state = await getProjectState(id)
+
+  return (
+    <HydrationBoundary state={state}>
+      <ProjectView id={id} />
+    </HydrationBoundary>
+  )
+}
+```
+
+```jsx filename="app/projects/[id]/page.js" switcher
+async function ProjectData({ id }) {
+  const state = await getProjectState(id)
+
+  return (
+    <HydrationBoundary state={state}>
+      <ProjectView id={id} />
+    </HydrationBoundary>
+  )
+}
+```
+
+Scoping the helper to that boundary keeps the cached payload next to the component that reads it, the same way a per-segment `<SWRConfig>` does. The payload is now cached and revalidates through its tag.
 
 ### Rendering components only in the browser
 
