@@ -1336,7 +1336,12 @@ impl Visit for Analyzer<'_> {
 
         if matches!(
             &node.prop,
-            MemberProp::Ident(..) | MemberProp::PrivateName(..)
+            MemberProp::Ident(..)
+                | MemberProp::PrivateName(..)
+                | MemberProp::Computed(ComputedPropName {
+                    expr: box Expr::Lit(Lit::Str(_)),
+                    ..
+                })
         ) && let Expr::Ident(ident) = &*node.obj
         {
             // Intentionally skipping over visit_expr(node.obj) here so that it doesn't get added to
