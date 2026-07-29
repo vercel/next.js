@@ -1,11 +1,11 @@
 diff --git a/module.d.ts b/module.d.ts
-index 3b40061a67ccb5a65071d29a3a8d7134d8851158..d733cde7cee76a389379f187f08c455c1b67b1e8 100644
+index 73b88af8b53babda5843dc5d4bb3b2a9b14d053b..6ecfa95f38c81421a49bc055bfff87a4f9dcc51c 100644
 --- a/module.d.ts
 +++ b/module.d.ts
 @@ -49,7 +49,25 @@ declare module "module" {
           * @return Returns `module.SourceMap` if a source map is found, `undefined` otherwise.
           */
-         function findSourceMap(path: string, error?: Error): SourceMap;
+         function findSourceMap(path: string, error?: Error): SourceMap | undefined;
 -        interface SourceMapPayload {
 +        /**
 +         * https://tc39.es/source-map/#index-map
