@@ -581,16 +581,26 @@ impl CurrentTaskState {
 /// tasks, but the task ID is fixed for the lifetime of an execution.
 #[derive(Clone)]
 struct CurrentTaskStateHandle {
+    inner: Arc<CurrentTaskStateInner>,
+}
+
+struct CurrentTaskStateInner {
     current_task_id: Option<TaskId>,
-    state: Arc<RwLock<CurrentTaskState>>,
+    state: RwLock<CurrentTaskState>,
 }
 
 impl CurrentTaskStateHandle {
     fn new(state: CurrentTaskState) -> Self {
         Self {
-            current_task_id: state.task_id,
-            state: Arc::new(RwLock::new(state)),
+            inner: Arc::new(CurrentTaskStateInner {
+                current_task_id: state.task_id,
+                state: RwLock::new(state),
+            }),
         }
+    }
+
+    fn current_task_id(&self) -> Option<TaskId> {
+        self.inner.current_task_id
     }
 }
 
@@ -598,7 +608,7 @@ impl std::ops::Deref for CurrentTaskStateHandle {
     type Target = RwLock<CurrentTaskState>;
 
     fn deref(&self) -> &Self::Target {
-        &self.state
+        &self.inner.state
     }
 }
 
@@ -1656,7 +1666,7 @@ async fn wait_for_local_tasks() {
 }
 
 pub(crate) fn current_task_if_available(from: &str) -> Option<TaskId> {
-    match CURRENT_TASK_STATE.try_with(|ts| ts.current_task_id) {
+    match CURRENT_TASK_STATE.try_with(|ts| ts.current_task_id()) {
         Ok(id) => id,
         Err(_) => panic!(
             "{from} can only be used in the context of a turbo_tasks task execution or \
@@ -1666,7 +1676,7 @@ pub(crate) fn current_task_if_available(from: &str) -> Option<TaskId> {
 }
 
 pub(crate) fn current_task(from: &str) -> TaskId {
-    match CURRENT_TASK_STATE.try_with(|ts| ts.current_task_id) {
+    match CURRENT_TASK_STATE.try_with(|ts| ts.current_task_id()) {
         Ok(Some(id)) => id,
         Ok(None) | Err(_) => {
             panic!("{from} can only be used in the context of a turbo_tasks task execution")
