@@ -40,4 +40,27 @@ describe('basic test', () => {
       '@layer b{._5-enzrfpb:lang(ar){font-family:myriad-arabic}}@layer b;'
     )
   })
+
+  test('should preserve longhands after shorthand declarations', async () => {
+    const input = css`
+      .a {
+        line-height: 22px;
+      }
+
+      .b {
+        font: inherit;
+        font-size: 14px;
+        line-height: 22px;
+      }
+    `
+
+    const res = await postcss([mod()]).process(input, {
+      from: 'input.css',
+      to: 'output.css',
+    })
+
+    expect(res.css).toBe(
+      '.a{line-height:22px}.b{font:inherit;font-size:14px;line-height:22px}'
+    )
+  })
 })
