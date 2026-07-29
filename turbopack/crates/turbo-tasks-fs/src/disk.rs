@@ -458,8 +458,7 @@ impl DiskFileSystemInner {
             .concurrency_limited(&self.write_semaphore)
             .await?;
 
-        self.watcher
-            .start_watching(self.clone(), report_invalidation_reason, poll_interval)
+        DiskWatcher::start_watching(self.clone(), report_invalidation_reason, poll_interval)
             .await?;
 
         Ok(())

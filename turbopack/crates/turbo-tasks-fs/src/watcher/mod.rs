@@ -1,8 +1,11 @@
+mod fs_api;
+#[cfg(test)]
+mod mock_fs_api;
+
 use std::{
     any::Any,
     collections::BTreeSet,
     env, fmt,
-    mem::take,
     path::{Path, PathBuf},
     sync::{
         Arc, LazyLock,
@@ -23,15 +26,16 @@ use tokio::sync::{RwLock, RwLockWriteGuard};
 use tracing::instrument;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    FxIndexSet, InvalidationReason, InvalidationReasonKind, Invalidator, TurboTasksApi, parallel,
+    FxIndexSet, InvalidationReason, InvalidationReasonKind, Invalidator, TurboTasksApi,
     spawn_thread, util::StaticOrArc,
 };
 
 use crate::{
-    DiskFileSystemInner, format_absolute_fs_path,
+    format_absolute_fs_path,
     invalidation::{WatchChange, WatchStart},
     invalidator_map::InvalidatorMap,
     path_map::OrderedPathMapExt,
+    watcher::fs_api::DiskFileSystemWatcherApi,
 };
 
 static WATCH_RECURSIVE_MODE: LazyLock<RecursiveMode> = LazyLock::new(|| {
@@ -360,28 +364,13 @@ impl DiskWatcher {
         }
     }
 
-    /// Create a watcher and start watching by creating `debounced` watcher
-    /// via `full debouncer`
-    ///
-    /// `notify` provides 2 different debouncer implementations, `-full`
-    /// provides below differences for the easy of use:
-    ///
-    /// - Only emits a single Rename event if the rename From and To events can be matched
-    /// - Merges multiple Rename events
-    /// - Takes Rename events into account and updates paths for events that occurred before the
-    ///   rename event, but which haven't been emitted, yet
-    /// - Optionally keeps track of the file system IDs all files and stitches rename events
-    ///   together (FSevents, Windows)
-    /// - Emits only one Remove event when deleting a directory (inotify)
-    /// - Doesn't emit duplicate create events
-    /// - Doesn't emit Modify events after a Create event
-    pub async fn start_watching(
-        &self,
-        fs_inner: Arc<DiskFileSystemInner>,
+    pub async fn start_watching<FsApi: DiskFileSystemWatcherApi>(
+        fs: Arc<FsApi>,
         report_invalidation_reason: bool,
         poll_interval: Option<Duration>,
     ) -> Result<()> {
-        let state_guard = self.state.write().await;
+        let watcher: &Self = fs.watcher();
+        let state_guard = watcher.state.write().await;
 
         // bail out if we're already watching
         if let StateWriteGuard::Recursive(guard) = &state_guard
@@ -412,7 +401,7 @@ impl DiskWatcher {
 
         // TOCTOU: we must watch `root_path` before calling any invalidators and setting up the
         // watchers in their associated functions
-        let root_path = fs_inner.root_path();
+        let root_path = fs.root_path();
         let recursive_mode = match state_guard {
             StateWriteGuard::Recursive(_) => RecursiveMode::Recursive,
             StateWriteGuard::NonRecursive(_) => RecursiveMode::NonRecursive,
@@ -423,41 +412,20 @@ impl DiskWatcher {
         // side-effect, this will call `ensure_watched` again, setting up any watchers needed.
         //
         // Best is to start_watching before starting to read
-        if let Some(turbo_tasks) = fs_inner.turbo_tasks.upgrade() {
-            let _span = tracing::info_span!("invalidate filesystem").entered();
-            let _guard = fs_inner.tokio_handle.enter();
-            let invalidator_map = take(&mut *fs_inner.invalidator_map.lock().unwrap());
-            let dir_invalidator_map = take(&mut *fs_inner.dir_invalidator_map.lock().unwrap());
-            let iter = invalidator_map.into_iter().chain(dir_invalidator_map);
-            if report_invalidation_reason {
-                let invalidators = iter
-                    .flat_map(|(path, invalidators)| {
-                        let reason = WatchStart {
-                            name: fs_inner.name.clone(),
-                            // this path is just used for display purposes
-                            path: RcStr::from(path.to_string_lossy()),
-                        };
-                        invalidators.into_iter().map(move |i| (reason.clone(), i))
-                    })
-                    .collect::<Vec<_>>();
-                parallel::for_each_owned(invalidators, |(reason, invalidator)| {
-                    invalidator.invalidate_with_reason(&*turbo_tasks, reason);
-                });
-            } else {
-                let invalidators = iter
-                    .flat_map(|(_, invalidators)| invalidators.into_iter())
-                    .collect::<Vec<_>>();
-                parallel::for_each_owned(invalidators, |invalidator| {
-                    invalidator.invalidate(&*turbo_tasks);
-                });
-            }
+        if report_invalidation_reason {
+            let name = fs.name().clone();
+            fs.invalidate_all_with_reason(|path| WatchStart {
+                name: name.clone(),
+                // this path is just used for display purposes
+                path: RcStr::from(path.to_string_lossy()),
+            });
+        } else {
+            fs.invalidate_all();
         }
 
-        spawn_thread(move || {
-            fs_inner
-                .clone()
-                .watcher
-                .watch_thread(rx, fs_inner, report_invalidation_reason)
+        spawn_thread({
+            let fs = fs.clone();
+            move || Self::watch_thread(fs, rx, report_invalidation_reason)
         });
 
         // Updating `self.state` is done last. If we panic while setting up the watcher, it'll
@@ -492,13 +460,13 @@ impl DiskWatcher {
     /// and invalidates the cache.
     ///
     /// Should only be called once from `start_watching`.
-    fn watch_thread(
-        &self,
+    fn watch_thread<FsApi: DiskFileSystemWatcherApi>(
+        fs: Arc<FsApi>,
         rx: Receiver<notify::Result<notify::Event>>,
-        fs_inner: Arc<DiskFileSystemInner>,
         report_invalidation_reason: bool,
     ) {
-        let mut batch = BatchedInvalidations::new(self.state.recursive_mode());
+        let watcher: &Self = fs.watcher();
+        let mut batch = BatchedInvalidations::new(watcher.state.recursive_mode());
 
         'outer: loop {
             let mut deadline: Option<Instant> = None;
@@ -521,34 +489,34 @@ impl DiskWatcher {
                         // echo 3 | sudo tee /proc/sys/fs/inotify/max_queued_events
                         // ```
                         if event.need_rescan() {
-                            let _lock = fs_inner.invalidation_lock.blocking_write();
+                            let _lock = fs.invalidation_lock().blocking_write();
 
                             // flush the whole mpsc queue, we're about to rescan, we don't need to
                             // process any other update events that have already happened
                             while rx.try_recv().is_ok() {}
 
-                            if let State::NonRecursive(non_recursive) = &self.state {
+                            if let State::NonRecursive(non_recursive) = &watcher.state {
                                 // we can't narrow this down to a smaller set of paths: Rescan
                                 // events (at least when tested on
                                 // Linux) come with no `paths`, and we use
                                 // only one global `notify::Watcher` instance.
                                 //
                                 // TODO: Report diagnostics if an error happens
-                                fs_inner.tokio_handle.block_on(
+                                fs.tokio_handle().block_on(
                                     non_recursive_helpers::restore_all_watched_ignore_errors(
                                         non_recursive,
-                                        fs_inner.root_path(),
+                                        fs.root_path(),
                                     ),
                                 );
                             }
 
                             if report_invalidation_reason {
-                                fs_inner.invalidate_with_reason(|path| InvalidateRescan {
+                                fs.invalidate_all_with_reason(|path| InvalidateRescan {
                                     // this path is just used for display purposes
                                     path: RcStr::from(path.to_string_lossy()),
                                 });
                             } else {
-                                fs_inner.invalidate();
+                                fs.invalidate_all();
                             }
 
                             // no need to process the rest of the batch as we just
@@ -570,7 +538,7 @@ impl DiskWatcher {
                         let flags = InvalidationFlags::PATH_AND_CHILDREN
                             | InvalidationFlags::PATH_AND_CHILDREN_DIR;
                         if paths.is_empty() {
-                            batch.mark(fs_inner.root_path().into(), flags);
+                            batch.mark(fs.root_path().into(), flags);
                         } else {
                             for path in paths {
                                 batch.mark(path.into_boxed_path(), flags);
@@ -592,33 +560,32 @@ impl DiskWatcher {
 
             // We need to start watching first before invalidating the changed paths...
             // This is only needed on platforms we don't do recursive watching on.
-            if let State::NonRecursive(non_recursive) = &self.state {
+            if let State::NonRecursive(non_recursive) = &watcher.state {
                 for path in batch.new_paths() {
                     // TODO: Report diagnostics if this error happens
-                    let _ =
-                        fs_inner
-                            .tokio_handle
-                            .block_on(non_recursive_helpers::restore_if_watched(
-                                non_recursive,
-                                path,
-                                fs_inner.root_path(),
-                            ));
+                    let _ = fs
+                        .tokio_handle()
+                        .block_on(non_recursive_helpers::restore_if_watched(
+                            non_recursive,
+                            path,
+                            fs.root_path(),
+                        ));
                 }
             }
 
-            let Some(turbo_tasks) = fs_inner.turbo_tasks.upgrade() else {
+            let Some(turbo_tasks) = fs.turbo_tasks() else {
                 // TurboTasks was dropped, stop watching
                 break 'outer;
             };
-            let _guard = fs_inner.tokio_handle.enter();
+            let _guard = fs.tokio_handle().enter();
 
-            let _lock = fs_inner.invalidation_lock.blocking_write();
+            let _lock = fs.invalidation_lock().blocking_write();
             batch.execute(
-                &fs_inner.invalidator_map,
-                &fs_inner.dir_invalidator_map,
+                fs.invalidator_map(),
+                fs.dir_invalidator_map(),
                 |invalidation_reason_path, invalidator| {
                     invalidate(
-                        &fs_inner,
+                        &*fs,
                         &*turbo_tasks,
                         report_invalidation_reason,
                         invalidation_reason_path,
@@ -869,7 +836,7 @@ impl BatchedInvalidations {
     fields(name = %invalidation_reason_path.display())
 )]
 fn invalidate(
-    inner: &DiskFileSystemInner,
+    inner: &impl DiskFileSystemWatcherApi,
     turbo_tasks: &dyn TurboTasksApi,
     report_invalidation_reason: bool,
     invalidation_reason_path: &Path,
@@ -877,7 +844,7 @@ fn invalidate(
 ) {
     if report_invalidation_reason
         && let Some(path) =
-            format_absolute_fs_path(invalidation_reason_path, &inner.name, inner.root_path())
+            format_absolute_fs_path(invalidation_reason_path, inner.name(), inner.root_path())
     {
         invalidator.invalidate_with_reason(turbo_tasks, WatchChange { path });
         return;
@@ -926,5 +893,77 @@ impl InvalidationReasonKind for InvalidateRescanKind {
                 .unwrap()
                 .path
         )
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::fs;
+
+    use turbo_tasks::TurboTasks;
+    use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
+
+    use super::*;
+    use crate::watcher::mock_fs_api::MockFileSystem;
+
+    /// Polls [`tracked_read`] until it has executed more than `previous_runs` times, i.e. until the
+    /// watcher has invalidated it.
+    async fn wait_for_rerun(fs: &Arc<MockFileSystem>, path: &Path, previous_runs: u64) {
+        const WATCH_TIMEOUT: Duration = Duration::from_secs(5);
+        let deadline = Instant::now() + WATCH_TIMEOUT;
+        loop {
+            if fs.tracked_read_strongly_consistent(path).await > previous_runs {
+                return;
+            }
+            assert!(
+                Instant::now() < deadline,
+                "the watcher did not invalidate {path:?} within {WATCH_TIMEOUT:?}",
+            );
+            tokio::time::sleep(Duration::from_millis(10)).await;
+        }
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn watches_file_and_directory_changes() {
+        let tt = TurboTasks::new(TurboTasksBackend::new(
+            BackendOptions::default(),
+            noop_backing_storage(),
+        ));
+        tt.run_once(async move {
+            let fs = MockFileSystem::new();
+            let sub_dir = fs.root_path.join("sub");
+            let file_path = sub_dir.join("file.txt");
+            fs::create_dir(&sub_dir).unwrap();
+            fs::write(&file_path, "initial").unwrap();
+
+            DiskWatcher::start_watching(
+                fs.clone(),
+                /* report_invalidation_reason */ true,
+                None,
+            )
+            .await?;
+
+            // the initial reads register the invalidators that the watcher will later fire
+            assert_eq!(fs.tracked_read_strongly_consistent(&file_path).await, 1);
+            assert_eq!(fs.tracked_read_strongly_consistent(&sub_dir).await, 1);
+
+            // reading again without touching the filesystem must not re-run anything
+            assert_eq!(fs.tracked_read_strongly_consistent(&file_path).await, 1);
+            assert_eq!(fs.tracked_read_strongly_consistent(&sub_dir).await, 1);
+
+            // modifying a file invalidates the task that read that file
+            fs::write(&file_path, "updated")?;
+            wait_for_rerun(&fs, &file_path, 1).await;
+
+            // creating a file invalidates the task that listed the containing directory
+            let dir_runs = fs.tracked_read_strongly_consistent(&sub_dir).await;
+            fs::write(sub_dir.join("new.txt"), "new")?;
+            wait_for_rerun(&fs, &sub_dir, dir_runs).await;
+
+            fs.watcher.stop_watching().await;
+            anyhow::Ok(())
+        })
+        .await
+        .unwrap();
     }
 }
