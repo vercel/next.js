@@ -46,7 +46,7 @@ You can use React’s [`use` API](https://react.dev/reference/react/use) to stre
 
 Starting the request on the server, before the rest of the app renders, lets the response stream immediately and avoids client-side request waterfalls.
 
-You can pass a single Promise as a prop and unwrap it with `use()`, or pair it with a React context provider so any Client Component can read the value through a custom hook. A provider isn't always the best fit: often you can read the data in a Server Component, or pass the Promise directly, rather than putting everything in context. For general client-side data fetching, a library like [SWR](#spas-with-swr) can help.
+You can pass a single Promise as a prop and unwrap it with `use()`, or pair it with a React context provider so any Client Component can read the value through a custom hook. For general client-side data fetching, a library like [SWR](#spas-with-swr) can help.
 
 Start the request in a Server Component (here, the root layout) without awaiting it, and pass the Promise to the provider:
 
@@ -171,8 +171,6 @@ export function Profile() {
   return '...'
 }
 ```
-
-You can also move the `use()` call into the `useUser` hook so components just call `const user = useUser()`. That reads cleanly, but calling `use()` in the component keeps it clear where the component suspends.
 
 Wrap the consumer in a `<Suspense>` boundary to show a fallback while the Promise resolves:
 
@@ -304,7 +302,7 @@ The `fallback` data can be prerendered and included in the initial HTML response
 
 Because the seeded data is available on first render, [`isLoading`](https://swr.vercel.app/docs/advanced/understanding#combining-with-isloading-and-isvalidating-for-better-ux) stays `false`. A client-side revalidation surfaces as `isValidating`.
 
-In SWR 2.5 beta, [`preload`](https://swr.vercel.app/docs/prefetching) can fill the SWR cache with `SWRConfig` `cacheData`:
+The `fallback` value seeds what the hook returns on first render, but it does not write to the SWR cache, so it acts as a display default until the first client fetch fills the entry. In SWR 2.5 beta, [`preload`](https://swr.vercel.app/docs/prefetching) with `cacheData` instead writes the server value into the cache under the key that `useSWR(key)` and `mutate(key)` use later:
 
 ```tsx filename="app/layout.tsx" switcher
 import { preload, SWRConfig } from 'swr'
@@ -334,33 +332,7 @@ export default function RootLayout({ children }) {
 }
 ```
 
-The preloaded value is stored under the same key that `useSWR(key)` and `mutate(key)` use later. To read `cacheData` during render, enable Suspense in the Client Component that reads the key:
-
-```tsx filename="app/profile.tsx" switcher
-'use client'
-
-import useSWR from 'swr'
-import { USER_KEY } from './swr-keys'
-
-export function Profile() {
-  const { data } = useSWR(USER_KEY, { suspense: true })
-
-  return '...'
-}
-```
-
-```jsx filename="app/profile.js" switcher
-'use client'
-
-import useSWR from 'swr'
-import { USER_KEY } from './swr-keys'
-
-export function Profile() {
-  const { data } = useSWR(USER_KEY, { suspense: true })
-
-  return '...'
-}
-```
+Because the value is a real cache entry, `mutate(key)`, revalidation, and deduplication treat it like any fetched data, so the server seed and later client mutations share one source of truth. Reach for `preload` when the seeded value is part of your client data flow and gets mutated or revalidated. Use `fallback` when the data only needs to render once, since it is stable and needs no beta API.
 
 |                      | SWR                 | RSC                 | RSC + SWR           |
 | -------------------- | ------------------- | ------------------- | ------------------- |
@@ -371,7 +343,7 @@ export function Profile() {
 
 #### Scoping server data to the components that use it
 
-`<SWRConfig>` can live in any Server Component, not only the root layout. Placing it on the route segment that owns the data keeps the `fallback` close to where it is read, keeps unrelated keys out of a global config, and lets each segment start its own server-side requests.
+A `<SWRConfig>` can live in any Server Component, not only the root layout. Placing it on the route segment that owns the data keeps the `fallback` close to where it is read, keeps unrelated keys out of a global config, and lets each segment start its own server-side requests.
 
 For dynamic keys, define a shared key helper so the server seed, Client Component, and mutations use the same string:
 
@@ -619,7 +591,7 @@ export function ProjectView({ id }) {
 
 The query key connects the server prefetch and client hook, the same way the matching `fallback` and `useSWR` keys do above.
 
-> **Good to know:** With [Cache Components](/docs/app/getting-started/caching), add [`"use cache"`](/docs/app/api-reference/directives/use-cache) to the data function, such as `getProject`, not around `dehydrate()`. `dehydrate(queryClient)` reads TanStack Query metadata such as timestamps, which can trigger current-time errors inside a cache scope.
+> **Good to know:** With [Cache Components](/docs/app/getting-started/caching), add [`"use cache"`](/docs/app/api-reference/directives/use-cache) to the data function, such as `getProject`, not around `dehydrate()`. The `dehydrate(queryClient)` call reads TanStack Query metadata such as timestamps, which can trigger current-time errors inside a cache scope.
 
 See the [live demo](https://next-spa-patterns.labs.vercel.dev/react-query) and its [source code](https://github.com/vercel-labs/next-spa-patterns/tree/main/app/react-query).
 
@@ -645,7 +617,7 @@ If you are migrating from a strict SPA like [Create React App](/docs/app/guides/
 
 Next.js allows you to use the native [`window.history.pushState`](https://developer.mozilla.org/en-US/docs/Web/API/History/pushState) and [`window.history.replaceState`](https://developer.mozilla.org/en-US/docs/Web/API/History/replaceState) methods to update the browser's history stack without reloading the page.
 
-`pushState` and `replaceState` calls integrate into the Next.js Router, allowing you to sync with [`usePathname`](/docs/app/api-reference/functions/use-pathname) and [`useSearchParams`](/docs/app/api-reference/functions/use-search-params).
+The `pushState` and `replaceState` calls integrate into the Next.js Router, allowing you to sync with [`usePathname`](/docs/app/api-reference/functions/use-pathname) and [`useSearchParams`](/docs/app/api-reference/functions/use-search-params).
 
 ```tsx filename="app/ui/sort-products.tsx" switcher
 'use client'
