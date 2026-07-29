@@ -2,9 +2,6 @@ pub(crate) mod chunk;
 pub(crate) mod content;
 pub(crate) mod evaluate;
 pub mod list;
-pub(crate) mod merged;
-pub(crate) mod update;
-pub(crate) mod version;
 pub(crate) mod worker;
 
 pub use chunk::EcmascriptBrowserChunk;
