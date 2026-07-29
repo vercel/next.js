@@ -543,6 +543,7 @@ export interface TurbopackInternalErrorOpts {
   message: string
   anonymizedLocation?: string
 }
+export declare function turbopackCacheVersion(nextVersion: string): string
 /**
  * Turbopack's memory eviction strategy for the persistent cache, mirroring the
  * `experimental.turbopackMemoryEviction` config option.
