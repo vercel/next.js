@@ -83,6 +83,9 @@ import cheerio from 'cheerio'
     }
   })
 
+  // A custom htmlLimitedBots pattern currently replaces the built-in pattern
+  // in the deployment manifest, so only assert built-in classifications in
+  // start mode until the deployment proxy receives the union of both.
   if (!isNextDeploy) {
     it.each(['Discordbot', 'Googlebot'])(
       'should preserve fully buffered rendering for the built-in %s classification',
