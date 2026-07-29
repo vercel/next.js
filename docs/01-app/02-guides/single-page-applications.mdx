@@ -614,7 +614,7 @@ See the [live demo](https://next-spa-patterns.labs.vercel.dev/react-query) and i
 
 The `prefetchQuery` shape above streams the query in without caching it. With [Cache Components](/docs/app/getting-started/caching), you can cache and [tag](/docs/app/api-reference/functions/cacheTag) the dehydrated payload so it revalidates like any other cache entry.
 
-The `dehydrate()` call records the current time (`Date.now()`) in its output. Reading the current time is not allowed while prerendering, so calling `dehydrate()` directly throws. Wrapping the helper in [`"use cache"`](/docs/app/api-reference/directives/use-cache) moves that read into the cache, where it runs once when the entry fills instead of on every render:
+The `dehydrate()` call records the current time (`Date.now()`) in its output. Reading the current time is not allowed while prerendering, so calling `dehydrate()` directly fails with a [current-time prerender error](/docs/messages/blocking-prerender-current-time). Wrapping the helper in [`"use cache"`](/docs/app/api-reference/directives/use-cache) moves that read into the cache, where it runs once when the entry fills instead of on every render:
 
 ```tsx filename="app/projects/[id]/project-state.ts" switcher
 import { dehydrate, QueryClient } from '@tanstack/react-query'
