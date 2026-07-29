@@ -430,6 +430,32 @@ struct TaskExecutionCompletePrepareResult {
     pub is_session_dependent: bool,
 }
 
+fn lock_task_and_optional_reader<'e, C: ExecuteContext<'e>>(
+    ctx: &mut C,
+    task_id: TaskId,
+    reader_id: Option<TaskId>,
+) -> (C::TaskGuardImpl, Option<C::TaskGuardImpl>) {
+    let Some(reader_id) = reader_id else {
+        return (ctx.task(task_id, TaskDataCategory::All), None);
+    };
+
+    // Immutable tasks never need dependency edges and can never be invalidated. Avoid locking the
+    // reader too in that common case. When the task is still mutable, drop the speculative lock
+    // and reacquire both locks together to preserve the invalidation race guarantee.
+    let task = ctx.task(task_id, TaskDataCategory::All);
+    if task.immutable() && !cfg!(feature = "verify_immutable") {
+        (task, None)
+    } else {
+        drop(task);
+
+        // Having a task_pair here is not optimal, but locking the reader separately could lose an
+        // invalidation that races with dependency edge insertion.
+        // TODO(sokra): solve this more performantly for mutable tasks.
+        let (task, reader) = ctx.task_pair(task_id, reader_id, TaskDataCategory::All);
+        (task, Some(reader))
+    }
+}
+
 // Operations
 impl TurboTasksBackend {
     fn try_read_task_output(
@@ -451,22 +477,8 @@ impl TurboTasksBackend {
         } else {
             None
         };
-        let (mut task, mut reader_task) = if let Some(reader_id) = need_reader_task {
-            // Immutable tasks never need dependency edges and can never be invalidated. Avoid
-            // locking the reader too in that common case. When the task is still mutable, drop
-            // the speculative lock and reacquire both locks together to preserve the invalidation
-            // race guarantee described below.
-            let task = ctx.task(task_id, TaskDataCategory::All);
-            if task.immutable() && !cfg!(feature = "verify_immutable") {
-                (task, None)
-            } else {
-                drop(task);
-                let (task, reader) = ctx.task_pair(task_id, reader_id, TaskDataCategory::All);
-                (task, Some(reader))
-            }
-        } else {
-            (ctx.task(task_id, TaskDataCategory::All), None)
-        };
+        let (mut task, mut reader_task) =
+            lock_task_and_optional_reader(&mut ctx, task_id, need_reader_task);
 
         fn listen_to_done_event(
             reader_description: Option<EventDescription>,
@@ -839,22 +851,8 @@ impl TurboTasksBackend {
         } else {
             None
         };
-        let (mut task, reader_task) = if let Some(reader_id) = need_reader_task {
-            // Immutable tasks never need dependency edges and can never be invalidated. Avoid
-            // locking the reader too in that common case. When the task is still mutable, drop
-            // the speculative lock and reacquire both locks together to preserve the invalidation
-            // race guarantee described below.
-            let task = ctx.task(task_id, TaskDataCategory::All);
-            if task.immutable() && !cfg!(feature = "verify_immutable") {
-                (task, None)
-            } else {
-                drop(task);
-                let (task, reader) = ctx.task_pair(task_id, reader_id, TaskDataCategory::All);
-                (task, Some(reader))
-            }
-        } else {
-            (ctx.task(task_id, TaskDataCategory::All), None)
-        };
+        let (mut task, reader_task) =
+            lock_task_and_optional_reader(&mut ctx, task_id, need_reader_task);
 
         let content = if final_read_hint {
             task.remove_cell_data(&cell, &get_value_type(cell.type_id()).persistence)
