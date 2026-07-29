@@ -43,7 +43,7 @@ It also assumes your route is already structured for instant navigation. If it i
 
 ## What runtime prefetching does
 
-Runtime prefetching is opted into per link with `<Link prefetch={true}>`. Any destination with [Partial Prefetching](/docs/app/api-reference/config/next-config-js/partialPrefetching) enabled supports it — globally via `partialPrefetching`, or per segment with [`prefetch = 'partial'`](/docs/app/api-reference/file-conventions/route-segment-config/prefetch#partial).
+Runtime prefetching is opted into per link with `<Link prefetch={true}>`. Any destination with [Partial Prefetching](/docs/app/api-reference/config/next-config-js/partialPrefetching) enabled supports it, either globally via `partialPrefetching` or per segment with [`prefetch = 'partial'`](/docs/app/api-reference/file-conventions/route-segment-config/prefetch#partial).
 
 A user on `/` sees links to `/search?q=react` and `/search?q=next`, each opting in with `prefetch={true}`:
 
@@ -103,7 +103,7 @@ The prerender advances through anything static or cached, then stops at uncached
 
 More of the page is rendered before the user clicks, with fewer loading states.
 
-Generating it costs **a server invocation per prefetchable link**, so it is opt-in per link. On pages where all the content is statically renderable, Next.js serves the prefetch from the static cache instead; a page that accesses non-static data is prefetched at runtime.
+Generating it costs **a server invocation per prefetchable link**, so it is opt-in per link. On pages where all the content is statically renderable, Next.js serves the prefetch from the static cache instead. A page that accesses non-static data is prefetched at runtime.
 
 > **Good to know:** A cold cache (first visit, or after expiration) means the server still has to compute the cached result. Users may see a loading spinner on that first navigation. Subsequent navigations are instant as long as the cache is warm.
 
@@ -111,7 +111,7 @@ Like `searchParams`, `params` needs a `<Suspense>` boundary, even when the value
 
 ## Session data resolves in the shell
 
-Runtime prefetching is for URL data. Session data is handled separately: a route that reads `cookies()` or `headers()`, including through `"use cache: private"`, gets an App Shell that includes its session data, cached per session on the client and ready on navigation without a per-link runtime prefetch.
+Runtime prefetching is for URL data. Session data is handled separately. A route that reads `cookies()` or `headers()`, including through `"use cache: private"`, gets an App Shell that includes its session data, cached per session on the client and ready on navigation without a per-link runtime prefetch.
 
 A lookup based on session data needs a cache lifetime, the same way `search(q)` did for the URL. Take a dashboard nav that reads a cookie, then looks up content based on it:
 
@@ -207,7 +207,7 @@ Skip it when the prefetch can't produce a better UI than the App Shell. Each vis
 
 A per-link runtime prefetch is best-effort. It only helps the navigations where it completes before the click. On a slow connection, on a feed of many links, or on a direct visit, it may not be ready when the user navigates, and the navigation falls back to the App Shell. That shell is the reliable baseline, and runtime prefetching only layers on top when it arrives in time.
 
-When many links to a route are visible at once, such as a grid of cards, each `<Link prefetch={true}>` prefetches that link's content as it enters the viewport, so the grid makes one such server request per card. Prefetch on intent instead: a [hover-triggered prefetch](/docs/app/guides/prefetching#hover-triggered-prefetch) fetches only the links the user is likely to click. The default `<Link>` (without `prefetch={true}`) prefetches just the App Shell, so it doesn't carry this cost.
+When many links to a route are visible at once, such as a grid of cards, each `<Link prefetch={true}>` prefetches that link's content as it enters the viewport, so the grid makes one such server request per card. Prefetch on intent instead. A [hover-triggered prefetch](/docs/app/guides/prefetching#hover-triggered-prefetch) fetches only the links the user is likely to click. The default `<Link>` (without `prefetch={true}`) prefetches only the App Shell, so it doesn't carry this cost.
 
 |         | App Shell                                   | Per-link runtime prefetch with `prefetch={true}` |
 | ------- | ------------------------------------------- | ------------------------------------------------ |
