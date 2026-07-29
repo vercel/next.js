@@ -319,36 +319,39 @@ Prefer per-component boundaries inside the page (patterns #1–#5) over one big 
 
 **Insight:** the read's own insight surfaces on the client navigation when the boundary is too high — see [where to place the boundary](https://nextjs.org/docs/messages/blocking-prerender-dynamic#choosing-where-to-place-the-boundary).
 
-## 10. Can't push the read down? Runtime-prefetch the whole route
+## 10. URL data that can't move
 
-Patterns 1–9 grow a **static shell** by moving dynamic reads behind boundaries. Some routes resist that: an ID minted per request (`createId()`), an auth/scope resolution the whole subtree needs, a page that is _all_ dynamic by nature. The read can't move, so there is no meaningful shell to commit and the soft nav stays RED. The escape hatch is **runtime prefetching** — don't prerender a shell, run the dynamic render _in the prefetch_ so the whole route is warm before the click and the soft nav commits the real content instantly.
+Patterns 1–9 grow a **static shell** by moving dynamic reads behind boundaries. Session data from `cookies()` and `headers()` is handled by the earlier patterns. URL data is different: `params`, `searchParams`, and the full URL belong to one link, while the App Shell is shared by every link to the route.
 
-It has **two halves — both required**, and route config alone is RED:
+If the whole route depends on URL data, pushing the read lower may leave no meaningful shared shell to commit. That is the optimizer's stop point, not another shell refactor. Return to `SKILL.md` after the optimization loop for the optional runtime-prefetch follow-up.
+
+Runtime prefetching is the only way for this soft navigation to commit the
+URL-specific content before the click. It has **three requirements**:
 
 ```tsx
-// 1. The route opts in — on EVERY leaf (page/default) segment, parallel @slots
-//    included, or instant validation re-triggers on the segments that lack it
-//    (the same all-or-nothing coupling as an `instant = false` opt-out).
-export const prefetch = 'allow-runtime'
+// 1. The destination has adopted Partial Prefetching, either app-wide with
+//    partialPrefetching: true or route-by-route with prefetch = 'partial'.
 
-// 2. The <Link> asks for a FULL prefetch — that is what spawns the runtime
-//    request. A default/auto prefetch only warms the static shell.
-<Link href={href} prefetch={true}>…</Link>
-//    <Link prefetch> already issues the full prefetch on hover and on viewport
-//    entry, so prefer it. An imperative full prefetch via router.prefetch needs
-//    the non-exported PrefetchKind enum, so it has no clean public form.
+// 2. The navigation asks for a full prefetch — normally <Link prefetch={true}>.
+//    A default/auto prefetch only warms the static shell.
+<Link href={href} prefetch={true}>
+  …
+</Link>
+
+// 3. The URL-dependent content is behind `use cache`, keyed by the resolved
+//    params/searchParams/full URL value.
 ```
 
-Under `instant()` the runtime entry is what commits, so the real content (not a skeleton) shows under the lock — that is the GREEN.
+Under `instant()` the runtime entry is what commits, so the real content, not a skeleton, shows under the lock.
 
 Gotchas (each cost real debugging time):
 
-- **The full prefetch is mandatory.** With App Shells enabled an auto/PPR prefetch bails before the runtime spawn (`subtreeHasSpeculativePrefetch`); only `prefetch={true}` / `kind: 'full'` reaches it. If you set `prefetch = 'allow-runtime'` and it's still RED, the link is doing an auto prefetch.
-- **All leaf slots must agree.** `allow-runtime` on the content segment but `instant = false` (or nothing) on a sibling `@header`/`@sidebar` leaf leaves the route's runtime entry incomplete, so the lock falls back to the shell. Flip every leaf together.
+- **The full prefetch is mandatory.** With App Shells enabled an auto/PPR prefetch bails before the runtime spawn (`subtreeHasSpeculativePrefetch`); use `<Link prefetch={true}>` for normal links, or keep an existing manual full-prefetch abstraction if the app already owns one. If the route is still RED after caching the URL-dependent content, the navigation may still be doing an auto prefetch.
+- **Partial Prefetching must be adopted for the destination.** Runtime prefetching rides on the Partial Prefetching path. If the route is still RED after caching the URL-dependent content, check whether the link is still doing an auto prefetch or whether the destination never adopted Partial Prefetching.
 - **Prefetch the canonical URL.** A link whose href 307-redirects (a `/foo` that canonicalizes to `/`) can't be prefetched — the prefetch receives the redirect, not the tree. Point the link and the prefetch at the final URL.
-- **Don't blanket the full prefetch.** It fetches _all_ the target's dynamic data; issuing it on hover for every link (recents that point at whole chats) is wasteful. Scope `kind: 'full'` to the runtime-prefetch targets only.
+- **Don't blanket the full prefetch.** It fetches _all_ the target's dynamic data; enabling it for every visible link is wasteful. Scope `prefetch={true}` to the runtime-prefetch targets only, using the [runtime prefetching trade-offs](https://nextjs.org/docs/app/guides/runtime-prefetching#per-link-prefetching-trade-offs) and [hover-triggered prefetch](https://nextjs.org/docs/app/guides/prefetching#hover-triggered-prefetch) when many links are visible.
 - **Marker must be a committed node, not RSC bytes.** The content is often a client component, so its text isn't in the prefetch response — assert a `data-testid` that renders when the client subtree commits, not a substring of the stream.
 
-Prefer a static shell (patterns 1–9) whenever the read can move: it's cheaper than a runtime prefetch and also covers hard load. Reach for runtime prefetching when the read genuinely can't move, or for a route that's all-dynamic by design.
+Prefer a static shell (patterns 1–9) whenever the URL-data read can move: it's cheaper than a runtime prefetch and also covers hard load. Runtime prefetching is only for URL-data reads that genuinely can't move, or routes whose useful content is all URL-specific.
 
 **Insight:** [dynamic data during prefetching](https://nextjs.org/docs/messages/instant-link-prefetch-partial).
