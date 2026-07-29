@@ -7,12 +7,15 @@ use turbopack_core::{
     code_builder::Code,
     version::{PartialUpdate, TotalUpdate, Update, Version},
 };
-use turbopack_ecmascript::chunk_list::merged_update::{
-    EcmascriptMergedChunkPartial, EcmascriptMergedChunkUpdate, EcmascriptMergedUpdate,
-    EcmascriptModuleEntry,
+use turbopack_ecmascript::{
+    chunk_list::merged_update::{
+        EcmascriptMergedChunkPartial, EcmascriptMergedChunkUpdate, EcmascriptMergedUpdate,
+        EcmascriptModuleEntry,
+    },
+    hmr::version::EcmascriptHmrChunkVersion,
 };
 
-use super::{content::EcmascriptBuildNodeChunkContent, version::EcmascriptBuildNodeChunkVersion};
+use super::content::EcmascriptBuildNodeChunkContent;
 
 pub(super) async fn update_node_chunk(
     content: Vc<EcmascriptBuildNodeChunkContent>,
@@ -20,7 +23,7 @@ pub(super) async fn update_node_chunk(
 ) -> Result<Update> {
     let to_version = content.own_version();
     let from_version = if let Some(from) =
-        ResolvedVc::try_downcast_type::<EcmascriptBuildNodeChunkVersion>(from_version)
+        ResolvedVc::try_downcast_type::<EcmascriptHmrChunkVersion>(from_version)
     {
         from
     } else {
@@ -109,8 +112,8 @@ pub(crate) enum NodeChunkUpdate {
 
 pub(super) async fn update_ecmascript_node_chunk_content(
     content: Vc<EcmascriptBuildNodeChunkContent>,
-    to: &ReadRef<EcmascriptBuildNodeChunkVersion>,
-    from: &ReadRef<EcmascriptBuildNodeChunkVersion>,
+    to: &ReadRef<EcmascriptHmrChunkVersion>,
+    from: &ReadRef<EcmascriptHmrChunkVersion>,
 ) -> Result<NodeChunkUpdate> {
     let mut added = FxIndexMap::default();
     let mut modified = FxIndexMap::default();

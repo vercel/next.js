@@ -7,16 +7,16 @@ use turbopack_core::{
     output::OutputAsset,
     version::{PartialUpdate, TotalUpdate, Update, Version},
 };
-use turbopack_ecmascript::chunk_list::merged_update::{
-    EcmascriptMergedChunkAdded, EcmascriptMergedChunkDeleted, EcmascriptMergedChunkPartial,
-    EcmascriptMergedChunkUpdate, EcmascriptMergedUpdate, EcmascriptModuleEntry,
+use turbopack_ecmascript::{
+    chunk_list::merged_update::{
+        EcmascriptMergedChunkAdded, EcmascriptMergedChunkDeleted, EcmascriptMergedChunkPartial,
+        EcmascriptMergedChunkUpdate, EcmascriptMergedUpdate, EcmascriptModuleEntry,
+    },
+    hmr::version::EcmascriptHmrChunkVersion,
 };
 
 use super::{
-    super::{
-        update::{EcmascriptChunkUpdate, update_ecmascript_chunk},
-        version::EcmascriptBrowserChunkVersion,
-    },
+    super::update::{EcmascriptChunkUpdate, update_ecmascript_chunk},
     content::EcmascriptBrowserMergedChunkContent,
     version::EcmascriptBrowserMergedChunkVersion,
 };
@@ -25,12 +25,12 @@ use super::{
 /// versions, without having to actually merge the versions into a single
 /// hashmap, which would be expensive.
 struct MergedModuleMap {
-    versions: Vec<ReadRef<EcmascriptBrowserChunkVersion>>,
+    versions: Vec<ReadRef<EcmascriptHmrChunkVersion>>,
 }
 
 impl MergedModuleMap {
     /// Creates a new `MergedModuleMap` from the given versions.
-    fn new(versions: Vec<ReadRef<EcmascriptBrowserChunkVersion>>) -> Self {
+    fn new(versions: Vec<ReadRef<EcmascriptHmrChunkVersion>>) -> Self {
         Self { versions }
     }
 

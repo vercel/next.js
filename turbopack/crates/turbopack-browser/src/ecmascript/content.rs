@@ -15,14 +15,12 @@ use turbopack_core::{
 };
 use turbopack_ecmascript::{
     chunk::{EcmascriptChunkContent, EcmascriptChunkContentEntries},
+    hmr::version::EcmascriptHmrChunkVersion,
     minify::minify,
     utils::StringifyJs,
 };
 
-use super::{
-    chunk::EcmascriptBrowserChunk, merged::merger::EcmascriptBrowserChunkContentMerger,
-    version::EcmascriptBrowserChunkVersion,
-};
+use super::{chunk::EcmascriptBrowserChunk, merged::merger::EcmascriptBrowserChunkContentMerger};
 use crate::{
     BrowserChunkingContext,
     chunking_context::{CURRENT_CHUNK_METHOD_DOCUMENT_CURRENT_SCRIPT_EXPR, CurrentChunkMethod},
@@ -63,11 +61,12 @@ impl EcmascriptBrowserChunkContent {
 #[turbo_tasks::value_impl]
 impl EcmascriptBrowserChunkContent {
     #[turbo_tasks::function]
-    pub(crate) async fn own_version(&self) -> Result<Vc<EcmascriptBrowserChunkVersion>> {
-        Ok(EcmascriptBrowserChunkVersion::new(
+    pub(crate) async fn own_version(&self) -> Result<Vc<EcmascriptHmrChunkVersion>> {
+        Ok(EcmascriptHmrChunkVersion::new(
             self.chunking_context.output_root().owned().await?,
             self.chunk.path().owned().await?,
             *self.content,
+            *self.chunking_context.minify_type().await?,
         ))
     }
 

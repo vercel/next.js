@@ -13,13 +13,14 @@ use turbopack_core::{
 };
 use turbopack_ecmascript::{
     chunk::{EcmascriptChunkContent, EcmascriptChunkContentEntries},
+    hmr::version::EcmascriptHmrChunkVersion,
     minify::minify,
     utils::StringifyJs,
 };
 
 use super::{
     chunk::EcmascriptBuildNodeChunk, merged::merger::EcmascriptBuildNodeChunkContentMerger,
-    update::update_node_chunk, version::EcmascriptBuildNodeChunkVersion,
+    update::update_node_chunk,
 };
 use crate::NodeJsChunkingContext;
 
@@ -96,8 +97,8 @@ impl EcmascriptBuildNodeChunkContent {
     }
 
     #[turbo_tasks::function]
-    pub(crate) async fn own_version(&self) -> Result<Vc<EcmascriptBuildNodeChunkVersion>> {
-        Ok(EcmascriptBuildNodeChunkVersion::new(
+    pub(crate) async fn own_version(&self) -> Result<Vc<EcmascriptHmrChunkVersion>> {
+        Ok(EcmascriptHmrChunkVersion::new(
             self.chunking_context.output_root().owned().await?,
             self.chunk.path().owned().await?,
             *self.content,

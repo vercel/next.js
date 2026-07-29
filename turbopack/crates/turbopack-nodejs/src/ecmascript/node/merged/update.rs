@@ -7,9 +7,12 @@ use turbopack_core::{
     output::OutputAsset,
     version::{PartialUpdate, TotalUpdate, Update, Version},
 };
-use turbopack_ecmascript::chunk_list::merged_update::{
-    EcmascriptMergedChunkAdded, EcmascriptMergedChunkDeleted, EcmascriptMergedChunkPartial,
-    EcmascriptMergedChunkUpdate, EcmascriptMergedUpdate, EcmascriptModuleEntry,
+use turbopack_ecmascript::{
+    chunk_list::merged_update::{
+        EcmascriptMergedChunkAdded, EcmascriptMergedChunkDeleted, EcmascriptMergedChunkPartial,
+        EcmascriptMergedChunkUpdate, EcmascriptMergedUpdate, EcmascriptModuleEntry,
+    },
+    hmr::version::EcmascriptHmrChunkVersion,
 };
 
 use crate::ecmascript::node::{
@@ -18,15 +21,14 @@ use crate::ecmascript::node::{
         version::EcmascriptBuildNodeMergedChunkVersion,
     },
     update::{NodeChunkUpdate, update_ecmascript_node_chunk_content},
-    version::EcmascriptBuildNodeChunkVersion,
 };
 
 struct MergedModuleMap {
-    versions: Vec<ReadRef<EcmascriptBuildNodeChunkVersion>>,
+    versions: Vec<ReadRef<EcmascriptHmrChunkVersion>>,
 }
 
 impl MergedModuleMap {
-    fn new(versions: Vec<ReadRef<EcmascriptBuildNodeChunkVersion>>) -> Self {
+    fn new(versions: Vec<ReadRef<EcmascriptHmrChunkVersion>>) -> Self {
         Self { versions }
     }
 

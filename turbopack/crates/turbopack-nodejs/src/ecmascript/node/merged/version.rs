@@ -3,13 +3,13 @@ use turbo_rcstr::RcStr;
 use turbo_tasks::{ReadRef, TryJoinIterExt, Vc};
 use turbo_tasks_hash::{Xxh3Hash64Hasher, encode_base64};
 use turbopack_core::version::Version;
-
-use crate::ecmascript::node::version::EcmascriptBuildNodeChunkVersion;
+use turbopack_ecmascript::hmr::version::EcmascriptHmrChunkVersion;
 
 /// The version of a [`super::content::EcmascriptBuildNodeMergedChunkContent`].
 #[turbo_tasks::value(serialization = "skip", shared)]
 pub(crate) struct EcmascriptBuildNodeMergedChunkVersion {
-    pub(super) versions: Vec<ReadRef<EcmascriptBuildNodeChunkVersion>>,
+    #[turbo_tasks(trace_ignore)]
+    pub(super) versions: Vec<ReadRef<EcmascriptHmrChunkVersion>>,
 }
 
 #[turbo_tasks::value_impl]

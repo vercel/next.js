@@ -1,8 +1,9 @@
 use anyhow::Result;
 use turbo_tasks::{FxIndexMap, ReadRef, ResolvedVc, Vc};
 use turbopack_core::{chunk::ModuleId, code_builder::Code};
+use turbopack_ecmascript::hmr::version::EcmascriptHmrChunkVersion;
 
-use super::{content::EcmascriptBrowserChunkContent, version::EcmascriptBrowserChunkVersion};
+use super::content::EcmascriptBrowserChunkContent;
 
 #[allow(clippy::large_enum_variant)]
 pub(super) enum EcmascriptChunkUpdate {
@@ -18,7 +19,7 @@ pub(super) struct EcmascriptChunkPartialUpdate {
 
 pub(super) async fn update_ecmascript_chunk(
     content: Vc<EcmascriptBrowserChunkContent>,
-    from: &ReadRef<EcmascriptBrowserChunkVersion>,
+    from: &ReadRef<EcmascriptHmrChunkVersion>,
 ) -> Result<EcmascriptChunkUpdate> {
     let to = content.own_version().await?;
 
