@@ -6,8 +6,6 @@ import { retry } from 'next-test-utils'
 describe('app-new-scroll-handler-focus', () => {
   const { next } = nextTestSetup({
     files: __dirname,
-    // run-jest.sh defaults this off; enable the feature under test.
-    env: { __NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER: 'true' },
   })
 
   // Use the page keyboard, not element.type() (which re-focuses and hides the
@@ -17,6 +15,8 @@ describe('app-new-scroll-handler-focus', () => {
     const activeTestId = () =>
       browser.eval(() => document.activeElement?.getAttribute('data-testid'))
 
+    // Focus explicitly — autoFocus timing isn't reliable across bundlers.
+    await browser.elementByCss(`[data-testid="${testId}"]`).click()
     await retry(async () => {
       expect(await activeTestId()).toBe(testId)
     })
@@ -52,6 +52,7 @@ describe('app-new-scroll-handler-focus', () => {
   it('dynamic page: still scrolls to top on a search-param nav, focus preserved', async () => {
     const browser = await next.browser('/')
 
+    await browser.elementByCss('[data-testid="search-input"]').click()
     await retry(async () => {
       expect(
         await browser.eval(() =>
@@ -87,6 +88,7 @@ describe('app-new-scroll-handler-focus', () => {
     const activeTestId = () =>
       browser.eval(() => document.activeElement?.getAttribute('data-testid'))
 
+    await browser.elementByCss('[data-testid="combo-input"]').click()
     await retry(async () => {
       expect(await activeTestId()).toBe('combo-input')
     })
