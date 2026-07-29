@@ -629,7 +629,17 @@ export function createAppPageEntrypoint({
           : prerenderMatch.source
         : null
 
-      if (fallbackPathname && prerenderInfo?.fallbackRouteParams?.length) {
+      if (
+        // Partial fallback shells are only specialized per request when Partial
+        // Prefetching is enabled, mirroring the `partialFallback` flag the
+        // adapter emits for deployments. When it's disabled we fall through to
+        // the normal ISR cache key (`resolvedPathname`) so the shell stays
+        // shared, matching the behavior before the `partialFallbacks` config
+        // flag was removed.
+        nextConfig.partialPrefetching &&
+        fallbackPathname &&
+        prerenderInfo?.fallbackRouteParams?.length
+      ) {
         if (remainingPrerenderableParams.length > 0) {
           const completedShellCacheKey = buildCompletedShellCacheKey(
             fallbackPathname,
@@ -710,7 +720,7 @@ export function createAppPageEntrypoint({
       routerServerContext?.isWrappedByNextServer
     )
     const remainingFallbackRouteParams =
-      remainingPrerenderableParams.length > 0
+      nextConfig.partialPrefetching && remainingPrerenderableParams.length > 0
         ? (prerenderInfo?.fallbackRouteParams?.filter(
             (param) =>
               !remainingPrerenderableParams.some(
@@ -930,9 +940,14 @@ export function createAppPageEntrypoint({
             partialPrefetching: nextConfig.partialPrefetching,
             // A fallback shell can only be upgraded to a concrete version if at
             // least one of its fallback params is a `generateStaticParams`
-            // candidate (`remainingPrerenderableParams`). This gates whether the
-            // per-segment prefetch responses are flagged `isUpgradeableISRFallback`.
-            isFallbackUpgradeable: remainingPrerenderableParams.length > 0,
+            // candidate (`remainingPrerenderableParams`), and only when Partial
+            // Prefetching is enabled (the upgrade itself is gated on it above).
+            // This gates whether the per-segment prefetch responses are flagged
+            // `isUpgradeableISRFallback`; without an upgrade to wait for, the
+            // client should not retry the prefetch.
+            isFallbackUpgradeable:
+              Boolean(nextConfig.partialPrefetching) &&
+              remainingPrerenderableParams.length > 0,
             validationLevel:
               nextConfig.experimental.instantInsights.validationLevel,
             experimental: {
@@ -1105,6 +1120,7 @@ export function createAppPageEntrypoint({
           }
 
           if (
+            nextConfig.partialPrefetching &&
             prerenderInfo?.fallback === null &&
             !hasOmittedConcreteFallbackParam &&
             !hasUnresolvedRootFallbackParams &&
@@ -1277,6 +1293,10 @@ export function createAppPageEntrypoint({
                 if (
                   !isMinimalMode &&
                   isRoutePPREnabled &&
+                  // Upgrading a fallback shell into a more specific ISR entry is
+                  // only done when Partial Prefetching is enabled, mirroring the
+                  // `partialFallback` flag the adapter emits for deployments.
+                  nextConfig.partialPrefetching &&
                   // Match the build-time contract: only fallback shells that can
                   // still be completed with prerenderable params should upgrade.
                   remainingPrerenderableParams.length > 0 &&

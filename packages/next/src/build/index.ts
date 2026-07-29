@@ -3135,8 +3135,12 @@ export default async function build(
                     _isRoutePPREnabled: isRoutePPREnabled,
                     _allowEmptyStaticShell: !route.throwOnEmptyStaticShell,
                     // A fallback shell can only be upgraded if at least one of
-                    // its fallback params is a `generateStaticParams` candidate.
+                    // its fallback params is a `generateStaticParams` candidate,
+                    // and only when Partial Prefetching is enabled. Otherwise
+                    // nothing ever performs the upgrade, so flagging the shell
+                    // would only cause the client to retry the prefetch.
                     _isFallbackUpgradeable:
+                      Boolean(config.partialPrefetching) &&
                       (route.remainingPrerenderableParams?.length ?? 0) > 0,
                   }
                 })
