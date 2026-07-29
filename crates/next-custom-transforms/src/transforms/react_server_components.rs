@@ -626,6 +626,21 @@ impl ReactServerComponentValidator {
         app_dir: Option<PathBuf>,
         page_extensions: Vec<String>,
     ) -> Self {
+        let invalid_error_apis = vec!["catchError"];
+        let invalid_navigation_apis = vec![
+            "useSearchParams",
+            "usePathname",
+            "useSelectedLayoutSegment",
+            "useSelectedLayoutSegments",
+            "useParams",
+            "useRouter",
+            "useServerInsertedHTML",
+            "ServerInsertedHTMLContext",
+            "unstable_isUnrecognizedActionError",
+            "browserOnly",
+        ];
+        let invalid_link_apis = vec!["useLinkStatus"];
+
         Self {
             is_react_server_layer,
             cache_components_enabled,
@@ -671,23 +686,15 @@ impl ReactServerComponentValidator {
                         "useFormState",
                     ],
                 ),
-                (atom!("next/error").into(), vec!["catchError"]),
+                (atom!("next/error").into(), invalid_error_apis.clone()),
+                (atom!("next/error.js").into(), invalid_error_apis),
                 (
                     atom!("next/navigation").into(),
-                    vec![
-                        "useSearchParams",
-                        "usePathname",
-                        "useSelectedLayoutSegment",
-                        "useSelectedLayoutSegments",
-                        "useParams",
-                        "useRouter",
-                        "useServerInsertedHTML",
-                        "ServerInsertedHTMLContext",
-                        "unstable_isUnrecognizedActionError",
-                        "browserOnly",
-                    ],
+                    invalid_navigation_apis.clone(),
                 ),
-                (atom!("next/link").into(), vec!["useLinkStatus"]),
+                (atom!("next/navigation.js").into(), invalid_navigation_apis),
+                (atom!("next/link").into(), invalid_link_apis.clone()),
+                (atom!("next/link.js").into(), invalid_link_apis),
             ]),
             deprecated_apis_mapping: FxHashMap::from_iter([(
                 atom!("next/server").into(),

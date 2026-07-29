@@ -985,9 +985,13 @@ async fn apply_vendored_react_aliases_server(
     if react_condition == "server" {
         // This is used in the server runtime to import React Server Components.
         alias.extend(
-            fxindexmap! {rcstr!("next/error") => rcstr!("next/dist/api/error.react-server"),
+            fxindexmap! {// ESM projects may add a `.js` suffix, which must use the same RSC entrypoints.
+            rcstr!("next/error") => rcstr!("next/dist/api/error.react-server"),
+            rcstr!("next/error.js") => rcstr!("next/dist/api/error.react-server"),
             rcstr!("next/navigation") => rcstr!("next/dist/api/navigation.react-server"),
-            rcstr!("next/link") => rcstr!("next/dist/client/app-dir/link.react-server"),},
+            rcstr!("next/navigation.js") => rcstr!("next/dist/api/navigation.react-server"),
+            rcstr!("next/link") => rcstr!("next/dist/client/app-dir/link.react-server"),
+            rcstr!("next/link.js") => rcstr!("next/dist/client/app-dir/link.react-server"),},
         );
     }
 
@@ -1016,9 +1020,13 @@ async fn rsc_aliases(
     if ty.should_use_react_server_condition() {
         // This is used in the server runtime to import React Server Components.
         alias.extend(
-            fxindexmap! {rcstr!("next/error") => rcstr!("next/dist/api/error.react-server"),
+            fxindexmap! {// ESM projects may add a `.js` suffix, which must use the same RSC entrypoints.
+            rcstr!("next/error") => rcstr!("next/dist/api/error.react-server"),
+            rcstr!("next/error.js") => rcstr!("next/dist/api/error.react-server"),
             rcstr!("next/navigation") => rcstr!("next/dist/api/navigation.react-server"),
-            rcstr!("next/link") => rcstr!("next/dist/client/app-dir/link.react-server"),},
+            rcstr!("next/navigation.js") => rcstr!("next/dist/api/navigation.react-server"),
+            rcstr!("next/link") => rcstr!("next/dist/client/app-dir/link.react-server"),
+            rcstr!("next/link.js") => rcstr!("next/dist/client/app-dir/link.react-server"),},
         );
     }
 

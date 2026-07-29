@@ -565,4 +565,34 @@ describe('Error Overlay for server components', () => {
       }
     )
   })
+
+  describe('fully specified Next.js client APIs called in Server Component', () => {
+    it.each([
+      ['catchError', 'next/error.js'],
+      ['useRouter', 'next/navigation.js'],
+      ['useLinkStatus', 'next/link.js'],
+    ])('should show error for %s from %s', async (api, module) => {
+      await using sandbox = await createSandbox(
+        next,
+        new Map([
+          [
+            'app/page.js',
+            outdent`
+              import { ${api} } from '${module}'
+              export default function Page() {
+                return "Hello world"
+              }
+            `,
+          ],
+        ])
+      )
+      const { session } = sandbox
+      await session.waitForRedbox()
+      const normalizedSource = await session.getRedboxSource()
+      expect(normalizedSource).toContain(
+        `You're importing a module that depends on \`${api}\` into a React Server Component module. This API is only available in Client Components. To fix, mark the file (or its parent) with the \`"use client"\` directive.`
+      )
+      expect(normalizedSource).toContain(`import { ${api} } from '${module}'`)
+    })
+  })
 })

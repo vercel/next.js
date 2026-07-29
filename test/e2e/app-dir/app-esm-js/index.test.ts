@@ -19,6 +19,10 @@ describe('app-dir - esm js extension', () => {
     await validateDomNodes('#with-ext')
     await validateDomNodes('#without-ext')
 
+    expect(await $('#with-ext .catch-error-message').text()).toBe(
+      '`catchError` can only be used in Client Components.'
+    )
+    expect(await $('#with-ext .typeof-redirect').text()).toBe('function')
     expect($('head link[href="/test-ext.js"]').length).toBe(1)
     expect($('head link[href="/test.js"]').length).toBe(1)
   })
