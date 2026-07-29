@@ -291,21 +291,8 @@ function InnerScrollHandlerNew(props: ScrollAndMaybeFocusHandlerProps) {
       // Mark as scrolled so no other segment scrolls for this navigation.
       scrollRef.current = false
 
-      const activeElement = document.activeElement
-      if (
-        activeElement !== null &&
-        'blur' in activeElement &&
-        typeof activeElement.blur === 'function'
-      ) {
-        // Trying to match hard navigations.
-        // Ideally we'd move the internal focus cursor either to the top
-        // or at least before the segment. But there's no DOM API to do that,
-        // so we just blur.
-        // We could workaround this by moving focus to a temporary element in
-        // the body. But adding elements might trigger layout or other effects
-        // so it should be well motivated.
-        activeElement.blur()
-      }
+      // This handler intentionally leaves focus untouched; resetting focus on
+      // navigation is deferred.
 
       disableSmoothScrollDuringRouteTransition(
         () => {
