@@ -13,14 +13,15 @@ use turbopack_core::{
 };
 use turbopack_ecmascript::{
     chunk::{EcmascriptChunkContent, EcmascriptChunkContentEntries},
+    hmr::{
+        EcmascriptHmrChunkContent, merger::EcmascriptChunkContentMerger,
+        update::update_ecmascript_hmr_chunk, version::EcmascriptChunkVersion,
+    },
     minify::minify,
     utils::StringifyJs,
 };
 
-use super::{
-    chunk::EcmascriptBuildNodeChunk, merged::merger::EcmascriptBuildNodeChunkContentMerger,
-    update::update_node_chunk, version::EcmascriptBuildNodeChunkVersion,
-};
+use super::chunk::EcmascriptBuildNodeChunk;
 use crate::NodeJsChunkingContext;
 
 #[turbo_tasks::value]
@@ -47,11 +48,6 @@ impl EcmascriptBuildNodeChunkContent {
             source_map,
         }
         .cell()
-    }
-
-    #[turbo_tasks::function]
-    pub(crate) fn entries(&self) -> Vc<EcmascriptChunkContentEntries> {
-        EcmascriptChunkContentEntries::new(*self.content)
     }
 }
 
@@ -94,16 +90,6 @@ impl EcmascriptBuildNodeChunkContent {
 
         Ok(code.cell())
     }
-
-    #[turbo_tasks::function]
-    pub(crate) async fn own_version(&self) -> Result<Vc<EcmascriptBuildNodeChunkVersion>> {
-        Ok(EcmascriptBuildNodeChunkVersion::new(
-            self.chunking_context.output_root().owned().await?,
-            self.chunk.path().owned().await?,
-            *self.content,
-            *self.chunking_context.minify_type().await?,
-        ))
-    }
 }
 
 #[turbo_tasks::value_impl]
@@ -139,7 +125,27 @@ impl VersionedContent for EcmascriptBuildNodeChunkContent {
         self: Vc<Self>,
         from_version: ResolvedVc<Box<dyn Version>>,
     ) -> Result<Vc<Update>> {
-        Ok(update_node_chunk(self, from_version).await?.cell())
+        Ok(update_ecmascript_hmr_chunk(Vc::upcast(self), from_version)
+            .await?
+            .cell())
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl EcmascriptHmrChunkContent for EcmascriptBuildNodeChunkContent {
+    #[turbo_tasks::function]
+    fn entries(&self) -> Vc<EcmascriptChunkContentEntries> {
+        EcmascriptChunkContentEntries::new(*self.content)
+    }
+
+    #[turbo_tasks::function]
+    async fn own_version(&self) -> Result<Vc<EcmascriptChunkVersion>> {
+        Ok(EcmascriptChunkVersion::new(
+            self.chunking_context.output_root().owned().await?,
+            self.chunk.path().owned().await?,
+            *self.content,
+            *self.chunking_context.minify_type().await?,
+        ))
     }
 }
 
@@ -147,6 +153,6 @@ impl VersionedContent for EcmascriptBuildNodeChunkContent {
 impl MergeableVersionedContent for EcmascriptBuildNodeChunkContent {
     #[turbo_tasks::function]
     fn get_merger(&self) -> Vc<Box<dyn VersionedContentMerger>> {
-        Vc::upcast(EcmascriptBuildNodeChunkContentMerger::new())
+        Vc::upcast(EcmascriptChunkContentMerger::new())
     }
 }

@@ -11,18 +11,21 @@ use turbopack_core::{
     code_builder::{Code, CodeBuilder},
     output::OutputAsset,
     source_map::{GenerateSourceMap, SourceMapAsset},
-    version::{MergeableVersionedContent, Version, VersionedContent, VersionedContentMerger},
+    version::{
+        MergeableVersionedContent, Update, Version, VersionedContent, VersionedContentMerger,
+    },
 };
 use turbopack_ecmascript::{
     chunk::{EcmascriptChunkContent, EcmascriptChunkContentEntries},
+    hmr::{
+        EcmascriptHmrChunkContent, merger::EcmascriptChunkContentMerger,
+        update::update_ecmascript_hmr_chunk, version::EcmascriptChunkVersion,
+    },
     minify::minify,
     utils::StringifyJs,
 };
 
-use super::{
-    chunk::EcmascriptBrowserChunk, merged::merger::EcmascriptBrowserChunkContentMerger,
-    version::EcmascriptBrowserChunkVersion,
-};
+use super::chunk::EcmascriptBrowserChunk;
 use crate::{
     BrowserChunkingContext,
     chunking_context::{CURRENT_CHUNK_METHOD_DOCUMENT_CURRENT_SCRIPT_EXPR, CurrentChunkMethod},
@@ -52,23 +55,6 @@ impl EcmascriptBrowserChunkContent {
             source_map,
         }
         .cell())
-    }
-
-    #[turbo_tasks::function]
-    pub fn entries(&self) -> Vc<EcmascriptChunkContentEntries> {
-        EcmascriptChunkContentEntries::new(*self.content)
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl EcmascriptBrowserChunkContent {
-    #[turbo_tasks::function]
-    pub(crate) async fn own_version(&self) -> Result<Vc<EcmascriptBrowserChunkVersion>> {
-        Ok(EcmascriptBrowserChunkVersion::new(
-            self.chunking_context.output_root().owned().await?,
-            self.chunk.path().owned().await?,
-            *self.content,
-        ))
     }
 
     #[turbo_tasks::function]
@@ -166,13 +152,41 @@ impl VersionedContent for EcmascriptBrowserChunkContent {
     fn version(self: Vc<Self>) -> Vc<Box<dyn Version>> {
         Vc::upcast(self.own_version())
     }
+
+    #[turbo_tasks::function]
+    async fn update(
+        self: Vc<Self>,
+        from_version: ResolvedVc<Box<dyn Version>>,
+    ) -> Result<Vc<Update>> {
+        Ok(update_ecmascript_hmr_chunk(Vc::upcast(self), from_version)
+            .await?
+            .cell())
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl EcmascriptHmrChunkContent for EcmascriptBrowserChunkContent {
+    #[turbo_tasks::function]
+    fn entries(&self) -> Vc<EcmascriptChunkContentEntries> {
+        EcmascriptChunkContentEntries::new(*self.content)
+    }
+
+    #[turbo_tasks::function]
+    async fn own_version(&self) -> Result<Vc<EcmascriptChunkVersion>> {
+        Ok(EcmascriptChunkVersion::new(
+            self.chunking_context.output_root().owned().await?,
+            self.chunk.path().owned().await?,
+            *self.content,
+            *self.chunking_context.minify_type().await?,
+        ))
+    }
 }
 
 #[turbo_tasks::value_impl]
 impl MergeableVersionedContent for EcmascriptBrowserChunkContent {
     #[turbo_tasks::function]
     fn get_merger(&self) -> Vc<Box<dyn VersionedContentMerger>> {
-        Vc::upcast(EcmascriptBrowserChunkContentMerger::new())
+        Vc::upcast(EcmascriptChunkContentMerger::new())
     }
 }
 
