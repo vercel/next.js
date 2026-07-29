@@ -254,7 +254,7 @@ async function ActivityList({ teamIds }: { teamIds: string[] }) {
 
 Now the heading is on screen with the rest of the shell, and only the list streams. The page stops wrapping `ActivityFeed` in a boundary, because the boundary lives inside it.
 
-Splitting is only worth it when you can show more up front, the chrome and frames, and scope the skeleton to just the data that is still loading. Start with one boundary, lower it as far as the page benefits, and size each fallback to minimize layout shift.
+Splitting is only worth it when you can show more up front, the chrome and frames, and scope the skeleton to just the data that is still loading. Start with one boundary and push it down only as far as what you reveal still makes sense on its own. The heading reads fine without the list, but do not surface UI that means nothing until its data lands. Size each fallback to minimize layout shift.
 
 <details>
   <summary>Nesting boundaries does not serialize them</summary>
