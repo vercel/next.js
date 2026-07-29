@@ -23,7 +23,7 @@ use super::chunk::EcmascriptBuildNodeChunk;
 use crate::NodeJsChunkingContext;
 
 #[turbo_tasks::value]
-pub(super) struct EcmascriptBuildNodeChunkContent {
+pub(super) struct EcmascriptNodeChunkContent {
     pub(super) content: ResolvedVc<EcmascriptChunkContent>,
     pub(super) chunking_context: ResolvedVc<NodeJsChunkingContext>,
     pub(super) chunk: ResolvedVc<EcmascriptBuildNodeChunk>,
@@ -31,7 +31,7 @@ pub(super) struct EcmascriptBuildNodeChunkContent {
 }
 
 #[turbo_tasks::value_impl]
-impl EcmascriptBuildNodeChunkContent {
+impl EcmascriptNodeChunkContent {
     #[turbo_tasks::function]
     pub(crate) fn new(
         chunking_context: ResolvedVc<NodeJsChunkingContext>,
@@ -39,7 +39,7 @@ impl EcmascriptBuildNodeChunkContent {
         content: ResolvedVc<EcmascriptChunkContent>,
         source_map: ResolvedVc<SourceMapAsset>,
     ) -> Vc<Self> {
-        EcmascriptBuildNodeChunkContent {
+        EcmascriptNodeChunkContent {
             content,
             chunking_context,
             chunk,
@@ -50,7 +50,7 @@ impl EcmascriptBuildNodeChunkContent {
 }
 
 #[turbo_tasks::value_impl]
-impl EcmascriptBuildNodeChunkContent {
+impl EcmascriptNodeChunkContent {
     #[turbo_tasks::function]
     async fn code(&self) -> Result<Vc<Code>> {
         use std::io::Write;
@@ -91,7 +91,7 @@ impl EcmascriptBuildNodeChunkContent {
 }
 
 #[turbo_tasks::value_impl]
-impl GenerateSourceMap for EcmascriptBuildNodeChunkContent {
+impl GenerateSourceMap for EcmascriptNodeChunkContent {
     #[turbo_tasks::function]
     fn generate_source_map(self: Vc<Self>) -> Vc<FileContent> {
         self.code().generate_source_map()
@@ -99,7 +99,7 @@ impl GenerateSourceMap for EcmascriptBuildNodeChunkContent {
 }
 
 #[turbo_tasks::value_impl]
-impl VersionedContent for EcmascriptBuildNodeChunkContent {
+impl VersionedContent for EcmascriptNodeChunkContent {
     #[turbo_tasks::function]
     async fn content(self: Vc<Self>) -> Result<Vc<AssetContent>> {
         let this = self.await?;
@@ -120,7 +120,7 @@ impl VersionedContent for EcmascriptBuildNodeChunkContent {
 }
 
 #[turbo_tasks::value_impl]
-impl EcmascriptHmrChunkContent for EcmascriptBuildNodeChunkContent {
+impl EcmascriptHmrChunkContent for EcmascriptNodeChunkContent {
     #[turbo_tasks::function]
     fn entries(&self) -> Vc<EcmascriptChunkContentEntries> {
         EcmascriptChunkContentEntries::new(*self.content)
@@ -138,7 +138,7 @@ impl EcmascriptHmrChunkContent for EcmascriptBuildNodeChunkContent {
 }
 
 #[turbo_tasks::value_impl]
-impl MergeableVersionedContent for EcmascriptBuildNodeChunkContent {
+impl MergeableVersionedContent for EcmascriptNodeChunkContent {
     #[turbo_tasks::function]
     fn get_merger(&self) -> Vc<Box<dyn VersionedContentMerger>> {
         Vc::upcast(EcmascriptChunkContentMerger::new())
