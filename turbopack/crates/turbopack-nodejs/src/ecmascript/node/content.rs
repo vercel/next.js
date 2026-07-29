@@ -7,15 +7,13 @@ use turbopack_core::{
     code_builder::{Code, CodeBuilder},
     output::OutputAsset,
     source_map::{GenerateSourceMap, SourceMapAsset},
-    version::{
-        MergeableVersionedContent, Update, Version, VersionedContent, VersionedContentMerger,
-    },
+    version::{MergeableVersionedContent, Version, VersionedContent, VersionedContentMerger},
 };
 use turbopack_ecmascript::{
     chunk::{EcmascriptChunkContent, EcmascriptChunkContentEntries},
     hmr::{
         EcmascriptHmrChunkContent, merger::EcmascriptChunkContentMerger,
-        update::update_ecmascript_hmr_chunk, version::EcmascriptChunkVersion,
+        version::EcmascriptChunkVersion,
     },
     minify::minify,
     utils::StringifyJs,
@@ -118,16 +116,6 @@ impl VersionedContent for EcmascriptBuildNodeChunkContent {
     #[turbo_tasks::function]
     fn version(self: Vc<Self>) -> Vc<Box<dyn Version>> {
         Vc::upcast(self.own_version())
-    }
-
-    #[turbo_tasks::function]
-    async fn update(
-        self: Vc<Self>,
-        from_version: ResolvedVc<Box<dyn Version>>,
-    ) -> Result<Vc<Update>> {
-        Ok(update_ecmascript_hmr_chunk(Vc::upcast(self), from_version)
-            .await?
-            .cell())
     }
 }
 
