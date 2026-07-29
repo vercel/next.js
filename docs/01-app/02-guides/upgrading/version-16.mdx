@@ -8,7 +8,7 @@ description: Upgrade your Next.js Application from Version 15 to 16.
 
 ## Use an AI agent (recommended)
 
-An AI coding agent can run the mechanical parts of the upgrade, inspect the diff, fix follow-up breakages, and verify the app. The prompt below asks the agent to read version-matched docs, use the codemods where appropriate, explain choices, and verify the result.
+An AI coding agent can run the mechanical parts of the upgrade, inspect the diff, fix follow-up breakages, and verify the app. The prompt below asks the agent to read version-matched docs, use the codemods where appropriate, explain important changes, and verify the result. Some runtime verification tools are only available after the app is upgraded.
 
 Give the agent this prompt:
 
@@ -19,7 +19,9 @@ Before editing code, make sure AGENTS.md points at version-matched Next.js docs.
 
 Then follow the [Next.js 16 upgrade guide](/docs/app/guides/upgrading/version-16) as the source of truth for the migration. Use the [codemod](/docs/app/guides/upgrading/version-16#using-the-codemod) when you're ready to run the mechanical upgrade.
 
-Talk through the plan in user-facing language before making broad changes. When the guide presents a choice, explain the trade-off and ask which path to take. Keep the migration scoped to the upgrade, inspect the diff, run the relevant checks, and fix remaining breaking changes. Use the runtime verification flow from the [AI Coding Agents guide](/docs/app/guides/ai-agents), such as `next-dev-loop` when available, to confirm the upgraded app still works. Summarize what changed and what was verified.
+Briefly explain the upgrade plan in user-facing language before making broad changes. Follow the documented defaults and keep moving unless the guide requires a project-specific decision, the change is destructive, credentials or environment setup are missing, or the correct migration is ambiguous. Keep the migration scoped to the upgrade, inspect the diff, run the relevant checks, and fix remaining breaking changes.
+
+After the app is upgraded, use the runtime verification flow from the [AI Coding Agents guide](/docs/app/guides/ai-agents) to confirm it still works. If the upgraded app is on Next.js 16.3 or later with Turbopack, install or use the `next-dev-loop` skill when available; otherwise use the best available `next dev`, browser, and build checks and say what could not be verified. Summarize what changed and what was verified.
 
 Before finishing, repeat the post-upgrade check in [Set up AI agent docs](/docs/app/guides/upgrading/version-16#set-up-ai-agent-docs) so the project is ready for future agent work.
 ```
