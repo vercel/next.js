@@ -77,8 +77,14 @@ import {
 import type { CacheReadWriteHandler } from './tiered-cache-handler'
 import { cloneCacheEntry } from './clone-cache-entry'
 import { NEXT_INSTANT_TEST_COOKIE } from '../../client/components/app-router-headers'
-import type { ReadonlyRequestCookies } from '../web/spec-extension/adapters/request-cookies'
-import type { ReadonlyHeaders } from '../web/spec-extension/adapters/headers'
+import {
+  RequestCookiesAdapter,
+  type ReadonlyRequestCookies,
+} from '../web/spec-extension/adapters/request-cookies'
+import {
+  HeadersAdapter,
+  type ReadonlyHeaders,
+} from '../web/spec-extension/adapters/headers'
 import {
   NestedDynamicUseCacheError,
   UseCacheDeadlockError,
@@ -681,8 +687,11 @@ function createUseCacheStore(
       ),
       rootParams: outerWorkUnitStore.rootParams,
       readRootParamNames: process.env.__NEXT_DEV_SERVER ? new Set() : undefined,
-      headers: outerWorkUnitStore.headers,
-      cookies: outerWorkUnitStore.cookies,
+      // Every private cache scope is its own work unit. Any cache keyed on
+      // headers() or cookies() needs to be invalidated. Otherwise some
+      // Next.js API semantics leak across render passes.
+      headers: HeadersAdapter.fresh(outerWorkUnitStore.headers),
+      cookies: RequestCookiesAdapter.fresh(outerWorkUnitStore.cookies),
       outerOwnerStack: cacheContext.outerOwnerStack,
     }
   } else {
