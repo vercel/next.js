@@ -102,6 +102,16 @@ async function callMcpTool(
         expect(result).toMatchObject({ routeSpecifier: '/', issues: [] })
       })
 
+      it('should resolve a static metadata route path', async () => {
+        const result = await callMcpTool(next.url, 'compile_route', {
+          path: '/robots.txt',
+        })
+        expect(result).toMatchObject({
+          routeSpecifier: '/robots.txt',
+          issues: [],
+        })
+      })
+
       it('should resolve a dynamic app route path', async () => {
         const result = await callMcpTool(next.url, 'compile_route', {
           path: '/blog/hello-world',
@@ -191,6 +201,40 @@ async function callMcpTool(
           error: expect.stringContaining('exactly one'),
         })
       })
+    })
+  }
+)
+
+// When filesystem public routes are disabled, appFiles and pageFiles are empty.
+// Path-based MCP lookups must still fall back to the live route matcher table.
+;(process.env.IS_TURBOPACK_TEST ? describe : describe.skip)(
+  'mcp-server compile_route without filesystem public routes',
+  () => {
+    const { next, skipped } = nextTestSetup({
+      files: path.join(__dirname, 'fixtures', 'dynamic-routes-app'),
+      overrideFiles: {
+        'next.config.js': `
+          module.exports = {
+            useFileSystemPublicRoutes: false,
+            experimental: { mcpServer: true },
+          }
+        `,
+      },
+    })
+
+    if (skipped) {
+      return
+    }
+
+    it.each([
+      ['app route', '/', '/'],
+      ['pages route', '/about', '/about'],
+      ['pages API route', '/api/legacy', '/api/legacy'],
+    ])('should resolve a static %s', async (_name, input, routeSpecifier) => {
+      const result = await callMcpTool(next.url, 'compile_route', {
+        path: input,
+      })
+      expect(result).toMatchObject({ routeSpecifier, issues: [] })
     })
   }
 )
