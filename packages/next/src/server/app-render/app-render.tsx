@@ -3193,29 +3193,34 @@ async function renderToHTMLOrFlightImpl(
   interpolatedParams: Params,
   fallbackRouteParams: OpaqueFallbackRouteParams | null
 ) {
-  const prepared = await prepareAppPageRender(
-    req,
-    res,
-    url,
-    pagePath,
-    query,
-    renderOpts,
-    workStore,
-    parsedRequestHeaders,
-    sharedContext,
-    interpolatedParams,
-    fallbackRouteParams,
-    generateRenderRequestId,
-    getMissingPrefetchHintPolicy(
-      renderOpts.isBuildTimePrerendering ?? false,
-      false,
-      renderOpts.cacheComponents
-    ),
-    {
-      canPostpone: false,
-      isPossiblyPartialResponse: false,
-      supportsPerSegmentPrefetching: renderOpts.cacheComponents,
-    }
+  const prepared = await getTracer().trace(
+    AppRenderSpan.initializeRender,
+    { spanName: 'initialize app render' },
+    () =>
+      prepareAppPageRender(
+        req,
+        res,
+        url,
+        pagePath,
+        query,
+        renderOpts,
+        workStore,
+        parsedRequestHeaders,
+        sharedContext,
+        interpolatedParams,
+        fallbackRouteParams,
+        generateRenderRequestId,
+        getMissingPrefetchHintPolicy(
+          renderOpts.isBuildTimePrerendering ?? false,
+          false,
+          renderOpts.cacheComponents
+        ),
+        {
+          canPostpone: false,
+          isPossiblyPartialResponse: false,
+          supportsPerSegmentPrefetching: renderOpts.cacheComponents,
+        }
+      )
   )
   return renderAppPage(prepared, postponedState, serverComponentsHmrCache)
 }
@@ -3234,31 +3239,36 @@ async function prerenderToHTMLOrFlightImpl(
   fallbackRouteParams: OpaqueFallbackRouteParams | null
 ) {
   const isRoutePPREnabled = renderOpts.experimental.isRoutePPREnabled === true
-  const prepared = await prepareAppPageRender(
-    req,
-    res,
-    url,
-    pagePath,
-    query,
-    renderOpts,
-    workStore,
-    parsedRequestHeaders,
-    sharedContext,
-    interpolatedParams,
-    fallbackRouteParams,
-    generatePrerenderRequestId,
-    getMissingPrefetchHintPolicy(
-      renderOpts.isBuildTimePrerendering ?? false,
-      true,
-      renderOpts.cacheComponents
-    ),
-    {
-      // These are distinct rendering and protocol properties even though they
-      // are both determined by route-level PPR support today.
-      canPostpone: isRoutePPREnabled,
-      isPossiblyPartialResponse: isRoutePPREnabled,
-      supportsPerSegmentPrefetching: true,
-    }
+  const prepared = await getTracer().trace(
+    AppRenderSpan.initializeRender,
+    { spanName: 'initialize app render' },
+    () =>
+      prepareAppPageRender(
+        req,
+        res,
+        url,
+        pagePath,
+        query,
+        renderOpts,
+        workStore,
+        parsedRequestHeaders,
+        sharedContext,
+        interpolatedParams,
+        fallbackRouteParams,
+        generatePrerenderRequestId,
+        getMissingPrefetchHintPolicy(
+          renderOpts.isBuildTimePrerendering ?? false,
+          true,
+          renderOpts.cacheComponents
+        ),
+        {
+          // These are distinct rendering and protocol properties even though they
+          // are both determined by route-level PPR support today.
+          canPostpone: isRoutePPREnabled,
+          isPossiblyPartialResponse: isRoutePPREnabled,
+          supportsPerSegmentPrefetching: true,
+        }
+      )
   )
   return prerenderAppPage(prepared)
 }

@@ -1,5 +1,9 @@
 import { nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
+import {
+  NEXT_RSC_UNION_QUERY,
+  RSC_HEADER,
+} from 'next/dist/client/components/app-router-headers'
 
 describe('request-insights-route-preparation', () => {
   const { next } = nextTestSetup({
@@ -8,6 +12,7 @@ describe('request-insights-route-preparation', () => {
 
   type RequestInsightSpan = {
     name: string
+    startTime?: number
     durationMs?: number
     status?: 'ok' | 'error'
     traceId?: string
@@ -26,6 +31,8 @@ describe('request-insights-route-preparation', () => {
   const routePreparationSpanType = 'DevRouteMatcherManager.ensureRoute'
   const matcherReloadSpanType = 'DevRouteMatcherManager.reloadMatchers'
   const routeCompilationSpanType = 'DevBundlerService.ensurePage'
+  const appPagePreparationSpanType = 'AppRender.prepareAppPageResponse'
+  const renderInitializationSpanType = 'AppRender.initializeRender'
 
   async function getRequestInsights() {
     return (await next
@@ -173,6 +180,122 @@ describe('request-insights-route-preparation', () => {
     expect(routeCompilationSpan.traceId).toBe(rootSpan?.traceId)
   }
 
+  function expectAppPageRenderPreparationSpans(
+    request: RequestInsight,
+    { expectBodyRender = true }: { expectBodyRender?: boolean } = {}
+  ) {
+    const rootSpan = request.spans.find(
+      (span) =>
+        span.attributes?.['next.span_type'] === 'BaseServer.handleRequest'
+    )
+    const spanById = new Map(
+      request.spans.flatMap((span) =>
+        span.spanId ? [[span.spanId, span] as const] : []
+      )
+    )
+    const renderSpans = request.spans.filter(
+      (span) => span.attributes?.['next.span_type'] === 'BaseServer.render'
+    )
+
+    expect(renderSpans).toHaveLength(1)
+    const renderSpan = renderSpans[0]
+    const preparationSpans = request.spans.filter(
+      (span) =>
+        span.attributes?.['next.span_type'] === appPagePreparationSpanType
+    )
+    const initializationSpans = request.spans.filter(
+      (span) =>
+        span.attributes?.['next.span_type'] === renderInitializationSpanType
+    )
+
+    expect(preparationSpans).toHaveLength(1)
+    expect(initializationSpans).toHaveLength(1)
+
+    const preparationSpan = preparationSpans[0]
+    const initializationSpan = initializationSpans[0]
+    expect(preparationSpan.parentSpanId).toBe(initializationSpan.parentSpanId)
+    const phaseParent = preparationSpan.parentSpanId
+      ? spanById.get(preparationSpan.parentSpanId)
+      : undefined
+    expect(phaseParent?.attributes?.['next.span_type']).toBe(
+      'BaseServer.renderToResponseWithComponents'
+    )
+
+    let phaseAncestor = phaseParent
+    const visited = new Set<string>()
+    while (
+      phaseAncestor?.spanId !== renderSpan.spanId &&
+      phaseAncestor?.parentSpanId &&
+      !visited.has(phaseAncestor.parentSpanId)
+    ) {
+      visited.add(phaseAncestor.parentSpanId)
+      phaseAncestor = spanById.get(phaseAncestor.parentSpanId)
+    }
+    expect(phaseAncestor?.spanId).toBe(renderSpan.spanId)
+    expect(preparationSpan).toEqual(
+      expect.objectContaining({
+        name: 'prepare app page response',
+        startTime: expect.any(Number),
+        durationMs: expect.any(Number),
+        status: 'ok',
+        attributes: expect.objectContaining({
+          'next.span_category': 'nextjs',
+          'next.span_name': 'prepare app page response',
+          'next.span_type': appPagePreparationSpanType,
+        }),
+      })
+    )
+    expect(initializationSpan).toEqual(
+      expect.objectContaining({
+        name: 'initialize app render',
+        startTime: expect.any(Number),
+        durationMs: expect.any(Number),
+        status: 'ok',
+        attributes: expect.objectContaining({
+          'next.span_category': 'nextjs',
+          'next.span_name': 'initialize app render',
+          'next.span_type': renderInitializationSpanType,
+        }),
+      })
+    )
+
+    for (const span of [preparationSpan, initializationSpan]) {
+      expect(Number.isFinite(span.startTime)).toBe(true)
+      expect(Number.isFinite(span.durationMs)).toBe(true)
+      expect(span.durationMs).toBeGreaterThanOrEqual(0)
+      expect(span.traceId).toBe(rootSpan?.traceId)
+    }
+
+    expect(
+      preparationSpan.startTime! + preparationSpan.durationMs!
+    ).toBeLessThanOrEqual(initializationSpan.startTime!)
+
+    const bodyRenderSpans = request.spans.filter(
+      (span) =>
+        span.attributes?.['next.span_type'] === 'AppRender.getBodyResult'
+    )
+    if (expectBodyRender) {
+      expect(bodyRenderSpans).toHaveLength(1)
+      const bodyRenderSpan = bodyRenderSpans[0]
+      expect(bodyRenderSpan.parentSpanId).toBe(preparationSpan.parentSpanId)
+      expect(
+        initializationSpan.startTime! + initializationSpan.durationMs!
+      ).toBeLessThanOrEqual(bodyRenderSpan.startTime!)
+    } else {
+      expect(bodyRenderSpans).toHaveLength(0)
+    }
+  }
+
+  function expectNoAppPageRenderPreparationSpans(request: RequestInsight) {
+    expect(
+      request.spans.some((span) =>
+        [appPagePreparationSpanType, renderInitializationSpanType].includes(
+          String(span.attributes?.['next.span_type'])
+        )
+      )
+    ).toBe(false)
+  }
+
   it('records route preparation for first and subsequent App Page requests', async () => {
     const coldRequest = await captureRequest('/', async () => {
       const response = await next.fetch('/')
@@ -187,6 +310,30 @@ describe('request-insights-route-preparation', () => {
 
     expectRoutePreparationSpans(coldRequest)
     expectRoutePreparationSpans(warmRequest)
+    expectAppPageRenderPreparationSpans(coldRequest)
+    expectAppPageRenderPreparationSpans(warmRequest)
+  })
+
+  it('records App Page preparation and initialization for RSC requests', async () => {
+    const request = await captureRequest('/', async () => {
+      const response = await next.fetch(`/?${NEXT_RSC_UNION_QUERY}`, {
+        headers: {
+          [RSC_HEADER]: '1',
+        },
+      })
+      expect(response.status).toBe(200)
+      expect(response.headers.get('content-type')).toContain('text/x-component')
+      await response.text()
+    })
+
+    expectRoutePreparationSpans(request)
+    expectAppPageRenderPreparationSpans(request, { expectBodyRender: false })
+    expect(
+      request.spans.find(
+        (span) =>
+          span.attributes?.['next.span_type'] === 'BaseServer.handleRequest'
+      )?.attributes?.['next.rsc']
+    ).toBe(true)
   })
 
   it('records route preparation for first and subsequent App Route requests', async () => {
@@ -204,5 +351,7 @@ describe('request-insights-route-preparation', () => {
 
     expectRoutePreparationSpans(coldRequest)
     expectRoutePreparationSpans(warmRequest)
+    expectNoAppPageRenderPreparationSpans(coldRequest)
+    expectNoAppPageRenderPreparationSpans(warmRequest)
   })
 })
