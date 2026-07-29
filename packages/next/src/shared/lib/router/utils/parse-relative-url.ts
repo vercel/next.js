@@ -2,7 +2,11 @@ import type { ParsedUrlQuery } from 'querystring'
 import { getLocationOrigin } from '../../utils'
 import { searchParamsToUrlQuery } from './querystring'
 
-const DUMMY_ORIGIN_URL = new URL('http://n')
+// Avoid constructing a URL for the common case where the input is already a
+// normalized, path-only URL. Limit this to unreserved URL characters and path
+// separators so the fast path does not need to reproduce WHATWG serialization.
+const nonSimplePathRegex = /[^A-Za-z0-9._~/-]/
+const serverBase = new URL('http://n')
 
 export interface ParsedRelativeUrl {
   auth: string | null
@@ -39,17 +43,38 @@ export function parseRelativeUrl(
   base?: string,
   parseQuery = true
 ): ParsedRelativeUrl | Omit<ParsedRelativeUrl, 'query'> {
+  if (
+    base === undefined &&
+    url.charCodeAt(0) === 47 &&
+    !url.includes('?') &&
+    !url.includes('#') &&
+    !url.includes('/.') &&
+    !nonSimplePathRegex.test(url)
+  ) {
+    return {
+      auth: null,
+      host: null,
+      hostname: null,
+      pathname: url,
+      port: null,
+      protocol: null,
+      query: parseQuery ? {} : undefined,
+      search: '',
+      hash: '',
+      href: url,
+      slashes: null,
+    }
+  }
+
   const globalBase =
-    typeof window === 'undefined'
-      ? DUMMY_ORIGIN_URL
-      : new URL(getLocationOrigin())
+    typeof window === 'undefined' ? serverBase : new URL(getLocationOrigin())
 
   const resolvedBase = base
     ? new URL(base, globalBase)
     : url.startsWith('.')
-      ? typeof window === 'undefined'
-        ? globalBase
-        : new URL(window.location.href)
+      ? new URL(
+          typeof window === 'undefined' ? 'http://n' : window.location.href
+        )
       : globalBase
 
   const { pathname, searchParams, search, hash, href, origin } = url.startsWith(
