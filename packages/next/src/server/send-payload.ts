@@ -58,7 +58,17 @@ export async function sendRenderResult({
   // If cache control is already set on the response we don't
   // override it to allow users to customize it via next.config
   if (cacheControl && !res.getHeader('Cache-Control')) {
-    res.setHeader('Cache-Control', getCacheControlHeader(cacheControl))
+    // A response carrying `Set-Cookie` holds user-specific data and must not be
+    // stored by shared caches (RFC 6265 §7.3), so never let a prerendered page's
+    // cacheable `s-maxage` header leak cookies across users on non-Vercel CDNs.
+    if (res.getHeader('Set-Cookie')) {
+      res.setHeader(
+        'Cache-Control',
+        'private, no-cache, no-store, max-age=0, must-revalidate'
+      )
+    } else {
+      res.setHeader('Cache-Control', getCacheControlHeader(cacheControl))
+    }
   }
 
   const payload = result.isDynamic ? null : result.toUnchunkedString()
