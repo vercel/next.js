@@ -122,6 +122,9 @@ fn init() {
     // synchronous N-API calls and rely on that ambient context. napi v3 no longer provides it,
     // so restore it: capture the runtime handle (this also forces napi to adopt the custom
     // runtime registered above) and enter it for the lifetime of this thread.
+    //
+    // TODO: Leaking the guard keeps the runtime alive for the whole process, so tokio never shuts
+    // down. Fix the callers that rely on an ambient runtime handle so that this can be dropped.
     let handle =
         napi::bindgen_prelude::within_runtime_if_available(tokio::runtime::Handle::current);
     std::mem::forget(Box::leak(Box::new(handle)).enter());

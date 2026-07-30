@@ -102,7 +102,7 @@ export class LightningCssMinifyPlugin {
           key: ECacheKey.minify,
         })
 
-        const result = await this.transform!({
+        const result = this.transform!({
           filename: asset.name,
           code,
           minify: true,

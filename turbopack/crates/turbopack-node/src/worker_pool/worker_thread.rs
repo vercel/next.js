@@ -19,11 +19,14 @@ use crate::worker_pool::{
     operation::{TaskMessage, WORKER_POOL_OPERATION},
 };
 
-// napi v3 replaced the `ErrorStrategy` type parameter with a `CalleeHandled`
-// const generic. `CalleeHandled = false` is the former `ErrorStrategy::Fatal`.
-// `Weak = true` so these functions don't keep the Node.js event loop alive; they arrive from JS
-// already unref'd.
-type FatalThreadsafeFunction<T> = ThreadsafeFunction<T, Unknown<'static>, T, Status, false, true>;
+type FatalThreadsafeFunction<T> = ThreadsafeFunction<
+    T,
+    Unknown<'static>,
+    T,
+    Status,
+    /* CalleeHandled */ false,
+    /* Weak */ true,
+>;
 
 static WORKER_CREATOR: OnceLock<FatalThreadsafeFunction<NapiWorkerCreation>> = OnceLock::new();
 
