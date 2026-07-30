@@ -1,6 +1,0 @@
-{
-  "sideEffects": [
-    "./index.js",
-    "./valueSetter.js"
-  ]
-}

@@ -1,2 +1,0 @@
-# tsconfig.json in tests is excluded by default, but we customize it for this test, so it needs to be included
-!tsconfig.json

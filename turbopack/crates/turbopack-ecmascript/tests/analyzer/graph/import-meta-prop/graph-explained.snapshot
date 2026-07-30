@@ -1,2 +1,0 @@
-x (const after eval) = import.meta*0*["prop"]
-- *0* import.meta: The import.meta object

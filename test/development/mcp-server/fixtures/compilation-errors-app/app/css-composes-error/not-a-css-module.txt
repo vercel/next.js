@@ -1,1 +1,0 @@
-This is not a CSS module.

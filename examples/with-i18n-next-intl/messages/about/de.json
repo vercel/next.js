@@ -1,7 +1,0 @@
-{
-  "About": {
-    "title": "About",
-    "description": "Diese Seite verwendet Übersetzungen aus <code>./messages/about/{locale}.json</code> und <code>./messages/shared/{locale}.json</code>. Übersetzungen von der Startseite und anderen Sprachen werden nicht geladen.",
-    "lastUpdated": "Dieses Beispiel wurde {lastUpdatedRelative} aktualisiert ({lastUpdated, date, short})."
-  }
-}

@@ -1,3 +1,0 @@
-#!/bin/sh
-driver_name='errors-json'
-git config --remove-section merge."$driver_name"

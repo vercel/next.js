@@ -1,1 +1,0 @@
-export { generateStaticParams } from './shared'
