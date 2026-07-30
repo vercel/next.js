@@ -597,6 +597,7 @@ pub async fn make_production_chunks(
                 let mut remained_size = 0;
                 let mut remained_chunk_items = Vec::new();
                 let mut remained_batch_groups = FxIndexSet::default();
+                let mut remained_components = Vec::new();
                 for MergeCandidate {
                     size,
                     chunk_items,
@@ -617,6 +618,7 @@ pub async fn make_production_chunks(
                         remained_size += size;
                         remained_chunk_items.extend(chunk_items);
                         remained_batch_groups.extend(batch_groups);
+                        remained_components.extend(components);
                     }
                 }
 
@@ -628,8 +630,7 @@ pub async fn make_production_chunks(
                         chunk_items: remained_chunk_items,
                         batch_groups: remained_batch_groups.into_iter().collect(),
                         chunk_groups: None,
-                        // The remained chunk holds unsharable left-overs; no split benefit.
-                        components: Vec::new(),
+                        components: remained_components,
                     });
                 }
             }
