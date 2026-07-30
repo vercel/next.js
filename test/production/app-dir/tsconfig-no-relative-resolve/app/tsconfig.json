@@ -1,4 +1,0 @@
-// This file shouldn't be found by Turbopack.
-{
-  "extends": "non-existent-package"
-}

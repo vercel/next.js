@@ -1,3 +1,0 @@
-{
-  "presets": ["next/babel"]
-}

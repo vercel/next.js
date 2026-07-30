@@ -1,3 +1,0 @@
-{
-  "setup-worktree": ["pnpm install", "pnpm build"]
-}

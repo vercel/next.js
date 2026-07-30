@@ -1,7 +1,0 @@
-{
-  "Navigation": {
-    "index": "Start",
-    "about": "Über",
-    "switchLocale": "Zu {locale, select, de {Deutsch} en {Englisch} other {}} wechseln"
-  }
-}

@@ -1,7 +1,0 @@
-{
-  "version": 3,
-  "sources": [],
-  "sections": [
-    {"offset": {"line": 3, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/cjs-remove-unused-exports/require-member/input/index.js"],"sourcesContent":["// Only `.used` is read off the require result, so `exports.unused` in lib.js\n// should be dropped.\nconsole.log(require('./lib.js').used)\n"],"names":["console","log","used"],"mappings":"AAAA,6EAA6E;AAC7E,qBAAqB;AACrBA,QAAQC,GAAG,CAAC,+JAAoBC,IAAI"}},
-    {"offset": {"line": 9, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/cjs-remove-unused-exports/require-member/input/lib.js"],"sourcesContent":["exports.used = 'used-value'\nexports.unused = 'unused-value'\n"],"names":["exports","used"],"mappings":"AAAAA,QAAQC,IAAI,GAAG;AACE"}}]
-}

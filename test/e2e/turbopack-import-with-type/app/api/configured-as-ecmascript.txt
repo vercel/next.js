@@ -1,1 +1,0 @@
-throw new Error('this file is configured as ecmascript but imported as bytes')
