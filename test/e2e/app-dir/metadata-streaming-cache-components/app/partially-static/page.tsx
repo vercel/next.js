@@ -4,7 +4,6 @@ import { Suspense } from 'react'
 
 async function Dynamic() {
   await connection()
-
   return <p>Dynamic</p>
 }
 
