@@ -19,8 +19,8 @@ export default function Page() {
         Open empty modal
       </Link>
       <Link
-        id="open-empty-modal-missing-hash"
-        href="/modal/open#missing-target"
+        id="open-modal-missing-hash"
+        href="/modal/visible#missing-target"
         style={{
           position: 'fixed',
           top: 80,
@@ -29,7 +29,7 @@ export default function Page() {
           background: 'white',
         }}
       >
-        Open empty modal with missing hash
+        Open visible modal with missing hash
       </Link>
       <Link
         id="open-empty-modal-real-hash"

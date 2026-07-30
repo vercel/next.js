@@ -51,18 +51,23 @@ describe.each([false, true])(
       )
     })
 
-    it('preserves scroll and focus when the hash target is missing', async () => {
+    it('consumes a missing hash without scrolling or blurring', async () => {
       const browser = await next.browser('/modal')
 
       const initialScroll = await browser.eval(`
           window.scrollTo(0, 1200)
           document.getElementById('focus-target').focus({ preventScroll: true })
-          document.getElementById('open-empty-modal-missing-hash').click()
+          document.getElementById('open-modal-missing-hash').click()
           window.scrollY
         `)
       await retry(async () => {
         expect(await browser.url()).toBe(
-          `${next.url}/modal/open#missing-target`
+          `${next.url}/modal/visible#missing-target`
+        )
+      })
+      await retry(async () => {
+        expect(await browser.elementByCss('#visible-modal').text()).toBe(
+          'Visible modal'
         )
       })
 

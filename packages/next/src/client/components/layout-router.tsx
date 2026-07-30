@@ -172,6 +172,14 @@ class InnerScrollAndFocusHandlerOld extends React.Component<ScrollAndMaybeFocusH
 
     if (hashFragment) {
       domNode = getHashFragmentDomNode(hashFragment)
+      if (domNode === null) {
+        // A missing hash target is still a handled scroll intent. Do not
+        // fall back to the route segment or leave the intent pending.
+        scrollRef.current = false
+        focusAndScrollRef.onlyHashChange = false
+        focusAndScrollRef.hashFragment = null
+        return
+      }
     }
 
     // `findDOMNode` is tricky because it returns just the first child if the component is a fragment.
@@ -288,14 +296,18 @@ function InnerScrollHandlerNew(props: ScrollAndMaybeFocusHandlerProps) {
 
       let instance: FragmentInstance | HTMLElement | null = null
       const hashFragment = focusAndScrollRef.hashFragment
-      let isHashTarget = false
 
       if (hashFragment) {
         instance = getHashFragmentDomNode(hashFragment)
-        isHashTarget = instance !== null
-      }
-
-      if (!instance) {
+        if (instance === null) {
+          // A missing hash target is still a handled scroll intent. Do not
+          // fall back to the route Fragment or leave the intent pending.
+          scrollRef.current = false
+          focusAndScrollRef.onlyHashChange = false
+          focusAndScrollRef.hashFragment = null
+          return
+        }
+      } else {
         instance = childrenRef.current
       }
 
@@ -312,7 +324,7 @@ function InnerScrollHandlerNew(props: ScrollAndMaybeFocusHandlerProps) {
           let viewportHeight: number | null = null
           let initialTargetState: ScrollTargetState | null = null
 
-          if (!isHashTarget) {
+          if (!hashFragment) {
             // Store the current viewport height because reading `clientHeight` causes a reflow,
             // and it won't change during this function.
             viewportHeight = htmlElement.clientHeight
