@@ -204,6 +204,339 @@ The component that consumes the Promise (e.g. `Profile` above) suspends while th
 
 See the [live demo](https://next-spa-patterns.labs.vercel.dev/use-context) and its [source code](https://github.com/vercel-labs/next-spa-patterns/tree/main/app/use-context).
 
+### Rendering components only in the browser
+
+Client components are [prerendered](https://github.com/reactwg/server-components/discussions/4) during `next build`. If you want to disable prerendering for a Client Component and only load it in the browser environment, you can use [`next/dynamic`](/docs/app/guides/lazy-loading#nextdynamic):
+
+```jsx
+import dynamic from 'next/dynamic'
+
+const ClientOnlyComponent = dynamic(() => import('./component'), {
+  ssr: false,
+})
+```
+
+This can be useful for third-party libraries that rely on browser APIs like `window` or `document`. You can also add a `useEffect` that checks for the existence of these APIs, and if they do not exist, return `null` or a loading state which would be prerendered.
+
+See the [live demo](https://next-spa-patterns.labs.vercel.dev/browser-only) and its [source code](https://github.com/vercel-labs/next-spa-patterns/tree/main/app/browser-only).
+
+### Shallow routing on the client
+
+If you are migrating from a strict SPA like [Create React App](/docs/app/guides/migrating/from-create-react-app) or [Vite](/docs/app/guides/migrating/from-vite), you might have existing code which shallow routes to update the URL state. This can be useful for manual transitions between views in your application _without_ using the default Next.js file-system routing.
+
+Next.js allows you to use the native [`window.history.pushState`](https://developer.mozilla.org/en-US/docs/Web/API/History/pushState) and [`window.history.replaceState`](https://developer.mozilla.org/en-US/docs/Web/API/History/replaceState) methods to update the browser's history stack without reloading the page.
+
+The `pushState` and `replaceState` calls integrate into the Next.js Router, allowing you to sync with [`usePathname`](/docs/app/api-reference/functions/use-pathname) and [`useSearchParams`](/docs/app/api-reference/functions/use-search-params).
+
+```tsx filename="app/ui/sort-products.tsx" switcher
+'use client'
+
+import { useSearchParams } from 'next/navigation'
+
+export default function SortProducts() {
+  const searchParams = useSearchParams()
+
+  function updateSorting(sortOrder: string) {
+    const urlSearchParams = new URLSearchParams(searchParams.toString())
+    urlSearchParams.set('sort', sortOrder)
+    window.history.pushState(null, '', `?${urlSearchParams.toString()}`)
+  }
+
+  return (
+    <>
+      <button onClick={() => updateSorting('asc')}>Sort Ascending</button>
+      <button onClick={() => updateSorting('desc')}>Sort Descending</button>
+    </>
+  )
+}
+```
+
+```jsx filename="app/ui/sort-products.js" switcher
+'use client'
+
+import { useSearchParams } from 'next/navigation'
+
+export default function SortProducts() {
+  const searchParams = useSearchParams()
+
+  function updateSorting(sortOrder) {
+    const urlSearchParams = new URLSearchParams(searchParams.toString())
+    urlSearchParams.set('sort', sortOrder)
+    window.history.pushState(null, '', `?${urlSearchParams.toString()}`)
+  }
+
+  return (
+    <>
+      <button onClick={() => updateSorting('asc')}>Sort Ascending</button>
+      <button onClick={() => updateSorting('desc')}>Sort Descending</button>
+    </>
+  )
+}
+```
+
+Learn more about how [routing and navigation](/docs/app/getting-started/linking-and-navigating#how-navigation-works) work in Next.js.
+
+See the [live demo](https://next-spa-patterns.labs.vercel.dev/shallow-routing) and its [source code](https://github.com/vercel-labs/next-spa-patterns/tree/main/app/shallow-routing).
+
+### Mutating data with Server Actions
+
+Interactivity means writing data, and that usually happens through a [Server Action](/docs/app/guides/server-actions): a Client Component calls the action to run the mutation on the server. If you use a client data-fetching library like SWR or TanStack Query (covered below), you can instead write through an API route and revalidate with SWR's [`mutate`](https://swr.vercel.app/docs/mutation) or TanStack Query's [`invalidateQueries`](https://tanstack.com/query/latest/docs/framework/react/guides/invalidations-from-mutations). The rest of this section uses Server Actions directly.
+
+A Server Action takes time and can fail. React has useful tools to keep the UI responsive while it runs, so a mutation can feel as instant as a client-rendered SPA: [transitions](https://react.dev/reference/react/useTransition), [`useOptimistic`](https://react.dev/reference/react/useOptimistic), [`useActionState`](https://react.dev/reference/react/useActionState), and [`useFormStatus`](https://react.dev/reference/react-dom/hooks/useFormStatus).
+
+At its simplest, a Client Component calls a Server Action inside a transition and uses the pending state for feedback:
+
+```tsx filename="app/delete-post.tsx" switcher
+'use client'
+
+import { useTransition } from 'react'
+import { deletePost } from './actions'
+
+export function DeletePost({ id }: { id: string }) {
+  const [isPending, startTransition] = useTransition()
+
+  return (
+    <button
+      disabled={isPending}
+      onClick={() => startTransition(() => deletePost(id))}
+    >
+      {isPending ? 'Deleting…' : 'Delete'}
+    </button>
+  )
+}
+```
+
+```jsx filename="app/delete-post.js" switcher
+'use client'
+
+import { useTransition } from 'react'
+import { deletePost } from './actions'
+
+export function DeletePost({ id }) {
+  const [isPending, startTransition] = useTransition()
+
+  return (
+    <button
+      disabled={isPending}
+      onClick={() => startTransition(() => deletePost(id))}
+    >
+      {isPending ? 'Deleting…' : 'Delete'}
+    </button>
+  )
+}
+```
+
+For list-like state where each change should appear instantly, you can combine `useActionState` with `useOptimistic`. The example below is a to-do list: a pure reducer defines how each action changes the list, so the client and server share one copy of that logic:
+
+```ts filename="app/reducer.ts" switcher
+export type Todo = { id: string; text: string; done: boolean }
+
+export type TodoAction =
+  | { type: 'add'; id: string; text: string }
+  | { type: 'toggle'; id: string }
+  | { type: 'edit'; id: string; text: string }
+  | { type: 'delete'; id: string }
+
+export function applyAction(todos: Todo[], action: TodoAction): Todo[] {
+  switch (action.type) {
+    case 'add':
+      return [...todos, { id: action.id, text: action.text, done: false }]
+    case 'toggle':
+      return todos.map((todo) =>
+        todo.id === action.id ? { ...todo, done: !todo.done } : todo
+      )
+    case 'edit':
+      return todos.map((todo) =>
+        todo.id === action.id ? { ...todo, text: action.text } : todo
+      )
+    case 'delete':
+      return todos.filter((todo) => todo.id !== action.id)
+    default:
+      return todos
+  }
+}
+```
+
+```js filename="app/reducer.js" switcher
+export function applyAction(todos, action) {
+  switch (action.type) {
+    case 'add':
+      return [...todos, { id: action.id, text: action.text, done: false }]
+    case 'toggle':
+      return todos.map((todo) =>
+        todo.id === action.id ? { ...todo, done: !todo.done } : todo
+      )
+    case 'edit':
+      return todos.map((todo) =>
+        todo.id === action.id ? { ...todo, text: action.text } : todo
+      )
+    case 'delete':
+      return todos.filter((todo) => todo.id !== action.id)
+    default:
+      return todos
+  }
+}
+```
+
+The Server Action applies the reducer, persists the result, and returns the next list:
+
+```ts filename="app/actions.ts" switcher
+'use server'
+
+import { db } from './db'
+import { applyAction, type Todo, type TodoAction } from './reducer'
+
+export async function todosReducer(
+  todos: Todo[],
+  action: TodoAction
+): Promise<Todo[]> {
+  const next = applyAction(todos, action)
+  await db.saveTodos(next)
+  return next
+}
+```
+
+```js filename="app/actions.js" switcher
+'use server'
+
+import { db } from './db'
+import { applyAction } from './reducer'
+
+export async function todosReducer(todos, action) {
+  const next = applyAction(todos, action)
+  await db.saveTodos(next)
+  return next
+}
+```
+
+The client passes the same reducer to `useOptimistic`, so the optimistic update and the server compute the next state identically. A `runAction` helper applies the optimistic change and dispatches the Server Action in the same transition, so every change shows immediately:
+
+```tsx filename="app/todo-list.tsx" switcher
+'use client'
+
+import { useActionState, useOptimistic, startTransition } from 'react'
+import { todosReducer } from './actions'
+import { applyAction, type Todo, type TodoAction } from './reducer'
+
+export function TodoList({ initialTodos }: { initialTodos: Todo[] }) {
+  const [todos, dispatch, isPending] = useActionState(
+    todosReducer,
+    initialTodos
+  )
+  const [optimisticTodos, addOptimistic] = useOptimistic(todos, applyAction)
+
+  function runAction(action: TodoAction) {
+    startTransition(() => {
+      addOptimistic(action)
+      dispatch(action)
+    })
+  }
+
+  return (
+    <>
+      <form
+        action={(formData) =>
+          runAction({
+            type: 'add',
+            id: crypto.randomUUID(),
+            text: String(formData.get('text')),
+          })
+        }
+      >
+        <input name="text" />
+        <button>Add</button>
+      </form>
+      <ul>
+        {optimisticTodos.map((todo) => (
+          <li key={todo.id}>
+            <input
+              type="checkbox"
+              checked={todo.done}
+              onChange={() => runAction({ type: 'toggle', id: todo.id })}
+            />
+            <span
+              style={{ textDecoration: todo.done ? 'line-through' : 'none' }}
+            >
+              {todo.text}
+            </span>
+            <button onClick={() => runAction({ type: 'delete', id: todo.id })}>
+              Delete
+            </button>
+          </li>
+        ))}
+      </ul>
+      {isPending && <p>Syncing to server…</p>}
+    </>
+  )
+}
+```
+
+```jsx filename="app/todo-list.js" switcher
+'use client'
+
+import { useActionState, useOptimistic, startTransition } from 'react'
+import { todosReducer } from './actions'
+import { applyAction } from './reducer'
+
+export function TodoList({ initialTodos }) {
+  const [todos, dispatch, isPending] = useActionState(
+    todosReducer,
+    initialTodos
+  )
+  const [optimisticTodos, addOptimistic] = useOptimistic(todos, applyAction)
+
+  function runAction(action) {
+    startTransition(() => {
+      addOptimistic(action)
+      dispatch(action)
+    })
+  }
+
+  return (
+    <>
+      <form
+        action={(formData) =>
+          runAction({
+            type: 'add',
+            id: crypto.randomUUID(),
+            text: String(formData.get('text')),
+          })
+        }
+      >
+        <input name="text" />
+        <button>Add</button>
+      </form>
+      <ul>
+        {optimisticTodos.map((todo) => (
+          <li key={todo.id}>
+            <input
+              type="checkbox"
+              checked={todo.done}
+              onChange={() => runAction({ type: 'toggle', id: todo.id })}
+            />
+            <span
+              style={{ textDecoration: todo.done ? 'line-through' : 'none' }}
+            >
+              {todo.text}
+            </span>
+            <button onClick={() => runAction({ type: 'delete', id: todo.id })}>
+              Delete
+            </button>
+          </li>
+        ))}
+      </ul>
+      {isPending && <p>Syncing to server…</p>}
+    </>
+  )
+}
+```
+
+The optimistic update shows instantly, while `useActionState`'s pending flag lets you display a subtle indicator (such as `Syncing to server…`) until the Server Action resolves.
+
+See the [live demo](https://next-spa-patterns.labs.vercel.dev/mutations) and its [source code](https://github.com/vercel-labs/next-spa-patterns/tree/main/app/mutations).
+
+To learn more about adding interactivity on top of server-rendered apps so they feel like SPAs, see the [Building interactive apps](/docs/app/guides/interactive-apps) guide and its runnable demo.
+
 ### SPAs with SWR
 
 [SWR](https://swr.vercel.app) is a React library for data fetching.
@@ -467,6 +800,81 @@ export function ProjectView({ id }) {
 
 See the [live demo](https://next-spa-patterns.labs.vercel.dev/swr) and its [source code](https://github.com/vercel-labs/next-spa-patterns/tree/main/app/swr).
 
+#### Coordinating the server and client caches on mutation
+
+The examples above seed the client cache from the server, so both caches hold the same data flowing one direction. Some apps keep the two caches for different jobs instead:
+
+- The **Next.js cache** owns the server-rendered route tree: pages, layouts, and cached server queries. It decides what the server sends for a route.
+- The **SWR cache** lives only in the browser. It owns small client reads that need instant updates, such as an unread badge in the app chrome.
+
+The two caches meet at a mutation. The client updates its own cache first so the badge changes instantly, then writes through an [API route](/docs/app/api-reference/file-conventions/route) that calls [`revalidateTag`](/docs/app/api-reference/functions/revalidateTag) to mark the server render stale for the next visit.
+
+Updating the client cache before the request resolves is SWR's [optimistic update](https://swr.vercel.app/docs/mutation#optimistic-updates) pattern. Use [`mutate`](https://swr.vercel.app/docs/mutation) with `revalidate: false` to set the badge without triggering a client refetch, then send the write:
+
+```tsx filename="app/activity/mark-read.tsx" switcher
+'use client'
+
+import { useSWRConfig } from 'swr'
+
+export function useMarkActivityRead() {
+  const { mutate } = useSWRConfig()
+
+  return async () => {
+    // Update the badge immediately, without revalidating.
+    mutate('/api/activity/unread', { count: 0 }, { revalidate: false })
+    await fetch('/api/activity/read', { method: 'POST' })
+  }
+}
+```
+
+```jsx filename="app/activity/mark-read.js" switcher
+'use client'
+
+import { useSWRConfig } from 'swr'
+
+export function useMarkActivityRead() {
+  const { mutate } = useSWRConfig()
+
+  return async () => {
+    // Update the badge immediately, without revalidating.
+    mutate('/api/activity/unread', { count: 0 }, { revalidate: false })
+    await fetch('/api/activity/read', { method: 'POST' })
+  }
+}
+```
+
+The API route writes to the database and revalidates the tagged server data with `revalidateTag`. Tag the cached server query with [`cacheTag`](/docs/app/api-reference/functions/cacheTag) so the tag matches:
+
+```ts filename="app/api/activity/read/route.ts" switcher
+import { revalidateTag } from 'next/cache'
+import { markActivityRead, getCurrentUserId } from '../../../activity/data'
+
+export async function POST() {
+  const userId = await getCurrentUserId()
+  await markActivityRead(userId)
+  revalidateTag(`activity:${userId}`, 'max')
+  return new Response(null, { status: 204 })
+}
+```
+
+```js filename="app/api/activity/read/route.js" switcher
+import { revalidateTag } from 'next/cache'
+import { markActivityRead, getCurrentUserId } from '../../../activity/data'
+
+export async function POST() {
+  const userId = await getCurrentUserId()
+  await markActivityRead(userId)
+  revalidateTag(`activity:${userId}`, 'max')
+  return new Response(null, { status: 204 })
+}
+```
+
+The badge updates from the SWR cache, while `revalidateTag` marks the server cache stale without touching the current route. The screen holds steady after the write, and the next navigation to the route renders from fresh server data.
+
+> **Good to know:** To update the current route in place instead of waiting for the next navigation, call [`router.refresh()`](/docs/app/api-reference/functions/use-router) after the mutation.
+
+See the [live demo](https://next-spa-patterns.labs.vercel.dev/swr) and its [source code](https://github.com/vercel-labs/next-spa-patterns/tree/main/app/swr), and the [SWR docs](https://swr.vercel.app/docs/getting-started) for more on fetching and mutations.
+
 ### SPAs with TanStack Query
 
 You can use [TanStack Query](https://tanstack.com/query) (formerly React Query) with Next.js on the client and the server, and seed its cache from a Server Component the same way as [SWR](#spas-with-swr): prefetch on the server, hand the cache to the client, and let it own revalidation from there.
@@ -678,338 +1086,43 @@ async function ProjectData({ id }) {
 
 Scoping the helper to that boundary keeps the cached payload next to the component that reads it, the same way a per-segment `<SWRConfig>` does. The payload is now cached and revalidates through its tag.
 
-### Rendering components only in the browser
+TanStack Query coordinates the two caches on a mutation the same way as [SWR](#coordinating-the-server-and-client-caches-on-mutation): update the client cache for an instant change, then write through an API route that calls `revalidateTag` to refresh the server render for the next visit. Update the badge in `useMutation`'s [`onMutate`](https://tanstack.com/query/latest/docs/framework/react/guides/optimistic-updates) callback, which runs before the request:
 
-Client components are [prerendered](https://github.com/reactwg/server-components/discussions/4) during `next build`. If you want to disable prerendering for a Client Component and only load it in the browser environment, you can use [`next/dynamic`](/docs/app/guides/lazy-loading#nextdynamic):
-
-```jsx
-import dynamic from 'next/dynamic'
-
-const ClientOnlyComponent = dynamic(() => import('./component'), {
-  ssr: false,
-})
-```
-
-This can be useful for third-party libraries that rely on browser APIs like `window` or `document`. You can also add a `useEffect` that checks for the existence of these APIs, and if they do not exist, return `null` or a loading state which would be prerendered.
-
-See the [live demo](https://next-spa-patterns.labs.vercel.dev/browser-only) and its [source code](https://github.com/vercel-labs/next-spa-patterns/tree/main/app/browser-only).
-
-### Shallow routing on the client
-
-If you are migrating from a strict SPA like [Create React App](/docs/app/guides/migrating/from-create-react-app) or [Vite](/docs/app/guides/migrating/from-vite), you might have existing code which shallow routes to update the URL state. This can be useful for manual transitions between views in your application _without_ using the default Next.js file-system routing.
-
-Next.js allows you to use the native [`window.history.pushState`](https://developer.mozilla.org/en-US/docs/Web/API/History/pushState) and [`window.history.replaceState`](https://developer.mozilla.org/en-US/docs/Web/API/History/replaceState) methods to update the browser's history stack without reloading the page.
-
-The `pushState` and `replaceState` calls integrate into the Next.js Router, allowing you to sync with [`usePathname`](/docs/app/api-reference/functions/use-pathname) and [`useSearchParams`](/docs/app/api-reference/functions/use-search-params).
-
-```tsx filename="app/ui/sort-products.tsx" switcher
+```tsx filename="app/activity/mark-read.tsx" switcher
 'use client'
 
-import { useSearchParams } from 'next/navigation'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { activityKeys } from './activity-query'
 
-export default function SortProducts() {
-  const searchParams = useSearchParams()
+export function useMarkActivityRead() {
+  const queryClient = useQueryClient()
 
-  function updateSorting(sortOrder: string) {
-    const urlSearchParams = new URLSearchParams(searchParams.toString())
-    urlSearchParams.set('sort', sortOrder)
-    window.history.pushState(null, '', `?${urlSearchParams.toString()}`)
-  }
-
-  return (
-    <>
-      <button onClick={() => updateSorting('asc')}>Sort Ascending</button>
-      <button onClick={() => updateSorting('desc')}>Sort Descending</button>
-    </>
-  )
+  return useMutation({
+    mutationFn: () => fetch('/api/activity/read', { method: 'POST' }),
+    // Update the badge immediately, before the request resolves.
+    onMutate: () => queryClient.setQueryData(activityKeys.unread, { count: 0 }),
+  })
 }
 ```
 
-```jsx filename="app/ui/sort-products.js" switcher
+```jsx filename="app/activity/mark-read.js" switcher
 'use client'
 
-import { useSearchParams } from 'next/navigation'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { activityKeys } from './activity-query'
 
-export default function SortProducts() {
-  const searchParams = useSearchParams()
+export function useMarkActivityRead() {
+  const queryClient = useQueryClient()
 
-  function updateSorting(sortOrder) {
-    const urlSearchParams = new URLSearchParams(searchParams.toString())
-    urlSearchParams.set('sort', sortOrder)
-    window.history.pushState(null, '', `?${urlSearchParams.toString()}`)
-  }
-
-  return (
-    <>
-      <button onClick={() => updateSorting('asc')}>Sort Ascending</button>
-      <button onClick={() => updateSorting('desc')}>Sort Descending</button>
-    </>
-  )
+  return useMutation({
+    mutationFn: () => fetch('/api/activity/read', { method: 'POST' }),
+    // Update the badge immediately, before the request resolves.
+    onMutate: () => queryClient.setQueryData(activityKeys.unread, { count: 0 }),
+  })
 }
 ```
 
-Learn more about how [routing and navigation](/docs/app/getting-started/linking-and-navigating#how-navigation-works) work in Next.js.
-
-See the [live demo](https://next-spa-patterns.labs.vercel.dev/shallow-routing) and its [source code](https://github.com/vercel-labs/next-spa-patterns/tree/main/app/shallow-routing).
-
-### Mutating data with Server Actions
-
-The sections above seed client-side data-fetching libraries from the server, which handle reads. Interactivity means writing data, and that usually happens outside those libraries: a Client Component calls a [Server Action](/docs/app/guides/server-actions) to run the mutation on the server. If you already use SWR or TanStack Query, you can instead write through an API route and revalidate with SWR's [`mutate`](https://swr.vercel.app/docs/mutation) or TanStack Query's [`invalidateQueries`](https://tanstack.com/query/latest/docs/framework/react/guides/invalidations-from-mutations). The rest of this section uses Server Actions directly.
-
-A Server Action takes time and can fail. React has useful tools to keep the UI responsive while it runs, so a mutation can feel as instant as a client-rendered SPA: [transitions](https://react.dev/reference/react/useTransition), [`useOptimistic`](https://react.dev/reference/react/useOptimistic), [`useActionState`](https://react.dev/reference/react/useActionState), and [`useFormStatus`](https://react.dev/reference/react-dom/hooks/useFormStatus).
-
-At its simplest, a Client Component calls a Server Action inside a transition and uses the pending state for feedback:
-
-```tsx filename="app/delete-post.tsx" switcher
-'use client'
-
-import { useTransition } from 'react'
-import { deletePost } from './actions'
-
-export function DeletePost({ id }: { id: string }) {
-  const [isPending, startTransition] = useTransition()
-
-  return (
-    <button
-      disabled={isPending}
-      onClick={() => startTransition(() => deletePost(id))}
-    >
-      {isPending ? 'Deleting…' : 'Delete'}
-    </button>
-  )
-}
-```
-
-```jsx filename="app/delete-post.js" switcher
-'use client'
-
-import { useTransition } from 'react'
-import { deletePost } from './actions'
-
-export function DeletePost({ id }) {
-  const [isPending, startTransition] = useTransition()
-
-  return (
-    <button
-      disabled={isPending}
-      onClick={() => startTransition(() => deletePost(id))}
-    >
-      {isPending ? 'Deleting…' : 'Delete'}
-    </button>
-  )
-}
-```
-
-For list-like state where each change should appear instantly, you can combine `useActionState` with `useOptimistic`. The example below is a to-do list: a pure reducer defines how each action changes the list, so the client and server share one copy of that logic:
-
-```ts filename="app/reducer.ts" switcher
-export type Todo = { id: string; text: string; done: boolean }
-
-export type TodoAction =
-  | { type: 'add'; id: string; text: string }
-  | { type: 'toggle'; id: string }
-  | { type: 'edit'; id: string; text: string }
-  | { type: 'delete'; id: string }
-
-export function applyAction(todos: Todo[], action: TodoAction): Todo[] {
-  switch (action.type) {
-    case 'add':
-      return [...todos, { id: action.id, text: action.text, done: false }]
-    case 'toggle':
-      return todos.map((todo) =>
-        todo.id === action.id ? { ...todo, done: !todo.done } : todo
-      )
-    case 'edit':
-      return todos.map((todo) =>
-        todo.id === action.id ? { ...todo, text: action.text } : todo
-      )
-    case 'delete':
-      return todos.filter((todo) => todo.id !== action.id)
-    default:
-      return todos
-  }
-}
-```
-
-```js filename="app/reducer.js" switcher
-export function applyAction(todos, action) {
-  switch (action.type) {
-    case 'add':
-      return [...todos, { id: action.id, text: action.text, done: false }]
-    case 'toggle':
-      return todos.map((todo) =>
-        todo.id === action.id ? { ...todo, done: !todo.done } : todo
-      )
-    case 'edit':
-      return todos.map((todo) =>
-        todo.id === action.id ? { ...todo, text: action.text } : todo
-      )
-    case 'delete':
-      return todos.filter((todo) => todo.id !== action.id)
-    default:
-      return todos
-  }
-}
-```
-
-The Server Action applies the reducer, persists the result, and returns the next list:
-
-```ts filename="app/actions.ts" switcher
-'use server'
-
-import { db } from './db'
-import { applyAction, type Todo, type TodoAction } from './reducer'
-
-export async function todosReducer(
-  todos: Todo[],
-  action: TodoAction
-): Promise<Todo[]> {
-  const next = applyAction(todos, action)
-  await db.saveTodos(next)
-  return next
-}
-```
-
-```js filename="app/actions.js" switcher
-'use server'
-
-import { db } from './db'
-import { applyAction } from './reducer'
-
-export async function todosReducer(todos, action) {
-  const next = applyAction(todos, action)
-  await db.saveTodos(next)
-  return next
-}
-```
-
-The client passes the same reducer to `useOptimistic`, so the optimistic update and the server compute the next state identically. A `runAction` helper applies the optimistic change and dispatches the Server Action in the same transition, so every change shows immediately:
-
-```tsx filename="app/todo-list.tsx" switcher
-'use client'
-
-import { useActionState, useOptimistic, startTransition } from 'react'
-import { todosReducer } from './actions'
-import { applyAction, type Todo, type TodoAction } from './reducer'
-
-export function TodoList({ initialTodos }: { initialTodos: Todo[] }) {
-  const [todos, dispatch, isPending] = useActionState(
-    todosReducer,
-    initialTodos
-  )
-  const [optimisticTodos, addOptimistic] = useOptimistic(todos, applyAction)
-
-  function runAction(action: TodoAction) {
-    startTransition(() => {
-      addOptimistic(action)
-      dispatch(action)
-    })
-  }
-
-  return (
-    <>
-      <form
-        action={(formData) =>
-          runAction({
-            type: 'add',
-            id: crypto.randomUUID(),
-            text: String(formData.get('text')),
-          })
-        }
-      >
-        <input name="text" />
-        <button>Add</button>
-      </form>
-      <ul>
-        {optimisticTodos.map((todo) => (
-          <li key={todo.id}>
-            <input
-              type="checkbox"
-              checked={todo.done}
-              onChange={() => runAction({ type: 'toggle', id: todo.id })}
-            />
-            <span
-              style={{ textDecoration: todo.done ? 'line-through' : 'none' }}
-            >
-              {todo.text}
-            </span>
-            <button onClick={() => runAction({ type: 'delete', id: todo.id })}>
-              Delete
-            </button>
-          </li>
-        ))}
-      </ul>
-      {isPending && <p>Syncing to server…</p>}
-    </>
-  )
-}
-```
-
-```jsx filename="app/todo-list.js" switcher
-'use client'
-
-import { useActionState, useOptimistic, startTransition } from 'react'
-import { todosReducer } from './actions'
-import { applyAction } from './reducer'
-
-export function TodoList({ initialTodos }) {
-  const [todos, dispatch, isPending] = useActionState(
-    todosReducer,
-    initialTodos
-  )
-  const [optimisticTodos, addOptimistic] = useOptimistic(todos, applyAction)
-
-  function runAction(action) {
-    startTransition(() => {
-      addOptimistic(action)
-      dispatch(action)
-    })
-  }
-
-  return (
-    <>
-      <form
-        action={(formData) =>
-          runAction({
-            type: 'add',
-            id: crypto.randomUUID(),
-            text: String(formData.get('text')),
-          })
-        }
-      >
-        <input name="text" />
-        <button>Add</button>
-      </form>
-      <ul>
-        {optimisticTodos.map((todo) => (
-          <li key={todo.id}>
-            <input
-              type="checkbox"
-              checked={todo.done}
-              onChange={() => runAction({ type: 'toggle', id: todo.id })}
-            />
-            <span
-              style={{ textDecoration: todo.done ? 'line-through' : 'none' }}
-            >
-              {todo.text}
-            </span>
-            <button onClick={() => runAction({ type: 'delete', id: todo.id })}>
-              Delete
-            </button>
-          </li>
-        ))}
-      </ul>
-      {isPending && <p>Syncing to server…</p>}
-    </>
-  )
-}
-```
-
-The optimistic update shows instantly, while `useActionState`'s pending flag lets you display a subtle indicator (such as `Syncing to server…`) until the Server Action resolves.
-
-See the [live demo](https://next-spa-patterns.labs.vercel.dev/mutations) and its [source code](https://github.com/vercel-labs/next-spa-patterns/tree/main/app/mutations).
-
-To learn more about adding interactivity on top of server-rendered apps so they feel like SPAs, see the [Building interactive apps](/docs/app/guides/interactive-apps) guide and its runnable demo.
+See the [live demo](https://next-spa-patterns.labs.vercel.dev/react-query) and its [source code](https://github.com/vercel-labs/next-spa-patterns/tree/main/app/react-query), and the [TanStack Query docs](https://tanstack.com/query/latest/docs/framework/react/overview) for more on fetching and mutations.
 
 ## Static export (optional)
 
