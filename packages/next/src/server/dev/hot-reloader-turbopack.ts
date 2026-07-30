@@ -973,7 +973,10 @@ export async function createHotReloaderTurbopack(
     }
   }
 
-  async function unsubscribeFromClientChanges(key: EntryKey) {
+  async function unsubscribeFromClientChanges(
+    key: EntryKey,
+    preserveIssues = false
+  ) {
     const subscriptionPromise = changeSubscriptions.get(key)
     if (subscriptionPromise) {
       // Remove this before awaiting so a request that reactivates the route can
@@ -982,7 +985,9 @@ export async function createHotReloaderTurbopack(
       const subscription = await subscriptionPromise
       await subscription.return?.()
     }
-    currentEntryIssues.delete(key)
+    if (!preserveIssues) {
+      currentEntryIssues.delete(key)
+    }
   }
 
   const maxInactiveAge = nextConfig.onDemandEntries?.maxInactiveAge ?? 60 * 1000
@@ -1019,7 +1024,7 @@ export async function createHotReloaderTurbopack(
     }
   }
 
-  async function markRouteChangeSubscriptionActive(key: EntryKey) {
+  function markRouteChangeSubscriptionRecentlyActive(key: EntryKey) {
     routeChangeSubscriptionLastActive.set(key, Date.now())
 
     const previousIndex = recentRouteChangeSubscriptions.indexOf(key)
@@ -1030,10 +1035,20 @@ export async function createHotReloaderTurbopack(
     if (recentRouteChangeSubscriptions.length > pagesBufferLength) {
       recentRouteChangeSubscriptions.length = pagesBufferLength
     }
+  }
+
+  async function markRouteChangeSubscriptionActive(key: EntryKey) {
+    markRouteChangeSubscriptionRecentlyActive(key)
 
     // If cleanup raced with a request for this route, let the old iterator fully
-    // stop before handleRouteType installs its replacement.
-    await routeChangeSubscriptionDisposals.get(key)
+    // stop before handleRouteType installs its replacement. A failed iterator
+    // shutdown must not turn a later page request or ping into an unhandled
+    // rejection; reactivation is idempotent and can safely retry below.
+    try {
+      await routeChangeSubscriptionDisposals.get(key)
+    } catch (error) {
+      console.error('Failed to retire route HMR subscription:', error)
+    }
     const wasInactive = inactiveRouteChangeSubscriptions.has(key)
     if (wasInactive) {
       await setRouteHmrChunksActive([key], true)
@@ -1078,7 +1093,9 @@ export async function createHotReloaderTurbopack(
       // idempotent reactivation, while clearing it could leave a retired graph
       // incorrectly recorded as active.
       await setRouteHmrChunksActive(keys, false)
-      await Promise.all(keys.map(unsubscribeFromClientChanges))
+      await Promise.all(
+        keys.map((key) => unsubscribeFromClientChanges(key, true))
+      )
     })()
     for (const key of keys) {
       routeChangeSubscriptionDisposals.set(key, disposal)
@@ -1694,17 +1711,17 @@ export async function createHotReloaderTurbopack(
                   parsedData.tree
                 )
                 activeRouteSubscriptionsByClient.set(client, activeEntryKeys)
-                const reactivated = await Promise.all(
-                  Array.from(activeEntryKeys, (key) =>
-                    routeChangeSubscriptionLastActive.has(key)
-                      ? markRouteChangeSubscriptionActive(key)
-                      : undefined
-                  )
-                )
-                if (reactivated.some(Boolean)) {
+                let hasInactiveEntry = false
+                for (const key of activeEntryKeys) {
+                  if (!routeChangeSubscriptionLastActive.has(key)) continue
+                  markRouteChangeSubscriptionRecentlyActive(key)
+                  hasInactiveEntry ||= inactiveRouteChangeSubscriptions.has(key)
+                }
+                if (hasInactiveEntry) {
                   // A cached client navigation can update its router tree without
-                  // an RSC request. Refresh that client so ensurePage writes and
-                  // reconnects every output operation that was retired.
+                  // an RSC request. Keep the endpoint retired until that refresh
+                  // reaches ensurePage, so a failed or abandoned refresh cannot
+                  // leave a sticky catch-up marker behind.
                   sendToClient(client, {
                     type: HMR_MESSAGE_SENT_TO_BROWSER.SERVER_COMPONENT_CHANGES,
                   })
@@ -2173,16 +2190,6 @@ export async function createHotReloaderTurbopack(
                   const didChange = clearRequireCache(id, result, {
                     force: forceDeleteCache,
                   })
-                  if (
-                    didChange &&
-                    reactivatedRouteChangeSubscription &&
-                    !forceDeleteCache
-                  ) {
-                    // This route missed in-place server HMR while its graph was
-                    // disconnected. Only reload its runtime module cache when
-                    // Turbopack reports that the server output actually changed.
-                    clearRequireCache(id, result, { force: true })
-                  }
                   // While this route was inactive there was no subscription to
                   // advance the dev cache version. Do it when the route is next
                   // requested and Turbopack reports changed server output.
