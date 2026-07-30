@@ -699,7 +699,10 @@ impl ModuleReference for EsmAssetReference {
         )
         .await?;
 
-        if let Some(ModulePart::Export(export_name)) = &self.export_name {
+        if let Some(ModulePart::Export {
+            name: export_name, ..
+        }) = &self.export_name
+        {
             for &module in result.await?.primary_modules().await?.iter() {
                 if let Some(module) = ResolvedVc::try_downcast(module)
                     && *is_export_missing(*module, export_name.clone()).await?
@@ -737,7 +740,11 @@ impl ModuleReference for EsmAssetReference {
         BindingUsage {
             import: self.import_usage.clone(),
             export: match &self.export_name {
-                Some(ModulePart::Export(export_name)) => ExportUsage::Named(export_name.clone()),
+                Some(ModulePart::Export { name, member: None }) => ExportUsage::Named(name.clone()),
+                Some(ModulePart::Export {
+                    name,
+                    member: Some(_),
+                }) => ExportUsage::PartialNamespaceObject(std::iter::once(name.clone()).collect()),
                 Some(ModulePart::Evaluation) => ExportUsage::Evaluation,
                 _ => ExportUsage::All,
             },
@@ -828,7 +835,7 @@ impl EsmAssetReference {
                             .get_ident(
                                 chunking_context,
                                 this.export_name.as_ref().and_then(|e| match e {
-                                    ModulePart::Export(export_name) => Some(export_name.clone()),
+                                    ModulePart::Export { name, .. } => Some(name.clone()),
                                     _ => None,
                                 }),
                                 scope_hoisting_context,

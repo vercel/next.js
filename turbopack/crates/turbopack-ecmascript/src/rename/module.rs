@@ -82,14 +82,14 @@ impl EcmascriptModuleRenameModule {
 impl EcmascriptModuleRenameModule {
     pub async fn module_reference(&self) -> Result<ResolvedVc<EcmascriptModulePartReference>> {
         match &self.part {
-            ModulePart::RenamedNamespace { .. } => {
-                EcmascriptModulePartReference::new_normal(
-                    *self.module,
-                    self.part.clone(),
-                    ExportUsage::all(),
-                )
-                .to_resolved()
-                .await
+            ModulePart::RenamedNamespace { member, .. } => {
+                let usage = match member {
+                    Some(member) => ExportUsage::partial_namespace_object(vec![member.clone()]),
+                    None => ExportUsage::all(),
+                };
+                EcmascriptModulePartReference::new_normal(*self.module, self.part.clone(), usage)
+                    .to_resolved()
+                    .await
             }
             ModulePart::RenamedExport {
                 original_export, ..
@@ -226,7 +226,7 @@ impl EcmascriptChunkPlaceable for EcmascriptModuleRenameModule {
                     false,
                 ),
             ),
-            ModulePart::RenamedNamespace { export } => (
+            ModulePart::RenamedNamespace { export, .. } => (
                 export.clone(),
                 EsmExport::ImportedNamespace(ResolvedVc::upcast(reference)),
             ),

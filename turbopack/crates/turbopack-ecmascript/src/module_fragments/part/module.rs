@@ -158,12 +158,15 @@ impl EcmascriptModulePartAsset {
                 ));
             }
 
-            ModulePart::Export(export) => {
+            ModulePart::Export { name: export, .. } => {
                 if entrypoints.contains_key(&Key::Export(export.clone())) {
                     return Ok(Vc::upcast(
                         EcmascriptModulePartAsset::new_with_resolved_part(
                             module,
-                            ModulePart::Export(export),
+                            ModulePart::Export {
+                                name: export,
+                                member: None,
+                            },
                         ),
                     ));
                 }
@@ -205,7 +208,10 @@ impl EcmascriptModulePartAsset {
                 }
                 let side_effects_module = SideEffectsModule::new(
                     module,
-                    ModulePart::Export(export),
+                    ModulePart::Export {
+                        name: export,
+                        member: None,
+                    },
                     *final_module,
                     side_effects.iter().map(|v| **v).collect(),
                 );
@@ -306,7 +312,7 @@ impl Module for EcmascriptModulePartAsset {
     async fn references(&self) -> Result<Vc<ModuleReferences>> {
         let part_dep = |part: ModulePart| -> Vc<Box<dyn ModuleReference>> {
             let export = match &part {
-                ModulePart::Export(export) => ExportUsage::named(export.clone()),
+                ModulePart::Export { name, .. } => ExportUsage::named(name.clone()),
                 ModulePart::Evaluation => ExportUsage::evaluation(),
                 _ => ExportUsage::all(),
             };
@@ -337,7 +343,7 @@ impl Module for EcmascriptModulePartAsset {
     #[turbo_tasks::function]
     async fn side_effects(&self) -> Vc<ModuleSideEffects> {
         match self.part {
-            ModulePart::Exports | ModulePart::Export(..) => {
+            ModulePart::Exports | ModulePart::Export { .. } => {
                 ModuleSideEffects::SideEffectFree.cell()
             }
             _ => self.full_module.side_effects(),
